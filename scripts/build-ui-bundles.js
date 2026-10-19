@@ -9,6 +9,7 @@ const desktopMainParts = [
   'ui/js/shared/browser-audio-lease.js',
   'ui/js/desktop/core/desktop-foundation.js',
   'ui/js/desktop/core/theme-runtime.js',
+  'ui/js/desktop/core/window-effects-runtime.js',
   'ui/js/desktop/core/cursor-runtime.js',
   'ui/js/desktop/core/sound-runtime.js',
   'ui/js/desktop/core/screensaver-runtime.js',
@@ -132,14 +133,22 @@ const jsBundles = [
       'ui/js/desktop/sound/theme-analog.js',
       'ui/js/desktop/sound/theme-workshop.js',
       'ui/js/desktop/sound/theme-water.js',
-      'ui/js/desktop/sound/theme-desktop.js'
+      'ui/js/desktop/sound/theme-desktop.js',
+      'ui/js/desktop/sound/theme-electronic-dreams.js',
+      'ui/js/desktop/sound/theme-windows-xp.js',
+      'ui/js/desktop/sound/theme-green-slime.js',
+      'ui/js/desktop/sound/theme-voxel-world.js'
     ]
   },
   {
     out: 'ui/js/desktop/bundles/desktop-theme-fx.bundle.js',
     parts: [
       'ui/js/desktop/theme-fx/fx-core.js',
-      'ui/js/desktop/theme-fx/crazy.js'
+      'ui/js/desktop/theme-fx/crazy.js',
+      'ui/js/desktop/theme-fx/electronic_dreams.js',
+      'ui/js/desktop/theme-fx/green_slime.js',
+      'ui/js/desktop/theme-fx/voxel-graphics.js',
+      'ui/js/desktop/theme-fx/voxel_world.js'
     ]
   },
   {
@@ -193,12 +202,17 @@ const cssBundles = [
       'ui/css/desktop-sip-phone-shell.css',
       'ui/css/desktop-chrome.css',
       'ui/css/desktop-wallpaper-live.css',
+      'ui/css/desktop-wallpaper-themes.css',
       'ui/css/desktop-theme-amiga.css',
       'ui/css/desktop-theme-cyberpunk.css',
       'ui/css/desktop-theme-black-gloss.css',
       'ui/css/desktop-theme-crazy.css',
       'ui/css/desktop-theme-lollipop.css',
       'ui/css/desktop-theme-organic.css',
+      'ui/css/desktop-theme-electronic-dreams.css',
+      'ui/css/desktop-theme-windows-xp.css',
+      'ui/css/desktop-theme-green-slime.css',
+      'ui/css/desktop-theme-voxel-world.css',
       'ui/css/desktop-cursors.css',
       'ui/css/desktop-polish.css'
     ]

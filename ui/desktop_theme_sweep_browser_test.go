@@ -16,6 +16,7 @@ import (
 	"aurago/internal/desktop"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
+	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -35,6 +36,7 @@ var themeSweepSeam = []string{
 	"state", "api", "openApp", "closeWindow", "focusWindow", "applyDesktopSettings", "refreshSpacesForViewport",
 	"renderIcons", "renderStartApps", "renderStartButtonIcon", "renderTaskbar",
 	"desktopThemes", "desktopThemeById", "currentDesktopTheme", "settingValue",
+	"applyWindowSnap", "toggleMaximizeWindow", "minimizeWindow", "switchSpace", "modalDialog",
 }
 
 // themeSweepWideMinWidth is the first viewport width that is not a compact layout.
@@ -330,10 +332,14 @@ type themeSweepSession struct {
 // prefers-reduced-motion value ("reduce" or "no-preference"): the OS animation setting changes the headless
 // default, so the media feature is always pinned.
 func newThemeSweepSession(t *testing.T, reducedMotion string) *themeSweepSession {
+	return newThemeSweepSessionWithBrowser(t, reducedMotion, nil)
+}
+
+func newThemeSweepSessionWithBrowser(t *testing.T, reducedMotion string, tweak func(*launcher.Launcher)) *themeSweepSession {
 	t.Helper()
 	requirePrecisionBrowserSmoke(t)
 	server := newThemeSweepServer(t)
-	page := newSmokeBrowserWith(t, nil).MustPage()
+	page := newSmokeBrowserWith(t, tweak).MustPage()
 	t.Cleanup(func() { _ = page.Close() })
 	s := &themeSweepSession{page: page, store: server.store}
 	if err := (proto.RuntimeEnable{}).Call(page); err != nil {
@@ -394,6 +400,7 @@ func (s *themeSweepSession) pageState() string {
 		storedTheme: window.auditTest ? auditTest.settingValue('appearance.theme') : null,
 		fxHost: typeof window.AuraDesktopThemeFx, fxActive: window.AuraDesktopThemeFx ? AuraDesktopThemeFx.activeId() : null,
 		fxLayers: document.querySelectorAll('.vd-theme-fx-layer').length,
+		fx: window.AuraDesktopThemeFx?.inspect?.(),
 		reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
 		windows: window.auditTest ? [...auditTest.state.windows.values()].map(w => w.appId) : null,
 		errors: window.fixtureErrors,

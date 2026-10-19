@@ -1033,6 +1033,53 @@
         if (menu) menu.classList.toggle('vd-start-searching', !!state.startQuery.trim());
         renderStartRail(model, active);
         renderStartPane(model, active, options);
+        renderStartMenuVariant();
+    }
+
+    function renderStartMenuVariant() {
+        const menu = $('vd-start-menu');
+        if (!menu) return;
+        const xp = currentDesktopTheme().startMenu === 'xp';
+        const startButton = $('vd-start-button');
+        if (!xp) {
+            menu.querySelector('.vd-start-xp-header')?.remove();
+            menu.querySelector('.vd-start-xp-links')?.remove();
+            startButton?.querySelector('.vd-start-xp-label')?.remove();
+            return;
+        }
+        if (startButton) {
+            let label = startButton.querySelector('.vd-start-xp-label');
+            if (!label) {
+                label = document.createElement('span');
+                label.className = 'vd-start-xp-label';
+                startButton.appendChild(label);
+            }
+            label.textContent = t('desktop.start_menu');
+        }
+        let header = menu.querySelector('.vd-start-xp-header');
+        if (!header) {
+            header = document.createElement('div');
+            header.className = 'vd-start-xp-header';
+            menu.prepend(header);
+        }
+        header.innerHTML = iconMarkup('computer', 'A', 'vd-start-xp-avatar', 36) + '<strong>AuraGo</strong>';
+        let links = menu.querySelector('.vd-start-xp-links');
+        if (!links) {
+            links = document.createElement('div');
+            links.className = 'vd-start-xp-links';
+            menu.querySelector('.vd-start-body').appendChild(links);
+        }
+        const shortcuts = [
+            ['files', 'Documents', 'folder', 'desktop.settings_folder_documents'],
+            ['files', 'Pictures', 'image', 'desktop.settings_folder_pictures'],
+            ['system-info', '', 'computer', 'desktop.app_system_info'],
+            ['settings', '', 'settings', 'desktop.app_settings']
+        ];
+        links.innerHTML = shortcuts.map(([app, folder, icon, key]) => `<button type="button" class="vd-start-xp-link" data-xp-app="${app}" data-xp-folder="${folder}">${iconMarkup(icon, '', '', 24)}<span>${esc(t(key))}</span></button>`).join('');
+        links.querySelectorAll('[data-xp-app]').forEach(button => button.addEventListener('click', () => {
+            closeStartMenu();
+            openApp(button.dataset.xpApp, button.dataset.xpFolder ? { path: button.dataset.xpFolder } : {});
+        }));
     }
 
     function renderTaskbar() {
@@ -1657,6 +1704,7 @@
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
         state.windows.set(id, { id, sessionKey: sessionRestore?.key || id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId, alwaysOnTop: !!(sessionRestore && sessionRestore.alwaysOnTop) });
         wireWindow(win, id);
+        emitDesktopWindowEffect('open', id, { silent: !!sessionRestore });
         animateThen(win, 'vd-window-opening', themeMotionMs('open'));
         if (!sessionRestore) desktopSound('window.open');
         if (sessionRestore && sessionRestore.maximized) toggleMaximizeWindow(id);

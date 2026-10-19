@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100">
+<defs><linearGradient id="goo" x2="0" y2="1"><stop stop-color="#9ecb4c"/><stop offset=".4" stop-color="#587a2d"/><stop offset="1" stop-color="#202c16"/></linearGradient><radialGradient id="shine" cx=".3" cy=".12" r=".9"><stop stop-color="#e6ffab" stop-opacity=".76"/><stop offset=".5" stop-color="#c7ef72" stop-opacity=".12"/><stop offset="1" stop-color="#96c744" stop-opacity="0"/></radialGradient></defs>
+<rect width="160" height="100" fill="#17200f"/><path d="M0 13Q17 1 32 12T63 10Q79 2 96 11T128 8Q145 1 160 12V92Q141 101 126 90T93 92Q76 101 57 91T25 94Q9 101 0 91Z" fill="url(#goo)" opacity=".76"/>
+<circle cx="15" cy="27" r="8" fill="#9fca47" opacity=".7"/><circle cx="17" cy="24" r="3" fill="#e6ffad" opacity=".9"/><circle cx="146" cy="67" r="10" fill="#86ad39" opacity=".7"/><circle cx="143" cy="63" r="4" fill="#e5ffa8" opacity=".85"/>
+<rect x="19" y="15" width="121" height="66" rx="13" fill="#0c1208" opacity=".45"/>
+<rect x="17" y="12" width="121" height="66" rx="14" fill="#29391c" stroke="#9ec74d" stroke-width="2"/>
+<path d="M19 24V24Q19 14 29 14h97q10 0 10 10v7H19z" fill="url(#goo)"/><path d="M25 14q8-6 16 0q8-6 16 0q8-5 17 0" fill="none" stroke="#e0ff9a" stroke-width="2" opacity=".5"/>
+<path d="M28 20h39" stroke="#f0ffd0" stroke-width="2" opacity=".82"/><circle cx="119" cy="20" r="4" fill="#a5d941" stroke="#d9f48f"/><circle cx="129" cy="20" r="4" fill="#c58b42" stroke="#ffe1a0"/>
+<rect x="26" y="37" width="37" height="32" rx="8" fill="#192512" stroke="#526b31"/><path d="M31 45h21m-21 6h25m-25 6h18" stroke="#95ae6f" stroke-width="2"/><path d="M73 39h52m-52 8h44m-44 8h48m-48 8h32" stroke="#60783d" stroke-width="2.4"/>
+<path d="M0 90q15-5 26 0t27 0q13-4 25 0t26 0q14-5 27 0t29 0" fill="none" stroke="#a5d941" stroke-width="2" opacity=".8"/><rect y="92" width="160" height="8" fill="#26351a"/><rect x="6" y="94" width="27" height="4" rx="2" fill="#698b37"/><rect x="39" y="94" width="25" height="4" rx="2" fill="#40582a"/><circle cx="145" cy="96" r="2" fill="#c6e968"/>
+<rect width="160" height="100" fill="url(#shine)"/>
+</svg>

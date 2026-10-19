@@ -4,13 +4,16 @@
     const EVENT_CATEGORY = {
         'window.open': 'windows', 'window.close': 'windows', 'window.minimize': 'windows',
         'window.restore': 'windows', 'window.maximize': 'windows', 'window.snap': 'windows', 'window.deny': 'windows',
+        'window.fracture': 'windows', 'window.impact': 'windows',
         'notify.info': 'notifications', 'notify.message': 'notifications', 'notify.error': 'notifications',
         'menu.open': 'navigation', 'menu.close': 'navigation', 'space.switch': 'navigation',
         'dialog.open': 'files', 'dialog.confirm': 'files', 'dialog.cancel': 'files',
         'file.trash': 'files', 'file.delete': 'files', 'file.drop': 'files'
     };
 
-    const THEME_IDS = ['crystal', 'wood', 'analog', 'workshop', 'water', 'amiga', 'cyberpunk', 'black_gloss', 'crazy', 'lollipop', 'organic'];
+    const THEME_IDS = ['crystal', 'wood', 'analog', 'workshop', 'water', 'amiga', 'cyberpunk', 'black_gloss', 'crazy', 'lollipop', 'organic', 'electronic_dreams', 'windows_xp', 'green_slime', 'voxel_world'];
+    const VOXEL_FX_EVENTS = new Set(['window.fracture', 'window.impact']);
+    const VOXEL_FX_MATERIALS = new Set(['wood', 'stone', 'earth']);
     let actx = null;
     let master = null;
     let compressor = null;
@@ -24,6 +27,10 @@
     let notifyBurst = { at: 0, played: false };
     let soundEpoch = 0;
     let previewEpoch = 0;
+    let voxelFxTimer = null;
+    let voxelFxQueue = new Map();
+    let voxelFxBuffers = { theme: '', buffers: {} };
+    const pendingVoxelFxRenders = new Map();
     let observedSettings = '';
     const pendingRenders = new Map();
     const voices = new Set();
@@ -89,6 +96,8 @@
             previewEpoch++;
             window.DesktopSoundsPreviewActive = false;
             stopVoices();
+            cancelVoxelFx();
+            invalidateVoxelFxBuffers();
             if (!soundsEnabled()) closeSoundContext();
         }
         observedSettings = signature;
@@ -113,10 +122,23 @@
         voices.clear();
     }
 
+    function cancelVoxelFx() {
+        if (voxelFxTimer !== null) clearTimeout(voxelFxTimer);
+        voxelFxTimer = null;
+        voxelFxQueue.clear();
+    }
+
+    function invalidateVoxelFxBuffers() {
+        voxelFxBuffers = { theme: '', buffers: {} };
+        pendingVoxelFxRenders.clear();
+    }
+
     async function closeSoundContext() {
         soundEpoch++;
         previewEpoch++;
         window.DesktopSoundsPreviewActive = false;
+        cancelVoxelFx();
+        invalidateVoxelFxBuffers();
         stopVoices();
         const closing = actx;
         if (master) master.gain.value = 0;
@@ -208,6 +230,65 @@
         return false;
     }
 
+    function cleanVoxelFxOptions(options) {
+        const rawStrength = options && Number(options.strength);
+        const rawPan = options && Number(options.pan);
+        const strength = Number.isFinite(rawStrength) ? Math.min(1, Math.max(0, rawStrength)) : 0.5;
+        return {
+            material: VOXEL_FX_MATERIALS.has(options && options.material) ? options.material : 'stone',
+            strength,
+            pan: Number.isFinite(rawPan) ? Math.min(1, Math.max(-1, rawPan)) : 0
+        };
+    }
+
+    function queueVoxelFx(eventId, options) {
+        if (options.preview || options.silent || document.hidden || !soundsEnabled() || !unlocked ||
+            !categoryEnabled('windows') || currentThemeId() !== 'voxel_world' ||
+            (typeof state !== 'undefined' && state.sessionRestoring)) return false;
+        const next = cleanVoxelFxOptions(options);
+        if (next.strength <= 0) return false;
+        const previous = voxelFxQueue.get(eventId);
+        if (previous) {
+            const total = previous.strength + next.strength;
+            const stronger = next.strength >= previous.strength ? next : previous;
+            previous.pan = total ? ((previous.pan * previous.strength) + (next.pan * next.strength)) / total : 0;
+            previous.strength = Math.min(1, Math.sqrt(previous.strength * previous.strength + next.strength * next.strength));
+            previous.material = stronger.material;
+        } else voxelFxQueue.set(eventId, next);
+        if (voxelFxTimer === null) {
+            voxelFxTimer = setTimeout(() => {
+                const queued = Array.from(voxelFxQueue.entries());
+                voxelFxQueue.clear();
+                voxelFxTimer = null;
+                queued.forEach(([queuedEvent, queuedOptions]) => {
+                    desktopSound(queuedEvent, Object.assign({}, queuedOptions, { voxelCoalesced: true }));
+                });
+            }, 32);
+        }
+        return true;
+    }
+
+    async function ensureVoxelFxBuffer(themeId, eventId, material, epoch) {
+        const theme = (window.DesktopSoundThemes || {})[themeId];
+        const layers = theme && theme.specialFx && theme.specialFx[eventId] && theme.specialFx[eventId][material];
+        if (!Array.isArray(layers) || !layers.length) return null;
+        if (voxelFxBuffers.theme !== themeId) voxelFxBuffers = { theme: themeId, buffers: {} };
+        const cacheKey = eventId + ':' + material;
+        if (voxelFxBuffers.buffers[cacheKey]) return voxelFxBuffers.buffers[cacheKey];
+        const pendingKey = [epoch, themeId, cacheKey].join(':');
+        if (pendingVoxelFxRenders.has(pendingKey)) return pendingVoxelFxRenders.get(pendingKey);
+        const synth = window.DesktopSoundSynth;
+        const pending = synth.renderLayers(layers, 0.7).then(rendered => {
+            if (epoch !== soundEpoch || document.hidden || currentThemeId() !== themeId) return null;
+            if (voxelFxBuffers.theme !== themeId) voxelFxBuffers = { theme: themeId, buffers: {} };
+            voxelFxBuffers.buffers[cacheKey] = rendered.buffer;
+            stats.renders++;
+            return rendered.buffer;
+        }).finally(() => pendingVoxelFxRenders.delete(pendingKey));
+        pendingVoxelFxRenders.set(pendingKey, pending);
+        return pending;
+    }
+
     function playBuffer(buffer, category, options) {
         const ctx = ensureContext(true);
         if (!ctx || !buffer || !master) return false;
@@ -221,9 +302,15 @@
         const jitterGain = Math.pow(10, ((Math.random() * 3) - 1.5) / 20);
         g.gain.value = (options && options.gain != null ? options.gain : 1) * jitterGain;
         src.connect(g);
-        g.connect(dest);
+        let panner = null;
+        if (options && Number.isFinite(options.pan) && typeof ctx.createStereoPanner === 'function') {
+            panner = ctx.createStereoPanner();
+            panner.pan.value = Math.min(1, Math.max(-1, options.pan));
+            g.connect(panner);
+            panner.connect(dest);
+        } else g.connect(dest);
         voices.add(src);
-        src.onended = () => { voices.delete(src); src.disconnect(); g.disconnect(); };
+        src.onended = () => { voices.delete(src); src.disconnect(); g.disconnect(); if (panner) panner.disconnect(); };
         src.start();
         stats.plays++;
         stats.lastEvent = options && options.event || '';
@@ -232,6 +319,7 @@
 
     async function desktopSound(eventId, options) {
         options = options || {};
+        if (VOXEL_FX_EVENTS.has(eventId) && !options.voxelCoalesced) return queueVoxelFx(eventId, options);
         if (options.silent || document.hidden) return;
         if (options.sessionRestore || (typeof state !== 'undefined' && state.sessionRestoring)) return;
         if (!soundsEnabled() && !options.preview) return;
@@ -245,20 +333,33 @@
         const epoch = soundEpoch;
         try {
             const themeId = options.theme ? resolveThemeId(options.theme) : currentThemeId();
-            const rendered = await ensureBuffers(themeId);
+            const voxelFx = VOXEL_FX_EVENTS.has(eventId);
+            if (voxelFx && (options.preview || themeId !== 'voxel_world')) return false;
+            const fxOptions = voxelFx ? cleanVoxelFxOptions(options) : null;
+            if (voxelFx && fxOptions.strength <= 0) return false;
+            // FX has its own small material bank. Avoid rendering all 19 ordinary
+            // events just to play a single fracture or impact on first use.
+            if (voxelFx) await loadSoundBundle();
+            const rendered = voxelFx ? null : await ensureBuffers(themeId);
             if (epoch !== soundEpoch || document.hidden || (typeof state !== 'undefined' && state.sessionRestoring)) return;
             if (!categoryEnabled(category)) return;
             if (options.preview) {
                 if (options.previewToken !== previewEpoch || !window.DesktopSoundsPreviewActive) return;
             } else if (!soundsEnabled() || !unlocked || themeId !== currentThemeId()) return;
-            const buffer = rendered.buffers[eventId] || rendered.buffers['notify.info'];
+            const buffer = voxelFx
+                ? await ensureVoxelFxBuffer(themeId, eventId, fxOptions.material, epoch)
+                : (rendered.buffers[eventId] || rendered.buffers['notify.info']);
+            if (epoch !== soundEpoch || !buffer || document.hidden || (!options.preview && currentThemeId() !== themeId)) return;
             if (!buffer) return;
-            const meta = rendered.stats[eventId] || {};
+            const meta = rendered && rendered.stats[eventId] || {};
             stats.lastPeak = meta.peak || 0;
             stats.lastRms = meta.rms || 0;
-            playBuffer(buffer, category, { event: eventId, gain: options.gain });
+            const gain = voxelFx ? Math.pow(fxOptions.strength, 0.72) * 0.86 : options.gain;
+            playBuffer(buffer, category, { event: eventId, gain, pan: voxelFx ? fxOptions.pan : undefined });
+            return true;
         } catch (e) {
             console.warn('Desktop sound failed', eventId, e);
+            return false;
         }
     }
 
@@ -266,6 +367,8 @@
         syncDesktopSoundSettings();
         const token = ++previewEpoch;
         soundEpoch++;
+        cancelVoxelFx();
+        invalidateVoxelFxBuffers();
         stopVoices();
         window.DesktopSoundsPreviewActive = true;
         try {
@@ -324,6 +427,8 @@
             soundEpoch++;
             previewEpoch++;
             window.DesktopSoundsPreviewActive = false;
+            cancelVoxelFx();
+            invalidateVoxelFxBuffers();
             stopVoices();
             if (!soundsEnabled()) closeSoundContext();
         }

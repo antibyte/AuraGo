@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><defs>
+<linearGradient id="pane" x2="0" y2="1"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#b9d5ed"/></linearGradient>
+<linearGradient id="blue" x2="0" y2="1"><stop stop-color="#69b9f4"/><stop offset=".48" stop-color="#287cce"/><stop offset="1" stop-color="#15559f"/></linearGradient>
+<linearGradient id="green" x2="0" y2="1"><stop stop-color="#b9eb74"/><stop offset="1" stop-color="#4c9a3d"/></linearGradient>
+<linearGradient id="folder" x2="0" y2="1"><stop stop-color="#ffe880"/><stop offset="1" stop-color="#eba827"/></linearGradient>
+<linearGradient id="gold" x2="0" y2="1"><stop stop-color="#ffe58a"/><stop offset="1" stop-color="#db9823"/></linearGradient>
+<linearGradient id="silver" x2="0" y2="1"><stop stop-color="#f8fbfe"/><stop offset="1" stop-color="#9eb3c7"/></linearGradient>
+<linearGradient id="glass" x2="0" y2="1"><stop stop-color="#ecfcff" stop-opacity=".9"/><stop offset="1" stop-color="#8bc1d6" stop-opacity=".62"/></linearGradient>
+<linearGradient id="screen" x2="0" y2="1"><stop stop-color="#71c2f0"/><stop offset="1" stop-color="#145998"/></linearGradient>
+<linearGradient id="red" x2="0" y2="1"><stop stop-color="#f7915e"/><stop offset="1" stop-color="#c34828"/></linearGradient>
+</defs><g><path d="M8 17L25 10L41 17L56 10V48L40 56L24 49L8 56Z" fill="url(#pane)" stroke="#5a758d" stroke-width="2"/><path d="M24 13V48M41 18V53" stroke="#6285a0" stroke-width="2"/><path d="M15 38Q21 23 31 35T49 26" fill="none" stroke="#4ba24b" stroke-width="4"/><circle cx="31" cy="35" r="4" fill="#e44d38" stroke="#fff" stroke-width="2"/></g><path d="M12 13Q20 8 52 12L50 17Q29 14 13 21Z" fill="#fff" opacity=".22"/></svg>

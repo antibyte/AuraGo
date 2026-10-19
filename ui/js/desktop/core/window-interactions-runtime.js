@@ -3,6 +3,7 @@
         if (!item) return;
         if (item.isGadget) return; // gadgets cannot be minimized
         if (item.minimizing) return;
+        emitDesktopWindowEffect('minimize', id);
         desktopSound('window.minimize');
         item.minimizing = true;
         if (state.activeWindowId === id) state.activeWindowId = '';
@@ -14,6 +15,7 @@
         renderTaskbar();
         animateThen(item.element, 'vd-window-minimizing', themeMotionMs('minimize'), () => {
             item.element.style.display = 'none';
+            refreshDesktopWindowEffects();
             item.minimizing = false;
             scheduleFruityDockOcclusionCheck();
         });
@@ -154,6 +156,7 @@ function wireWindow(win, id) {
             };
             bar.setPointerCapture(event.pointerId);
             win.classList.add('dragging');
+            emitDesktopWindowEffect('drag-start', id);
         });
         bar.addEventListener('pointermove', (event) => {
             if (!drag) return;
@@ -170,12 +173,14 @@ function wireWindow(win, id) {
                 const newTop = Math.min(maxTop, Math.max(0, activeDrag.top + activeDrag.clientY - activeDrag.y));
                 win.style.left = newLeft + 'px';
                 win.style.top = newTop + 'px';
+                emitDesktopWindowEffect('drag', id);
                 updateSnapZone(activeDrag, newLeft, newTop, win.offsetWidth, win.offsetHeight);
                 scheduleFruityDockOcclusionCheck();
             });
         });
         bar.addEventListener('pointerup', () => {
             cancelWindowPointerFrame(drag, true);
+            if (drag) emitDesktopWindowEffect('drag-end', id);
             if (drag && drag.snapZone) applyWindowSnap(win, drag.snapZone);
             hideSnapOverlay();
             drag = null;
@@ -184,6 +189,7 @@ function wireWindow(win, id) {
         });
         bar.addEventListener('pointercancel', () => {
             cancelWindowPointerFrame(drag);
+            if (drag) emitDesktopWindowEffect('drag-end', id);
             hideSnapOverlay();
             drag = null;
             win.classList.remove('dragging');
@@ -284,6 +290,7 @@ function wireWindow(win, id) {
             win.style.width = width + 'px';
             win.style.height = height + 'px';
         });
+        emitDesktopWindowEffect('snap', windowId);
         desktopSound('window.snap');
         scheduleFruityDockOcclusionCheck();
     }
@@ -306,6 +313,7 @@ function wireWindow(win, id) {
                 item.maximized = false;
                 item.snapped = '';
             });
+            emitDesktopWindowEffect('restore', id);
             scheduleFruityDockOcclusionCheck();
             return;
         }
@@ -416,6 +424,7 @@ function wireWindow(win, id) {
                 item.maximized = true;
             }
         });
+        emitDesktopWindowEffect(item.maximized ? 'maximize' : 'restore', id);
         focusWindow(id);
         renderWindowMenus(id);
         scheduleFruityDockOcclusionCheck();
@@ -442,6 +451,7 @@ function wireWindow(win, id) {
                 };
                 handle.setPointerCapture(event.pointerId);
                 win.classList.add('resizing');
+                emitDesktopWindowEffect('resize-start', id);
             });
             handle.addEventListener('pointermove', event => {
                 if (!resize) return;
@@ -453,12 +463,14 @@ function wireWindow(win, id) {
                     const dx = activeResize.clientX - activeResize.x;
                     const dy = activeResize.clientY - activeResize.y;
                     applyResize(win, activeResize.edge, activeResize.bounds, dx, dy);
+                    emitDesktopWindowEffect('resize', id);
                 });
             });
             handle.addEventListener('pointerup', event => {
                 if (!resize) return;
                 handle.releasePointerCapture(event.pointerId);
                 cancelWindowPointerFrame(resize, true);
+                emitDesktopWindowEffect('resize-end', id);
                 resize = null;
                 win.classList.remove('resizing');
                 scheduleSessionPersist();
@@ -468,6 +480,7 @@ function wireWindow(win, id) {
                     handle.releasePointerCapture(event.pointerId);
                 }
                 cancelWindowPointerFrame(resize);
+                if (resize) emitDesktopWindowEffect('resize-end', id);
                 resize = null;
                 win.classList.remove('resizing');
             });
@@ -554,6 +567,7 @@ function wireWindow(win, id) {
         assignWindowZ(win);
         state.activeWindowId = id;
         state.windows.forEach(item => item.element.classList.toggle('active', item.id === id));
+        emitDesktopWindowEffect(wasHidden ? 'restore' : 'focus', id);
         if (wasHidden) {
             animateThen(win.element, 'vd-window-restoring', themeMotionMs('restore'));
             desktopSound('window.restore');
@@ -581,6 +595,7 @@ function wireWindow(win, id) {
             if (!state.windows.has(id)) return;
         }
         win.closing = true;
+        emitDesktopWindowEffect('close', id);
         desktopSound('window.close');
         clearWindowMenus(id);
         if (state.activeWindowId === id) state.activeWindowId = '';
@@ -589,6 +604,7 @@ function wireWindow(win, id) {
             disposeAppWindow(win);
             win.element.remove();
             state.windows.delete(id);
+            refreshDesktopWindowEffects();
             renderTaskbar();
             scheduleFruityDockOcclusionCheck();
             scheduleSessionPersist();

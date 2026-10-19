@@ -149,8 +149,8 @@ window.WebSocket=class extends EventTarget { close(){} };
 	if err := json.Unmarshal([]byte(qualityJSON), &quality); err != nil {
 		t.Fatalf("parse render quality: %v\n%s", err, qualityJSON)
 	}
-	if len(quality.Themes) != 11 {
-		t.Fatalf("expected 11 rendered themes, got %d", len(quality.Themes))
+	if len(quality.Themes) != 15 {
+		t.Fatalf("expected 15 rendered themes, got %d", len(quality.Themes))
 	}
 	const rmsMin = 0.0005
 	const peakMax = 0.891 // -1 dBFS
@@ -206,6 +206,52 @@ window.WebSocket=class extends EventTarget { close(){} };
 		t.Fatalf("expected cached theme water, got %q", theme)
 	}
 
+	// Material events are exclusive to the voxel bank and keep the same windows
+	// category gate as ordinary shell sounds.
+	beforeVoxelFx := page.MustEval(`()=>soundTest.inspect().plays`).Int()
+	allowedWhileWater := page.MustEval(`async()=>await DesktopSounds.play('window.impact',{material:'stone',strength:.8,pan:.4})`).Bool()
+	if allowedWhileWater || page.MustEval(`()=>soundTest.inspect().plays`).Int() != beforeVoxelFx {
+		t.Fatal("voxel impact must be ignored while another effective sound theme is selected")
+	}
+	page.MustEval(`async()=>{
+        soundTest.state.bootstrap.settings['sound.theme']='voxel_world';
+        applySoundSettingsChange('sound.theme','voxel_world');
+    }`)
+	for _, fx := range []struct{ event, material string }{
+		{event: "window.fracture", material: "wood"},
+		{event: "window.impact", material: "stone"},
+		{event: "window.impact", material: "earth"},
+	} {
+		before := page.MustEval(`()=>soundTest.inspect().plays`).Int()
+		ok := page.MustEval(`async payload=>await DesktopSounds.play(payload.event,{material:payload.material,strength:.72,pan:-.35})`, map[string]string{"event": fx.event, "material": fx.material}).Bool()
+		if !ok {
+			t.Fatalf("%s/%s event was not accepted", fx.event, fx.material)
+		}
+		page.MustWait(`before=>soundTest.inspect().plays>before`, before)
+		if event := page.MustEval(`()=>soundTest.inspect().lastEvent`).Str(); event != fx.event {
+			t.Fatalf("voxel FX lastEvent = %q, want %q", event, fx.event)
+		}
+		if cachedTheme := page.MustEval(`()=>soundTest.inspect().cachedTheme`).Str(); cachedTheme != "water" {
+			t.Fatalf("material FX should not eagerly render the full voxel sound bank; cached theme = %q", cachedTheme)
+		}
+		page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,90))`)
+	}
+	page.MustEval(`()=>{
+        soundTest.state.bootstrap.settings['sound.windows']='false';
+        applySoundSettingsChange('sound.windows','false');
+    }`)
+	beforeVoxelFx = page.MustEval(`()=>soundTest.inspect().plays`).Int()
+	page.MustEval(`async()=>await DesktopSounds.play('window.impact',{material:'earth',strength:1,pan:0})`)
+	if page.MustEval(`()=>soundTest.inspect().plays`).Int() != beforeVoxelFx {
+		t.Fatal("voxel impact must respect the windows category toggle")
+	}
+	page.MustEval(`()=>{
+        soundTest.state.bootstrap.settings['sound.windows']='true';
+        soundTest.state.bootstrap.settings['sound.theme']='water';
+        applySoundSettingsChange('sound.windows','true');
+        applySoundSettingsChange('sound.theme','water');
+    }`)
+
 	// Settings UI sound section screenshots in standard + fruity themes.
 	page.MustEval(`async()=>{
         await AuraDesktopModules.loadAppAssets('settings');
@@ -232,7 +278,16 @@ window.WebSocket=class extends EventTarget { close(){} };
 	if !page.MustEval(`()=>!!document.querySelector('[data-sound-preview="wood"]')`).Bool() {
 		t.Fatal("settings sound preview control missing")
 	}
+	activePreviewTheme := page.MustEval(`()=>soundTest.inspect().theme`).Str()
+	if activePreviewTheme == "crystal" {
+		t.Fatal("inactive-bank preview regression requires crystal to differ from the active sound theme")
+	}
+	beforePreview := page.MustEval(`()=>soundTest.inspect().plays`).Int()
 	page.MustEval(`async()=>{ await previewDesktopSound('crystal'); }`)
+	afterPreview := page.MustEval(`()=>soundTest.inspect().plays`).Int()
+	if afterPreview-beforePreview != 3 {
+		t.Fatalf("previewing inactive crystal bank should play all three preview sounds: before=%d after=%d active=%q", beforePreview, afterPreview, activePreviewTheme)
+	}
 	if previews := page.MustEval(`()=>soundTest.inspect().previewPlays`).Int(); previews < 1 {
 		t.Fatalf("expected previewPlays >= 1, got %d", previews)
 	}

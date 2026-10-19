@@ -31,6 +31,7 @@
     }
 
     function setPaused(current, paused) {
+        current.paused = !!paused;
         const method = paused ? current.instance.pause : current.instance.resume;
         if (typeof method !== 'function') return;
         try {
@@ -50,7 +51,15 @@
         layer.setAttribute('aria-hidden', 'true');
         document.body.appendChild(layer);
         const controller = new AbortController();
-        const current = { id: key, layer, controller, instance: {} };
+        const current = {
+            id: key,
+            layer,
+            controller,
+            options: options || {},
+            motion: !!(options && options.motion),
+            paused: false,
+            instance: {}
+        };
         active = current;
         try {
             current.instance = impl.start({ layer, signal: controller.signal, options: options || {} }) || {};
@@ -60,6 +69,7 @@
             return false;
         }
         document.addEventListener('visibilitychange', () => setPaused(current, document.hidden), { signal: controller.signal });
+        window.addEventListener('pagehide', stop, { once: true, signal: controller.signal });
         if (document.hidden) setPaused(current, true);
         return true;
     }
@@ -68,7 +78,26 @@
         return active ? active.id : '';
     }
 
-    window.AuraDesktopThemeFx = { register, start, stop, activeId };
+    function inspect() {
+        const current = active;
+        if (!current) return { activeId: '', motion: false, paused: false, rendererReady: false };
+        let details = {};
+        try {
+            if (current.instance && typeof current.instance.inspect === 'function') {
+                const result = current.instance.inspect();
+                if (result && typeof result === 'object') details = result;
+            }
+        } catch (_) { /* diagnostics must not affect the effect host */ }
+        return {
+            ...details,
+            activeId: current.id,
+            motion: current.motion,
+            paused: current.paused,
+            aborted: current.controller.signal.aborted
+        };
+    }
+
+    window.AuraDesktopThemeFx = { register, start, stop, activeId, inspect };
 })();
 
 ;
@@ -279,4 +308,2642 @@
     }
 
     window.AuraDesktopThemeFx.register('crazy', { start });
+})();
+
+;
+/* ui/js/desktop/theme-fx/electronic_dreams.js */
+(function () {
+    'use strict';
+
+    const MAX_PULSES = 20;
+    const MAX_PACKETS = 42;
+    const MASK_SELECTORS = '.vd-icon, .vd-widget, .vd-taskbar, .vd-dock, .vd-start-menu, .vd-context-menu, .vd-modal-backdrop, .vd-toast-container, .vd-global-menu, .vd-radial-menu';
+
+    function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+
+    function rectFor(record) {
+        const measured = record && record.element && typeof record.element.getBoundingClientRect === 'function'
+            ? record.element.getBoundingClientRect()
+            : record && record.rect;
+        if (!measured) return null;
+        const x = Number(measured.x ?? measured.left);
+        const y = Number(measured.y ?? measured.top);
+        const width = Number(measured.width);
+        const height = Number(measured.height);
+        return Number.isFinite(x) && Number.isFinite(y) && width > 0 && height > 0
+            ? { x, y, width, height }
+            : null;
+    }
+
+    function visible(record) { return !!record && record.visible !== false && !record.minimized; }
+
+    function start({ layer, signal, options }) {
+        const motion = !!(options && options.motion);
+        const canvas = document.createElement('canvas');
+        canvas.className = 'vd-fx-dreams-canvas';
+        canvas.setAttribute('aria-hidden', 'true');
+        canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;';
+        layer.appendChild(canvas);
+        const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
+        if (!ctx) return { stop() { canvas.remove(); } };
+
+        let width = 1;
+        let height = 1;
+        let dpr = 1;
+        let raf = 0;
+        let paused = false;
+        let stopped = false;
+        let lastTime = 0;
+        let elapsed = 0;
+        let frameCount = 0;
+        let dirty = true;
+        let resizeObserver = null;
+        let maskObserver = null;
+        const windows = new Map();
+        let overlayMasks = [];
+        const pulses = [];
+        const packets = [];
+        const sparkles = [];
+
+        function readSnapshot() {
+            const api = window.AuraDesktopWindowEffects;
+            if (!api || typeof api.snapshot !== 'function') return;
+            try {
+                const snapshot = api.snapshot();
+                if (!Array.isArray(snapshot)) return;
+                const next = new Map();
+                for (const record of snapshot) {
+                    if (!visible(record) || record.id == null) continue;
+                    const rect = rectFor(record);
+                    if (rect) next.set(String(record.id), { ...record, rect });
+                }
+                windows.clear();
+                for (const [id, record] of next) windows.set(id, record);
+                refreshOverlayMasks();
+                dirty = true;
+            } catch (_) { /* the desktop may be tearing down */ }
+        }
+
+        function refreshOverlayMasks() {
+            const next = [];
+            for (const element of document.querySelectorAll(MASK_SELECTORS)) {
+                if (!element.isConnected || element.hidden) continue;
+                const style = window.getComputedStyle ? window.getComputedStyle(element) : null;
+                if (style && (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)) continue;
+                const rect = element.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.right >= 0 && rect.top <= height && rect.left <= width) {
+                    next.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+                }
+            }
+            overlayMasks = next;
+        }
+
+        function blockersFor(records) {
+            return (records || Array.from(windows.values())).map(rectFor).filter(Boolean).concat(overlayMasks);
+        }
+
+        function addPulse(record, closing) {
+            const rect = rectFor(record);
+            if (!rect || !motion || record.silent) return;
+            if (pulses.length >= MAX_PULSES) pulses.shift();
+            const edge = closing ? 'bottom' : 'top';
+            pulses.push({ id: String(record.id || ''), rect, age: 0, life: closing ? .58 : .82, edge, phase: Math.random() * Math.PI * 2 });
+            const x = edge === 'top' ? rect.x + rect.width * (.25 + Math.random() * .5) : rect.x + rect.width * (.12 + Math.random() * .76);
+            const y = edge === 'top' ? rect.y : rect.y + rect.height;
+            if (packets.length >= MAX_PACKETS) packets.shift();
+            packets.push({ x, y, age: 0, life: .95, direction: closing ? -1 : 1, size: 2 + Math.random() * 1.5 });
+            for (let i = 0; i < 5; i++) {
+                if (sparkles.length >= MAX_PULSES * 5) sparkles.shift();
+                sparkles.push({ x: x + (Math.random() - .5) * 32, y: y + (Math.random() - .5) * 22, age: 0, life: .42 + Math.random() * .28 });
+            }
+        }
+
+        function onWindowEvent(event) {
+            const record = event && event.detail;
+            if (!record || record.id == null) return;
+            const id = String(record.id);
+            if (record.phase === 'close') {
+                if (!record.silent) addPulse(record, true);
+                windows.delete(id);
+            } else {
+                if (visible(record)) {
+                    const rect = rectFor(record);
+                    if (rect) windows.set(id, { ...record, rect });
+                }
+                if (record.phase === 'open') addPulse(record, false);
+            }
+            dirty = true;
+            refreshOverlayMasks();
+            requestFrame();
+        }
+
+        function resize() {
+            width = Math.max(1, layer.clientWidth || window.innerWidth || 1);
+            height = Math.max(1, layer.clientHeight || window.innerHeight || 1);
+            dpr = Math.min(window.devicePixelRatio || 1, motion ? 1.5 : 1.25);
+            canvas.width = Math.max(1, Math.round(width * dpr));
+            canvas.height = Math.max(1, Math.round(height * dpr));
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            refreshOverlayMasks();
+            dirty = true;
+            requestFrame();
+        }
+
+        function clipOutside(ctx2d, rects) {
+            ctx2d.beginPath();
+            ctx2d.rect(0, 0, width, height);
+            ctx2d.clip();
+            for (const rect of rects) {
+                ctx2d.beginPath();
+                ctx2d.rect(0, 0, width, height);
+                ctx2d.rect(rect.x, rect.y, rect.width, rect.height);
+                ctx2d.clip('evenodd');
+            }
+        }
+
+        function routeFor(a, b) {
+            const ar = rectFor(a);
+            const br = rectFor(b);
+            if (!ar || !br) return null;
+            const ax = ar.x + ar.width * .5;
+            const ay = ar.y + ar.height + 3;
+            const bx = br.x + br.width * .5;
+            const by = br.y - 3;
+            const dx = bx - ax;
+            const dy = by - ay;
+            const bend = Math.min(150, Math.max(38, Math.abs(dx) * .19 + Math.abs(dy) * .08));
+            return { ax, ay, bx, by, c1x: ax + dx * .28, c1y: ay + bend, c2x: bx - dx * .28, c2y: by - bend };
+        }
+
+        function traceCable(route, alpha, phase) {
+            ctx.save();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = 'rgba(1,19,42,' + (.52 * alpha) + ')';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(route.ax, route.ay);
+            ctx.bezierCurveTo(route.c1x, route.c1y, route.c2x, route.c2y, route.bx, route.by);
+            ctx.stroke();
+            const cable = ctx.createLinearGradient(route.ax, route.ay, route.bx, route.by);
+            cable.addColorStop(0, 'rgba(40,229,255,' + (.82 * alpha) + ')');
+            cable.addColorStop(.52, 'rgba(79,135,255,' + (.72 * alpha) + ')');
+            cable.addColorStop(1, 'rgba(243,81,255,' + (.78 * alpha) + ')');
+            ctx.strokeStyle = cable;
+            ctx.lineWidth = 1.55;
+            ctx.shadowColor = 'rgba(77,198,255,.5)';
+            ctx.shadowBlur = 8;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(133,238,255,' + alpha + ')';
+            for (let i = 0; i < 5; i++) {
+                const t = (i / 5 + phase) % 1;
+                const mt = 1 - t;
+                const x = mt * mt * mt * route.ax + 3 * mt * mt * t * route.c1x + 3 * mt * t * t * route.c2x + t * t * t * route.bx;
+                const y = mt * mt * mt * route.ay + 3 * mt * mt * t * route.c1y + 3 * mt * t * t * route.c2y + t * t * t * route.by;
+                ctx.beginPath();
+                ctx.arc(x, y, 1.15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        function drawFrame(record, all) {
+            const rect = rectFor(record);
+            if (!rect) return;
+            const z = Number(record.z) || 0;
+            const blockers = [rect];
+            for (const other of all) {
+                if (other === record || (Number(other.z) || 0) <= z) continue;
+                const otherRect = rectFor(other);
+                if (otherRect) blockers.push(otherRect);
+            }
+            ctx.save();
+            clipOutside(ctx, blockers.concat(overlayMasks));
+            const frame = { x: rect.x - 3, y: rect.y - 3, width: rect.width + 6, height: rect.height + 6 };
+            const pulse = motion ? .5 + .5 * Math.sin(elapsed * 1.4 + z * .012) : .55;
+            const gradient = ctx.createLinearGradient(frame.x, frame.y, frame.x + frame.width, frame.y + frame.height);
+            gradient.addColorStop(0, 'rgba(56,243,255,.82)');
+            gradient.addColorStop(.5, 'rgba(107,115,255,.76)');
+            gradient.addColorStop(1, 'rgba(246,84,245,.84)');
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = 'rgba(45,208,255,' + (.18 + pulse * .14) + ')';
+            ctx.shadowColor = 'rgba(55,206,255,.72)';
+            ctx.shadowBlur = 15 + pulse * 8;
+            ctx.beginPath();
+            ctx.roundRect(frame.x, frame.y, frame.width, frame.height, 13);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            ctx.lineWidth = 1.6;
+            ctx.strokeStyle = gradient;
+            ctx.beginPath();
+            ctx.roundRect(frame.x, frame.y, frame.width, frame.height, 13);
+            ctx.stroke();
+
+            const leds = [
+                [rect.x + 13, rect.y + rect.height + 3, 'rgba(74,249,255,.96)'],
+                [rect.x + rect.width - 13, rect.y + rect.height + 3, 'rgba(252,104,252,.96)'],
+                [rect.x + rect.width + 3, rect.y + rect.height * .48, 'rgba(156,131,255,.96)']
+            ];
+            for (const [x, y, color] of leds) {
+                const size = 2.4 + pulse * .8;
+                ctx.fillStyle = color;
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 10 + pulse * 6;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+            ctx.restore();
+        }
+
+        function drawPulse(pulse) {
+            const alpha = clamp(1 - pulse.age / pulse.life, 0, 1);
+            const scale = pulse.edge === 'top' ? pulse.age / pulse.life : 1 - pulse.age / pulse.life;
+            const rect = pulse.rect;
+            ctx.save();
+            clipOutside(ctx, blockersFor());
+            ctx.strokeStyle = 'rgba(106,235,255,' + (alpha * .76) + ')';
+            ctx.lineWidth = 1.2;
+            ctx.shadowColor = 'rgba(80,198,255,' + (alpha * .8) + ')';
+            ctx.shadowBlur = 13;
+            const inset = 3 + scale * 28;
+            ctx.beginPath();
+            ctx.roundRect(rect.x - inset, rect.y - inset, rect.width + inset * 2, rect.height + inset * 2, 15 + inset * .25);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function draw(time) {
+            if (stopped || paused) return;
+            const dt = lastTime ? clamp((time - lastTime) / 1000, 0, .05) : 0;
+            lastTime = time;
+            if (motion) elapsed += dt;
+            if (motion) {
+                for (const list of [pulses, packets, sparkles]) {
+                    for (let i = list.length - 1; i >= 0; i--) {
+                        list[i].age += dt;
+                        if (list[i].age >= list[i].life) list.splice(i, 1);
+                    }
+                }
+            }
+            if (!dirty && !motion) return;
+            dirty = false;
+            ctx.clearRect(0, 0, width, height);
+            frameCount++;
+            const all = Array.from(windows.values()).sort((a, b) => (Number(a.z) || 0) - (Number(b.z) || 0));
+
+            if (all.length > 1) {
+                ctx.save();
+                clipOutside(ctx, blockersFor(all));
+                const limit = Math.min(5, all.length - 1);
+                for (let i = 0; i < limit; i++) {
+                    const route = routeFor(all[i], all[(i + 1) % all.length]);
+                    if (route) traceCable(route, .78, motion ? (elapsed * .11 + i * .2) % 1 : .24 + i * .13);
+                }
+                ctx.restore();
+            }
+            for (const record of all) drawFrame(record, all);
+            if (pulses.length) for (const pulse of pulses) drawPulse(pulse);
+            if (packets.length || sparkles.length) {
+                ctx.save();
+                clipOutside(ctx, blockersFor(all));
+                for (const packet of packets) {
+                    const alpha = clamp(1 - packet.age / packet.life, 0, 1);
+                    ctx.fillStyle = 'rgba(97,228,255,' + alpha + ')';
+                    ctx.shadowColor = 'rgba(90,220,255,.86)';
+                    ctx.shadowBlur = 12;
+                    ctx.beginPath();
+                    ctx.arc(packet.x, packet.y + packet.direction * packet.age * 42, packet.size * alpha, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.shadowBlur = 0;
+                for (const sparkle of sparkles) {
+                    const alpha = clamp(1 - sparkle.age / sparkle.life, 0, 1);
+                    ctx.strokeStyle = 'rgba(207,251,255,' + alpha + ')';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(sparkle.x - 3, sparkle.y);
+                    ctx.lineTo(sparkle.x + 3, sparkle.y);
+                    ctx.moveTo(sparkle.x, sparkle.y - 3);
+                    ctx.lineTo(sparkle.x, sparkle.y + 3);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+
+        function requestFrame() {
+            if (stopped || paused || raf || !motion) {
+                if (!motion && dirty) draw(performance.now());
+                return;
+            }
+            raf = requestAnimationFrame(time => {
+                raf = 0;
+                draw(time);
+                requestFrame();
+            });
+        }
+
+        function pause() {
+            paused = true;
+            if (raf) cancelAnimationFrame(raf);
+            raf = 0;
+            lastTime = 0;
+        }
+
+        function resume() {
+            if (stopped) return;
+            paused = false;
+            readSnapshot();
+            requestFrame();
+        }
+
+        function stop() {
+            if (stopped) return;
+            stopped = true;
+            if (raf) cancelAnimationFrame(raf);
+            raf = 0;
+            if (resizeObserver) resizeObserver.disconnect();
+            if (maskObserver) maskObserver.disconnect();
+            windows.clear();
+            overlayMasks = [];
+            pulses.length = packets.length = sparkles.length = 0;
+            canvas.remove();
+        }
+
+        function inspect() {
+            return {
+                activeId: 'electronic_dreams',
+                ready: !!ctx,
+                motion,
+                paused,
+                frameCount,
+                rafPending: !!raf,
+                windowCount: windows.size,
+                maskCount: overlayMasks.length,
+                pulseCount: pulses.length,
+                packetCount: packets.length
+            };
+        }
+
+        resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(resize) : null;
+        if (resizeObserver) resizeObserver.observe(layer);
+        maskObserver = typeof MutationObserver === 'function' ? new MutationObserver(() => {
+            refreshOverlayMasks();
+            dirty = true;
+            requestFrame();
+        }) : null;
+        if (maskObserver && document.body) maskObserver.observe(document.body, {
+            childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'hidden']
+        });
+        window.addEventListener('resize', resize, { passive: true, signal });
+        window.addEventListener('aurago:desktop-window', onWindowEvent, { signal });
+        window.addEventListener('aurago:desktop-windows-refresh', () => { readSnapshot(); requestFrame(); }, { signal });
+        if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', stop, { once: true });
+        resize();
+        readSnapshot();
+        requestFrame();
+        return { pause, resume, stop, inspect };
+    }
+
+    window.AuraDesktopThemeFx.register('electronic_dreams', { start });
+})();
+
+;
+/* ui/js/desktop/theme-fx/green_slime.js */
+(function () {
+    'use strict';
+
+    const MAX_DROPS = 72;
+    const MAX_DEFORMATION = 18;
+    const SURFACE_SAMPLES = 32;
+    const SURFACE_NORMALS = Object.freeze([{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }]);
+    const MASK_SELECTORS = '.vd-icon, .vd-widget, .vd-taskbar, .vd-dock, .vd-start-menu, .vd-context-menu, .vd-modal-backdrop, .vd-modal, .vd-dialog, [role="dialog"], dialog[open], .vd-toast-container, .vd-global-menu, .vd-radial-menu';
+
+    function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+
+    function rectFor(record) {
+        const measured = record && record.element && typeof record.element.getBoundingClientRect === 'function'
+            ? record.element.getBoundingClientRect()
+            : record && record.rect;
+        if (!measured) return null;
+        const x = Number(measured.x ?? measured.left);
+        const y = Number(measured.y ?? measured.top);
+        const width = Number(measured.width);
+        const height = Number(measured.height);
+        return Number.isFinite(x) && Number.isFinite(y) && width > 0 && height > 0
+            ? { x, y, width, height }
+            : null;
+    }
+
+    function usable(record) {
+        return !!record && record.visible !== false && !record.minimized;
+    }
+
+    function start({ layer, signal, options }) {
+        const motion = !!(options && options.motion);
+        const canvas = document.createElement('canvas');
+        canvas.className = 'vd-fx-slime-canvas';
+        canvas.setAttribute('aria-hidden', 'true');
+        canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;';
+        layer.appendChild(canvas);
+        const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
+        if (!ctx) return { stop() { canvas.remove(); } };
+
+        let width = 0;
+        let height = 0;
+        let dpr = 1;
+        let raf = 0;
+        let paused = false;
+        let stopped = false;
+        let lastTime = 0;
+        let dirty = true;
+        const records = new Map();
+        const freeDrops = [];
+        const springs = new Set();
+        const springAt = new Map();
+        const surfaces = new Map();
+        const nextDropAt = new Map();
+        const motionDrives = new Map();
+        let clock = 0;
+        let frameCount = 0;
+        let dropCount = 0;
+        let maxDisplacement = 0;
+        let currentMaxDisplacement = 0;
+        let resizeObserver = null;
+        let mutationObserver = null;
+        let maskRectsDirty = true;
+        let cachedOverlayMasks = [];
+        let maskRefreshCount = 0;
+
+        function invalidateMasks() {
+            maskRectsDirty = true;
+            dirty = true;
+            requestFrame();
+        }
+
+        function resize() {
+            width = Math.max(1, layer.clientWidth || window.innerWidth || 1);
+            height = Math.max(1, layer.clientHeight || window.innerHeight || 1);
+            dpr = Math.min(window.devicePixelRatio || 1, motion ? 1.5 : 1.25);
+            canvas.width = Math.max(1, Math.round(width * dpr));
+            canvas.height = Math.max(1, Math.round(height * dpr));
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            maskRectsDirty = true;
+            dirty = true;
+            requestFrame();
+        }
+
+        function snapshot() {
+            const api = window.AuraDesktopWindowEffects;
+            if (!api || typeof api.snapshot !== 'function') return;
+            try {
+                const values = api.snapshot();
+                if (!Array.isArray(values)) return;
+                const next = new Map();
+                for (const record of values) {
+                    if (!usable(record) || record.id == null) continue;
+                    const rect = rectFor(record);
+                    if (!rect) continue;
+                    next.set(String(record.id), { ...record, rect });
+                }
+                records.clear();
+                for (const [id, record] of next) records.set(id, record);
+                for (const id of surfaces.keys()) {
+                    if (!records.has(id)) {
+                        surfaces.delete(id);
+                        nextDropAt.delete(id);
+                        motionDrives.delete(id);
+                    }
+                }
+                motionDrives.clear();
+                dirty = true;
+            } catch (_) { /* the desktop may be tearing down */ }
+        }
+
+        function addDrop(x, y, size, vx, vy, life) {
+            if (freeDrops.length >= MAX_DROPS) freeDrops.shift();
+            freeDrops.push({ x, y, size, vx, vy, age: 0, life, wobble: Math.random() * Math.PI * 2 });
+            dropCount++;
+        }
+
+        function springControls(record) {
+            if (!motion || !record || !record.element) return;
+            const now = performance.now();
+            const id = String(record.id || '');
+            if (now - (springAt.get(id) || 0) < 520) return;
+            springAt.set(id, now);
+            for (const button of record.element.querySelectorAll('.vd-window-button')) {
+                if (typeof button.animate !== 'function') continue;
+                const animation = button.animate([
+                    { transform: 'scale(.82)', offset: 0 },
+                    { transform: 'scale(1.14)', offset: .32 },
+                    { transform: 'scale(.96)', offset: .63 },
+                    { transform: 'scale(1.025)', offset: .82 },
+                    { transform: 'scale(1)', offset: 1 }
+                ], { duration: 440, easing: 'cubic-bezier(.18,.8,.3,1)', fill: 'none' });
+                springs.add(animation);
+                animation.onfinish = animation.oncancel = () => springs.delete(animation);
+            }
+        }
+
+        function onWindowEvent(event) {
+            const record = event && event.detail;
+            if (!record || record.id == null) return;
+            const id = String(record.id);
+            const rect = rectFor(record);
+            if (record.phase === 'close') {
+                if (rect && motion && !record.silent) {
+                    for (let i = 0; i < 5; i++) {
+                        const corner = i % 2 ? rect.x + rect.width : rect.x;
+                        addDrop(corner + (Math.random() - .5) * 16, rect.y + rect.height + 3,
+                            5 + Math.random() * 8, (Math.random() - .5) * 46, 30 + Math.random() * 65, 1.2 + Math.random() * .6);
+                    }
+                }
+                records.delete(id);
+                surfaces.delete(id);
+                nextDropAt.delete(id);
+                motionDrives.delete(id);
+                dirty = true;
+                requestFrame();
+                return;
+            }
+            if (rect && usable(record)) records.set(id, { ...record, rect });
+            else {
+                records.delete(id);
+                surfaces.delete(id);
+                nextDropAt.delete(id);
+                motionDrives.delete(id);
+            }
+            if (record.phase === 'drag' && record.velocity) {
+                const vx = Number(record.velocity.x) || 0;
+                const vy = Number(record.velocity.y) || 0;
+                const speed = Math.hypot(vx, vy);
+                if (speed > 8) motionDrives.set(id, { x: vx / speed, y: vy / speed, strength: Math.min(13, speed * .014) });
+            } else if (record.phase !== 'drag-end') motionDrives.delete(id);
+            if (!record.silent && (record.phase === 'open' || record.phase === 'focus')) springControls(record);
+            dirty = true;
+            requestFrame();
+        }
+
+        function clipOut(ctx2d, blockers) {
+            ctx2d.beginPath();
+            ctx2d.rect(0, 0, width, height);
+            ctx2d.clip();
+            for (const rect of blockers) {
+                ctx2d.beginPath();
+                ctx2d.rect(0, 0, width, height);
+                ctx2d.rect(rect.x, rect.y, rect.width, rect.height);
+                ctx2d.clip('evenodd');
+            }
+        }
+
+        function overlayMasks() {
+            if (!maskRectsDirty) return cachedOverlayMasks;
+            maskRectsDirty = false;
+            const masks = [];
+            for (const element of document.querySelectorAll(MASK_SELECTORS)) {
+                if (!element.isConnected || element.hidden) continue;
+                const style = window.getComputedStyle ? window.getComputedStyle(element) : null;
+                if (style && (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)) continue;
+                const rect = element.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.right >= 0 && rect.top <= height && rect.left <= width) {
+                    masks.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+                }
+            }
+            cachedOverlayMasks = masks;
+            maskRefreshCount++;
+            return cachedOverlayMasks;
+        }
+
+        function observeMaskChanges() {
+            if (typeof MutationObserver !== 'function') return;
+            const root = document.documentElement || document.body;
+            if (!root) return;
+            mutationObserver = new MutationObserver(mutations => {
+                const relevant = mutations.some(mutation => {
+                    const target = mutation.target;
+                    if (target === canvas || (canvas.contains && canvas.contains(target))) return false;
+                    if (mutation.type !== 'childList') return true;
+                    const changed = [...mutation.addedNodes, ...mutation.removedNodes];
+                    return changed.some(node => node !== canvas && !(canvas.contains && canvas.contains(node)));
+                });
+                if (relevant) invalidateMasks();
+            });
+            mutationObserver.observe(root, {
+                subtree: true,
+                childList: true,
+                attributes: true,
+                attributeFilter: ['class', 'style', 'hidden', 'open', 'aria-hidden']
+            });
+        }
+
+        function surfaceTargets(rect) {
+            const outline = { x: rect.x - 5, y: rect.y - 5, width: rect.width + 10, height: rect.height + 10 };
+            const sideCount = SURFACE_SAMPLES / 4;
+            const points = [];
+            for (let i = 0; i < sideCount; i++) {
+                const t = (i + .5) / sideCount;
+                points.push({ x: outline.x + outline.width * t, y: outline.y });
+            }
+            for (let i = 0; i < sideCount; i++) {
+                const t = (i + .5) / sideCount;
+                points.push({ x: outline.x + outline.width, y: outline.y + outline.height * t });
+            }
+            for (let i = 0; i < sideCount; i++) {
+                const t = (i + .5) / sideCount;
+                points.push({ x: outline.x + outline.width * (1 - t), y: outline.y + outline.height });
+            }
+            for (let i = 0; i < sideCount; i++) {
+                const t = (i + .5) / sideCount;
+                points.push({ x: outline.x, y: outline.y + outline.height * (1 - t) });
+            }
+            return points;
+        }
+
+        function followSurface(id, rect, dt) {
+            const baseTargets = surfaceTargets(rect);
+            const drive = motionDrives.get(id);
+            const targets = baseTargets.map((point, i) => {
+                if (!motion || !drive || drive.strength < .1) return point;
+                const side = Math.floor(i / (SURFACE_SAMPLES / 4));
+                const normal = SURFACE_NORMALS[side];
+                const trailing = Math.max(0, -(drive.x * normal.x + drive.y * normal.y));
+                const along = (i % (SURFACE_SAMPLES / 4) + .5) / (SURFACE_SAMPLES / 4);
+                const bulge = drive.strength * trailing * (.42 + .58 * Math.sin(Math.PI * along));
+                return { x: point.x - drive.x * bulge, y: point.y - drive.y * bulge };
+            });
+            let surface = surfaces.get(id);
+            if (!surface) {
+                surface = { nodes: baseTargets.map(point => ({ ...point, vx: 0, vy: 0 })) };
+                surfaces.set(id, surface);
+                if (motion) nextDropAt.set(id, clock + 1.8 + Math.random() * 1.8);
+            }
+            const nodes = surface.nodes;
+            if (!motion || dt <= 0) {
+                nodes.forEach((node, i) => {
+                    node.x = targets[i].x;
+                    node.y = targets[i].y;
+                    node.vx = 0;
+                    node.vy = 0;
+                });
+                return surface;
+            }
+
+            const offsets = nodes.map((node, i) => ({ x: node.x - baseTargets[i].x, y: node.y - baseTargets[i].y }));
+            const step = clamp(dt, 0, 1 / 30);
+            const spring = 112;
+            const tension = 22;
+            const damping = Math.exp(-17 * step);
+            for (let i = 0; i < nodes.length; i++) {
+                const node = nodes[i];
+                const target = targets[i];
+                const previous = offsets[(i + nodes.length - 1) % nodes.length];
+                const next = offsets[(i + 1) % nodes.length];
+                const neighborX = (previous.x + next.x) * .5;
+                const neighborY = (previous.y + next.y) * .5;
+                const ax = (target.x - node.x) * spring + (neighborX - offsets[i].x) * tension;
+                const ay = (target.y - node.y) * spring + (neighborY - offsets[i].y) * tension;
+                node.vx = clamp((node.vx + ax * step) * damping, -720, 720);
+                node.vy = clamp((node.vy + ay * step) * damping, -720, 720);
+                node.x += node.vx * step;
+                node.y += node.vy * step;
+                let dx = node.x - baseTargets[i].x;
+                let dy = node.y - baseTargets[i].y;
+                const distance = Math.hypot(dx, dy);
+                if (distance > MAX_DEFORMATION) {
+                    const scale = MAX_DEFORMATION / distance;
+                    node.x = baseTargets[i].x + dx * scale;
+                    node.y = baseTargets[i].y + dy * scale;
+                    const outward = node.vx * dx + node.vy * dy;
+                    if (outward > 0) {
+                        node.vx -= outward * dx / (distance * distance);
+                        node.vy -= outward * dy / (distance * distance);
+                    }
+                    dx = node.x - baseTargets[i].x;
+                    dy = node.y - baseTargets[i].y;
+                }
+                currentMaxDisplacement = Math.max(currentMaxDisplacement, Math.hypot(dx, dy));
+            }
+            if (drive) {
+                drive.strength *= Math.exp(-4.5 * step);
+                if (drive.strength < .1) motionDrives.delete(id);
+            }
+            maxDisplacement = Math.max(maxDisplacement, currentMaxDisplacement);
+            return surface;
+        }
+
+        function detachPeriodicDrop(id, surface) {
+            if (!motion) return;
+            const due = nextDropAt.get(id);
+            if (due == null || clock < due) return;
+            const node = surface.nodes[17 + Math.floor(Math.random() * 6)];
+            addDrop(node.x, node.y + 1, 3.5 + Math.random() * 2.5,
+                node.vx * .08 + (Math.random() - .5) * 24, 30 + Math.random() * 28, 1.05 + Math.random() * .55);
+            nextDropAt.set(id, clock + 2.2 + Math.random() * 2.8);
+        }
+
+        function contourPath(nodes) {
+            ctx.beginPath();
+            const first = nodes[0];
+            const last = nodes[nodes.length - 1];
+            ctx.moveTo((first.x + last.x) * .5, (first.y + last.y) * .5);
+            for (let i = 0; i < nodes.length; i++) {
+                const current = nodes[i];
+                const next = nodes[(i + 1) % nodes.length];
+                ctx.quadraticCurveTo(current.x, current.y, (current.x + next.x) * .5, (current.y + next.y) * .5);
+            }
+            ctx.closePath();
+        }
+
+        function drawDrop(drop, alpha) {
+            const stretch = 1 + Math.min(1.2, Math.abs(drop.vy) / 220);
+            const size = drop.size;
+            const gradient = ctx.createLinearGradient(drop.x - size, drop.y - size, drop.x + size, drop.y + size);
+            gradient.addColorStop(0, 'rgba(239,249,168,.98)');
+            gradient.addColorStop(.36, 'rgba(177,207,68,.97)');
+            gradient.addColorStop(1, 'rgba(96,124,31,.94)');
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = gradient;
+            ctx.shadowColor = 'rgba(126,158,40,.48)';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.moveTo(drop.x, drop.y - size * stretch);
+            ctx.bezierCurveTo(drop.x + size * .9, drop.y - size * .3, drop.x + size * .82, drop.y + size * .48 * stretch, drop.x + size * .35, drop.y + size * .76 * stretch);
+            ctx.quadraticCurveTo(drop.x, drop.y + size * stretch, drop.x - size * .35, drop.y + size * .76 * stretch);
+            ctx.bezierCurveTo(drop.x - size * .82, drop.y + size * .48 * stretch, drop.x - size * .9, drop.y - size * .3, drop.x, drop.y - size * stretch);
+            ctx.closePath();
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1;
+        }
+
+        function drawDrip(point, len, dripWidth, pulse) {
+            const y = point.y;
+            const end = y + len;
+            const gradient = ctx.createLinearGradient(point.x, y, point.x + 4, end);
+            gradient.addColorStop(0, 'rgba(220,239,118,.96)');
+            gradient.addColorStop(1, 'rgba(112,145,37,.96)');
+            ctx.fillStyle = gradient;
+            ctx.shadowColor = 'rgba(117,151,39,.48)';
+            ctx.shadowBlur = 10 + pulse * 3;
+            ctx.beginPath();
+            ctx.moveTo(point.x - dripWidth, y);
+            ctx.bezierCurveTo(point.x - dripWidth * .8, y + len * .32, point.x - 2, end - dripWidth, point.x, end);
+            ctx.bezierCurveTo(point.x + 2, end - dripWidth, point.x + dripWidth * .8, y + len * .32, point.x + dripWidth, y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(244,255,184,.82)';
+            ctx.beginPath();
+            ctx.ellipse(point.x - 1, y + 7, 1.3, Math.max(2, len * .14), -.16, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawWindow(record, rect, surface, blockers) {
+            if (!rect || !surface) return;
+            ctx.save();
+            clipOut(ctx, blockers);
+            const pulse = motion ? .5 + .5 * Math.sin(clock * 2.25 + (Number(record.z) || 0) * .011) : .55;
+            const nodes = surface.nodes;
+            const first = nodes[0];
+            const gradient = ctx.createLinearGradient(first.x, first.y, nodes[16].x, nodes[16].y);
+            gradient.addColorStop(0, 'rgba(225,244,132,.98)');
+            gradient.addColorStop(.28, 'rgba(174,207,69,.98)');
+            gradient.addColorStop(.62, 'rgba(121,157,43,.97)');
+            gradient.addColorStop(1, 'rgba(76,108,32,.97)');
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = 14;
+            ctx.strokeStyle = 'rgba(139,174,48,' + (.12 + pulse * .14) + ')';
+            ctx.shadowColor = 'rgba(122,157,40,.5)';
+            ctx.shadowBlur = 18 + pulse * 8;
+            contourPath(nodes);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            ctx.lineWidth = 8;
+            ctx.strokeStyle = gradient;
+            contourPath(nodes);
+            ctx.stroke();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(246,255,193,.88)';
+            contourPath(nodes);
+            ctx.stroke();
+
+            const drips = [
+                { point: nodes[17], len: 18 + pulse * 8, width: 4 },
+                { point: nodes[20], len: 11 + pulse * 7, width: 3 },
+                { point: nodes[22], len: 25 + pulse * 11, width: 5 }
+            ];
+            for (const drip of drips) drawDrip(drip.point, drip.len, drip.width, pulse);
+            ctx.restore();
+        }
+
+        function render(time) {
+            if (stopped || paused) return;
+            frameCount++;
+            const dt = lastTime ? clamp((time - lastTime) / 1000, 0, .05) : 0;
+            lastTime = time;
+            currentMaxDisplacement = 0;
+            if (motion) clock += dt;
+            if (motion) {
+                for (let i = freeDrops.length - 1; i >= 0; i--) {
+                    const drop = freeDrops[i];
+                    drop.age += dt;
+                    drop.vy += 250 * dt;
+                    drop.x += drop.vx * dt;
+                    drop.y += drop.vy * dt;
+                    if (drop.age >= drop.life || drop.y > height + 40) freeDrops.splice(i, 1);
+                }
+            }
+
+            if (!dirty && !motion) return;
+            dirty = false;
+            ctx.clearRect(0, 0, width, height);
+            const all = Array.from(records.values()).sort((a, b) => (Number(a.z) || 0) - (Number(b.z) || 0));
+            const overlays = overlayMasks();
+            const blockers = all.map(rectFor).filter(Boolean).concat(overlays);
+            for (const record of all) {
+                const rect = rectFor(record);
+                if (!rect) continue;
+                const id = String(record.id);
+                const surface = followSurface(id, rect, dt);
+                detachPeriodicDrop(id, surface);
+                const frameBlockers = all.filter(other => (Number(other.z) || 0) >= (Number(record.z) || 0)).map(rectFor).filter(Boolean).concat(overlays);
+                drawWindow(record, rect, surface, frameBlockers);
+            }
+            if (freeDrops.length) {
+                ctx.save();
+                clipOut(ctx, blockers);
+                for (const drop of freeDrops) drawDrop(drop, clamp(1 - drop.age / drop.life, 0, 1));
+                ctx.restore();
+            }
+            if (motion && freeDrops.length) dirty = true;
+        }
+
+        function requestFrame() {
+            if (stopped || paused || raf || !motion) {
+                if (!motion && dirty) render(performance.now());
+                return;
+            }
+            raf = requestAnimationFrame(time => {
+                raf = 0;
+                render(time);
+                if (motion) requestFrame();
+            });
+        }
+
+        function pause() {
+            paused = true;
+            if (raf) cancelAnimationFrame(raf);
+            raf = 0;
+            lastTime = 0;
+            for (const animation of springs) {
+                animation.onfinish = animation.oncancel = null;
+                animation.cancel();
+            }
+            springs.clear();
+        }
+
+        function resume() {
+            if (stopped) return;
+            paused = false;
+            snapshot();
+            requestFrame();
+        }
+
+        function stop() {
+            if (stopped) return;
+            stopped = true;
+            if (raf) cancelAnimationFrame(raf);
+            raf = 0;
+            if (resizeObserver) resizeObserver.disconnect();
+            if (mutationObserver) mutationObserver.disconnect();
+            for (const animation of springs) {
+                animation.onfinish = animation.oncancel = null;
+                animation.cancel();
+            }
+            springs.clear();
+            freeDrops.length = 0;
+            records.clear();
+            surfaces.clear();
+            nextDropAt.clear();
+            motionDrives.clear();
+            canvas.remove();
+        }
+
+        function inspect() {
+            return {
+                ready: !!ctx,
+                motion,
+                paused,
+                rafPending: !!raf,
+                windowCount: records.size,
+                frameCount,
+                maxDisplacement: Math.min(MAX_DEFORMATION, maxDisplacement),
+                currentMaxDisplacement: Math.min(MAX_DEFORMATION, currentMaxDisplacement),
+                dropCount,
+                activeDrops: freeDrops.length,
+                maskCount: cachedOverlayMasks.length,
+                maskRefreshCount,
+                surfaceCount: surfaces.size,
+                surfaceNodeCount: surfaces.size * SURFACE_SAMPLES
+            };
+        }
+
+        resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(resize) : null;
+        if (resizeObserver) resizeObserver.observe(layer);
+        observeMaskChanges();
+        window.addEventListener('resize', resize, { passive: true, signal });
+        window.addEventListener('scroll', invalidateMasks, { passive: true, capture: true, signal });
+        window.addEventListener('transitionend', invalidateMasks, { passive: true, capture: true, signal });
+        window.addEventListener('animationend', invalidateMasks, { passive: true, capture: true, signal });
+        window.addEventListener('aurago:desktop-window', onWindowEvent, { signal });
+        window.addEventListener('aurago:desktop-windows-refresh', () => { snapshot(); requestFrame(); }, { signal });
+        if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', stop, { once: true });
+        resize();
+        snapshot();
+        requestFrame();
+        return { pause, resume, stop, inspect };
+    }
+
+    window.AuraDesktopThemeFx.register('green_slime', { start });
+})();
+
+;
+/* ui/js/desktop/theme-fx/voxel-graphics.js */
+(function () {
+    'use strict';
+
+    const PIXELS_PER_METER = 100;
+    const MAX_FRAME_BOXES = 4096;
+    const MAX_WINDOWS = 256;
+    const MAX_MASKS = 1024;
+    const MAX_BACKDROP_BLOCKS = 1800;
+    const FRAME_TILE_BUDGET = 144;
+    const WINDOW_Z_BASE = .16;
+    const WINDOW_Z_STEP = .75;
+    const WINDOW_FRAME_Z_OFFSET = .34;
+    const MATERIALS = {
+        wood: ['#9c6840', '#b17b4e', '#d1a36b', '#765034'],
+        stone: ['#75857b', '#8d9a8c', '#a8ad99', '#596b63'],
+        earth: ['#75563c', '#977047', '#b08a56', '#5d4837']
+    };
+    const BACKDROP_COLORS = {
+        grass: ['#6d9a4d', '#7eaa58', '#91b767', '#527a43'],
+        earth: ['#80513b', '#956044', '#ad7651', '#694534'],
+        stone: ['#777e78', '#888d82', '#9b9c8d', '#656d69'],
+        mountain: ['#7c8790', '#939a97', '#aeb0a2', '#63737f'],
+        snow: ['#e9e0c7', '#f4e9d0', '#d9d5c5'],
+        water: ['#538fa0', '#67a8b2', '#7ab8bd'],
+        leaf: ['#47743d', '#5b8745', '#6f984f', '#3e6537'],
+        cloud: ['#fff0d9', '#ffe4bd', '#f5d7ae']
+    };
+
+    function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+    function rectFor(record) {
+        const measured = record && record.element && typeof record.element.getBoundingClientRect === 'function'
+            ? record.element.getBoundingClientRect()
+            : record && record.rect;
+        if (!measured) return null;
+        const x = Number(measured.x ?? measured.left);
+        const y = Number(measured.y ?? measured.top);
+        const width = Number(measured.width);
+        const height = Number(measured.height);
+        return Number.isFinite(x) && Number.isFinite(y) && width > 0 && height > 0 ? { x, y, width, height } : null;
+    }
+    function materialForRecord(record) {
+        const explicit = String(record && record.material || '').toLowerCase();
+        if (MATERIALS[explicit]) return explicit;
+        const source = String(record && (record.appId || record.id) || 'desktop-window');
+        let hash = 0;
+        for (let i = 0; i < source.length; i++) hash = (hash * 31 + source.charCodeAt(i)) | 0;
+        return ['wood', 'stone', 'earth'][Math.abs(hash) % 3];
+    }
+    function frameStep(rect) {
+        return clamp(Math.ceil((rect.width * 2 + rect.height * 2) / FRAME_TILE_BUDGET), 14, 34);
+    }
+
+    function create(options) {
+        const { layer, fallback, fallbackContext, signal, fullWallpaper } = options;
+        const read = options.readState;
+        let THREE = null;
+        let renderer = null;
+        let scene = null;
+        let camera = null;
+        let frameMesh = null;
+        let frameShadowMesh = null;
+        let windowDepthMesh = null;
+        let fragmentMesh = null;
+        let fragmentOpacity = null;
+        let maskMesh = null;
+        let backdropMesh = null;
+        let cloudMesh = null;
+        let backgroundMaskMesh = null;
+        let workObject = null;
+        let ready = false;
+        let contextLost = false;
+        let backend = 'loading';
+        let fallbackDirty = true;
+        let frameVoxelCount = 0;
+        let backdropVoxelCount = 0;
+
+        function state() { return read(); }
+        function noteError(stage, error) { options.noteError(stage, error); }
+        function pixelX(x, width) { return (x - width / 2) / PIXELS_PER_METER; }
+        function pixelY(y, height) { return (height / 2 - y) / PIXELS_PER_METER; }
+
+        function clipOutsideRects(ctx, rects, width, height) {
+            for (const rect of rects) {
+                if (!rect) continue;
+                ctx.beginPath();
+                ctx.rect(0, 0, width, height);
+                ctx.rect(rect.x, rect.y, rect.width, rect.height);
+                ctx.clip('evenodd');
+            }
+        }
+
+        function paintFallback() {
+            const s = state();
+            if (!fallbackContext || !fallbackDirty || s.stopped) return;
+            fallbackDirty = false;
+            const ctx = fallbackContext;
+            const { width, height, windowRects, maskRects } = s;
+            const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
+            fallback.width = Math.max(1, Math.round(width * dpr));
+            fallback.height = Math.max(1, Math.round(height * dpr));
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, width, height);
+            if (fullWallpaper) {
+                ctx.save();
+                clipOutsideRects(ctx, windowRects.map(item => item.rect).concat(maskRects), width, height);
+                const tile = clamp(Math.round(height / 30), 18, 30);
+                const fillBlock = (x, y, w, h, color, alpha) => {
+                    ctx.globalAlpha = alpha == null ? .9 : alpha;
+                    ctx.fillStyle = color;
+                    ctx.fillRect(Math.round(x), Math.round(y), Math.ceil(w), Math.ceil(h));
+                };
+                const ridgeY = height * .66;
+                for (const peak of [[width * .12, width * .25, height * .19], [width * .43, width * .3, height * .28], [width * .78, width * .28, height * .18]]) {
+                    const [center, span, rise] = peak;
+                    const rows = Math.ceil(rise / tile);
+                    for (let row = 0; row < rows; row++) {
+                        const t = row / Math.max(1, rows - 1);
+                        const half = span * (.54 - .42 * t);
+                        for (let x = center - half; x <= center + half; x += tile) {
+                            const snow = t >= .72 && Math.abs(x - center) < half * .52;
+                            const colors = snow ? BACKDROP_COLORS.snow : BACKDROP_COLORS.mountain;
+                            fillBlock(x, ridgeY - row * tile, tile + 1, tile + 1, colors[Math.abs(Math.floor(x / tile + row)) % colors.length], .82);
+                        }
+                    }
+                }
+                for (const cloud of [[.12, .22, 4], [.32, .17, 5], [.53, .26, 4], [.76, .18, 5], [.9, .29, 4]]) {
+                    const [xRatio, yRatio, span] = cloud;
+                    for (let row = 0; row < 3; row++) {
+                        const count = row === 1 ? span : span - 1;
+                        for (let col = 0; col < count; col++) {
+                            fillBlock(width * xRatio + (col - (count - 1) / 2) * tile * .8,
+                                height * yRatio + (row - 1) * tile * .35, tile * .9, tile * .62,
+                                BACKDROP_COLORS.cloud[(row + col) % BACKDROP_COLORS.cloud.length], .94);
+                        }
+                    }
+                }
+                const ground = height - 52;
+                for (let x = -tile; x < width + tile; x += tile) {
+                    const edge = Math.abs((x + tile / 2 - width / 2) / Math.max(1, width / 2));
+                    const surface = ground - clamp(height * (.04 + Math.pow(edge, 1.7) * .13 + Math.sin(x * .015) * .01), 24, height * .19);
+                    fillBlock(x, surface, tile + 1, tile + 1, BACKDROP_COLORS.grass[Math.abs(Math.floor(x / tile)) % BACKDROP_COLORS.grass.length]);
+                    for (let row = 1; surface + row * tile < height + tile; row++) {
+                        const group = row > 4 && Math.floor(x / tile + row) % 4 === 0 ? BACKDROP_COLORS.stone : BACKDROP_COLORS.earth;
+                        fillBlock(x, surface + row * tile, tile + 1, tile + 1, group[Math.abs(Math.floor(x / tile + row)) % group.length]);
+                    }
+                }
+                ctx.globalAlpha = 1;
+                ctx.restore();
+            }
+            ctx.lineJoin = 'miter';
+            for (let windowIndex = 0; windowIndex < windowRects.length; windowIndex++) {
+                const item = windowRects[windowIndex];
+                const rect = item.rect;
+                ctx.save();
+                clipOutsideRects(ctx, [rect, ...maskRects, ...windowRects.slice(windowIndex + 1).map(higher => higher.rect)], width, height);
+                const step = frameStep(rect);
+                const colors = MATERIALS[materialForRecord(item.record)];
+                ctx.shadowColor = 'rgba(59,39,25,.3)';
+                ctx.shadowBlur = 4;
+                for (let x = rect.x; x <= rect.x + rect.width; x += step) {
+                    ctx.fillStyle = colors[Math.abs(Math.floor(x / step)) % colors.length];
+                    ctx.fillRect(x, rect.y - step * .5, step + 1, step);
+                    ctx.fillStyle = colors[(Math.abs(Math.floor(x / step)) + 2) % colors.length];
+                    ctx.fillRect(x, rect.y + rect.height - step * .5, step + 1, step);
+                }
+                for (let y = rect.y + step; y < rect.y + rect.height - step; y += step) {
+                    ctx.fillStyle = colors[(Math.abs(Math.floor(y / step)) + 1) % colors.length];
+                    ctx.fillRect(rect.x - step * .5, y, step, step + 1);
+                    ctx.fillStyle = colors[(Math.abs(Math.floor(y / step)) + 3) % colors.length];
+                    ctx.fillRect(rect.x + rect.width - step * .5, y, step, step + 1);
+                }
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        function setStencil(material, masked, reference, compareMask, writeMask) {
+            material.stencilWrite = true;
+            material.stencilRef = reference == null ? 1 : reference;
+            material.stencilFuncMask = compareMask == null ? 0xff : compareMask;
+            material.stencilWriteMask = writeMask == null ? 0xff : writeMask;
+            material.stencilFunc = masked ? THREE.AlwaysStencilFunc : THREE.EqualStencilFunc;
+            material.stencilFail = THREE.KeepStencilOp;
+            material.stencilZFail = THREE.KeepStencilOp;
+            material.stencilZPass = masked ? THREE.ReplaceStencilOp : THREE.KeepStencilOp;
+        }
+
+        function removeBackdropMeshes() {
+            for (const mesh of [backdropMesh, cloudMesh]) {
+                if (!mesh) continue;
+                scene.remove(mesh);
+                mesh.geometry.dispose();
+                mesh.material.dispose();
+            }
+            backdropMesh = null;
+            cloudMesh = null;
+        }
+
+        function rebuildBackdrop() {
+            if (!scene || !THREE) return;
+            removeBackdropMeshes();
+            if (!fullWallpaper) { backdropVoxelCount = 0; return; }
+            const s = state();
+            const { width, height } = s;
+            let seed = 0x47a812;
+            const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+            const terrain = [];
+            const clouds = [];
+            const block = (list, x, y, w, h, depth, z, color) => {
+                if (terrain.length + clouds.length >= MAX_BACKDROP_BLOCKS) return;
+                list.push({ x, y, w, h, depth, z, color });
+            };
+            const ground = height - 58;
+            const tile = clamp(Math.round(height / 30), 22, 34);
+            const palette = group => BACKDROP_COLORS[group];
+
+            const horizon = height * .65;
+            const peaks = [
+                { x: width * .12, w: width * .27, h: height * .2, color: 'mountain' },
+                { x: width * .41, w: width * .33, h: height * .3, color: 'stone' },
+                { x: width * .77, w: width * .28, h: height * .19, color: 'mountain' }
+            ];
+            const ridgeTile = clamp(Math.round(height / 34), 20, 30);
+            for (const peak of peaks) {
+                const rows = Math.ceil(peak.h / ridgeTile);
+                for (let row = 0; row < rows; row++) {
+                    const t = row / Math.max(1, rows - 1);
+                    const half = peak.w * (.56 - .44 * t);
+                    const centerY = horizon - row * ridgeTile;
+                    const first = Math.floor((peak.x - half) / ridgeTile) * ridgeTile;
+                    for (let x = first; x <= peak.x + half; x += ridgeTile) {
+                        const snow = t >= .72 && Math.abs(x - peak.x) < half * .52;
+                        const colors = palette(snow ? 'snow' : peak.color);
+                        block(terrain, x + ridgeTile / 2, centerY, ridgeTile * .94, ridgeTile * .94, ridgeTile * .68, -3.8,
+                            colors[Math.floor(rand() * colors.length)]);
+                    }
+                }
+            }
+
+            const riverY = height * .77;
+            for (let row = 0; row < 3; row++) {
+                const span = width * (.1 + row * .12);
+                const offset = (row % 2) * tile * .5;
+                for (let x = width * .5 - span / 2 + offset; x < width * .5 + span / 2; x += tile * 1.2) {
+                    const colors = palette('water');
+                    block(terrain, x, riverY + row * tile * .45, tile * 1.08, tile * .34, tile * .46, -2.65,
+                        colors[Math.floor(rand() * colors.length)]);
+                }
+            }
+
+            const columns = Math.ceil(width / tile) + 2;
+            for (let column = -1; column < columns; column++) {
+                const x = column * tile + tile / 2;
+                const nx = Math.abs((x - width / 2) / Math.max(1, width / 2));
+                const surfaceHeight = clamp(height * (.03 + Math.pow(nx, 1.7) * .1 + Math.sin(column * .83) * .009), 20, height * .14);
+                const surfaceY = ground - surfaceHeight;
+                const variation = Math.floor(rand() * 4);
+                block(terrain, x, surfaceY, tile * .94, tile * .94, tile * .86, -1.62, palette('grass')[variation]);
+                const layers = Math.ceil(surfaceHeight / tile) + 2;
+                for (let layerIndex = 1; layerIndex < layers; layerIndex++) {
+                    const y = surfaceY + layerIndex * tile;
+                    const group = layerIndex > 4 && (column + layerIndex) % 4 === 0 ? 'stone' : 'earth';
+                    const colors = palette(group);
+                    block(terrain, x, y, tile * .94, tile * .94, tile * .86, -1.62, colors[Math.floor(rand() * colors.length)]);
+                }
+                if ((nx > .78 && column % 5 === 1) || (nx > .91 && column % 4 === 0)) {
+                    // Stagger tree depths: intersecting crowns must not share coplanar faces.
+                    const treeDepth = (column % 7) * .035;
+                    const trunkHeight = 3 + Math.floor(rand() * 3);
+                    const trunkColor = ['#79553b', '#8a6040', '#694a35'][Math.floor(rand() * 3)];
+                    for (let trunk = 1; trunk <= trunkHeight; trunk++) {
+                        block(terrain, x, surfaceY - trunk * tile, tile * .34, tile * .88, tile * .4, -1.42 + treeDepth, trunkColor);
+                    }
+                    const canopyY = surfaceY - (trunkHeight + 1) * tile;
+                    for (let canopyRow = 0; canopyRow < 3; canopyRow++) {
+                        const canopySpan = (3 - Math.floor(canopyRow / 2)) * tile;
+                        for (let leafX = -canopySpan; leafX <= canopySpan; leafX += tile) {
+                            if (Math.abs(leafX) + canopyRow * tile * .34 > canopySpan * 1.35) continue;
+                            const leaves = palette('leaf');
+                            block(terrain, x + leafX, canopyY + canopyRow * tile, tile * .88, tile * .82, tile * .78, -1.36 + treeDepth,
+                                leaves[Math.floor(rand() * leaves.length)]);
+                        }
+                    }
+                }
+            }
+
+            const cloudDefs = [[.12, .24, 4], [.31, .15, 5], [.52, .25, 4], [.73, .16, 4], [.91, .28, 5]];
+            for (const [xRatio, yRatio, span] of cloudDefs) {
+                const cx = width * xRatio;
+                const cy = height * yRatio;
+                for (let row = 0; row < 3; row++) {
+                    const rowSpan = row === 1 ? span : span - 1;
+                    for (let col = 0; col < rowSpan; col++) {
+                        const px = cx + (col - (rowSpan - 1) / 2) * tile * 1.04;
+                        const py = cy + (row - 1) * tile * .78;
+                        const colors = palette('cloud');
+                        block(clouds, px, py, tile * .9, tile * .58, tile * .82, -4.8 - row * .12,
+                            colors[Math.floor(rand() * colors.length)]);
+                    }
+                }
+            }
+            const sunX = width * .16;
+            const sunY = height * .34;
+            for (let row = 0; row < 3; row++) {
+                for (let col = 0; col < 3; col++) {
+                    block(clouds, sunX + (col - 1) * tile * .74, sunY + (row - 1) * tile * .74,
+                        tile * .66, tile * .66, tile * .46, -5.3, row === 1 && col === 1 ? '#ffc66f' : '#ffdc9d');
+                }
+            }
+
+            const createVoxelMesh = (items, roughness) => {
+                if (!items.length) return null;
+                const geometry = new THREE.BoxGeometry(1, 1, 1);
+                const material = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0, roughness, depthWrite: true });
+                setStencil(material, false, 0, 3, 0);
+                const mesh = new THREE.InstancedMesh(geometry, material, Math.min(items.length, MAX_BACKDROP_BLOCKS));
+                mesh.count = Math.min(items.length, MAX_BACKDROP_BLOCKS);
+                mesh.frustumCulled = false;
+                mesh.renderOrder = 0;
+                for (let i = 0; i < mesh.count; i++) {
+                    const item = items[i];
+                    workObject.position.set(pixelX(item.x, width), pixelY(item.y, height), item.z);
+                    workObject.rotation.set(0, 0, 0);
+                    workObject.scale.set(item.w / PIXELS_PER_METER, item.h / PIXELS_PER_METER, item.depth / PIXELS_PER_METER);
+                    workObject.updateMatrix();
+                    mesh.setMatrixAt(i, workObject.matrix);
+                    mesh.setColorAt(i, new THREE.Color(item.color));
+                }
+                mesh.instanceMatrix.needsUpdate = true;
+                if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+                return mesh;
+            };
+            backdropMesh = createVoxelMesh(terrain, .94);
+            cloudMesh = createVoxelMesh(clouds, .9);
+            if (backdropMesh) { backdropMesh.rotation.set(.14, .22, 0); backdropMesh.position.z = -4; }
+            if (cloudMesh) { cloudMesh.rotation.set(.1, .16, 0); cloudMesh.position.z = -4; }
+            backdropVoxelCount = (backdropMesh ? backdropMesh.count : 0) + (cloudMesh ? cloudMesh.count : 0);
+            if (backdropMesh) scene.add(backdropMesh);
+            if (cloudMesh) scene.add(cloudMesh);
+        }
+
+        function resizeRenderer() {
+            if (!renderer || !camera) return;
+            const s = state();
+            const qualityDpr = [1.25, 1.05, .78, .78, .65][s.qualityLevel] || .65;
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, qualityDpr));
+            renderer.setSize(s.width, s.height, false);
+            camera.left = -s.width / (2 * PIXELS_PER_METER);
+            camera.right = s.width / (2 * PIXELS_PER_METER);
+            camera.top = s.height / (2 * PIXELS_PER_METER);
+            camera.bottom = -s.height / (2 * PIXELS_PER_METER);
+            camera.updateProjectionMatrix();
+            rebuildBackdrop();
+            updateSceneInstances();
+            invalidateFallback();
+        }
+
+        function createScene(vendor) {
+            THREE = vendor && vendor.THREE;
+            if (!THREE || !vendor.RAPIER || state().stopped) {
+                if (!THREE || !vendor.RAPIER) noteError('vendor module', 'Three.js or Rapier export is missing');
+                return false;
+            }
+            const canvas = document.createElement('canvas');
+            canvas.className = 'vd-fx-voxel-webgl';
+            canvas.setAttribute('aria-hidden', 'true');
+            canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;';
+            try {
+                renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, stencil: true, depth: true,
+                    powerPreference: 'low-power', preserveDrawingBuffer: false });
+            } catch (error) {
+                backend = 'fallback';
+                noteError('WebGL initialization', error);
+                return false;
+            }
+            canvas.addEventListener('webglcontextlost', event => {
+                event.preventDefault();
+                contextLost = true;
+                backend = 'context-lost';
+                canvas.style.display = 'none';
+                fallback.style.display = 'block';
+                invalidateFallback();
+                paintFallback();
+                options.onContextLost();
+            }, { signal });
+            canvas.addEventListener('webglcontextrestored', () => {
+                contextLost = false;
+                backend = 'three-webgl';
+                canvas.style.display = 'block';
+                fallback.style.display = 'none';
+                options.onContextRestored();
+            }, { signal });
+            renderer.setClearColor(0x000000, 0);
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.02;
+            scene = new THREE.Scene();
+            camera = new THREE.OrthographicCamera(-1, 1, 1, -1, .1, 100);
+            camera.position.set(0, 0, 32);
+            camera.lookAt(0, 0, 0);
+            workObject = new THREE.Object3D();
+
+            const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+            const boxMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0, roughness: .9,
+                transparent: true, depthWrite: false });
+            setStencil(boxMaterial, false, 0, 3, 0);
+            boxGeometry.setAttribute('instanceOpacity', new THREE.InstancedBufferAttribute(new Float32Array(256).fill(1), 1));
+            boxMaterial.onBeforeCompile = shader => {
+                shader.vertexShader = 'attribute float instanceOpacity; varying float vInstanceOpacity;\n' + shader.vertexShader;
+                shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vInstanceOpacity = instanceOpacity;');
+                shader.fragmentShader = 'varying float vInstanceOpacity;\n' + shader.fragmentShader;
+                shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.a *= vInstanceOpacity;');
+            };
+            fragmentOpacity = boxGeometry.getAttribute('instanceOpacity');
+            fragmentMesh = new THREE.InstancedMesh(boxGeometry, boxMaterial, 256);
+            fragmentMesh.count = 0;
+            fragmentMesh.frustumCulled = false;
+            fragmentMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            fragmentMesh.renderOrder = 4;
+            scene.add(fragmentMesh);
+
+            const frameMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0, roughness: .84 });
+            setStencil(frameMaterial, false, 0, 1, 0);
+            frameMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), frameMaterial, MAX_FRAME_BOXES);
+            frameMesh.count = 0;
+            frameMesh.frustumCulled = false;
+            frameMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            frameMesh.renderOrder = 3;
+            scene.add(frameMesh);
+
+            const shadowMaterial = new THREE.MeshBasicMaterial({ color: 0x293224, transparent: true, opacity: .22, depthWrite: false });
+            setStencil(shadowMaterial, false, 0, 1, 0);
+            frameShadowMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), shadowMaterial, MAX_FRAME_BOXES);
+            frameShadowMesh.count = 0;
+            frameShadowMesh.frustumCulled = false;
+            frameShadowMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            frameShadowMesh.renderOrder = 2;
+            scene.add(frameShadowMesh);
+
+            const depthMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true, depthTest: true, side: THREE.DoubleSide });
+            windowDepthMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), depthMaterial, MAX_WINDOWS);
+            windowDepthMesh.count = 0;
+            windowDepthMesh.frustumCulled = false;
+            windowDepthMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            windowDepthMesh.renderOrder = 1;
+            scene.add(windowDepthMesh);
+
+            const backgroundMaskMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
+            setStencil(backgroundMaskMaterial, true, 2, 0xff, 2);
+            backgroundMaskMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), backgroundMaskMaterial, MAX_WINDOWS);
+            backgroundMaskMesh.count = 0;
+            backgroundMaskMesh.frustumCulled = false;
+            backgroundMaskMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            backgroundMaskMesh.renderOrder = -101;
+            scene.add(backgroundMaskMesh);
+
+            const maskMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
+            setStencil(maskMaterial, true, 1, 0xff, 1);
+            maskMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), maskMaterial, MAX_MASKS);
+            maskMesh.count = 0;
+            maskMesh.frustumCulled = false;
+            maskMesh.renderOrder = -100;
+            scene.add(maskMesh);
+
+            const ambient = new THREE.AmbientLight(0xffedcf, 2.05);
+            const key = new THREE.DirectionalLight(0xffd28c, 2.8);
+            key.position.set(-4, 6, 7);
+            const rim = new THREE.DirectionalLight(0x95bd72, 1.25);
+            rim.position.set(4, -2, -4);
+            scene.add(ambient, key, rim);
+            layer.appendChild(canvas);
+            fallback.style.display = 'none';
+            backend = 'three-webgl';
+            ready = true;
+            resizeRenderer();
+            updateSceneInstances();
+            return true;
+        }
+
+        function updateSceneInstances() {
+            const s = state();
+            if (!ready || !scene || !THREE || !windowDepthMesh) return;
+            const { width, height, windowRects, maskRects, damageWindows, assemblingWindows } = s;
+            let frameIndex = 0;
+            const now = performance.now();
+            const windowCount = Math.min(windowRects.length, MAX_WINDOWS);
+            windowDepthMesh.count = windowCount;
+            for (let windowRank = 0; windowRank < windowCount; windowRank++) {
+                const item = windowRects[windowRank];
+                const record = item.record;
+                const rect = item.rect;
+                const planeZ = WINDOW_Z_BASE + windowRank * WINDOW_Z_STEP;
+                workObject.position.set(pixelX(rect.x + rect.width / 2, width), pixelY(rect.y + rect.height / 2, height), planeZ);
+                workObject.rotation.set(0, 0, 0);
+                workObject.scale.set(rect.width / PIXELS_PER_METER, rect.height / PIXELS_PER_METER, 1);
+                workObject.updateMatrix();
+                windowDepthMesh.setMatrixAt(windowRank, workObject.matrix);
+                const key = String(record.id);
+                const damage = damageWindows.get(key);
+                if (damage && !damage.dragging && now >= damage.repairAt) damageWindows.delete(key);
+                const liveDamage = damage && (damage.dragging || now < damage.repairAt) ? damage : null;
+                const colors = MATERIALS[materialForRecord(record)];
+                const step = frameStep(rect);
+                const tileSize = Math.max(15, step * 1.06);
+                const assembly = assemblingWindows.get(key);
+                const progress = assembly ? clamp((now - assembly.at) / assembly.duration, 0, 1) : 1;
+                const settle = 1 - Math.pow(1 - progress, 3);
+                if (assembly && progress >= 1) assemblingWindows.delete(key);
+                const tile = (side, index, cx, cy, bw, bh, color) => {
+                    if (frameIndex >= MAX_FRAME_BOXES || (liveDamage && liveDamage.holes.has(side + ':' + index))) return;
+                    let px = cx, py = cy, pz = planeZ + WINDOW_FRAME_Z_OFFSET;
+                    if (assembly && progress < 1) {
+                        const seed = (index + 1) * 12.9898 + side.charCodeAt(0) * 78.233;
+                        px += Math.sin(seed) * step * 2.1 * (1 - settle);
+                        py -= (24 + Math.abs(Math.cos(seed * 1.37)) * 44) * (1 - settle);
+                        pz += .32 * (1 - settle);
+                    }
+                    workObject.position.set(pixelX(px, width), pixelY(py, height), pz);
+                    workObject.rotation.set(0, 0, 0);
+                    workObject.scale.set(bw / PIXELS_PER_METER, bh / PIXELS_PER_METER, tileSize / PIXELS_PER_METER);
+                    workObject.updateMatrix();
+                    frameMesh.setMatrixAt(frameIndex, workObject.matrix);
+                    frameMesh.setColorAt(frameIndex, new THREE.Color(color));
+                    workObject.position.set(pixelX(px + 2.5, width), pixelY(py + 4, height), pz - .30);
+                    workObject.scale.set((bw + 5) / PIXELS_PER_METER, (bh + 5) / PIXELS_PER_METER, tileSize * .62 / PIXELS_PER_METER);
+                    workObject.updateMatrix();
+                    frameShadowMesh.setMatrixAt(frameIndex, workObject.matrix);
+                    frameIndex++;
+                };
+                const horizontalCount = Math.max(1, Math.ceil(rect.width / step));
+                const verticalCount = Math.max(1, Math.ceil(rect.height / step));
+                for (let i = 0; i < horizontalCount; i++) {
+                    const cx = rect.x + (i + .5) * rect.width / horizontalCount;
+                    const widthForTile = rect.width / horizontalCount + 1;
+                    tile('top', i, cx, rect.y - tileSize * .48, widthForTile, tileSize, colors[i % colors.length]);
+                    tile('bottom', i, cx, rect.y + rect.height + tileSize * .48, widthForTile, tileSize, colors[(i + 2) % colors.length]);
+                }
+                for (let i = 0; i < verticalCount; i++) {
+                    const cy = rect.y + (i + .5) * rect.height / verticalCount;
+                    const heightForTile = rect.height / verticalCount + 1;
+                    tile('left', i, rect.x - tileSize * .48, cy, tileSize, heightForTile, colors[(i + 1) % colors.length]);
+                    tile('right', i, rect.x + rect.width + tileSize * .48, cy, tileSize, heightForTile, colors[(i + 3) % colors.length]);
+                }
+            }
+            frameMesh.count = frameIndex;
+            frameShadowMesh.count = frameIndex;
+            frameVoxelCount = frameIndex;
+            frameMesh.instanceMatrix.needsUpdate = true;
+            frameShadowMesh.instanceMatrix.needsUpdate = true;
+            if (frameMesh.instanceColor) frameMesh.instanceColor.needsUpdate = true;
+            windowDepthMesh.instanceMatrix.needsUpdate = true;
+
+            maskMesh.count = Math.min(maskRects.length, MAX_MASKS);
+            for (let i = 0; i < maskMesh.count; i++) {
+                const rect = maskRects[i];
+                workObject.position.set(pixelX(rect.x + rect.width / 2, width), pixelY(rect.y + rect.height / 2, height), 2);
+                workObject.rotation.set(0, 0, 0);
+                workObject.scale.set(rect.width / PIXELS_PER_METER, rect.height / PIXELS_PER_METER, 1);
+                workObject.updateMatrix();
+                maskMesh.setMatrixAt(i, workObject.matrix);
+            }
+            maskMesh.instanceMatrix.needsUpdate = true;
+
+            backgroundMaskMesh.count = Math.min(windowRects.length, MAX_WINDOWS);
+            for (let i = 0; i < backgroundMaskMesh.count; i++) {
+                const rect = windowRects[i].rect;
+                workObject.position.set(pixelX(rect.x + rect.width / 2, width), pixelY(rect.y + rect.height / 2, height), 2);
+                workObject.rotation.set(0, 0, 0);
+                workObject.scale.set(rect.width / PIXELS_PER_METER, rect.height / PIXELS_PER_METER, 1);
+                workObject.updateMatrix();
+                backgroundMaskMesh.setMatrixAt(i, workObject.matrix);
+            }
+            backgroundMaskMesh.instanceMatrix.needsUpdate = true;
+            invalidateFallback();
+        }
+
+        function setFragmentSlot(index, color) {
+            if (!fragmentMesh || !workObject) return;
+            workObject.position.set(0, 0, -100);
+            workObject.rotation.set(0, 0, 0);
+            workObject.scale.set(0, 0, 0);
+            workObject.updateMatrix();
+            fragmentMesh.setMatrixAt(index, workObject.matrix);
+            fragmentMesh.setColorAt(index, new THREE.Color(color));
+            fragmentOpacity.array[index] = 0;
+        }
+        function setFragmentColor(index, color, opacity) {
+            if (!fragmentMesh || !fragmentOpacity) return;
+            fragmentMesh.setColorAt(index, new THREE.Color(color));
+            fragmentOpacity.array[index] = opacity;
+        }
+        function setFragmentOpacity(index, opacity) {
+            if (fragmentOpacity) fragmentOpacity.array[index] = opacity;
+        }
+        function setFragmentMatrix(slot, index) {
+            if (!fragmentMesh || !slot.active) {
+                if (fragmentMesh) setFragmentSlot(index, '#75857b');
+                return;
+            }
+            const translation = slot.body.translation();
+            const rotation = slot.body.rotation();
+            const scale = slot.size / PIXELS_PER_METER;
+            const fade = clamp((slot.age - 3.8) / 1.8, 0, 1);
+            const shrink = 1 - fade * .62;
+            workObject.position.set(translation.x, translation.y, translation.z);
+            workObject.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+            workObject.scale.set(scale * shrink, scale * shrink, scale * shrink);
+            workObject.updateMatrix();
+            fragmentMesh.setMatrixAt(index, workObject.matrix);
+            fragmentOpacity.array[index] = slot.alpha;
+        }
+        function commitFragments(count) {
+            if (!fragmentMesh || !fragmentOpacity) return;
+            if (count != null) fragmentMesh.count = count;
+            fragmentMesh.instanceMatrix.needsUpdate = true;
+            fragmentOpacity.needsUpdate = true;
+            if (fragmentMesh.instanceColor) fragmentMesh.instanceColor.needsUpdate = true;
+        }
+        function setBackdropPosition(x, y) {
+            if (backdropMesh) backdropMesh.position.set(x * .4, -y * .35, -4);
+            if (cloudMesh) cloudMesh.position.set(x * 1.3, -y, -4);
+        }
+        function setSceneryVisible(visible) {
+            if (backdropMesh) backdropMesh.visible = !!visible;
+            if (cloudMesh) cloudMesh.visible = !!visible;
+        }
+        function invalidateFallback() { fallbackDirty = true; }
+        function render() {
+            if (!renderer || !scene || !camera || state().stopped || contextLost) return null;
+            const started = performance.now();
+            try { renderer.render(scene, camera); }
+            catch (error) { backend = 'three-webgl-error'; noteError('WebGL render', error); }
+            if (!renderer || contextLost) paintFallback();
+            return performance.now() - started;
+        }
+        function dispose() {
+            removeBackdropMeshes();
+            if (renderer) {
+                try { renderer.renderLists.dispose(); } catch (_) { }
+                renderer.dispose();
+                renderer.forceContextLoss();
+                renderer.domElement.remove();
+            }
+            for (const mesh of [frameMesh, frameShadowMesh, windowDepthMesh, backgroundMaskMesh, fragmentMesh, maskMesh]) {
+                if (mesh) { mesh.geometry.dispose(); mesh.material.dispose(); }
+            }
+            renderer = null;
+            scene = null;
+            camera = null;
+            ready = false;
+        }
+        function inspect() {
+            return { renderer: backend, rendererReady: !!renderer, ready, contextLost, frameVoxelCount, maxFrameVoxels: MAX_FRAME_BOXES,
+                backdropVoxelCount, wallpaper: fullWallpaper ? 'voxel_world' : 'custom' };
+        }
+        return {
+            paintFallback, createScene, resizeRenderer, updateSceneInstances, setFragmentSlot, setFragmentColor,
+            setFragmentOpacity, setFragmentMatrix, commitFragments, setBackdropPosition, setSceneryVisible,
+            invalidateFallback, render, dispose, inspect, materialForRecord, frameStep,
+            setBackend(value) { backend = value; },
+            get ready() { return ready; },
+            get rendererReady() { return !!renderer; },
+            get contextLost() { return contextLost; },
+            get backend() { return backend; }
+        };
+    }
+
+    window.AuraVoxelGraphics = Object.freeze({ create, materials: MATERIALS });
+})();
+
+;
+/* ui/js/desktop/theme-fx/voxel_world.js */
+(function () {
+    'use strict';
+
+    const VENDOR_URL = '/js/vendor/desktop-themes/voxel-runtime.js';
+    const PIXELS_PER_METER = 100;
+    const FIXED_STEP = 1 / 60;
+    const MAX_FRAGMENTS = 256;
+    const MASK_SELECTORS = '.vd-icon, .vd-widget, .vd-taskbar, .vd-dock, .vd-start-menu, .vd-context-menu, .vd-modal-backdrop, .vd-toast-container, .vd-global-menu, .vd-radial-menu';
+    const MATERIALS = window.AuraVoxelGraphics.materials;
+
+    function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+    function randomBetween(min, max) { return min + Math.random() * (max - min); }
+    function rectFor(record) {
+        const measured = record && record.element && typeof record.element.getBoundingClientRect === 'function'
+            ? record.element.getBoundingClientRect()
+            : record && record.rect;
+        if (!measured) return null;
+        const x = Number(measured.x ?? measured.left);
+        const y = Number(measured.y ?? measured.top);
+        const width = Number(measured.width);
+        const height = Number(measured.height);
+        return Number.isFinite(x) && Number.isFinite(y) && width > 0 && height > 0
+            ? { x, y, width, height }
+            : null;
+    }
+    function usable(record) { return !!record && record.visible !== false && !record.minimized; }
+    function toWorldX(x, width) { return (x - width / 2) / PIXELS_PER_METER; }
+    function toWorldY(y, height) { return (height / 2 - y) / PIXELS_PER_METER; }
+    function eventIsCurrent(signal, stopped) { return !stopped && !(signal && signal.aborted); }
+
+    function start({ layer, signal, options }) {
+        const motion = !!(options && options.motion);
+        const fullWallpaper = !!(options && options.wallpaper === 'voxel_world');
+        const fallback = document.createElement('canvas');
+        fallback.className = 'vd-fx-voxel-fallback';
+        fallback.setAttribute('aria-hidden', 'true');
+        fallback.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;';
+        layer.appendChild(fallback);
+        const fallbackContext = fallback.getContext('2d', { alpha: true });
+
+        let width = Math.max(1, layer.clientWidth || window.innerWidth || 1);
+        let height = Math.max(1, layer.clientHeight || window.innerHeight || 1);
+        let stopped = false;
+        let paused = false;
+        let raf = 0;
+        let lastFrame = 0;
+        let accumulator = 0;
+        let frameCount = 0;
+        let physicsSteps = 0;
+        let slowFrames = 0;
+        let fastSince = 0;
+        let qualityLevel = 0;
+        let dynamicLimit = MAX_FRAGMENTS;
+        let physicsReady = false;
+        let lastError = '';
+        let records = new Map();
+        let windowRects = [];
+        let maskRects = [];
+        let lastSnapshotAt = 0;
+        let lastSoundAt = 0;
+        let lastPointerShearAt = 0;
+        let pointerInside = false;
+        let pointerX = -1000;
+        let pointerY = -1000;
+        let pointerVx = 0;
+        let pointerVy = 0;
+        let pointerAt = 0;
+        let pointerActiveUntil = 0;
+        let resizeObserver = null;
+        let desktopObserver = null;
+        let activeFragmentCount = 0;
+        let lastRenderCost = 0;
+        const pendingFractures = [];
+
+        let RAPIER = null;
+        let physicsWorld = null;
+        let eventQueue = null;
+        let floorBody = null;
+        let pointerBody = null;
+        let pointerCollider = null;
+        const windowBodies = new Map();
+        const iconBodies = new Map();
+        const fragments = [];
+        const colliderToFragment = new Map();
+        const colliderToFrame = new Map();
+        const colliderToIcon = new Map();
+        const lastShearAt = new Map();
+        const damageWindows = new Map();
+        const assemblingWindows = new Map();
+        let graphics = null;
+        let collisionCount = 0;
+        let physicsCollisionCount = 0;
+        let transitionUntil = 0;
+
+        function noteError(stage, error) {
+            const message = error && error.message ? error.message : String(error || 'unknown failure');
+            lastError = String(stage) + ': ' + message.slice(0, 240);
+            if (window.console && typeof window.console.warn === 'function') console.warn('[voxel_world FX] ' + lastError);
+        }
+
+        graphics = window.AuraVoxelGraphics.create({
+            layer, fallback, fallbackContext, signal, fullWallpaper,
+            readState: () => ({ width, height, stopped, paused, qualityLevel, windowRects, maskRects, damageWindows, assemblingWindows }),
+            noteError,
+            onContextLost: () => {
+                if (raf) cancelAnimationFrame(raf);
+                raf = 0;
+            },
+            onContextRestored: () => requestRender()
+        });
+
+        function snapshot(force) {
+            const now = performance.now();
+            if (!force && now - lastSnapshotAt < 110) return;
+            lastSnapshotAt = now;
+            const api = window.AuraDesktopWindowEffects;
+            if (!api || typeof api.snapshot !== 'function') return;
+            try {
+                const source = api.snapshot();
+                if (!Array.isArray(source)) return;
+                const next = new Map();
+                for (const record of source) {
+                    if (!usable(record) || record.id == null) continue;
+                    const rect = rectFor(record);
+                    if (rect) next.set(String(record.id), { ...record, rect });
+                }
+                records = next;
+                syncWindowBodies();
+                refreshMaskRects();
+                graphics.updateSceneInstances();
+            } catch (_) { /* the shell can dispose while a snapshot is being read */ }
+        }
+
+        function refreshMaskRects() {
+            const windows = [];
+            for (const record of records.values()) {
+                const rect = rectFor(record);
+                if (!rect) continue;
+                windows.push({ record, rect, z: Number(record.z) || 0 });
+            }
+            windowRects = windows.sort((a, b) => a.z - b.z).slice(-256);
+            const next = [];
+            for (const element of document.querySelectorAll(MASK_SELECTORS)) {
+                if (!element.isConnected || element.hidden) continue;
+                const style = window.getComputedStyle ? window.getComputedStyle(element) : null;
+                if (style && (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)) continue;
+                const rect = element.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.right >= 0 && rect.top <= height && rect.left <= width) {
+                    next.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+                }
+            }
+            maskRects = next.slice(0, 1024);
+            graphics.invalidateFallback();
+            if (!graphics.rendererReady || graphics.contextLost) graphics.paintFallback();
+        }
+
+        function nodeAffectsMasks(node) {
+            const element = node && node.nodeType === 1 ? node : node && node.parentElement;
+            if (!element || element.closest('.vd-theme-fx-layer')) return false;
+            try {
+                return element.matches(MASK_SELECTORS) || !!element.closest(MASK_SELECTORS) ||
+                    (!!element.querySelector && !!element.querySelector(MASK_SELECTORS));
+            } catch (_) { return false; }
+        }
+
+        function mutationsAffectMasks(mutations) {
+            for (const mutation of mutations) {
+                if (nodeAffectsMasks(mutation.target)) return true;
+                for (const node of mutation.addedNodes) if (nodeAffectsMasks(node)) return true;
+                for (const node of mutation.removedNodes) if (nodeAffectsMasks(node)) return true;
+            }
+            return false;
+        }
+
+        function sound(eventName, strength, x, material) {
+            if (!motion || document.hidden || !window.DesktopSounds || typeof window.DesktopSounds.play !== 'function') return;
+            const now = performance.now();
+            if (now - lastSoundAt < 90) return;
+            lastSoundAt = now;
+            const pan = clamp((x / Math.max(1, width)) * 2 - 1, -1, 1);
+            try {
+                window.DesktopSounds.play(eventName, {
+                    material: MATERIALS[material] ? material : 'stone',
+                    strength: clamp(strength, 0, 1),
+                    pan
+                });
+            } catch (_) { /* sound support is optional */ }
+        }
+
+        function removeWindowBody(id) {
+            const entry = windowBodies.get(String(id));
+            if (!entry) return;
+            for (const collider of entry.colliders || []) colliderToFrame.delete(collider.handle);
+            if (physicsWorld) physicsWorld.removeRigidBody(entry.body);
+            windowBodies.delete(String(id));
+        }
+
+        function syncWindowBodies() {
+            if (!physicsReady || !physicsWorld) return;
+            const wanted = new Set(records.keys());
+            for (const [id, entry] of windowBodies) {
+                if (!wanted.has(id)) {
+                    removeWindowBody(id);
+                }
+            }
+            for (const [id, record] of records) {
+                const rect = rectFor(record);
+                if (!rect) continue;
+                let entry = windowBodies.get(id);
+                if (entry && (Math.abs(entry.width - rect.width) > 1 || Math.abs(entry.height - rect.height) > 1)) {
+                    removeWindowBody(id);
+                    entry = null;
+                }
+                if (!entry) {
+                    const centerX = toWorldX(rect.x + rect.width / 2, width);
+                    const centerY = toWorldY(rect.y + rect.height / 2, height);
+                    const body = physicsWorld.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(centerX, centerY, 0));
+                    const hw = rect.width / (2 * PIXELS_PER_METER);
+                    const hh = rect.height / (2 * PIXELS_PER_METER);
+                    const tilePx = frameStep(rect);
+                    const tileWorld = tilePx / PIXELS_PER_METER;
+                    const thickness = tileWorld * .46;
+                    const colliders = [];
+                    const addEdgeCollider = (side, index, cx, cy, hx, hy) => {
+                        const collider = physicsWorld.createCollider(RAPIER.ColliderDesc.cuboid(hx, hy, .11)
+                            .setTranslation(cx, cy, 0)
+                            .setFriction(.78)
+                            .setRestitution(.24)
+                            .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS)
+                            .setContactForceEventThreshold(.035), body);
+                        colliders.push(collider);
+                        colliderToFrame.set(collider.handle, { id, side, index });
+                    };
+                    const horizontalCount = Math.max(1, Math.ceil(rect.width / tilePx));
+                    const verticalCount = Math.max(1, Math.ceil(rect.height / tilePx));
+                    for (let i = 0; i < horizontalCount; i++) {
+                        const x = -hw + (i + .5) * rect.width / horizontalCount / PIXELS_PER_METER;
+                        const hx = rect.width / horizontalCount / PIXELS_PER_METER / 2 + .008;
+                        addEdgeCollider('top', i, x, hh + thickness / 2, hx, thickness / 2);
+                        addEdgeCollider('bottom', i, x, -hh - thickness / 2, hx, thickness / 2);
+                    }
+                    for (let i = 0; i < verticalCount; i++) {
+                        const y = hh - (i + .5) * rect.height / verticalCount / PIXELS_PER_METER;
+                        const hy = rect.height / verticalCount / PIXELS_PER_METER / 2 + .008;
+                        addEdgeCollider('left', i, -hw - thickness / 2, y, thickness / 2, hy);
+                        addEdgeCollider('right', i, hw + thickness / 2, y, thickness / 2, hy);
+                    }
+                    entry = { body, colliders, width: rect.width, height: rect.height, x: rect.x, y: rect.y };
+                    windowBodies.set(id, entry);
+                }
+                const centerX = toWorldX(rect.x + rect.width / 2, width);
+                const centerY = toWorldY(rect.y + rect.height / 2, height);
+                entry.body.setNextKinematicTranslation({ x: centerX, y: centerY, z: 0 });
+                const velocity = record.velocity || {};
+                if (Math.abs(Number(velocity.x) || 0) + Math.abs(Number(velocity.y) || 0) < 8) {
+                    entry.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                }
+                entry.x = rect.x;
+                entry.y = rect.y;
+                entry.record = record;
+            }
+        }
+
+        function syncIconBodies() {
+            if (!physicsReady || !physicsWorld) return;
+            const next = new Map();
+            let ordinal = 0;
+            for (const element of document.querySelectorAll('.vd-icon')) {
+                if (!element.isConnected || element.hidden) continue;
+                const rect = element.getBoundingClientRect();
+                if (rect.width <= 1 || rect.height <= 1 || rect.right < 0 || rect.bottom < 0 || rect.left > width || rect.top > height) continue;
+                const id = String(element.dataset.id || element.getAttribute('aria-label') || ordinal++);
+                next.set(id, { rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } });
+            }
+            for (const [id, body] of iconBodies) {
+                if (!next.has(id)) {
+                    if (body.collider) colliderToIcon.delete(body.collider.handle);
+                    physicsWorld.removeRigidBody(body.body);
+                    iconBodies.delete(id);
+                }
+            }
+            for (const [id, item] of next) {
+                const rect = item.rect;
+                let entry = iconBodies.get(id);
+                if (entry && (Math.abs(entry.width - rect.width) > 1 || Math.abs(entry.height - rect.height) > 1)) {
+                    if (entry.collider) colliderToIcon.delete(entry.collider.handle);
+                    physicsWorld.removeRigidBody(entry.body);
+                    iconBodies.delete(id);
+                    entry = null;
+                }
+                if (!entry) {
+                    const body = physicsWorld.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(
+                        toWorldX(rect.x + rect.width / 2, width), toWorldY(rect.y + rect.height / 2, height), 0
+                    ));
+                    const collider = physicsWorld.createCollider(RAPIER.ColliderDesc.cuboid(
+                        rect.width / (2 * PIXELS_PER_METER) + .035,
+                        rect.height / (2 * PIXELS_PER_METER) + .035,
+                        .12
+                    ).setFriction(.8).setRestitution(.12)
+                        .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS)
+                        .setContactForceEventThreshold(.035), body);
+                    entry = { body, collider, width: rect.width, height: rect.height, rect };
+                    iconBodies.set(id, entry);
+                    colliderToIcon.set(collider.handle, id);
+                }
+                entry.body.setTranslation({
+                    x: toWorldX(rect.x + rect.width / 2, width),
+                    y: toWorldY(rect.y + rect.height / 2, height),
+                    z: 0
+                }, true);
+                entry.rect = rect;
+            }
+        }
+
+        function resizeFallback() {
+            width = Math.max(1, layer.clientWidth || window.innerWidth || 1);
+            height = Math.max(1, layer.clientHeight || window.innerHeight || 1);
+            graphics.invalidateFallback();
+            graphics.paintFallback();
+            if (graphics.rendererReady) graphics.resizeRenderer();
+            if (physicsReady) resizePhysicsFloor();
+            snapshot(true);
+        }
+
+        function resizePhysicsFloor() {
+            if (!physicsReady || !floorBody) return;
+            const screenFloor = height - 58;
+            const y = toWorldY(screenFloor, height) - .08;
+            const collider = floorBody.collider(0);
+            collider.setShape(new RAPIER.Cuboid(Math.max(1, width / (2 * PIXELS_PER_METER)), .08, 4));
+            floorBody.setTranslation({ x: 0, y, z: 0 }, true);
+            floorBody.wakeUp();
+        }
+
+        const materialForRecord = record => graphics.materialForRecord(record);
+        const frameStep = rect => graphics.frameStep(rect);
+
+        function edgeForVelocity(velocity) {
+            const vx = Number(velocity && velocity.x) || 0;
+            const vy = Number(velocity && velocity.y) || 0;
+            return Math.abs(vx) > Math.abs(vy) ? (vx >= 0 ? 'right' : 'left') : (vy >= 0 ? 'bottom' : 'top');
+        }
+
+        function damageFrame(id, side, index, dragging) {
+            const key = String(id);
+            let damage = damageWindows.get(key);
+            if (!damage) {
+                damage = { holes: new Set(), repairAt: performance.now() + 1100, dragging: false };
+                damageWindows.set(key, damage);
+            }
+            if (damage.holes.size < 18) damage.holes.add(side + ':' + Math.max(0, index | 0));
+            damage.dragging = !!dragging;
+            damage.repairAt = dragging ? Infinity : performance.now() + 1100;
+            return damage;
+        }
+
+        function initPhysics() {
+            const token = signal;
+            Promise.resolve(RAPIER.init()).then(() => {
+                if (!eventIsCurrent(token, stopped) || !graphics.rendererReady) return;
+                physicsWorld = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
+                physicsWorld.timestep = FIXED_STEP;
+                eventQueue = new RAPIER.EventQueue(true);
+                floorBody = physicsWorld.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0, toWorldY(height - 58, height) - .08, 0));
+                physicsWorld.createCollider(RAPIER.ColliderDesc.cuboid(Math.max(1, width / (2 * PIXELS_PER_METER)), .08, 4)
+                    .setFriction(.9).setRestitution(.16)
+                    .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS)
+                    .setContactForceEventThreshold(.035), floorBody);
+                pointerBody = physicsWorld.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setEnabled(false).setTranslation(0, 0, .2));
+                pointerCollider = physicsWorld.createCollider(RAPIER.ColliderDesc.ball(.19).setFriction(.35).setRestitution(.28)
+                    .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS).setContactForceEventThreshold(.02), pointerBody);
+                physicsReady = true;
+                syncWindowBodies();
+                syncIconBodies();
+                graphics.updateSceneInstances();
+                while (pendingFractures.length) {
+                    const item = pendingFractures.shift();
+                    if (performance.now() - item.queuedAt <= 500) playFracture(item.record, item.rect, item.velocity, 1.7);
+                }
+                requestRender();
+            }).catch(error => {
+                graphics.setBackend(graphics.ready ? 'three-webgl-no-physics' : 'fallback');
+                physicsReady = false;
+                noteError('Rapier initialization', error);
+            });
+        }
+
+        function ensureFragmentPool(minimum) {
+            if (!physicsReady || !graphics.rendererReady) return;
+            const desired = Math.min(MAX_FRAGMENTS, Math.max(minimum || 0, Math.min(32, fragments.length + 32)));
+            while (fragments.length < desired) {
+                const body = physicsWorld.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setEnabled(false).setCanSleep(true)
+                    .setLinearDamping(.18).setAngularDamping(.22).setCcdEnabled(true));
+                const collider = physicsWorld.createCollider(RAPIER.ColliderDesc.cuboid(.055, .055, .055)
+                    .setDensity(1.7).setFriction(.78).setRestitution(.19)
+                    .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS)
+                    .setContactForceEventThreshold(.018), body);
+                body.setEnabled(false);
+                const slot = { body, collider, active: false, age: 0, settle: 0, size: 10, alpha: 1, lastSound: 0, material: 'stone' };
+                fragments.push(slot);
+                colliderToFragment.set(collider.handle, slot);
+                graphics.setFragmentSlot(fragments.length - 1, MATERIALS.stone[0]);
+            }
+            graphics.commitFragments(fragments.length);
+        }
+
+        function recycleFragment(slot, index) {
+            if (!slot || !slot.active) return;
+            slot.active = false;
+            slot.age = 0;
+            slot.settle = 0;
+            slot.alpha = 0;
+            slot.body.setEnabled(false);
+            graphics.setFragmentOpacity(index, 0);
+            if (activeFragmentCount > 0) activeFragmentCount--;
+        }
+
+        function acquireFragment() {
+            if (!physicsReady) return null;
+            for (let i = 0; i < fragments.length; i++) {
+                if (!fragments[i].active) return { slot: fragments[i], index: i };
+            }
+            if (fragments.length < MAX_FRAGMENTS) {
+                const oldLength = fragments.length;
+                ensureFragmentPool(Math.min(MAX_FRAGMENTS, oldLength + 32));
+                return fragments.length > oldLength ? { slot: fragments[oldLength], index: oldLength } : null;
+            }
+            let oldest = 0;
+            for (let i = 1; i < fragments.length; i++) if (fragments[i].age > fragments[oldest].age) oldest = i;
+            recycleFragment(fragments[oldest], oldest);
+            return { slot: fragments[oldest], index: oldest };
+        }
+
+        function spawnFragment(screenX, screenY, size, vx, vy, vz, color, material) {
+            if (!motion || !physicsReady || activeFragmentCount >= dynamicLimit) return false;
+            const acquired = acquireFragment();
+            if (!acquired) return false;
+            const { slot, index } = acquired;
+            const x = toWorldX(screenX, width);
+            const y = toWorldY(screenY, height);
+            slot.size = clamp(size, 6, 18);
+            const halfSize = slot.size / (2 * PIXELS_PER_METER);
+            slot.collider.setShape(new RAPIER.Cuboid(halfSize, halfSize, halfSize));
+            slot.age = 0;
+            slot.settle = 0;
+            slot.alpha = 1;
+            slot.active = true;
+            slot.body.setTranslation({ x, y, z: .15 }, true);
+            const initialAngle = randomBetween(-1, 1);
+            slot.body.setRotation({ x: 0, y: 0, z: Math.sin(initialAngle / 2), w: Math.cos(initialAngle / 2) }, true);
+            slot.body.setLinvel({ x: vx, y: vy, z: vz }, true);
+            slot.body.setAngvel({ x: randomBetween(-3, 3), y: randomBetween(-3, 3), z: randomBetween(-6, 6) }, true);
+            slot.body.wakeUp();
+            slot.body.setEnabled(true);
+            slot.material = MATERIALS[material] ? material : 'stone';
+            slot.color = color || MATERIALS[slot.material][Math.floor(Math.random() * MATERIALS[slot.material].length)];
+            graphics.setFragmentColor(index, slot.color, 1);
+            activeFragmentCount++;
+            graphics.commitFragments();
+            requestRender();
+            return true;
+        }
+
+        function playFracture(record, rect, velocity, countScale) {
+            if (!motion || !physicsReady || !rect) return;
+            const count = Math.max(20, Math.min(112, Math.round(rect.width * rect.height / 10500 * countScale)));
+            const centerX = rect.x + rect.width / 2;
+            const centerY = rect.y + rect.height / 2;
+            const speedX = clamp(Number(velocity && velocity.x) || 0, -1600, 1600) / PIXELS_PER_METER;
+            const speedY = -(clamp(Number(velocity && velocity.y) || 0, -1600, 1600) / PIXELS_PER_METER);
+            const material = materialForRecord(record);
+            const colors = MATERIALS[material];
+            for (let i = 0; i < count; i++) {
+                const x = rect.x + Math.random() * rect.width;
+                const y = rect.y + Math.random() * rect.height;
+                const dx = (x - centerX) / Math.max(1, rect.width * .5);
+                const dy = (y - centerY) / Math.max(1, rect.height * .5);
+                const impulse = randomBetween(1.15, 3.35) * (countScale > 1 ? 1.12 : 1);
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                spawnFragment(x, y, randomBetween(8, 17),
+                    dx * impulse + speedX * .48 + randomBetween(-1.3, 1.3),
+                    Math.abs(dy) * impulse + 1.05 + speedY * .36 + randomBetween(-.65, 1.5),
+                    randomBetween(-.5, .5), color, material);
+            }
+            const strength = clamp(Math.hypot(speedX, speedY) / 14 + count / 110, .25, 1);
+            sound('window.fracture', strength, centerX, material);
+        }
+
+        function shearWindow(record, rect, velocity, contact, point) {
+            const id = String(record.id);
+            const speed = Math.hypot(Number(velocity && velocity.x) || 0, Number(velocity && velocity.y) || 0);
+            const now = performance.now();
+            if (!motion || record.silent || speed < (contact ? 280 : 920) || now - (lastShearAt.get(id) || 0) < 340) return;
+            lastShearAt.set(id, now);
+            const side = edgeForVelocity(velocity);
+            const step = frameStep(rect);
+            const indexCount = Math.max(1, Math.ceil((side === 'top' || side === 'bottom' ? rect.width : rect.height) / step));
+            const sidePosition = side === 'top' || side === 'bottom'
+                ? (point ? clamp(point.x - rect.x, 0, rect.width) : rect.width * .52)
+                : (point ? clamp(point.y - rect.y, 0, rect.height) : rect.height * .52);
+            const tileIndex = clamp(Math.floor(sidePosition / Math.max(1, side === 'top' || side === 'bottom' ? rect.width : rect.height) * indexCount), 0, indexCount - 1);
+            damageFrame(id, side, tileIndex, !contact);
+            const leadingX = side === 'left' ? rect.x : side === 'right' ? rect.x + rect.width : rect.x + rect.width * .52;
+            const leadingY = side === 'top' ? rect.y : side === 'bottom' ? rect.y + rect.height : rect.y + rect.height * .52;
+            const vx = clamp(Number(velocity.x) || 0, -1500, 1500) / PIXELS_PER_METER * .5;
+            const vy = -(clamp(Number(velocity.y) || 0, -1500, 1500) / PIXELS_PER_METER * .3) + 1;
+            const count = Math.min(14, Math.max(contact ? 3 : 4, Math.floor(speed / 180)));
+            const material = materialForRecord(record);
+            const colors = MATERIALS[material];
+            for (let i = 0; i < count; i++) {
+                spawnFragment(leadingX + randomBetween(-rect.width * .22, rect.width * .22), leadingY + randomBetween(-rect.height * .22, rect.height * .22), randomBetween(7, 13),
+                    vx + randomBetween(-1.7, 1.7), vy + randomBetween(-.7, 1.3), randomBetween(-.3, .3),
+                    colors[Math.floor(Math.random() * colors.length)], material);
+            }
+            sound('window.fracture', clamp(speed / 1800, .22, .75), leadingX, material);
+            graphics.updateSceneInstances();
+        }
+
+        function intersects(a, b) {
+            return !!a && !!b && a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+        }
+
+        function detectMovingWindowContact(record, previousRect, rect, velocity) {
+            if (!motion || !previousRect || !rect) return false;
+            const speed = Math.hypot(Number(velocity && velocity.x) || 0, Number(velocity && velocity.y) || 0);
+            if (speed < 280) return false;
+            const swept = {
+                x: Math.min(previousRect.x, rect.x),
+                y: Math.min(previousRect.y, rect.y),
+                width: Math.max(previousRect.x + previousRect.width, rect.x + rect.width) - Math.min(previousRect.x, rect.x),
+                height: Math.max(previousRect.y + previousRect.height, rect.y + rect.height) - Math.min(previousRect.y, rect.y)
+            };
+            for (const element of document.querySelectorAll('.vd-icon')) {
+                if (!element.isConnected || element.hidden) continue;
+                const obstacle = element.getBoundingClientRect();
+                if (obstacle.width > 0 && obstacle.height > 0 && intersects(swept, obstacle)) {
+                    shearWindow(record, rect, velocity, true);
+                    return true;
+                }
+            }
+            for (const other of records.values()) {
+                if (String(other.id) === String(record.id) || (Number(other.z) || 0) >= (Number(record.z) || 0)) continue;
+                const obstacle = rectFor(other);
+                if (obstacle && intersects(swept, obstacle)) {
+                    shearWindow(record, rect, velocity, true);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function onWindowEvent(event) {
+            const record = event && event.detail;
+            if (!record || record.id == null) return;
+            const id = String(record.id);
+            const rect = rectFor(record);
+            if (record.phase === 'minimize' || record.phase === 'restore' || record.phase === 'maximize' || record.phase === 'snap') {
+                transitionUntil = Math.max(transitionUntil, performance.now() + 480);
+            }
+            if (record.phase === 'close') {
+                if (!record.silent && rect && motion) {
+                    if (physicsReady) playFracture(record, rect, record.velocity || {}, 1.7);
+                    else {
+                        if (pendingFractures.length >= 8) pendingFractures.shift();
+                        pendingFractures.push({ record, rect, velocity: record.velocity || {}, queuedAt: performance.now() });
+                    }
+                }
+                removeWindowBody(id);
+                damageWindows.delete(id);
+                assemblingWindows.delete(id);
+                records.delete(id);
+            } else {
+                const previous = records.get(id);
+                const previousRect = previous && (previous.rect || rectFor(previous));
+                if (usable(record) && rect) records.set(id, { ...record, rect });
+                else {
+                    records.delete(id);
+                    assemblingWindows.delete(id);
+                }
+                if (record.phase === 'open') {
+                    damageWindows.delete(id);
+                    if (!record.silent && rect) assemblingWindows.set(id, { at: performance.now(), duration: .54 });
+                }
+                if ((record.phase === 'drag' || record.phase === 'resize') && !record.silent && rect) {
+                    const velocity = record.velocity || {};
+                    shearWindow(record, rect, velocity, false);
+                    detectMovingWindowContact(record, previousRect, rect, velocity);
+                    const damage = damageWindows.get(id);
+                    if (damage) {
+                        damage.dragging = true;
+                        damage.repairAt = Infinity;
+                    }
+                }
+                if ((record.phase === 'drag-end' || record.phase === 'resize-end') && damageWindows.has(id)) {
+                    const damage = damageWindows.get(id);
+                    damage.dragging = false;
+                    damage.repairAt = performance.now() + 1100;
+                }
+            }
+            snapshot(true);
+            refreshMaskRects();
+            graphics.updateSceneInstances();
+            requestRender();
+        }
+
+        function onPointerMove(event) {
+            if (!motion || !physicsReady || event.pointerType === 'touch') return;
+            const now = performance.now();
+            const dt = pointerAt ? Math.max(.008, (now - pointerAt) / 1000) : .016;
+            const dx = event.clientX - pointerX;
+            const dy = event.clientY - pointerY;
+            pointerVx = clamp(dx / dt, -2200, 2200);
+            pointerVy = clamp(dy / dt, -2200, 2200);
+            pointerX = event.clientX;
+            pointerY = event.clientY;
+            pointerAt = now;
+            pointerActiveUntil = now + 150;
+            pointerInside = true;
+            const parallaxX = (pointerX / Math.max(1, width) - .5) * .16;
+            const parallaxY = (pointerY / Math.max(1, height) - .5) * .08;
+            graphics.setBackdropPosition(parallaxX, parallaxY);
+            if (!pointerBody.isEnabled()) pointerBody.setEnabled(true);
+            pointerBody.setNextKinematicTranslation({
+                x: toWorldX(pointerX, width),
+                y: toWorldY(pointerY, height),
+                z: .18
+            });
+
+            const speed = Math.hypot(pointerVx, pointerVy);
+            const time = performance.now();
+            if (speed > 1080 && time - lastPointerShearAt > 550) {
+                for (const record of records.values()) {
+                    const rect = rectFor(record);
+                    if (!rect) continue;
+                    const outsideX = Math.max(rect.x - pointerX, 0, pointerX - rect.x - rect.width);
+                    const outsideY = Math.max(rect.y - pointerY, 0, pointerY - rect.y - rect.height);
+                    const edgeDistance = Math.min(Math.abs(pointerX - rect.x), Math.abs(pointerX - rect.x - rect.width), Math.abs(pointerY - rect.y), Math.abs(pointerY - rect.y - rect.height));
+                    if (outsideX + outsideY > 8 || edgeDistance > 10) continue;
+                    shearWindow(record, rect, { x: pointerVx, y: pointerVy }, true, { x: pointerX, y: pointerY });
+                    lastPointerShearAt = time;
+                    break;
+                }
+            }
+            requestRender();
+        }
+
+        function onPointerLeave() {
+            pointerInside = false;
+            pointerActiveUntil = 0;
+            if (pointerBody && pointerBody.isEnabled()) pointerBody.setEnabled(false);
+        }
+
+        function onContactForce(contact) {
+            const force = contact.totalForceMagnitude();
+            if (!Number.isFinite(force) || force < .035) return;
+            physicsCollisionCount++;
+            const handle1 = contact.collider1();
+            const handle2 = contact.collider2();
+            const pointerHandle = pointerCollider && pointerCollider.handle;
+            const pointerContact = pointerHandle === handle1 || pointerHandle === handle2;
+            const otherHandle = pointerHandle === handle1 ? handle2 : handle1;
+            if (pointerContact) {
+                collisionCount++;
+                const frame = colliderToFrame.get(otherHandle);
+                const iconId = colliderToIcon.get(otherHandle);
+                const speed = Math.hypot(pointerVx, pointerVy);
+                if (frame && speed > 520) {
+                    const record = records.get(frame.id);
+                    const material = materialForRecord(record);
+                    const now = performance.now();
+                    if (now - (lastShearAt.get(frame.id) || 0) > 260) {
+                        lastShearAt.set(frame.id, now);
+                        damageFrame(frame.id, frame.side, frame.index, false);
+                        const colors = MATERIALS[material];
+                        for (let i = 0; i < 3; i++) spawnFragment(pointerX, pointerY, randomBetween(7, 12),
+                            pointerVx / PIXELS_PER_METER * .28 + randomBetween(-1.1, 1.1),
+                            -pointerVy / PIXELS_PER_METER * .2 + 1 + randomBetween(-.5, 1), randomBetween(-.3, .3),
+                            colors[Math.floor(Math.random() * colors.length)], material);
+                        sound('window.fracture', clamp(force * 1.8 + speed / 2600, .22, .72), pointerX, material);
+                        graphics.updateSceneInstances();
+                    }
+                } else if (iconId && speed > 700) {
+                    const material = 'wood';
+                    const colors = MATERIALS[material];
+                    for (let i = 0; i < 2; i++) spawnFragment(pointerX, pointerY, randomBetween(6, 10),
+                        pointerVx / PIXELS_PER_METER * .25 + randomBetween(-1.2, 1.2),
+                        -pointerVy / PIXELS_PER_METER * .18 + .9 + randomBetween(-.4, 1), randomBetween(-.25, .25),
+                        colors[Math.floor(Math.random() * colors.length)], material);
+                    sound('window.impact', clamp(force * 1.7, .15, .68), pointerX, material);
+                }
+                requestRender();
+                return;
+            }
+            const first = colliderToFragment.get(handle1);
+            const second = colliderToFragment.get(handle2);
+            const slot = first && first.active ? first : second && second.active ? second : null;
+            if (!slot) return;
+            collisionCount++;
+            const translation = slot.body.translation();
+            const screenX = translation.x * PIXELS_PER_METER + width / 2;
+            sound('window.impact', clamp(force * 2.8, .12, 1), screenX, slot.material);
+            if (force > .68 && activeFragmentCount < dynamicLimit - 2 && Math.random() < .12) {
+                const screenY = height / 2 - translation.y * PIXELS_PER_METER;
+                const colors = MATERIALS[slot.material];
+                for (let i = 0; i < 2; i++) spawnFragment(screenX, screenY, randomBetween(5, 8),
+                    randomBetween(-1.8, 1.8), randomBetween(.6, 2), randomBetween(-.4, .4),
+                    colors[Math.floor(Math.random() * colors.length)], slot.material);
+            }
+        }
+
+        function physicsStep(dt) {
+            if (!physicsReady || !physicsWorld) return;
+            if (pointerBody && pointerInside && performance.now() - pointerAt > 850) {
+                pointerInside = false;
+                pointerBody.setEnabled(false);
+            }
+            physicsWorld.step(eventQueue);
+            physicsSteps++;
+            eventQueue.drainContactForceEvents(onContactForce);
+            for (let i = 0; i < fragments.length; i++) {
+                const slot = fragments[i];
+                if (!slot.active) continue;
+                slot.age += dt;
+                const velocity = slot.body.linvel();
+                const speed = Math.hypot(velocity.x, velocity.y, velocity.z);
+                const pos = slot.body.translation();
+                if (speed < .075 && pos.y < toWorldY(height - 61, height) + .18) slot.settle += dt;
+                else slot.settle = 0;
+                const fade = clamp((slot.age - 3.8) / 1.8, 0, 1);
+                slot.alpha = 1 - fade;
+                if (slot.age > 6.3 || slot.settle > 1.6 || pos.y < -height / PIXELS_PER_METER - 2) {
+                    recycleFragment(slot, i);
+                }
+                graphics.setFragmentMatrix(slot, i);
+            }
+            graphics.commitFragments();
+        }
+
+        function adjustQuality(cost, now) {
+            if (cost > 24) {
+                slowFrames++;
+                fastSince = 0;
+                if (slowFrames >= 14 && qualityLevel < 4) {
+                    qualityLevel++;
+                    slowFrames = 0;
+                    dynamicLimit = qualityLevel >= 4 ? 64 : qualityLevel >= 3 ? 128 : MAX_FRAGMENTS;
+                    graphics.resizeRenderer();
+                    graphics.setSceneryVisible(qualityLevel < 3);
+                }
+            } else {
+                slowFrames = Math.max(0, slowFrames - 1);
+                if (cost < 12 && qualityLevel > 0) {
+                    if (!fastSince) fastSince = now;
+                    if (now - fastSince > 7000) {
+                        qualityLevel--;
+                        dynamicLimit = qualityLevel >= 4 ? 64 : qualityLevel >= 3 ? 128 : MAX_FRAGMENTS;
+                        fastSince = now;
+                        graphics.resizeRenderer();
+                        graphics.setSceneryVisible(qualityLevel < 3);
+                    }
+                } else fastSince = 0;
+            }
+        }
+
+        function renderOnce() {
+            if (!graphics || paused || stopped) return;
+            snapshot(false);
+            refreshMaskRects();
+            const cost = graphics.render();
+            if (cost == null) { graphics.paintFallback(); return; }
+            frameCount++;
+            lastRenderCost = cost;
+            adjustQuality(lastRenderCost, performance.now());
+        }
+
+        function animate(time) {
+            raf = 0;
+            if (stopped || paused || !graphics.rendererReady || graphics.contextLost) return;
+            const begin = performance.now();
+            const frameInterval = lastFrame ? Math.max(0, time - lastFrame) : 1000 / 60;
+            const dt = lastFrame ? clamp((time - lastFrame) / 1000, 0, .08) : FIXED_STEP;
+            lastFrame = time;
+            accumulator = Math.min(accumulator + dt, FIXED_STEP * 5);
+            if (physicsReady) {
+                while (accumulator >= FIXED_STEP) {
+                    physicsStep(FIXED_STEP);
+                    accumulator -= FIXED_STEP;
+                }
+            }
+            if (transitionUntil && time >= transitionUntil) {
+                transitionUntil = 0;
+                snapshot(true);
+            }
+            snapshot(false);
+            let assembling = false;
+            for (const [id, assembly] of assemblingWindows) {
+                if (time - assembly.at >= assembly.duration) assemblingWindows.delete(id);
+                else assembling = true;
+            }
+            if (assembling) graphics.updateSceneInstances();
+            const cost = graphics.render();
+            frameCount++;
+            const callbackCost = performance.now() - begin;
+            lastRenderCost = cost == null ? callbackCost : cost;
+            adjustQuality(Math.max(frameInterval, callbackCost), performance.now());
+            let repairing = false;
+            for (const [id, damage] of damageWindows) {
+                if (performance.now() >= damage.repairAt) {
+                    damageWindows.delete(id);
+                    graphics.updateSceneInstances();
+                } else repairing = true;
+            }
+            if (activeFragmentCount > 0 || repairing || assembling || performance.now() < pointerActiveUntil || performance.now() < transitionUntil) {
+                if (!raf) raf = requestAnimationFrame(animate);
+            } else {
+                // Ignore the idle gap before the next animation burst.
+                lastFrame = 0;
+                renderOnce();
+            }
+        }
+
+        function requestRender() {
+            if (stopped || paused) return;
+            if (!motion || (activeFragmentCount === 0 && damageWindows.size === 0 && assemblingWindows.size === 0 &&
+                performance.now() >= pointerActiveUntil && performance.now() >= transitionUntil)) {
+                if (graphics.rendererReady) renderOnce();
+                else graphics.paintFallback();
+                return;
+            }
+            if (!raf) raf = requestAnimationFrame(animate);
+        }
+
+        function onRefresh() {
+            snapshot(true);
+            requestRender();
+            refreshMaskRects();
+            syncIconBodies();
+            graphics.updateSceneInstances();
+            requestRender();
+        }
+
+        function pause() {
+            paused = true;
+            if (raf) cancelAnimationFrame(raf);
+            raf = 0;
+            lastFrame = 0;
+            accumulator = 0;
+            if (pointerBody && pointerBody.isEnabled()) pointerBody.setEnabled(false);
+        }
+
+        function resume() {
+            if (stopped) return;
+            paused = false;
+            snapshot(true);
+            refreshMaskRects();
+            requestRender();
+        }
+
+        function inspect() {
+            const fragmentSamples = [];
+            const materialTypes = new Set();
+            for (const slot of fragments) {
+                if (!slot.active) continue;
+                if (materialTypes.size < 3) materialTypes.add(slot.material);
+                if (fragmentSamples.length < 4) {
+                    const position = slot.body.translation();
+                    const rotation = slot.body.rotation();
+                    fragmentSamples.push({
+                        x: Math.round(position.x * 1000) / 1000,
+                        y: Math.round(position.y * 1000) / 1000,
+                        z: Math.round(position.z * 1000) / 1000,
+                        rotation: {
+                            x: Math.round(rotation.x * 1000) / 1000,
+                            y: Math.round(rotation.y * 1000) / 1000,
+                            z: Math.round(rotation.z * 1000) / 1000,
+                            w: Math.round(rotation.w * 1000) / 1000
+                        },
+                        material: slot.material,
+                        age: Math.round(slot.age * 100) / 100
+                    });
+                }
+            }
+            const graphicsState = graphics.inspect();
+            return {
+                activeId: 'voxel_world',
+                motion,
+                paused,
+                ready: graphicsState.ready,
+                renderer: graphicsState.renderer,
+                rendererReady: graphicsState.rendererReady,
+                physicsReady,
+                fragmentCount: activeFragmentCount,
+                maxFragments: MAX_FRAGMENTS,
+                fragmentSamples,
+                materialTypes: Array.from(materialTypes),
+                physicsSteps,
+                frameCount,
+                rafPending: !!raf,
+                quality: qualityLevel,
+                lastRenderCostMs: Math.round(lastRenderCost * 10) / 10,
+                frameVoxelCount: graphicsState.frameVoxelCount,
+                maxFrameVoxels: graphicsState.maxFrameVoxels,
+                backdropVoxelCount: graphicsState.backdropVoxelCount,
+                collisionCount,
+                physicsCollisionCount,
+                windowCount: records.size,
+                windowOccluderCount: windowRects.length,
+                wallpaper: graphicsState.wallpaper,
+                error: lastError
+            };
+        }
+
+        function stop() {
+            if (stopped) return;
+            stopped = true;
+            if (raf) cancelAnimationFrame(raf);
+            raf = 0;
+            if (resizeObserver) resizeObserver.disconnect();
+            if (desktopObserver) desktopObserver.disconnect();
+            if (physicsWorld) {
+                for (const slot of fragments) slot.body.setEnabled(false);
+                for (const entry of windowBodies.values()) physicsWorld.removeRigidBody(entry.body);
+                for (const entry of iconBodies.values()) physicsWorld.removeRigidBody(entry.body);
+                windowBodies.clear();
+                iconBodies.clear();
+                try { physicsWorld.free(); } catch (_) { }
+            }
+            if (eventQueue) { try { eventQueue.free(); } catch (_) { } }
+            graphics.dispose();
+            fallback.remove();
+            records.clear();
+            fragments.length = 0;
+            colliderToFragment.clear();
+            colliderToFrame.clear();
+            colliderToIcon.clear();
+            maskRects.length = 0;
+            windowRects.length = 0;
+            damageWindows.clear();
+            assemblingWindows.clear();
+            pendingFractures.length = 0;
+        }
+
+        function loaded(vendor) {
+            if (!eventIsCurrent(signal, stopped)) return;
+            RAPIER = vendor && vendor.RAPIER;
+            if (!graphics.createScene(vendor)) {
+                if (graphics.backend === 'loading') graphics.setBackend('fallback');
+                if (!lastError) noteError('scene initialization', 'WebGL scene could not be created');
+                graphics.paintFallback();
+                return;
+            }
+            if (motion) initPhysics();
+            snapshot(true);
+            refreshMaskRects();
+            if (motion) syncIconBodies();
+            graphics.updateSceneInstances();
+            requestRender();
+        }
+
+        resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(resizeFallback) : null;
+        if (resizeObserver) resizeObserver.observe(layer);
+        window.addEventListener('resize', resizeFallback, { passive: true, signal });
+        window.addEventListener('aurago:desktop-window', onWindowEvent, { signal });
+        window.addEventListener('aurago:desktop-windows-refresh', onRefresh, { signal });
+        document.addEventListener('pointermove', onPointerMove, { passive: true, signal });
+        document.addEventListener('pointerleave', onPointerLeave, { passive: true, signal });
+        document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); else resume(); }, { signal });
+        if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', stop, { once: true });
+        if (typeof MutationObserver === 'function') {
+            desktopObserver = new MutationObserver(mutations => {
+                if (!mutationsAffectMasks(mutations)) return;
+                refreshMaskRects();
+                if (physicsReady) syncIconBodies();
+                graphics.updateSceneInstances();
+                requestRender();
+            });
+            if (document.body) desktopObserver.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['style', 'class', 'hidden']
+            });
+        }
+
+        resizeFallback();
+        snapshot(true);
+        refreshMaskRects();
+        if (!fallbackContext) graphics.setBackend('no-canvas');
+        const runtimeURL = new URL(VENDOR_URL, window.location.href).href;
+        import(runtimeURL).then(loaded).catch(error => {
+            if (!eventIsCurrent(signal, stopped)) return;
+            graphics.setBackend('fallback');
+            noteError('vendor import', error);
+            graphics.paintFallback();
+        });
+        return { pause, resume, stop, inspect };
+    }
+
+    window.AuraDesktopThemeFx.register('voxel_world', { start });
 })();
