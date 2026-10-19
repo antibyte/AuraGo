@@ -175,6 +175,24 @@ def lane_center_height(course, path, index):
     return height
 
 
+def rail_edge(course, path, i, sign):
+    """Inner and outer rail edge at path sample i (Blender XY) and the lane height there.
+
+    The fourth value is the unit vector pointing away from the lane on that side.
+    ``make_surface`` builds the collision rails from it and the P2 trims reuse it,
+    so both follow exactly the same edge.
+    """
+    n=len(path)
+    p=path[i]; prev=path[max(0,i-1)]; nxt=path[min(n-1,i+1)]
+    dx=nxt[0]-prev[0]; dy=nxt[1]-prev[1]; ln=max(.0001,math.hypot(dx,dy)); sx=dy/ln; sy=-dx/ln
+    h=lane_center_height(course,path,i); t=i/(n-1)
+    edge=sign*LANE_WIDTH/2; outer=edge+sign*.14
+    bank=course.get("bank",0)
+    if bank:
+        h+=bank*edge*math.sin(math.pi*max(0,min(1,(t-.18)/.66)))
+    return (p[0]+sx*edge,p[1]+sy*edge),(p[0]+sx*outer,p[1]+sy*outer),h,(sx*sign,sy*sign)
+
+
 def make_surface(scene, coll, course, mats):
     path=catmull_path(course["path"]); n=len(path)
     cup_t=.91; cup_i=round(cup_t*(n-1)); cup_path=path[cup_i]
@@ -210,13 +228,8 @@ def make_surface(scene, coll, course, mats):
     # generated from the same sampled edges as the lane and exported as meshes.
     for side_name,sign in (("rail-left",-1),("rail-right",1)):
         rail_verts=[]; rail_faces=[]
-        for i,p in enumerate(path):
-            prev=path[max(0,i-1)]; nxt=path[min(n-1,i+1)]; dx=nxt[0]-prev[0]; dy=nxt[1]-prev[1]; ln=max(.0001,math.hypot(dx,dy)); sx=dy/ln; sy=-dx/ln
-            h=lane_center_height(course,path,i); t=i/(n-1)
-            edge=sign*LANE_WIDTH/2; outer=edge+sign*.14
-            if bank:
-                h+=bank*edge*math.sin(math.pi*max(0,min(1,(t-.18)/.66)))
-            ix=p[0]+sx*edge; iy=p[1]+sy*edge; ox=p[0]+sx*outer; oy=p[1]+sy*outer
+        for i in range(n):
+            (ix,iy),(ox,oy),h,_=rail_edge(course,path,i,sign)
             rail_verts.extend([(ix,iy,h-.045),(ox,oy,h-.045),(ix,iy,h+.24),(ox,oy,h+.24)])
         for i in range(n-1):
             a=i*4; b=(i+1)*4
