@@ -1,6 +1,9 @@
 package ui
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestVideoStudioScopeMath checks VideoStudioScopeMath (2f Task 2; index §4.26.2–§4.26.4) against analytic values:
 //   - the constants and colours;
@@ -141,4 +144,258 @@ assert.deepEqual(M.prefs('{"open":true,"show":[]}'), {open: true, show: all}, 'a
 assert.deepEqual(M.prefs('{"open":"yes","show":"waveform"}'), {open: false, show: all}, 'open must be true, show a list');
 process.stdout.write('ok');
 `)
+}
+
+// TestVideoStudioScopesPanel checks the scopes panel (2f Task 3; index §4.26.2, §4.26.5) with stub elements, a preview
+// whose readScaled promises the test resolves by hand, and a hand-set performance.now:
+//   - wireScopes inserts, once, the toggle before "Render range exactly" and the dock after the timeline stage, with the
+//     ARIA of §4.26.5, and reads the stored preference;
+//   - a closed panel reads nothing; opening reads at once and leaves focus where it is;
+//   - playing: a read at 0 ms, none at 50 ms, one at 100 ms; paused: every paint reads;
+//   - a due paint during a pending read sets dirty, and the end of that read starts exactly one trailing read, without
+//     a paint; a paint that is not due during a pending read is dropped;
+//   - a null frame draws nothing; drawScopes puts one image per shown kind and then strokes its graticule;
+//   - toggleScope keeps the last shown kind; Escape inside the panel closes it and focuses the toggle; the tile row
+//     keeps its scroll keys;
+//   - source mode and a closed panel read nothing; without a project the toggle is disabled and the panel stays shut;
+//   - every change of open or show is written to aurago.videoStudio.scopes.
+func TestVideoStudioScopesPanel(t *testing.T) {
+	runVideoStudioEffectsScript(t, `
+require('./js/desktop/apps/video-studio-scope-math.js');
+let clock = 1000;
+global.performance = {now: () => clock};
+const store = new Map(), focused = [];
+window.VideoStudioParts = {
+  tr: (s, key) => '[' + key + ']',
+  esc: (s, value) => String(value == null ? '' : value).replace(/[&<>"']/g, ch => '&#' + ch.charCodeAt(0) + ';'),
+  icon: (name, size) => '<i data-icon="' + name + '" data-size="' + size + '"></i>',
+  readPref: key => (store.has(key) ? store.get(key) : null),
+  writePref: (key, value) => { store.set(key, String(value)); }
+};
+require('./js/desktop/apps/video-studio-scopes.js');
+const P = window.VideoStudioParts, M = window.VideoStudioScopeMath, PREF = 'aurago.videoStudio.scopes';
+function node(name) {
+  return {name, attrs: {}, hidden: false, disabled: false, dataset: {}, inserted: [],
+    setAttribute(key, value) { this.attrs[key] = String(value); },
+    getAttribute(key) { return Object.prototype.hasOwnProperty.call(this.attrs, key) ? this.attrs[key] : null; },
+    insertAdjacentHTML(where, html) { this.inserted.push([where, html]); },
+    focus() { focused.push(name); },
+    closest() { return null; }};
+}
+function drawing() {
+  const calls = [];
+  return {calls, strokeStyle: '', lineWidth: 0,
+    createImageData: (width, height) => ({width, height, data: new Uint8ClampedArray(width * height * 4)}),
+    putImageData(image, x, y) { calls.push(['put', image.width, image.height, x, y]); },
+    save() {}, restore() {}, beginPath() {}, moveTo() {}, lineTo() {}, arc() {}, rect() {},
+    stroke() { calls.push(['stroke', this.strokeStyle, this.lineWidth]); }};
+}
+function makeState(id) {
+  const els = {range: node('range'), stage: node('stage'), toggle: node('toggle'), section: node('section'), tiles: node('tiles')};
+  els.toggle.closest = selector => (selector === '[data-action="scopes"]' ? els.toggle : null);
+  els.tiles.closest = selector => (selector === '.vs-scopes-tiles' ? els.tiles : selector === '[data-scopes]' ? els.section : null);
+  const selectors = {'.vs-transport-right [data-action="range-render"]': els.range, '.vs-preview-stage[data-stage="timeline"]': els.stage, '[data-action="scopes"]': els.toggle, '[data-scopes]': els.section};
+  M.KINDS.forEach(kind => {
+    const button = node('button ' + kind), tile = node('tile ' + kind), canvas = node('canvas ' + kind), ctx = drawing();
+    button.dataset.scope = kind;
+    button.closest = selector => (selector === '[data-scope]' ? button : selector === '[data-scopes]' ? els.section : null);
+    canvas.getContext = type => (type === '2d' ? ctx : null);
+    canvas.ctx = ctx;
+    els['button ' + kind] = button; els['tile ' + kind] = tile; els['canvas ' + kind] = canvas;
+    selectors['[data-scope="' + kind + '"]'] = button;
+    selectors['[data-scope-tile="' + kind + '"]'] = tile;
+    selectors['[data-scope-canvas="' + kind + '"]'] = canvas;
+  });
+  const reads = [];
+  const preview = {playing: false, isPlaying() { return this.playing; }, seek() { throw new Error('the panel never paints'); },
+    readScaled(width, height) { let resolve; const promise = new Promise(done => { resolve = done; }); reads.push({width, height, resolve}); return promise; }};
+  const s = {id, project: {width: 1280, height: 720}, stageMode: 'timeline', preview, q: selector => selectors[selector] || null};
+  return {s, els, reads};
+}
+const flush = () => new Promise(resolve => setImmediate(resolve));
+const grey = (() => { const data = new Uint8ClampedArray(256 * 144 * 4).fill(128); for (let i = 3; i < data.length; i += 4) data[i] = 255; return {width: 256, height: 144, data}; })();
+const puts = els => M.KINDS.map(kind => els['canvas ' + kind].ctx.calls.filter(call => call[0] === 'put').length);
+const stored = () => JSON.parse(store.get(PREF));
+(async () => {
+  const {s, els, reads} = makeState('kf');
+  assert.equal(P.wireScopes(s), true);
+  // Markup.
+  assert.deepEqual(els.range.inserted.map(([where]) => where), ['beforebegin']);
+  assert.equal(els.range.inserted[0][1], '<button type="button" data-action="scopes" aria-expanded="false" aria-controls="vs-scopes-kf" aria-label="[scopes]" title="[scopesHint]"><i data-icon="scopes" data-size="17"></i></button>');
+  assert.deepEqual(els.stage.inserted.map(([where]) => where), ['afterend']);
+  const dock = els.stage.inserted[0][1];
+  assert(dock.startsWith('<div class="vs-scopes-dock" data-stage="timeline"><section class="vs-scopes" id="vs-scopes-kf" data-scopes role="region" aria-label="[scopes]" hidden><div class="vs-segmented vs-scopes-bar" role="group" aria-label="[scopesShow]">'), dock);
+  assert.deepEqual(Array.from(dock.matchAll(/<button type="button" data-scope="([a-z]+)" aria-pressed="true">\[(\w+)\]<\/button>/g), m => m.slice(1)), [['histogram', 'scopeHistogram'], ['waveform', 'scopeWaveform'], ['vectorscope', 'scopeVectorscope']]);
+  assert(dock.includes('<div class="vs-scopes-tiles" role="group" aria-label="[scopes]" tabindex="0">'));
+  assert.deepEqual(Array.from(dock.matchAll(/<figure class="vs-scope" data-scope-tile="([a-z]+)"><canvas data-scope-canvas="([a-z]+)" width="(\d+)" height="(\d+)" role="img" aria-label="\[(\w+)\]"><\/canvas><\/figure>/g), m => m.slice(1)),
+    [['histogram', 'histogram', '256', '100', 'scopeHistogramLabel'], ['waveform', 'waveform', '256', '128', 'scopeWaveformLabel'], ['vectorscope', 'vectorscope', '128', '128', 'scopeVectorscopeLabel']]);
+  assert(dock.endsWith('</section></div>'));
+  // State: closed by default with all three kinds.
+  assert.deepEqual({open: s.scopes.open, show: Array.from(s.scopes.show), last: s.scopes.last, pending: s.scopes.pending, dirty: s.scopes.dirty}, {open: false, show: ['histogram', 'waveform', 'vectorscope'], last: 0, pending: false, dirty: false});
+  assert.deepEqual([els.toggle.attrs['aria-expanded'], els.toggle.disabled, els.section.hidden], ['false', false, true]);
+  assert.equal(P.wireScopes(s), false, 'wireScopes runs once');
+  assert.equal(els.range.inserted.length, 1);
+  P.scopesAfterPaint(s);
+  assert.equal(reads.length, 0, 'a closed panel reads nothing');
+
+  // Opening reads the last frame at once; focus stays where it is (on the toggle).
+  clock = 5000;
+  assert.equal(P.handleScopeClick(s, {target: els.toggle}), true);
+  assert.deepEqual([s.scopes.open, els.toggle.attrs['aria-expanded'], els.section.hidden], [true, 'true', false]);
+  assert.deepEqual(reads.map(read => [read.width, read.height]), [[256, 144]]);
+  assert.deepEqual(stored(), {open: true, show: ['histogram', 'waveform', 'vectorscope']});
+  assert.deepEqual(focused, []);
+  reads[0].resolve(grey); await flush();
+  assert.deepEqual(puts(els), [1, 1, 1], 'each shown scope gets its image');
+  for (const kind of M.KINDS) {
+    const calls = els['canvas ' + kind].ctx.calls, size = {histogram: M.HISTOGRAM, waveform: M.WAVEFORM, vectorscope: M.VECTORSCOPE}[kind];
+    assert.deepEqual(calls[0], ['put', size.width, size.height, 0, 0], kind + ': the image at the origin');
+    assert.deepEqual(calls.slice(1).map(call => call[1]), M.graticule(kind).map(item => item.color), kind + ': then one stroke per graticule primitive');
+    assert(calls.slice(1).every(call => call[0] === 'stroke' && call[2] === 1), kind + ': lineWidth 1');
+  }
+
+  // Playing: at most every 100 ms.
+  s.preview.playing = true;
+  clock = 6000; P.scopesAfterPaint(s);
+  assert.equal(reads.length, 2, 'playing: a read at 0 ms');
+  reads[1].resolve(grey); await flush();
+  clock = 6050; P.scopesAfterPaint(s);
+  assert.equal(reads.length, 2, 'none at 50 ms');
+  clock = 6100; P.scopesAfterPaint(s);
+  assert.equal(reads.length, 3, 'one at 100 ms');
+  clock = 6150; P.scopesAfterPaint(s);
+  assert.equal(s.scopes.dirty, false, 'a paint that is not due during a pending read is dropped');
+  reads[2].resolve(grey); await flush();
+  assert.equal(reads.length, 3, 'so no trailing read follows');
+  clock = 6200; P.scopesAfterPaint(s);
+  assert.equal(reads.length, 4);
+  clock = 6300; P.scopesAfterPaint(s);
+  assert.equal(s.scopes.dirty, true, 'a due paint during a pending read sets dirty');
+  reads[3].resolve(grey); await flush();
+  assert.equal(reads.length, 5, 'and the read ends with one trailing read');
+  reads[4].resolve(grey); await flush();
+  assert.equal(reads.length, 5);
+
+  // Paused: every paint reads; paints during a pending read end in exactly one trailing read, without a paint.
+  s.preview.playing = false;
+  clock = 6301;
+  for (let i = 0; i < 3; i++) { P.scopesAfterPaint(s); assert.equal(reads.length, 6 + i, 'paused: every paint reads'); reads.at(-1).resolve(grey); await flush(); }
+  P.scopesAfterPaint(s);
+  const pendingIndex = reads.length - 1;
+  P.scopesAfterPaint(s); P.scopesAfterPaint(s);
+  assert.equal(reads.length, pendingIndex + 1, 'one read in flight');
+  assert.deepEqual([s.scopes.pending, s.scopes.dirty], [true, true]);
+  reads[pendingIndex].resolve(grey); await flush();
+  assert.equal(reads.length, pendingIndex + 2, 'exactly one trailing read of the last frame');
+  assert.equal(s.scopes.dirty, false);
+  reads.at(-1).resolve(grey); await flush();
+  assert.equal(reads.length, pendingIndex + 2, 'and nothing after it');
+
+  // A null frame draws nothing.
+  const before = puts(els);
+  P.scopesAfterPaint(s); reads.at(-1).resolve(null); await flush();
+  assert.deepEqual(puts(els), before, 'a null frame draws nothing');
+  assert.equal(P.drawScopes(s, null), false);
+
+  // Kinds: a change reads again; only shown kinds are drawn; the last shown kind stays.
+  const readsBefore = reads.length;
+  assert.equal(P.toggleScope(s, 'waveform'), true);
+  assert.deepEqual([els['button waveform'].attrs['aria-pressed'], els['tile waveform'].hidden], ['false', true], 'waveform off hides its tile');
+  assert.deepEqual(stored().show, ['histogram', 'vectorscope']);
+  assert.equal(reads.length, readsBefore + 1, 'a kind change reads the last frame again');
+  const drawn = puts(els);
+  reads.at(-1).resolve(grey); await flush();
+  assert.deepEqual(puts(els).map((n, i) => n - drawn[i]), [1, 0, 1], 'only the shown kinds are drawn');
+  assert.equal(P.toggleScope(s, 'histogram'), true);
+  reads.at(-1).resolve(grey); await flush();
+  assert.equal(P.toggleScope(s, 'vectorscope'), false, 'the last shown kind stays');
+  assert.deepEqual([els['button vectorscope'].attrs['aria-pressed'], els['tile vectorscope'].hidden, Array.from(s.scopes.show)], ['true', false, ['vectorscope']]);
+  assert.deepEqual(stored(), {open: true, show: ['vectorscope']});
+  assert.equal(P.toggleScope(s, 'parade'), false, 'unknown kinds change nothing');
+  assert.equal(P.handleScopeClick(s, {target: els['button waveform']}), true, 'the kind buttons go through handleScopeClick');
+  assert.deepEqual(stored().show, ['waveform', 'vectorscope']);
+  reads.at(-1).resolve(grey); await flush();
+
+  // Keys: the tile row keeps its scroll keys; Escape closes and focuses the toggle.
+  const prevented = [];
+  const key = (name, target) => ({key: name, target, ctrlKey: false, metaKey: false, altKey: false, preventDefault() { prevented.push(name); }});
+  assert.equal(P.handleScopeKeys(s, key('ArrowRight', els.tiles)), true, 'the tile row keeps its scroll keys');
+  assert.equal(P.handleScopeKeys(s, key('ArrowRight', els['button waveform'])), false, 'the buttons keep their own keys');
+  assert.equal(P.handleScopeKeys(s, key('Escape', els['button waveform'])), true);
+  assert.deepEqual([prevented, s.scopes.open, els.section.hidden, els.toggle.attrs['aria-expanded'], focused], [['Escape'], false, true, 'false', ['toggle']], 'Escape closes the panel and focuses the toggle');
+  assert.equal(stored().open, false);
+  assert.equal(P.handleScopeKeys(s, key('Escape', els['button waveform'])), false, 'a closed panel takes no keys');
+  const closedCount = reads.length;
+  clock += 1000; P.scopesAfterPaint(s);
+  assert.equal(reads.length, closedCount, 'closed: no read');
+
+  // Source mode reads nothing.
+  assert.equal(P.setScopesOpen(s, true), true);
+  reads.at(-1).resolve(grey); await flush();
+  s.stageMode = 'source';
+  const sourceCount = reads.length;
+  clock += 1000; P.scopesAfterPaint(s);
+  assert.equal(reads.length, sourceCount, 'source mode reads nothing');
+  s.stageMode = 'timeline';
+
+  // Without a project the toggle is disabled and the panel does not open.
+  s.project = null; P.syncScopes(s);
+  assert.deepEqual([els.toggle.disabled, els.toggle.attrs['aria-expanded'], els.section.hidden], [true, 'false', true]);
+  assert.equal(P.setScopesOpen(s, true), false);
+  assert.equal(s.scopes.open, true, 'the remembered state stays');
+  s.project = {width: 1280, height: 720}; P.syncScopes(s);
+  assert.deepEqual([els.toggle.disabled, els.section.hidden], [false, false]);
+
+  // The stored preference opens a new window's panel; the next paint reads.
+  store.set(PREF, '{"open":true,"show":["waveform","bogus"]}');
+  const second = makeState('w2');
+  assert.equal(P.wireScopes(second.s), true);
+  assert.deepEqual([second.s.scopes.open, Array.from(second.s.scopes.show)], [true, ['waveform']]);
+  assert.deepEqual(M.KINDS.map(kind => [second.els['button ' + kind].attrs['aria-pressed'], second.els['tile ' + kind].hidden]), [['false', true], ['true', false], ['false', true]]);
+  assert.deepEqual([second.els.toggle.attrs['aria-expanded'], second.els.section.hidden], ['true', false]);
+  assert.equal(second.reads.length, 0, 'wiring reads nothing');
+  P.scopesAfterPaint(second.s);
+  assert.equal(second.reads.length, 1);
+  process.stdout.write('ok');
+})().catch(error => { console.error(error); process.exit(1); });
+`)
+}
+
+// TestVideoStudioScopesLocales checks the nine scope strings (2f Task 3; index §4.26.5) in all 16 desktop locales:
+//   - every key is present, and en and de are the binding texts;
+//   - the hint, "Scopes to show" and the three canvas labels are translated;
+//   - the four short names may equal English (nl, da, no, sv, pl and cs say "Histogram" too).
+func TestVideoStudioScopesLocales(t *testing.T) {
+	binding := map[string][2]string{
+		"scopes":                {"Scopes", "Videoskope"},
+		"scopesHint":            {"Show the histogram, waveform and vectorscope of the preview", "Histogramm, Wellenform und Vektorskop der Vorschau zeigen"},
+		"scopesShow":            {"Scopes to show", "Angezeigte Videoskope"},
+		"scopeHistogram":        {"Histogram", "Histogramm"},
+		"scopeWaveform":         {"Waveform", "Wellenform"},
+		"scopeVectorscope":      {"Vectorscope", "Vektorskop"},
+		"scopeHistogramLabel":   {"Histogram of the preview: red, green, blue and luma (BT.709), dark on the left, bright on the right", "Histogramm der Vorschau: Rot, Grün, Blau und Luma (BT.709), dunkel links, hell rechts"},
+		"scopeWaveformLabel":    {"Waveform of the preview: luma (BT.709) of each column from left to right, 0 % at the bottom, 100 % at the top", "Wellenform der Vorschau: Luma (BT.709) jeder Spalte von links nach rechts, 0 % unten, 100 % oben"},
+		"scopeVectorscopeLabel": {"Vectorscope of the preview: colour as BT.709 Cb to the right and Cr upwards, with the skin-tone line", "Vektorskop der Vorschau: Farbe als BT.709-Cb nach rechts und -Cr nach oben, mit der Hautton-Linie"},
+	}
+	short := map[string]bool{"scopes": true, "scopeHistogram": true, "scopeWaveform": true, "scopeVectorscope": true}
+	english := readDesktopLocale(t, "en")
+	for _, lang := range videoStudioLocales {
+		values := readDesktopLocale(t, lang)
+		for key := range binding {
+			text := strings.TrimSpace(values["videoStudio."+key])
+			switch {
+			case text == "":
+				t.Errorf("%s lacks videoStudio.%s", lang, key)
+			case lang != "en" && !short[key] && text == english["videoStudio."+key]:
+				t.Errorf("%s copies the English videoStudio.%s", lang, key)
+			}
+		}
+	}
+	for key, texts := range binding {
+		for i, lang := range []string{"en", "de"} {
+			if got := readDesktopLocale(t, lang)["videoStudio."+key]; got != texts[i] {
+				t.Errorf("%s: videoStudio.%s = %q, want %q", lang, key, got, texts[i])
+			}
+		}
+	}
 }

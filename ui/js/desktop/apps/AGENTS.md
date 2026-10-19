@@ -1609,14 +1609,14 @@ buttons and menu popovers remain excluded from those gestures.
   (Effects section, crop and flip edits, LUT picker, stack keys), `-source.js`
   (source monitor), `-tracks.js` (track commands, targets, heights, solo),
   `-markers.js` (marker commands and popover), `-transport.js` (JKL, in/out,
-  loop and navigation keys), `-rangerender.js` (render range exactly and its compare overlay), `-derive.js`
+  loop and navigation keys), `-rangerender.js` (render range exactly and its compare overlay), `-scopes.js` (scopes panel: transport toggle, dock, readback and drawing), `-derive.js`
   (reverse, freeze frame and export frame as server jobs; the edit is applied
   by the `onSucceeded` hook of `createJob`/`pollJob`, always directly before
   `-projects.js`), `-projects.js` (settings and new-project dialogs),
   `-mediabin.js` (media bin actions: folder dialogs, item and folder menus,
   removal, drops onto folders, library metadata) and
-  `-menus.js` (context menus), and `video-studio.js` last (41 Video Studio scripts after the two shared
-  sticker scripts, so 43 in all; the same order in `module-loader.js`, both browser fixtures and
+  `-menus.js` (context menus), and `video-studio.js` last (42 Video Studio scripts after the two shared
+  sticker scripts, so 44 in all; the same order in `module-loader.js`, both browser fixtures and
   `TestVideoStudioNavigationLoadOrder`; lists only get insertions). The parts share
   `window.VideoStudioParts`: each registers its functions with
   `Object.assign(P, …)` and calls the others through call-time wrappers, so

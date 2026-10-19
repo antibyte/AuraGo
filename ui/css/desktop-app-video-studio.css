@@ -384,6 +384,26 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-app .vs-range-bar > button { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 3px 10px; }
 .vs-app .vs-range-bar > .vs-icon-button { justify-content: center; width: 28px; padding: 0; }
 .vs-app .vs-transport [data-action="range-render"].is-busy { color: var(--vs-accent); }
+/* Scopes (2f Task 3, video-studio-scopes.js; index §4.26.5): a dock between the stage and the transport, and its toggle
+   in the transport. A closed dock takes no height. The open panel is --vs-scopes-h high (132 px, 96 px on phones):
+   - the kind buttons sit on the left, then the tiles in one row;
+   - each canvas is the row height wide by its aspect ratio, and the row scrolls sideways when it does not fit;
+   - the canvases use fixed colours in both themes. */
+.vs-center { --vs-scopes-h: 132px; }
+.vs-scopes-dock { flex: 0 0 auto; min-width: 0; }
+.vs-scopes { display: flex; align-items: stretch; gap: 10px; height: var(--vs-scopes-h); min-width: 0; padding: 6px 10px; border-top: 1px solid var(--vs-border); background: var(--vs-panel); }
+.vs-scopes-bar { flex: 0 0 auto; flex-direction: column; align-self: center; margin-top: 0; }
+.vs-scopes-bar button { padding: 3px 10px; text-align: left; }
+.vs-scopes-tiles { flex: 1 1 auto; display: flex; gap: 8px; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; border-radius: 6px; }
+.vs-scope { flex: 0 0 auto; height: 100%; margin: 0; border: 1px solid var(--vs-border); border-radius: 6px; overflow: hidden; background: #0c0f15; }
+.vs-scope canvas { display: block; width: auto; height: 100%; }
+.vs-app .vs-transport [data-action="scopes"][aria-expanded="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); color: var(--vs-accent); }
+.vs-without-project .vs-scopes-dock { display: none !important; }
+@container vs-app (max-width: 650px) {
+    .vs-center { --vs-scopes-h: 96px; }
+    .vs-scopes { gap: 6px; padding: 4px 6px; }
+    .vs-scopes-bar button { min-height: 22px; padding: 1px 8px; font-size: 11px; }
+}
 
 /* Empty project */
 .vs-preview-stage.vs-no-project { place-items: stretch; padding: 0; background: var(--vs-bg); }

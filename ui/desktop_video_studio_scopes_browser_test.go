@@ -5,12 +5,17 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"math"
 	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"aurago/internal/videostudio/goldenframe"
+
+	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/input"
 )
 
 // TestDesktopVideoStudioScopesBrowser checks the 2f scopes path in a real browser (index §4.26). Subtests:
@@ -19,6 +24,7 @@ import (
 func TestDesktopVideoStudioScopesBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	t.Run("readScaled", videoStudioReadScaledPart)
+	t.Run("panel", videoStudioScopesPanelPart)
 }
 
 // videoStudioReadScaledPart (Task 1) draws a 1280x720 frame with each painter: the moving gradient under the colour
@@ -228,5 +234,208 @@ func videoStudioReadScaledPart(t *testing.T) {
 				t.Fatalf("engine page errors: %s", errs)
 			}
 		})
+	}
+}
+
+// videoStudioScopesPanelPart (Task 3) drives the scopes panel in the app on the keyframe fixture: c1, the 512x288
+// picture at half size in the top left. It runs under the SwiftShader launcher, then once more after a reload with the
+// 2D painter forced by the hidden previewEngine preference. It checks:
+//   - the toggle sits in the transport before "Render range exactly", and a closed panel reads nothing while playing;
+//   - Enter on the focused toggle opens the panel and keeps focus; every scope shows data; the panel reads 256x144;
+//   - playing with the panel open reads 1..13 times in 1 s;
+//   - waveform off hides its tile, the last shown kind stays pressed, and the preference follows;
+//   - Escape in the bar closes the panel and focuses the toggle;
+//   - source mode hides the dock;
+//   - at 1280x900, 900x900 and 390x844: the centre column does not scroll sideways, the toggle stays in the transport
+//     row, and the panel is 132 px high (96 px on the phone);
+//   - the screenshots for review (wide, narrow, phone, 2D), with no script errors.
+func videoStudioScopesPanelPart(t *testing.T) {
+	page := openVideoStudioKeyframes(t, newWebGLSmokeBrowser(t), newVideoStudioKeyframesServer(t, videoStudioKeyframesProject()))
+	shots := videoStudioKeyframesShotDir(t)
+	const app = `window.VideoStudioApp.instances.get('kf')`
+	const toggle, section = `[data-action="scopes"]`, `[data-scopes]`
+	kinds := []string{"histogram", "waveform", "vectorscope"}
+	text := func(js string, args ...any) string { t.Helper(); return page.MustEval(js, args...).Str() }
+	truth := func(js string, args ...any) bool { t.Helper(); return page.MustEval(js, args...).Bool() }
+	click := func(selector string) {
+		t.Helper()
+		page.MustEval(`sel => document.querySelector(sel).click()`, selector)
+	}
+	reads := func() int { t.Helper(); return page.MustEval(`() => window.kfScopeReads`).Int() }
+	play := func(d time.Duration) {
+		t.Helper()
+		page.MustEval(`() => { const s = ` + app + `; s.preview.pause(); s.preview.seek(0); s.preview.play(); }`)
+		time.Sleep(d)
+		page.MustEval(`() => ` + app + `.preview.pause()`)
+	}
+	pressed := func(kind string) string {
+		t.Helper()
+		return text(`k => document.querySelector('[data-scope="' + k + '"]').getAttribute('aria-pressed') + '|' + (document.querySelector('[data-scope-tile="' + k + '"]').hidden ? 'hidden' : 'shown')`, kind)
+	}
+	stored := func() string {
+		t.Helper()
+		return text(`() => String(localStorage.getItem('aurago.videoStudio.scopes'))`)
+	}
+	requireData := func(step string, want ...string) {
+		t.Helper()
+		stats := videoStudioScopeCanvasStats(t, page)
+		for _, kind := range want {
+			if stats[kind] == 0 {
+				t.Errorf("%s: the %s shows no data (data pixels %v)", step, kind, stats)
+			}
+		}
+	}
+
+	if kind := text(`() => ` + app + `.preview.painterKind()`); kind != "gl" {
+		t.Fatalf("the panel part needs the GL painter under the SwiftShader launcher, got %q", kind)
+	}
+	// The panel reads through s.preview.readScaled; count the calls and their sizes.
+	page.MustEval(`() => { const preview = ` + app + `.preview, real = preview.readScaled; window.kfScopeReads = 0; window.kfScopeSizes = []; preview.readScaled = (width, height) => { window.kfScopeReads++; window.kfScopeSizes.push(width + 'x' + height); return real(width, height); }; }`)
+
+	// Closed (the default): the toggle sits in the transport before "Render range exactly", and playing reads nothing.
+	if got := text(`sel => { const b = document.querySelector(sel); return [b.getAttribute('aria-expanded'), b.nextElementSibling && b.nextElementSibling.dataset.action, b.closest('.vs-transport-right') ? 'transport' : 'elsewhere', b.getAttribute('aria-controls'), b.getAttribute('aria-label')].join('|'); }`, toggle); got != "false|range-render|transport|vs-scopes-kf|Scopes" {
+		t.Fatalf("toggle expanded|next|place|controls|label = %s", got)
+	}
+	if !truth(`sel => document.querySelector(sel).hidden`, section) {
+		t.Fatal("the scopes show before the toggle was used")
+	}
+	play(500 * time.Millisecond)
+	if n := reads(); n != 0 {
+		t.Errorf("a closed panel read %d frames during 0.5 s of play, want 0", n)
+	}
+
+	// Enter on the focused toggle opens the panel; focus stays on the toggle and every scope shows data.
+	page.MustElement(toggle).MustFocus()
+	page.Keyboard.MustType(input.Enter)
+	waitForJSBool(t, page, `() => document.querySelector('`+toggle+`').getAttribute('aria-expanded') === 'true'`)
+	if !truth(`sel => { const el = document.querySelector(sel); return !el.hidden && el.offsetHeight > 0; }`, section) {
+		t.Fatal("the dock does not show after opening")
+	}
+	if !truth(`sel => document.activeElement === document.querySelector(sel)`, toggle) {
+		t.Error("opening moved focus off the toggle")
+	}
+	requireData("open", kinds...)
+	if got := text(`() => window.kfScopeSizes.length ? window.kfScopeSizes[0] : ''`); got != "256x144" {
+		t.Errorf("the panel read %q, want 256x144", got)
+	}
+	if got := text(`() => document.querySelector('[data-scope-canvas="waveform"]').getAttribute('aria-label')`); got != "Waveform of the preview: luma (BT.709) of each column from left to right, 0 % at the bottom, 100 % at the top" {
+		t.Errorf("waveform canvas label %q", got)
+	}
+	if got := stored(); got != `{"open":true,"show":["histogram","waveform","vectorscope"]}` {
+		t.Errorf("stored preference %s", got)
+	}
+
+	// Playing with the panel open: about 10 reads per second at most.
+	page.MustEval(`() => { window.kfScopeReads = 0; }`)
+	play(time.Second)
+	if n := reads(); n < 1 || n > 13 {
+		t.Errorf("an open panel read %d frames in 1 s of play, want 1..13", n)
+	}
+
+	// Kind buttons: waveform off hides its tile; the last shown kind stays pressed; the preference follows.
+	click(`[data-scope="waveform"]`)
+	if got := pressed("waveform"); got != "false|hidden" {
+		t.Errorf("waveform after its button: %s, want false|hidden", got)
+	}
+	click(`[data-scope="histogram"]`)
+	click(`[data-scope="vectorscope"]`)
+	if got := pressed("vectorscope"); got != "true|shown" {
+		t.Errorf("the last shown kind: %s, want true|shown", got)
+	}
+	if got := stored(); got != `{"open":true,"show":["vectorscope"]}` {
+		t.Errorf("stored preference after the kind buttons: %s", got)
+	}
+	click(`[data-scope="histogram"]`)
+	click(`[data-scope="waveform"]`)
+	requireData("kinds shown again", kinds...)
+
+	// Escape in the bar closes the panel and focuses the toggle.
+	page.MustElement(`[data-scope="histogram"]`).MustFocus()
+	page.Keyboard.MustType(input.Escape)
+	waitForJSBool(t, page, `() => document.querySelector('`+section+`').hidden`)
+	if got := text(`sel => document.querySelector(sel).getAttribute('aria-expanded') + '|' + (document.activeElement === document.querySelector(sel))`, toggle); got != "false|true" {
+		t.Errorf("after Escape in the bar: expanded|focused = %s, want false|true", got)
+	}
+
+	// Reopen; source mode hides the dock with the stage, and the timeline brings it back.
+	click(toggle)
+	waitForJSBool(t, page, `() => !document.querySelector('`+section+`').hidden`)
+	page.MustEval(`() => window.VideoStudioParts.openSource(` + app + `, 'art1')`)
+	waitForJSBool(t, page, `() => document.querySelector('.vs-scopes-dock').hidden`)
+	page.MustEval(`() => window.VideoStudioParts.setStageMode(` + app + `, 'timeline')`)
+	waitForJSBool(t, page, `() => !document.querySelector('.vs-scopes-dock').hidden && !document.querySelector('`+section+`').hidden`)
+
+	// Layouts: no sideways scrolling of the centre column, the toggle in the transport row, the panel height.
+	type layout struct {
+		Overflow int  `json:"overflow"`
+		Panel    int  `json:"panel"`
+		Stage    int  `json:"stage"`
+		InRow    bool `json:"inRow"`
+	}
+	for _, size := range []struct{ width, height, panel int }{{1280, 900, 132}, {900, 900, 132}, {390, 844, 96}} {
+		name := fmt.Sprintf("%dx%d", size.width, size.height)
+		page.MustSetViewport(size.width, size.height, 1, false)
+		time.Sleep(300 * time.Millisecond)
+		var got layout
+		raw := text(`() => { const center = document.querySelector('.vs-center'), transport = document.querySelector('.vs-transport').getBoundingClientRect(), button = document.querySelector('[data-action="scopes"]').getBoundingClientRect(); return JSON.stringify({overflow: center.scrollWidth - center.clientWidth, panel: document.querySelector('.vs-scopes').offsetHeight, stage: document.querySelector('.vs-preview-stage').offsetHeight, inRow: button.width > 0 && button.left >= transport.left - 1 && button.right <= transport.right + 1 && button.top >= transport.top - 1 && button.bottom <= transport.bottom + 1}); }`)
+		if err := json.Unmarshal([]byte(raw), &got); err != nil {
+			t.Fatalf("%s layout: %v (%s)", name, err, raw)
+		}
+		if got.Overflow > 1 {
+			t.Errorf("%s: the centre column scrolls sideways by %d px", name, got.Overflow)
+		}
+		if !got.InRow {
+			t.Errorf("%s: the scopes toggle left the transport row", name)
+		}
+		if got.Panel != size.panel {
+			t.Errorf("%s: the panel is %d px high, want %d", name, got.Panel, size.panel)
+		}
+		t.Logf("%s: panel %d px, stage %d px", name, got.Panel, got.Stage)
+		page.MustScreenshot(filepath.Join(shots, "scopes-"+name+".png"))
+	}
+	page.MustSetViewport(1280, 900, 1, false)
+	if errs := text(`() => JSON.stringify(window.kfErrors)`); errs != "[]" {
+		t.Fatalf("script errors in the scopes panel part: %s", errs)
+	}
+
+	// The 2D painter: the hidden previewEngine preference, then a reload. The stored preference opens the panel.
+	page.MustEval(`() => localStorage.setItem('aurago.videoStudio.previewEngine', '2d')`)
+	page.MustReload()
+	page.MustWaitLoad()
+	waitForJSBool(t, page, `() => !!document.querySelector('.vs-clip[data-clip-id="c1"]') || window.kfErrors.length > 0`)
+	if kind := text(`() => ` + app + `.preview.painterKind()`); kind != "2d" {
+		t.Fatalf("the forced 2D pass draws with %q", kind)
+	}
+	waitForJSBool(t, page, `() => !document.querySelector('`+section+`').hidden`)
+	requireData("2D painter", kinds...)
+	page.MustScreenshot(filepath.Join(shots, "scopes-2d-1280x900.png"))
+	if errs := text(`() => JSON.stringify(window.kfErrors)`); errs != "[]" {
+		t.Fatalf("script errors in the 2D scopes pass: %s", errs)
+	}
+	page.MustEval(`() => { localStorage.removeItem('aurago.videoStudio.previewEngine'); localStorage.removeItem('aurago.videoStudio.scopes'); }`)
+}
+
+// videoStudioScopeCanvasStats counts the data pixels of every shown scope canvas. The read is asynchronous, so it waits
+// up to 10 s until each of them has some.
+//   - Histogram data pixels are the bars and the luma line: a channel of at least 120 (the grid strokes stay below 64).
+//   - Waveform and vectorscope data pixels are the green traces: G − R > 30 and G − B > 15, which no graticule stroke is.
+//   - Hidden tiles and a closed panel count nothing.
+func videoStudioScopeCanvasStats(t *testing.T, page *rod.Page) map[string]int {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		raw := page.MustEval(`() => { const out = {}, section = document.querySelector('[data-scopes]'); if (!section || section.hidden) return JSON.stringify(out); section.querySelectorAll('[data-scope-tile]').forEach(tile => { if (tile.hidden) return; const kind = tile.dataset.scopeTile, canvas = tile.querySelector('canvas'), data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data; let n = 0; for (let i = 0; i < data.length; i += 4) { const r = data[i], g = data[i + 1], b = data[i + 2]; if (kind === 'histogram' ? Math.max(r, g, b) >= 120 : g - r > 30 && g - b > 15) n++; } out[kind] = n; }); return JSON.stringify(out); }`).Str()
+		var stats map[string]int
+		if err := json.Unmarshal([]byte(raw), &stats); err != nil {
+			t.Fatalf("scope canvas stats: %v (%s)", err, raw)
+		}
+		ready := len(stats) > 0
+		for _, n := range stats {
+			ready = ready && n > 0
+		}
+		if ready || time.Now().After(deadline) {
+			return stats
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 }
