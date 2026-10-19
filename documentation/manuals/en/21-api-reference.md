@@ -6,7 +6,7 @@
 
 JSON, admin auth where it hurts, SSE at `GET /events`. No public chat `/ws`. Default origin: `http://localhost:8088`.
 
-> Updated: 3 October 2026. Routes are what the server registers, not a wish list.
+> Updated: 19 October 2026. Routes are what the server registers, not a wish list.
 
 ---
 
@@ -2188,24 +2188,178 @@ Dashboard, containers, backups, system status, and event streams.
 
 ### Dashboard API
 
+Routes called *administrator-only* below are registered behind `requireAdmin`: a Web UI session passes (every caller does while Web UI authentication is off); a bearer token needs the `admin` scope.
+
+#### Summary
+```http
+GET /api/dashboard/summary
+```
+
+Administrator-only. One answer feeds the overview, the sidebar status block and the sidebar badges. Other methods return `405`. The server does not cache it (`Cache-Control: no-store`); the dashboard reuses an answer for 15 seconds.
+
+**Response:**
+```json
+{
+  "generated_at": "2026-10-19T09:41:00+02:00",
+  "overall": "warning",
+  "agent": {
+    "model": "llama-3.3-70b-instruct",
+    "provider": "openrouter",
+    "personality": "friend",
+    "context_window": 131072,
+    "busy": false,
+    "debug": false,
+    "maintenance": true,
+    "mood": "focused"
+  },
+  "context": {
+    "total_chars": 48000
+  },
+  "last_activity_hours": 0.4,
+  "maintenance": {
+    "enabled": true,
+    "last_run": "2026-10-19T03:00:04+02:00",
+    "last_status": "completed",
+    "next_run": "2026-10-20T03:00:00+02:00"
+  },
+  "health": {
+    "cpu_percent": 18.4,
+    "memory_percent": 46.2,
+    "disk_percent": 61,
+    "uptime_seconds": 273600,
+    "sampled_at": "2026-10-19T09:40:52+02:00"
+  },
+  "attention": [
+    {
+      "id": "operational_issue:0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+      "severity": "warning",
+      "code": "operational_issue",
+      "params": {
+        "kind": "runtime_failure",
+        "occurrences": 3,
+        "source": "maintenance",
+        "title": "Backup target unreachable"
+      },
+      "section": "problems",
+      "count": 1,
+      "at": "2026-10-19T08:12:00+02:00"
+    },
+    {
+      "id": "cron_errors",
+      "severity": "warning",
+      "code": "cron_errors",
+      "params": {
+        "first_id": "nightly-backup"
+      },
+      "section": "automations",
+      "count": 1,
+      "at": ""
+    }
+  ],
+  "attention_more": 0,
+  "badges": {
+    "problems": 1,
+    "automations": 1
+  },
+  "kpis": {
+    "budget": {
+      "enabled": true,
+      "spent_usd": 0.42,
+      "daily_limit_usd": 2,
+      "percentage": 0.21,
+      "state": "ok"
+    },
+    "automations": {
+      "missions_running": 1,
+      "missions_queued": 0,
+      "missions_failed_24h": 0,
+      "cron_errors": 1,
+      "daemons_failed": 0
+    },
+    "knowledge": {
+      "kg_nodes": 1284,
+      "kg_edges": 3410,
+      "core_facts": 37
+    }
+  },
+  "recent_activity": [
+    {
+      "id": 5120,
+      "timestamp": "2026-10-19T09:38:12+02:00",
+      "source": "mission",
+      "event_type": "mission_run",
+      "target_name": "Morning briefing",
+      "status": "success",
+      "duration_ms": 41250,
+      "section": "automations"
+    }
+  ],
+  "unavailable": []
+}
+```
+
+- `overall` is `critical` when an attention item is critical, `warning` when one is a warning, otherwise `ok`; `info` items never change `ok`.
+- `agent`, `context`, `last_activity_hours` and `maintenance` use the keys of `GET /api/dashboard/overview`. `mood` stays empty unless the personality engine is on; `last_activity_hours` is `-1` when unknown.
+- `health` is `null` until the 10-second metrics collector has taken its first sample; `uptime_seconds` counts from the AuraGo start.
+- `attention` holds at most 8 items, sorted by severity (`critical`, `warning`, `info`), then `at` (newest first, empty last), then `code`; `attention_more` counts the items that were cut off. `code` is one of `operational_issue`, `cron_errors`, `missions_failed`, `daemon_failed`, `budget_warning`, `budget_blocked`, `disk_high`, `memory_high`, `indexer_error`, `memory_conflicts` and `localwiki_update`; `params` fills the client-side text `dashboard.attention.<code>`; `section` is the dashboard section the row links to; `at` is RFC 3339 or empty. The sanitized operational-issue `title` is the only free text.
+- `badges.problems` counts all active operational issues; `badges.automations` adds cron jobs in error, failed mission runs of the last 24 hours and failed daemon skills.
+- `kpis.budget` amounts are USD, `percentage` is a fraction (0–1) and `state` is `ok`, `warning` or `blocked`; `enabled` is `false` while budget tracking is off.
+- `recent_activity` lists the latest 8 audit events without their summary or detail text; `section` is `automations` for mission events, otherwise `audit`.
+- `unavailable` names the sources that failed for this answer: `health`, `operational_issues`, `missions`, `knowledge`, `memory` and `audit`. The answer stays `200` with zeros for those sources, and the server logs `[Dashboard] Summary source unavailable` with the error. A source that is not configured is not listed; it reports zeros or `enabled: false`.
+- Raw error texts, file paths, tokens, fingerprints and internal ids are never returned.
+
 #### System Metrics
 ```http
 GET /api/dashboard/system
 ```
 
+Samples the host for about one second.
+
 **Response:**
 ```json
 {
-  "cpu": 15.2,
-  "memory": 45.8,
-  "disk": 72.1,
-  "network": {
-    "rx_mbps": 1.2,
-    "tx_mbps": 0.8
+  "cpu": {
+    "usage_percent": 15.2,
+    "cores": 8,
+    "model_name": "Example CPU"
   },
+  "disk": {
+    "total": 512110190592,
+    "free": 142878743175,
+    "used": 369231447417,
+    "used_percent": 72.1
+  },
+  "host_uptime_seconds": 1209600,
+  "memory": {
+    "total": 17179869184,
+    "available": 9311489098,
+    "used": 7868380086,
+    "used_percent": 45.8
+  },
+  "network": {
+    "bytes_sent": 1843254211,
+    "bytes_recv": 9725118976
+  },
+  "sse_clients": 2,
   "uptime_seconds": 86400
 }
 ```
+
+`host_uptime_seconds` appears only when the host uptime is known. The `system_metrics` SSE event (about every 10 seconds) carries the same fields plus `available`.
+
+#### Dashboard Overview
+```http
+GET /api/dashboard/overview
+```
+
+The snapshot behind the **Operations & Services** card in the **System and services** section: `agent`, `integrations`, `missions`, `invasion`, `indexer`, `devices`, `mqtt`, `notes`, `security`, `context`, `last_activity_hours`, `cheatsheets`, `tunnel`, `skills`, `daemons`, `planner`, `maintenance`, `memory` and `local_wikipedia`.
+
+#### Maintenance Status
+```http
+GET /api/dashboard/maintenance/status
+```
+
+Returns `{"status": "ok", "maintenance": {…}}` with the nightly maintenance summary.
 
 #### Mood History
 ```http
@@ -2222,6 +2376,32 @@ GET /api/dashboard/emotion-history
 GET /api/dashboard/memory
 ```
 
+#### Memory Curation
+```http
+GET  /api/dashboard/memory/curation
+POST /api/dashboard/memory/curation/dry-run
+POST /api/dashboard/memory/curation/apply
+POST /api/dashboard/memory/curation/{doc_id}
+```
+
+`apply` needs `{"confirm": "APPLY_MEMORY_CURATION"}`. `apply` and the per-document action (`{"action": …, "reason": …}`) are administrator-only.
+
+#### Memory Hygiene
+```http
+GET  /api/dashboard/memory/hygiene
+POST /api/dashboard/memory/hygiene/dry-run
+POST /api/dashboard/memory/hygiene/apply
+```
+
+`apply` is administrator-only and needs `{"confirm": "APPLY_MEMORY_HYGIENE"}`; with `"include_kg": true` it also needs `"kg_confirm": "APPLY_KG_HYGIENE"`.
+
+#### Memory Reflection
+```http
+POST /api/dashboard/memory/reflection/run
+```
+
+Administrator-only. Runs the weekly memory reflection now (**Run now** on the **Latest reflection** card).
+
 #### Core Memory
 ```http
 GET /api/dashboard/core-memory
@@ -2229,14 +2409,13 @@ GET /api/dashboard/core-memory
 
 #### Mutate Core Memory
 ```http
-POST /api/dashboard/core-memory/mutate
+DELETE /api/dashboard/core-memory/mutate
 Content-Type: application/json
 
-{
-  "action": "add",
-  "content": "Important information"
-}
+{"id": 42}
 ```
+
+Deletes one core fact; `{"all": true, "confirm": "DELETE_ALL_CORE_MEMORY"}` deletes all of them. `POST` and `PUT` answer `403`: only the agent writes core memory (`manage_memory`/`remember` tools).
 
 #### Profile Data
 ```http
@@ -2262,15 +2441,13 @@ GET /api/github/repos
 GET /api/dashboard/logs
 ```
 
-#### Dashboard Overview
-```http
-GET /api/dashboard/overview
-```
-
 #### Notes
 ```http
-GET /api/dashboard/notes
+GET   /api/dashboard/notes
+PATCH /api/dashboard/notes
 ```
+
+`PATCH` is administrator-only and sets the protection of one note: `{"id": 7, "protected": true, "keep_forever": false}` (all three fields are required).
 
 #### Journal
 ```http
@@ -2298,6 +2475,37 @@ GET /api/dashboard/prompt-stats
 ```http
 GET /api/dashboard/tool-stats
 ```
+
+#### Prompt Optimization and Output Compression
+```http
+GET /api/dashboard/optimization
+GET /api/dashboard/compression
+```
+
+#### Mission History
+```http
+GET /api/dashboard/mission-history?limit=10&offset=0&mission_id=&result=&trigger_type=&from=&to=
+```
+
+Returns `entries`, `total`, `limit` and `offset` — the same data as `GET /api/missions/v2/history`.
+
+#### Audit Log
+```http
+GET    /api/dashboard/audit?limit=25&offset=0&q=&source=&status=&type=&from=&to=
+DELETE /api/dashboard/audit/{id}
+DELETE /api/dashboard/audit
+```
+
+Both `DELETE` routes are administrator-only. The bulk `DELETE` removes the entries that match the same filters and needs `confirm=DELETE_AUDIT_EVENTS` (query parameter or JSON field).
+
+#### Cron Jobs
+```http
+GET    /api/dashboard/cronjobs?q=&source=&status=
+PUT    /api/dashboard/cronjobs
+DELETE /api/dashboard/cronjobs/{id}
+```
+
+All three are administrator-only. `GET` returns `jobs`, `total`, `enabled`, `disabled`, `errors` and `sources` for the filtered list (`status` is `enabled`, `disabled` or `error`). `PUT` takes `{"id": "nightly-backup", "cron_expr": "0 3 * * *", "task_prompt": "…", "disabled": false}` (`disabled` is optional). Jobs of an EasyDrag flow answer `409` to `PUT` and `DELETE`; without a scheduler every method answers `503`.
 
 ### Container API
 
@@ -2456,12 +2664,12 @@ Accept: text/event-stream
 
 **Example Stream:**
 ```text
-event: system_metrics
-data: {"cpu": 15.2, "memory": 45.8, "disk": 72.1}
+data: {"type":"system_metrics","payload":{"available":{"cpu":true,"disk":true,"memory":true,"network":true},"cpu":{"usage_percent":15.2,"cores":8,"model_name":"Example CPU"},"disk":{"total":512110190592,"free":142878743175,"used":369231447417,"used_percent":72.1},"host_uptime_seconds":1209600,"memory":{"total":17179869184,"available":9311489098,"used":7868380086,"used_percent":45.8},"network":{"bytes_sent":1843254211,"bytes_recv":9725118976},"sse_clients":2,"uptime_seconds":86400}}
 
-event: container_update
-data: [{"id": "abc", "state": "running"}]
+data: {"type":"container_update","payload":[{"id":"abc","state":"running"}]}
 ```
+
+Typed events arrive as `data:` lines with a `{"type": …, "payload": …}` envelope; there are no `event:` lines. A few older messages (for example `budget_update`) carry an `event` field instead.
 
 ### Operational Issues API
 
@@ -2472,6 +2680,8 @@ POST /api/operational-issues/archive-stale
 POST /api/operational-issues/{id}/resolve
 POST /api/operational-issues/{id}/archive
 ```
+
+These endpoints are administrator-only.
 
 List filters include `status`, `kind`, `severity`, `source`, `limit`, and
 `offset`. Records are sanitized and use non-reversible public IDs. Archive and
