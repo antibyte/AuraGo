@@ -9,7 +9,7 @@ import (
 	"aurago/internal/dbutil"
 )
 
-const plannerSchemaVersion = 10
+const plannerSchemaVersion = 11
 
 func initPlannerSchema(db *sql.DB) error {
 	version, err := dbutil.GetUserVersion(db)
@@ -25,6 +25,11 @@ func initPlannerSchema(db *sql.DB) error {
 		return err
 	}
 
+	if version < 11 && hasAppointments {
+		if err := backupPlannerBeforeV11(db); err != nil {
+			return err
+		}
+	}
 	switch {
 	case !hasAppointments && !hasTodos:
 		if err := createPlannerTables(db); err != nil {
@@ -80,6 +85,11 @@ func initPlannerSchema(db *sql.DB) error {
 		}
 	}
 
+	if version < 11 {
+		if err := migratePlannerToV11(db); err != nil {
+			return err
+		}
+	}
 	if err := dbutil.SetUserVersion(db, plannerSchemaVersion); err != nil {
 		return fmt.Errorf("set planner schema version: %w", err)
 	}

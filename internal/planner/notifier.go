@@ -12,14 +12,16 @@ import (
 
 // Notifier periodically checks for due appointment notifications and wakes the agent.
 type Notifier struct {
-	db             *sql.DB
-	logger         *slog.Logger
-	executor       func(string)
-	missionTrigger func(Appointment)
-	todoTrigger    func(Todo)
-	mu             sync.Mutex
-	cancel         context.CancelFunc
-	running        bool
+	db                    *sql.DB
+	logger                *slog.Logger
+	executor              func(string)
+	durableExecutor       func(string, string) error
+	durableMissionTrigger func(string, Appointment) error
+	missionTrigger        func(Appointment)
+	todoTrigger           func(Todo)
+	mu                    sync.Mutex
+	cancel                context.CancelFunc
+	running               bool
 }
 
 // NewNotifier creates a new appointment notifier.
@@ -106,8 +108,10 @@ func (n *Notifier) checkDue() {
 	n.mu.Lock()
 	executor := n.executor
 	missionTrigger := n.missionTrigger
+	durableExecutor := n.durableExecutor
+	durableMissionTrigger := n.durableMissionTrigger
 	n.mu.Unlock()
-	if executor == nil && missionTrigger == nil {
+	if executor == nil && missionTrigger == nil && durableExecutor == nil && durableMissionTrigger == nil {
 		return
 	}
 
@@ -118,48 +122,49 @@ func (n *Notifier) checkDue() {
 	}
 
 	for _, a := range due {
-		n.logger.Info("[Planner] Processing due appointment notification", "id", a.ID, "title", a.Title, "wake_agent", a.WakeAgent)
-
-		// BUG-1 + BUG-4: Atomically claim the notification before spawning callbacks.
-		// ClaimNotification uses compare-and-swap (WHERE notified=0) so that if the 30s ticker
-		// fires again before the executor finishes, the second tick finds notified=1 and skips.
-		// This also means a panic in the executor no longer causes an infinite retry loop,
-		// because the claim was already committed to the DB.
-		claimed, err := ClaimNotification(n.db, a.ID)
-		if err != nil {
-			n.logger.Error("[Planner] Failed to claim appointment notification", "error", err, "id", a.ID)
+		var targets []string
+		if durableMissionTrigger != nil || missionTrigger != nil {
+			targets = append(targets, "missions")
+		}
+		if a.WakeAgent && (durableExecutor != nil || executor != nil) {
+			targets = append(targets, "agent")
+		}
+		if err := prepareAppointmentDestinations(n.db, a, targets); err != nil {
+			n.logger.Error("[Planner] Failed to persist appointment destinations", "error", err)
 			continue
 		}
-		if !claimed {
-			// Another goroutine already claimed this notification; skip.
-			continue
+		destinations := 0
+		if durableMissionTrigger != nil || missionTrigger != nil {
+			destinations++
+			err := n.dispatchAppointment(a, "missions", func(eventID string) error {
+				if durableMissionTrigger != nil {
+					return durableMissionTrigger(eventID, a)
+				}
+				missionTrigger(a)
+				return nil
+			})
+			if err != nil {
+				n.logger.Error("[Planner] Appointment mission admission failed", "error", err, "id", a.ID)
+			}
 		}
-
-		if missionTrigger != nil {
-			func(apt Appointment) {
-				defer func() {
-					if r := recover(); r != nil {
-						n.logger.Error("[Planner] Panic in appointment mission trigger", "error", r, "appointment_id", apt.ID)
-					}
-				}()
-				missionTrigger(apt)
-			}(a)
+		if a.WakeAgent && (durableExecutor != nil || executor != nil) {
+			destinations++
+			err := n.dispatchAppointment(a, "agent", func(eventID string) error {
+				if durableExecutor != nil {
+					return durableExecutor(eventID, buildNotificationPrompt(a))
+				}
+				executor(buildNotificationPrompt(a))
+				return nil
+			})
+			if err != nil {
+				n.logger.Error("[Planner] Appointment task admission failed", "error", err, "id", a.ID)
+			}
 		}
-
-		if a.WakeAgent && executor != nil {
-			prompt := buildNotificationPrompt(a)
-			go func(apt Appointment, p string) {
-				defer func() {
-					if r := recover(); r != nil {
-						n.logger.Error("[Planner] Panic in appointment notification executor", "error", r, "appointment_id", apt.ID)
-					}
-				}()
-				executor(p)
-			}(a, prompt)
-		} else {
-			n.logger.Info("[Planner] Appointment reminder time reached (wake_agent=false, no agent action)", "id", a.ID, "title", a.Title)
+		if err := finishAppointmentAdmission(n.db, a, destinations); err != nil {
+			n.logger.Error("[Planner] Failed to acknowledge appointment admission", "error", err)
 		}
 	}
+
 }
 
 func (n *Notifier) checkOverdueTodos() {

@@ -426,6 +426,8 @@ func insertAppointment(ctx context.Context, exec interface {
 	if a.NotificationAt != "" && !validRFC3339(a.NotificationAt) {
 		return "", fmt.Errorf("invalid notification_at format %q: must be RFC3339", a.NotificationAt)
 	}
+	a.DateTime, _ = normalizeAppointmentInstant(a.DateTime)
+	a.NotificationAt, _ = normalizeAppointmentInstant(a.NotificationAt)
 	a.ID = uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 	a.CreatedAt = now
@@ -439,11 +441,11 @@ func insertAppointment(ctx context.Context, exec interface {
 	a.KGNodeID = "appointment_" + a.ID
 
 	_, err := exec.ExecContext(ctx,
-		`INSERT INTO appointments (id, title, description, date_time, notification_at, wake_agent, agent_instruction, notified, status, kg_node_id, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO appointments (id, title, description, date_time, notification_at, wake_agent, agent_instruction, notified, status, kg_node_id, created_at, updated_at, date_time_epoch, notification_epoch)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		a.ID, a.Title, a.Description, a.DateTime, a.NotificationAt,
 		dbutil.BoolToInt(a.WakeAgent), a.AgentInstruction, dbutil.BoolToInt(a.Notified),
-		a.Status, a.KGNodeID, a.CreatedAt, a.UpdatedAt,
+		a.Status, a.KGNodeID, a.CreatedAt, a.UpdatedAt, appointmentEpoch(a.DateTime), appointmentEpoch(a.NotificationAt),
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to insert appointment: %w", err)
@@ -490,7 +492,9 @@ func UpdateAppointment(db *sql.DB, a Appointment) error {
 	if !validAppointmentStatus(a.Status) {
 		return fmt.Errorf("invalid status %q: must be upcoming, completed, or cancelled", a.Status)
 	}
-	// BUG-3: Reset notified when notification_at changes so the new time triggers a notification.
+	a.DateTime, _ = normalizeAppointmentInstant(a.DateTime)
+	a.NotificationAt, _ = normalizeAppointmentInstant(a.NotificationAt)
+	// Reset notified when notification_at changes so the new time triggers a notification.
 	var currentNotificationAt string
 	_ = db.QueryRow("SELECT notification_at FROM appointments WHERE id=?", a.ID).Scan(&currentNotificationAt)
 	if a.NotificationAt != currentNotificationAt {
@@ -499,11 +503,11 @@ func UpdateAppointment(db *sql.DB, a Appointment) error {
 	a.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
 	res, err := db.Exec(
-		`UPDATE appointments SET title=?, description=?, date_time=?, notification_at=?, wake_agent=?, agent_instruction=?, notified=?, status=?, updated_at=?
+		`UPDATE appointments SET title=?, description=?, date_time=?, notification_at=?, wake_agent=?, agent_instruction=?, notified=?, status=?, updated_at=?, date_time_epoch=?, notification_epoch=?, notification_revision=notification_revision+CASE WHEN notification_at != ? THEN 1 ELSE 0 END
 		 WHERE id=?`,
 		a.Title, a.Description, a.DateTime, a.NotificationAt,
 		dbutil.BoolToInt(a.WakeAgent), a.AgentInstruction, dbutil.BoolToInt(a.Notified),
-		a.Status, a.UpdatedAt, a.ID,
+		a.Status, a.UpdatedAt, appointmentEpoch(a.DateTime), appointmentEpoch(a.NotificationAt), a.NotificationAt, a.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update appointment: %w", err)
@@ -559,7 +563,7 @@ func ListAppointments(db *sql.DB, query, status string) ([]Appointment, error) {
 	if len(conditions) > 0 {
 		q += " WHERE " + strings.Join(conditions, " AND ")
 	}
-	q += " ORDER BY date_time ASC"
+	q += " ORDER BY date_time_epoch ASC"
 
 	rows, err := db.Query(q, args...)
 	if err != nil {
@@ -589,8 +593,8 @@ func ListAppointments(db *sql.DB, query, status string) ([]Appointment, error) {
 func AutoExpireAppointments(db *sql.DB) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := db.Exec(
-		`UPDATE appointments SET status = 'overdue', updated_at = ? WHERE status = 'upcoming' AND date_time < ?`,
-		now, now,
+		`UPDATE appointments SET status = 'overdue', updated_at = ? WHERE status = 'upcoming' AND date_time_epoch < ?`,
+		now, time.Now().UnixMilli(),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to auto-expire appointments: %w", err)
@@ -602,13 +606,13 @@ func AutoExpireAppointments(db *sql.DB) error {
 // Limited to 50 per tick to avoid burst load after downtime.
 // Includes all appointments with a due notification_at, regardless of wake_agent setting.
 func GetDueNotifications(db *sql.DB) ([]Appointment, error) {
-	now := time.Now().UTC().Format(time.RFC3339)
 	rows, err := db.Query(
 		`SELECT id, title, description, date_time, notification_at, wake_agent, agent_instruction, notified, status, kg_node_id, created_at, updated_at
 		 FROM appointments
-		 WHERE notification_at != '' AND notification_at <= ? AND notified = 0 AND status IN ('upcoming', 'overdue')
-		 ORDER BY notification_at ASC
-		 LIMIT 50`, now)
+		 WHERE notification_epoch IS NOT NULL AND notification_epoch <= ? AND notified = 0 AND status IN ('upcoming', 'overdue')
+ AND (NOT EXISTS(SELECT 1 FROM appointment_notification_outbox o WHERE o.appointment_id=appointments.id AND o.revision=appointments.notification_revision AND o.state IN ('unknown','dispatching')) OR EXISTS(SELECT 1 FROM appointment_notification_outbox o WHERE o.appointment_id=appointments.id AND o.revision=appointments.notification_revision AND o.state='pending'))
+		 ORDER BY notification_epoch ASC
+		 LIMIT 50`, time.Now().UnixMilli())
 	if err != nil {
 		return nil, fmt.Errorf("failed to query due notifications: %w", err)
 	}
@@ -1068,7 +1072,7 @@ func ClaimDailyReminderSnapshot(db *sql.DB, now time.Time) (DailyReminderSnapsho
 		SELECT id, title, description, date_time, notification_at, wake_agent, agent_instruction, notified, status, kg_node_id, created_at, updated_at
 		FROM appointments
 		WHERE status = 'upcoming'
-		ORDER BY date_time ASC`)
+		ORDER BY date_time_epoch ASC`)
 	if err != nil {
 		return snapshot, fmt.Errorf("list daily reminder appointments: %w", err)
 	}

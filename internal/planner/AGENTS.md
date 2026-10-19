@@ -12,6 +12,20 @@ Issue lifecycle, notification, and background retry policy.
 
 - Overdue todo notifications claim the todo ID and exact due value durably in `planner_meta` before dispatch. Recheck due/status atomically. A restart or ambiguous/panicking delivery cannot replay that revision; changing the due value creates a new claimable revision. A due value of `YYYY-MM-DDT00:00:00Z` is that civil day in the machine's local timezone. It becomes overdue on the next local day. Any other timestamp is overdue once that instant has passed. Reopening through `UpdateTodo` with status `open` or `in_progress` keeps checklist ticks. Verify `TestOverdueClaimSurvivesNotifierRestartAndPanic`, `TestCivilDueDateIsNotOverdueOnItsLocalDay`, and `TestUpdateTodoReopenKeepsFinishedItems`.
 
+### Appointment admission
+
+- Normalize appointment instants to UTC and compare indexed numeric epoch milliseconds;
+  timestamp spelling and offsets must never decide ordering or due status. The v11
+  migration keeps a consistent owner-only backup before converting populated stores.
+- Appointment notification revisions have a durable outbox per mission/agent destination.
+  Acknowledge only persisted queue/task admission. Retry proven non-admission, retain
+  unknown or interrupted dispatches for review without automatic replay. Mission event
+  tombstones survive queue completion; planner flow targets are also persisted before
+  dispatch. A changed due instant creates a new revision. Todo claims retain their
+  separate at-most-once contract above.
+- Verify `TestAppointmentV11MigrationBacksUpAndRehearsesOnCopy`, `TestAppointmentOutbox*`,
+  `TestAppointmentInstantsNormalizeAndCompareOffsets`, and tools `TestPlannerMissionAdmission*`.
+
 ### Operational Issue Notification Contract
 
 - Persist a background prompt execution ID before dispatch. Internal HTTP retries
