@@ -2163,6 +2163,14 @@ git commit -m "feat(minigolf): diorama renderer with environment light, intro fl
 
 - [ ] **Step 2: Neue Prüfungen in der Bahnschleife**
 
+Das headless Chrome dieser Maschine meldet `prefers-reduced-motion: reduce`; dann startet keine Kamerafahrt. Die Kamerafahrt-Prüfung emuliert deshalb vorher normale Bewegung und setzt sie danach zurück:
+
+```go
+	proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "no-preference"}}}.Call(page)
+	// … Bahn laden, intro===true prüfen, überspringen …
+	proto.EmulationSetEmulatedMedia{}.Call(page)
+```
+
 Vor der Schleife:
 
 ```go
