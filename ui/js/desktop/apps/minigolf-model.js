@@ -1,8 +1,13 @@
-const MODES = new Set(['full', 'garden', 'coast', 'night', 'practice']);
+import { COLOR_IDS, DEFAULT_COLORS, MAX_NAME_LENGTH, WORLD_ID } from './minigolf-shared.js';
+
 const MAX_PLAYERS = 4;
 const MAX_COURSES = 100;
 const MAX_SAVE_BYTES = 64 * 1024;
 const activeShots = new WeakSet();
+const CONTROL = /[\x00-\x1f\x7f-\x9f]/;
+// full, practice or a world id from the manifest; the game decides which worlds exist.
+const validMode = mode => typeof mode === 'string' && WORLD_ID.test(mode);
+const validName = name => typeof name === 'string' && name.trim() !== '' && Array.from(name).length <= MAX_NAME_LENGTH && !CONTROL.test(name);
 
 const isObject = value => !!value && typeof value === 'object' && !Array.isArray(value) && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
 const finitePosition = value => Array.isArray(value) && value.length === 3 && value.every(number => Number.isFinite(number) && Math.abs(number) <= 100000);
@@ -28,21 +33,21 @@ function nextPlayer(round, from = round.turnIndex) {
 
 export function createRound(courses, { players = ['Player 1'], mode = 'full', holeId } = {}) {
     const byId = courseIndex(courses);
-    if (!MODES.has(mode)) throw new TypeError('Invalid minigolf mode');
+    if (!validMode(mode)) throw new TypeError('Invalid minigolf mode');
     if (!Array.isArray(players) || players.length < 1 || players.length > MAX_PLAYERS) throw new TypeError('Minigolf supports 1 to 4 players');
-    const names = players.map(name => typeof name === 'string' ? name.trim() : '');
-    if (names.some(name => !name || name.length > 40 || /[\u0000-\u001F\u007F-\u009F]/.test(name)) || new Set(names.map(name => name.toLocaleLowerCase())).size !== names.length) throw new TypeError('Invalid or duplicate minigolf player name');
+    // Players are names (default colour by position) or { name, color }.
+    const entries = players.map((player, index) => typeof player === 'string'
+        ? { name: player.trim(), color: DEFAULT_COLORS[index] }
+        : { name: typeof player?.name === 'string' ? player.name.trim() : '', color: player?.color });
+    if (entries.some(entry => !validName(entry.name)) || new Set(entries.map(entry => entry.name.toLocaleLowerCase())).size !== entries.length) throw new TypeError('Invalid or duplicate minigolf player name');
+    if (entries.some(entry => !COLOR_IDS.includes(entry.color)) || new Set(entries.map(entry => entry.color)).size !== entries.length) throw new TypeError('Invalid or duplicate minigolf player color');
     if (holeId !== undefined && (typeof holeId !== 'string' || !byId.has(holeId))) throw new TypeError('Unknown minigolf course');
     const courseIds = holeId === undefined ? Array.from(byId.keys()) : [holeId];
     const tee = byId.get(courseIds[0]).tee.slice();
     return {
-        version: 1,
-        mode,
-        courseIds,
-        holeIndex: 0,
-        players: names.map(name => ({ name, scores: [], position: tee.slice(), shots: 0, strokes: 0, penalties: 0, done: false })),
-        turnIndex: 0,
-        completed: false
+        version: 2, mode, courseIds, holeIndex: 0,
+        players: entries.map(({ name, color }) => ({ name, color, scores: [], position: tee.slice(), shots: 0, strokes: 0, penalties: 0, done: false })),
+        turnIndex: 0, completed: false
     };
 }
 
@@ -107,14 +112,15 @@ export function advanceHole(round, courses) {
 export function validateSave(data, courses) {
     try {
         if (new TextEncoder().encode(JSON.stringify(data)).byteLength > MAX_SAVE_BYTES) return false;
-        if (!safeKeys(data, ['version', 'mode', 'courseIds', 'holeIndex', 'players', 'turnIndex', 'completed']) || data.version !== 1 || !MODES.has(data.mode) || !Array.isArray(data.courseIds) || data.courseIds.length < 1 || data.courseIds.length > MAX_COURSES || !Array.isArray(data.players) || data.players.length < 1 || data.players.length > MAX_PLAYERS) return false;
+        if (!safeKeys(data, ['version', 'mode', 'courseIds', 'holeIndex', 'players', 'turnIndex', 'completed']) || data.version !== 2 || !validMode(data.mode) || !Array.isArray(data.courseIds) || data.courseIds.length < 1 || data.courseIds.length > MAX_COURSES || !Array.isArray(data.players) || data.players.length < 1 || data.players.length > MAX_PLAYERS) return false;
         const byId = courseIndex(courses);
         if (data.courseIds.some(id => typeof id !== 'string' || !byId.has(id)) || new Set(data.courseIds).size !== data.courseIds.length) return false;
         if (!Number.isInteger(data.holeIndex) || data.holeIndex < 0 || data.holeIndex > data.courseIds.length || data.completed !== (data.holeIndex === data.courseIds.length) || !Number.isInteger(data.turnIndex) || data.turnIndex < 0 || data.turnIndex >= data.players.length) return false;
-        const names = new Set();
+        const names = new Set(), colors = new Set();
         for (const player of data.players) {
-            if (!safeKeys(player, ['name', 'scores', 'position', 'shots', 'strokes', 'penalties', 'done']) || typeof player.name !== 'string' || !player.name.trim() || player.name.length > 40 || /[\u0000-\u001F\u007F-\u009F]/.test(player.name) || names.has(player.name.toLocaleLowerCase()) || !finitePosition(player.position) || !Array.isArray(player.scores) || player.scores.length !== data.holeIndex || player.scores.some(score => !Number.isInteger(score) || score < 1 || score > 13) || !Number.isInteger(player.shots) || player.shots < 0 || player.shots > 12 || !Number.isInteger(player.strokes) || player.strokes < 0 || player.strokes > 13 || !Number.isInteger(player.penalties) || player.penalties < 0 || player.penalties > 12 || typeof player.done !== 'boolean') return false;
+            if (!safeKeys(player, ['name', 'color', 'scores', 'position', 'shots', 'strokes', 'penalties', 'done']) || !validName(player.name) || names.has(player.name.toLocaleLowerCase()) || !COLOR_IDS.includes(player.color) || colors.has(player.color) || !finitePosition(player.position) || !Array.isArray(player.scores) || player.scores.length !== data.holeIndex || player.scores.some(score => !Number.isInteger(score) || score < 1 || score > 13) || !Number.isInteger(player.shots) || player.shots < 0 || player.shots > 12 || !Number.isInteger(player.strokes) || player.strokes < 0 || player.strokes > 13 || !Number.isInteger(player.penalties) || player.penalties < 0 || player.penalties > 12 || typeof player.done !== 'boolean') return false;
             names.add(player.name.toLocaleLowerCase());
+            colors.add(player.color);
             if (data.completed ? !player.done || player.strokes !== 0 || player.shots !== 0 : player.done && player.shots === 0) return false;
         }
         return true;
@@ -130,7 +136,7 @@ export function cloneSave(round) {
             mode: round.mode,
             courseIds: round.courseIds.slice(),
             holeIndex: round.holeIndex,
-            players: round.players.map(player => ({ name: player.name, scores: player.scores.slice(), position: player.position.slice(), shots: player.shots, strokes: player.strokes, penalties: player.penalties, done: player.done })),
+            players: round.players.map(player => ({ name: player.name, color: player.color, scores: player.scores.slice(), position: player.position.slice(), shots: player.shots, strokes: player.strokes, penalties: player.penalties, done: player.done })),
             turnIndex: round.turnIndex,
             completed: round.completed
         };
@@ -143,4 +149,38 @@ export function scoreTotal(player) {
     if (!player || !Array.isArray(player.scores)) return 0;
     const completed = player.scores.reduce((total, score) => total + (Number.isInteger(score) && score > 0 ? score : 0), 0);
     return completed + (Number.isInteger(player.strokes) ? Math.max(0, player.strokes) : 0);
+}
+
+// Bests v2: rounds per mode (outside practice), holes per course (any mode).
+// `set` pins the manifest; a changed course set drops round bests only.
+const courseSet = courses => courses.map(course => course.id).sort().join(',');
+export function normalizeBest(raw, courses) {
+    const set = courseSet(courses), ids = new Set(courses.map(course => course.id));
+    const worlds = new Set(courses.map(course => course.world).filter(validMode));
+    const best = { version: 2, set, rounds: {}, holes: {} };
+    if (!isObject(raw) || raw.version !== 2) return best;
+    if (raw.set === set && isObject(raw.rounds)) for (const [mode, value] of Object.entries(raw.rounds)) {
+        if ((mode === 'full' || worlds.has(mode)) && Number.isInteger(value) && value >= 1 && value <= 13 * courses.length) best.rounds[mode] = value;
+    }
+    if (isObject(raw.holes)) for (const [id, value] of Object.entries(raw.holes)) {
+        if (ids.has(id) && Number.isInteger(value) && value >= 1 && value <= 13) best.holes[id] = value;
+    }
+    return best;
+}
+
+export function recordHole(best, round) {
+    const id = round?.courseIds?.[round.holeIndex];
+    if (!best?.holes || !id || !round.players.every(player => player.done)) return false;
+    const lowest = Math.min(...round.players.map(player => Math.min(13, Math.max(1, player.strokes))));
+    if (best.holes[id] && best.holes[id] <= lowest) return false;
+    best.holes[id] = lowest;
+    return true;
+}
+
+export function recordRound(best, round) {
+    if (!best?.rounds || !round?.completed || round.mode === 'practice') return false;
+    const lowest = Math.min(...round.players.map(scoreTotal));
+    if (best.rounds[round.mode] && best.rounds[round.mode] <= lowest) return false;
+    best.rounds[round.mode] = lowest;
+    return true;
 }

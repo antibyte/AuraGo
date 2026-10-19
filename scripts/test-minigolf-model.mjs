@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { advanceHole, beginShot, cloneSave, createRound, resolveShot, scoreTotal, validateSave } from '../ui/js/desktop/apps/minigolf-model.js';
+import { advanceHole, beginShot, cloneSave, createRound, normalizeBest, recordHole, recordRound, resolveShot, scoreTotal, validateSave } from '../ui/js/desktop/apps/minigolf-model.js';
 
 const courses = [
     { id: 'garden-1', tee: [-2, 0.16, 0], cup: [2, 0, 0] },
@@ -61,5 +61,53 @@ const invalidPrototype = JSON.parse('{"version":1,"mode":"garden","courseIds":["
 assert.equal(validateSave(invalidPrototype, courses), false);
 assert.equal(validateSave({ ...cloneSave(createRound(courses)), courseIds: ['missing'] }, courses), false);
 assert.throws(() => createRound(courses, { players: [] }), /1 to 4/);
+
+// --- Round format v2, modes and bests (P4) ----------------------------------
+assert.equal(round.version, 2);
+assert.deepEqual(createRound(courses, { players: ['Ada', 'Lin'] }).players.map(p => p.color), ['cream', 'coral'], 'string players get default colours');
+const colored = createRound(courses, { players: [{ name: 'Ada', color: 'teal' }, { name: 'Lin', color: 'gold' }] });
+assert.deepEqual(cloneSave(colored).players.map(p => p.color), ['teal', 'gold']);
+const coloredSave = JSON.parse(JSON.stringify(cloneSave(colored)));
+assert.equal(validateSave(coloredSave, courses), true);
+assert.throws(() => createRound(courses, { players: [{ name: 'Ada', color: 'teal' }, { name: 'Lin', color: 'teal' }] }), /color/);
+assert.throws(() => createRound(courses, { players: [{ name: 'Ada', color: 'magenta' }] }), /color/);
+assert.ok(createRound(courses, { players: ['x'.repeat(24)] }));
+assert.ok(createRound(courses, { players: [String.fromCodePoint(0x1f600).repeat(24)] }), 'names count code points');
+assert.throws(() => createRound(courses, { players: ['x'.repeat(25)] }), /name/);
+for (const mode of ['full', 'practice', 'garden', 'pirate', 'moon-2']) assert.equal(createRound(courses, { mode, holeId: mode === 'practice' ? 'garden-1' : undefined }).mode, mode);
+for (const mode of ['Garden', '1world', '', 'a'.repeat(25), 'x_y']) assert.throws(() => createRound(courses, { mode }), /mode/);
+assert.equal(validateSave({ ...coloredSave, version: 1 }, courses), false);
+assert.equal(validateSave({ ...coloredSave, players: coloredSave.players.map(({ color, ...rest }) => rest) }, courses), false, 'colour is required');
+assert.equal(validateSave({ ...coloredSave, players: coloredSave.players.map(p => ({ ...p, color: 'teal' })) }, courses), false, 'colours are unique');
+assert.equal(validateSave({ ...coloredSave, players: coloredSave.players.map((p, i) => ({ ...p, name: 'n'.repeat(25) + i })) }, courses), false);
+
+const bestCourses = [
+    { id: 'garden-1', world: 'garden', tee: [0, 0, 0], cup: [1, 0, 0] },
+    { id: 'garden-2', world: 'garden', tee: [0, 0, 0], cup: [1, 0, 0] },
+    { id: 'coast-1', world: 'coast', tee: [0, 0, 0], cup: [1, 0, 0] }
+];
+const set = 'coast-1,garden-1,garden-2';
+assert.deepEqual(normalizeBest(null, bestCourses), { version: 2, set, rounds: {}, holes: {} });
+assert.deepEqual(normalizeBest({ version: 2, set, rounds: { full: 9, garden: 5, night: 4, coast: 0 }, holes: { 'garden-1': 2, 'gone-1': 1, 'coast-1': 14 } }, bestCourses),
+    { version: 2, set, rounds: { full: 9, garden: 5 }, holes: { 'garden-1': 2 } });
+assert.deepEqual(normalizeBest({ version: 2, set: 'garden-1,garden-2', rounds: { full: 9 }, holes: { 'garden-1': 2 } }, bestCourses),
+    { version: 2, set, rounds: {}, holes: { 'garden-1': 2 } }, 'a changed course set drops only round bests');
+const best = normalizeBest(null, bestCourses);
+const sink = (r, course) => { assert.ok(beginShot(r)); assert.equal(resolveShot(r, { type: 'cup', position: course.cup }, course), true); };
+const hole = createRound(bestCourses, { players: ['Ada', 'Lin'], mode: 'practice', holeId: 'garden-1' });
+assert.equal(recordHole(best, hole), false, 'an unfinished hole records nothing');
+assert.ok(beginShot(hole)); assert.equal(resolveShot(hole, { type: 'rest', position: [0.5, 0, 0] }, bestCourses[0]), true);
+sink(hole, bestCourses[0]); sink(hole, bestCourses[0]);
+assert.equal(recordHole(best, hole), true);
+assert.equal(best.holes['garden-1'], 1);
+assert.equal(recordHole(best, hole), false, 'an equal score is no new best');
+assert.equal(advanceHole(hole, bestCourses), true);
+assert.equal(recordRound(best, hole), false, 'practice never sets round bests');
+const gardenRound = createRound(bestCourses.slice(0, 2), { players: ['Ada'], mode: 'garden' });
+sink(gardenRound, bestCourses[0]); advanceHole(gardenRound, bestCourses);
+sink(gardenRound, bestCourses[1]); advanceHole(gardenRound, bestCourses);
+assert.equal(recordRound(best, gardenRound), true);
+assert.equal(best.rounds.garden, 2);
+assert.equal(recordRound(best, gardenRound), false);
 
 console.log('minigolf model: all checks passed');
