@@ -10,6 +10,22 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 ## Local Contracts
 
+### Session ingress turns
+
+- `BeginSessionTurn` registers an ingress run before waiting on the store/session
+  gate. Hold that shared gate from history construction through durable
+  publication and delivery across Web, Desktop, AgoDesk, realtime speech,
+  Telegram, Discord, Rocket.Chat and agent loopback. Stop cancels active and
+  queued registrations without fencing future turns or deleting data.
+- Keep acquisition at ingress; `ExecuteAgentLoop` must not acquire the same gate
+  again. Combined release is idempotent. Independent stores and session IDs have
+  independent gates. Verify `TestBeginSessionTurnRegistersQueuedRunBeforeWaitingAndStopCancelsIt`
+  and `TestBeginSessionTurnKeepsHistoryAssemblyAfterPriorPublication`.
+- Pending question replies complete the already running turn before acquiring
+  its gate. Telegram registers cancellation before media processing, then uses
+  `LockSessionTurn` after routing any question reply.
+
+
 ### Conflict and graph integrity
 
 - Automatic conflict confirmation preserves unrelated archival and replacement state. Graph cleanup aborts the complete SQL transaction after any delete failure, then updates semantic indexes only for committed deletes and reports index errors.
@@ -20,6 +36,17 @@ Memory retrieval, hygiene, indexing, and maintenance.
 ### Graph Search Patterns
 
 - Every knowledge-graph `LIKE` parameter is escaped with `dbutil.EscapeLike` or the equivalent package-local `escapeLike`, and its predicate carries `ESCAPE '\'`, so `%`, `_` and `\` in a query match literally. Lexical search ORs independently escaped terms and ranks relevance; context type exclusions precede FTS/LIKE/important-node limits. Semantic search keeps the full query and backfills past excluded nodes/edges before applying its result limit. Verify `TestKGSearchForContextLikeFallbackTreatsWildcardsLiterally`, `TestKGSearchLikeTreatsBackslashLiterally`, `TestKGContextExclusionsPrecedeLexicalLimit` and `TestKGSemanticExpandsPastExcludedCandidatesAndUsesFullQuery`.
+
+### Model remember provenance
+
+- New model `remember` writes to Core Memory, Notes and Journal commit actor `agent`,
+  origin `model_remember` and a content digest in the same transaction as the record.
+  A hash identifies the private source session. Reusing an existing fact preserves its
+  provenance; edits invalidate old labels. Legacy provenance stays unknown.
+- Retrieval shows concise trust labels and excludes raw source session IDs from
+  provenance presentation. Known analysis envelopes retain the complete fact while
+  hiding the private source session; arbitrary factual paragraphs are preserved.
+  Verify `TestModelRememberProvenanceAtomicAndDoesNotRelabelExistingFact`.
 
 ### Memory System
 - **Short-Term**: SQLite sliding-window conversation context
@@ -81,6 +108,15 @@ Memory retrieval, hygiene, indexing, and maintenance.
 - Run `go test ./internal/memory` and the named cross-component checks in the contracts above when those paths change.
 
 ### Privacy deletion and note protection
+
+- `CancelSessionRuns` stops active and queued work without marking a session
+  deleted or blocking later human turns. `LockSessionTurn` serializes complete
+  ingress-to-publication turns per store/session, honors cancellation while
+  waiting and releases unused gate entries. Register cancellation before
+  acquiring this turn gate. These runtime gates are separate from durable
+  privacy deletion fences and never replace them. Verify
+  `TestSessionStopCancelsRunsWithoutDeletionFence` and
+  `TestSessionTurnLockSerializesAndHonorsCancellation`.
 
 - Explicit chat deletion physically removes transcripts, archives and its plans/tasks/events. Rotation remains archival. Source-free deletion fences reject delayed writers across restart; fresh human input alone advances fixed-channel generations. New `default` generations remain discoverable through chat history; internal channels never gain visibility from generation advancement.
 - Contact deletion retains derived knowledge by default, including native `address_book` deletion. Only the administrative `delete_memories=true` option may remove exclusively proven contact provenance. Protected, shared, legacy and ambiguous graph records remain and are reported; `contact_sync_id` never authorizes deleting arbitrary merged properties. A source-only contact fence prevents later sync from restoring a deleted contact.

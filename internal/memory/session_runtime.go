@@ -4,9 +4,94 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 )
 
 var ErrSessionDeleted = errors.New("chat session deleted")
+
+// CancelSessionRuns stops active work without fencing or deleting conversation data.
+// A later human turn can register normally in the same conversation.
+func (s *SQLiteMemory) CancelSessionRuns(sessionID string) {
+	s.sessionRuntimeMu.Lock()
+	defer s.sessionRuntimeMu.Unlock()
+	for _, cancel := range s.sessionRuns[sessionID] {
+		cancel()
+	}
+}
+
+type sessionTurnKey struct {
+	store *SQLiteMemory
+	id    string
+}
+
+type sessionTurnGate struct {
+	token chan struct{}
+	refs  int
+}
+
+var sessionTurnGates = struct {
+	sync.Mutex
+	entries map[sessionTurnKey]*sessionTurnGate
+}{entries: make(map[sessionTurnKey]*sessionTurnGate)}
+
+// LockSessionTurn serializes history construction through final publication.
+// Register the run before waiting so Stop also cancels queued turns.
+func (s *SQLiteMemory) LockSessionTurn(ctx context.Context, sessionID string) (func(), error) {
+	key := sessionTurnKey{s, sessionID}
+	sessionTurnGates.Lock()
+	gate := sessionTurnGates.entries[key]
+	if gate == nil {
+		gate = &sessionTurnGate{token: make(chan struct{}, 1)}
+		sessionTurnGates.entries[key] = gate
+	}
+	gate.refs++
+	sessionTurnGates.Unlock()
+	drop := func() {
+		sessionTurnGates.Lock()
+		gate.refs--
+		if gate.refs == 0 {
+			delete(sessionTurnGates.entries, key)
+		}
+		sessionTurnGates.Unlock()
+	}
+	select {
+	case gate.token <- struct{}{}:
+		if err := ctx.Err(); err != nil {
+			<-gate.token
+			drop()
+			return nil, err
+		}
+		var once sync.Once
+		return func() { once.Do(func() { <-gate.token; drop() }) }, nil
+	case <-ctx.Done():
+		drop()
+		return nil, ctx.Err()
+	}
+}
+
+// BeginSessionTurn registers cancellation before waiting for the shared history
+// gate. Call at ingress, before reading or inserting messages, and release only
+// after durable publication and delivery. The agent executor must not relock it.
+func (s *SQLiteMemory) BeginSessionTurn(ctx context.Context, sessionID string) (context.Context, func(), error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	releaseRun := func() {}
+	if s != nil {
+		var err error
+		ctx, releaseRun, err = s.RegisterSessionRun(ctx, sessionID)
+		if err != nil {
+			return ctx, nil, err
+		}
+	}
+	releaseTurn, err := s.LockSessionTurn(ctx, sessionID)
+	if err != nil {
+		releaseRun()
+		return ctx, nil, err
+	}
+	var once sync.Once
+	return ctx, func() { once.Do(func() { releaseTurn(); releaseRun() }) }, nil
+}
 
 // RegisterSessionRun makes deletion cancel every active run before removing its plan.
 func (s *SQLiteMemory) RegisterSessionRun(ctx context.Context, sessionID string) (context.Context, func(), error) {

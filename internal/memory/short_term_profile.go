@@ -47,20 +47,17 @@ func (s *SQLiteMemory) GetMessageCount() (int, error) {
 // "[1] fact one\n[2] fact two\n..."
 // Returns an empty string when there are no entries.
 func (s *SQLiteMemory) ReadCoreMemory() string {
-	rows, err := s.db.Query("SELECT id, fact FROM core_memory ORDER BY id ASC")
+	facts, err := s.GetCoreMemoryFacts()
 	if err != nil {
 		return ""
 	}
-	defer rows.Close()
-
 	var sb strings.Builder
-	for rows.Next() {
-		var id int64
-		var fact string
-		if err := rows.Scan(&id, &fact); err != nil {
-			continue
+	for _, fact := range facts {
+		sb.WriteString(fmt.Sprintf("[%d] %s", fact.ID, fact.Fact))
+		if fact.Trust == "agent-recorded" {
+			sb.WriteString(" [trust:agent-recorded]")
 		}
-		sb.WriteString(fmt.Sprintf("[%d] %s\n", id, fact))
+		sb.WriteByte('\n')
 	}
 	return strings.TrimRight(sb.String(), "\n")
 }
@@ -74,6 +71,7 @@ func (s *SQLiteMemory) GetCoreMemoryCount() (int, error) {
 
 // CoreMemoryFact is a single core memory entry.
 type CoreMemoryFact struct {
+	MemoryOrigin
 	ID   int64  `json:"id"`
 	Fact string `json:"fact"`
 }
@@ -93,6 +91,17 @@ func (s *SQLiteMemory) GetCoreMemoryFacts() ([]CoreMemoryFact, error) {
 			continue
 		}
 		facts = append(facts, f)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	for i := range facts {
+		origin, err := s.MemoryOriginForRecord("core", facts[i].ID, facts[i].Fact)
+		if err != nil {
+			return nil, err
+		}
+		facts[i].MemoryOrigin = origin
 	}
 	if facts == nil {
 		facts = []CoreMemoryFact{}

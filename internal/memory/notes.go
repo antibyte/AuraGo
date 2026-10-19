@@ -10,6 +10,7 @@ import (
 
 // Note represents a single note or to-do item.
 type Note struct {
+	MemoryOrigin
 	ID             int64  `json:"id"`
 	Category       string `json:"category"`
 	Title          string `json:"title"`
@@ -123,6 +124,10 @@ const maxNoteTitleLen = 500
 
 // AddNote inserts a new note and returns its ID.
 func (s *SQLiteMemory) AddNote(category, title, content string, priority int, dueDate string) (int64, error) {
+	return s.addNote(s.db, category, title, content, priority, dueDate)
+}
+
+func (s *SQLiteMemory) addNote(exec rememberSQLExecutor, category, title, content string, priority int, dueDate string) (int64, error) {
 	if title == "" {
 		return 0, fmt.Errorf("title is required")
 	}
@@ -139,7 +144,7 @@ func (s *SQLiteMemory) AddNote(category, title, content string, priority int, du
 		priority = 2
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
-	res, err := s.db.Exec(
+	res, err := exec.Exec(
 		`INSERT INTO notes (category, title, content, priority, due_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		category, title, content, priority, dueDate, now, now,
 	)

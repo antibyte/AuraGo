@@ -386,6 +386,11 @@ CREATE INDEX IF NOT EXISTS idx_memory_usage_log_used_at ON memory_usage_log(used
 		logger.Warn("Failed to initialize agodesk knowledge tables", "error", err)
 	}
 
+	if err := stm.initRememberOrigins(); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("initialize remember origins: %w", err)
+	}
+
 	// Ensure at least a default chat session exists (backward compatibility)
 	if err := stm.EnsureDefaultSession(); err != nil {
 		logger.Warn("Failed to ensure default chat session", "error", err)

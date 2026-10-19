@@ -15,6 +15,7 @@ import (
 
 // JournalEntry represents a single event in the agent's journal timeline.
 type JournalEntry struct {
+	MemoryOrigin
 	ID            int64    `json:"id"`
 	EntryType     string   `json:"entry_type"` // activity, milestone, learning, decision, error, preference, task_completed, integration
 	Title         string   `json:"title"`
@@ -462,6 +463,10 @@ func (s *SQLiteMemory) GetRecentEpisodicMemoryCards(hoursWindow int, limit int) 
 
 // InsertJournalEntry adds a new journal entry.
 func (s *SQLiteMemory) InsertJournalEntry(entry JournalEntry) (int64, error) {
+	return s.insertJournalEntry(s.db, entry)
+}
+
+func (s *SQLiteMemory) insertJournalEntry(exec rememberSQLExecutor, entry JournalEntry) (int64, error) {
 	if entry.Title == "" {
 		return 0, fmt.Errorf("title is required")
 	}
@@ -481,7 +486,7 @@ func (s *SQLiteMemory) InsertJournalEntry(entry JournalEntry) (int64, error) {
 		tagsJSON = []byte("[]")
 	}
 
-	res, err := s.db.Exec(
+	res, err := exec.Exec(
 		`INSERT INTO journal_entries (entry_type, title, content, tags, importance, date, session_id, auto_generated)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		entry.EntryType, entry.Title, entry.Content, string(tagsJSON),
