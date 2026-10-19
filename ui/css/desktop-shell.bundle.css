@@ -11087,6 +11087,15 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     }
     .desktop-body[data-global-menus="true"] .vd-taskbar-system .vd-clock { min-height: 44px; }
 }
+
+/* Narrow touch bars (tablet portrait, 821 to 1023 px): the 44 px tray would push the last window menus under itself, so the
+   menus take a second 44 px row and the bar grows to 88 px (the shell padding follows the token). Amiga opts out in its
+   skin: its brand and gadgets are sized from the bar height. */
+@media (pointer: coarse) and (max-width: 1023px) {
+    .desktop-body[data-global-menus="true"] { --vd-global-bar-height: 88px; }
+    .desktop-body[data-global-menus="true"] .vd-global-bar { flex-wrap: wrap; row-gap: 0; align-content: start; }
+    .desktop-body[data-global-menus="true"] #vd-global-menu-host { flex: 1 0 100%; order: 10; display: flex; align-items: center; height: 44px; }
+}
 .desktop-body[data-theme="fruity"] .vd-window-button::after {
     display: grid;
     place-items: center;
@@ -11864,6 +11873,9 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     .desktop-body[data-theme="amiga"] { --vd-taskbar-height: 44px; --vd-global-bar-height: 44px; --vd-global-menu-titlebar-height: 44px; --vd-menu-row-height: 40px; }
     .desktop-body[data-theme="amiga"] .vd-global-brand { width: var(--vd-global-bar-height); height: calc(var(--vd-global-bar-height) - 2px); }
     .desktop-body[data-theme="amiga"] .vd-global-bar .vd-window-menu-button { height: calc(var(--vd-global-bar-height) - 2px); }
+    /* One row stays below 1024 px: the brand and the gadgets are sized from the bar height, so the shared two-row layout does not apply. */
+    .desktop-body[data-theme="amiga"] .vd-global-bar { flex-wrap: nowrap; }
+    .desktop-body[data-theme="amiga"] #vd-global-menu-host { flex: 1; order: 0; display: block; height: auto; }
 
     /* The base blurs these backdrops here, with !important. */
     .desktop-body[data-theme="amiga"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-context-menu, .vd-modal, .vd-toast-container) {
