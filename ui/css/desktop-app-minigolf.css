@@ -47,6 +47,8 @@ p.mg-loading{padding:24px}
 .mg-app:not([data-panel=""]) :is(.mg-hud,.mg-coach){visibility:hidden}
 .mg-controls{z-index:2;display:grid;grid-template-columns:minmax(160px,1fr) auto auto auto;align-items:center;gap:10px;flex:none;padding:10px 14px;background:var(--mg-chrome);border-top:1px solid var(--mg-border)}
 .mg-controls button{min-width:44px;min-height:44px;padding:6px 16px}
+/* The start flow has nothing to putt: the card menu takes the footer's height. The stage resizes with it. */
+.mg-app[data-panel=menu] .mg-controls{display:none}
 .mg-power label{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:650;font-variant-numeric:tabular-nums}
 .mg-power output{white-space:nowrap}
 @container (max-width:800px){
@@ -213,6 +215,8 @@ p.mg-loading{padding:24px}
 .mg-swatch input:checked+span{box-shadow:0 0 0 2px var(--mg-surface),0 0 0 5px var(--mg-focus)}
 .mg-swatch input:disabled{cursor:default}
 .mg-swatch input:disabled+span{opacity:.35}
+/* A taken colour also carries a strike line on the label (the dimmed span would fade it), so it does not rely on dimming alone; text colour plus a surface halo reads on light and dark panels. */
+.mg-swatch:has(input:disabled)::after{content:'';position:absolute;left:50%;top:50%;width:32px;height:3px;border-radius:2px;background:var(--mg-text);box-shadow:0 0 0 1px var(--mg-surface);transform:translate(-50%,-50%) rotate(-45deg);pointer-events:none}
 .mg-swatch input:focus-visible+span{outline:3px solid var(--mg-focus);outline-offset:4px}
 .mg-field{display:grid;gap:4px;min-width:0;margin:0;font-size:13px;font-weight:650}
 .mg-field :is(input,select){width:100%;min-width:0;font-size:14px;font-weight:400}
@@ -290,6 +294,9 @@ p.mg-loading{padding:24px}
 .mg-step[data-place="1"] .mg-step-block{height:88px}
 .mg-step[data-place="2"] .mg-step-block{height:64px}
 .mg-step[data-place="3"] .mg-step-block{height:48px}
+/* Two players: the pair stands together in the middle instead of stretching across three columns. */
+.mg-podium[data-count="2"]{gap:12px}
+.mg-podium[data-count="2"] .mg-step{flex:0 1 180px}
 .mg-podium-rest{display:flex;align-items:center;justify-content:center;gap:8px;margin:12px 0 0;color:var(--mg-muted)}
 .mg-podium-rest strong{color:var(--mg-text)}
 .mg-result-card{display:grid;justify-items:center;gap:2px;padding:18px;border:2px solid var(--mg-player);border-radius:var(--mg-radius);background:color-mix(in srgb,var(--mg-player) 14%,var(--mg-surface));text-align:center}
@@ -337,6 +344,9 @@ p.mg-loading{padding:24px}
 .mg-step[data-slot=right] .mg-step-block{animation-delay:0s}
 .mg-step[data-slot=left] .mg-step-block{animation-delay:.3s}
 .mg-step[data-slot=center] .mg-step-block{animation-delay:.6s}
+/* With two steps there is no third place to wait for: second place grows first, then the winner. */
+.mg-podium[data-count="2"] .mg-step[data-slot=left] .mg-step-block{animation-delay:0s}
+.mg-podium[data-count="2"] .mg-step[data-slot=center] .mg-step-block{animation-delay:.3s}
 .mg-panel .mg-winner{animation:mg-rise .3s both;animation-delay:.9s}
 .mg-app[data-reduced=true] *,.mg-app[data-reduced=true] *::before,.mg-app[data-reduced=true] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 @media (prefers-reduced-motion:reduce){.mg-app *,.mg-app *::before,.mg-app *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}

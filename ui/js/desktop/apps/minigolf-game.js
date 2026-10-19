@@ -223,6 +223,7 @@ export function mountGame(host, context = {}) {
     }
     function showMenu() {
         if (busy && checkpoint && manifest) { round = cloneSave(checkpoint); busy = false; setTurn(); }
+        view.hud.clearToasts();
         returnStack = []; prefillSetup(); menuStep = 'home'; setPanel('menu'); renderMenu(); view.progress(null);
     }
     async function startRound({ mode, holeId, players }) {

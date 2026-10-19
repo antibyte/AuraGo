@@ -55,10 +55,12 @@ export function createScorecard({ showPanel, tr, esc }) {
         const { round, courses, newBest } = state, ranked = rankPlayers(round.players);
         const winners = ranked.filter(entry => entry.place === 1);
         const title = winners.length > 1 ? tr('tie') : fillText(tr('wins'), { name: winners[0].player.name });
-        // Second place stands left, first in the middle, third right.
+        // Second place stands left, first in the middle, third right. Two players get only two
+        // steps, centred as a pair (data-count), so no empty third column unbalances the podium.
+        const steps = [[ranked[1], 'left'], [ranked[0], 'center'], [ranked[2], 'right']].filter(([entry]) => entry);
         const step = ([entry, slot]) => `<li class="mg-step" data-place="${entry.place}" data-slot="${slot}" style="--mg-player:${esc(colorValue(entry.player.color))}"><span class="mg-step-ball"></span><span class="mg-step-name">${esc(entry.player.name)}</span><span class="mg-step-total">${entry.total}</span><span class="mg-step-par">${toPar(entry.player, round, courses)}</span><span class="mg-step-block"><b>${entry.place}</b></span></li>`;
         const rest = entry => `<p class="mg-podium-rest">${dot(entry.player)}<span>${esc(fillText(tr('place'), { n: entry.place }))}</span><strong>${esc(entry.player.name)}</strong><span>${entry.total} · ${toPar(entry.player, round, courses)}</span></p>`;
-        showPanel(`<h2 class="mg-winner">${esc(title)}</h2>${badge(newBest)}<ol class="mg-podium">${[[ranked[1], 'left'], [ranked[0], 'center'], [ranked[2], 'right']].filter(([entry]) => entry).map(step).join('')}</ol>${ranked.slice(3).map(rest).join('')}${details(state)}${endButtons()}`, 'finished', focus);
+        showPanel(`<h2 class="mg-winner">${esc(title)}</h2>${badge(newBest)}<ol class="mg-podium" data-count="${steps.length}">${steps.map(step).join('')}</ol>${ranked.slice(3).map(rest).join('')}${details(state)}${endButtons()}`, 'finished', focus);
     }
     function single(state, focus) {
         const { round, courses, best, newBest } = state, [player] = round.players;

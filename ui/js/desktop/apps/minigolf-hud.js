@@ -118,6 +118,8 @@ export function createHud(elements, { tr, esc, icon }) {
             while (live.length > MAX_TOASTS) dismiss(live[0]);
             announce(text);
         },
+        // Drops every toast at once, e.g. when the main menu opens over a finished round.
+        clearToasts() { for (const entry of live.slice()) dismiss(entry); },
         hint(text) {
             if (text === hintText) return;
             hintText = text; hint.textContent = text; hint.hidden = !text;

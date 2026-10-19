@@ -104,6 +104,11 @@
 - Styling uses `--mg-*` tokens aliased to Desktop `--vd-*` theme tokens, with no
   theme-name selectors. UI timers advance with the `frame()` loop, never
   `setTimeout`. `data-reduced` on the app root disables transitions and animations.
+- While the panel is `menu` the footer `.mg-controls` is not rendered (CSS on
+  `data-panel`; the stage resizes through its observers). `showMenu()` calls
+  `hud.clearToasts()` first, so later toasts such as `progress_reset` still show.
+  Taken colour swatches carry a strike line besides the dimming. With two players
+  the podium renders two steps centred as a pair (`data-count="2"`).
 - `inspect()` is additive: `hud` (`meter`, `bannerCount`, `banner`, `toasts`,
   `map`), `tutorial` (current step) and `menuStep` (menu panel only).
 - Scene helpers `frameTurn`, `setFollow`, `setAimCamera`, `setRestMark`, `panAt`,

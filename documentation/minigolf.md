@@ -10,7 +10,8 @@ not an installation or server dependency.
 The start screen lists a round card for all eighteen holes, one card per world
 with its preview (when the build provides one) and best score, and a Practice
 card. Practice opens a hole grid that shows each hole's best score. A saved round
-appears as a resume card. All worlds are available immediately.
+appears as a resume card. All worlds are available immediately. The start flow
+hides the putting controls at the bottom, so the cards get the whole window.
 
 One to four players share the same device and take turns after every shot. Names
 take up to 24 characters; a duplicate name gets a number. Each player picks one of
@@ -34,8 +35,8 @@ zoom/pan.
 The HUD shows a plaque with the world, hole, par and hole name, a chip per player
 with the score and the active turn, and turn and hole banners. While you aim, a
 power meter sits at the ball with the strength in percent and the estimated roll,
-and it stays for a moment after each change. Toasts appear above the panels, and
-a hint line covers the first shots of a session. The lane map, drawn from the
+and it stays for a moment after each change. Toasts appear above the panels (the
+main menu clears the ones left over from play), and a hint line covers the first shots of a session. The lane map, drawn from the
 course collision geometry and water volumes, shows the bounds, water, tee, cup and
 every ball; its toggle is saved. Water and out-of-bounds cost one penalty stroke
 and return the ball to its previous shot position. Twelve unsuccessful putts

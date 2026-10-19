@@ -103,6 +103,13 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	}
 	layoutOK("home 1280")
 	shot("home-1280")
+	// The start flow has nothing to putt: the footer controls are not rendered, and the cards fit 1280x760 without scrolling.
+	if page.MustEval(`()=>document.querySelector('.mg-controls').getClientRects().length`).Int() != 0 {
+		t.Fatal("the putting controls are still rendered in the main menu")
+	}
+	if !page.MustEval(`()=>{const panel=document.querySelector('.mg-panel');return panel.scrollHeight<=panel.clientHeight+1}`).Bool() {
+		t.Fatalf("the home panel still scrolls at 1280x760: %s", page.MustEval(`()=>{const p=document.querySelector('.mg-panel');return p.scrollHeight+' > '+p.clientHeight}`).Str())
+	}
 
 	// Player setup: two players, unique colours, long names.
 	page.MustElement(`[data-round="full"]`).MustClick()
@@ -133,6 +140,9 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	page.MustWait(`()=>{const s=golfFixture.inspect();return !s.loading&&s.panel===''&&s.tutorial==='aim'&&s.course==='garden-01'&&s.graphics?.geometries>0&&s.graphics?.triangles>0}`)
 	if !page.MustEval(`()=>golfFixture.inspect().audio.unlocked && golfFixture.inspect().round.players.length===2`).Bool() {
 		t.Fatal("first gesture did not unlock audio or two-player mode was not applied")
+	}
+	if page.MustEval(`()=>document.querySelector('.mg-controls').getClientRects().length`).Int() == 0 {
+		t.Fatal("the putting controls are not rendered while playing")
 	}
 	if !page.MustEval(`()=>golfFixture.inspect().round.players[0].name==='Player 1 Has A Very Long'&&golfFixture.inspect().round.players[1].name==='Player 2 Has A Very Long'`).Bool() {
 		t.Fatalf("long player names did not survive menu validation: %s", page.MustEval(`()=>JSON.stringify(golfFixture.inspect().round.players.map(p=>p.name))`).Str())
@@ -691,6 +701,10 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	for _, width := range []int{1280, 420} {
 		page.MustSetViewport(width, 760, 1, width < 600)
 		settle()
+		// Two players stand as a centred pair: equal free space left and right of the two steps.
+		if !page.MustEval(`()=>{const list=document.querySelector('.mg-podium'),box=list.getBoundingClientRect(),steps=[...list.children].map(e=>e.getBoundingClientRect());return list.dataset.count==='2'&&steps.length===2&&Math.abs((steps[0].left-box.left)-(box.right-steps[1].right))<=2}`).Bool() {
+			t.Fatalf("the two-player podium is not a centred pair at %dpx", width)
+		}
 		layoutOK(fmt.Sprintf("podium %dpx", width))
 		shot(fmt.Sprintf("podium-%d", width))
 	}
