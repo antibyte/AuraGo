@@ -1,4 +1,7 @@
 {
+  "desktop.mc_state_blocked": "Bloccato",
+  "desktop.mc_action_rule_required": "Manca una regola di azione corrispondente. Aggiungi una regola in Configurazione → Zona pericolosa, poi avvia di nuovo manualmente. Nessun nuovo tentativo automatico.",
+  "desktop.mc_action_rules": "Verifica le regole di azione",
   "desktop.people_delete_memories": "Elimina anche i ricordi associati",
   "desktop.people_delete_backups": "I backup possono conservare dati eliminati fino alla pulizia programmata.",
   "desktop.people_delete_report": "Elementi di conoscenza eliminati: {deleted}. Conservati: {retained}.",

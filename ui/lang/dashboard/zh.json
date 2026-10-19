@@ -1,4 +1,7 @@
 {
+  "dashboard.activity_task_blocked": "已阻止",
+  "dashboard.activity_action_rule_required": "缺少匹配的操作规则。请在配置 → 危险区域中添加规则，然后手动重新启动。系统不会自动重试。",
+  "dashboard.activity_action_rules": "检查操作规则",
   "dashboard.memory_conflict_both_valid": "两个事实都有效",
   "dashboard.memory_conflict_saving": "正在保存…",
   "dashboard.memory_conflict_dismissed": "已忽略；两个事实均已保留。",

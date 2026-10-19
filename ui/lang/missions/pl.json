@@ -1,4 +1,7 @@
 {
+  "missions.card_blocked": "Zablokowano",
+  "missions.action_rule_required": "Brakuje pasującej reguły działania. Dodaj regułę w Konfiguracja → Strefa zagrożenia, a następnie uruchom ponownie ręcznie. Nie będzie automatycznej ponownej próby.",
+  "missions.action_rules": "Sprawdź reguły działań",
   "mission.badge_manual": "🖱️ Ręczna",
   "mission.badge_result_error": "❌ błąd",
   "mission.badge_result_success": "✅ sukces",

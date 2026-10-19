@@ -40,7 +40,7 @@
         function matchesFilter(m) {
             switch (filter) {
                 case 'manual': case 'scheduled': case 'triggered': case 'flow': return m.execution_type === filter;
-                case 'errors': return m.last_result === 'error';
+                case 'errors': return m.last_result === 'error' || m.last_result === 'blocked';
                 default: return true;
             }
         }
@@ -63,6 +63,7 @@
             if (queuePosition(m)) return 'queued';
             // A flow that was never published is off because it cannot be switched on, not paused.
             if (triggers.isUnpublishedFlow(m)) return 'unpublished';
+            if (m.last_result === 'blocked') return 'blocked';
             if (m.enabled === false) return 'paused';
             if (m.last_result === 'error') return 'error';
             if (m.last_result === 'success') return 'ok';
@@ -72,6 +73,7 @@
         function timeText(m, state) {
             if (state === 'running') return t('desktop.mc_state_running');
             if (state === 'queued') return t('desktop.mc_state_queued');
+            if (state === 'blocked') return t('desktop.mc_state_blocked');
             const next = triggers.upcomingRun(m);
             if (next) return t('desktop.mc_next_run_in', { when: fmt.relative(next) });
             const last = triggers.lastRunAt(m);
@@ -95,6 +97,7 @@
                 <span class="vd-mc-row-main">
                     <span class="vd-mc-row-title">
                         <span class="vd-mc-row-name">${esc(m.name || '')}</span>
+                        ${state === 'blocked' ? `<span class="vd-mc-row-badge vd-mc-row-badge--text" title="${esc(t('desktop.mc_action_rule_required'))}">${esc(t('desktop.mc_state_blocked'))}</span>` : ''}
                         ${m.locked ? `<span class="vd-mc-row-badge" title="${esc(t('desktop.mc_state_locked'))}">${ic('lock')}</span>` : ''}
                         ${m.runner_type === 'remote' ? `<span class="vd-mc-row-badge vd-mc-row-badge--text">${esc(t('desktop.mc_state_remote'))}</span>` : ''}
                         ${m.enabled === false && !unpublished ? `<span class="vd-mc-row-badge vd-mc-row-badge--text">${esc(t('desktop.mc_state_paused'))}</span>` : ''}

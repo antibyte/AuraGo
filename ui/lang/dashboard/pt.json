@@ -1,4 +1,7 @@
 {
+  "dashboard.activity_task_blocked": "Bloqueado",
+  "dashboard.activity_action_rule_required": "Falta uma regra de ação correspondente. Adiciona uma regra em Configuração → Zona de perigo e inicia novamente de forma manual. Não haverá nova tentativa automática.",
+  "dashboard.activity_action_rules": "Rever regras de ações",
   "dashboard.memory_conflict_both_valid": "Ambos os factos são válidos",
   "dashboard.memory_conflict_saving": "A guardar…",
   "dashboard.memory_conflict_dismissed": "Descartado; ambos os factos foram mantidos.",

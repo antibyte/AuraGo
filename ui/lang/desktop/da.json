@@ -1,4 +1,7 @@
 {
+  "desktop.mc_state_blocked": "Blokeret",
+  "desktop.mc_action_rule_required": "Der mangler en passende handlingsregel. Tilføj en regel under Konfiguration → Farezone, og start derefter igen manuelt. Der forsøges ikke igen automatisk.",
+  "desktop.mc_action_rules": "Gennemgå handlingsregler",
   "desktop.people_delete_memories": "Slet også tilknyttede minder",
   "desktop.people_delete_backups": "Sikkerhedskopier kan indeholde slettede data indtil den planlagte oprydning.",
   "desktop.people_delete_report": "Slettede videnselementer: {deleted}. Beholdt: {retained}.",

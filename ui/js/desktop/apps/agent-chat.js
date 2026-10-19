@@ -1308,6 +1308,8 @@
                         } catch (_) {}
                     } else if (event === 'question_user') {
                         showDesktopQuestionModal(host, normalizeDesktopQuestionPayload(data));
+                    } else if (event === 'action_approval') {
+                        if (window.AuraActionPolicy) window.AuraActionPolicy.show(data);
                     } else if (event === 'final_response') {
                         if (data.detail || data.message) {
                             const text = data.detail || data.message || '';

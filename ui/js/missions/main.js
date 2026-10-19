@@ -238,7 +238,7 @@ function bindMissionUI() {
         const missionAction = event.target.closest('[data-mission-action]');
         if (!missionAction) return;
 
-        if (missionAction.classList.contains('card-compact') && event.target.closest('.card-actions')) {
+        if (missionAction.classList.contains('card-compact') && event.target.closest('.card-actions, a[href]')) {
             return;
         }
 
@@ -541,7 +541,7 @@ function renderMissionCompact(mission) {
     const isQueued = !isRunning && queue.items.some(i => i.mission_id === mission.id);
     const typeIcon = icons[mission.execution_type] || icons.manual;
     const statusBadge = isRunning ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>` :
-                       isQueued ? `<span class="badge badge-warning">${t('missions.card_badge_queued')}</span>` : '';
+                       isQueued ? `<span class="badge badge-warning">${t('missions.card_badge_queued')}</span>` : mission.last_result === 'blocked' ? `<a class="badge badge-warning" href="/config#danger" target="_blank" rel="noopener" title="${escapeAttr(t('missions.action_rule_required'))}">${escapeHtml(t('missions.card_blocked'))}</a>` : '';
     const flowState = flowStateLabel(mission);
     const flowBadge = flowState ? `<span class="badge badge-idle">${escapeHtml(flowState)}</span>` : '';
     const prepBadge = renderPrepBadge(mission);
@@ -578,6 +578,7 @@ function renderMissionGrid(mission, isFirstRender) {
         : isWaiting ? 'waiting'
         : (mission.execution_type || 'manual');
     const statusClass = isRunning ? 'running' : isQueued ? 'queued' : isWaiting ? 'waiting' : '';
+    const isBlocked = !isRunning && !isQueued && mission.last_result === 'blocked';
     const isExpanded = expandedCards.has(mission.id);
     const hasError = !isRunning && mission.last_result === 'error';
 
@@ -645,6 +646,7 @@ function renderMissionGrid(mission, isFirstRender) {
                 </h3>
                 ${triggerPill}
                 <p class="mc-prompt">${escapeHtml(mission.prompt)}</p>
+                ${isBlocked ? `<p class="mc-rule-blocked">${escapeHtml(t('missions.action_rule_required'))} <a href="/config#danger" target="_blank" rel="noopener">${escapeHtml(t('missions.action_rules'))}</a></p>` : ''}
                 <div class="mc-meta-row">
                     <div class="mc-meta">
                         <span class="mc-meta-item ${resultClass}">${resultIcon ? `<span class="mc-meta-icon">${resultIcon}</span>` : `<span class="mc-meta-icon">${svgIcons.clock}</span>`}<span>${lastRun}</span></span>
@@ -699,6 +701,10 @@ function renderStatusChip(mission, isRunning, isQueued, isWaiting) {
         kind = 'waiting';
         label = t('missions.card_chip_waiting');
         icon = svgIcons.clock;
+    } else if (mission.last_result === 'blocked') {
+        kind = 'blocked';
+        label = t('missions.card_blocked');
+        icon = svgIcons.xCircle;
     } else {
         kind = mission.execution_type || 'manual';
         if (kind === 'scheduled') {

@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.error_flow_action_rule_required": "Manca una regola di azione corrispondente. Aggiungi una regola in Configurazione → Zona pericolosa, poi avvia di nuovo manualmente. Nessun nuovo tentativo automatico.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "L’uso di ripiego della CPU non è stato autorizzato esplicitamente.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Il dispositivo di inferenza non è stato verificato.",
   "easydrag.availability.DECISIONS_DISABLED": "Decisions è disattivato.",

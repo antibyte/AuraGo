@@ -1,4 +1,7 @@
 {
+  "dashboard.activity_task_blocked": "Bloccato",
+  "dashboard.activity_action_rule_required": "Manca una regola di azione corrispondente. Aggiungi una regola in Configurazione → Zona pericolosa, poi avvia di nuovo manualmente. Nessun nuovo tentativo automatico.",
+  "dashboard.activity_action_rules": "Verifica le regole di azione",
   "dashboard.memory_conflict_both_valid": "Entrambi i fatti sono validi",
   "dashboard.memory_conflict_saving": "Salvataggio…",
   "dashboard.memory_conflict_dismissed": "Ignorato; entrambi i fatti sono conservati.",

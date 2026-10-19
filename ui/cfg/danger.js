@@ -151,4 +151,5 @@
             html += '</div>';
             document.getElementById('content').innerHTML = html;
             attachChangeListeners();
+            if (window.AuraActionPolicy) window.AuraActionPolicy.mountSettings(document.getElementById('content'), configData);
         }

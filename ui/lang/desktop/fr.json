@@ -1,4 +1,7 @@
 {
+  "desktop.mc_state_blocked": "Bloqué",
+  "desktop.mc_action_rule_required": "Une règle d’action correspondante manque. Ajoute une règle dans Configuration → Zone dangereuse, puis relance manuellement. Aucune nouvelle tentative automatique.",
+  "desktop.mc_action_rules": "Vérifier les règles d’action",
   "desktop.people_delete_memories": "Supprimer aussi les souvenirs associés",
   "desktop.people_delete_backups": "Les sauvegardes peuvent conserver les données supprimées jusqu'au nettoyage prévu.",
   "desktop.people_delete_report": "Éléments de connaissance supprimés : {deleted}. Conservés : {retained}.",

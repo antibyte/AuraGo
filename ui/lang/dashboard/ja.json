@@ -1,4 +1,7 @@
 {
+  "dashboard.activity_task_blocked": "ブロック済み",
+  "dashboard.activity_action_rule_required": "一致するアクションルールがありません。設定 → 危険ゾーンでルールを追加し、手動で再実行してください。自動再試行は行われません。",
+  "dashboard.activity_action_rules": "アクションルールを確認",
   "dashboard.memory_conflict_both_valid": "両方の事実が有効",
   "dashboard.memory_conflict_saving": "保存中…",
   "dashboard.memory_conflict_dismissed": "却下しました。両方の事実は保持されます。",

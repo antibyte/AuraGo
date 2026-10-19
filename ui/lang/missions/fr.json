@@ -1,4 +1,7 @@
 {
+  "missions.card_blocked": "Bloqué",
+  "missions.action_rule_required": "Une règle d’action correspondante manque. Ajoute une règle dans Configuration → Zone dangereuse, puis relance manuellement. Aucune nouvelle tentative automatique.",
+  "missions.action_rules": "Vérifier les règles d’action",
   "mission.badge_manual": "🖱️ Manuel",
   "mission.badge_result_error": "❌ erreur",
   "mission.badge_result_success": "✅ succès",

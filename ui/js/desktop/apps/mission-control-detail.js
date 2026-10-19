@@ -71,12 +71,13 @@
             if (ctx.queuePosition) return 'queued';
             // A flow that was never published is off because it cannot be switched on, not paused.
             if (triggers.isUnpublishedFlow(mission)) return 'unpublished';
+            if (mission.last_result === 'blocked') return 'blocked';
             if (mission.enabled === false) return 'paused';
             if (mission.last_result === 'error') return 'error';
             if (mission.last_result === 'success') return 'ok';
             return triggers.lastRunAt(mission) ? 'idle' : 'never';
         }
-        const STATE_KEYS = { running: 'desktop.mc_state_running', queued: 'desktop.mc_state_queued', paused: 'desktop.mc_state_paused', unpublished: 'desktop.mc_flow_unpublished', error: 'desktop.mc_state_error', ok: 'desktop.mc_state_ok', idle: 'desktop.mc_state_idle', never: 'desktop.mc_state_never_run' };
+        const STATE_KEYS = { blocked: 'desktop.mc_state_blocked', running: 'desktop.mc_state_running', queued: 'desktop.mc_state_queued', paused: 'desktop.mc_state_paused', unpublished: 'desktop.mc_flow_unpublished', error: 'desktop.mc_state_error', ok: 'desktop.mc_state_ok', idle: 'desktop.mc_state_idle', never: 'desktop.mc_state_never_run' };
         function pill(state, extraClass) { return `<span class="vd-mc-pill ${extraClass || ''}" data-state="${esc(state)}">${esc(t(STATE_KEYS[state] || state))}</span>`; }
 
         function actionButton(name, labelKey, iconName, opts) {
@@ -149,7 +150,8 @@
             rows.push([t(mission.execution_type === 'flow' ? 'desktop.mc_flow_triggers' : 'desktop.mc_overview_trigger'), esc(triggers.summary(mission, t, { schedule, lang }))]);
             if (mission.execution_type === 'scheduled' || mission.execution_type === 'flow') {
                 let next;
-                if (triggers.isUnpublishedFlow(mission)) next = esc(t('desktop.mc_flow_unpublished'));
+                if (mission.last_result === 'blocked') next = esc(t('desktop.mc_state_blocked'));
+                else if (triggers.isUnpublishedFlow(mission)) next = esc(t('desktop.mc_flow_unpublished'));
                 else if (mission.enabled === false) next = esc(t('desktop.mc_overview_paused'));
                 else if (mission.next_run) next = `${esc(fmt.dateTime(mission.next_run))} <span class="vd-mc-muted">· ${esc(fmt.relative(mission.next_run))}</span>`;
                 else next = esc(t('desktop.mc_overview_not_scheduled'));
@@ -157,7 +159,7 @@
             }
             const lastRun = triggers.lastRunAt(mission);
             if (lastRun) {
-                const result = mission.last_result === 'error' ? pill('error', 'vd-mc-pill--small') : mission.last_result === 'success' ? pill('ok', 'vd-mc-pill--small') : '';
+                const result = mission.last_result === 'blocked' ? pill('blocked', 'vd-mc-pill--small') : mission.last_result === 'error' ? pill('error', 'vd-mc-pill--small') : mission.last_result === 'success' ? pill('ok', 'vd-mc-pill--small') : '';
                 rows.push([t('desktop.mc_overview_last_run'), `${esc(fmt.dateTime(lastRun))} <span class="vd-mc-muted">· ${esc(fmt.relative(lastRun))}</span> ${result}`]);
             } else {
                 rows.push([t('desktop.mc_overview_last_run'), esc(t('desktop.mc_state_never_run'))]);
@@ -209,6 +211,7 @@
             const long = output.length > OUTPUT_PREVIEW_CHARS;
             const shown = long && !outputExpanded ? output.slice(0, OUTPUT_PREVIEW_CHARS) + '…' : output;
             q('[data-mc-panel="overview"]').innerHTML = `<div class="vd-mc-cards">
+                ${mission.last_result === 'blocked' ? `<article class="vd-mc-card" data-mc-rule-blocked><h3 class="vd-mc-card-title">${esc(t('desktop.mc_state_blocked'))}</h3><p>${esc(t('desktop.mc_action_rule_required'))}</p><a class="vd-mc-link" href="/config#danger" target="_blank" rel="noopener">${esc(t('desktop.mc_action_rules'))}</a></article>` : ''}
                 ${taskCard()}
                 <article class="vd-mc-card vd-mc-card--facts"><dl class="vd-mc-facts">${factRows()}</dl></article>
                 ${mission.execution_type === 'flow' ? '' : prepMarkup()}
@@ -231,10 +234,10 @@
 
         function runMarkup(run) {
             const cancelled = isCancelledRun(run);
-            const state = cancelled ? 'cancelled' : run.status === 'success' ? 'ok' : run.status === 'error' ? 'error' : run.status === 'running' ? 'running' : 'idle';
+            const state = cancelled ? 'cancelled' : run.status === 'blocked' ? 'blocked' : run.status === 'success' ? 'ok' : run.status === 'error' ? 'error' : run.status === 'running' ? 'running' : 'idle';
             const label = cancelled ? t('desktop.mc_state_cancelled') : t(STATE_KEYS[state] || state);
             const expanded = expandedRuns.has(run.id);
-            const body = extractLastOutput(run.output) || run.error_msg || '';
+            const body = state === 'blocked' ? t('desktop.mc_action_rule_required') : extractLastOutput(run.output) || run.error_msg || '';
             return `<div class="vd-mc-run" role="listitem" data-mc-run="${esc(run.id)}">
                 <button type="button" class="vd-mc-run-head" aria-expanded="${expanded}" data-mc-run-toggle title="${esc(t(expanded ? 'desktop.mc_history_collapse' : 'desktop.mc_history_expand'))}">
                     <span class="vd-mc-row-state" data-state="${esc(state)}" aria-hidden="true"></span>
@@ -245,7 +248,8 @@
                     <span class="vd-mc-run-chevron">${ic(expanded ? 'chevronUp' : 'chevronDown')}</span>
                 </button>
                 <div class="vd-mc-run-body" ${expanded ? '' : 'hidden'}>
-                    ${run.error_msg && !cancelled ? `<div class="vd-mc-run-error"><strong>${esc(t('desktop.mc_history_error_label'))}:</strong> ${esc(run.error_msg)}</div>` : ''}
+                    ${state === 'blocked' ? `<a class="vd-mc-link" href="/config#danger" target="_blank" rel="noopener">${esc(t('desktop.mc_action_rules'))}</a>` : ''}
+                    ${run.error_msg && !cancelled && state !== 'blocked' ? `<div class="vd-mc-run-error"><strong>${esc(t('desktop.mc_history_error_label'))}:</strong> ${esc(run.error_msg)}</div>` : ''}
                     <pre class="vd-mc-output">${esc(body || t('desktop.mc_history_no_output'))}</pre>
                 </div>
             </div>`;

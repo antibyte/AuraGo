@@ -1,4 +1,7 @@
 {
+  "dashboard.activity_task_blocked": "Zablokowano",
+  "dashboard.activity_action_rule_required": "Brakuje pasującej reguły działania. Dodaj regułę w Konfiguracja → Strefa zagrożenia, a następnie uruchom ponownie ręcznie. Nie będzie automatycznej ponownej próby.",
+  "dashboard.activity_action_rules": "Sprawdź reguły działań",
   "dashboard.memory_conflict_both_valid": "Oba fakty są prawidłowe",
   "dashboard.memory_conflict_saving": "Zapisywanie…",
   "dashboard.memory_conflict_dismissed": "Odrzucono; oba fakty zachowano.",

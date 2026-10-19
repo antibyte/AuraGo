@@ -1,4 +1,7 @@
 {
+  "desktop.mc_state_blocked": "Bloqueado",
+  "desktop.mc_action_rule_required": "Falta una regla de acción correspondiente. Añade una regla en Configuración → Zona de peligro y vuelve a iniciar manualmente. No se reintentará automáticamente.",
+  "desktop.mc_action_rules": "Revisar reglas de acciones",
   "desktop.people_delete_memories": "Eliminar también los recuerdos asociados",
   "desktop.people_delete_backups": "Las copias de seguridad pueden conservar datos eliminados hasta su limpieza programada.",
   "desktop.people_delete_report": "Elementos de conocimiento eliminados: {deleted}. Conservados: {retained}.",

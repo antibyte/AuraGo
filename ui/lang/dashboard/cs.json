@@ -1,4 +1,7 @@
 {
+  "dashboard.activity_task_blocked": "Zablokováno",
+  "dashboard.activity_action_rule_required": "Chybí odpovídající pravidlo akce. Přidej pravidlo v Nastavení → Nebezpečná zóna a pak spusť úlohu znovu ručně. Automatické opakování neproběhne.",
+  "dashboard.activity_action_rules": "Zkontrolovat pravidla akcí",
   "dashboard.memory_conflict_both_valid": "Obě fakta jsou platná",
   "dashboard.memory_conflict_saving": "Ukládání…",
   "dashboard.memory_conflict_dismissed": "Zamítnuto; obě fakta zachována.",

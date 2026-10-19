@@ -1,4 +1,7 @@
 {
+  "desktop.mc_state_blocked": "Blokkert",
+  "desktop.mc_action_rule_required": "En passende handlingsregel mangler. Legg til en regel under Konfigurasjon → Faresone, og start deretter på nytt manuelt. Ingen automatiske nye forsøk.",
+  "desktop.mc_action_rules": "Se gjennom handlingsregler",
   "desktop.people_delete_memories": "Slett også tilknyttede minner",
   "desktop.people_delete_backups": "Sikkerhetskopier kan beholde slettede data frem til planlagt opprydding.",
   "desktop.people_delete_report": "Slettede kunnskapselementer: {deleted}. Beholdt: {retained}.",

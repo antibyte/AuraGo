@@ -1,4 +1,7 @@
 {
+  "dashboard.activity_task_blocked": "Blocked",
+  "dashboard.activity_action_rule_required": "A matching action rule is missing. Add a rule in Configuration → Danger Zone, then start again manually. No automatic retry.",
+  "dashboard.activity_action_rules": "Review action rules",
   "dashboard.memory_conflict_both_valid": "Both facts are valid",
   "dashboard.memory_conflict_saving": "Saving…",
   "dashboard.memory_conflict_dismissed": "Dismissed; both facts kept.",

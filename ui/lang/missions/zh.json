@@ -1,4 +1,7 @@
 {
+  "missions.card_blocked": "已阻止",
+  "missions.action_rule_required": "缺少匹配的操作规则。请在配置 → 危险区域中添加规则，然后手动重新启动。系统不会自动重试。",
+  "missions.action_rules": "检查操作规则",
   "mission.badge_manual": "🖱️ 手动",
   "mission.badge_result_error": "❌ 错误",
   "mission.badge_result_success": "✅ 成功",

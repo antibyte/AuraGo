@@ -1,4 +1,7 @@
 {
+  "missions.card_blocked": "Gesperrt",
+  "missions.action_rule_required": "Eine passende Aktionsregel fehlt. Ergänze eine Regel unter Konfiguration → Gefahrenzone und starte danach manuell neu. Es gibt keinen automatischen Wiederholungsversuch.",
+  "missions.action_rules": "Aktionsregeln prüfen",
   "mission.badge_manual": "🖱️ Manuell",
   "mission.badge_result_error": "❌ Fehler",
   "mission.badge_result_success": "✅ Erfolg",

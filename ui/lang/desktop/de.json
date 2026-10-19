@@ -1,4 +1,7 @@
 {
+  "desktop.mc_state_blocked": "Gesperrt",
+  "desktop.mc_action_rule_required": "Eine passende Aktionsregel fehlt. Ergänze eine Regel unter Konfiguration → Gefahrenzone und starte danach manuell neu. Es gibt keinen automatischen Wiederholungsversuch.",
+  "desktop.mc_action_rules": "Aktionsregeln prüfen",
   "desktop.people_delete_memories": "Zugehörige Erinnerungen ebenfalls löschen",
   "desktop.people_delete_backups": "Sicherungen können gelöschte Daten bis zur geplanten Bereinigung enthalten.",
   "desktop.people_delete_report": "Gelöschte Wissenseinträge: {deleted}. Behalten: {retained}.",

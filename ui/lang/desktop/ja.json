@@ -1,4 +1,7 @@
 {
+  "desktop.mc_state_blocked": "ブロック済み",
+  "desktop.mc_action_rule_required": "一致するアクションルールがありません。設定 → 危険ゾーンでルールを追加し、手動で再実行してください。自動再試行は行われません。",
+  "desktop.mc_action_rules": "アクションルールを確認",
   "desktop.people_delete_memories": "関連する記憶も削除する",
   "desktop.people_delete_backups": "バックアップには、予定されたクリーンアップまで削除済みデータが残る場合があります。",
   "desktop.people_delete_report": "削除した知識: {deleted}。保持した知識: {retained}。",

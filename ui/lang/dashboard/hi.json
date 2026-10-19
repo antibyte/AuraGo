@@ -1,4 +1,7 @@
 {
+  "dashboard.activity_task_blocked": "अवरुद्ध",
+  "dashboard.activity_action_rule_required": "इस कार्रवाई के लिए कोई उपयुक्त नियम नहीं है। कॉन्फ़िगरेशन → ख़तरे का क्षेत्र में नियम जोड़ो, फिर मैन्युअल रूप से दोबारा शुरू करो। अपने आप दोबारा प्रयास नहीं होगा।",
+  "dashboard.activity_action_rules": "कार्रवाई के नियम जाँचो",
   "dashboard.memory_conflict_both_valid": "दोनों तथ्य सही हैं",
   "dashboard.memory_conflict_saving": "सहेजा जा रहा है…",
   "dashboard.memory_conflict_dismissed": "खारिज किया; दोनों तथ्य सुरक्षित हैं।",

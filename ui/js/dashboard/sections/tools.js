@@ -136,20 +136,21 @@
                 details += '<div class="activity-section"><div class="activity-section-title">🗂️ ' + t('dashboard.activity_background_tasks') + '</div>';
                 for (const task of bgTasks) {
                     const status = String(task.status || 'queued');
+                    const ruleBlocked = status === 'blocked' && (task.last_error === 'action_rule_required' || String(task.last_error || '').startsWith('action_rule_required:'));
                     const statusClass =
                         status === 'running' ? 'pill-running' :
                         status === 'completed' ? 'pill-completed' :
                         status === 'failed' ? 'pill-failed' :
-                        status === 'waiting' ? 'pill-warning' :
+                        status === 'waiting' || status === 'blocked' ? 'pill-warning' :
                         status === 'canceled' ? 'pill-idle' : 'pill-idle';
                     const detailParts = [
                         task.type ? esc(task.type) : '',
-                        task.last_error ? esc(truncate(task.last_error, 60)) : '',
+                        ruleBlocked ? esc(t('dashboard.activity_action_rule_required')) + ' <a href="/config#danger" target="_blank" rel="noopener">' + esc(t('dashboard.activity_action_rules')) + '</a>' : task.last_error ? esc(truncate(task.last_error, 60)) : '',
                         task.result && !task.last_error ? esc(truncate(task.result, 60)) : ''
                     ].filter(Boolean);
                     details += `<div class="activity-item">
                 <span class="activity-item-name">${esc(truncate(task.description || task.id || 'background-task', 56))}</span>
-                <span><span class="pill-status ${statusClass}">${esc(status)}</span>
+                <span><span class="pill-status ${statusClass}">${esc(status === 'blocked' ? t('dashboard.activity_task_blocked') : status)}</span>
                 <span class="activity-item-detail activity-item-detail-spaced">${detailParts.join(' · ')}</span></span>
             </div>`;
                 }

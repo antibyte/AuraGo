@@ -1,4 +1,7 @@
 {
+  "dashboard.activity_task_blocked": "Geblokkeerd",
+  "dashboard.activity_action_rule_required": "Er ontbreekt een passende actieregel. Voeg een regel toe onder Configuratie → Gevarenzone en start daarna handmatig opnieuw. Er volgt geen automatische nieuwe poging.",
+  "dashboard.activity_action_rules": "Actieregels controleren",
   "dashboard.memory_conflict_both_valid": "Beide feiten zijn geldig",
   "dashboard.memory_conflict_saving": "Opslaan…",
   "dashboard.memory_conflict_dismissed": "Afgewezen; beide feiten zijn behouden.",

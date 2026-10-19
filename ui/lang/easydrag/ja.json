@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.error_flow_action_rule_required": "一致するアクションルールがありません。設定 → 危険ゾーンでルールを追加し、手動で再実行してください。自動再試行は行われません。",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU フォールバックが明示的に許可されていません。",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "推論デバイスが検証されていません。",
   "easydrag.availability.DECISIONS_DISABLED": "Decisions は無効です。",

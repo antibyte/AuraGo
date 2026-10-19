@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.error_flow_action_rule_required": "Λείπει ένας κατάλληλος κανόνας ενέργειας. Πρόσθεσε έναν κανόνα στις Ρυθμίσεις → Ζώνη κινδύνου και μετά ξεκίνησε ξανά χειροκίνητα. Δεν γίνεται αυτόματη επανάληψη.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "Η εφεδρική χρήση CPU δεν έχει επιτραπεί ρητά.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Η συσκευή συμπερασμού δεν έχει επαληθευτεί.",
   "easydrag.availability.DECISIONS_DISABLED": "Οι Αποφάσεις είναι απενεργοποιημένες.",

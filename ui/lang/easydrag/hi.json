@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.error_flow_action_rule_required": "इस कार्रवाई के लिए कोई उपयुक्त नियम नहीं है। कॉन्फ़िगरेशन → ख़तरे का क्षेत्र में नियम जोड़ो, फिर मैन्युअल रूप से दोबारा शुरू करो। अपने आप दोबारा प्रयास नहीं होगा।",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU फ़ॉलबैक की स्पष्ट अनुमति नहीं दी गई है।",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "इन्फ़रेंस डिवाइस सत्यापित नहीं है।",
   "easydrag.availability.DECISIONS_DISABLED": "Decisions बंद है।",

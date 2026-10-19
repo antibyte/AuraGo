@@ -1,4 +1,7 @@
 {
+  "missions.card_blocked": "Zablokováno",
+  "missions.action_rule_required": "Chybí odpovídající pravidlo akce. Přidej pravidlo v Nastavení → Nebezpečná zóna a pak spusť úlohu znovu ručně. Automatické opakování neproběhne.",
+  "missions.action_rules": "Zkontrolovat pravidla akcí",
   "mission.badge_manual": "Manuální",
   "mission.badge_result_error": "❌ chyba",
   "mission.badge_result_success": "✅ úspěch",

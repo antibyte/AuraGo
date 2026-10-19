@@ -1,4 +1,7 @@
 {
+  "desktop.mc_state_blocked": "已阻止",
+  "desktop.mc_action_rule_required": "缺少匹配的操作规则。请在配置 → 危险区域中添加规则，然后手动重新启动。系统不会自动重试。",
+  "desktop.mc_action_rules": "检查操作规则",
   "desktop.people_delete_memories": "同时删除相关记忆",
   "desktop.people_delete_backups": "在计划清理之前，备份中可能仍保留已删除的数据。",
   "desktop.people_delete_report": "已删除的知识条目：{deleted}。保留：{retained}。",

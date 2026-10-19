@@ -1,4 +1,7 @@
 {
+  "missions.card_blocked": "अवरुद्ध",
+  "missions.action_rule_required": "इस कार्रवाई के लिए कोई उपयुक्त नियम नहीं है। कॉन्फ़िगरेशन → ख़तरे का क्षेत्र में नियम जोड़ो, फिर मैन्युअल रूप से दोबारा शुरू करो। अपने आप दोबारा प्रयास नहीं होगा।",
+  "missions.action_rules": "कार्रवाई के नियम जाँचो",
   "mission.badge_manual": "🖱️ मैनुअल",
   "mission.badge_result_error": "❌ त्रुटि",
   "mission.badge_result_success": "✅ सफलता",

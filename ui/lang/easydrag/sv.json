@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.error_flow_action_rule_required": "En passande åtgärdsregel saknas. Lägg till en regel under Konfiguration → Farozon och starta sedan om manuellt. Inget automatiskt nytt försök görs.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU-reservläge har inte uttryckligen tillåtits.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Inferensenheten har inte verifierats.",
   "easydrag.availability.DECISIONS_DISABLED": "Decisions är inaktiverat.",

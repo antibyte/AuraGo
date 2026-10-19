@@ -21,6 +21,17 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Ownership
 
+- Action-policy blocks are terminal outcomes, not queued/running work. Dashboard
+  background tasks render `blocked` with `last_error: action_rule_required` as a
+  translated missing-rule diagnosis linking to `/config#danger`; active counters
+  continue to count only queued, waiting and running tasks. Missions show the same
+  diagnosis in both card views and Desktop Mission Control, including history.
+  EasyDrag localizes `FLOW_ACTION_RULE_REQUIRED` through its existing error-code
+  renderer. Status rendering must never retry or request approval automatically.
+  Keep the four locale families aligned in all sixteen languages. Verify with
+  `node scripts/test-action-policy-status-ui.mjs`; the fixture uses source modules,
+  real styles and synthetic records without local config or providers.
+
 - File Manager cloud references keep provider, Koofr mount and relative path
   separate through navigation, split panes, tabs, favorites, window context, clipboard and
   drag-and-drop. Remote payloads never enter local editor/file APIs. Preserve

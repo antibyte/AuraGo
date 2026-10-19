@@ -1,4 +1,7 @@
 {
+  "missions.card_blocked": "ブロック済み",
+  "missions.action_rule_required": "一致するアクションルールがありません。設定 → 危険ゾーンでルールを追加し、手動で再実行してください。自動再試行は行われません。",
+  "missions.action_rules": "アクションルールを確認",
   "mission.badge_manual": "🖱️ 手動",
   "mission.badge_result_error": "❌ エラー",
   "mission.badge_result_success": "✅ 成功",

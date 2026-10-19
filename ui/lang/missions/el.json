@@ -1,4 +1,7 @@
 {
+  "missions.card_blocked": "Αποκλεισμένο",
+  "missions.action_rule_required": "Λείπει ένας κατάλληλος κανόνας ενέργειας. Πρόσθεσε έναν κανόνα στις Ρυθμίσεις → Ζώνη κινδύνου και μετά ξεκίνησε ξανά χειροκίνητα. Δεν γίνεται αυτόματη επανάληψη.",
+  "missions.action_rules": "Έλεγχος κανόνων ενεργειών",
   "mission.badge_manual": "🖱️ Χειροκίνητη",
   "mission.badge_result_error": "❌ σφάλμα",
   "mission.badge_result_success": "✅ επιτυχία",

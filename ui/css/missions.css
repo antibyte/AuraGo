@@ -1223,6 +1223,7 @@
     border-color: color-mix(in srgb, var(--pw-accent) 35%, transparent);
 }
 
+.pw-page[data-workspace-page="missions"] .mc-status-chip--blocked,
 .pw-page[data-workspace-page="missions"] .mc-status-chip--queued {
     background: color-mix(in srgb, var(--pw-warning) 12%, transparent);
     color: var(--pw-warning);

@@ -1,4 +1,7 @@
 {
+  "desktop.mc_state_blocked": "Zablokováno",
+  "desktop.mc_action_rule_required": "Chybí odpovídající pravidlo akce. Přidej pravidlo v Nastavení → Nebezpečná zóna a pak spusť úlohu znovu ručně. Automatické opakování neproběhne.",
+  "desktop.mc_action_rules": "Zkontrolovat pravidla akcí",
   "desktop.people_delete_memories": "Smazat také související vzpomínky",
   "desktop.people_delete_backups": "Zálohy mohou obsahovat smazaná data až do plánovaného vyčištění.",
   "desktop.people_delete_report": "Smazané znalosti: {deleted}. Zachováno: {retained}.",

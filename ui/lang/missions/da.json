@@ -1,4 +1,7 @@
 {
+  "missions.card_blocked": "Blokeret",
+  "missions.action_rule_required": "Der mangler en passende handlingsregel. Tilføj en regel under Konfiguration → Farezone, og start derefter igen manuelt. Der forsøges ikke igen automatisk.",
+  "missions.action_rules": "Gennemgå handlingsregler",
   "mission.badge_manual": "🖱️ Manuel",
   "mission.badge_result_error": "❌ Fejl",
   "mission.badge_result_success": "✅ Succes",

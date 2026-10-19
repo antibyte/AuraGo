@@ -8702,6 +8702,7 @@ function connectSSE() {
         setConnectionState('connected');
         if (sseReconnectTimer) { clearTimeout(sseReconnectTimer); sseReconnectTimer = null; }
         if (typeof window.checkPendingQuestion === 'function') window.checkPendingQuestion();
+        if (window.AuraActionPolicy) window.AuraActionPolicy.load(getActiveSessionId());
         if (typeof window.checkPendingVaultSecretPrompt === 'function') window.checkPendingVaultSecretPrompt();
     });
 
@@ -8865,6 +8866,11 @@ function connectSSE() {
         if (typeof window.showQuestionModal === 'function') {
             window.showQuestionModal(payload);
         }
+    });
+
+    window.AuraSSE.on('action_approval', function (payload) {
+        if (!isCurrentSession(payload)) return;
+        if (window.AuraActionPolicy) window.AuraActionPolicy.show(payload);
     });
 
     window.AuraSSE.on('vault.secret.prompt', function (payload) {

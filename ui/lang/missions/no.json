@@ -1,4 +1,7 @@
 {
+  "missions.card_blocked": "Blokkert",
+  "missions.action_rule_required": "En passende handlingsregel mangler. Legg til en regel under Konfigurasjon → Faresone, og start deretter på nytt manuelt. Ingen automatiske nye forsøk.",
+  "missions.action_rules": "Se gjennom handlingsregler",
   "mission.badge_manual": "🖱️ Manuell",
   "mission.badge_result_error": "❌ Feil",
   "mission.badge_result_success": "✅ Suksess",

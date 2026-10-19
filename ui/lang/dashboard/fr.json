@@ -1,4 +1,7 @@
 {
+  "dashboard.activity_task_blocked": "Bloqué",
+  "dashboard.activity_action_rule_required": "Une règle d’action correspondante manque. Ajoute une règle dans Configuration → Zone dangereuse, puis relance manuellement. Aucune nouvelle tentative automatique.",
+  "dashboard.activity_action_rules": "Vérifier les règles d’action",
   "dashboard.memory_conflict_both_valid": "Les deux faits sont valides",
   "dashboard.memory_conflict_saving": "Enregistrement…",
   "dashboard.memory_conflict_dismissed": "Écarté ; les deux faits sont conservés.",

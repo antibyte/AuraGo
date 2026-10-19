@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.error_flow_action_rule_required": "A matching action rule is missing. Add a rule in Configuration → Danger Zone, then start again manually. No automatic retry.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU fallback has not been explicitly allowed.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "The inference device has not been verified.",
   "easydrag.availability.DECISIONS_DISABLED": "Decisions is disabled.",

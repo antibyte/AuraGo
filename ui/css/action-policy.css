@@ -1,0 +1,16 @@
+.action-policy-panel { margin-top: 24px; padding: 20px; border: 1px solid var(--border, #7775); border-radius: 12px; }
+.action-policy-panel p, .action-policy-state { color: var(--text-secondary, inherit); line-height: 1.5; }
+.action-policy-rule { display: grid; grid-template-columns: repeat(3, minmax(120px, 1fr)); gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border, #7775); }
+.action-policy-rule label { display: flex; flex-direction: column; gap: 4px; font-size: .9em; }
+.action-policy-rule input, .action-policy-rule select, .action-policy-panel textarea { width: 100%; box-sizing: border-box; padding: 8px; color: var(--text-primary, inherit); background: var(--bg-input, transparent); border: 1px solid var(--border, #7778); border-radius: 6px; }
+.action-policy-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.action-policy-panel button, .action-policy-dialog button { padding: 8px 14px; border: 1px solid var(--border, #7778); border-radius: 6px; background: var(--bg-input, transparent); color: inherit; cursor: pointer; }
+.action-policy-panel button:disabled, .action-policy-dialog button:disabled { opacity: .5; cursor: default; }
+.action-policy-dialog { width: min(640px, calc(100vw - 48px)); max-height: 82vh; overflow: auto; padding: 24px; border: 1px solid var(--border, #7778); border-radius: 14px; background: var(--bg-secondary, var(--bg-primary, #202028)); color: var(--text-primary, #eee); box-shadow: 0 16px 50px #0006; }
+.action-policy-dialog::backdrop { background: #0008; }
+.action-policy-dialog h2 { margin-top: 0; }
+.action-policy-dialog pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 32vh; overflow: auto; padding: 12px; border: 1px solid var(--border, #7775); border-radius: 6px; }
+.action-policy-dialog dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; }
+.action-policy-dialog dd { margin: 0; overflow-wrap: anywhere; }
+.action-policy-state { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 640px) { .action-policy-rule { grid-template-columns: 1fr; } }

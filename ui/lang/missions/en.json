@@ -1,4 +1,7 @@
 {
+  "missions.card_blocked": "Blocked",
+  "missions.action_rule_required": "A matching action rule is missing. Add a rule in Configuration → Danger Zone, then start again manually. No automatic retry.",
+  "missions.action_rules": "Review action rules",
   "mission.badge_manual": "🖱️ Manual",
   "mission.badge_result_error": "❌ error",
   "mission.badge_result_success": "✅ success",

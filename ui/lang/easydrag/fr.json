@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.error_flow_action_rule_required": "Une règle d’action correspondante manque. Ajoute une règle dans Configuration → Zone dangereuse, puis relance manuellement. Aucune nouvelle tentative automatique.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "Le recours au processeur n’a pas été explicitement autorisé.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "L’appareil d’inférence n’a pas été vérifié.",
   "easydrag.availability.DECISIONS_DISABLED": "Decisions est désactivé.",

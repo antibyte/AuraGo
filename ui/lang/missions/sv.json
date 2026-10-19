@@ -1,4 +1,7 @@
 {
+  "missions.card_blocked": "Blockerad",
+  "missions.action_rule_required": "En passande åtgärdsregel saknas. Lägg till en regel under Konfiguration → Farozon och starta sedan om manuellt. Inget automatiskt nytt försök görs.",
+  "missions.action_rules": "Granska åtgärdsregler",
   "mission.badge_manual": "🖱️ Manuell",
   "mission.badge_result_error": "❌ Fel",
   "mission.badge_result_success": "✅ Lyckades",

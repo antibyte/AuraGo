@@ -1,4 +1,7 @@
 {
+  "missions.card_blocked": "Geblokkeerd",
+  "missions.action_rule_required": "Er ontbreekt een passende actieregel. Voeg een regel toe onder Configuratie → Gevarenzone en start daarna handmatig opnieuw. Er volgt geen automatische nieuwe poging.",
+  "missions.action_rules": "Actieregels controleren",
   "mission.badge_manual": "🖱️ Handmatig",
   "mission.badge_result_error": "❌ fout",
   "mission.badge_result_success": "✅ succes",

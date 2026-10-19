@@ -1,4 +1,7 @@
 {
+  "desktop.mc_state_blocked": "Zablokowano",
+  "desktop.mc_action_rule_required": "Brakuje pasującej reguły działania. Dodaj regułę w Konfiguracja → Strefa zagrożenia, a następnie uruchom ponownie ręcznie. Nie będzie automatycznej ponownej próby.",
+  "desktop.mc_action_rules": "Sprawdź reguły działań",
   "desktop.people_delete_memories": "Usuń również powiązane wspomnienia",
   "desktop.people_delete_backups": "Kopie zapasowe mogą zawierać usunięte dane do czasu planowego czyszczenia.",
   "desktop.people_delete_report": "Usunięte elementy wiedzy: {deleted}. Zachowane: {retained}.",

@@ -1,4 +1,7 @@
 {
+  "desktop.mc_state_blocked": "Blockerad",
+  "desktop.mc_action_rule_required": "En passande åtgärdsregel saknas. Lägg till en regel under Konfiguration → Farozon och starta sedan om manuellt. Inget automatiskt nytt försök görs.",
+  "desktop.mc_action_rules": "Granska åtgärdsregler",
   "desktop.people_delete_memories": "Radera även tillhörande minnen",
   "desktop.people_delete_backups": "Säkerhetskopior kan behålla raderade data tills den planerade rensningen.",
   "desktop.people_delete_report": "Raderade kunskapsobjekt: {deleted}. Behållna: {retained}.",

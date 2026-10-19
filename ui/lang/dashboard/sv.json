@@ -1,4 +1,7 @@
 {
+  "dashboard.activity_task_blocked": "Blockerad",
+  "dashboard.activity_action_rule_required": "En passande åtgärdsregel saknas. Lägg till en regel under Konfiguration → Farozon och starta sedan om manuellt. Inget automatiskt nytt försök görs.",
+  "dashboard.activity_action_rules": "Granska åtgärdsregler",
   "dashboard.memory_conflict_both_valid": "Båda fakta är giltiga",
   "dashboard.memory_conflict_saving": "Sparar…",
   "dashboard.memory_conflict_dismissed": "Avfärdad; båda fakta har behållits.",

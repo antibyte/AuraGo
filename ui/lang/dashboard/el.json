@@ -1,4 +1,7 @@
 {
+  "dashboard.activity_task_blocked": "Αποκλεισμένο",
+  "dashboard.activity_action_rule_required": "Λείπει ένας κατάλληλος κανόνας ενέργειας. Πρόσθεσε έναν κανόνα στις Ρυθμίσεις → Ζώνη κινδύνου και μετά ξεκίνησε ξανά χειροκίνητα. Δεν γίνεται αυτόματη επανάληψη.",
+  "dashboard.activity_action_rules": "Έλεγχος κανόνων ενεργειών",
   "dashboard.memory_conflict_both_valid": "Και τα δύο στοιχεία ισχύουν",
   "dashboard.memory_conflict_saving": "Αποθήκευση…",
   "dashboard.memory_conflict_dismissed": "Απορρίφθηκε· διατηρήθηκαν και τα δύο στοιχεία.",

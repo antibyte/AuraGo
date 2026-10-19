@@ -1,4 +1,7 @@
 {
+  "dashboard.activity_task_blocked": "Blokkert",
+  "dashboard.activity_action_rule_required": "En passende handlingsregel mangler. Legg til en regel under Konfigurasjon → Faresone, og start deretter på nytt manuelt. Ingen automatiske nye forsøk.",
+  "dashboard.activity_action_rules": "Se gjennom handlingsregler",
   "dashboard.memory_conflict_both_valid": "Begge fakta er gyldige",
   "dashboard.memory_conflict_saving": "Lagrer…",
   "dashboard.memory_conflict_dismissed": "Avvist; begge fakta er beholdt.",

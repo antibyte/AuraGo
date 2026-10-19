@@ -1,4 +1,7 @@
 {
+  "dashboard.activity_task_blocked": "Gesperrt",
+  "dashboard.activity_action_rule_required": "Eine passende Aktionsregel fehlt. Ergänze eine Regel unter Konfiguration → Gefahrenzone und starte danach manuell neu. Es gibt keinen automatischen Wiederholungsversuch.",
+  "dashboard.activity_action_rules": "Aktionsregeln prüfen",
   "dashboard.memory_conflict_both_valid": "Beide Fakten sind gültig",
   "dashboard.memory_conflict_saving": "Wird gespeichert…",
   "dashboard.memory_conflict_dismissed": "Verworfen; beide Fakten bleiben erhalten.",

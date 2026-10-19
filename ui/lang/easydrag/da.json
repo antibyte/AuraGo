@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.error_flow_action_rule_required": "Der mangler en passende handlingsregel. Tilføj en regel under Konfiguration → Farezone, og start derefter igen manuelt. Der forsøges ikke igen automatisk.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU-fallback er ikke udtrykkeligt tilladt.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Enheden til inferens er ikke verificeret.",
   "easydrag.availability.DECISIONS_DISABLED": "Decisions er deaktiveret.",

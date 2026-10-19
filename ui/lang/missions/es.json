@@ -1,4 +1,7 @@
 {
+  "missions.card_blocked": "Bloqueado",
+  "missions.action_rule_required": "Falta una regla de acción correspondiente. Añade una regla en Configuración → Zona de peligro y vuelve a iniciar manualmente. No se reintentará automáticamente.",
+  "missions.action_rules": "Revisar reglas de acciones",
   "mission.badge_manual": "🖱️ Manual",
   "mission.badge_result_error": "❌ error",
   "mission.badge_result_success": "✅ éxito",

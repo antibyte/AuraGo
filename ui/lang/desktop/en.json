@@ -1,4 +1,7 @@
 {
+  "desktop.mc_state_blocked": "Blocked",
+  "desktop.mc_action_rule_required": "A matching action rule is missing. Add a rule in Configuration → Danger Zone, then start again manually. No automatic retry.",
+  "desktop.mc_action_rules": "Review action rules",
   "desktop.people_delete_memories": "Also delete associated memories",
   "desktop.people_delete_backups": "Backups may retain deleted data until their scheduled cleanup.",
   "desktop.people_delete_report": "Knowledge items removed: {deleted}. Retained: {retained}.",

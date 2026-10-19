@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.error_flow_action_rule_required": "Er ontbreekt een passende actieregel. Voeg een regel toe onder Configuratie → Gevarenzone en start daarna handmatig opnieuw. Er volgt geen automatische nieuwe poging.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU-terugval is niet uitdrukkelijk toegestaan.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Het inferentieapparaat is niet geverifieerd.",
   "easydrag.availability.DECISIONS_DISABLED": "Decisions is uitgeschakeld.",

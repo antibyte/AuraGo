@@ -1,4 +1,7 @@
 {
+  "desktop.mc_state_blocked": "Geblokkeerd",
+  "desktop.mc_action_rule_required": "Er ontbreekt een passende actieregel. Voeg een regel toe onder Configuratie → Gevarenzone en start daarna handmatig opnieuw. Er volgt geen automatische nieuwe poging.",
+  "desktop.mc_action_rules": "Actieregels controleren",
   "desktop.people_delete_memories": "Verwijder ook bijbehorende herinneringen",
   "desktop.people_delete_backups": "Back-ups kunnen verwijderde gegevens bewaren tot de geplande opschoning.",
   "desktop.people_delete_report": "Verwijderde kennisitems: {deleted}. Behouden: {retained}.",

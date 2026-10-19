@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.error_flow_action_rule_required": "Chybí odpovídající pravidlo akce. Přidej pravidlo v Nastavení → Nebezpečná zóna a pak spusť úlohu znovu ručně. Automatické opakování neproběhne.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "Záložní použití CPU nebylo výslovně povoleno.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Zařízení pro odvozování nebylo ověřeno.",
   "easydrag.availability.DECISIONS_DISABLED": "Rozhodování je vypnuté.",
