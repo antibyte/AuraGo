@@ -35,6 +35,9 @@ func TestGo2RTCRevokedSnapshotCannotCacheOrPublish(t *testing.T) {
 	cfg.Directories.DataDir = t.TempDir()
 	m := NewGo2RTCManager(cfg, nil, nil, nil)
 	defer m.Close()
+	if _, err := m.ReconcileStreams(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	other, err := m.AcquireMedia(context.Background(), "two", "main", false)
 	if err != nil {
 		t.Fatal(err)
@@ -52,6 +55,9 @@ func TestGo2RTCRevokedSnapshotCannotCacheOrPublish(t *testing.T) {
 	}
 	cfg.Go2RTC.Streams[0].Source = "rtsp://192.168.1.2/new"
 	m.Configure(cfg)
+	if _, err := m.ReconcileStreams(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	select {
 	case err := <-finished:
 		if err == nil {

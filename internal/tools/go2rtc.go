@@ -39,6 +39,8 @@ const (
 // Go2RTCStreamStatus is the deliberately sanitized public stream view.
 type Go2RTCStreamStatus struct {
 	Revision          uint64              `json:"revision"`
+	MediaReady        bool                `json:"media_ready"`
+	SourcePending     bool                `json:"source_pending"`
 	HasSubstream      bool                `json:"has_substream"`
 	HasCameraSnapshot bool                `json:"has_camera_snapshot"`
 	LastSnapshotAt    string              `json:"last_snapshot_at,omitempty"`
@@ -65,6 +67,7 @@ type Go2RTCStatus struct {
 	Configured         bool   `json:"configured"`
 	Enabled            bool   `json:"enabled"`
 	ContainerRunning   bool   `json:"container_running"`
+	ContainerState     string `json:"container_state"`
 	APIUsable          bool   `json:"api_usable"`
 	Version            string `json:"version,omitempty"`
 	WebRTCSessionBound bool   `json:"webrtc_session_bound"`
@@ -437,11 +440,23 @@ func (m *Go2RTCManager) Status(ctx context.Context) Go2RTCStatus {
 	status.Enabled = cfg.Enabled
 	status.Configured = len(cfg.Streams) > 0
 	owner := m.go2RTCOwner()
-	status.ContainerRunning = go2RTCContainerRunning(docker, cfg.ContainerName, owner)
 	if ctx != nil && cfg.Enabled {
 		tested, _ := m.Test(ctx)
 		status = tested
-		status.ContainerRunning = go2RTCContainerRunning(docker, cfg.ContainerName, owner)
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	probe, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	running, known := go2RTCInspectRunningContext(probe, docker, cfg.ContainerName, owner)
+	status.ContainerRunning = running
+	status.ContainerState = "unknown"
+	if known {
+		status.ContainerState = "stopped"
+		if running {
+			status.ContainerState = "running"
+		}
 	}
 	return status
 }
@@ -929,10 +944,10 @@ func (m *Go2RTCManager) findEnabledStream(streamID string) (config.Go2RTCStreamC
 	if err := ValidateGo2RTCStreamID(streamID); err != nil {
 		return config.Go2RTCStreamConfig{}, err
 	}
-	for _, stream := range m.Config().Streams {
-		if stream.ID == streamID && stream.Enabled {
-			return stream, nil
-		}
+	m.mediaMu.Lock()
+	defer m.mediaMu.Unlock()
+	if r := m.media[streamID]; r != nil {
+		return r.config, nil
 	}
 	return config.Go2RTCStreamConfig{}, fmt.Errorf("stream %q is not configured or enabled", streamID)
 }

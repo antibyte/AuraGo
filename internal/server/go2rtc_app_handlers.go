@@ -57,9 +57,10 @@ func writeGo2RTCMutationFailure(w http.ResponseWriter, err error) {
 // go2RTCAppStream is a stream entry of the app state; managers also see its detection settings.
 type go2RTCAppStream struct {
 	tools.Go2RTCStreamStatus
-	TalkBusy  bool                                `json:"talk_busy"`
-	Actions   []string                            `json:"actions"`
-	Detection *config.Go2RTCStreamDetectionConfig `json:"detection,omitempty"`
+	TalkBusy        bool                                `json:"talk_busy"`
+	Actions         []string                            `json:"actions"`
+	Detection       *config.Go2RTCStreamDetectionConfig `json:"detection,omitempty"`
+	ConfiguredMedia *tools.Go2RTCMediaSettings          `json:"configured_media,omitempty"`
 }
 
 func go2RTCAppStreams(streams []tools.Go2RTCStreamStatus, cfg config.Go2RTCConfig, canManage bool) []go2RTCAppStream {
@@ -72,9 +73,15 @@ func go2RTCAppStreams(streams []tools.Go2RTCStreamStatus, cfg config.Go2RTCConfi
 		entry := go2RTCAppStream{Go2RTCStreamStatus: stream}
 		for _, camera := range cfg.Streams {
 			if camera.ID == stream.ID {
-				entry.Media = tools.Go2RTCMediaSettingsFor(camera)
-				entry.HasSubstream = camera.SubSourceConfigured || camera.SubSource != ""
-				entry.HasCameraSnapshot = camera.SnapshotSourceConfigured || camera.SnapshotSource != ""
+				settings := tools.Go2RTCMediaSettingsFor(camera)
+				if canManage {
+					entry.ConfiguredMedia = &settings
+				}
+				if entry.Revision == 0 {
+					entry.Media = settings
+					entry.HasSubstream = camera.SubSourceConfigured || camera.SubSource != ""
+					entry.HasCameraSnapshot = camera.SnapshotSourceConfigured || camera.SnapshotSource != ""
+				}
 			}
 		}
 		if detection, ok := detections[stream.ID]; ok && canManage {

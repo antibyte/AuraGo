@@ -98,4 +98,21 @@ func TestGo2RTCTalkPermissionsAndLifecycle(t *testing.T) {
 	if _, err := s.Go2RTC.AcquireMedia(context.Background(), "unknown", "main", false); err == nil {
 		t.Fatal("unknown camera accepted")
 	}
+	if response = request("POST", "/api/go2rtc/talk/door", talker); response.Code != 200 {
+		t.Fatal(response.Body.String())
+	}
+	s.go2RTCTalkMu.Lock()
+	session = s.go2RTCTalks["door"]
+	s.go2RTCTalkMu.Unlock()
+	heartbeat := httptest.NewRequest("GET", "/api/go2rtc/talk/door/ws", nil)
+	heartbeat.Header.Set("Authorization", "Bearer "+talker)
+	if !session.heartbeat(heartbeat) {
+		t.Fatal("authorized heartbeat rejected")
+	}
+	cfg.Go2RTC.Streams[0].TalkEnabled = false
+	s.Go2RTC.Configure(cfg)
+	if session.heartbeat(heartbeat) {
+		t.Fatal("talk heartbeat ignored the revoked camera permission")
+	}
+	session.close()
 }

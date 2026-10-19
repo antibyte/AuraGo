@@ -82,6 +82,16 @@ func (session *go2RTCTalkSession) heartbeat(r *http.Request) bool {
 	if !go2RTCRequestCanTalk(session.server, r) || session.identity != go2RTCTalkIdentity(r) || session.lease.Context.Err() != nil {
 		return false
 	}
+	cfg := session.server.Go2RTC.Config()
+	enabled := false
+	for _, camera := range cfg.Streams {
+		if camera.ID == session.lease.StreamID {
+			enabled = camera.Enabled && camera.TalkEnabled
+		}
+	}
+	if !cfg.Enabled || !cfg.WebRTC.Enabled || !enabled {
+		return false
+	}
 	session.server.go2RTCTalkMu.Lock()
 	defer session.server.go2RTCTalkMu.Unlock()
 	if session.server.go2RTCTalks[session.lease.StreamID] != session {

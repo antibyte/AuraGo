@@ -1567,11 +1567,29 @@ go2rtc:
         enabled: false
         bind_address: ""            # required concrete private LAN IP when enabled
         port: 8555
+    hardware:
+        backend: "software"         # software (default), vaapi or cuda; GPU requires Linux/amd64 Docker
+        render_node: ""             # vaapi: selected host /dev/dri/renderD128 (mapped individually)
+        render_group: ""            # vaapi: numeric non-root host render group ID
+        device_id: ""               # cuda: one NVIDIA GPU index or GPU UUID
+    # GPU profiles require an explicit successful hardware test in Config.
+    # Standard images automatically select the digest-pinned 1.9.14-hardware build.
     # Source URLs are entered through the Config UI and stored only in the Vault.
     # streams:
     #   - id: "front-door"
     #     name: "Front Door"
     #     enabled: true
+    #     # source, sub_source and snapshot_source are write-only Vault values.
+    #     # Empty or masked input preserves them; clear_sub_source and
+    #     # clear_snapshot_source explicitly remove an optional source.
+    #     preview_source: "auto"     # auto (prefer substream), main or sub
+    #     detection_source: "auto"   # auto (prefer substream), main or sub
+    #     snapshot_mode: "auto"      # auto (prefer camera snapshot), camera or stream
+    #     codec_profile: "original"  # original, h264_opus or h264_aac (at most 2 active transcoders)
+    #     transport: "inherit"       # inherit existing URL settings, tcp or udp
+    #     playback_mode: "auto"      # auto, webrtc_tcp, mse, hls, mp4 or mjpeg
+    #     preload: false            # keep main stream warm through internal API
+    #     talk_enabled: false       # requires go2rtc.talk/admin and enabled LAN WebRTC
     #     # Person detection for this camera (Network Cameras app). Keys left out take
     #     # the defaults shown here, except the zones: the Driveway zone is only an
     #     # example, the default is no zones (the whole frame is watched).

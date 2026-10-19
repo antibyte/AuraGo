@@ -61,7 +61,9 @@ func (m *Go2RTCManager) Diagnose(ctx context.Context, id string) (out Go2RTCDiag
 	out.Bytes = len(data)
 	out.Status = "ok"
 	out.Stage = "complete"
-	if out.Hardware.Backend != "software" && !out.Hardware.Verified {
+	if out.EffectiveBackend != "original" && out.Hardware.Backend != "software" && !out.Hardware.Verified {
+		out.Status = "error"
+		out.Stage = "hardware"
 		out.ErrorCode = "hardware_not_verified"
 	}
 	return

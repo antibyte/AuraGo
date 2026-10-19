@@ -20,6 +20,7 @@ import (
 type go2RTCMediaRuntime struct {
 	config       config.Go2RTCStreamConfig
 	key          string
+	desiredKey   string
 	revision     uint64
 	ctx          context.Context
 	cancel       context.CancelFunc
@@ -81,20 +82,15 @@ func (m *Go2RTCManager) syncMediaConfig(cfg config.Go2RTCConfig) {
 		wanted[s.ID] = true
 		key := go2RTCMediaKey(s, cfg.Hardware)
 		old := m.media[s.ID]
-		if old != nil && old.key == key {
-			old.config = s
+		if old != nil {
+			old.desiredKey = key
+			if old.key == key {
+				old.config = s
+			}
 			continue
 		}
-		revision := uint64(1)
-		if old != nil {
-			revision = old.revision + 1
-			old.cancel()
-			for _, a := range old.aliases {
-				m.retiredAliases = append(m.retiredAliases, a)
-			}
-		}
 		ctx, cancel := context.WithCancel(context.Background())
-		m.media[s.ID] = &go2RTCMediaRuntime{config: s, key: key, revision: revision, ctx: ctx, cancel: cancel, ready: old == nil, aliases: map[string]string{"main": Go2RTCRuntimeStreamName(s.ID)}}
+		m.media[s.ID] = &go2RTCMediaRuntime{config: s, key: key, desiredKey: key, revision: 1, ctx: ctx, cancel: cancel, ready: true, aliases: map[string]string{"main": Go2RTCRuntimeStreamName(s.ID)}}
 	}
 	for id, r := range m.media {
 		if !wanted[id] {
@@ -150,7 +146,7 @@ func (m *Go2RTCManager) AcquireMedia(ctx context.Context, id, purpose string, co
 	m.mediaMu.Lock()
 	defer m.mediaMu.Unlock()
 	r := m.media[id]
-	if r == nil || !r.ready || r.ctx.Err() != nil {
+	if m.mediaClosed || r == nil || !r.ready || r.ctx.Err() != nil {
 		return nil, fmt.Errorf("camera is disabled or its source update is pending")
 	}
 	role, err := mediaRole(r.config, purpose)
@@ -253,6 +249,7 @@ func (m *Go2RTCManager) reconcileMediaStreams(ctx context.Context) (int, error) 
 	if !cfg.Enabled {
 		return 0, fmt.Errorf("go2rtc integration is disabled")
 	}
+	defer m.retireMediaAliases(ctx)
 	// Aliases are immutable for their revision. Avoid touching live producers
 	// on periodic reconciliation; a missing alias after a sidecar restart is
 	// registered again. Failure to read the inventory keeps the safe old retry.
@@ -274,44 +271,40 @@ func (m *Go2RTCManager) reconcileMediaStreams(ctx context.Context) (int, error) 
 			return count, err
 		}
 		m.mediaMu.Lock()
-		r := m.media[stream.ID]
-		if r == nil {
+		active := m.media[stream.ID]
+		targetKey := go2RTCMediaKey(stream, cfg.Hardware)
+		if active == nil || active.desiredKey != targetKey {
 			m.mediaMu.Unlock()
 			continue
 		}
-		if r.ctx.Err() != nil {
-			r.ctx, r.cancel = context.WithCancel(context.Background())
-			r.revision++
-			r.registered = false
-		}
-		if !r.registered && r.ready {
-			r.cancel()
-			r.ctx, r.cancel = context.WithCancel(context.Background())
-			r.revision++
-			r.ready = false
+		r := active
+		if active.key != targetKey || !active.registered || active.ctx.Err() != nil {
+			// Keep the active revision usable until every replacement alias exists.
+			owned, cancel := context.WithCancel(context.Background())
+			r = &go2RTCMediaRuntime{config: stream, key: targetKey, desiredKey: targetKey, revision: active.revision + 1, ctx: owned, cancel: cancel, aliases: map[string]string{}, lastSnapshot: active.lastSnapshot}
+			prefix := fmt.Sprintf("aurago~%s~%x~%d~", m.mediaEpoch, sha256.Sum256([]byte(stream.ID)), r.revision)
+			for _, role := range []string{"main", "sub", "snapshot"} {
+				if config.Go2RTCRoleSource(stream, role) != "" {
+					r.aliases[role] = prefix + role
+					if role != "snapshot" && stream.CodecProfile != "" && stream.CodecProfile != "original" {
+						r.aliases[role+"/"+stream.CodecProfile] = prefix + role + "~" + stream.CodecProfile
+					}
+				}
+			}
+			// Also clean partial registrations on an error or superseding config.
 			for _, alias := range r.aliases {
 				m.retiredAliases = append(m.retiredAliases, alias)
 			}
-		}
-
-		registered := r.registered
-		revision := r.revision
-		prefix := fmt.Sprintf("aurago~%s~%x~%d~", m.mediaEpoch, sha256.Sum256([]byte(stream.ID)), revision)
-		aliases := map[string]string{}
-		for _, role := range []string{"main", "sub", "snapshot"} {
-			if config.Go2RTCRoleSource(stream, role) != "" {
-				aliases[role] = prefix + role
-				if role != "snapshot" && stream.CodecProfile != "" && stream.CodecProfile != "original" {
-					aliases[role+"/"+stream.CodecProfile] = prefix + role + "~" + stream.CodecProfile
+			defer func(candidate *go2RTCMediaRuntime) {
+				m.mediaMu.Lock()
+				defer m.mediaMu.Unlock()
+				if m.media[candidate.config.ID] != candidate {
+					candidate.cancel()
 				}
-			}
+			}(r)
 		}
-		if r.registered {
-			aliases = map[string]string{}
-			for role, alias := range r.aliases {
-				aliases[role] = alias
-			}
-		}
+		registered := r.registered
+		aliases := r.aliases
 		m.mediaMu.Unlock()
 		for _, role := range []string{"main", "sub", "snapshot"} {
 			source := config.Go2RTCRoleSource(stream, role)
@@ -346,22 +339,44 @@ func (m *Go2RTCManager) reconcileMediaStreams(ctx context.Context) (int, error) 
 			}
 		}
 		m.mediaMu.Lock()
-		if current := m.media[stream.ID]; current == r && current.revision == revision {
-			r.aliases = aliases
+		published := !m.mediaClosed && m.media[stream.ID] == active && active.desiredKey == targetKey
+		if published {
+			if r != active {
+				active.cancel()
+				for _, alias := range active.aliases {
+					m.retiredAliases = append(m.retiredAliases, alias)
+				}
+				m.media[stream.ID] = r
+			}
 			r.registered = true
 			r.ready = true
 		}
 		m.mediaMu.Unlock()
+		if !published {
+			continue
+		}
 		if err := m.reconcilePreload(ctx, stream); err != nil {
 			return count, err
 		}
 		count++
 	}
+	return count, nil
+}
+
+func (m *Go2RTCManager) retireMediaAliases(ctx context.Context) {
 	m.mediaMu.Lock()
-	retired := m.retiredAliases
+	retired := map[string]bool{}
+	for _, alias := range m.retiredAliases {
+		retired[alias] = true
+	}
+	for _, r := range m.media {
+		for _, alias := range r.aliases {
+			delete(retired, alias)
+		}
+	}
 	m.retiredAliases = nil
 	m.mediaMu.Unlock()
-	for _, alias := range retired {
+	for alias := range retired {
 		// Runtime deletion can patch only the non-secret tmpfs config.
 		_ = m.request(ctx, http.MethodDelete, "/api/preload?"+url.Values{"src": {alias}}.Encode(), nil, 1<<20, nil)
 		if err := m.request(ctx, http.MethodDelete, "/api/streams?"+url.Values{"src": {alias}}.Encode(), nil, 1<<20, nil); err != nil {
@@ -370,7 +385,6 @@ func (m *Go2RTCManager) reconcileMediaStreams(ctx context.Context) (int, error) 
 			m.mediaMu.Unlock()
 		}
 	}
-	return count, nil
 }
 
 func (m *Go2RTCManager) patchMediaSource(ctx context.Context, alias, source string) error {
@@ -457,9 +471,15 @@ func (m *Go2RTCManager) RememberHLS(id, purpose, sid string, revision uint64) er
 	}
 	m.mediaMu.Lock()
 	if previous := m.hls[sid]; previous != nil {
-		previous.timer.Stop()
+		same := previous.lease.StreamID == lease.StreamID && previous.lease.Role == lease.Role && previous.lease.Revision == lease.Revision && previous.lease.Context.Err() == nil
+		if same {
+			previous.timer.Reset(5 * time.Second)
+		}
 		m.mediaMu.Unlock()
 		lease.Release()
+		if !same {
+			return fmt.Errorf("camera HLS session belongs to a different source revision")
+		}
 		return nil
 	}
 	entry := &go2RTCHLSSession{lease: lease}
@@ -486,9 +506,14 @@ func (m *Go2RTCManager) HLSLease(ctx context.Context, sid string) (*Go2RTCMediaL
 		return nil, fmt.Errorf("camera HLS session expired")
 	}
 	entry.timer.Reset(5 * time.Second)
-	id, role := entry.lease.StreamID, entry.lease.Role
+	id, role, revision := entry.lease.StreamID, entry.lease.Role, entry.lease.Revision
 	m.mediaMu.Unlock()
-	return m.AcquireMedia(ctx, id, role, true)
+	lease, err := m.AcquireMedia(ctx, id, role, true)
+	if err == nil && lease.Revision != revision {
+		lease.Release()
+		return nil, fmt.Errorf("camera HLS revision expired")
+	}
+	return lease, err
 }
 
 type Go2RTCMediaSettings struct {
@@ -503,6 +528,16 @@ type Go2RTCMediaSettings struct {
 }
 
 func (m *Go2RTCManager) applyMediaStatus(out *Go2RTCStreamStatus, s config.Go2RTCStreamConfig) {
+	m.mediaMu.Lock()
+	defer m.mediaMu.Unlock()
+	if r := m.media[s.ID]; r != nil {
+		s = r.config
+		out.Revision = r.revision
+		out.MediaReady = !m.mediaClosed && r.ready && r.ctx.Err() == nil
+		out.SourcePending = r.key != r.desiredKey || !r.registered
+		out.LastSnapshotAt = r.lastSnapshot
+		out.LastError = r.lastError
+	}
 	out.HasSubstream = s.SubSource != ""
 	out.HasCameraSnapshot = s.SnapshotSource != ""
 	out.VideoCodecs = []string{}
@@ -516,13 +551,8 @@ func (m *Go2RTCManager) applyMediaStatus(out *Go2RTCStreamStatus, s config.Go2RT
 	}
 	out.State = "idle"
 	out.Media = Go2RTCMediaSettingsFor(s)
-	m.mediaMu.Lock()
-	defer m.mediaMu.Unlock()
 	if r := m.media[s.ID]; r != nil {
-		out.Revision = r.revision
-		out.LastSnapshotAt = r.lastSnapshot
-		out.LastError = r.lastError
-		if !r.ready {
+		if !out.MediaReady {
 			out.State = "connecting"
 		}
 		if r.lastError != "" && r.lastError != "camera_snapshot_fallback" {

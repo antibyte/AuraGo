@@ -3776,8 +3776,15 @@ registration lives in `internal/desktop/types.go`.
   administrator-only ONVIF/manual setup and stream management, and cleanup on
   minimize or close. It must use AuraGo viewer/thumbnail APIs only, must never
   receive or persist camera credentials, and stores only non-sensitive grid
-  mode and selected-stream preferences. Loaded lazily by `module-loader.js` and
-  exposes `window.NetworkCamerasApp { render, dispose, open }`. An empty visible-ID
+  mode, selected-stream and non-sensitive main/substream role preferences. Loaded lazily by `module-loader.js` and
+  exposes `window.NetworkCamerasApp { render, dispose, open }`. `network-cameras-media.js`
+  owns shared media settings, role switching, diagnostics, incremental telemetry
+  and deliberate push-to-talk. Load it before the app. Visible windows poll state
+  every 5 seconds with at most one request; unchanged structures retain iframes,
+  inputs and modal state. Revisions reload only that camera. Hold/release,
+  pointer cancellation, blur, hiding and disposal stop microphone tracks, peer,
+  heartbeat and the identity-bound server lease. Never start the microphone on a
+  status update. Verify `TestDesktopNetworkCamerasMediaBrowser` in Standard/Fruity. An empty visible-ID
   set means no thumbnail requests; the no-`IntersectionObserver` fallback must
   explicitly mark all cards visible, and focus mode must stop grid polling.
   HTTP 202 mutation responses are saved partial successes: close the dialog,

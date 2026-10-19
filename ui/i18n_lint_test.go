@@ -1048,14 +1048,17 @@ func uniqueStrings(values []string) []string {
 // localI18nHelper is a file-local translation helper that prepends a fixed
 // prefix to a bare key, such as `tr = key => ctx.t('desktop.gog.' + key)`.
 type localI18nHelper struct {
-	name   string
-	prefix string
+	name        string
+	prefix      string
+	skipContext bool
 }
 
 // desktopLocalI18nHelpers registers Desktop app files whose local helper the
 // static i18n checks resolve: tr('title') in gog-sources.js is desktop.gog.title.
 // Register every new prefix helper here so its keys stay verified.
 var desktopLocalI18nHelpers = map[string]localI18nHelper{
+	"js/desktop/apps/network-cameras.js":         {name: "text", prefix: "desktop.network_cameras.", skipContext: true},
+	"js/desktop/apps/network-cameras-media.js":   {name: "text", prefix: "desktop.network_cameras.", skipContext: true},
 	"js/desktop/apps/minigolf-game.js":           {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/minigolf-views.js":          {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/minigolf-hud.js":            {name: "tr", prefix: "minigolf."},
@@ -1081,7 +1084,11 @@ func localI18nHelperKeys(relPath, content string) []string {
 	if !ok {
 		return nil
 	}
-	pattern := regexp.MustCompile(`\b` + regexp.QuoteMeta(helper.name) + `\(\s*['"]([a-zA-Z0-9_]+)['"]\s*[,)]`)
+	contextPattern := ""
+	if helper.skipContext {
+		contextPattern = `[^,()]+,\s*`
+	}
+	pattern := regexp.MustCompile(`\b` + regexp.QuoteMeta(helper.name) + `\(\s*` + contextPattern + `['"]([a-zA-Z0-9_]+)['"]\s*[,)]`)
 	var keys []string
 	for _, match := range pattern.FindAllStringSubmatch(content, -1) {
 		keys = append(keys, helper.prefix+match[1])

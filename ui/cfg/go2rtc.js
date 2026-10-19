@@ -6,6 +6,7 @@ function go2rtcEnsureData() {
     if (!configData.go2rtc) configData.go2rtc = {};
     const data = configData.go2rtc;
     if (!data.webrtc) data.webrtc = {};
+    if (!data.hardware) data.hardware = { backend: 'software', render_node: '/dev/dri/renderD128', render_group: '', device_id: '0' };
     if (!Array.isArray(data.streams)) data.streams = [];
     if (!data.image) data.image = 'alexxit/go2rtc:1.9.14@sha256:675c318b23c06fd862a61d262240c9a63436b4050d177ffc68a32710d9e05bae';
     if (!data.container_name) data.container_name = 'aurago_go2rtc';
@@ -25,6 +26,17 @@ function go2rtcStreams() {
         const draft = state.get('go2rtc.streams');
         if (Array.isArray(draft)) data.streams = JSON.parse(JSON.stringify(draft));
     }
+    // These neutral UI fields are absent from the saved server model. Give
+    // existing rows the same baseline so undoing an edit clears the dirty state.
+    const saved = state && state.get ? state.get('go2rtc.streams', { saved: true }) : null;
+    data.streams.forEach((stream, index) => {
+        for (const [key, value] of Object.entries(go2rtcStreamDefaults())) {
+            if (stream[key] !== undefined) continue;
+            stream[key] = value;
+            const path = 'go2rtc.streams.' + index + '.' + key;
+            if (state && state.markSaved && saved && saved[index] && saved[index].id === stream.id && saved[index][key] === undefined && state.get(path) === undefined) state.markSaved(path, value);
+        }
+    });
     return data.streams;
 }
 
@@ -77,9 +89,19 @@ function renderGo2RTCSection(section) {
         html += go2rtcField(base + '.id', stream.id || '', 'config.go2rtc.stream_id', 'help.go2rtc.stream_id', 'front-door', lockedID);
         html += go2rtcField(base + '.name', stream.name || '', 'config.go2rtc.stream_name', 'help.go2rtc.stream_name', t('config.go2rtc.stream_name_placeholder'), false);
         html += go2rtcSecret(base + '.source', stream.source || '', 'config.go2rtc.source', 'help.go2rtc.source', 'rtsp://camera.example/stream');
+        html += '<details class="cfg-advanced-panel"><summary class="cfg-advanced-summary">' + t('config.go2rtc.media_settings') + '</summary><div class="cfg-advanced-body">';
+        for (const key of ['sub_source', 'snapshot_source']) {
+            html += go2rtcSecret(base + '.' + key, stream[key] || '', 'config.go2rtc.' + key, '', t('config.go2rtc.keep_source'));
+            html += go2rtcToggle(base + '.clear_' + key, stream['clear_' + key] === true, 'config.go2rtc.clear_' + key, '');
+        }
+        for (const [key, options] of Object.entries(go2rtcMediaChoices)) html += go2rtcSelect(base + '.' + key, stream[key] || options[0][0], 'config.go2rtc.' + key, options);
+        html += go2rtcToggle(base + '.preload', stream.preload === true, 'config.go2rtc.preload', '');
+        html += go2rtcToggle(base + '.talk_enabled', stream.talk_enabled === true, 'config.go2rtc.talk_enabled', '');
+        html += '</div></details>';
         html += '<div class="field-group">';
         html += '<button type="button" class="btn-save" onclick="go2rtcSnapshot(' + index + ')">' + t('config.go2rtc.snapshot') + '</button> ';
         html += '<button type="button" class="btn-secondary" onclick="go2rtcOpenViewer(' + index + ')">' + t('config.go2rtc.viewer') + '</button> ';
+        html += '<button type="button" class="btn-secondary" onclick="go2rtcDiagnose(' + index + ')">' + t('config.go2rtc.diagnose') + '</button> ';
         html += '<button type="button" class="btn-secondary" onclick="go2rtcRemoveStream(' + index + ')">' + t('config.go2rtc.remove') + '</button>';
         html += '<div id="go2rtc-stream-result-' + index + '" class="adg-test-result"></div>';
         html += '<div id="go2rtc-stream-preview-' + index + '"></div>';
@@ -88,6 +110,14 @@ function renderGo2RTCSection(section) {
     html += '<div class="field-group"><button type="button" class="btn-save" onclick="go2rtcAddStream()">' + t('config.go2rtc.add_stream') + '</button></div>';
 
     html += '<details class="cfg-advanced-panel"><summary class="cfg-advanced-summary">⚙️ ' + t('config.go2rtc.advanced') + '</summary><div class="cfg-advanced-body">';
+    html += go2rtcSelect('go2rtc.hardware.backend', data.hardware.backend || 'software', 'config.go2rtc.hardware_backend', [['software', 'CPU'], ['vaapi', 'VAAPI'], ['cuda', 'CUDA / NVENC']], true);
+    html += '<div class="field-help">' + t('config.go2rtc.hardware_help') + '</div>';
+    if (data.hardware.backend === 'vaapi') {
+        html += go2rtcField('go2rtc.hardware.render_node', data.hardware.render_node || '/dev/dri/renderD128', 'config.go2rtc.hardware_node', '', '/dev/dri/renderD128', false);
+        html += go2rtcField('go2rtc.hardware.render_group', data.hardware.render_group || '', 'config.go2rtc.hardware_group', '', '993', false);
+    }
+    if (data.hardware.backend === 'cuda') html += go2rtcField('go2rtc.hardware.device_id', data.hardware.device_id || '0', 'config.go2rtc.hardware_device', '', '0', false);
+    html += '<div class="field-group"><button type="button" class="btn-secondary" onclick="go2rtcHardwareTest()">' + t('config.go2rtc.hardware_test') + '</button><output id="go2rtc-hardware-result" class="adg-test-result"></output></div>';
     html += go2rtcField('go2rtc.image', data.image, 'config.go2rtc.image', 'help.go2rtc.image', '', false);
     html += go2rtcField('go2rtc.container_name', data.container_name, 'config.go2rtc.container_name', 'help.go2rtc.container_name', 'aurago_go2rtc', false);
     html += go2rtcToggle('go2rtc.webrtc.enabled', data.webrtc.enabled === true, 'config.go2rtc.webrtc_enabled', 'help.go2rtc.webrtc_enabled', true);
@@ -104,24 +134,24 @@ function renderGo2RTCSection(section) {
 
 function go2rtcToggle(path, on, labelKey, helpKey, rerender) {
     let html = '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div>';
-    html += '<div class="field-help">' + t(helpKey) + '</div>';
+    if (helpKey) html += '<div class="field-help">' + t(helpKey) + '</div>';
     html += '<div class="toggle-wrap"><div class="toggle' + (on ? ' on' : '') + '" data-path="' + escapeAttr(path) + '" onclick="toggleBool(this);setNestedValue(configData,\'' + path + '\',this.classList.contains(\'on\'));' + (rerender ? 'renderGo2RTCSection(null);' : '') + '"></div>';
     html += '<span class="toggle-label">' + (on ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span></div></div>';
     return html;
 }
 
 function go2rtcField(path, value, labelKey, helpKey, placeholder, readonly) {
-    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="field-help">' + t(helpKey) + '</div>' +
+    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div>' + (helpKey ? '<div class="field-help">' + t(helpKey) + '</div>' : '') +
         '<input class="field-input" type="text" data-path="' + escapeAttr(path) + '" value="' + escapeAttr(value || '') + '" placeholder="' + escapeAttr(placeholder || '') + '"' + (readonly ? ' readonly' : '') + '></div>';
 }
 
 function go2rtcSecret(path, value, labelKey, helpKey, placeholder) {
-    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="field-help">' + t(helpKey) + '</div>' +
+    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div>' + (helpKey ? '<div class="field-help">' + t(helpKey) + '</div>' : '') +
         '<input class="field-input" type="password" autocomplete="off" data-path="' + escapeAttr(path) + '" value="' + escapeAttr(value || '') + '" placeholder="' + escapeAttr(placeholder || '') + '"></div>';
 }
 
 function go2rtcNumber(path, value, labelKey, helpKey, min, max) {
-    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="field-help">' + t(helpKey) + '</div>' +
+    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div>' + (helpKey ? '<div class="field-help">' + t(helpKey) + '</div>' : '') +
         '<input class="field-input" type="number" min="' + min + '" max="' + max + '" data-path="' + escapeAttr(path) + '" value="' + escapeAttr(value) + '"></div>';
 }
 
@@ -133,7 +163,7 @@ function go2rtcAddStream() {
         suffix += 1;
         id = 'camera-' + suffix;
     }
-    streams.push({ id, name: t('config.go2rtc.stream_name_placeholder'), enabled: true, source: '', source_configured: false });
+    streams.push(Object.assign(go2rtcStreamDefaults(), { id, name: t('config.go2rtc.stream_name_placeholder'), enabled: true, source: '', source_configured: false }));
     go2rtcSetStreams(streams);
 }
 
@@ -231,4 +261,52 @@ function go2rtcOpenViewer(index) {
     const result = document.getElementById('go2rtc-stream-result-' + index);
     if (!go2rtcSavedOnly(result)) return;
     window.open('/api/go2rtc/viewer/' + encodeURIComponent(stream.id), '_blank', 'noopener');
+}
+
+const go2rtcMediaChoices = {
+    preview_source: [['auto', 'automatic'], ['main', 'main_stream'], ['sub', 'sub_stream']],
+    detection_source: [['auto', 'automatic'], ['main', 'main_stream'], ['sub', 'sub_stream']],
+    snapshot_mode: [['auto', 'automatic'], ['camera', 'snapshot_source'], ['stream', 'stream_image']],
+    codec_profile: [['original', 'original'], ['h264_opus', 'H.264 / Opus'], ['h264_aac', 'H.264 / AAC']],
+    transport: [['inherit', 'automatic'], ['tcp', 'TCP'], ['udp', 'UDP']],
+    playback_mode: [['auto', 'automatic'], ['webrtc_tcp', 'WebRTC / TCP'], ['mse', 'MSE'], ['hls', 'HLS'], ['mp4', 'MP4'], ['mjpeg', 'MJPEG']]
+};
+
+function go2rtcStreamDefaults() {
+    const values = { sub_source: '', snapshot_source: '', clear_sub_source: false, clear_snapshot_source: false, preload: false, talk_enabled: false };
+    for (const [key, options] of Object.entries(go2rtcMediaChoices)) values[key] = options[0][0];
+    return values;
+}
+
+function go2rtcSelect(path, value, label, choices, rerender) {
+    return '<div class="field-group"><label class="field-label" for="' + escapeAttr(path) + '">' + t(label) + '</label><select class="field-select" id="' + escapeAttr(path) + '" data-path="' + escapeAttr(path) + '"' + (rerender ? ' onchange="setNestedValue(configData,\'' + path + '\',this.value);renderGo2RTCSection(null)"' : '') + '>' + choices.map(([key, caption]) => '<option value="' + key + '" ' + (key === value ? 'selected' : '') + '>' + escapeHtml(/[A-Z]/.test(caption) ? caption : t('config.go2rtc.' + caption)) + '</option>').join('') + '</select></div>';
+}
+
+async function go2rtcHardwareTest() {
+    const output = document.getElementById('go2rtc-hardware-result');
+    if (!go2rtcSavedOnly(output)) return;
+    output.textContent = t('config.go2rtc.working');
+    try {
+        const response = await fetch('/api/go2rtc/hardware/test', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+        const result = await response.json();
+        const verified = response.ok && result.verified;
+        output.textContent = t(verified ? 'config.go2rtc.hardware_verified' : 'config.go2rtc.hardware_failed');
+        output.className = 'adg-test-result ' + (verified ? 'is-success' : 'is-danger');
+    } catch (_) { output.textContent = t('config.go2rtc.hardware_failed'); output.className = 'adg-test-result is-danger'; }
+}
+
+async function go2rtcDiagnose(index) {
+    const output = document.getElementById('go2rtc-stream-result-' + index);
+    if (!go2rtcSavedOnly(output)) return;
+    const stream = go2rtcEnsureData().streams[index];
+    output.textContent = t('config.go2rtc.working');
+    try {
+        const response = await fetch('/api/go2rtc/diagnostics/' + encodeURIComponent(stream.id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        if (!response.ok) throw new Error('diagnosis');
+        const result = await response.json();
+        output.textContent = t(result.status === 'ok' ? 'config.go2rtc.diagnostics_success' : 'config.go2rtc.diagnostics_failed').replace('{width}', result.width || 0).replace('{height}', result.height || 0).replace('{ms}', result.duration_ms || 0);
+        if (result.error_code) output.textContent += ' (' + result.error_code + ')';
+        if (result.effective_transcoding_backend) output.textContent += ' · ' + (result.effective_transcoding_backend === 'software' ? 'CPU' : result.effective_transcoding_backend);
+        output.className = 'adg-test-result ' + (result.status === 'ok' ? 'is-success' : 'is-danger');
+    } catch (_) { output.textContent = t('config.go2rtc.diagnostics_failed'); output.className = 'adg-test-result is-danger'; }
 }

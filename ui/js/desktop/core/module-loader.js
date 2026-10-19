@@ -272,6 +272,7 @@
                 '/js/desktop/apps/network-cameras-detection-views.js',
                 '/js/desktop/apps/network-cameras-detection-zones.js',
                 '/js/desktop/apps/network-cameras-detection.js',
+                '/js/desktop/apps/network-cameras-media.js',
                 '/js/desktop/apps/network-cameras.js'
             ]
         },

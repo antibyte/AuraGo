@@ -879,21 +879,20 @@ func go2RTCFingerprint(cfg config.Go2RTCConfig, rendered []byte, owner string) s
 	return hex.EncodeToString(sum[:])
 }
 
-func go2RTCContainerRunning(dockerCfg DockerConfig, containerName, owner string) bool {
-	running, _ := go2RTCInspectRunning(dockerCfg, containerName, owner)
-	return running
-}
-
 // go2RTCInspectRunning reports whether the named container is the running
 // sidecar of this owner. known is false when Docker's answer does not settle it
 // (transport error, a status other than 200 or 404, an undecodable body, or a
 // container whose labels are not this owner's); a missing container is a known
 // "not running".
 func go2RTCInspectRunning(dockerCfg DockerConfig, containerName, owner string) (running, known bool) {
+	return go2RTCInspectRunningContext(context.Background(), dockerCfg, containerName, owner)
+}
+
+func go2RTCInspectRunningContext(ctx context.Context, dockerCfg DockerConfig, containerName, owner string) (running, known bool) {
 	if strings.TrimSpace(containerName) == "" {
 		return false, true
 	}
-	data, code, err := dockerRequest(dockerCfg, http.MethodGet, "/containers/"+url.PathEscape(containerName)+"/json", "")
+	data, code, err := DockerRequestContext(ctx, dockerCfg, http.MethodGet, "/containers/"+url.PathEscape(containerName)+"/json", "")
 	if err != nil {
 		return false, false
 	}

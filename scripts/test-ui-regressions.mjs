@@ -1926,8 +1926,12 @@ function testNetworkCamerasDesktopContracts() {
   assert.match(dashboard, /href="\/desktop\?app=network-cameras"/);
 
   const preferenceSource = sourceBetween(app, 'function savePreferences(state)', 'function createState');
-  assert.match(preferenceSource, /\{ mode: state\.mode, selected: state\.selected \}/);
-  assert.doesNotMatch(preferenceSource, /password|username|source|token/i);
+  let cameraPreferences;
+  const preferenceContext = { preferenceKey: 'fixture', localStorage: { setItem: (_, value) => { cameraPreferences = JSON.parse(value); } } };
+  vm.createContext(preferenceContext);
+  vm.runInContext(`${preferenceSource}; globalThis.save = savePreferences;`, preferenceContext);
+  preferenceContext.save({ mode: 'snapshots', selected: 'one', sourceRoles: { one: 'sub' }, source: 'rtsp://private/', username: 'secret', password: 'secret', token: 'secret' });
+  assert.deepEqual(cameraPreferences, { mode: 'snapshots', selected: 'one', sourceRoles: { one: 'sub' } }, 'only non-secret viewing preferences are stored');
 
   const gridSource = sourceBetween(app, 'function liveGridIDs(state, streams)', 'function cardMarkup');
   const gridContext = { Set };
@@ -2293,7 +2297,7 @@ function testNetworkCamerasDetectionAppContracts() {
   const app = read('ui/js/desktop/apps/network-cameras.js');
   const loader = read('ui/js/desktop/core/module-loader.js');
 
-  assert.match(loader, /'network-cameras': \{\s*styles: appStyles\('\/css\/desktop-app-network-cameras\.css', '\/css\/desktop-app-network-cameras-detection\.css'\),\s*scripts: \[\s*'\/js\/desktop\/apps\/network-cameras-detection-views\.js',\s*'\/js\/desktop\/apps\/network-cameras-detection-zones\.js',\s*'\/js\/desktop\/apps\/network-cameras-detection\.js',\s*'\/js\/desktop\/apps\/network-cameras\.js'\s*\]/, 'the detection modules and stylesheet must load before the Network Cameras app');
+  assert.match(loader, /'network-cameras': \{\s*styles: appStyles\('\/css\/desktop-app-network-cameras\.css', '\/css\/desktop-app-network-cameras-detection\.css'\),\s*scripts: \[\s*'\/js\/desktop\/apps\/network-cameras-detection-views\.js',\s*'\/js\/desktop\/apps\/network-cameras-detection-zones\.js',\s*'\/js\/desktop\/apps\/network-cameras-detection\.js',\s*'\/js\/desktop\/apps\/network-cameras-media\.js',\s*'\/js\/desktop\/apps\/network-cameras\.js'\s*\]/, 'the detection and media modules must load before the Network Cameras app');
 
   const modeSource = sourceBetween(app, 'function coerceMode(value)', 'function readPreferences');
   const modeContext = {};
@@ -2315,7 +2319,7 @@ function testNetworkCamerasDetectionAppContracts() {
   assert.match(app, /state\.mode = coerceMode\(button\.dataset\.mode\)/, 'the segmented control must accept the detection mode');
   assert.match(app, /mode: launchContext\(ctx\) \? \(launchContext\(ctx\).event_id \? 'detections' : 'snapshots'\) : preferences\.mode/, 'event launches open detection; camera launches open snapshots');
   assert.match(app, /data-mode="detections"/);
-  assert.match(app, /if \(state\.mode === 'detections' && runtime && runtime\.enabled && allStreams\(state\)\.length > 0\) return '<div class="nc-detection-host" data-role="detection"><\/div>';\s*if \(!runtime \|\| !runtime\.enabled \|\| !runtime\.api_usable/, 'the detection mode does not need a running go2rtc (4B review 2)');
+  assert.match(app, /if \(state\.mode === 'detections' && runtime && runtime\.enabled && allStreams\(state\)\.length > 0\) return '<div class="nc-detection-host" data-role="detection"><\/div>';\s*if \(!runtime \|\| !runtime\.enabled \|\| allStreams\(state\)\.length === 0/, 'camera management and detection remain available during a sidecar outage');
   assert.match(sourceBetween(app, 'async function saveManagedStream(state)', 'async function deleteManagedStream'), /views\.fieldErrorKey\(field\)[\s\S]*modal\.error = key \? text\(state\.ctx, 'detection\.' \+ key\) : error\.message;\s*if \(field\.startsWith\('detection\.'\) && detectionTabAvailable\(state\)\) modal\.tab = 'detection';/, 'a PATCH 400 on the detection block is localized and opens its tab (4B review 3f)');
   assert.match(app, /module\.unmount\(state\.windowId, \{ keepState: true \}\)/, 'hidden windows and other modes must stop detection polling');
   assert.match(sourceBetween(app, 'function syncDetection(state)', 'function bindMainEvents'), /const launch = state\.pendingLaunch;\s*state\.pendingLaunch = null;/, 'the launch context is consumed by exactly one mount');
@@ -4185,8 +4189,17 @@ function testConfigThreeDPrinterListsSaveAsCompleteLists() {
 // keeps typed edits and never shifts one camera's fields onto another.
 function testConfigGo2RTCStreamsSaveAsCompleteList() {
   const plain = value => JSON.parse(JSON.stringify(value));
+  const legacy = configGo2RTCContext({ enabled: false, auto_start: true, agent_access: true, store_media: true, web_ui_enabled: false,
+    image: 'alexxit/go2rtc:test', container_name: 'aurago_go2rtc', api_host_port: 1984, webrtc: { enabled: false, port: 8555 },
+    streams: [{ id: 'legacy', name: 'Legacy', enabled: true, source: '', source_configured: false }] });
+  legacy.renderGo2RTCSection({ label: 'go2rtc', desc: 'Cameras' });
+  legacy.window.AuraConfigState.syncFromDOM(legacy.content);
+  assert.equal(legacy.window.AuraConfigState.isDirty(), false, 'neutral media defaults do not dirty an existing camera');
+  const media = { sub_source: '', snapshot_source: '', clear_sub_source: false, clear_snapshot_source: false, preload: false, talk_enabled: false,
+    preview_source: 'auto', detection_source: 'auto', snapshot_mode: 'auto', codec_profile: 'original', transport: 'inherit', playback_mode: 'auto' };
   const stream = (id, name) => ({
     id, name, enabled: true, source: '••••••••', source_configured: true,
+    ...media,
     detection: { enabled: true, zones: [{ name: id + '-zone', points: [[0, 0], [1, 0], [1, 1]] }] }
   });
   const context = configGo2RTCContext({
@@ -4219,7 +4232,7 @@ function testConfigGo2RTCStreamsSaveAsCompleteList() {
 
   context.go2rtcAddStream();
   state.syncFromDOM(context.content); // saveConfig reads the controls again
-  const added = { id: 'camera-4', name: 'config.go2rtc.stream_name_placeholder', enabled: true, source: '', source_configured: false };
+  const added = { ...media, id: 'camera-4', name: 'config.go2rtc.stream_name_placeholder', enabled: true, source: '', source_configured: false };
   assert.equal(context.content.control('go2rtc.streams.1.name').value, 'Garage side', 'the re-render shows the typed edit');
   assert.deepEqual(patchStreams('an added camera'), [...edited, added], 'an added camera keeps the typed edit and the other cameras');
 
