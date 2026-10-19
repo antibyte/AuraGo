@@ -20,8 +20,13 @@ func ResolveProviderAIGatewayRoute(cfg *config.Config, p config.ProviderEntry) A
 		*view = *cfg
 	}
 	config.NormalizeAIGatewayConfig(view)
-	route := AIGatewayRoute{Provider: p.Type, Mode: "provider_native", PrivacyMode: view.AIGateway.LogMode, GatewayID: p.GatewayID, Status: "invalid_config", Message: "Cloudflare REST requires a valid account, gateway and canonical endpoint"}
+	route := AIGatewayRoute{Provider: p.Type, Mode: "cloudflare_rest", PrivacyMode: view.AIGateway.LogMode, GatewayID: p.GatewayID, Status: "invalid_config", Message: "Cloudflare REST requires a valid account, gateway and canonical endpoint", RequestTimeoutMS: view.AIGateway.RequestTimeoutMS, EffectiveTimeoutMS: effectiveAIGatewayRequestTimeoutMS(cfg, p.Type)}
 	if err := config.ValidateGatewayProvider(p); err != nil {
+		return route
+	}
+	privacyView := *view
+	privacyView.AIGateway.Enabled = false
+	if config.ValidateAIGatewayConfig(&privacyView) != nil {
 		return route
 	}
 	route.Status = "configured"

@@ -558,7 +558,7 @@ func handleAgodeskLocalLLM(s *Server, conn *websocket.Conn, state *agodeskConnec
 		return
 	}
 
-	client := llm.NewClientFromProviderWithConfig(cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID)
+	client := llm.NewClientFromProviderWithConfig(cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID, provider.GatewayID)
 	ctx, cancel := context.WithTimeout(agodeskLocalProviderContext(state), agodeskLocalLLMTimeout)
 	defer cancel()
 	completionRequest := openai.ChatCompletionRequest{

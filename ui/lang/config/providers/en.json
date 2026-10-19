@@ -290,5 +290,9 @@
   "config.providers.role_image_generation": "Image generation",
   "config.providers.role_music_generation": "Music generation",
   "config.providers.role_video_generation": "Video generation",
-  "config.providers.role_a2a_llm": "A2A"
+  "config.providers.role_a2a_llm": "A2A",
+  "config.providers.hint.cloudflare_rest": "Use a Cloudflare token with Workers AI Read. Enter an author/model ID. Third-party models are billed by Cloudflare.",
+  "config.providers.hint.generic_key": "API key from the selected provider.",
+  "config.providers.gateway_id": "Gateway ID",
+  "config.providers.gateway_id_empty_error": "Enter a gateway ID."
 }

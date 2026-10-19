@@ -168,12 +168,22 @@ func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.Clie
 	gatewayID := strings.TrimSpace(p.GatewayID)
 	isLocal := isLocalProviderType(providerType)
 	aiGatewayToken := ""
+	routingError := ""
+	gatewayRouted := providerType == "cloudflare-rest"
 
 	if apiKey == "" && isLocal {
 		apiKey = providerType
 	}
 
 	clientConfig := openai.DefaultConfig(apiKey)
+	if baseURLRaw == "" {
+		switch providerType {
+		case "cerebras":
+			clientConfig.BaseURL = "https://api.cerebras.ai/v1"
+		case "perplexity":
+			clientConfig.BaseURL = "https://api.perplexity.ai"
+		}
+	}
 
 	if baseURLRaw != "" {
 		clientConfig.BaseURL = normalizeProviderBaseURL(providerType, baseURLRaw)
@@ -200,25 +210,35 @@ func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.Clie
 	if cfg != nil && cfg.AIGateway.Enabled && cfg.AIGateway.AccountID != "" && cfg.AIGateway.GatewayID != "" && !isLocal {
 		route := ResolveAIGatewayRoute(cfg, providerType, accountID, baseURLRaw)
 		if route.RouteSupported {
+			gatewayRouted = true
 			clientConfig.BaseURL = route.Endpoint
 			if route.AuthHeader == "cf-aig-authorization" {
 				aiGatewayToken = cfg.AIGateway.Token
 			}
 		}
+		if route.Status == "invalid_config" {
+			routingError = route.Message
+		}
 	}
 
+	transportCfg := cfg
+	if cfg != nil && !gatewayRouted {
+		copy := *cfg
+		copy.AIGateway.Enabled = false
+		transportCfg = &copy
+	}
 	if isLoopbackHTTPS(clientConfig.BaseURL) {
 		transport := http.RoundTripper(loopbackHTTPSTransport())
 		if providerType == "manifest" && cfg != nil {
 			transport = &manifestRoutingTransport{base: transport, routing: cfg.Manifest.Routing}
 		}
 		clientConfig.HTTPClient = &http.Client{Transport: transport, CheckRedirect: httporigin.SameOriginRedirect}
-	} else if httpClient := buildLLMHTTPClient(cfg, providerType, aiGatewayToken, clientConfig.BaseURL, logicalBaseURL); httpClient != nil {
+	} else if httpClient := buildLLMHTTPClient(transportCfg, providerType, aiGatewayToken, clientConfig.BaseURL, logicalBaseURL); httpClient != nil {
 		clientConfig.HTTPClient = httpClient
 	}
 	if client, ok := clientConfig.HTTPClient.(*http.Client); ok {
 		client.Transport = &providerURLTransport{base: &responseTimeoutTransport{base: client.Transport, timeout: 3 * time.Minute}}
-		if providerType == "workers-ai" && accountID == "" && baseURLRaw == "" {
+		if providerType == "workers-ai" && !validGatewayPathSegment(accountID) {
 			client.Transport = invalidProviderTransport{message: "Workers AI requires an explicit provider account ID"}
 		}
 		if providerType == "cloudflare-rest" {
@@ -227,6 +247,16 @@ func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.Clie
 			} else {
 				client.Transport = &cloudflareRESTTransport{base: client.Transport, gatewayID: gatewayID}
 			}
+			if cfg != nil {
+				privacyView := *cfg
+				privacyView.AIGateway.Enabled = false
+				if config.ValidateAIGatewayConfig(&privacyView) != nil {
+					client.Transport = invalidProviderTransport{message: "Invalid AI Gateway privacy or request controls"}
+				}
+			}
+		}
+		if routingError != "" {
+			client.Transport = invalidProviderTransport{message: routingError}
 		}
 	}
 
@@ -353,18 +383,6 @@ func NewClientFromProviderWithConfig(cfg *config.Config, providerType, baseURL, 
 	}
 	if len(gatewayIDs) > 0 {
 		p.GatewayID = gatewayIDs[0]
-	} else if cfg != nil {
-		// Legacy subsystem constructors carry connection details rather than a provider ID.
-		// Accept an unambiguous matching entry only; never guess between two gateways.
-		for _, entry := range cfg.Providers {
-			if entry.Type == providerType && entry.BaseURL == baseURL && entry.APIKey == apiKey && entry.AccountID == accountID {
-				if p.GatewayID != "" && p.GatewayID != entry.GatewayID {
-					p.GatewayID = ""
-					break
-				}
-				p.GatewayID = entry.GatewayID
-			}
-		}
 	}
 	return openai.NewClientWithConfig(buildOpenAIClientConfig(cfg, p))
 }
@@ -555,17 +573,19 @@ func aiGatewaySegment(providerType string) string {
 
 // AIGatewayRoute describes how a provider would be routed through Cloudflare AI Gateway.
 type AIGatewayRoute struct {
-	Status         string
-	Message        string
-	Provider       string
-	Mode           string
-	Endpoint       string
-	Segment        string
-	RouteSupported bool
-	PrivacyMode    string
-	AuthHeader     string
-	GatewayID      string
-	Warnings       []string
+	Status             string
+	Message            string
+	Provider           string
+	Mode               string
+	Endpoint           string
+	Segment            string
+	RouteSupported     bool
+	PrivacyMode        string
+	AuthHeader         string
+	GatewayID          string
+	Warnings           []string
+	RequestTimeoutMS   int
+	EffectiveTimeoutMS int
 }
 
 // ResolveAIGatewayRoute returns the runtime route AuraGo will use for an LLM provider.
@@ -584,8 +604,16 @@ func ResolveAIGatewayRoute(cfg *config.Config, providerType, providerAccountID s
 	cfgCopy := *cfg
 	config.NormalizeAIGatewayConfig(&cfgCopy)
 	gw := cfgCopy.AIGateway
-	route.Mode = gw.Mode
+	route.Mode = "provider_native"
 	route.PrivacyMode = gw.LogMode
+	route.RequestTimeoutMS = gw.RequestTimeoutMS
+	route.EffectiveTimeoutMS = effectiveAIGatewayRequestTimeoutMS(cfg, provider)
+	if gw.MaxAttempts != 0 || gw.RetryDelayMS != 0 || gw.Backoff != "" {
+		route.Warnings = append(route.Warnings, "Gateway retry settings are deprecated; AuraGo owns retries and uses one gateway attempt.")
+	}
+	if gw.Mode != "auto" {
+		route.Warnings = append(route.Warnings, "Legacy gateway modes use provider-native routing. Select a Cloudflare REST provider explicitly for REST billing.")
+	}
 	route.GatewayID = strings.TrimSpace(gw.GatewayID)
 	if !gw.Enabled {
 		return route
@@ -609,9 +637,14 @@ func ResolveAIGatewayRoute(cfg *config.Config, providerType, providerAccountID s
 		route.Warnings = append(route.Warnings, route.Message)
 		return route
 	}
+	if err := config.ValidateAIGatewayConfig(cfg); err != nil {
+		route.Status = "invalid_config"
+		route.Message = "AI Gateway configuration is invalid"
+		return route
+	}
 	if provider == "workers-ai" {
 		workersAccountID := strings.TrimSpace(providerAccountID)
-		if workersAccountID == "" {
+		if !validGatewayPathSegment(workersAccountID) {
 			route.Message = "Workers AI requires an explicit provider account ID"
 			return route
 		}
@@ -808,7 +841,7 @@ func (t *aiGatewayAuthTransport) RoundTrip(req *http.Request) (*http.Response, e
 		clone.Header.Set("cf-aig-gateway-id", strings.TrimSpace(t.gatewayID))
 	}
 	clone.Header.Del("cf-aig-collect-log")
-	if t.collectLog || !t.collectPayload && t.logMode == "off" {
+	if t.collectLog || t.logMode == "off" {
 		clone.Header.Set("cf-aig-collect-log", strconv.FormatBool(t.collectLog))
 	}
 	clone.Header.Set("cf-aig-collect-log-payload", strconv.FormatBool(t.collectPayload))

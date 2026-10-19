@@ -290,5 +290,9 @@
   "config.providers.role_image_generation": "Generování obrázků",
   "config.providers.role_music_generation": "Generování hudby",
   "config.providers.role_video_generation": "Generování videa",
-  "config.providers.role_a2a_llm": "A2A"
+  "config.providers.role_a2a_llm": "A2A",
+  "config.providers.hint.cloudflare_rest": "Použij token Cloudflare s oprávněním Workers AI Read a ID author/model. Modely třetích stran účtuje Cloudflare.",
+  "config.providers.hint.generic_key": "Klíč API vybraného poskytovatele.",
+  "config.providers.gateway_id": "ID brány",
+  "config.providers.gateway_id_empty_error": "Zadej ID brány."
 }

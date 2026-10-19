@@ -85,10 +85,15 @@ func TestCloudflareRESTRejectsUnsafeOrIncompleteConfiguration(t *testing.T) {
 		{ProviderType: "cloudflare-rest", AccountID: "account", BaseURL: "https://collector.invalid/v1", GatewayID: "gw"},
 		{ProviderType: "cloudflare-rest", AccountID: "account"},
 		{ProviderType: "workers-ai"},
+		{ProviderType: "workers-ai", BaseURL: "https://api.cloudflare.com/client/v4/accounts/account/ai/v1"},
+		{ProviderType: "workers-ai", AccountID: "account?query"},
 	} {
 		cc := buildOpenAIClientConfig(gatewayFixtureConfig(), p)
 		if _, ok := cc.HTTPClient.(*http.Client).Transport.(invalidProviderTransport); !ok {
 			t.Fatalf("invalid route was not blocked: %+v", p)
+		}
+		if p.ProviderType == "workers-ai" && ResolveAIGatewayRoute(gatewayFixtureConfig(), p.ProviderType, p.AccountID, p.BaseURL).RouteSupported {
+			t.Fatal("invalid Workers AI account accepted by diagnostics")
 		}
 	}
 }
@@ -131,5 +136,28 @@ func TestCloudflareRESTTaskAndHelperGatewayIdentity(t *testing.T) {
 	cfg.AIGateway.Token = "rotated-fixture"
 	if a == TaskConfigFingerprint(cfg) {
 		t.Fatal("gateway credential rotation retained cached clients")
+	}
+}
+
+func TestCloudflareRESTMultipleGatewaysNeverGuessFromCredentials(t *testing.T) {
+	cfg := gatewayFixtureConfig()
+	p := config.ProviderEntry{ID: "one", Type: "cloudflare-rest", AccountID: "account", GatewayID: "gateway-one", Model: "google/gemini-2.5-flash", APIKey: "shared-fixture-token"}
+	q := p
+	q.ID = "two"
+	q.GatewayID = "gateway-two"
+	cfg.Providers = []config.ProviderEntry{p, q}
+	cfg.LLM.Provider = p.ID
+	cfg.LLM.HelperEnabled = true
+	cfg.LLM.HelperProvider = q.ID
+	cfg.ResolveProviders()
+	helper := ResolveHelperLLM(cfg)
+	cc := buildOpenAIClientConfig(cfg, resolvedProvider{ProviderType: helper.ProviderType, AccountID: helper.AccountID, GatewayID: helper.GatewayID, APIKey: helper.APIKey, BaseURL: helper.BaseURL})
+	if cc.HTTPClient.(*http.Client).Transport.(*cloudflareRESTTransport).gatewayID != q.GatewayID {
+		t.Fatal("helper inherited primary gateway")
+	}
+	ambiguous := NewClientFromProviderWithConfig(cfg, p.Type, cfg.Providers[0].BaseURL, p.APIKey, p.AccountID)
+	_, err := ambiguous.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{Model: p.Model, Messages: []openai.ChatCompletionMessage{{Role: "user", Content: "fixture"}}})
+	if err == nil {
+		t.Fatal("ambiguous gateway credentials were accepted")
 	}
 }

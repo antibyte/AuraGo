@@ -267,6 +267,9 @@ func (c *Config) ResolveProviders() {
 			p.APIKey = strings.TrimSpace(c.OmniRoute.APIKey)
 		}
 		p.BaseURL = providerutil.NormalizeBaseURL(p.BaseURL)
+		if lower == "cloudflare-rest" && p.BaseURL == "" && ValidAIGatewaySegment(p.AccountID) {
+			p.BaseURL = "https://api.cloudflare.com/client/v4/accounts/" + p.AccountID + "/ai/v1"
+		}
 	}
 
 	// ── LLM ──

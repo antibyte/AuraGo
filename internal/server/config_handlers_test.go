@@ -759,7 +759,7 @@ func TestHandleUpdateConfigNormalizesAIGatewayBeforePersisting(t *testing.T) {
 			"mode": "definitely-invalid",
 			"log_mode": "leak-everything",
 			"backoff": "sideways",
-			"request_timeout_ms": -500,
+			"request_timeout_ms": 0,
 			"max_attempts": 12,
 			"retry_delay_ms": -10
 		}

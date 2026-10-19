@@ -290,5 +290,9 @@
   "config.providers.role_image_generation": "画像生成",
   "config.providers.role_music_generation": "音楽生成",
   "config.providers.role_video_generation": "動画生成",
-  "config.providers.role_a2a_llm": "A2A"
+  "config.providers.role_a2a_llm": "A2A",
+  "config.providers.hint.cloudflare_rest": "Workers AI Read 権限のある Cloudflare トークンと author/model 形式の ID を使用してください。サードパーティーモデルは Cloudflare が課金します。",
+  "config.providers.hint.generic_key": "選択したプロバイダーの API キーです。",
+  "config.providers.gateway_id": "ゲートウェイ ID",
+  "config.providers.gateway_id_empty_error": "ゲートウェイ ID を入力してください。"
 }

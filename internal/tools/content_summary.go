@@ -50,7 +50,14 @@ func ResolveSummaryLLMConfig(cfg *config.Config, fallback SummaryLLMConfig) Summ
 		}
 	}
 	if cfg != nil && fallback.ProviderType == "" {
+		if fallback.APIKey == cfg.LLM.APIKey && fallback.BaseURL == cfg.LLM.BaseURL {
+			fallback.ProviderID, fallback.ProviderType = cfg.LLM.Provider, cfg.LLM.ProviderType
+			fallback.AccountID, fallback.GatewayID = cfg.LLM.AccountID, cfg.LLM.GatewayID
+		}
 		for _, provider := range cfg.Providers {
+			if fallback.ProviderType != "" {
+				break
+			}
 			if strings.TrimRight(provider.BaseURL, "/") == strings.TrimRight(fallback.BaseURL, "/") && provider.BaseURL != "" {
 				fallback.ProviderID = provider.ID
 				fallback.ProviderType = provider.Type

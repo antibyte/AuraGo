@@ -553,7 +553,7 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	if strings.TrimSpace(run.Job.ProviderID) != "" || strings.TrimSpace(run.Job.Model) != "" {
 		// The global failover client overwrites request.Model with its system route.
 		cfg.FallbackLLM.Enabled = false
-		client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, cfg.LLM.ProviderType, cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.AccountID))
+		client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, cfg.LLM.ProviderType, cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.AccountID, cfg.LLM.GatewayID))
 	}
 	if run.Stage == "visual" {
 		return r.reviewGameImages(ctx, &cfg, client, run)

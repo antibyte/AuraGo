@@ -132,7 +132,7 @@ type ProviderEntry struct {
 	MaxOutputTokens int                  `yaml:"max_output_tokens,omitempty" json:"max_output_tokens,omitempty"` // optional output-limit override; 0 = automatic
 	Capabilities    ProviderCapabilities `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
 
-	// Cloudflare Workers AI — required when Type is "workers-ai"
+	// Cloudflare account identity, required for Workers AI and Cloudflare REST.
 	AccountID string `yaml:"account_id,omitempty" json:"account_id"`           // Cloudflare account ID
 	GatewayID string `yaml:"gateway_id,omitempty" json:"gateway_id,omitempty"` // explicit Cloudflare REST gateway
 

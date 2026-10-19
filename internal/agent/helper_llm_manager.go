@@ -274,6 +274,7 @@ var (
 
 type helperInstanceConfig struct {
 	AccountID               string
+	GatewayID               string
 	ProviderType            string
 	BaseURL                 string
 	APIKey                  string
@@ -451,6 +452,7 @@ func getOrCreateHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helpe
 	helperCfg := llm.ResolveHelperLLM(cfg)
 	newInstCfg := helperInstanceConfig{
 		AccountID:           strings.TrimSpace(helperCfg.AccountID),
+		GatewayID:           strings.TrimSpace(helperCfg.GatewayID),
 		ProviderType:        strings.TrimSpace(helperCfg.ProviderType),
 		BaseURL:             strings.TrimSpace(helperCfg.BaseURL),
 		APIKey:              strings.TrimSpace(helperCfg.APIKey),
@@ -470,7 +472,7 @@ func getOrCreateHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helpe
 		return globalHelperInstance
 	}
 
-	client := llm.NewClientFromProviderWithConfig(cfg, newInstCfg.ProviderType, newInstCfg.BaseURL, newInstCfg.APIKey, newInstCfg.AccountID)
+	client := llm.NewClientFromProviderWithConfig(cfg, newInstCfg.ProviderType, newInstCfg.BaseURL, newInstCfg.APIKey, newInstCfg.AccountID, newInstCfg.GatewayID)
 	if client == nil {
 		return nil
 	}

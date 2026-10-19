@@ -34,6 +34,7 @@ func (scope *llmSecretScope) register(cfg *config.Config) {
 	if cfg == nil {
 		return
 	}
+	registerStaticLLMSecret(cfg.AIGateway.Token)
 	oauthProviders := make(map[string]bool, len(cfg.Providers))
 	for _, provider := range cfg.Providers {
 		if provider.AuthType == "oauth2" {

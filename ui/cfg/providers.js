@@ -924,6 +924,9 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             minimax: 'MiniMax',
             agnes: 'Agnes AI',
             'workers-ai': 'Workers AI',
+			'cloudflare-rest': 'Cloudflare REST',
+			cerebras: 'Cerebras',
+			perplexity: 'Perplexity',
             manifest: 'Manifest',
             omniroute: 'OmniRoute',
             yepapi: 'YepAPI',
@@ -1192,6 +1195,9 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             minimax: 'https://api.minimax.io/v1',
             agnes: 'https://apihub.agnes-ai.com/v1',
             'workers-ai': '',
+			'cloudflare-rest': '',
+			cerebras: 'https://api.cerebras.ai/v1',
+			perplexity: 'https://api.perplexity.ai',
             manifest: '',
             omniroute: '',
             yepapi: 'https://api.yepapi.com/v1/ai',
@@ -1219,6 +1225,9 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             openai: 'config.providers.hint.openai',
             agnes: 'config.providers.hint.agnes',
             'workers-ai': 'config.providers.hint.workers_ai',
+			'cloudflare-rest': 'config.providers.hint.cloudflare_rest',
+			cerebras: 'config.providers.hint.generic_key',
+			perplexity: 'config.providers.hint.generic_key',
             manifest: 'config.providers.hint.manifest',
             omniroute: 'config.providers.hint.omniroute',
             minimax: 'config.providers.hint.minimax',
@@ -1239,7 +1248,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             'opencode-go': 'config.providers.hint.opencode_go'
         };
 
-        const PROVIDER_TYPE_FALLBACKS = ['openai','openrouter','ollama','anthropic','google','huggingface','minimax','agnes','workers-ai','manifest','omniroute','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
+        const PROVIDER_TYPE_FALLBACKS = ['openai','openrouter','ollama','anthropic','google','huggingface','minimax','agnes','workers-ai','cloudflare-rest','cerebras','perplexity','manifest','omniroute','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
 
         const PROVIDER_OAUTH_PRESETS = {
             google: {
@@ -1914,7 +1923,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             const isOAuth = currentAuthType === 'oauth2';
             const currentType = data.type || 'openai';
             const isManagedGatewayInitial = currentType === 'manifest' || currentType === 'omniroute';
-            const isAutoURLInitial = currentType === 'workers-ai' || isManagedGatewayInitial;
+            const isAutoURLInitial = ['workers-ai', 'cloudflare-rest'].includes(currentType) || isManagedGatewayInitial;
             const initialURLHint = currentType === 'omniroute' ? t('config.providers.omniroute_url_auto') : (currentType === 'manifest' ? t('config.providers.manifest_url_auto') : t('config.providers.workers_ai_url_auto'));
             const initialOAuthPreset = providerOAuthPresetForType(currentType);
             const initialOAuthAuthURL = providerOAuthPresetFieldValue(currentType, 'auth_url', data.oauth_auth_url || '');
@@ -1973,10 +1982,15 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 </div>
 
                 <!-- Workers AI Account ID (only visible when type = workers-ai) -->
-                <div id="prov-account-id-block" class="field-group ${(data.type || '') === 'workers-ai' ? '' : 'is-hidden'}">
+                <div id="prov-account-id-block" class="field-group ${['workers-ai','cloudflare-rest'].includes(data.type || '') ? '' : 'is-hidden'}">
                     <div class="field-label">${t('config.providers.account_id')}</div>
                     <div class="field-help">${t('config.providers.account_id_help')}</div>
                     <input class="field-input" id="prov-account-id" value="${escapeAttr(data.account_id || '')}" placeholder="${t('config.providers.account_id_placeholder')}">
+                </div>
+                <div id="prov-gateway-id-block" class="field-group ${data.type === 'cloudflare-rest' ? '' : 'is-hidden'}">
+                    <label class="field-label" for="prov-gateway-id">${t('config.providers.gateway_id')}</label>
+                    <input class="field-input" id="prov-gateway-id" value="${escapeAttr(data.gateway_id || '')}">
+                    <div class="field-help">${t('config.providers.hint.cloudflare_rest')}</div>
                 </div>
                 </div>
                 <div class="prov-modal-panel-section is-hidden" data-prov-panel="model">
@@ -2343,7 +2357,8 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             typeSelect.addEventListener('change', () => {
                 const typ = typeSelect.value;
                 const currentUrl = urlInput.value.trim();
-                const isWorkersAI = typ === 'workers-ai';
+                const isWorkersAI = ['workers-ai','cloudflare-rest'].includes(typ);
+                setHidden(document.getElementById('prov-gateway-id-block'), typ !== 'cloudflare-rest');
                 const isManagedGateway = typ === 'manifest' || typ === 'omniroute';
                 const isAutoURLProvider = isWorkersAI || isManagedGateway;
                 // Auto-fill URL when empty OR when it still contains a known default URL (i.e. user hasn't typed a custom one)
@@ -2673,6 +2688,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 const max_output_tokens = decisionsOnly ? 0 : Number(document.getElementById('prov-max-output-tokens').value || 0);
                 const auth_type = document.getElementById('prov-auth-type').value;
                 const account_id = (document.getElementById('prov-account-id') || {}).value ? document.getElementById('prov-account-id').value.trim() : '';
+                const gateway_id = document.getElementById('prov-gateway-id')?.value.trim() || '';
 
                 if (!id) { fieldError('prov-id', t('config.providers.id_empty_error')); return; }
                 if (!Number.isInteger(context_window) || context_window < 0 || !Number.isInteger(max_output_tokens) || max_output_tokens < 0) {
@@ -2686,15 +2702,16 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     fieldError('prov-id', t('config.providers.id_invalid_error', { id }));
                     return;
                 }
-                if (type === 'workers-ai') {
+                if (type === 'workers-ai' || type === 'cloudflare-rest') {
                     if (!account_id) { fieldError('prov-account-id', t('config.providers.account_id_empty_error')); return; }
+                    if (type === 'cloudflare-rest' && !gateway_id) { fieldError('prov-gateway-id', t('config.providers.gateway_id_empty_error')); return; }
                 } else if (type === 'manifest' || type === 'omniroute') {
                     // Managed gateway providers are resolved from their integration settings.
                 } else if (!base_url) {
                     fieldError('prov-url', t('config.providers.url_empty_error')); return;
                 }
 
-                const entry = { id, name: name || id, usage, type: decisionsOnly ? 'openrouter' : type, base_url, model, context_window, max_output_tokens, auth_type, account_id };
+                const entry = { id, name: name || id, usage, type: decisionsOnly ? 'openrouter' : type, base_url, model, context_window, max_output_tokens, auth_type, account_id, gateway_id };
 
                 if (auth_type === 'oauth2') {
                     entry.api_key = data.api_key === '••••••••' ? '••••••••' : '';

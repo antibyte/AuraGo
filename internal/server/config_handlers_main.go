@@ -534,6 +534,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := validateAIGatewayConfigPatch(rawCfg, patch); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		// The local_wikipedia values before the merge: the save validates
 		// only the values it changes (validateLocalWikipediaSave).
 		previousLocalWikipedia := localWikipediaSectionFromRaw(rawCfg)
@@ -1734,6 +1738,7 @@ func normalizeAIGatewayYAMLSection(rawCfg map[string]interface{}) {
 	}
 
 	setString("mode", cfg.AIGateway.Mode, "auto")
+	setString("huggingface_provider_slug", cfg.AIGateway.HuggingFaceProviderSlug, "")
 	setString("log_mode", cfg.AIGateway.LogMode, "metadata_only")
 	setString("backoff", cfg.AIGateway.Backoff, "")
 	setInt("request_timeout_ms", cfg.AIGateway.RequestTimeoutMS)

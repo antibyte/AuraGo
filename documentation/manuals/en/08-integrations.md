@@ -1402,14 +1402,14 @@ Route supported AI traffic through Cloudflare AI Gateway without spending a toke
 #### Web UI Setup
 1. Open **Config → Integrations → AI Gateway**.
 2. Enable the integration and enter your **Account ID** and **Gateway ID**.
-3. Choose a routing mode. `auto` uses Cloudflare provider-native routes where safe and skips unsupported providers instead of falling back to `/openai`.
-4. Choose a logging mode. `metadata_only` is the privacy-safe default; `full` enables payload logging; `off` disables collection headers.
-5. Optionally add request timeout, retry, backoff, and non-secret metadata headers.
-6. Save, then use **Test Gateway**. Workers AI uses Cloudflare's local models-search endpoint, OpenAI-compatible native routes use `/models`, and routes without a safe probe endpoint are reported as configured with `live_status: skipped`.
+3. Routing uses safe provider-native routes and preserves custom endpoints. There is no generic `/openai` fallback.
+4. Choose a logging mode. `metadata_only` respects Cloudflare's logging switch and suppresses payloads; `full` explicitly stores prompts and responses; `off` suppresses logs entirely.
+5. Optionally set a response-start timeout and up to five non-secret metadata pairs. AuraGo owns retries and always requests one gateway attempt.
+6. Save and select a provider. **Test Gateway** checks metadata without generation. **Test model (billable)** makes one bounded, budgeted generation request. Configured, skipped, connection-checked and model-tested states are distinct.
 
 Workers AI is routed through the Cloudflare REST endpoint (`https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1`) with `cf-aig-gateway-id`. Provider-native gateway routes use `cf-aig-authorization` for the optional authenticated-gateway token. Keep secrets out of metadata.
 
-Google AI Gateway provider-native routing is intentionally not enabled yet. Cloudflare's Google provider route expects Gemini-native request shapes, while AuraGo currently sends Google traffic through OpenAI-compatible provider clients.
+For Google models through Cloudflare, add a separate `cloudflare-rest` provider. Cerebras and Perplexity have native routes. Modern Hugging Face chat uses a manually configured Cloudflare Custom Provider. See [AI Gateway setup and provider reference](../../ai-gateway.md) for tokens, billing, exact paths, timeout limits and compatibility.
 
 #### YAML Reference
 ```yaml
@@ -1417,13 +1417,10 @@ ai_gateway:
     enabled: true
     account_id: "YOUR_ACCOUNT_ID"
     gateway_id: "YOUR_GATEWAY_ID"
-    mode: auto                 # auto, openai_compatible, provider_native
+    huggingface_provider_slug: ""
     log_mode: metadata_only    # metadata_only, off, full
     metadata: {}
     request_timeout_ms: 0
-    max_attempts: 0
-    retry_delay_ms: 0
-    backoff: ""                # "", constant, linear, exponential
 ```
 
 ### Fallback LLM Integration

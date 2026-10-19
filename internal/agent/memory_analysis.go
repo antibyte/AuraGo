@@ -47,6 +47,8 @@ type pendingAction struct {
 }
 
 type memoryAnalysisLLMConfig struct {
+	accountID    string
+	gatewayID    string
 	providerType string
 	baseURL      string
 	apiKey       string
@@ -229,7 +231,7 @@ func runMemoryAnalysis(
 		return
 	}
 
-	analysisClient := llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, "")
+	analysisClient := llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, llmCfg.accountID, llmCfg.gatewayID)
 	providerID := cfg.MemoryAnalysis.Provider
 	if helper := llm.ResolveHelperLLM(cfg); helper.Enabled && helper.Model != "" {
 		providerID = helper.ProviderID
@@ -1056,7 +1058,7 @@ func expandQueryForRAG(ctx context.Context, cfg *config.Config, logger *slog.Log
 	expandCtx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
 	defer cancel()
 
-	client := llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, "")
+	client := llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, llmCfg.accountID, llmCfg.gatewayID)
 
 	model := llmCfg.model
 
@@ -1133,7 +1135,7 @@ func rerankWithLLM(ctx context.Context, cfg *config.Config, logger *slog.Logger,
 	rerankCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	client := llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, "")
+	client := llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, llmCfg.accountID, llmCfg.gatewayID)
 
 	model := llmCfg.model
 
@@ -1869,7 +1871,7 @@ func runMemoryReflection(
 	analysisClient := mainClient
 	model := strings.TrimSpace(cfg.MemoryAnalysis.ResolvedModel)
 	if llmCfg.model != "" {
-		analysisClient = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, ""))
+		analysisClient = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, llmCfg.accountID, llmCfg.gatewayID))
 		model = llmCfg.model
 	}
 
@@ -2012,6 +2014,8 @@ func resolveMemoryAnalysisLLMConfig(cfg *config.Config) memoryAnalysisLLMConfig 
 
 	if helperCfg := llm.ResolveHelperLLM(cfg); helperCfg.Enabled && helperCfg.Model != "" {
 		return memoryAnalysisLLMConfig{
+			accountID:    helperCfg.AccountID,
+			gatewayID:    helperCfg.GatewayID,
 			providerType: helperCfg.ProviderType,
 			baseURL:      helperCfg.BaseURL,
 			apiKey:       helperCfg.APIKey,
@@ -2019,10 +2023,16 @@ func resolveMemoryAnalysisLLMConfig(cfg *config.Config) memoryAnalysisLLMConfig 
 		}
 	}
 
-	return memoryAnalysisLLMConfig{
+	resolved := memoryAnalysisLLMConfig{
 		providerType: strings.TrimSpace(cfg.MemoryAnalysis.ProviderType),
 		baseURL:      strings.TrimSpace(cfg.MemoryAnalysis.BaseURL),
 		apiKey:       strings.TrimSpace(cfg.MemoryAnalysis.APIKey),
 		model:        strings.TrimSpace(cfg.MemoryAnalysis.ResolvedModel),
 	}
+	if p := cfg.FindProvider(cfg.MemoryAnalysis.Provider); p != nil {
+		resolved.accountID, resolved.gatewayID = p.AccountID, p.GatewayID
+	} else if resolved.providerType == cfg.LLM.ProviderType && resolved.apiKey == cfg.LLM.APIKey && resolved.baseURL == cfg.LLM.BaseURL {
+		resolved.accountID, resolved.gatewayID = cfg.LLM.AccountID, cfg.LLM.GatewayID
+	}
+	return resolved
 }

@@ -2038,16 +2038,14 @@ shell_sandbox:
     max_file_size_mb: 100
     allowed_paths: []
 ai_gateway:
-    enabled: false
+    enabled: false             # rewrite supported existing providers; explicit cloudflare-rest providers are independent
     account_id: ""
     gateway_id: ""
-    mode: auto                 # auto, openai_compatible, provider_native
+    huggingface_provider_slug: "" # Cloudflare custom provider with upstream https://router.huggingface.co
     log_mode: metadata_only    # metadata_only, off, full
     metadata: {}               # sent as cf-aig-metadata; do not store secrets here
-    request_timeout_ms: 0      # 0 = Cloudflare default
-    max_attempts: 0            # 0 = disabled/default
-    retry_delay_ms: 0          # 0 = Cloudflare default
-    backoff: ""                # "", constant, linear, exponential
+    request_timeout_ms: 0      # response-start limit; 0 = existing client limits; caller deadlines still win
+    # AuraGo owns retries: cf-aig-max-attempts is always 1.
 mcp_server:
     enabled: false
     allowed_tools: []                              # explicit server-side tool allowlist; empty = no exposed tools

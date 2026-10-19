@@ -1280,14 +1280,14 @@ Routing für unterstützten LLM-Traffic über Cloudflare AI Gateway, ohne dass S
 #### Einrichtung in der Web-UI
 1. Öffne **Config → Integrationen → AI Gateway**.
 2. Aktiviere die Integration und trage **Account ID** sowie **Gateway ID** ein.
-3. Wähle den Routing-Modus. `auto` nutzt sichere anbieter-native Cloudflare-Routen und überspringt nicht unterstützte Anbieter, statt still auf `/openai` zu fallen.
-4. Wähle den Logging-Modus. `metadata_only` ist der datenschutzfreundliche Standard; `full` aktiviert Payload-Logging; `off` deaktiviert Collection-Header.
-5. Optional: Setze Request-Timeout, Wiederholungen, Backoff und nicht geheime Metadaten-Header.
-6. Speichere und nutze danach **Gateway testen**. Workers AI verwendet Cloudflares lokalen Models-Search-Endpunkt, OpenAI-kompatible native Routen verwenden `/models`, und Routen ohne sicheren Probe-Endpunkt werden als konfiguriert mit `live_status: skipped` gemeldet.
+3. Das Routing nutzt sichere native Anbieter-Routen und erhält eigene Endpunkte. Einen allgemeinen `/openai`-Fallback gibt es nicht.
+4. Wähle den Logging-Modus. `metadata_only` respektiert Cloudflares Logging-Schalter und unterdrückt Payloads; `full` speichert ausdrücklich Prompts und Antworten; `off` unterdrückt sämtliche Logs.
+5. Optional: Setze ein Zeitlimit für den Antwortbeginn und bis zu fünf nicht geheime Metadatenpaare. AuraGo steuert Wiederholungen und fordert beim Gateway immer genau einen Versuch an.
+6. Speichere und wähle einen Anbieter. **Gateway testen** prüft Metadaten ohne Generierung. **Modell prüfen (kostenpflichtig)** führt eine begrenzte, budgetierte Generierung aus. Konfiguriert, übersprungen, Verbindung geprüft und Modell getestet bleiben getrennte Zustände.
 
 Workers AI wird über den Cloudflare-REST-Endpunkt (`https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1`) mit `cf-aig-gateway-id` geroutet. Anbieter-native Gateway-Routen nutzen `cf-aig-authorization` für das optionale Authenticated-Gateway-Token. Lege keine Secrets in Metadaten ab.
 
-Google AI Gateway provider-native Routing ist bewusst noch nicht aktiviert. Cloudflares Google-Provider-Route erwartet Gemini-native Requests, während AuraGo Google-Traffic aktuell über OpenAI-kompatible Provider-Clients sendet.
+Für Google-Modelle über Cloudflare legst Du einen eigenen Anbieter vom Typ `cloudflare-rest` an. Cerebras und Perplexity haben native Routen. Moderner Hugging-Face-Chat nutzt einen einmalig in Cloudflare eingerichteten Custom Provider. Die [Einrichtungs- und Anbieterreferenz](../../ai-gateway.md) beschreibt Tokens, Abrechnung, genaue Pfade, Zeitlimits und Kompatibilität.
 
 #### YAML-Referenz
 ```yaml
@@ -1295,13 +1295,10 @@ ai_gateway:
   enabled: true
   account_id: "YOUR_ACCOUNT_ID"
   gateway_id: "YOUR_GATEWAY_ID"
-  mode: auto                 # auto, openai_compatible, provider_native
+  huggingface_provider_slug: ""
   log_mode: metadata_only    # metadata_only, off, full
   metadata: {}
   request_timeout_ms: 0
-  max_attempts: 0
-  retry_delay_ms: 0
-  backoff: ""                # "", constant, linear, exponential
 ```
 
 ### Fallback LLM

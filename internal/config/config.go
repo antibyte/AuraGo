@@ -2905,16 +2905,7 @@ func NormalizeAIGatewayConfig(c *Config) {
 	if c.AIGateway.Metadata == nil {
 		c.AIGateway.Metadata = map[string]string{}
 	}
-	normalizedMetadata := make(map[string]string, len(c.AIGateway.Metadata))
-	for key, value := range c.AIGateway.Metadata {
-		key = strings.TrimSpace(key)
-		value = strings.TrimSpace(value)
-		if key == "" || value == "" || len(normalizedMetadata) >= 5 {
-			continue
-		}
-		normalizedMetadata[key] = value
-	}
-	c.AIGateway.Metadata = normalizedMetadata
+	// Keep operator data intact; validation rejects invalid or ambiguous pairs.
 	if c.AIGateway.RequestTimeoutMS < 0 {
 		c.AIGateway.RequestTimeoutMS = 0
 	}

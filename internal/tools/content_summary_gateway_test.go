@@ -20,3 +20,14 @@ func TestSummaryRetainsGatewayConfiguration(t *testing.T) {
 		}
 	}
 }
+
+func TestSummaryResolvesPrimaryCloudflareAccountAndGateway(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers = []config.ProviderEntry{{ID: "main", Type: "cloudflare-rest", AccountID: "account", GatewayID: "gateway", APIKey: "fixture-token", Model: "google/gemini-2.5-flash"}}
+	cfg.LLM.Provider = "main"
+	cfg.ResolveProviders()
+	resolved := ResolveSummaryLLMConfig(cfg, SummaryLLMConfig{APIKey: cfg.LLM.APIKey, BaseURL: cfg.LLM.BaseURL, Model: cfg.LLM.Model})
+	if resolved.ProviderID != "main" || resolved.ProviderType != "cloudflare-rest" || resolved.AccountID != "account" || resolved.GatewayID != "gateway" {
+		t.Fatal("primary fallback lost Cloudflare identity")
+	}
+}

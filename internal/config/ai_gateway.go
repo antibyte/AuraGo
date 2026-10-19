@@ -21,6 +21,9 @@ func ValidAIGatewaySegment(value string) bool {
 }
 
 func ValidateGatewayProvider(p ProviderEntry) error {
+	if p.Type == "workers-ai" && !ValidAIGatewaySegment(p.AccountID) {
+		return fmt.Errorf("Workers AI provider %q requires a valid explicit account_id", p.ID)
+	}
 	if p.Type != "cloudflare-rest" {
 		return nil
 	}

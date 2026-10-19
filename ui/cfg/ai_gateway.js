@@ -1,303 +1,189 @@
-// cfg/ai_gateway.js — AI Gateway section module
-
+// AI Gateway configuration and saved-provider diagnostics.
 let _aiGatewaySection = null;
+let _aiGatewayProviderID = '';
+let _aiGatewayEpoch = 0;
+let _aiGatewayController = null;
 
-function aiGatewayText(key, fallback) {
-    if (typeof t === 'function') {
-        const value = t(key);
-        if (typeof value === 'string' && value.trim() !== '' && value !== key) return value;
-    }
-    return fallback || '';
+function aiGatewayText(key, fallback = '') {
+    const value = typeof t === 'function' ? t(key) : key;
+    return typeof value === 'string' && value !== key ? value : fallback;
 }
 
 function aiGatewayEnsureData() {
     if (!configData.ai_gateway) configData.ai_gateway = {};
     const gw = configData.ai_gateway;
-    if (!gw.mode) gw.mode = 'auto';
     if (!gw.log_mode) gw.log_mode = 'metadata_only';
     if (!gw.metadata || typeof gw.metadata !== 'object' || Array.isArray(gw.metadata)) gw.metadata = {};
-    if (typeof gw.request_timeout_ms !== 'number') gw.request_timeout_ms = 0;
-    if (typeof gw.max_attempts !== 'number') gw.max_attempts = 0;
-    if (typeof gw.retry_delay_ms !== 'number') gw.retry_delay_ms = 0;
-    if (typeof gw.backoff !== 'string') gw.backoff = '';
     return gw;
 }
 
+function aiGatewayInvalidate() {
+    ++_aiGatewayEpoch;
+    _aiGatewayController?.abort();
+    _aiGatewayController = null;
+    const result = document.getElementById('ai-gw-test-result');
+    if (result) result.textContent = '';
+}
+
+function aiGatewayHasDraft() {
+    return typeof hasUnsavedConfigChanges === 'function' ? hasUnsavedConfigChanges() : Boolean(window.AuraConfigState?.isDirty());
+}
+
 function renderAIGatewaySection(section) {
-    if (section) {
-        _aiGatewaySection = section;
-    } else {
-        section = _aiGatewaySection || { label: aiGatewayText('config.ai_gateway.title', 'AI Gateway'), desc: '' };
-    }
+    aiGatewayInvalidate();
+    if (section) _aiGatewaySection = section;
+    section = _aiGatewaySection || { label: t('config.ai_gateway.title'), desc: '' };
     const gw = aiGatewayEnsureData();
-    const enabled = gw.enabled === true;
-    const tokenPlaceholder = cfgSecretPlaceholder(gw.token, t('config.ai_gateway.token_placeholder'));
-
-    let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
-
-    html += '<div id="ai-gw-status-banner" class="adg-status-banner">' + t('config.ai_gateway.checking') + '</div>';
-
-    html += '<div class="wh-notice ai-gw-info-notice">';
-    html += '<span>🌩️</span>';
-    html += '<div><small>' + t('config.ai_gateway.info') + '</small></div>';
-    html += '</div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.ai_gateway.enabled_label') + '</div>';
-    html += '<div class="field-help">' + t('help.ai_gateway.enabled') + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (enabled ? ' on' : '') + '" data-path="ai_gateway.enabled" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (enabled ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    if (!enabled) {
-        html += '<div class="wh-notice">';
-        html += '<span>☁️</span>';
-        html += '<div>';
-        html += '<strong>' + t('config.ai_gateway.disabled_notice') + '</strong><br>';
-        html += '<small>' + t('config.ai_gateway.disabled_desc') + '</small>';
-        html += '</div></div>';
-    }
-
-    html += '<div class="field-group">';
-    html += '<div class="field-group-title">⚙️ ' + t('config.ai_gateway.settings_title') + '</div>';
-    html += '<div class="field-group-desc">' + t('config.ai_gateway.settings_desc') + '</div>';
-
+    const providers = Array.isArray(configData.providers) ? configData.providers : [];
+    if (!providers.some(p => p.id === _aiGatewayProviderID)) _aiGatewayProviderID = providers.some(p => p.id === configData.llm?.provider) ? configData.llm.provider : (providers[0]?.id || '');
+    let html = '<div class="cfg-section active"><div class="section-header">' + escapeHtml(section.label) + '</div>';
+    html += '<div class="section-desc">' + escapeHtml(section.desc || '') + '</div>';
+    html += '<div id="ai-gw-status-banner" class="adg-status-banner" role="status" aria-live="polite"></div>';
+    html += '<div class="wh-notice"><small>' + t('config.ai_gateway.info') + '</small></div>';
+    html += '<div class="field-group"><div class="field-label">' + t('config.ai_gateway.enabled_label') + '</div><div class="toggle-wrap">';
+    html += '<div class="toggle' + (gw.enabled === true ? ' on' : '') + '" data-path="ai_gateway.enabled" onclick="toggleBool(this)"></div>';
+    html += '<span class="toggle-label">' + t(gw.enabled === true ? 'config.toggle.active' : 'config.toggle.inactive') + '</span></div></div>';
     html += '<div class="field-grid two-cols">';
-
-    html += aiGatewaySelectField('config.ai_gateway.mode', 'help.ai_gateway.mode', 'ai_gateway.mode', gw.mode || 'auto', [
-        { value: 'auto', label: t('config.ai_gateway.mode_auto') },
-        { value: 'openai_compatible', label: t('config.ai_gateway.mode_openai_compatible') },
-        { value: 'provider_native', label: t('config.ai_gateway.mode_provider_native') }
-    ]);
-
-    html += aiGatewaySelectField('config.ai_gateway.log_mode', 'help.ai_gateway.log_mode', 'ai_gateway.log_mode', gw.log_mode || 'metadata_only', [
+    html += aiGatewayField('config.ai_gateway.account_id', '', '<input class="field-input" data-path="ai_gateway.account_id" value="' + escapeAttr(gw.account_id || '') + '">');
+    html += aiGatewayField('config.ai_gateway.gateway_id', '', '<input class="field-input" data-path="ai_gateway.gateway_id" value="' + escapeAttr(gw.gateway_id || '') + '">');
+    const tokenPlaceholder = cfgSecretPlaceholder(gw.token, t('config.ai_gateway.token_placeholder'));
+    html += aiGatewayField('config.ai_gateway.token', 'help.ai_gateway.token', '<div class="password-wrap cfg-password-input"><input class="field-input" type="password" autocomplete="off" data-path="ai_gateway.token" value="' + escapeAttr(cfgSecretValue(gw.token)) + '" placeholder="' + escapeAttr(tokenPlaceholder) + '"><button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>');
+    html += aiGatewayField('config.ai_gateway.hf_slug', 'config.ai_gateway.hf_help', '<input class="field-input" data-path="ai_gateway.huggingface_provider_slug" value="' + escapeAttr(gw.huggingface_provider_slug || '') + '">');
+    html += aiGatewaySelectField('config.ai_gateway.log_mode', 'help.ai_gateway.log_mode', 'ai_gateway.log_mode', gw.log_mode, [
         { value: 'metadata_only', label: t('config.ai_gateway.log_mode_metadata_only') },
         { value: 'off', label: t('config.ai_gateway.log_mode_off') },
         { value: 'full', label: t('config.ai_gateway.log_mode_full') }
     ]);
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.ai_gateway.account_id') + '</div>';
-    html += '<div class="field-help">' + t('help.ai_gateway.account_id') + '</div>';
-    html += '<input class="field-input" data-path="ai_gateway.account_id" value="' + escapeAttr(gw.account_id || '') + '" placeholder="' + escapeAttr(t('config.ai_gateway.account_id_placeholder')) + '">';
-    html += '</div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.ai_gateway.gateway_id') + '</div>';
-    html += '<div class="field-help">' + t('help.ai_gateway.gateway_id') + '</div>';
-    html += '<input class="field-input" data-path="ai_gateway.gateway_id" value="' + escapeAttr(gw.gateway_id || '') + '" placeholder="' + escapeAttr(t('config.ai_gateway.gateway_id_placeholder')) + '">';
-    html += '</div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.ai_gateway.token') + '</div>';
-    html += '<div class="field-help">' + t('help.ai_gateway.token') + '</div>';
-    html += '<div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" data-path="ai_gateway.token" value="' + escapeAttr(cfgSecretValue(gw.token)) + '" placeholder="' + escapeAttr(tokenPlaceholder) + '" autocomplete="off">';
-    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
-    html += '</div>';
-    html += '</div>';
-
-    html += '</div>';
-
-    html += '<div class="field-grid two-cols">';
     html += aiGatewayNumberField('config.ai_gateway.request_timeout_ms', 'help.ai_gateway.request_timeout_ms', 'ai_gateway.request_timeout_ms', gw.request_timeout_ms || 0, 0, 300000);
-    html += aiGatewayNumberField('config.ai_gateway.max_attempts', 'help.ai_gateway.max_attempts', 'ai_gateway.max_attempts', gw.max_attempts || 0, 0, 5);
-    html += aiGatewayNumberField('config.ai_gateway.retry_delay_ms', 'help.ai_gateway.retry_delay_ms', 'ai_gateway.retry_delay_ms', gw.retry_delay_ms || 0, 0, 5000);
-    html += aiGatewaySelectField('config.ai_gateway.backoff', 'help.ai_gateway.backoff', 'ai_gateway.backoff', gw.backoff || '', [
-        { value: '', label: aiGatewayText('config.common.default', 'Default') },
-        { value: 'constant', label: t('config.ai_gateway.backoff_constant') },
-        { value: 'linear', label: t('config.ai_gateway.backoff_linear') },
-        { value: 'exponential', label: t('config.ai_gateway.backoff_exponential') }
-    ]);
-    html += '</div>';
-
+    html += '</div><div class="wh-notice"><small>' + t('config.ai_gateway.retry_info') + '</small></div>';
     html += aiGatewayRenderMetadataRows(gw.metadata);
-    html += '</div>';
-
-    html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save adg-test-btn" onclick="aiGatewayTestConnection()" id="ai-gw-test-btn">🔌 ' + t('config.ai_gateway.test_btn') + '</button>';
-    html += '<span id="ai-gw-test-result" class="adg-test-result"></span>';
-    html += '</div>';
-
-    html += '</div>';
-    document.getElementById('content').innerHTML = html;
+    html += '<div class="field-group"><label class="field-label" for="ai-gw-provider">' + t('config.ai_gateway.provider_select') + '</label><select class="field-select" id="ai-gw-provider">';
+    if (!providers.length) html += '<option value="">' + t('config.ai_gateway.no_provider') + '</option>';
+    providers.forEach(p => { html += '<option value="' + escapeAttr(p.id) + '"' + (p.id === _aiGatewayProviderID ? ' selected' : '') + '>' + escapeHtml(p.name || p.id) + '</option>'; });
+    html += '</select></div><div class="cfg-actions-row">';
+    html += '<button type="button" class="btn-save adg-test-btn" id="ai-gw-test-btn" onclick="aiGatewayTestConnection()">' + t('config.ai_gateway.test_btn') + '</button>';
+    html += '<button type="button" class="btn-save btn-secondary" id="ai-gw-model-test-btn" onclick="aiGatewayTestConnection(\'generation\')">' + t('config.ai_gateway.model_test') + '</button>';
+    html += '<span id="ai-gw-test-result" class="adg-test-result" role="status" aria-live="polite"></span></div></div>';
+    const content = document.getElementById('content');
+    content.innerHTML = html;
     attachChangeListeners();
-
-    if (enabled) {
-        aiGatewayCheckStatus();
-    } else {
-        aiGatewaySetBanner('', '⚪ ' + t('config.ai_gateway.status_disabled'));
-    }
+    const select = document.getElementById('ai-gw-provider');
+    select.addEventListener('change', () => { _aiGatewayProviderID = select.value; aiGatewayCheckStatus(); });
+    const invalidateDraft = event => {
+        if (!event.target.closest('[data-path],.ai-gateway-metadata-row,.toggle')) return;
+        aiGatewayInvalidate();
+        aiGatewaySetBanner('warning', t('config.ai_gateway.save_first'));
+        aiGatewaySetButtons(true);
+    };
+    // Section replacement disposes these listeners without accumulating root handlers.
+    content.firstElementChild.addEventListener('input', invalidateDraft);
+    content.firstElementChild.addEventListener('click', event => { if (event.target.closest('.toggle')) invalidateDraft(event); });
+    aiGatewayCheckStatus();
 }
 
 function aiGatewayField(labelKey, helpKey, inputHtml) {
-    let html = '<div class="field-group">';
-    html += '<div class="field-label">' + aiGatewayText(labelKey) + '</div>';
-    const help = aiGatewayText(helpKey);
-    if (help) html += '<div class="field-help">' + help + '</div>';
-    html += inputHtml;
-    html += '</div>';
-    return html;
+    return '<div class="field-group"><div class="field-label">' + aiGatewayText(labelKey) + '</div>' + (helpKey ? '<div class="field-help">' + aiGatewayText(helpKey) + '</div>' : '') + inputHtml + '</div>';
 }
 
 function aiGatewaySelectField(labelKey, helpKey, path, value, options) {
-    let html = '<select class="field-select" data-path="' + escapeAttr(path) + '">';
-    const normalized = String(value ?? '');
-    options.forEach(opt => {
-        const optValue = String(opt.value ?? '');
-        html += '<option value="' + escapeAttr(optValue) + '"' + (normalized === optValue ? ' selected' : '') + '>' + escapeHtml(opt.label || optValue) + '</option>';
-    });
-    html += '</select>';
-    return aiGatewayField(labelKey, helpKey, html);
+    return aiGatewayField(labelKey, helpKey, '<select class="field-select" data-path="' + escapeAttr(path) + '">' + options.map(o => '<option value="' + escapeAttr(o.value) + '"' + (value === o.value ? ' selected' : '') + '>' + escapeHtml(o.label) + '</option>').join('') + '</select>');
 }
 
 function aiGatewayNumberField(labelKey, helpKey, path, value, min, max) {
-    return aiGatewayField(labelKey, helpKey,
-        '<input class="field-input" type="number" min="' + min + '" max="' + max + '" step="1" data-path="' + escapeAttr(path) + '" value="' + escapeAttr(String(value || 0)) + '">');
+    return aiGatewayField(labelKey, helpKey, '<input class="field-input" type="number" step="1" min="' + min + '" max="' + max + '" data-path="' + escapeAttr(path) + '" value="' + escapeAttr(String(value)) + '">');
 }
 
 function aiGatewayRenderMetadataRows(metadata) {
-    const entries = Object.entries(metadata || {})
-        .filter(([key, value]) => String(key).trim() !== '' && String(value).trim() !== '')
-        .slice(0, 5);
-    let html = '<div class="field-group ai-gateway-metadata" data-ai-gateway-metadata>';
-    html += '<div class="field-label">' + t('config.ai_gateway.metadata') + '</div>';
-    html += '<div class="field-help">' + t('help.ai_gateway.metadata') + '</div>';
-    html += '<input type="hidden" data-path="ai_gateway.metadata" data-type="json" data-ai-gateway-metadata-store value="' + escapeAttr(JSON.stringify(Object.fromEntries(entries))) + '">';
-    entries.forEach(([key, value]) => {
-        html += '<div class="field-grid two-cols ai-gateway-metadata-row">';
-        html += '<input class="field-input" type="text" value="' + escapeAttr(key) + '" placeholder="' + escapeAttr(t('config.ai_gateway.metadata_key')) + '" data-ai-gateway-metadata-key oninput="aiGatewayCollectMetadata()">';
-        html += '<div class="password-wrap">';
-        html += '<input class="field-input" type="text" value="' + escapeAttr(value) + '" placeholder="' + escapeAttr(t('config.ai_gateway.metadata_value')) + '" data-ai-gateway-metadata-value oninput="aiGatewayCollectMetadata()">';
-        html += '<button type="button" class="password-toggle" data-ai-gateway-metadata-remove="' + escapeAttr(key) + '" onclick="aiGatewayRemoveMetadata(this.dataset.aiGatewayMetadataRemove)">&times;</button>';
+    let html = '<div class="field-group ai-gateway-metadata" data-ai-gateway-metadata><div class="field-label">' + t('config.ai_gateway.metadata') + '</div><div class="field-help">' + t('help.ai_gateway.metadata') + '</div>';
+    html += '<input type="hidden" data-path="ai_gateway.metadata" data-type="json" data-ai-gateway-metadata-store value="' + escapeAttr(JSON.stringify(metadata)) + '">';
+    [...Object.entries(metadata), ['', '']].forEach(([key, value]) => {
+        html += '<div class="field-grid two-cols ai-gateway-metadata-row"><input class="field-input" value="' + escapeAttr(key) + '" placeholder="' + escapeAttr(t('config.ai_gateway.metadata_key')) + '" data-ai-gateway-metadata-key oninput="aiGatewayCollectMetadata()"><div class="password-wrap"><input class="field-input" value="' + escapeAttr(value) + '" placeholder="' + escapeAttr(t('config.ai_gateway.metadata_value')) + '" data-ai-gateway-metadata-value oninput="aiGatewayCollectMetadata()">';
+        if (key) html += '<button type="button" class="password-toggle" data-ai-gateway-metadata-remove="' + escapeAttr(key) + '" onclick="aiGatewayRemoveMetadata(this.dataset.aiGatewayMetadataRemove)">&times;</button>';
         html += '</div></div>';
     });
-    html += '<div class="field-grid two-cols ai-gateway-metadata-row">';
-    html += '<input class="field-input" type="text" value="" placeholder="' + escapeAttr(t('config.ai_gateway.metadata_key')) + '" data-ai-gateway-metadata-key oninput="aiGatewayCollectMetadata()">';
-    html += '<input class="field-input" type="text" value="" placeholder="' + escapeAttr(t('config.ai_gateway.metadata_value')) + '" data-ai-gateway-metadata-value oninput="aiGatewayCollectMetadata()">';
-    html += '</div>';
-    html += '<button type="button" class="btn-save btn-secondary" onclick="aiGatewayAddMetadataRow()">' + t('config.ai_gateway.metadata_add') + '</button>';
-    html += '</div>';
-    return html;
+    return html + '<small id="ai-gw-meta-error" role="status"></small><button type="button" class="btn-save btn-secondary" onclick="aiGatewayAddMetadataRow()">' + t('config.ai_gateway.metadata_add') + '</button></div>';
 }
 
 function aiGatewayCollectMetadata(mark = true) {
-    const gw = aiGatewayEnsureData();
-    const next = {};
+    const next = Object.create(null);
+    let valid = true;
     document.querySelectorAll('.ai-gateway-metadata-row').forEach(row => {
-        if (Object.keys(next).length >= 5) return;
-        const keyEl = row.querySelector('[data-ai-gateway-metadata-key]');
-        const valueEl = row.querySelector('[data-ai-gateway-metadata-value]');
-        if (!keyEl || !valueEl) return;
-        const key = String(keyEl.value || '').trim();
-        const value = String(valueEl.value || '').trim();
-        if (key && value) next[key] = value;
+        const key = row.querySelector('[data-ai-gateway-metadata-key]').value.trim();
+        const value = row.querySelector('[data-ai-gateway-metadata-value]').value.trim();
+        if (!key && !value) return;
+        if (!key || !value || Object.hasOwn(next, key)) valid = false;
+        next[key] = value;
     });
-    gw.metadata = next;
+    valid = valid && Object.keys(next).length <= 5;
+    const gw = aiGatewayEnsureData();
+    gw.metadata = valid ? next : [];
     const store = document.querySelector('[data-ai-gateway-metadata-store]');
-    if (store) store.value = JSON.stringify(next);
+    if (store) store.value = JSON.stringify(gw.metadata);
+    const error = document.getElementById('ai-gw-meta-error');
+    if (error) error.textContent = valid ? '' : t('config.ai_gateway.metadata_invalid');
     if (mark) markDirty();
+    return valid;
 }
 
 function aiGatewayAddMetadataRow() {
-    aiGatewayCollectMetadata();
-    renderAIGatewaySection(null);
+    if (aiGatewayCollectMetadata()) renderAIGatewaySection(null);
 }
 
 function aiGatewayRemoveMetadata(key) {
-    const gw = aiGatewayEnsureData();
-    delete gw.metadata[String(key || '').trim()];
-    markDirty();
-    renderAIGatewaySection(null);
+    const row = [...document.querySelectorAll('.ai-gateway-metadata-row')].find(r => r.querySelector('[data-ai-gateway-metadata-key]').value === key);
+    row?.remove();
+    aiGatewayCollectMetadata();
+    aiGatewayInvalidate();
+    aiGatewaySetBanner('warning', t('config.ai_gateway.save_first'));
+    aiGatewaySetButtons(true);
 }
 
 function aiGatewaySetBanner(state, text) {
     const banner = document.getElementById('ai-gw-status-banner');
-    if (!banner) return;
-    banner.className = 'adg-status-banner' + (state ? ' is-' + state : '');
-    banner.textContent = text;
+    if (banner) { banner.className = 'adg-status-banner' + (state ? ' is-' + state : ''); banner.textContent = text; }
 }
 
-function aiGatewayCheckStatus() {
-    aiGatewaySetBanner('', t('config.ai_gateway.checking'));
-    fetch('/api/ai-gateway/status')
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'disabled') {
-                aiGatewaySetBanner('', '⚪ ' + t('config.ai_gateway.status_disabled'));
-                return;
-            }
-            if (res.status === 'no_credentials') {
-                aiGatewaySetBanner('warning', '🟡 ' + t('config.ai_gateway.status_no_credentials'));
-                return;
-            }
-            if (res.status === 'unsupported_provider') {
-                aiGatewaySetBanner('warning', '🟡 ' + t('config.ai_gateway.status_unsupported'));
-                return;
-            }
-            if (res.live_status === 'ok') {
-                aiGatewaySetBanner('success', '🟢 ' + t('config.ai_gateway.status_live_ok'));
-                return;
-            }
-            if (res.live_status === 'failed') {
-                aiGatewaySetBanner('danger', '🔴 ' + t('config.ai_gateway.status_live_failed'));
-                return;
-            }
-            if (res.status === 'configured') {
-                aiGatewaySetBanner('success', '🟢 ' + t('config.ai_gateway.status_configured'));
-                return;
-            }
-            if (res.status === 'ok') {
-                aiGatewaySetBanner('success', '🟢 ' + t('config.ai_gateway.status_ok'));
-                return;
-            }
-            aiGatewaySetBanner('danger', '🔴 ' + (res.message || t('config.ai_gateway.connection_failed')));
-        })
-        .catch(() => aiGatewaySetBanner('danger', '🔴 ' + t('config.ai_gateway.connection_failed')));
+function aiGatewaySetButtons(disabled) {
+    for (const id of ['ai-gw-test-btn', 'ai-gw-model-test-btn']) { const button = document.getElementById(id); if (button) button.disabled = disabled; }
 }
 
-function aiGatewayTestConnection() {
-    const btn = document.getElementById('ai-gw-test-btn');
-    const result = document.getElementById('ai-gw-test-result');
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.textContent = t('config.ai_gateway.loading');
-        result.className = 'adg-test-result';
+async function aiGatewayRequest(test, kind = 'metadata') {
+    aiGatewayInvalidate();
+    const select = document.getElementById('ai-gw-provider');
+    const epoch = _aiGatewayEpoch;
+    if (!select || !select.value || aiGatewayHasDraft()) {
+        aiGatewaySetBanner('warning', t(aiGatewayHasDraft() ? 'config.ai_gateway.save_first' : 'config.ai_gateway.no_provider'));
+        aiGatewaySetButtons(true); return;
     }
-
-    fetch('/api/ai-gateway/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-    })
-        .then(r => r.json())
-        .then(res => {
-            if (btn) btn.disabled = false;
-            if (!result) return;
-            if (res.status === 'ok') {
-                result.className = 'adg-test-result is-success';
-                result.textContent = t('config.ai_gateway.status_success') + ' ' + t('config.ai_gateway.status_live_ok');
-                aiGatewayCheckStatus();
-            } else if (res.live_status === 'skipped' && res.status === 'configured') {
-                result.className = 'adg-test-result is-success';
-                result.textContent = t('config.ai_gateway.status_success') + ' ' + t('config.ai_gateway.status_configured');
-                aiGatewayCheckStatus();
-            } else if (res.status === 'unsupported_provider') {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.ai_gateway.status_error') + ' ' + t('config.ai_gateway.status_unsupported');
-            } else {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.ai_gateway.status_error') + ' ' + (res.message || t('config.ai_gateway.test_fail'));
-            }
-        })
-        .catch(() => {
-            if (btn) btn.disabled = false;
-            if (result) {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.ai_gateway.status_error') + ' ' + t('config.ai_gateway.test_fail');
-            }
+    const controller = new AbortController(); _aiGatewayController = controller;
+    const current = () => epoch === _aiGatewayEpoch && document.getElementById('ai-gw-provider') === select && select.value === _aiGatewayProviderID;
+    aiGatewaySetButtons(true);
+    aiGatewaySetBanner('', t('config.ai_gateway.loading'));
+    try {
+        const response = await fetch(test ? '/api/ai-gateway/test' : '/api/ai-gateway/status?provider_id=' + encodeURIComponent(select.value), {
+            ...(test ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider_id: select.value, probe_kind: kind }) } : {}), signal: controller.signal
         });
+        const res = await response.json();
+        if (!current()) return;
+        const successful = response.ok && res.live_status === 'ok';
+        let key = 'config.ai_gateway.route_skipped';
+        if (successful) key = kind === 'generation' ? 'config.ai_gateway.model_test_success' : 'config.ai_gateway.connection_metadata';
+        else if (res.status === 'configured') key = res.live_status === 'skipped' ? 'config.ai_gateway.skipped' : 'config.ai_gateway.untested';
+        else if (res.status === 'disabled') key = 'config.ai_gateway.status_disabled';
+        else if (res.status === 'setup_required') key = 'config.ai_gateway.hf_help';
+        else if (res.status === 'no_credentials') key = 'config.ai_gateway.status_no_credentials';
+        else if (res.status === 'invalid_config' || !response.ok || res.status === 'error') key = 'config.ai_gateway.connection_failed';
+        let message = t(key);
+        if (res.code && !successful) message += ' (' + res.code + ')';
+        if (res.request_timeout_ms > 0) message += ' · ' + res.request_timeout_effective_ms + ' ms';
+        aiGatewaySetBanner(successful ? 'success' : (res.status === 'error' || !response.ok ? 'danger' : 'warning'), message);
+        const result = document.getElementById('ai-gw-test-result');
+        if (test && result) { result.textContent = message; result.className = 'adg-test-result' + (successful ? ' is-success' : ''); }
+        aiGatewaySetButtons(!res.route_supported || aiGatewayHasDraft());
+    } catch (err) {
+        if (err.name !== 'AbortError' && current()) { aiGatewaySetBanner('danger', t('config.ai_gateway.connection_failed')); aiGatewaySetButtons(aiGatewayHasDraft()); }
+    }
 }
+
+function aiGatewayCheckStatus() { return aiGatewayRequest(false); }
+function aiGatewayTestConnection(kind = 'metadata') { return aiGatewayRequest(true, kind); }

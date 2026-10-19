@@ -552,6 +552,7 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | `realtime_speech` | Live-Sprachsessions | `realtime_speech:`<br>`  enabled: false`<br>`  default_profile: ""` |
 | `virtual_computers` | Verwaltete virtuelle Computer | `virtual_computers:`<br>`  enabled: false`<br>`  auto_setup: false`<br>`  readonly: false` |
 | `manus` | Asynchrone Manus-Aufgaben | `manus:`<br>`  enabled: false`<br>`  read_only: true` |
+| `ai_gateway` | Native Cloudflare-Routen und gemeinsame Datenschutzregeln; ausdrücklich gewählte `cloudflare-rest`-Anbieter bleiben eigenständig. | `ai_gateway:`<br>`  enabled: false`<br>`  account_id: ""`<br>`  gateway_id: ""`<br>`  huggingface_provider_slug: ""`<br>`  log_mode: metadata_only`<br>`  request_timeout_ms: 0`<br>`  metadata: {}` |
 | `omniroute` | OpenAI-kompatibles Gateway | `omniroute:`<br>`  enabled: false`<br>`  mode: managed` |
 | `evomap` | EvoMap GEP/A2A | `evomap:`<br>`  enabled: false`<br>`  readonly: true` |
 | `music_generation` | KI-Musik | `music_generation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  max_daily: 0` |

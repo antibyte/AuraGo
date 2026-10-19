@@ -844,6 +844,8 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Work Guidance
 
+- AI Gateway tests select saved providers and distinguish local routing, non-generating metadata and explicit billable model tests. Dirty drafts block tests. Abort on provider changes; stale responses or section disposal cannot repaint another selection. Keep all sixteen gateway/help/provider locale fragments aligned. Verify `TestAIGatewaySavedProviderDiagnosticsBrowser` and the provider/config roundtrip tests.
+
 - `cfg/treg.js` keeps endpoint grants in the shared draft until Save, with no
   preselected action class. Vault saves update saved token state without losing
   the draft; connection tests require saved settings. Parse USD as integer

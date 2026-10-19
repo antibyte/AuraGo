@@ -3,15 +3,17 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
-	"aurago/internal/httporigin"
 	"aurago/internal/llm"
+	"aurago/internal/prompts"
+	openai "github.com/sashabaranov/go-openai"
 )
 
 func registerAIGatewayHandlers(mux *http.ServeMux, s *Server) {
@@ -25,8 +27,7 @@ func handleAIGatewayStatus(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		writeAIGatewayProbeResult(w, s, false)
+		writeAIGatewayProbeResult(w, s, r.Context(), false, "metadata", r.URL.Query().Get("provider_id"))
 	}
 }
 
@@ -36,259 +37,164 @@ func handleAIGatewayTest(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		var req struct {
+		var request struct {
 			ProviderID string `json:"provider_id"`
+			ProbeKind  string `json:"probe_kind"`
 		}
 		if r.Body != nil {
-			_ = json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&req)
+			decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+			decoder.DisallowUnknownFields()
+			if err := decoder.Decode(&request); err != nil && err != io.EOF {
+				writeAIGatewayError(w, nil, "invalid_request", http.StatusBadRequest, 0)
+				return
+			}
+			if decoder.Decode(&struct{}{}) != io.EOF {
+				writeAIGatewayError(w, nil, "invalid_request", http.StatusBadRequest, 0)
+				return
+			}
 		}
-		writeAIGatewayProbeResult(w, s, true, req.ProviderID)
+		if request.ProbeKind == "" {
+			request.ProbeKind = "metadata"
+		}
+		if request.ProbeKind != "metadata" && request.ProbeKind != "generation" {
+			writeAIGatewayError(w, nil, "invalid_probe_kind", http.StatusBadRequest, 0)
+			return
+		}
+		writeAIGatewayProbeResult(w, s, r.Context(), true, request.ProbeKind, request.ProviderID)
 	}
 }
 
-func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, test bool, providerID ...string) {
+func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, parent context.Context, test bool, kind, providerID string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
 	s.CfgMu.RLock()
-	cfgSnapshot := *s.Cfg
+	cfg := *s.Cfg
+	cfg.Providers = append([]config.ProviderEntry(nil), s.Cfg.Providers...)
 	s.CfgMu.RUnlock()
-	config.NormalizeAIGatewayConfig(&cfgSnapshot)
-	cfg := cfgSnapshot.AIGateway
-
-	if !cfg.Enabled {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":          "disabled",
-			"message":         "AI Gateway is not enabled",
-			"route_supported": false,
-			"mode":            cfg.Mode,
-			"privacy_mode":    cfg.LogMode,
-		})
+	providerID = strings.TrimSpace(providerID)
+	if providerID == "" {
+		providerID = cfg.LLM.Provider
+	}
+	p := config.ProviderEntry{ID: providerID, Type: cfg.LLM.ProviderType, BaseURL: cfg.LLM.BaseURL, APIKey: cfg.LLM.APIKey, AccountID: cfg.LLM.AccountID, GatewayID: cfg.LLM.GatewayID, Model: cfg.LLM.Model}
+	if saved := cfg.FindProvider(providerID); saved != nil {
+		p = *saved
+	} else if providerID != "" && providerID != cfg.LLM.Provider {
+		writeAIGatewayError(w, nil, "provider_not_found", http.StatusNotFound, 0)
 		return
 	}
-	if cfg.AccountID == "" || cfg.GatewayID == "" {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":          "no_credentials",
-			"message":         "AI Gateway account ID or gateway ID is not configured",
-			"route_supported": false,
-			"mode":            cfg.Mode,
-			"privacy_mode":    cfg.LogMode,
-		})
+	route := llm.ResolveProviderAIGatewayRoute(&cfg, p)
+	result := aiGatewayDiagnostics(route)
+	result["provider_id"] = providerID
+	result["probe_kind"] = kind
+	if !test || !route.RouteSupported {
+		json.NewEncoder(w).Encode(result)
 		return
 	}
-
-	providerType, providerAccountID, providerFound := aiGatewayProviderTarget(cfgSnapshot, firstString(providerID))
-	if !providerFound {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":          "provider_not_found",
-			"message":         "Provider was not found",
-			"route_supported": false,
-			"mode":            cfg.Mode,
-			"privacy_mode":    cfg.LogMode,
-		})
-		return
-	}
-	providerBaseURL := cfgSnapshot.LLM.BaseURL
-	targetID := firstString(providerID)
-	if targetID == "" {
-		targetID = cfgSnapshot.LLM.Provider
-	}
-	for _, provider := range cfgSnapshot.Providers {
-		if provider.ID == targetID {
-			providerBaseURL = provider.BaseURL
-			break
-		}
-	}
-	route := llm.ResolveAIGatewayRoute(&cfgSnapshot, providerType, providerAccountID, providerBaseURL)
-	diagnostics := aiGatewayDiagnostics(route)
-	if !test {
-		json.NewEncoder(w).Encode(diagnostics)
-		return
-	}
-	if !route.RouteSupported {
-		json.NewEncoder(w).Encode(diagnostics)
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	RegisterLLMSecrets(&cfg)
+	ctx, cancel := context.WithTimeout(parent, 20*time.Second)
 	defer cancel()
-
-	probeURL, probeSafe := aiGatewayProbeURL(route, providerType)
-	if !probeSafe {
-		diagnostics["live_status"] = "skipped"
-		diagnostics["message"] = "AI Gateway route configured; live probe skipped for this provider"
-		json.NewEncoder(w).Encode(diagnostics)
-		return
+	if s.integrationCtx != nil {
+		stop := context.AfterFunc(s.integrationCtx, cancel)
+		defer stop()
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, probeURL, nil)
-	if err != nil {
-		if test {
-			w.WriteHeader(http.StatusServiceUnavailable)
-		}
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":  "error",
-			"message": scrubAIGatewayProbeMessage(err.Error(), cfgSnapshot),
-		})
-		return
-	}
-	if cfg.Token != "" && route.AuthHeader == "cf-aig-authorization" {
-		req.Header.Set("cf-aig-authorization", "Bearer "+cfg.Token)
-	}
-	if route.AuthHeader == "Authorization" {
-		apiKey := aiGatewayProbeProviderAPIKey(cfgSnapshot, firstString(providerID))
-		if apiKey == "" {
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":          "no_credentials",
-				"message":         "Provider API key is required for this AI Gateway route",
-				"provider":        route.Provider,
-				"endpoint":        route.Endpoint,
-				"privacy_mode":    route.PrivacyMode,
-				"route_supported": route.RouteSupported,
-			})
+	if kind == "generation" {
+		if p.APIKey == "" || p.Model == "" {
+			writeAIGatewayError(w, result, "provider_auth_missing", http.StatusConflict, 0)
 			return
 		}
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-	}
-	if route.GatewayID != "" && providerType == "workers-ai" {
-		req.Header.Set("cf-aig-gateway-id", route.GatewayID)
-	}
-
-	// cf-aig-authorization is a custom header that net/http forwards to any
-	// redirect target, so the probe never leaves the gateway origin.
-	resp, err := httporigin.NewClient(20 * time.Second).Do(req)
-	if err != nil {
-		if test {
-			w.WriteHeader(http.StatusServiceUnavailable)
+		if s.BudgetTracker == nil {
+			writeAIGatewayError(w, result, "budget_unavailable", http.StatusConflict, 0)
+			return
 		}
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":  "error",
-			"message": scrubAIGatewayProbeMessage(err.Error(), cfgSnapshot),
-		})
+		client := llm.NewClientFromProviderWithConfig(&cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID, p.GatewayID)
+		ctx = budget.WithTracking(llm.WithSingleCompletionAttempt(ctx), s.BudgetTracker, "ai_gateway_test")
+		request := openai.ChatCompletionRequest{Model: p.Model, MaxTokens: 32, Messages: []openai.ChatCompletionMessage{{Role: "user", Content: "Reply OK."}}}
+		response, err := budget.CompleteChat(ctx, llm.WrapOpenAIClient(client), request, llm.ModelRoute{ProviderID: p.ID, ProviderType: p.Type, BaseURL: p.BaseURL, Model: p.Model}, "ai_gateway_test", 32, prompts.CountTokensForModelContext)
+		if err != nil {
+			code := "model_test_failed"
+			upstreamStatus := 0
+			var apiError *openai.APIError
+			if errors.As(err, &apiError) {
+				upstreamStatus = apiError.HTTPStatusCode
+			}
+			if errors.Is(err, budget.ErrCompletionBudgetBlocked) {
+				code = "budget_blocked"
+			} else if ctx.Err() != nil {
+				code = "probe_cancelled"
+			}
+			writeAIGatewayError(w, result, code, http.StatusServiceUnavailable, upstreamStatus)
+			return
+		}
+		if len(response.Choices) == 0 || response.Choices[0].FinishReason != openai.FinishReasonStop || strings.TrimSpace(response.Choices[0].Message.Content) == "" {
+			writeAIGatewayError(w, result, "model_test_incomplete", http.StatusServiceUnavailable, 0)
+			return
+		}
+		result["status"] = "ok"
+		result["live_status"] = "ok"
+		result["code"] = "model_test_ok"
+		json.NewEncoder(w).Encode(result)
+		return
+	}
+	if (p.Type == "workers-ai" || p.Type == "cloudflare-rest") && p.APIKey == "" {
+		writeAIGatewayError(w, result, "provider_auth_missing", http.StatusConflict, 0)
+		return
+	}
+	req, client, err := llm.AIGatewayMetadataProbe(ctx, &cfg, p)
+	if err != nil {
+		writeAIGatewayError(w, result, "probe_failed", http.StatusServiceUnavailable, 0)
+		return
+	}
+	if req == nil {
+		result["live_status"] = "skipped"
+		result["code"] = "metadata_probe_unavailable"
+		json.NewEncoder(w).Encode(result)
+		return
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		code := "probe_failed"
+		if ctx.Err() != nil {
+			code = "probe_cancelled"
+		}
+		writeAIGatewayError(w, result, code, http.StatusServiceUnavailable, 0)
 		return
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		msg := strings.TrimSpace(string(body))
-		if msg == "" {
-			msg = fmt.Sprintf("AI Gateway probe failed (HTTP %d)", resp.StatusCode)
+		code := "gateway_route_unavailable"
+		if resp.StatusCode == 401 || resp.StatusCode == 403 {
+			code = "gateway_auth_failed"
+		} else if resp.StatusCode == 429 {
+			code = "gateway_rate_limited"
 		}
-		msg = scrubAIGatewayProbeMessage(msg, cfgSnapshot)
-		if test {
-			w.WriteHeader(http.StatusServiceUnavailable)
-		}
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":          "error",
-			"message":         msg,
-			"provider":        route.Provider,
-			"endpoint":        route.Endpoint,
-			"privacy_mode":    route.PrivacyMode,
-			"live_status":     "failed",
-			"http_status":     resp.StatusCode,
-			"route_supported": route.RouteSupported,
-		})
+		writeAIGatewayError(w, result, code, http.StatusServiceUnavailable, resp.StatusCode)
 		return
 	}
-
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":          "ok",
-		"message":         "AI Gateway connection successful",
-		"provider":        route.Provider,
-		"endpoint":        route.Endpoint,
-		"privacy_mode":    route.PrivacyMode,
-		"route_supported": route.RouteSupported,
-		"live_status":     "ok",
-	})
+	result["status"] = "ok"
+	result["live_status"] = "ok"
+	result["code"] = "metadata_probe_ok"
+	json.NewEncoder(w).Encode(result)
 }
 
-func aiGatewayProbeURL(route llm.AIGatewayRoute, providerType string) (string, bool) {
-	endpoint := strings.TrimRight(route.Endpoint, "/")
-	if strings.EqualFold(providerType, "workers-ai") {
-		accountBase := strings.TrimSuffix(endpoint, "/ai/v1")
-		if accountBase != endpoint {
-			return accountBase + "/ai/models/search?per_page=1", true
-		}
-		return "", false
+func writeAIGatewayError(w http.ResponseWriter, result map[string]any, code string, status, upstreamStatus int) {
+	if result == nil {
+		result = map[string]any{}
+	} else {
+		result["live_status"] = "failed"
 	}
-	switch strings.ToLower(strings.TrimSpace(providerType)) {
-	case "openai", "openrouter", "deepseek", "groq", "mistral", "xai":
-		return endpoint + "/models", true
-	default:
-		return "", false
+	result["status"] = "error"
+	result["code"] = code
+	result["message"] = "AI Gateway test failed"
+	if upstreamStatus > 0 {
+		result["http_status"] = upstreamStatus
 	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(result)
 }
 
-func aiGatewayProbeProviderAPIKey(cfg config.Config, providerID string) string {
-	providerID = strings.TrimSpace(providerID)
-	if providerID != "" {
-		for _, provider := range cfg.Providers {
-			if provider.ID == providerID {
-				return strings.TrimSpace(provider.APIKey)
-			}
-		}
-		return ""
-	}
-	if activeProvider := strings.TrimSpace(cfg.LLM.Provider); activeProvider != "" {
-		for _, provider := range cfg.Providers {
-			if provider.ID == activeProvider {
-				return strings.TrimSpace(provider.APIKey)
-			}
-		}
-	}
-	return strings.TrimSpace(cfg.LLM.APIKey)
-}
-
-func aiGatewayDiagnostics(route llm.AIGatewayRoute) map[string]interface{} {
-	return map[string]interface{}{
-		"status":          route.Status,
-		"message":         route.Message,
-		"provider":        route.Provider,
-		"mode":            route.Mode,
-		"endpoint":        route.Endpoint,
-		"segment":         route.Segment,
-		"route_supported": route.RouteSupported,
-		"privacy_mode":    route.PrivacyMode,
-		"warnings":        route.Warnings,
-	}
-}
-
-func aiGatewayProviderTarget(cfg config.Config, providerID string) (providerType, accountID string, found bool) {
-	providerID = strings.TrimSpace(providerID)
-	if providerID != "" {
-		for _, provider := range cfg.Providers {
-			if provider.ID == providerID {
-				return strings.ToLower(strings.TrimSpace(provider.Type)), strings.TrimSpace(provider.AccountID), true
-			}
-		}
-		return "", "", false
-	}
-	if strings.TrimSpace(cfg.LLM.ProviderType) == "" && strings.TrimSpace(cfg.LLM.Provider) != "" {
-		for _, provider := range cfg.Providers {
-			if provider.ID == cfg.LLM.Provider {
-				return strings.ToLower(strings.TrimSpace(provider.Type)), strings.TrimSpace(provider.AccountID), true
-			}
-		}
-	}
-	return strings.ToLower(strings.TrimSpace(cfg.LLM.ProviderType)), strings.TrimSpace(cfg.LLM.AccountID), true
-}
-
-func firstString(values []string) string {
-	if len(values) == 0 {
-		return ""
-	}
-	return values[0]
-}
-
-func scrubAIGatewayProbeMessage(message string, cfg config.Config) string {
-	replacements := []string{cfg.AIGateway.Token, cfg.LLM.APIKey, cfg.LLM.HelperAPIKey, cfg.FallbackLLM.APIKey}
-	for _, provider := range cfg.Providers {
-		replacements = append(replacements, provider.APIKey)
-	}
-	for _, secret := range replacements {
-		secret = strings.TrimSpace(secret)
-		if secret == "" {
-			continue
-		}
-		message = strings.ReplaceAll(message, secret, "••••••••")
-	}
-	return message
+func aiGatewayDiagnostics(route llm.AIGatewayRoute) map[string]any {
+	return map[string]any{"status": route.Status, "message": route.Message, "provider": route.Provider, "mode": route.Mode, "endpoint": route.Endpoint, "segment": route.Segment, "route_supported": route.RouteSupported, "privacy_mode": route.PrivacyMode, "warnings": route.Warnings, "request_timeout_ms": route.RequestTimeoutMS, "request_timeout_effective_ms": route.EffectiveTimeoutMS}
 }

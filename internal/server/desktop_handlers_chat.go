@@ -554,7 +554,7 @@ func applyDesktopAgentProvider(ctx context.Context, s *Server, cfg *config.Confi
 	if strings.TrimSpace(provider.Model) != "" {
 		cfg.LLM.Model = provider.Model
 	}
-	return llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID))
+	return llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID, provider.GatewayID))
 }
 
 func desktopAgentProviderID(ctx context.Context, s *Server) string {
@@ -647,7 +647,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		cfg.LLM.AccountID = provider.AccountID
 		cfg.LLM.Model = provider.Model
 		cfg.FallbackLLM.Enabled = false
-		llmClient = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID))
+		llmClient = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID, provider.GatewayID))
 	} else if !opts.SkipDesktopProvider {
 		llmClient = applyDesktopAgentProvider(ctx, s, &cfg)
 	}

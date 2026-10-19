@@ -28,7 +28,7 @@ func (s *Server) speechLabTokens() *speechLabTurnTokenRegistry {
 var (
 	errSpeechLabChatLLMUnavailable = errors.New("Speech Lab chat LLM is unavailable")
 	speechLabChatClientFactory     = func(cfg *config.Config, providerType, baseURL, apiKey, accountID string) llm.ChatClient {
-		return llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, providerType, baseURL, apiKey, accountID))
+		return llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, providerType, baseURL, apiKey, accountID, cfg.LLM.GatewayID))
 	}
 )
 
@@ -153,6 +153,7 @@ func speechLabChatTurnRuntime(marked bool, isFollowUp bool, missionID string, ba
 	turnCfg.LLM.BaseURL = provider.BaseURL
 	turnCfg.LLM.APIKey = apiKey
 	turnCfg.LLM.AccountID = provider.AccountID
+	turnCfg.LLM.GatewayID = provider.GatewayID
 	turnCfg.LLM.Model = provider.Model
 	turnCfg.LLM.HelperEnabled = false
 	turnCfg.FallbackLLM.Enabled = false

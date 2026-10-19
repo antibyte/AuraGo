@@ -290,5 +290,9 @@
   "config.providers.role_image_generation": "图像生成",
   "config.providers.role_music_generation": "音乐生成",
   "config.providers.role_video_generation": "视频生成",
-  "config.providers.role_a2a_llm": "A2A"
+  "config.providers.role_a2a_llm": "A2A",
+  "config.providers.hint.cloudflare_rest": "使用具有 Workers AI Read 权限的 Cloudflare 令牌和 author/model 格式的模型 ID。第三方模型由 Cloudflare 计费。",
+  "config.providers.hint.generic_key": "所选提供商的 API 密钥。",
+  "config.providers.gateway_id": "网关 ID",
+  "config.providers.gateway_id_empty_error": "请输入网关 ID。"
 }

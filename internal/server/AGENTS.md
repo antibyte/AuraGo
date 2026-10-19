@@ -424,6 +424,11 @@ Server-owned HTTP and cross-component integration contracts.
 - Workers AI uses the Cloudflare REST base (`https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1`) with `cf-aig-gateway-id`; provider-native routes use `cf-aig-authorization` for the optional authenticated-gateway token.
 - AI Gateway status checks must stay local and non-token-consuming; live Workers AI connection tests validate the Cloudflare API token/account via `/ai/models/search` and include `cf-aig-gateway-id`.
 - The privacy-safe default is `log_mode: metadata_only`; metadata headers must never contain secrets.
+- `metadata_only` leaves the gateway logging switch alone and sends `cf-aig-collect-log-payload: false`; `off` disables logs and `full` explicitly enables payloads. AuraGo owns retries and always sends `cf-aig-max-attempts: 1`.
+- `cloudflare-rest` is an explicit provider with its own Vault API token, account and gateway IDs, unchanged canonical model ID and OpenAI chat wire format. It is independent of the native rewrite toggle. Do not infer its billing rates from another provider.
+- Hugging Face chat uses an operator-created custom provider with upstream `https://router.huggingface.co` and path `/custom-{slug}/v1/chat/completions`; never substitute the legacy inference API. Preserve custom/local endpoints.
+- Status accepts `provider_id` and remains passive. Metadata tests share runtime routing/auth/privacy; unsupported metadata tests are skipped. Only explicit `probe_kind: generation` may generate, once, through budget accounting with 32 output tokens and a twenty-second deadline. Never return provider error bodies. Cancel on request abort and server shutdown.
+- Validate gateway/provider settings and complete metadata before any Vault write. Preserve all gateway IDs through YAML, provider API, AgoDesk, helper, fallback and task clients. See `documentation/ai-gateway.md`.
 
 ### here.now Integration Contract
 - here.now uses only the fixed `https://here.now` API origin, Vault key `here_now_api_key`, authenticated permanent Sites, and explicit personal or workspace account resolution. Never fall back to anonymous publishing or claim flows.
