@@ -58,13 +58,16 @@ export function createView(host, tr, { assetURL = path => path, onFocusLost } = 
     const progressLabel = $('[data-progress-label]'), progressTrack = $('[data-progress-track]'), cameraButton = $('[data-action="camera"]');
     const hud = createHud({ hud: $('[data-hud]'), toasts: $('[data-toasts]'), announcer: $('[data-announcer]') }, { tr, esc, icon });
     const coach = createCoach($('[data-coach]'), { tr, esc, onFocusLost: () => onFocusLost?.() });
+    const menus = createMenus({ showPanel, panel, tr, esc, icon, assetURL });
     let restoreFocus = null;
 
     function showPanel(html, label, focus) {
         if (panel.hidden) restoreFocus = document.activeElement;
         panel.innerHTML = `<section class="mg-panel" role="dialog" aria-label="${esc(tr(label))}">${html}</section>`;
         panel.hidden = false;
-        (focus && panel.querySelector(focus) || panel.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled)'))?.focus({ preventScroll: true });
+        // A focus selector may name a panel control or a top bar button.
+        const target = focus && (panel.querySelector(focus) || root.querySelector(focus));
+        (target && !target.disabled ? target : panel.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled)'))?.focus({ preventScroll: true });
     }
     function progress(round) {
         if (!round) { progressLabel.textContent = tr('subtitle'); progressTrack.replaceChildren(); return; }
@@ -110,6 +113,6 @@ export function createView(host, tr, { assetURL = path => path, onFocusLost } = 
             hud.power(strength, formatted);
         },
         track(value) { const el = $('[data-track]'); if (el) el.textContent = value?.title || '♪'; },
-        dispose() { root.removeEventListener('keydown', trap); hud.dispose(); coach.dispose(); root.remove(); }
-    }, createMenus({ showPanel, panel, tr, esc, icon, assetURL }), createScorecard({ showPanel, tr, esc }));
+        dispose() { root.removeEventListener('keydown', trap); menus.disposeMenus(); hud.dispose(); coach.dispose(); root.remove(); }
+    }, menus, createScorecard({ showPanel, tr, esc }));
 }

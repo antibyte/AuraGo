@@ -88,7 +88,7 @@ export function createCoach(container, { tr, esc, onFocusLost }) {
                     bubble.dataset.anchor = view.anchor;
                     text.textContent = tr(view.text);
                     keys.textContent = view.keys ? tr(view.keys) : ''; keys.hidden = !view.keys;
-                    demo.hidden = view.step !== 'aim';
+                    demo.hidden = view.step !== 'aim' || view.text === 'tutorial_camera';
                     done.hidden = view.step !== 'done';
                 }
                 if (container.hidden) container.hidden = false;

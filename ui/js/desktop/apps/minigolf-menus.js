@@ -19,7 +19,8 @@ export function createMenus({ showPanel, panel, tr, esc, icon, assetURL }) {
     const section = (cls, iconName, title, body) => `<section class="${cls}"><h3>${icon(iconName)}<span>${esc(title)}</span></h3>${body}</section>`;
 
     // A failed preview image falls back to the drawn placeholder underneath it.
-    panel.addEventListener('error', event => { if (event.target instanceof HTMLImageElement && event.target.closest('.mg-preview')) event.target.remove(); }, true);
+    const dropBrokenPreview = event => { if (event.target instanceof HTMLImageElement && event.target.closest('.mg-preview')) event.target.remove(); };
+    panel.addEventListener('error', dropBrokenPreview, true);
 
     function roundCard(cls, round, world, body) {
         return `<button class="mg-round-card ${cls}" data-round="${esc(round)}" data-world="${esc(world)}">${body}</button>`;
@@ -63,18 +64,21 @@ export function createMenus({ showPanel, panel, tr, esc, icon, assetURL }) {
         const quality = `<label class="mg-field"><span>${esc(tr('quality'))}</span><select data-quality>${['auto', 'low', 'medium', 'high'].map(q => `<option value="${q}"${values.quality === q ? ' selected' : ''}>${esc(tr(q))}</option>`).join('')}</select></label>`;
         showPanel(`<h2>${esc(tr('settings'))}</h2>${section('mg-settings-group', 'sound', tr('group_sound'), audioSettings(values, track))}${section('mg-settings-group', 'camera', tr('group_graphics'), quality)}${section('mg-settings-group', 'ball', tr('group_controls'), check('data-magnet', 'magnet', values.magnet !== false) + check('data-aim-camera', 'aim_camera', values.aimCamera) + check('data-follow', 'follow_ball', values.follow !== false))}${section('mg-settings-group', 'display', tr('group_display'), check('data-motion', 'motion', values.reducedMotion))}<div class="mg-panel-actions">${button('credits', tr('credits'))}${button('close', tr('close'), true)}</div>`, 'settings', focus);
     }
-    function help({ inRound } = {}) {
+    function help({ inRound } = {}, focus) {
         const row = (keys, text) => `<tr><th scope="row">${keys.map(key => `<kbd>${esc(key)}</kbd>`).join('')}</th><td>${esc(text)}</td></tr>`;
         const keys = `<table class="mg-keys"><tbody>${row(['←', '→'], tr('key_aim'))}${row(['↑', '↓'], tr('key_power'))}${row([tr('kbd_shift')], tr('key_fine'))}${row([tr('kbd_space')], tr('shoot'))}${row([tr('kbd_escape')], tr('key_escape'))}${row(['?'], tr('key_help'))}</tbody></table>`;
         const text = body => `<p>${esc(body)}</p>`;
-        showPanel(`<h2>${esc(tr('help'))}</h2>${section('mg-help-section', 'ball', tr('help_aim_title'), text(tr('help_aim_body')))}${section('mg-help-section', 'keyboard', tr('help_keys_title'), keys)}${section('mg-help-section', 'touch', tr('help_touch_title'), text(tr('help_touch_body')))}${section('mg-help-section', 'trophy', tr('help_score_title'), text(tr('score_hint')))}<div class="mg-panel-actions">${inRound ? button('tutorial-again', tr('tutorial_again')) : ''}${button('close', tr('close'), true)}</div>`, 'help');
+        showPanel(`<h2>${esc(tr('help'))}</h2>${section('mg-help-section', 'ball', tr('help_aim_title'), text(tr('help_aim_body')))}${section('mg-help-section', 'keyboard', tr('help_keys_title'), keys)}${section('mg-help-section', 'touch', tr('help_touch_title'), text(tr('help_touch_body')))}${section('mg-help-section', 'trophy', tr('help_score_title'), text(tr('score_hint')))}<div class="mg-panel-actions">${inRound ? button('tutorial-again', tr('tutorial_again')) : ''}${button('close', tr('close'), true)}</div>`, 'help', focus);
     }
 
     return {
         menu(state, focus) { (state.step === 'holes' ? holes : state.step === 'players' ? players : home)(state, focus); },
         audioSettings, settings, help,
-        pause() { showPanel(`<h2>${esc(tr('pause'))}</h2><p>${esc(tr('paused'))}</p><p class="mg-muted">${esc(tr('leave_hint'))}</p><div class="mg-panel-actions">${button('close', tr('continue'), true)}${button('help', tr('help_short'))}${button('menu', tr('menu'))}</div>`, 'pause'); },
-        credits(tracks) { showPanel(`<h2>${esc(tr('credits'))}</h2><p>${esc(tr('credits_body'))}</p><ul class="mg-credits">${tracks.map(item => `<li>${esc(item.title)} · ${esc(item.author)} · CC0</li>`).join('')}</ul><div class="mg-panel-actions">${button('close', tr('close'), true)}</div>`, 'credits'); },
+        // Keeps the slider focused while the Mute button follows the volume.
+        muteLabel(muted) { const mute = panel.querySelector('[data-action="mute"]'); if (mute) mute.textContent = tr(muted ? 'unmute' : 'mute'); },
+        disposeMenus() { panel.removeEventListener('error', dropBrokenPreview, true); },
+        pause(focus) { showPanel(`<h2>${esc(tr('pause'))}</h2><p>${esc(tr('paused'))}</p><p class="mg-muted">${esc(tr('leave_hint'))}</p><div class="mg-panel-actions">${button('close', tr('continue'), true)}${button('help', tr('help_short'))}${button('menu', tr('menu'))}</div>`, 'pause', focus); },
+        credits(tracks, focus) { showPanel(`<h2>${esc(tr('credits'))}</h2><p>${esc(tr('credits_body'))}</p><ul class="mg-credits">${tracks.map(item => `<li>${esc(item.title)} · ${esc(item.author)} · CC0</li>`).join('')}</ul><div class="mg-panel-actions">${button('close', tr('close'), true)}</div>`, 'credits', focus); },
         error(key) { showPanel(`<h2>${esc(tr(key))}</h2><div class="mg-panel-actions">${button('retry', tr('retry'), true)}</div>`, key); },
         // Moves colours between player cards without re-rendering, so typing and focus survive.
         syncPlayerColors(list) {
