@@ -47,12 +47,14 @@ func main() {
 		*outputPath = *sourcePath
 	}
 
-	run(*sourcePath, *templatePath, *outputPath)
+	if err := run(*sourcePath, *templatePath, *outputPath); err != nil {
+		log.Fatal(err)
+	}
 }
 
 // run merges the config at sourcePath onto the template at templatePath and
 // writes the result to outputPath.
-func run(sourcePath, templatePath, outputPath string) {
+func run(sourcePath, templatePath, outputPath string) error {
 	ts := time.Now().Format("20060102_150405")
 
 	// ── Step 1: Parse template (must always succeed — this is our controlled default) ──
@@ -73,21 +75,24 @@ func run(sourcePath, templatePath, outputPath string) {
 
 	srcData, err := readNormalized(sourcePath)
 	if err != nil {
-		fmt.Printf("Source unreadable (%v), using template defaults\n", err)
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("read existing source config without overwriting it: %w", err)
+		}
+		fmt.Println("Source does not exist, using template defaults")
 		atomicWriteYAML(outputPath, tmplMap)
-		return
+		return nil
 	}
 
 	srcMap, parseErr := parseYAMLMap(srcData)
 
 	// An empty or comment-only file has no settings to keep. It is a fresh
 	// install (the Docker guide has users `touch config.yaml` before the first
-	// start), so it gets the template unchanged like an unreadable source;
+	// start), so it gets the template unchanged like a missing source;
 	// the corruption path would back it up and apply upgrade grandfathers.
 	if parseErr == nil && srcMap == nil {
 		fmt.Println("Source has no settings, using template defaults")
 		atomicWriteYAML(outputPath, tmplMap)
-		return
+		return nil
 	}
 
 	if parseErr == nil {
@@ -99,7 +104,7 @@ func run(sourcePath, templatePath, outputPath string) {
 			if outputPath != sourcePath {
 				atomicWriteYAML(outputPath, result.merged)
 			}
-			return
+			return nil
 		}
 
 		atomicWriteYAML(outputPath, result.merged)
@@ -113,7 +118,7 @@ func run(sourcePath, templatePath, outputPath string) {
 		if result.migrated {
 			fmt.Println("Raised the Video Studio limits to the new defaults")
 		}
-		return
+		return nil
 	}
 
 	// ── Corruption path: section-by-section recovery ──
@@ -138,6 +143,7 @@ func run(sourcePath, templatePath, outputPath string) {
 
 	atomicWriteYAML(outputPath, merged)
 	fmt.Println("Config repaired successfully")
+	return nil
 }
 
 // mergeResult is the outcome of merging a parseable user config onto the
