@@ -541,6 +541,9 @@ func (s *themeSweepSession) screenshot(t testing.TB, path string) {
 	if err != nil {
 		t.Fatalf("screenshot %s: %v", path, err)
 	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("create screenshot directory %s: %v", path, err)
+	}
 	if err := os.WriteFile(path, png, 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}

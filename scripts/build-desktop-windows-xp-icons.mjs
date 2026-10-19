@@ -120,7 +120,7 @@ let drift = false;
 for (const [relative, contents] of outputs) {
   const file = path.join(root, relative);
   if (check) {
-    if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== contents) {
+    if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n') !== contents) {
       console.error('Stale Windows XP icon artwork:', relative);
       drift = true;
     }

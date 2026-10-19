@@ -112,7 +112,7 @@ let drift = false;
 for (const [relative, contents] of outputs) {
   const file = path.join(root, relative);
   if (check) {
-    if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== contents) { console.error('Stale cursor artwork:', relative); drift = true; }
+    if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n') !== contents) { console.error('Stale cursor artwork:', relative); drift = true; }
   } else { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, contents); }
 }
 if (drift) process.exitCode = 1;
