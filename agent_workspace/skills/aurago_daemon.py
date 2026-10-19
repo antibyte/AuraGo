@@ -17,6 +17,111 @@ import os
 import signal
 import sys
 import time
+import threading
+import queue
+
+_stdout_lock = threading.Lock()
+_transport_lock = threading.Lock()
+_transport_instance = None
+
+
+def _write_message(obj):
+    line = json.dumps(obj, ensure_ascii=False, default=str)
+    with _stdout_lock:
+        sys.stdout.write(line + "\n")
+        sys.stdout.flush()
+
+
+class _DaemonTransport:
+    """The only stdin reader, shared by daemon control and tool callers."""
+    def __init__(self):
+        self.stopped = threading.Event()
+        self.commands = queue.Queue(maxsize=16)
+        self._call_lock = threading.Lock()
+        self._pending_lock = threading.Lock()
+        self._pending = {}
+        self._sequence = 0
+        self._input = sys.stdin
+        threading.Thread(target=self._read, name="aurago-daemon-stdin", daemon=True).start()
+
+    def _stop(self):
+        self.stopped.set()
+        with self._pending_lock:
+            for waiter in self._pending.values():
+                try:
+                    waiter.put_nowait({"status": "error", "result": "Daemon owner stopped; verify any pending action before retrying"})
+                except queue.Full:
+                    pass
+
+    def _read(self):
+        try:
+            while True:
+                line = self._input.readline((1 << 20) + 1)
+                if not line or len(line.encode("utf-8")) > 1 << 20:
+                    return
+                try:
+                    command = json.loads(line)
+                except (ValueError, TypeError):
+                    continue
+                if not isinstance(command, dict):
+                    continue
+                if command.get("type") == "tool_result":
+                    result = command.get("data", {})
+                    if not isinstance(result, dict):
+                        continue
+                    with self._pending_lock:
+                        waiter = self._pending.get(result.get("id"))
+                        if waiter is not None:
+                            try:
+                                waiter.put_nowait(result)
+                            except queue.Full:
+                                pass
+                elif command.get("type") in ("stop", "config_update"):
+                    if command["type"] == "stop":
+                        self._stop()
+                    try:
+                        self.commands.put_nowait(command)
+                    except queue.Full:
+                        pass
+        finally:
+            self._stop()
+
+    def call_tool(self, tool, parameters, timeout):
+        # One in-flight request keeps stdout protocol and quotas deterministic.
+        with self._call_lock:
+            if self.stopped.is_set():
+                raise RuntimeError("Daemon owner has stopped")
+            identity = self._sequence + 1
+            timeout = min(60, max(1, int(timeout or 60)))
+            frame = {"type": "tool_request", "data": {"id": identity, "tool": tool, "parameters": parameters, "timeout": timeout}}
+            if len(json.dumps(frame).encode("utf-8")) > 64 << 10:
+                raise ValueError("Daemon tool request exceeds 64 KiB")
+            self._sequence = identity
+            waiter = queue.Queue(maxsize=1)
+            with self._pending_lock:
+                self._pending[identity] = waiter
+            try:
+                _write_message(frame)
+                try:
+                    return waiter.get(timeout=timeout + 5)
+                except queue.Empty:
+                    self._stop()
+                    raise TimeoutError("Daemon tool outcome unknown; verify effects before retrying")
+            finally:
+                with self._pending_lock:
+                    self._pending.pop(identity, None)
+
+
+def _daemon_transport():
+    global _transport_instance
+    with _transport_lock:
+        if _transport_instance is None:
+            _transport_instance = _DaemonTransport()
+        return _transport_instance
+
+
+def _call_tool(tool, parameters, timeout):
+    return _daemon_transport().call_tool(tool, parameters, timeout)
 
 
 class AuraGoDaemon:
@@ -40,7 +145,7 @@ class AuraGoDaemon:
             pass  # Signal handling may not be available on all platforms
 
         # Listen for commands on stdin in a non-blocking way
-        self._check_stdin = hasattr(sys.stdin, "readline")
+        self._transport = _daemon_transport() if os.environ.get("AURAGO_DAEMON") == "1" else None
 
     # ── Public API ──────────────────────────────────────────────────────
 
@@ -97,7 +202,16 @@ class AuraGoDaemon:
 
         Returns False after SIGTERM/SIGINT or when the parent pipe breaks.
         """
-        return self._running
+        return self._running and (self._transport is None or not self._transport.stopped.is_set())
+
+    def next_command(self):
+        """Return a queued stop/config_update command without consuming tool replies."""
+        if self._transport is None:
+            return None
+        try:
+            return self._transport.commands.get_nowait()
+        except queue.Empty:
+            return None
 
     def uptime(self) -> float:
         """Return seconds since daemon start."""
@@ -116,9 +230,7 @@ class AuraGoDaemon:
     def _send(self, obj: dict):
         """Write a JSON line to stdout (IPC channel to Go supervisor)."""
         try:
-            line = json.dumps(obj, ensure_ascii=False, default=str)
-            sys.stdout.write(line + "\n")
-            sys.stdout.flush()
+            _write_message(obj)
         except (BrokenPipeError, OSError):
             self._running = False
 

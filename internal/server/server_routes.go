@@ -91,8 +91,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			WorkspaceDir:       s.Cfg.Directories.WorkspaceDir,
 			SkillsDir:          s.Cfg.Directories.SkillsDir,
 			BridgeEnabled:      s.Cfg.Tools.PythonToolBridge.Enabled,
-			BridgeURL:          InternalAPIURL(s.Cfg) + "/api/internal/tool-bridge",
-			BridgeToken:        s.internalToken,
+			BridgeFactory:      s.newDaemonToolBridge,
 			BridgeAllowedTools: s.Cfg.Tools.PythonToolBridge.AllowedTools,
 			RequireSandbox:     s.Cfg.Tools.SkillManager.RequireSandbox,
 		}

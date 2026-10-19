@@ -2155,7 +2155,7 @@ shell_sandbox:
 
 ### Python Tool Bridge
 
-Erlaubt **Python-Skills**, ausgewählte native AuraGo-Tools über eine interne HTTP-Bridge (`POST /api/internal/tool-bridge/`) aufzurufen. Standard: deaktiviert.
+Erlaubt **Python-Skills**, ausgewählte native AuraGo-Tools über eine an den Lauf gebundene Bridge aufzurufen. Isolierte Vordergrund-Worker und Daemon-Skills nutzen den Broker ihres Supervisors und erhalten weder Bridge-Token noch URL. Standard: deaktiviert. Transport, Laufzeit- und Berechtigungsgrenzen beschreibt die [Dokumentation zur isolierten Codeausführung](../../isolated-executor.md#tool-bridge).
 
 **Web-UI:** **Config → Tools → Fähigkeiten-Manager** — Python Tool Bridge aktivieren und `allowed_tools`-Whitelist pflegen.
 
@@ -2171,7 +2171,7 @@ tools:
 Skills deklarieren Bridge-Nutzung im Manifest über `internal_tools`.
 
 > [!WARNING]
-> **Sicherheit:** Nur wirklich benötigte Tools whitelisten. Niemals `get_secret` oder `execute_shell` ohne volles Vertrauen in den Skill-Code.
+> **Sicherheit:** Nur wirklich benötigte Tools whitelisten; Secret- und Vault-Tools aus der Liste lassen. Shell-, Python- und Skill-Ausführung sowie der Wiedereinstieg über `invoke_tool` bleiben auch mit Allowlist-Eintrag gesperrt. Genehmigungspflichtige Hintergrundaktionen brauchen passende Aktionsregeln.
 
 ### Skill Manager
 

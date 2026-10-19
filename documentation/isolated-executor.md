@@ -72,6 +72,18 @@ The supervisor accepts only a loopback bridge origin and refuses redirects.
 Cancelling a foreground caller cancels its MCP request and retires that
 connection. A required supervisor remains fail-closed.
 
+Daemon skills use the existing stdout/stdin IPC and one SDK reader for tool
+results, Stop and configuration commands. The trusted Go supervisor owns the
+bridge grant; daemon workers receive neither an authentication token nor a
+bridge URL. Calls retain the original `daemon:<skill>:<generation>` session and
+are cancelled with that generation or server shutdown. Tool access intersects
+the manifest, startup configuration and current configuration; SQL connections
+must satisfy both startup and current allowlists. Each grant permits at most
+32 calls in five minutes; exhaustion cannot trigger an early refill. Actions
+requiring authorization need matching background action rules. Existing daemon
+execution gates still apply: this IPC does not grant unsafe host execution or
+provide a sandbox for long-running daemons.
+
 Background execution uses the existing durable Background Task Manager and
 returns a task ID. System Tasks shows bounded output, status and cancellation;
 completion notifications are enabled. The queued job captures the originating

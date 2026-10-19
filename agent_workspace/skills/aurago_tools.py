@@ -39,12 +39,15 @@ class AuraGoTools:
     @staticmethod
     def is_available():
         """Return True when the tool bridge URL and token are available."""
-        return bool(
+        return os.environ.get("AURAGO_DAEMON_TOOL_BRIDGE") == "stdio-v1" or bool(
             os.environ.get("AURAGO_TOOL_BRIDGE_URL", "")
             and os.environ.get("AURAGO_TOOL_BRIDGE_TOKEN", "")
         )
 
     def __init__(self, base_url=None, token=None):
+        self._daemon_ipc = os.environ.get("AURAGO_DAEMON_TOOL_BRIDGE") == "stdio-v1"
+        if self._daemon_ipc:
+            return
         self._base_url = base_url or os.environ.get("AURAGO_TOOL_BRIDGE_URL", "")
         self._token = token or os.environ.get("AURAGO_TOOL_BRIDGE_TOKEN", "")
         if not self._base_url:
@@ -74,6 +77,9 @@ class AuraGoTools:
         """
         if parameters is None:
             parameters = {}
+
+        if self._daemon_ipc:
+            return self._call_daemon(tool_name, parameters, timeout, False)
 
         url = self._base_url.rstrip("/") + "/" + tool_name
 
@@ -128,6 +134,9 @@ class AuraGoTools:
         if parameters is None:
             parameters = {}
 
+        if self._daemon_ipc:
+            return self._call_daemon(tool_name, parameters, timeout, True)
+
         url = self._base_url.rstrip("/") + "/" + tool_name
 
         payload = json.dumps({
@@ -159,3 +168,21 @@ class AuraGoTools:
             return data.get("result", body)
         except (json.JSONDecodeError, ValueError):
             return body
+
+    def _call_daemon(self, tool_name, parameters, timeout, raw):
+        if not isinstance(tool_name, str) or not tool_name.strip() or not isinstance(parameters, dict):
+            raise AuraGoToolError("Tool name and parameters are invalid")
+        from aurago_daemon import _call_tool
+        try:
+            response = _call_tool(tool_name.strip(), parameters, timeout)
+        except (RuntimeError, TimeoutError, ValueError, OSError) as error:
+            raise AuraGoToolError(str(error)) from None
+        if response.get("status") != "success":
+            raise AuraGoToolError(str(response.get("result", "Daemon tool call failed")))
+        result = response.get("result", "")
+        if raw:
+            return result
+        try:
+            return json.loads(result)
+        except (TypeError, ValueError):
+            return result

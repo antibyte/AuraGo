@@ -41,8 +41,7 @@ type DaemonSupervisorConfig struct {
 
 	// Tool bridge (optional): supervisor passes these to daemon runners
 	BridgeEnabled      bool
-	BridgeURL          string
-	BridgeToken        string
+	BridgeFactory      DaemonBridgeRunFactory
 	BridgeAllowedTools []string // config-level whitelist
 }
 
@@ -218,19 +217,18 @@ func (s *DaemonSupervisor) startRunner(manifest SkillManifest) error {
 	}
 
 	runner := NewDaemonRunner(DaemonRunnerConfig{
-		SkillID:      skillID,
-		SkillName:    manifest.Name,
-		Config:       daemon,
-		Manifest:     manifest,
-		WorkspaceDir: s.config.WorkspaceDir,
-		SkillsDir:    s.config.SkillsDir,
-		Registry:     s.registry,
-		LogDir:       s.config.LogDir,
-		Logger:       s.logger,
-		WakeCh:       s.wakeCh,
-		BridgeURL:    s.config.BridgeURL,
-		BridgeToken:  s.config.BridgeToken,
-		BridgeTools:  bridgeTools,
+		SkillID:       skillID,
+		SkillName:     manifest.Name,
+		Config:        daemon,
+		Manifest:      manifest,
+		WorkspaceDir:  s.config.WorkspaceDir,
+		SkillsDir:     s.config.SkillsDir,
+		Registry:      s.registry,
+		LogDir:        s.config.LogDir,
+		Logger:        s.logger,
+		WakeCh:        s.wakeCh,
+		BridgeFactory: s.config.BridgeFactory,
+		BridgeTools:   bridgeTools,
 
 		RequireSandbox: s.requireSandbox.Load,
 	})
