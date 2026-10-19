@@ -2,11 +2,8 @@ package tools
 
 import (
 	"encoding/json"
-	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -139,20 +136,9 @@ func TestPullModelIfNeededUsesCurrentModelField(t *testing.T) {
 	}))
 	defer server.Close()
 
-	parsed, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatalf("parse server URL: %v", err)
+	if err := ollamaEnsureModel(OllamaConfig{URL: server.URL}, "nomic-embed-text"); err != nil {
+		t.Fatal(err)
 	}
-	_, portText, err := net.SplitHostPort(parsed.Host)
-	if err != nil {
-		t.Fatalf("split server host: %v", err)
-	}
-	port, err := strconv.Atoi(portText)
-	if err != nil {
-		t.Fatalf("parse server port: %v", err)
-	}
-
-	pullModelIfNeeded(port, "nomic-embed-text", "Ollama Embeddings", ollamaTestLogger{})
 
 	for _, path := range []string{"/api/show", "/api/pull"} {
 		mu.Lock()

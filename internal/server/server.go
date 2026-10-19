@@ -494,6 +494,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
 	}
+	if s.integrationCtx != nil {
+		tools.ConfigureOllamaRuntime(s.integrationCtx, cfg)
+	}
 	if s.BackgroundTasks != nil {
 		s.BackgroundTasks.SetLimits(tools.BackgroundTaskLimits{
 			MaxActiveTasks: cfg.Agent.BackgroundTasks.MaxActiveTasks, MaxDueStartsPerTick: cfg.Agent.BackgroundTasks.MaxDueStartsPerTick,
@@ -829,6 +832,8 @@ func Start(opts StartOptions) error {
 	mqtt.SetDefaultController(s.MQTTController)
 	s.bindMQTTPermissions()
 	s.bindRuntimePermissions()
+	tools.ConfigureOllamaRuntime(serverCtx, cfg)
+	defer tools.ShutdownOllamaRuntime()
 	s.bindDockerSelfIdentity()
 	s.configureMQTTRelay()
 	defer s.MQTTController.Stop(context.Background())

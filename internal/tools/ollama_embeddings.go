@@ -1,12 +1,9 @@
 package tools
 
 import (
-	"fmt"
-	"net/http"
 	"os"
 	"runtime"
 	"strings"
-	"time"
 
 	"aurago/internal/config"
 )
@@ -171,60 +168,8 @@ func ollamaImageForGPU(gpu GPUInfo) string {
 
 // EnsureOllamaEmbeddingsRunning ensures a managed Ollama container is running
 // for local embeddings. Follows the same idempotent pattern as EnsureGotenbergRunning.
-func EnsureOllamaEmbeddingsRunning(cfg *config.Config, logger interface {
-	Info(string, ...any)
-	Warn(string, ...any)
-	Error(string, ...any)
-}) {
-	lo := cfg.Embeddings.LocalOllama
-	if !lo.Enabled {
-		logger.Info("[Ollama Embeddings] Skipping auto-start (disabled in config)")
-		return
-	}
-	if err := validateOllamaLifecycleConfig(cfg); err != nil {
-		logger.Error("[Ollama Embeddings] Configuration refused", "error", err)
-		return
-	}
-
-	dockerCfg := DockerConfig{Host: cfg.Docker.Host}
-	port := lo.ContainerPort
-	if port <= 0 {
-		port = 11435
-	}
-
-	// Detect GPU if requested
-	var gpu GPUInfo
-	if lo.UseHostGPU {
-		gpu = DetectGPU(lo.GPUBackend)
-		if gpu.Backend == "none" {
-			logger.Warn("[Ollama Embeddings] use_host_gpu enabled but no supported GPU detected, falling back to CPU",
-				"os", runtime.GOOS, "requested_backend", lo.GPUBackend)
-		} else {
-			logger.Info("[Ollama Embeddings] GPU detected", "backend", gpu.Backend, "name", gpu.Name)
-		}
-	}
-
-	image := ollamaImageForGPU(gpu)
-	payload, err := ollamaEmbeddingsCreatePayload(port, gpu)
-	if err != nil {
-		logger.Error("[Ollama Embeddings] Failed to build container payload", "error", err)
-		return
-	}
-	model := strings.TrimSpace(lo.Model)
-	if model == "" {
-		model = "nomic-embed-text"
-	}
-	reconcileNamedOllamaContainer(ollamaReconcile{
-		Label:         "Ollama Embeddings",
-		ContainerName: ollamaEmbContainerName,
-		Port:          port,
-		Image:         image,
-		GPUBackend:    gpu.Backend,
-		Payload:       payload,
-		Docker:        dockerCfg,
-		Logger:        logger,
-		Models:        []string{model},
-	})
+func EnsureOllamaEmbeddingsRunning(cfg *config.Config, logger ollamaEnsureLogger) {
+	ensureOllamaRuntime(cfg, true, logger)
 }
 
 // hostGroupIDs resolves group names to their numeric GIDs from the host's
@@ -252,97 +197,4 @@ func hostGroupIDs(names []string) []string {
 		}
 	}
 	return ids
-}
-
-// StopOllamaEmbeddingsContainer stops aurago_ollama_embeddings.
-func StopOllamaEmbeddingsContainer(dockerHost string) string {
-	dockerCfg := DockerConfig{Host: dockerHost}
-	_, code, err := dockerRequest(dockerCfg, "POST", "/containers/"+ollamaEmbContainerName+"/stop", "")
-	if err != nil {
-		return ollamaErrJSON("Docker unavailable: " + err.Error())
-	}
-	if code == 204 || code == 304 {
-		return `{"status":"ok","message":"Container stopped."}`
-	}
-	if code == 404 {
-		return ollamaErrJSON("Ollama embeddings container not found.")
-	}
-	return ollamaErrJSON(fmt.Sprintf("Unexpected response code: %d", code))
-}
-
-// waitForOllamaReady polls the Ollama API until it responds or times out.
-func waitForOllamaReady(port int, label string, logger interface {
-	Info(string, ...any)
-	Warn(string, ...any)
-}) {
-	if strings.TrimSpace(label) == "" {
-		label = "Ollama"
-	}
-	prefix := "[" + label + "] "
-	url := fmt.Sprintf("http://127.0.0.1:%d/", port)
-	deadline := time.Now().Add(60 * time.Second)
-	client := &http.Client{Timeout: 2 * time.Second}
-
-	for time.Now().Before(deadline) {
-		resp, err := client.Get(url)
-		if err == nil {
-			resp.Body.Close()
-			if resp.StatusCode == 200 {
-				logger.Info(prefix + "Container ready")
-				return
-			}
-		}
-		time.Sleep(2 * time.Second)
-	}
-	logger.Warn(prefix + "Container did not become ready within 60s")
-}
-
-// pullModelIfNeeded ensures the configured embedding model is available in the Ollama instance.
-func pullModelIfNeeded(port int, model, label string, logger interface {
-	Info(string, ...any)
-	Warn(string, ...any)
-	Error(string, ...any)
-}) {
-	if model == "" {
-		model = "nomic-embed-text"
-	}
-	if strings.TrimSpace(label) == "" {
-		label = "Ollama"
-	}
-	prefix := "[" + label + "] "
-
-	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
-	client := &http.Client{Timeout: 5 * time.Second}
-
-	// Check if model already exists via /api/show
-	showBody := marshalToolJSON(map[string]any{"model": model})
-	showResp, err := client.Post(baseURL+"/api/show", "application/json", strings.NewReader(showBody))
-	if err == nil {
-		showResp.Body.Close()
-		if showResp.StatusCode == 200 {
-			logger.Info(prefix+"Model already available", "model", model)
-			return
-		}
-	}
-
-	// Model not present — pull it (this can take a while)
-	logger.Info(prefix+"Pulling model (this may take several minutes on first run)", "model", model)
-	pullBody := marshalToolJSON(map[string]any{"model": model, "stream": false})
-	pullClient := &http.Client{Timeout: 30 * time.Minute} // model downloads can be large
-	pullResp, err := pullClient.Post(baseURL+"/api/pull", "application/json", strings.NewReader(pullBody))
-	if err != nil {
-		logger.Error(prefix+"Failed to pull model", "model", model, "error", err)
-		return
-	}
-	defer pullResp.Body.Close()
-	data, readErr := readHTTPResponseBody(pullResp.Body, maxHTTPResponseSize)
-	if readErr != nil {
-		logger.Error(prefix+"Failed to read model pull result", "error", readErr)
-		return
-	}
-	if pullResp.StatusCode == 200 && validateOllamaPullResult(data) == nil {
-		logger.Info(prefix+"Model pulled successfully", "model", model)
-	} else {
-		logger.Error(prefix+"Model pull returned unexpected status", "model", model, "status", pullResp.StatusCode)
-	}
 }

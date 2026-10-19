@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/url"
 	"reflect"
@@ -384,7 +383,7 @@ func (c *Config) ResolveProviders() {
 		}
 	}
 	// Auto-wire local Ollama embeddings when enabled and no explicit provider is set
-	if c.Embeddings.LocalOllama.Enabled && (c.Embeddings.Provider == "" || c.Embeddings.Provider == "disabled") {
+	if c.Embeddings.LocalOllama.Enabled && (c.Embeddings.Provider == "" || c.Embeddings.Provider == "disabled" || c.Embeddings.Provider == "local-ollama-embeddings") {
 		port := c.Embeddings.LocalOllama.ContainerPort
 		if port <= 0 {
 			port = 11435
@@ -395,7 +394,7 @@ func (c *Config) ResolveProviders() {
 		}
 		c.Embeddings.Provider = "local-ollama-embeddings"
 		c.Embeddings.ProviderType = "ollama"
-		c.Embeddings.BaseURL = fmt.Sprintf("http://127.0.0.1:%d/v1", port)
+		c.Embeddings.BaseURL = ManagedOllamaURL(c.Runtime.IsDocker || probeDockerContainer(), true, port) + "/v1"
 		c.Embeddings.APIKey = "ollama" // Ollama ignores auth but field must be non-empty
 		c.Embeddings.Model = model
 	}

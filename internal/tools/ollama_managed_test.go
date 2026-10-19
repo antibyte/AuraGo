@@ -18,41 +18,6 @@ func TestOllamaDoesNotInferDaemonDevicesFromLocalFilesystem(t *testing.T) {
 	}
 }
 
-func TestOllamaContainerListHasHostPortMatchesPublishedPort(t *testing.T) {
-	list := []byte(`[
-		{
-			"Id": "abc",
-			"Image": "ollama/ollama:latest",
-			"Ports": [
-				{"PrivatePort": 11434, "PublicPort": 11435, "IP": "127.0.0.1", "Type": "tcp"}
-			]
-		}
-	]`)
-
-	if !ollamaContainerListHasHostPort(list, 11435) {
-		t.Fatal("expected container list to match published host port 11435")
-	}
-	if ollamaContainerListHasHostPort(list, 11434) {
-		t.Fatal("did not expect private container port 11434 to match host port")
-	}
-}
-
-func TestOllamaContainerListHasHostPortIgnoresUnpublishedContainers(t *testing.T) {
-	list := []byte(`[
-		{
-			"Id": "abc",
-			"Image": "ollama/ollama:latest",
-			"Ports": [
-				{"PrivatePort": 11434, "Type": "tcp"}
-			]
-		}
-	]`)
-
-	if ollamaContainerListHasHostPort(list, 11434) {
-		t.Fatal("did not expect unpublished container port to match host port")
-	}
-}
-
 func TestOllamaManagedCreatePayloadUsesNamedVolume(t *testing.T) {
 	raw, err := ollamaManagedCreatePayload(11434, "", "", GPUInfo{}, false)
 	if err != nil {
@@ -108,7 +73,7 @@ func TestOllamaManagedSpecDrift(t *testing.T) {
 	}
 	body.HostConfig.PortBindings["11434/tcp"][0].HostPort = "11499"
 	changed, err := json.Marshal(map[string]any{
-		"Config":     map[string]any{"Image": body.Image},
+		"Config":     map[string]any{"Image": body.Image, "Labels": body.Labels},
 		"HostConfig": body.HostConfig,
 	})
 	if err != nil {
@@ -156,7 +121,7 @@ func TestOllamaManagedSpecDriftIgnoresRegistryPrefixAndBindMode(t *testing.T) {
 	body.Image = "docker.io/" + body.Image
 	body.HostConfig.Binds[0] += ":rw"
 	inspect, err := json.Marshal(map[string]any{
-		"Config":     map[string]any{"Image": body.Image},
+		"Config":     map[string]any{"Image": body.Image, "Labels": body.Labels},
 		"HostConfig": body.HostConfig,
 	})
 	if err != nil {
@@ -176,7 +141,7 @@ func TestOllamaManagedSpecDriftIgnoresRegistryPrefixAndBindMode(t *testing.T) {
 	body.Image = "index.docker.io/" + body.Image
 	body.HostConfig.Binds[0] += ":rw,z"
 	inspect, err = json.Marshal(map[string]any{
-		"Config":     map[string]any{"Image": body.Image},
+		"Config":     map[string]any{"Image": body.Image, "Labels": body.Labels},
 		"HostConfig": body.HostConfig,
 	})
 	if err != nil {
@@ -245,8 +210,9 @@ func inspectFromCreatePayload(t *testing.T, desired []byte) []byte {
 	}
 	raw, err := json.Marshal(map[string]any{
 		"Config": map[string]any{
-			"Image": body.Image,
-			"Env":   append([]string{"PATH=/usr/bin"}, body.Env...),
+			"Image":  body.Image,
+			"Labels": body.Labels,
+			"Env":    append([]string{"PATH=/usr/bin"}, body.Env...),
 		},
 		"HostConfig": body.HostConfig,
 	})

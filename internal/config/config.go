@@ -2459,7 +2459,7 @@ func Load(path string) (*Config, error) {
 	}
 	// When managed instance is active, point the Ollama URL to the local container.
 	if cfg.Ollama.ManagedInstance.Enabled {
-		cfg.Ollama.URL = fmt.Sprintf("http://localhost:%d", cfg.Ollama.ManagedInstance.ContainerPort)
+		cfg.Ollama.URL = ManagedOllamaURL(runningInDocker, false, cfg.Ollama.ManagedInstance.ContainerPort)
 	}
 
 	// RocketChat defaults

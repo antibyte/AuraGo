@@ -720,6 +720,11 @@ func main() {
 		appLog.Warn("Web Push manager initialization failed -- push notifications disabled", "error", err)
 	}
 
+	// Managed embedding startup precedes VectorDB creation and uses the same
+	// admission gates and owner lifetime as later server-owned work.
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissionsFromConfig(cfg))
+	tools.ConfigureOllamaRuntime(context.Background(), cfg)
+	defer tools.ShutdownOllamaRuntime()
 	if cfg.Docker.Enabled && cfg.Embeddings.LocalOllama.Enabled {
 		tools.EnsureOllamaEmbeddingsRunning(cfg, appLog)
 	} else if cfg.Embeddings.LocalOllama.Enabled {

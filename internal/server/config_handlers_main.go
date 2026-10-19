@@ -682,10 +682,21 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		go2RTCWasEnabled := s.Cfg.Go2RTC.Enabled
 		localMusicWasEnabled := s.Cfg.UsesLocalMusic() && s.Cfg.MusicGeneration.Enabled
 		ollamaNeedsStop := s.Cfg.Ollama.ManagedInstance.Enabled && !validateCfg.Ollama.ManagedInstance.Enabled || s.Cfg.Embeddings.LocalOllama.Enabled && !validateCfg.Embeddings.LocalOllama.Enabled
+		ollamaPreviousHost := s.Cfg.Docker.Host
 		s.CfgMu.RUnlock()
+		if ollamaNeedsStop && ollamaPreviousHost != validateCfg.Docker.Host {
+			jsonError(w, "Stop managed Ollama before changing the Docker Engine", http.StatusBadRequest)
+			return
+		}
 		if ollamaNeedsStop && (!validateCfg.Docker.Enabled || validateCfg.Docker.ReadOnly) {
 			jsonError(w, "Disable managed Ollama while Docker writes are enabled, then revoke Docker writes in a separate save", http.StatusBadRequest)
 			return
+		}
+		if (!validateCfg.Docker.Enabled || validateCfg.Docker.ReadOnly) && tools.OllamaStopsPending() {
+			if err := tools.ConfirmOllamaStops(r.Context(), ollamaPreviousHost); err != nil {
+				jsonError(w, "Wait until managed Ollama has stopped before revoking Docker writes", http.StatusBadRequest)
+				return
+			}
 		}
 		if (localMusicWasEnabled || localMusicStopPending(s)) && (!validateCfg.Docker.Enabled || validateCfg.Docker.ReadOnly) {
 			jsonError(w, "Disable local music and wait until stopped before disabling Docker mutations", http.StatusBadRequest)
@@ -1329,13 +1340,8 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				go tools.EnsureOllamaEmbeddingsRunning(newCfg, s.Logger)
 			}
 			if oldCfg.Embeddings.LocalOllama.Enabled && !newCfg.Embeddings.LocalOllama.Enabled {
-				if !newCfg.Docker.Enabled {
-					s.Logger.Info("[Config UI] Docker is disabled; skipping Ollama embeddings container stop")
-				} else {
-					go func() {
-						tools.StopOllamaEmbeddingsContainer(newCfg.Docker.Host)
-						s.Logger.Info("[Config UI] Ollama embeddings container stopped")
-					}()
+				if _, err := tools.StartOllamaStop(newCfg, true); err != nil {
+					s.Logger.Warn("[Ollama] Embeddings stop refused", "error", err)
 				}
 			}
 
@@ -1344,12 +1350,13 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				(!oldCfg.Ollama.ManagedInstance.Enabled || ollamaManagedInputsChanged(&oldCfg, newCfg)) {
 				go tools.EnsureOllamaManagedRunning(newCfg, s.Logger)
 			}
-			// Stop managed Ollama container if just disabled
-			if !newCfg.Ollama.ManagedInstance.Enabled && oldCfg.Ollama.ManagedInstance.Enabled {
-				go func() {
-					tools.StopOllamaManagedContainer(newCfg.Docker.Host)
-					s.Logger.Info("[Config UI] Managed Ollama container stopped")
-				}()
+			if oldCfg.Ollama.ManagedInstance.Enabled && !newCfg.Ollama.ManagedInstance.Enabled {
+				if _, err := tools.StartOllamaStop(newCfg, false); err != nil {
+					s.Logger.Warn("[Ollama] Managed stop refused", "error", err)
+				}
+			}
+			if oldCfg.Docker.Host != newCfg.Docker.Host && (oldCfg.Ollama.ManagedInstance.Enabled || oldCfg.Embeddings.LocalOllama.Enabled) {
+				s.Logger.Warn("[Ollama] Docker endpoint changed; containers on the previous Engine were retained for administrator review")
 			}
 
 			// Auto-start Piper TTS container if just enabled
@@ -1775,6 +1782,7 @@ func manifestSidecarAuthConfigChanged(oldCfg, newCfg config.Config) bool {
 }
 
 func validateManagedDockerBackends(cfg config.Config, rt config.Runtime) error {
+	cfg.Runtime = rt
 	if strings.TrimSpace(cfg.Docker.Host) == "" {
 		cfg.Docker.Host = strings.TrimSpace(os.Getenv("DOCKER_HOST"))
 	}

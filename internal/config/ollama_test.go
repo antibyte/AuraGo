@@ -27,3 +27,16 @@ func TestOllamaMemoryAndPorts(t *testing.T) {
 		t.Fatal("accepted invalid port")
 	}
 }
+
+func TestOllamaEmbeddingResolutionSurvivesRepeatedConfigSnapshots(t *testing.T) {
+	var c Config
+	c.Runtime.IsDocker = true
+	c.Embeddings.LocalOllama.Enabled = true
+	c.Embeddings.LocalOllama.Model = "nomic-embed-text"
+	c.ResolveProviders()
+	c.Embeddings.LocalOllama.ContainerPort = 11439
+	c.ResolveProviders()
+	if c.Embeddings.BaseURL != "http://aurago_ollama_embeddings:11434/v1" || c.Embeddings.ProviderType != "ollama" {
+		t.Fatal(c.Embeddings)
+	}
+}

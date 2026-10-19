@@ -3,6 +3,9 @@ package config
 import (
 	"fmt"
 	"math"
+	"net"
+	"net/url"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -63,6 +66,18 @@ func ValidateOllamaSettings(c Config) error {
 		}
 	}
 	if !c.Runtime.IsDocker {
+		host := strings.TrimSpace(c.Docker.Host)
+		if host == "" {
+			host = strings.TrimSpace(os.Getenv("DOCKER_HOST"))
+		}
+		if mi.Enabled || lo.Enabled {
+			if target, err := url.Parse(host); err == nil && (target.Scheme == "tcp" || target.Scheme == "http" || target.Scheme == "https" || target.Scheme == "ssh") {
+				ip := net.ParseIP(target.Hostname())
+				if target.Scheme == "ssh" || target.Hostname() != "localhost" && (ip == nil || !ip.IsLoopback()) {
+					return fmt.Errorf("managed Ollama requires a local Docker Engine on native installations; configure an external Ollama endpoint for remote Engines")
+				}
+			}
+		}
 		mp, ep := mi.ContainerPort, lo.ContainerPort
 		if mp == 0 {
 			mp = 11434
@@ -78,7 +93,9 @@ func ValidateOllamaSettings(c Config) error {
 			if strings.HasPrefix(path, "embeddings") {
 				enabled = lo.Enabled
 			}
-			if enabled && (port == c.Server.Port || c.Server.HTTPS.Enabled && (port == c.Server.HTTPS.HTTPSPort || port == c.Server.HTTPS.HTTPPort)) {
+			serverIP := net.ParseIP(strings.TrimSpace(c.Server.Host))
+			overlapsLoopback := serverIP == nil || serverIP.IsUnspecified() || serverIP.IsLoopback()
+			if enabled && overlapsLoopback && (port == c.Server.Port || c.Server.HTTPS.Enabled && (port == c.Server.HTTPS.HTTPSPort || port == c.Server.HTTPS.HTTPPort)) {
 				return fmt.Errorf("%s conflicts with the AuraGo server port", path)
 			}
 		}
