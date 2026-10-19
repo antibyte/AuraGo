@@ -64,12 +64,15 @@ async function fixture(options = {}) {
     const {lang='de',theme='standard',mode='dark',width=1280,admin=true,surface='desktop'} = options;
     const page = await browser.newPage({ viewport: {width,height:900}, reducedMotion: 'reduce' });
     page.setDefaultTimeout(8000);
-    const state = { errors: [], previews: [], decisions: [], pendingRequests: [], pendingQueries: [], pending: [], decisionDelay: 0, decisionStatus: 200, decisionResult: {status:'success',result:'Fixture completed'}, abortDecision: false };
+    const state = { errors: [], previews: [], decisions: [], pendingRequests: [], pendingQueries: [], pending: [], decisionDelay: 0, decisionStatus: 200, decisionResult: {status:'success',result:'Fixture completed'}, abortDecision: false, catalog:structuredClone(catalog), catalogRequests:0 };
     page.on('pageerror', error => state.errors.push(error.message));
     await page.route('**/api/**', async route => {
         const request = route.request();
         const url = new URL(request.url());
-        if (url.pathname === '/api/agent/action-policy/catalog') return route.fulfill({status:admin?200:403,json:admin?catalog:{error:'administrator_required'}});
+        if (url.pathname === '/api/agent/action-policy/catalog') {
+            state.catalogRequests++;
+            return route.fulfill({status:admin?200:403,json:admin?state.catalog:{error:'administrator_required'}});
+        }
         if (url.pathname === '/api/agent/action-policy/preview') {
             state.previews.push(request.postDataJSON());
             return route.fulfill({json:{state:'denied',action:{tool:'filesystem',operation:'delete',target:attack}}});
@@ -132,6 +135,23 @@ try {
         }
         assert.match(await readFile(path.join(root,'ui/cfg/danger.js'),'utf8'),/AuraActionPolicy\.mountSettings/);
         for(const file of ['ui/js/chat/chat-streaming.js','ui/js/desktop/apps/agent-chat.js']) assert.match(await readFile(path.join(root,file),'utf8'),/action_approval[\s\S]*AuraActionPolicy\.show/);
+    });
+
+    await test('reopened settings reload tools after capability changes',async()=>{
+        const f=await fixture();
+        try {
+            assert.equal(f.state.catalogRequests,1);
+            f.state.catalog=[{type:'function',function:{name:'execute_shell',parameters:{properties:{command:{type:'string'}}}}}];
+            await f.page.evaluate(async()=>{
+                const host=document.getElementById('settings');
+                host.replaceChildren();
+                await AuraActionPolicy.mountSettings(host,fixture.config);
+            });
+            assert.equal(f.state.catalogRequests,2,'settings reused the catalog from before the config change');
+            const options=await f.page.locator('.action-policy-rule').last().locator('select option').evaluateAll(nodes=>nodes.map(node=>node.value));
+            assert.ok(options.includes('execute_shell'),'newly enabled tool is unavailable');
+            assert.ok(!options.includes('filesystem'),'disabled tool remains in the preview');
+        } finally { await f.close(); }
     });
 
     for(const theme of ['standard','fruity']) for(const mode of ['dark','light']) for(const width of [1280,390]) {
