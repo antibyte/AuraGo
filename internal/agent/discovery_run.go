@@ -42,7 +42,13 @@ func dispatchCatalogSchemas(dc *DispatchContext) []openai.Tool {
 		return nil
 	}
 	policy := BuildToolingPolicy(dc.Cfg, "")
-	flags := buildToolFeatureFlags(RunConfig{Config: dc.Cfg, IsCoAgent: dc.IsCoAgent}, policy)
+	flags := buildToolFeatureFlags(RunConfig{
+		Config: dc.Cfg, IsCoAgent: dc.IsCoAgent, InvasionDB: dc.InvasionDB,
+		RemoteHub: dc.RemoteHub, MediaRegistryDB: dc.MediaRegistryDB,
+		HomepageRegistryDB: dc.HomepageRegistryDB, ContactsDB: dc.ContactsDB,
+		PlannerDB: dc.PlannerDB, SQLConnectionsDB: dc.SQLConnectionsDB,
+		SQLConnectionPool: dc.SQLConnectionPool, ShortTermMem: dc.ShortTermMem,
+	}, policy)
 	schemas := BuildNativeToolSchemas(dc.Cfg.Directories.SkillsDir, dc.Manifest, flags, dc.Logger)
 	if dc.ToolScopeRestricted {
 		names := make([]string, 0, len(dc.AllowedTools))

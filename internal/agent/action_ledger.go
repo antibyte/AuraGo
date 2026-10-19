@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -561,18 +562,12 @@ func beginAgentToolAction(s *agentLoopState, tc ToolCall, turnID string) (*agent
 }
 
 func startAgentToolAction(logger *slog.Logger, ledger *agentActionLedger, action AgentActionEvent) AgentActionEvent {
-	if ledger == nil || action.ID == "" {
+	// Ordinary calls start only after policy, Guardian and learning checks.
+	// Starting here would make an unexecuted call ineligible for approval.
+	if ledger == nil || action.ID == "" || action.ToolName != "question_user" {
 		return action
 	}
-	var (
-		next AgentActionEvent
-		err  error
-	)
-	if action.ToolName == "question_user" {
-		next, err = ledger.WaitForHuman(action)
-	} else {
-		next, err = ledger.Start(action)
-	}
+	next, err := ledger.WaitForHuman(action)
 	if err != nil {
 		if logger != nil {
 			logger.Warn("Failed to start agent action", "tool", action.ToolName, "error", err)
@@ -580,6 +575,32 @@ func startAgentToolAction(logger *slog.Logger, ledger *agentActionLedger, action
 		return action
 	}
 	return next
+}
+
+// ChildToolDispatchContext preserves run authority without borrowing the parent
+// tool's ledger identity. A brokered child can require its own exact approval.
+func ChildToolDispatchContext(dc *DispatchContext) DispatchContext {
+	local := *dc
+	local.actionLedger, local.actionEvent = nil, nil
+	return local
+}
+
+func startDispatchedToolAction(ctx context.Context, tc ToolCall, dc *DispatchContext) *ToolDispatchResult {
+	if ctx.Err() != nil {
+		return actionPolicyRefusal("cancelled", "The action was cancelled before execution.", ToolResultCancelled)
+	}
+	if grant, ok := ctx.Value(approvedActionKey{}).(approvedActionGrant); ok && grant.SessionID == dc.SessionID && grant.ArgumentsHash == DescribeAction(tc, dc).ArgumentsHash && grant.expired() {
+		return actionPolicyRefusal("approval_expired", "The approval expired before execution began. No action was executed.", ToolResultDenied)
+	}
+	if dc.actionLedger == nil || dc.actionEvent == nil || dc.actionEvent.ID == "" || dc.actionEvent.ToolName == "question_user" {
+		return nil
+	}
+	next, err := dc.actionLedger.Start(*dc.actionEvent)
+	if err != nil {
+		return actionPolicyRefusal("action_audit_unavailable", "Cannot record the action start; no action was executed.", ToolResultDenied)
+	}
+	*dc.actionEvent = next
+	return nil
 }
 
 func completeAgentToolAction(logger *slog.Logger, ledger *agentActionLedger, action AgentActionEvent, result toolExecutionResult, durationMS int64) AgentActionEvent {

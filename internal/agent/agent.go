@@ -1256,6 +1256,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (outpu
 	} else if advisory != "" {
 		defer func() { output += advisory }()
 	}
+	if refusal := startDispatchedToolAction(ctx, tc, dc); refusal != nil {
+		setToolOutcome(ctx, refusal.Status)
+		return refusal.Output
+	}
 
 	if hooks := dc.ExecutionHooks; hooks != nil {
 		if hooks.BeforeTool != nil {

@@ -243,9 +243,7 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 			return actionPolicyRefusal("operator_configuration_required", "Action policy rules can only be changed through the administrator configuration UI/API.", ToolResultDenied)
 		}
 	}
-	if !effectiveActionPolicy(dc.Cfg).Enabled {
-		return nil
-	}
+	policy := effectiveActionPolicy(dc.Cfg)
 	enabled := false
 	for _, schema := range dispatchCatalogSchemas(dc) {
 		if schema.Function != nil && canonicalActionName(schema.Function.Name) == tc.Action {
@@ -255,12 +253,22 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 	}
 	private := dc.ExecutionHooks != nil && dc.ToolScopeRestricted && dispatchToolAllowed(dc, tc.Action) && (strings.HasPrefix(tc.Action, "game_maker_") || strings.HasPrefix(tc.Action, "cyd_creator_"))
 	if !enabled && !private {
-		return actionPolicyRefusal("tool_disabled", "The resolved tool is not enabled in the effective catalog.", ToolResultDenied)
+		// Private prepared-profile hooks retain their existing policy-off route;
+		// native capabilities must remain gated even without the extra policy.
+		native := false
+		for name := range allBuiltinToolNameSet() {
+			native = native || canonicalActionName(name) == tc.Action
+		}
+		if policy.Enabled || native {
+			return actionPolicyRefusal("tool_disabled", "The resolved tool is not enabled in the effective catalog.", ToolResultDenied)
+		}
 	}
 	if a.Mutating && catalogReadOnly(dc.Cfg, &ToolCatalogEntry{Name: tc.Action}) {
 		return actionPolicyRefusal("readonly", "The integration is read-only; approval cannot override this restriction.", ToolResultDenied)
 	}
-	policy := effectiveActionPolicy(dc.Cfg)
+	if !policy.Enabled {
+		return nil
+	}
 	for _, rule := range policy.Deny {
 		if actionDenyRuleMatches(rule, a) {
 			return actionPolicyRefusal("action_policy_denied", "An administrator action rule denies this operation and target.", ToolResultDenied)
@@ -278,6 +286,9 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 		return nil
 	}
 	if grant, ok := ctx.Value(approvedActionKey{}).(approvedActionGrant); ok && grant.SessionID == dc.SessionID && grant.ArgumentsHash == a.ArgumentsHash {
+		if grant.expired() {
+			return actionPolicyRefusal("approval_expired", "The approval expired before execution began. No action was executed.", ToolResultDenied)
+		}
 		return nil
 	}
 	if preview, _ := ctx.Value(actionPreviewKey{}).(bool); preview {
