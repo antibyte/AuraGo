@@ -2306,7 +2306,7 @@ Administrator-only. One answer feeds the overview, the sidebar status block and 
 - `kpis.budget` amounts are USD, `percentage` is a fraction (0–1) and `state` is `ok`, `warning` or `blocked`; `enabled` is `false` while budget tracking is off.
 - `recent_activity` lists the latest 8 audit events without their summary or detail text; `section` is `automations` for mission events, otherwise `audit`.
 - `unavailable` names the sources that failed for this answer: `health`, `operational_issues`, `missions`, `knowledge`, `memory` and `audit`. The answer stays `200` with zeros for those sources, and the server logs `[Dashboard] Summary source unavailable` with the error. A source that is not configured is not listed; it reports zeros or `enabled: false`.
-- Raw error texts, file paths, tokens, fingerprints and internal ids are never returned.
+- Raw error texts, file paths, tokens and issue fingerprints are never returned. The `id` of a `recent_activity` entry is the audit row id, which the audit delete route also takes.
 
 #### System Metrics
 ```http
@@ -2506,6 +2506,28 @@ DELETE /api/dashboard/cronjobs/{id}
 ```
 
 All three are administrator-only. `GET` returns `jobs`, `total`, `enabled`, `disabled`, `errors` and `sources` for the filtered list (`status` is `enabled`, `disabled` or `error`). `PUT` takes `{"id": "nightly-backup", "cron_expr": "0 3 * * *", "task_prompt": "…", "disabled": false}` (`disabled` is optional). Jobs of an EasyDrag flow answer `409` to `PUT` and `DELETE`; without a scheduler every method answers `503`.
+
+#### LLM Router Status
+```http
+GET /api/llm-router/status
+```
+
+Administrator-only. Returns the router settings and its in-memory `stats` since the restart.
+
+#### Memory Conflicts
+```http
+POST /api/memory/conflicts/resolve
+```
+
+Administrator-only. `{"conflict_id": 12, "winning_doc_id": "…", "reason": "…"}` keeps the winning fact and supersedes the other; `{"conflict_id": 12, "action": "dismiss"}` keeps both facts.
+
+#### Deletion Jobs
+```http
+GET  /api/privacy-deletions?limit=50
+POST /api/privacy-deletions/{id}/retry
+```
+
+Administrator-only. The list returns `{"status": "ok", "jobs": […]}`; a retry answers `202`, or `409` when the job is not retryable.
 
 ### Container API
 

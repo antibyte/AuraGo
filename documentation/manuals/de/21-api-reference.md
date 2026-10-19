@@ -2306,7 +2306,7 @@ Nur für Administratoren. Eine Antwort speist die Übersicht, den Statusblock de
 - Die Beträge in `kpis.budget` sind USD, `percentage` ist ein Anteil (0–1), und `state` ist `ok`, `warning` oder `blocked`; `enabled` ist `false`, solange das Budget-Tracking ausgeschaltet ist.
 - `recent_activity` listet die letzten 8 Audit-Ereignisse ohne deren Zusammenfassung oder Detailtext; `section` ist `automations` für Mission-Ereignisse, sonst `audit`.
 - `unavailable` nennt die Quellen, die für diese Antwort ausgefallen sind: `health`, `operational_issues`, `missions`, `knowledge`, `memory` und `audit`. Die Antwort bleibt `200` mit Nullwerten für diese Quellen, und der Server protokolliert `[Dashboard] Summary source unavailable` mit dem Fehler. Eine nicht konfigurierte Quelle wird nicht aufgeführt; sie meldet Nullwerte oder `enabled: false`.
-- Rohe Fehlertexte, Dateipfade, Token, Fingerprints und interne IDs werden nie zurückgegeben.
+- Rohe Fehlertexte, Dateipfade, Token und Issue-Fingerprints werden nie zurückgegeben. Die `id` eines `recent_activity`-Eintrags ist die Audit-Zeilen-ID, die auch die Löschroute verwendet.
 
 #### System-Metriken
 ```http
@@ -2506,6 +2506,28 @@ DELETE /api/dashboard/cronjobs/{id}
 ```
 
 Diese Endpunkte benötigen Administratorrechte. `GET` liefert `jobs`, `total`, `enabled`, `disabled`, `errors` und `sources` für die gefilterte Liste (`status` ist `enabled`, `disabled` oder `error`). `PUT` nimmt `{"id": "nightly-backup", "cron_expr": "0 3 * * *", "task_prompt": "…", "disabled": false}` entgegen (`disabled` ist optional). Jobs eines EasyDrag-Flows antworten auf `PUT` und `DELETE` mit `409`; ohne Scheduler antwortet jede Methode mit `503`.
+
+#### LLM-Router-Status
+```http
+GET /api/llm-router/status
+```
+
+Nur für Administratoren. Liefert die Einstellungen des Routers und seine In-Memory-`stats` seit dem Neustart.
+
+#### Memory-Konflikte
+```http
+POST /api/memory/conflicts/resolve
+```
+
+Nur für Administratoren. `{"conflict_id": 12, "winning_doc_id": "…", "reason": "…"}` behält den Gewinner-Fakt und ersetzt den anderen; `{"conflict_id": 12, "action": "dismiss"}` behält beide Fakten.
+
+#### Löschaufträge
+```http
+GET  /api/privacy-deletions?limit=50
+POST /api/privacy-deletions/{id}/retry
+```
+
+Nur für Administratoren. Die Liste liefert `{"status": "ok", "jobs": […]}`; ein erneuter Versuch antwortet mit `202`, bei nicht wiederholbarem Auftrag mit `409`.
 
 ### Container API
 
