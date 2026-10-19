@@ -165,6 +165,11 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 	if ctx.Err() != nil || !cfg.RocketChat.Enabled || !isAllowedRocketChatUser(cfg, msg) {
 		return
 	}
+	var budgetTracker *budget.Tracker
+	if budgetTrackerSnapshot != nil {
+		budgetTracker = budgetTrackerSnapshot()
+	}
+	ctx = budget.WithTracking(ctx, budgetTracker, "chat")
 	inputText := msg.Msg
 	routingText := inputText
 	sender := rocketChatSenderKey(msg)
@@ -177,7 +182,7 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 		logger.Error("[RocketChat] Resolve conversation", "error", err)
 		return
 	}
-	ctx, releaseSession, err := shortTermMem.RegisterSessionRun(ctx, sessionID)
+	ctx, releaseSession, err := shortTermMem.BeginSessionTurn(ctx, sessionID)
 	if err != nil {
 		return
 	}
@@ -222,10 +227,6 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 	}
 
 	// Build RunConfig first so it can be used for prompt flag derivation
-	var budgetTracker *budget.Tracker
-	if budgetTrackerSnapshot != nil {
-		budgetTracker = budgetTrackerSnapshot()
-	}
 	var decisionService agent.TaskDecisionService
 	if len(routingDecisions) > 0 {
 		decisionService = routingDecisions[0]

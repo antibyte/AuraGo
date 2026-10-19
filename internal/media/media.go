@@ -126,7 +126,22 @@ func SaveAttachmentContext(ctx context.Context, url, originalFilename, destDir s
 // DownloadFile downloads a URL to a temporary file and returns the path.
 // The caller is responsible for removing the file when done.
 func DownloadFile(url string, prefix string) (string, error) {
-	resp, err := httpClientMedia.Get(url)
+	return DownloadFileContext(context.Background(), url, prefix)
+}
+
+// DownloadFileContext preserves temporary download limits and cancels active IO.
+func DownloadFileContext(ctx context.Context, url string, prefix string) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := httpClientMedia.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -152,6 +167,12 @@ func DownloadFile(url string, prefix string) (string, error) {
 	defer tempFile.Close()
 
 	if err := copyWithSizeLimit(tempFile, resp.Body, maxDownloadSize, "download"); err != nil {
+		tempFile.Close()
+		os.Remove(tempFile.Name())
+		return "", err
+	}
+	if err := ctx.Err(); err != nil {
+		tempFile.Close()
 		os.Remove(tempFile.Name())
 		return "", err
 	}

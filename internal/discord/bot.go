@@ -508,6 +508,11 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		return
 	}
 
+	var budgetTracker *budget.Tracker
+	if budgetTrackerSnapshot != nil {
+		budgetTracker = budgetTrackerSnapshot()
+	}
+	preprocessingCtx := budget.WithTracking(context.Background(), budgetTracker, "chat")
 	inputText := m.Content
 	sessionID, err := shortTermMem.ResolveUserSession(context.Background(), discordConversationID(m))
 	if err != nil {
@@ -518,6 +523,11 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	if inputText == "" && !hasAttachments {
 		return
 	}
+	ctx, releaseRun, err := shortTermMem.RegisterSessionRun(preprocessingCtx, sessionID)
+	if err != nil {
+		return
+	}
+	defer releaseRun()
 
 	// Strip the bot mention from the message text
 	if decision.IsMentioned {
@@ -529,10 +539,13 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	// ── Voice & Image Attachments ───────────────────────────────────────
 	// Discord sends voice messages and images as attachments on the message.
 	for _, att := range m.Attachments {
-		inputText = processDiscordAttachment(att, inputText, cfg, logger)
+		if ctx.Err() != nil {
+			return
+		}
+		inputText = processDiscordAttachmentContext(ctx, att, inputText, cfg, logger)
 	}
 
-	if inputText == "" {
+	if ctx.Err() != nil || inputText == "" {
 		return
 	}
 
@@ -560,6 +573,9 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 			AllowOperator: decision.IsDM,
 		}
 		cmdResult, isCmd, err := commands.Handle(inputText, cmdCtx)
+		if ctx.Err() != nil {
+			return
+		}
 		if err != nil {
 			logger.Error("[Discord] Command execution failed", "error", err)
 			s.ChannelMessageSend(m.ChannelID, "⚠️ Command execution failed.")
@@ -581,12 +597,16 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		}
 	}
 	inputText = security.IsolateExternalData(inputText)
+	if ctx.Err() != nil {
+		return
+	}
 
 	// Show typing indicator
 	s.ChannelTyping(m.ChannelID)
 
 	// Set up a goroutine to keep typing indicator active
-	typingCtx, stopTyping := context.WithCancel(context.Background())
+	typingCtx, stopTyping := context.WithCancel(ctx)
+	defer stopTyping()
 	go func() {
 		ticker := time.NewTicker(8 * time.Second)
 		defer ticker.Stop()
@@ -601,17 +621,19 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	}()
 
 	// Process through the agent
-	var budgetTracker *budget.Tracker
-	if budgetTrackerSnapshot != nil {
-		budgetTracker = budgetTrackerSnapshot()
-	}
-	processDiscordMessage(sessionID, s, m, inputText, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, kg, inventoryDB, missionManagerV2, remoteHub, budgetTracker, webhookManager, routingDecisions...)
-	stopTyping()
+	processDiscordMessage(ctx, sessionID, s, m, inputText, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, kg, inventoryDB, missionManagerV2, remoteHub, budgetTracker, webhookManager, routingDecisions...)
 }
 
 // processDiscordAttachment handles a single Discord attachment with proper cleanup.
 // Returns the updated inputText.
 func processDiscordAttachment(att *discordgo.MessageAttachment, inputText string, cfg *config.Config, logger *slog.Logger) string {
+	return processDiscordAttachmentContext(context.Background(), att, inputText, cfg, logger)
+}
+
+func processDiscordAttachmentContext(ctx context.Context, att *discordgo.MessageAttachment, inputText string, cfg *config.Config, logger *slog.Logger) string {
+	if ctx.Err() != nil {
+		return inputText
+	}
 	const maxAttachmentBytes = 50 * 1024 * 1024 // 50 MB
 	if att.Size > maxAttachmentBytes {
 		logger.Warn("[Discord] Attachment too large, skipping", "filename", att.Filename, "size_bytes", att.Size, "limit_bytes", maxAttachmentBytes)
@@ -622,7 +644,7 @@ func processDiscordAttachment(att *discordgo.MessageAttachment, inputText string
 	if media.IsAudioContentType(att.ContentType) || media.IsAudioFilename(att.Filename) {
 		logger.Info("[Discord] Audio attachment detected", "filename", att.Filename, "content_type", att.ContentType, "size", att.Size)
 
-		audioPath, err := media.DownloadFile(att.URL, "discord_voice")
+		audioPath, err := media.DownloadFileContext(ctx, att.URL, "discord_voice")
 		if err != nil {
 			logger.Error("[Discord] Failed to download audio", "error", err)
 			return inputText
@@ -630,18 +652,21 @@ func processDiscordAttachment(att *discordgo.MessageAttachment, inputText string
 		defer os.Remove(audioPath)
 
 		mp3Path := audioPath + ".mp3"
-		if err := telegram.ConvertOggToMp3(audioPath, mp3Path); err != nil {
+		if err := telegram.ConvertOggToMp3Context(ctx, audioPath, mp3Path); err != nil {
 			logger.Error("[Discord] Failed to convert audio to mp3", "error", err)
 			return inputText
 		}
 		defer os.Remove(mp3Path)
+		if ctx.Err() != nil {
+			return inputText
+		}
 
 		audioData, err := os.ReadFile(mp3Path)
 		if err != nil {
 			logger.Error("[Discord] Failed to read converted audio", "error", err)
 			return inputText
 		}
-		text, _, err := tools.TranscribeAudio(context.Background(), filepath.Base(mp3Path), audioData, cfg)
+		text, _, err := tools.TranscribeAudio(ctx, filepath.Base(mp3Path), audioData, cfg)
 		if err != nil {
 			logger.Error("[Discord] Voice transcription failed", "error", err)
 			return inputText
@@ -658,14 +683,14 @@ func processDiscordAttachment(att *discordgo.MessageAttachment, inputText string
 	if media.IsImageContentType(att.ContentType) || media.IsImageFilename(att.Filename) {
 		logger.Info("[Discord] Image attachment detected", "filename", att.Filename, "content_type", att.ContentType)
 
-		imgPath, err := media.DownloadFile(att.URL, "discord_img")
+		imgPath, err := media.DownloadFileContext(ctx, att.URL, "discord_img")
 		if err != nil {
 			logger.Error("[Discord] Failed to download image", "error", err)
 			return inputText
 		}
 		defer os.Remove(imgPath)
 
-		analysis, err := telegram.AnalyzeImage(imgPath, cfg)
+		analysis, err := telegram.AnalyzeImageContext(ctx, imgPath, cfg)
 		if err != nil {
 			logger.Error("[Discord] Image analysis failed", "error", err)
 			if errors.Is(err, tools.ErrVisionPublicURLRequired) {
@@ -685,7 +710,7 @@ func processDiscordAttachment(att *discordgo.MessageAttachment, inputText string
 	// Generic file / document attachment
 	logger.Info("[Discord] File attachment detected", "filename", att.Filename, "content_type", att.ContentType)
 	attachDir := filepath.Join(cfg.Directories.WorkspaceDir, "attachments")
-	savedPath, err := media.SaveAttachment(att.URL, att.Filename, attachDir)
+	savedPath, err := media.SaveAttachmentContext(ctx, att.URL, att.Filename, attachDir)
 	if err != nil {
 		logger.Error("[Discord] Failed to save attachment", "error", err)
 		return inputText
@@ -701,11 +726,16 @@ func processDiscordAttachment(att *discordgo.MessageAttachment, inputText string
 	return fileNote
 }
 
-func processDiscordMessage(sessionID string, s *discordgo.Session, m *discordgo.MessageCreate, inputText string, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, budgetTracker *budget.Tracker, webhookManager *webhooks.Manager, routingDecisions ...agent.TaskDecisionService) {
+func processDiscordMessage(ctx context.Context, sessionID string, s *discordgo.Session, m *discordgo.MessageCreate, inputText string, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, budgetTracker *budget.Tracker, webhookManager *webhooks.Manager, routingDecisions ...agent.TaskDecisionService) {
+	releaseTurn, err := shortTermMem.LockSessionTurn(ctx, sessionID)
+	if err != nil {
+		return
+	}
+	defer releaseTurn()
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 
 	// Add message to history
-	_, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, inputText, false, false)
+	_, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, inputText, false, false)
 	if err != nil {
 		logger.Error("[Discord] Failed to store message", "error", err)
 		return
@@ -767,7 +797,6 @@ func processDiscordMessage(sessionID string, s *discordgo.Session, m *discordgo.
 	}
 
 	// Run the agent loop
-	ctx := context.Background()
 	broker := &DiscordBroker{
 		session:   s,
 		channelID: m.ChannelID,
@@ -775,6 +804,9 @@ func processDiscordMessage(sessionID string, s *discordgo.Session, m *discordgo.
 	}
 
 	resp, err := agent.ExecuteAgentLoop(ctx, req, runCfg, false, broker)
+	if ctx.Err() != nil {
+		return
+	}
 
 	if err != nil {
 		logger.Error("[Discord] Agent loop failed", "error", err)
@@ -784,6 +816,9 @@ func processDiscordMessage(sessionID string, s *discordgo.Session, m *discordgo.
 
 	// Send captured audio files as native Discord audio messages
 	for _, af := range broker.AudioFiles {
+		if ctx.Err() != nil {
+			return
+		}
 		if err := SendDiscordAudio(m.ChannelID, af.FilePath, af.Title, logger); err != nil {
 			logger.Warn("[Discord] Failed to send audio", "path", af.FilePath, "error", err)
 		}
@@ -795,6 +830,9 @@ func processDiscordMessage(sessionID string, s *discordgo.Session, m *discordgo.
 		// Extract markdown images and send as native Discord attachments
 		cleanText, images := media.ExtractMarkdownImages(answer)
 		for _, img := range images {
+			if ctx.Err() != nil {
+				return
+			}
 			var localPath string
 			staged := false
 			if strings.HasPrefix(img.URL, "/files/") {
@@ -809,7 +847,7 @@ func processDiscordMessage(sessionID string, s *discordgo.Session, m *discordgo.
 			} else if strings.HasPrefix(img.URL, "http://") || strings.HasPrefix(img.URL, "https://") {
 				// Remote URL: download and sanitize before sending
 				imagesDir := filepath.Join(cfg.Directories.WorkspaceDir, "images")
-				sanitized, err := media.DownloadAndSanitizeImage(img.URL, imagesDir)
+				sanitized, err := media.DownloadAndSanitizeImageContext(ctx, img.URL, imagesDir)
 				if err != nil {
 					logger.Warn("[Discord] Failed to download/sanitize image URL", "url", img.URL, "error", err)
 					continue
@@ -817,6 +855,12 @@ func processDiscordMessage(sessionID string, s *discordgo.Session, m *discordgo.
 				localPath = sanitized
 			} else {
 				continue
+			}
+			if ctx.Err() != nil {
+				if staged {
+					_ = os.Remove(localPath)
+				}
+				return
 			}
 			if err := SendDiscordImage(m.ChannelID, localPath, img.Caption, logger); err != nil {
 				logger.Warn("[Discord] Failed to send image", "path", localPath, "error", err)
@@ -826,7 +870,7 @@ func processDiscordMessage(sessionID string, s *discordgo.Session, m *discordgo.
 			}
 		}
 		cleanText = telegram.AppendMissingYouTubeLinks(cleanText, broker.YouTubeVideos)
-		if cleanText != "" {
+		if cleanText != "" && ctx.Err() == nil {
 			if err := SendMessage(m.ChannelID, cleanText, logger); err != nil {
 				logger.Error("[Discord] Failed to send response", "error", err)
 			}

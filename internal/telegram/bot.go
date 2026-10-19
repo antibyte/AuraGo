@@ -191,6 +191,11 @@ func telegramTestMessage(now time.Time) string {
 }
 
 func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager, routingDecisions ...agent.TaskDecisionService) {
+	var budgetTracker *budget.Tracker
+	if budgetTrackerSnapshot != nil {
+		budgetTracker = budgetTrackerSnapshot()
+	}
+	ctx = budget.WithTracking(ctx, budgetTracker, "chat")
 	// Maintenance check: Inform the user but allow the tool-based interaction
 	inMaintenance := tools.IsBusy()
 	if inMaintenance {
@@ -405,6 +410,14 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 		return
 	}
 
+	// A pending question belongs to the running turn that already owns this
+	// gate. Deliver its reply above before serializing a new history turn.
+	releaseTurn, err := shortTermMem.LockSessionTurn(ctx, sessionID)
+	if err != nil {
+		return
+	}
+	defer releaseTurn()
+
 	// Phase: Command Interception
 	// Check for slash commands
 	if strings.HasPrefix(msg.Text, "/") {
@@ -453,10 +466,6 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 	}
 
 	// 1. Build RunConfig first so it can be used for prompt flag derivation
-	var budgetTracker *budget.Tracker
-	if budgetTrackerSnapshot != nil {
-		budgetTracker = budgetTrackerSnapshot()
-	}
 	var decisionService agent.TaskDecisionService
 	if len(routingDecisions) > 0 {
 		decisionService = routingDecisions[0]
