@@ -1,4 +1,5 @@
 import RAPIER from '@dimforge/rapier3d-compat';
+import { FLOOR_SURFACES } from './minigolf-shared.js';
 
 const BALL_RADIUS = 0.16;
 const FIXED_STEP = 1 / 120;
@@ -17,7 +18,6 @@ export const ROLLING = Object.freeze({
     wood: Object.freeze({ a: 0.7, k: 0.42 }),
     stone: Object.freeze({ a: 0.65, k: 0.4 })
 });
-const FLOOR_SURFACES = new Set(['grass', 'sand']);
 const WALL_RESTITUTION = { wood: 0.78, stone: 0.82 };
 
 export function rollDistance(speed, surface = 'grass') {
