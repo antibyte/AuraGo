@@ -9,6 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const assetRoot = path.join(root, 'ui/3d/minigolf');
 const manifestBytes = await readFile(path.join(assetRoot, 'manifest.json'));
 const manifest = JSON.parse(manifestBytes.toString('utf8'));
+const p1Colliders = JSON.parse(await readFile(path.join(root, 'scripts/fixtures/minigolf-p1-colliders.json'), 'utf8'));
 assert.equal(manifest.version, 1);
 assert.equal(manifest.ballRadius, 0.16);
 assert.equal(manifest.courses.length, 18);
@@ -132,6 +133,9 @@ for (const course of manifest.courses) {
   assert.match(course.id, /^(garden|coast|night)-\d{2}$/);
   assert.ok(course.par >= 2 && course.par <= 4, course.id);
   assert.equal(course.model, `course-${String(course.number).padStart(2, '0')}.glb`);
+  // P2 dresses courses without touching physics: the decoded collider data must
+  // stay identical to the P1 state (P3 replaces this fixture with new courses).
+  assert.equal(createHash('sha256').update(JSON.stringify(course.colliders)).digest('hex'), p1Colliders[course.id], `${course.id}: collision differs from the P1 fingerprint`);
   const bytes = await readFile(path.join(assetRoot, course.model));
   assert.equal(bytes.length, course.bytes, `${course.id}: byte count`);
   assert.equal(createHash('sha256').update(bytes).digest('hex'), course.sha256, `${course.id}: SHA-256`);
