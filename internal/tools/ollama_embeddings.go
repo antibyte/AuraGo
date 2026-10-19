@@ -181,6 +181,10 @@ func EnsureOllamaEmbeddingsRunning(cfg *config.Config, logger interface {
 		logger.Info("[Ollama Embeddings] Skipping auto-start (disabled in config)")
 		return
 	}
+	if err := validateOllamaLifecycleConfig(cfg); err != nil {
+		logger.Error("[Ollama Embeddings] Configuration refused", "error", err)
+		return
+	}
 
 	dockerCfg := DockerConfig{Host: cfg.Docker.Host}
 	port := lo.ContainerPort
@@ -311,7 +315,7 @@ func pullModelIfNeeded(port int, model, label string, logger interface {
 	client := &http.Client{Timeout: 5 * time.Second}
 
 	// Check if model already exists via /api/show
-	showBody := fmt.Sprintf(`{"model":%q}`, model)
+	showBody := marshalToolJSON(map[string]any{"model": model})
 	showResp, err := client.Post(baseURL+"/api/show", "application/json", strings.NewReader(showBody))
 	if err == nil {
 		showResp.Body.Close()
@@ -323,16 +327,20 @@ func pullModelIfNeeded(port int, model, label string, logger interface {
 
 	// Model not present — pull it (this can take a while)
 	logger.Info(prefix+"Pulling model (this may take several minutes on first run)", "model", model)
-	pullBody := fmt.Sprintf(`{"model":%q,"stream":false}`, model)
+	pullBody := marshalToolJSON(map[string]any{"model": model, "stream": false})
 	pullClient := &http.Client{Timeout: 30 * time.Minute} // model downloads can be large
 	pullResp, err := pullClient.Post(baseURL+"/api/pull", "application/json", strings.NewReader(pullBody))
 	if err != nil {
 		logger.Error(prefix+"Failed to pull model", "model", model, "error", err)
 		return
 	}
-	pullResp.Body.Close()
-
-	if pullResp.StatusCode == 200 {
+	defer pullResp.Body.Close()
+	data, readErr := readHTTPResponseBody(pullResp.Body, maxHTTPResponseSize)
+	if readErr != nil {
+		logger.Error(prefix+"Failed to read model pull result", "error", readErr)
+		return
+	}
+	if pullResp.StatusCode == 200 && validateOllamaPullResult(data) == nil {
 		logger.Info(prefix+"Model pulled successfully", "model", model)
 	} else {
 		logger.Error(prefix+"Model pull returned unexpected status", "model", model, "status", pullResp.StatusCode)

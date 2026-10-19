@@ -681,7 +681,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		runtimeSnapshot := s.Cfg.Runtime
 		go2RTCWasEnabled := s.Cfg.Go2RTC.Enabled
 		localMusicWasEnabled := s.Cfg.UsesLocalMusic() && s.Cfg.MusicGeneration.Enabled
+		ollamaNeedsStop := s.Cfg.Ollama.ManagedInstance.Enabled && !validateCfg.Ollama.ManagedInstance.Enabled || s.Cfg.Embeddings.LocalOllama.Enabled && !validateCfg.Embeddings.LocalOllama.Enabled
 		s.CfgMu.RUnlock()
+		if ollamaNeedsStop && (!validateCfg.Docker.Enabled || validateCfg.Docker.ReadOnly) {
+			jsonError(w, "Disable managed Ollama while Docker writes are enabled, then revoke Docker writes in a separate save", http.StatusBadRequest)
+			return
+		}
 		if (localMusicWasEnabled || localMusicStopPending(s)) && (!validateCfg.Docker.Enabled || validateCfg.Docker.ReadOnly) {
 			jsonError(w, "Disable local music and wait until stopped before disabling Docker mutations", http.StatusBadRequest)
 			return
@@ -1780,8 +1785,11 @@ func validateManagedDockerBackends(cfg config.Config, rt config.Runtime) error {
 	if !cfg.Docker.Enabled {
 		return fmt.Errorf("Docker integration is disabled. Enable Docker before using managed Ollama or go2rtc containers")
 	}
-	if cfg.Go2RTC.Enabled && cfg.Docker.ReadOnly {
-		return fmt.Errorf("Docker read-only mode cannot create or reconcile the managed go2rtc container")
+	if cfg.Docker.ReadOnly {
+		return fmt.Errorf("Docker read-only mode cannot create or reconcile managed Ollama or go2rtc containers")
+	}
+	if err := tools.ValidateManagedOllamaInputs(&cfg); err != nil {
+		return err
 	}
 	if strings.TrimSpace(cfg.Docker.Host) != "" {
 		return nil

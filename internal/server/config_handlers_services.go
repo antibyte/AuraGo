@@ -117,10 +117,19 @@ func handleOllamaManagedRecreate(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Managed Ollama instance is not enabled."})
 			return
 		}
+		if !cfg.Docker.Enabled || cfg.Docker.ReadOnly {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "code": "docker_write_disabled", "message": "Enable writable Docker access before recreating Ollama."})
+			return
+		}
+		if err := tools.ValidateManagedOllamaInputs(&cfg); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		s.Logger.Info("[Config UI] Ollama managed container recreate requested via Web UI")
 		go func() {
-			tools.RemoveOllamaManagedContainer(cfg.Docker.Host)
 			tools.EnsureOllamaManagedRunning(&cfg, s.Logger)
 		}()
 

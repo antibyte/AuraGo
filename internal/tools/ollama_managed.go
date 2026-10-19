@@ -3,7 +3,6 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"runtime"
 	"strings"
 
@@ -24,6 +23,10 @@ func EnsureOllamaManagedRunning(cfg *config.Config, logger interface {
 	mi := cfg.Ollama.ManagedInstance
 	if !mi.Enabled {
 		logger.Info("[Ollama Managed] Skipping auto-start (disabled in config)")
+		return
+	}
+	if err := validateOllamaLifecycleConfig(cfg); err != nil {
+		logger.Error("[Ollama Managed] Configuration refused", "error", err)
 		return
 	}
 
@@ -64,29 +67,6 @@ func EnsureOllamaManagedRunning(cfg *config.Config, logger interface {
 	})
 }
 
-func ollamaContainerNeedsRecreateForHostDevices(data []byte) bool {
-	var info struct {
-		HostConfig struct {
-			Devices []struct {
-				PathOnHost string `json:"PathOnHost"`
-			} `json:"Devices"`
-		} `json:"HostConfig"`
-	}
-	if err := json.Unmarshal(data, &info); err != nil {
-		return false
-	}
-	for _, device := range info.HostConfig.Devices {
-		path := strings.TrimSpace(device.PathOnHost)
-		if path == "" {
-			continue
-		}
-		if _, err := os.Stat(path); err != nil {
-			return true
-		}
-	}
-	return false
-}
-
 func ollamaContainerListHasHostPort(data []byte, port int) bool {
 	if port <= 0 {
 		return false
@@ -111,9 +91,22 @@ func ollamaContainerListHasHostPort(data []byte, port int) bool {
 	return false
 }
 
-func removeOllamaContainerBestEffort(dockerCfg DockerConfig, containerName string) {
-	_, _, _ = dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/stop?t=5", "")
-	_, _, _ = dockerRequest(dockerCfg, "DELETE", "/containers/"+containerName+"?force=true", "")
+func removeOllamaContainerBestEffort(dockerCfg DockerConfig, containerName string) error {
+	data, code, err := dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/stop?t=5", "")
+	if err != nil {
+		return fmt.Errorf("stop Ollama container: %w", err)
+	}
+	if code != 204 && code != 304 && code != 404 {
+		return fmt.Errorf("stop Ollama container: %s", dockerBodyMessage(code, data))
+	}
+	data, code, err = dockerRequest(dockerCfg, "DELETE", "/containers/"+containerName, "")
+	if err != nil {
+		return fmt.Errorf("remove Ollama container: %w", err)
+	}
+	if code != 204 && code != 404 {
+		return fmt.Errorf("remove Ollama container: %s", dockerBodyMessage(code, data))
+	}
+	return nil
 }
 
 // RemoveOllamaManagedContainer stops and deletes aurago_ollama_managed.
@@ -248,33 +241,31 @@ func pullManagedModels(port int, models []string, label string, logger interface
 // parseMemoryLimit converts a human-readable memory string (e.g. "8g", "512m")
 // to bytes. Returns (bytes, true) on success.
 func parseMemoryLimit(s string) (int64, bool) {
-	s = strings.TrimSpace(strings.ToLower(s))
-	if s == "" {
-		return 0, false
-	}
+	return config.ParseOllamaMemoryLimit(s)
+}
 
-	multiplier := int64(1)
-	switch {
-	case strings.HasSuffix(s, "g"):
-		multiplier = 1024 * 1024 * 1024
-		s = s[:len(s)-1]
-	case strings.HasSuffix(s, "m"):
-		multiplier = 1024 * 1024
-		s = s[:len(s)-1]
-	case strings.HasSuffix(s, "k"):
-		multiplier = 1024
-		s = s[:len(s)-1]
+// ValidateManagedOllamaInputs performs non-mutating preflight for config saves.
+func ValidateManagedOllamaInputs(cfg *config.Config) error {
+	if err := config.ValidateOllamaSettings(*cfg); err != nil {
+		return err
 	}
-
-	var n int64
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return 0, false
+	if cfg.Ollama.ManagedInstance.Enabled && strings.TrimSpace(cfg.Ollama.ManagedInstance.VolumePath) != "" {
+		if err := validateDockerBindMount(DockerConfig{Host: cfg.Docker.Host}, cfg.Ollama.ManagedInstance.VolumePath+":/root/.ollama"); err != nil {
+			return fmt.Errorf("ollama.managed_instance.volume_path: %w", err)
 		}
-		n = n*10 + int64(c-'0')
 	}
-	if n <= 0 {
-		return 0, false
+	return nil
+}
+
+func validateOllamaLifecycleConfig(cfg *config.Config) error {
+	if !cfg.Docker.Enabled {
+		return fmt.Errorf("Docker integration is disabled")
 	}
-	return n * multiplier, true
+	if cfg.Docker.ReadOnly {
+		return ErrDockerReadOnly
+	}
+	if err := ValidateManagedOllamaInputs(cfg); err != nil {
+		return err
+	}
+	return requireDockerMutationPermission()
 }

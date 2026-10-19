@@ -463,6 +463,7 @@ func Load(path string) (*Config, error) {
 	cfg.FritzBox.Telephony.Polling.MaxCallbacksPerHour = 20
 
 	runningInDocker := probeDockerContainer()
+	cfg.Runtime.IsDocker = runningInDocker
 	cfg.Directories.AgentSkillsDir = "./agent_workspace/agent_skills"
 
 	// Document Creator defaults: Maroto backend, Gotenberg sidecar URL.
@@ -2444,6 +2445,9 @@ func Load(path string) (*Config, error) {
 	}
 
 	// Ollama defaults
+	if err := ValidateOllamaSettings(cfg); err != nil {
+		return nil, err
+	}
 	if cfg.Ollama.URL == "" {
 		cfg.Ollama.URL = "http://localhost:11434"
 	}

@@ -30,6 +30,7 @@ type ollamaCreateBody struct {
 }
 
 type ollamaCreateHostConfig struct {
+	NetworkMode    string                      `json:"NetworkMode,omitempty"`
 	RestartPolicy  map[string]string           `json:"RestartPolicy,omitempty"`
 	PortBindings   map[string][]ollamaPortBind `json:"PortBindings"`
 	Binds          []string                    `json:"Binds,omitempty"`
@@ -80,14 +81,18 @@ func ollamaManagedCreatePayload(port int, volumePath, memoryLimit string, gpu GP
 	var memory int64
 	if mem, ok := parseMemoryLimit(memoryLimit); ok {
 		memory = mem
+	} else if strings.TrimSpace(memoryLimit) != "" {
+		return nil, fmt.Errorf("invalid Ollama memory limit")
 	}
 	return ollamaContainerCreatePayload(ollamaContainerSpec{
-		Image:    ollamaImageForGPU(gpu),
-		Port:     port,
-		Bind:     bind,
-		Memory:   memory,
-		GPU:      gpu,
-		ApplyGPU: useGPU,
+		Image:       ollamaImageForGPU(gpu),
+		Port:        port,
+		Bind:        bind,
+		Memory:      memory,
+		PidsLimit:   ollamaEmbeddingsPidsLimit,
+		SecurityOpt: []string{"no-new-privileges:true"},
+		GPU:         gpu,
+		ApplyGPU:    useGPU,
 	})
 }
 
@@ -264,10 +269,13 @@ func ollamaBindMode(mode string) bool {
 }
 
 func ensureOllamaImage(cfg DockerConfig, image string) error {
+	if err := requireDockerMutationPermission(); err != nil {
+		return err
+	}
 	if ollamaImageIsLocal(cfg, image) {
 		return nil
 	}
-	return pullDockerImage(cfg, image)
+	return pullDockerImageStream(nativeHTTPContext(cfg.Context), cfg, image)
 }
 
 func ollamaImageIsLocal(cfg DockerConfig, image string) bool {
@@ -379,19 +387,26 @@ type ollamaReconcile struct {
 // publishing the same host port is not adopted.
 func reconcileNamedOllamaContainer(job ollamaReconcile) {
 	prefix := "[" + job.Label + "] "
+	if err := requireDockerMutationPermission(); err != nil {
+		job.Logger.Error(prefix+"Docker mutation refused", "error", err)
+		return
+	}
 	data, code, err := dockerRequest(job.Docker, "GET", "/containers/"+job.ContainerName+"/json", "")
 	if err != nil {
 		job.Logger.Warn(prefix+"Docker unavailable, skipping auto-start", "error", err)
 		return
 	}
 	if code == 200 {
-		if ollamaContainerNeedsRecreateForHostDevices(data) || ollamaManagedSpecDrift(data, job.Payload) {
+		if ollamaManagedSpecDrift(data, job.Payload) {
 			if err := ensureOllamaImage(job.Docker, job.Image); err != nil {
 				job.Logger.Error(prefix+"Replacement image is not available; leaving the existing container", "image", job.Image, "error", err)
 				return
 			}
 			job.Logger.Warn(prefix + "Existing container does not match the desired spec; recreating")
-			removeOllamaContainerBestEffort(job.Docker, job.ContainerName)
+			if err := removeOllamaContainerBestEffort(job.Docker, job.ContainerName); err != nil {
+				job.Logger.Error(prefix+"Container replacement stopped", "error", err)
+				return
+			}
 			code = 404
 		} else if ollamaInspectRunning(data) {
 			job.Logger.Info(prefix + "Container already running")
@@ -419,7 +434,7 @@ func reconcileNamedOllamaContainer(job ollamaReconcile) {
 	createData, createCode, createErr := dockerRequest(job.Docker, "POST", "/containers/create?name="+job.ContainerName, body)
 	if createCode == 404 {
 		job.Logger.Info(prefix+"Image not found locally, pulling...", "image", job.Image)
-		if pullErr := pullDockerImage(job.Docker, job.Image); pullErr != nil {
+		if pullErr := ensureOllamaImage(job.Docker, job.Image); pullErr != nil {
 			job.Logger.Error(prefix+"Image pull failed", "image", job.Image, "error", pullErr)
 			return
 		}

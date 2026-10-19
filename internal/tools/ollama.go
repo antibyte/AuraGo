@@ -139,7 +139,7 @@ func OllamaShowModel(cfg OllamaConfig, modelName string) string {
 	if modelName == "" {
 		return errJSON("model name is required.")
 	}
-	body := fmt.Sprintf(`{"model":%q}`, modelName)
+	body := marshalToolJSON(map[string]any{"model": modelName})
 	data, code, err := ollamaRequest(cfg, "POST", "/api/show", body)
 	if err != nil {
 		return errJSON("Failed to show model: %v", err)
@@ -179,7 +179,7 @@ func OllamaPullModel(cfg OllamaConfig, modelName string) string {
 	if denied := ollamaReadOnlyMutationError(cfg, "pull"); denied != "" {
 		return denied
 	}
-	body := fmt.Sprintf(`{"model":%q,"stream":false}`, modelName)
+	body := marshalToolJSON(map[string]any{"model": modelName, "stream": false})
 	url := strings.TrimRight(cfg.URL, "/") + "/api/pull"
 	req, err := newToolHTTPRequest(cfg.Context, "POST", url, strings.NewReader(body))
 	if err != nil {
@@ -200,6 +200,9 @@ func OllamaPullModel(cfg OllamaConfig, modelName string) string {
 	if resp.StatusCode != 200 {
 		return marshalToolJSON(map[string]interface{}{"status": "error", "http_code": resp.StatusCode, "message": string(data)})
 	}
+	if err := validateOllamaPullResult(data); err != nil {
+		return ollamaErrJSON(err.Error())
+	}
 	return marshalToolJSON(map[string]interface{}{"status": "ok", "message": fmt.Sprintf("Model '%s' pulled successfully.", modelName), "data": jsonRawOrString(data)})
 }
 
@@ -211,7 +214,7 @@ func OllamaDeleteModel(cfg OllamaConfig, modelName string) string {
 	if denied := ollamaReadOnlyMutationError(cfg, "delete"); denied != "" {
 		return denied
 	}
-	body := fmt.Sprintf(`{"model":%q}`, modelName)
+	body := marshalToolJSON(map[string]any{"model": modelName})
 	data, code, err := ollamaRequest(cfg, "DELETE", "/api/delete", body)
 	if err != nil {
 		return errJSON("Delete failed: %v", err)
@@ -230,7 +233,7 @@ func OllamaCopyModel(cfg OllamaConfig, source, destination string) string {
 	if denied := ollamaReadOnlyMutationError(cfg, "copy"); denied != "" {
 		return denied
 	}
-	body := fmt.Sprintf(`{"source":%q,"destination":%q}`, source, destination)
+	body := marshalToolJSON(map[string]any{"source": source, "destination": destination})
 	data, code, err := ollamaRequest(cfg, "POST", "/api/copy", body)
 	if err != nil {
 		return errJSON("Copy failed: %v", err)
@@ -249,7 +252,7 @@ func OllamaLoadModel(cfg OllamaConfig, modelName string) string {
 	if denied := ollamaReadOnlyMutationError(cfg, "load"); denied != "" {
 		return denied
 	}
-	body := fmt.Sprintf(`{"model":%q,"prompt":"","keep_alive":-1}`, modelName)
+	body := marshalToolJSON(map[string]any{"model": modelName, "prompt": "", "keep_alive": -1})
 	data, code, err := ollamaRequest(cfg, "POST", "/api/generate", body)
 	if err != nil {
 		return errJSON("Load failed: %v", err)
@@ -268,7 +271,7 @@ func OllamaUnloadModel(cfg OllamaConfig, modelName string) string {
 	if denied := ollamaReadOnlyMutationError(cfg, "unload"); denied != "" {
 		return denied
 	}
-	body := fmt.Sprintf(`{"model":%q,"keep_alive":0}`, modelName)
+	body := marshalToolJSON(map[string]any{"model": modelName, "keep_alive": 0})
 	data, code, err := ollamaRequest(cfg, "POST", "/api/generate", body)
 	if err != nil {
 		return errJSON("Unload failed: %v", err)
@@ -277,4 +280,21 @@ func OllamaUnloadModel(cfg OllamaConfig, modelName string) string {
 		return marshalToolJSON(map[string]interface{}{"status": "error", "http_code": code, "message": string(data)})
 	}
 	return marshalToolJSON(map[string]interface{}{"status": "ok", "message": fmt.Sprintf("Model '%s' unloaded from memory.", modelName)})
+}
+
+func validateOllamaPullResult(data []byte) error {
+	var result struct {
+		Status string `json:"status"`
+		Error  string `json:"error"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return fmt.Errorf("incomplete Ollama pull response: %w", err)
+	}
+	if result.Error != "" {
+		return fmt.Errorf("Ollama model pull failed: %s", result.Error)
+	}
+	if result.Status != "success" {
+		return fmt.Errorf("Ollama model pull completion was not confirmed")
+	}
+	return nil
 }
