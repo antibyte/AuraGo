@@ -8,16 +8,25 @@ Manage local Ollama LLM instance: models, GPU memory, and inference.
 
 | Operation | Description | Parameters |
 |-----------|-------------|------------|
-| `list`, `list_models` | List all installed models | — |
-| `running`, `ps` | List models currently loaded in GPU | — |
-| `show`, `info` | Show detailed model info (size, capabilities) | `model` |
-| `pull`, `download` | Download/pull a model from Ollama library | `model` |
-| `delete`, `remove` | Delete a locally stored model | `model` |
+| `list` | List all installed models | — |
+| `running` | List loaded models and background operation receipts, including pull failures | — |
+| `show` | Show detailed model info (size, capabilities) | `model` |
+| `pull` | Start a background model download and return its operation receipt | `model` |
+| `delete` | Delete a locally stored model | `model` |
 | `copy` | Copy/rename a model | `source`, `destination` |
 | `load` | Load model into GPU memory for fast inference | `model` |
 | `unload` | Unload model from GPU memory | `model` |
 
 ## Parameters
+
+Use the canonical operation names above for native tool calls. Older text-call
+aliases remain compatible but are not part of the native schema. A successful
+`pull` response means accepted, not installed: check `running.operations` for the
+returned ID. Only `state=ready` confirms completion. `failed`, `cancelled`, and
+`unknown` must not be reported as success. An absent receipt after restart is
+unknown. Check `list` before explicitly retrying an uncertain download. Downloads
+stop on server shutdown, target changes, or revoked permissions. Container
+lifecycle belongs to administrator settings, not the generic Docker tool.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|

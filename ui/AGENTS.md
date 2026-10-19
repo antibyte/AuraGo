@@ -21,6 +21,8 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Ownership
 
+- Ollama config displays a derived read-only URL in managed mode. Connection tests and Recreate require saved settings; Recreate confirms interruption and polls its receipt through slow image/model downloads. Docker read-only disables lifecycle mutations, not observation. Polls end on terminal state/navigation and ignore detached or stale responses. Embeddings show managed Ollama model state. All operation labels and help remain translated in all 16 locales. Verify `TestOllamaManagedLifecycleBrowser` and `TestOllamaOperationLocalesAreComplete`.
+
 - Action-policy blocks are terminal outcomes, not queued/running work. Dashboard
   background tasks render `blocked` with `last_error: action_rule_required` as a
   translated missing-rule diagnosis linking to `/config#danger`; active counters

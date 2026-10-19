@@ -1938,6 +1938,23 @@ function syncEmbeddingsRuntimeVisibility(localGranite) {
 
 let embeddingsRuntimeRefreshTimer = 0;
 
+async function refreshOllamaEmbeddingStatus() {
+    const element = document.getElementById('ollama-embedding-status');
+    if (!element || !(configData.embeddings || {}).local_ollama?.enabled) return;
+    try {
+        const response = await fetch('/api/ollama/managed/status?embeddings=1', {signal: AbortSignal.timeout(10000)});
+        const data = await response.json();
+        if (!element.isConnected) return;
+        if (!response.ok) throw new Error(t('config.ollama.managed_status_error'));
+        const op = (data.operations || []).sort((a,b) => new Date(b.updated) - new Date(a.updated))[0];
+        const models = Object.entries(op?.models || {}).map(([model,state]) => model + ': ' + t('config.ollama.state_' + state));
+        element.textContent = op ? [t('config.ollama.state_' + op.state), ...models].join(' · ') + (op.error ? ': ' + op.error : '') : t('config.ollama.container_unverified');
+        if (op && !['ready','failed','cancelled','unknown','stopped'].includes(op.state)) {
+            setTimeout(() => { if (element.isConnected) refreshOllamaEmbeddingStatus(); }, 2000);
+        }
+    } catch (error) { if (element.isConnected) element.textContent = t('config.ollama.managed_status_error'); }
+}
+
 function renderEmbeddingsRuntimeBlock() {
     const localGranite = (configData.embeddings || {}).provider === 'local-granite';
     return `<section id="emb-local-runtime-card" class="emb-runtime-card${localGranite ? '' : ' is-hidden'}"
@@ -1965,6 +1982,7 @@ function renderEmbeddingsRuntimeBlock() {
             <button id="embedding-runtime-benchmark-btn" type="button" class="cfg-btn">${t('config.embeddings.benchmark_action')}</button>
         </div>
     </section>
+    <div id="ollama-embedding-status" class="emb-runtime-detail" role="status" aria-live="polite"></div>
     <div id="emb-index-status" class="emb-runtime-detail" role="status" aria-live="polite"></div>
     <div class="pw-u-inline-actions emb-runtime-actions">
         <button id="embedding-runtime-test-btn" type="button" class="cfg-btn cfg-btn-primary">${t('config.embeddings.test_action')}</button>
@@ -1973,6 +1991,7 @@ function renderEmbeddingsRuntimeBlock() {
 }
 
 function bindEmbeddingsRuntimeActions() {
+    refreshOllamaEmbeddingStatus();
     const actions = window.AuraConfigActions;
     if (!actions) return;
     actions.register('embedding-runtime-test', {
@@ -2270,6 +2289,7 @@ function managedDockerUnavailableReason() {
     if (dockerCfg.enabled !== true) {
         return t('config.docker.managed_disabled_reason');
     }
+    if (dockerCfg.readonly === true) return t('config.ollama.docker_readonly');
     const dockerFeature = (runtimeData.features || {}).docker;
     if (dockerFeature && dockerFeature.available === false) {
         return dockerFeature.reason || t('config.docker.socket_missing_reason');

@@ -13,7 +13,7 @@ conditions: ["ollama_enabled"]
 - `list` — List all locally available models (name, size, date)
 - `running` — List currently loaded/running models
 - `show` — Show model details/metadata (requires model name)
-- `pull` — Download a model (requires model name; may take a long time)
+- `pull` — Start a background model download and return its receipt; use `running` to check completion, and report success only for `ready`
 - `delete` — Remove a model from local storage (requires model name)
 - `copy` — Copy/alias a model (requires source and destination)
 - `load` — Preload a model into GPU/memory

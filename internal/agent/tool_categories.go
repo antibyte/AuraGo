@@ -255,7 +255,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"manage_sql_connections", "Manage external SQL database connections"},
 		{"query_inventory", "Search registered devices and inventory records"},
 		{"register_device", "Register discovered network devices in inventory"},
-		{"ollama", "Manage local Ollama LLM models (list, pull, run, delete)"},
+		{"ollama", "Manage local Ollama LLM models (list, pull, running, delete)"},
 		{"truenas", "Manage TrueNAS storage (pools, datasets, snapshots, shares)"},
 		{"network_shares", "Inspect and manage local SMB and NFS server shares"},
 		{"sip_phone", "Inspect and operate the native SIP telephone endpoint"},
