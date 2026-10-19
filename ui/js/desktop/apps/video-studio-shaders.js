@@ -117,6 +117,17 @@ void main() {
 }
 `;
 
+    // ---- 2f scope readback (index §4.26.1). ----
+    // SCOPE_SAMPLE point-samples u_source (the composite, u_srcSize px) into a smaller target, drawn with QUAD_VERTEX
+    // and u_flipY 0. Output pixel (i, j) is source pixel (floor((i + 0.5)·W/w), floor((j + 0.5)·H/h)), clamped into the
+    // source. There is no filtering, so every scope value is a real pixel of the frame.
+    const SCOPE_SAMPLE = FRAGMENT_HEAD + `uniform sampler2D u_source;
+uniform vec2 u_srcSize;
+void main() {
+    outColor = texelFetch(u_source, clamp(ivec2(floor(v_uv * u_srcSize)), ivec2(0), ivec2(u_srcSize) - 1), 0);
+}
+`;
+
     const TRANSITION_HEAD = FRAGMENT_HEAD + `uniform sampler2D u_from;
 uniform sampler2D u_to;
 uniform float u_progress;
@@ -465,7 +476,7 @@ void main() {
     };
 
     window.VideoStudioShaders = {
-        QUAD_VERTEX, PLACE_VERTEX, PLACE, COPY, PICTURE, MASK, PLACE_MASKED, ANIM_MIX,
+        QUAD_VERTEX, PLACE_VERTEX, PLACE, COPY, PICTURE, MASK, PLACE_MASKED, ANIM_MIX, SCOPE_SAMPLE,
         // Fragment source for a registry transition id (all 24 since 2e, index §4.7), or null.
         transition(id) { return Object.prototype.hasOwnProperty.call(TRANSITIONS, id) ? TRANSITIONS[id] : null; },
         // {passes: [fragmentSource, ...]} for a registry effect id, or null (index §4.7).

@@ -73,6 +73,9 @@
         // default asset.media_url; it still passes the same-origin check. The painter owns its canvas element, because a
         // canvas holds one context type only.
         const pickURL = options && typeof options.mediaURL === 'function' ? options.mediaURL : null;
+        // options.onPaint() (2f, index §4.26.1) runs at the end of every paint, after the painter, syncMedia and setFrame,
+        // inside try/catch. It must not paint; the scopes panel reads the painter's last frame from it.
+        const onPaint = options && typeof options.onPaint === 'function' ? options.onPaint : null;
         // Painter selection (index §4.5): GL only when asked for ('auto' or 'gl'), WebGL2 exists and the compositor
         // starts. A canvas that ever returned a WebGL context cannot give a 2D one, so after a failed GL attempt, and on
         // every fallback, the 2D painter draws on a fresh shallow clone of the element (same attributes, including
@@ -337,6 +340,7 @@
             painter.frame(describeFrame(project, frame, { width, height }));
             syncMedia(project, frame, forward());
             if (typeof setFrame === 'function') setFrame(Math.round(frame));
+            if (onPaint) { try { onPaint(); } catch (_) { /* a paint hook never breaks the preview */ } }
         }
 
         function tick(now) {
@@ -461,9 +465,15 @@
             paint(frame);
             return painter.read(rect);
         }
+        // The painter's last frame, point-sampled to width × height (2f, index §4.26.1): a Promise of {width, height, data}
+        // or null. It never paints (capture still does). null without a painter that reads, and after dispose.
+        function readScaled(width, height) {
+            if (disposed || !painter || typeof painter.readScaled !== 'function') return Promise.resolve(null);
+            try { return Promise.resolve(painter.readScaled(width, height)); } catch (_) { return Promise.resolve(null); }
+        }
         paint(Number(getFrame() || 0));
         return { play, pause, seek, setRate, setLoop, setSolo, rate: () => rate, getFrame: () => Math.round(frame), isPlaying: () => playing, fallback, failedPrograms, mediaSize, dispose,
-            painterKind: () => painter.kind, capture, settle };
+            painterKind: () => painter.kind, capture, settle, readScaled };
     }
 
     window.VideoStudioPreview = { mount, rules: { transitionPair, activeAt, playBounds, sourceSeconds, mediaRate, audioAllowed } };

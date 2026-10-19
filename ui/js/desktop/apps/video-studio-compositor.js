@@ -15,6 +15,8 @@
     // Three context losses within 60 s give up on GL (spec §6.6).
     const LOSS_WINDOW_MS = 60000, MAX_LOSSES = 3;
     const NO_CROP = Object.freeze({ l: 0, t: 0, r: 0, b: 0 });
+    // The largest readScaled size per axis (2f, index §4.26.1).
+    const READ_SCALED_MAX = 1024;
 
     function supported() { return typeof WebGL2RenderingContext === 'function'; }
 
@@ -428,7 +430,29 @@
             return { width: r.width, height: r.height, data };
         }
 
-        // LUT loads in flight (index §4.5): the preview's settle() waits until this is 0.
+        // The scopes' copy of the last frame (2f, index §4.26.1). The composite still holds the last frame, and the canvas
+        // is never read. scope-sample point-samples the composite into a pooled width × height target, and
+        // ctx.readAsync copies that target without waiting for the GPU. The target goes back to the pool at once.
+        // readScaled never paints and never touches the frame loop or the composite. It resolves to
+        // {width, height, data}, or to null:
+        // - for a size outside 1..1024;
+        // - before the first frame, after dispose and on a lost context;
+        // - while another read is pending;
+        // - when the program or the target is not available (no notice, no failure report).
+        function readScaled(width, height) {
+            if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > READ_SCALED_MAX || height > READ_SCALED_MAX) return Promise.resolve(null);
+            if (disposed || ctx.lost() || !composite) return Promise.resolve(null);
+            const program = ctx.program('scope-sample', S().QUAD_VERTEX, S().SCOPE_SAMPLE);
+            const target = program ? ctx.target(width, height) : null;
+            if (!target) return Promise.resolve(null);
+            ctx.draw(program, target, { u_flipY: 0, u_srcSize: [composite.width, composite.height] }, { u_source: composite });
+            const read = ctx.readAsync(target, { x: 0, y: 0, width, height });
+            ctx.release(target);
+            return read.then(data => (data ? { width, height, data } : null));
+        }
+
+        // LUT loads in flight (index §4.5): the preview's settle() waits until this is 0. Scope reads (readScaled) do not
+        // count.
         function pending() { return disposed ? 0 : loading; }
 
         function release(clipId) {
@@ -477,7 +501,7 @@
             ctx.dispose();
         }
 
-        return { kind: 'gl', canvas, frame, read, release, pending, dispose };
+        return { kind: 'gl', canvas, frame, read, readScaled, release, pending, dispose };
     }
 
     window.VideoStudioCompositor = api;

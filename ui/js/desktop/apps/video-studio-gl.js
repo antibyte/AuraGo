@@ -7,6 +7,9 @@
     const ATTRIBUTES = { alpha: false, antialias: false, depth: false, stencil: false, premultipliedAlpha: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' };
     const QUAD = new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]);
     const POOL_LIMIT = 4, LOSS_HISTORY = 16;
+    // readAsync (2f, index §4.26.1) polls on the next animation frame or after READ_POLL_MS and gives up after
+    // READ_DEADLINE_MS (SwiftShader needs about 0.8 s for a frame).
+    const READ_POLL_MS = 16, READ_DEADLINE_MS = 3000;
 
     function sourceSize(source) {
         if (!source) return [0, 0];
@@ -31,6 +34,8 @@
         if (!gl) return null;
         const programs = new Map(), failures = new Set(), textures = new Set(), luts = new Set(), pool = new Map(), losses = [];
         let lost = false, disposed = false, generation = 0, quad = null;
+        // readAsync's PIXEL_PACK_BUFFER {handle, bytes, generation} and the read in flight ({cancel}), one at a time.
+        let pack = null, reading = null;
 
         function isLost() { return lost || gl.isContextLost(); }
 
@@ -278,6 +283,69 @@
             return out;
         }
 
+        // Asynchronous top-down RGBA of rect from target t (2f, index §4.26.1). In this task it reads t into the pack
+        // buffer, sets a fence and flushes, so the caller may release or redraw t at once (later commands run after the
+        // copy). The bytes are copied once the fence signals, polled on the next animation frame and on a READ_POLL_MS
+        // timer, whichever fires first (the timer covers paused and throttled pages). Resolves to a Uint8ClampedArray
+        // of rect.width × rect.height × 4 bytes, or to null when t or rect is unusable, another read is pending, the
+        // context is lost or restored before the fence signals, READ_DEADLINE_MS pass, or the helper is disposed.
+        function readAsync(t, rect) {
+            if (disposed || isLost() || reading || !t || t.generation !== generation) return Promise.resolve(null);
+            const r = fitRect(rect, t.width, t.height), bytes = r.width * r.height * 4;
+            if (!bytes) return Promise.resolve(null);
+            if (!pack || pack.generation !== generation || pack.bytes !== bytes) {
+                if (pack && pack.generation === generation) gl.deleteBuffer(pack.handle);
+                pack = { handle: gl.createBuffer(), bytes, generation };
+                gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pack.handle);
+                gl.bufferData(gl.PIXEL_PACK_BUFFER, bytes, gl.STREAM_READ);
+            }
+            const buffer = pack, born = generation, started = performance.now();
+            gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo);
+            gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer.handle);
+            gl.readPixels(r.x, r.y, r.width, r.height, gl.RGBA, gl.UNSIGNED_BYTE, 0);
+            const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+            gl.flush();
+            gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            if (!sync) return Promise.resolve(null);
+            return new Promise(resolve => {
+                const current = {};
+                let frameId = 0, timer = 0;
+                const disarm = () => {
+                    if (frameId && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(frameId);
+                    clearTimeout(timer);
+                    frameId = 0; timer = 0;
+                };
+                const finish = data => {
+                    if (reading !== current) return;
+                    reading = null;
+                    disarm();
+                    if (!isLost() && born === generation) gl.deleteSync(sync);
+                    resolve(data);
+                };
+                const poll = () => {
+                    disarm();
+                    if (reading !== current) return;
+                    if (disposed || isLost() || born !== generation) { finish(null); return; }
+                    const status = gl.clientWaitSync(sync, 0, 0);
+                    if (status === gl.TIMEOUT_EXPIRED) { if (performance.now() - started >= READ_DEADLINE_MS) finish(null); else arm(); return; }
+                    if (status === gl.WAIT_FAILED) { finish(null); return; }
+                    const out = new Uint8ClampedArray(bytes);
+                    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer.handle);
+                    gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, new Uint8Array(out.buffer));
+                    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+                    finish(out);
+                };
+                const arm = () => {
+                    frameId = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(poll) : 0;
+                    timer = setTimeout(poll, READ_POLL_MS);
+                };
+                current.cancel = () => finish(null);
+                reading = current;
+                arm();
+            });
+        }
+
         function lossesWithin(ms) {
             const since = performance.now() - Number(ms || 0);
             return losses.filter(time => time >= since).length;
@@ -294,6 +362,9 @@
             programs.clear(); failures.clear(); pool.clear();
             textures.forEach(tex => { tex.handle = null; tex.width = 0; tex.height = 0; });
             luts.forEach(table => { table.handle = null; });
+            // The pack buffer and a fence in flight belong to the lost generation: the pending read resolves null.
+            pack = null;
+            if (reading) reading.cancel();
             if (typeof hooks.onLost === 'function') hooks.onLost();
         }
         function onRestored() {
@@ -306,6 +377,8 @@
 
         function dispose() {
             if (disposed) return;
+            // A read in flight resolves null; its fence is deleted while the context still lives.
+            if (reading) reading.cancel();
             canvas.removeEventListener('webglcontextlost', onLost);
             canvas.removeEventListener('webglcontextrestored', onRestored);
             if (!isLost()) {
@@ -314,9 +387,10 @@
                 luts.forEach(table => { if (table.handle && table.generation === generation) gl.deleteTexture(table.handle); });
                 pool.forEach(list => list.forEach(item => { gl.deleteFramebuffer(item.fbo); gl.deleteTexture(item.texture); }));
                 if (quad) { gl.deleteVertexArray(quad.vao); gl.deleteBuffer(quad.buffer); }
+                if (pack && pack.generation === generation) gl.deleteBuffer(pack.handle);
             }
             disposed = true;
-            programs.clear(); textures.clear(); luts.clear(); pool.clear(); quad = null;
+            programs.clear(); textures.clear(); luts.clear(); pool.clear(); quad = null; pack = null;
             // The element is discarded with this helper: give the GPU context back at once (browsers cap live contexts).
             const lose = isLost() ? null : gl.getExtension('WEBGL_lose_context');
             if (lose) lose.loseContext();
@@ -325,7 +399,7 @@
         canvas.addEventListener('webglcontextlost', onLost);
         canvas.addEventListener('webglcontextrestored', onRestored);
         setupQuad();
-        return { gl, program, failed: key => failures.has(key), texture, lut, target, release, clear, draw, read, lost: isLost, lossesWithin, dispose };
+        return { gl, program, failed: key => failures.has(key), texture, lut, target, release, clear, draw, read, readAsync, lost: isLost, lossesWithin, dispose };
     }
 
     window.VideoStudioGL = { create };

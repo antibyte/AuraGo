@@ -3,6 +3,8 @@
 
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const NO_CROP = Object.freeze({ l: 0, t: 0, r: 0, b: 0 });
+    // The largest readScaled size per axis (2f, index §4.26.1).
+    const READ_SCALED_MAX = 1024;
     // A share in 0..1, or fallback when value is not a number.
     const unitOr = (value, fallback) => (Number.isFinite(Number(value)) ? clamp(Number(value), 0, 1) : fallback);
     // The wipe's visible part of the box in box fractions [x0, x1] (index §4.24: in shows [0, p), out [1 − p, 1)). The
@@ -17,6 +19,8 @@
     function create(canvas) {
         const context = canvas.getContext('2d', { alpha: false });
         let layer = null, layerContext = null;
+        // painted: a frame was drawn (readScaled reads nothing before). small: readScaled's reused small canvas.
+        let painted = false, small = null, smallContext = null;
 
         // The track layer a transition pair composes in, sized to the canvas and cleared.
         function trackLayer() {
@@ -123,6 +127,7 @@
                 (track.items || []).forEach(item => drawItem(context, item));
                 if (track.transition) drawTransition(track.transition);
             });
+            painted = true;
         }
 
         // Top-down RGBA of the last frame; rect {x, y, width, height} in backing pixels, default the whole canvas.
@@ -136,11 +141,32 @@
             return { width: image.width, height: image.height, data: image.data };
         }
 
+        // The scopes' copy of the last frame (2f, index §4.26.1). It draws the whole canvas onto a reused small canvas
+        // with smoothing off (point sampling), then calls getImageData. Only the small canvas is willReadFrequently: a
+        // willReadFrequently painter canvas costs 45-57 ms per frame (spike S1). It never paints. The contract is the
+        // GL painter's: a Promise of {width, height, data}, or null before the first frame, after dispose and for a
+        // size outside 1..1024.
+        function readScaled(width, height) {
+            if (!painted || !Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > READ_SCALED_MAX || height > READ_SCALED_MAX) return Promise.resolve(null);
+            try {
+                if (!small || small.width !== width || small.height !== height) {
+                    small = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(width, height) : Object.assign(document.createElement('canvas'), { width, height });
+                    smallContext = small.getContext('2d', { alpha: false, willReadFrequently: true });
+                }
+                if (!smallContext) return Promise.resolve(null);
+                smallContext.imageSmoothingEnabled = false;
+                smallContext.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, width, height);
+                return Promise.resolve({ width, height, data: smallContext.getImageData(0, 0, width, height).data });
+            } catch (_) {
+                return Promise.resolve(null);
+            }
+        }
+
         return {
-            kind: '2d', canvas, frame, read,
+            kind: '2d', canvas, frame, read, readScaled,
             release() {}, // the 2D painter keeps no per-clip resources
             pending() { return 0; }, // nothing loads: effects (and their LUTs) are never drawn in 2D
-            dispose() { layer = null; layerContext = null; context.clearRect(0, 0, canvas.width, canvas.height); }
+            dispose() { layer = null; layerContext = null; painted = false; small = null; smallContext = null; context.clearRect(0, 0, canvas.width, canvas.height); }
         };
     }
 

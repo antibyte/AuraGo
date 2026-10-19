@@ -223,3 +223,114 @@ func TestVideoStudioEngineServesBuiltinLooks(t *testing.T) {
 		}
 	}
 }
+
+// TestVideoStudioPainter2DReadScaled checks readScaled (2f Task 1; index §4.26.1) with recording canvases.
+//   - The 2D painter resolves null before its first frame, after dispose and for a size outside 1..1024.
+//   - After a frame it draws the whole canvas onto a small canvas made with {alpha: false, willReadFrequently: true}
+//     and imageSmoothingEnabled false (point sampling), and resolves to that canvas's getImageData.
+//   - The small canvas is reused for the same size and rebuilt for another. The painter's own canvas is never
+//     willReadFrequently, and readScaled never draws on it.
+//   - The preview hands the painter's promise through: null without a painter that reads, and after dispose.
+//   - options.onPaint runs last in every paint, after the painter and setFrame. A throwing onPaint does not break the
+//     paint, and readScaled never paints (capture still does).
+func TestVideoStudioPainter2DReadScaled(t *testing.T) {
+	runVideoStudioPictureNode(t, "2D painter readScaled", `
+const assert = require('node:assert/strict');
+global.window = {};
+delete global.OffscreenCanvas;
+const smalls = [];
+function recorder(owner) {
+  const calls = [];
+  return {owner, calls, imageSmoothingEnabled: true, globalAlpha: 1, globalCompositeOperation: 'source-over', fillStyle: '#000',
+    drawImage(...args) { calls.push(['drawImage', this.imageSmoothingEnabled, ...args]); },
+    getImageData(x, y, w, h) { calls.push(['getImageData', x, y, w, h]); const data = new Uint8ClampedArray(w * h * 4).fill(9); data.owner = owner; return {width: w, height: h, data}; },
+    fillRect() {}, clearRect() {}, save() {}, restore() {}, translate() {}, rotate() {}, scale() {}, beginPath() {}, rect() {}, clip() {}};
+}
+global.document = {createElement(tag) {
+  assert.equal(tag, 'canvas', 'readScaled creates canvases only');
+  const small = {width: 300, height: 150, contexts: [], context: null,
+    getContext(type, options) { this.contexts.push([type, options]); if (!this.context) this.context = recorder(this); return this.context; }};
+  smalls.push(small);
+  return small;
+}};
+require('./js/desktop/apps/video-studio-time.js');
+require('./js/desktop/apps/video-studio-effects.js');
+require('./js/desktop/apps/video-studio-picture.js');
+require('./js/desktop/apps/video-studio-painter2d.js');
+const own = [], main = recorder(null);
+const canvas = {width: 0, height: 0, getContext(type, options) { own.push([type, options]); return main; }};
+const painter = window.VideoStudioPainter2D.create(canvas);
+assert.deepEqual(own, [['2d', {alpha: false}]], 'the painter canvas is never willReadFrequently');
+const scene = {project: {width: 1280, height: 720}, frame: 0, width: 1280, height: 720, layers: []};
+(async () => {
+  const early = painter.readScaled(256, 144);
+  assert(early instanceof Promise, 'readScaled returns a promise');
+  assert.equal(await early, null, 'null before the first frame');
+  assert.equal(smalls.length, 0, 'no small canvas before the first frame');
+  painter.frame(scene);
+  const shot = await painter.readScaled(256, 144);
+  assert.equal(smalls.length, 1, 'the first read makes the small canvas');
+  const small = smalls[0];
+  assert.deepEqual([small.width, small.height], [256, 144]);
+  assert.deepEqual(small.contexts, [['2d', {alpha: false, willReadFrequently: true}]]);
+  assert.deepEqual(small.context.calls, [['drawImage', false, canvas, 0, 0, 1280, 720, 0, 0, 256, 144], ['getImageData', 0, 0, 256, 144]], 'the whole frame, point-sampled, then read');
+  assert.deepEqual([shot.width, shot.height, shot.data.length, shot.data[0], shot.data.owner === small], [256, 144, 256 * 144 * 4, 9, true], 'resolves to the small canvas getImageData');
+  await painter.readScaled(256, 144);
+  assert.equal(smalls.length, 1, 'the same size reuses the small canvas');
+  assert.equal(small.context.calls.length, 4);
+  const tiny = await painter.readScaled(7, 5);
+  assert.equal(smalls.length, 2, 'another size makes a new small canvas');
+  assert.deepEqual([smalls[1].width, smalls[1].height, tiny.width, tiny.height], [7, 5, 7, 5]);
+  assert.deepEqual(smalls[1].context.calls[0], ['drawImage', false, canvas, 0, 0, 1280, 720, 0, 0, 7, 5]);
+  for (const [w, h] of [[0, 144], [2000, 144], [256, 1025], [2.5, 3], ['256', 144], [NaN, 1]]) assert.equal(await painter.readScaled(w, h), null, 'invalid size ' + w + ' x ' + h);
+  assert.equal(smalls.length, 2, 'an invalid size makes nothing');
+  assert.equal(main.calls.filter(call => call[0] === 'drawImage' || call[0] === 'getImageData').length, 0, 'readScaled never draws on or reads the painter canvas');
+  painter.dispose();
+  assert.equal(await painter.readScaled(256, 144), null, 'null after dispose');
+})().catch(error => { console.error(error); process.exit(1); });
+`)
+	runVideoStudioPainterScript(t, `
+(async () => {
+  {
+    const order = [];
+    const canvas = makeCanvas({'data-preview': ''}); canvas.parentNode = {};
+    const preview = Preview.mount(canvas, () => project, () => 0, value => order.push('setFrame ' + value), () => {}, () => 1,
+      {painter: 'gl', onPaint: () => order.push('onPaint after ' + glPainters.at(-1).scenes.length + ' scene(s)')});
+    assert.equal(preview.painterKind(), 'gl');
+    assert.deepEqual(order, ['setFrame 0', 'onPaint after 1 scene(s)'], 'onPaint runs last, after the painter drew and setFrame');
+    order.length = 0;
+    preview.seek(3);
+    assert.deepEqual(order, ['setFrame 3', 'onPaint after 2 scene(s)']);
+    order.length = 0;
+    const none = preview.readScaled(256, 144);
+    assert(none instanceof Promise, 'the preview returns a promise');
+    assert.equal(await none, null, 'a painter without readScaled gives null');
+    assert.deepEqual(order, [], 'readScaled never paints');
+    preview.dispose();
+  }
+  {
+    let paints = 0;
+    const canvas = makeCanvas({'data-preview': ''}); canvas.parentNode = {};
+    const preview = Preview.mount(canvas, () => project, () => 0, () => {}, () => {}, () => 1, {onPaint: () => { paints++; }});
+    assert.equal(preview.painterKind(), '2d');
+    const before = paints;
+    const shot = await preview.readScaled(4, 2);
+    assert.deepEqual([shot.width, shot.height, shot.data[0]], [4, 2, 7], 'the 2D painter reads its last frame');
+    assert.equal(paints, before, 'without a paint');
+    preview.capture();
+    assert.equal(paints, before + 1, 'capture still paints');
+    preview.dispose();
+    assert.equal(await preview.readScaled(4, 2), null, 'null after dispose');
+  }
+  {
+    let shown = -1;
+    const canvas = makeCanvas({'data-preview': ''}); canvas.parentNode = {};
+    const preview = Preview.mount(canvas, () => project, () => 0, value => { shown = value; }, () => {}, () => 1, {onPaint: () => { throw new Error('scope hook'); }});
+    preview.seek(5);
+    assert.equal(shown, 5, 'a throwing onPaint does not break the paint');
+    assert.equal(preview.getFrame(), 5);
+    preview.dispose();
+  }
+})().catch(error => { console.error(error); process.exit(1); });
+`)
+}
