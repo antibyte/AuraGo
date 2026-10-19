@@ -252,7 +252,8 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 		}
 	}
 	private := dc.ExecutionHooks != nil && dc.ToolScopeRestricted && dispatchToolAllowed(dc, tc.Action) && (strings.HasPrefix(tc.Action, "game_maker_") || strings.HasPrefix(tc.Action, "cyd_creator_"))
-	if !enabled && !private {
+	missingCatalog := !enabled && !private
+	if missingCatalog {
 		// Private prepared-profile hooks retain their existing policy-off route;
 		// native capabilities must remain gated even without the extra policy.
 		native := false
@@ -260,11 +261,18 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 			native = native || canonicalActionName(name) == tc.Action
 		}
 		if policy.Enabled || native {
-			return actionPolicyRefusal("tool_disabled", "The resolved tool is not enabled in the effective catalog.", ToolResultDenied)
+			if toolRuntimeUnavailable(dc, tc.Action) == "" || !configuredNativeToolEnabled(dc, tc.Action) {
+				return actionPolicyRefusal("tool_disabled", "The resolved tool is not enabled in the effective catalog.", ToolResultDenied)
+			}
 		}
 	}
 	if a.Mutating && catalogReadOnly(dc.Cfg, &ToolCatalogEntry{Name: tc.Action}) {
 		return actionPolicyRefusal("readonly", "The integration is read-only; approval cannot override this restriction.", ToolResultDenied)
+	}
+	if missingCatalog || dc.ExecutionHooks == nil || dc.ExecutionHooks.HandleTool == nil {
+		if reason := toolRuntimeUnavailable(dc, tc.Action); reason != "" {
+			return actionPolicyRefusal("runtime_dependency_unavailable", reason, ToolResultNeedsSetup)
+		}
 	}
 	if !policy.Enabled {
 		return nil
