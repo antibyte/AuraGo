@@ -243,8 +243,11 @@ func decorateHomepageBuildFailure(raw string, projectDir string) string {
 // the container).  This lets the Config UI auto-fill the workspace_path field
 // without the user having to look up the path manually.
 func HomepageDetectWorkspacePath(cfg HomepageConfig, logger *slog.Logger) string {
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	if !checkDockerAvailable(cfg.DockerHost) {
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
+	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
+		if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+			return errJSON("Homepage request canceled: %v", err)
+		}
 		return errJSON("Docker not available — cannot auto-detect workspace_path. Enter the absolute host workspace manually. %s", homepageWorkspacePathGuidance())
 	}
 
@@ -299,7 +302,7 @@ func HomepageOptimizeImages(cfg HomepageConfig, projectDir string, logger *slog.
 		}
 	}
 	logger.Info("[Homepage] OptimizeImages", "dir", projectDir)
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	cmd := fmt.Sprintf(`cd /workspace/%s && echo '{"svgs":' && svgo -f . -r --multipass -q 2>/dev/null && echo ',"summary":"SVG optimization complete"}'`, projectDir)
 	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
 }
@@ -321,7 +324,7 @@ func HomepageDev(cfg HomepageConfig, projectDir string, port int, logger *slog.L
 		port = 3000
 	}
 	logger.Info("[Homepage] Dev server start", "dir", projectDir, "port", port)
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
 		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
 	}
@@ -415,11 +418,11 @@ func HomepageDeploy(cfg HomepageConfig, deployCfg HomepageDeployConfig, projectD
 	}
 
 	// Get file list from build directory inside the container
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	hostBuildPath := filepath.Join(cfg.WorkspacePath, projectDir, buildDir)
 
 	// Walk the local build directory and upload via SFTP
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(nativeHTTPContext(cfg.Context), 5*time.Minute)
 	defer cancel()
 
 	logger.Info("[Homepage] Deploying", "host", deployCfg.Host, "remote_path", deployCfg.Path, "local_build", hostBuildPath)
@@ -437,7 +440,7 @@ func HomepageDeploy(cfg HomepageConfig, deployCfg HomepageDeployConfig, projectD
 }
 
 // HomepageTestConnection tests the SFTP/SCP connection.
-func HomepageTestConnection(deployCfg HomepageDeployConfig, logger *slog.Logger) string {
+func HomepageTestConnection(deployCfg HomepageDeployConfig, logger *slog.Logger, contexts ...context.Context) string {
 	if deployCfg.Host == "" || deployCfg.User == "" {
 		return errJSON("host and user are required for connection test")
 	}
@@ -453,7 +456,7 @@ func HomepageTestConnection(deployCfg HomepageDeployConfig, logger *slog.Logger)
 		return errJSON("No password or SSH key configured. Store credentials in the vault first.")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(nativeHTTPContext(contexts...), 15*time.Second)
 	defer cancel()
 
 	logger.Info("[Homepage] Testing connection", "host", deployCfg.Host, "port", deployCfg.Port, "user", deployCfg.User)
@@ -552,7 +555,7 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	}
 
 	// Check if Docker is available
-	dockerCfg := DockerConfig{Host: cfg.DockerHost, WorkspaceDir: cfg.WorkspacePath}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost, WorkspaceDir: cfg.WorkspacePath}
 
 	// Copy any referenced generated images into the build directory so
 	// Caddy/Python can serve them as static assets (the main AuraGo server's
@@ -560,7 +563,10 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	// homepage web server).
 	copyAssetsToBuildDir(hostBuildPath, cfg.DataDir, logger)
 
-	if !checkDockerAvailable(cfg.DockerHost) {
+	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
+		if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+			return errJSON("Homepage request canceled: %v", err)
+		}
 		// Check if local Python server is allowed (Danger Zone)
 		if !cfg.AllowLocalServer {
 			return errJSON("Docker not available and local Python server is disabled for security. " +
@@ -612,7 +618,7 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	// Docker is available - use Caddy
 	// Pull image first so we never fail with "image not found" on first run.
 	// Use a 5-minute context because first-time pulls can be slow.
-	pullCtx, pullCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	pullCtx, pullCancel := context.WithTimeout(nativeHTTPContext(cfg.Context), 5*time.Minute)
 	defer pullCancel()
 	if err := PullImageWait(pullCtx, dockerCfg, homepageWebImage, logger); err != nil {
 		return errJSON("Failed to pull Caddy image: %v", err)
@@ -725,7 +731,7 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		logger.Warn("[Homepage] Web server started but TCP health-check timed out", "addr", healthAddr)
 	}
 	if healthOK && cfg.WebServerDomain == "" {
-		statusCode, httpErr := waitHomepageRootHTTP(port, 5*time.Second)
+		statusCode, httpErr := waitHomepageRootHTTP(port, 5*time.Second, cfg.Context)
 		if httpErr != nil {
 			logger.Warn("[Homepage] Web server root HTTP health-check failed", "error", httpErr)
 		} else if statusCode >= 400 {
@@ -768,7 +774,7 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 
 // HomepageWebServerStop stops the Caddy container.
 func HomepageWebServerStop(cfg HomepageConfig, logger *slog.Logger) string {
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	logger.Info("[Homepage] Stopping web server")
 	DockerContainerAction(dockerCfg, homepageWebContainer, "stop", false)
 	return DockerContainerAction(dockerCfg, homepageWebContainer, "remove", true)
@@ -821,7 +827,10 @@ func homepageNetlifyStaticFallbackCandidate(cfg HomepageConfig, projectDir strin
 
 // HomepageWebServerStatus returns the status of the Caddy web server.
 func HomepageWebServerStatus(cfg HomepageConfig, logger *slog.Logger) string {
-	if !checkDockerAvailable(cfg.DockerHost) {
+	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
+		if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+			return errJSON("Homepage request canceled: %v", err)
+		}
 		// Check Python server via TCP probe
 		port := cfg.WebServerPort
 		if port <= 0 {
@@ -839,11 +848,11 @@ func HomepageWebServerStatus(cfg HomepageConfig, logger *slog.Logger) string {
 		}
 		return `{"running":false,"mode":"python","exists":false}`
 	}
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	return containerStatus(dockerCfg, homepageWebContainer)
 }
 
-func waitHomepageRootHTTP(port int, timeout time.Duration) (int, error) {
+func waitHomepageRootHTTP(port int, timeout time.Duration, contexts ...context.Context) (int, error) {
 	if port <= 0 {
 		return 0, fmt.Errorf("invalid port %d", port)
 	}
@@ -852,7 +861,7 @@ func waitHomepageRootHTTP(port int, timeout time.Duration) (int, error) {
 	url := fmt.Sprintf("http://127.0.0.1:%d/", port)
 	var lastErr error
 	for {
-		resp, err := client.Get(url)
+		resp, err := getToolHTTP(nativeHTTPContext(contexts...), client, url)
 		if err == nil {
 			defer resp.Body.Close()
 			return resp.StatusCode, nil
@@ -861,7 +870,9 @@ func waitHomepageRootHTTP(port int, timeout time.Duration) (int, error) {
 		if time.Now().After(deadline) {
 			break
 		}
-		time.Sleep(250 * time.Millisecond)
+		if err := waitToolHTTP(nativeHTTPContext(contexts...), 250*time.Millisecond); err != nil {
+			return 0, err
+		}
 	}
 	return 0, lastErr
 }
@@ -1125,7 +1136,7 @@ func homepageBuildImage(dockerCfg DockerConfig) string {
 	client := getDockerClient(dockerCfg)
 	reqURL := "http://localhost/v1.45/build?t=" + homepageImageName
 	req, err := http.NewRequestWithContext(
-		context.Background(), http.MethodPost, reqURL, &buf)
+		nativeHTTPContext(dockerCfg.Context), http.MethodPost, reqURL, &buf)
 	if err != nil {
 		return errJSON("Failed to create build request: %v", err)
 	}

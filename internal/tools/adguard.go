@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 
 // AdGuardConfig holds the connection parameters for an AdGuard Home instance.
 type AdGuardConfig struct {
+	Context  context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
 	URL      string
 	Username string
 	Password string
@@ -48,7 +50,7 @@ func adguardRequest(cfg AdGuardConfig, method, endpoint string, body string) ([]
 		reqBody = strings.NewReader(body)
 	}
 
-	req, err := http.NewRequest(method, reqURL, reqBody)
+	req, err := newToolHTTPRequest(cfg.Context, method, reqURL, reqBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}

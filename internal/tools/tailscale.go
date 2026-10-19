@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,9 +13,10 @@ import (
 
 // TailscaleConfig holds the Tailscale API connection parameters.
 type TailscaleConfig struct {
-	APIKey   string // Tailscale API key (tskey-api-…)
-	Tailnet  string // Tailnet name, e.g. "example.com" or "-" for default/implicit tailnet
-	ReadOnly bool   // true = block route changes
+	Context  context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
+	APIKey   string          // Tailscale API key (tskey-api-…)
+	Tailnet  string          // Tailnet name, e.g. "example.com" or "-" for default/implicit tailnet
+	ReadOnly bool            // true = block route changes
 }
 
 var tailscaleHTTPClient = &http.Client{Timeout: 30 * time.Second}
@@ -42,7 +44,7 @@ func tailscaleRequest(cfg TailscaleConfig, method, endpoint, body string) ([]byt
 	if body != "" {
 		reqBody = strings.NewReader(body)
 	}
-	req, err := http.NewRequest(method, url, reqBody)
+	req, err := newToolHTTPRequest(cfg.Context, method, url, reqBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -308,8 +310,8 @@ func TailscaleGetACL(cfg TailscaleConfig) string {
 
 // TailscaleLocalStatus queries the Tailscale daemon running on the same host as AuraGo
 // via the local API (http://127.0.0.1:41112). Only available if Tailscale is installed locally.
-func TailscaleLocalStatus() string {
-	req, err := http.NewRequest("GET", "http://127.0.0.1:41112/localapi/v0/status", nil)
+func TailscaleLocalStatus(contexts ...context.Context) string {
+	req, err := newToolHTTPRequest(nativeHTTPContext(contexts...), "GET", "http://127.0.0.1:41112/localapi/v0/status", nil)
 	if err != nil {
 		return errJSON("Failed to create request: %v", err)
 	}

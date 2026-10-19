@@ -180,7 +180,7 @@ func homepageBuildWithAutoFixOptions(cfg HomepageConfig, projectDir string, logg
 		"pattern", fixName, "project_dir", projectDir)
 
 	// Apply the fix inside the Docker container
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	fixResult := DockerExec(dockerCfg, homepageContainerName, fixCmd, "")
 	fixOutput := extractOutput(fixResult)
 

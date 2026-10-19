@@ -44,7 +44,10 @@ func HomepageJsonEdit(cfg HomepageConfig, path, operation, jsonPath string, setV
 	}
 	logger.Info("[Homepage] JsonEdit", "path", path, "op", operation)
 
-	if !checkDockerAvailable(cfg.DockerHost) {
+	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
+		if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+			return errJSON("Homepage request canceled: %v", err)
+		}
 		if cfg.WorkspacePath == "" {
 			return homepageWorkspacePathNotConfiguredJSON()
 		}
@@ -56,7 +59,7 @@ func HomepageJsonEdit(cfg HomepageConfig, path, operation, jsonPath string, setV
 	}
 
 	// Docker: read from container
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	readResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
 	fileContent := extractDockerOutput(readResult)
 	if fileContent == "" && operation != "set" {
@@ -191,7 +194,10 @@ func HomepageYamlEdit(cfg HomepageConfig, path, operation, dotPath string, setVa
 	}
 	logger.Info("[Homepage] YamlEdit", "path", path, "op", operation)
 
-	if !checkDockerAvailable(cfg.DockerHost) {
+	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
+		if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+			return errJSON("Homepage request canceled: %v", err)
+		}
 		if cfg.WorkspacePath == "" {
 			return homepageWorkspacePathNotConfiguredJSON()
 		}
@@ -203,7 +209,7 @@ func HomepageYamlEdit(cfg HomepageConfig, path, operation, dotPath string, setVa
 	}
 
 	// Docker: read from container
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	readResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
 	fileContent := extractDockerOutput(readResult)
 	if fileContent == "" && operation != "set" {
@@ -344,7 +350,10 @@ func HomepageXmlEdit(cfg HomepageConfig, path, operation, xpath string, setValue
 	}
 	logger.Info("[Homepage] XmlEdit", "path", path, "op", operation)
 
-	if !checkDockerAvailable(cfg.DockerHost) {
+	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
+		if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+			return errJSON("Homepage request canceled: %v", err)
+		}
 		if cfg.WorkspacePath == "" {
 			return homepageWorkspacePathNotConfiguredJSON()
 		}
@@ -356,7 +365,7 @@ func HomepageXmlEdit(cfg HomepageConfig, path, operation, xpath string, setValue
 	}
 
 	// Docker: read from container
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	readResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
 	fileContent := extractDockerOutput(readResult)
 	if fileContent == "" && operation != "add_element" {

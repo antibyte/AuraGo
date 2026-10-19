@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -166,7 +167,7 @@ func homepagePrepareDependencies(cfg HomepageConfig, project homepageProjectInfo
 	if logger != nil {
 		logger.Info("[Homepage] Installing missing dependencies", "project_dir", project.ProjectDir, "package_manager", pm)
 	}
-	raw := homepageDockerExecFunc(DockerConfig{Host: cfg.DockerHost}, homepageContainerName, fmt.Sprintf("cd /workspace/%s && %s", project.ProjectDir, cmd), "")
+	raw := homepageDockerExecFunc(DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}, homepageContainerName, fmt.Sprintf("cd /workspace/%s && %s", project.ProjectDir, cmd), "")
 	var parsed struct {
 		ExitCode int    `json:"exit_code"`
 		Output   string `json:"output"`
@@ -284,7 +285,7 @@ func homepageVercelDeploySubdir(projectDir, framework, explicitBuildDir string, 
 	return filepath.ToSlash(filepath.Clean(projectDir)), false
 }
 
-func homepageVerifyDeploymentURL(rawURL string) homepageVerifyResult {
+func homepageVerifyDeploymentURL(rawURL string, contexts ...context.Context) homepageVerifyResult {
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
 		return homepageVerifyResult{Status: "error", Message: "deployment URL is empty"}
@@ -296,12 +297,15 @@ func homepageVerifyDeploymentURL(rawURL string) homepageVerifyResult {
 	if err != nil || parsedURL.Host == "" {
 		return homepageVerifyResult{Status: "error", Message: "deployment URL is invalid", URL: rawURL}
 	}
-	resp, err := homepageVerifyHTTPClient.Get(parsedURL.String())
+	resp, err := getToolHTTP(nativeHTTPContext(contexts...), homepageVerifyHTTPClient, parsedURL.String())
 	if err != nil {
 		return homepageVerifyResult{Status: "error", Message: fmt.Sprintf("root request failed: %v", err), URL: parsedURL.String()}
 	}
 	defer resp.Body.Close()
-	bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
+	if err != nil {
+		return homepageVerifyResult{Status: "error", Message: fmt.Sprintf("root response failed: %v", err), URL: parsedURL.String()}
+	}
 	body := string(bodyBytes)
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		return homepageVerifyResult{Status: "error", Message: fmt.Sprintf("root returned HTTP %d", resp.StatusCode), URL: parsedURL.String(), HTTPStatus: resp.StatusCode}
@@ -316,7 +320,7 @@ func homepageVerifyDeploymentURL(rawURL string) homepageVerifyResult {
 	assets := homepageExtractCriticalAssets(body, parsedURL)
 	checked := []string{}
 	for _, asset := range assets {
-		req, _ := http.NewRequest(http.MethodGet, asset, nil)
+		req, _ := newToolHTTPRequest(nativeHTTPContext(contexts...), http.MethodGet, asset, nil)
 		assetResp, err := homepageVerifyHTTPClient.Do(req)
 		if err != nil {
 			return homepageVerifyResult{Status: "error", Message: fmt.Sprintf("asset request failed for %s: %v", asset, err), URL: parsedURL.String(), HTTPStatus: resp.StatusCode, CheckedAssets: checked}

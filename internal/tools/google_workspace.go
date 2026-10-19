@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 
 // GWorkspaceClient holds auth state for Google Workspace API calls.
 type GWorkspaceClient struct {
+	Context      context.Context `json:"-"`
 	mu           sync.Mutex
 	AccessToken  string
 	RefreshToken string
@@ -31,7 +33,7 @@ type GWorkspaceClient struct {
 var gwHTTPClient = &http.Client{Timeout: 30 * time.Second, CheckRedirect: security.SameOriginRedirect}
 
 // NewGWorkspaceClient builds a client from config + vault.
-func NewGWorkspaceClient(cfg config.Config, vault *security.Vault) (*GWorkspaceClient, error) {
+func NewGWorkspaceClient(cfg config.Config, vault *security.Vault, contexts ...context.Context) (*GWorkspaceClient, error) {
 	gw := cfg.GoogleWorkspace
 	if vault != nil {
 		token, _, err := readIntegrationOAuth(vault, "oauth_google_workspace")
@@ -56,6 +58,7 @@ func NewGWorkspaceClient(cfg config.Config, vault *security.Vault) (*GWorkspaceC
 	}
 
 	return &GWorkspaceClient{
+		Context:      nativeHTTPContext(contexts...),
 		AccessToken:  gw.AccessToken,
 		RefreshToken: gw.RefreshToken,
 		TokenExpiry:  expiry,
@@ -67,9 +70,13 @@ func NewGWorkspaceClient(cfg config.Config, vault *security.Vault) (*GWorkspaceC
 
 // refreshIfNeeded refreshes the access token if it has expired.
 func (c *GWorkspaceClient) refreshIfNeeded() error {
-	c.mu.Lock()
+	if err := lockToolHTTPContext(c.Context, &c.mu); err != nil {
+		return err
+	}
 	defer c.mu.Unlock()
-	googleWorkspaceTokenRefreshMu.Lock()
+	if err := lockToolHTTPContext(c.Context, &googleWorkspaceTokenRefreshMu); err != nil {
+		return err
+	}
 	defer googleWorkspaceTokenRefreshMu.Unlock()
 	var previous string
 	var grantedScopes []string
@@ -104,7 +111,7 @@ func (c *GWorkspaceClient) refreshIfNeeded() error {
 		"grant_type":    {"refresh_token"},
 	}
 
-	resp, err := gwHTTPClient.Post("https://oauth2.googleapis.com/token", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	resp, err := postToolHTTP(c.Context, gwHTTPClient, "https://oauth2.googleapis.com/token", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
 	if err != nil {
 		return fmt.Errorf("token refresh request failed: %w", err)
 	}
@@ -167,7 +174,7 @@ func (c *GWorkspaceClient) request(method, rawURL string, body interface{}) ([]b
 		reqBody = bytes.NewReader(data)
 	}
 
-	req, err := http.NewRequest(method, rawURL, reqBody)
+	req, err := newToolHTTPRequest(c.Context, method, rawURL, reqBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -918,7 +925,7 @@ func (c *GWorkspaceClient) SheetsCreate(title string) string {
 // ExecuteGoogleWorkspace is the main entry point called from agent dispatch.
 // It enforces ReadOnly mode and per-scope access checks before routing to the
 // appropriate API method.
-func ExecuteGoogleWorkspace(cfg config.Config, vault *security.Vault, operation string, params map[string]interface{}) string {
+func ExecuteGoogleWorkspace(cfg config.Config, vault *security.Vault, operation string, params map[string]interface{}, contexts ...context.Context) string {
 	gw := cfg.GoogleWorkspace
 
 	// Scope + readonly enforcement
@@ -954,7 +961,7 @@ func ExecuteGoogleWorkspace(cfg config.Config, vault *security.Vault, operation 
 		return gwErrJSON("Google Workspace scope for operation '%s' is disabled in configuration.", operation)
 	}
 
-	client, err := NewGWorkspaceClient(cfg, vault)
+	client, err := NewGWorkspaceClient(cfg, vault, nativeHTTPContext(contexts...))
 	if err != nil {
 		return gwErrJSON("Failed to initialize Google Workspace client: %v", err)
 	}

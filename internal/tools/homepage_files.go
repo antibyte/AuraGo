@@ -25,11 +25,14 @@ func HomepageListFiles(cfg HomepageConfig, path string, logger *slog.Logger) str
 	}
 	logger.Info("[Homepage] ListFiles", "path", path)
 
-	if !checkDockerAvailable(cfg.DockerHost) {
+	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
+		if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+			return errJSON("Homepage request canceled: %v", err)
+		}
 		return homepageListFilesLocal(cfg, path)
 	}
 
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	// Warm up the kernel directory entry cache inside the container before listing.
 	// When files are written to the bind-mounted workspace by the host process, the
 	// container's view of that directory can occasionally lag until an inode lookup is
@@ -138,11 +141,14 @@ func HomepageReadFile(cfg HomepageConfig, path string, logger *slog.Logger) stri
 	}
 	logger.Info("[Homepage] ReadFile", "path", path)
 
-	if !checkDockerAvailable(cfg.DockerHost) {
+	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
+		if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+			return errJSON("Homepage request canceled: %v", err)
+		}
 		return homepageReadFileLocal(cfg, path)
 	}
 
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
 }
 
@@ -200,7 +206,10 @@ func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Lo
 	}
 	logger.Info("[Homepage] WriteFile", "path", path, "size", len(content))
 
-	if !checkDockerAvailable(cfg.DockerHost) {
+	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
+		if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+			return errJSON("Homepage request canceled: %v", err)
+		}
 		if cfg.WorkspacePath == "" {
 			return homepageWorkspacePathNotConfiguredJSON()
 		}
@@ -220,7 +229,7 @@ func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Lo
 
 	// Use base64 to safely pass content through shell
 	encoded := base64.StdEncoding.EncodeToString([]byte(content))
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	projectDir := homepageProjectDirFromPath(path)
 	if err := homepageEnsureProjectWritable(dockerCfg, projectDir, logger); err != nil {
 		return errJSON("Homepage project %q is not writable and automatic permission repair failed: %v", projectDir, err)
@@ -263,7 +272,10 @@ func HomepageEditFile(cfg HomepageConfig, path, operation, old, new_, marker, co
 	}
 	logger.Info("[Homepage] EditFile", "path", path, "op", operation)
 
-	if !checkDockerAvailable(cfg.DockerHost) {
+	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
+		if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+			return errJSON("Homepage request canceled: %v", err)
+		}
 		// Local fallback: use file_editor directly on workspace path
 		if cfg.WorkspacePath == "" {
 			return homepageWorkspacePathNotConfiguredJSON()
@@ -276,7 +288,7 @@ func HomepageEditFile(cfg HomepageConfig, path, operation, old, new_, marker, co
 	}
 
 	// Docker: read file from container, apply edit in Go, write back
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	readResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
 
 	// DockerExec returns JSON; try to detect errors

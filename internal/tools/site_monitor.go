@@ -3,6 +3,7 @@ package tools
 import (
 	"aurago/internal/dbutil"
 	"aurago/internal/security"
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -99,7 +100,7 @@ func initSiteMonitorDB(dbPath string) (*sql.DB, error) {
 }
 
 // ExecuteSiteMonitor dispatches site monitoring operations.
-func ExecuteSiteMonitor(dbPath, operation, monitorID, url, selector, interval string, limit int) string {
+func ExecuteSiteMonitor(dbPath, operation, monitorID, url, selector, interval string, limit int, contexts ...context.Context) string {
 	db, err := initSiteMonitorDB(dbPath)
 	if err != nil {
 		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: fmt.Sprintf("database init failed: %v", err)})
@@ -110,15 +111,15 @@ func ExecuteSiteMonitor(dbPath, operation, monitorID, url, selector, interval st
 
 	switch strings.ToLower(operation) {
 	case "add_monitor":
-		return siteMonitorAdd(db, url, selector, interval)
+		return siteMonitorAdd(db, url, selector, interval, nativeHTTPContext(contexts...))
 	case "remove_monitor":
 		return siteMonitorRemove(db, monitorID)
 	case "list_monitors":
 		return siteMonitorList(db)
 	case "check_now":
-		return siteMonitorCheck(db, monitorID, url)
+		return siteMonitorCheck(db, monitorID, url, nativeHTTPContext(contexts...))
 	case "check_all":
-		return siteMonitorCheckAll(db)
+		return siteMonitorCheckAll(db, nativeHTTPContext(contexts...))
 	case "get_history":
 		return siteMonitorHistory(db, monitorID, limit)
 	default:
@@ -129,7 +130,7 @@ func ExecuteSiteMonitor(dbPath, operation, monitorID, url, selector, interval st
 	}
 }
 
-func siteMonitorAdd(db *sql.DB, url, selector, interval string) string {
+func siteMonitorAdd(db *sql.DB, url, selector, interval string, contexts ...context.Context) string {
 	if db == nil {
 		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: "site monitor database not initialized"})
 	}
@@ -158,7 +159,7 @@ func siteMonitorAdd(db *sql.DB, url, selector, interval string) string {
 	}
 
 	// Do initial fetch to establish baseline hash
-	content, fetchErr := fetchSiteContent(url)
+	content, fetchErr := fetchSiteContent(url, nativeHTTPContext(contexts...))
 	if fetchErr == nil {
 		hash := contentHash(content)
 		db.Exec("UPDATE site_monitors SET last_check = ?, last_hash = ? WHERE id = ?",
@@ -229,7 +230,7 @@ func siteMonitorList(db *sql.DB) string {
 	return siteMonitorJSON(siteMonitorResult{Status: "success", Monitors: monitors})
 }
 
-func siteMonitorCheck(db *sql.DB, monitorID, url string) string {
+func siteMonitorCheck(db *sql.DB, monitorID, url string, contexts ...context.Context) string {
 	if db == nil {
 		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: "site monitor database not initialized"})
 	}
@@ -247,7 +248,7 @@ func siteMonitorCheck(db *sql.DB, monitorID, url string) string {
 		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: "monitor_id or url is required"})
 	}
 
-	content, err := fetchSiteContent(m.URL)
+	content, err := fetchSiteContent(m.URL, nativeHTTPContext(contexts...))
 	if err != nil {
 		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: fmt.Sprintf("fetch failed: %v", err)})
 	}
@@ -286,7 +287,7 @@ func siteMonitorCheck(db *sql.DB, monitorID, url string) string {
 	return siteMonitorJSON(result)
 }
 
-func siteMonitorCheckAll(db *sql.DB) string {
+func siteMonitorCheckAll(db *sql.DB, contexts ...context.Context) string {
 	if db == nil {
 		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: "site monitor database not initialized"})
 	}
@@ -316,7 +317,7 @@ func siteMonitorCheckAll(db *sql.DB) string {
 			m.LastHash = lastHash.String
 		}
 
-		content, fetchErr := fetchSiteContent(m.URL)
+		content, fetchErr := fetchSiteContent(m.URL, nativeHTTPContext(contexts...))
 		if fetchErr != nil {
 			results = append(results, checkResult{ID: m.ID, URL: m.URL, Message: fmt.Sprintf("fetch error: %v", fetchErr)})
 			continue
@@ -395,14 +396,14 @@ func siteMonitorHistory(db *sql.DB, monitorID string, limit int) string {
 
 // --- helpers ---
 
-func fetchSiteContent(url string) (string, error) {
+func fetchSiteContent(url string, contexts ...context.Context) (string, error) {
 	// Use the SSRF-protected client that pins the resolved IP to prevent DNS-rebinding
 	// TOCTOU attacks between the validation check and the actual HTTP dial.
-	client, err := security.NewSSRFProtectedHTTPClientForURL(url, 15*time.Second)
+	client, err := security.NewSSRFProtectedHTTPClientForURLContext(nativeHTTPContext(contexts...), url, 15*time.Second)
 	if err != nil {
 		return "", fmt.Errorf("URL not allowed: %w", err)
 	}
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := newToolHTTPRequest(nativeHTTPContext(contexts...), "GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("create request: %w", err)
 	}

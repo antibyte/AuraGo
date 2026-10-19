@@ -5,6 +5,7 @@ import (
 	"aurago/internal/cyd"
 	"aurago/internal/push"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -58,6 +59,11 @@ type TelnyxSendFunc func(to, message string) error
 // channel may be "ntfy", "pushover", "telegram", "discord", "telnyx", or "all".
 // discordSend may be nil if Discord is not available.
 func SendNotification(cfg *config.Config, logger *slog.Logger, channel, title, message, priority string, discordSend DiscordSendFunc, telnyxSend ...TelnyxSendFunc) string {
+	return SendNotificationContext(context.Background(), cfg, logger, channel, title, message, priority, discordSend, telnyxSend...)
+}
+
+func SendNotificationContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, channel, title, message, priority string, discordSend DiscordSendFunc, telnyxSend ...TelnyxSendFunc) string {
+	ctx = nativeHTTPContext(ctx)
 	encode := func(r map[string]interface{}) string {
 		b, _ := json.Marshal(r)
 		return string(b)
@@ -84,14 +90,18 @@ func SendNotification(cfg *config.Config, logger *slog.Logger, channel, title, m
 	var results []result
 
 	send := func(c NotificationChannel) {
+		if nativeHTTPContext(ctx).Err() != nil {
+			results = append(results, result{Channel: string(c), Status: "error", Detail: ctx.Err().Error()})
+			return
+		}
 		var err error
 		switch c {
 		case ChannelNtfy:
-			err = sendNtfy(cfg, title, message, priority)
+			err = sendNtfy(cfg, title, message, priority, ctx)
 		case ChannelPushover:
-			err = sendPushover(cfg, title, message, priority)
+			err = sendPushover(cfg, title, message, priority, ctx)
 		case ChannelTelegram:
-			err = sendTelegramNotification(cfg, title, message)
+			err = sendTelegramNotification(cfg, title, message, ctx)
 		case ChannelDiscord:
 			if cfg.Discord.ReadOnly {
 				err = fmt.Errorf("discord is in read-only mode")
@@ -159,7 +169,7 @@ func SendNotification(cfg *config.Config, logger *slog.Logger, channel, title, m
 
 // ── ntfy.sh ─────────────────────────────────────────────────────────────────
 
-func sendNtfy(cfg *config.Config, title, message, priority string) error {
+func sendNtfy(cfg *config.Config, title, message, priority string, contexts ...context.Context) error {
 	if !cfg.Notifications.Ntfy.Enabled {
 		return fmt.Errorf("ntfy is not enabled in config")
 	}
@@ -175,7 +185,7 @@ func sendNtfy(cfg *config.Config, title, message, priority string) error {
 
 	url := strings.TrimRight(baseURL, "/") + "/" + topic
 
-	req, err := http.NewRequest("POST", url, strings.NewReader(message))
+	req, err := newToolHTTPRequest(nativeHTTPContext(contexts...), "POST", url, strings.NewReader(message))
 	if err != nil {
 		return ntfyURLFreeError("failed to create ntfy request", err)
 	}
@@ -229,7 +239,7 @@ func ntfyURLFreeError(what string, err error) error {
 
 // ── Pushover ────────────────────────────────────────────────────────────────
 
-func sendPushover(cfg *config.Config, title, message, priority string) error {
+func sendPushover(cfg *config.Config, title, message, priority string, contexts ...context.Context) error {
 	if !cfg.Notifications.Pushover.Enabled {
 		return fmt.Errorf("pushover is not enabled in config")
 	}
@@ -259,7 +269,7 @@ func sendPushover(cfg *config.Config, title, message, priority string) error {
 		"priority": pushPrio,
 	})
 
-	resp, err := notifyHTTPClient.Post("https://api.pushover.net/1/messages.json", "application/json", bytes.NewReader(payload))
+	resp, err := postToolHTTP(nativeHTTPContext(contexts...), notifyHTTPClient, "https://api.pushover.net/1/messages.json", "application/json", bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("pushover request failed: %w", err)
 	}
@@ -281,7 +291,7 @@ func sendPushover(cfg *config.Config, title, message, priority string) error {
 // sent only when the Bot API answers 2xx with ok:true (checkTelegramReply); a redirect is
 // not followed. Its errors never carry the bot token, and a failed request keeps its cause
 // (telegramError), so a deadline or cancellation can be told apart.
-func sendTelegramNotification(cfg *config.Config, title, message string) error {
+func sendTelegramNotification(cfg *config.Config, title, message string, contexts ...context.Context) error {
 	botToken := cfg.Telegram.BotToken
 	chatID := cfg.Telegram.UserID
 	if botToken == "" || chatID == 0 {
@@ -297,7 +307,7 @@ func sendTelegramNotification(cfg *config.Config, title, message string) error {
 	})
 
 	endpoint := telegramAPIBase + "/bot" + url.PathEscape(botToken) + "/sendMessage"
-	resp, err := telegramMessageClient.Post(endpoint, "application/json", bytes.NewReader(payload))
+	resp, err := postToolHTTP(nativeHTTPContext(contexts...), telegramMessageClient, endpoint, "application/json", bytes.NewReader(payload))
 	if err != nil {
 		return telegramRequestError(err, botToken)
 	}

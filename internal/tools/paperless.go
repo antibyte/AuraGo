@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,9 +18,10 @@ import (
 
 // PaperlessConfig holds connection parameters for a Paperless-ngx instance.
 type PaperlessConfig struct {
-	URL      string // Base URL, e.g. https://paperless.example.com
-	APIToken string // API authentication token
-	ReadOnly bool   // true = block upload/update/delete
+	Context  context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
+	URL      string          // Base URL, e.g. https://paperless.example.com
+	APIToken string          // API authentication token
+	ReadOnly bool            // true = block upload/update/delete
 }
 
 // paperlessHTTPClient is a shared HTTP client for Paperless-ngx calls.
@@ -40,7 +42,7 @@ func paperlessRequest(cfg PaperlessConfig, method, endpoint string, body io.Read
 	}
 	security.RegisterSensitive(cfg.APIToken)
 	reqURL := paperlessAPI(cfg, endpoint)
-	req, err := http.NewRequest(method, reqURL, body)
+	req, err := newToolHTTPRequest(cfg.Context, method, reqURL, body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

@@ -26,8 +26,9 @@ import (
 
 // DockerConfig holds the Docker Engine connection parameters.
 type DockerConfig struct {
-	Host         string // e.g. "unix:///var/run/docker.sock", "npipe:////./pipe/docker_engine", or "tcp://localhost:2375"
-	WorkspaceDir string // workspace root for validating host-side file paths used by docker cp
+	Context      context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
+	Host         string          // e.g. "unix:///var/run/docker.sock", "npipe:////./pipe/docker_engine", or "tcp://localhost:2375"
+	WorkspaceDir string          // workspace root for validating host-side file paths used by docker cp
 	// MinimalCLIEnvironment runs `docker compose` and its preflight resolution
 	// with dockerCLIMinimalEnvironment instead of AuraGo's whole environment.
 	// Agent dispatch sets it for compose while docker.allow_host_access is off.
@@ -216,19 +217,24 @@ func pullImageBestEffort(ctx context.Context, dockerCfg DockerConfig, image stri
 // DockerPing checks if the Docker Engine is reachable at the given host.
 // Returns nil on success, or an error describing the failure.
 func DockerPing(host string) error {
+	return DockerPingContext(context.Background(), host)
+}
+
+// DockerPingContext binds the availability probe to its caller without changing
+// the legacy function type used by managed integration adapters.
+func DockerPingContext(ctx context.Context, host string) error {
 	if err := requireDockerPermission(); err != nil {
 		return err
 	}
 	cfg := DockerConfig{Host: host}
 	client := getDockerClient(cfg)
 	reqURL := "http://localhost/" + dockerAPIVersion + "/_ping"
-	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
+	ctx, cancel := context.WithTimeout(nativeHTTPContext(ctx), 5*time.Second)
+	defer cancel()
+	req, err := newToolHTTPRequest(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return fmt.Errorf("build ping request: %w", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	req = req.WithContext(ctx)
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("docker unreachable: %w", err)
@@ -317,7 +323,7 @@ func dockerRequestWithRetry(cfg DockerConfig, method, endpoint string, body stri
 
 		// Docker Engine API is accessed via http://localhost but routed through the Unix socket.
 		reqURL := "http://localhost/" + dockerAPIVersion + endpoint
-		req, err := http.NewRequest(method, reqURL, reqBody)
+		req, err := newToolHTTPRequest(cfg.Context, method, reqURL, reqBody)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to create request: %w", err)
 		}
@@ -328,7 +334,9 @@ func dockerRequestWithRetry(cfg DockerConfig, method, endpoint string, body stri
 			lastErr = err
 			// Retry on network errors
 			if i < maxRetries-1 {
-				time.Sleep(time.Second * time.Duration(i+1))
+				if err := waitToolHTTP(cfg.Context, time.Second*time.Duration(i+1)); err != nil {
+					return nil, lastCode, err
+				}
 				continue
 			}
 			return nil, 0, fmt.Errorf("docker request failed after %d retries: %w", maxRetries, err)
@@ -341,7 +349,9 @@ func dockerRequestWithRetry(cfg DockerConfig, method, endpoint string, body stri
 			lastCode = resp.StatusCode
 			// Retry on read errors
 			if i < maxRetries-1 {
-				time.Sleep(time.Second * time.Duration(i+1))
+				if err := waitToolHTTP(cfg.Context, time.Second*time.Duration(i+1)); err != nil {
+					return nil, lastCode, err
+				}
 				continue
 			}
 			return nil, resp.StatusCode, fmt.Errorf("failed to read docker response after %d retries: %w", maxRetries, err)
@@ -351,7 +361,9 @@ func dockerRequestWithRetry(cfg DockerConfig, method, endpoint string, body stri
 		if resp.StatusCode >= 500 && i < maxRetries-1 {
 			lastErr = fmt.Errorf("server error HTTP %d", resp.StatusCode)
 			lastCode = resp.StatusCode
-			time.Sleep(time.Second * time.Duration(i+1))
+			if err := waitToolHTTP(cfg.Context, time.Second*time.Duration(i+1)); err != nil {
+				return nil, lastCode, err
+			}
 			continue
 		}
 
@@ -1664,7 +1676,7 @@ func dockerBindTrusted(bind string, trusted []string) bool {
 
 // DockerPullImage pulls an image from a registry.
 func DockerPullImage(cfg DockerConfig, image string) string {
-	return DockerPullImageContext(context.Background(), cfg, image)
+	return DockerPullImageContext(nativeHTTPContext(cfg.Context), cfg, image)
 }
 
 // DockerPullImageContext pulls an image and reports success only after the

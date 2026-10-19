@@ -21,6 +21,7 @@ import (
 
 // HomepageConfig holds the configuration for the homepage dev environment.
 type HomepageConfig struct {
+	Context               context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
 	DockerHost            string
 	WorkspacePath         string // host path mounted as /workspace in the container
 	AgentWorkspaceDir     string // agent workdir (filesystem tool writes here); used as fallback when WorkspacePath differs
@@ -173,8 +174,12 @@ func extractOutput(jsonResult string) string {
 // Results are cached per dockerHost for dockerAvailabilityCacheTTL to prevent
 // successive homepage tool calls from flip-flopping between Docker and local-fallback
 // mode when Docker has transient slowness.
-// Uses RWMutex with Double-Check-Locking: concurrent reads, exclusive writes.
-func checkDockerAvailable(dockerHost string) bool {
+// Network probes run outside the cache lock, so sessions keep independent cancellation.
+func checkDockerAvailable(dockerHost string, contexts ...context.Context) bool {
+	ctx := nativeHTTPContext(contexts...)
+	if ctx.Err() != nil {
+		return false
+	}
 	// Fast path: try read-lock first (concurrent reads allowed)
 	dockerAvailabilityMu.RLock()
 	now := time.Now()
@@ -184,17 +189,13 @@ func checkDockerAvailable(dockerHost string) bool {
 	}
 	dockerAvailabilityMu.RUnlock()
 
-	// Slow path: acquire write-lock to perform the actual check.
-	// Double-check after acquiring the write lock in case another goroutine
-	// populated the cache while we were waiting for the lock.
+	// Do not hold the shared cache lock across another session's network call.
+	available := DockerPingContext(ctx, dockerHost) == nil
+	if ctx.Err() != nil {
+		return false
+	}
 	dockerAvailabilityMu.Lock()
 	defer dockerAvailabilityMu.Unlock()
-
-	if entry, ok := dockerAvailabilityResults[dockerHost]; ok && now.Before(entry.expiry) {
-		return entry.available
-	}
-
-	available := DockerPing(dockerHost) == nil
 	dockerAvailabilityResults[dockerHost] = dockerAvailabilityEntry{
 		available: available,
 		expiry:    now.Add(dockerAvailabilityCacheTTL),
@@ -259,8 +260,11 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 	invalidateDockerAvailabilityCache(cfg.DockerHost)
 
 	// Check if Docker is available
-	dockerCfg := DockerConfig{Host: cfg.DockerHost, WorkspaceDir: cfg.WorkspacePath}
-	if !checkDockerAvailable(cfg.DockerHost) {
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost, WorkspaceDir: cfg.WorkspacePath}
+	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
+		if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+			return errJSON("Homepage request canceled: %v", err)
+		}
 		// Check if local Python server is allowed (Danger Zone)
 		if !cfg.AllowLocalServer {
 			return errJSON("Docker not available at %s and local Python server is disabled for security. "+
@@ -287,7 +291,7 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 		if err != nil {
 			return errJSON("Docker not available (%v) and Python fallback failed: %v. "+
 				"Please ensure either Docker is running (systemctl start docker) or Python is installed.",
-				DockerPing(cfg.DockerHost), err)
+				DockerPingContext(cfg.Context, cfg.DockerHost), err)
 		}
 
 		return okJSON("Web server started (Python fallback)",
@@ -590,7 +594,7 @@ func homepageDockerExecResult(raw string) (int, string) {
 
 // HomepageStart starts the dev container.
 func HomepageStart(cfg HomepageConfig, logger *slog.Logger) string {
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	logger.Info("[Homepage] Starting dev container")
 	result := DockerContainerAction(dockerCfg, homepageContainerName, "start", false)
 	// If the container does not exist (e.g. after destroy), give an actionable hint.
@@ -614,18 +618,21 @@ func HomepageStart(cfg HomepageConfig, logger *slog.Logger) string {
 
 // HomepageStop stops the dev container.
 func HomepageStop(cfg HomepageConfig, logger *slog.Logger) string {
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	logger.Info("[Homepage] Stopping dev container")
 	return DockerContainerAction(dockerCfg, homepageContainerName, "stop", false)
 }
 
 // HomepageStatus returns the status of dev and web containers.
 func HomepageStatus(cfg HomepageConfig, logger *slog.Logger) string {
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	result := map[string]interface{}{"status": "ok"}
 
 	// Check Docker availability
-	dockerAvailable := checkDockerAvailable(cfg.DockerHost)
+	dockerAvailable := checkDockerAvailable(cfg.DockerHost, cfg.Context)
+	if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+		return errJSON("Homepage request canceled: %v", err)
+	}
 	result["docker_available"] = dockerAvailable
 
 	if !dockerAvailable {
@@ -680,7 +687,7 @@ func HomepageStatus(cfg HomepageConfig, logger *slog.Logger) string {
 
 // HomepageRebuild removes and recreates the dev container and image.
 func HomepageRebuild(cfg HomepageConfig, logger *slog.Logger) string {
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	logger.Info("[Homepage] Rebuilding dev container")
 
 	// Stop and remove container
@@ -696,7 +703,7 @@ func HomepageRebuild(cfg HomepageConfig, logger *slog.Logger) string {
 
 // HomepageDestroy stops and removes both containers and the image.
 func HomepageDestroy(cfg HomepageConfig, logger *slog.Logger) string {
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	logger.Info("[Homepage] Destroying homepage environment")
 
 	DockerContainerAction(dockerCfg, homepageContainerName, "stop", false)
@@ -714,7 +721,7 @@ func HomepageDestroy(cfg HomepageConfig, logger *slog.Logger) string {
 // HomepageExec runs a command inside the dev container.
 // Pass env as nil unless additional environment variables need to be injected.
 func HomepageExec(cfg HomepageConfig, command string, env []string, logger *slog.Logger) string {
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	if command == "" {
 		return errJSON("command is required")
 	}
@@ -811,7 +818,10 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 	logger.Info("[Homepage] Init project", "framework", framework, "name", name)
 
 	// Docker-unavailable path
-	if !checkDockerAvailable(cfg.DockerHost) {
+	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
+		if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+			return errJSON("Homepage request canceled: %v", err)
+		}
 		if cfg.WorkspacePath == "" {
 			return errJSON("Docker not available and workspace_path not configured. %s", homepageWorkspacePathGuidance())
 		}
@@ -894,7 +904,7 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 		}
 	}
 
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
 		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
 	}
@@ -960,7 +970,7 @@ func homepageBuildWithOptions(cfg HomepageConfig, projectDir string, logger *slo
 	}
 	logger.Info("[Homepage] Build", "dir", projectDir)
 
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	project, err := homepageResolveProject(cfg, projectDir)
 	if err != nil {
 		return errJSON("%v", err)
@@ -1053,7 +1063,7 @@ func decorateHomepageBuildRuntimeFailure(raw string, projectDir string) string {
 	return raw
 }
 func homepageEnsureNodeRuntime(cfg HomepageConfig, logger *slog.Logger) error {
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	check := func() string {
 		return homepageDockerExecFunc(dockerCfg, homepageContainerName, "command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 && node --version && npm --version 2>&1", "")
 	}
@@ -1145,7 +1155,7 @@ func HomepageInstallDeps(cfg HomepageConfig, projectDir string, packages []strin
 		cmd += " " + strings.Join(packages, " ")
 	}
 	logger.Info("[Homepage] Install deps", "project_dir", projectDir, "packages", packages)
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	if err := homepageEnsureNodeRuntime(cfg, logger); err != nil {
 		return errJSON("Homepage dependency install cannot run for project_dir %q: %v", projectDir, err)
 	}
@@ -1207,7 +1217,7 @@ func HomepageLighthouse(cfg HomepageConfig, url string, logger *slog.Logger) str
 		return errJSON("invalid URL: must be a valid http:// or https:// URL without shell metacharacters")
 	}
 	logger.Info("[Homepage] Lighthouse", "url", url)
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	// Run lighthouse with JSON output, capture stderr in a temp file so errors
 	// are not silently swallowed.  CHROME_PATH is set in the Dockerfile to the
 	// Playwright-bundled Chromium; we also auto-detect it at runtime in case
@@ -1230,6 +1240,7 @@ func HomepageLighthouse(cfg HomepageConfig, url string, logger *slog.Logger) str
 
 // HomepageScreenshot takes a screenshot using Playwright.
 func HomepageScreenshot(ctx context.Context, cfg HomepageConfig, url, viewport string, logger *slog.Logger) string {
+	cfg.Context = nativeHTTPContext(ctx)
 	if url == "" {
 		return errJSON("url is required for screenshot")
 	}
@@ -1253,7 +1264,7 @@ func HomepageScreenshot(ctx context.Context, cfg HomepageConfig, url, viewport s
 	if logger != nil {
 		logger.Info("[Homepage] Screenshot", "url", url, "viewport", viewport)
 	}
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 
 	// Use npx playwright screenshot CLI — works reliably in the Playwright base image
 	// without requiring a global npm install of the playwright package.
@@ -1291,7 +1302,7 @@ func HomepageLint(cfg HomepageConfig, projectDir string, logger *slog.Logger) st
 		}
 	}
 	logger.Info("[Homepage] Lint", "dir", projectDir)
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	// Run TypeScript check first (if tsconfig exists), then ESLint.
 	// Prefer the project-local ESLint binary (faster, no npx lookup overhead).
 	cmd := fmt.Sprintf(`cd /workspace/%s && { if [ -f tsconfig.json ]; then echo "=== TypeScript Check ==="; npx tsc --noEmit 2>&1 | head -50; echo; fi; echo "=== ESLint ==="; if [ -f ./node_modules/.bin/eslint ]; then ./node_modules/.bin/eslint . --format compact 2>&1; else npx eslint . --format compact 2>&1; fi | head -100; }`, projectDir)
@@ -1300,6 +1311,7 @@ func HomepageLint(cfg HomepageConfig, projectDir string, logger *slog.Logger) st
 
 // HomepageCheckJS navigates to a URL and captures any JavaScript console errors.
 func HomepageCheckJS(ctx context.Context, cfg HomepageConfig, url string, logger *slog.Logger) string {
+	cfg.Context = nativeHTTPContext(ctx)
 	if url == "" {
 		return errJSON("url is required for check_js")
 	}
@@ -1309,7 +1321,7 @@ func HomepageCheckJS(ctx context.Context, cfg HomepageConfig, url string, logger
 	if logger != nil {
 		logger.Info("[Homepage] CheckJS", "url", url)
 	}
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 
 	script := fmt.Sprintf(`node -e "
 const {chromium} = require('playwright');

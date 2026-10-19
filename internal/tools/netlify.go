@@ -15,9 +15,10 @@ import (
 
 // NetlifyConfig holds the Netlify API connection parameters.
 type NetlifyConfig struct {
-	Token               string // Personal Access Token
-	DefaultSiteID       string // Default site ID for operations
-	TeamSlug            string // Netlify team/account slug
+	Context             context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
+	Token               string          // Personal Access Token
+	DefaultSiteID       string          // Default site ID for operations
+	TeamSlug            string          // Netlify team/account slug
 	ReadOnly            bool
 	AllowDeploy         bool
 	AllowSiteManagement bool
@@ -78,7 +79,7 @@ func netlifyRequest(cfg NetlifyConfig, method, endpoint string, body interface{}
 		reqBody = bytes.NewReader(data)
 	}
 
-	req, err := http.NewRequest(method, url, reqBody)
+	req, err := newToolHTTPRequest(cfg.Context, method, url, reqBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("create request: %w", err)
 	}
@@ -105,7 +106,7 @@ func netlifyRequest(cfg NetlifyConfig, method, endpoint string, body interface{}
 func netlifyRequestRaw(cfg NetlifyConfig, method, endpoint, contentType string, rawBody io.Reader) ([]byte, int, error) {
 	url := netlifyBaseURL + endpoint
 
-	req, err := http.NewRequest(method, url, rawBody)
+	req, err := newToolHTTPRequest(cfg.Context, method, url, rawBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("create request: %w", err)
 	}
@@ -532,7 +533,9 @@ func NetlifyWaitForDeploy(cfg NetlifyConfig, deployID string, maxAttempts int, d
 			return errJSON("%s", msg)
 		}
 		if attempt < maxAttempts && delay > 0 {
-			time.Sleep(delay)
+			if err := waitToolHTTP(cfg.Context, delay); err != nil {
+				return errJSON("Deploy status canceled: %v", err)
+			}
 		}
 	}
 	if last != nil {

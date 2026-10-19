@@ -15,10 +15,11 @@ import (
 
 // VercelConfig holds the Vercel API connection parameters.
 type VercelConfig struct {
-	Token                  string // Personal Access Token
-	DefaultProjectID       string // Default project ID or name for operations
-	TeamID                 string // Team identifier for scoped API calls
-	TeamSlug               string // Team slug for scoped API calls
+	Context                context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
+	Token                  string          // Personal Access Token
+	DefaultProjectID       string          // Default project ID or name for operations
+	TeamID                 string          // Team identifier for scoped API calls
+	TeamSlug               string          // Team slug for scoped API calls
 	ReadOnly               bool
 	AllowDeploy            bool
 	AllowProjectManagement bool
@@ -72,7 +73,7 @@ func vercelRequest(cfg VercelConfig, method, endpoint string, body interface{}) 
 		reqBody = bytes.NewReader(data)
 	}
 
-	req, err := http.NewRequest(method, fullURL, reqBody)
+	req, err := newToolHTTPRequest(cfg.Context, method, fullURL, reqBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("create request: %w", err)
 	}

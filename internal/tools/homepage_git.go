@@ -22,7 +22,7 @@ func HomepageGitInit(cfg HomepageConfig, projectDir string, logger *slog.Logger)
 		}
 	}
 	logger.Info("[Homepage] Git init", "dir", projectDir)
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	// Use git -C to specify the working tree without shell cd, and properly quote projectDir.
 	// shellSingleQuote is defined in homepage_deploy.go and accessible within this package.
 	cmd := fmt.Sprintf("git -C /workspace/%s init -b main && git -C /workspace/%s config user.email 'aurago@local' && git -C /workspace/%s config user.name 'Aurago Agent' && git -C /workspace/%s add -A && git -C /workspace/%s commit -m 'Initial commit' --allow-empty 2>&1",
@@ -53,7 +53,7 @@ func HomepageGitCommit(cfg HomepageConfig, projectDir, message string, logger *s
 		}
 	}
 	logger.Info("[Homepage] Git commit", "dir", projectDir, "message", message)
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	// Use git -C for safe path handling and properly quote projectDir.
 	cmd := fmt.Sprintf("git -C /workspace/%s add -A && git -C /workspace/%s diff --cached --stat && git -C /workspace/%s commit -m %s 2>&1",
 		shellSingleQuote(projectDir), shellSingleQuote(projectDir), shellSingleQuote(projectDir), shellSingleQuote(safeMsg))
@@ -71,7 +71,7 @@ func HomepageGitStatus(cfg HomepageConfig, projectDir string, logger *slog.Logge
 		}
 	}
 	logger.Info("[Homepage] Git status", "dir", projectDir)
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	// Use git -C for safe path handling and properly quote projectDir.
 	cmd := fmt.Sprintf("git -C /workspace/%s status --short 2>&1", shellSingleQuote(projectDir))
 	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
@@ -88,7 +88,7 @@ func HomepageGitDiff(cfg HomepageConfig, projectDir string, logger *slog.Logger)
 		}
 	}
 	logger.Info("[Homepage] Git diff", "dir", projectDir)
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	// Use git -C for safe path handling and properly quote projectDir.
 	cmd := fmt.Sprintf("git -C /workspace/%s diff --stat && echo '---' && git -C /workspace/%s diff 2>&1 | head -500", shellSingleQuote(projectDir), shellSingleQuote(projectDir))
 	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
@@ -111,7 +111,7 @@ func HomepageGitLog(cfg HomepageConfig, projectDir string, count int, logger *sl
 		count = 100
 	}
 	logger.Info("[Homepage] Git log", "dir", projectDir, "count", count)
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	// Use git -C for safe path handling and properly quote projectDir.
 	cmd := fmt.Sprintf("git -C /workspace/%s log --oneline --graph -n %d 2>&1", shellSingleQuote(projectDir), count)
 	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
@@ -135,7 +135,7 @@ func HomepageGitRollback(cfg HomepageConfig, projectDir string, steps int, logge
 		return errJSON("Maximum rollback is 10 commits at once")
 	}
 	logger.Info("[Homepage] Git rollback", "dir", projectDir, "steps", steps)
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	// Revert commits one by one (newest first) to avoid merge conflicts.
 	// Use git -C for safe path handling and properly quote projectDir.
 	cmd := fmt.Sprintf("for i in $(seq 0 %d); do git -C /workspace/%s revert --no-edit HEAD~$i 2>&1 || break; done && git -C /workspace/%s log --oneline -n %d 2>&1",

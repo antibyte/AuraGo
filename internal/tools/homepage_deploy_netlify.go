@@ -441,7 +441,7 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	if verifyURL == "" {
 		return errJSON("Netlify deploy completed but no verification URL was returned")
 	}
-	verify := homepageVerifyDeploymentURL(verifyURL)
+	verify := homepageVerifyDeploymentURL(verifyURL, cfg.Context)
 	if verify.Status != "ok" {
 		return errJSON("Netlify deploy completed but live verification failed: %s", verify.Message)
 	}

@@ -248,7 +248,7 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 	if deploymentURL == "" {
 		return errJSON("Vercel deploy finished but no deployment URL could be detected. Output: %s", truncateStr(strings.TrimSpace(deployOutput), 1200))
 	}
-	verify := homepageVerifyDeploymentURL(deploymentURL)
+	verify := homepageVerifyDeploymentURL(deploymentURL, cfg.Context)
 	if verify.Status != "ok" {
 		return errJSON("Vercel deploy completed but live verification failed: %s", verify.Message)
 	}

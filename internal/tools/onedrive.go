@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 
 // OneDriveClient holds auth state for Microsoft Graph OneDrive API calls.
 type OneDriveClient struct {
+	Context      context.Context `json:"-"`
 	mu           sync.Mutex
 	AccessToken  string
 	RefreshToken string
@@ -31,7 +33,7 @@ type OneDriveClient struct {
 var odHTTPClient = &http.Client{Timeout: 60 * time.Second, CheckRedirect: security.SameOriginRedirect}
 
 // NewOneDriveClient builds a client from config + vault.
-func NewOneDriveClient(cfg config.Config, vault *security.Vault) (*OneDriveClient, error) {
+func NewOneDriveClient(cfg config.Config, vault *security.Vault, contexts ...context.Context) (*OneDriveClient, error) {
 	od := cfg.OneDrive
 	if vault != nil {
 		token, _, err := readIntegrationOAuth(vault, "oauth_onedrive")
@@ -61,6 +63,7 @@ func NewOneDriveClient(cfg config.Config, vault *security.Vault) (*OneDriveClien
 	}
 
 	return &OneDriveClient{
+		Context:      nativeHTTPContext(contexts...),
 		AccessToken:  od.AccessToken,
 		RefreshToken: od.RefreshToken,
 		TokenExpiry:  expiry,
@@ -74,9 +77,13 @@ func NewOneDriveClient(cfg config.Config, vault *security.Vault) (*OneDriveClien
 
 // refreshIfNeeded refreshes the access token if it has expired or is about to expire.
 func (c *OneDriveClient) refreshIfNeeded() error {
-	c.mu.Lock()
+	if err := lockToolHTTPContext(c.Context, &c.mu); err != nil {
+		return err
+	}
 	defer c.mu.Unlock()
-	oneDriveTokenRefreshMu.Lock()
+	if err := lockToolHTTPContext(c.Context, &oneDriveTokenRefreshMu); err != nil {
+		return err
+	}
 	defer oneDriveTokenRefreshMu.Unlock()
 	var previous string
 	if c.Vault != nil {
@@ -110,7 +117,7 @@ func (c *OneDriveClient) refreshIfNeeded() error {
 	}
 
 	tokenURL := fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", url.PathEscape(c.TenantID))
-	resp, err := odHTTPClient.Post(tokenURL, "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	resp, err := postToolHTTP(c.Context, odHTTPClient, tokenURL, "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
 	if err != nil {
 		return fmt.Errorf("token refresh request failed: %w", err)
 	}
@@ -165,7 +172,7 @@ func (c *OneDriveClient) request(method, rawURL string, body interface{}) ([]byt
 		reqBody = bytes.NewReader(data)
 	}
 
-	req, err := http.NewRequest(method, rawURL, reqBody)
+	req, err := newToolHTTPRequest(c.Context, method, rawURL, reqBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -368,7 +375,7 @@ func (c *OneDriveClient) readFile(path string) string {
 		return odErrJSON("Auth refresh failed: %v", err)
 	}
 
-	req, _ := http.NewRequest("GET", apiURL, nil)
+	req, _ := newToolHTTPRequest(c.Context, "GET", apiURL, nil)
 	req.Header.Set("Authorization", "Bearer "+c.tokenValue())
 
 	// Don't auto-follow redirects to handle the download URL
@@ -390,7 +397,7 @@ func (c *OneDriveClient) readFile(path string) string {
 		if downloadURL == "" {
 			return odErrJSON("Got redirect but no Location header")
 		}
-		dlResp, err := odDownloadHTTPClient.Get(downloadURL)
+		dlResp, err := getToolHTTP(c.Context, odDownloadHTTPClient, downloadURL)
 		if err != nil {
 			return odErrJSON("Download failed: %v", err)
 		}
@@ -523,7 +530,7 @@ func (c *OneDriveClient) uploadFile(path, content string) string {
 		return odErrJSON("Auth refresh failed: %v", err)
 	}
 
-	req, _ := http.NewRequest("PUT", apiURL, strings.NewReader(content))
+	req, _ := newToolHTTPRequest(c.Context, "PUT", apiURL, strings.NewReader(content))
 	req.Header.Set("Authorization", "Bearer "+c.tokenValue())
 	req.Header.Set("Content-Type", "application/octet-stream")
 

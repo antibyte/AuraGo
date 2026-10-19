@@ -12,8 +12,9 @@ import (
 
 // OllamaConfig holds the Ollama API connection parameters.
 type OllamaConfig struct {
-	URL      string // e.g. "http://localhost:11434"
-	ReadOnly bool   // block pull/delete/copy/load/unload when true
+	Context  context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
+	URL      string          // e.g. "http://localhost:11434"
+	ReadOnly bool            // block pull/delete/copy/load/unload when true
 }
 
 // ollamaHTTPClient is a shared HTTP client for Ollama API calls.
@@ -56,13 +57,13 @@ func ollamaRequest(cfg OllamaConfig, method, endpoint string, body string) ([]by
 		reqBody = strings.NewReader(body)
 	}
 
-	req, err := http.NewRequest(method, url, reqBody)
+	req, err := newToolHTTPRequest(cfg.Context, method, url, reqBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(nativeHTTPContext(cfg.Context), 120*time.Second)
 	defer cancel()
 	req = req.WithContext(ctx)
 	resp, err := ollamaHTTPClient.Do(req)
@@ -180,7 +181,7 @@ func OllamaPullModel(cfg OllamaConfig, modelName string) string {
 	}
 	body := fmt.Sprintf(`{"model":%q,"stream":false}`, modelName)
 	url := strings.TrimRight(cfg.URL, "/") + "/api/pull"
-	req, err := http.NewRequest("POST", url, strings.NewReader(body))
+	req, err := newToolHTTPRequest(cfg.Context, "POST", url, strings.NewReader(body))
 	if err != nil {
 		return errJSON("Failed to create pull request: %v", err)
 	}

@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -664,12 +665,15 @@ func ReconcileHomepageProject(cfg HomepageConfig, db *sql.DB, projectDir string,
 		if deployments == 0 {
 			drift = "not_deployed"
 			message = "no deployment recorded"
-		} else if remoteDrift, remoteMessage := observeHomepageRemote(db, proj.ID); remoteDrift != "" {
+		} else if remoteDrift, remoteMessage := observeHomepageRemote(db, proj.ID, cfg.Context); remoteDrift != "" {
 			drift = remoteDrift
 			message = remoteMessage
 		}
 	}
 	gitSHA := HomepageProjectGitSHA(cfg, proj.ProjectDir)
+	if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+		return HomepageProjectState{}, err
+	}
 	if err := ensureHomepageProjectState(db, cfg, proj.ID, proj.ProjectDir, 0, gitSHA, drift, message); err != nil {
 		return HomepageProjectState{}, err
 	}
@@ -819,7 +823,11 @@ func latestSuccessfulHomepageDeploymentRevision(db *sql.DB, projectID int64) int
 	return 0
 }
 
-func observeHomepageRemote(db *sql.DB, projectID int64) (string, string) {
+func observeHomepageRemote(db *sql.DB, projectID int64, contexts ...context.Context) (string, string) {
+	ctx := nativeHTTPContext(contexts...)
+	if ctx.Err() != nil {
+		return "", ""
+	}
 	var deploymentID int64
 	var targetID sql.NullInt64
 	var provider, url, providerDeployID string
@@ -831,13 +839,23 @@ func observeHomepageRemote(db *sql.DB, projectID int64) (string, string) {
 	if err != nil {
 		return "", ""
 	}
-	resp, err := homepageVerifyHTTPClient.Get(url)
+	resp, err := getToolHTTP(ctx, homepageVerifyHTTPClient, url)
 	if err != nil {
+		if ctx.Err() != nil {
+			return "", ""
+		}
 		insertHomepageRemoteObservation(db, projectID, targetID, provider, url, providerDeployID, "", "error", map[string]interface{}{"error": err.Error()})
 		return "remote_unknown", fmt.Sprintf("remote observation failed for %s: %v", url, err)
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
+	if ctx.Err() != nil {
+		return "", ""
+	}
+	if err != nil {
+		insertHomepageRemoteObservation(db, projectID, targetID, provider, url, providerDeployID, "", "error", map[string]interface{}{"error": err.Error()})
+		return "remote_unknown", fmt.Sprintf("remote body read failed for %s: %v", url, err)
+	}
 	hash := hashContent(body)
 	status := "ok"
 	if resp.StatusCode >= 400 {
@@ -852,6 +870,9 @@ func observeHomepageRemote(db *sql.DB, projectID int64) (string, string) {
 		_ = db.QueryRow(`SELECT content_hash FROM homepage_remote_observations
 			WHERE project_id = ? AND provider = ? AND url = ? AND content_hash != ''
 			ORDER BY observed_at DESC, id DESC LIMIT 1`, projectID, provider, url).Scan(&previousHash)
+	}
+	if ctx.Err() != nil {
+		return "", ""
 	}
 	insertHomepageRemoteObservation(db, projectID, targetID, provider, url, providerDeployID, hash, status, map[string]interface{}{
 		"http_status":   resp.StatusCode,

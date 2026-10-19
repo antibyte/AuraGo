@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,6 +21,7 @@ import (
 
 // KoofrConfig holds the configuration needed to access Koofr API.
 type KoofrConfig struct {
+	Context     context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
 	BaseURL     string
 	Username    string
 	AppPassword string
@@ -66,7 +68,7 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 		baseURL = "https://app.koofr.net"
 	}
 
-	mountID, err := getPrimaryMountID(baseURL, cfg.Username, cfg.AppPassword)
+	mountID, err := getPrimaryMountID(baseURL, cfg.Username, cfg.AppPassword, cfg.Context)
 	if err != nil {
 		return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Failed to get Koofr mount ID: %v", err)})
 	}
@@ -78,10 +80,10 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 
 	switch action {
 	case "list":
-		respBytes, err = doKoofrRequest("GET", koofrFilesURL(baseURL, mountID, "list", safePath), cfg.Username, cfg.AppPassword, "application/json", nil)
+		respBytes, err = doKoofrRequest("GET", koofrFilesURL(baseURL, mountID, "list", safePath), cfg.Username, cfg.AppPassword, "application/json", nil, cfg.Context)
 		if isKoofrStatus(err, http.StatusNotFound) {
 			for _, fallbackPath := range koofrPathFallbacks(safePath) {
-				respBytes, err = doKoofrRequest("GET", koofrFilesURL(baseURL, mountID, "list", fallbackPath), cfg.Username, cfg.AppPassword, "application/json", nil)
+				respBytes, err = doKoofrRequest("GET", koofrFilesURL(baseURL, mountID, "list", fallbackPath), cfg.Username, cfg.AppPassword, "application/json", nil, cfg.Context)
 				if err == nil || !isKoofrStatus(err, http.StatusNotFound) {
 					break
 				}
@@ -90,7 +92,7 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 
 	case "read":
 		reqURL := fmt.Sprintf("%s/content/api/v2/mounts/%s/files/get?path=%s", baseURL, mountID, url.QueryEscape(safePath))
-		respBytes, err = doKoofrRequest("GET", reqURL, cfg.Username, cfg.AppPassword, "", nil)
+		respBytes, err = doKoofrRequest("GET", reqURL, cfg.Username, cfg.AppPassword, "", nil, cfg.Context)
 		if err == nil {
 			if contentType, isText := classifyKoofrContent(respBytes); !isText {
 				return marshalPrefixedToolJSON(map[string]interface{}{
@@ -108,7 +110,7 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 			return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Destination path required for download"})
 		}
 		reqURL := fmt.Sprintf("%s/content/api/v2/mounts/%s/files/get?path=%s", baseURL, mountID, url.QueryEscape(safePath))
-		respBytes, err = doKoofrRequest("GET", reqURL, cfg.Username, cfg.AppPassword, "", nil)
+		respBytes, err = doKoofrRequest("GET", reqURL, cfg.Username, cfg.AppPassword, "", nil, cfg.Context)
 		if err == nil {
 			resolvedDest, err := resolveKoofrDownloadDestination(workspaceDir, dest)
 			if err != nil {
@@ -134,16 +136,16 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 			})
 		}
 		uploadDir, filename := resolveKoofrUploadTarget(safePath, dest, "file.txt")
-		if err := ensureKoofrDirectory(baseURL, mountID, uploadDir, cfg.Username, cfg.AppPassword); err != nil {
+		if err := ensureKoofrDirectory(baseURL, mountID, uploadDir, cfg.Username, cfg.AppPassword, cfg.Context); err != nil {
 			return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Failed to prepare Koofr target directory: %v", err), "remote_directory": uploadDir})
 		}
 		reqURL := koofrUploadURL(baseURL, mountID, uploadDir, filename)
-		_, written, uploadErr := uploadKoofrMultipart(reqURL, cfg.Username, cfg.AppPassword, strings.NewReader(content))
+		_, written, uploadErr := uploadKoofrMultipart(reqURL, cfg.Username, cfg.AppPassword, strings.NewReader(content), cfg.Context)
 		if uploadErr != nil {
 			err = uploadErr
 			break
 		}
-		visible, verifyErr := verifyKoofrUploadVisible(baseURL, mountID, uploadDir, filename, cfg.Username, cfg.AppPassword)
+		visible, verifyErr := verifyKoofrUploadVisible(baseURL, mountID, uploadDir, filename, cfg.Username, cfg.AppPassword, cfg.Context)
 		if verifyErr != nil {
 			return marshalPrefixedToolJSON(map[string]interface{}{
 				"status":           "error",
@@ -181,16 +183,16 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 		}
 		defer source.Close()
 		uploadDir, filename := resolveKoofrUploadTarget(safePath, dest, filepath.Base(localPath))
-		if err := ensureKoofrDirectory(baseURL, mountID, uploadDir, cfg.Username, cfg.AppPassword); err != nil {
+		if err := ensureKoofrDirectory(baseURL, mountID, uploadDir, cfg.Username, cfg.AppPassword, cfg.Context); err != nil {
 			return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Failed to prepare Koofr target directory: %v", err), "remote_directory": uploadDir})
 		}
 		reqURL := koofrUploadURL(baseURL, mountID, uploadDir, filename)
-		_, written, uploadErr := uploadKoofrMultipart(reqURL, cfg.Username, cfg.AppPassword, source)
+		_, written, uploadErr := uploadKoofrMultipart(reqURL, cfg.Username, cfg.AppPassword, source, cfg.Context)
 		if uploadErr != nil {
 			err = uploadErr
 			break
 		}
-		visible, verifyErr := verifyKoofrUploadVisible(baseURL, mountID, uploadDir, filename, cfg.Username, cfg.AppPassword)
+		visible, verifyErr := verifyKoofrUploadVisible(baseURL, mountID, uploadDir, filename, cfg.Username, cfg.AppPassword, cfg.Context)
 		if verifyErr != nil {
 			return marshalPrefixedToolJSON(map[string]interface{}{
 				"status":           "error",
@@ -237,11 +239,11 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 		payload := map[string]string{"name": newName}
 		payloadBytes, _ := json.Marshal(payload)
 
-		respBytes, err = doKoofrRequest("POST", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes))
+		respBytes, err = doKoofrRequest("POST", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes), cfg.Context)
 		if isKoofrStatus(err, http.StatusNotFound) {
 			for _, fallbackParent := range koofrPathFallbacks(parentDir) {
 				reqURL = fmt.Sprintf("%s/api/v2/mounts/%s/files/folder?path=%s", baseURL, mountID, url.QueryEscape(fallbackParent))
-				respBytes, err = doKoofrRequest("POST", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes))
+				respBytes, err = doKoofrRequest("POST", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes), cfg.Context)
 				if err == nil || !isKoofrStatus(err, http.StatusNotFound) {
 					break
 				}
@@ -253,7 +255,7 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 
 	case "delete":
 		reqURL := fmt.Sprintf("%s/api/v2/mounts/%s/files/remove?path=%s", baseURL, mountID, url.QueryEscape(safePath))
-		respBytes, err = doKoofrRequest("DELETE", reqURL, cfg.Username, cfg.AppPassword, "application/json", nil)
+		respBytes, err = doKoofrRequest("DELETE", reqURL, cfg.Username, cfg.AppPassword, "application/json", nil, cfg.Context)
 		if err == nil {
 			return marshalPrefixedToolJSON(map[string]interface{}{"status": "success", "message": "Deleted successfully"})
 		}
@@ -266,7 +268,7 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 
 		payloadBytes := koofrMovePayload(mountID, safeDest)
 
-		respBytes, err = doKoofrRequest("PUT", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes))
+		respBytes, err = doKoofrRequest("PUT", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes), cfg.Context)
 		if err == nil {
 			return marshalPrefixedToolJSON(map[string]interface{}{"status": "success", "message": "Moved/Renamed successfully"})
 		}
@@ -285,7 +287,7 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 
 		payloadBytes := koofrCopyPayload(mountID, safeDest)
 
-		respBytes, err = doKoofrRequest("PUT", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes))
+		respBytes, err = doKoofrRequest("PUT", reqURL, cfg.Username, cfg.AppPassword, "application/json", bytes.NewReader(payloadBytes), cfg.Context)
 		if err == nil {
 			return marshalPrefixedToolJSON(map[string]interface{}{"status": "success", "message": "Copied successfully"})
 		}
@@ -380,9 +382,9 @@ func koofrDirectoryPrefixes(dir string) []string {
 	return prefixes
 }
 
-func ensureKoofrDirectory(baseURL, mountID, dir, username, password string) error {
+func ensureKoofrDirectory(baseURL, mountID, dir, username, password string, contexts ...context.Context) error {
 	for _, current := range koofrDirectoryPrefixes(dir) {
-		_, err := doKoofrRequest("GET", koofrFilesURL(baseURL, mountID, "list", current), username, password, "application/json", nil)
+		_, err := doKoofrRequest("GET", koofrFilesURL(baseURL, mountID, "list", current), username, password, "application/json", nil, nativeHTTPContext(contexts...))
 		if err == nil {
 			continue
 		}
@@ -396,7 +398,7 @@ func ensureKoofrDirectory(baseURL, mountID, dir, username, password string) erro
 		}
 		payloadBytes, _ := json.Marshal(map[string]string{"name": pathpkg.Base(current)})
 		reqURL := fmt.Sprintf("%s/api/v2/mounts/%s/files/folder?path=%s", baseURL, mountID, url.QueryEscape(parentDir))
-		_, err = doKoofrRequest("POST", reqURL, username, password, "application/json", bytes.NewReader(payloadBytes))
+		_, err = doKoofrRequest("POST", reqURL, username, password, "application/json", bytes.NewReader(payloadBytes), nativeHTTPContext(contexts...))
 		if err != nil && !isKoofrStatus(err, http.StatusConflict) {
 			return err
 		}
@@ -404,16 +406,16 @@ func ensureKoofrDirectory(baseURL, mountID, dir, username, password string) erro
 	return nil
 }
 
-func verifyKoofrUploadVisible(baseURL, mountID, uploadDir, filename, username, password string) (bool, error) {
+func verifyKoofrUploadVisible(baseURL, mountID, uploadDir, filename, username, password string, contexts ...context.Context) (bool, error) {
 	filePath := koofrJoinPath(uploadDir, filename)
 	infoURL := fmt.Sprintf("%s/api/v2/mounts/%s/files/info?path=%s", baseURL, mountID, url.QueryEscape(filePath))
-	if _, err := doKoofrRequest("GET", infoURL, username, password, "application/json", nil); err == nil {
+	if _, err := doKoofrRequest("GET", infoURL, username, password, "application/json", nil, nativeHTTPContext(contexts...)); err == nil {
 		return true, nil
 	} else if !isKoofrStatus(err, http.StatusNotFound) {
 		return false, err
 	}
 
-	listBytes, err := doKoofrRequest("GET", koofrFilesURL(baseURL, mountID, "list", uploadDir), username, password, "application/json", nil)
+	listBytes, err := doKoofrRequest("GET", koofrFilesURL(baseURL, mountID, "list", uploadDir), username, password, "application/json", nil, nativeHTTPContext(contexts...))
 	if err != nil {
 		return false, err
 	}
@@ -451,7 +453,7 @@ func koofrSuccessContentResponse(content []byte) string {
 	return "Tool Output: " + string(data)
 }
 
-func uploadKoofrMultipart(reqURL, username, password string, r io.Reader) ([]byte, int64, error) {
+func uploadKoofrMultipart(reqURL, username, password string, r io.Reader, contexts ...context.Context) ([]byte, int64, error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	part, err := writer.CreateFormFile("file", "dummy")
@@ -465,7 +467,7 @@ func uploadKoofrMultipart(reqURL, username, password string, r io.Reader) ([]byt
 	if err := writer.Close(); err != nil {
 		return nil, written, fmt.Errorf("failed to close multipart writer: %w", err)
 	}
-	respBytes, err := doKoofrRequest("POST", reqURL, username, password, writer.FormDataContentType(), body)
+	respBytes, err := doKoofrRequest("POST", reqURL, username, password, writer.FormDataContentType(), body, nativeHTTPContext(contexts...))
 	return respBytes, written, err
 }
 
@@ -630,9 +632,9 @@ func resolveKoofrDownloadDestination(workspaceDir, dest string) (string, error) 
 	return resolved, nil
 }
 
-func getPrimaryMountID(baseURL, username, password string) (string, error) {
+func getPrimaryMountID(baseURL, username, password string, contexts ...context.Context) (string, error) {
 	reqURL := fmt.Sprintf("%s/api/v2/mounts", baseURL)
-	respBytes, err := doKoofrRequest("GET", reqURL, username, password, "application/json", nil)
+	respBytes, err := doKoofrRequest("GET", reqURL, username, password, "application/json", nil, nativeHTTPContext(contexts...))
 	if err != nil {
 		return "", err
 	}
@@ -669,8 +671,8 @@ func findPrimaryMount(mounts []mountInfo) (string, error) {
 	return mounts[0].ID, nil
 }
 
-func doKoofrRequest(method, reqURL, username, password, contentType string, body io.Reader) ([]byte, error) {
-	req, err := http.NewRequest(method, reqURL, body)
+func doKoofrRequest(method, reqURL, username, password, contentType string, body io.Reader, contexts ...context.Context) ([]byte, error) {
+	req, err := newToolHTTPRequest(nativeHTTPContext(contexts...), method, reqURL, body)
 	if err != nil {
 		return nil, err
 	}

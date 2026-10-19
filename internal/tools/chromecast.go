@@ -18,9 +18,10 @@ import (
 
 // ChromecastConfig holds Chromecast integration settings.
 type ChromecastConfig struct {
-	ServerHost         string   // Hostname/IP of the AuraGo server (for media playback URLs)
-	ServerPort         int      // Port of the AuraGo media server
-	MediaHostAllowlist []string // Explicit private media hosts/IPs/CIDRs allowed for Chromecast playback
+	Context            context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
+	ServerHost         string          // Hostname/IP of the AuraGo server (for media playback URLs)
+	ServerPort         int             // Port of the AuraGo media server
+	MediaHostAllowlist []string        // Explicit private media hosts/IPs/CIDRs allowed for Chromecast playback
 }
 
 type ChromecastDevice struct {
@@ -165,7 +166,7 @@ func validateChromecastMediaURL(mediaURL string, ccCfg ChromecastConfig) error {
 	if err := validateChromecastMediaURLPolicy(mediaURL, ccCfg); err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodHead, mediaURL, nil)
+	req, err := newToolHTTPRequest(ccCfg.Context, http.MethodHead, mediaURL, nil)
 	if err != nil {
 		return err
 	}

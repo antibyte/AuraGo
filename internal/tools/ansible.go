@@ -23,9 +23,10 @@ import (
 
 // AnsibleConfig holds the connection parameters for the Ansible sidecar API.
 type AnsibleConfig struct {
-	URL     string // e.g. "http://ansible:5001"
-	Token   string // Bearer token (matches ANSIBLE_API_TOKEN in the sidecar)
-	Timeout int    // HTTP client timeout in seconds (default 360)
+	Context context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
+	URL     string          // e.g. "http://ansible:5001"
+	Token   string          // Bearer token (matches ANSIBLE_API_TOKEN in the sidecar)
+	Timeout int             // HTTP client timeout in seconds (default 360)
 }
 
 // ansibleHTTPClient is intentionally generous — playbook runs can take minutes.
@@ -48,7 +49,7 @@ func ansibleRequest(cfg AnsibleConfig, method, endpoint string, body interface{}
 		reqBody = bytes.NewReader(data)
 	}
 
-	req, err := http.NewRequest(method, url, reqBody)
+	req, err := newToolHTTPRequest(cfg.Context, method, url, reqBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}

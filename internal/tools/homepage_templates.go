@@ -34,7 +34,10 @@ func applyHomepageTemplate(cfg HomepageConfig, projectName, template string, log
 
 	logger.Info("[Homepage] Applying template", "template", template, "files", len(files))
 
-	if !checkDockerAvailable(cfg.DockerHost) {
+	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
+		if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+			return errJSON("Homepage request canceled: %v", err)
+		}
 		// Local mode: write files directly
 		if cfg.WorkspacePath == "" {
 			return ""
@@ -53,7 +56,7 @@ func applyHomepageTemplate(cfg HomepageConfig, projectName, template string, log
 	}
 
 	// Docker mode: write files via base64 + DockerExec and verify success.
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	for _, f := range files {
 		encoded := base64.StdEncoding.EncodeToString([]byte(f.content))
 		dir := path.Dir(f.path)
