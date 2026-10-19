@@ -287,6 +287,7 @@ func agodeskProviderPayload(s *Server, cfg *config.Config, provider config.Provi
 		BaseURL:               provider.BaseURL,
 		Model:                 provider.Model,
 		AccountID:             provider.AccountID,
+		GatewayID:             provider.GatewayID,
 		AuthType:              authType,
 		OAuthAuthURL:          provider.OAuthAuthURL,
 		OAuthTokenURL:         provider.OAuthTokenURL,
@@ -461,6 +462,7 @@ func upsertAgodeskProvider(s *Server, payload agodesk.ConfigProviderUpsertPayloa
 	entry.BaseURL = payload.Provider.BaseURL
 	entry.Model = payload.Provider.Model
 	entry.AccountID = payload.Provider.AccountID
+	entry.GatewayID = payload.Provider.GatewayID
 	entry.AuthType = agodeskProviderAuthTypeForUpsert(existing, payload.Provider)
 	entry.OAuthAuthURL = payload.Provider.OAuthAuthURL
 	entry.OAuthTokenURL = payload.Provider.OAuthTokenURL

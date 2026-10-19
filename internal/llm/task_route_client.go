@@ -51,6 +51,7 @@ var taskProviderClients = struct {
 func TaskConfigFingerprint(cfg *config.Config) [32]byte {
 	data, _ := json.Marshal([]any{cfg.LLM, cfg.LLMRouter, cfg.Providers, cfg.AIGateway, cfg.Manifest, cfg.CircuitBreaker, cfg.Agent.ContextWindow})
 	secrets := []string{cfg.LLM.ProviderType, cfg.LLM.BaseURL, cfg.LLM.Model, cfg.LLM.APIKey, cfg.LLM.AccountID, cfg.LLM.HelperBaseURL, cfg.LLM.HelperAPIKey, cfg.LLM.HelperResolvedModel}
+	secrets = append(secrets, cfg.AIGateway.Token)
 	for _, p := range cfg.Providers {
 		secrets = append(secrets, p.ID, p.APIKey, p.OAuthClientSecret)
 	}
@@ -115,6 +116,7 @@ func TaskProviderConfig(cfg *config.Config, p config.ProviderEntry) *config.Conf
 	view := cfg.Clone()
 	view.LLM.Provider, view.LLM.ProviderType = p.ID, p.Type
 	view.LLM.Model, view.LLM.BaseURL, view.LLM.APIKey, view.LLM.AccountID = p.Model, p.BaseURL, p.APIKey, p.AccountID
+	view.LLM.GatewayID = p.GatewayID
 	// Exact model metadata must also be visible to existing capability resolution.
 	for i := range view.Providers {
 		if view.Providers[i].ID == p.ID {

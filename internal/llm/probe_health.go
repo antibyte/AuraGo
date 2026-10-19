@@ -15,7 +15,7 @@ import (
 )
 
 func primaryProbeTransport(cfg *config.Config) (string, *http.Client) {
-	cc := buildOpenAIClientConfig(cfg, resolvedProvider{ProviderType: cfg.LLM.ProviderType, BaseURL: cfg.LLM.BaseURL, APIKey: cfg.LLM.APIKey, AccountID: cfg.LLM.AccountID})
+	cc := buildOpenAIClientConfig(cfg, resolvedProvider{ProviderType: cfg.LLM.ProviderType, BaseURL: cfg.LLM.BaseURL, APIKey: cfg.LLM.APIKey, AccountID: cfg.LLM.AccountID, GatewayID: cfg.LLM.GatewayID})
 	client, _ := cc.HTTPClient.(*http.Client)
 	return cc.BaseURL, client
 }

@@ -118,6 +118,7 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger, options ...Fail
 	fallbackCfg.LLM.APIKey = fb.APIKey
 	fallbackCfg.LLM.Model = fb.Model
 	fallbackCfg.LLM.AccountID = fb.AccountID
+	fallbackCfg.LLM.GatewayID = fb.GatewayID
 	fm.fallback = fm.clientFactory(&fallbackCfg)
 	fm.fallbackType = fb.ProviderType
 	fm.fallbackModel = fb.Model
@@ -177,6 +178,7 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 		fallbackCfg.LLM.APIKey = fb.APIKey
 		fallbackCfg.LLM.Model = fb.Model
 		fallbackCfg.LLM.AccountID = fb.AccountID
+		fallbackCfg.LLM.GatewayID = fb.GatewayID
 		fm.fallback = fm.clientFactory(&fallbackCfg)
 		fm.fallbackType = fb.ProviderType
 		fm.fallbackModel = fb.Model

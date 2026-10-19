@@ -32,6 +32,7 @@ type providerJSON struct {
 	ModelLimitsMetadataSource string                     `json:"model_limits_metadata_source,omitempty"`
 	ContextCapApplied         bool                       `json:"context_cap_applied,omitempty"`
 	AccountID                 string                     `json:"account_id"`
+	GatewayID                 string                     `json:"gateway_id,omitempty"`
 	AuthType                  string                     `json:"auth_type"`
 	OAuthAuthURL              string                     `json:"oauth_auth_url"`
 	OAuthTokenURL             string                     `json:"oauth_token_url"`
@@ -279,6 +280,7 @@ func handleGetProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 			ModelLimitsMetadataSource: limits.MetadataSource,
 			ContextCapApplied:         limits.ContextCapApplied,
 			AccountID:                 p.AccountID,
+			GatewayID:                 p.GatewayID,
 			AuthType:                  authType,
 			OAuthAuthURL:              p.OAuthAuthURL,
 			OAuthTokenURL:             p.OAuthTokenURL,
@@ -466,6 +468,7 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 			ContextWindow:     p.ContextWindow,
 			MaxOutputTokens:   p.MaxOutputTokens,
 			AccountID:         p.AccountID,
+			GatewayID:         p.GatewayID,
 			AuthType:          authType,
 			OAuthAuthURL:      p.OAuthAuthURL,
 			OAuthTokenURL:     p.OAuthTokenURL,
@@ -481,6 +484,12 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	candidate := *s.Cfg
 	s.CfgMu.RUnlock()
 	candidate.Providers = append([]config.ProviderEntry(nil), entries...)
+	for _, provider := range entries {
+		if err := config.ValidateGatewayProvider(provider); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
 	if err := config.ValidateDecisionsProvider(&candidate); err != nil {
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
@@ -503,6 +512,11 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 }
 
 func persistProviderEntries(s *Server, entries []config.ProviderEntry, vaultMutations []vaultMutation, oldProviderIDs []string) (providerSaveResult, error) {
+	for _, provider := range entries {
+		if err := config.ValidateGatewayProvider(provider); err != nil {
+			return providerSaveResult{}, err
+		}
+	}
 	if s == nil || s.Cfg == nil {
 		return providerSaveResult{}, fmt.Errorf("server config is not available")
 	}
@@ -781,6 +795,9 @@ func buildProviderYAMLEntry(e config.ProviderEntry) map[string]interface{} {
 	}
 	if e.AccountID != "" {
 		m["account_id"] = e.AccountID
+	}
+	if e.GatewayID != "" {
+		m["gateway_id"] = e.GatewayID
 	}
 	if len(e.Models) > 0 {
 		ml := make([]interface{}, len(e.Models))

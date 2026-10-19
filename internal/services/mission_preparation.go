@@ -240,10 +240,12 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 
 	baseURL := strings.TrimRight(prepCfg.BaseURL, "/")
 	accountID := cfgSnapshot.LLM.AccountID
+	gatewayID := cfgSnapshot.LLM.GatewayID
 	if provider := cfgSnapshot.FindProvider(prepCfg.Provider); provider != nil {
 		accountID = provider.AccountID
+		gatewayID = provider.GatewayID
 	}
-	client := llm.NewClientFromProviderWithConfig(&cfgSnapshot, prepCfg.ProviderType, baseURL, apiKey, accountID)
+	client := llm.NewClientFromProviderWithConfig(&cfgSnapshot, prepCfg.ProviderType, baseURL, apiKey, accountID, gatewayID)
 
 	llmCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

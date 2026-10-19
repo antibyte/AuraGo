@@ -19,6 +19,7 @@ func canonicalAIGatewayProviderEndpoint(provider, accountID, raw string) bool {
 		"openai": "api.openai.com/v1", "anthropic": "api.anthropic.com/v1",
 		"openrouter": "openrouter.ai/api/v1", "deepseek": "api.deepseek.com/v1",
 		"groq": "api.groq.com/openai/v1", "mistral": "api.mistral.ai/v1", "xai": "api.x.ai/v1",
+		"cerebras": "api.cerebras.ai/v1", "perplexity": "api.perplexity.ai", "huggingface": "router.huggingface.co/v1",
 	}
 	if provider == "workers-ai" && accountID != "" {
 		expected[provider] = "api.cloudflare.com/client/v4/accounts/" + accountID + "/ai/v1"

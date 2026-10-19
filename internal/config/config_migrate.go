@@ -183,6 +183,7 @@ var knownProviderTypes = map[string]bool{
 	"zai": true, "llamacpp": true, "lmstudio": true,
 	// Providers from Manifest (Phase 2 — special auth/routing)
 	"copilot": true, "opencode-go": true,
+	"cloudflare-rest": true, "cerebras": true, "perplexity": true,
 }
 
 // ManifestProviderBaseURL returns the OpenAI-compatible /v1 endpoint for the
@@ -275,12 +276,14 @@ func (c *Config) ResolveProviders() {
 		c.LLM.APIKey = c.LocalLLM.RuntimeAPIKey
 		c.LLM.Model = c.LocalLLM.ModelAlias()
 		c.LLM.AccountID = ""
+		c.LLM.GatewayID = ""
 	} else if p := c.FindProvider(c.LLM.Provider); p != nil {
 		c.LLM.ProviderType = p.Type
 		c.LLM.BaseURL = p.BaseURL
 		c.LLM.APIKey = p.APIKey
 		c.LLM.Model = p.Model
 		c.LLM.AccountID = p.AccountID
+		c.LLM.GatewayID = p.GatewayID
 	} else if c.LLM.LegacyAPIKey != "" {
 		c.LLM.BaseURL = providerutil.NormalizeBaseURL(c.LLM.LegacyURL)
 		c.LLM.APIKey = c.LLM.LegacyAPIKey
@@ -294,6 +297,7 @@ func (c *Config) ResolveProviders() {
 			c.LLM.HelperBaseURL = p.BaseURL
 			c.LLM.HelperAPIKey = p.APIKey
 			c.LLM.HelperAccountID = p.AccountID
+			c.LLM.HelperGatewayID = p.GatewayID
 			if model := strings.TrimSpace(c.LLM.HelperModel); model != "" {
 				c.LLM.HelperResolvedModel = model
 			} else {
@@ -312,12 +316,14 @@ func (c *Config) ResolveProviders() {
 		c.FallbackLLM.APIKey = c.LocalLLM.RuntimeAPIKey
 		c.FallbackLLM.Model = c.LocalLLM.ModelAlias()
 		c.FallbackLLM.AccountID = ""
+		c.FallbackLLM.GatewayID = ""
 	} else if p := c.FindProvider(c.FallbackLLM.Provider); p != nil {
 		c.FallbackLLM.ProviderType = p.Type
 		c.FallbackLLM.BaseURL = p.BaseURL
 		c.FallbackLLM.APIKey = p.APIKey
 		c.FallbackLLM.Model = p.Model
 		c.FallbackLLM.AccountID = p.AccountID
+		c.FallbackLLM.GatewayID = p.GatewayID
 	} else if c.FallbackLLM.LegacyAPIKey != "" {
 		c.FallbackLLM.BaseURL = providerutil.NormalizeBaseURL(c.FallbackLLM.LegacyURL)
 		c.FallbackLLM.APIKey = c.FallbackLLM.LegacyAPIKey

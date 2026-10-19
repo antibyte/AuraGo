@@ -20,7 +20,7 @@ import (
 
 func resolvePersonalityAnalyzerClient(cfg *config.Config, fallback memory.PersonalityAnalyzerClient) memory.PersonalityAnalyzerClient {
 	if helperCfg := llm.ResolveHelperLLM(cfg); helperCfg.Enabled && helperCfg.Model != "" {
-		client := llm.NewClientFromProviderWithConfig(cfg, helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey, helperCfg.AccountID)
+		client := llm.NewClientFromProviderWithConfig(cfg, helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey, helperCfg.AccountID, helperCfg.GatewayID)
 		if client != nil {
 			return client
 		}
@@ -41,12 +41,14 @@ func resolvePersonalityAnalyzerClient(cfg *config.Config, fallback memory.Person
 		v2Key = "dummy"
 	}
 	accountID := ""
+	gatewayID := ""
 	providerType := cfg.Personality.V2ProviderType
 	if provider := cfg.FindProvider(cfg.Personality.V2Provider); provider != nil {
 		accountID = provider.AccountID
+		gatewayID = provider.GatewayID
 		providerType = provider.Type
 	}
-	return llm.NewClientFromProviderWithConfig(cfg, providerType, v2URL, v2Key, accountID)
+	return llm.NewClientFromProviderWithConfig(cfg, providerType, v2URL, v2Key, accountID, gatewayID)
 }
 
 func resolvePersonalityModel(cfg *config.Config) string {

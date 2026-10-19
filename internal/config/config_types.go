@@ -133,7 +133,8 @@ type ProviderEntry struct {
 	Capabilities    ProviderCapabilities `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
 
 	// Cloudflare Workers AI — required when Type is "workers-ai"
-	AccountID string `yaml:"account_id,omitempty" json:"account_id"` // Cloudflare account ID
+	AccountID string `yaml:"account_id,omitempty" json:"account_id"`           // Cloudflare account ID
+	GatewayID string `yaml:"gateway_id,omitempty" json:"gateway_id,omitempty"` // explicit Cloudflare REST gateway
 
 	// OAuth2 Authorization Code flow (optional, alternative to static API key)
 	AuthType          string `yaml:"auth_type,omitempty"           json:"auth_type"`       // "api_key" (default) or "oauth2"
@@ -1141,6 +1142,7 @@ type Config struct {
 		APIKey                       string   `yaml:"-"       json:"-"`   // resolved from provider entry
 		Model                        string   `yaml:"-"       json:"-"`   // resolved from provider entry
 		AccountID                    string   `yaml:"-"       json:"-"`   // resolved from provider entry (workers-ai)
+		GatewayID                    string   `yaml:"-" json:"-"`         // resolved Cloudflare REST gateway
 		LegacyURL                    string   `yaml:"base_url" json:"-"`  // legacy/compat: inline base URL from old config format
 		LegacyAPIKey                 string   `yaml:"api_key"  json:"-"`  // legacy/compat: inline API key from old config format
 		LegacyModel                  string   `yaml:"model"    json:"-"`  // legacy/compat: inline model from old config format
@@ -1150,6 +1152,7 @@ type Config struct {
 		HelperBaseURL                string   `yaml:"-"         json:"-"` // resolved helper base URL
 		HelperAPIKey                 string   `yaml:"-"         json:"-"` // resolved helper API key
 		HelperAccountID              string   `yaml:"-"         json:"-"` // resolved helper account ID (workers-ai)
+		HelperGatewayID              string   `yaml:"-" json:"-"`         // resolved helper Cloudflare REST gateway
 		HelperModel                  string   `yaml:"helper_model"`       // optional helper model override (empty = provider default)
 		HelperResolvedModel          string   `yaml:"-"         json:"-"` // resolved helper model
 		UseNativeFunctions           bool     `yaml:"use_native_functions"`
@@ -1457,6 +1460,7 @@ type Config struct {
 		APIKey               string `yaml:"-"       json:"-"`  // resolved
 		Model                string `yaml:"-"       json:"-"`  // resolved
 		AccountID            string `yaml:"-"       json:"-"`  // resolved from provider entry (workers-ai)
+		GatewayID            string `yaml:"-" json:"-"`        // resolved Cloudflare REST gateway
 		LegacyURL            string `yaml:"base_url" json:"-"` // legacy/compat
 		LegacyAPIKey         string `yaml:"api_key"  json:"-"` // legacy/compat
 		LegacyModel          string `yaml:"model"    json:"-"` // legacy/compat
@@ -2473,17 +2477,18 @@ type Config struct {
 		} `yaml:"allowed_paths"` // additional paths beyond defaults
 	} `yaml:"shell_sandbox"`
 	AIGateway struct {
-		Enabled          bool              `yaml:"enabled" json:"enabled"`
-		AccountID        string            `yaml:"account_id" json:"account_id"`                 // Cloudflare account ID
-		GatewayID        string            `yaml:"gateway_id" json:"gateway_id"`                 // AI Gateway name/slug
-		Mode             string            `yaml:"mode" json:"mode"`                             // "auto" (default), "openai_compatible", or "provider_native"
-		LogMode          string            `yaml:"log_mode" json:"log_mode"`                     // "metadata_only" (default), "off", or "full"
-		Metadata         map[string]string `yaml:"metadata" json:"metadata"`                     // up to five custom metadata tags for cf-aig-metadata
-		RequestTimeoutMS int               `yaml:"request_timeout_ms" json:"request_timeout_ms"` // cf-aig-request-timeout in milliseconds
-		MaxAttempts      int               `yaml:"max_attempts" json:"max_attempts"`             // cf-aig-max-attempts, max 5
-		RetryDelayMS     int               `yaml:"retry_delay_ms" json:"retry_delay_ms"`         // cf-aig-retry-delay in milliseconds, max 5000
-		Backoff          string            `yaml:"backoff" json:"backoff"`                       // "constant", "linear", or "exponential"
-		Token            string            `yaml:"-" vault:"token" json:"-"`                     // optional Cloudflare AI Gateway token (vault-only)
+		Enabled                 bool              `yaml:"enabled" json:"enabled"`
+		AccountID               string            `yaml:"account_id" json:"account_id"`                               // Cloudflare account ID
+		GatewayID               string            `yaml:"gateway_id" json:"gateway_id"`                               // AI Gateway name/slug
+		HuggingFaceProviderSlug string            `yaml:"huggingface_provider_slug" json:"huggingface_provider_slug"` // preconfigured Cloudflare custom provider
+		Mode                    string            `yaml:"mode" json:"mode"`                                           // "auto" (default), "openai_compatible", or "provider_native"
+		LogMode                 string            `yaml:"log_mode" json:"log_mode"`                                   // "metadata_only" (default), "off", or "full"
+		Metadata                map[string]string `yaml:"metadata" json:"metadata"`                                   // up to five custom metadata tags for cf-aig-metadata
+		RequestTimeoutMS        int               `yaml:"request_timeout_ms" json:"request_timeout_ms"`               // cf-aig-request-timeout in milliseconds
+		MaxAttempts             int               `yaml:"max_attempts" json:"max_attempts"`                           // cf-aig-max-attempts, max 5
+		RetryDelayMS            int               `yaml:"retry_delay_ms" json:"retry_delay_ms"`                       // cf-aig-retry-delay in milliseconds, max 5000
+		Backoff                 string            `yaml:"backoff" json:"backoff"`                                     // "constant", "linear", or "exponential"
+		Token                   string            `yaml:"-" vault:"token" json:"-"`                                   // optional Cloudflare AI Gateway token (vault-only)
 	} `yaml:"ai_gateway"`
 	Composio    ComposioConfig    `yaml:"composio" json:"composio"`
 	Manus       ManusConfig       `yaml:"manus" json:"manus"`

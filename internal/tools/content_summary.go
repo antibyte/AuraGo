@@ -23,6 +23,7 @@ type SummaryLLMConfig struct {
 	ProviderID   string
 	ProviderType string
 	AccountID    string
+	GatewayID    string
 	APIKey       string
 	BaseURL      string
 	Model        string
@@ -45,7 +46,7 @@ func ResolveSummaryLLMConfig(cfg *config.Config, fallback SummaryLLMConfig) Summ
 			APIKey:     helperCfg.APIKey,
 			BaseURL:    helperCfg.BaseURL,
 			Model:      helperCfg.Model,
-			ProviderID: helperCfg.ProviderID, ProviderType: helperCfg.ProviderType, AccountID: helperCfg.AccountID,
+			ProviderID: helperCfg.ProviderID, ProviderType: helperCfg.ProviderType, AccountID: helperCfg.AccountID, GatewayID: helperCfg.GatewayID,
 		}
 	}
 	if cfg != nil && fallback.ProviderType == "" {
@@ -59,6 +60,11 @@ func ResolveSummaryLLMConfig(cfg *config.Config, fallback SummaryLLMConfig) Summ
 		}
 	}
 	fallback.Config = cfg
+	if cfg != nil {
+		if p := cfg.FindProvider(fallback.ProviderID); p != nil {
+			fallback.GatewayID = p.GatewayID
+		}
+	}
 	return fallback
 }
 
@@ -132,7 +138,7 @@ func SummariseContent(ctx context.Context, llmCfg SummaryLLMConfig, logger *slog
 	}
 
 	baseURL := strings.TrimRight(llmCfg.BaseURL, "/")
-	client := llm.NewClientFromProviderWithConfig(llmCfg.Config, llmCfg.ProviderType, baseURL, apiKey, llmCfg.AccountID)
+	client := llm.NewClientFromProviderWithConfig(llmCfg.Config, llmCfg.ProviderType, baseURL, apiKey, llmCfg.AccountID, llmCfg.GatewayID)
 
 	req := openai.ChatCompletionRequest{
 		Model: llmCfg.Model,

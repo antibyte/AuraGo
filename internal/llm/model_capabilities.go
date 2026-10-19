@@ -188,13 +188,17 @@ func CapabilitiesFromRegistry(provider, modelID string) (ProviderCapabilityResul
 }
 
 func capabilityResultFromCatalogModel(model catalog.Model) ProviderCapabilityResult {
+	source := model.Source
+	if source == "" {
+		source = CapabilitySourceOhMyPi
+	}
 	result := ProviderCapabilityResult{
 		ToolCalling:       model.SupportsTools,
 		StructuredOutputs: model.StructuredOutputs,
 		Multimodal:        model.Multimodal,
 		Reasoning:         model.Reasoning,
 		DetectedModel:     model.ID,
-		Source:            CapabilitySourceOhMyPi,
+		Source:            source,
 		Known:             true,
 	}
 	if known, image := catalogInputIncludesImage(model.Input); known {
@@ -221,7 +225,7 @@ func catalogInputIncludesImage(inputs []string) (known bool, image bool) {
 }
 
 func storedCatalogImage(providerType, model, source string) (known bool, image bool, ok bool) {
-	if strings.TrimSpace(source) != CapabilitySourceOhMyPi {
+	if strings.TrimSpace(source) != CapabilitySourceOhMyPi && strings.TrimSpace(source) != catalog.SourceCloudflare {
 		return false, false, false
 	}
 	snapshot, err := loadCapabilityCatalog()

@@ -75,6 +75,9 @@ func providerEntryYAMLNode(entry config.ProviderEntry) *yaml.Node {
 	if entry.AccountID != "" {
 		appendYAMLStringField(node, "account_id", entry.AccountID)
 	}
+	if entry.GatewayID != "" {
+		appendYAMLStringField(node, "gateway_id", entry.GatewayID)
+	}
 	if len(entry.Models) > 0 {
 		models := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
 		for _, model := range entry.Models {

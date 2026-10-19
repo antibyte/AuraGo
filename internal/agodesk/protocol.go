@@ -838,6 +838,7 @@ type ConfigProviderEntryPayload struct {
 	BaseURL               string                           `json:"base_url"`
 	Model                 string                           `json:"model"`
 	AccountID             string                           `json:"account_id,omitempty"`
+	GatewayID             string                           `json:"gateway_id,omitempty"`
 	AuthType              string                           `json:"auth_type"`
 	OAuthAuthURL          string                           `json:"oauth_auth_url,omitempty"`
 	OAuthTokenURL         string                           `json:"oauth_token_url,omitempty"`
