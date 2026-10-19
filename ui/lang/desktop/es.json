@@ -1,4 +1,10 @@
 {
+  "desktop.chess_3d_canvas": "Tablero de ajedrez 3D",
+  "desktop.chess_3d_hint": "Arrastra para girar, desplaza para acercar",
+  "desktop.chess_3d_unavailable": "La vista 3D no está disponible.",
+  "desktop.chess_view_2d": "2D",
+  "desktop.chess_view_3d": "3D",
+  "desktop.chess_view_mode": "Vista del tablero",
   "desktop.settings_theme_cursors": "Cursores del tema",
   "desktop.settings_theme_cursors_desc": "Usa cursores a juego con los nuevos temas. Desactívalo para conservar los cursores del sistema.",
   "desktop.settings_cursor_preview": "Los cursores de enlaces, texto, arrastre, tamaño y espera siguen tu tema.",

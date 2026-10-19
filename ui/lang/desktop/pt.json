@@ -1,4 +1,10 @@
 {
+  "desktop.chess_3d_canvas": "Tabuleiro de xadrez 3D",
+  "desktop.chess_3d_hint": "Arraste para rodar, role para ampliar",
+  "desktop.chess_3d_unavailable": "A vista 3D não está disponível.",
+  "desktop.chess_view_2d": "2D",
+  "desktop.chess_view_3d": "3D",
+  "desktop.chess_view_mode": "Vista do tabuleiro",
   "desktop.settings_theme_cursors": "Cursores do tema",
   "desktop.settings_theme_cursors_desc": "Usa cursores a condizer com os novos temas. Desativa para manter os cursores do sistema.",
   "desktop.settings_cursor_preview": "Os cursores de ligações, texto, arrastar, redimensionar e espera seguem o tema.",

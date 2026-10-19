@@ -1,4 +1,10 @@
 {
+  "desktop.chess_3d_canvas": "3D-sjakkbrett",
+  "desktop.chess_3d_hint": "Dra for å rotere, rull for å zoome",
+  "desktop.chess_3d_unavailable": "3D-visning er ikke tilgjengelig.",
+  "desktop.chess_view_2d": "2D",
+  "desktop.chess_view_3d": "3D",
+  "desktop.chess_view_mode": "Brettvisning",
   "desktop.settings_theme_cursors": "Temapekere",
   "desktop.settings_theme_cursors_desc": "Bruk passende pekere for de nye temaene. Slå av for å beholde systempekerne.",
   "desktop.settings_cursor_preview": "Pekere for lenker, tekst, dra, størrelsesendring og venting følger temaet ditt.",

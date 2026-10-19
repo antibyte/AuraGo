@@ -1,4 +1,10 @@
 {
+  "desktop.chess_3d_canvas": "Échiquier 3D",
+  "desktop.chess_3d_hint": "Glisse pour pivoter, fais défiler pour zoomer",
+  "desktop.chess_3d_unavailable": "La vue 3D n’est pas disponible.",
+  "desktop.chess_view_2d": "2D",
+  "desktop.chess_view_3d": "3D",
+  "desktop.chess_view_mode": "Vue de l’échiquier",
   "desktop.settings_theme_cursors": "Curseurs du thème",
   "desktop.settings_theme_cursors_desc": "Utilise des curseurs assortis aux nouveaux thèmes. Désactive cette option pour garder ceux du système.",
   "desktop.settings_cursor_preview": "Les curseurs de lien, texte, déplacement, redimensionnement et attente suivent ton thème.",

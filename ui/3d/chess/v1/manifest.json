@@ -1,0 +1,52 @@
+{
+  "budget_bytes": 1048576,
+  "generator": "Blender 5.2.2 LTS / assets/chess-3d/generate.py",
+  "license": "MIT",
+  "pieces": {
+    "bishop": {
+      "bytes": 55336,
+      "file": "bishop.glb",
+      "height": 0.0796,
+      "radius": 0.018,
+      "sha256": "5126cb243aea09b6ade8ad579c11444f68becbec349dcb6e16d4ef657c85a0fd"
+    },
+    "king": {
+      "bytes": 35840,
+      "file": "king.glb",
+      "height": 0.1,
+      "radius": 0.0195,
+      "sha256": "bba926f8d4fded6ae5a505dfae303806a92ce9c2496ff869ff7f424fb77ebcef"
+    },
+    "knight": {
+      "bytes": 34980,
+      "file": "knight.glb",
+      "height": 0.06695,
+      "radius": 0.01964,
+      "sha256": "c8c81284edf724f9fe5d2fe746a1452de3c70c28bee10a48b046f22068226a0e"
+    },
+    "pawn": {
+      "bytes": 38044,
+      "file": "pawn.glb",
+      "height": 0.0396,
+      "radius": 0.0155,
+      "sha256": "756d83d481d5778679e163f16b32a99b2460acd27ade05ce61d043b67d0ea9bf"
+    },
+    "queen": {
+      "bytes": 67376,
+      "file": "queen.glb",
+      "height": 0.0892,
+      "radius": 0.019,
+      "sha256": "fde33d8eaf52f1ffce0341e68bb0ef32a2c2993b9e35c55e7a78f0c1788df9a9"
+    },
+    "rook": {
+      "bytes": 30992,
+      "file": "rook.glb",
+      "height": 0.07,
+      "radius": 0.01791,
+      "sha256": "5d3e0507d19db4e089919900e8e7b165e350241088b70efc87d5646dbc1a0f16"
+    }
+  },
+  "square_size": 0.055,
+  "units": "metres",
+  "up_axis": "Y"
+}

@@ -1,4 +1,10 @@
 {
+  "desktop.chess_3d_canvas": "3D-schaakbord",
+  "desktop.chess_3d_hint": "Sleep om te draaien, scroll om te zoomen",
+  "desktop.chess_3d_unavailable": "3D-weergave is niet beschikbaar.",
+  "desktop.chess_view_2d": "2D",
+  "desktop.chess_view_3d": "3D",
+  "desktop.chess_view_mode": "Bordweergave",
   "desktop.settings_theme_cursors": "Themacursors",
   "desktop.settings_theme_cursors_desc": "Gebruik passende cursors bij de nieuwe thema’s. Schakel uit om je systeemcursors te behouden.",
   "desktop.settings_cursor_preview": "Cursors voor links, tekst, slepen, formaat wijzigen en wachten volgen je thema.",

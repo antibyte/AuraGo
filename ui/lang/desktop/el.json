@@ -1,4 +1,10 @@
 {
+  "desktop.chess_3d_canvas": "3D σκακιέρα",
+  "desktop.chess_3d_hint": "Σύρε για περιστροφή, κύλισε για zoom",
+  "desktop.chess_3d_unavailable": "Η 3D προβολή δεν είναι διαθέσιμη.",
+  "desktop.chess_view_2d": "2D",
+  "desktop.chess_view_3d": "3D",
+  "desktop.chess_view_mode": "Προβολή σκακιέρας",
   "desktop.settings_theme_cursors": "Δείκτες θέματος",
   "desktop.settings_theme_cursors_desc": "Χρήση ταιριαστών δεικτών για τα νέα θέματα. Απενεργοποίησέ το για να διατηρήσεις τους δείκτες του συστήματος.",
   "desktop.settings_cursor_preview": "Οι δείκτες συνδέσμων, κειμένου, μετακίνησης, αλλαγής μεγέθους και αναμονής ακολουθούν το θέμα σου.",

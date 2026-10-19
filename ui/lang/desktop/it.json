@@ -1,4 +1,10 @@
 {
+  "desktop.chess_3d_canvas": "Scacchiera 3D",
+  "desktop.chess_3d_hint": "Trascina per ruotare, scorri per ingrandire",
+  "desktop.chess_3d_unavailable": "La vista 3D non è disponibile.",
+  "desktop.chess_view_2d": "2D",
+  "desktop.chess_view_3d": "3D",
+  "desktop.chess_view_mode": "Vista scacchiera",
   "desktop.settings_theme_cursors": "Cursori del tema",
   "desktop.settings_theme_cursors_desc": "Usa cursori abbinati ai nuovi temi. Disattiva per mantenere quelli di sistema.",
   "desktop.settings_cursor_preview": "I cursori per link, testo, trascinamento, ridimensionamento e attesa seguono il tema.",

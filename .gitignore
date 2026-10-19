@@ -183,3 +183,6 @@ terminals/
 
 # Bookshelf catalog, managed imports, renditions and disposable cache.
 /data/bookshelf/
+
+# Blender backup files from regenerating the 3D asset packs.
+*.blend1

@@ -1,4 +1,10 @@
 {
+  "desktop.chess_3d_canvas": "3D チェスボード",
+  "desktop.chess_3d_hint": "ドラッグで回転、スクロールで拡大",
+  "desktop.chess_3d_unavailable": "3D ビューは利用できません。",
+  "desktop.chess_view_2d": "2D",
+  "desktop.chess_view_3d": "3D",
+  "desktop.chess_view_mode": "ボード表示",
   "desktop.settings_theme_cursors": "テーマのマウスカーソル",
   "desktop.settings_theme_cursors_desc": "新しいテーマに合うカーソルを使います。オフにするとシステムのカーソルを使用します。",
   "desktop.settings_cursor_preview": "リンク、テキスト、ドラッグ、サイズ変更、待機のカーソルがテーマに合わせて変わります。",

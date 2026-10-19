@@ -1,4 +1,10 @@
 {
+  "desktop.chess_3d_canvas": "3D šachovnice",
+  "desktop.chess_3d_hint": "Tažením otáčíš, posouváním přibližuješ",
+  "desktop.chess_3d_unavailable": "3D zobrazení není dostupné.",
+  "desktop.chess_view_2d": "2D",
+  "desktop.chess_view_3d": "3D",
+  "desktop.chess_view_mode": "Zobrazení šachovnice",
   "desktop.settings_theme_cursors": "Kurzory motivu",
   "desktop.settings_theme_cursors_desc": "Použít ladící kurzory pro nové motivy. Vypnutím ponecháš systémové kurzory.",
   "desktop.settings_cursor_preview": "Kurzory odkazů, textu, přetahování, změny velikosti a čekání ladí s motivem.",

@@ -1,4 +1,10 @@
 {
+  "desktop.chess_3d_canvas": "Szachownica 3D",
+  "desktop.chess_3d_hint": "Przeciągnij, aby obrócić, przewiń, aby przybliżyć",
+  "desktop.chess_3d_unavailable": "Widok 3D jest niedostępny.",
+  "desktop.chess_view_2d": "2D",
+  "desktop.chess_view_3d": "3D",
+  "desktop.chess_view_mode": "Widok szachownicy",
   "desktop.settings_theme_cursors": "Kursory motywu",
   "desktop.settings_theme_cursors_desc": "Używaj kursorów dopasowanych do nowych motywów. Wyłącz, aby zachować kursory systemowe.",
   "desktop.settings_cursor_preview": "Kursory linków, tekstu, przeciągania, zmiany rozmiaru i oczekiwania pasują do motywu.",

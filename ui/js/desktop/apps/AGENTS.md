@@ -2292,9 +2292,23 @@ buttons and menu popovers remain excluded from those gestures.
   game-over result overlay with win confetti, CSS move/capture/check/thinking
   effects (`prefers-reduced-motion` aware), and Web Audio synthesized
   move/capture/check/castle/promote/game-over sounds. Split across `chess.js`
-  (core game loop), `chess-fx.js` (template, effects, audio, skin helpers),
-  `chess-engine.js` (Stockfish worker bridge), and `chess-agent.js`
-  (AuraGo agent move API client).
+  (core game loop), `chess-fx.js` (template, effects, audio, skin helpers and
+  the promotion dialog), `chess-engine.js` (Stockfish worker bridge),
+  `chess-agent.js` (AuraGo agent move API client) and `chess-3d.js` (the
+  optional 3D board).
+- `chess-3d.js` owns the optional 3D board mode of the Chess app. It renders
+  the live position with the original AuraGo piece kit from `/3d/chess/v1/`
+  through the vendored global Three.js, GLTFLoader and OrbitControls, and
+  exposes `window.createChess3D` plus `window.ChessView3D` (view switch, sync
+  and disposal). The module never owns game state: `chess.js` owns the
+  position, the turn, the board skin and the orientation, and the 3D view
+  mirrors the snapshot it is given. Player intent (select, move) is reported
+  back to `chess.js`, which applies the move through the regular player-move
+  path including the promotion dialog. The 2D board stays the default and
+  stays mounted; switching modes hides one surface and shows the other, and
+  the 3D view is disposed with the window. A missing WebGL context or a failed
+  asset load shows a localized note instead of a blank canvas. Verify with
+  `go test ./ui/ -run TestDesktopChess` and `node scripts/test-chess-assets.mjs`.
 - `writer.js` owns Autor's native DOCX document, menus and lifecycle;
   `writer-session.js` owns revision-bound autosave and IndexedDB recovery;
   `writer-panels.js` owns formatting, search, review, AI and snapshot printing.

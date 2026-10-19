@@ -1,4 +1,10 @@
 {
+  "desktop.chess_3d_canvas": "3D-schackbräde",
+  "desktop.chess_3d_hint": "Dra för att rotera, rulla för att zooma",
+  "desktop.chess_3d_unavailable": "3D-vyn är inte tillgänglig.",
+  "desktop.chess_view_2d": "2D",
+  "desktop.chess_view_3d": "3D",
+  "desktop.chess_view_mode": "Brädesvy",
   "desktop.settings_theme_cursors": "Temats markörer",
   "desktop.settings_theme_cursors_desc": "Använd matchande markörer för de nya temana. Stäng av för att behålla systemets markörer.",
   "desktop.settings_cursor_preview": "Markörer för länkar, text, dragning, storleksändring och väntan följer ditt tema.",

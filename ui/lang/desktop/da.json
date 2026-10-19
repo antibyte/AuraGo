@@ -1,4 +1,10 @@
 {
+  "desktop.chess_3d_canvas": "3D-skakbræt",
+  "desktop.chess_3d_hint": "Træk for at dreje, rul for at zoome",
+  "desktop.chess_3d_unavailable": "3D-visning er ikke tilgængelig.",
+  "desktop.chess_view_2d": "2D",
+  "desktop.chess_view_3d": "3D",
+  "desktop.chess_view_mode": "Brætvisning",
   "desktop.settings_theme_cursors": "Temaets markører",
   "desktop.settings_theme_cursors_desc": "Brug matchende markører til de nye temaer. Slå fra for at beholde systemets markører.",
   "desktop.settings_cursor_preview": "Markører til links, tekst, træk, størrelsesændring og ventetid følger temaet.",

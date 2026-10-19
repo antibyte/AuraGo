@@ -944,6 +944,7 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 ## Child DOX Index
 
 - `3d/screensaver/AGENTS.md` — Compact Tiefsee screensaver creature GLBs and their shader-facing UV contract.
+- `3d/chess/AGENTS.md` — Versioned AuraGo chess piece GLBs and their manifest contract for the Desktop 3D board.
 - `3d/system-world/AGENTS.md` — Compact versioned Blender GLBs and asset integrity/LOD contracts.
 
 - `img/personas/animated/AGENTS.md` - Reviewed Rive persona payloads, catalog

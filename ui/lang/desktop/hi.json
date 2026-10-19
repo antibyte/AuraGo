@@ -1,4 +1,10 @@
 {
+  "desktop.chess_3d_canvas": "3D शतरंज बोर्ड",
+  "desktop.chess_3d_hint": "घुमाने के लिए खीचें, ज़ूम करने के लिए स्क्रॉल करें",
+  "desktop.chess_3d_unavailable": "3D दृश्य उपलब्ध नहीं है।",
+  "desktop.chess_view_2d": "2D",
+  "desktop.chess_view_3d": "3D",
+  "desktop.chess_view_mode": "बोर्ड दृश्य",
   "desktop.settings_theme_cursors": "थीम के माउस कर्सर",
   "desktop.settings_theme_cursors_desc": "नई थीम से मेल खाते कर्सर इस्तेमाल करें। बंद करने पर सिस्टम के कर्सर बने रहेंगे।",
   "desktop.settings_cursor_preview": "लिंक, टेक्स्ट, खींचने, आकार बदलने और प्रतीक्षा के कर्सर आपकी थीम के अनुसार बदलते हैं।",
