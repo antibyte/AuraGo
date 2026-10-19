@@ -61,18 +61,18 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 
 ### Yes, there is an actual desktop
 
-[![Real AuraGo Virtual Desktop: app launcher, media gallery, radio and a Winamp-style player](documentation/screenshots/desktop.png)](documentation/screenshots/desktop.png)
+[![Real AuraGo Virtual Desktop: start menu with category rail, media gallery, Winamp-style music player, weather and system widgets and a desktop pet](documentation/screenshots/desktop.png)](documentation/screenshots/desktop.png)
 
 *Real screenshot. The desktop is experimental. Click any image to inspect it at full size.*
 
 <p align="center"><strong>Around 60 desktop apps · 9 start-menu categories · 3 virtual Spaces · screensavers, animated wallpapers and desktop pets</strong></p>
 
 <details>
-<summary>Chat screenshot</summary>
+<summary>Chat and dashboard screenshots</summary>
 
 [![AuraGo chat](documentation/screenshots/chat.png)](documentation/screenshots/chat.png)
 
-The dashboard got a sidebar redesign in October 2026. A fresh screenshot is on the to-do list.
+[![AuraGo admin dashboard with sidebar and overview tiles](documentation/screenshots/dashboard.png)](documentation/screenshots/dashboard.png)
 
 </details>
 
