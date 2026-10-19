@@ -10,6 +10,8 @@ This package owns reusable primitives; server owns session and HTTP policy.
 
 ## Local Contracts
 
+- Startup may read the unchanged master key from `AURAGO_MASTER_KEY_FILE`; an explicit environment key takes precedence. Initialize the Vault before child processes, retain the key only in the private trusted-updater store, then remove `AURAGO_MASTER_KEY` from the environment and config snapshot. No automatic rotation. Generic Vault mutation APIs must reject reserved authentication/session/master/internal keys; the server route remains administrator-only.
+
 - OAuth rotation uses compare-and-swap against the exact previous Vault value under both process mutex and file lock; revocation or a new login cannot be overwritten. Rotated values remain agent-hidden.
 
 - Public-only egress rejects unspecified/private/reserved and IPv6 transition addresses; retain DNS pinning and redirect validation. Explicit LAN integration permissions remain separate.

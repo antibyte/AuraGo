@@ -88,7 +88,7 @@ func (g *LLMGuardian) evaluateContentChunks(ctx context.Context, contentType, co
 			// The policy comes from the configured judge, never from scanned data.
 			system += "\nAdditional security policy:\n" + policy
 		}
-		resp, callErr := g.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		resp, callErr := g.completeTracked(ctx, openai.ChatCompletionRequest{
 			Model: g.model, Messages: g.buildMessages(system, user), MaxTokens: 2048, Temperature: 0,
 		})
 		if callErr != nil || ctx.Err() != nil {

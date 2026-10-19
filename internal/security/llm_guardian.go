@@ -16,6 +16,7 @@ import (
 	"github.com/danielthedm/promptsec"
 	openai "github.com/sashabaranov/go-openai"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 )
@@ -213,6 +214,9 @@ func (g *LLMGuardian) ShouldCheck(check GuardianCheck) bool {
 // Returns the decision, which may be cached.
 func (g *LLMGuardian) Evaluate(ctx context.Context, check GuardianCheck) GuardianResult {
 	start := time.Now()
+	if tracker, _ := budget.Tracking(ctx); tracker != nil && tracker.IsBlocked("guardian") {
+		return guardianBudgetDenied(start)
+	}
 
 	// Check cache first. For low-risk routine operations we intentionally ignore
 	// most user-context variance so repeated read-only commands can reuse the same
@@ -336,8 +340,11 @@ func (g *LLMGuardian) callLLM(ctx context.Context, check GuardianCheck, start ti
 		Temperature: 0,
 	}
 
-	resp, err := g.client.CreateChatCompletion(ctx, req)
+	resp, err := g.completeTracked(ctx, req)
 	if err != nil {
+		if errors.Is(err, budget.ErrCompletionBudgetBlocked) || errors.Is(err, budget.ErrCompletionBudgetUnavailable) {
+			return guardianBudgetDenied(start)
+		}
 		if errors.Is(err, context.DeadlineExceeded) {
 			g.logger.Warn("[Guardian] LLM check timed out; applying fail-safe",
 				"operation", check.Operation,
@@ -873,6 +880,9 @@ Example: safe 25 user explicitly requested file cleanup`
 // Returns the new decision. The caller enforces the 1-retry limit.
 func (g *LLMGuardian) EvaluateClarification(ctx context.Context, check GuardianCheck) GuardianResult {
 	start := time.Now()
+	if tracker, _ := budget.Tracking(ctx); tracker != nil && tracker.IsBlocked("guardian") {
+		return guardianBudgetDenied(start)
+	}
 
 	release, failSafe, ok := g.acquireCheckSlot(start, "clarification")
 	if !ok {
@@ -889,8 +899,11 @@ func (g *LLMGuardian) EvaluateClarification(ctx context.Context, check GuardianC
 		Temperature: 0,
 	}
 
-	resp, err := g.client.CreateChatCompletion(ctx, req)
+	resp, err := g.completeTracked(ctx, req)
 	if err != nil {
+		if errors.Is(err, budget.ErrCompletionBudgetBlocked) || errors.Is(err, budget.ErrCompletionBudgetUnavailable) {
+			return guardianBudgetDenied(start)
+		}
 		g.logger.Warn("[Guardian] Clarification LLM call failed", "error", err, "operation", check.Operation)
 		g.Metrics.RecordError()
 		return g.failSafeResult(start, fmt.Sprintf("clarification LLM error: %v", err))
@@ -1108,3 +1121,20 @@ func (g *LLMGuardian) Judge(ctx context.Context, req promptsec.LLMJudgeRequest) 
 
 // Compile-time check that LLMGuardian implements promptsec.LLMJudge.
 var _ promptsec.LLMJudge = (*LLMGuardian)(nil)
+
+func (g *LLMGuardian) completeTracked(ctx context.Context, request openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	route := llm.ModelRoute{Model: g.model}
+	if g.cfg != nil {
+		route.ProviderID = g.cfg.LLMGuardian.Provider
+		route.ProviderType = g.cfg.LLMGuardian.ProviderType
+		route.BaseURL = g.cfg.LLMGuardian.BaseURL
+		if provider := g.cfg.FindProvider(route.ProviderID); provider != nil {
+			route.ContextWindowOverride = provider.ContextWindow
+			route.MaxOutputTokensOverride = provider.MaxOutputTokens
+		}
+	}
+	return budget.CompleteChat(ctx, llm.WrapOpenAIClient(g.client), request, route, "guardian", 2048)
+}
+func guardianBudgetDenied(start time.Time) GuardianResult {
+	return GuardianResult{Decision: DecisionBlock, RiskScore: 1, Reason: "fail-safe: security check blocked by spending policy", Duration: time.Since(start)}
+}

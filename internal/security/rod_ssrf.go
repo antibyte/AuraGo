@@ -41,7 +41,7 @@ func GuardRodPageSSRF(page *rod.Page) error {
 			h.Response.Fail(proto.NetworkErrorReasonBlockedByClient)
 			return
 		}
-		client, err := NewSSRFProtectedHTTPClientForURL(reqURL.String(), 20*time.Second)
+		client, err := NewSSRFProtectedHTTPClientForURLContext(h.Request.Req().Context(), reqURL.String(), 20*time.Second)
 		if err != nil {
 			h.Response.Fail(proto.NetworkErrorReasonBlockedByClient)
 			return

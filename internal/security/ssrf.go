@@ -379,6 +379,18 @@ func NewSSRFProtectedHTTPClientSameOrigin(timeout time.Duration) *http.Client {
 // Use this instead of calling ValidateSSRF() + NewSSRFProtectedHTTPClient() separately
 // when making a single outbound request to a user-supplied URL.
 func NewSSRFProtectedHTTPClientForURL(rawURL string, timeout time.Duration) (*http.Client, error) {
+	return NewSSRFProtectedHTTPClientForURLContext(context.Background(), rawURL, timeout)
+}
+
+// NewSSRFProtectedHTTPClientForURLContext also binds the initial DNS pinning to
+// the request owner. The resulting transport still uses each request's context.
+func NewSSRFProtectedHTTPClientForURLContext(ctx context.Context, rawURL string, timeout time.Duration) (*http.Client, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid URL: %w", err)
@@ -403,7 +415,7 @@ func NewSSRFProtectedHTTPClientForURL(rawURL string, timeout time.Duration) (*ht
 	}
 
 	// Resolve once, validate, and pin the result into the transport context
-	ips, err := resolvePublicIPs(context.Background(), host)
+	ips, err := resolvePublicIPs(ctx, host)
 	if err != nil {
 		return nil, fmt.Errorf("hostname resolution failed for %q: %w", host, err)
 	}
