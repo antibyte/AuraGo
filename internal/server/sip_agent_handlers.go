@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
+	"aurago/internal/prompts"
 	"aurago/internal/realtimespeech"
 	"aurago/internal/sipphone"
 	"aurago/internal/tools"
@@ -392,7 +394,7 @@ func runSIPAgentLiveTest(ctx context.Context, s *Server, cfg *config.Config, voi
 	}
 	switch backend := snapshot.backend.(type) {
 	case *voice.ClassicBackend:
-		return runClassicSIPAgentLiveTest(ctx, snapshot.agent.llmClient, backend, snapshot.agent.config.LLM.Model, snapshot.voiceConfig.Language)
+		return runClassicSIPAgentLiveTest(budget.WithTracking(ctx, s.BudgetTracker, "sip_test"), snapshot.agent.llmClient, backend, snapshot.agent.config.LLM.Model, snapshot.voiceConfig.Language)
 	case *voice.GeminiLiveBackend:
 		liveBackend := *backend
 		liveBackend.TestNoTools = true
@@ -412,13 +414,13 @@ func runClassicSIPAgentLiveTest(ctx context.Context, client llm.ChatClient, clas
 	if client == nil || classic == nil || classic.Recognizer == nil || classic.Synthesizer == nil {
 		return fmt.Errorf("classic telephone live-test dependencies are unavailable")
 	}
-	response, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+	response, err := budget.CompleteChat(ctx, client, openai.ChatCompletionRequest{
 		Model: model,
 		Messages: []openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleSystem, Content: "This is an explicitly confirmed telephone pipeline health check. Reply with only OK."},
 			{Role: openai.ChatMessageRoleUser, Content: "health check"},
 		},
-	})
+	}, llm.ModelRoute{Model: model}, "sip_test", 64, prompts.CountTokensForModelContext)
 	if err != nil || len(response.Choices) == 0 {
 		return fmt.Errorf("telephone agent LLM probe failed")
 	}

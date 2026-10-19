@@ -619,6 +619,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := config.ValidateActionPolicy(validateCfg.Agent.ActionPolicy); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if err := config.ValidateDecisionsConfig(validateCfg.Decisions); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return

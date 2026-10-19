@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/newspaper"
@@ -110,15 +111,7 @@ func (s *Server) newspaperCompletion(ctx context.Context, cfg *config.Config, cl
 		}
 		request.MaxTokens = min(request.MaxTokens, reserve)
 	}
-	response, err := client.CreateChatCompletion(ctx, request)
-	// Completed responses are charged once, before JSON/structure rejection.
-	if s.BudgetTracker != nil && (err == nil || response.Usage.TotalTokens > 0 || response.Usage.PromptTokens > 0 || response.Usage.CompletionTokens > 0) {
-		model := response.Model
-		if model == "" {
-			model = cfg.LLM.Model
-		}
-		s.BudgetTracker.RecordForCategory("newspaper", model, response.Usage.PromptTokens, response.Usage.CompletionTokens)
-	}
+	response, err := budget.CompleteChat(budget.WithTracking(ctx, s.BudgetTracker, "newspaper"), client, request, route, "newspaper", request.MaxTokens, prompts.CountTokensForModelContext)
 	if err != nil {
 		return "", fmt.Errorf("complete newspaper request: %w", err)
 	}

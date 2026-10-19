@@ -168,7 +168,7 @@ func clampInt(v, lo, hi int) int {
 // nonRetryableCodes are the node error codes that a retry can never fix: the node's
 // own parameters (FLOW_PARAM_INVALID, FLOW_CONDITION_INVALID), a missing or refused
 // capability (FLOW_AI_UNAVAILABLE, FLOW_TOOLS_UNAVAILABLE, FLOW_NODE_UNAVAILABLE,
-// FLOW_TOOL_DENIED, FLOW_SECRET_UNAVAILABLE: a vault entry that is missing or unusable is
+// FLOW_TOOL_DENIED, FLOW_ACTION_RULE_REQUIRED, FLOW_SECRET_UNAVAILABLE: a vault entry that is missing or unusable is
 // configuration), a used-up budget (FLOW_BUDGET_EXCEEDED) and data over the size
 // limits (FLOW_OUTPUT_TOO_LARGE). When an attempt fails with one of them the node's
 // Retry setting is ignored and the failure is final at once, so a refusal is not paid
@@ -179,15 +179,16 @@ func clampInt(v, lo, hi int) int {
 // differently. The set is a contract for node authors (see AGENTS.md): a node picks
 // its code knowing this.
 var nonRetryableCodes = map[string]bool{
-	"FLOW_PARAM_INVALID":      true,
-	"FLOW_CONDITION_INVALID":  true,
-	"FLOW_BUDGET_EXCEEDED":    true,
-	"FLOW_TOOL_DENIED":        true,
-	"FLOW_NODE_UNAVAILABLE":   true,
-	"FLOW_TOOLS_UNAVAILABLE":  true,
-	"FLOW_AI_UNAVAILABLE":     true,
-	"FLOW_SECRET_UNAVAILABLE": true,
-	"FLOW_OUTPUT_TOO_LARGE":   true,
+	"FLOW_PARAM_INVALID":        true,
+	"FLOW_CONDITION_INVALID":    true,
+	"FLOW_BUDGET_EXCEEDED":      true,
+	"FLOW_TOOL_DENIED":          true,
+	"FLOW_ACTION_RULE_REQUIRED": true,
+	"FLOW_NODE_UNAVAILABLE":     true,
+	"FLOW_TOOLS_UNAVAILABLE":    true,
+	"FLOW_AI_UNAVAILABLE":       true,
+	"FLOW_SECRET_UNAVAILABLE":   true,
+	"FLOW_OUTPUT_TOO_LARGE":     true,
 }
 
 // hopeless reports whether err, a node's failure, is final whatever the Retry

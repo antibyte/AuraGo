@@ -57,7 +57,12 @@ func handleBackgroundTaskByID(s *Server) http.HandlerFunc {
 			}
 			switch strings.ToLower(strings.TrimSpace(body.Action)) {
 			case "cancel":
-				if !s.BackgroundTasks.CancelTask(id) {
+				canceled, err := s.BackgroundTasks.CancelTaskWithError(id)
+				if err != nil {
+					jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Task stopped in memory, but cancellation could not be saved. Retry cancellation before restarting.", "[Background] Failed to persist task cancellation", err, "task_id", id)
+					return
+				}
+				if !canceled {
 					jsonError(w, "task cannot be canceled", http.StatusConflict)
 					return
 				}

@@ -12,8 +12,10 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
+	"aurago/internal/prompts"
 	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
@@ -216,7 +218,7 @@ func handleNoisemakerEnhance(s *Server) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), noisemakerEnhanceTimeout)
 		defer cancel()
 
-		text, err := noisemakerRunEnhance(ctx, s.LLMClient, model, systemPrompt, userPrompt, maxTokens)
+		text, err := noisemakerRunEnhance(budget.WithTracking(ctx, s.BudgetTracker, "music_prompt"), s.LLMClient, model, systemPrompt, userPrompt, maxTokens)
 		if err != nil {
 			if s.Logger != nil && !llm.IsContextError(err) {
 				s.Logger.Warn("Noisemaker enhance failed", "kind", body.Kind, "error", err)
@@ -232,7 +234,7 @@ func handleNoisemakerEnhance(s *Server) http.HandlerFunc {
 // noisemakerRunEnhance executes the one-shot LLM call shared by the enhance
 // endpoint and the automatic lyrics writer in the generate flow.
 func noisemakerRunEnhance(ctx context.Context, client llm.ChatClient, model, systemPrompt, userPrompt string, maxTokens int) (string, error) {
-	resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+	resp, err := budget.CompleteChat(ctx, client, openai.ChatCompletionRequest{
 		Model: model,
 		Messages: []openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
@@ -240,7 +242,7 @@ func noisemakerRunEnhance(ctx context.Context, client llm.ChatClient, model, sys
 		},
 		Temperature: 0.8,
 		MaxTokens:   maxTokens,
-	})
+	}, llm.ModelRoute{Model: model}, "music_prompt", maxTokens, prompts.CountTokensForModelContext)
 	if err != nil {
 		return "", err
 	}
@@ -392,7 +394,7 @@ func handleNoisemakerGenerate(s *Server) http.HandlerFunc {
 			})
 			if perr == nil {
 				llmCtx, cancel := context.WithTimeout(r.Context(), noisemakerEnhanceTimeout)
-				generated, lerr := noisemakerRunEnhance(llmCtx, s.LLMClient, model, sys, usr, maxTokens)
+				generated, lerr := noisemakerRunEnhance(budget.WithTracking(llmCtx, s.BudgetTracker, "music_prompt"), s.LLMClient, model, sys, usr, maxTokens)
 				cancel()
 				if lerr != nil {
 					if s.Logger != nil && !llm.IsContextError(lerr) {

@@ -110,8 +110,15 @@ func (s *Server) personalRadioPlan(ctx context.Context, req personalradio.Editor
 	for attempt := 0; attempt < 2; attempt++ {
 		b, _ := json.Marshal(req)
 		raw, err := s.personalRadioComplete(ctx, personalRadioEditorPrompt, string(b))
-		if err != nil && err.Error() != "radio_incomplete_editorial" {
-			return plan, err
+		if err != nil {
+			var incomplete *agent.IncompleteCompletionError
+			lengthOnly := errors.As(err, &incomplete) && incomplete.FinishReason == openai.FinishReasonLength && !incomplete.HasToolCalls
+			if err.Error() != "radio_incomplete_editorial" && !lengthOnly {
+				return plan, err
+			}
+			// Retry this tool-free editorial request with less input. Never parse
+			// or apply text from a response rejected by the strict runtime.
+			raw = ""
 		}
 		raw = strings.TrimSpace(raw)
 		if strings.HasPrefix(raw, string([]byte{96, 96, 96})) {

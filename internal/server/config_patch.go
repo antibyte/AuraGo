@@ -83,6 +83,9 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if err := config.ValidateCloudflareTunnelConfig(&validateCfg); err != nil {
 		return nil, err
 	}
+	if err := config.ValidateActionPolicy(validateCfg.Agent.ActionPolicy); err != nil {
+		return nil, err
+	}
 	if err := config.ValidateLocalLLMConfig(&validateCfg); err != nil {
 		return nil, err
 	}

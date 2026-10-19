@@ -57,8 +57,15 @@ func handleDesktopChat(s *Server) http.HandlerFunc {
 			jsonError(w, "server not configured", http.StatusInternalServerError)
 			return
 		}
-		unlockSession := lockSessionRequest(desktopChatSessionID)
+		turnCtx, unlockSession, turnErr := s.lockChatSessionTurn(r.Context(), desktopChatSessionID)
+		if turnErr != nil {
+			if r.Context().Err() == nil {
+				jsonError(w, chatCompletionErrorMessage(desktopUILanguage(s), turnErr), http.StatusConflict)
+			}
+			return
+		}
 		defer unlockSession()
+		r = r.WithContext(turnCtx)
 		if !checkDesktopOperation(s, w, r, desktopExecute) {
 			return
 		}
@@ -118,8 +125,17 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 			return
 		}
 
-		unlockSession := lockSessionRequest(desktopChatSessionID)
+		turnCtx, unlockSession, turnErr := s.lockChatSessionTurn(r.Context(), desktopChatSessionID)
+		if turnErr != nil {
+			if r.Context().Err() == nil {
+				sseWriteData(w, "error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), turnErr))
+				sseWriteDone(w)
+				flusher.Flush()
+			}
+			return
+		}
 		defer unlockSession()
+		r = r.WithContext(turnCtx)
 		if !checkDesktopOperation(s, w, r, desktopExecute) {
 			return
 		}

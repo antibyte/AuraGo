@@ -10,6 +10,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -280,56 +281,29 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	// Phase 68: Start the daily maintenance loop
 	manifest := tools.NewManifest(s.Cfg.Directories.ToolsDir)
-	s.MaintenanceScheduler = agent.StartMaintenanceLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.Vault, s.Registry, manifest, s.CronManager, s.LongTermMem, s.ShortTermMem, s.HistoryManager, s.KG, s.InventoryDB, s.ContactsDB, s.PlannerDB, s.CheatsheetDB, s.MissionManagerV2, s.LLMGuardian, s.DaemonSupervisor, s.WebhookManager)
+	s.MaintenanceScheduler = agent.StartMaintenanceLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.Vault, s.Registry, manifest, s.CronManager, s.LongTermMem, s.ShortTermMem, s.HistoryManager, s.KG, s.InventoryDB, s.ContactsDB, s.PlannerDB, s.CheatsheetDB, s.MissionManagerV2, s.LLMGuardian, s.DaemonSupervisor, s.WebhookManager, s.BudgetTracker)
 
 	// Start Planner Notifier for appointment reminders with agent wake-up
 	if s.PlannerDB != nil && s.Cfg.Tools.Planner.Enabled {
 		plannerNotifier := planner.NewNotifier(s.PlannerDB, s.Logger)
 		if s.MissionManagerV2 != nil {
-			plannerNotifier.SetMissionTrigger(func(appointment planner.Appointment) {
-				s.MissionManagerV2.NotifyPlannerAppointmentDue(appointment.ID, appointment.Title, appointment.DateTime)
+			plannerNotifier.SetDurableMissionTrigger(func(eventID string, appointment planner.Appointment) error {
+				return s.MissionManagerV2.NotifyPlannerAppointmentDueEvent(eventID, appointment.ID, appointment.Title, appointment.DateTime)
 			})
 			plannerNotifier.SetTodoOverdueTrigger(func(todo planner.Todo) {
 				s.MissionManagerV2.NotifyPlannerTodoOverdue(todo.ID, todo.Title, todo.DueDate)
 			})
 		}
-		plannerNotifier.SetExecutor(func(prompt string) {
-			runCfg := agent.RunConfig{
-				Config:             s.Cfg,
-				Logger:             s.Logger,
-				LLMClient:          s.LLMClient,
-				ShortTermMem:       s.ShortTermMem,
-				HistoryManager:     s.HistoryManager,
-				LongTermMem:        s.LongTermMem,
-				KG:                 s.KG,
-				InventoryDB:        s.InventoryDB,
-				InvasionDB:         s.InvasionDB,
-				CheatsheetDB:       s.CheatsheetDB,
-				ImageGalleryDB:     s.ImageGalleryDB,
-				MediaRegistryDB:    s.MediaRegistryDB,
-				HomepageRegistryDB: s.HomepageRegistryDB,
-				ContactsDB:         s.ContactsDB,
-				PlannerDB:          s.PlannerDB,
-				SQLConnectionsDB:   s.SQLConnectionsDB,
-				SQLConnectionPool:  s.SQLConnectionPool,
-				RemoteHub:          s.RemoteHub,
-				Vault:              s.Vault,
-				Registry:           s.Registry,
-				CronManager:        s.CronManager,
-				MissionManagerV2:   s.MissionManagerV2,
-				WebhookManager:     s.WebhookManager,
-				CoAgentRegistry:    s.CoAgentRegistry,
-				BudgetTracker:      s.BudgetTracker,
-				DaemonSupervisor:   s.DaemonSupervisor,
-				LLMGuardian:        s.LLMGuardian,
-				PreparationService: s.PreparationService,
-				WorkspaceSearch:    s.WorkspaceSearch,
-				SessionID:          "default",
-				IsMaintenance:      false,
-				MessageSource:      "planner_notification",
+		plannerNotifier.SetDurableExecutor(func(eventID, prompt string) error {
+			if s.BackgroundTasks == nil {
+				return fmt.Errorf("background task queue is unavailable")
 			}
-			s.configureRunKnowledge(&runCfg)
-			go agent.Loopback(runCfg, prompt, agent.NoopBroker{})
+			cfg := s.ConfigSnapshot()
+			_, err := s.BackgroundTasks.SchedulePlannerPrompt(eventID, prompt, tools.BackgroundTaskScheduleOptions{
+				Source: "planner_notification", Description: "Appointment reminder", NotifyOnCompletion: true,
+				Timeout: time.Duration(cfg.Agent.BackgroundTasks.HTTPTimeoutSeconds) * time.Second,
+			})
+			return err
 		})
 		go plannerNotifier.Start(serverCtx)
 		s.Logger.Info("Planner notifier started")
@@ -819,6 +793,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		if s.Cfg.Sandbox.Enabled {
 			sandboxCfg := tools.SandboxConfig{
 				Enabled:        s.Cfg.Sandbox.Enabled,
+				RuntimeDir:     filepath.Join(s.Cfg.Directories.DataDir, "sandbox-supervisor"),
 				Backend:        s.Cfg.Sandbox.Backend,
 				DockerHost:     s.Cfg.Sandbox.DockerHost,
 				Image:          s.Cfg.Sandbox.Image,
@@ -827,6 +802,11 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				TimeoutSeconds: s.Cfg.Sandbox.TimeoutSeconds,
 				NetworkEnabled: s.Cfg.Sandbox.NetworkEnabled,
 				KeepAlive:      s.Cfg.Sandbox.KeepAlive,
+				MemoryMB:       s.Cfg.Sandbox.MemoryMB,
+				CPUs:           s.Cfg.Sandbox.CPUs,
+				PIDsLimit:      s.Cfg.Sandbox.PIDsLimit,
+				MaxOutputBytes: s.Cfg.Sandbox.MaxOutputBytes,
+				Images:         s.Cfg.Sandbox.Images,
 			}
 			tools.InitSandboxManager(sandboxCfg, s.Cfg.Directories.WorkspaceDir, s.Logger)
 		}

@@ -13,6 +13,7 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -22,6 +23,7 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/contacts"
 	"aurago/internal/credentials"
@@ -221,6 +223,23 @@ func main() {
 	//   2. Docker Compose secret  (/run/secrets/aurago_master_key)
 	//   3. System credential file (/etc/aurago/master.key)  <- manual starts post-migration
 	//   4. Local .env             ($configDir/.env)          <- dev / non-systemd installs
+	if path := strings.TrimSpace(os.Getenv("AURAGO_MASTER_KEY_FILE")); path != "" {
+		if err := tools.RegisterProtectedSystemFile(path); err != nil {
+			appLog.Error("Cannot protect configured master-key file", "error", err)
+			os.Exit(1)
+		}
+	}
+	if path := strings.TrimSpace(os.Getenv("AURAGO_MASTER_KEY_FILE")); path != "" && os.Getenv("AURAGO_MASTER_KEY") == "" {
+		key, err := security.ReadMasterKeyFile(path)
+		if err != nil {
+			appLog.Error("Cannot load configured master-key file", "error", err)
+			os.Exit(1)
+		}
+		if err := os.Setenv("AURAGO_MASTER_KEY", key); err != nil {
+			appLog.Error("Cannot initialize master key")
+			os.Exit(1)
+		}
+	}
 	loadDockerSecret("/run/secrets/aurago_master_key", "AURAGO_MASTER_KEY", appLog)
 	loadDotEnv("/etc/aurago/master.key", appLog)
 	loadDotEnv(filepath.Join(filepath.Dir(configFile), ".env"), appLog)
@@ -361,6 +380,28 @@ func main() {
 	}
 
 	// -- Runtime directories -----------------------------------------------
+	// Initialize the Vault before any optional runtime can spawn a child.
+	masterKey := os.Getenv("AURAGO_MASTER_KEY")
+	if err := os.MkdirAll(cfg.Directories.DataDir, 0750); err != nil {
+		appLog.Error("Cannot initialize data directory", "error", err)
+		os.Exit(1)
+	}
+	vaultPath := filepath.Join(cfg.Directories.DataDir, "vault.bin")
+	if legacyVaultPath := findLegacyVaultPath(configFile, cfg.Directories.DataDir); legacyVaultPath != "" {
+		appLog.Warn("Legacy vault file found at previous data directory", "legacy_path", legacyVaultPath, "current_path", vaultPath)
+	}
+	vault, err := security.NewVault(masterKey, vaultPath)
+	if err != nil {
+		appLog.Error("Failed to initialize security vault", "error", err)
+		os.Exit(1)
+	}
+	security.RetainProcessMasterKey(masterKey)
+	if err := os.Unsetenv("AURAGO_MASTER_KEY"); err != nil {
+		appLog.Error("Cannot remove ambient master key")
+		os.Exit(1)
+	}
+	cfg.Server.MasterKey = ""
+	masterKey = ""
 	setup.EnsureDirectories(installDir, appLog)
 
 	appLog.Info("Starting AuraGo")
@@ -631,24 +672,6 @@ func main() {
 		}
 	}
 
-	masterKey := os.Getenv("AURAGO_MASTER_KEY")
-	if masterKey == "" || len(masterKey) != 64 {
-		appLog.Error("CRITICAL: AURAGO_MASTER_KEY environment variable is missing or not exactly 64 hex characters (32 bytes). Refusing to start.")
-		os.Exit(1)
-	}
-	// Ensure the master key is never leaked through any outgoing communication channel.
-	security.RegisterSensitive(masterKey)
-
-	vaultPath := filepath.Join(cfg.Directories.DataDir, "vault.bin")
-	if legacyVaultPath := findLegacyVaultPath(configFile, cfg.Directories.DataDir); legacyVaultPath != "" {
-		appLog.Warn("Legacy vault file found at previous data directory", "legacy_path", legacyVaultPath, "current_path", vaultPath)
-	}
-	vault, err := security.NewVault(masterKey, vaultPath)
-	if err != nil {
-		appLog.Error("Failed to initialize security vault", "error", err)
-		os.Exit(1)
-	}
-
 	// Initialize SQL Connections pool now that vault is available.
 	// Pool is only created when the feature is explicitly enabled -- it manages
 	// live connections to external databases, which should be opt-in.
@@ -754,6 +777,7 @@ func main() {
 		}
 		return llm.NewClient(clientCfg)
 	}))
+	budgetTracker := budget.NewTracker(cfg, appLog, cfg.Directories.DataDir)
 
 	// A zero agent.context_window is intentionally preserved as "no global cap".
 	// Per-request route budgeting resolves model-specific limits and derives the
@@ -771,6 +795,11 @@ func main() {
 	registry := tools.NewProcessRegistry(appLog)
 
 	backgroundTaskManager := tools.NewBackgroundTaskManager(cfg.Directories.DataDir, appLog)
+	backgroundTaskManager.SetIsolatedCodeExecutor(tools.ExecuteIsolatedBackgroundCode)
+	backgroundTaskManager.SetLimits(tools.BackgroundTaskLimits{
+		MaxActiveTasks: cfg.Agent.BackgroundTasks.MaxActiveTasks, MaxDueStartsPerTick: cfg.Agent.BackgroundTasks.MaxDueStartsPerTick,
+		RetainCompletedDays: cfg.Agent.BackgroundTasks.RetainCompletedDays, RetainFailedDays: cfg.Agent.BackgroundTasks.RetainFailedDays, MaxTerminalTasks: cfg.Agent.BackgroundTasks.MaxTerminalTasks,
+	})
 	backgroundTaskManager.SetProcessRegistry(registry)
 	backgroundTaskManager.SetNotifier(func(title, body string) {
 		if shortTermMem == nil {
@@ -795,7 +824,7 @@ func main() {
 	loopbackToken := base64.StdEncoding.EncodeToString(loopbackTokenBytes)
 	backgroundTaskManager.SetInternalToken(loopbackToken)
 
-	backgroundTaskManager.SetLoopbackExecutor(func(executionID, taskType, prompt string, timeout time.Duration) error {
+	backgroundTaskManager.SetLoopbackExecutorContext(func(ctx context.Context, executionID, taskType, prompt string, timeout time.Duration) error {
 		url := server.InternalAPIURL(cfg) + "/v1/chat/completions"
 		payload := map[string]interface{}{
 			"model":  "aurago",
@@ -809,7 +838,7 @@ func main() {
 			return fmt.Errorf("marshal background loopback payload: %w", err)
 		}
 		client := server.NewInternalHTTPClient(timeout)
-		req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(body))
 		if err != nil {
 			return fmt.Errorf("create background loopback request: %w", err)
 		}
@@ -822,19 +851,28 @@ func main() {
 		}
 		resp, err := client.Do(req)
 		if err != nil {
-			return fmt.Errorf("execute background loopback request: %w", err)
+			var networkError *net.OpError
+			if errors.As(err, &networkError) && networkError.Op == "dial" {
+				return fmt.Errorf("dial background loopback endpoint: %w", err)
+			}
+			return fmt.Errorf("execute background loopback request: %w: %w", tools.ErrBackgroundTaskOutcomeUnknown, err)
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode == http.StatusAccepted {
 			return tools.ErrBackgroundTaskPending
 		}
 		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
+			body, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+			if resp.StatusCode == http.StatusConflict && bytes.Contains(body, []byte(`"action_rule_required"`)) {
+				return tools.ErrBackgroundTaskBlocked
+			}
+			if resp.StatusCode >= 500 {
+				return tools.ErrBackgroundTaskOutcomeUnknown
+			}
 			return fmt.Errorf("background loopback returned %d: %s", resp.StatusCode, string(body))
 		}
 		return nil
 	})
-	backgroundTaskManager.Start()
 	tools.SetDefaultBackgroundTaskManager(backgroundTaskManager)
 
 	// Shell Sandbox (Landlock + rlimits on Linux)
@@ -903,6 +941,7 @@ func main() {
 	// Cron Manager for autonomous triggers
 	tools.ConfigureRuntimePermissions(tools.RuntimePermissionsFromConfig(cfg))
 	cronManager := tools.NewCronManager(cfg.Directories.DataDir)
+	cronManager.SetMaxJobs(cfg.Agent.MaxCronJobs)
 	err = cronManager.Start(func(prompt string) {
 		appLog.Info("Scheduling autonomous cron task", "prompt", prompt)
 		if backgroundTaskManager == nil {
@@ -955,7 +994,7 @@ func main() {
 	} else {
 		defer optDB.Close()
 		optWorker := optimizer.NewOptimizerWorker(optDB, llmClient, llmClient, 6*time.Hour)
-		stopOptimizer := optWorker.StartManaged(context.Background(), cfg.Agent.OptimizerEnabled)
+		stopOptimizer := optWorker.StartManaged(budget.WithTracking(context.Background(), budgetTracker, "optimizer"), cfg.Agent.OptimizerEnabled)
 		defer stopOptimizer()
 	}
 
@@ -1224,6 +1263,7 @@ func main() {
 	stopUpdateCleanupMonitor := server.StartUpdateCleanupMonitor(shutdownCh, plannerDB, installDir, appLog)
 	defer stopUpdateCleanupMonitor()
 	if err := server.Start(server.StartOptions{
+		BudgetTracker:           budgetTracker,
 		Cfg:                     cfg,
 		Logger:                  appLog,
 		AccessLogger:            webAccessLog,

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math"
@@ -695,6 +696,15 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	callCtx := llm.WithStreamAttemptTimeout(gamemaker.WithJobContext(ctx, run.Job.ID), time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds)*time.Second)
 	response, err := agent.ExecuteAgentLoop(callCtx, req, runCfg, true, broker)
 	if err != nil {
+		var incomplete *agent.IncompleteCompletionError
+		if ctx.Err() == nil && run.Stage == "building" && run.Job.BaseRevision == 0 && run.Plan != nil &&
+			errors.As(err, &incomplete) && incomplete.FinishReason == openai.FinishReasonLength && incomplete.ReasoningOnly {
+			// Reasoning-only truncation has already used the one bounded
+			// continuation. The unchanged-starter gate may now request source;
+			// compiler/browser checks still own success and publication.
+			broker.Send("model_progress", "recovering")
+			return nil
+		}
 		if agent.IsToolLimitFinalResponseInvalid(err) && ctx.Err() == nil && (run.Stage == "building" || run.Stage == "repair") {
 			// The rejected extra call stays unexecuted. The orchestrator validates
 			// the saved source and owns the remaining repair budget, not final prose.

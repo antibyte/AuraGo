@@ -58,7 +58,10 @@ User documentation: `documentation/personal-radio.md`.
 - `Issue` only records/resolves sanitized operational issues through the
   existing supervisor lifecycle. Never emit chat, SSE chat or Telegram notices.
 - Editorial calls are tool-free, route-budgeted and isolated from private chat
-  and memory. Fetched sources remain untrusted data. Validate source IDs and
+  and memory. The editorial planner may retry once with reduced input after
+  invalid JSON or a typed length rejection without tool calls; rejected text
+  is never parsed or applied. Other runtime/provider errors remain terminal.
+  Fetched sources remain untrusted data. Validate source IDs and
   speech size. News requires a known publication date and expires after one
   interval. Deduplicate already aired, unchanged sources. A missing bulletin
   does not stop music or assert that no news exists.

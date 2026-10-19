@@ -14,6 +14,9 @@ import (
 )
 
 func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster) {
+	mux.Handle("/api/agent/actions", requireAdmin(s, handleActionApprovals(s)))
+	mux.Handle("/api/agent/action-policy/preview", requireAdmin(s, handleActionPolicyPreview(s)))
+	mux.Handle("/api/agent/action-policy/catalog", requireAdmin(s, handleActionPolicyCatalog(s)))
 	if !s.Cfg.WebConfig.Enabled {
 		return
 	}
@@ -81,7 +84,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 		case http.MethodGet:
 			handleGetConfig(s)(w, r)
 		case http.MethodPut:
-			handleUpdateConfig(s)(w, r)
+			requireAdmin(s, handleUpdateConfig(s)).ServeHTTP(w, r)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -124,7 +127,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/updates/check", handleUpdateCheck(s))
 	mux.HandleFunc("/api/updates/install", handleUpdateInstall(s))
 	mux.HandleFunc("/api/vault/status", handleVaultStatus(s))
-	mux.HandleFunc("/api/vault/secrets", handleVaultSecrets(s))
+	mux.Handle("/api/vault/secrets", requireAdmin(s, handleVaultSecrets(s)))
 	mux.Handle("/api/vault", requireAdmin(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodDelete {
 			handleVaultDelete(s)(w, r)

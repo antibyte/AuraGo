@@ -2,6 +2,7 @@ package server
 
 import (
 	"aurago/internal/agent"
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/desktop"
 	"aurago/internal/meshcore"
@@ -56,6 +57,7 @@ func (s *Server) meshCoreIssue(code string, active bool) {
 	_, _ = planner.RecordOperationalIssue(s.PlannerDB, planner.OperationalIssue{Source: "meshcore", Context: code, Title: "MeshCore needs attention", Detail: "MeshCore runtime code: " + code, Severity: "warning", Kind: planner.OperationalIssueKindRuntimeFailure, Fingerprint: fingerprint, OccurredAt: time.Now()})
 }
 func (s *Server) scanMeshCoreMessage(ctx context.Context, msg meshcore.Message) meshcore.Review {
+	ctx = budget.WithTracking(ctx, s.budgetTrackerSnapshot(), "meshcore")
 	blocked := meshcore.Review{Decision: "suspicious", Reason: "security_check_failed"}
 	cfg := s.ConfigSnapshot()
 	if cfg == nil {

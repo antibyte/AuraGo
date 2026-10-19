@@ -1010,8 +1010,15 @@ func handleRealtimeSpeechTurns(s *Server, registry *realtimespeech.Registry) htt
 			jsonError(w, "Final user and assistant transcripts are required and limited to 20000 characters", http.StatusBadRequest)
 			return
 		}
-		unlock := lockSessionRequest(session.ChatSessionID)
+		turnCtx, unlock, turnErr := s.lockChatSessionTurn(r.Context(), session.ChatSessionID)
+		if turnErr != nil {
+			if r.Context().Err() == nil {
+				jsonError(w, "Unable to open conversation", http.StatusConflict)
+			}
+			return
+		}
 		defer unlock()
+		r = r.WithContext(turnCtx)
 		if !registry.MarkTurn(session.ID, clientID, strings.TrimSpace(body.TurnID)) {
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "duplicate": true})

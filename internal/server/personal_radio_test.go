@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/personalradio"
@@ -9,6 +10,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"log/slog"
@@ -130,11 +132,19 @@ func TestPersonalRadioPermissionsRevisionAndAudio(t *testing.T) {
 type personalRadioChatFake struct {
 	calls    int
 	requests []openai.ChatCompletionRequest
+	replies  []openai.ChatCompletionResponse
+	callErr  error
 }
 
 func (f *personalRadioChatFake) CreateChatCompletion(ctx context.Context, r openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 	f.calls++
 	f.requests = append(f.requests, r)
+	if f.callErr != nil {
+		return openai.ChatCompletionResponse{}, f.callErr
+	}
+	if len(f.replies) > 0 {
+		return f.replies[min(f.calls-1, len(f.replies)-1)], nil
+	}
 	reason := openai.FinishReasonStop
 	content := `{"theme":"Night jazz","track_ids":["t1"],"moderation":"A quiet evening of jazz.","music_idea":"Warm piano and soft brushes"}`
 	if f.calls == 1 {
@@ -168,6 +178,53 @@ func TestPersonalRadioEditorialRetryIsToolFree(t *testing.T) {
 		if !strings.Contains(html.UnescapeString(r.Messages[1].Content), `"opening":{"track_count":1,"min_tracks":8,"buffer_ms":180000,"required_ms":1800000}`) {
 			t.Fatal("opening facts lost on the LLM route")
 		}
+	}
+}
+
+func TestPersonalRadioEditorialRecoveryRejectsPartialAndUnsafeCompletions(t *testing.T) {
+	response := func(reason openai.FinishReason, theme string, toolCalls bool) openai.ChatCompletionResponse {
+		message := openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: `{"theme":"` + theme + `"}`}
+		if toolCalls {
+			message.ToolCalls = []openai.ToolCall{{ID: "fixture-call", Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "execute_shell", Arguments: `{"command":"fixture must never execute"}`}}}
+		}
+		return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{FinishReason: reason, Message: message}}}
+	}
+	for _, tc := range []struct {
+		name      string
+		replies   []openai.ChatCompletionResponse
+		callErr   error
+		wantCalls int
+		wantTheme string
+	}{
+		{"length then complete", []openai.ChatCompletionResponse{response(openai.FinishReasonLength, "Partial must not air", false), response(openai.FinishReasonStop, "Completed editorial", false)}, nil, 2, "Completed editorial"},
+		{"length twice stays bounded", []openai.ChatCompletionResponse{response(openai.FinishReasonLength, "Partial must not air", false)}, nil, 2, ""},
+		{"content filter is fatal", []openai.ChatCompletionResponse{response(openai.FinishReasonContentFilter, "Filtered must not air", false)}, nil, 1, ""},
+		{"length with tools is fatal", []openai.ChatCompletionResponse{response(openai.FinishReasonLength, "Tool response must not air", true)}, nil, 1, ""},
+		{"provider error is fatal", nil, errors.New("fixture provider unavailable"), 1, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.VirtualDesktop.Enabled = true
+			cfg.LLM.Model = "radio-fixture"
+			cfg.Agent.ContextWindow = 32768
+			fake := &personalRadioChatFake{replies: tc.replies, callErr: tc.callErr}
+			s := &Server{Cfg: cfg, LLMClient: fake, Logger: slog.Default()}
+			plan, err := s.personalRadioPlan(context.Background(), personalradio.EditorialRequest{Station: personalradio.DefaultStation()})
+			if (err == nil) != (tc.wantTheme != "") || plan.Theme != tc.wantTheme || fake.calls != tc.wantCalls {
+				t.Fatalf("editorial=%q calls=%d error=%v", plan.Theme, fake.calls, err)
+			}
+			if tc.name == "length with tools is fatal" {
+				var incomplete *agent.IncompleteCompletionError
+				if !errors.As(err, &incomplete) || !incomplete.HasToolCalls {
+					t.Fatalf("tool-bearing rejection lost its diagnostic: %v", err)
+				}
+			}
+			for _, request := range fake.requests {
+				if len(request.Tools) != 0 || len(request.Messages) != 2 || !strings.Contains(request.Messages[1].Content, "external_data") {
+					t.Fatal("editorial recovery exposed tools or prior rejected output")
+				}
+			}
+		})
 	}
 }
 

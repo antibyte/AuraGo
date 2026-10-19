@@ -3,11 +3,13 @@ package server
 import (
 	"aurago/internal/meshcore"
 	"bufio"
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sashabaranov/go-openai"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -150,23 +152,24 @@ func panicRecoveryMiddleware(logger *slog.Logger, next http.Handler) http.Handle
 
 // Server holds the state and dependencies for the web server and socket bridge.
 type Server struct {
-	knowledge       projectKnowledge
-	Cfg             *config.Config
-	cfgSnapshot     atomic.Pointer[config.Config]
-	CfgMu           sync.RWMutex // protects Cfg during hot-reload
-	CfgSaveMu       sync.Mutex   // serializes config file writes to prevent TOCTOU races
-	httpDrainMu     sync.Mutex
-	httpDraining    bool
-	httpDrainCtx    context.Context
-	httpDrainCancel context.CancelFunc
-	httpRequests    sync.WaitGroup
-	httpHijacked    map[*drainHTTPConn]struct{}
-	lockdownLogOnce sync.Once
-	previewGrants   previewGrantRegistry
-	SIPConfigMu     sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
-	infraMu         sync.Mutex
-	infraRuntime    *desktopInfraRuntime
-	infraRuntimeErr error
+	knowledge        projectKnowledge
+	Cfg              *config.Config
+	cfgSnapshot      atomic.Pointer[config.Config]
+	CfgMu            sync.RWMutex // protects Cfg during hot-reload
+	CfgSaveMu        sync.Mutex   // serializes config file writes to prevent TOCTOU races
+	httpDrainMu      sync.Mutex
+	httpDraining     bool
+	httpDrainCtx     context.Context
+	httpDrainCancel  context.CancelFunc
+	httpRequests     sync.WaitGroup
+	httpHijacked     map[*drainHTTPConn]struct{}
+	lockdownLogOnce  sync.Once
+	previewGrants    previewGrantRegistry
+	toolBridgeGrants toolBridgeGrantRegistry
+	SIPConfigMu      sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
+	infraMu          sync.Mutex
+	infraRuntime     *desktopInfraRuntime
+	infraRuntimeErr  error
 
 	infraConfigAdmission atomic.Pointer[config.Config]
 
@@ -490,6 +493,15 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
 	}
+	if s.BackgroundTasks != nil {
+		s.BackgroundTasks.SetLimits(tools.BackgroundTaskLimits{
+			MaxActiveTasks: cfg.Agent.BackgroundTasks.MaxActiveTasks, MaxDueStartsPerTick: cfg.Agent.BackgroundTasks.MaxDueStartsPerTick,
+			RetainCompletedDays: cfg.Agent.BackgroundTasks.RetainCompletedDays, RetainFailedDays: cfg.Agent.BackgroundTasks.RetainFailedDays, MaxTerminalTasks: cfg.Agent.BackgroundTasks.MaxTerminalTasks,
+		})
+	}
+	if s.CronManager != nil {
+		s.CronManager.SetMaxJobs(cfg.Agent.MaxCronJobs)
+	}
 	// Publish the Infra admission fence before cancellation and config side
 	// effects. A writer that captured the old snapshot but initializes the
 	// runtime after cancellation will fail its admission check.
@@ -694,6 +706,16 @@ func (s *Server) reinitBudgetTracker(cfg *config.Config) {
 	} else {
 		s.BudgetTracker.UpdateConfig(cfg)
 	}
+	if failover, ok := s.LLMClient.(*llm.FailoverManager); ok {
+		tracker := s.BudgetTracker
+		failover.SetProbeUsageRecorder(func(route llm.ModelRoute, capture *llm.UsageCapture, response openai.ChatCompletionResponse) {
+			model := response.Model
+			if model == "" {
+				model = route.Model
+			}
+			tracker.RecordResponseUsage("recovery_probe", route.ProviderType, model, capture, response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens > 0)
+		})
+	}
 	if s.BudgetTracker != nil && s.MissionManagerV2 != nil {
 		s.BudgetTracker.SetMissionCallback(func(eventType string, spentUSD, limitUSD, percentage float64) {
 			s.MissionManagerV2.NotifyBudgetEvent(eventType, spentUSD, limitUSD, percentage)
@@ -703,6 +725,7 @@ func (s *Server) reinitBudgetTracker(cfg *config.Config) {
 
 // StartOptions groups the server boot dependencies so startup wiring stays named and testable.
 type StartOptions struct {
+	BudgetTracker           *budget.Tracker
 	Cfg                     *config.Config
 	Logger                  *slog.Logger
 	AccessLogger            *slog.Logger
@@ -786,6 +809,13 @@ func Start(opts StartOptions) error {
 	// (containers_self_proof.go); outside a container it does nothing.
 	initContainerSelfMarker(containerRuntimeIsDocker(s), logger)
 	s.integrationCtx = serverCtx
+	if s.BackgroundTasks != nil {
+		s.BackgroundTasks.SetIsolatedCodeAuthorizer(func(ctx context.Context, action tools.BackgroundCodeAction) error {
+			return agent.ValidateBackgroundCodeAction(ctx, s.ConfigSnapshot(), s.Logger, action)
+		})
+		stopBackground := context.AfterFunc(serverCtx, s.BackgroundTasks.Stop)
+		defer func() { stopBackground(); s.BackgroundTasks.Stop() }()
+	}
 	releaseKnowledgeRuntime := agent.RegisterKnowledgeRuntime(s.configureRunKnowledge)
 	defer releaseKnowledgeRuntime()
 	s.startDesktopBookshelfAtStartup(serverCtx)
@@ -959,6 +989,7 @@ func Start(opts StartOptions) error {
 	if s.internalToken != "" {
 		agent.SetAgentInternalToken(s.internalToken)
 	}
+	agent.SetToolBridgeGrantIssuer(s.issueToolBridgeGrant)
 	s.CoAgentRegistry.ConfigureLifecycle(
 		time.Duration(cfg.CoAgents.CleanupIntervalMins)*time.Minute,
 		time.Duration(cfg.CoAgents.CleanupMaxAgeMins)*time.Minute,
@@ -1329,6 +1360,11 @@ func Start(opts StartOptions) error {
 				}
 			} else {
 				logger.Error("[MissionV2] Mission returned non-OK status", "status", resp.Status, "mission_id", missionID)
+				if resp.StatusCode == http.StatusConflict && bytes.Contains(respBody, []byte(`"action_rule_required"`)) {
+					s.MissionManagerV2.SetResult(missionID, tools.MissionResultBlocked, "action_rule_required")
+					broadcastMissionState(s)
+					return
+				}
 				setMissionError("Mission returned non-OK status", string(respBody))
 				return
 			}
@@ -1385,7 +1421,7 @@ func Start(opts StartOptions) error {
 				cfg, &s.CfgMu, prepDB, s.MissionManagerV2, logger,
 			)
 			s.PreparationService.SetAvailableTools(agent.ToolSummariesFromConfig(cfg))
-			s.PreparationService.Start(serverCtx)
+			s.PreparationService.Start(budget.WithTracking(serverCtx, s.BudgetTracker, "mission_preparation"))
 			logger.Info("Mission preparation service initialized")
 		}
 	}
@@ -1469,7 +1505,7 @@ func Start(opts StartOptions) error {
 		fileIndexer := services.NewFileIndexer(cfg, &s.CfgMu, longTermMem, shortTermMem, logger)
 		s.setFileIndexer(fileIndexer)
 		s.attachFileKGSyncer()
-		fileIndexer.Start(serverCtx)
+		fileIndexer.Start(budget.WithTracking(serverCtx, s.budgetTrackerSnapshot(), "vision"))
 		logger.Info("File indexer started", "directories", cfg.Indexing.Directories)
 	}
 
@@ -1800,6 +1836,10 @@ func newServerFromOptions(opts StartOptions) *Server {
 		})
 	}
 
+	budgetTracker := opts.BudgetTracker
+	if budgetTracker == nil {
+		budgetTracker = budget.NewTracker(cfg, logger, cfg.Directories.DataDir)
+	}
 	s := &Server{
 		Cfg:                     cfg,
 		SetupCSRFTokens:         make(map[string]time.Time),
@@ -1833,7 +1873,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 		Guardian:                guardian,
 		LLMGuardian:             llmGuardian,
 		CoAgentRegistry:         agent.NewCoAgentRegistry(cfg.CoAgents.MaxConcurrent, logger),
-		BudgetTracker:           budget.NewTracker(cfg, logger, cfg.Directories.DataDir),
+		BudgetTracker:           budgetTracker,
 		IsFirstStart:            opts.IsFirstStart,
 		StartedAt:               time.Now(),
 		ShutdownCh:              opts.ShutdownCh,
@@ -1892,7 +1932,7 @@ func (s *Server) initSkillManagers(ctx context.Context, installDir string) gamem
 	s.SkillsDB = skillsDB
 
 	if cfg.Tools.SkillManager.Enabled {
-		s.SkillManager = tools.NewSkillManager(skillsDB, cfg.Directories.SkillsDir, logger)
+		s.SkillManager = tools.NewSkillManager(skillsDB, cfg.Directories.SkillsDir, logger, cfg.Directories.WorkspaceDir)
 		tools.SetDefaultSkillManager(s.SkillManager)
 		if err := s.SkillManager.SyncFromDisk(); err != nil {
 			logger.Warn("Failed to sync skills from disk", "error", err)
@@ -2038,6 +2078,11 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 			}
 		}
 		s.httpRequests.Wait()
+		if s.BackgroundTasks != nil {
+			if err := s.BackgroundTasks.Close(); err != nil {
+				s.Logger.Warn("Background task shutdown did not complete cleanly", "error", err)
+			}
+		}
 
 		// Flow runs use tools, MQTT, mail, MCP, the sandbox, the mission history and the
 		// planner. Cancel and join them before any of those stop (see shutdownFlows).
@@ -2105,6 +2150,11 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 
 	s.ready.Store(true)
 	s.Logger.Info("Server ready — accepting connections", "addr", server.Addr)
+	// Due prompts may call this listener immediately. Bind before starting the
+	// worker so a durable zero-retry task cannot fail during initialization.
+	if s.BackgroundTasks != nil {
+		s.BackgroundTasks.Start()
+	}
 
 	if server.TLSConfig != nil {
 		err = server.ServeTLS(ln, "", "")

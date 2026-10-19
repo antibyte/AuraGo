@@ -2,18 +2,16 @@ package server
 
 import (
 	"context"
-	"crypto/hmac"
 	"encoding/json"
 	"fmt"
-	"log/slog"
-	"net"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
 	"aurago/internal/agent"
-	"aurago/internal/tools"
+	"aurago/internal/budget"
 )
 
 // toolBridgeRequest is the JSON body for a tool bridge invocation.
@@ -45,36 +43,22 @@ func handleToolBridgeExecute(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Loopback-only: verify request comes from localhost
-		host, _, _ := net.SplitHostPort(r.RemoteAddr)
-		if host != "127.0.0.1" && host != "::1" && !strings.HasPrefix(host, "127.") {
-			toolBridgeWriteError(w, http.StatusForbidden, "Tool bridge is loopback-only")
-			return
-		}
-
-		// Validate internal token (same as background task loopback auth)
-		tok := s.internalToken
-		reqTok := r.Header.Get("X-Internal-Token")
-		if tok == "" || reqTok == "" || !hmac.Equal([]byte(reqTok), []byte(tok)) {
-			toolBridgeWriteError(w, http.StatusUnauthorized, "Invalid or missing internal token")
+		grant, ok := s.bridgeGrant(r, true)
+		if !ok {
+			toolBridgeWriteError(w, http.StatusUnauthorized, "Missing, expired or revoked run capability")
 			return
 		}
 
 		// Check if tool bridge is enabled
-		s.CfgMu.RLock()
-		enabled := s.Cfg.Tools.PythonToolBridge.Enabled
-		allowedTools := s.Cfg.Tools.PythonToolBridge.AllowedTools
-		cfg := s.Cfg
-		s.CfgMu.RUnlock()
-
-		if !enabled {
+		cfg := s.ConfigSnapshot()
+		if cfg == nil || !cfg.Tools.PythonToolBridge.Enabled {
 			toolBridgeWriteError(w, http.StatusForbidden, "Python tool bridge is disabled")
 			return
 		}
 
 		// Extract tool name from URL
 		path := strings.TrimPrefix(r.URL.Path, "/api/internal/tool-bridge/")
-		toolName := strings.Split(path, "/")[0]
+		toolName := path
 		if toolName == "" {
 			toolBridgeWriteError(w, http.StatusBadRequest, "Tool name is required")
 			return
@@ -87,12 +71,12 @@ func handleToolBridgeExecute(s *Server) http.HandlerFunc {
 		}
 
 		// Check if tool is in the allowed list (strict: empty list = nothing allowed)
-		if len(allowedTools) == 0 {
+		if len(cfg.Tools.PythonToolBridge.AllowedTools) == 0 {
 			toolBridgeWriteError(w, http.StatusForbidden, "No tools are allowed via tool bridge (allowed_tools is empty)")
 			return
 		}
 		found := false
-		for _, name := range allowedTools {
+		for _, name := range cfg.Tools.PythonToolBridge.AllowedTools {
 			if name == toolName {
 				found = true
 				break
@@ -102,11 +86,21 @@ func handleToolBridgeExecute(s *Server) http.HandlerFunc {
 			toolBridgeWriteError(w, http.StatusForbidden, fmt.Sprintf("Tool '%s' is not in the allowed_tools list", toolName))
 			return
 		}
+		if _, allowed := grant.tools[toolName]; !allowed {
+			toolBridgeWriteError(w, http.StatusForbidden, "Tool is outside the originating run capability")
+			return
+		}
 
 		// Parse request body
 		var req toolBridgeRequest
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&req); err != nil {
 			toolBridgeWriteError(w, http.StatusBadRequest, "Invalid request body")
+			return
+		}
+		if decoder.Decode(new(any)) != io.EOF {
+			toolBridgeWriteError(w, http.StatusBadRequest, "Expected one request object")
 			return
 		}
 
@@ -122,6 +116,10 @@ func handleToolBridgeExecute(s *Server) http.HandlerFunc {
 			connName = strings.TrimSpace(connName)
 			if connName == "" {
 				toolBridgeWriteError(w, http.StatusBadRequest, "connection_name is required for sql_query")
+				return
+			}
+			if _, ok := grant.sql[connName]; !ok {
+				toolBridgeWriteError(w, http.StatusForbidden, "SQL connection is outside the originating run capability")
 				return
 			}
 			okConn := false
@@ -145,8 +143,11 @@ func handleToolBridgeExecute(s *Server) http.HandlerFunc {
 			timeout = toolBridgeMaxTimeout
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+		ctx, cancel := context.WithTimeout(grant.ctx, time.Duration(timeout)*time.Second)
 		defer cancel()
+		stop := context.AfterFunc(r.Context(), cancel)
+		defer stop()
+		ctx = budget.WithTracking(ctx, grant.dc.BudgetTracker, "tool_bridge")
 
 		// Build tool call — only set Params to prevent unintended field overrides.
 		tc := agent.ToolCall{
@@ -155,30 +156,20 @@ func handleToolBridgeExecute(s *Server) http.HandlerFunc {
 			Params: req.Parameters,
 		}
 
-		// Execute tool via the shared dispatch path.
-		manifest := tools.NewManifest(cfg.Directories.ToolsDir)
-		result := agent.DispatchToolCall(
-			ctx, &tc, &agent.DispatchContext{
-				Cfg: cfg, Logger: s.Logger, LLMClient: s.LLMClient, Vault: s.Vault,
-				Registry: s.Registry, Manifest: manifest, CronManager: s.CronManager,
-				MissionManagerV2: s.MissionManagerV2, WebhookManager: s.WebhookManager, LongTermMem: s.LongTermMem,
-				ShortTermMem: s.ShortTermMem, KG: s.KG,
-				InventoryDB: s.InventoryDB, InvasionDB: s.InvasionDB,
-				CheatsheetDB: s.CheatsheetDB, ImageGalleryDB: s.ImageGalleryDB,
-				MediaRegistryDB: s.MediaRegistryDB, HomepageRegistryDB: s.HomepageRegistryDB,
-				ContactsDB: s.ContactsDB, SQLConnectionsDB: s.SQLConnectionsDB,
-				SQLConnectionPool: s.SQLConnectionPool, RemoteHub: s.RemoteHub,
-				HistoryMgr: s.HistoryManager, Guardian: s.Guardian,
-				LLMGuardian: s.LLMGuardian, SessionID: "tool-bridge",
-				CoAgentRegistry: s.CoAgentRegistry, BudgetTracker: s.BudgetTracker,
-			}, "",
-		)
-
-		s.Logger.Info("Tool bridge execution", slog.String("tool", toolName), slog.String("status", toolBridgeResultStatus(result)))
+		// Preserve the original session, grants and live-authorization snapshot.
+		dc := grant.dc
+		result := agent.DispatchToolCallResult(ctx, &tc, &dc, dc.UserContext)
+		status := "success"
+		if result.Status != agent.ToolResultSuccess {
+			status = "error"
+		}
+		if s.Logger != nil {
+			s.Logger.Info("Tool bridge execution", "tool", toolName, "status", result.Status)
+		}
 
 		resp := toolBridgeResponse{
-			Result: result,
-			Status: toolBridgeResultStatus(result),
+			Result: result.Output,
+			Status: status,
 		}
 
 		w.Header().Set("Content-Type", "application/json")

@@ -94,7 +94,8 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 		cancel()
 		broker.SendTokenUpdate(response.PromptTokens, response.CompletionTokens, response.TotalTokens, 0, 0, response.UsedFallbackEstimate, true, response.TokenSource)
 		formatError := errors.Is(err, agent.ErrUnexpectedToolCallText) && response.FinishReason == openai.FinishReasonStop
-		outputLimited := response.FinishReason == openai.FinishReasonLength && (err == nil || errors.Is(err, agent.ErrUnexpectedToolCallText))
+		var incomplete *agent.IncompleteCompletionError
+		outputLimited := response.FinishReason == openai.FinishReasonLength && (err == nil || errors.Is(err, agent.ErrUnexpectedToolCallText) || errors.As(err, &incomplete))
 		if outputLimited {
 			err = fmt.Errorf("source generation reached its output token limit; incomplete source was not saved")
 		}

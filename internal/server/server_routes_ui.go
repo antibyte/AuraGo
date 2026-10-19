@@ -30,6 +30,23 @@ const desktopWidgetAutoResizeMarker = "data-aurago-widget-auto-resize"
 const desktopPrinterCameraRecoveryMarker = "data-aurago-printer-camera-recovery"
 const desktopAppKeyBridgeMarker = "data-aurago-app-key-bridge"
 
+// Agent-produced workspace files have no authority to run active content in
+// the application origin. Explicit Desktop app routes own their separate CSP.
+func setWorkspaceFileResponseHeaders(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	contentType := mime.TypeByExtension(strings.ToLower(pathpkg.Ext(r.URL.Path)))
+	media := strings.HasPrefix(contentType, "audio/") || strings.HasPrefix(contentType, "video/") ||
+		(strings.HasPrefix(contentType, "image/") && !strings.Contains(contentType, "svg"))
+	safe := media || contentType == "application/pdf" || strings.HasPrefix(contentType, "text/plain")
+	if !safe {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": pathpkg.Base(r.URL.Path)}))
+		w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'; base-uri 'none'; form-action 'none'")
+	} else if media {
+		w.Header().Set("Content-Type", contentType)
+	}
+}
+
 var desktopPrinterCameraProxyPattern = regexp.MustCompile(`/api/3d-printers/[^"'<>\\\s)]+/camera/stream(?:\?[^"'<>\\\s)]*)?`)
 var desktopAppResourceAttrPattern = regexp.MustCompile(`\b(src|href)=(["'])([^"']+)(["'])`)
 var desktopAppExternalScriptPattern = regexp.MustCompile(`(?is)<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>\s*</script>`)
@@ -1049,6 +1066,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		} else {
 			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 		}
+		setWorkspaceFileResponseHeaders(w, r)
 		docHandler.ServeHTTP(w, r)
 	})
 
@@ -1060,6 +1078,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=86400")
 		w.Header().Del("Pragma")
+		setWorkspaceFileResponseHeaders(w, r)
 		audioHandler.ServeHTTP(w, r)
 	})
 
@@ -1071,6 +1090,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=86400")
 		w.Header().Del("Pragma")
+		setWorkspaceFileResponseHeaders(w, r)
 		genImgHandler.ServeHTTP(w, r)
 	})
 
@@ -1082,6 +1102,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=86400")
 		w.Header().Del("Pragma")
+		setWorkspaceFileResponseHeaders(w, r)
 		genVideoHandler.ServeHTTP(w, r)
 	})
 
@@ -1093,6 +1114,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=86400")
 		w.Header().Del("Pragma")
+		setWorkspaceFileResponseHeaders(w, r)
 		launchpadIconHandler.ServeHTTP(w, r)
 	})
 
@@ -1104,6 +1126,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=86400")
 		w.Header().Del("Pragma")
+		setWorkspaceFileResponseHeaders(w, r)
 		frigateMediaHandler.ServeHTTP(w, r)
 	})
 
@@ -1115,6 +1138,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=60")
 		w.Header().Del("Pragma")
+		setWorkspaceFileResponseHeaders(w, r)
 		go2RTCMediaHandler.ServeHTTP(w, r)
 	})
 
@@ -1126,6 +1150,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=86400")
 		w.Header().Del("Pragma")
+		setWorkspaceFileResponseHeaders(w, r)
 		threeDPrinterMediaHandler.ServeHTTP(w, r)
 	})
 
@@ -1140,6 +1165,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=86400")
 		w.Header().Del("Pragma")
+		setWorkspaceFileResponseHeaders(w, r)
 		downloadsHandler.ServeHTTP(w, r)
 	})
 
@@ -1188,11 +1214,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 
 	fsHandler := http.StripPrefix("/files/", http.FileServer(neuteredFileSystem{rootBoundFileSystem(s.Cfg.Directories.WorkspaceDir)}))
 	mux.HandleFunc("/files/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		if isActiveContentExtension(r.URL.Path) {
-			filename := filepath.Base(r.URL.Path)
-			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
-		}
+		setWorkspaceFileResponseHeaders(w, r)
 		fsHandler.ServeHTTP(w, r)
 	})
 

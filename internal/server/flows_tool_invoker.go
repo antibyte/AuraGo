@@ -232,6 +232,9 @@ func (i *flowToolInvoker) InvokeTool(ctx context.Context, req flows.ToolRequest)
 	defer release()
 	dc := i.dispatchContext(flowDispatchConfig(cfg), req.FlowID, action)
 	res := i.dispatch(ctx, &tc, dc)
+	if res.Status == agent.ToolResultDenied && strings.Contains(res.Output, `"code":"action_rule_required"`) {
+		return flows.ToolResponse{}, flows.NewNodeError("FLOW_ACTION_RULE_REQUIRED", "An administrator action rule is required for this tool, operation and target")
+	}
 	res.Output = flowRedactSecrets(res.Output, secrets)
 	textSent := sentKey != "" && flowTelegramTextSent(res.Output)
 	if textSent {
@@ -317,7 +320,8 @@ func (i *flowToolInvoker) dispatchContext(cfg *config.Config, flowID, action str
 		InventoryDB: s.InventoryDB, InvasionDB: s.InvasionDB, CheatsheetDB: s.CheatsheetDB, ImageGalleryDB: s.ImageGalleryDB,
 		MediaRegistryDB: s.MediaRegistryDB, HomepageRegistryDB: s.HomepageRegistryDB, ContactsDB: s.ContactsDB,
 		PlannerDB: s.PlannerDB, SQLConnectionsDB: s.SQLConnectionsDB, SQLConnectionPool: s.SQLConnectionPool,
-		RemoteHub: s.RemoteHub, HistoryMgr: s.HistoryManager, IsMaintenance: tools.IsBusy(),
+		RemoteHub: s.RemoteHub, HistoryMgr: s.HistoryManager,
+		FlowID:   flowID,
 		Guardian: s.Guardian, SessionID: "flow-" + flowID, Broker: looperDesktopBroker{sse: s.SSE},
 		CoAgentRegistry: s.CoAgentRegistry, BudgetTracker: s.BudgetTracker, DaemonSupervisor: s.DaemonSupervisor,
 		PreparationService: s.PreparationService, WorkspaceSearch: s.WorkspaceSearch, MessageSource: agent.MessageSourceFlow,

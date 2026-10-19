@@ -1244,15 +1244,21 @@ func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, 
 	// context. Preserve that text before adding attachment contents or defaults.
 	routingText := agodeskPersistedMessageFromContext(r.Context(), message)
 	message = buildAgodeskMessageWithAttachments(s, message, attachmentRecords)
-	unlockSession := lockSessionRequest(conversationID)
-	defer unlockSession()
-
 	chatCtx, cancel := context.WithCancel(r.Context())
 	chatCtx = contextWithAgodeskPersistedMessage(chatCtx, routingText)
 	chatCtx = contextWithAgodeskAttachmentBinding(chatCtx, s, conversationID, attachmentRecords)
 	defer cancel()
 	registerAgodeskActiveRun(state, requestID, conversationID, cancel)
 	defer unregisterAgodeskActiveRun(state, requestID)
+	turnCtx, unlockSession, turnErr := s.lockChatSessionTurn(chatCtx, conversationID)
+	if turnErr != nil {
+		if chatCtx.Err() == nil {
+			_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInternal, turnErr.Error())
+		}
+		return
+	}
+	defer unlockSession()
+	chatCtx = turnCtx
 
 	initialPlan, hasInitialPlan := sendAgodeskCurrentPlanSnapshot(s, conn, state, requestID, transportSessionID, conversationID)
 	voiceOutput := payload.VoiceOutput && agodeskStateHasCapability(state, "chat.voice_output")

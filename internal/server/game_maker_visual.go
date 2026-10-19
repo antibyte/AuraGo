@@ -45,10 +45,11 @@ func gameVisualRoute(cfg *config.Config) (config.ProviderEntry, string) {
 
 // gameVisualFailureReason names an actionable cause for Studio; the detail is logged.
 func gameVisualFailureReason(err error, finish openai.FinishReason) string {
+	var incomplete *agent.IncompleteCompletionError
+	if finish == openai.FinishReasonLength && (err == nil || errors.As(err, &incomplete)) {
+		return "truncated"
+	}
 	if err == nil {
-		if finish == openai.FinishReasonLength {
-			return "truncated"
-		}
 		return "analysis_failed"
 	}
 	status := 0

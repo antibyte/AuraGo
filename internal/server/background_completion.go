@@ -15,6 +15,8 @@ import (
 
 const backgroundCompletionLimit = 256
 
+type backgroundExecutionOwnerKey struct{}
+
 type backgroundCompletion struct {
 	digest   [32]byte
 	done     chan struct{}
@@ -81,11 +83,25 @@ func withBackgroundCompletionReplay(s *Server, next http.HandlerFunc) http.Handl
 				http.Error(w, "background execution capacity reached", http.StatusServiceUnavailable)
 				return
 			}
+			if s.BackgroundTasks == nil {
+				cache.mu.Unlock()
+				http.Error(w, "background execution owner unavailable", http.StatusConflict)
+				return
+			}
+			owner, releaseOwner, owned := s.BackgroundTasks.BeginExecution(id)
+			if !owned {
+				cache.mu.Unlock()
+				http.Error(w, "background execution is not active", http.StatusConflict)
+				return
+			}
 			entry = &backgroundCompletion{digest: digest, done: make(chan struct{})}
 			cache.entries[id] = entry
-			request := r.Clone(context.WithoutCancel(r.Context()))
+			// HTTP waiters may disconnect or return 202. The original accepted run
+			// instead belongs to the manager task and its cancellation lifecycle.
+			request := r.Clone(context.WithValue(owner, backgroundExecutionOwnerKey{}, owner))
 			request.Body = io.NopCloser(bytes.NewReader(body))
 			go func() {
+				defer releaseOwner()
 				response := &backgroundResponse{header: make(http.Header)}
 				defer func() {
 					if recover() != nil {

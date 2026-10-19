@@ -12,10 +12,12 @@ import (
 
 	"github.com/sashabaranov/go-openai"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/flows"
 	"aurago/internal/llm"
 	"aurago/internal/llm/catalog"
+	"aurago/internal/prompts"
 	"aurago/internal/security"
 )
 
@@ -96,7 +98,7 @@ func (f *flowLLM) Step(ctx context.Context, req flows.LLMRequest) (flows.LLMResp
 		return flows.LLMResponse{}, err
 	}
 	request := flowAIRequest(rt, req)
-	resp, err := f.complete(ctx, rt.client, request)
+	resp, err := f.complete(ctx, rt.client, request, rt.limits.Route)
 	if err != nil {
 		return flows.LLMResponse{}, flowAIFailure(ctx, err, rt.credentials)
 	}
@@ -171,28 +173,28 @@ func flowAIResponseFormat(schema map[string]any, structured bool) *openai.ChatCo
 // from json_object support, and some OpenAI-compatible providers accept only json_object,
 // so a json_schema request whose response format the provider refuses (flowAIFormatRejected)
 // is sent once more with json_object. A rejected request reports no usage.
-func (f *flowLLM) complete(ctx context.Context, client llm.ChatClient, request openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
-	resp, err := client.CreateChatCompletion(ctx, request)
-	f.charge(request.Model, resp, err)
+func (f *flowLLM) complete(ctx context.Context, client llm.ChatClient, request openai.ChatCompletionRequest, routes ...llm.ModelRoute) (openai.ChatCompletionResponse, error) {
+	ctx = budget.WithTracking(ctx, f.s.BudgetTracker, flowAIBudgetCategory)
+	route := llm.ModelRoute{Model: request.Model}
+	if len(routes) > 0 {
+		route = routes[0]
+	}
+	limit := max(request.MaxTokens, request.MaxCompletionTokens)
+	if limit <= 0 {
+		limit = flowAIMaxTokens
+	}
+	resp, err := budget.CompleteChat(ctx, client, request, route, flowAIBudgetCategory, limit, prompts.CountTokensForModelContext)
 	if err != nil && ctx.Err() == nil && flowAIFormatRejected(request, err) {
 		request.ResponseFormat = llm.JSONResponseFormat(true)
-		resp, err = client.CreateChatCompletion(ctx, request)
-		f.charge(request.Model, resp, err)
+		resp, err = budget.CompleteChat(ctx, client, request, route, flowAIBudgetCategory, limit, prompts.CountTokensForModelContext)
+	}
+	if errors.Is(err, budget.ErrCompletionBudgetUnavailable) {
+		return resp, flows.NewNodeError("FLOW_PARAM_INVALID", "the prompt exceeds the configured model context budget")
+	}
+	if errors.Is(err, budget.ErrCompletionBudgetBlocked) {
+		return resp, flows.NewNodeError("FLOW_BUDGET_EXCEEDED", "the daily AI budget is used up")
 	}
 	return resp, err
-}
-
-// charge records one call's usage under the flows category, priced by the model that
-// answered.
-func (f *flowLLM) charge(model string, resp openai.ChatCompletionResponse, err error) {
-	tracker := f.s.BudgetTracker
-	if tracker == nil || (err != nil && resp.Usage.PromptTokens <= 0 && resp.Usage.CompletionTokens <= 0) {
-		return
-	}
-	if resp.Model != "" {
-		model = resp.Model
-	}
-	tracker.RecordForCategory(flowAIBudgetCategory, model, resp.Usage.PromptTokens, resp.Usage.CompletionTokens)
 }
 
 // flowAIFormatRejected reports whether err is a provider's refusal of a json_schema

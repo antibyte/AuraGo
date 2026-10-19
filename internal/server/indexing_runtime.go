@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/services"
 )
@@ -34,7 +35,11 @@ func (s *Server) restartFileIndexer(cfg *config.Config) {
 	next := services.NewFileIndexer(cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
 	s.setFileIndexer(next)
 	s.attachFileKGSyncer()
-	next.Start(context.Background())
+	parent := s.integrationCtx
+	if parent == nil {
+		parent = context.Background()
+	}
+	next.Start(budget.WithTracking(parent, s.budgetTrackerSnapshot(), "vision"))
 }
 
 func resolveIndexingRequestPath(configDir, rawPath string) string {

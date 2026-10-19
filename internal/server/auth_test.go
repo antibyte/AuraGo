@@ -990,44 +990,30 @@ func TestAuthMiddlewareRejectsUntrustedInternalChatHeadersRegardlessOfWebAuth(t 
 }
 
 func TestAuthMiddlewareToolBridgeBypassRequiresLoopbackInternalToken(t *testing.T) {
-	t.Parallel()
-
-	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
-	s.Cfg.Auth.Enabled = true
-	s.Cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
-	s.Cfg.Auth.PasswordHash = "configured"
-	s.internalToken = "test-secret-token"
-
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
+	s, dc := bridgeSecurityFixture(t, nil)
+	s.internalToken = "fixture-process-token"
+	token := issueBridgeSecurityToken(t, t.Context(), s, dc)
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	handler := authMiddleware(s, next)
-
-	externalReq := httptest.NewRequest(http.MethodPost, "/api/internal/tool-bridge/proxmox", nil)
-	externalReq.Header.Set("X-Internal-Token", "test-secret-token")
-	externalReq.RemoteAddr = "10.0.0.42:1234"
-	externalRec := httptest.NewRecorder()
-	handler.ServeHTTP(externalRec, externalReq)
-	if externalRec.Code != http.StatusUnauthorized {
-		t.Fatalf("external tool-bridge status = %d, want 401", externalRec.Code)
-	}
-
-	loopbackReq := httptest.NewRequest(http.MethodPost, "/api/internal/tool-bridge/proxmox", nil)
-	loopbackReq.Header.Set("X-Internal-Token", "test-secret-token")
-	loopbackReq.RemoteAddr = "127.0.0.1:1234"
-	loopbackRec := httptest.NewRecorder()
-	handler.ServeHTTP(loopbackRec, loopbackReq)
-	if loopbackRec.Code != http.StatusNoContent {
-		t.Fatalf("loopback tool-bridge with valid token status = %d, want 204", loopbackRec.Code)
-	}
-
-	wrongTokenReq := httptest.NewRequest(http.MethodPost, "/api/internal/tool-bridge/proxmox", nil)
-	wrongTokenReq.Header.Set("X-Internal-Token", "wrong-token")
-	wrongTokenReq.RemoteAddr = "127.0.0.1:1234"
-	wrongTokenRec := httptest.NewRecorder()
-	handler.ServeHTTP(wrongTokenRec, wrongTokenReq)
-	if wrongTokenRec.Code != http.StatusUnauthorized {
-		t.Fatalf("loopback tool-bridge with wrong token status = %d, want 401", wrongTokenRec.Code)
+	for _, test := range []struct {
+		name, remote, token string
+		want                int
+	}{
+		{"external scoped token", "203.0.113.7:1234", token, http.StatusUnauthorized},
+		{"loopback scoped token", "127.0.0.1:1234", token, http.StatusNoContent},
+		{"old process token", "127.0.0.1:1234", s.internalToken, http.StatusUnauthorized},
+		{"wrong token", "127.0.0.1:1234", "fixture-invalid-token", http.StatusUnauthorized},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			r := httptest.NewRequest(http.MethodPost, "/api/internal/tool-bridge/docker", nil)
+			r.RemoteAddr = test.remote
+			r.Header.Set("X-Internal-Token", test.token)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, r)
+			if rr.Code != test.want {
+				t.Fatalf("status = %d, want %d", rr.Code, test.want)
+			}
+		})
 	}
 }
 

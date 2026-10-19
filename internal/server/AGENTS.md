@@ -56,6 +56,8 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- Action policy catalog/preview and pending/decision APIs are administrator-only, as are generic config updates and Vault secret mutation. Preview never dispatches or creates approvals. Decisions accept only the server-owned action ID and approve/reject, preserve its originating session and revalidate current gates. Tool Bridge uses expiring originating-run capabilities, current and inherited tool/SQL scopes, loopback transport and bounded calls; a process-wide internal token cannot authenticate bridge execution. Unknown or active workspace `/files/` content is a sandboxed attachment; preserve known audio/image/video playback.
+
 ### Quick Connect serial access
 
 - `/api/desktop/serial/ports` and `/connect` use Desktop admin authorization,
@@ -82,6 +84,12 @@ Server-owned HTTP and cross-component integration contracts.
 - Integration connection tests bind stored credentials to saved targets. A Dograh target override requires an explicit credential. YepAPI tests accept POST only, use the saved base URL and read the free model catalog; they never create a paid search or claim that a public catalog proves key validity.
 - `RegisterLLMSecrets` (`llm_secrets.go`) runs in `cmd/aurago` right after `ApplyOAuthTokens` (before the LLM client exists), at the top of `Start` and in every `replaceConfigSnapshot`; the OAuth authorize path (`applyOAuthTokenToRuntime`) and the refresher publish through `replaceConfigSnapshot`, so new access tokens register too. Static LLM/provider keys and OAuth client secrets go to the permanent `security.RegisterSensitive` registry; OAuth access tokens in LLM slots use scoped registrations released on rotation (bounded registry). Values under 8 bytes are never registered, and placeholder keys are skipped: a key needs a `[A-Za-z0-9]` run of at least 8 characters mixing letters and digits, or 16 letters mixing case, so `lm-studio` or `ollama-does-not-need-a-key` cannot redact words. Verify `TestRegisterLLMSecrets*`, `TestLLMSecret*` and `TestApplyOAuthTokenToRuntime*`.
 
+- Chat ingresses share `SQLiteMemory.BeginSessionTurn` with bots and loopback.
+  `lockChatSessionTurn` retains server activity counters only; do not also acquire
+  the legacy server-local mutex. Register cancellation before waiting, including
+  AgoDesk active-run cancellation, and hold the gate through response delivery.
+  The agent executor never relocks this gate. Verify
+  `TestServerIngressSharesMemoryTurnGateAndCancelsQueue` and channel ingress tests.
 - Telegram, Discord and Rocket.Chat receive the server-owned budget tracker and the shared isolated context recap formatter. Telegram worker admission, transcription, typing and agent execution inherit the polling owner context; cancellation stops queued work and ongoing model work.
 - Long-lived chat bots capture `chatRuntimeSnapshot` once per new message so
   configuration and client come from the same publication; accepted turns stay

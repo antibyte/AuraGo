@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"sync"
 
+	"aurago/internal/budget"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -79,6 +81,7 @@ func (s *Server) trackHTTP(next http.Handler) http.Handler {
 		defer s.httpRequests.Done()
 		defer cancel()
 		defer stop()
+		ctx = budget.WithTracking(ctx, s.budgetTrackerSnapshot(), "chat")
 		if websocket.IsWebSocketUpgrade(r) {
 			w = &drainHTTPWriter{ResponseWriter: w, server: s}
 		}

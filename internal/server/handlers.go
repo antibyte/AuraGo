@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -368,8 +369,15 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			handlePendingQuestionChatMessage(w, req, sessionID, lastUserMsg.Content, chatCompletionQuestionAnswerSource(isFollowUp, missionID), s.Logger) {
 			return
 		}
-		unlockSession := lockSessionRequestWithLogger(sessionID, s.Logger)
+		turnCtx, unlockSession, turnErr := s.beginChatSessionTurn(r.Context(), sessionID, req.Stream, missionID)
+		if turnErr != nil {
+			if r.Context().Err() == nil {
+				jsonError(w, "Unable to open conversation", http.StatusConflict)
+			}
+			return
+		}
 		defer unlockSession()
+		r = r.WithContext(turnCtx)
 
 		// Phase: Command Interception
 		if lastUserMsg.Role == openai.ChatMessageRoleUser && strings.HasPrefix(lastUserMsg.Content, "/") {
@@ -672,19 +680,17 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			flusher.Flush()
 
 		} else {
-			// Use a detached context for sync requests so a client disconnect
-			// does not abort an in-progress tool chain (e.g. mid-execution after
-			// the agent already started hatching an egg or running a command).
-			// Mission runs register their context so the user can cancel them
-			// via POST /api/missions/v2/{id}/cancel; other sync requests keep
-			// the detached background context.
-			baseCtx, releaseRun := missionRunBaseContext(s, missionID)
-			defer releaseRun()
-			syncCtx, syncCancel := context.WithTimeout(baseCtx, 30*time.Minute)
-			defer syncCancel()
+			// The ingress already chose the detached sync lifetime. Keep that
+			// registered context so Stop and shutdown cannot be lost here.
 			broker := newChatVoiceOutputTrackingBroker(feedbackBrokerForRequestContext(r.Context(), sse, sessionID, missionID, isFollowUp))
-			resp, err := agent.ExecuteAgentLoop(syncCtx, req, runCfg, false, broker)
+			resp, err := agent.ExecuteAgentLoop(r.Context(), req, runCfg, false, broker)
 			if err != nil {
+				if errors.Is(err, agent.ErrActionRuleRequired) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusConflict)
+					_ = json.NewEncoder(w).Encode(map[string]string{"error": "action_rule_required"})
+					return
+				}
 				s.Logger.Error("Sync agent loop failed", "error", err)
 				if agent.IsContextBudgetExceeded(err) {
 					w.Header().Set("Content-Type", "application/json")
@@ -823,6 +829,9 @@ func handleInterrupt(s *Server) http.HandlerFunc {
 
 		s.Logger.Warn("Stop requested via Web UI", "session_id", sessionID)
 
+		if s.ShortTermMem != nil {
+			s.ShortTermMem.CancelSessionRuns(sessionID)
+		}
 		agent.InterruptSession(sessionID)
 		if manager := currentVaultSecretPrompter(s); manager != nil {
 			manager.CancelConversation(sessionID)

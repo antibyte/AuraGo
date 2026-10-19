@@ -9,7 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/llm"
+	"aurago/internal/prompts"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -71,7 +73,7 @@ func handleDesktopChessAgentMove(s *Server) http.HandlerFunc {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), desktopChessAgentTimeout)
 		defer cancel()
-		move, err := chooseDesktopChessAgentMove(ctx, s.LLMClient, model, body, legalMoves)
+		move, err := chooseDesktopChessAgentMove(budget.WithTracking(ctx, s.BudgetTracker, "chess"), s.LLMClient, model, body, legalMoves)
 		if err != nil {
 			if s.Logger != nil && !llm.IsContextError(err) {
 				s.Logger.Warn("Desktop chess agent move failed", "error", err)
@@ -142,7 +144,7 @@ func chooseDesktopChessAgentMove(ctx context.Context, client llm.ChatClient, mod
 			Temperature: 0.25,
 			MaxTokens:   120,
 		}
-		resp, err := client.CreateChatCompletion(ctx, llmReq)
+		resp, err := budget.CompleteChat(ctx, client, llmReq, llm.ModelRoute{Model: model}, "chess", 120, prompts.CountTokensForModelContext)
 		if err != nil {
 			return desktopChessAgentMoveResponse{}, fmt.Errorf("llm request failed: %w", err)
 		}

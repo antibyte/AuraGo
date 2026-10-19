@@ -56,6 +56,13 @@ func canonicalVaultSecretKey(key string) string {
 	return key
 }
 
+func reservedVaultSecretKey(key string) bool {
+	key = strings.ToLower(canonicalVaultSecretKey(strings.TrimSpace(key)))
+	return strings.HasPrefix(key, "auth_") || strings.HasPrefix(key, "auth.") ||
+		key == "aurago_master_key" || key == "master_key" || key == "internal_token" ||
+		strings.HasPrefix(key, "session_") || strings.HasPrefix(key, "session.")
+}
+
 func vaultSecretDeleteKeys(key string) []string {
 	key = canonicalVaultSecretKey(key)
 	keys := []string{key}
@@ -132,6 +139,10 @@ func handleSetVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Key = canonicalVaultSecretKey(req.Key)
+	if reservedVaultSecretKey(req.Key) {
+		jsonError(w, "Authentication and session secrets require the dedicated security settings workflow", http.StatusForbidden)
+		return
+	}
 	if req.Value == "" {
 		jsonError(w, "Secret value must not be empty", http.StatusBadRequest)
 		return
@@ -192,6 +203,10 @@ func handleDeleteVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	key = canonicalVaultSecretKey(key)
+	if reservedVaultSecretKey(key) {
+		jsonError(w, "Authentication and session secrets require the dedicated security settings workflow", http.StatusForbidden)
+		return
+	}
 	if key == config.MQTTPasswordVaultKey {
 		s.CfgSaveMu.Lock()
 		defer s.CfgSaveMu.Unlock()

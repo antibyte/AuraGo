@@ -944,13 +944,12 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 			return
 		}
 
-		// Python tool bridge requests are also internal loopback calls and authenticate
-		// via the same per-process X-Internal-Token. Without this exception the generic
-		// auth middleware intercepts /api/internal/tool-bridge/* first and returns the
-		// login redirect 401 before the dedicated tool-bridge handler can validate the
-		// token itself.
-		if (strings.HasPrefix(r.URL.Path, "/api/internal/tool-bridge/") ||
-			strings.HasPrefix(r.URL.Path, "/api/internal/missions/")) && isValidInternalLoopbackToken(r, s.internalToken) {
+		// A scoped broker capability authenticates only the tool bridge route.
+		if _, ok := s.bridgeGrant(r, false); ok {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/api/internal/missions/") && isValidInternalLoopbackToken(r, s.internalToken) {
 			next.ServeHTTP(w, r)
 			return
 		}

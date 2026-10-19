@@ -143,6 +143,9 @@ func flowRunOutcome(info flows.RunFinishedInfo) (string, string) {
 // flowMissionOutputMaxBytes long: on success the text of the bounded outputs, else the
 // run's error text, scrubbed and cut at a rune boundary.
 func flowOutcome(info flows.RunFinishedInfo, outputs flowRunOutputs) (string, string) {
+	if info.Result.ErrorCode == "FLOW_ACTION_RULE_REQUIRED" {
+		return tools.MissionResultBlocked, "action_rule_required"
+	}
 	switch info.Result.Status {
 	case flows.RunSuccess:
 		return tools.MissionResultSuccess, outputs.text

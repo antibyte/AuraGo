@@ -332,7 +332,7 @@ func TestDesktopChatHandlersUseDirectAgentLoopForStreaming(t *testing.T) {
 		"agent.ExecuteAgentLoop(llmCtx, turn.req, turn.runCfg, true, combinedBroker)",
 		"agent.ExecuteAgentLoop(ctx, turn.req, turn.runCfg, false, broker)",
 		"context.WithTimeout(ctx, desktopChatAgentTurnTimeout)",
-		"lockSessionRequest(desktopChatSessionID)",
+		"s.lockChatSessionTurn(r.Context(), desktopChatSessionID)",
 		"desktopChatSessionID               = \"virtual-desktop\"",
 		"desktopChatMessageSource           = \"virtual_desktop_chat\"",
 		"event == \"done\"",
