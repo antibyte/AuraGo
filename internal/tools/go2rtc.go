@@ -560,15 +560,6 @@ func (m *Go2RTCManager) fetchSnapshotBytes(ctx context.Context, streamID string,
 		}
 	}
 	query := url.Values{"src": {Go2RTCRuntimeStreamName(stream.ID)}}
-	if opts.Width > 0 {
-		query.Set("width", strconv.Itoa(opts.Width))
-	}
-	if opts.Height > 0 {
-		query.Set("height", strconv.Itoa(opts.Height))
-	}
-	if opts.Rotate != 0 {
-		query.Set("rotate", strconv.Itoa(opts.Rotate))
-	}
 	var contentType string
 	data, err := m.requestBytes(ctx, http.MethodGet, "/api/frame.jpeg?"+query.Encode(), nil, go2RTCMaxResponseBytes, &contentType)
 	if err != nil {
@@ -579,6 +570,10 @@ func (m *Go2RTCManager) fetchSnapshotBytes(ctx context.Context, streamID string,
 	}
 	if len(data) < 4 || data[0] != 0xff || data[1] != 0xd8 || data[len(data)-2] != 0xff || data[len(data)-1] != 0xd9 {
 		return config.Go2RTCStreamConfig{}, nil, false, fmt.Errorf("go2rtc returned invalid JPEG data (%d bytes)", len(data))
+	}
+	data, err = transformGo2RTCJPEG(data, opts)
+	if err != nil {
+		return config.Go2RTCStreamConfig{}, nil, false, err
 	}
 	if opts.CacheSeconds > 0 {
 		now := time.Now()

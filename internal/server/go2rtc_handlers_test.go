@@ -32,7 +32,7 @@ func TestGo2RTCProxyAllowlistBlocksMutationAndSensitiveAPIs(t *testing.T) {
 	}{
 		{"video-rtc.js", http.MethodGet, false, true},
 		{"api/frame.jpeg", http.MethodGet, false, true},
-		{"api/webrtc", http.MethodPost, false, true},
+		{"api/webrtc", http.MethodPost, false, false},
 		{"api/hls/playlist.m3u8", http.MethodGet, false, true},
 		{"api/hls/segment.m4s", http.MethodGet, false, true},
 		{"api/hls/arbitrary", http.MethodGet, false, false},
@@ -547,7 +547,7 @@ func TestGo2RTCAppStateNeverExposesSourcesOrDisabledStreamsToViewer(t *testing.T
 }
 
 func TestGo2RTCThumbnailUsesPrivateCacheAndETag(t *testing.T) {
-	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x01, 0xff, 0xd9}
+	jpeg := cameraTestJPEG()
 	upstreamCalls := 0
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upstreamCalls++

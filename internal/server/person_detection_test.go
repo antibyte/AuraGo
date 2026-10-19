@@ -173,9 +173,9 @@ func TestPersonDetectionConstantsMatchConfig(t *testing.T) {
 }
 
 func TestGo2RTCFrameSourceRequestsFullWidthFrames(t *testing.T) {
-	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x01, 0xff, 0xd9}
+	jpeg := cameraTestJPEG()
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/go2rtc/proxy/api/frame.jpeg" || r.URL.Query().Get("width") != "1280" || r.URL.Query().Get("src") != "aurago_front-door" {
+		if r.URL.Path != "/api/go2rtc/proxy/api/frame.jpeg" || r.URL.Query().Get("width") != "" || r.URL.Query().Get("src") != "aurago_front-door" {
 			t.Errorf("unexpected frame request: %s?%s", r.URL.Path, r.URL.RawQuery)
 		}
 		w.Header().Set("Content-Type", "image/jpeg")

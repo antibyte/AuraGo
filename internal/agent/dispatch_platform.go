@@ -676,12 +676,15 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			return "Tool Output: " + string(data)
 		case "go2rtc":
 			manager := tools.DefaultGo2RTCManager()
-			if manager == nil || !cfg.Go2RTC.Enabled || !cfg.Go2RTC.AgentAccess || !manager.Available() {
+			if manager == nil || !cfg.Go2RTC.AgentAccess {
 				return `Tool Output: {"status":"error","message":"go2rtc is not enabled for agent access or its API is unavailable."}`
 			}
 			operation := strings.ToLower(strings.TrimSpace(tc.Operation))
 			if operation == "" {
 				operation = strings.ToLower(strings.TrimSpace(toolArgString(tc.Params, "operation")))
+			}
+			if operation != "status" && (!cfg.Go2RTC.Enabled || !manager.Available()) {
+				return `Tool Output: {"status":"error","message":"go2rtc API is unavailable."}`
 			}
 			if isGo2RTCDetectionOperation(operation) {
 				return dispatchGo2RTCDetection(ctx, operation, tc, dc)

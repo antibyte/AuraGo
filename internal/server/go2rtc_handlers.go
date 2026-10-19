@@ -269,8 +269,8 @@ func handleGo2RTCViewer(s *Server) http.HandlerFunc {
 		modeJSON, _ := json.Marshal(mode)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self' 'nonce-"+nonce+"'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ws: wss:; frame-ancestors 'self';")
-		_, _ = fmt.Fprintf(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>%s</title><style>html,body{margin:0;width:100%%;height:100%%;background:#090b0f}video-stream{display:block;width:100%%;height:100%%;object-fit:contain}</style></head><body><script type="module" nonce="%s">import "/api/go2rtc/proxy/video-stream.js";const video=document.createElement("video-stream");video.src="/api/go2rtc/proxy/api/ws?src="+encodeURIComponent(%s);video.mode=%s;document.body.appendChild(video);</script></body></html>`, html.EscapeString(streamID), nonce, streamJSON, modeJSON)
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self' 'nonce-"+nonce+"'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' ws: wss:; frame-ancestors 'self';")
+		_, _ = fmt.Fprintf(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>%s</title><style>html,body{margin:0;width:100%%;height:100%%;background:#090b0f}video-stream{display:block;width:100%%;height:100%%;object-fit:contain}</style></head><body><script type="module" nonce="%s">import "/api/go2rtc/proxy/video-stream.js";const video=document.createElement("video-stream");video.pcConfig={bundlePolicy:"max-bundle",iceServers:[]};video.src="/api/go2rtc/proxy/api/ws?src="+encodeURIComponent(%s);video.mode=%s;document.body.appendChild(video);</script></body></html>`, html.EscapeString(streamID), nonce, streamJSON, modeJSON)
 	}
 }
 
@@ -328,6 +328,10 @@ func handleGo2RTCProxy(s *Server) http.HandlerFunc {
 			}
 			query.Set("src", alias)
 			r.URL.RawQuery = query.Encode()
+		}
+		if subpath == "api/ws" {
+			bridgeGo2RTCWebSocket(s, w, r, query.Get("src"))
+			return
 		}
 		target, err := manager.ProxyTarget()
 		if err != nil {
@@ -443,7 +447,7 @@ func go2RTCProxyPathAllowed(path, method string, adminUI bool) bool {
 		path == "api/hls/init.mp4", path == "api/hls/segment.m4s":
 		return method == http.MethodGet || method == http.MethodHead
 	case path == "api/webrtc":
-		return method == http.MethodPost || method == http.MethodOptions
+		return false
 	default:
 		return false
 	}

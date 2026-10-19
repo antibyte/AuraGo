@@ -330,7 +330,7 @@ func TestGo2RTCConcurrentCredentialInitializationReturnsOnePassword(t *testing.T
 
 func TestGo2RTCSnapshotValidatesJPEGAndCaches(t *testing.T) {
 	const password = "internal-password"
-	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x00, 0xff, 0xd9}
+	jpeg := go2RTCTestJPEG(80, 40)
 	var calls atomic.Int32
 	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, gotPassword, ok := r.BasicAuth()
@@ -342,7 +342,7 @@ func TestGo2RTCSnapshotValidatesJPEGAndCaches(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
-		if r.URL.Query().Get("src") != "aurago_front-door" || r.URL.Query().Get("width") != "640" || r.URL.Query().Get("rotate") != "90" {
+		if r.URL.Query().Get("src") != "aurago_front-door" || r.URL.Query().Get("width") != "" || r.URL.Query().Get("rotate") != "" {
 			http.Error(w, "bad query", http.StatusBadRequest)
 			return
 		}
@@ -365,13 +365,13 @@ func TestGo2RTCSnapshotValidatesJPEGAndCaches(t *testing.T) {
 	if first.Stored || first.Cached || !second.Cached || calls.Load() != 1 {
 		t.Fatalf("unexpected snapshot/cache results: first=%+v second=%+v calls=%d", first, second, calls.Load())
 	}
-	if string(firstData) != string(jpeg) || string(secondData) != string(jpeg) || first.SHA256 == "" {
+	if string(firstData) != string(secondData) || first.SHA256 == "" {
 		t.Fatal("snapshot bytes or hash mismatch")
 	}
 }
 
 func TestGo2RTCSnapshotCacheIsBounded(t *testing.T) {
-	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x00, 0xff, 0xd9}
+	jpeg := go2RTCTestJPEG(80, 40)
 	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "image/jpeg")
 		_, _ = w.Write(jpeg)
@@ -460,7 +460,7 @@ func TestGo2RTCSnapshotRejectsUnexpectedContent(t *testing.T) {
 
 func TestGo2RTCSnapshotStoresAndDeduplicatesMediaRegistryEntry(t *testing.T) {
 	const password = "internal-password"
-	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x01, 0xff, 0xd9}
+	jpeg := go2RTCTestJPEG(80, 40)
 	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "image/jpeg")
 		_, _ = w.Write(jpeg)
@@ -495,7 +495,7 @@ func TestGo2RTCSnapshotStoresAndDeduplicatesMediaRegistryEntry(t *testing.T) {
 }
 
 func TestGo2RTCSnapshotBytesNeverStoresMedia(t *testing.T) {
-	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x01, 0xff, 0xd9}
+	jpeg := go2RTCTestJPEG(80, 40)
 	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "image/jpeg")
 		_, _ = w.Write(jpeg)

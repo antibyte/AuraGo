@@ -400,6 +400,8 @@ Server-owned HTTP and cross-component integration contracts.
 - Camera snapshot and stream APIs must enforce `three_d_printers.enabled`. Klipper snapshots prefer Moonraker `snapshot_url`; live streams require a valid HTTP(S) `stream_url` on the configured printer host.
 
 ### go2rtc Integration Contract
+- Viewer WebSockets terminate at AuraGo: allow only the pinned player's messages and receive-only SDP; microphone audio requires a separate authorized talk session. HTTP WebRTC exchange is not proxied. Viewer CSP permits the player's data media and the browser uses no public ICE servers. Verify `TestGo2RTCSignalDirections` and the full-route camera security tests.
+- Snapshot resizing and rotation are performed on bounded JPEGs in AuraGo, regardless of the camera's source codec. No requested transform keeps original bytes; transformed images fit the requested bounds without enlargement.
 - A go2rtc status probe publishes and returns its current failure state; never reuse an earlier successful API status after a failed probe.
 - AuraGo manages only its own pinned go2rtc Docker sidecar. API/UI port 1984 is loopback-only for native AuraGo and Docker-internal for containerized AuraGo; RTSP port 8554 is never host-published.
 - Stream source URLs and the internal API password are Vault-only. Generated go2rtc configuration must contain neither sources nor plaintext credentials; inject enabled sources through the authenticated runtime stream API after startup.
