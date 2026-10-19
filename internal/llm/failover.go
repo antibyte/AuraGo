@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -16,16 +17,17 @@ import (
 type FailoverManager struct {
 	mu sync.RWMutex
 
-	primary        *openai.Client
-	fallback       *openai.Client
-	primaryType    string
-	fallbackType   string
-	primaryModel   string
-	fallbackModel  string
-	primaryBaseURL string
-	primaryAPIKey  string
-	primaryRoute   ModelRoute
-	fallbackRoute  ModelRoute
+	primary          *openai.Client
+	fallback         *openai.Client
+	primaryType      string
+	fallbackType     string
+	primaryModel     string
+	fallbackModel    string
+	primaryBaseURL   string
+	primaryAPIKey    string
+	primaryProbeHTTP *http.Client
+	primaryRoute     ModelRoute
+	fallbackRoute    ModelRoute
 
 	isOnFallback       bool
 	errorCount         int
@@ -43,15 +45,16 @@ type FailoverManager struct {
 }
 
 type failoverProbeSnapshot struct {
-	route          ModelRoute
-	recorder       func(context.Context, ModelRoute, openai.ChatCompletionRequest, *UsageCapture, openai.ChatCompletionResponse)
-	generation     int
-	onFallback     bool
-	primaryClient  *openai.Client
-	primaryType    string
-	primaryModel   string
-	primaryBaseURL string
-	primaryAPIKey  string
+	route            ModelRoute
+	recorder         func(context.Context, ModelRoute, openai.ChatCompletionRequest, *UsageCapture, openai.ChatCompletionResponse)
+	generation       int
+	onFallback       bool
+	primaryClient    *openai.Client
+	primaryType      string
+	primaryModel     string
+	primaryBaseURL   string
+	primaryAPIKey    string
+	primaryProbeHTTP *http.Client
 }
 
 // FailoverOption customizes client construction without changing existing callers.
@@ -102,6 +105,7 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger, options ...Fail
 		option(fm)
 	}
 	fm.primary = fm.clientFactory(cfg)
+	fm.primaryBaseURL, fm.primaryProbeHTTP = primaryProbeTransport(cfg)
 
 	fb := cfg.FallbackLLM
 	if !fb.Enabled || (fb.BaseURL == "" && fb.AccountID == "") {
@@ -145,6 +149,7 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 	fm.Stop()
 
 	newPrimary := fm.clientFactory(cfg)
+	probeBaseURL, probeHTTP := primaryProbeTransport(cfg)
 	newStopCh := make(chan struct{})
 
 	fm.mu.Lock()
@@ -153,7 +158,8 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 	fm.probeInterval = 60 * time.Second
 	fm.primaryType = cfg.LLM.ProviderType
 	fm.primaryModel = cfg.LLM.Model
-	fm.primaryBaseURL = cfg.LLM.BaseURL
+	fm.primaryBaseURL = probeBaseURL
+	fm.primaryProbeHTTP = probeHTTP
 	fm.primaryAPIKey = cfg.LLM.APIKey
 	fm.primaryRoute = modelRouteFromConfig(cfg, false)
 	fm.isOnFallback = false
@@ -585,7 +591,7 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 
 // Metadata availability alone cannot confirm that generation has recovered.
 func probePrimaryGeneration(ctx context.Context, snapshot failoverProbeSnapshot) error {
-	err := probePrimaryHealth(ctx, snapshot.primaryClient, snapshot.primaryType, snapshot.primaryBaseURL, snapshot.primaryAPIKey)
+	err := probePrimaryHealth(ctx, snapshot.primaryClient, snapshot.primaryType, snapshot.primaryBaseURL, snapshot.primaryAPIKey, snapshot.primaryProbeHTTP)
 	if err != nil && !IsProbeInconclusive(err) {
 		return err
 	}
@@ -613,13 +619,14 @@ func (fm *FailoverManager) primaryProbeSnapshot() failoverProbeSnapshot {
 	defer fm.mu.RUnlock()
 	return failoverProbeSnapshot{
 		route: fm.primaryRoute, recorder: fm.probeUsageRecorder,
-		generation:     fm.generation,
-		onFallback:     fm.isOnFallback,
-		primaryClient:  fm.primary,
-		primaryType:    fm.primaryType,
-		primaryModel:   fm.primaryModel,
-		primaryBaseURL: fm.primaryBaseURL,
-		primaryAPIKey:  fm.primaryAPIKey,
+		generation:       fm.generation,
+		onFallback:       fm.isOnFallback,
+		primaryClient:    fm.primary,
+		primaryType:      fm.primaryType,
+		primaryModel:     fm.primaryModel,
+		primaryBaseURL:   fm.primaryBaseURL,
+		primaryAPIKey:    fm.primaryAPIKey,
+		primaryProbeHTTP: fm.primaryProbeHTTP,
 	}
 }
 

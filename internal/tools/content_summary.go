@@ -19,6 +19,7 @@ import (
 // SummaryLLMConfig holds the credentials for the summary LLM call,
 // decoupled from any specific tool's config section.
 type SummaryLLMConfig struct {
+	Config       *config.Config
 	ProviderID   string
 	ProviderType string
 	AccountID    string
@@ -40,6 +41,7 @@ const maxSummaryPromptContentChars = 12000
 func ResolveSummaryLLMConfig(cfg *config.Config, fallback SummaryLLMConfig) SummaryLLMConfig {
 	if helperCfg := llm.ResolveHelperLLM(cfg); helperCfg.Enabled && helperCfg.Model != "" {
 		return SummaryLLMConfig{
+			Config:     cfg,
 			APIKey:     helperCfg.APIKey,
 			BaseURL:    helperCfg.BaseURL,
 			Model:      helperCfg.Model,
@@ -56,6 +58,7 @@ func ResolveSummaryLLMConfig(cfg *config.Config, fallback SummaryLLMConfig) Summ
 			}
 		}
 	}
+	fallback.Config = cfg
 	return fallback
 }
 
@@ -129,10 +132,7 @@ func SummariseContent(ctx context.Context, llmCfg SummaryLLMConfig, logger *slog
 	}
 
 	baseURL := strings.TrimRight(llmCfg.BaseURL, "/")
-	if baseURL != "" && !strings.Contains(baseURL, "/v1") {
-		baseURL += "/v1"
-	}
-	client := llm.NewClientFromProviderWithConfig(nil, llmCfg.ProviderType, baseURL, apiKey, llmCfg.AccountID)
+	client := llm.NewClientFromProviderWithConfig(llmCfg.Config, llmCfg.ProviderType, baseURL, apiKey, llmCfg.AccountID)
 
 	req := openai.ChatCompletionRequest{
 		Model: llmCfg.Model,

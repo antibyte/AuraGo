@@ -469,7 +469,7 @@ func (t *anthropicTransport) RoundTrip(req *http.Request) (*http.Response, error
 	// (without /v1) cause go-openai to produce a bare /chat/completions path,
 	// which would land on /messages instead of the required /v1/messages.
 	newPath := strings.Replace(clone.URL.Path, "/chat/completions", "/messages", 1)
-	if !strings.Contains(newPath, "/v1/") && strings.HasSuffix(newPath, "/messages") {
+	if !strings.HasSuffix(newPath, "/v1/messages") && strings.HasSuffix(newPath, "/messages") {
 		newPath = newPath[:len(newPath)-len("/messages")] + "/v1/messages"
 	}
 	clone.URL.Path = newPath

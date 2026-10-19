@@ -189,6 +189,7 @@ func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.Clie
 			accountID,
 		)
 	}
+	logicalBaseURL := clientConfig.BaseURL
 
 	if cfg != nil && cfg.AIGateway.Enabled && cfg.AIGateway.AccountID != "" && cfg.AIGateway.GatewayID != "" && !isLocal {
 		route := ResolveAIGatewayRoute(cfg, providerType, accountID, baseURLRaw)
@@ -206,11 +207,14 @@ func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.Clie
 			transport = &manifestRoutingTransport{base: transport, routing: cfg.Manifest.Routing}
 		}
 		clientConfig.HTTPClient = &http.Client{Transport: transport, CheckRedirect: httporigin.SameOriginRedirect}
-	} else if httpClient := buildLLMHTTPClient(cfg, providerType, aiGatewayToken, clientConfig.BaseURL); httpClient != nil {
+	} else if httpClient := buildLLMHTTPClient(cfg, providerType, aiGatewayToken, clientConfig.BaseURL, logicalBaseURL); httpClient != nil {
 		clientConfig.HTTPClient = httpClient
 	}
 	if client, ok := clientConfig.HTTPClient.(*http.Client); ok {
 		client.Transport = &providerURLTransport{base: &responseTimeoutTransport{base: client.Transport, timeout: 3 * time.Minute}}
+		if providerType == "workers-ai" && accountID == "" && baseURLRaw == "" {
+			client.Transport = invalidProviderTransport{message: "Workers AI requires an explicit provider account ID"}
+		}
 	}
 
 	return clientConfig
@@ -336,9 +340,17 @@ func NewClientFromProviderWithConfig(cfg *config.Config, providerType, baseURL, 
 	return openai.NewClientWithConfig(buildOpenAIClientConfig(cfg, p))
 }
 
-func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseURL string) *http.Client {
+func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseURL string, logicalURLs ...string) *http.Client {
+	logicalBaseURL := baseURL
+	if len(logicalURLs) > 0 {
+		logicalBaseURL = logicalURLs[0]
+	}
 	headerTimeout := responseHeaderTimeoutForProvider(cfg, providerType)
-	transport := http.RoundTripper(defaultLLMHTTPTransport(headerTimeout))
+	httpTransport := defaultLLMHTTPTransport(headerTimeout)
+	if cfg != nil && cfg.AIGateway.Enabled && isAIGatewayRoutedBaseURL(providerType, baseURL) {
+		httpTransport.ResponseHeaderTimeout = effectiveAIGatewayTimeout(cfg, providerType)
+	}
+	transport := http.RoundTripper(httpTransport)
 
 	// Log the configured transport timeout so operators can verify that
 	// large-prompt scenarios (Virtual Desktop) get a sufficiently long
@@ -364,7 +376,7 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 		transport = &agnesThinkingTransport{base: transport}
 	}
 
-	if shouldUseOpenAIPromptCacheKey(providerType, baseURL) {
+	if shouldUseOpenAIPromptCacheKey(providerType, logicalBaseURL) {
 		transport = &openAIPromptCacheTransport{base: transport}
 	}
 
@@ -391,13 +403,13 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 	if providerType == "manifest" && cfg != nil {
 		transport = &manifestRoutingTransport{base: transport, routing: cfg.Manifest.Routing}
 	}
-	directStepFun := providerType == "stepfun" || isStepFunAPIBaseURL(baseURL)
+	directStepFun := providerType == "stepfun" || isStepFunAPIBaseURL(logicalBaseURL)
 	if directStepFun || providerType == "openrouter" {
 		transport = &stepFunChatMessageTransport{base: transport, direct: directStepFun}
 	}
 	transport = &leadingSystemTransport{base: transport}
 	transport = &usageObservationTransport{base: transport, provider: providerType, directStepFun: directStepFun,
-		pricedRoute: knownMeteredUsageRoute(providerType, baseURL)}
+		pricedRoute: knownMeteredUsageRoute(providerType, logicalBaseURL)}
 
 	// Always return a custom HTTP client so every provider gets proper
 	// ResponseHeaderTimeout and transport settings.  Using nil here caused
@@ -567,7 +579,8 @@ func ResolveAIGatewayRoute(cfg *config.Config, providerType, providerAccountID s
 	if provider == "workers-ai" {
 		workersAccountID := strings.TrimSpace(providerAccountID)
 		if workersAccountID == "" {
-			workersAccountID = accountID
+			route.Message = "Workers AI requires an explicit provider account ID"
+			return route
 		}
 		route.Status = "configured"
 		route.Message = "AI Gateway route configured"
@@ -621,6 +634,7 @@ type aiGatewayAuthTransport struct {
 	gatewayID        string
 	collectLog       bool
 	collectPayload   bool
+	logMode          string
 	metadata         map[string]string
 	requestTimeoutMS int
 	maxAttempts      int
@@ -752,7 +766,10 @@ func (t *aiGatewayAuthTransport) RoundTrip(req *http.Request) (*http.Response, e
 	if strings.TrimSpace(t.gatewayID) != "" {
 		clone.Header.Set("cf-aig-gateway-id", strings.TrimSpace(t.gatewayID))
 	}
-	clone.Header.Set("cf-aig-collect-log", strconv.FormatBool(t.collectLog))
+	clone.Header.Del("cf-aig-collect-log")
+	if t.collectLog || !t.collectPayload && t.logMode == "off" {
+		clone.Header.Set("cf-aig-collect-log", strconv.FormatBool(t.collectLog))
+	}
 	clone.Header.Set("cf-aig-collect-log-payload", strconv.FormatBool(t.collectPayload))
 	if len(t.metadata) > 0 {
 		if raw, err := json.Marshal(t.metadata); err == nil {
@@ -760,20 +777,16 @@ func (t *aiGatewayAuthTransport) RoundTrip(req *http.Request) (*http.Response, e
 		}
 	}
 	if t.requestTimeoutMS > 0 {
-		clone.Header.Set("cf-aig-request-timeout", strconv.Itoa(t.requestTimeoutMS))
+		timeoutMS := t.requestTimeoutMS
+		if deadline, ok := req.Context().Deadline(); ok {
+			timeoutMS = min(timeoutMS, max(1, int(time.Until(deadline).Milliseconds())))
+		}
+		clone.Header.Set("cf-aig-request-timeout", strconv.Itoa(timeoutMS))
 	}
-	if t.maxAttempts > 0 {
-		clone.Header.Set("cf-aig-max-attempts", strconv.Itoa(t.maxAttempts))
-	}
-	if single, _ := req.Context().Value(singleCompletionAttemptKey{}).(bool); single {
-		clone.Header.Set("cf-aig-max-attempts", "1")
-	}
-	if t.retryDelayMS > 0 {
-		clone.Header.Set("cf-aig-retry-delay", strconv.Itoa(t.retryDelayMS))
-	}
-	if strings.TrimSpace(t.backoff) != "" {
-		clone.Header.Set("cf-aig-backoff", strings.TrimSpace(t.backoff))
-	}
+	// AuraGo owns retries, including Retry-After and failover. Never multiply them.
+	clone.Header.Set("cf-aig-max-attempts", "1")
+	clone.Header.Del("cf-aig-retry-delay")
+	clone.Header.Del("cf-aig-backoff")
 
 	base := t.base
 	if base == nil {
@@ -791,8 +804,9 @@ func aiGatewayTransportFromConfig(cfg *config.Config, providerType, aiGatewayTok
 	gw := cfgCopy.AIGateway
 	transport := &aiGatewayAuthTransport{
 		base:             base,
+		logMode:          gw.LogMode,
 		metadata:         gw.Metadata,
-		requestTimeoutMS: gw.RequestTimeoutMS,
+		requestTimeoutMS: effectiveAIGatewayRequestTimeoutMS(cfg, providerType),
 		maxAttempts:      gw.MaxAttempts,
 		retryDelayMS:     gw.RetryDelayMS,
 		backoff:          gw.Backoff,
@@ -805,7 +819,7 @@ func aiGatewayTransportFromConfig(cfg *config.Config, providerType, aiGatewayTok
 		transport.collectLog = true
 		transport.collectPayload = true
 	default:
-		transport.collectLog = true
+		transport.collectLog = false
 		transport.collectPayload = false
 	}
 	if strings.ToLower(strings.TrimSpace(providerType)) == "workers-ai" {
