@@ -65,10 +65,14 @@ The agent's `pull` operation accepts a background download immediately; use
 the full response. `unknown` means the response was lost or interrupted: inspect
 the installed models before explicitly trying again. Such writes are never
 automatically replayed. Automatic and agent pulls share concurrent work for the
-same endpoint and model. At most four top-level operations are admitted; up to
-128 process-local receipts are retained. After restart an absent receipt is
-unknown, not success. Disabling or changing configuration cancels obsolete work;
-server shutdown cancels and drains its requests.
+same endpoint and model. Four ordinary operation slots and 128 process-local
+receipts are available, with two additional reserved slots and receipts for
+stopping the managed instances. Stops remain available while downloads drain or
+uncertain receipts fill history. After restart an absent receipt is unknown,
+not success. Configuration changes cancel only the affected role: changing
+inference settings preserves embedding work and its visible status, and vice
+versa. External tool downloads do not depend on Docker permissions. Server
+shutdown cancels and drains all requests.
 
 The embeddings settings display managed Ollama download and failure states.
 Embedding requests may fail until their model is available; the process need

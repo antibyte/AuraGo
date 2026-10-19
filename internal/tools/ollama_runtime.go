@@ -34,6 +34,7 @@ type ollamaWork struct {
 	key       string
 	revision  string
 	ctx       context.Context
+	cancel    context.CancelFunc
 	done      chan struct{}
 	apiReady  chan struct{}
 	readyOnce sync.Once
@@ -60,6 +61,8 @@ type ollamaRuntime struct {
 	mu           sync.Mutex
 	ctx          context.Context
 	cancel       context.CancelFunc
+	owner        context.Context
+	releaseOwner func() bool
 	revision     string
 	stopped      bool
 	cfg          *config.Config
@@ -75,9 +78,29 @@ var ollamaRuntimeWork = &ollamaRuntime{jobs: map[string]*ollamaWork{}, active: m
 var ollamaReceiptPrefix = rand.Text()[:12]
 
 func ollamaConfigRevision(cfg *config.Config) string {
-	b, _ := json.Marshal([]any{cfg.Ollama, cfg.Embeddings.LocalOllama, cfg.Docker, cfg.Runtime.IsDocker})
+	return ollamaRevision(cfg.Ollama, cfg.Embeddings.LocalOllama, cfg.Docker, cfg.Runtime.IsDocker)
+}
+
+func ollamaRevision(inputs ...any) string {
+	b, _ := json.Marshal(inputs)
 	s := sha256.Sum256(b)
 	return hex.EncodeToString(s[:])
+}
+
+// The admission fence covers all settings; each worker only owns its role.
+func ollamaJobRevision(cfg *config.Config, container string) string {
+	var settings any = cfg.Ollama
+	switch container {
+	case ollamaManagedContainerName:
+		settings = cfg.Ollama.ManagedInstance
+	case ollamaEmbContainerName:
+		settings = cfg.Embeddings.LocalOllama
+	default:
+		if !cfg.Ollama.ManagedInstance.Enabled {
+			return ollamaRevision(cfg.Ollama.Enabled, cfg.Ollama.ReadOnly, strings.TrimRight(cfg.Ollama.URL, "/"))
+		}
+	}
+	return ollamaRevision(settings, cfg.Docker.Enabled, cfg.Docker.ReadOnly, cfg.Docker.Host, cfg.Runtime.IsDocker)
 }
 
 // ConfigureOllamaRuntime publishes the admission fence before config side effects.
@@ -89,16 +112,31 @@ func ConfigureOllamaRuntime(owner context.Context, cfg *config.Config) {
 	if w.stopped {
 		return
 	}
-	rev := ollamaConfigRevision(cfg)
-	if w.revision != rev || w.ctx == nil || w.ctx.Err() != nil {
+	if owner == nil {
+		owner = context.Background()
+	}
+	if w.ctx == nil || w.ctx.Err() != nil {
 		if w.cancel != nil {
 			w.cancel()
 		}
-		if owner == nil {
-			owner = context.Background()
+		w.ctx, w.cancel = context.WithCancel(context.Background())
+		w.owner = nil
+	}
+	if w.owner != owner {
+		if w.releaseOwner != nil {
+			w.releaseOwner()
 		}
-		w.ctx, w.cancel = context.WithCancel(owner)
-		w.revision = rev
+		w.owner = owner
+		w.releaseOwner = context.AfterFunc(owner, w.cancel)
+	}
+	if owner.Err() != nil {
+		w.cancel()
+	}
+	w.revision = ollamaConfigRevision(cfg)
+	for _, job := range w.active {
+		if job.cancel != nil && job.revision != ollamaJobRevision(cfg, job.Container) {
+			job.cancel()
+		}
 	}
 	copy := *cfg
 	if w.pendingStops == nil {
@@ -155,6 +193,9 @@ func ShutdownOllamaRuntime() {
 	w := ollamaRuntimeWork
 	w.mu.Lock()
 	w.stopped = true
+	if w.releaseOwner != nil {
+		w.releaseOwner()
+	}
 	if w.cancel != nil {
 		w.cancel()
 	}
@@ -162,16 +203,25 @@ func ShutdownOllamaRuntime() {
 	w.wg.Wait()
 }
 
-func (w *ollamaRuntime) start(revision, key, model, container string, run func(*ollamaWork) error, explicitRecovery ...bool) (OllamaOperation, error) {
+type ollamaWorkOptions struct {
+	explicitRecovery bool
+	stop             bool
+}
+
+func (w *ollamaRuntime) start(revision, key, model, container string, run func(*ollamaWork) error, options ...ollamaWorkOptions) (OllamaOperation, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	var opts ollamaWorkOptions
+	if len(options) > 0 {
+		opts = options[0]
+	}
 	if w.stopped || w.ctx == nil || w.ctx.Err() != nil || revision != w.revision {
 		return OllamaOperation{}, fmt.Errorf("Ollama configuration changed or runtime stopped; refresh saved settings")
 	}
 	if job := w.active[key]; job != nil && job.ctx.Err() == nil {
 		return ollamaReceipt(job), nil
 	}
-	if len(explicitRecovery) == 0 || !explicitRecovery[0] {
+	if !opts.explicitRecovery {
 		var latest *ollamaWork
 		for _, job := range w.jobs {
 			if (job.key == key || container != "" && job.Container == container) && (latest == nil || latest.Updated.Before(job.Updated)) {
@@ -182,12 +232,19 @@ func (w *ollamaRuntime) start(revision, key, model, container string, run func(*
 			return ollamaReceipt(latest), nil
 		}
 	}
-	if len(w.active) >= 4 {
+	activeLimit, historyLimit := 4, 128
+	if opts.stop {
+		// One reserved slot per managed role keeps containment available while
+		// ordinary work drains, including when uncertain receipts fill history.
+		activeLimit += 2
+		historyLimit += 2
+	}
+	if len(w.active) >= activeLimit {
 		return OllamaOperation{}, fmt.Errorf("Ollama is busy; wait for active operations")
 	}
 	// Retain terminal receipts until the bounded history is full. Active jobs
 	// are never evicted and cannot turn into a false successful receipt.
-	if len(w.jobs) >= 128 {
+	for len(w.jobs) >= historyLimit {
 		var oldest *ollamaWork
 		for _, job := range w.jobs {
 			select {
@@ -209,7 +266,11 @@ func (w *ollamaRuntime) start(revision, key, model, container string, run func(*
 	}
 	w.sequence++
 	ctx, cancel := context.WithTimeout(w.ctx, 30*time.Minute)
-	job := &ollamaWork{OllamaOperation: OllamaOperation{ID: fmt.Sprintf("ollama-%s-%d", ollamaReceiptPrefix, w.sequence), State: "queued", Model: model, Container: container, Updated: time.Now().UTC()}, key: key, revision: revision, ctx: ctx, done: make(chan struct{}), apiReady: make(chan struct{})}
+	jobRevision := revision
+	if w.cfg != nil {
+		jobRevision = ollamaJobRevision(w.cfg, container)
+	}
+	job := &ollamaWork{OllamaOperation: OllamaOperation{ID: fmt.Sprintf("ollama-%s-%d", ollamaReceiptPrefix, w.sequence), State: "queued", Model: model, Container: container, Updated: time.Now().UTC()}, key: key, revision: jobRevision, ctx: ctx, cancel: cancel, done: make(chan struct{}), apiReady: make(chan struct{})}
 	w.jobs[job.ID], w.active[key] = job, job
 	w.wg.Add(1)
 	go func() {
@@ -264,8 +325,12 @@ func OllamaOperations(container string) []OllamaOperation {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	result := []OllamaOperation{}
+	revision := w.revision
+	if container != "" && w.cfg != nil {
+		revision = ollamaJobRevision(w.cfg, container)
+	}
 	for _, job := range w.jobs {
-		if container != "" && job.revision != w.revision {
+		if container != "" && job.revision != revision {
 			continue
 		}
 		if container == "" || job.Container == container {
@@ -301,7 +366,7 @@ func StartOllamaReconcile(cfg *config.Config, embeddings, force bool, logger oll
 			logger.Error("[Ollama] Managed initialization failed", "container", name, "error", dockerutil.SanitizeOneLine(security.RedactSensitiveInfo(err.Error()), 400))
 		}
 		return err
-	}, force)
+	}, ollamaWorkOptions{explicitRecovery: force})
 }
 
 func StartOllamaStop(cfg *config.Config, embeddings bool) (OllamaOperation, error) {
@@ -345,7 +410,7 @@ func StartOllamaStop(cfg *config.Config, embeddings bool) (OllamaOperation, erro
 		}
 		ollamaRuntimeWork.phase(job, "stopped")
 		return nil
-	}, true)
+	}, ollamaWorkOptions{explicitRecovery: true, stop: true})
 }
 
 func ensureOllamaRuntime(cfg *config.Config, embeddings bool, logger ollamaEnsureLogger) {
