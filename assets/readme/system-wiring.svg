@@ -1,99 +1,145 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1100" viewBox="0 0 1200 1100" role="img" aria-labelledby="title desc">
-  <title id="title">Follow the cables: how AuraGo's systems connect</title>
-  <desc id="desc">Chat and automation triggers reach the agent loop. The loop uses model providers, retrieved memory and personality guidance, and can delegate subtasks to co-agents. Tool calls pass through integration permissions and Danger Zone gates. Handlers use vault credentials to operate enabled infrastructure, workspaces and media services, returning results to the loop. Channels and workers retain their own access rules.</desc>
-  <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9" fill="none" stroke="#5de4ce" stroke-width="2"/></marker>
-    <marker id="gold" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9" fill="none" stroke="#ffc477" stroke-width="2"/></marker>
-    <style>
-      text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;fill:#f6f0df}
-      .heading{font-size:29px;font-weight:750;letter-spacing:1px}
-      .body{font-size:24px;fill:#cbd3e4}
-      .note{font-size:22px;fill:#b5c1d6}
-      .wire{fill:none;stroke:#5de4ce;stroke-width:3;stroke-linejoin:round;marker-end:url(#arrow)}
-      .return{marker-start:url(#arrow)}
-      .guide{fill:none;stroke:#ffc477;stroke-width:3;stroke-dasharray:7 6;stroke-linejoin:round;marker-end:url(#gold)}
-      .panel{fill:#192439;stroke:#42536d;stroke-width:2}
-    </style>
-  </defs>
-  <rect width="1200" height="1100" rx="22" fill="#101827"/>
-  <text x="40" y="67" font-size="48" font-weight="800">Follow the cables.</text>
-  <text x="42" y="104" class="body">The agent loop, its memory, and the things it can actually do.</text>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 896" width="1200" height="896" role="img" aria-labelledby="architecture-title architecture-desc" id="architecture-root">
+      <title id="architecture-title">AuraGo architecture</title>
+      <desc id="architecture-desc">Web and AgoDesk clients use the HTTP server, messages and scheduled jobs enter the agent runtime, and the Go backend connects local or hosted models, local storage, gated tools, optional execution runtimes and home-lab or cloud integrations.</desc>
+      <defs>
+      <style>#architecture-root { --paper: #101827;
+      --surface: #192439;
+      --ink: #f6f0df;
+      --muted: #cbd3e4;
+      --soft: #b5c1d6;
+      --rule: #657590;
+      --accent: #5de4ce;
+      --accent-tint: #163731;
+      --sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+      --serif: 'Instrument Serif', Georgia, serif; }
+      #architecture-root { color: var(--ink); font-family: var(--sans); }
+      #architecture-root .intro { max-width: 76ch; margin: 12px 24px 24px; color: var(--muted); line-height: 1.6; }
+      #architecture-root .diagram-container { width: 100%; overflow-x: auto; }
+      #architecture-root text { font-family: var(--sans); fill: var(--ink); }
+      #architecture-root .figure-title { font-family: var(--serif); font-size: 40px; font-weight: 400; }
+      #architecture-root .figure-subtitle { font-size: 20px; fill: var(--muted); }
+      #architecture-root .node-name { font-size: 24px; font-weight: 600; }
+      #architecture-root .node-copy { font-size: 20px; fill: var(--muted); }
+      #architecture-root .technical { font-family: var(--mono); font-size: 18px; fill: var(--muted); }
+      #architecture-root .tag { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; fill: var(--soft); }
+      #architecture-root .node { fill: var(--surface); stroke: var(--rule); stroke-width: 1.5; }
+      #architecture-root .focal { fill: var(--accent-tint); stroke: var(--accent); stroke-width: 1.5; }
+      #architecture-root .focal-name { fill: var(--accent); }
+      #architecture-root .zone { fill: none; stroke: var(--soft); stroke-width: 1.2; stroke-dasharray: 6 6; }
+      #architecture-root .wire { fill: none; stroke: var(--muted); stroke-width: 2; marker-end: url(#architecture-arrow); }
+      #architecture-root .optional-wire { stroke-dasharray: 6 6; }
+      #architecture-root .arrow-label { font-family: var(--mono); font-size: 12px; letter-spacing: .5px; fill: var(--soft); text-anchor: middle; }
+      #architecture-root .legend { font-size: 16px; fill: var(--muted); }
+      #architecture-root .notes { margin: 20px 24px 40px; max-width: 80ch; color: var(--muted); font-size: 16px; line-height: 1.6; }
+      #architecture-root .notes strong { color: var(--ink); }
+      #architecture-root .diagram-container { overflow-x: visible; }
+      #architecture-root h1, #architecture-root .intro, #architecture-root .notes { display: none; }</style>
+        <marker id="architecture-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#cbd3e4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+      <rect x="0" y="0" width="1200" height="896" fill="#101827"/>
+      <text x="56" y="72" class="figure-title">One gopher. Connected systems.</text>
+      <text x="56" y="108" class="figure-subtitle">A local core, your choice of models, and tools with explicit permissions.</text>
 
-  <!-- Channels and triggers are separate admission paths, not identical trust scopes. -->
-  <rect class="panel" x="40" y="145" width="340" height="120" rx="12"/>
-  <text class="heading" x="60" y="184">YOU</text>
-  <text class="body" x="60" y="218">Chat · Desktop · Messengers</text>
-  <text class="body" x="60" y="248">Voice · MeshCore radio</text>
-  <rect class="panel" x="430" y="145" width="340" height="120" rx="12"/>
-  <text class="heading" x="450" y="184">TRIGGERS</text>
-  <text class="body" x="450" y="218">Missions · Schedules</text>
-  <text class="body" x="450" y="248">Webhooks · Events</text>
-  <rect class="panel" x="820" y="145" width="340" height="120" rx="12"/>
-  <text class="heading" x="840" y="184">MODEL PROVIDERS</text>
-  <text class="body" x="840" y="218">Local or hosted models</text>
-  <text class="body" x="840" y="248">Requests ↔ responses</text>
-  <path class="wire return" d="M210 274V300H480V338"/>
-  <path class="wire" d="M600 274V338"/>
-  <path class="wire return" d="M990 274V300H725V338"/>
+      <!-- This boundary names a process, not a shared authorization scope. -->
+      <rect x="40" y="332" width="1120" height="224" rx="8" class="zone"/>
+      <text x="840" y="356" class="tag">AURAGO BACKEND / ONE GO PROCESS</text>
 
-  <rect x="400" y="348" width="400" height="170" rx="15" fill="#163731" stroke="#5de4ce" stroke-width="3"/>
-  <text class="heading" x="428" y="393" fill="#5de4ce">THE AGENT LOOP</text>
-  <text class="body" x="428" y="434">Plan → act → read results</text>
-  <text class="body" x="428" y="467">Build context for the next turn</text>
-  <text class="note" x="428" y="500">Stream progress back to you</text>
+      <!-- Primary request and dependency paths; responses return along these paths. -->
+      <path class="wire" d="M 216 284 V 384"/>
+      <path class="wire" d="M 600 284 V 384"/>
+      <path class="wire" d="M 680 384 V 324 Q 680 316 688 316 H 976 Q 984 316 984 308 V 284"/>
+      <path class="wire" d="M 376 456 H 440"/>
+      <path class="wire" d="M 760 456 H 824"/>
+      <path class="wire" d="M 520 528 V 600 Q 520 608 512 608 H 224 Q 216 608 216 616 V 664"/>
+      <path class="wire optional-wire" d="M 904 528 V 620 Q 904 628 896 628 H 608 Q 600 628 600 636 V 664"/>
+      <path class="wire" d="M 1064 528 V 664"/>
 
-  <rect class="panel" x="40" y="348" width="310" height="170" rx="12"/>
-  <text class="heading" x="60" y="389">MEMORY</text>
-  <text class="body" x="60" y="427">History · Core Memory</text>
-  <text class="body" x="60" y="460">RAG · Knowledge Graph</text>
-  <text class="note" x="60" y="495">Retrieve relevant context</text>
-  <path class="wire return" d="M359 430H390"/>
+      <!-- Label masks have a visible gap from their connector and clear every node. -->
+      <rect x="92" y="300" width="112" height="24" rx="2" fill="#101827"/>
+      <text x="148" y="316" class="arrow-label">HTTP + SSE</text>
+      <rect x="612" y="300" width="64" height="24" rx="2" fill="#101827"/>
+      <text x="644" y="316" class="arrow-label">INPUT</text>
+      <rect x="792" y="284" width="80" height="24" rx="2" fill="#101827"/>
+      <text x="832" y="300" class="arrow-label">LLM API</text>
+      <rect x="532" y="568" width="64" height="24" rx="2" fill="#101827"/>
+      <text x="564" y="584" class="arrow-label">DATA</text>
+      <rect x="916" y="580" width="112" height="24" rx="2" fill="#101827"/>
+      <text x="972" y="596" class="arrow-label">IF ENABLED</text>
 
-  <rect class="panel" x="850" y="348" width="310" height="170" rx="12"/>
-  <text class="heading" x="870" y="389">CO-AGENTS</text>
-  <text class="body" x="870" y="427">Delegated subtasks</text>
-  <text class="body" x="870" y="460">Separate limits</text>
-  <text class="note" x="870" y="495">Results return to the agent</text>
-  <path class="wire return" d="M810 430H840"/>
+      <g data-node-id="clients">
+        <rect x="56" y="156" width="320" height="128" rx="6" class="node"/>
+        <text x="72" y="180" class="tag">CLIENTS</text>
+        <text x="72" y="212" class="node-name">Web UI + AgoDesk</text>
+        <text x="72" y="242" class="node-copy">Chat · dashboard · desktop</text>
+        <text x="72" y="268" class="node-copy">Browser or native client</text>
+      </g>
+      <g data-node-id="inputs">
+        <rect x="440" y="156" width="320" height="128" rx="6" class="node"/>
+        <text x="456" y="180" class="tag">ENTRY POINTS</text>
+        <text x="456" y="212" class="node-name">Messages + jobs</text>
+        <text x="456" y="242" class="node-copy">Messengers · voice · radio</text>
+        <text x="456" y="268" class="node-copy">Missions · cron · webhooks</text>
+      </g>
+      <g data-node-id="models">
+        <rect x="824" y="156" width="320" height="128" rx="6" class="node"/>
+        <text x="840" y="180" class="tag">MODEL ENDPOINTS</text>
+        <text x="840" y="212" class="node-name">Local or hosted LLMs</text>
+        <text x="840" y="242" class="node-copy">Selected provider + model</text>
+        <text x="840" y="268" class="node-copy">Replies + native tool calls</text>
+      </g>
+      <g data-node-id="server">
+        <rect x="56" y="384" width="320" height="144" rx="6" class="node"/>
+        <text x="72" y="408" class="tag">HTTP / API</text>
+        <text x="72" y="440" class="node-name">HTTP server</text>
+        <text x="72" y="472" class="node-copy">REST · SSE · WebSockets</text>
+        <text x="72" y="504" class="node-copy">Auth · verified web assets</text>
+      </g>
+      <g data-node-id="agent">
+        <rect x="440" y="384" width="320" height="144" rx="6" class="focal"/>
+        <text x="456" y="408" class="tag">ORCHESTRATION</text>
+        <text x="456" y="440" class="node-name focal-name">Agent runtime</text>
+        <text x="456" y="472" class="node-copy">Context · memory · co-agents</text>
+        <text x="456" y="504" class="node-copy">Model + tool loop · budgets</text>
+      </g>
+      <g data-node-id="tools">
+        <rect x="824" y="384" width="320" height="144" rx="6" class="focal"/>
+        <text x="840" y="408" class="tag">EXECUTION</text>
+        <text x="840" y="440" class="node-name focal-name">Tools + services</text>
+        <text x="840" y="472" class="node-copy">Permission gates · Guardian</text>
+        <text x="840" y="504" class="node-copy">Service clients use the vault</text>
+      </g>
+      <g data-node-id="data">
+        <rect x="56" y="664" width="320" height="128" rx="6" class="node"/>
+        <text x="72" y="688" class="tag">LOCAL PERSISTENCE</text>
+        <text x="72" y="720" class="node-name">Memory + app data</text>
+        <text x="72" y="750" class="technical">SQLite · chromem-go</text>
+        <text x="72" y="776" class="node-copy">History · graph · files</text>
+      </g>
+      <g data-node-id="runtimes">
+        <rect x="440" y="664" width="320" height="128" rx="6" class="node"/>
+        <text x="456" y="688" class="tag">LOCAL OR MANAGED</text>
+        <text x="456" y="720" class="node-name">Optional runtimes</text>
+        <text x="456" y="750" class="node-copy">Containers · browser VMs</text>
+        <text x="456" y="776" class="node-copy">Speech · FFmpeg</text>
+      </g>
+      <g data-node-id="integrations">
+        <rect x="824" y="664" width="320" height="128" rx="6" class="node"/>
+        <text x="840" y="688" class="tag">ENABLED INTEGRATIONS</text>
+        <text x="840" y="720" class="node-name">Home lab + cloud</text>
+        <text x="840" y="750" class="node-copy">Docker · Proxmox · SSH · HA</text>
+        <text x="840" y="776" class="node-copy">MQTT · mail · external APIs</text>
+      </g>
 
-  <rect class="panel" x="40" y="580" width="310" height="126" rx="12"/>
-  <text class="heading" x="60" y="620">PERSONALITY</text>
-  <text class="body" x="60" y="654">Traits · Mood · Inner voice</text>
-  <text class="note" x="60" y="687">Tone, never tool permissions</text>
-  <path class="guide" d="M359 642H375V488H390"/>
-
-  <path class="wire return" d="M600 528V580"/>
-  <rect x="400" y="590" width="400" height="150" rx="12" fill="#30291e" stroke="#ffc477" stroke-width="2"/>
-  <text class="heading" x="423" y="630">TOOL DISPATCH</text>
-  <text class="body" x="423" y="665">Integration + Danger Zone gates</text>
-  <text class="body" x="423" y="697">Scoped access · Guardian checks</text>
-  <text class="note" x="423" y="728">Enabled handlers only</text>
-
-  <rect class="panel" x="850" y="590" width="310" height="150" rx="12"/>
-  <text class="heading" x="870" y="632">VAULT</text>
-  <text class="body" x="870" y="666">Encrypted credentials</text>
-  <text class="note" x="870" y="698">Used by service clients,</text>
-  <text class="note" x="870" y="726">not dumped into prompts</text>
-  <path class="guide" d="M840 665H810"/>
-
-  <!-- Bidirectional tool paths carry calls and their results. -->
-  <path class="wire return" d="M480 750V799H205V850"/>
-  <path class="wire return" d="M600 750V850"/>
-  <path class="wire return" d="M725 750V799H995V850"/>
-  <rect class="panel" x="40" y="860" width="330" height="155" rx="12"/>
-  <text class="heading" x="60" y="900">HOME LAB</text>
-  <text class="body" x="60" y="936">Docker · Proxmox · SSH</text>
-  <text class="body" x="60" y="968">Home Assistant · Printers</text>
-  <text class="note" x="60" y="999">Invasion Control: remote Eggs</text>
-  <rect class="panel" x="435" y="860" width="330" height="155" rx="12"/>
-  <text class="heading" x="455" y="900">WORKSPACES</text>
-  <text class="body" x="455" y="936">Files · Shell · Browser VMs</text>
-  <text class="body" x="455" y="968">Skills · MCP · Studio agents</text>
-  <text class="note" x="455" y="999">Separate project / VM scopes</text>
-  <rect class="panel" x="830" y="860" width="330" height="155" rx="12"/>
-  <text class="heading" x="850" y="900">MEDIA + SERVICES</text>
-  <text class="body" x="850" y="936">Speech · Images · Music</text>
-  <text class="body" x="850" y="968">Messaging · Cloud APIs</text>
-  <text class="note" x="850" y="999">Optional local / remote tools</text>
-  <text class="note" x="40" y="1061">Simplified map. Each channel, integration and worker keeps its own access rules.</text>
-</svg>
+      <line x1="56" y1="836" x2="1144" y2="836" stroke="#657590"/>
+      <path d="M 56 864 H 88" class="wire"/>
+      <text x="104" y="870" class="legend">Calls / data</text>
+      <path d="M 300 864 H 332" class="wire optional-wire"/>
+      <text x="348" y="870" class="legend">Optional runtime</text>
+      <rect x="612" y="852" width="32" height="24" rx="4" class="zone"/>
+      <text x="660" y="870" class="legend">Go process</text>
+      <text x="1144" y="870" text-anchor="end" class="legend">Simplified component map</text>
+    </svg>

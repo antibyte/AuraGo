@@ -160,7 +160,9 @@ AuraGo comes with **twelve personalities**: a friendly sidekick, a thoughtful ph
 
 ## Under the hood
 
-[![AuraGo system wiring: channels and triggers reach the agent loop; models, memory and co-agents connect to it; gated tool dispatch reaches infrastructure, workspaces and media services](assets/readme/system-wiring.svg)](assets/readme/system-wiring.svg)
+[![AuraGo architecture: Web UI and AgoDesk connect to the HTTP server; messages and jobs enter the agent runtime, which uses models, local memory and gated tools to reach optional runtimes and integrations](assets/readme/system-wiring.svg)](documentation/architecture.md)
+
+The **Go backend** serves the API and a verified, version-bound local web bundle. SQLite and the vector store persist locally; integrations and optional runtimes keep their own permissions. [Architecture guide](documentation/architecture.md).
 
 Messages and mission triggers reach the **agent loop**. It builds context, calls your chosen model, runs allowed tools and reads the results before the next round. **Co-agents** return subtask results. Service clients use the **vault** for credentials; optional sidecars provide things like local inference, speech and browser workspaces.
 
