@@ -1,5 +1,6 @@
-import { DEFAULT_COLORS, colorValue } from './minigolf-shared.js';
+import { colorValue } from './minigolf-shared.js';
 import { createHud, formatPower } from './minigolf-hud.js';
+import { createMenus } from './minigolf-menus.js';
 
 export const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -28,7 +29,7 @@ const ICONS = {
 };
 export const icon = name => `<svg class="mg-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[name] || ICONS.star}</svg>`;
 
-export function createView(host, tr) {
+export function createView(host, tr, { assetURL = path => path } = {}) {
     const serial = createView.serial = (createView.serial || 0) + 1;
     const root = document.createElement('div'); root.className = 'mg-app';
     root.dataset.world = 'neutral'; root.dataset.panel = 'loading'; root.dataset.reduced = 'false';
@@ -86,44 +87,15 @@ export function createView(host, tr) {
     }
     root.addEventListener('keydown', trap);
 
-    // --- Transitional panels (replaced by minigolf-menus.js and minigolf-scorecard.js) ---
-    function menu(courses, saved, values = {}) {
-        const modes = ['full', 'garden', 'coast', 'night', 'practice'];
-        showPanel(`<div class="mg-eyebrow">${esc(tr('subtitle'))}</div><h1>AuraGolf<span>✳</span></h1><p class="mg-tagline">${esc(tr('tagline'))}</p>
-            <div class="mg-world-swatches"><span class="garden"></span><span class="coast"></span><span class="night"></span></div>
-            <label>${esc(tr('mode'))}<select data-mode>${modes.map(mode => `<option value="${mode}"${values.mode === mode ? ' selected' : ''}>${esc(tr(mode))}</option>`).join('')}</select></label>
-            <label data-hole-select hidden>${esc(tr('hole'))}<select data-hole-id>${courses.map(c => `<option value="${esc(c.id)}">${c.number}. ${esc(tr('course_' + c.number))}</option>`).join('')}</select></label>
-            <label>${esc(tr('players'))}<select data-players>${[1, 2, 3, 4].map(n => `<option value="${n}"${values.count === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label><div data-names class="mg-names"></div>
-            <div class="mg-panel-actions">${button('start', 'start', true)}${saved ? button('resume', 'resume') : ''}</div><p class="mg-fine">${esc(tr('saved'))}</p>`, 'title');
-        playerNames(values.count || 1);
-        $('[data-hole-select]').hidden = values.mode !== 'practice';
-    }
-    function playerNames(count) {
-        const holder = $('[data-names]'); if (!holder) return;
-        const previous = Array.from(holder.querySelectorAll('input')).map(input => input.value);
-        holder.innerHTML = Array.from({ length: count }, (_, i) => `<label><span style="--player-color:${colorValue(DEFAULT_COLORS[i])}">${esc(tr('player').replace('{n}', i + 1))}</span><input data-player-name maxlength="24" value="${esc(previous[i] || tr('player').replace('{n}', i + 1))}" autocomplete="off"></label>`).join('');
-    }
-    function settings(settings, track) {
-        showPanel(`<h2>${esc(tr('settings'))}</h2><label>${esc(tr('music'))}<input data-music type="range" min="0" max="100" value="${Math.round(settings.music * 100)}"></label><div class="mg-track"><span data-track>${esc(track?.title || '♪')}</span>${button('next-track', 'next_track')}${button('mute', settings.music === 0 ? 'unmute' : 'mute')}</div>
-            <label>${esc(tr('effects'))}<input data-effects type="range" min="0" max="100" value="${Math.round(settings.effects * 100)}"></label><label>${esc(tr('quality'))}<select data-quality>${['auto', 'low', 'medium', 'high'].map(q => `<option value="${q}"${settings.quality === q ? ' selected' : ''}>${esc(tr(q))}</option>`).join('')}</select></label>
-            <label class="mg-check"><input data-motion type="checkbox" ${settings.reducedMotion ? 'checked' : ''}>${esc(tr('motion'))}</label><label class="mg-check"><input data-follow type="checkbox" ${settings.follow !== false ? 'checked' : ''}>${esc(tr('follow_ball'))}</label><label class="mg-check"><input data-aim-camera type="checkbox" ${settings.aimCamera ? 'checked' : ''}>${esc(tr('aim_camera'))}</label><label class="mg-check"><input data-magnet type="checkbox" ${settings.magnet !== false ? 'checked' : ''}>${esc(tr('magnet'))}</label><div class="mg-panel-actions">${button('credits', 'credits')}${button('close', 'close', true)}</div>`, 'settings');
-    }
-    function help(tutorial = false) {
-        showPanel(`<div class="mg-eyebrow">${esc(tr(tutorial ? 'tutorial' : 'help'))}</div><h2>${esc(tr('aim_hint'))}</h2><p>${esc(tr('tutorial_body'))}</p><p>${esc(tr('keyboard_hint'))}</p><p>${esc(tr('touch_hint'))}</p><p class="mg-fine">${esc(tr('score_hint'))}</p>${button('close', tutorial ? 'got_it' : 'close', true)}`, 'help');
-    }
+    // --- Transitional scorecard (replaced by minigolf-scorecard.js) ---
     function scorecard(round, courses, complete, best) {
         const allDone = round.players.every(p => p.done);
         const columns = round.courseIds.map(id => courses.find(c => c.id === id));
         showPanel(`<div class="mg-eyebrow">${esc(tr(complete ? 'finished' : 'scorecard'))}</div><h2>${esc(tr(complete ? 'finished' : 'scorecard'))}</h2><div class="mg-score-scroll"><table><thead><tr><th>${esc(tr('player_name'))}</th>${columns.map(c => `<th title="${esc(tr('course_' + c.number))}">${c.number}</th>`).join('')}<th>${esc(tr('total'))}</th></tr></thead><tbody>${round.players.map(p => `<tr><th><i style="background:${colorValue(p.color)}"></i>${esc(p.name)}</th>${columns.map((c, i) => { const value = p.scores[i] ?? (i === round.holeIndex && !complete ? p.strokes : null); if (value == null) return '<td>–</td>'; const rel = value - c.par; const grade = rel <= -2 ? 'mg-eagle' : rel === -1 ? 'mg-birdie' : rel === 0 ? 'mg-par' : rel === 1 ? 'mg-bogey' : 'mg-over'; const term = rel <= -2 ? tr('eagle') : rel === -1 ? tr('birdie') : rel === 0 ? tr('par') : rel === 1 ? tr('bogey') : tr('over'); return `<td class="${grade}" title="${esc(term)}">${value}</td>`; }).join('')}<td><strong>${p.scores.reduce((sum, s) => sum + s, 0) + p.strokes}</strong></td></tr>`).join('')}</tbody></table></div>
             ${best ? `<p>${esc(tr('best'))}: <strong>${best}</strong></p>` : ''}<div class="mg-panel-actions">${complete ? button('menu', 'play_again', true) : allDone ? button('next-hole', 'next_hole', true) : button('close', 'close', true)}</div>`, 'scorecard');
     }
-    function pause() { showPanel(`<h2>${esc(tr('paused'))}</h2><p>${esc(tr('leave_hint'))}</p><div class="mg-panel-actions">${button('close', 'continue', true)}${button('menu', 'menu')}</div>`, 'pause'); }
-    function error(key) { showPanel(`<h2>${esc(tr(key))}</h2>${button('retry', 'retry', true)}`, key); }
-    function credits(tracks) { showPanel(`<h2>${esc(tr('credits'))}</h2><p>${esc(tr('credits_body'))}</p><ul>${tracks.map(t => `<li>${esc(t.title)} · ${esc(t.author)} · CC0</li>`).join('')}</ul>${button('close', 'close', true)}`, 'credits'); }
-
-    return {
-        root, canvasHost: $('.mg-canvas'), panel, hud, showPanel, progress, topbar,
-        menu, playerNames, settings, help, scorecard, pause, error, credits,
+    return Object.assign({
+        root, canvasHost: $('.mg-canvas'), panel, hud, showPanel, progress, topbar, scorecard,
         close() { panel.hidden = true; panel.replaceChildren(); if (restoreFocus?.isConnected && !restoreFocus.disabled) restoreFocus.focus({ preventScroll: true }); restoreFocus = null; },
         update(round, course, busy) {
             if (!round || !course) return;
@@ -145,5 +117,5 @@ export function createView(host, tr) {
         },
         track(value) { const el = $('[data-track]'); if (el) el.textContent = value?.title || '♪'; },
         dispose() { root.removeEventListener('keydown', trap); hud.dispose(); root.remove(); }
-    };
+    }, createMenus({ showPanel, panel, tr, esc, icon, assetURL }));
 }

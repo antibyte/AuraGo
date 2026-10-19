@@ -1059,6 +1059,7 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/desktop/apps/minigolf-game.js":           {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/minigolf-views.js":          {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/minigolf-hud.js":            {name: "tr", prefix: "minigolf."},
+	"js/desktop/apps/minigolf-menus.js":          {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/bookshelf.js":               {name: "t", prefix: "bookshelf."},
 	"js/desktop/apps/gog-sources.js":             {name: "tr", prefix: "desktop.gog."},
 	"js/desktop/apps/layerling.js":               {name: "t", prefix: "layerling."},
