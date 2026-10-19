@@ -662,6 +662,9 @@
     .desktop-body[data-theme="amiga"] { --vd-taskbar-height: 44px; --vd-global-bar-height: 44px; --vd-global-menu-titlebar-height: 44px; --vd-menu-row-height: 40px; }
     .desktop-body[data-theme="amiga"] .vd-global-brand { width: var(--vd-global-bar-height); height: calc(var(--vd-global-bar-height) - 2px); }
     .desktop-body[data-theme="amiga"] .vd-global-bar .vd-window-menu-button { height: calc(var(--vd-global-bar-height) - 2px); }
+    /* One row stays below 1024 px: the brand and the gadgets are sized from the bar height, so the shared two-row layout does not apply. */
+    .desktop-body[data-theme="amiga"] .vd-global-bar { flex-wrap: nowrap; }
+    .desktop-body[data-theme="amiga"] #vd-global-menu-host { flex: 1 1 auto; order: 0; display: block; height: auto; }
 
     /* The base blurs these backdrops here, with !important. */
     .desktop-body[data-theme="amiga"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-context-menu, .vd-modal, .vd-toast-container) {

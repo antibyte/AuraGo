@@ -855,6 +855,15 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     }
     .desktop-body[data-global-menus="true"] .vd-taskbar-system .vd-clock { min-height: 44px; }
 }
+
+/* Narrow touch bars (tablet portrait, 821 to 1023 px): the 44 px tray would push the last window menus under itself, so the
+   menus take a second 44 px row and the bar grows to 88 px (the shell padding follows the token). Amiga opts out in its
+   skin: its brand and gadgets are sized from the bar height. */
+@media (pointer: coarse) and (max-width: 1023px) {
+    .desktop-body[data-global-menus="true"] { --vd-global-bar-height: 88px; }
+    .desktop-body[data-global-menus="true"] .vd-global-bar { flex-wrap: wrap; row-gap: 0; align-content: start; }
+    .desktop-body[data-global-menus="true"] #vd-global-menu-host { flex: 1 0 100%; order: 10; display: flex; align-items: center; height: 44px; }
+}
 .desktop-body[data-theme="fruity"] .vd-window-button::after {
     display: grid;
     place-items: center;
