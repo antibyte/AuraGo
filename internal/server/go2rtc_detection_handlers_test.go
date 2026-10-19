@@ -380,6 +380,9 @@ func TestGo2RTCDetectionAPIAnswersUnavailableWithoutTheDatabase(t *testing.T) {
 
 func TestGo2RTCDetectionAPISettingsSavesConfig(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if go2RTCFixtureCleanup(w, r) {
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/go2rtc/proxy/api":
 			_, _ = w.Write([]byte(`{"version":"1.9.14"}`))

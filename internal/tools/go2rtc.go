@@ -112,11 +112,13 @@ type Go2RTCManager struct {
 	hardwareVerifiedAt string
 	hardwareBackend    string
 	hardwareKey        string
+	hardwareGeneration uint64
 	hardwareVerified   bool
 	mediaMu            sync.Mutex
 	mediaClosed        bool
 	media              map[string]*go2RTCMediaRuntime
 	mediaEpoch         string
+	mediaRevision      uint64
 	retiredAliases     []string
 	preloaded          map[string]string
 	transcodes         map[string]int

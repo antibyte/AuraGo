@@ -209,6 +209,14 @@ func TestGo2RTCClientUsesBasicAuthAndSanitizesStreamTelemetry(t *testing.T) {
 			patchedSource = r.URL.Query().Get("src")
 			patchedName = r.URL.Query().Get("name")
 			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodDelete && r.URL.Path == "/api/go2rtc/proxy/api/streams":
+			w.WriteHeader(http.StatusOK)
+		case r.URL.Path == "/api/go2rtc/proxy/api/preload":
+			if r.Method == http.MethodGet {
+				_, _ = w.Write([]byte(`{}`))
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
 		case r.Method == http.MethodGet && r.URL.Path == "/api/go2rtc/proxy/api/streams":
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				patchedName: map[string]interface{}{

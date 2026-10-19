@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -51,15 +52,15 @@ func TestGo2RTCPlayerProtocolsBrowser(t *testing.T) {
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' ws: wss:")
 		fmt.Fprintf(w, `<!doctype html><style>video-stream{display:block;width:640px;height:360px}</style><script>
-        window.fixtureErrors=[];window.fixtureCSP=[];window.playerMessages=[];
+        window.fixtureErrors=[];window.fixtureCSP=[];window.playerMessages=[];window.playerSockets=[];
         const srcProperty=Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype,'src');
         Object.defineProperty(HTMLMediaElement.prototype,'src',{...srcProperty,set(value){if(String(value).startsWith('data:application/vnd.apple.mpegurl;base64,'))window.fixtureHls=value;srcProperty.set.call(this,value)}});
         addEventListener('error',e=>fixtureErrors.push(e.message));addEventListener('unhandledrejection',e=>fixtureErrors.push(String(e.reason)));addEventListener('securitypolicyviolation',e=>fixtureCSP.push(e.violatedDirective));
         const originalCanPlay=HTMLMediaElement.prototype.canPlayType;HTMLMediaElement.prototype.canPlayType=function(type){return type==='application/vnd.apple.mpegurl'?'probably':originalCanPlay.call(this,type)};
         window.WebSocket=class extends EventTarget {
             static CONNECTING=0;static OPEN=1;static CLOSED=3;
-            constructor(url){super();this.url=url;this.readyState=1;setTimeout(()=>this.dispatchEvent(new Event('open')),0)}
-            send(data){const message=JSON.parse(data);playerMessages.push(message);setTimeout(async()=>{
+            constructor(url){super();this.url=url;this.readyState=1;this.messages=[];playerSockets.push(this);setTimeout(()=>this.dispatchEvent(new Event('open')),0)}
+            send(data){const message=JSON.parse(data);this.messages.push(message);playerMessages.push(message);setTimeout(async()=>{
                 const emit=value=>this.dispatchEvent(new MessageEvent('message',{data:value}));
                 if(message.type==='mse')emit(JSON.stringify({type:'mse',value:'video/mp4; codecs="avc1.42E01E"'}));
                 if(message.type==='hls')emit(JSON.stringify({type:'hls',value:'#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1000\nhls/playlist.m3u8?id=ABCDEFGH\n'}));
@@ -73,7 +74,7 @@ func TestGo2RTCPlayerProtocolsBrowser(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 	browser := newSmokeBrowser(t)
-	for _, mode := range []string{"mse", "hls", "mp4", "mjpeg"} {
+	for _, mode := range []string{"mse", "hls", "mp4", "mjpeg", "webrtc,mse", "webrtc,mse,mjpeg"} {
 		t.Run(mode, func(t *testing.T) {
 			page := browser.MustPage(server.URL + "/fixture?mode=" + mode)
 			defer page.MustClose()
@@ -82,8 +83,30 @@ func TestGo2RTCPlayerProtocolsBrowser(t *testing.T) {
 					t.Fatalf("player wait failed: %v; state=%s", err, page.MustEval(`()=>JSON.stringify({messages:playerMessages,errors:fixtureErrors,csp:fixtureCSP,mode:window.player&&player.mode,src:window.player&&player.video.src,html:document.body.innerHTML.slice(-1000)})`).Str())
 				}
 			}
-			wait(`mode=>playerMessages.some(m=>m.type===mode)`, mode)
+			protocol := mode
+			if strings.Contains(mode, "webrtc") {
+				protocol = "mse"
+			}
+			wait(`mode=>playerMessages.some(m=>m.type===mode)`, protocol)
 			switch mode {
+			case "webrtc,mse", "webrtc,mse,mjpeg":
+				wait(`()=>player.mseCodecs.includes('avc1')&&player.pc&&playerSockets.some(s=>s.messages.some(m=>m.type==='webrtc/offer'))`)
+				mseWins := mode == "webrtc,mse,mjpeg"
+				page.MustEval(`mseWins=>{
+                    player.pc.close();window.fixturePeerClosed=false;
+                    player.pc={remoteDescription:{sdp:'H264/90000'},getSenders:()=>[],close:()=>{fixturePeerClosed=true}};
+                    if(mseWins)player.mseCodecs='video/mp4; codecs="hvc1.1.6.L153.B0"';
+                    const canvas=document.createElement('canvas');canvas.width=16;canvas.height=8;canvas.getContext('2d').fillRect(0,0,16,8);
+                    window.fixtureTracks=canvas.captureStream(1);player.onpcvideo({srcObject:fixtureTracks});
+                }`, mseWins)
+				if !page.MustEval(`mseWins=>{const rtc=playerSockets.find(s=>s.messages.some(m=>m.type==='webrtc/offer'));const media=playerSockets.find(s=>s.messages.some(m=>m.type==='mse'));if(rtc===media||rtc.readyState!==1||player.ws!==rtc)return false;if(mseWins)return media.readyState===1&&player.pc===null&&fixturePeerClosed;media.dispatchEvent(new MessageEvent('message',{data:new ArrayBuffer(8)}));return media.readyState===3&&player.pcState===1&&player.ondata===null&&!fixturePeerClosed}`, mseWins).Bool() {
+					t.Fatal("auto selection retained its losing media consumer or lost its winning connection")
+				}
+				page.MustEval(`()=>player.ws.close()`)
+				if !page.MustEval(`()=>fixturePeerClosed&&player.pc===null&&player.video.srcObject===null&&playerSockets.every(s=>s.readyState===3)`).Bool() {
+					t.Fatal("signaling revocation did not terminate the selected RTC peer")
+				}
+				page.MustEval(`()=>fixtureTracks.getTracks().forEach(track=>track.stop())`)
 			case "mse":
 				wait(`()=>player.mseCodecs.includes('avc1')&&typeof player.ondata==='function'`)
 			case "hls":
@@ -96,6 +119,9 @@ func TestGo2RTCPlayerProtocolsBrowser(t *testing.T) {
 			}
 			if !page.MustEval(`()=>player.pcConfig.iceServers.length===0&&!player.media.includes('microphone')&&fixtureErrors.length===0&&fixtureCSP.length===0`).Bool() {
 				t.Fatalf("unsafe player or browser error: %s", page.MustEval(`()=>JSON.stringify({errors:fixtureErrors,csp:fixtureCSP})`).Str())
+			}
+			if !strings.Contains(mode, "webrtc") && !page.MustEval(`()=>{player.ondisconnect();return !player.reconnectTID&&playerSockets.every(s=>s.readyState===3)}`).Bool() {
+				t.Fatal("intentional player stop scheduled an unwanted reconnect")
 			}
 		})
 	}

@@ -7,6 +7,10 @@ function go2rtcEnsureData() {
     const data = configData.go2rtc;
     if (!data.webrtc) data.webrtc = {};
     if (!data.hardware) data.hardware = { backend: 'software', render_node: '/dev/dri/renderD128', render_group: '', device_id: '0' };
+    if (!data.hardware.backend) data.hardware.backend = 'software';
+    const state = window.AuraConfigState;
+    const backendPath = 'go2rtc.hardware.backend';
+    if (state && state.markSaved && [undefined, ''].includes(state.get(backendPath, { saved: true })) && [undefined, ''].includes(state.get(backendPath))) state.markSaved(backendPath, 'software');
     if (!Array.isArray(data.streams)) data.streams = [];
     if (!data.image) data.image = 'alexxit/go2rtc:1.9.14@sha256:675c318b23c06fd862a61d262240c9a63436b4050d177ffc68a32710d9e05bae';
     if (!data.container_name) data.container_name = 'aurago_go2rtc';
@@ -26,15 +30,16 @@ function go2rtcStreams() {
         const draft = state.get('go2rtc.streams');
         if (Array.isArray(draft)) data.streams = JSON.parse(JSON.stringify(draft));
     }
-    // These neutral UI fields are absent from the saved server model. Give
-    // existing rows the same baseline so undoing an edit clears the dirty state.
+    // Legacy server models serialize unset media enums as empty strings. Give
+    // neutral defaults the same baseline without accepting any actual edits.
     const saved = state && state.get ? state.get('go2rtc.streams', { saved: true }) : null;
     data.streams.forEach((stream, index) => {
         for (const [key, value] of Object.entries(go2rtcStreamDefaults())) {
-            if (stream[key] !== undefined) continue;
+            const neutral = value => value === undefined || (value === '' && !!go2rtcMediaChoices[key]);
+            if (!neutral(stream[key])) continue;
             stream[key] = value;
             const path = 'go2rtc.streams.' + index + '.' + key;
-            if (state && state.markSaved && saved && saved[index] && saved[index].id === stream.id && saved[index][key] === undefined && state.get(path) === undefined) state.markSaved(path, value);
+            if (state && state.markSaved && saved && saved[index] && saved[index].id === stream.id && neutral(saved[index][key]) && neutral(state.get(path))) state.markSaved(path, value);
         }
     });
     return data.streams;

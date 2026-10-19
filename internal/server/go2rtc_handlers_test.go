@@ -731,6 +731,9 @@ func TestManagedGo2RTCConfigUpdateKeepsSourcesVaultOnlyAndRollsBackValidationFai
 	const secondSource = "rtsp://camera-user:second-password@192.168.40.20/live"
 	var patchedSources []string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if go2RTCFixtureCleanup(w, r) {
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/go2rtc/proxy/api":
 			_, _ = w.Write([]byte(`{"version":"1.9.14"}`))
@@ -898,6 +901,9 @@ func TestGo2RTCCameraMutationStatusContract(t *testing.T) {
 	const source = "rtsp://camera-user:contract-password@192.168.40.22/live"
 	t.Run("create and update succeed with 201 and 200", func(t *testing.T) {
 		upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if go2RTCFixtureCleanup(w, r) {
+				return
+			}
 			switch {
 			case r.Method == http.MethodGet && r.URL.Path == "/api/go2rtc/proxy/api":
 				_, _ = w.Write([]byte(`{"version":"1.9.14"}`))
@@ -995,6 +1001,24 @@ func TestGo2RTCCameraMutationStatusContract(t *testing.T) {
 			t.Fatalf("config failure status = %d, want 500; body=%s", recorder.Code, recorder.Body.String())
 		}
 	})
+}
+
+// These fixtures have no preloads. Match upstream's absent-preload response so
+// the manager must confirm inventory before considering cleanup successful.
+func go2RTCFixtureCleanup(w http.ResponseWriter, r *http.Request) bool {
+	if r.URL.Path == "/api/go2rtc/proxy/api/preload" {
+		if r.Method == http.MethodGet {
+			_, _ = w.Write([]byte(`{}`))
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return true
+	}
+	if r.URL.Path == "/api/go2rtc/proxy/api/streams" && r.Method == http.MethodDelete {
+		w.WriteHeader(http.StatusOK)
+		return true
+	}
+	return false
 }
 
 func TestGo2RTCCreateReservesSetupTokenUntilConfigPublication(t *testing.T) {

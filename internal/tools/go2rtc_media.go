@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -70,6 +71,7 @@ func (m *Go2RTCManager) syncMediaConfig(cfg config.Go2RTCConfig) {
 	}
 	if hardwareKey != m.hardwareKey {
 		m.hardwareKey = hardwareKey
+		m.hardwareGeneration++
 		m.hardwareVerified = false
 		m.hardwareVerifiedAt = ""
 	}
@@ -90,7 +92,8 @@ func (m *Go2RTCManager) syncMediaConfig(cfg config.Go2RTCConfig) {
 			continue
 		}
 		ctx, cancel := context.WithCancel(context.Background())
-		m.media[s.ID] = &go2RTCMediaRuntime{config: s, key: key, desiredKey: key, revision: 1, ctx: ctx, cancel: cancel, ready: true, aliases: map[string]string{"main": Go2RTCRuntimeStreamName(s.ID)}}
+		m.mediaRevision++
+		m.media[s.ID] = &go2RTCMediaRuntime{config: s, key: key, desiredKey: key, revision: m.mediaRevision, ctx: ctx, cancel: cancel, ready: true, aliases: map[string]string{"main": Go2RTCRuntimeStreamName(s.ID)}}
 	}
 	for id, r := range m.media {
 		if !wanted[id] {
@@ -238,7 +241,7 @@ func go2RTCTransportSource(source, transport string) string {
 	return u.String() + "#" + strings.Join(parts, "#")
 }
 
-func (m *Go2RTCManager) reconcileMediaStreams(ctx context.Context) (int, error) {
+func (m *Go2RTCManager) reconcileMediaStreams(ctx context.Context) (count int, err error) {
 	m.mediaMu.Lock()
 	closed := m.mediaClosed
 	m.mediaMu.Unlock()
@@ -249,7 +252,7 @@ func (m *Go2RTCManager) reconcileMediaStreams(ctx context.Context) (int, error) 
 	if !cfg.Enabled {
 		return 0, fmt.Errorf("go2rtc integration is disabled")
 	}
-	defer m.retireMediaAliases(ctx)
+	defer func() { err = errors.Join(err, m.retireMediaAliases(ctx)) }()
 	// Aliases are immutable for their revision. Avoid touching live producers
 	// on periodic reconciliation; a missing alias after a sidecar restart is
 	// registered again. Failure to read the inventory keeps the safe old retry.
@@ -262,7 +265,6 @@ func (m *Go2RTCManager) reconcileMediaStreams(ctx context.Context) (int, error) 
 		}
 	}
 	m.mediaMu.Unlock()
-	count := 0
 	for _, stream := range cfg.Streams {
 		if !stream.Enabled {
 			continue
@@ -281,7 +283,10 @@ func (m *Go2RTCManager) reconcileMediaStreams(ctx context.Context) (int, error) 
 		if active.key != targetKey || !active.registered || active.ctx.Err() != nil {
 			// Keep the active revision usable until every replacement alias exists.
 			owned, cancel := context.WithCancel(context.Background())
-			r = &go2RTCMediaRuntime{config: stream, key: targetKey, desiredKey: targetKey, revision: active.revision + 1, ctx: owned, cancel: cancel, aliases: map[string]string{}, lastSnapshot: active.lastSnapshot}
+			// Allocate from the manager lifetime, including failed candidates and
+			// removed cameras, so an old lease can never become current again.
+			m.mediaRevision++
+			r = &go2RTCMediaRuntime{config: stream, key: targetKey, desiredKey: targetKey, revision: m.mediaRevision, ctx: owned, cancel: cancel, aliases: map[string]string{}, lastSnapshot: active.lastSnapshot}
 			prefix := fmt.Sprintf("aurago~%s~%x~%d~", m.mediaEpoch, sha256.Sum256([]byte(stream.ID)), r.revision)
 			for _, role := range []string{"main", "sub", "snapshot"} {
 				if config.Go2RTCRoleSource(stream, role) != "" {
@@ -363,7 +368,7 @@ func (m *Go2RTCManager) reconcileMediaStreams(ctx context.Context) (int, error) 
 	return count, nil
 }
 
-func (m *Go2RTCManager) retireMediaAliases(ctx context.Context) {
+func (m *Go2RTCManager) retireMediaAliases(ctx context.Context) error {
 	m.mediaMu.Lock()
 	retired := map[string]bool{}
 	for _, alias := range m.retiredAliases {
@@ -376,15 +381,37 @@ func (m *Go2RTCManager) retireMediaAliases(ctx context.Context) {
 	}
 	m.retiredAliases = nil
 	m.mediaMu.Unlock()
+	var failure error
 	for alias := range retired {
 		// Runtime deletion can patch only the non-secret tmpfs config.
-		_ = m.request(ctx, http.MethodDelete, "/api/preload?"+url.Values{"src": {alias}}.Encode(), nil, 1<<20, nil)
-		if err := m.request(ctx, http.MethodDelete, "/api/streams?"+url.Values{"src": {alias}}.Encode(), nil, 1<<20, nil); err != nil {
+		err := m.removePreload(ctx, alias)
+		if err == nil {
+			err = m.request(ctx, http.MethodDelete, "/api/streams?"+url.Values{"src": {alias}}.Encode(), nil, 1<<20, nil)
+		}
+		if err != nil {
+			failure = errors.Join(failure, err)
 			m.mediaMu.Lock()
 			m.retiredAliases = append(m.retiredAliases, alias)
 			m.mediaMu.Unlock()
 		}
 	}
+	return failure
+}
+
+func (m *Go2RTCManager) removePreload(ctx context.Context, alias string) error {
+	err := m.request(ctx, http.MethodDelete, "/api/preload?"+url.Values{"src": {alias}}.Encode(), nil, 1<<20, nil)
+	if err == nil {
+		return nil
+	}
+	// Upstream returns 500 for an already absent preload. Confirm absence
+	// through inventory; an uncertain failed delete must remain retryable.
+	var live map[string]json.RawMessage
+	if m.requestJSON(ctx, http.MethodGet, "/api/preload", nil, &live, 1<<20) == nil && live != nil {
+		if _, exists := live[alias]; !exists {
+			return nil
+		}
+	}
+	return fmt.Errorf("camera preload cleanup unavailable: %w", err)
 }
 
 func (m *Go2RTCManager) patchMediaSource(ctx context.Context, alias, source string) error {
@@ -399,19 +426,20 @@ func (m *Go2RTCManager) reconcilePreload(ctx context.Context, stream config.Go2R
 	}
 	previous := m.preloaded[stream.ID]
 	m.mediaMu.Unlock()
+	warm := false
 	if stream.Preload {
 		var live map[string]interface{}
 		if err := m.requestJSON(ctx, http.MethodGet, "/api/preload", nil, &live, 1<<20); err == nil {
-			if _, ok := live[alias]; ok {
-				return nil
-			}
+			_, warm = live[alias]
 		}
 	}
 
-	if previous != "" {
-		_ = m.request(ctx, http.MethodDelete, "/api/preload?"+url.Values{"src": {previous}}.Encode(), nil, 1<<20, nil)
+	if previous != "" && (previous != alias || !stream.Preload) {
+		if err := m.removePreload(ctx, previous); err != nil {
+			return err
+		}
 	}
-	if stream.Preload {
+	if stream.Preload && !warm {
 		if err := m.request(ctx, http.MethodPut, "/api/preload?"+url.Values{"src": {alias}, "video": {}}.Encode(), nil, 1<<20, nil); err != nil {
 			return fmt.Errorf("camera preload unavailable: %w", err)
 		}
@@ -440,17 +468,22 @@ func (m *Go2RTCManager) reconcilePreload(ctx context.Context, stream config.Go2R
 
 func (m *Go2RTCManager) clearPreloads(ctx context.Context) error {
 	m.mediaMu.Lock()
-	aliases := make([]string, 0, len(m.preloaded))
-	for _, alias := range m.preloaded {
-		aliases = append(aliases, alias)
+	aliases := make(map[string]string, len(m.preloaded))
+	for id, alias := range m.preloaded {
+		aliases[id] = alias
 	}
-	m.preloaded = nil
 	m.mediaMu.Unlock()
 	var failure error
-	for _, alias := range aliases {
-		if err := m.request(ctx, http.MethodDelete, "/api/preload?"+url.Values{"src": {alias}}.Encode(), nil, 1<<20, nil); err != nil {
-			failure = err
+	for id, alias := range aliases {
+		if err := m.removePreload(ctx, alias); err != nil {
+			failure = errors.Join(failure, err)
+			continue
 		}
+		m.mediaMu.Lock()
+		if m.preloaded[id] == alias {
+			delete(m.preloaded, id)
+		}
+		m.mediaMu.Unlock()
 	}
 	return failure
 }

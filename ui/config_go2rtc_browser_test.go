@@ -44,3 +44,35 @@ func TestGo2RTCMediaConfigBrowser(t *testing.T) {
 		t.Fatal("failed saved GPU probe was not visibly reported")
 	}
 }
+
+func TestGo2RTCLegacyMediaConfigStaysCleanBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	browser := newSmokeBrowser(t)
+	for _, populated := range []bool{false, true} {
+		page := browser.MustPage(configRefreshFixtureOrigin(t, "de", populated) + "/config#overview").Timeout(40 * time.Second)
+		page.MustWait(`()=>!!window.AuraConfigState&&!!document.querySelector('.pw-overview-card')`)
+		page.MustEval(`async()=>{
+            const original=window.fetch;window.fetch=async(url,opt)=>String(url).startsWith('/api/go2rtc/')?new Response('{"api_usable":true}',{headers:{'Content-Type':'application/json'}}):original(url,opt);
+            configData.go2rtc.hardware={backend:'',render_node:'',render_group:'',device_id:''};
+            configData.go2rtc.streams=[{id:'door',name:'Door',enabled:true,source:'••••••••',source_configured:true,sub_source:'',snapshot_source:'',preview_source:'',detection_source:'',snapshot_mode:'',codec_profile:'',transport:'',playback_mode:'',preload:false,talk_enabled:false}];
+            AuraConfigState.init(configData);await selectSection('go2rtc');AuraConfigState.syncFromDOM();
+        }`)
+		if page.MustEval(`()=>AuraConfigState.isDirty()`).Bool() {
+			t.Fatal("opening legacy camera config dirtied " + page.MustEval(`()=>JSON.stringify(AuraConfigState.dirtyPaths())`).Str())
+		}
+		page.MustEval(`()=>{const name=document.querySelector('[data-path="go2rtc.streams.0.name"]');name.value='Changed';name.dispatchEvent(new Event('input',{bubbles:true}));renderGo2RTCSection(null)}`)
+		if !page.MustEval(`()=>AuraConfigState.isDirty()&&document.querySelector('[data-path="go2rtc.streams.0.name"]').value==='Changed'`).Bool() {
+			t.Fatal("normalization accepted or discarded a real draft edit")
+		}
+		page.MustEval(`()=>{const name=document.querySelector('[data-path="go2rtc.streams.0.name"]');name.value='Door';name.dispatchEvent(new Event('input',{bubbles:true}));go2rtcAddStream();go2rtcRemoveStream(1);AuraConfigState.syncFromDOM()}`)
+		if page.MustEval(`()=>AuraConfigState.isDirty()`).Bool() {
+			t.Fatal("undoing an edit or camera addition left legacy defaults dirty")
+		}
+		page.MustEval(`()=>{const profile=document.querySelector('[data-path="go2rtc.streams.0.codec_profile"]');profile.value='h264_opus';profile.dispatchEvent(new Event('change',{bubbles:true}));renderGo2RTCSection(null)}`)
+		if !page.MustEval(`()=>{const rows=AuraConfigState.buildPatch().go2rtc.streams;return rows.length===1&&rows[0].codec_profile==='h264_opus'&&rows[0].source==='••••••••'}`).Bool() {
+			t.Fatal("legacy migration lost a real profile edit or its preserved source")
+		}
+		page.MustEval(`()=>window.removeEventListener('beforeunload',handleConfigBeforeUnload)`)
+		page.MustClose()
+	}
+}

@@ -70,6 +70,20 @@ type Go2RTCHardwareResult struct {
 // not launch an encoder probe or create/reconfigure a container.
 func (m *Go2RTCManager) CheckHardware(ctx context.Context) (Go2RTCHardwareResult, error) {
 	cfg := m.Config()
+	if cfg.Hardware.Backend == "" || cfg.Hardware.Backend == "software" {
+		return Go2RTCHardwareResult{Backend: "software", Verified: true}, nil
+	}
+	// Configure owns lifecycleMu through publishing both config and media state.
+	// Capture one identity before the network call, including its ABA generation.
+	if !m.lifecycleMu.TryLock() {
+		return Go2RTCHardwareResult{Backend: cfg.Hardware.Backend, ErrorCode: "hardware_busy"}, fmt.Errorf("camera lifecycle update is in progress")
+	}
+	cfg = m.Config()
+	path, key := m.hardwareCache(cfg)
+	m.mediaMu.Lock()
+	generation := m.hardwareGeneration
+	m.mediaMu.Unlock()
+	m.lifecycleMu.Unlock()
 	backend := cfg.Hardware.Backend
 	if backend == "" {
 		backend = "software"
@@ -85,23 +99,21 @@ func (m *Go2RTCManager) CheckHardware(ctx context.Context) (Go2RTCHardwareResult
 			URL  string `json:"url"`
 		} `json:"sources"`
 	}
-	if err := m.requestJSON(ctx, http.MethodGet, "/api/ffmpeg/hardware", nil, &probe, 1<<20); err != nil {
-		m.mediaMu.Lock()
-		m.hardwareVerified = false
-		m.hardwareVerifiedAt = ""
-		m.mediaMu.Unlock()
-		m.clearHardwareVerification(cfg)
-		result.ErrorCode = "hardware_probe_unavailable"
-		return result, fmt.Errorf("camera hardware probe unavailable")
-	}
+	probeErr := m.requestJSON(ctx, http.MethodGet, "/api/ffmpeg/hardware", nil, &probe, 1<<20)
 	for _, source := range probe.Sources {
-		if source.Name == "OK" && strings.Contains(source.URL, "#video=h264#hardware="+backend) {
+		if probeErr == nil && source.Name == "OK" && strings.Contains(source.URL, "#video=h264#hardware="+backend) {
 			result.Verified = true
 		}
 	}
-	_, hardwareKey := m.hardwareCache(cfg)
+	// Keep config changes out of validation and persistence, not the slow probe.
+	if !m.lifecycleMu.TryLock() {
+		result.Verified = false
+		result.ErrorCode = "hardware_busy"
+		return result, fmt.Errorf("camera lifecycle changed during hardware probe")
+	}
+	defer m.lifecycleMu.Unlock()
 	m.mediaMu.Lock()
-	if m.hardwareKey != hardwareKey {
+	if m.hardwareKey != key || m.hardwareGeneration != generation || m.mediaClosed {
 		m.mediaMu.Unlock()
 		result.Verified = false
 		result.ErrorCode = "hardware_changed"
@@ -114,12 +126,17 @@ func (m *Go2RTCManager) CheckHardware(ctx context.Context) (Go2RTCHardwareResult
 		result.VerifiedAt = m.hardwareVerifiedAt
 	}
 	m.mediaMu.Unlock()
+	if probeErr != nil {
+		m.clearHardwareVerification(path)
+		result.ErrorCode = "hardware_probe_unavailable"
+		return result, fmt.Errorf("camera hardware probe unavailable")
+	}
 	if !result.Verified {
-		m.clearHardwareVerification(cfg)
+		m.clearHardwareVerification(path)
 		result.ErrorCode = "hardware_encoder_unavailable"
 		return result, fmt.Errorf("selected hardware H.264 encoder is unavailable")
 	}
-	m.saveHardwareVerification(cfg, result.VerifiedAt)
+	m.saveHardwareVerification(path, key, result.VerifiedAt)
 	return result, nil
 }
 
@@ -143,11 +160,10 @@ func (m *Go2RTCManager) hardwareCache(cfg config.Go2RTCConfig) (string, string) 
 	m.mu.RLock()
 	dir, host := m.dataDir, m.docker.Host
 	m.mu.RUnlock()
-	hash := sha256.Sum256([]byte(go2RTCHardwareKey(cfg.Hardware) + "\x00" + Go2RTCImageFor(cfg) + "\x00" + host))
+	hash := sha256.Sum256([]byte(strings.Join([]string{go2RTCHardwareKey(cfg.Hardware), Go2RTCImageFor(cfg), host, cfg.URL, fmt.Sprint(cfg.APIHostPort), dir}, "\x00")))
 	return filepath.Join(dir, "go2rtc", "hardware.json"), hex.EncodeToString(hash[:])
 }
-func (m *Go2RTCManager) saveHardwareVerification(cfg config.Go2RTCConfig, at string) {
-	path, key := m.hardwareCache(cfg)
+func (m *Go2RTCManager) saveHardwareVerification(path, key, at string) {
 	data, _ := json.Marshal(map[string]string{"key": key, "verified_at": at})
 	if os.MkdirAll(filepath.Dir(path), 0755) == nil {
 		if err := config.WriteFileAtomic(path, data, 0600); err != nil {
@@ -174,12 +190,13 @@ func (m *Go2RTCManager) loadHardwareVerification() {
 		return
 	}
 	m.mediaMu.Lock()
-	m.hardwareVerified = true
-	m.hardwareVerifiedAt = record["verified_at"]
+	if m.hardwareKey == key {
+		m.hardwareVerified = true
+		m.hardwareVerifiedAt = record["verified_at"]
+	}
 	m.mediaMu.Unlock()
 }
 
-func (m *Go2RTCManager) clearHardwareVerification(cfg config.Go2RTCConfig) {
-	path, _ := m.hardwareCache(cfg)
+func (m *Go2RTCManager) clearHardwareVerification(path string) {
 	_ = os.Remove(path)
 }

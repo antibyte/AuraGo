@@ -15,6 +15,8 @@ HTTP media, HLS and WebSocket leases belong to a camera revision. Changing one
 camera's sources first registers all replacement aliases, then publishes the new
 revision and revokes its old leases without restarting other cameras. Failed or
 superseded registrations retain the active revision and clean partial aliases.
+Revisions are never reused within a manager lifetime, even after disabling or
+deleting a camera ID. Late images from an earlier generation remain invalid.
 Status exposes `media_ready` and `source_pending`; managers additionally receive
 the saved `configured_media` settings while playback still uses its active revision.
 
@@ -26,6 +28,8 @@ the CPU limit is capped to the Docker host's CPU count. Preload is optional,
 warms only the main source and never counts as a viewer. go2rtc writes its native
 preload configuration into a source-free copy in container tmpfs; the host
 configuration mount remains read-only.
+Failed warm-consumer removals remain tracked for retry and are reported by
+reconciliation; their stream aliases are retired only after consumer cleanup.
 
 CPU is the default backend. VAAPI requires one `/dev/dri/renderD*` host node and
 its numeric non-root render group. CUDA/NVENC requires one GPU index or UUID.
@@ -37,6 +41,8 @@ Save, start the sidecar and use **Test saved hardware** before selecting GPU
 transcoding for playback. Successful verification is stored privately with its
 timestamp and tied to the image, hardware settings and Docker host. Failed tests
 revoke verification; playback reports the failure and never silently uses CPU.
+The probe captures its target before I/O. Changing its host or API endpoint while
+it runs discards the old result, including a late failure, and requires a new test.
 
 ## WebRTC lifecycle patch
 
@@ -58,6 +64,13 @@ their private API must attest `aurago_webrtc_lifecycle: ws-close-v1` before
 AuraGo enables WebRTC/talk. Viewing through MSE/HLS/MP4/MJPEG remains available.
 HLS requires native HLS playback support in the browser. Public STUN servers
 are disabled in both the browser and sidecar.
+Automatic playback separates RTC signaling from alternative media delivery.
+When WebRTC wins, the alternative media socket closes, avoiding a second stream;
+the RTC signaling socket stays open so a source change can terminate the peer.
+
+Existing configurations may leave the new media settings empty. The Config UI
+normalizes these to the documented defaults without creating unsaved changes;
+real camera edits and explicit source-removal controls remain tracked.
 
 ## Talk and diagnostics
 

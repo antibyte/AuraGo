@@ -174,6 +174,15 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   `three_d_printers.*.printers` (`cfg/three_d_printers.js`). Verify the Config
   list cases in `node scripts/test-ui-regressions.mjs`.
 
+- go2rtc Config treats both absent media enums and legacy empty strings as their
+  neutral defaults in the draft and saved comparison baseline. Opening a section
+  or undoing edits must leave it clean; normalization must preserve actual draft
+  changes and masked sources. Verify `TestGo2RTCLegacyMediaConfigStaysCleanBrowser`.
+  Auto playback uses separate RTC-signaling and alternative-media sockets: the
+  losing media socket closes on RTC selection, while signaling loss still stops
+  the peer. Explicit disconnect clears pending reconnects. Verify
+  `TestGo2RTCPlayerProtocolsBrowser` against the pinned fixtures.
+
 - Newspaper is a lazy built-in Desktop reader with a separate editorial paper surface and Config/Dashboard entry. Keep all sixteen Desktop, Config and Dashboard locale keys aligned, both icon manifests registered, and the generated main Desktop bundle current. Config exposes the search cap (32 by default, 1–64 including retries); shared capability responses distinguish setup reasons from last-attempt failures. The reader preserves optional research counters and topic gaps, including legacy runs without them. A bounce-suppression message must not imply that the recipient address is invalid without the original SMTP evidence. Verify `TestNewspaperResearchTranslations`, `TestNewspaperConfigResearchBrowser` and `TestDesktopNewspaperBrowser` at wide/narrow sizes in both themes; backend contracts live in `internal/newspaper/AGENTS.md`.
 
 - Tresor is a lazy built-in Desktop app with locally packaged Argon2id JS/WASM, a decorative vault-door SVG, and browser-only AES-GCM keys. Keep both theme icon manifests, `desktop.app_tresor` and `tresor.*` in all sixteen Desktop locales, and the generated main bundle current. Notes autosave with encrypted local drafts; Desktop close awaits saves and shows failures. Explicit, idle and pagehide locks clear decrypted state immediately, independently of network writes. Preserve editor/record association after failed loads and draft titles across dialogs. Verify vendor drift, crypto vectors, `TestTresorTranslations` and `TestDesktopTresorBrowser` (including failure recovery); the storage contract is `internal/tresor/AGENTS.md`.
