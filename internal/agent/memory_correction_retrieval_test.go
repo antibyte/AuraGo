@@ -101,8 +101,11 @@ func TestCorrectMemoryFourStoresUseCurrentRetrieval(t *testing.T) {
 				}
 			}
 			ranked, err := searchRankedMemoriesOnly(t.Context(), v, dc.ShortTermMem, query, 5, nil, time.Now())
-			if err != nil || (operation == "archive" && len(ranked) != 0) || (operation == "replace" && (len(ranked) != 1 || ranked[0].text != updated)) {
+			if err != nil || (operation == "archive" && len(ranked) != 0) || (operation == "replace" && (len(ranked) != 1 || ranked[0].text != "[trust:legacy-unknown] "+updated)) {
 				t.Fatal("Auto-RAG did not use current state", ranked, err)
+			}
+			if operation == "replace" && v.documents[ranked[0].docID] != updated {
+				t.Fatal("retrieval changed the stored replacement content")
 			}
 			recalled, err := RecallMemoryForLocalAgent("old-vector", dc.ShortTermMem, v)
 			if err != nil || len(recalled["results"].([]interface{})) != 0 {
@@ -157,8 +160,11 @@ func TestCorrectMemoryPendingReplacementRemainsInvisible(t *testing.T) {
 		t.Fatal("normal/local retrieval exposed staged replacement or hid original", string(data))
 	}
 	ranked, err := searchRankedMemoriesOnly(t.Context(), v, dc.ShortTermMem, query, 5, nil, time.Now())
-	if err != nil || len(ranked) != 1 || ranked[0].text != old {
+	if err != nil || len(ranked) != 1 || ranked[0].docID != "old-vector" || ranked[0].text != "[trust:system-recorded] "+old {
 		t.Fatal("Auto-RAG exposed staged replacement", ranked, err)
+	}
+	if v.documents["old-vector"] != old || v.documents[replacement] != updated {
+		t.Fatal("retrieval changed original or staged vector contents")
 	}
 	recalled, err := RecallMemoryForLocalAgent(replacement, dc.ShortTermMem, v)
 	if err != nil || len(recalled["results"].([]interface{})) != 0 {

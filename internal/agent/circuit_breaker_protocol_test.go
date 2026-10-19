@@ -313,6 +313,16 @@ type circuitBreakerSequenceClient struct {
 func (c *circuitBreakerSequenceClient) CreateChatCompletion(_ context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 	c.requests = append(c.requests, req)
 	response := c.responses[len(c.requests)-1]
+	response.Choices = append([]openai.ChatCompletionChoice(nil), response.Choices...)
+	for i := range response.Choices {
+		if response.Choices[i].FinishReason == "" {
+			// Scripted fixtures represent complete rounds, including empty answers.
+			response.Choices[i].FinishReason = openai.FinishReasonStop
+			if len(response.Choices[i].Message.ToolCalls) > 0 {
+				response.Choices[i].FinishReason = openai.FinishReasonToolCalls
+			}
+		}
+	}
 	if c.onResponse != nil {
 		c.onResponse()
 	}

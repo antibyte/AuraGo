@@ -192,7 +192,11 @@ func TestPromptSecMainAndMinimalLoopsKeepHumanRequest(t *testing.T) {
 						Name: "discover_tools", Arguments: `{"operation":"search","query":"fritzbox"}`,
 					}}}
 				}
-				return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: message}}}, nil
+				finishReason := openai.FinishReasonStop
+				if len(message.ToolCalls) > 0 {
+					finishReason = openai.FinishReasonToolCalls
+				}
+				return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: message, FinishReason: finishReason}}}, nil
 			}
 			run.LLMClient = client
 			req := openai.ChatCompletionRequest{Model: run.Config.LLM.Model, Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: intent}}}

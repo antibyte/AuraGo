@@ -173,7 +173,11 @@ func planTaskIDsFromItems(items []map[string]interface{}) []string {
 	return ids
 }
 
-func dispatchQuestionUser(tc ToolCall, dc *DispatchContext) string {
+func dispatchQuestionUser(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
+	const cancelled = `Tool Output: {"status":"cancelled","message":"Question cancelled with the active run."}`
+	if ctx.Err() != nil {
+		return cancelled
+	}
 	req := decodeQuestionUserArgs(tc)
 	if strings.TrimSpace(req.Question) == "" {
 		return `Tool Output: {"status":"error","message":"question is required"}`
@@ -226,10 +230,15 @@ func dispatchQuestionUser(tc ToolCall, dc *DispatchContext) string {
 
 	select {
 	case response := <-responseCh:
+		if ctx.Err() != nil {
+			return cancelled
+		}
 		// Free text from the web or desktop chat, a chat channel or an
 		// internal relay is scanned and isolated in screenQuestionFreeText.
 		out, _ := screenQuestionFreeText(dc, sessionID, response)
 		return out
+	case <-ctx.Done():
+		return cancelled
 	case <-time.After(timeout):
 		tools.CancelQuestion(sessionID)
 		b, _ := json.Marshal(tools.QuestionResponse{Status: "timeout"})
@@ -343,7 +352,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return dispatchRequestVaultSecret(ctx, tc, dc)
 
 		case "question_user":
-			return dispatchQuestionUser(tc, dc)
+			return dispatchQuestionUser(ctx, tc, dc)
 
 		case "call_webhook":
 			if !cfg.Webhooks.Enabled {
@@ -767,15 +776,18 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			bridgeTools := resolveSkillBridgeTools(cfg, cfg.Directories.SkillsDir, cleanSkillName)
 			var bridgeURL, bridgeToken string
 			if len(bridgeTools) > 0 {
-				bridgeURL = toolBridgeURL(cfg)
-				if tok, _ := agentInternalToken.Load().(string); tok != "" {
-					bridgeToken = tok
+				var release func()
+				var err error
+				bridgeURL, bridgeToken, release, err = IssueToolBridgeGrant(ctx, dc)
+				if err != nil {
+					return "Tool Output: ERROR " + security.Scrub(err.Error())
 				}
+				defer release()
 			}
 
 			var res string
 			var skillErr error
-			if cfg.Tools.SkillManager.RequireSandbox {
+			if cfg.Tools.SkillManager.RequireSandbox || !cfg.Agent.AllowUnsafeHostExecution {
 				// Sandbox enforcement: skills must run in the container sandbox
 				if !tools.SandboxReady() {
 					if executionSkillManager != nil {
@@ -783,7 +795,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					}
 					return fmt.Sprintf("Tool Output: [SANDBOX REQUIRED] Skill '%s' requires sandbox execution but the sandbox is not available. Please enable the sandbox in settings (sandbox.enabled: true) or disable 'Require Sandbox' in skill manager settings.", skillName)
 				}
-				res, skillErr = tools.ExecuteSkillInSandbox(cfg.Directories.SkillsDir, cleanSkillName, args, secrets, creds, cfg.Tools.SkillTimeoutSeconds, logger, bridgeURL, bridgeToken, bridgeTools)
+				res, skillErr = tools.ExecuteSkillInSandboxContext(ctx, cfg.Directories.SkillsDir, cleanSkillName, args, secrets, creds, cfg.Tools.SkillTimeoutSeconds, logger, bridgeURL, bridgeToken, bridgeTools)
 			} else if len(secrets) > 0 || len(creds) > 0 || len(bridgeTools) > 0 {
 				res, skillErr = tools.ExecuteSkillWithSecrets(ctx, cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, cleanSkillName, args, secrets, creds, bridgeURL, bridgeToken, bridgeTools)
 			} else {
@@ -987,7 +999,10 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			req := decodeWebCaptureArgs(tc)
 			logger.Info("LLM requested web capture", "operation", req.Operation, "url", req.URL)
-			return "Tool Output: " + tools.WebCapture(ctx, req.Operation, req.URL, req.Selector, req.FullPage, req.OutputDir)
+			if !cfg.Agent.AllowFilesystemWrite {
+				return `Tool Output: {"status":"policy_denied","code":"filesystem_write_disabled","message":"Capture output requires filesystem write permission."}`
+			}
+			return "Tool Output: " + tools.WebCaptureWithWorkspace(ctx, req.Operation, req.URL, req.Selector, req.FullPage, req.OutputDir, cfg.Directories.WorkspaceDir)
 
 		case "browser_automation":
 			if !cfg.BrowserAutomation.Enabled || !cfg.Tools.BrowserAutomation.Enabled {
@@ -1192,7 +1207,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			req := decodeSiteMonitorArgs(tc)
 			logger.Info("LLM requested site monitor", "op", req.Operation, "url", req.URL, "monitor_id", req.MonitorID)
-			return "Tool Output: " + tools.ExecuteSiteMonitor(cfg.SQLite.SiteMonitorPath, req.Operation, req.MonitorID, req.URL, req.Selector, req.Interval, req.Limit)
+			return "Tool Output: " + tools.ExecuteSiteMonitor(cfg.SQLite.SiteMonitorPath, req.Operation, req.MonitorID, req.URL, req.Selector, req.Interval, req.Limit, ctx)
 
 		case "form_automation":
 			if !cfg.Tools.FormAutomation.Enabled {
@@ -1203,13 +1218,19 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			req := decodeFormAutomationArgs(tc)
 			logger.Info("LLM requested form automation", "op", req.Operation, "url", req.URL)
-			return "Tool Output: " + tools.ExecuteFormAutomation(req.Operation, req.URL, req.Fields, req.Selector, req.ScreenshotDir)
+			if req.ScreenshotDir != "" && !cfg.Agent.AllowFilesystemWrite {
+				return `Tool Output: {"status":"policy_denied","code":"filesystem_write_disabled","message":"Form screenshots require filesystem write permission."}`
+			}
+			return "Tool Output: " + tools.ExecuteFormAutomationWithWorkspace(ctx, req.Operation, req.URL, req.Fields, req.Selector, req.ScreenshotDir, cfg.Directories.WorkspaceDir)
 
 		case "upnp_scan":
 			if !cfg.Tools.UPnPScan.Enabled {
 				return `Tool Output: {"status":"error","message":"upnp_scan is disabled. Enable tools.upnp_scan.enabled in config."}`
 			}
 			req := decodeUPnPScanArgs(tc)
+			if req.AutoRegister && !cfg.Tools.Inventory.Enabled {
+				return `Tool Output: {"status":"policy_denied","message":"Inventory registration is disabled."}`
+			}
 			logger.Info("LLM requested UPnP scan", "search_target", req.SearchTarget, "timeout_secs", req.TimeoutSecs, "auto_register", req.AutoRegister)
 			scanResult := tools.ExecuteUPnPScan(req.SearchTarget, req.TimeoutSecs)
 			if req.AutoRegister && inventoryDB != nil {
@@ -1221,12 +1242,23 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			res, _ := dispatchMessagingCases(ctx, tc, dc)
 			return res
 
-		case "manage_processes", "process_management":
+		case "process_management":
+			req := decodeManageProcessesArgs(tc)
+			label := tc.Label
+			if value, ok := tc.Params["label"].(string); ok {
+				label = value
+			}
+			return "Tool Output: " + tools.ManageRegisteredProcesses(ctx, req.Operation, req.PID, label, registry)
+
+		case "manage_processes":
 			req := decodeManageProcessesArgs(tc)
 			logger.Info("LLM requested process management", "op", req.Operation)
 			return "Tool Output: " + tools.ManageProcessesContext(ctx, req.Operation, int32(req.PID), cfg.Server.UILanguage, registry)
 
 		case "register_device", "register_server":
+			if !cfg.Tools.Inventory.Enabled {
+				return `Tool Output: {"status":"policy_denied","code":"inventory_disabled","message":"Inventory is disabled in configuration."}`
+			}
 			req := decodeRegisterDeviceArgs(tc)
 			logger.Info("LLM requested device registration", "name", req.Hostname)
 			tags := services.ParseTags(req.Tags)

@@ -211,8 +211,16 @@ func ExecuteMinimalLoop(
 		}
 		var err error
 		callCtx, observe := observer.begin(ctx, req, prepared.ProviderType, profile.Revision(), localHit)
+		capture := llm.UsageCaptureFromContext(callCtx)
+		if capture == nil {
+			callCtx, capture = llm.CaptureUsage(callCtx)
+		}
 		if opts != nil && opts.StreamText && noTools {
-			resp, err = minimalLoopStreamText(callCtx, client, req)
+			var idle time.Duration
+			if dispatchCtx.Cfg != nil {
+				idle = time.Duration(dispatchCtx.Cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds) * time.Second
+			}
+			resp, err = minimalLoopStreamText(callCtx, client, req, idle)
 		} else {
 			resp, err = client.CreateChatCompletion(callCtx, req)
 		}
@@ -224,14 +232,26 @@ func ExecuteMinimalLoop(
 			resp.Model = modelForUsage
 		}
 		resp, promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate, shouldCharge := normalizeResponseUsage(req, resp)
+		if len(resp.Choices) == 1 {
+			// Diagnostic only: incomplete responses still return before applying
+			// text or tools, but isolated adapters need their bounded retry cause.
+			result.FinishReason = resp.Choices[0].FinishReason
+		}
 		if shouldCharge {
 			accumulateMinimalLoopUsage(&result, promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate)
+		}
+		if dispatchCtx.BudgetTracker != nil {
 			category := "chat"
 			if opts != nil && strings.TrimSpace(opts.BudgetCategory) != "" {
 				category = strings.TrimSpace(opts.BudgetCategory)
 			}
-			if dispatchCtx.BudgetTracker != nil {
-				dispatchCtx.BudgetTracker.RecordForCategory(category, modelForUsage, promptTokens, completionTokens)
+			dispatchCtx.BudgetTracker.RecordResponseUsage(category, prepared.ProviderType, modelForUsage, capture, promptTokens, completionTokens, shouldCharge)
+		}
+		if err == nil {
+			if len(resp.Choices) != 1 {
+				err = fmt.Errorf("empty response from llm")
+			} else {
+				err = syncCompletionError(callCtx, resp)
 			}
 		}
 		observe(resp, err)
@@ -287,13 +307,19 @@ func ExecuteMinimalLoop(
 
 		// Execute tool calls
 		req.Messages = append(req.Messages, msg)
+		var toolBoundary agentLoopState
 
 		for _, tc := range msg.ToolCalls {
+			if err := ctx.Err(); err != nil {
+				toolBoundary.toolBoundaryErr = err
+			}
 			dispatchCtx.ToolDetailFits = toolDetailBudgetCheck(prepared.Budget, req)
 			dispatchCtx.inlineBasis = inlineBudgetBasis{InputTokens: prepared.Budget.minInputLimit(), BatchCalls: len(msg.ToolCalls)}
 			toolResult := "Tool Output: {\"status\":\"error\",\"code\":\"tool_call_limit\"}"
-			if opts == nil || opts.MaxToolCalls <= 0 || result.ToolCalls < opts.MaxToolCalls {
-				toolResult = executeMinimalToolCall(ctx, tc, dispatchCtx, userPrompt, logger)
+			if toolBoundary.toolBoundaryErr != nil || toolBoundary.toolBoundaryNotice != "" {
+				toolResult = `{"status":"skipped","code":"tool_batch_stopped","message":"Remaining calls were not executed while the run is stopped or an action awaits approval or outcome verification."}`
+			} else if opts == nil || opts.MaxToolCalls <= 0 || result.ToolCalls < opts.MaxToolCalls {
+				toolResult = executeMinimalToolCall(ctx, tc, dispatchCtx, userPrompt, logger, &toolBoundary)
 				result.ToolCalls++
 			}
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{
@@ -302,6 +328,17 @@ func ExecuteMinimalLoop(
 				Name:       tc.Function.Name,
 				ToolCallID: tc.ID,
 			})
+		}
+		if err := ctx.Err(); err != nil {
+			return result, req.Messages, err
+		}
+		if toolBoundary.toolBoundaryErr != nil {
+			return result, req.Messages, toolBoundary.toolBoundaryErr
+		}
+		if toolBoundary.toolBoundaryNotice != "" {
+			result.Response = toolBoundary.toolBoundaryNotice
+			result.Duration = time.Since(start)
+			return result, req.Messages, nil
 		}
 		if opts != nil && opts.MaxToolCalls > 0 && result.ToolCalls >= opts.MaxToolCalls {
 			if profile != nil {
@@ -328,6 +365,10 @@ func ExecuteMinimalLoop(
 		provider = dispatchCtx.Cfg.LLM.ProviderType
 	}
 	callCtx, observe := observer.begin(ctx, req, provider, profile.Revision(), profile != nil)
+	capture := llm.UsageCaptureFromContext(callCtx)
+	if capture == nil {
+		callCtx, capture = llm.CaptureUsage(callCtx)
+	}
 	resp, err := client.CreateChatCompletion(callCtx, req)
 	modelForUsage := req.Model
 	if resp.Model != "" {
@@ -339,12 +380,19 @@ func ExecuteMinimalLoop(
 	resp, promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate, shouldCharge := normalizeResponseUsage(req, resp)
 	if shouldCharge {
 		accumulateMinimalLoopUsage(&result, promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate)
+	}
+	if dispatchCtx.BudgetTracker != nil {
 		category := "chat"
 		if opts != nil && strings.TrimSpace(opts.BudgetCategory) != "" {
 			category = strings.TrimSpace(opts.BudgetCategory)
 		}
-		if dispatchCtx.BudgetTracker != nil {
-			dispatchCtx.BudgetTracker.RecordForCategory(category, modelForUsage, promptTokens, completionTokens)
+		dispatchCtx.BudgetTracker.RecordResponseUsage(category, prepared.ProviderType, modelForUsage, capture, promptTokens, completionTokens, shouldCharge)
+	}
+	if err == nil {
+		if len(resp.Choices) != 1 {
+			err = fmt.Errorf("empty summary response from llm")
+		} else {
+			err = syncCompletionError(callCtx, resp)
 		}
 	}
 	observe(resp, err)
@@ -421,6 +469,7 @@ func executeMinimalToolCall(
 	dispatchCtx *DispatchContext,
 	userContext string,
 	logger *slog.Logger,
+	boundaries ...*agentLoopState,
 ) string {
 	if logger == nil {
 		logger = slog.Default()
@@ -431,6 +480,11 @@ func executeMinimalToolCall(
 		return `{"status":"error","code":"invalid_arguments","message":"Supply a complete JSON object matching the tool schema."}`
 	}
 	dispatched := DispatchToolCallResult(ctx, &toolCall, dispatchCtx, userContext)
+	if len(boundaries) > 0 && boundaries[0] != nil {
+		// Inspect the canonical call and complete raw result before output
+		// bounding can omit the uncertainty/approval envelope.
+		boundaries[0].noteToolRunBoundary(toolCall, dispatchCtx, dispatched.Output)
+	}
 	limit := 50000
 	if dispatchCtx.Cfg != nil && dispatchCtx.Cfg.Agent.ToolOutputLimit > 0 {
 		limit = dispatchCtx.Cfg.Agent.ToolOutputLimit

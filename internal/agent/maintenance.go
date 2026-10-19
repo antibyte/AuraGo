@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/contacts"
 	"aurago/internal/kgextraction"
@@ -29,9 +30,14 @@ import (
 )
 
 // StartMaintenanceLoop spawns a background goroutine that runs daily at the configured time.
-func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.LLMGuardian, daemonSupervisor *tools.DaemonSupervisor, webhookManager *webhooks.Manager) *MaintenanceController {
+func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.LLMGuardian, daemonSupervisor *tools.DaemonSupervisor, webhookManager *webhooks.Manager, trackers ...*budget.Tracker) *MaintenanceController {
+	var tracker *budget.Tracker
+	if len(trackers) > 0 {
+		tracker = trackers[0]
+	}
 	return StartMaintenanceController(ctx, cfg, MaintenanceControllerDependencies{
-		Logger: logger, LLMClient: llmClient, Vault: vault, Registry: registry,
+		BudgetTracker: tracker,
+		Logger:        logger, LLMClient: llmClient, Vault: vault, Registry: registry,
 		Manifest: manifest, CronManager: cronManager, LongTermMem: longTermMem,
 		ShortTermMem: shortTermMem, HistoryManager: historyMgr, KG: kg,
 		InventoryDB: inventoryDB, ContactsDB: contactsDB, PlannerDB: plannerDB,
@@ -82,6 +88,14 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	}
 	taskCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	tracker, _ := budget.Tracking(ctx)
+	taskCtx = budget.WithTracking(taskCtx, tracker, "maintenance")
+	if tracker != nil && tracker.IsBlocked("maintenance") {
+		ledger.addError("budget_blocked")
+		ledger.markFailed()
+		completeMaintenanceRun(cfg, logger, shortTermMem, plannerDB, startedAt, ledger)
+		return
+	}
 	defer func() {
 		panicked := recover() != nil
 		// Catch-up executes inside this defer and needs its own run boundary.
@@ -533,7 +547,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		MissionManagerV2: missionManagerV2,
 		WebhookManager:   webhookManager,
 		CoAgentRegistry:  nil,
-		BudgetTracker:    nil,
+		BudgetTracker:    tracker,
 		SessionID:        sessionID,
 		PlannerDB:        plannerDB,
 		IsMaintenance:    true,

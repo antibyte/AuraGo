@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/persondetect"
 	"aurago/internal/security"
@@ -388,16 +389,9 @@ func go2RTCAnalyzeDetectionEvent(ctx context.Context, api detectionAPI, tc ToolC
 		prompt = go2RTCDetectionDefaultPrompt
 	}
 	prompt, _ = tools.PrepareVisionPrompt(prompt)
-	analysis, promptTokens, completionTokens, err := analyzeManagedImageAtWithPrompt(frameRoot, frameRel, prompt, dc.Cfg)
+	analysis, _, _, err := analyzeManagedImageAtWithPrompt(budget.WithTracking(ctx, dc.BudgetTracker, "vision"), frameRoot, frameRel, prompt, dc.Cfg)
 	if err != nil {
 		return go2RTCDetectionFailure("analysis_failed", "Event picture analysis failed: "+boundedRunes(err.Error(), go2RTCDetectionMessageRunes))
-	}
-	if dc.BudgetTracker != nil {
-		model := dc.Cfg.Vision.Model
-		if model == "" {
-			model = tools.DefaultVisionModel
-		}
-		dc.BudgetTracker.RecordForCategory("vision", model, promptTokens, completionTokens)
 	}
 	return go2RTCDetectionResult(map[string]any{
 		"status":    "ok",

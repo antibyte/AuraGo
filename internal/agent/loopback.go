@@ -123,12 +123,6 @@ func LoopbackContext(ctx context.Context, runCfg RunConfig, message string, brok
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	select {
-	case loopbackLimiter <- struct{}{}:
-	case <-ctx.Done():
-		return
-	}
-	defer func() { <-loopbackLimiter }()
 
 	cfg := runCfg.Config
 	logger := runCfg.Logger
@@ -154,6 +148,17 @@ func LoopbackContext(ctx context.Context, runCfg RunConfig, message string, brok
 		sessionID = "default"
 	}
 	isInternalMessage := isAutonomousLoopback(runCfg, sessionID)
+	ctx, releaseTurn, err := shortTermMem.BeginSessionTurn(ctx, sessionID)
+	if err != nil {
+		return
+	}
+	defer releaseTurn()
+	select {
+	case loopbackLimiter <- struct{}{}:
+	case <-ctx.Done():
+		return
+	}
+	defer func() { <-loopbackLimiter }()
 
 	// Create manifest for tool resolution
 	if runCfg.Manifest == nil {

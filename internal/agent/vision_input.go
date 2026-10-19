@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io"
@@ -137,22 +138,22 @@ func stageManagedVisionImage(root *os.Root, rel string, cfg *config.Config) (str
 	return path, &visionCfg, cleanup, nil
 }
 
-func analyzeManagedImageWithPrompt(input, prompt string, cfg *config.Config) (string, int, int, error) {
+func analyzeManagedImageWithPrompt(ctx context.Context, input, prompt string, cfg *config.Config) (string, int, int, error) {
 	path, visionCfg, cleanup, err := prepareManagedVisionInput(input, cfg)
 	if err != nil {
 		return "", 0, 0, err
 	}
 	defer cleanup()
-	return dispatchAnalyzeImageWithPrompt(path, prompt, visionCfg)
+	return dispatchAnalyzeImageWithPrompt(ctx, path, prompt, visionCfg)
 }
 
 // analyzeManagedImageAtWithPrompt is analyzeManagedImageWithPrompt for an image below
 // its own root (see prepareManagedVisionInputAt).
-func analyzeManagedImageAtWithPrompt(rootDir, rel, prompt string, cfg *config.Config) (string, int, int, error) {
+func analyzeManagedImageAtWithPrompt(ctx context.Context, rootDir, rel, prompt string, cfg *config.Config) (string, int, int, error) {
 	path, visionCfg, cleanup, err := prepareManagedVisionInputAt(rootDir, rel, cfg)
 	if err != nil {
 		return "", 0, 0, err
 	}
 	defer cleanup()
-	return dispatchAnalyzeImageWithPrompt(path, prompt, visionCfg)
+	return dispatchAnalyzeImageWithPrompt(ctx, path, prompt, visionCfg)
 }

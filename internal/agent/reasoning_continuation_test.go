@@ -50,3 +50,13 @@ func TestSanitizeReasoningKeepsNewestBlockForEligibleFallback(t *testing.T) {
 		t.Fatalf("fallback-required continuation reasoning was removed: %q", got[1].ReasoningContent)
 	}
 }
+
+func TestSanitizeReasoningRetainsOpaqueAnthropicContinuationForFallback(t *testing.T) {
+	const opaque = "aurago:anthropic-reasoning:v1:fixture-signed-block"
+	original := []openai.ChatCompletionMessage{{Role: "assistant", ReasoningContent: opaque, ToolCalls: []openai.ToolCall{{ID: "call-1"}}}, {Role: "tool", ToolCallID: "call-1", Content: "done"}}
+	routes := []RequestRouteBudget{{Limits: llm.ModelLimits{Route: llm.ModelRoute{ProviderType: "anthropic", Model: "claude-sonnet-4-5"}}}}
+	got := sanitizeReasoningForRequestRoutes(append([]openai.ChatCompletionMessage(nil), original...), routes, "openai", "gpt-4.1")
+	if got[0].ReasoningContent != opaque || original[0].ReasoningContent != opaque {
+		t.Fatal("opaque continuation was changed")
+	}
+}

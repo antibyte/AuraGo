@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -10,7 +9,6 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
-	"aurago/internal/tools"
 )
 
 // handleRemember routes a "remember" tool call to the appropriate memory subsystem
@@ -67,14 +65,14 @@ func handleRememberWritable(tc ToolCall, cfg *config.Config, logger *slog.Logger
 
 	switch target {
 	case "fact", "preference", "core":
-		return rememberAsFact(content, shortTermMem, cfg, logger)
+		return rememberAsFact(content, shortTermMem, cfg, logger, sessionID)
 	case "event", "milestone", "journal":
 		return rememberAsJournal(content, tc, shortTermMem, sessionID, logger)
 	case "task", "todo", "note":
 		if err := requireRememberNotesWritePermission(cfg); err != nil {
 			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
 		}
-		return rememberAsNoteWithTitle(content, tc.Title, shortTermMem, logger)
+		return rememberAsNoteWithTitle(content, tc.Title, shortTermMem, logger, sessionID)
 	case "relationship", "entity", "graph":
 		return rememberAsGraphEdge(content, tc, kg, sessionID, logger)
 	default:
@@ -214,22 +212,19 @@ func foldHeuristicRune(r rune) rune {
 	}
 }
 
-func rememberAsFact(content string, stm *memory.SQLiteMemory, cfg *config.Config, logger *slog.Logger) string {
+func rememberAsFact(content string, stm *memory.SQLiteMemory, cfg *config.Config, logger *slog.Logger, sourceSessions ...string) string {
 	if stm == nil {
 		return `Tool Output: {"status":"error","message":"Memory storage not available"}`
 	}
-	result, err := tools.ManageCoreMemory("add", content, 0, stm, cfg.Agent.CoreMemoryMaxEntries, cfg.Agent.CoreMemoryCapMode, cfg.Server.UILanguage)
+	sessionID := ""
+	if len(sourceSessions) > 0 {
+		sessionID = sourceSessions[0]
+	}
+	id, err := stm.AddModelCoreFact(content, sessionID, cfg.Agent.CoreMemoryMaxEntries, cfg.Agent.CoreMemoryCapMode == "hard")
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+		return fmt.Sprintf(`Tool Output: {"status":"error","stored_as":"core_memory","message":%q}`, err.Error())
 	}
-	var details struct {
-		Status  string `json:"status"`
-		Message string `json:"message"`
-	}
-	if json.Unmarshal([]byte(result), &details) == nil && details.Status == "error" {
-		return fmt.Sprintf(`Tool Output: {"status":"error","stored_as":"core_memory","message":"Core memory rejected fact","details":%s}`, result)
-	}
-	return fmt.Sprintf(`Tool Output: {"status":"success","stored_as":"core_memory","message":"Fact stored in core memory","details":%s}`, result)
+	return fmt.Sprintf(`Tool Output: {"status":"success","stored_as":"core_memory","message":"Fact stored in core memory","id":%d}`, id)
 }
 
 func rememberAsJournal(content string, tc ToolCall, stm *memory.SQLiteMemory, sessionID string, logger *slog.Logger) string {
@@ -260,7 +255,7 @@ func rememberAsJournal(content string, tc ToolCall, stm *memory.SQLiteMemory, se
 			}
 		}
 	}
-	id, err := stm.InsertJournalEntry(memory.JournalEntry{
+	id, err := stm.InsertModelJournalEntry(memory.JournalEntry{
 		EntryType:     entryType,
 		Title:         title,
 		Content:       content,
@@ -282,7 +277,7 @@ func rememberAsNote(content string, stm *memory.SQLiteMemory, logger *slog.Logge
 	return rememberAsNoteWithTitle(content, "", stm, logger)
 }
 
-func rememberAsNoteWithTitle(content, explicitTitle string, stm *memory.SQLiteMemory, logger *slog.Logger) string {
+func rememberAsNoteWithTitle(content, explicitTitle string, stm *memory.SQLiteMemory, logger *slog.Logger, sourceSessions ...string) string {
 	if stm == nil {
 		return `Tool Output: {"status":"error","message":"Notes storage not available"}`
 	}
@@ -294,7 +289,11 @@ func rememberAsNoteWithTitle(content, explicitTitle string, stm *memory.SQLiteMe
 	if len(title) > 120 {
 		title = title[:120] + "..."
 	}
-	id, err := stm.AddNote("general", title, content, 2, "")
+	sessionID := ""
+	if len(sourceSessions) > 0 {
+		sessionID = sourceSessions[0]
+	}
+	id, err := stm.AddModelNote("general", title, content, 2, "", sessionID)
 	if err != nil {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 	}

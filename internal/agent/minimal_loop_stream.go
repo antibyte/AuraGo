@@ -19,12 +19,72 @@ import (
 var ErrIncompleteTextStream = errors.New("text stream ended without a finish reason")
 
 // Buffer text privately: incomplete source must never reach a file or tool.
-func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req openai.ChatCompletionRequest) (response openai.ChatCompletionResponse, retErr error) {
+func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req openai.ChatCompletionRequest, idleBudgets ...time.Duration) (response openai.ChatCompletionResponse, retErr error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	ctx, thinkingProgress := withStreamThinkingProgress(ctx, nil)
 	stream, err := client.CreateChatCompletionStream(ctx, req)
 	if err != nil {
 		return openai.ChatCompletionResponse{}, err
 	}
-	defer func() { _ = stream.Close() }()
+	type receivedChunk struct {
+		chunk openai.ChatCompletionStreamResponse
+		err   error
+	}
+	received := make(chan receivedChunk, 1)
+	receiverDone := make(chan struct{})
+	go func() {
+		defer close(receiverDone)
+		defer close(received)
+		defer func() {
+			if recover() != nil {
+				select {
+				case received <- receivedChunk{err: ErrRuntimePanic}:
+				case <-ctx.Done():
+				}
+			}
+		}()
+		for {
+			chunk, err := stream.Recv()
+			select {
+			case received <- receivedChunk{chunk, err}:
+			case <-ctx.Done():
+				return
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+	defer func() {
+		cancel()
+		_ = stream.Close()
+		select {
+		case <-receiverDone:
+		case <-time.After(time.Second):
+		}
+	}()
+	idle := 30 * time.Second
+	if len(idleBudgets) > 0 && idleBudgets[0] > 0 {
+		idle = idleBudgets[0]
+	}
+	wait := idle
+	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) > wait {
+		wait = time.Until(deadline)
+	}
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+	progressSeen := false
+	markProgress := func() {
+		progressSeen = true
+		if !timer.Stop() {
+			select {
+			case <-timer.C:
+			default:
+			}
+		}
+		timer.Reset(idle)
+	}
 	var text strings.Builder
 	var reasoning strings.Builder
 	var finish openai.FinishReason
@@ -35,15 +95,37 @@ func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req opena
 			return
 		}
 		response = openai.ChatCompletionResponse{Model: responseModel, Usage: usage}
-		if text.Len() > 0 || reasoning.Len() > 0 {
-			response.Choices = []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{
+		if text.Len() > 0 || reasoning.Len() > 0 || finish != "" {
+			response.Choices = []openai.ChatCompletionChoice{{FinishReason: finish, Message: openai.ChatCompletionMessage{
 				Role: openai.ChatMessageRoleAssistant, Content: text.String(), ReasoningContent: reasoning.String(),
 			}}}
 		}
 	}()
 	chunks, lastChunk := 0, time.Now()
 	for {
-		chunk, err := stream.Recv()
+		var next receivedChunk
+		select {
+		case <-ctx.Done():
+			if !progressSeen && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				return response, fmt.Errorf("%w: %w", errStreamFirstTokenTimeout, ctx.Err())
+			}
+			return response, ctx.Err()
+		case <-thinkingProgress.ready:
+			markProgress()
+			continue
+		case <-timer.C:
+			if !progressSeen {
+				return response, fmt.Errorf("%w: %w", errStreamFirstTokenTimeout, context.DeadlineExceeded)
+			}
+			return response, fmt.Errorf("%w: %w", errStreamIdleTimeout, context.DeadlineExceeded)
+		case item, ok := <-received:
+			if !ok {
+				next.err = io.EOF
+			} else {
+				next = item
+			}
+		}
+		chunk, err := next.chunk, next.err
 		if err == io.EOF {
 			break
 		}
@@ -79,7 +161,11 @@ func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req opena
 				return openai.ChatCompletionResponse{}, fmt.Errorf("reasoning stream exceeds 4 MiB")
 			}
 			reasoning.WriteString(choice.Delta.ReasoningContent)
-			llm.ObserveStreamOutput(ctx, len(choice.Delta.Content)+len(choice.Delta.ReasoningContent))
+			measured := len(choice.Delta.Content) + thinkingProgress.reasoningChars(choice.Delta.ReasoningContent)
+			llm.ObserveStreamOutput(ctx, measured)
+			if measured > 0 || choice.FinishReason != "" {
+				markProgress()
+			}
 			if choice.FinishReason != "" {
 				finish = choice.FinishReason
 			}
@@ -91,8 +177,9 @@ func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req opena
 	if finish == "" {
 		return openai.ChatCompletionResponse{}, fmt.Errorf("%w (%d chunks, %d text bytes, %d reasoning bytes); incomplete output was discarded", ErrIncompleteTextStream, chunks, text.Len(), reasoning.Len())
 	}
-	return openai.ChatCompletionResponse{Model: responseModel, Usage: usage, Choices: []openai.ChatCompletionChoice{{
+	response = openai.ChatCompletionResponse{Model: responseModel, Usage: usage, Choices: []openai.ChatCompletionChoice{{
 		FinishReason: finish,
 		Message:      openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: text.String(), ReasoningContent: reasoning.String()},
-	}}}, nil
+	}}}
+	return response, syncCompletionError(ctx, response)
 }

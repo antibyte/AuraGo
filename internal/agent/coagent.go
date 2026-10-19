@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
@@ -328,7 +328,17 @@ func SpawnCoAgent(
 		var resp openai.ChatCompletionResponse
 		var err error
 		consumedTokens := 0
-		runCfg.ExecutionHooks = &ExecutionHooks{AfterResponse: func(usage openai.Usage) error {
+		toolAttempted := false
+		var continuation []openai.ChatCompletionMessage
+		runCfg.Checkpoint = func(messages []openai.ChatCompletionMessage) error {
+			continuation = append([]openai.ChatCompletionMessage(nil), messages...)
+			return nil
+		}
+		runCfg.ExecutionHooks = &ExecutionHooks{BeforeTool: func(context.Context, ToolCall) error {
+			// Even a failed or panicking handler may have completed a side effect.
+			toolAttempted = true
+			return nil
+		}, AfterResponse: func(usage openai.Usage) error {
 			consumedTokens += usage.TotalTokens
 			if maxTokensBudget > 0 && consumedTokens >= maxTokensBudget {
 				return fmt.Errorf("co-agent cumulative token limit reached: %d of %d", consumedTokens, maxTokensBudget)
@@ -365,8 +375,11 @@ func SpawnCoAgent(
 			}
 			// A fresh loop may only retry before a tool result or partial response exists.
 			// Later failures require explicit continuation from the stored history.
-			if extractCoAgentPartialResult(coHistoryMgr) != "" || len(coHistoryMgr.Get()) > 1 || !isRetryableCoAgentError(cfg, err) || attempt == maxRetries {
+			if toolAttempted || ctx.Err() != nil || errors.Is(err, ErrRuntimePanic) || extractCoAgentPartialResult(coHistoryMgr) != "" || len(coHistoryMgr.Get()) > 1 || !isRetryableCoAgentError(cfg, err) || attempt == maxRetries {
 				break
+			}
+			if len(continuation) > 0 {
+				llmReq.Messages = append([]openai.ChatCompletionMessage(nil), continuation...)
 			}
 			coRegistry.RecordRetry(coID, err.Error())
 			coRegistry.RecordEvent(coID, fmt.Sprintf("transient failure before retry: %s", truncateStr(err.Error(), 160)))
@@ -435,9 +448,9 @@ func coAgentRunContext(lifecycleCtx context.Context, timeout time.Duration) (con
 
 func recoverCoAgentPanic(registry *CoAgentRegistry, coID string, logger *slog.Logger) {
 	if recovered := recover(); recovered != nil {
-		errMsg := fmt.Sprintf("co-agent panic: %v", recovered)
+		errMsg := "co-agent stopped unexpectedly; verify action outcomes before retrying"
 		if logger != nil {
-			logger.Error("Co-Agent panicked", "error", recovered, "stack", string(debug.Stack()))
+			logger.Error("Co-Agent panicked; run stopped without replay")
 		}
 		if registry != nil && coID != "" {
 			registry.Fail(coID, errMsg, 0, 0)

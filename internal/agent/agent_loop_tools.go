@@ -21,6 +21,13 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	if len(s.pendingTCs) == 0 {
 		return false
 	}
+	if stopErr := toolDispatchStopReason(s, ctx, s.pendingTCs[0]); stopErr != nil {
+		s.toolBoundaryErr = stopErr
+		appendSkippedNativeResults(s, s.runCfg.ShortTermMem, s.runCfg.HistoryManager, s.runCfg.SessionID, s.broker,
+			`{"status":"skipped","code":"tool_batch_stopped","message":"Run cancelled or execution limit reached."}`)
+		s.pendingTCs = nil
+		return true
+	}
 
 	shortTermMem := s.runCfg.ShortTermMem
 	historyManager := s.runCfg.HistoryManager
@@ -81,7 +88,9 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		pResultContent = precheckResult
 	} else {
 		toolAction = startAgentToolAction(currentLogger, actionLedger, toolAction)
+		dispatchCtx.actionLedger, dispatchCtx.actionEvent = actionLedger, &toolAction
 		pResultContent = DispatchToolCall(ctx, &ptc, dispatchCtx, lastUserMsg)
+		s.noteToolRunBoundary(ptc, dispatchCtx, pResultContent)
 	}
 	pResultContent, deferredRecoveryMessages := s.applyToolOutcome(ctx, ptc, pResultContent, toolOutcomeOptions{
 		Blocked:              actionBlocked,
@@ -348,7 +357,9 @@ func executeAgentToolTurn(
 		resultContent = precheckResult
 	} else {
 		toolAction = startAgentToolAction(currentLogger, actionLedger, toolAction)
+		dispatchCtx.actionLedger, dispatchCtx.actionEvent = actionLedger, &toolAction
 		resultContent = DispatchToolCall(ctx, &tc, dispatchCtx, lastUserMsg)
+		s.noteToolRunBoundary(tc, dispatchCtx, resultContent)
 	}
 	resultContent, primaryRecoveryMessages := s.applyToolOutcome(ctx, tc, resultContent, toolOutcomeOptions{
 		Blocked:              primaryBlocked,
@@ -374,6 +385,11 @@ func executeAgentToolTurn(
 		circuitBreakerOpen := false
 		nativeDispatchCtx := s.makeDispatchContext(currentLogger)
 		for len(s.pendingTCs) > 0 && s.pendingTCs[0].NativeCallID != "" {
+			if s.toolBoundaryErr != nil || s.toolBoundaryNotice != "" {
+				appendSkippedNativeResults(s, shortTermMem, historyManager, sessionID, broker, `{"status":"skipped","code":"tool_batch_stopped","message":"Remaining calls await approval or action outcome verification."}`)
+				s.pendingTCs = nil
+				break
+			}
 			if finishCompletedRun(s) {
 				break
 			}
@@ -421,7 +437,9 @@ func executeAgentToolTurn(
 				bResult = precheckResult
 			} else {
 				batchedAction = startAgentToolAction(currentLogger, batchedLedger, batchedAction)
+				nativeDispatchCtx.actionLedger, nativeDispatchCtx.actionEvent = batchedLedger, &batchedAction
 				bResult = DispatchToolCall(ctx, &btc, nativeDispatchCtx, lastUserMsg)
+				s.noteToolRunBoundary(btc, nativeDispatchCtx, bResult)
 			}
 			bResult, batchRecoveryMessages := s.applyToolOutcome(ctx, btc, bResult, toolOutcomeOptions{
 				Blocked:              batchedBlocked,
@@ -456,6 +474,9 @@ func executeAgentToolTurn(
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: followUpContent})
 	}
 
+	if boundaryResponse, boundaryErr, stopped := s.toolRunBoundary(ctx); stopped {
+		return boundaryResponse, boundaryErr, false
+	}
 	if finishCompletedRun(s) {
 		return openai.ChatCompletionResponse{}, ctx.Err(), false
 	}

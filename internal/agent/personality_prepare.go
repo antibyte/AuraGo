@@ -157,15 +157,14 @@ func (c *emotionCompletionClient) CreateChatCompletion(ctx context.Context, req 
 		req.ResponseFormat = llm.JSONResponseFormat(caps.StructuredOutputs)
 	}
 	c.calls++
-	response, err := c.client.CreateChatCompletion(ctx, req)
+	callCtx, capture := llm.CaptureUsage(ctx)
+	response, err := c.client.CreateChatCompletion(callCtx, req)
 	response, input, output, _, _, _, account := normalizeResponseUsage(req, response)
-	if account {
-		model := response.Model
-		if model == "" {
-			model = req.Model
-		}
-		c.tracker.RecordForCategory("personality", model, input, output)
+	model := response.Model
+	if model == "" {
+		model = req.Model
 	}
+	c.tracker.RecordResponseUsage("personality", route.ProviderType, model, capture, input, output, account)
 	if err != nil {
 		return response, err
 	}

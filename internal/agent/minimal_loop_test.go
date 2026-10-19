@@ -33,7 +33,8 @@ func (c *minimalLoopRouteClient) CreateChatCompletion(_ context.Context, req ope
 		return c.respond(req, len(c.requests))
 	}
 	return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{
-		Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "done"},
+		FinishReason: openai.FinishReasonStop,
+		Message:      openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "done"},
 	}}}, nil
 }
 
@@ -152,9 +153,9 @@ func TestExecuteMinimalLoopRebudgetsNoToolSummary(t *testing.T) {
 	client := &minimalLoopRouteClient{routes: minimalLoopTestRoutes()}
 	client.respond = func(req openai.ChatCompletionRequest, _ int) (openai.ChatCompletionResponse, error) {
 		if len(req.Tools) == 0 {
-			return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "summary"}}}}, nil
+			return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{FinishReason: openai.FinishReasonStop, Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "summary"}}}}, nil
 		}
-		return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{
+		return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{FinishReason: openai.FinishReasonToolCalls, Message: openai.ChatCompletionMessage{
 			Role:      openai.ChatMessageRoleAssistant,
 			ToolCalls: []openai.ToolCall{{ID: "call-loop", Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "test_tool", Arguments: `{}`}}},
 		}}}}, nil
@@ -281,7 +282,7 @@ func TestExecuteMinimalLoopAccountsEmptySummaryResponseBeforeReturning(t *testin
 		if len(req.Tools) == 0 {
 			return openai.ChatCompletionResponse{Model: "actual-route-model", Usage: openai.Usage{PromptTokens: 11}}, nil
 		}
-		return openai.ChatCompletionResponse{Model: "actual-route-model", Usage: openai.Usage{PromptTokens: 5, CompletionTokens: 2, TotalTokens: 7}, Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{
+		return openai.ChatCompletionResponse{Model: "actual-route-model", Usage: openai.Usage{PromptTokens: 5, CompletionTokens: 2, TotalTokens: 7}, Choices: []openai.ChatCompletionChoice{{FinishReason: openai.FinishReasonToolCalls, Message: openai.ChatCompletionMessage{
 			Role:      openai.ChatMessageRoleAssistant,
 			ToolCalls: []openai.ToolCall{{ID: "call-tool-" + string(rune('0'+callNumber)), Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "test_tool", Arguments: `{}`}}},
 		}}}}, nil

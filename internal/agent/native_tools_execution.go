@@ -11,7 +11,7 @@ func appendExecutionToolSchemas(tools []openai.Tool, ff ToolFeatureFlags, execut
 				"file_path": prop("string", "Optional local file path to hash or upload to VirusTotal"),
 				"mode": map[string]interface{}{
 					"type":        "string",
-					"description": "Optional scan mode for local files: auto=hash lookup then upload if unknown, hash=only calculate and look up hashes, upload=force file upload",
+					"description": "Scan mode: auto, hash, or omitted mode only look up existing reports and never submit files or URLs. upload explicitly submits the file or URL for analysis.",
 					"enum":        []string{"auto", "hash", "upload"},
 				},
 			}),

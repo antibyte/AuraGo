@@ -32,6 +32,7 @@ type memorySearchBundle struct {
 }
 
 type contextMemoryResult struct {
+	Trust     string  `json:"trust,omitempty"`
 	Rank      int     `json:"rank"`
 	Source    string  `json:"source"`
 	Type      string  `json:"type"`
@@ -348,6 +349,7 @@ func gatherMemoryInventoryResults(tc ToolCall, shortTermMem *memory.SQLiteMemory
 		}
 	}
 
+	annotateMemorySources(shortTermMem, &bundle)
 	return bundle
 }
 
@@ -523,6 +525,7 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 		}
 	}
 
+	annotateMemorySources(shortTermMem, &bundle)
 	return bundle
 }
 
@@ -668,7 +671,7 @@ func executeRecallMemory(tc ToolCall, sessionID string, shortTermMem *memory.SQL
 			missing = append(missing, id)
 			continue
 		}
-		results = append(results, recalledMemory{ID: id, Content: security.Scrub(content)})
+		results = append(results, recalledMemory{ID: id, Content: security.Scrub(memoryTextWithTrust(content, metaMap[id]))})
 		if shortTermMem != nil {
 			_ = shortTermMem.UpdateMemoryAccess(id)
 			_ = shortTermMem.RecordMemoryUsage(id, "ltm_recalled", sessionID, 1, false)
@@ -953,6 +956,7 @@ func executeContextMemoryQuery(tc ToolCall, sessionID string, shortTermMem *memo
 			}
 			for _, entry := range entries {
 				addResult("journal", entry.EntryType, entry.Title+" | "+entry.Content, entry.Date, "Journal event matched query/time window", "", 0.9)
+				results[len(results)-1].Trust = entry.Trust
 			}
 		case "notes":
 			notes, ok := result.Data.([]memory.Note)
@@ -961,6 +965,7 @@ func executeContextMemoryQuery(tc ToolCall, sessionID string, shortTermMem *memo
 			}
 			for _, note := range notes {
 				addResult("notes", "note", note.Title+" | "+note.Content, note.DueDate, "Open or stored note matched the query", "", 0.88)
+				results[len(results)-1].Trust = note.Trust
 			}
 		case "planner":
 			payload, ok := result.Data.(plannerMemoryPayload)
@@ -1001,6 +1006,9 @@ func executeContextMemoryQuery(tc ToolCall, sessionID string, shortTermMem *memo
 			}
 			for _, fact := range facts {
 				addResult("core", "fact", fact.Fact, "", "Persistent core memory fact", fmt.Sprintf("%d", fact.ID), 0.85)
+				if strings.TrimSpace(fact.Fact) != "" {
+					results[len(results)-1].Trust = fact.Trust
+				}
 				if len(results) >= 20 {
 					break
 				}
@@ -1105,7 +1113,59 @@ func filterArchivedMemoryResults(results []string, docIDs []string, stm *memory.
 		if meta, ok := metaMap[docIDs[i]]; ok && memory.IsMemoryArchived(meta) {
 			continue
 		}
-		filtered = append(filtered, result)
+		filtered = append(filtered, memoryTextWithTrust(result, metaMap[docIDs[i]]))
 	}
 	return filtered, nil
+}
+
+// annotateMemorySources carries concise actor/origin labels without exposing
+// private session IDs in retrieved records, including inventory samples.
+func annotateMemorySources(stm *memory.SQLiteMemory, bundle *memorySearchBundle) {
+	if stm == nil {
+		return
+	}
+	var annotate func(interface{}) interface{}
+	annotate = func(data interface{}) interface{} {
+		switch records := data.(type) {
+		case []memory.JournalEntry:
+			for i := range records {
+				origin, _ := stm.MemoryOriginForRecord("journal", records[i].ID, records[i].Content)
+				records[i].MemoryOrigin = origin
+				records[i].SessionID = ""
+			}
+			return records
+		case []memory.Note:
+			for i := range records {
+				origin, _ := stm.MemoryOriginForRecord("notes", records[i].ID, records[i].Content)
+				records[i].MemoryOrigin = origin
+			}
+			return records
+		case []memory.CoreMemoryFact:
+			for i := range records {
+				origin, _ := stm.MemoryOriginForRecord("core", records[i].ID, records[i].Fact)
+				records[i].MemoryOrigin = origin
+			}
+			return records
+		case []memory.ActivityTurn:
+			for i := range records {
+				records[i].SessionID = ""
+			}
+			return records
+		case []memory.EpisodicMemory:
+			for i := range records {
+				records[i].SessionID = ""
+			}
+			return records
+		case map[string]interface{}:
+			for key, value := range records {
+				records[key] = annotate(value)
+			}
+			return records
+		default:
+			return data
+		}
+	}
+	for i := range bundle.Results {
+		bundle.Results[i].Data = annotate(bundle.Results[i].Data)
+	}
 }

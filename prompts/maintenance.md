@@ -21,35 +21,13 @@ For review-pending memory hygiene findings, point the user to **Dashboard → Me
 
 ## TASKS
 
-1. **Cron Job Cleanup.** Call `manage_schedule` with operation `list` to review all active cron jobs.
-   - Identify test jobs, temporary tasks, or entries no longer relevant to the user's current goals.
-   - Remove redundant or obsolete entries to keep the scheduler clean.
-2. **Workdir Cleanup.** Review `agent_workspace/workdir` and reduce clutter left behind by previous agent runs.
-   - First inspect the directory structure and identify files by purpose. Do not start with broad deletion.
-   - Delete only items that are certainly disposable: empty directories, stale temporary/cache files, failed intermediate outputs, duplicate downloads, throwaway scripts, and logs that are not referenced by an active task, note, report, or current conversation.
-   - Never delete protected or likely reusable content: `venv`, `.venv`, `node_modules`, `.git`, `.env`, config files, databases, vault files, user-named documents, active project folders, attachments still referenced by recent messages, registered media, or anything outside `agent_workspace/workdir`.
-   - Never run broad destructive commands such as deleting the whole workdir, recursive wildcard deletion, or cleanup outside the workdir. If you are not sure, do not delete.
-   - If a file may still be useful but is poorly placed, move it into a structured folder under `agent_workspace/workdir/archive/maintenance/YYYY-MM-DD/` using categories such as `scripts`, `reports`, `downloads`, `logs`, or `unknown`. Rename vague files only when the new name is clearly more descriptive.
-   - If the cleanup candidate set is large, risky, or ambiguous, quarantine/move uncertain files instead of deleting them and mention the uncertainty in the report.
-   - Report deleted, moved, renamed, and intentionally kept items with short reasons.
-3. **Knowledge Health.** Reflect on recent archives and the persistent summary.
-   - Flag outdated information that has not been compressed yet for the next reflection loop.
-   - Call `knowledge_graph` with `operation: "search"` and a broad entity type or common environment term to spot-check graph quality. Verify that returned nodes have useful names and expected relationships. If the graph seems sparse or stale, note it in the report — nightly auto-extraction runs automatically and will populate it from recent conversations.
-   - Check whether the core memory has grown too large: call `manage_memory` with `operation: "view"`. Remove entries that are stale, redundant, or captured as more permanent facts in the knowledge graph.
-4. **Software Updates.** Call `manage_updates` with operation `check`.
-   - If an update is available, summarize the changelog and inform the user in the maintenance report. Do NOT install without user permission.
-5. **Personality Profiling Audit.** Call `manage_memory` with `operation: "view_profile"` to retrieve all collected user profile entries.
-   - Review every entry for **relevance** and **redundancy**:
-     - **Stale/irrelevant:** entries that describe a one-time context, a past task, or information that is no longer true or useful (e.g. "user asked about X yesterday", "temporary preference", outdated project paths, resolved issues).
-     - **Redundant:** duplicate entries within the same category that express the same thing with different wording or granularity — keep whichever is most precise and has higher confidence.
-     - **Contradictory:** if two entries in the same category directly contradict each other, delete the older/lower-confidence one.
-   - For each entry to remove, call `manage_memory` with `operation: "delete_profile_entry"`, `key: <category>`, `value: <key>`.
-   - Do NOT delete entries that are still factually accurate and useful for personalizing future interactions.
-   - Example categories to review with particular attention: `behavior`, `preferences`, `context`, `goals`, `persona_evolution`.
-   - After cleanup, briefly summarize how many entries were reviewed, how many removed, and why.
-6. **Cheat Sheet Cleanup.** Call `cheatsheet` with operation `list` and review agent-created cheat sheets.
-   - Agent-created cheat sheets that were not used for 7 days are automatically marked inactive before this maintenance run.
-   - Treat inactive agent-created cheat sheets as unused review candidates. Delete ones that were for one-time or obsolete tasks unless they are delete-locked.
-   - Reactivate or update inactive agent-created cheat sheets only when they are still clearly useful.
+Perform a bounded, read-only review. Deterministic nightly phases own their authorized cleanup; this model pass does not repeat it or grant itself new write permissions.
 
-Execute these tasks autonomously. Report only significant actions taken.
+1. **Schedule Review.** Call `cron_scheduler` with `operation: "list"` when that tool is available. Identify obsolete or duplicate candidates and report their IDs and reasons. Do not remove, disable, or edit schedules in this unattended review.
+2. **Workdir Review.** Inspect `agent_workspace/workdir` only through available read-only workspace tools. First identify file purpose and active references. Never delete, move, rename, quarantine, or execute cleanup commands in this model pass. Protect virtual environments, dependencies, repositories, configuration, databases, vault files, user documents, projects, attachments, registered media, and active task outputs. Report clearly identified cleanup candidates for later operator review, with exact paths and evidence. Uncertain age or ownership is a reason to keep an item.
+3. **Knowledge Health.** Review recent archive and structured maintenance outcomes without rewriting the conversation summary. Use `manage_memory` with `operation: "list"` for core-memory review, and `knowledge_graph` with `operation: "search"` for a focused quality check when available. Flag contradictions, redundancy, or missing extraction for review. Do not delete or rewrite durable memory based on this review.
+4. **Software Updates.** Call `manage_updates` with `operation: "check"` when available. Summarize a relevant changelog; do not install updates.
+5. **Profile Review.** Use `query_memory` with `query: "*"` and `sources: ["user_profile"]` for a diagnostic inventory when available. Report conflicting or stale candidates with evidence; do not delete profile entries or assume that a newer entry automatically invalidates an older one.
+6. **Cheat Sheet Review.** Call `cheatsheet` with `operation: "list"` when available. Inactive or old items are review candidates, not permission to delete them. Do not delete, reactivate, or update cheat sheets in this unattended review.
+
+Skip unavailable or disabled tools and report material limitations. Stop on policy blocks instead of trying alternate tools to perform the blocked action. Report significant findings, unresolved issues, and proposed follow-up actions concisely; never claim a proposed cleanup was executed.

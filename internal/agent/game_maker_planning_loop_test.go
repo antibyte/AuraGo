@@ -20,6 +20,11 @@ func TestGameMakerPlanningEndsAtServerBoundary(t *testing.T) {
 			runCfg, _, cleanup := newPromptPipelineTestRunConfig(t, "game-maker-phase-"+mode, "game_maker")
 			defer cleanup()
 			runCfg.Config.LLM.UseNativeFunctions = true
+			if mode == "xml" {
+				// XML compatibility belongs to providers configured for text tool calls.
+				runCfg.Config.LLM.UseNativeFunctions = false
+				runCfg.Config.LLM.Model = "glm-4"
+			}
 			runCfg.Config.GameMaker.Enabled = true
 			runCfg.Config.CircuitBreaker.MaxToolCalls = 3
 			runCfg.AllowedTools = []string{"game_maker_project", "game_maker_file"}

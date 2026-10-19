@@ -29,9 +29,14 @@ func (m *mockChatClient) CreateChatCompletion(_ context.Context, req openai.Chat
 	if m.err != nil {
 		return openai.ChatCompletionResponse{}, m.err
 	}
+	finishReason := m.finishReason
+	if finishReason == "" {
+		// This fixture models a completed text response unless explicitly truncated.
+		finishReason = openai.FinishReasonStop
+	}
 	return openai.ChatCompletionResponse{
 		Choices: []openai.ChatCompletionChoice{
-			{Message: openai.ChatCompletionMessage{Content: m.response}, FinishReason: m.finishReason},
+			{Message: openai.ChatCompletionMessage{Content: m.response}, FinishReason: finishReason},
 		},
 	}, nil
 }

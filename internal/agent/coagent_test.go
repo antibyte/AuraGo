@@ -58,8 +58,11 @@ func TestRecoverCoAgentPanicMarksRegistryEntryFailed(t *testing.T) {
 	if agentInfo.State != CoAgentFailed {
 		t.Fatalf("state = %s, want failed", agentInfo.State)
 	}
-	if !strings.Contains(agentInfo.Error, "co-agent panic: boom") {
-		t.Fatalf("error = %q, want panic marker", agentInfo.Error)
+	if !strings.Contains(agentInfo.Error, "verify action outcomes before retrying") || strings.Contains(agentInfo.Error, "boom") {
+		t.Fatalf("error = %q, want safe uncertain-outcome guidance", agentInfo.Error)
+	}
+	if agentInfo.RetryCount != 0 {
+		t.Fatal("panicking co-agent was replayed")
 	}
 	if agentInfo.CompletedAt.IsZero() {
 		t.Fatal("expected CompletedAt to be set")

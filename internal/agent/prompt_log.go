@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"aurago/internal/buildinfo"
+	"aurago/internal/llm"
+	"aurago/internal/security"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -71,8 +73,15 @@ func newPromptLogEntry(req openai.ChatCompletionRequest, provider, builderRevisi
 func promptLogMessages(messages []openai.ChatCompletionMessage) []openai.ChatCompletionMessage {
 	out := append([]openai.ChatCompletionMessage(nil), messages...)
 	for i := range out {
+		out[i].Content = security.Scrub(out[i].Content)
+		out[i].ReasoningContent = security.Scrub(llm.ReasoningText(out[i].ReasoningContent))
+		out[i].ToolCalls = append([]openai.ToolCall(nil), out[i].ToolCalls...)
+		for j := range out[i].ToolCalls {
+			out[i].ToolCalls[j].Function.Arguments = security.Scrub(out[i].ToolCalls[j].Function.Arguments)
+		}
 		out[i].MultiContent = append([]openai.ChatMessagePart(nil), out[i].MultiContent...)
 		for j := range out[i].MultiContent {
+			out[i].MultiContent[j].Text = security.Scrub(out[i].MultiContent[j].Text)
 			if out[i].MultiContent[j].Type == openai.ChatMessagePartTypeImageURL {
 				out[i].MultiContent[j] = openai.ChatMessagePart{Type: openai.ChatMessagePartTypeText, Text: "[image omitted from prompt log]"}
 			}

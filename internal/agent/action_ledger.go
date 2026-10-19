@@ -586,6 +586,11 @@ func completeAgentToolAction(logger *slog.Logger, ledger *agentActionLedger, act
 	if ledger == nil || action.ID == "" {
 		return action
 	}
+	// The approval manager owns this action until its one-shot decision. The
+	// model turn has ended, but the action has not executed or completed.
+	if action.State == string(AgentActionStateNeedsHumanApproval) && result.Status == ToolResultDeferred {
+		return action
+	}
 	next, err := ledger.CompleteTool(action, result, durationMS)
 	if err != nil {
 		if logger != nil {

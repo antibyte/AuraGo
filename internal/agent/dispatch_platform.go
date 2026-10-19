@@ -244,7 +244,7 @@ func handleThreeDPrinterAnalyzeCamera(ctx context.Context, cfg *config.Config, r
 	if prompt == "" {
 		prompt = "Analyze this 3D printer camera snapshot. Describe print progress, visible issues, adhesion problems, spaghetti failures, and anything that needs attention."
 	}
-	analysis, pTokens, cTokens, err := analyzeManagedImageWithPrompt(snapshot.LocalPath, prompt, cfg)
+	analysis, _, _, err := analyzeManagedImageWithPrompt(budget.WithTracking(ctx, budgetTracker, "vision"), snapshot.LocalPath, prompt, cfg)
 	if err != nil {
 		data, _ := json.Marshal(map[string]string{
 			"status":        "error",
@@ -252,13 +252,6 @@ func handleThreeDPrinterAnalyzeCamera(ctx context.Context, cfg *config.Config, r
 			"snapshot_path": snapshot.LocalPath,
 		})
 		return "Tool Output: " + string(data)
-	}
-	if budgetTracker != nil {
-		vModel := cfg.Vision.Model
-		if vModel == "" {
-			vModel = tools.DefaultVisionModel
-		}
-		budgetTracker.RecordForCategory("vision", vModel, pTokens, cTokens)
 	}
 	data, _ := json.Marshal(map[string]interface{}{
 		"status":     "ok",
@@ -541,7 +534,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if mediaPort == 0 {
 					mediaPort = cfg.Server.Port
 				}
-				ccCfg := tools.ChromecastConfig{
+				ccCfg := tools.ChromecastConfig{Context: ctx,
 					ServerHost:         getLocalIP(cfg),
 					ServerPort:         mediaPort,
 					MediaHostAllowlist: cfg.Chromecast.MediaHostAllowlist,
@@ -553,7 +546,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if ttsPort == 0 {
 					ttsPort = cfg.Server.Port
 				}
-				ccCfg := tools.ChromecastConfig{
+				ccCfg := tools.ChromecastConfig{Context: ctx,
 					ServerHost:         cfg.Server.Host,
 					ServerPort:         ttsPort,
 					MediaHostAllowlist: cfg.Chromecast.MediaHostAllowlist,
@@ -766,16 +759,9 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					prompt = "Analyze this camera snapshot. Describe the scene, relevant activity, safety concerns, visible changes, and anything that may need attention."
 				}
 				prompt, _ = tools.PrepareVisionPrompt(prompt)
-				analysis, promptTokens, completionTokens, err := analyzeManagedImageWithPrompt(result.LocalPath, prompt, cfg)
+				analysis, _, _, err := analyzeManagedImageWithPrompt(budget.WithTracking(ctx, budgetTracker, "vision"), result.LocalPath, prompt, cfg)
 				if err != nil {
 					return encode(map[string]interface{}{"status": "error", "message": "snapshot analysis failed: " + err.Error(), "snapshot": result.WebPath})
-				}
-				if budgetTracker != nil {
-					model := cfg.Vision.Model
-					if model == "" {
-						model = tools.DefaultVisionModel
-					}
-					budgetTracker.RecordForCategory("vision", model, promptTokens, completionTokens)
 				}
 				return encode(map[string]interface{}{
 					"status": "ok", "stream_id": streamID, "snapshot": result.WebPath,
@@ -931,7 +917,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			return "Tool Output: " + raw
 
 		case "ollama", "ollama_management":
-			return dispatchOllama(cfg, decodeOllamaArgs(tc), logger)
+			return dispatchOllama(cfg, decodeOllamaArgs(tc), logger, ctx)
 
 		case "ansible":
 			if !cfg.Ansible.Enabled {
@@ -1001,7 +987,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 
 			// ── Sidecar mode (default) ──────────────────────────────────────────────
-			ansCfg := tools.AnsibleConfig{
+			ansCfg := tools.AnsibleConfig{Context: ctx,
 				URL:     cfg.Ansible.URL,
 				Token:   cfg.Ansible.Token,
 				Timeout: cfg.Ansible.Timeout,

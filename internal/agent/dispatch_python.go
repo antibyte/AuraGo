@@ -38,6 +38,16 @@ func dispatchPython(tc ToolCall, dc *DispatchContext, contexts ...context.Contex
 		if req.Background && req.EnableToolBridge {
 			return "Tool Output: [EXECUTION ERROR] enable_tool_bridge is only supported for foreground execute_python runs. Set background=false or remove enable_tool_bridge."
 		}
+		if req.Background && tools.RequiresIsolatedExecution(ctx, false) {
+			if len(req.VaultKeys) > 0 || len(req.CredentialIDs) > 0 {
+				return "Tool Output: [PERMISSION DENIED] Isolated background workers cannot receive host credentials."
+			}
+			task, err := tools.ScheduleIsolatedExecution(ctx, req.Code, "python", "python", "Isolated background Python")
+			if err != nil {
+				return fmt.Sprintf("Tool Output: [EXECUTION ERROR] starting isolated background Python: %v", err)
+			}
+			return isolatedBackgroundStartedOutput(task.ID)
+		}
 		// Resolve vault secrets
 		secrets, rejectedInfo := resolveVaultKeys(cfg, vault, req.VaultKeys, logger)
 		// Resolve credential secrets
@@ -79,25 +89,27 @@ func dispatchPython(tc ToolCall, dc *DispatchContext, contexts ...context.Contex
 			if len(cfg.Tools.PythonToolBridge.AllowedTools) == 0 {
 				return "Tool Output: [EXECUTION ERROR] Python tool bridge allowed_tools is empty. Add at least one tool name before using enable_tool_bridge."
 			}
-			bridgeToken, _ := agentInternalToken.Load().(string)
-			if bridgeToken == "" {
-				return "Tool Output: [EXECUTION ERROR] Python tool bridge internal token is not initialized."
+			bridgeURL, bridgeToken, release, grantErr := IssueToolBridgeGrant(ctx, dc)
+			if grantErr != nil {
+				return "Tool Output: [EXECUTION ERROR] Python tool bridge grant unavailable: " + security.Scrub(grantErr.Error())
 			}
+			defer release()
 			stdout, stderr, pyErr = tools.ExecutePythonWithOptions(tools.PythonExecutionOptions{
+				Context:                ctx,
 				Code:                   req.Code,
 				WorkspaceDir:           cfg.Directories.WorkspaceDir,
 				ToolsDir:               cfg.Directories.ToolsDir,
 				Secrets:                secrets,
 				Credentials:            creds,
-				ToolBridgeURL:          toolBridgeURL(cfg),
+				ToolBridgeURL:          bridgeURL,
 				ToolBridgeToken:        bridgeToken,
 				ToolBridgeAllowedTools: cfg.Tools.PythonToolBridge.AllowedTools,
 				ToolBridgeCallLimit:    req.ToolBridgeCallLimit,
 			})
 		} else if hasSecrets {
-			stdout, stderr, pyErr = tools.ExecutePythonWithSecrets(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
+			stdout, stderr, pyErr = tools.ExecutePythonWithOptions(tools.PythonExecutionOptions{Context: ctx, Code: req.Code, WorkspaceDir: cfg.Directories.WorkspaceDir, ToolsDir: cfg.Directories.ToolsDir, Secrets: secrets, Credentials: creds})
 		} else {
-			stdout, stderr, pyErr = tools.ExecutePython(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
+			stdout, stderr, pyErr = tools.ExecutePythonContext(ctx, req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
 		}
 
 		// Always scrub sensitive values from Python output, regardless of whether
@@ -207,6 +219,16 @@ func dispatchPython(tc ToolCall, dc *DispatchContext, contexts ...context.Contex
 		}
 
 		if req.Background {
+			if tools.RequiresIsolatedExecution(ctx, false) {
+				if len(req.VaultKeys) > 0 || len(req.CredentialIDs) > 0 {
+					return "Tool Output: [PERMISSION DENIED] Isolated background workers cannot receive host credentials."
+				}
+				task, err := tools.ScheduleIsolatedTool(ctx, req.Name, req.Args, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
+				if err != nil {
+					return fmt.Sprintf("Tool Output: [EXECUTION ERROR] starting isolated background tool: %v", err)
+				}
+				return isolatedBackgroundStartedOutput(task.ID)
+			}
 			logger.Info("LLM requested background tool execution", "name", req.Name)
 			// Resolve vault secrets
 			secrets, rejInfo := resolveVaultKeys(cfg, vault, req.VaultKeys, logger)
@@ -250,9 +272,9 @@ func dispatchPython(tc ToolCall, dc *DispatchContext, contexts ...context.Contex
 		var stdout, stderr string
 		var runErr error
 		if len(secrets) > 0 || len(creds) > 0 {
-			stdout, stderr, runErr = tools.RunToolWithSecrets(req.Name, req.Args, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
+			stdout, stderr, runErr = tools.RunToolWithSecretsContext(ctx, req.Name, req.Args, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
 		} else {
-			stdout, stderr, runErr = tools.RunTool(req.Name, req.Args, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
+			stdout, stderr, runErr = tools.RunToolContext(ctx, req.Name, req.Args, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
 		}
 		errStr := ""
 		if runErr != nil {

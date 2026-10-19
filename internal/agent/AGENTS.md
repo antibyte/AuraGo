@@ -9,12 +9,59 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 `internal/agent` owns this domain. The contracts below also bind related server, UI, config, asset, and test work through the root routing table.
 
 ## Local Contracts
+- `DispatchContext.Ctx` belongs to a local dispatch copy. Raw and result dispatch normalize nil owners without changing shared dependency bundles; native HTTP configurations and OAuth clients receive the actual call context. Verify `TestNativeHTTPDispatch*`.
+
+- `agent.action_policy` supplements existing gates. Resolve the canonical leaf before matching tool/operation/target/run/scope; current capability, readonly, role and scope denials precede rules and one-shot approvals. Use the complete enabled catalog, regardless of adaptive presentation. Administrator allow rules authorize unattended high-risk actions; missing rules block missions/flows/background tasks, release slots and require an explicit retry. Interactive approvals retain exact arguments only in bounded process memory, are single-use for ten minutes, and are revoked by Stop or restart. Persist only scrubbed summaries and hashes. See `documentation/action-policy.md` and the action-policy/bridge security fixtures.
+
+- Resolve native skill wrappers and equivalent legacy aliases before Guardian,
+  scope, role, learning, action-policy and effect tracking. Native skill wrappers
+  require both `execute_skill` and the leaf tool's scope; `invoke_tool` retains
+  its outer scope and can resolve the full enabled catalog even when adaptive
+  presentation omits a tool. Fixed git aliases retain their private transport
+  identity and never turn an alias-only grant into arbitrary shell access.
+  Ambiguous file-operation names must not be guessed into Homepage operations.
+  Verify `TestCanonicalVirusTotalWrapperCannotBypassUploadApproval`,
+  `TestCanonicalNativeSkillWrapperRequiresWrapperAndLeafScope` and
+  `TestCanonicalInvokeUsesFullEnabledCatalogDespiteAdaptiveSubset`.
 
 - MCP ask_aurago inherits the caller's explicit tool scope and unique session. Never default it to an unrestricted run or a shared IDE conversation. Preserve the configuration authorization resolver so revoked runtime gates and changed allowlists stop subsequent dispatch; nested invoke_tool cannot widen the inherited scope.
 
 - MeshCentral wake and power require `meshcentral.allow_power_actions`. `run_command` requires `agent.allow_remote_shell`. Both still obey enablement, readonly and blocked-operation policy. Check those gates before resolving credentials or opening a connection. Client, confirmation, command-limit and test-route rules live in `internal/meshcentral/AGENTS.md`.
 
 ### Accepted tool batches and bounded side effects
+
+- Stop cancels the registered run context, including provider waits and queued
+  turns, without creating a privacy deletion fence. Serialize ingress history
+  construction through final publication; Discord uses `LockSessionTurn`.
+- Runtime and asynchronous task panics terminate the affected task. Tool panics
+  return an unknown outcome with verification guidance; never expose panic
+  values or automatically replay an uncertain side effect. Co-agent retries
+  retain their checkpoint and stop after any attempted tool execution.
+- Sync and streamed completions require `stop` or `tool_calls` before applying
+  output. Native-mode text fallback accepts only a whole JSON tool answer;
+  prose, examples, fences, reasoning and XML do not authorize execution. Text
+  models retain their compatibility parser. Model arguments cannot raise the
+  configured circuit breaker limit.
+  Minimal-loop rounds and final summaries enforce the same finish boundary
+  after booking response usage and before success telemetry or tool dispatch.
+  Verify `TestMinimalIncompleteResponsesNeverExecuteAndChargeOnce`.
+- Streaming waits for the first token within the call deadline, then renews
+  its idle timeout only on output/tool/completion progress. Empty keepalives
+  cannot keep a stalled run alive. Measured throughput may extend the base
+  budget within its finite bound; the parent deadline always wins.
+  Main and minimal stream readers count live Anthropic thinking callbacks as
+  progress while preserving the signed final envelope without double counting
+  its encoded bytes. Verify `TestAnthropicLiveThinkingExtendsBothStreamReaders`
+  and `TestMinimalStreamSeparatesFirstTokenIdleAndParentDeadline`.
+  Verify `TestNativeFallbackRequiresWholeJSONAnswer`,
+  `TestSyncCompletionRejectsTruncationAndCancellation`,
+  `TestRuntimePanicBecomesUnknownOutcomeWithoutSecret`, and
+  `TestAsyncTaskPanicDrainsAndKeepsGroupUsable`.
+- Route pending question replies before acquiring the session turn gate: the
+  waiting question already owns that gate. `question_user` observes the active
+  run context and removes its pending registration on cancellation. Verify
+  `TestTelegramQuestionReplyBypassesTheWaitingTurnsGate` and
+  `TestDispatchQuestionUserCancellationStopsWaitAndRemovesQuestion`.
 
 - Queue sibling calls only after accepting the model response. Before each dispatch check cancellation, current interrupt generation, completion, tool allowance and cumulative co-agent token budget. Every declared native call gets one ordered result, including skipped calls; recovery guidance follows all results.
 - `RunComplete` is a server-owned phase boundary signaled by a private loop-control sentinel. Normalize the sentinel before final checkpoint persistence; context cancellation takes precedence and checkpoint failures remain errors.
@@ -311,6 +358,24 @@ Tools are defined in `internal/tools/`:
 - Generated Virtual Desktop apps use the advertised `virtual_desktop_app_install` tool with one complete manifest-and-files payload; `virtual_desktop_apps(operation=install_app)` remains dispatch-compatible but is not advertised. Existing workspace files are never implicit install inputs.
 
 ### Prompt and Runtime Drift Contract
+
+- Selected task rules are complete required prompt sections. Never truncate or
+  shed them while retaining their loaded IDs; fail with a typed budget error
+  before send when they cannot fit. Escape source headings so rule bodies cannot
+  become optional ledger sections. Compact structured memory source text before
+  isolation, and preserve a closed external-data boundary when shedding entries.
+- Enforce the configured schema budget after Strict projection and on the final
+  request. Optional schemas may be shed; an oversized required set blocks with
+  `tool_schema_budget_exceeded`. Unchanged wire schemas do not require a new
+  training pin. Frequency and decay-score ties use canonical tool names and one
+  shared clock sample per ranking.
+- The model-driven maintenance review is read-only; deterministic nightly cleanup
+  retains its existing authorization. Keep tool manuals and maintenance calls
+  aligned with canonical schema operations and selectors. Verify
+  `TestContextDiffAndProcessManualExamplesMatchNativeSchemas`,
+  `TestProjectedStrictSchemaBudgetShedsOptionalOrBlocksRequired` and prompt
+  atomic-context tests.
+
 
 - Prompt analytics separate buffered base builds from buffered request fits.
   Legacy `*_chars`/`*_len` sizes are UTF-8 bytes; filtering occurs before the

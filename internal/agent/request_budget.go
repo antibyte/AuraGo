@@ -42,6 +42,7 @@ type RequestRouteBudget struct {
 // RequestBudget reserves output and protocol capacity before any prompt
 // content is assembled. Every operation is evaluated against all routes.
 type RequestBudget struct {
+	MaxSchemaTokens   int
 	Routes            []RequestRouteBudget
 	CompletionReserve int
 	SafetyMargin      int
@@ -136,6 +137,9 @@ func newRequestBudgetWithLimits(cfg *config.Config, client llm.ChatClient, req o
 		CompletionReserve: requestedOutput,
 		SafetyMargin:      requestProtocolSafetyTokens,
 		MinimumSystem:     minimumSystemPromptTokens,
+	}
+	if cfg != nil {
+		budget.MaxSchemaTokens = buildToolingPolicy(cfg, "").EffectiveMaxSchemaTokens
 	}
 	for _, route := range budget.Routes {
 		if route.Limits.ContextWindow-budget.CompletionReserve-budget.SafetyMargin < budget.MinimumSystem {
@@ -284,6 +288,9 @@ func (b *RequestBudget) tokenUsage(messages []openai.ChatCompletionMessage, tool
 
 func (b *RequestBudget) validate(messages []openai.ChatCompletionMessage, tools []openai.Tool, cache *tokenCountCache) ([]RequestTokenUsage, error) {
 	usage := b.tokenUsage(messages, tools, cache)
+	if err := b.validateProjectedSchemaBudget(tools); err != nil {
+		return usage, err
+	}
 	for i, item := range usage {
 		if item.Fits {
 			continue
@@ -660,7 +667,7 @@ func (b *RequestBudget) shedOptionalTools(messages []openai.ChatCompletionMessag
 	kept := append([]openai.Tool(nil), tools...)
 	var dropped []string
 	for len(kept) > 0 {
-		if _, err := b.systemPromptBudget(messages, kept, promptModel, cache); err == nil {
+		if _, err := b.systemPromptBudget(messages, kept, promptModel, cache); err == nil && b.validateProjectedSchemaBudget(kept) == nil {
 			return kept, dropped, nil
 		}
 		removeAt := -1
@@ -681,6 +688,9 @@ func (b *RequestBudget) shedOptionalTools(messages []openai.ChatCompletionMessag
 			dropped = append(dropped, kept[removeAt].Function.Name)
 		}
 		kept = append(kept[:removeAt], kept[removeAt+1:]...)
+	}
+	if err := b.validateProjectedSchemaBudget(kept); err != nil {
+		return kept, dropped, err
 	}
 	if _, err := b.systemPromptBudget(messages, kept, promptModel, cache); err != nil {
 		return kept, dropped, err
@@ -1213,4 +1223,22 @@ func ValidateMinimumRequestBudget(ctx context.Context, req openai.ChatCompletion
 		return err
 	}
 	return budget.validateMinimum(req.Messages, req.Tools, newTokenCountCache(128))
+}
+
+// ToolSchemaBudgetExceededError carries numeric metadata only. The cap applies
+// to the final wire schemas, including Strict's nullable/required projection.
+type ToolSchemaBudgetExceededError struct{ RequiredTokens, Limit int }
+
+func (e *ToolSchemaBudgetExceededError) Error() string {
+	return fmt.Sprintf("tool_schema_budget_exceeded: required=%d limit=%d", e.RequiredTokens, e.Limit)
+}
+func (e *ToolSchemaBudgetExceededError) Code() string { return "tool_schema_budget_exceeded" }
+func (b *RequestBudget) validateProjectedSchemaBudget(tools []openai.Tool) error {
+	if b.MaxSchemaTokens > 0 {
+		tokens := estimateToolSchemaListTokens(tools)
+		if tokens > b.MaxSchemaTokens {
+			return &ToolSchemaBudgetExceededError{RequiredTokens: tokens, Limit: b.MaxSchemaTokens}
+		}
+	}
+	return nil
 }

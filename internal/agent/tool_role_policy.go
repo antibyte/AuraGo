@@ -4,6 +4,20 @@ package agent
 func roleToolRestriction(tc ToolCall, dc *DispatchContext) string {
 	// Discovery also calls this before transport preparation.
 	tc.Operation = toolCallSnapshotOperation(tc)
+	// Model-written maintenance is limited to inspecting the stores maintained
+	// by deterministic nightly phases. Operator action grants cannot widen it.
+	if dc.IsMaintenance {
+		allowed := false
+		switch tc.Action {
+		case "discover_tools", "read_tool_manual", "query_memory", "context_memory", "system_metrics", "get_system_metrics":
+			allowed = true
+		case "manage_memory", "core_memory", "manage_knowledge", "knowledge_graph", "manage_notes", "manage_journal", "manage_todos", "manage_appointments", "manage_cheatsheets", "manage_plan":
+			allowed = readActionOperation(tc.Operation) || tc.Operation == "view_profile" || tc.Operation == "get_summary" || tc.Operation == "subgraph"
+		}
+		if !allowed {
+			return `Tool Output: {"status":"policy_denied","code":"maintenance_scope_denied","message":"Maintenance may inspect its stores but cannot execute unrelated or mutating tools."}`
+		}
+	}
 	sessionID := dc.SessionID
 	// Co-Agent blacklist: co-agents cannot access secrets,
 	// mutate memory-like stores, or orchestrate additional autonomous work.

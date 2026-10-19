@@ -1,13 +1,18 @@
 package agent
 
 import (
+	"context"
 	"log/slog"
 
 	"aurago/internal/config"
 	"aurago/internal/tools"
 )
 
-func dispatchOllama(cfg *config.Config, req ollamaArgs, logger *slog.Logger) string {
+func dispatchOllama(cfg *config.Config, req ollamaArgs, logger *slog.Logger, contexts ...context.Context) string {
+	ctx := context.Background()
+	if len(contexts) > 0 && contexts[0] != nil {
+		ctx = contexts[0]
+	}
 	if !cfg.Ollama.Enabled {
 		return `Tool Output: {"status":"error","message":"Ollama integration is not enabled. Set ollama.enabled=true in config.yaml."}`
 	}
@@ -17,7 +22,7 @@ func dispatchOllama(cfg *config.Config, req ollamaArgs, logger *slog.Logger) str
 			return `Tool Output: {"status":"error","message":"Ollama is in read-only mode. Disable ollama.readonly to allow changes."}`
 		}
 	}
-	olCfg := tools.OllamaConfig{URL: cfg.Ollama.URL, ReadOnly: cfg.Ollama.ReadOnly}
+	olCfg := tools.OllamaConfig{Context: ctx, URL: cfg.Ollama.URL, ReadOnly: cfg.Ollama.ReadOnly}
 	modelName := req.modelName()
 	switch req.Operation {
 	case "list", "list_models":

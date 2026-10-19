@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/i18n"
 	"aurago/internal/llm"
 	loggerPkg "aurago/internal/logger"
@@ -128,6 +129,8 @@ type agentLoopState struct {
 	req                   openai.ChatCompletionRequest
 	flags                 prompts.ContextFlags
 	voiceOutputSuppressed bool
+	toolBoundaryErr       error
+	toolBoundaryNotice    string
 
 	initialUserMsg           string
 	dailyTodoReminder        string
@@ -268,7 +271,7 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 		SQLConnectionPool:    s.runCfg.SQLConnectionPool,
 		RemoteHub:            s.runCfg.RemoteHub,
 		HistoryMgr:           s.runCfg.HistoryManager,
-		IsMaintenance:        s.runCfg.IsMaintenance || tools.IsBusy(),
+		IsMaintenance:        s.runCfg.IsMaintenance,
 		Guardian:             s.guardian,
 		LLMGuardian:          s.llmGuardian,
 		SessionID:            s.runCfg.SessionID,
@@ -297,6 +300,8 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 // ExecuteAgentLoop executes the multi-turn reasoning and tool execution loop.
 // It supports both synchronous returns and asynchronous streaming via the broker.
 func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, runCfg RunConfig, stream bool, broker FeedbackBroker) (response openai.ChatCompletionResponse, retErr error) {
+	ctx = budget.WithTracking(ctx, runCfg.BudgetTracker, "agent")
+	defer recoverAgentRuntime(ctx, runCfg.Logger, &retErr)
 	if runCfg.ShortTermMem != nil {
 		var release func()
 		var err error
@@ -424,17 +429,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	homepageUsedInChain := s.homepageUsedInChain
 	helperManager := s.helperManager
 	lastActivity := s.lastActivity
+	var responseCapture *llm.UsageCapture
 	accountSyncResponse := func(response openai.ChatCompletionResponse, request openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 		response, prompt, completion, total, source, estimated, shouldAccount := normalizeResponseUsage(request, response)
-		if !shouldAccount {
-			return response, nil
-		}
-		if estimated {
-			SetGlobalTokenEstimated(true)
-		}
-		sessionTokens += total
-		globalTotal := AddGlobalTokenCount(total)
-		broker.SendTokenUpdate(prompt, completion, total, sessionTokens, int(globalTotal), estimated, false, source)
 		if budgetTracker != nil {
 			model := response.Model
 			if model == "" {
@@ -444,8 +441,17 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
 				category = "coagent"
 			}
-			budgetTracker.RecordForCategory(category, model, prompt, completion)
+			budgetTracker.RecordResponseUsage(category, telemetryScope.ProviderType, model, responseCapture, prompt, completion, shouldAccount)
 		}
+		if !shouldAccount {
+			return response, nil
+		}
+		if estimated {
+			SetGlobalTokenEstimated(true)
+		}
+		sessionTokens += total
+		globalTotal := AddGlobalTokenCount(total)
+		broker.SendTokenUpdate(prompt, completion, total, sessionTokens, int(globalTotal), estimated, false, source)
 		if runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.AfterResponse != nil {
 			if err := runCfg.ExecutionHooks.AfterResponse(response.Usage); err != nil {
 				return response, err
@@ -506,6 +512,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	personalityPrepared := false
 	var personalityBasis *memory.PersonalitySnapshot
 	for {
+		if err := ctx.Err(); err != nil {
+			return openai.ChatCompletionResponse{}, err
+		}
 		if (runCfg.IsCoAgent || isCoAgentSession(sessionID)) && runCfg.CoAgentTokenLimit > 0 && sessionTokens >= runCfg.CoAgentTokenLimit {
 			return openai.ChatCompletionResponse{}, fmt.Errorf("co-agent token limit reached: %d of %d", sessionTokens, runCfg.CoAgentTokenLimit)
 		}
@@ -616,6 +625,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Process queued tool calls from multi-tool responses (skip LLM for these)
 		if len(pendingTCs) > 0 {
+			if stopErr := toolDispatchStopReason(s, ctx, pendingTCs[0]); stopErr != nil {
+				appendSkippedNativeResults(s, shortTermMem, historyManager, sessionID, broker, `{"status":"skipped","code":"tool_batch_stopped","message":"Run cancelled or execution limit reached."}`)
+				req = s.req
+				return openai.ChatCompletionResponse{}, stopErr
+			}
 			if processPendingToolCalls(s, ctx, lastUserMsg) {
 				pendingTCs = s.pendingTCs
 				homepageUsedInChain = s.homepageUsedInChain
@@ -628,6 +642,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				lastResponseWasTool = s.lastResponseWasTool
 				req = s.req
 				flags = s.flags
+				if boundaryResponse, boundaryErr, stopped := s.toolRunBoundary(ctx); stopped {
+					req = s.req
+					return boundaryResponse, boundaryErr
+				}
 				continue
 			}
 		}
@@ -1929,11 +1947,17 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Configurable timeout for each individual LLM call to prevent infinite hangs
 		llmTimeout := time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds) * time.Second
+		if llmTimeout <= 0 {
+			llmTimeout = 120 * time.Second
+		}
 		llmCtx, cancelResp := context.WithTimeout(ctx, llmTimeout)
-		if stream && runCfg.StreamThroughput != nil && llmTimeout > 0 {
+		if stream {
 			// Measured progress, not wall time, decides when a streaming call ends.
 			cancelResp()
-			policy := *runCfg.StreamThroughput
+			policy := llm.ThroughputPolicy{MinTokensPerSecond: 1, MaxFactor: 4}
+			if runCfg.StreamThroughput != nil {
+				policy = *runCfg.StreamThroughput
+			}
 			policy.Base, policy.ReserveTokens = llmTimeout, req.MaxTokens
 			llmCtx, cancelResp = llm.NewThroughputDeadline(ctx, policy)
 		}
@@ -1943,6 +1967,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		llmCtx = llm.WithThinkingCallback(llmCtx, thinkingCB)
 		llmCtx, observeUsage := runCfg.UsageObserver.begin(llmCtx, req, telemetryScope.ProviderType, runCfg.PreparedPrompt.Revision(), cacheHit)
+		responseCapture = llm.UsageCaptureFromContext(llmCtx)
+		if responseCapture == nil {
+			llmCtx, responseCapture = llm.CaptureUsage(llmCtx)
+		}
 
 		var resp openai.ChatCompletionResponse
 		var content string
@@ -1963,6 +1991,17 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			result := handleStreamingResponse(llmCtx, req, client, emptyRetried, recoveryPolicy, s.currentLogger, broker, telemetryScope, cancelResp, chunkIdleTimeout, &retry422Count, runCfg.RequireCompleteStream)
 			observeUsage(result.resp, result.err)
+			if (result.err != nil || result.recoveryContinue) && budgetTracker != nil {
+				category := "chat"
+				if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
+					category = "coagent"
+				}
+				model := result.resp.Model
+				if model == "" {
+					model = req.Model
+				}
+				budgetTracker.RecordResponseUsage(category, telemetryScope.ProviderType, model, responseCapture, result.promptTokens, result.completionTokens, result.totalTokens > 0)
+			}
 			if result.recoveryContinue {
 				currentUserIndex = genuineUserIndexByOccurrence(result.recoveredMessages, genuineUserOccurrence(req.Messages, currentUserIndex))
 				if !validTaskAnchor(result.recoveredMessages, currentUserIndex, taskAnchorText) {
@@ -1973,6 +2012,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				continue
 			}
 			if result.err != nil {
+				cancelResp()
 				// A failed stream can still consume provider tokens. Account for the
 				// partial response before recovery; never dispatch its tool calls.
 				if result.totalTokens > 0 {
@@ -1983,17 +2023,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						SetGlobalTokenEstimated(true)
 					}
 					broker.SendTokenUpdate(result.promptTokens, result.completionTokens, result.totalTokens, sessionTokens, int(globalTotal), estimated, false, result.tokenSource)
-					if budgetTracker != nil {
-						category := "chat"
-						if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
-							category = "coagent"
-						}
-						model := result.resp.Model
-						if model == "" {
-							model = req.Model
-						}
-						budgetTracker.RecordForCategory(category, model, result.promptTokens, result.completionTokens)
-					}
 					if runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.AfterResponse != nil {
 						if err := runCfg.ExecutionHooks.AfterResponse(result.resp.Usage); err != nil {
 							return result.resp, err
@@ -2002,6 +2031,18 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 				if runCfg.PreserveReasoning && result.interruptedReasoning != "" {
 					req.Messages = append(req.Messages, interruptedReasoningMessage(result.interruptedReasoning))
+				}
+				var incomplete *IncompleteCompletionError
+				if runCfg.Checkpoint != nil && runCfg.PreserveReasoning && runCfg.RequireCompleteStream && ctx.Err() == nil &&
+					errors.As(result.err, &incomplete) && incomplete.FinishReason == openai.FinishReasonLength && incomplete.ReasoningOnly {
+					// This opt-in continuation starts one new generation. The
+					// incomplete response supplied no text or tool calls to apply.
+					empty := openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{FinishReason: incomplete.FinishReason}}}
+					if recoverFromEmptyResponseWithPolicy(recoveryPolicy, empty, "", &req, &emptyRetried, s.currentLogger, broker, telemetryScope, true) {
+						broker.Send("model_progress", "retrying")
+						req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: "The previous response produced no usable text or complete tool call. Continue from the existing plan and results. Perform the next small concrete step now with the supplied tools; do not restart planning or repeat completed reads. Keep reasoning brief enough to leave room for the tool call. Never claim completion without the required checks."})
+						continue
+					}
 				}
 				if runCfg.RequireCompleteStream && runCfg.RetryStreamIdle && !streamIdleRetried && ctx.Err() == nil && errors.Is(result.err, errStreamIdleTimeout) {
 					// No calls from the incomplete response were dispatched. Keep
@@ -2036,6 +2077,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				continue
 			}
 			if result.err != nil {
+				cancelResp()
 				response, accountingErr := accountSyncResponse(result.resp, req)
 				observeUsage(response, result.err)
 				if accountingErr != nil {
@@ -2081,7 +2123,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			broker.SendTokenUpdate(promptTokens, completionTokens, totalTokens, sessionTokens, int(localGlobalTotal), localIsEstimated, true, tokenSource)
 		}
 		budgetWarning := false
-		if shouldAccount && budgetTracker != nil {
+		if budgetTracker != nil {
 			model := resp.Model
 			if model == "" {
 				model = req.Model
@@ -2090,7 +2132,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
 				category = "coagent"
 			}
-			budgetWarning = budgetTracker.RecordForCategory(category, model, promptTokens, completionTokens)
+			budgetWarning = budgetTracker.RecordResponseUsage(category, telemetryScope.ProviderType, model, responseCapture, promptTokens, completionTokens, shouldAccount)
 		}
 		if shouldAccount && runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.AfterResponse != nil {
 			measured := resp.Usage
@@ -2141,6 +2183,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// A pre-build copy resurrects old prompts/history after a tool round.
 		s.req = req
 		parsedToolResp := parseToolResponse(resp, s.currentLogger, telemetryScope)
+		if useNativeFunctions && !parsedToolResp.UseNativePath && !exactJSONToolAnswer(parsedToolResp.Content) {
+			parsedToolResp.ToolCall = ToolCall{}
+			parsedToolResp.PendingToolCalls = nil
+			parsedToolResp.ParseSource = ToolCallParseSourceNone
+		}
 		// Strip the <done/> completion signal from the raw content that gets persisted
 		// to history. The streaming layer already filters it from SSE deltas, but the
 		// assembled content still contains it and would appear in the chat on reload.
@@ -2150,7 +2197,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		tc := parsedToolResp.ToolCall
 		tc = normalizeParsedToolShortcut(tc)
 		parsedToolResp.ToolCall = tc
-		if toolLimitFinalizing && (parsedToolResp.ParseSource != ToolCallParseSourceNone || parsedToolResp.IncompleteToolCall) {
+		var finalTextErr error
+		if toolLimitFinalizing {
+			_, finalTextErr = minimalLoopFinalText(content)
+		}
+		if toolLimitFinalizing && (parsedToolResp.ParseSource != ToolCallParseSourceNone || parsedToolResp.IncompleteToolCall || errors.Is(finalTextErr, ErrUnexpectedToolCallText)) {
 			pendingTCs = nil
 			s.pendingTCs = nil
 			s.currentLogger.Warn("[Sync] Rejected tool call from tool-free final response", "source", parsedToolResp.ParseSource)
@@ -2520,7 +2571,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						)
 					}
 					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid, runCfg.learningAnalysisScope())
-					captureActivityTurn(
+					captureActivityTurnContext(analysisCtx,
 						cfg,
 						s.currentLogger,
 						shortTermMem,
@@ -2624,8 +2675,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				userMsg := lastUserMsg
 				aResp := content
 				sid := sessionID
-				_ = sideEffects.Go(func(context.Context) {
-					captureActivityTurn(
+				_ = sideEffects.Go(func(taskCtx context.Context) {
+					captureActivityTurnContext(taskCtx,
 						cfg,
 						s.currentLogger,
 						shortTermMem,

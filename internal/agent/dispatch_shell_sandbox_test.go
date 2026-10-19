@@ -1,7 +1,7 @@
 package agent
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,152 +13,30 @@ import (
 	"aurago/internal/tools"
 )
 
-func TestDispatchShellExecuteSandboxFailsClosedByDefault(t *testing.T) {
-	oldSandboxExecuteCode := sandboxExecuteCodeFunc
-	oldExecutePython := executePythonFunc
-	oldExecutePythonWithSecrets := executePythonWithSecretsFunc
-	defer func() {
-		sandboxExecuteCodeFunc = oldSandboxExecuteCode
-		executePythonFunc = oldExecutePython
-		executePythonWithSecretsFunc = oldExecutePythonWithSecrets
-	}()
-
-	const secret = "SANDBOX_SECRET_SHOULD_NOT_LEAK_20260624"
+func TestDispatchShellExecuteSandboxNeverFallsBack(t *testing.T) {
+	previous := sandboxExecuteCodeFunc
+	t.Cleanup(func() { sandboxExecuteCodeFunc = previous })
+	const secret = "sandbox-error-secret-fixture"
 	security.RegisterSensitive(secret)
-
-	fallbackCalls := 0
-	sandboxExecuteCodeFunc = func(code, language string, libraries []string, timeoutSecs int, logger *slog.Logger) (string, error) {
-		if language != "python" {
-			t.Fatalf("language = %q, want python", language)
-		}
-		return "", errors.New("container unavailable: " + secret)
-	}
-	executePythonFunc = func(code, workspaceDir, toolsDir string) (string, string, error) {
-		fallbackCalls++
-		return "local fallback ran", "", nil
-	}
-
-	cfg := &config.Config{}
-	cfg.Sandbox.Enabled = true
-	cfg.Agent.AllowPython = true
-	cfg.Directories.WorkspaceDir = t.TempDir()
-	cfg.Directories.ToolsDir = t.TempDir()
-
-	out := dispatchShell(ToolCall{
-		Action: "execute_sandbox",
-		Code:   "print('hello')",
-	}, &DispatchContext{
-		Cfg:    cfg,
-		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
-	})
-
-	if fallbackCalls != 0 {
-		t.Fatalf("local Python fallback calls = %d, want 0", fallbackCalls)
-	}
-	for _, want := range []string{"[EXECUTION ERROR]", "sandbox:"} {
-		if !strings.Contains(out, want) {
-			t.Fatalf("expected output to contain %q, got:\n%s", want, out)
-		}
-	}
-	if strings.Contains(out, secret) {
-		t.Fatalf("expected sandbox error to be scrubbed, got:\n%s", out)
-	}
-	if strings.Contains(out, "local fallback ran") || strings.Contains(out, "ran via local Python") {
-		t.Fatalf("expected fail-closed output without local Python fallback, got:\n%s", out)
-	}
-}
-
-func TestDispatchShellExecuteSandboxDoesNotFallbackAfterTimeout(t *testing.T) {
-	oldSandboxExecuteCode := sandboxExecuteCodeFunc
-	oldExecutePython := executePythonFunc
-	oldExecutePythonWithSecrets := executePythonWithSecretsFunc
-	defer func() {
-		sandboxExecuteCodeFunc = oldSandboxExecuteCode
-		executePythonFunc = oldExecutePython
-		executePythonWithSecretsFunc = oldExecutePythonWithSecrets
-	}()
-
-	fallbackCalls := 0
-	sandboxExecuteCodeFunc = func(string, string, []string, int, *slog.Logger) (string, error) {
-		return "", fmt.Errorf("TIMEOUT: sandbox execution exceeded 30s limit")
-	}
-	executePythonFunc = func(code, workspaceDir, toolsDir string) (string, string, error) {
-		fallbackCalls++
-		return "host", "", nil
-	}
-
-	cfg := &config.Config{}
-	cfg.Sandbox.Enabled = true
-	cfg.Sandbox.AllowLocalPythonFallback = true
-	cfg.Agent.AllowPython = true
-	cfg.Directories.WorkspaceDir = t.TempDir()
-	cfg.Directories.ToolsDir = t.TempDir()
-
-	out := dispatchShell(ToolCall{
-		Action:   "execute_sandbox",
-		Code:     "print('hello')",
-		Language: "python",
-	}, &DispatchContext{
-		Cfg:    cfg,
-		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
-	})
-
-	if fallbackCalls != 0 {
-		t.Fatalf("local Python fallback calls = %d, want 0", fallbackCalls)
-	}
-	if !strings.Contains(out, "TIMEOUT") {
-		t.Fatalf("expected output to contain TIMEOUT, got:\n%s", out)
-	}
-	if strings.Contains(out, "host") || strings.Contains(out, "ran via local Python") {
-		t.Fatalf("expected timeout to stay in the sandbox result, got:\n%s", out)
-	}
-}
-
-func TestDispatchShellExecuteSandboxFallbackRequiresExplicitOptIn(t *testing.T) {
-	oldSandboxExecuteCode := sandboxExecuteCodeFunc
-	oldExecutePython := executePythonFunc
-	oldExecutePythonWithSecrets := executePythonWithSecretsFunc
-	defer func() {
-		sandboxExecuteCodeFunc = oldSandboxExecuteCode
-		executePythonFunc = oldExecutePython
-		executePythonWithSecretsFunc = oldExecutePythonWithSecrets
-	}()
-
-	fallbackCalls := 0
-	sandboxExecuteCodeFunc = func(code, language string, libraries []string, timeoutSecs int, logger *slog.Logger) (string, error) {
-		return "", fmt.Errorf("start: %w", tools.ErrSandboxUnavailable)
-	}
-	executePythonFunc = func(code, workspaceDir, toolsDir string) (string, string, error) {
-		fallbackCalls++
-		return "local ok", "", nil
-	}
-	executePythonWithSecretsFunc = func(code, workspaceDir, toolsDir string, secrets map[string]string, creds []tools.CredentialFields) (string, string, error) {
-		t.Fatal("did not expect secret-injecting fallback")
-		return "", "", nil
-	}
-
-	cfg := &config.Config{}
-	cfg.Sandbox.Enabled = true
-	cfg.Sandbox.AllowLocalPythonFallback = true
-	cfg.Agent.AllowPython = true
-	cfg.Directories.WorkspaceDir = t.TempDir()
-	cfg.Directories.ToolsDir = t.TempDir()
-
-	out := dispatchShell(ToolCall{
-		Action:   "execute_sandbox",
-		Code:     "print('hello')",
-		Language: "python",
-	}, &DispatchContext{
-		Cfg:    cfg,
-		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
-	})
-
-	if fallbackCalls != 1 {
-		t.Fatalf("local Python fallback calls = %d, want 1", fallbackCalls)
-	}
-	for _, want := range []string{"ran via local Python", "STDOUT:", "local ok"} {
-		if !strings.Contains(out, want) {
-			t.Fatalf("expected output to contain %q, got:\n%s", want, out)
+	for _, legacy := range []bool{false, true} {
+		for _, failure := range []error{fmt.Errorf("not ready: %w", tools.ErrSandboxUnavailable), fmt.Errorf("TIMEOUT %s", secret)} {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			sandboxExecuteCodeFunc = func(got context.Context, code, lang string, libraries []string, timeout int, logger *slog.Logger) (string, error) {
+				if got != ctx {
+					t.Fatal("sandbox lost caller context")
+				}
+				return "", failure
+			}
+			cfg := &config.Config{}
+			cfg.Sandbox.Enabled = true
+			cfg.Sandbox.AllowLocalPythonFallback = legacy
+			cfg.Agent.AllowPython = true
+			cfg.Agent.AllowUnsafeHostExecution = true
+			out := dispatchShellWithContext(ctx, ToolCall{Action: "execute_sandbox", Code: "print(1)", Language: "python"}, &DispatchContext{Cfg: cfg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+			if !strings.Contains(out, "[EXECUTION ERROR]") || strings.Contains(out, "ran via local Python") || strings.Contains(out, secret) {
+				t.Fatalf("fallback or unsanitized output: %s", out)
+			}
 		}
 	}
 }

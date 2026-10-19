@@ -61,7 +61,7 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 	tc = normalizeDirectToolCall(tc, dc)
 	tc.Operation = toolCallSnapshotOperation(tc)
 	if tc.Action != "invoke_tool" {
-		return tc
+		return canonicalizeLeafCall(tc, dc)
 	}
 	fail := func(message string) ToolCall {
 		tc.PreparationError = message
@@ -71,11 +71,10 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 		return fail(toolScopeDeniedOutput("invoke_tool"))
 	}
 	name := stringValueFromMap(tc.Params, "tool_name", "name", "tool")
-	catalog := GetToolCatalogState(dc.discoveryKey())
-	if catalog == nil {
-		return fail(`Tool Output: {"status":"error","code":"catalog_unavailable","message":"Tool catalog is unavailable for this run."}`)
+	if strings.HasPrefix(name, "git_") && canonicalActionName(name) == "execute_shell" {
+		return fail(`Tool Output: {"status":"policy_denied","code":"tool_not_found","message":"Git compatibility aliases are not catalog tools. Invoke execute_shell with an exact command instead."}`)
 	}
-	entry, ok := catalog.Get(name)
+	entry, ok := preparationCatalogEntry(name, dc)
 	if !ok || name == "" {
 		return fail(`Tool Output: {"status":"error","code":"tool_not_found","message":"Use discover_tools to select an unambiguous tool name."}`)
 	}
@@ -120,7 +119,7 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 	routed.NativeArgsMalformed, routed.NativeArgsError, routed.NativeArgsRaw = tc.NativeArgsMalformed, tc.NativeArgsError, tc.NativeArgsRaw
 	routed.IsTool, routed.Todo = tc.IsTool, tc.Todo
 	routed.Operation = toolCallSnapshotOperation(routed)
-	return routed
+	return canonicalizeLeafCall(routed, dc)
 }
 
 type legacyOutcomeEnvelope struct {

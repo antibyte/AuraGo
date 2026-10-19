@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/budget"
 	"aurago/internal/llm"
 	"aurago/internal/prompts"
 	"context"
@@ -220,7 +221,7 @@ func compressHistoryForTaskAnchor(
 	summaryCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	resp, err := client.CreateChatCompletion(summaryCtx, summaryReq)
+	resp, err := budget.CompleteChat(summaryCtx, client, summaryReq, llm.ModelRoute{Model: model}, "compression", summaryReq.MaxTokens, prompts.CountTokensForModelContext)
 	if err != nil {
 		logger.Warn("[Compression] LLM summary failed, skipping compression", "error", err)
 		return messages, lastCompressionMsg, result

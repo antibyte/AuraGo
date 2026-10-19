@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/credentials"
 	"aurago/internal/inventory"
@@ -1355,7 +1356,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 			}
 			logger.Info("LLM requested koofr operation", "op", req.Operation, "path", req.FilePath, "dest", req.Destination, "local_path", req.LocalPath)
-			koofrCfg := tools.KoofrConfig{
+			koofrCfg := tools.KoofrConfig{Context: ctx,
 				BaseURL:     cfg.Koofr.BaseURL,
 				Username:    cfg.Koofr.Username,
 				AppPassword: cfg.Koofr.AppPassword,
@@ -1378,7 +1379,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				op = tc.Action
 			}
 			logger.Info("LLM requested google_workspace operation", "op", op)
-			return "Tool Output: " + tools.ExecuteGoogleWorkspace(*cfg, vault, op, req.params())
+			return "Tool Output: " + tools.ExecuteGoogleWorkspace(*cfg, vault, op, req.params(), ctx)
 
 		case "onedrive", "onedrive_op":
 			if !cfg.OneDrive.Enabled {
@@ -1393,7 +1394,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 			}
 			logger.Info("LLM requested onedrive operation", "op", op, "path", req.FilePath, "dest", req.Destination)
-			client, err := tools.NewOneDriveClient(*cfg, vault)
+			client, err := tools.NewOneDriveClient(*cfg, vault, ctx)
 			if err != nil {
 				return "Tool Output: " + tools.ODErrJSON("OneDrive client error: %v", err)
 			}
@@ -1525,7 +1526,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			effectivePrompt := prompt
 			if doEnhance {
-				enhanced, err := tools.EnhanceImagePrompt(llmClient, cfg.LLM.Model, prompt)
+				enhanced, err := tools.EnhanceImagePromptContext(budget.WithTracking(ctx, budgetTracker, "image_prompt"), llmClient, cfg.LLM.Model, prompt)
 				if err != nil {
 					logger.Warn("Image prompt enhancement failed, using original", "error", err)
 				} else {
@@ -1623,6 +1624,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return "Tool Output: " + string(resultJSON)
 
 		case "query_inventory":
+			if !cfg.Tools.Inventory.Enabled {
+				return `Tool Output: {"status":"policy_denied","code":"inventory_disabled","message":"Inventory is disabled in configuration."}`
+			}
 			req := decodeInventoryQueryArgs(tc)
 			logger.Info("LLM requested inventory query", "tag", req.Tag, "name", req.Hostname)
 			devices, err := inventory.QueryDevices(inventoryDB, req.Tag, req.DeviceType, req.Hostname)

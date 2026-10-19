@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -10,11 +9,7 @@ import (
 	"aurago/internal/tools"
 )
 
-var (
-	sandboxExecuteCodeFunc       = tools.SandboxExecuteCode
-	executePythonFunc            = tools.ExecutePython
-	executePythonWithSecretsFunc = tools.ExecutePythonWithSecrets
-)
+var sandboxExecuteCodeFunc = tools.SandboxExecuteCodeContext
 
 func dispatchShell(tc ToolCall, dc *DispatchContext) string {
 	return dispatchShellWithContext(context.Background(), tc, dc)
@@ -25,7 +20,6 @@ func dispatchShellWithContext(ctx context.Context, tc ToolCall, dc *DispatchCont
 	logger := dc.Logger
 	vault := dc.Vault
 	registry := dc.Registry
-	inventoryDB := dc.InventoryDB
 
 	switch tc.Action {
 	case "execute_sandbox":
@@ -40,62 +34,15 @@ func dispatchShellWithContext(ctx context.Context, tc ToolCall, dc *DispatchCont
 		if lang == "" {
 			lang = "python"
 		}
-		// Resolve vault secrets for injection
-		secrets, rejectedInfo := resolveVaultKeys(cfg, vault, req.VaultKeys, logger)
-		// Resolve credential secrets for injection
-		creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, req.CredentialIDs, logger)
-		if credRejInfo != "" {
-			if rejectedInfo != "" {
-				rejectedInfo += "\n" + credRejInfo
-			} else {
-				rejectedInfo = credRejInfo
-			}
+		if len(req.VaultKeys) > 0 || len(req.CredentialIDs) > 0 {
+			return "Tool Output: [PERMISSION DENIED] Generic sandbox workers cannot receive host credentials. Use an authorized native integration."
 		}
-		codeToRun := req.Code
-		if len(secrets) > 0 {
-			codeToRun = tools.BuildSecretPrelude(secrets) + codeToRun
-		}
-		if len(creds) > 0 {
-			codeToRun = tools.BuildCredentialPrelude(creds) + codeToRun
-		}
-		logger.Info("LLM requested sandbox execution", "language", lang, "code_len", len(req.Code), "libraries", len(req.Libraries))
-		result, err := sandboxExecuteCodeFunc(codeToRun, lang, req.Libraries, cfg.Sandbox.TimeoutSeconds, logger)
+		logger.Info("LLM requested sandbox execution", "language", lang, "code_len", len(req.Code))
+		result, err := sandboxExecuteCodeFunc(ctx, req.Code, lang, req.Libraries, cfg.Sandbox.TimeoutSeconds, logger)
 		if err != nil {
-			if errors.Is(err, tools.ErrSandboxUnavailable) && cfg.Sandbox.AllowLocalPythonFallback && cfg.Agent.AllowPython && lang == "python" {
-				logger.Warn("Sandbox execution failed, explicit local Python fallback enabled", "error", err)
-				var stdout, stderr string
-				var pyErr error
-				if len(secrets) > 0 || len(creds) > 0 {
-					stdout, stderr, pyErr = executePythonWithSecretsFunc(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
-				} else {
-					stdout, stderr, pyErr = executePythonFunc(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
-				}
-				// Scrub all outputs to prevent secret leakage via error messages/tracebacks
-				stdout = security.Scrub(stdout)
-				stderr = security.Scrub(stderr)
-				var sb strings.Builder
-				sb.WriteString("Tool Output (sandbox unavailable — ran via local Python):\n")
-				if rejectedInfo != "" {
-					sb.WriteString(rejectedInfo + "\n")
-				}
-				if stdout != "" {
-					sb.WriteString(fmt.Sprintf("STDOUT:\n%s\n", stdout))
-				}
-				if stderr != "" {
-					sb.WriteString(fmt.Sprintf("STDERR:\n%s\n", stderr))
-				}
-				if pyErr != nil {
-					sb.WriteString(fmt.Sprintf("[EXECUTION ERROR]: %s\n", security.Scrub(pyErr.Error())))
-				}
-				return sb.String()
-			}
 			return fmt.Sprintf("Tool Output: [EXECUTION ERROR] sandbox: %s", security.Scrub(err.Error()))
 		}
-		scrubbedResult := security.Scrub(result)
-		if rejectedInfo != "" {
-			return "Tool Output:\n" + rejectedInfo + "\n" + scrubbedResult
-		}
-		return "Tool Output:\n" + scrubbedResult
+		return "Tool Output:\n" + security.Scrub(result)
 
 	case "execute_shell":
 		if !cfg.Agent.AllowShell {
@@ -133,6 +80,13 @@ func dispatchShellWithContext(ctx context.Context, tc ToolCall, dc *DispatchCont
 		}
 		logger.Info("LLM requested shell execution", "command", Truncate(req.Command, 200), "background", req.Background)
 		if req.Background {
+			if tools.RequiresIsolatedExecution(ctx, true) {
+				task, err := tools.ScheduleIsolatedShell(ctx, req.Command)
+				if err != nil {
+					return fmt.Sprintf("Tool Output: [EXECUTION ERROR] starting isolated background shell: %v", err)
+				}
+				return isolatedBackgroundStartedOutput(task.ID)
+			}
 			pid, err := tools.ExecuteShellBackground(req.Command, cfg.Directories.WorkspaceDir, registry)
 			if err != nil {
 				setToolOutcome(ctx, ToolResultFailed)

@@ -302,7 +302,7 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 						return msg
 					}
 				}
-				homepageCfg := tools.HomepageConfig{
+				homepageCfg := tools.HomepageConfig{Context: ctx,
 					DockerHost: cfg.Docker.Host, WorkspacePath: cfg.Homepage.WorkspacePath,
 					AgentWorkspaceDir: cfg.Directories.WorkspaceDir, DataDir: cfg.Directories.DataDir,
 					WebServerPort: cfg.Homepage.WebServerPort, WebServerDomain: cfg.Homepage.WebServerDomain,
@@ -496,7 +496,7 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if tokenErr != nil || token == "" {
 				return `Tool Output: {"status":"error","message":"Netlify token not found in vault. Store it with key 'netlify_token' via the vault API."}`
 			}
-			nfCfg := tools.NetlifyConfig{
+			nfCfg := tools.NetlifyConfig{Context: ctx,
 				Token:               token,
 				DefaultSiteID:       cfg.Netlify.DefaultSiteID,
 				TeamSlug:            cfg.Netlify.TeamSlug,
@@ -624,7 +624,7 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if tokenErr != nil || token == "" {
 				return `Tool Output: {"status":"error","message":"Vercel token not found in vault. Store it with key 'vercel_token' via the Config UI."}`
 			}
-			vcfg := tools.VercelConfig{
+			vcfg := tools.VercelConfig{Context: ctx,
 				Token:                  token,
 				DefaultProjectID:       cfg.Vercel.DefaultProjectID,
 				TeamID:                 cfg.Vercel.TeamID,

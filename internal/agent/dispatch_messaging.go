@@ -41,7 +41,7 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 			return `Tool Output: {"status":"error","message":"message is required"}`, true
 		}
 		logger.Info("LLM requested telegram message", "title", boundedRunes(req.Title, logTextRunes))
-		return "Tool Output: " + tools.SendNotification(cfg, logger, "telegram", req.Title, req.Message, req.Priority, nil, nil), true
+		return "Tool Output: " + tools.SendNotificationContext(ctx, cfg, logger, "telegram", req.Title, req.Message, req.Priority, nil, nil), true
 
 	case "send_agodesk_chat":
 		req := decodeAgoDeskChatArgs(tc)
@@ -60,7 +60,7 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 			}
 		}
 		telnyxSend := telnyxNotificationSender(ctx, cfg, logger)
-		return "Tool Output: " + tools.SendNotification(cfg, logger, req.Channel, req.Title, req.Message, req.Priority, discordSend, telnyxSend), true
+		return "Tool Output: " + tools.SendNotificationContext(ctx, cfg, logger, req.Channel, req.Title, req.Message, req.Priority, discordSend, telnyxSend), true
 
 	case "send_image":
 		req := decodeSendMediaArgs(tc)

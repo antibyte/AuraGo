@@ -192,6 +192,7 @@ func ToggleVoiceMode() bool {
 
 // InterruptSession marks a specific session as interrupted.
 func InterruptSession(sessionID string) {
+	CancelActionApprovals(sessionID)
 	muInterrupts.Lock()
 	defer muInterrupts.Unlock()
 	sessionInterrupts[sessionID] = time.Now()
@@ -1224,10 +1225,20 @@ type RunConfig struct {
 }
 
 func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (output string) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	local := *dc
+	local.Ctx = ctx
+	dc = &local
 	ctx = context.WithValue(ctx, projectRunKey{}, dc)
 	tc = prepareToolCall(tc, dc)
 	if tc.PreparationError != "" {
 		return tc.PreparationError
+	}
+	if refusal := checkDispatchActionPolicy(ctx, tc, dc); refusal != nil {
+		setToolOutcome(ctx, refusal.Status)
+		return refusal.Output
 	}
 	logger := dc.Logger
 	if !dispatchToolAllowed(dc, tc.Action) {
@@ -1269,6 +1280,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (outpu
 	}
 
 	// Route to sub-dispatchers
+	ctx = withBackgroundCodeAction(ctx, tc, dc)
 	if result, ok := dispatchExec(ctx, tc, dc); ok {
 		return result
 	}

@@ -13,10 +13,10 @@ import (
 	"aurago/internal/llm"
 
 	"github.com/sashabaranov/go-openai"
-	"golang.org/x/sync/errgroup"
 )
 
 var errStreamIdleTimeout = errors.New("model stream stalled")
+var errStreamFirstTokenTimeout = errors.New("model first-token deadline exceeded")
 
 // streamingResponseResult holds the output of handleStreamingResponse.
 type streamingResponseResult struct {
@@ -188,6 +188,7 @@ func handleStreamingResponse(
 	retry422Count *int,
 	requireComplete ...bool,
 ) streamingResponseResult {
+	llmCtx, thinkingProgress := withStreamThinkingProgress(llmCtx, broker)
 	strict := len(requireComplete) > 0 && requireComplete[0]
 	streamAcct := streamingAccountingState{}
 	contextCancelled := false
@@ -214,6 +215,7 @@ func handleStreamingResponse(
 	defer stm.Close()
 
 	var assembledResponse strings.Builder
+	legacyFunctionCallSeen := false
 	var assembledReasoning strings.Builder
 	var lastFinishReason string
 	var responseModel string
@@ -236,39 +238,83 @@ func handleStreamingResponse(
 	recvCh := make(chan recvResult, 1)
 	recvCtx, cancelRecv := context.WithCancel(llmCtx)
 	defer cancelRecv()
-	recvEg, _ := errgroup.WithContext(recvCtx)
-	recvEg.Go(func() error {
+	recvDone := make(chan struct{})
+	go func() {
+		defer close(recvDone)
 		defer close(recvCh)
+		defer func() {
+			if recover() != nil {
+				select {
+				case recvCh <- recvResult{err: ErrRuntimePanic}:
+				case <-recvCtx.Done():
+				}
+			}
+		}()
 		for {
 			chunk, rErr := stm.Recv()
 			select {
 			case recvCh <- recvResult{chunk: chunk, err: rErr}:
 			case <-recvCtx.Done():
-				return nil
+				return
 			}
 			if rErr != nil {
-				return nil
+				return
 			}
 		}
-	})
+	}()
 
 	idleTimeout := chunkIdleTimeout
 	if idleTimeout <= 0 {
 		idleTimeout = 30 * time.Second
 	}
-	timer := time.NewTimer(idleTimeout)
+	// The first generated token may need the complete call budget. After
+	// progress begins, only output (not empty keepalives) renews the idle timer.
+	waitTimeout := idleTimeout
+	if deadline, ok := llmCtx.Deadline(); ok && time.Until(deadline) > waitTimeout {
+		waitTimeout = time.Until(deadline)
+	}
+	timer := time.NewTimer(waitTimeout)
 	defer timer.Stop()
+	progressSeen := false
+	markProgress := func() {
+		progressSeen = true
+		if !timer.Stop() {
+			select {
+			case <-timer.C:
+			default:
+			}
+		}
+		waitTimeout = idleTimeout
+		timer.Reset(idleTimeout)
+	}
 
 	for {
 		var rr recvResult
 		var ok bool
 		select {
+		case <-thinkingProgress.ready:
+			markProgress()
+			continue
+		case <-llmCtx.Done():
+			midStreamError = fmt.Errorf("model stream interrupted: %w", llmCtx.Err())
+			if !progressSeen && errors.Is(llmCtx.Err(), context.DeadlineExceeded) {
+				midStreamError = fmt.Errorf("%w: %w", errStreamFirstTokenTimeout, llmCtx.Err())
+			}
+			contextCancelled = true
+			cancelRecv()
+			stm.Close()
+			ok = false
 		case <-timer.C:
-			midStreamError = fmt.Errorf("%w for %s: %w", errStreamIdleTimeout, idleTimeout, context.DeadlineExceeded)
+			midStreamError = fmt.Errorf("%w for %s: %w", errStreamIdleTimeout, waitTimeout, context.DeadlineExceeded)
+			operation := "stream_idle_timeout"
+			if !progressSeen {
+				midStreamError = fmt.Errorf("%w after %s: %w", errStreamFirstTokenTimeout, waitTimeout, context.DeadlineExceeded)
+				operation = "stream_first_token_timeout"
+			}
 			currentLogger.Warn("[Stream] No chunks received within idle timeout; aborting stream", "timeout", idleTimeout.String())
 			telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
 			llm.ReportLLMHealthEvent(llm.HealthEvent{
-				Operation:         "stream_idle_timeout",
+				Operation:         operation,
 				Provider:          telemetryScope.ProviderType,
 				Model:             telemetryScope.Model,
 				ErrorCategory:     llm.ErrCategoryContextDeadline,
@@ -279,25 +325,11 @@ func handleStreamingResponse(
 			cancelResp()
 			stm.Close()
 			contextCancelled = true
-			done := make(chan struct{})
-			go func() { _ = recvEg.Wait(); close(done) }()
-			select {
-			case <-done:
-			case <-time.After(10 * time.Second):
-				currentLogger.Error("[Stream] recvEg.Wait() hung after stream close")
-			}
 			ok = false
 		case rr, ok = <-recvCh:
 			if !ok {
 				break
 			}
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
-			timer.Reset(idleTimeout)
 		}
 		if !ok {
 			break
@@ -338,11 +370,15 @@ func handleStreamingResponse(
 				lastFinishReason = string(chunk.Choices[0].FinishReason)
 			}
 			delta := chunk.Choices[0].Delta
-			streamed := len(delta.ReasoningContent) + len(delta.Content)
+			legacyFunctionCallSeen = legacyFunctionCallSeen || delta.FunctionCall != nil
+			streamed := thinkingProgress.reasoningChars(delta.ReasoningContent) + len(delta.Content)
 			for _, call := range delta.ToolCalls {
 				streamed += len(call.Function.Arguments)
 			}
 			llm.ObserveStreamOutput(llmCtx, streamed)
+			if streamed > 0 || len(delta.ToolCalls) > 0 || chunk.Choices[0].FinishReason != "" {
+				markProgress()
+			}
 			if delta.ReasoningContent != "" {
 				assembledReasoning.WriteString(delta.ReasoningContent)
 			}
@@ -393,15 +429,20 @@ func handleStreamingResponse(
 			}
 		}
 	}
-	_ = recvEg.Wait()
+	cancelRecv()
 	stm.Close()
+	select {
+	case <-recvDone:
+	case <-time.After(time.Second):
+		currentLogger.Error("Model stream receiver did not stop after cancellation")
+	}
 	if midStreamError == nil {
 		if llmCtx.Err() != nil {
 			midStreamError = fmt.Errorf("model stream interrupted: %w", llmCtx.Err())
-		} else if lastFinishReason == "" && (assembledResponse.Len() > 0 || len(tcAssembler.Assemble()) > 0) {
-			midStreamError = fmt.Errorf("model stream ended without a completion marker; incomplete output was not applied")
-		} else if lastFinishReason != "stop" && lastFinishReason != "tool_calls" && (assembledResponse.Len() > 0 || len(tcAssembler.Assemble()) > 0) {
-			midStreamError = fmt.Errorf("model stream was incomplete (%s); incomplete output was not applied", lastFinishReason)
+		} else if lastFinishReason == "" {
+			midStreamError = incompleteCompletion("", assembledResponse.String(), assembledReasoning.String(), legacyFunctionCallSeen || len(tcAssembler.Assemble()) > 0)
+		} else if lastFinishReason != "stop" && lastFinishReason != "tool_calls" {
+			midStreamError = incompleteCompletion(openai.FinishReason(lastFinishReason), assembledResponse.String(), assembledReasoning.String(), legacyFunctionCallSeen || len(tcAssembler.Assemble()) > 0)
 		}
 	}
 	if strict {
@@ -509,7 +550,7 @@ func handleSyncLLMCall(
 			cancelResp()
 			return recoveryResult{resp: resp, err: fmt.Errorf("no choices returned from LLM"), telemetryScope: telemetryScope}
 		}
-		return recoveryResult{resp: resp, content: resp.Choices[0].Message.Content, telemetryScope: telemetryScope}
+		return recoveryResult{resp: resp, content: resp.Choices[0].Message.Content, err: syncCompletionError(llmCtx, resp), telemetryScope: telemetryScope}
 	} else {
 		resp, err := llm.ExecuteWithRetry(llmCtx, client, req, currentLogger, broker)
 		if err != nil {
@@ -526,8 +567,23 @@ func handleSyncLLMCall(
 			cancelResp()
 			return recoveryResult{resp: resp, err: fmt.Errorf("no choices returned from LLM"), telemetryScope: telemetryScope}
 		}
-		return recoveryResult{resp: resp, content: resp.Choices[0].Message.Content, telemetryScope: telemetryScope}
+		return recoveryResult{resp: resp, content: resp.Choices[0].Message.Content, err: syncCompletionError(llmCtx, resp), telemetryScope: telemetryScope}
 	}
+}
+
+func syncCompletionError(ctx context.Context, resp openai.ChatCompletionResponse) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if len(resp.Choices) == 0 {
+		return fmt.Errorf("model returned no completion")
+	}
+	reason := resp.Choices[0].FinishReason
+	if reason != openai.FinishReasonStop && reason != openai.FinishReasonToolCalls {
+		message := resp.Choices[0].Message
+		return incompleteCompletion(reason, message.Content, message.ReasoningContent, len(message.ToolCalls) > 0 || message.FunctionCall != nil)
+	}
+	return nil
 }
 
 func syncResponseContent(resp openai.ChatCompletionResponse) string {

@@ -77,12 +77,14 @@ func TestStrictNullPreparationAcrossTransports(t *testing.T) {
 		"free_data": prop("object", "Free payload"), "json": prop("string", "JSON"),
 		"required_nullable": map[string]interface{}{"type": []string{"string", "null"}},
 	}, "required_nullable")
-	definitions := []openai.Tool{tool("fixture", "fixture", params), tool("skill__fixture", "fixture", params), tool("tool__fixture", "fixture", params)}
+	// A native tool and a Python skill cannot share a leaf name here: known
+	// native wrappers intentionally resolve to that native leaf before gates.
+	definitions := []openai.Tool{tool("native_fixture", "fixture", params), tool("skill__fixture", "fixture", params), tool("tool__fixture", "fixture", params)}
 	dc := &DispatchContext{Cfg: &config.Config{}, Logger: logger, SessionID: t.Name()}
 	SetDiscoverToolsState(dc.SessionID, definitions, definitions, "")
 	t.Cleanup(func() { ClearDiscoverToolsState(dc.SessionID) })
 	args := `{"background":false,"priority":0,"title":"","tags":[],"metadata":{"keep":"yes","omit":null},"free_data":{"omit":null},"json":"{\"omit\":null}","required_nullable":null}`
-	for _, name := range []string{"fixture", "skill__fixture", "tool__fixture"} {
+	for _, name := range []string{"native_fixture", "skill__fixture", "tool__fixture"} {
 		for _, wrapped := range []bool{false, true} {
 			nativeName, nativeArgs := name, args
 			if wrapped {
@@ -111,7 +113,7 @@ func TestStrictNullPreparationAcrossTransports(t *testing.T) {
 			if _, exists := actual["required_nullable"]; !exists {
 				t.Fatal("required nullable argument removed")
 			}
-			if name == "fixture" && (tc.Background || tc.Priority != 0 || len(tc.Metadata) != 1) {
+			if name == "native_fixture" && (tc.Background || tc.Priority != 0 || len(tc.Metadata) != 1) {
 				t.Fatal("typed fields disagree with Params")
 			}
 			if name == "skill__fixture" && tc.Skill != "fixture" || name == "tool__fixture" && tc.Name != "fixture" {

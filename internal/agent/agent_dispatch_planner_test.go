@@ -411,7 +411,7 @@ func TestExecuteAgentLoopCameraRetryUsesExactlyOneTrustedVisionRoute(t *testing.
 	tools.SetDefaultGo2RTCManager(manager)
 
 	visionCalls := 0
-	dispatchAnalyzeImageWithPrompt = func(filePath, prompt string, _ *config.Config) (string, int, int, error) {
+	dispatchAnalyzeImageWithPrompt = func(_ context.Context, filePath, prompt string, _ *config.Config) (string, int, int, error) {
 		visionCalls++
 		if !strings.Contains(prompt, "AURAGO_STRUCTURED_OBJECT_COUNT_V1") || !strings.Contains(prompt, "Wie viele PKW") {
 			t.Fatalf("vision prompt was not structured or did not reuse the prior question: %q", prompt)

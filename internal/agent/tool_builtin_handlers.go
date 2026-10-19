@@ -105,7 +105,8 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 			return `Tool Output: {"status": "error", "message": "VirusTotal integration is not enabled. Set virustotal.enabled=true in config.yaml."}`, true
 		}
 		req := decodeVirusTotalScanArgs(args)
-		return tools.ExecuteVirusTotalScanWithOptions(cfg.VirusTotal.APIKey, tools.VirusTotalOptions{
+		return tools.ExecuteVirusTotalScanWithOptions(cfg.VirusTotal.APIKey, tools.VirusTotalOptions{Context: ctx,
+			Config:   cfg,
 			Resource: req.Resource,
 			FilePath: req.FilePath,
 			Mode:     req.Mode,
@@ -151,7 +152,7 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 				return `Tool Output: {"status":"error","message":"Paperless-ngx is in read-only mode. Disable paperless_ngx.readonly to allow changes."}`, true
 			}
 		}
-		plCfg := tools.PaperlessConfig{
+		plCfg := tools.PaperlessConfig{Context: ctx,
 			URL:      cfg.PaperlessNGX.URL,
 			APIToken: cfg.PaperlessNGX.APIToken,
 			ReadOnly: cfg.PaperlessNGX.ReadOnly,

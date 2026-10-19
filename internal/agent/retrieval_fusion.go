@@ -36,7 +36,7 @@ const (
 var entityLinePattern = regexp.MustCompile(`^-\s+\[([^\]]+)\]\s*(.*)`)
 var knowledgeEdgeLinePattern = regexp.MustCompile(`^\s+- \[([^\]]+)\] .* -\[([^\]]+)\]-> \[([^\]]+)\]`)
 var memorySimilarityPrefixPattern = regexp.MustCompile(`(?i)^\s*\[similarity:\s*[0-9.]+\]\s*`)
-var memoryMetadataPrefixPattern = regexp.MustCompile(`(?i)^\s*\[(domain:\s*[^\]]+|tool_guides|documentation|file_index)\]\s*`)
+var memoryMetadataPrefixPattern = regexp.MustCompile(`(?i)^\s*\[(domain:\s*[^\]]+|tool_guides|documentation|file_index|trust:\s*(agent-extracted|agent-recorded|user-recorded|user-confirmed|system-recorded|legacy-unknown))\]\s*`)
 
 // applyRetrievalFusion enriches RAG and KG context by cross-referencing results from
 // both subsystems. When strong RAG hits exist, related KG entities are loaded (RAG→KG).

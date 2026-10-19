@@ -90,7 +90,7 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 					return `Tool Output: {"status":"error","message":"Tailscale is in read-only mode. Disable tailscale.read_only to allow changes."}`
 				}
 			}
-			tsCfg := tools.TailscaleConfig{APIKey: cfg.Tailscale.APIKey, Tailnet: cfg.Tailscale.Tailnet, ReadOnly: cfg.Tailscale.ReadOnly}
+			tsCfg := tools.TailscaleConfig{Context: ctx, APIKey: cfg.Tailscale.APIKey, Tailnet: cfg.Tailscale.Tailnet, ReadOnly: cfg.Tailscale.ReadOnly}
 			// query is hostname, IP, or node ID for device-specific operations
 			query := req.deviceQuery()
 			switch req.Operation {
@@ -119,7 +119,7 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 				return "Tool Output: " + tools.TailscaleGetACL(tsCfg)
 			case "local_status", "status":
 				logger.Info("LLM requested Tailscale local status")
-				return "Tool Output: " + tools.TailscaleLocalStatus()
+				return "Tool Output: " + tools.TailscaleLocalStatus(ctx)
 			default:
 				return `Tool Output: {"status":"error","message":"Unknown tailscale operation. Use: devices, device, routes, enable_routes, disable_routes, dns, acl, local_status"}`
 			}
@@ -266,7 +266,7 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 				return `Tool Output: {"status":"error","message":"AdGuard Home is not enabled. Configure the adguard section in config.yaml."}`
 			}
 			req := decodeAdGuardArgs(tc)
-			adgCfg := tools.AdGuardConfig{
+			adgCfg := tools.AdGuardConfig{Context: ctx,
 				URL:      cfg.AdGuard.URL,
 				Username: cfg.AdGuard.Username,
 				Password: cfg.AdGuard.Password,

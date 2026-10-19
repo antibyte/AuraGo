@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
@@ -285,7 +286,7 @@ func compressPersistentHistory(
 	}
 	summaryCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	response, err := client.CreateChatCompletion(summaryCtx, summaryReq)
+	response, err := budget.CompleteChat(summaryCtx, client, summaryReq, llm.ModelRoute{Model: model}, "compression", summaryReq.MaxTokens, prompts.CountTokensForModelContext)
 	if err != nil {
 		if logger != nil {
 			logger.Warn("[Compression] Persistent summary failed", "error", err)
@@ -469,6 +470,7 @@ func ScheduleProactiveHistoryCompression(runCfg RunConfig) bool {
 	// Run inside the side-effect group so graceful shutdown cancels and drains
 	// the compressor before the memory stores close.
 	started := sideEffectsFromRunConfig(runCfg).Go(func(ctx context.Context) {
+		ctx = budget.WithTracking(ctx, runCfg.BudgetTracker, "compression")
 		completed := true
 		defer func() { lease.release(completed) }()
 		client, model := resolveHelperBackedLLM(runCfg.Config, runCfg.LLMClient, runCfg.Config.LLM.Model)

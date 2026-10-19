@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/kgquality"
 	"aurago/internal/llm"
@@ -86,6 +87,10 @@ func compactActivityToolResult(action, result string) string {
 }
 
 func captureActivityTurn(cfg *config.Config, logger *slog.Logger, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, sessionID, channel, userRequest, assistantReply string, toolNames, toolSummaries []string, isAutonomous, userRelevant bool) {
+	captureActivityTurnContext(context.Background(), cfg, logger, shortTermMem, kg, sessionID, channel, userRequest, assistantReply, toolNames, toolSummaries, isAutonomous, userRelevant)
+}
+
+func captureActivityTurnContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, sessionID, channel, userRequest, assistantReply string, toolNames, toolSummaries []string, isAutonomous, userRelevant bool) {
 	if !runtimeMemoryWriteAllowed(cfg, "graph", sessionID) {
 		kg = nil
 	}
@@ -102,7 +107,7 @@ func captureActivityTurn(cfg *config.Config, logger *slog.Logger, shortTermMem *
 	source := "runtime_fallback"
 	settings := resolveMemoryAnalysisSettings(cfg, shortTermMem)
 	if settings.Enabled && settings.RealTime {
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 		defer cancel()
 		if llmDigest, err := buildActivityDigestWithConfiguredClient(ctx, cfg, userRequest, assistantReply, toolNames, toolSummaries); err == nil {
 			digest = llmDigest
@@ -283,10 +288,10 @@ func buildActivityDigestWithConfiguredClient(ctx context.Context, cfg *config.Co
 	if model == "" {
 		return memory.ActivityDigest{}, fmt.Errorf("memory analysis model is empty")
 	}
-	return buildActivityDigestWithLLM(ctx, llm.WrapOpenAIClient(client), model, userRequest, assistantReply, toolNames, toolSummaries)
+	return buildActivityDigestWithLLM(ctx, llm.WrapOpenAIClient(client), model, userRequest, assistantReply, toolNames, toolSummaries, llm.ModelRoute{ProviderType: llmCfg.providerType, BaseURL: llmCfg.baseURL, Model: model})
 }
 
-func buildActivityDigestWithLLM(ctx context.Context, client llm.ChatClient, model, userRequest, assistantReply string, toolNames, toolSummaries []string) (memory.ActivityDigest, error) {
+func buildActivityDigestWithLLM(ctx context.Context, client llm.ChatClient, model, userRequest, assistantReply string, toolNames, toolSummaries []string, routes ...llm.ModelRoute) (memory.ActivityDigest, error) {
 	if client == nil {
 		return memory.ActivityDigest{}, fmt.Errorf("nil activity digest client")
 	}
@@ -297,14 +302,18 @@ func buildActivityDigestWithLLM(ctx context.Context, client llm.ChatClient, mode
 		isolateAgentPromptExternalData(strings.Join(uniqueActivityStrings(toolNames, 12), ", ")),
 		isolateAgentPromptExternalData(strings.Join(uniqueActivityStrings(toolSummaries, 12), "\n")),
 	)
-	resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+	route := llm.ModelRoute{Model: model}
+	if len(routes) > 0 {
+		route = routes[0]
+	}
+	resp, err := budget.CompleteChat(ctx, client, openai.ChatCompletionRequest{
 		Model: model,
 		Messages: []openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleUser, Content: prompt},
 		},
 		Temperature: 0.1,
 		MaxTokens:   700,
-	})
+	}, route, "memory_analysis", 700, prompts.CountTokensForModelContext)
 	if err != nil {
 		return memory.ActivityDigest{}, fmt.Errorf("activity digest llm call: %w", err)
 	}

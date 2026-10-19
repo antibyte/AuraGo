@@ -71,6 +71,12 @@ func (m *helperLLMManager) requestJSONResponse(ctx context.Context, operation, c
 	if len(policies) > 0 {
 		policy = policies[0]
 	}
+	if policy.tracker == nil {
+		policy.tracker, policy.budgetCategory = budget.Tracking(ctx)
+	}
+	if policy.budgetCategory == "" {
+		policy.budgetCategory = "helper"
+	}
 	validate := func(raw string) (string, error) {
 		normalized, err := llm.NormalizeJSONContent(raw)
 		if err == nil && policy.validate != nil {
@@ -136,17 +142,18 @@ func (m *helperLLMManager) requestJSONResponse(ctx context.Context, operation, c
 		if errors.Is(openai.NewReasoningValidator().Validate(request), openai.ErrReasoningModelMaxTokensDeprecated) {
 			request.MaxTokens, request.MaxCompletionTokens, request.Temperature = 0, outputTokens, 0
 		}
-		resp, err := m.client.CreateChatCompletion(ctx, request)
+		callCtx, capture := llm.CaptureUsage(ctx)
+		resp, err := m.client.CreateChatCompletion(callCtx, request)
 		if policy.tracker != nil {
 			var input, output int
 			var account bool
 			resp, input, output, _, _, _, account = normalizeResponseUsage(request, resp)
-			if account {
+			{
 				model := resp.Model
 				if model == "" {
 					model = request.Model
 				}
-				policy.tracker.RecordForCategory(policy.budgetCategory, model, input, output)
+				policy.tracker.RecordResponseUsage(policy.budgetCategory, m.providerType, model, capture, input, output, account)
 			}
 		}
 		if err != nil {

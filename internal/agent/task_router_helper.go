@@ -8,6 +8,7 @@ import (
 	"io"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/llm"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
@@ -62,11 +63,9 @@ func classifyTaskWithHelper(ctx context.Context, run RunConfig, intent string) (
 	taskRouterState.stats.HelperAttempts++
 	taskRouterState.Unlock()
 	m.observeStat("routing", func(s *HelperLLMOperationStats) { s.Requests++; s.LLMCalls++ })
-	resp, err := m.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{Model: m.model, Messages: []openai.ChatCompletionMessage{{Role: "system", Content: system}, {Role: "user", Content: user}}, MaxTokens: output, Temperature: 0.1, ResponseFormat: llm.JSONResponseFormat(structured)})
+	ctx = budget.WithTracking(ctx, run.BudgetTracker, "routing")
+	resp, err := budget.CompleteChat(ctx, m.client, openai.ChatCompletionRequest{Model: m.model, Messages: []openai.ChatCompletionMessage{{Role: "system", Content: system}, {Role: "user", Content: user}}, MaxTokens: output, Temperature: 0.1, ResponseFormat: llm.JSONResponseFormat(structured)}, m.route, "routing", output, prompts.CountTokensForModelContext)
 	if resp.Usage.PromptTokens > 0 || resp.Usage.CompletionTokens > 0 {
-		if run.BudgetTracker != nil {
-			run.BudgetTracker.RecordForCategory("routing", m.model, resp.Usage.PromptTokens, resp.Usage.CompletionTokens)
-		}
 		taskRouterState.Lock()
 		taskRouterState.stats.HelperInputTokens += resp.Usage.PromptTokens
 		taskRouterState.stats.HelperOutputTokens += resp.Usage.CompletionTokens

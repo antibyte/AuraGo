@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -42,6 +43,11 @@ func (g *AsyncTaskGroup) Go(fn func(context.Context)) bool {
 
 	go func() {
 		defer g.wg.Done()
+		defer func() {
+			if recover() != nil {
+				slog.Error("Async agent task panicked; task stopped without replay")
+			}
+		}()
 		fn(ctx)
 	}()
 	return true

@@ -59,5 +59,5 @@ func sanitizeReasoningForContinuationRequired(messages []openai.ChatCompletionMe
 
 func providerRequiresReasoningContinuation(providerType, model string) bool {
 	combined := strings.ToLower(strings.TrimSpace(providerType) + " " + strings.TrimSpace(model))
-	return strings.Contains(combined, "minimax") || strings.Contains(combined, "deepseek")
+	return strings.Contains(combined, "minimax") || strings.Contains(combined, "deepseek") || strings.Contains(combined, "anthropic") || strings.Contains(combined, "claude")
 }

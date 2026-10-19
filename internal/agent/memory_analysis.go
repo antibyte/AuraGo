@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode"
 
+	budgetpkg "aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
@@ -279,7 +280,7 @@ func runMemoryAnalysis(
 		if errors.Is(openai.NewReasoningValidator().Validate(request), openai.ErrReasoningModelMaxTokensDeprecated) {
 			request.MaxTokens, request.MaxCompletionTokens, request.Temperature = 0, maxTokens, 0
 		}
-		resp, err := analysisClient.CreateChatCompletion(ctx, request)
+		resp, err := budgetpkg.CompleteChat(ctx, llm.WrapOpenAIClient(analysisClient), request, route, "memory_analysis", maxTokens, prompts.CountTokensForModelContext)
 		if err != nil {
 			logger.Warn("[Memory Analysis] LLM call failed", "error", err)
 			return
@@ -1076,7 +1077,7 @@ func expandQueryForRAG(ctx context.Context, cfg *config.Config, logger *slog.Log
 		MaxTokens:   50,
 	}
 
-	resp, err := client.CreateChatCompletion(expandCtx, req)
+	resp, err := budgetpkg.CompleteChat(expandCtx, llm.WrapOpenAIClient(client), req, llm.ModelRoute{ProviderType: llmCfg.providerType, BaseURL: llmCfg.baseURL, Model: model}, "memory_analysis", 50, prompts.CountTokensForModelContext)
 	if err != nil {
 		logger.Debug("[RAG Query Expansion] LLM call failed, using original query", "error", err)
 		return userMsg
@@ -1159,7 +1160,7 @@ func rerankWithLLM(ctx context.Context, cfg *config.Config, logger *slog.Logger,
 		MaxTokens:   100,
 	}
 
-	resp, err := client.CreateChatCompletion(rerankCtx, req)
+	resp, err := budgetpkg.CompleteChat(rerankCtx, llm.WrapOpenAIClient(client), req, llm.ModelRoute{ProviderType: llmCfg.providerType, BaseURL: llmCfg.baseURL, Model: model}, "memory_analysis", 100, prompts.CountTokensForModelContext)
 	if err != nil {
 		logger.Debug("[RAG LLM Rerank] LLM call failed, keeping original order", "error", err)
 		return candidates
@@ -1904,7 +1905,7 @@ func runMemoryReflection(
 			lastParseErr = err
 			continue
 		}
-		resp, err := analysisClient.CreateChatCompletion(ctx, request)
+		resp, err := budgetpkg.CompleteChat(ctx, analysisClient, request, llm.ModelRoute{ProviderType: llmCfg.providerType, BaseURL: llmCfg.baseURL, Model: model}, "memory_reflection", budget.CompletionReserve, prompts.CountTokensForModelContext)
 		if err != nil {
 			return memoryReflectionResult{}, fmt.Errorf("reflection LLM call: %w", err)
 		}

@@ -2,6 +2,9 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
+	"image"
+	"image/png"
 	"io"
 	"log/slog"
 	"net/http"
@@ -9,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -299,28 +303,45 @@ func TestPrepareChromecastLocalMediaURLAllowsUnsupportedExtensionWithContentType
 func TestDispatchThreeDPrinterAnalyzeCameraUsesDefaultVisionBudgetModel(t *testing.T) {
 	originalAnalyze := dispatchAnalyzeImageWithPrompt
 	defer func() { dispatchAnalyzeImageWithPrompt = originalAnalyze }()
+	dispatchAnalyzeImageWithPrompt = tools.AnalyzeImageWithPromptContext
 
 	imageServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "image/jpeg")
-		_, _ = w.Write([]byte{0xff, 0xd8, 0xff, 0xdb})
+		w.Header().Set("Content-Type", "image/png")
+		if err := png.Encode(w, image.NewRGBA(image.Rect(0, 0, 1, 1))); err != nil {
+			t.Error(err)
+		}
 	}))
 	defer imageServer.Close()
 	wsURL, closeWS := mockAgentThreeDPrinterCameraURLServer(t, imageServer.URL+"/snapshot.jpg")
 	defer closeWS()
 
-	dispatchAnalyzeImageWithPrompt = func(filePath, prompt string, cfg *config.Config) (string, int, int, error) {
-		if _, err := os.Stat(filePath); err != nil {
-			t.Fatalf("snapshot path should exist: %v", err)
+	var visionCalls atomic.Int32
+	visionServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Model string `json:"model"`
 		}
-		return "camera looks healthy", 11, 13, nil
-	}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Error(err)
+			http.Error(w, "invalid fixture request", http.StatusBadRequest)
+			return
+		}
+		if request.Model != tools.DefaultVisionModel {
+			t.Errorf("vision model = %q, want %q", request.Model, tools.DefaultVisionModel)
+		}
+		visionCalls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":"fixture-vision","model":"google/gemini-2.0-flash-001","choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"camera looks healthy"}}],"usage":{"prompt_tokens":11,"completion_tokens":13,"total_tokens":24}}`)
+	}))
+	defer visionServer.Close()
 
 	cfg := agentThreeDPrinterConfig(t, wsURL)
+	cfg.Vision.ProviderType, cfg.Vision.BaseURL, cfg.Vision.APIKey = "openrouter", visionServer.URL+"/v1", "fixture-vision-key"
 	if out := tools.ExecuteThreeDPrinter(context.Background(), tools.BuildThreeDPrinterRuntimeConfig(cfg), tools.ThreeDPrinterRequest{Operation: "enable_camera"}); !strings.Contains(out, `"status":"ok"`) {
 		t.Fatal(out)
 	}
 	cfg.Budget.Enabled = true
 	tracker := budget.NewTracker(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), t.TempDir())
+	defer tracker.Flush()
 	out, ok := dispatchPlatform(context.Background(), ToolCall{
 		Action: "three_d_printer",
 		Params: map[string]interface{}{
@@ -339,8 +360,9 @@ func TestDispatchThreeDPrinterAnalyzeCameraUsesDefaultVisionBudgetModel(t *testi
 		t.Fatalf("unexpected output: %s", out)
 	}
 	status := tracker.GetStatus()
-	if status.Models[tools.DefaultVisionModel].Calls != 1 {
-		t.Fatalf("budget models = %#v, want one call for %q", status.Models, tools.DefaultVisionModel)
+	usage := status.Models[tools.DefaultVisionModel]
+	if visionCalls.Load() != 1 || usage.Calls != 1 || usage.InputTokens != 11 || usage.OutputTokens != 13 {
+		t.Fatalf("budget models = %#v, HTTP calls = %d, want exactly one 11/13 response for %q", status.Models, visionCalls.Load(), tools.DefaultVisionModel)
 	}
 }
 

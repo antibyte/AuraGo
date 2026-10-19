@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
@@ -23,6 +24,7 @@ import (
 // one maintenance run. The controller keeps this set stable while each run
 // receives its own immutable configuration snapshot.
 type MaintenanceControllerDependencies struct {
+	BudgetTracker    *budget.Tracker
 	Logger           *slog.Logger
 	LLMClient        llm.ChatClient
 	Vault            *security.Vault
@@ -153,6 +155,7 @@ func newMaintenanceController(ctx context.Context, cfg *config.Config, deps Main
 			if runCfg == nil {
 				return
 			}
+			runCtx = budget.WithTracking(runCtx, deps.BudgetTracker, "maintenance")
 			runMaintenanceTask(runCtx, runCfg, deps.Logger, deps.LLMClient, deps.Vault, deps.Registry, deps.Manifest, deps.CronManager, deps.LongTermMem, deps.ShortTermMem, deps.HistoryManager, deps.KG, deps.InventoryDB, deps.ContactsDB, deps.PlannerDB, deps.CheatsheetDB, deps.MissionManagerV2, deps.Guardian, deps.DaemonSupervisor, deps.WebhookManager)
 		}
 	}

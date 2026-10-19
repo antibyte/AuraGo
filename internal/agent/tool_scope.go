@@ -15,6 +15,7 @@ func normalizedAllowedToolSet(tools []string) map[string]struct{} {
 	result := make(map[string]struct{}, len(tools))
 	for _, name := range tools {
 		name = strings.ToLower(strings.TrimSpace(name))
+		name = canonicalNativeAlias(name)
 		if name != "" {
 			result[name] = struct{}{}
 		}
@@ -32,7 +33,7 @@ func filterSchemasByAllowedTools(schemas []openai.Tool, allowed []string) []open
 		if schema.Function == nil {
 			continue
 		}
-		if _, ok := set[strings.ToLower(strings.TrimSpace(schema.Function.Name))]; ok {
+		if _, ok := set[canonicalNativeAlias(strings.ToLower(strings.TrimSpace(schema.Function.Name)))]; ok {
 			filtered = append(filtered, schema)
 		}
 	}
@@ -55,8 +56,13 @@ func dispatchToolAllowed(dc *DispatchContext, name string) bool {
 	if dc == nil || !dc.ToolScopeRestricted {
 		return true
 	}
-	_, ok := dc.AllowedTools[strings.ToLower(strings.TrimSpace(name))]
-	return ok
+	name = canonicalNativeAlias(strings.ToLower(strings.TrimSpace(name)))
+	for allowed := range dc.AllowedTools {
+		if canonicalNativeAlias(strings.ToLower(strings.TrimSpace(allowed))) == name {
+			return true
+		}
+	}
+	return false
 }
 
 func toolScopeDeniedOutput(name string) string {

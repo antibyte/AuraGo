@@ -50,9 +50,45 @@ func (b *questionCaptureBroker) SendTokenUpdate(prompt, completion, total, sessi
 func (b *questionCaptureBroker) SendThinkingBlock(provider, content, state string) {}
 
 func TestDispatchQuestionUserValidation(t *testing.T) {
-	got := dispatchQuestionUser(ToolCall{Params: map[string]interface{}{}}, &DispatchContext{})
+	got := dispatchQuestionUser(context.Background(), ToolCall{Params: map[string]interface{}{}}, &DispatchContext{})
 	if !strings.Contains(got, "question is required") {
 		t.Fatalf("got %q, want missing question error", got)
+	}
+}
+
+func TestDispatchQuestionUserCancellationStopsWaitAndRemovesQuestion(t *testing.T) {
+	const sessionID = "dispatch-question-cancelled"
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan string, 1)
+	go func() {
+		done <- dispatchQuestionUser(ctx, ToolCall{Params: map[string]interface{}{
+			"question": "Continue?", "timeout_seconds": float64(120),
+			"options": []interface{}{
+				map[string]interface{}{"label": "Yes", "value": "yes"},
+				map[string]interface{}{"label": "No", "value": "no"},
+			},
+		}}, &DispatchContext{SessionID: sessionID, MessageSource: "web_chat", Broker: NoopBroker{}})
+	}()
+	deadline := time.After(time.Second)
+	for !tools.HasPendingQuestion(sessionID) {
+		select {
+		case <-deadline:
+			t.Fatal("question was not registered")
+		case <-time.After(time.Millisecond):
+		}
+	}
+	cancel()
+	select {
+	case output := <-done:
+		if classifyLegacyToolResult(output) != ToolResultCancelled {
+			t.Fatalf("cancelled wait returned %q", output)
+		}
+		if tools.HasPendingQuestion(sessionID) {
+			t.Fatal("cancelled run retained its pending question")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("question waited for its 120-second timeout after Stop")
 	}
 }
 
@@ -61,7 +97,7 @@ func TestDispatchQuestionUserCompletes(t *testing.T) {
 	broker := &questionCaptureBroker{}
 	done := make(chan string, 1)
 	go func() {
-		done <- dispatchQuestionUser(ToolCall{Params: map[string]interface{}{
+		done <- dispatchQuestionUser(context.Background(), ToolCall{Params: map[string]interface{}{
 			"question":        "Pick",
 			"timeout_seconds": float64(2),
 			"options": []interface{}{
@@ -99,7 +135,7 @@ func TestDispatchQuestionUserUsesInteractiveUIForVirtualDesktop(t *testing.T) {
 	broker := &questionCaptureBroker{}
 	done := make(chan string, 1)
 	go func() {
-		done <- dispatchQuestionUser(ToolCall{Params: map[string]interface{}{
+		done <- dispatchQuestionUser(context.Background(), ToolCall{Params: map[string]interface{}{
 			"question": "Pick",
 			"options": []interface{}{
 				map[string]interface{}{"label": "A", "value": "a"},
@@ -201,7 +237,7 @@ func TestDispatchQuestionUserIsolatesAndScansFreeText(t *testing.T) {
 	ask := func(t *testing.T, dc *DispatchContext, response tools.QuestionResponse) (string, questionUserToolOutput) {
 		t.Helper()
 		answered := answerPendingQuestion(dc.SessionID, response)
-		out := dispatchQuestionUser(ToolCall{Params: map[string]interface{}{
+		out := dispatchQuestionUser(context.Background(), ToolCall{Params: map[string]interface{}{
 			"question":        "Which colour?",
 			"allow_free_text": true,
 			"timeout_seconds": float64(2),

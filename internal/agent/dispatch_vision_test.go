@@ -28,7 +28,7 @@ func TestDispatchServicesAnalyzeImageFallsBackWhenPreferredMCPVisionFails(t *tes
 		return "", true, assertiveTestError("schema mismatch")
 	}
 
-	dispatchAnalyzeImageWithPrompt = func(filePath, prompt string, cfg *config.Config) (string, int, int, error) {
+	dispatchAnalyzeImageWithPrompt = func(_ context.Context, filePath, prompt string, cfg *config.Config) (string, int, int, error) {
 		if filePath != "attachments/example.png" {
 			t.Fatalf("filePath = %q, want attachments/example.png", filePath)
 		}
@@ -71,7 +71,7 @@ func TestDispatchServicesAnalyzeImageUsesPublicURLWithoutLoggingIt(t *testing.T)
 		t.Fatal("preferred local-file vision must not be called for image_url")
 		return "", false, nil
 	}
-	dispatchAnalyzeImageURLWithPrompt = func(imageURL, prompt string, cfg *config.Config) (string, int, int, error) {
+	dispatchAnalyzeImageURLWithPrompt = func(_ context.Context, imageURL, prompt string, cfg *config.Config) (string, int, int, error) {
 		if imageURL != "https://cdn.example.test/image.png?signature=secret" {
 			t.Fatalf("imageURL = %q", imageURL)
 		}

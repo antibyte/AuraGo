@@ -86,13 +86,15 @@ func TestMinimalLoopDispatchUsesTheRequestContext(t *testing.T) {
 	client := &minimalLoopRouteClient{routes: []llm.ModelRoute{{ProviderID: "big", ProviderType: "custom", Model: "big-model", Primary: true, ContextWindowOverride: 256000, MaxOutputTokensOverride: 4096}}}
 	client.respond = func(req openai.ChatCompletionRequest, call int) (openai.ChatCompletionResponse, error) {
 		msg := openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "done"}
+		reason := openai.FinishReasonStop
 		if call == 1 {
+			reason = openai.FinishReasonToolCalls
 			msg = openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{{
 				ID: "call-wiki", Type: openai.ToolTypeFunction,
 				Function: openai.FunctionCall{Name: "local_wikipedia", Arguments: `{"operation":"read","path":"Berlin"}`},
 			}}}
 		}
-		return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: msg}}}, nil
+		return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: msg, FinishReason: reason}}}, nil
 	}
 	tool := openai.Tool{Type: openai.ToolTypeFunction, Function: &openai.FunctionDefinition{Name: "local_wikipedia", Parameters: map[string]any{"type": "object"}}}
 	lib.read = localwiki.ReadRequest{}

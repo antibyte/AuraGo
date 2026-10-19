@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"aurago/internal/acestep"
+	"aurago/internal/budget"
 	"aurago/internal/dockerutil"
 	"aurago/internal/meshcentral"
 	"aurago/internal/security"
@@ -19,8 +20,8 @@ import (
 
 var (
 	dispatchPreferredMCPVision        = tools.CallPreferredMCPVision
-	dispatchAnalyzeImageWithPrompt    = tools.AnalyzeImageWithPrompt
-	dispatchAnalyzeImageURLWithPrompt = tools.AnalyzeImageURLWithPrompt
+	dispatchAnalyzeImageWithPrompt    = tools.AnalyzeImageWithPromptContext
+	dispatchAnalyzeImageURLWithPrompt = tools.AnalyzeImageURLWithPromptContext
 	resolveDockerComposeConfig        = tools.DockerComposeResolvedConfigContext
 
 	meshCentralCachedClient    *meshcentral.CachedClient
@@ -416,22 +417,15 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 			}
 			var result string
-			var pTokens, cTokens int
 			var err error
+			visionCtx := budget.WithTracking(ctx, budgetTracker, "vision")
 			if hasURL {
-				result, pTokens, cTokens, err = dispatchAnalyzeImageURLWithPrompt(imageURL, prompt, cfg)
+				result, _, _, err = dispatchAnalyzeImageURLWithPrompt(visionCtx, imageURL, prompt, cfg)
 			} else {
-				result, pTokens, cTokens, err = dispatchAnalyzeImageWithPrompt(fpath, prompt, visionCfg)
+				result, _, _, err = dispatchAnalyzeImageWithPrompt(visionCtx, fpath, prompt, visionCfg)
 			}
 			if err != nil {
 				return "Tool Output: " + tools.ErrorJSONf("Vision analysis failed: %v", err)
-			}
-			if budgetTracker != nil {
-				vModel := cfg.Vision.Model
-				if vModel == "" {
-					vModel = tools.DefaultVisionModel
-				}
-				budgetTracker.RecordForCategory("vision", vModel, pTokens, cTokens)
 			}
 			return fmt.Sprintf("Tool Output: %s", result)
 
@@ -668,7 +662,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					tools.DockerComposeCommandMutates(req.Command)) {
 				return `Tool Output: {"status":"error","message":"Docker is in read-only mode. Disable docker.read_only to allow changes."}`
 			}
-			dockerCfg := tools.DockerConfig{Host: cfg.Docker.Host, WorkspaceDir: cfg.Directories.WorkspaceDir}
+			dockerCfg := tools.DockerConfig{Context: ctx, Host: cfg.Docker.Host, WorkspaceDir: cfg.Directories.WorkspaceDir}
 			containerID := req.targetContainerID()
 			// SecurityProxyOwner is listed only to keep this list in sync with the
 			// server's containerProtectedOwners. Its flag is deliberately never
@@ -875,7 +869,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status": "error", "message": "Homepage tool is not enabled. Set homepage.enabled=true in config.yaml."}`
 			}
 			req := decodeHomepageArgs(tc)
-			homepageCfg := tools.HomepageConfig{
+			homepageCfg := tools.HomepageConfig{Context: ctx,
 				DockerHost:            cfg.Docker.Host,
 				WorkspacePath:         cfg.Homepage.WorkspacePath,
 				AgentWorkspaceDir:     cfg.Directories.WorkspaceDir,
@@ -1137,7 +1131,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + result
 			case "test_connection":
 				logger.Info("LLM requested homepage test_connection")
-				return "Tool Output: " + tools.HomepageTestConnection(deployCfg, logger)
+				return "Tool Output: " + tools.HomepageTestConnection(deployCfg, logger, ctx)
 			case "webserver_start":
 				logger.Info("LLM requested homepage webserver_start")
 				result := tools.HomepageWebServerStart(homepageCfg, req.ProjectDir, req.BuildDir, logger)
@@ -1180,7 +1174,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if nfErr != nil || nfToken == "" {
 					return `Tool Output: {"status":"error","message":"Netlify token not found in vault. Store it with key 'netlify_token' via the Config UI."}`
 				}
-				nfCfg := tools.NetlifyConfig{
+				nfCfg := tools.NetlifyConfig{Context: ctx,
 					Token:               nfToken,
 					DefaultSiteID:       cfg.Netlify.DefaultSiteID,
 					TeamSlug:            cfg.Netlify.TeamSlug,
@@ -1276,7 +1270,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if vcErr != nil || vcToken == "" {
 					return `Tool Output: {"status":"error","message":"Vercel token not found in vault. Store it with key 'vercel_token' via the Config UI."}`
 				}
-				vcfg := tools.VercelConfig{
+				vcfg := tools.VercelConfig{Context: ctx,
 					Token:                  vcToken,
 					DefaultProjectID:       cfg.Vercel.DefaultProjectID,
 					TeamID:                 cfg.Vercel.TeamID,

@@ -24,7 +24,7 @@ func catalogReadOnly(cfg *config.Config, entry *ToolCatalogEntry) bool {
 		}
 		for i := 0; i < parent.NumField(); i++ {
 			key := strings.Split(parent.Type().Field(i).Tag.Get("yaml"), ",")[0]
-			if key == "" || key == "-" || (name != key && !strings.HasPrefix(entry.Name, key+"_")) {
+			if key == "" || key == "-" || (name != key && entry.Name != key && !strings.HasPrefix(entry.Name, key+"_")) {
 				continue
 			}
 			value := parent.Field(i)

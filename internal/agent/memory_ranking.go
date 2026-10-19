@@ -56,7 +56,7 @@ func rankMemoryCandidatesWithScores(memories []string, docIDs []string, similari
 			}
 		}
 		finalScore := calculateMemoryRankingScore(sim, meta, usedDocIDs[docID], now)
-		results = append(results, rankedMemory{text: mem, docID: docID, score: finalScore})
+		results = append(results, rankedMemory{text: memoryTextWithTrust(mem, meta), docID: docID, score: finalScore})
 	}
 
 	sort.SliceStable(results, func(i, j int) bool {
@@ -244,4 +244,26 @@ func memoryReusePenaltyMultiplier(reuseCount int) float64 {
 		penalty = 0.54
 	}
 	return 1.0 - penalty
+}
+
+// memoryTextWithTrust exposes provenance without leaking private source sessions.
+// Only a proven extraction envelope is unwrapped; arbitrary user text is intact.
+func memoryTextWithTrust(text string, meta memory.MemoryMeta) string {
+	trust := "legacy-unknown"
+	if concept, _, ok := memory.AnalysisDocumentParts(text); ok {
+		text = concept
+		trust = "agent-extracted"
+	}
+	switch strings.ToLower(strings.TrimSpace(meta.SourceType)) {
+	case "memory_analysis", "auto_extraction", "consolidation", "hierarchical_consolidation":
+		trust = "agent-extracted"
+	case "user":
+		trust = "user-recorded"
+	case "system", "system_metrics":
+		trust = "system-recorded"
+	}
+	if strings.EqualFold(meta.VerificationStatus, "confirmed") && meta.SourceType == "user" {
+		trust = "user-confirmed"
+	}
+	return "[trust:" + trust + "] " + text
 }

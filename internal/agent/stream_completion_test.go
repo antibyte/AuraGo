@@ -3,6 +3,7 @@ package agent
 import (
 	"aurago/internal/llm"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -16,12 +17,14 @@ import (
 )
 
 func TestStrictStreamCompletionRejectsIncompleteWork(t *testing.T) {
-	for _, kind := range []string{"stop", "tool_calls", "reasoning_length", "length", "missing_finish", "idle", "deadline"} {
+	for _, kind := range []string{"stop", "tool_calls", "reasoning_length", "legacy_length", "length", "missing_finish", "idle", "deadline"} {
 		t.Run(kind, func(t *testing.T) {
 			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "text/event-stream")
 				fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"private fragment\"}}]}\n\n")
-				if kind != "reasoning_length" {
+				if kind == "legacy_length" {
+					fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"function_call\":{\"name\":\"game_maker_file\",\"arguments\":\"{\"}}}]}\n\n")
+				} else if kind != "reasoning_length" {
 					// Even syntactically valid calls must not run before completion.
 					fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"write\",\"type\":\"function\",\"function\":{\"name\":\"game_maker_file\",\"arguments\":\"{}\"}}]}}]}\n\n")
 				}
@@ -31,7 +34,7 @@ func TestStrictStreamCompletionRejectsIncompleteWork(t *testing.T) {
 					return
 				}
 				if kind != "missing_finish" {
-					finish := strings.TrimPrefix(kind, "reasoning_")
+					finish := strings.TrimPrefix(strings.TrimPrefix(kind, "reasoning_"), "legacy_")
 					fmt.Fprintf(w, "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":%q}]}\n\n", finish)
 				}
 				fmt.Fprint(w, "data: [DONE]\n\n")
@@ -51,13 +54,22 @@ func TestStrictStreamCompletionRejectsIncompleteWork(t *testing.T) {
 			}
 			retries := 0
 			result := handleStreamingResponse(ctx, openai.ChatCompletionRequest{Model: "test", Stream: true}, llm.WrapOpenAIClient(openai.NewClientWithConfig(cfg)), false, defaultRecoveryPolicy(), slog.New(slog.NewTextHandler(io.Discard, nil)), &captureBroker{}, AgentTelemetryScope{}, cancel, idle, &retries, true)
-			valid := kind == "stop" || kind == "tool_calls" || kind == "reasoning_length"
+			valid := kind == "stop" || kind == "tool_calls"
 			if valid {
 				if result.err != nil || len(result.resp.Choices) != 1 || string(result.resp.Choices[0].FinishReason) != strings.TrimPrefix(kind, "reasoning_") {
 					t.Fatalf("lost provider completion: %+v", result)
 				}
 			} else if result.err == nil || len(result.resp.Choices) != 0 || result.interruptedReasoning != "private fragment" {
 				t.Fatalf("incomplete work survived or continuation was lost: %+v", result)
+			}
+			if kind == "reasoning_length" || kind == "length" || kind == "legacy_length" {
+				var incomplete *IncompleteCompletionError
+				if !errors.As(result.err, &incomplete) || incomplete.FinishReason != openai.FinishReasonLength || incomplete.ReasoningOnly != (kind == "reasoning_length") || incomplete.HasToolCalls != (kind != "reasoning_length") {
+					t.Fatalf("lost safe completion diagnostics: %#v, error=%v", incomplete, result.err)
+				}
+				if strings.Contains(result.err.Error(), "private fragment") {
+					t.Fatal("provider reasoning escaped into completion diagnostics")
+				}
 			}
 		})
 	}

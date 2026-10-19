@@ -2,6 +2,7 @@ package agent
 
 import (
 	"aurago/internal/codegraph"
+	"context"
 	"database/sql"
 	"log/slog"
 
@@ -27,6 +28,9 @@ const MessageSourceFlow = "flow"
 // It replaces the 30+ individual function parameters that were previously threaded
 // from DispatchToolCall → dispatchInner → dispatchExec/Comm/Services/Infra.
 type DispatchContext struct {
+	Ctx                  context.Context // Per-call owner; populated only on a local dispatch copy.
+	actionLedger         *agentActionLedger
+	actionEvent          *AgentActionEvent
 	CodeGraph            *codegraph.Manager
 	CodeProject          codegraph.Project
 	WriteTargets         *services.WriteTargets
@@ -73,6 +77,8 @@ type DispatchContext struct {
 	LLMGuardian          *security.LLMGuardian
 	SessionID            string
 	MissionID            string
+	FlowID               string
+	RunID                string
 	IsCoAgent            bool
 	CoAgentSpecialist    string
 	ParentSessionID      string

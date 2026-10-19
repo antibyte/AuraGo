@@ -72,12 +72,20 @@ func DispatchToolCall(ctx context.Context, tc *ToolCall, dc *DispatchContext, us
 // DispatchToolCallResult executes a tool and returns both its formatted output
 // and a stable error flag. Existing string-only callers use DispatchToolCall.
 func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchContext, userContext string) (result ToolDispatchResult) {
+	if tc == nil || dc == nil {
+		return *actionPolicyRefusal("policy_unavailable", "Execution policy is unavailable.", ToolResultDenied)
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	// Each call owns its effective policy and mutable dispatch metadata.
 	originalDC := dc
 	local := *dc
+	local.Ctx = ctx
 	dc = &local
 	defer func() { originalDC.ExecutionTimeMs = dc.ExecutionTimeMs }()
 	defer func() { tc.DispatchStatus = result.Status }()
+	defer recoverToolDispatch(dc, &result)
 	var authorized bool
 	dc.Cfg, authorized = dispatchAuthorization(dc.Cfg)
 	if !authorized {
@@ -94,6 +102,10 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	*tc = prepareToolCall(*tc, dc)
 	if tc.PreparationError != "" {
 		return ToolDispatchResult{Output: tc.PreparationError, Status: classifyLegacyToolResult(tc.PreparationError), IsError: true}
+	}
+	dc.UserContext = userContext
+	if refusal := checkDispatchActionPolicy(ctx, *tc, dc); refusal != nil {
+		return *refusal
 	}
 	cfg := dc.Cfg
 	logger := dc.Logger
@@ -1910,10 +1922,8 @@ func decodeBase64(s string) ([]byte, error) {
 	return data, err
 }
 
-// calculateEffectiveMaxCalls berechnet das effektive Circuit Breaker Limit
-// basierend auf Personality Traits, Homepage-MaxCalls und explizitem Override.
-// homepageActiveInChain wird true sobald das Homepage-Tool in der aktuellen Aktionskette
-// aufgerufen wurde – ab dann gilt das erhöhte Limit für die gesamte Kette.
+// calculateEffectiveMaxCalls applies the server-owned tool budget and optional
+// personality/Homepage policy. Model arguments cannot grant additional calls.
 func calculateEffectiveMaxCalls(runCfg RunConfig, tc ToolCall, homepageActiveInChain bool, personalityEnabled bool, shortTermMem *memory.SQLiteMemory, logger *slog.Logger) int {
 	if runCfg.ToolCallLimit > 0 {
 		return runCfg.ToolCallLimit
@@ -1966,19 +1976,7 @@ func calculateEffectiveMaxCalls(runCfg RunConfig, tc ToolCall, homepageActiveInC
 		}
 	}
 
-	// 3. Expliziter Override im ToolCall (höchste Priorität)
-	// Nur anwenden wenn tc bekannt ist
-	if tc.Tool != "" && tc.CircuitBreakerOverride > 0 {
-		// Max 3x Standard-Limit für Sicherheit
-		maxAllowed := cfg.CircuitBreaker.MaxToolCalls * 3
-		if tc.CircuitBreakerOverride > maxAllowed {
-			logger.Warn("[Circuit Breaker] Override exceeds maximum allowed, capping", "requested", tc.CircuitBreakerOverride, "max_allowed", maxAllowed)
-			effectiveMaxCalls = maxAllowed
-		} else {
-			logger.Debug("[Circuit Breaker] Explicit override applied", "override", tc.CircuitBreakerOverride)
-			effectiveMaxCalls = tc.CircuitBreakerOverride
-		}
-	}
+	// Model arguments never widen a server-owned execution limit.
 
 	return effectiveMaxCalls
 }

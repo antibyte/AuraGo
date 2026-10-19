@@ -37,8 +37,12 @@ func TestLocalAgentMemoryAdaptersReuseNativeMemoryResults(t *testing.T) {
 		t.Fatalf("recall results = %#v", recall["results"])
 	}
 	item, ok := results[0].(map[string]interface{})
-	if !ok || item["id"] != "memory-1" || item["content"] != "remembered content" {
+	// This legacy vector has no recorded origin; the trust tag is presentation only.
+	if !ok || item["id"] != "memory-1" || item["content"] != "[trust:legacy-unknown] remembered content" {
 		t.Fatalf("recall item = %#v", results[0])
+	}
+	if vectorDB.documents["memory-1"] != "remembered content" {
+		t.Fatal("recall rewrote the original vector content")
 	}
 }
 
