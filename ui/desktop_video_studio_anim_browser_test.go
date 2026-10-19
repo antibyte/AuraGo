@@ -31,6 +31,7 @@ type videoStudioAnimControls struct{ Preset, Disabled, Min, Max, Value, Output, 
 //   - 90 frames shows the hint for the 2.5 s the render plays; undo returns to the dragged length.
 //   - A title keeps the section, and the narrow drawer holds it without horizontal scrolling.
 //   - Screenshots for review.
+//   - 2f: en, de and el in the narrow drawer: [data-inspector] does not scroll sideways (the Picture section's chips wrap).
 func videoStudioAnimInspectorPart(t *testing.T) {
 	page := openVideoStudioKeyframes(t, newSmokeBrowser(t), newVideoStudioKeyframesServer(t, videoStudioKeyframesProject()))
 	shots := videoStudioKeyframesShotDir(t)
@@ -154,6 +155,49 @@ func videoStudioAnimInspectorPart(t *testing.T) {
 		t.Error("the narrow inspector scrolls sideways")
 	}
 	page.MustScreenshot(filepath.Join(shots, "anim-inspector-900x900.png"))
+	// Greek in the narrow drawer (2f F1, plan index §4.26.9). With c1 back as a picture, the drawer shows the whole
+	// Picture section (crop, Full frame, flips, blend, mask).
+	//   - The element that scrolls is [data-inspector] (.vs-inspector-body). .vs-inspector itself cannot overflow,
+	//     because the body clips its content. Both are measured.
+	//   - The elements whose right edge passes the body's content edge are logged for every locale and listed on
+	//     failure. This is the measurement that decides the CSS fix.
+	//   - A screenshot of the mask block per locale.
+	if !page.MustEval(`() => window.VideoStudioParts.mutate(` + app + `, 'picture fixture', project => { const clip = window.VideoStudioTimeline.clipFor(project, 'c1').clip; clip.text = ''; clip.text_style = null; })`).Bool() {
+		t.Fatal("the picture fixture was refused")
+	}
+	type drawerFit struct {
+		Body   [2]float64 `json:"body"`
+		Drawer [2]float64 `json:"drawer"`
+		Wide   []string   `json:"wide"`
+	}
+	for _, lang := range []string{"en", "de", "el"} {
+		words := map[string]string{}
+		for key, value := range readDesktopLocale(t, lang) {
+			if strings.HasPrefix(key, "videoStudio.") {
+				words[key] = value
+			}
+		}
+		page.MustEval(`(words, lang) => { window.kfLocaleEnglish = window.kfLocaleEnglish || window.kfLocale; window.kfLocale = Object.assign({}, window.kfLocaleEnglish, words); document.documentElement.lang = lang; window.VideoStudioParts.renderInspector(`+app+`); }`, words, lang)
+		waitForJSBool(t, page, `() => !!document.querySelector('[data-inspector] [data-action="mask-mode"]') && !!document.querySelector('[data-inspector] [data-action="crop-mode"]')`)
+		raw := page.MustEval(`() => {
+const body = document.querySelector('.vs-inspector-body'), drawer = document.querySelector('.vs-inspector'), box = body.getBoundingClientRect();
+const edge = box.left + body.clientLeft + body.clientWidth - parseFloat(getComputedStyle(body).paddingRight);
+const name = el => el.tagName.toLowerCase() + (typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).join('.') : '');
+const wide = Array.from(body.querySelectorAll('*')).filter(el => el.getClientRects().length && el.getBoundingClientRect().right > edge + 0.5).map(el => name(el) + ' +' + (el.getBoundingClientRect().right - edge).toFixed(1) + 'px "' + (el.textContent || '').trim().slice(0, 48) + '"');
+return JSON.stringify({body: [body.scrollWidth, body.clientWidth], drawer: [drawer.scrollWidth, drawer.clientWidth], wide: wide.slice(0, 12)});
+}`).Str()
+		var fit drawerFit
+		if err := json.Unmarshal([]byte(raw), &fit); err != nil {
+			t.Fatalf("%s drawer measure: %v (%s)", lang, err, raw)
+		}
+		t.Logf("%s narrow drawer: body %v, drawer %v, past the content edge: %v", lang, fit.Body, fit.Drawer, fit.Wide)
+		if fit.Body[0] > fit.Body[1]+1 || fit.Drawer[0] > fit.Drawer[1]+1 {
+			t.Errorf("%s: the narrow inspector scrolls sideways (body scroll/client %v, drawer %v); past the content edge: %v", lang, fit.Body, fit.Drawer, fit.Wide)
+		}
+		page.MustEval(`() => document.querySelector('[data-inspector] .vs-mask').scrollIntoView({ block: 'center' })`)
+		page.MustScreenshot(filepath.Join(shots, "inspector-picture-"+lang+"-900x900.png"))
+	}
+	page.MustEval(`() => { window.kfLocale = window.kfLocaleEnglish; document.documentElement.lang = 'en'; window.VideoStudioParts.renderInspector(` + app + `); }`)
 	page.MustSetViewport(1280, 900, 1, false)
 	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
 		t.Fatalf("script errors in the animation inspector part: %s", errs)
@@ -188,6 +232,7 @@ func videoStudioTransitionsProject() map[string]any {
 //   - in the narrow window the panel fits the drawer, and Esc closes the panel but not the drawer;
 //   - it takes screenshots of the open panel at both widths.
 //   - 2f: in de, da, no and it the shortened labels break between words only (a screenshot per locale).
+//   - 2f: arrow keys, Home and End move focus; a choice from None on a short pair applies the clamped length.
 func videoStudioTransitionPickerPart(t *testing.T) {
 	page := openVideoStudioKeyframes(t, newSmokeBrowser(t), newVideoStudioKeyframesServer(t, videoStudioTransitionsProject()))
 	shots := videoStudioKeyframesShotDir(t)
@@ -266,6 +311,61 @@ func videoStudioTransitionPickerPart(t *testing.T) {
 	closed()
 	if !effectsFocused(page, summary) || history() != steps || transition() != "wipeup/15" {
 		t.Errorf("Esc: focus on summary %v, undo steps +%d, transition %s", effectsFocused(page, summary), history()-steps, transition())
+	}
+
+	// Arrow keys (2f F1, spec §8.6). Enter opens the panel on Wipe from bottom, then:
+	//   - ArrowRight and ArrowLeft move in DOM order;
+	//   - ArrowDown moves to the same column of the next row (the columns are the layout's), ArrowUp back;
+	//   - Home and End reach None and the last type.
+	// No key changes the project, and Esc still closes the panel onto the summary.
+	focused := func() string {
+		t.Helper()
+		return page.MustEval(`() => { const el = document.activeElement; return el && el.matches('[data-tx-picker] [data-transition]') ? el.dataset.transition : ''; }`).Str()
+	}
+	press := func(key input.Key) { t.Helper(); page.KeyActions().Type(key).MustDo() }
+	page.MustElement(summary).MustFocus()
+	press(input.Enter)
+	opened()
+	steps = history()
+	if got := focused(); got != "wipeup" {
+		t.Fatalf("Enter opened the panel on %q, want wipeup", got)
+	}
+	for _, move := range []struct {
+		key  input.Key
+		name string
+		want string
+	}{{input.ArrowRight, "ArrowRight", "wipedown"}, {input.ArrowLeft, "ArrowLeft", "wipeup"}} {
+		press(move.key)
+		if got := focused(); got != move.want {
+			t.Errorf("%s focused %q, want %q", move.name, got, move.want)
+		}
+	}
+	start := page.MustEval(`() => JSON.stringify([document.activeElement.offsetLeft, document.activeElement.offsetTop])`).Str()
+	press(input.ArrowDown)
+	if !page.MustEval(`start => { const [left, top] = JSON.parse(start), el = document.activeElement, group = el && el.closest('.vs-tx-group'); return !!group && group.getAttribute('aria-label') === 'Wipes' && el.offsetLeft === left && el.offsetTop > top; }`, start).Bool() {
+		t.Errorf("ArrowDown from Wipe from bottom focused %q, want the same column one row down in Wipes", focused())
+	}
+	page.MustEval(`() => document.activeElement.scrollIntoView({ block: 'center' })`)
+	page.MustScreenshot(filepath.Join(shots, "transition-picker-keys-1280x900.png"))
+	press(input.ArrowUp)
+	if got := focused(); got != "wipeup" {
+		t.Errorf("ArrowUp focused %q, want wipeup back", got)
+	}
+	press(input.Home)
+	if got := focused(); got != "none" {
+		t.Errorf("Home focused %q, want none", got)
+	}
+	press(input.End)
+	if got := focused(); got != "rectcrop" {
+		t.Errorf("End focused %q, want rectcrop (the last type)", got)
+	}
+	if history() != steps || transition() != "wipeup/15" {
+		t.Errorf("the arrow keys changed the project: undo steps +%d, transition %s", history()-steps, transition())
+	}
+	press(input.Escape)
+	closed()
+	if !effectsFocused(page, summary) {
+		t.Error("Esc after the arrow keys did not return focus to the summary")
 	}
 
 	// Unavailable types are disabled with a title; the current one stays enabled and pressed.
@@ -356,6 +456,25 @@ return JSON.stringify(out);
 		t.Error("Esc in the picker also closed the drawer")
 	}
 	page.MustSetViewport(1280, 900, 1, false)
+	// From None on a short pair (2f F1). With tx1 and tx2 at 12 frames each, the pair allows at most 11 frames. The
+	// disabled slider already holds 11, and choosing Dissolve applies those 11 in one undo step. 2e sent half a second
+	// (15 frames), which applyTransition refused as too long.
+	if !page.MustEval(`() => window.VideoStudioParts.mutate(` + app + `, 'short pair', project => { const at = id => window.VideoStudioTimeline.clipFor(project, id).clip; at('tx1').duration = 12; at('tx1').transition = null; at('tx2').start = 12; at('tx2').duration = 12; })`).Bool() {
+		t.Fatal("the short pair fixture was refused")
+	}
+	page.MustEval(`() => ` + app + `.timelineOptions.onSelect('tx1')`)
+	waitForJSBool(t, page, `() => { const range = document.querySelector('[data-inspector] [data-transition-duration]'); return !!range && range.disabled && range.max === '11' && range.value === '11'; }`)
+	steps = history()
+	page.MustElement(summary).MustClick()
+	opened()
+	page.MustElement(`[data-tx-picker] [data-transition="dissolve"]`).MustClick()
+	closed()
+	if got := transition(); got != "dissolve/11" {
+		t.Errorf("tx1 after choosing Dissolve from None on the short pair: %s, want dissolve/11", got)
+	}
+	if got := history() - steps; got != 1 {
+		t.Errorf("the choice on the short pair made %d undo steps, want 1", got)
+	}
 	if errs := page.MustEval(`() => JSON.stringify(window.kfErrors)`).Str(); errs != "[]" {
 		t.Fatalf("script errors in the picker part: %s", errs)
 	}

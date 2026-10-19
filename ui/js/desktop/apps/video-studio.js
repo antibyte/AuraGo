@@ -746,7 +746,7 @@
         const fit = event.target.closest('[data-fit]');
         if (fit) { mutateSelected(s, 'fit', clip => { clip.fit = fit.dataset.fit === 'cover' ? 'cover' : 'contain'; }); return; }
         const transition = event.target.closest('[data-transition]');
-        if (transition) { const range = s.q('[data-transition-duration]'), frames = range && !range.disabled ? Number(range.value) : Math.round(rateOf(s) / 2); applyTransition(s, transition.dataset.transition, frames); setTransitionPicker(s, false); return; }
+        if (transition) { const range = s.q('[data-transition-duration]'), frames = range ? Number(range.value) : Math.round(rateOf(s) / 2); applyTransition(s, transition.dataset.transition, frames); setTransitionPicker(s, false); return; }
         const align = event.target.closest('[data-text-align]');
         if (align) { if (mutateSelected(s, 'text align', clip => { clip.text_style = Object.assign({}, clip.text_style || {}, { alignment: align.dataset.textAlign }); })) P.markTextStale(s, s.selectedClipId); return; }
         const toggle = event.target.closest('[data-text-toggle]');
@@ -813,8 +813,9 @@
             if (s.markerPop && s.markerPop.el.isConnected) { P.closeMarkerPopover(s, true); event.preventDefault(); return; }
             if (Object.values(POPOVERS).some(([, selector]) => !s.q(selector).hidden)) { closePopovers(s, null, true); event.preventDefault(); return; }
         }
-        // Escape in the open transition picker closes it before the narrow drawer (index §4.9).
+        // Escape in the open transition picker closes it before the narrow drawer (index §4.9); its arrows, Home and End move focus (2f).
         if (event.key === 'Escape' && s.transitionPickerOpen && target.closest('[data-inspector]')) { setTransitionPicker(s, false); event.preventDefault(); return; }
+        if (P.handleTransitionPickerKeys && P.handleTransitionPickerKeys(s, event)) return;
         if (event.key === 'Escape' && s.app.classList.contains('vs-show-inspector')) { setInspectorOpen(s, false, false); s.q('.vs-inspector-toggle')?.focus(); event.preventDefault(); return; }
         // The range comparison: Escape closes it; plain keys on its own controls stay with them (video-studio-rangerender.js).
         if (P.handleRangeKeys && P.handleRangeKeys(s, event)) return;

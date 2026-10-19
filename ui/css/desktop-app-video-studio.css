@@ -1149,6 +1149,12 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-mask-fields { margin-top: 6px; }
 .vs-mask-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .vs-app .vs-mask-mode[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+/* The Picture section's chip buttons (Full frame, Crop in the preview, the flips, Invert mask, Edit mask in the
+   preview) wrap their label inside the column instead of widening the inspector. In Greek, "Edit mask in the preview"
+   (.vs-mask-mode) was wider than the 320 px drawer's column and made [data-inspector] scroll sideways (2f F1, measured
+   by the narrow-drawer check of TestDesktopVideoStudioAnimBrowser/inspector). */
+.vs-position .vs-chip-button, .vs-fx-flips .vs-chip-button, .vs-mask-actions .vs-chip-button { max-width: 100%; min-width: 0; justify-content: flex-start; white-space: normal; text-align: left; }
+.vs-position .vs-chip-button > .vs-icon, .vs-fx-flips .vs-chip-button > .vs-icon, .vs-mask-actions .vs-chip-button > .vs-icon { flex: none; }
 .vs-key-color { display: grid; gap: 6px; margin-top: 6px; }
 .vs-key-presets { display: flex; flex-wrap: wrap; gap: 6px; }
 .vs-key-swatch { display: inline-block; flex: 0 0 auto; width: 12px; height: 12px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .35); }
