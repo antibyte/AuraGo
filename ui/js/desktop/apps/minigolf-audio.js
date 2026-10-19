@@ -23,6 +23,7 @@ export const AUDIO_CREDITS = [
 ];
 
 const MANIFEST_LIMIT = 128 * 1024;
+const PENDING_EFFECT_MS = 1000;
 const IMPACT_MATERIAL = { wood: 'wood', stone: 'stone', metal: 'metal', grass: 'soft', sand: 'soft' };
 const STONE_RATE = { light: 1.08, medium: 1, heavy: 0.86 };
 const UI_KIND = { start: 'confirm', resume: 'confirm', 'next-hole': 'confirm', close: 'back', menu: 'back', pause: 'back' };
@@ -65,10 +66,14 @@ export function createAudio({ assetURL = value => value, onTrack, onError, rando
   let rollingSpeed = 0;
   let pausedPosition = 0;
   let lastUi = -1;
+  let failing = false;
+  let pendingEffect = null;
   const impulses = new Map();
 
+  // Only the first failure of a streak is reported; a successful unlock ends the streak.
   function report(error) {
-    if (disposed || typeof onError !== 'function') return;
+    if (disposed || failing || typeof onError !== 'function') return;
+    failing = true;
     try { onError(error instanceof Error ? error : new Error(String(error))); } catch (_) {}
   }
 
@@ -120,6 +125,7 @@ export function createAudio({ assetURL = value => value, onTrack, onError, rando
         const manifest = await fetchManifest();
         if (disposed) return false;
         unlocked = true;
+        failing = false;
         music.setTracks(manifest.music);
         applyMusic();
         startAmbience();
@@ -132,8 +138,16 @@ export function createAudio({ assetURL = value => value, onTrack, onError, rando
       }
     })();
     unlockPromise = attempt;
-    // A failed attempt may be retried by the next user gesture.
-    void attempt.then(ready => { if (!ready && unlockPromise === attempt) unlockPromise = null; });
+    // A failed attempt may be retried by the next user gesture. The latest effect requested
+    // while this attempt was in flight plays once it succeeds, if it is not stale by then.
+    void attempt.then(async ready => {
+      if (!ready && unlockPromise === attempt) unlockPromise = null;
+      const item = pendingEffect;
+      pendingEffect = null;
+      if (!ready || !item) return;
+      await samplesReady;
+      if (!disposed && !paused && effectsVolume > 0 && Date.now() - item.at <= PENDING_EFFECT_MS) fire(item.type, item.options);
+    });
     return attempt;
   }
 
@@ -226,11 +240,9 @@ export function createAudio({ assetURL = value => value, onTrack, onError, rando
   function effect(type, options = {}) {
     if (disposed || paused || effectsVolume <= 0 || !EFFECT_TYPES.has(type)) return false;
     if (unlocked) return fire(type, options || {});
-    void unlock().then(async ready => {
-      if (!ready) return;
-      await samplesReady;
-      if (!disposed && !paused && effectsVolume > 0) fire(type, options || {});
-    });
+    // Effects never start an unlock (that needs a user gesture); they only wait for one in flight.
+    if (!unlockPromise) return false;
+    pendingEffect = { type, options: options || {}, at: Date.now() };
     return true;
   }
 
@@ -310,6 +322,7 @@ export function createAudio({ assetURL = value => value, onTrack, onError, rando
     stopRolling(0);
     music.stop();
     engine.dispose();
+    pendingEffect = null;
     disposed = true;
     unlocked = false;
     paused = true;

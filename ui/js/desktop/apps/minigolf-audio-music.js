@@ -38,7 +38,22 @@ export function createMusic(engine, { onTrack, onError } = {}) {
     for (const id of [...cache.keys()]) if (!keep.includes(id)) cache.delete(id);
   }
 
+  // A track that is already fading out when another switch happens is cut off quickly, so
+  // only the playing track and one fading track keep a decoded buffer and a looping source.
+  function retire(entry, now) {
+    fading.delete(entry);
+    try {
+      const param = entry.level.gain;
+      const value = param.value; // read before cancelling, so the cut starts from the faded level
+      param.cancelScheduledValues(now);
+      param.setValueAtTime(value, now);
+      param.setTargetAtTime(0, now, 0.01);
+      entry.source.stop(now + 0.05);
+    } catch (_) {}
+  }
+
   function release(entry, now) {
+    for (const older of [...fading]) retire(older, now);
     const param = entry.level.gain;
     const value = param.value;
     param.cancelScheduledValues(now);

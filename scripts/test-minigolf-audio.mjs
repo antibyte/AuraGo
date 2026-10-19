@@ -155,6 +155,15 @@ assert.equal(await audio.unlock(), false, 'a context that stays suspended is not
 assert.equal(requests.length, 0, 'a failed unlock fetches nothing');
 assert.equal(main.errors.length, 1);
 assert.equal(audio.getState().unlocked, false);
+const resumesAfterFailure = FakeContext.instances[0].calls.resume;
+for (let i = 0; i < 10; i++) assert.equal(audio.effect('strike', { speed: 5 }), false, 'an effect cannot wait for an unlock that is not running');
+assert.equal(FakeContext.instances.length, 1);
+assert.equal(FakeContext.instances[0].calls.resume, resumesAfterFailure, 'effects never retry the context');
+assert.equal(requests.length, 0);
+assert.equal(main.errors.length, 1, 'the failure streak is reported once');
+assert.equal(await audio.unlock(), false, 'a refused gesture can try again');
+assert.equal(FakeContext.instances[0].calls.resume, resumesAfterFailure + 1);
+assert.equal(main.errors.length, 1, 'repeated failures of a streak are not reported again');
 FakeContext.refuse = false;
 assert.equal(await audio.unlock(), true, 'the next gesture can retry');
 assert.equal(FakeContext.instances.length, 1);
@@ -318,6 +327,7 @@ assert.equal(fired(() => audio.effect('win')).made[0].buffer.path, 'sfx/win-moon
 
 // Pause and resume
 ctx.currentTime = 100;
+const resumesBeforePause = ctx.calls.resume;
 const heldPosition = audio.getState().position;
 assert.equal(audio.pause(), heldPosition);
 await until(() => ctx.calls.suspend === 1, 'suspend');
@@ -331,7 +341,7 @@ ctx.currentTime = 130;
 assert.equal(audio.getState().position, heldPosition, 'position is frozen while paused');
 assert.equal(audio.getState().playing, false);
 assert.equal(await audio.resume(), true);
-assert.equal(ctx.calls.resume, 3, 'resume wakes the context');
+assert.equal(ctx.calls.resume, resumesBeforePause + 1, 'resume wakes the context');
 assert.equal(audio.getState().paused, false);
 assert.equal(oscillators(55).length, 2, 'ambience restarts after resume');
 assert.equal(audio.setEffectsVolume(0), 0);
@@ -342,11 +352,19 @@ assert.equal(oscillators(55).length, 3);
 assert.equal(audio.setMusicVolume(2), 1);
 audio.setMusicVolume(0.2);
 
-// Effect before the first gesture unlocks audio and plays afterwards
+// Effects never start an unlock; while a gesture's unlock is in flight only the latest one waits
 const late = make(3);
-assert.equal(late.audio.effect('strike', { speed: 6 }), true);
+const contextsBefore = FakeContext.instances.length;
+assert.equal(late.audio.effect('strike', { speed: 6 }), false, 'an effect before any unlock starts nothing');
+assert.equal(FakeContext.instances.length, contextsBefore);
+const lateUnlock = late.audio.unlock();
+for (const [type, options] of [['splash', { speed: 3 }], ['boost', { speed: 5 }], ['teleport', {}]]) assert.equal(late.audio.effect(type, options), true);
+assert.equal(await lateUnlock, true);
 const lateContext = FakeContext.instances.at(-1);
-await until(() => lateContext.sources.some(source => !source.loop && pathOf(source).startsWith('sfx/strike-')), 'pre-unlock effect');
+const lateVoices = () => lateContext.sources.filter(source => !source.loop && pathOf(source).startsWith('sfx/'));
+await until(() => lateVoices().length > 0, 'waiting effect');
+await settle();
+assert.deepEqual(lateVoices().map(source => pathOf(source).replace(/-\d\.ogg$/, '')), ['sfx/teleport'], 'only the latest waiting effect plays');
 late.audio.dispose();
 
 // Failing samples are reported once per kind
@@ -362,7 +380,63 @@ await until(() => flaky.audio.getState().samples.loaded + flaky.audio.getState()
 assert.deepEqual(flaky.audio.getState().samples, { loaded: sampleCount - 2, failed: 2 });
 assert.equal(flaky.errors.length, 1, 'sample failures are reported once');
 flaky.audio.dispose();
+const manifestResponse = await fakeFetch('/versioned/3d/minigolf/audio/manifest.json');
+let finishManifest;
+const holdManifest = () => {
+  finishManifest = undefined;
+  globalThis.fetch = (url, init) => String(url).endsWith('manifest.json') ? new Promise(resolve => { finishManifest = () => resolve(manifestResponse); }) : originalFetch(url, init);
+};
 globalThis.fetch = originalFetch;
+
+// A waiting effect is dropped when the unlock takes longer than a second
+holdManifest();
+const stale = make(7);
+const staleUnlock = stale.audio.unlock();
+await until(() => finishManifest, 'stale manifest request');
+assert.equal(stale.audio.effect('teleport'), true);
+const realNow = Date.now;
+Date.now = () => realNow() + 1500;
+finishManifest();
+assert.equal(await staleUnlock, true);
+await until(() => stale.audio.getState().samples.loaded === sampleCount, 'stale samples');
+await settle();
+Date.now = realNow;
+assert.equal(FakeContext.instances.at(-1).sources.filter(source => !source.loop && pathOf(source).startsWith('sfx/')).length, 0, 'a stale waiting effect is not played');
+stale.audio.dispose();
+globalThis.fetch = originalFetch;
+
+// Reverb swaps fade the old tail out; rapid music switches keep one playing and one fading track
+const rapid = make(8);
+assert.equal(await rapid.audio.unlock(), true);
+const rapidContext = FakeContext.instances.at(-1);
+const rapidMusic = () => rapidContext.sources.filter(source => source.loop && pathOf(source).startsWith('music/'));
+const rapidVerbs = () => rapidContext.nodes.filter(node => node.kind === 'convolver');
+await until(() => rapidMusic().length === 1, 'rapid menu');
+const [firstVerb] = rapidVerbs();
+const firstOut = firstVerb.out[0];
+let outAtDisconnect;
+const realDisconnect = firstVerb.disconnect.bind(firstVerb);
+firstVerb.disconnect = () => { outAtDisconnect = firstOut.gain.last('target'); realDisconnect(); };
+rapidContext.currentTime = 10;
+rapid.audio.setMusic('coast');
+await until(() => rapidMusic().length === 2, 'rapid pirate');
+await until(() => outAtDisconnect, 'old reverb disconnect');
+assert.deepEqual(outAtDisconnect, ['target', 0, 10, 0.05], 'the old reverb output is faded to silence before it is disconnected');
+assert.ok(firstOut.disconnects > 0);
+for (const [i, world] of ['garden', 'night'].entries()) {
+  rapidContext.currentTime = 10.5 + i * 0.5;
+  rapid.audio.setMusic(world);
+  await until(() => rapidMusic().length === i + 3, `rapid ${world}`);
+}
+assert.equal(rapidVerbs().length, 4);
+assert.ok(rapidVerbs().filter(node => !node.disconnects).length <= 2, 'at most the current and one retiring convolver stay connected');
+const audible = rapidMusic().filter(source => source.stops.length === 0 || source.stops.at(-1) > rapidContext.currentTime + 0.06);
+assert.equal(audible.length, 2, 'only the playing and one fading track stay alive');
+assert.ok(new Set(audible.map(source => source.buffer)).size <= 2);
+const cutOff = rapidMusic()[1];
+assert.ok(cutOff.stops.at(-1) <= rapidContext.currentTime + 0.05 + 1e-9, 'a track already fading is cut off quickly');
+assert.deepEqual(down(cutOff, 'gain').gain.last('target'), ['target', 0, 11, 0.01]);
+rapid.audio.dispose();
 
 // Disposal
 audio.dispose();
@@ -377,9 +451,7 @@ audio.dispose();
 assert.equal(ctx.calls.close, 1, 'dispose is idempotent');
 
 // Disposal while the manifest is still loading starts nothing
-const manifestResponse = await fakeFetch('/versioned/3d/minigolf/audio/manifest.json');
-let finishManifest;
-globalThis.fetch = (url, init) => String(url).endsWith('manifest.json') ? new Promise(resolve => { finishManifest = () => resolve(manifestResponse); }) : originalFetch(url, init);
+holdManifest();
 const fenced = make(5);
 const pending = fenced.audio.unlock();
 await until(() => finishManifest, 'manifest request');

@@ -16,6 +16,7 @@ export function createEngine({ assetURL = value => value, onError, random = Math
   let ctx = null;
   let graph = null;
   let reverb = null;
+  let retiring = null;
   let disposed = false;
   let queue = Promise.resolve();
   let musicVolume = 1;
@@ -270,14 +271,23 @@ export function createEngine({ assetURL = value => value, onError, random = Math
   }
 
   function dropReverb(slot) {
-    try {
-      graph?.reverbIn.disconnect(slot.send);
-      slot.send.disconnect();
-      slot.convolver.disconnect();
-    } catch (_) {}
+    const detach = () => graph?.reverbIn.disconnect(slot.send);
+    for (const disconnect of [detach, () => slot.send.disconnect(), () => slot.convolver.disconnect(), () => slot.out.disconnect()]) {
+      try { disconnect(); } catch (_) {}
+    }
   }
 
-  // A fresh ConvolverNode per call: the old one fades out while the new one fades in.
+  // Drops the slot that is still fading out (at most one) before another one retires.
+  function dropRetiring() {
+    if (!retiring) return;
+    clearTimeout(retiring.timer);
+    timers.delete(retiring.timer);
+    dropReverb(retiring.slot);
+    retiring = null;
+  }
+
+  // A fresh ConvolverNode per call, each behind its own output gain: the old one's output
+  // fades to silence while its tail rings and is only disconnected afterwards.
   function setReverb(buffer, wet) {
     if (!ctx || !graph || !buffer) return false;
     try {
@@ -286,17 +296,27 @@ export function createEngine({ assetURL = value => value, onError, random = Math
       const previous = reverb;
       const send = ctx.createGain();
       const convolver = ctx.createConvolver();
+      const out = ctx.createGain();
       convolver.buffer = buffer;
       send.gain.setValueAtTime(previous ? 0 : level, now);
       if (previous) send.gain.setTargetAtTime(level, now, 0.2);
+      out.gain.setValueAtTime(1, now);
       graph.reverbIn.connect(send);
       send.connect(convolver);
-      convolver.connect(graph.fx);
-      reverb = { send, convolver };
+      convolver.connect(out);
+      out.connect(graph.fx);
+      reverb = { send, convolver, out };
       if (previous) {
+        dropRetiring();
         previous.send.gain.setTargetAtTime(0, now, 0.1);
-        const timer = setTimeout(() => { timers.delete(timer); dropReverb(previous); }, 500);
+        previous.out.gain.setTargetAtTime(0, now, 0.05);
+        const timer = setTimeout(() => {
+          timers.delete(timer);
+          if (retiring?.slot === previous) retiring = null;
+          dropReverb(previous);
+        }, 500);
         timers.add(timer);
+        retiring = { slot: previous, timer };
       }
       return true;
     } catch (error) {
@@ -320,6 +340,7 @@ export function createEngine({ assetURL = value => value, onError, random = Math
     ctx = null;
     graph = null;
     reverb = null;
+    retiring = null;
     try { Promise.resolve(closing?.close()).catch(() => {}); } catch (_) {}
   }
 
