@@ -77,21 +77,25 @@
 - Saves contain settled shots only. Pause, minimization and hidden tabs stop
   simulation/audio; closing releases GPU, WASM, audio, observers and listeners.
   Respect reduced motion while retaining gameplay obstacle movement.
-- Only load Synth Studio GM data, voices and audio. Each game owns its transports;
-  `setVolume` is additive and defaults to 1 for existing Synth Studio callers.
-  AuraGolf opts into a 750 ms scheduling reserve; preserve Synth Studio's 120 ms
-  default and verify delayed scheduler callbacks and cancellation of queued notes.
-  Resolve optional Synth Studio presets when playing, because the editor and
-  preset catalog may load after AuraGolf has initialized the shared voice engine.
-  Keep the CC0 MIDI originals and provenance, deterministic conversion, local
-  playback and persisted zero volumes. Audio unlock requires a user gesture.
-  `minigolf-audio.js` exposes `setAmbient(world)` for sparse play-only world
-  ambience, sustains one rolling note that `rolling(0, ...)` releases, allows
-  `drums` entries plus per-call `pan`/`params` in the effect tables, and ducks
-  music under the win fanfare. `strike` stays at exactly two scheduled notes —
-  `scripts/test-minigolf-audio.mjs` pins that count.
-- Validate `npm run test:minigolf`, both asset build `--check` commands,
-  `TestDesktopMinigolf*`, Synth Studio audio regressions and desktop bundle checks.
+- Audio is the `minigolf-audio.js` facade over `minigolf-audio-engine.js` (context,
+  buses, limiter, voices, loops, reverb), `minigolf-audio-music.js` (crossfades,
+  ducking) and `minigolf-audio-synth.js` (UI blips, ambience, impulse responses).
+  AuraGolf must not load Synth Studio. Create no `AudioContext` and make no `fetch`
+  before a user gesture (`unlock()`). Persisted zero volumes stay zero.
+- Assets come only from `ui/3d/minigolf/audio/`, generated from
+  `assets/minigolf/audio/sources.json` by `scripts/build-minigolf-audio.mjs`.
+  `--check` verifies SHA-256, CC0, the budgets (SFX ≤ 2 MiB, music ≤ 6 MiB,
+  manifest ≤ 128 KB) and stray files. Never hand-edit `manifest.json`; change the
+  recipe and rebuild. `REQUIRED_GROUPS` must equal the manifest SFX groups.
+- `pause()` suspends the context and freezes `position`. `setMusic('menu'|world)`
+  and `setAmbient(world)` apply `WORLD_ALIAS` until the new worlds land. `cup`,
+  `cannon` and `win` duck the music. `effect('cannon'|'boost'|'teleport')` exists
+  for P3; the game does not call it yet.
+- The browser test's zero-tolerance underrun assertion can flake under heavy
+  machine load; rerun once before suspecting a regression.
+- Validate `npm run test:minigolf`, `npm run test:synth-studio`,
+  `node scripts/build-minigolf-audio.mjs --check`, `TestDesktopMinigolf*`, the
+  minigolf bundle check (`node scripts/build-minigolf.mjs --check`) and desktop bundle checks.
   Browser/GPU measurements and human listening remain separate acceptance steps.
   Keep `minigolf.*` in all sixteen Desktop locales, including the
   `follow_ball`/`aim_camera`/`magnet`/`hole_map` and score-grade keys; settings

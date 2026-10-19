@@ -40,25 +40,42 @@ cannot be saved. Practice does not overwrite course best scores.
 
 ## Sound and accessibility
 
-Audio starts only after a pointer or keyboard gesture. Music starts at 20% and
-effects at 65%; zero and mute survive reopening. The three CC0 MIDI originals
-are converted reproducibly into the existing Synth Studio project format and
-played through local synthesized GM voices. Source URLs, authors, licenses and
-hashes are recorded in `assets/minigolf/music/` and the runtime music manifest.
-There is no MIDI device permission request, SoundFont download or external stream.
-AuraGolf queues 750 ms of music ahead to bridge short rendering stalls. Synth
-Studio retains its existing 120 ms scheduling reserve for editor playback.
+Audio starts only after a pointer or keyboard gesture. No audio context is
+created and nothing is fetched before that gesture. Music starts at 20% and
+effects at 65%. Zero and mute survive reopening; the volumes stay in the
+existing `aurago.desktop.minigolf.settings.v1` key.
 
-All effects stay local and synthesized: material-specific impacts (drum
-voices for stone and sand), a sustained rolling voice whose pitch follows ball
-speed, stereo panning from the ball's screen position, layered cup drop,
-splash and win fanfare (with a brief music duck), and per-world ambient
-events during play — garden birds, coast gulls and surf, night crickets —
-that follow the effects volume and stop while paused or a panel is open.
+Four looping CC0 music tracks (`menu`, `pirate`, `temple` and `moon`) play from
+decoded buffers and loop without a gap. A world change crossfades over 1.8 s,
+and the cup, cannon and win sounds briefly duck the music. Until the new worlds
+arrive, garden, coast and night use the temple, pirate and moon tracks and
+ambience.
+
+Effects are recorded CC0 samples with variants, a random pitch (±6%) and a
+random volume (±15%); the same variant never plays twice in a row. Effects are
+panned from the ball's screen position. Rolling loops follow ball speed and
+surface: a soft loop on grass and sand, a hard loop on wood, stone and metal.
+Impacts are chosen by material and strength. The cup plays a rim sound, two to
+four rattles and a soft landing. Splash, cannon, boost, teleporter and strike
+are sampled too, and each world has its own win jingle. At most 20 voices play
+at once.
+
+Interface clicks and world ambience are synthesized locally: waves and gulls on
+the pirate world, insects and birds on temple, a hum with beeps on moon.
+Effects and ambience send into a reverb built from a locally generated impulse
+response for each world, and a limiter sits on the master bus.
 
 Minimizing or hiding the browser tab pauses simulation and audio. Pause also
-freezes the current shot. Closing releases rendering, physics and audio
-resources. Reduced motion follows the OS/Desktop preference or the game's
+freezes the current shot and stops sound effects, rolling and ambience. The
+audio context is suspended, so music resumes where it stopped. Closing releases
+rendering, physics and audio resources.
+
+Nothing is loaded from outside: the sound pack ships with the web resources, and
+there is no CDN, SoundFont or external stream. The in-app credits list every
+track and source under CC0; sources, authors, licenses and hashes are in
+[`assets/minigolf/audio/README.md`](../assets/minigolf/audio/README.md).
+
+Reduced motion follows the OS/Desktop preference or the game's
 checkbox, disabling decorative particles and camera movements while retaining
 the movement of actual gameplay obstacles. Graphics quality can be set manually;
 Automatic reduces quality when measured rendering is persistently slow.
@@ -86,19 +103,33 @@ abort one export — rerun it until it reports `Wrote 18 courses`.
 
 ```
 npm run build:minigolf
-node scripts/build-minigolf-music.mjs --check
+node scripts/build-minigolf-audio.mjs --check
 node scripts/build-minigolf.mjs --check
 npm run test:minigolf
+npm run test:synth-studio
 node scripts/build-ui-bundles.js --check
 ```
+
+`npm run test:minigolf` runs the model, physics, asset, course and audio checks.
+`npm run test:synth-studio` runs the Synth Studio checks that used to live in the
+audio test; AuraGolf itself no longer depends on Synth Studio.
+
+Rebuild the sound pack only when its recipe or sources change:
+`node scripts/build-minigolf-audio.mjs --write --sources <download folder>`. It
+needs ffmpeg 8 or newer with libvorbis, plus bsdtar (on Windows, `tar.exe`).
+`--check` needs only Node.js. The download list, provenance and rebuild steps are
+in [`assets/minigolf/audio/README.md`](../assets/minigolf/audio/README.md).
 
 Run `TestDesktopMinigolfBrowser` with `AURAGO_RUN_BROWSER_SMOKE=1` for actual
 WebGL integration, controls, lifecycle and responsive review. Add
 `AURAGO_MINIGOLF_BENCHMARK=1` for 240-frame-interval 1080p measurements at each
-graphics quality, and `AURAGO_BROWSER_ARTIFACT_DIR` for screenshots and short WAV previews.
+graphics quality, and `AURAGO_BROWSER_ARTIFACT_DIR` for screenshots and the
+active-play audio statistics.
 The AuraGolf browser fixture mutes speaker output while exercising Web Audio.
-Set `AURAGO_BROWSER_MUTE_AUDIO=1` to mute the accompanying Synth Studio browser
-regressions as well; offline WAV previews still contain the rendered audio.
+`AURAGO_BROWSER_MUTE_AUDIO=1` also mutes the Synth Studio browser regressions
+(`TestDesktopSynthStudioBrowser`, `TestDesktopSynthStudioAudioBrowser`). The
+underrun check has no tolerance; if only that check fails under heavy machine
+load, rerun once before suspecting a regression.
 Optional browser artifacts belong in ignored `reports/minigolf/`. Render measurements are specific
 to the tested browser/GPU; software rendering is not hardware acceptance.
 

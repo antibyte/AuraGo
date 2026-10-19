@@ -33,3 +33,6 @@ vary with edits; the test is the authoritative budget check.
 
 All art is original and generated locally from this source. The generator has
 no network or third-party art dependencies.
+
+Sound effects and music are not part of this Blender pack. Their sources,
+provenance and rebuild steps are in [`audio/README.md`](audio/README.md).

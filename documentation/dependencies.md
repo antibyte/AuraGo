@@ -28,9 +28,14 @@ AuraGolf pins `@dimforge/rapier3d-compat` 0.21.0 (Apache-2.0) alongside the
 existing Three.js 0.186.1 (MIT). Its isolated bundle includes the physics WASM;
 the Desktop CSP's existing `wasm-unsafe-eval` is sufficient. Build with
 `npm run build:minigolf`, verify with `node scripts/build-minigolf.mjs --check`
-and `node scripts/build-minigolf-music.mjs --check`, then run `npm run test:minigolf`.
-The MIDI renderer reuses the existing locally synthesized GM bank; no SoundFont
-or runtime CDN is introduced. See [AuraGolf](minigolf.md).
+and `node scripts/build-minigolf-audio.mjs --check`, then run `npm run test:minigolf`.
+AuraGolf's sound effects and music are CC0 recordings listed in the
+[audio sources](../assets/minigolf/audio/README.md); ambience, interface sounds and
+reverb are synthesized locally. No SoundFont or runtime CDN is introduced.
+Rebuilding the sound pack with `node scripts/build-minigolf-audio.mjs --write --sources <folder>`
+needs ffmpeg 8 or newer built with libvorbis (including `ffprobe`) and bsdtar, or the
+Windows `tar.exe` for the `.zip` and `.7z` archives. `--check` needs only Node.js.
+See [AuraGolf](minigolf.md).
 
 | Dependency | Supported version | Reason to retain the bound |
 | --- | --- | --- |
