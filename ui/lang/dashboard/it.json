@@ -1114,5 +1114,11 @@
   "dashboard.memory_privacy_updated": "Aggiornato: {{date}}",
   "dashboard.memory_privacy_reconcile_pending": "È necessario ricontrollare lo stato del contatto",
   "dashboard.memory_privacy_reconcile_retry": "Controlla lo stato del contatto",
-  "dashboard.memory_privacy_reconcile_queued": "Il controllo dello stato del contatto è in coda. Verifica lo stato dell'attività dopo l'aggiornamento."
+  "dashboard.memory_privacy_reconcile_queued": "Il controllo dello stato del contatto è in coda. Verifica lo stato dell'attività dopo l'aggiornamento.",
+  "dashboard.memory_corpus_documents": "Documenti del corpus",
+  "dashboard.memory_corpus_dimensions": "Dimensioni dei vettori",
+  "dashboard.memory_corpus_storage": "Spazio del corpus, WAL incluso",
+  "dashboard.memory_corpus_vector_estimate": "Dati vettoriali stimati, esclusa la memoria aggiuntiva",
+  "dashboard.memory_exhausted_writes": "Scritture senza ulteriori tentativi",
+  "dashboard.memory_terminal_consolidations": "Consolidamenti definitivamente falliti"
 }

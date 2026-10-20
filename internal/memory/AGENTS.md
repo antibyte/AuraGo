@@ -58,6 +58,44 @@ Memory retrieval, hygiene, indexing, and maintenance.
   Verify `TestMemorySchema*`. Contract test references, including documented
   wildcard prefixes, are checked by `TestMemoryContractTestReferencesResolve`.
 - **Short-Term**: SQLite sliding-window conversation context
+- **Archive identity and cleanup**: Preserve a durable digest of complete normalized
+  content and domain before archiving; only recognized analysis provenance is
+  excluded. Automatic writers check the digest even after vector removal.
+  Serialize budget enforcement, protection and restoration, recheck the candidate
+  snapshot in the write transaction, and commit the actual previous status and
+  cleanup receipt before deleting a vector. Unproven conditional deletion retains
+  its receipt. Explicit restoration clears the identity only with available source
+  content and a successful transaction. Backfill only available historical content.
+  Context APIs bound lock/publication waits; compatibility wrappers use 30 seconds.
+  Verify `TestArchive*`; operational limits are in
+  `documentation/memory-persistence.md`.
+- **Resumable maintenance**: Consolidation checkpoints bind each archive message,
+  source digest, part number and extractor/model version. Persist validated parts,
+  extract at most one part per message in a round, and publish complete messages
+  through bounded idempotent cursor steps. Cancellation preserves progress without
+  consuming retries. Delete checkpoints with their archive source and reject late
+  writes from deleted sessions. Keep terminal consolidation failures visible in
+  the ledger, briefing and operational issue until explicitly recovered. Pending
+  counts exclude exhausted writes; remove terminal payloads after 30 days while
+  retaining a private dedupe identity. Verify `TestConsolidationCheckpoint*`,
+  `TestTerminalConsolidationFailure*` and `TestPendingMemoryCleanup*`.
+- **Privacy evidence**: An existing deletion job has an immutable scope; both
+  conflicting directions return HTTP 409 with `deletion_scope_conflict`. Scrub
+  current and historical learning sources and nested correction snapshots before
+  completion. Serialize corrections with deletion, retain committed effects and
+  anti-replay guards, and terminally cancel unfinished correction work. Unknown
+  external cleanup states require durable reconciliation. Store checks and SQL
+  fences reject late source evidence. Shutdown cancellation never consumes a
+  business retry. Verify `TestPrivacy*` and
+  `TestChatSessionDeleteReturnsTypedScopeConflict`.
+- **Corpus publication and diagnostics**: Page canonical sources including pending
+  state; read only IDs and metadata for filtered deletion or replacement. Batch
+  pending acknowledgements in a transaction after index publication succeeds.
+  Candidate groups share archive, file-generation and canonical-snapshot checks;
+  lookup failures remain errors. Diagnostics distinguish canonical row counts,
+  dimensions, database/WAL bytes and the theoretical float32 payload estimate from
+  actual process memory. The durable vector format remains JSON. See
+  `documentation/memory-persistence.md`; verify `TestCorpusStatus*`.
 - **Long-Term**: `directories.vectordb_dir/documents.sqlite` is the canonical document corpus: collection names, raw IDs, complete content, metadata, vectors, dimensions and provider/model fingerprints. Chromem is an in-memory derived index; its legacy 32-bit disk filenames must never define identity. Commit source documents before publishing index changes and retain durable pending work after failures/cancellation. Open and count sources even when embeddings are disabled.
 - **Corpus Migration and Reset**: Under the application lock, back up legacy files before migration, verify copied/decoded source digests, complete counts/content and raw IDs transactionally, retain originals and refuse corrupt/orphan/unverified data. A reset or model change schedules reindex only: preserve source documents, archive/curation, extraction sources, file pointers and KG SQL facts. Unknown/incompatible fingerprints or dimensions never enter a live index. Pending multimodal records expose blocked status until the existing authorized file indexer can re-embed their source. Reproduced unchanged chunks preserve raw IDs and provenance; actual content/chunk drift uses the file-generation protocol. The retained legacy `kg_embeddings` snapshot is never restored into the live KG index; KG SQL is authoritative. Verify `TestDocumentCorpus*`, including SQLite FULL, cancellation/restart, collision and available/missing multimodal source cases.
 - **Automatic Memory Snapshots**: Automatic snapshots and the memory portion of manual exports share a per-store `MemorySnapshotCoordinator`. Prepare embeddings before a publication lease; pass lease contexts explicitly through nested writes. Hold the lease across corpus, metadata and provenance commits; durable source-free completion markers or existing replacement journals prevent certification after an uncertain partial commit. Lock order is outer session/operation locks, coordinator, then index/SQLite locks. Snapshots reserve all three SQLite writers, pin all three read transactions, release reservations and copy those pinned snapshots with the online backup API. Integrity checks, hashing, ZIP and retention run outside the freeze. Only checksum-verified completed `auto-memory-v2` snapshots with the coordination proof participate in retention: keep 30 days and at least three complete snapshots. Legacy v1, manual, quarantine, migration, unknown and incomplete artifacts stay outside this policy. Restrict snapshot directories/files to their owner. Verify `TestSnapshotWaitsForCorpusMetadataAndProvenancePublication`, `TestBlockedEmbeddingDoesNotHoldSnapshotLease`, `TestPartialAutomaticPublicationPreventsSnapshotCertification`, `TestPinnedReadSnapshotSurvivesConcurrentCommitAcrossBackupSteps`, `TestAutomaticSnapshot*` and `TestManualBackupUsesCoordinatedMemorySnapshotAndRejectsPartialPublication`.

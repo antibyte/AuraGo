@@ -1114,5 +1114,11 @@
   "dashboard.memory_privacy_updated": "Aktualisiert: {{date}}",
   "dashboard.memory_privacy_reconcile_pending": "Kontaktstatus muss erneut geprüft werden",
   "dashboard.memory_privacy_reconcile_retry": "Kontaktstatus prüfen",
-  "dashboard.memory_privacy_reconcile_queued": "Die Prüfung des Kontaktstatus wurde eingereiht. Sieh dir den Auftragsstatus nach der Aktualisierung an."
+  "dashboard.memory_privacy_reconcile_queued": "Die Prüfung des Kontaktstatus wurde eingereiht. Sieh dir den Auftragsstatus nach der Aktualisierung an.",
+  "dashboard.memory_corpus_documents": "Corpus-Dokumente",
+  "dashboard.memory_corpus_dimensions": "Vektordimensionen",
+  "dashboard.memory_corpus_storage": "Corpus-Speicher inklusive WAL",
+  "dashboard.memory_corpus_vector_estimate": "Geschätzte Vektornutzlast ohne Zusatzspeicher",
+  "dashboard.memory_exhausted_writes": "Ausgeschöpfte Schreibaufträge",
+  "dashboard.memory_terminal_consolidations": "Endgültig gescheiterte Konsolidierungen"
 }

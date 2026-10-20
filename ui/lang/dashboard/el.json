@@ -1114,5 +1114,11 @@
   "dashboard.memory_privacy_updated": "Ενημερώθηκε: {{date}}",
   "dashboard.memory_privacy_reconcile_pending": "Χρειάζεται επανέλεγχος της κατάστασης επαφής",
   "dashboard.memory_privacy_reconcile_retry": "Έλεγχος κατάστασης επαφής",
-  "dashboard.memory_privacy_reconcile_queued": "Ο επανέλεγχος της κατάστασης επαφής μπήκε στην ουρά. Δες την κατάσταση της εργασίας μετά την ενημέρωση."
+  "dashboard.memory_privacy_reconcile_queued": "Ο επανέλεγχος της κατάστασης επαφής μπήκε στην ουρά. Δες την κατάσταση της εργασίας μετά την ενημέρωση.",
+  "dashboard.memory_corpus_documents": "Έγγραφα σώματος δεδομένων",
+  "dashboard.memory_corpus_dimensions": "Διαστάσεις διανυσμάτων",
+  "dashboard.memory_corpus_storage": "Χώρος σώματος δεδομένων μαζί με WAL",
+  "dashboard.memory_corpus_vector_estimate": "Εκτίμηση δεδομένων διανυσμάτων χωρίς πρόσθετη μνήμη",
+  "dashboard.memory_exhausted_writes": "Εργασίες εγγραφής χωρίς άλλες προσπάθειες",
+  "dashboard.memory_terminal_consolidations": "Οριστικά αποτυχημένες ενοποιήσεις"
 }

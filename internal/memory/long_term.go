@@ -284,7 +284,11 @@ func (cv *ChromemVectorDB) EmbeddingFingerprint() string {
 func (cv *ChromemVectorDB) EmbeddingStatus() (status embeddings.Status) {
 	defer func() {
 		if cv.corpus != nil {
-			if err := cv.corpus.db.QueryRow(`SELECT count(*),COALESCE(sum(CASE WHEN blocked_reason<>'' THEN 1 ELSE 0 END),0) FROM documents WHERE pending=1 AND collection<>'kg_embeddings'`).Scan(&status.IndexPending, &status.IndexBlocked); err != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			corpus := cv.CorpusStatus(ctx)
+			status.Corpus = &corpus
+			if err := cv.corpus.db.QueryRowContext(ctx, `SELECT count(*),COALESCE(sum(CASE WHEN blocked_reason<>'' THEN 1 ELSE 0 END),0) FROM documents WHERE pending=1 AND collection<>'kg_embeddings'`).Scan(&status.IndexPending, &status.IndexBlocked); err != nil {
 				status.IndexError = "corpus_status_unavailable"
 			} else if status.IndexBlocked > 0 {
 				status.IndexError = "source_reindex_required"
@@ -1752,58 +1756,6 @@ func (cv *ChromemVectorDB) GetByIDFromCollection(id, collection string) (string,
 		return "", errors.Join(fmt.Errorf("file generation is unavailable"), err)
 	}
 	return doc.Content, nil
-}
-
-// searchTopSimilarityScore returns the decayed similarity score of the closest existing
-// document in the aurago_memories collection for the given concept, or 0 if no match.
-// It is used internally for dedup checks and does NOT format results with a prefix string,
-// unlike SearchSimilar/SearchMemoriesOnly. Callers may hold a concept lock; the method
-// never holds cv.mu across the query embedding.
-func (cv *ChromemVectorDB) searchTopSimilarityScore(concept string) float32 {
-	_, sim := cv.searchTopSimilarMemory(concept)
-	return sim
-}
-
-// searchTopSimilarMemory computes the query embedding before cv.mu.RLock: holding the
-// read lock across a provider call lets a queued writer block every new search.
-func (cv *ChromemVectorDB) searchTopSimilarMemory(concept string) (string, float32) {
-	if !cv.ready.Load() || cv.disabled.Load() {
-		return "", 0
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	cv.mu.RLock()
-	col, err := cv.db.GetOrCreateCollection("aurago_memories", nil, cv.embeddingFunc)
-	cv.mu.RUnlock()
-	if err != nil || col.Count() == 0 {
-		return "", 0
-	}
-
-	queryEmbedding, err := cv.getQueryEmbedding(ctx, concept)
-	if err != nil {
-		return "", 0
-	}
-
-	results, err := cv.queryVisibleCollection(ctx, col, queryEmbedding, 1)
-	if err != nil || len(results) == 0 {
-		return "", 0
-	}
-
-	sim := results[0].Similarity
-	if tsStr, ok := results[0].Metadata["timestamp"]; ok {
-		if ts, err := strconv.ParseInt(tsStr, 10, 64); err == nil {
-			ageDays := float32(time.Since(time.Unix(ts, 0)).Hours() / 24.0)
-			if ageDays > 0 {
-				decay := ageDays * 0.01
-				if decay > 0.30 {
-					decay = 0.30
-				}
-				sim = sim * (1.0 - decay)
-			}
-		}
-	}
-	return results[0].ID, sim
 }
 
 // DeleteDocument removes a specific document from the VectorDB by its ID.

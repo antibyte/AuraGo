@@ -1114,5 +1114,11 @@
   "dashboard.memory_privacy_updated": "Zaktualizowano: {{date}}",
   "dashboard.memory_privacy_reconcile_pending": "Należy ponownie sprawdzić stan kontaktu",
   "dashboard.memory_privacy_reconcile_retry": "Sprawdź stan kontaktu",
-  "dashboard.memory_privacy_reconcile_queued": "Sprawdzenie stanu kontaktu dodano do kolejki. Zobacz stan zadania po aktualizacji."
+  "dashboard.memory_privacy_reconcile_queued": "Sprawdzenie stanu kontaktu dodano do kolejki. Zobacz stan zadania po aktualizacji.",
+  "dashboard.memory_corpus_documents": "Dokumenty korpusu",
+  "dashboard.memory_corpus_dimensions": "Wymiary wektorów",
+  "dashboard.memory_corpus_storage": "Rozmiar korpusu wraz z WAL",
+  "dashboard.memory_corpus_vector_estimate": "Szacowane dane wektorowe bez narzutu pamięci",
+  "dashboard.memory_exhausted_writes": "Zadania zapisu bez dalszych prób",
+  "dashboard.memory_terminal_consolidations": "Konsolidacje zakończone trwałym błędem"
 }

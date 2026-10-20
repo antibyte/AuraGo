@@ -1114,5 +1114,11 @@
   "dashboard.memory_privacy_updated": "更新日時: {{date}}",
   "dashboard.memory_privacy_reconcile_pending": "連絡先の状態を再確認する必要があります",
   "dashboard.memory_privacy_reconcile_retry": "連絡先の状態を確認",
-  "dashboard.memory_privacy_reconcile_queued": "連絡先の状態確認をキューに追加しました。ジョブ更新後に状態を確認してください。"
+  "dashboard.memory_privacy_reconcile_queued": "連絡先の状態確認をキューに追加しました。ジョブ更新後に状態を確認してください。",
+  "dashboard.memory_corpus_documents": "コーパスの文書数",
+  "dashboard.memory_corpus_dimensions": "ベクトルの次元数",
+  "dashboard.memory_corpus_storage": "WALを含むコーパスの保存容量",
+  "dashboard.memory_corpus_vector_estimate": "追加メモリを除くベクトルデータ推定容量",
+  "dashboard.memory_exhausted_writes": "再試行上限に達した書き込み",
+  "dashboard.memory_terminal_consolidations": "最終的に失敗した統合処理"
 }

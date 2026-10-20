@@ -1114,5 +1114,11 @@
   "dashboard.memory_privacy_updated": "अपडेट किया गया: {{date}}",
   "dashboard.memory_privacy_reconcile_pending": "संपर्क की स्थिति फिर से जाँचनी है",
   "dashboard.memory_privacy_reconcile_retry": "संपर्क की स्थिति जाँचें",
-  "dashboard.memory_privacy_reconcile_queued": "संपर्क की स्थिति की जाँच कतार में है। कार्य अपडेट होने के बाद उसकी स्थिति देखें।"
+  "dashboard.memory_privacy_reconcile_queued": "संपर्क की स्थिति की जाँच कतार में है। कार्य अपडेट होने के बाद उसकी स्थिति देखें।",
+  "dashboard.memory_corpus_documents": "संग्रह के दस्तावेज़",
+  "dashboard.memory_corpus_dimensions": "वेक्टर आयाम",
+  "dashboard.memory_corpus_storage": "WAL सहित संग्रह का आकार",
+  "dashboard.memory_corpus_vector_estimate": "अतिरिक्त मेमोरी के बिना अनुमानित वेक्टर डेटा",
+  "dashboard.memory_exhausted_writes": "पुनः प्रयास समाप्त वाले लेखन कार्य",
+  "dashboard.memory_terminal_consolidations": "स्थायी रूप से विफल समेकन"
 }

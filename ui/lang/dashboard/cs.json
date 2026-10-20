@@ -1114,5 +1114,11 @@
   "dashboard.memory_privacy_updated": "Aktualizováno: {{date}}",
   "dashboard.memory_privacy_reconcile_pending": "Je třeba znovu ověřit stav kontaktu",
   "dashboard.memory_privacy_reconcile_retry": "Zkontrolovat stav kontaktu",
-  "dashboard.memory_privacy_reconcile_queued": "Kontrola stavu kontaktu byla zařazena. Po aktualizaci zkontroluj stav úlohy."
+  "dashboard.memory_privacy_reconcile_queued": "Kontrola stavu kontaktu byla zařazena. Po aktualizaci zkontroluj stav úlohy.",
+  "dashboard.memory_corpus_documents": "Dokumenty korpusu",
+  "dashboard.memory_corpus_dimensions": "Rozměry vektorů",
+  "dashboard.memory_corpus_storage": "Úložiště korpusu včetně WAL",
+  "dashboard.memory_corpus_vector_estimate": "Odhad dat vektorů bez režie",
+  "dashboard.memory_exhausted_writes": "Vyčerpané úlohy zápisu",
+  "dashboard.memory_terminal_consolidations": "Trvale selhané konsolidace"
 }

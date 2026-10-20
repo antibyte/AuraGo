@@ -1114,5 +1114,11 @@
   "dashboard.memory_privacy_updated": "Bijgewerkt: {{date}}",
   "dashboard.memory_privacy_reconcile_pending": "De contactstatus moet opnieuw worden gecontroleerd",
   "dashboard.memory_privacy_reconcile_retry": "Contactstatus controleren",
-  "dashboard.memory_privacy_reconcile_queued": "Controle van de contactstatus staat in de wachtrij. Bekijk de taakstatus na de update."
+  "dashboard.memory_privacy_reconcile_queued": "Controle van de contactstatus staat in de wachtrij. Bekijk de taakstatus na de update.",
+  "dashboard.memory_corpus_documents": "Corpusdocumenten",
+  "dashboard.memory_corpus_dimensions": "Vectordimensies",
+  "dashboard.memory_corpus_storage": "Corpusopslag inclusief WAL",
+  "dashboard.memory_corpus_vector_estimate": "Geschatte vectordata zonder extra geheugengebruik",
+  "dashboard.memory_exhausted_writes": "Schrijftaken zonder resterende pogingen",
+  "dashboard.memory_terminal_consolidations": "Definitief mislukte consolidaties"
 }

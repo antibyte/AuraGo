@@ -47,6 +47,11 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
+	guideFiles, err := loadToolGuideFilesWithWarnings(toolsDir, cv.logger)
+	if err != nil {
+		return err
+	}
+	currentHash := "disclosure-v2:" + cv.computeToolGuidesHashSnapshot(guideFiles)
 
 	// Get or create collection for tool guides
 	cv.mu.Lock()
@@ -62,7 +67,6 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 	// the hash differs → full re-index. Pure count-based check was insufficient
 	// because it could not detect file content updates when the count stayed the same.
 	if !force && collection.Count() > 0 {
-		currentHash := "disclosure-v2:" + cv.computeToolGuidesHash(toolsDir)
 		hashFile := filepath.Join(cv.dataDir, ".tool_guides_hash")
 		storedHashBytes, _ := os.ReadFile(hashFile)
 		if strings.TrimSpace(string(storedHashBytes)) == currentHash {
@@ -75,10 +79,6 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 	var docs []chromem.Document
 	newDocIDs := make(map[string]struct{})
 	staleDocIDs := make(map[string]struct{})
-	guideFiles, err := loadToolGuideFilesWithWarnings(toolsDir, cv.logger)
-	if err != nil {
-		return err
-	}
 	for _, guide := range guideFiles {
 		path := guide.Path
 		data := guide.Data
@@ -113,51 +113,56 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		}
 	}
 
-	if len(docs) == 0 {
-		return nil
-	}
+	if len(docs) > 0 {
+		// Use parallel AddDocuments (batch size 8 or length)
+		concurrency := 8
+		if len(docs) < 8 {
+			concurrency = len(docs)
+		}
 
-	// Use parallel AddDocuments (batch size 8 or length)
-	concurrency := 8
-	if len(docs) < 8 {
-		concurrency = len(docs)
-	}
-
-	cv.logger.Info("Indexing tool guides...", "total", len(docs), "concurrency", concurrency)
-	if err := cv.addDocumentsWithPrecomputedEmbeddings(ctx, collection, docs); err != nil {
-		return fmt.Errorf("failed to batch index tool guides: %w", err)
+		cv.logger.Info("Indexing tool guides...", "total", len(docs), "concurrency", concurrency)
+		if err := cv.addDocumentsWithPrecomputedEmbeddings(ctx, collection, docs); err != nil {
+			return fmt.Errorf("failed to batch index tool guides: %w", err)
+		}
 	}
 
 	previousDocIDs := cv.readToolGuidesDocManifest()
+	staleIDs := make(map[string]struct{}, len(previousDocIDs)+len(staleDocIDs))
 	for _, oldID := range previousDocIDs {
 		if _, ok := newDocIDs[oldID]; ok {
 			continue
 		}
-		if err := cv.deleteDocumentsWithCorpus(ctx, collection, nil, oldID); err != nil {
-			cv.logger.Warn("Failed to delete stale tool guide document", "doc_id", oldID, "error", err)
-		}
+		staleIDs[oldID] = struct{}{}
 	}
 	for staleID := range staleDocIDs {
 		if _, ok := newDocIDs[staleID]; ok {
 			continue
 		}
-		if err := cv.deleteDocumentsWithCorpus(ctx, collection, nil, staleID); err != nil {
-			cv.logger.Warn("Failed to delete legacy tool guide document", "doc_id", staleID, "error", err)
+		staleIDs[staleID] = struct{}{}
+	}
+	var cleanupErr error
+	staleIDList := mapKeysSorted(staleIDs)
+	for start := 0; start < len(staleIDList); start += corpusSQLChunkSize {
+		end := min(start+corpusSQLChunkSize, len(staleIDList))
+		if err := cv.deleteDocumentsWithCorpus(ctx, collection, nil, staleIDList[start:end]...); err != nil {
+			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("delete stale tool guide documents: %w", err))
 		}
 	}
+	if cleanupErr != nil {
+		return cleanupErr
+	}
 
-	// Persist the content hash so subsequent startups can skip re-indexing.
-	newHash := "disclosure-v2:" + cv.computeToolGuidesHash(toolsDir)
+	// Persist the manifest and content hash only after every stale ID was removed.
+	if err := cv.writeToolGuidesDocManifest(mapKeysSorted(newDocIDs)); err != nil {
+		cv.logger.Warn("Failed to write tool guides doc manifest", "error", err)
+		return fmt.Errorf("write tool guides doc manifest: %w", err)
+	}
+	newHash := currentHash
 	hashFile := filepath.Join(cv.dataDir, ".tool_guides_hash")
 	if err := os.WriteFile(hashFile, []byte(newHash), 0o644); err != nil {
 		cv.logger.Warn("Failed to write tool guides content hash", "path", hashFile, "error", err)
 		return fmt.Errorf("write tool guides content hash: %w", err)
 	}
-	if err := cv.writeToolGuidesDocManifest(mapKeysSorted(newDocIDs)); err != nil {
-		cv.logger.Warn("Failed to write tool guides doc manifest", "error", err)
-		return fmt.Errorf("write tool guides doc manifest: %w", err)
-	}
-
 	cv.logger.Info("Tool guides indexing completed", "count", collection.Count())
 	return nil
 }
@@ -637,6 +642,10 @@ func (cv *ChromemVectorDB) computeToolGuidesHash(toolsDir string) string {
 	if err != nil {
 		return ""
 	}
+	return cv.computeToolGuidesHashSnapshot(files)
+}
+
+func (cv *ChromemVectorDB) computeToolGuidesHashSnapshot(files []toolGuideFile) string {
 	h := sha256.New()
 	h.Write([]byte(toolGuideIndexFingerprint()))
 	h.Write([]byte("\x00embedding=" + strings.TrimSpace(cv.EmbeddingFingerprint())))
