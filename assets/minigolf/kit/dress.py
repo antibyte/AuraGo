@@ -55,6 +55,7 @@ class Dresser:
         self.pal = palette.get(self.look)
         self.terrain = None
         self.island = None
+        self.waterline = []
         self.shore = None
         self.trims = []
         self.specials_out = None
@@ -77,8 +78,8 @@ class Dresser:
         shapes.set_collection(coll)
         try:
             self.terrain = dress_island.Terrain(self.look, self.number, self.course, path, cup)
-            self.island, waterline = dress_island.build(self.terrain, self.number)
-            self.shore = dress_island.build_shore(self.terrain, waterline) if waterline else None
+            self.island, self.waterline = dress_island.build(self.terrain, self.number)
+            self.shore = dress_island.build_shore(self.terrain, self.waterline) if self.waterline else None
             self.trims = trim.build_trims(self.look, self.course, path, self.number, self.terrain.top_height)
         finally:
             shapes.set_collection(None)

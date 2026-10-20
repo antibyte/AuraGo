@@ -14,7 +14,7 @@ sys.path.insert(0, HERE)
 
 import bpy  # noqa: E402
 
-from kit import courses_v1, dress, kits  # noqa: E402
+from kit import courses_v1, dress, kits, previews  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 RUNTIME = os.path.join(ROOT, "ui", "3d", "minigolf")
@@ -122,7 +122,9 @@ def main():
             write_manifest(manifest)
             print(f"Wrote {len(courses)} courses to {RUNTIME}")
     if "previews" in args.parts:
-        print("previews: not implemented yet")
+        for look, number in previews.COURSES.items():
+            size, quality = previews.render(look, number, os.path.join(RUNTIME, "previews", look + ".webp"))
+            print(f"preview {look}: course {number}, {size} bytes, quality {quality}")
     if args.save_blend:
         os.makedirs(BUILD, exist_ok=True)
         bpy.context.preferences.filepaths.save_version = 0

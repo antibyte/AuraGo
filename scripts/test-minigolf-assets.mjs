@@ -301,6 +301,18 @@ for (const look of ['pirate', 'temple', 'moon']) {
   kitBytes += bytes.length;
 }
 
+// The menu shows one rendered preview per world.
+assert.deepEqual(manifest.worlds, [
+  { id: 'garden', look: 'temple', preview: 'previews/temple.webp' },
+  { id: 'coast', look: 'pirate', preview: 'previews/pirate.webp' },
+  { id: 'night', look: 'moon', preview: 'previews/moon.webp' }
+]);
+for (const world of manifest.worlds) {
+  const image = await readFile(path.join(assetRoot, world.preview));
+  assert.equal(image.toString('ascii', 0, 4) + image.toString('ascii', 8, 12), 'RIFFWEBP', `${world.preview}: WebP`);
+  assert.ok(image.length <= BUDGET.preview, `${world.preview}: ${image.length} bytes`);
+}
+
 async function treeBytes(dir) {
   let sum = 0;
   for (const entry of await readdir(dir, { withFileTypes: true })) sum += entry.isDirectory() ? await treeBytes(path.join(dir, entry.name)) : (await stat(path.join(dir, entry.name))).size;

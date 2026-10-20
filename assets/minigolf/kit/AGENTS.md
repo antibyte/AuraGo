@@ -122,6 +122,13 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
   the dark ground in the stepped lane cut-out. `export.join_scenery` joins every
   other mesh per material into `scenery-<material>` nodes (`FUNCTIONAL_NAMES` /
   `FUNCTIONAL_PREFIXES` stay single nodes) and strips builder properties.
+- Previews (`previews.py`, `generate.py --only previews`, about a minute): builds the
+  dressed course (pirate 7, temple 2, moon 18) with the baked kit props as real
+  objects, the water rings or the star/Earth backdrop and the probe lighting, and
+  renders 640x360 Cycles (96 samples, OIDN, az -35, el 38, 43 degrees) to
+  `ui/3d/minigolf/previews/<look>.webp` (quality 82, lowered until <= 80 KB). Cycles
+  output is not bit-reproducible: previews are never part of a full run.
+  `bake.commit_colours` gives passthrough objects (water, stars) their `Col`.
 - Look: Khronos PBR Neutral view transform (look None, exposure 0, gamma 1) to
   match three.js `NeutralToneMapping`; keep emission strength near 1-2.5 because
   Neutral desaturates highlights above ~0.8. Camera: perspective, 43 degrees
@@ -140,7 +147,7 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
   read-back), `dress` (per-course Dresser, lane colours, bake), `dress_island`
   (terrain, island, shore), `dress_specials` + `special_parts` (layout specials),
   `dress_parts` (functional parts), `placement` (prop placement), `occluders`
-  (kit objects as bake occluders), `trim` (rail trims),
+  (kit objects as bake occluders), `previews` (menu card images), `trim` (rail trims),
   `kits` (per-world prop kit GLB), `palette` (tones, gradient presets), `shapes`
   (builders, `finish`), `colors` (vertex-colour gradients), `bake`, `materials`,
   `prop` (composition),

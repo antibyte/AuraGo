@@ -68,7 +68,7 @@ P2 gibt AuraGolf den Look eines stilisierten Dioramas: weich gefaste Formen, Far
 | `kit/dress_specials.py`, `special_parts.py`, `dress_parts.py` | Sonderteile je Layout (feste Platzierungen und handgebaute Geometrie), Weltstil für Hindernisse, Vorlagen, Fahne, Loch und Abschlag. |
 | `kit/placement.py`, `occluders.py` | Deterministische Platzierung (Hingucker, Rand, Streudeko, Regelprüfung) und die Kit-Objekte als Bake-Verdecker. |
 | `kit/export.py` | Export, kanonische Knotennamen, Zusammenfassen statischer Deko je Material, GLB-Lesen (Dreiecke, Kollider), Manifest-Einträge. |
-| `kit/previews.py` | Vorschaubilder je Welt (Cycles, `--only previews`). |
+| `kit/previews.py` | Vorschaubilder je Welt (Cycles, `--only previews`): Piraten Bahn 7 (das Schiff ist der Hingucker), Tempel Bahn 2, Mond Bahn 18. |
 | `kit/probe.py`, `scene_<look>.py`, `stage.py`, `compose.py`, `island.py`, `lane.py` | Bleiben für Proben und Feinschliff; `island.py` und `compose.py` werden von `dress.py` mitbenutzt. |
 
 Keine Datei wächst über etwa 400 Zeilen; größere Welten teilen ihre Requisiten auf mehrere Module auf.

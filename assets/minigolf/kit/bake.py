@@ -133,6 +133,22 @@ def finalize(obj, ao_values, tint=(0.0, 0.0, 0.0), gamma=1.0, keep_scratch=False
                 mesh.attributes.remove(attr)
 
 
+def commit_colours(obj):
+    """Write ``Col`` = the palette colour unchanged (no occlusion) and drop the scratch attributes."""
+    n = len(obj.data.vertices)
+    pal = _flat(obj.data.color_attributes[colors.PALETTE], n)
+    old = obj.data.attributes.get(materials.COLOR_ATTRIBUTE)
+    if old is not None:
+        obj.data.attributes.remove(old)
+    col = obj.data.color_attributes.new(materials.COLOR_ATTRIBUTE, "BYTE_COLOR", "POINT")
+    col.data.foreach_set("color", pal)
+    obj.data.color_attributes.active_color = col
+    for name in (colors.PALETTE, colors.AO_WEIGHT):
+        attr = obj.data.attributes.get(name)
+        if attr is not None:
+            obj.data.attributes.remove(attr)
+
+
 def process(objs, passthrough=(), hidden=(), samples=192, distance=1.4, seed=11, iterations=2,
             tint=(0.0, 0.0, 0.0), gamma=1.0, keep_scratch=False):
     """Bake, smooth and finalize ``objs``; ``passthrough`` objects only get ``Col``.
@@ -146,16 +162,5 @@ def process(objs, passthrough=(), hidden=(), samples=192, distance=1.4, seed=11,
         finalize(obj, smooth_ao(obj.data, iterations=iterations), tint=tint, gamma=gamma,
                  keep_scratch=keep_scratch)
     for obj in passthrough:
-        n = len(obj.data.vertices)
-        pal = _flat(obj.data.color_attributes[colors.PALETTE], n)
-        old = obj.data.attributes.get(materials.COLOR_ATTRIBUTE)
-        if old is not None:
-            obj.data.attributes.remove(old)
-        col = obj.data.color_attributes.new(materials.COLOR_ATTRIBUTE, "BYTE_COLOR", "POINT")
-        col.data.foreach_set("color", pal)
-        obj.data.color_attributes.active_color = col
-        for name in (colors.PALETTE, colors.AO_WEIGHT):
-            attr = obj.data.attributes.get(name)
-            if attr is not None:
-                obj.data.attributes.remove(attr)
+        commit_colours(obj)
     return elapsed
