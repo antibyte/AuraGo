@@ -234,8 +234,15 @@ window.WebSocket=class extends EventTarget { close(){} };
 		if cachedTheme := page.MustEval(`()=>soundTest.inspect().cachedTheme`).Str(); cachedTheme != "water" {
 			t.Fatalf("material FX should not eagerly render the full voxel sound bank; cached theme = %q", cachedTheme)
 		}
-		page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,90))`)
+		page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,240))`)
 	}
+	// A dense pile must not turn one landing into a wall of full-volume audio.
+	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,1100))`)
+	if got := page.MustEval(`async()=>{const before=soundTest.inspect().plays;for(let batch=0;batch<16;batch++){for(let i=0;i<64;i++)DesktopSounds.play('window.impact',{material:'stone',strength:.35,pan:0});await new Promise(r=>setTimeout(r,35));}await new Promise(r=>setTimeout(r,300));const after=soundTest.inspect().plays;await new Promise(r=>setTimeout(r,500));return {plays:after-before,late:soundTest.inspect().plays-after};}`).Map(); got["plays"].Int() < 1 || got["plays"].Int() > 4 || got["late"].Int() != 0 {
+		t.Fatalf("voxel burst exceeded playback budget or left a trailing queue: %v", got)
+	}
+	// A slow first render must never replay a stale impact after the cubes stopped.
+	page.MustEval(`async()=>{soundTest.state.bootstrap.settings['sound.windows']='false';applySoundSettingsChange('sound.windows','false');soundTest.state.bootstrap.settings['sound.windows']='true';applySoundSettingsChange('sound.windows','true');const original=DesktopSoundSynth.renderLayers;DesktopSoundSynth.renderLayers=async function(...args){await new Promise(r=>setTimeout(r,400));return original.apply(this,args);};const before=soundTest.inspect().plays;DesktopSounds.play('window.impact',{material:'earth',strength:.7});await new Promise(r=>setTimeout(r,800));DesktopSoundSynth.renderLayers=original;if(soundTest.inspect().plays!==before)throw new Error('stale impact played after delayed synthesis');}`)
 	page.MustEval(`()=>{
         soundTest.state.bootstrap.settings['sound.windows']='false';
         applySoundSettingsChange('sound.windows','false');

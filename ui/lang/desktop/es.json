@@ -2953,7 +2953,7 @@
   "desktop.settings_theme_crazy_desc": "Exagerado a propósito: marcos arcoíris, ventanas que rebotan y confeti.",
   "desktop.settings_theme_cyberpunk": "Cyberpunk",
   "desktop.settings_theme_cyberpunk_desc": "Amarillo neón y cian sobre azul noche profundo, con marcos HUD afilados.",
-  "desktop.settings_theme_desc": "Elige el aspecto de tu escritorio. Cada tema cambia a un conjunto de iconos a juego, que puedes modificar abajo.",
+  "desktop.settings_theme_desc": "Al elegir un tema se aplica su fondo a todos los espacios de trabajo y se cargan iconos, cursores y sonidos a juego. Después puedes personalizar cada elemento por separado. Se mantienen los ajustes de silencio y movimiento.",
   "desktop.settings_theme_fruity": "Fruity",
   "desktop.settings_theme_fruity_desc": "Luminoso y suave, con una barra de menús superior, un dock flotante y ventanas redondeadas.",
   "desktop.settings_theme_lollipop": "Lollipop",

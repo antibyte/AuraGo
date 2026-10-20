@@ -3776,10 +3776,13 @@ registration lives in `internal/desktop/types.go`.
   control columns must not let long provider/model names squeeze their labels.
   Keep full workspace paths wrappable and Info values at normal text weight.
   The theme picker is a card grid (`renderDesktopThemes`, `data-desktop-theme`)
-  built from the `DESKTOP_THEMES` registry. A pick saves `appearance.theme`,
-  pairs `appearance.icon_theme` with the theme's `iconTheme` and runs
-  `followThemeWallpaper()`; if the wallpaper hand-over fails, a notification
-  shows and the saved theme stays. The light/dark row (`appearance.fruity_mode`)
+  built from the `DESKTOP_THEMES` registry. A pick atomically saves the theme,
+  matching icon family, wallpaper for all spaces (clearing per-space overrides),
+  enabled theme cursors and matching sound bank in one settings PUT. Sound and
+  motion master switches remain unchanged. A failed save preserves the complete
+  previous selection. Later individual customizations survive reloads.
+  Verify `TestDesktopExperienceThemeAtomicSelectionBrowser`.
+  The light/dark row (`appearance.fruity_mode`)
   shows only for themes with `schemeSetting`, and the accent row only for
   `accent: 'user'`. Verify `TestDesktopThemeSweepBrowser`.
 - `camera.js` implements the Camera app (device webcam): photo mode with

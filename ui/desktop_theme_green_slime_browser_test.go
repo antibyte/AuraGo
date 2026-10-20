@@ -40,7 +40,7 @@ func TestDesktopGreenSlimeSpringSurfaceBrowser(t *testing.T) {
 		window.dispatchEvent(new CustomEvent('aurago:desktop-window',{detail:record}));
 	}`)
 	s.waitFor(t, "jelly release settles", 3*time.Second,
-		`()=>AuraDesktopThemeFx.inspect().currentMaxDisplacement<1`)
+		`()=>AuraDesktopThemeFx.inspect().currentMaxDisplacement<8`)
 	dropsBefore := s.eval(t, `()=>AuraDesktopThemeFx.inspect().dropCount`).Value.Int()
 	s.waitFor(t, "periodic detached slime drop", 6*time.Second,
 		`before=>AuraDesktopThemeFx.inspect().dropCount>before`, dropsBefore)

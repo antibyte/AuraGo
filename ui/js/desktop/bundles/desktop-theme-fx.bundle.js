@@ -392,7 +392,8 @@
                 if (style && (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)) continue;
                 const rect = element.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.right >= 0 && rect.top <= height && rect.left <= width) {
-                    next.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+                    next.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height,
+                        desktop: element.matches('.vd-icon, .vd-widget') && !element.classList.contains('vd-dragging') });
                 }
             }
             overlayMasks = next;
@@ -479,23 +480,23 @@
             ctx.save();
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            ctx.strokeStyle = 'rgba(1,19,42,' + (.52 * alpha) + ')';
-            ctx.lineWidth = 5;
+            ctx.strokeStyle = 'rgba(2,12,8,' + (.82 * alpha) + ')';
+            ctx.lineWidth = 8;
             ctx.beginPath();
             ctx.moveTo(route.ax, route.ay);
             ctx.bezierCurveTo(route.c1x, route.c1y, route.c2x, route.c2y, route.bx, route.by);
             ctx.stroke();
             const cable = ctx.createLinearGradient(route.ax, route.ay, route.bx, route.by);
-            cable.addColorStop(0, 'rgba(40,229,255,' + (.82 * alpha) + ')');
-            cable.addColorStop(.52, 'rgba(79,135,255,' + (.72 * alpha) + ')');
-            cable.addColorStop(1, 'rgba(243,81,255,' + (.78 * alpha) + ')');
+            cable.addColorStop(0, 'rgba(184,99,42,' + alpha + ')');
+            cable.addColorStop(.52, 'rgba(249,190,99,' + alpha + ')');
+            cable.addColorStop(1, 'rgba(119,65,30,' + alpha + ')');
             ctx.strokeStyle = cable;
-            ctx.lineWidth = 1.55;
-            ctx.shadowColor = 'rgba(77,198,255,.5)';
-            ctx.shadowBlur = 8;
+            ctx.lineWidth = 3.5;
+            ctx.shadowColor = 'rgba(219,151,70,.3)';
+            ctx.shadowBlur = 3;
             ctx.stroke();
             ctx.shadowBlur = 0;
-            ctx.fillStyle = 'rgba(133,238,255,' + alpha + ')';
+            ctx.fillStyle = 'rgba(157,255,227,' + alpha + ')';
             for (let i = 0; i < 5; i++) {
                 const t = (i / 5 + phase) % 1;
                 const mt = 1 - t;
@@ -519,43 +520,115 @@
                 if (otherRect) blockers.push(otherRect);
             }
             ctx.save();
-            clipOutside(ctx, blockers.concat(overlayMasks));
-            const frame = { x: rect.x - 3, y: rect.y - 3, width: rect.width + 6, height: rect.height + 6 };
-            const pulse = motion ? .5 + .5 * Math.sin(elapsed * 1.4 + z * .012) : .55;
+            clipOutside(ctx, blockers.concat(overlayMasks.filter(mask => !mask.desktop)));
+            const frame = { x: rect.x - 9, y: rect.y - 9, width: rect.width + 18, height: rect.height + 18 };
+            const pulse = motion ? .5 + .5 * Math.sin(elapsed * 2.2 + z * .012) : .55;
             const gradient = ctx.createLinearGradient(frame.x, frame.y, frame.x + frame.width, frame.y + frame.height);
-            gradient.addColorStop(0, 'rgba(56,243,255,.82)');
-            gradient.addColorStop(.5, 'rgba(107,115,255,.76)');
-            gradient.addColorStop(1, 'rgba(246,84,245,.84)');
+            gradient.addColorStop(0, '#2d5a3d');
+            gradient.addColorStop(.5, '#0e2b20');
+            gradient.addColorStop(1, '#284b31');
             ctx.lineJoin = 'round';
-            ctx.lineWidth = 5;
-            ctx.strokeStyle = 'rgba(45,208,255,' + (.18 + pulse * .14) + ')';
-            ctx.shadowColor = 'rgba(55,206,255,.72)';
-            ctx.shadowBlur = 15 + pulse * 8;
+            ctx.lineWidth = 23;
+            ctx.strokeStyle = '#061b12';
+            ctx.shadowColor = '#0008';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetY = 4;
             ctx.beginPath();
             ctx.roundRect(frame.x, frame.y, frame.width, frame.height, 13);
             ctx.stroke();
             ctx.shadowBlur = 0;
-            ctx.lineWidth = 1.6;
+            ctx.shadowOffsetY = 0;
+            ctx.lineWidth = 19;
             ctx.strokeStyle = gradient;
             ctx.beginPath();
             ctx.roundRect(frame.x, frame.y, frame.width, frame.height, 13);
             ctx.stroke();
 
-            const leds = [
-                [rect.x + 13, rect.y + rect.height + 3, 'rgba(74,249,255,.96)'],
-                [rect.x + rect.width - 13, rect.y + rect.height + 3, 'rgba(252,104,252,.96)'],
-                [rect.x + rect.width + 3, rect.y + rect.height * .48, 'rgba(156,131,255,.96)']
-            ];
-            for (const [x, y, color] of leds) {
-                const size = 2.4 + pulse * .8;
-                ctx.fillStyle = color;
-                ctx.shadowColor = color;
-                ctx.shadowBlur = 10 + pulse * 6;
+            for (const offset of [-5, 4]) {
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = offset < 0 ? '#c48c4c' : '#7f5431';
                 ctx.beginPath();
-                ctx.arc(x, y, size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.shadowBlur = 0;
+                ctx.roundRect(frame.x + offset, frame.y + offset, frame.width - offset * 2, frame.height - offset * 2, 8);
+                ctx.stroke();
             }
+            const perimeter = 2 * (frame.width + frame.height);
+            ctx.strokeStyle = '#ffe29b';
+            ctx.shadowColor = '#ffc55f';
+            ctx.shadowBlur = 7;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([16, Math.max(20, perimeter / 4 - 16)]);
+            ctx.lineDashOffset = motion ? -elapsed * 48 : -17;
+            ctx.beginPath(); ctx.roundRect(frame.x - 5, frame.y - 5, frame.width + 10, frame.height + 10, 8); ctx.stroke();
+            ctx.setLineDash([]); ctx.shadowBlur = 0;
+            for (let i = 0; i < Math.min(8, Math.floor(rect.height / 82)); i++) {
+                component(rect.x - 9, rect.y + 46 + i * 82, i % 3, Math.PI / 2, pulse);
+                component(rect.x + rect.width + 9, rect.y + 72 + i * 82, (i + 1) % 3, Math.PI / 2, 1 - pulse);
+            }
+            for (let i = 0; i < Math.min(10, Math.floor(rect.width / 90)); i++) {
+                component(rect.x + 44 + i * 90, rect.y + rect.height + 9, i % 3, 0, pulse);
+            }
+            for (const [x, y] of [[frame.x, frame.y], [frame.x + frame.width, frame.y], [frame.x, frame.y + frame.height], [frame.x + frame.width, frame.y + frame.height]]) {
+                ctx.fillStyle = '#16231b';
+                ctx.beginPath();
+                ctx.arc(x, y, 5.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#b5c1a6'; ctx.beginPath(); ctx.arc(x - .5, y - .7, 3.8, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#40503c'; ctx.lineWidth = 1.4;
+                ctx.beginPath(); ctx.moveTo(x - 2, y); ctx.lineTo(x + 2, y); ctx.moveTo(x, y - 2); ctx.lineTo(x, y + 2); ctx.stroke();
+            }
+            ctx.restore();
+            drawHeader(record, all, pulse);
+        }
+
+        function component(x, y, kind, angle, pulse) {
+            ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+            ctx.strokeStyle = '#bdc7b2'; ctx.lineWidth = 2;
+            if (kind === 0) {
+                for (let pin = -9; pin <= 9; pin += 6) {
+                    ctx.beginPath(); ctx.moveTo(pin, -7); ctx.lineTo(pin, 7); ctx.stroke();
+                }
+                const chip = ctx.createLinearGradient(0, -5, 0, 5); chip.addColorStop(0, '#586259'); chip.addColorStop(.25, '#292d29'); chip.addColorStop(1, '#101811');
+                ctx.fillStyle = chip; ctx.fillRect(-14, -5, 28, 10);
+                ctx.fillStyle = '#82967b'; ctx.font = '5px monospace'; ctx.textAlign = 'center'; ctx.fillText('A-08', 0, 2);
+                ctx.fillStyle = '#c9d3c0'; ctx.beginPath(); ctx.arc(-10, -2, 1, 0, Math.PI * 2); ctx.fill();
+            } else if (kind === 1) {
+                ctx.beginPath(); ctx.moveTo(-15, 0); ctx.lineTo(15, 0); ctx.stroke();
+                ctx.fillStyle = '#d5ba83'; ctx.beginPath(); ctx.roundRect(-8, -3.5, 16, 7, 2); ctx.fill();
+                for (const [at, color] of [[-5, '#a74725'], [-1, '#3c2621'], [3, '#d1a037']]) { ctx.fillStyle = color; ctx.fillRect(at, -3.5, 2, 7); }
+                ctx.fillStyle = '#ffedbd88'; ctx.fillRect(-7, -3, 14, 1);
+            } else {
+                ctx.fillStyle = '#172a22'; ctx.fillRect(-7, -5, 14, 10);
+                const cap = ctx.createLinearGradient(-5, 0, 5, 0); cap.addColorStop(0, '#18392e'); cap.addColorStop(.4, '#75ac88'); cap.addColorStop(.7, '#346b50'); cap.addColorStop(1, '#0d251c');
+                ctx.fillStyle = cap; ctx.fillRect(-5, -5, 10, 10);
+                ctx.fillStyle = '#c5d4bf'; ctx.beginPath(); ctx.ellipse(0, -4, 5, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#60715a'; ctx.lineWidth = .6; ctx.beginPath(); ctx.moveTo(-3, -4); ctx.lineTo(3, -4); ctx.stroke();
+            }
+            ctx.fillStyle = '#10271b'; ctx.fillRect(20, -3, 7, 6);
+            ctx.shadowColor = kind % 2 ? '#7cf7ce' : '#ffd16c'; ctx.shadowBlur = 4 + pulse * 5;
+            ctx.fillStyle = kind % 2 ? `rgba(122,247,206,${.45 + pulse * .55})` : `rgba(255,201,95,${.45 + pulse * .55})`;
+            ctx.fillRect(21, -2, 5, 4); ctx.restore();
+        }
+
+        function drawHeader(record, all, pulse) {
+            const bar = record.element?.querySelector('.vd-window-titlebar');
+            if (!bar) return;
+            const rect = bar.getBoundingClientRect();
+            const y = rect.bottom - 12;
+            ctx.save();
+            clipOutside(ctx, all.filter(other => Number(other.z) > Number(record.z)).map(rectFor).filter(Boolean).concat(overlayMasks.filter(mask => !mask.desktop)));
+            ctx.beginPath(); ctx.rect(rect.x + 6, rect.bottom - 23, rect.width - 12, 22); ctx.clip();
+            ctx.strokeStyle = '#9a6838'; ctx.lineWidth = .8;
+            for (let lane = 0; lane < 3; lane++) {
+                ctx.beginPath(); ctx.moveTo(rect.x + 10, y - 5 + lane * 5);
+                for (let x = rect.x + 20; x < rect.right; x += 42) { ctx.lineTo(x, y - 5 + lane * 5); ctx.lineTo(x + 6, y - 8 + lane * 5); ctx.lineTo(x + 24, y - 8 + lane * 5); }
+                ctx.stroke();
+            }
+            for (let i = 0; i < Math.min(12, Math.floor(rect.width / 86)); i++) {
+                component(rect.x + 34 + i * 86, y, i % 3, 0, motion ? .5 + .5 * Math.sin(elapsed * 2.6 - i * .9) : pulse);
+            }
+            ctx.strokeStyle = '#baf3da'; ctx.shadowColor = '#7fffd4'; ctx.shadowBlur = 5;
+            ctx.setLineDash([8, 93]); ctx.lineDashOffset = motion ? -elapsed * 42 : 0;
+            ctx.beginPath(); ctx.moveTo(rect.x, y + 8); ctx.lineTo(rect.right, y + 8); ctx.stroke();
             ctx.restore();
         }
 
@@ -766,7 +839,6 @@
         const springs = new Set();
         const springAt = new Map();
         const surfaces = new Map();
-        const nextDropAt = new Map();
         const motionDrives = new Map();
         let clock = 0;
         let frameCount = 0;
@@ -815,7 +887,6 @@
                 for (const id of surfaces.keys()) {
                     if (!records.has(id)) {
                         surfaces.delete(id);
-                        nextDropAt.delete(id);
                         motionDrives.delete(id);
                     }
                 }
@@ -865,7 +936,6 @@
                 }
                 records.delete(id);
                 surfaces.delete(id);
-                nextDropAt.delete(id);
                 motionDrives.delete(id);
                 dirty = true;
                 requestFrame();
@@ -875,7 +945,6 @@
             else {
                 records.delete(id);
                 surfaces.delete(id);
-                nextDropAt.delete(id);
                 motionDrives.delete(id);
             }
             if (record.phase === 'drag' && record.velocity) {
@@ -911,7 +980,8 @@
                 if (style && (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)) continue;
                 const rect = element.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.right >= 0 && rect.top <= height && rect.left <= width) {
-                    masks.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+                    masks.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height,
+                        desktop: element.matches('.vd-icon, .vd-widget') && !element.classList.contains('vd-dragging') });
                 }
             }
             cachedOverlayMasks = masks;
@@ -942,24 +1012,25 @@
         }
 
         function surfaceTargets(rect) {
-            const outline = { x: rect.x - 5, y: rect.y - 5, width: rect.width + 10, height: rect.height + 10 };
+            const outline = { x: rect.x - 8, y: rect.y - 8, width: rect.width + 16, height: rect.height + 16 };
             const sideCount = SURFACE_SAMPLES / 4;
+            const corner = 14;
             const points = [];
             for (let i = 0; i < sideCount; i++) {
-                const t = (i + .5) / sideCount;
-                points.push({ x: outline.x + outline.width * t, y: outline.y });
+                const t = i / (sideCount - 1);
+                points.push({ x: outline.x + corner + (outline.width - corner * 2) * t, y: outline.y });
             }
             for (let i = 0; i < sideCount; i++) {
-                const t = (i + .5) / sideCount;
-                points.push({ x: outline.x + outline.width, y: outline.y + outline.height * t });
+                const t = i / (sideCount - 1);
+                points.push({ x: outline.x + outline.width, y: outline.y + corner + (outline.height - corner * 2) * t });
             }
             for (let i = 0; i < sideCount; i++) {
-                const t = (i + .5) / sideCount;
-                points.push({ x: outline.x + outline.width * (1 - t), y: outline.y + outline.height });
+                const t = i / (sideCount - 1);
+                points.push({ x: outline.x + corner + (outline.width - corner * 2) * (1 - t), y: outline.y + outline.height });
             }
             for (let i = 0; i < sideCount; i++) {
-                const t = (i + .5) / sideCount;
-                points.push({ x: outline.x, y: outline.y + outline.height * (1 - t) });
+                const t = i / (sideCount - 1);
+                points.push({ x: outline.x, y: outline.y + corner + (outline.height - corner * 2) * (1 - t) });
             }
             return points;
         }
@@ -968,19 +1039,28 @@
             const baseTargets = surfaceTargets(rect);
             const drive = motionDrives.get(id);
             const targets = baseTargets.map((point, i) => {
-                if (!motion || !drive || drive.strength < .1) return point;
+                if (!motion) return point;
                 const side = Math.floor(i / (SURFACE_SAMPLES / 4));
                 const normal = SURFACE_NORMALS[side];
+                // Slow, travelling surface tension, independent of dragging. Adjacent
+                // points have different phases so the skin flows instead of translating.
+                const breathing = Math.sin(clock * 1.35 + i * .71) * 4.5 + Math.sin(clock * .63 - i * 1.11) * 1.8;
+                const living = { x: point.x + normal.x * breathing, y: point.y + normal.y * breathing };
+                if (!drive || drive.strength < .1) return living;
                 const trailing = Math.max(0, -(drive.x * normal.x + drive.y * normal.y));
                 const along = (i % (SURFACE_SAMPLES / 4) + .5) / (SURFACE_SAMPLES / 4);
                 const bulge = drive.strength * trailing * (.42 + .58 * Math.sin(Math.PI * along));
-                return { x: point.x - drive.x * bulge, y: point.y - drive.y * bulge };
+                return { x: living.x - drive.x * bulge, y: living.y - drive.y * bulge };
             });
             let surface = surfaces.get(id);
             if (!surface) {
-                surface = { nodes: baseTargets.map(point => ({ ...point, vx: 0, vy: 0 })) };
+                const seed = Array.from(id).reduce((sum, letter) => sum + letter.charCodeAt(0), 0);
+                surface = {
+                    nodes: baseTargets.map(point => ({ ...point, vx: 0, vy: 0 })),
+                    drips: [17, 19, 21, 22, 13, 27].map((node, i) => ({ node,
+                        period: 4.6 + i * .61, offset: (seed % 17) * .23 + i * 1.13, cycle: -1 }))
+                };
                 surfaces.set(id, surface);
-                if (motion) nextDropAt.set(id, clock + 1.8 + Math.random() * 1.8);
             }
             const nodes = surface.nodes;
             if (!motion || dt <= 0) {
@@ -1038,12 +1118,17 @@
 
         function detachPeriodicDrop(id, surface) {
             if (!motion) return;
-            const due = nextDropAt.get(id);
-            if (due == null || clock < due) return;
-            const node = surface.nodes[17 + Math.floor(Math.random() * 6)];
-            addDrop(node.x, node.y + 1, 3.5 + Math.random() * 2.5,
-                node.vx * .08 + (Math.random() - .5) * 24, 30 + Math.random() * 28, 1.05 + Math.random() * .55);
-            nextDropAt.set(id, clock + 2.2 + Math.random() * 2.8);
+            for (const drip of surface.drips) {
+                const time = (clock + drip.offset) / drip.period;
+                const cycle = Math.floor(time);
+                const phase = time - cycle;
+                if (phase < .84 || drip.cycle === cycle) continue;
+                drip.cycle = cycle;
+                const node = surface.nodes[drip.node];
+                addDrop(node.x, node.y + 44, 6.5, node.vx * .08, 28, 1.6);
+                // Recoil travels back into the membrane after the neck tears.
+                node.vy -= 48;
+            }
         }
 
         function contourPath(nodes) {
@@ -1063,9 +1148,10 @@
             const stretch = 1 + Math.min(1.2, Math.abs(drop.vy) / 220);
             const size = drop.size;
             const gradient = ctx.createLinearGradient(drop.x - size, drop.y - size, drop.x + size, drop.y + size);
-            gradient.addColorStop(0, 'rgba(239,249,168,.98)');
-            gradient.addColorStop(.36, 'rgba(177,207,68,.97)');
-            gradient.addColorStop(1, 'rgba(96,124,31,.94)');
+            gradient.addColorStop(0, '#f2ffbc');
+            gradient.addColorStop(.26, '#c3f34c');
+            gradient.addColorStop(.62, '#75ac1e');
+            gradient.addColorStop(1, '#354f0c');
             ctx.globalAlpha = alpha;
             ctx.fillStyle = gradient;
             ctx.shadowColor = 'rgba(126,158,40,.48)';
@@ -1078,28 +1164,39 @@
             ctx.closePath();
             ctx.fill();
             ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(250,255,214,.9)';
+            ctx.beginPath();
+            ctx.ellipse(drop.x - size * .25, drop.y, size * .14, size * .4, -.25, 0, Math.PI * 2);
+            ctx.fill();
             ctx.globalAlpha = 1;
         }
 
-        function drawDrip(point, len, dripWidth, pulse) {
+        function drawDrip(point, len, dripWidth, phase) {
             const y = point.y;
             const end = y + len;
-            const gradient = ctx.createLinearGradient(point.x, y, point.x + 4, end);
-            gradient.addColorStop(0, 'rgba(220,239,118,.96)');
-            gradient.addColorStop(1, 'rgba(112,145,37,.96)');
+            const gradient = ctx.createLinearGradient(point.x - dripWidth, y, point.x + dripWidth, end);
+            gradient.addColorStop(0, '#e5ff91');
+            gradient.addColorStop(.28, '#b2e936');
+            gradient.addColorStop(.66, '#73a51d');
+            gradient.addColorStop(1, '#3d6413');
             ctx.fillStyle = gradient;
-            ctx.shadowColor = 'rgba(117,151,39,.48)';
-            ctx.shadowBlur = 10 + pulse * 3;
+            ctx.shadowColor = 'rgba(12,28,1,.5)';
+            ctx.shadowBlur = 5;
+            ctx.shadowOffsetY = 3;
+            const bulb = 4 + phase * 4;
+            const neck = Math.max(.7, dripWidth * (1 - phase * .9));
             ctx.beginPath();
             ctx.moveTo(point.x - dripWidth, y);
-            ctx.bezierCurveTo(point.x - dripWidth * .8, y + len * .32, point.x - 2, end - dripWidth, point.x, end);
-            ctx.bezierCurveTo(point.x + 2, end - dripWidth, point.x + dripWidth * .8, y + len * .32, point.x + dripWidth, y);
+            ctx.bezierCurveTo(point.x - neck, y + len * .3, point.x - neck, end - bulb * 1.8, point.x - bulb, end - bulb);
+            ctx.bezierCurveTo(point.x - bulb * 1.35, end + bulb, point.x + bulb * 1.35, end + bulb, point.x + bulb, end - bulb);
+            ctx.bezierCurveTo(point.x + neck, end - bulb * 1.8, point.x + neck, y + len * .3, point.x + dripWidth, y);
             ctx.closePath();
             ctx.fill();
             ctx.shadowBlur = 0;
-            ctx.fillStyle = 'rgba(244,255,184,.82)';
+            ctx.shadowOffsetY = 0;
+            ctx.fillStyle = 'rgba(249,255,210,.92)';
             ctx.beginPath();
-            ctx.ellipse(point.x - 1, y + 7, 1.3, Math.max(2, len * .14), -.16, 0, Math.PI * 2);
+            ctx.ellipse(point.x - bulb * .3, end - bulb * .4, 1.5, bulb * .55, -.3, 0, Math.PI * 2);
             ctx.fill();
         }
 
@@ -1107,37 +1204,65 @@
             if (!rect || !surface) return;
             ctx.save();
             clipOut(ctx, blockers);
-            const pulse = motion ? .5 + .5 * Math.sin(clock * 2.25 + (Number(record.z) || 0) * .011) : .55;
             const nodes = surface.nodes;
             const first = nodes[0];
             const gradient = ctx.createLinearGradient(first.x, first.y, nodes[16].x, nodes[16].y);
-            gradient.addColorStop(0, 'rgba(225,244,132,.98)');
-            gradient.addColorStop(.28, 'rgba(174,207,69,.98)');
-            gradient.addColorStop(.62, 'rgba(121,157,43,.97)');
-            gradient.addColorStop(1, 'rgba(76,108,32,.97)');
+            gradient.addColorStop(0, '#bce65b');
+            gradient.addColorStop(.28, '#83b529');
+            gradient.addColorStop(.62, '#537f19');
+            gradient.addColorStop(1, '#9bcb38');
             ctx.lineJoin = 'round';
-            ctx.lineWidth = 14;
-            ctx.strokeStyle = 'rgba(139,174,48,' + (.12 + pulse * .14) + ')';
-            ctx.shadowColor = 'rgba(122,157,40,.5)';
-            ctx.shadowBlur = 18 + pulse * 8;
+            ctx.lineWidth = 28;
+            ctx.strokeStyle = '#38550d';
+            ctx.shadowColor = 'rgba(8,19,0,.5)';
+            ctx.shadowBlur = 9;
+            ctx.shadowOffsetY = 5;
             contourPath(nodes);
             ctx.stroke();
             ctx.shadowBlur = 0;
-            ctx.lineWidth = 8;
+            ctx.shadowOffsetY = 0;
+            ctx.lineWidth = 24;
             ctx.strokeStyle = gradient;
             contourPath(nodes);
             ctx.stroke();
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = 'rgba(246,255,193,.88)';
+            // Broad rounded gel lobes merge into the membrane. Their highlights
+            // follow the spring nodes, so the material keeps its volume as it bends.
+            for (let i = 2; i < nodes.length; i += 5) {
+                const node = nodes[i];
+                const radius = 12.5 + (motion ? Math.sin(clock * .72 + i) * 2 : 0);
+                const gel = ctx.createRadialGradient(node.x - 4, node.y - 5, 1, node.x, node.y, radius);
+                gel.addColorStop(0, '#efffb4');
+                gel.addColorStop(.19, '#badd53');
+                gel.addColorStop(.58, '#88b92b');
+                gel.addColorStop(1, '#547f17');
+                ctx.fillStyle = gel;
+                ctx.beginPath(); ctx.arc(node.x, node.y, radius, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = 'rgba(237,255,183,.87)';
+            ctx.save();
+            ctx.translate(-5, -6);
             contourPath(nodes);
             ctx.stroke();
-
-            const drips = [
-                { point: nodes[17], len: 18 + pulse * 8, width: 4 },
-                { point: nodes[20], len: 11 + pulse * 7, width: 3 },
-                { point: nodes[22], len: 25 + pulse * 11, width: 5 }
-            ];
-            for (const drip of drips) drawDrip(drip.point, drip.len, drip.width, pulse);
+            ctx.restore();
+            for (let i = 1; i < nodes.length; i += 2) {
+                const node = nodes[i];
+                const radius = 1.5 + (i % 4) * .7;
+                const drift = motion ? Math.sin(clock * .75 + i) * 2 : 0;
+                ctx.fillStyle = '#547d16';
+                ctx.strokeStyle = '#d2f277';
+                ctx.lineWidth = .8;
+                ctx.beginPath();
+                ctx.ellipse(node.x + drift, node.y, radius, radius * 1.2, .3, 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#f4ffc8';
+                ctx.beginPath(); ctx.arc(node.x + drift - .6, node.y - radius * .55, .7, 0, Math.PI * 2); ctx.fill();
+            }
+            for (const drip of surface.drips) {
+                const phase = motion ? ((clock + drip.offset) / drip.period) % 1 : .45;
+                const growth = phase < .84 ? phase / .84 : Math.max(0, (1 - phase) * 1.7);
+                drawDrip(nodes[drip.node], 7 + 37 * growth * growth, 9 - growth * 3, growth);
+            }
             ctx.restore();
         }
 
@@ -1171,7 +1296,7 @@
                 const id = String(record.id);
                 const surface = followSurface(id, rect, dt);
                 detachPeriodicDrop(id, surface);
-                const frameBlockers = all.filter(other => (Number(other.z) || 0) >= (Number(record.z) || 0)).map(rectFor).filter(Boolean).concat(overlays);
+                const frameBlockers = all.filter(other => (Number(other.z) || 0) >= (Number(record.z) || 0)).map(rectFor).filter(Boolean).concat(overlays.filter(mask => !mask.desktop));
                 drawWindow(record, rect, surface, frameBlockers);
             }
             if (freeDrops.length) {
@@ -1229,7 +1354,6 @@
             freeDrops.length = 0;
             records.clear();
             surfaces.clear();
-            nextDropAt.clear();
             motionDrives.clear();
             canvas.remove();
         }
@@ -1370,7 +1494,7 @@
             if (!fallbackContext || !fallbackDirty || s.stopped) return;
             fallbackDirty = false;
             const ctx = fallbackContext;
-            const { width, height, windowRects, maskRects } = s;
+            const { width, height, windowRects, maskRects, desktopRects } = s;
             const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
             fallback.width = Math.max(1, Math.round(width * dpr));
             fallback.height = Math.max(1, Math.round(height * dpr));
@@ -1378,7 +1502,7 @@
             ctx.clearRect(0, 0, width, height);
             if (fullWallpaper) {
                 ctx.save();
-                clipOutsideRects(ctx, windowRects.map(item => item.rect).concat(maskRects), width, height);
+                clipOutsideRects(ctx, windowRects.map(item => item.rect).concat(maskRects, desktopRects), width, height);
                 const tile = clamp(Math.round(height / 30), 18, 30);
                 const fillBlock = (x, y, w, h, color, alpha) => {
                     ctx.globalAlpha = alpha == null ? .9 : alpha;
@@ -1724,7 +1848,7 @@
 
             const backgroundMaskMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
             setStencil(backgroundMaskMaterial, true, 2, 0xff, 2);
-            backgroundMaskMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), backgroundMaskMaterial, MAX_WINDOWS);
+            backgroundMaskMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), backgroundMaskMaterial, MAX_WINDOWS + MAX_MASKS);
             backgroundMaskMesh.count = 0;
             backgroundMaskMesh.frustumCulled = false;
             backgroundMaskMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -1757,7 +1881,7 @@
         function updateSceneInstances() {
             const s = state();
             if (!ready || !scene || !THREE || !windowDepthMesh) return;
-            const { width, height, windowRects, maskRects, damageWindows, assemblingWindows } = s;
+            const { width, height, windowRects, maskRects, desktopRects, damageWindows, assemblingWindows } = s;
             let frameIndex = 0;
             const now = performance.now();
             const windowCount = Math.min(windowRects.length, MAX_WINDOWS);
@@ -1838,9 +1962,10 @@
             }
             maskMesh.instanceMatrix.needsUpdate = true;
 
-            backgroundMaskMesh.count = Math.min(windowRects.length, MAX_WINDOWS);
+            const backgroundRects = windowRects.map(item => item.rect).concat(desktopRects);
+            backgroundMaskMesh.count = Math.min(backgroundRects.length, MAX_WINDOWS + MAX_MASKS);
             for (let i = 0; i < backgroundMaskMesh.count; i++) {
-                const rect = windowRects[i].rect;
+                const rect = backgroundRects[i];
                 workObject.position.set(pixelX(rect.x + rect.width / 2, width), pixelY(rect.y + rect.height / 2, height), 2);
                 workObject.rotation.set(0, 0, 0);
                 workObject.scale.set(rect.width / PIXELS_PER_METER, rect.height / PIXELS_PER_METER, 1);
@@ -2005,6 +2130,7 @@
         let records = new Map();
         let windowRects = [];
         let maskRects = [];
+        let desktopRects = [];
         let lastSnapshotAt = 0;
         let lastSoundAt = 0;
         let lastPointerShearAt = 0;
@@ -2049,7 +2175,7 @@
 
         graphics = window.AuraVoxelGraphics.create({
             layer, fallback, fallbackContext, signal, fullWallpaper,
-            readState: () => ({ width, height, stopped, paused, qualityLevel, windowRects, maskRects, damageWindows, assemblingWindows }),
+            readState: () => ({ width, height, stopped, paused, qualityLevel, windowRects, maskRects, desktopRects, damageWindows, assemblingWindows }),
             noteError,
             onContextLost: () => {
                 if (raf) cancelAnimationFrame(raf);
@@ -2088,17 +2214,19 @@
                 windows.push({ record, rect, z: Number(record.z) || 0 });
             }
             windowRects = windows.sort((a, b) => a.z - b.z).slice(-256);
-            const next = [];
+            const next = [], desktop = [];
             for (const element of document.querySelectorAll(MASK_SELECTORS)) {
                 if (!element.isConnected || element.hidden) continue;
                 const style = window.getComputedStyle ? window.getComputedStyle(element) : null;
                 if (style && (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)) continue;
                 const rect = element.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.right >= 0 && rect.top <= height && rect.left <= width) {
-                    next.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+                    const target = element.matches('.vd-icon, .vd-widget') && !element.classList.contains('vd-dragging') ? desktop : next;
+                    target.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
                 }
             }
             maskRects = next.slice(0, 1024);
+            desktopRects = desktop.slice(0, 1024);
             graphics.invalidateFallback();
             if (!graphics.rendererReady || graphics.contextLost) graphics.paintFallback();
         }
@@ -2124,7 +2252,8 @@
         function sound(eventName, strength, x, material) {
             if (!motion || document.hidden || !window.DesktopSounds || typeof window.DesktopSounds.play !== 'function') return;
             const now = performance.now();
-            if (now - lastSoundAt < 90) return;
+            // A falling group has one audible texture, not one voice per cube.
+            if (now - lastSoundAt < 250) return;
             lastSoundAt = now;
             const pan = clamp((x / Math.max(1, width)) * 2 - 1, -1, 1);
             try {
@@ -2345,7 +2474,7 @@
                     .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS)
                     .setContactForceEventThreshold(.018), body);
                 body.setEnabled(false);
-                const slot = { body, collider, active: false, age: 0, settle: 0, size: 10, alpha: 1, lastSound: 0, material: 'stone' };
+                const slot = { body, collider, active: false, age: 0, settle: 0, size: 10, alpha: 1, lastImpactAge: -1, incoming: { x: 0, y: 0, z: 0 }, material: 'stone' };
                 fragments.push(slot);
                 colliderToFragment.set(collider.handle, slot);
                 graphics.setFragmentSlot(fragments.length - 1, MATERIALS.stone[0]);
@@ -2393,6 +2522,9 @@
             slot.age = 0;
             slot.settle = 0;
             slot.alpha = 1;
+            slot.lastImpactAge = -1;
+            slot.contactedStep = -10;
+            slot.incoming = { x: vx, y: vy, z: vz };
             slot.active = true;
             slot.body.setTranslation({ x, y, z: .15 }, true);
             const initialAngle = randomBetween(-1, 1);
@@ -2645,16 +2777,21 @@
             const slot = first && first.active ? first : second && second.active ? second : null;
             if (!slot) return;
             collisionCount++;
+            if (first && first.active) first.contactedStep = physicsSteps;
+            if (second && second.active) second.contactedStep = physicsSteps;
+            // Contact force also describes the continuous weight of a resting pile.
+            // Only incoming normal velocity is an audible impact; never amplify support forces.
+            const a = first && first.active ? first.incoming : { x: 0, y: 0, z: 0 };
+            const b = second && second.active ? second.incoming : { x: 0, y: 0, z: 0 };
+            const normal = contact.maxForceDirection();
+            const approach = Math.abs((a.x - b.x) * normal.x + (a.y - b.y) * normal.y + (a.z - b.z) * normal.z);
+            if (approach < .8 || slot.body.isSleeping() || slot.age - slot.lastImpactAge < .32 || slot.age > 3.8) return;
+            slot.lastImpactAge = slot.age;
+            if (first && first.active) first.lastImpactAge = first.age;
+            if (second && second.active) second.lastImpactAge = second.age;
             const translation = slot.body.translation();
             const screenX = translation.x * PIXELS_PER_METER + width / 2;
-            sound('window.impact', clamp(force * 2.8, .12, 1), screenX, slot.material);
-            if (force > .68 && activeFragmentCount < dynamicLimit - 2 && Math.random() < .12) {
-                const screenY = height / 2 - translation.y * PIXELS_PER_METER;
-                const colors = MATERIALS[slot.material];
-                for (let i = 0; i < 2; i++) spawnFragment(screenX, screenY, randomBetween(5, 8),
-                    randomBetween(-1.8, 1.8), randomBetween(.6, 2), randomBetween(-.4, .4),
-                    colors[Math.floor(Math.random() * colors.length)], slot.material);
-            }
+            sound('window.impact', clamp((approach - .65) / 7, .06, .65), screenX, slot.material);
         }
 
         function physicsStep(dt) {
@@ -2663,6 +2800,7 @@
                 pointerInside = false;
                 pointerBody.setEnabled(false);
             }
+            for (const slot of fragments) if (slot.active) slot.incoming = slot.body.linvel();
             physicsWorld.step(eventQueue);
             physicsSteps++;
             eventQueue.drainContactForceEvents(onContactForce);
@@ -2673,8 +2811,11 @@
                 const velocity = slot.body.linvel();
                 const speed = Math.hypot(velocity.x, velocity.y, velocity.z);
                 const pos = slot.body.translation();
-                if (speed < .075 && pos.y < toWorldY(height - 61, height) + .18) slot.settle += dt;
+                const angular = slot.body.angvel();
+                const supported = slot.body.isSleeping() || physicsSteps - slot.contactedStep <= 2;
+                if (supported && speed < .12 && Math.hypot(angular.x, angular.y, angular.z) < .8) slot.settle += dt;
                 else slot.settle = 0;
+                if (slot.settle > .3 && !slot.body.isSleeping()) slot.body.sleep();
                 const fade = clamp((slot.age - 3.8) / 1.8, 0, 1);
                 slot.alpha = 1 - fade;
                 if (slot.age > 6.3 || slot.settle > 1.6 || pos.y < -height / PIXELS_PER_METER - 2) {
@@ -2883,6 +3024,7 @@
             colliderToFrame.clear();
             colliderToIcon.clear();
             maskRects.length = 0;
+            desktopRects.length = 0;
             windowRects.length = 0;
             damageWindows.clear();
             assemblingWindows.clear();

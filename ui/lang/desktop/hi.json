@@ -2953,7 +2953,7 @@
   "desktop.settings_theme_crazy_desc": "जानबूझकर हद से ज़्यादा: इंद्रधनुषी फ़्रेम, उछलती विंडो और कॉन्फेटी.",
   "desktop.settings_theme_cyberpunk": "Cyberpunk",
   "desktop.settings_theme_cyberpunk_desc": "गहरे रात्रि-नीले पर नियॉन पीला और सियान, तीखे HUD फ़्रेम के साथ.",
-  "desktop.settings_theme_desc": "अपने डेस्कटॉप का रूप चुनें. हर थीम के साथ मेल खाता आइकन सेट अपने आप चुना जाता है, जिसे आप नीचे बदल सकते हैं.",
+  "desktop.settings_theme_desc": "थीम चुनने पर सभी कार्यस्थलों पर उसका वॉलपेपर लागू होता है और उससे मेल खाते आइकन, कर्सर और ध्वनियाँ लोड होती हैं। इसके बाद आप हर हिस्से को अलग से बदल सकते हैं। म्यूट और गति की सेटिंग नहीं बदलतीं।",
   "desktop.settings_theme_fruity": "Fruity",
   "desktop.settings_theme_fruity_desc": "उजला और कोमल लुक, ऊपर मेनू बार, तैरते डॉक और गोल कोनों वाली विंडो के साथ.",
   "desktop.settings_theme_lollipop": "Lollipop",

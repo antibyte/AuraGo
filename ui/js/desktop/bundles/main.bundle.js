@@ -2320,6 +2320,7 @@
     let previewEpoch = 0;
     let voxelFxTimer = null;
     let voxelFxQueue = new Map();
+    let recentVoxelFxPlays = [];
     let voxelFxBuffers = { theme: '', buffers: {} };
     const pendingVoxelFxRenders = new Map();
     let observedSettings = '';
@@ -2417,6 +2418,7 @@
         if (voxelFxTimer !== null) clearTimeout(voxelFxTimer);
         voxelFxTimer = null;
         voxelFxQueue.clear();
+        recentVoxelFxPlays = [];
     }
 
     function invalidateVoxelFxBuffers() {
@@ -2538,12 +2540,13 @@
             (typeof state !== 'undefined' && state.sessionRestoring)) return false;
         const next = cleanVoxelFxOptions(options);
         if (next.strength <= 0) return false;
+        next.expiresAt = performance.now() + 240;
         const previous = voxelFxQueue.get(eventId);
         if (previous) {
             const total = previous.strength + next.strength;
             const stronger = next.strength >= previous.strength ? next : previous;
             previous.pan = total ? ((previous.pan * previous.strength) + (next.pan * next.strength)) / total : 0;
-            previous.strength = Math.min(1, Math.sqrt(previous.strength * previous.strength + next.strength * next.strength));
+            previous.strength = Math.max(previous.strength, next.strength);
             previous.material = stronger.material;
         } else voxelFxQueue.set(eventId, next);
         if (voxelFxTimer === null) {
@@ -2554,7 +2557,7 @@
                 queued.forEach(([queuedEvent, queuedOptions]) => {
                     desktopSound(queuedEvent, Object.assign({}, queuedOptions, { voxelCoalesced: true }));
                 });
-            }, 32);
+            }, 75);
         }
         return true;
     }
@@ -2642,10 +2645,17 @@
                 : (rendered.buffers[eventId] || rendered.buffers['notify.info']);
             if (epoch !== soundEpoch || !buffer || document.hidden || (!options.preview && currentThemeId() !== themeId)) return;
             if (!buffer) return;
+            if (voxelFx) {
+                const now = performance.now();
+                if (!Number.isFinite(options.expiresAt) || now > options.expiresAt) return false;
+                recentVoxelFxPlays = recentVoxelFxPlays.filter(at => now - at < 1000);
+                if (recentVoxelFxPlays.length >= 4 || now - (recentVoxelFxPlays.at(-1) ?? -Infinity) < 190) return false;
+                recentVoxelFxPlays.push(now);
+            }
             const meta = rendered && rendered.stats[eventId] || {};
             stats.lastPeak = meta.peak || 0;
             stats.lastRms = meta.rms || 0;
-            const gain = voxelFx ? Math.pow(fxOptions.strength, 0.72) * 0.86 : options.gain;
+            const gain = voxelFx ? Math.pow(fxOptions.strength, 0.85) * 0.52 : options.gain;
             playBuffer(buffer, category, { event: eventId, gain, pan: voxelFx ? fxOptions.pan : undefined });
             return true;
         } catch (e) {

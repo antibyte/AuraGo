@@ -56,6 +56,7 @@
         let records = new Map();
         let windowRects = [];
         let maskRects = [];
+        let desktopRects = [];
         let lastSnapshotAt = 0;
         let lastSoundAt = 0;
         let lastPointerShearAt = 0;
@@ -100,7 +101,7 @@
 
         graphics = window.AuraVoxelGraphics.create({
             layer, fallback, fallbackContext, signal, fullWallpaper,
-            readState: () => ({ width, height, stopped, paused, qualityLevel, windowRects, maskRects, damageWindows, assemblingWindows }),
+            readState: () => ({ width, height, stopped, paused, qualityLevel, windowRects, maskRects, desktopRects, damageWindows, assemblingWindows }),
             noteError,
             onContextLost: () => {
                 if (raf) cancelAnimationFrame(raf);
@@ -139,17 +140,19 @@
                 windows.push({ record, rect, z: Number(record.z) || 0 });
             }
             windowRects = windows.sort((a, b) => a.z - b.z).slice(-256);
-            const next = [];
+            const next = [], desktop = [];
             for (const element of document.querySelectorAll(MASK_SELECTORS)) {
                 if (!element.isConnected || element.hidden) continue;
                 const style = window.getComputedStyle ? window.getComputedStyle(element) : null;
                 if (style && (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)) continue;
                 const rect = element.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.right >= 0 && rect.top <= height && rect.left <= width) {
-                    next.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+                    const target = element.matches('.vd-icon, .vd-widget') && !element.classList.contains('vd-dragging') ? desktop : next;
+                    target.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
                 }
             }
             maskRects = next.slice(0, 1024);
+            desktopRects = desktop.slice(0, 1024);
             graphics.invalidateFallback();
             if (!graphics.rendererReady || graphics.contextLost) graphics.paintFallback();
         }
@@ -175,7 +178,8 @@
         function sound(eventName, strength, x, material) {
             if (!motion || document.hidden || !window.DesktopSounds || typeof window.DesktopSounds.play !== 'function') return;
             const now = performance.now();
-            if (now - lastSoundAt < 90) return;
+            // A falling group has one audible texture, not one voice per cube.
+            if (now - lastSoundAt < 250) return;
             lastSoundAt = now;
             const pan = clamp((x / Math.max(1, width)) * 2 - 1, -1, 1);
             try {
@@ -396,7 +400,7 @@
                     .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS)
                     .setContactForceEventThreshold(.018), body);
                 body.setEnabled(false);
-                const slot = { body, collider, active: false, age: 0, settle: 0, size: 10, alpha: 1, lastSound: 0, material: 'stone' };
+                const slot = { body, collider, active: false, age: 0, settle: 0, size: 10, alpha: 1, lastImpactAge: -1, incoming: { x: 0, y: 0, z: 0 }, material: 'stone' };
                 fragments.push(slot);
                 colliderToFragment.set(collider.handle, slot);
                 graphics.setFragmentSlot(fragments.length - 1, MATERIALS.stone[0]);
@@ -444,6 +448,9 @@
             slot.age = 0;
             slot.settle = 0;
             slot.alpha = 1;
+            slot.lastImpactAge = -1;
+            slot.contactedStep = -10;
+            slot.incoming = { x: vx, y: vy, z: vz };
             slot.active = true;
             slot.body.setTranslation({ x, y, z: .15 }, true);
             const initialAngle = randomBetween(-1, 1);
@@ -696,16 +703,21 @@
             const slot = first && first.active ? first : second && second.active ? second : null;
             if (!slot) return;
             collisionCount++;
+            if (first && first.active) first.contactedStep = physicsSteps;
+            if (second && second.active) second.contactedStep = physicsSteps;
+            // Contact force also describes the continuous weight of a resting pile.
+            // Only incoming normal velocity is an audible impact; never amplify support forces.
+            const a = first && first.active ? first.incoming : { x: 0, y: 0, z: 0 };
+            const b = second && second.active ? second.incoming : { x: 0, y: 0, z: 0 };
+            const normal = contact.maxForceDirection();
+            const approach = Math.abs((a.x - b.x) * normal.x + (a.y - b.y) * normal.y + (a.z - b.z) * normal.z);
+            if (approach < .8 || slot.body.isSleeping() || slot.age - slot.lastImpactAge < .32 || slot.age > 3.8) return;
+            slot.lastImpactAge = slot.age;
+            if (first && first.active) first.lastImpactAge = first.age;
+            if (second && second.active) second.lastImpactAge = second.age;
             const translation = slot.body.translation();
             const screenX = translation.x * PIXELS_PER_METER + width / 2;
-            sound('window.impact', clamp(force * 2.8, .12, 1), screenX, slot.material);
-            if (force > .68 && activeFragmentCount < dynamicLimit - 2 && Math.random() < .12) {
-                const screenY = height / 2 - translation.y * PIXELS_PER_METER;
-                const colors = MATERIALS[slot.material];
-                for (let i = 0; i < 2; i++) spawnFragment(screenX, screenY, randomBetween(5, 8),
-                    randomBetween(-1.8, 1.8), randomBetween(.6, 2), randomBetween(-.4, .4),
-                    colors[Math.floor(Math.random() * colors.length)], slot.material);
-            }
+            sound('window.impact', clamp((approach - .65) / 7, .06, .65), screenX, slot.material);
         }
 
         function physicsStep(dt) {
@@ -714,6 +726,7 @@
                 pointerInside = false;
                 pointerBody.setEnabled(false);
             }
+            for (const slot of fragments) if (slot.active) slot.incoming = slot.body.linvel();
             physicsWorld.step(eventQueue);
             physicsSteps++;
             eventQueue.drainContactForceEvents(onContactForce);
@@ -724,8 +737,11 @@
                 const velocity = slot.body.linvel();
                 const speed = Math.hypot(velocity.x, velocity.y, velocity.z);
                 const pos = slot.body.translation();
-                if (speed < .075 && pos.y < toWorldY(height - 61, height) + .18) slot.settle += dt;
+                const angular = slot.body.angvel();
+                const supported = slot.body.isSleeping() || physicsSteps - slot.contactedStep <= 2;
+                if (supported && speed < .12 && Math.hypot(angular.x, angular.y, angular.z) < .8) slot.settle += dt;
                 else slot.settle = 0;
+                if (slot.settle > .3 && !slot.body.isSleeping()) slot.body.sleep();
                 const fade = clamp((slot.age - 3.8) / 1.8, 0, 1);
                 slot.alpha = 1 - fade;
                 if (slot.age > 6.3 || slot.settle > 1.6 || pos.y < -height / PIXELS_PER_METER - 2) {
@@ -934,6 +950,7 @@
             colliderToFrame.clear();
             colliderToIcon.clear();
             maskRects.length = 0;
+            desktopRects.length = 0;
             windowRects.length = 0;
             damageWindows.clear();
             assemblingWindows.clear();

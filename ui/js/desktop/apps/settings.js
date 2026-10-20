@@ -582,12 +582,18 @@
         try {
             const updates = [{ key, value }];
             const themeChange = key === 'appearance.theme';
-            const previousTheme = themeChange ? ctx.settingValue('appearance.theme') : '';
             if (themeChange) {
                 const nextTheme = typeof ctx.desktopThemeById === 'function' ? ctx.desktopThemeById(value) : null;
-                const pairedIconTheme = nextTheme ? nextTheme.iconTheme : '';
-                if (pairedIconTheme && ctx.settingValue('appearance.icon_theme') !== pairedIconTheme) {
-                    updates.push({ key: 'appearance.icon_theme', value: pairedIconTheme });
+                if (nextTheme) {
+                    // A deliberate theme pick applies the complete preset in one transaction.
+                    // Master sound/motion switches remain under the user's control.
+                    updates.push(
+                        { key: 'appearance.icon_theme', value: nextTheme.iconTheme },
+                        { key: 'appearance.wallpaper', value: nextTheme.wallpaper },
+                        { key: 'appearance.wallpaper_by_space', value: '{}' },
+                        { key: 'appearance.theme_cursors', value: 'true' },
+                        { key: 'sound.theme', value: nextTheme.soundTheme }
+                    );
                 }
             }
             if (!ctx.state.bootstrap) ctx.state.bootstrap = {};
@@ -598,14 +604,6 @@
                 body: JSON.stringify(updates.length > 1 ? { settings: written } : updates[0])
             });
             ctx.state.bootstrap.settings = result.settings || Object.assign({}, ctx.desktopSettings(), written);
-            if (themeChange && typeof ctx.followThemeWallpaper === 'function') {
-                // A failed wallpaper hand-over must not keep the already saved theme from being applied.
-                try {
-                    await ctx.followThemeWallpaper(previousTheme, value);
-                } catch (err) {
-                    ctx.showDesktopNotification({ title: ctx.t('desktop.notification'), message: err.message });
-                }
-            }
             if (key === 'windows.restore_session' && value === 'true' && ctx.persistSessionSnapshot) {
                 await ctx.persistSessionSnapshot();
             }

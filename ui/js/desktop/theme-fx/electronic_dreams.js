@@ -78,7 +78,8 @@
                 if (style && (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)) continue;
                 const rect = element.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.right >= 0 && rect.top <= height && rect.left <= width) {
-                    next.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+                    next.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height,
+                        desktop: element.matches('.vd-icon, .vd-widget') && !element.classList.contains('vd-dragging') });
                 }
             }
             overlayMasks = next;
@@ -165,23 +166,23 @@
             ctx.save();
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            ctx.strokeStyle = 'rgba(1,19,42,' + (.52 * alpha) + ')';
-            ctx.lineWidth = 5;
+            ctx.strokeStyle = 'rgba(2,12,8,' + (.82 * alpha) + ')';
+            ctx.lineWidth = 8;
             ctx.beginPath();
             ctx.moveTo(route.ax, route.ay);
             ctx.bezierCurveTo(route.c1x, route.c1y, route.c2x, route.c2y, route.bx, route.by);
             ctx.stroke();
             const cable = ctx.createLinearGradient(route.ax, route.ay, route.bx, route.by);
-            cable.addColorStop(0, 'rgba(40,229,255,' + (.82 * alpha) + ')');
-            cable.addColorStop(.52, 'rgba(79,135,255,' + (.72 * alpha) + ')');
-            cable.addColorStop(1, 'rgba(243,81,255,' + (.78 * alpha) + ')');
+            cable.addColorStop(0, 'rgba(184,99,42,' + alpha + ')');
+            cable.addColorStop(.52, 'rgba(249,190,99,' + alpha + ')');
+            cable.addColorStop(1, 'rgba(119,65,30,' + alpha + ')');
             ctx.strokeStyle = cable;
-            ctx.lineWidth = 1.55;
-            ctx.shadowColor = 'rgba(77,198,255,.5)';
-            ctx.shadowBlur = 8;
+            ctx.lineWidth = 3.5;
+            ctx.shadowColor = 'rgba(219,151,70,.3)';
+            ctx.shadowBlur = 3;
             ctx.stroke();
             ctx.shadowBlur = 0;
-            ctx.fillStyle = 'rgba(133,238,255,' + alpha + ')';
+            ctx.fillStyle = 'rgba(157,255,227,' + alpha + ')';
             for (let i = 0; i < 5; i++) {
                 const t = (i / 5 + phase) % 1;
                 const mt = 1 - t;
@@ -205,43 +206,115 @@
                 if (otherRect) blockers.push(otherRect);
             }
             ctx.save();
-            clipOutside(ctx, blockers.concat(overlayMasks));
-            const frame = { x: rect.x - 3, y: rect.y - 3, width: rect.width + 6, height: rect.height + 6 };
-            const pulse = motion ? .5 + .5 * Math.sin(elapsed * 1.4 + z * .012) : .55;
+            clipOutside(ctx, blockers.concat(overlayMasks.filter(mask => !mask.desktop)));
+            const frame = { x: rect.x - 9, y: rect.y - 9, width: rect.width + 18, height: rect.height + 18 };
+            const pulse = motion ? .5 + .5 * Math.sin(elapsed * 2.2 + z * .012) : .55;
             const gradient = ctx.createLinearGradient(frame.x, frame.y, frame.x + frame.width, frame.y + frame.height);
-            gradient.addColorStop(0, 'rgba(56,243,255,.82)');
-            gradient.addColorStop(.5, 'rgba(107,115,255,.76)');
-            gradient.addColorStop(1, 'rgba(246,84,245,.84)');
+            gradient.addColorStop(0, '#2d5a3d');
+            gradient.addColorStop(.5, '#0e2b20');
+            gradient.addColorStop(1, '#284b31');
             ctx.lineJoin = 'round';
-            ctx.lineWidth = 5;
-            ctx.strokeStyle = 'rgba(45,208,255,' + (.18 + pulse * .14) + ')';
-            ctx.shadowColor = 'rgba(55,206,255,.72)';
-            ctx.shadowBlur = 15 + pulse * 8;
+            ctx.lineWidth = 23;
+            ctx.strokeStyle = '#061b12';
+            ctx.shadowColor = '#0008';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetY = 4;
             ctx.beginPath();
             ctx.roundRect(frame.x, frame.y, frame.width, frame.height, 13);
             ctx.stroke();
             ctx.shadowBlur = 0;
-            ctx.lineWidth = 1.6;
+            ctx.shadowOffsetY = 0;
+            ctx.lineWidth = 19;
             ctx.strokeStyle = gradient;
             ctx.beginPath();
             ctx.roundRect(frame.x, frame.y, frame.width, frame.height, 13);
             ctx.stroke();
 
-            const leds = [
-                [rect.x + 13, rect.y + rect.height + 3, 'rgba(74,249,255,.96)'],
-                [rect.x + rect.width - 13, rect.y + rect.height + 3, 'rgba(252,104,252,.96)'],
-                [rect.x + rect.width + 3, rect.y + rect.height * .48, 'rgba(156,131,255,.96)']
-            ];
-            for (const [x, y, color] of leds) {
-                const size = 2.4 + pulse * .8;
-                ctx.fillStyle = color;
-                ctx.shadowColor = color;
-                ctx.shadowBlur = 10 + pulse * 6;
+            for (const offset of [-5, 4]) {
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = offset < 0 ? '#c48c4c' : '#7f5431';
                 ctx.beginPath();
-                ctx.arc(x, y, size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.shadowBlur = 0;
+                ctx.roundRect(frame.x + offset, frame.y + offset, frame.width - offset * 2, frame.height - offset * 2, 8);
+                ctx.stroke();
             }
+            const perimeter = 2 * (frame.width + frame.height);
+            ctx.strokeStyle = '#ffe29b';
+            ctx.shadowColor = '#ffc55f';
+            ctx.shadowBlur = 7;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([16, Math.max(20, perimeter / 4 - 16)]);
+            ctx.lineDashOffset = motion ? -elapsed * 48 : -17;
+            ctx.beginPath(); ctx.roundRect(frame.x - 5, frame.y - 5, frame.width + 10, frame.height + 10, 8); ctx.stroke();
+            ctx.setLineDash([]); ctx.shadowBlur = 0;
+            for (let i = 0; i < Math.min(8, Math.floor(rect.height / 82)); i++) {
+                component(rect.x - 9, rect.y + 46 + i * 82, i % 3, Math.PI / 2, pulse);
+                component(rect.x + rect.width + 9, rect.y + 72 + i * 82, (i + 1) % 3, Math.PI / 2, 1 - pulse);
+            }
+            for (let i = 0; i < Math.min(10, Math.floor(rect.width / 90)); i++) {
+                component(rect.x + 44 + i * 90, rect.y + rect.height + 9, i % 3, 0, pulse);
+            }
+            for (const [x, y] of [[frame.x, frame.y], [frame.x + frame.width, frame.y], [frame.x, frame.y + frame.height], [frame.x + frame.width, frame.y + frame.height]]) {
+                ctx.fillStyle = '#16231b';
+                ctx.beginPath();
+                ctx.arc(x, y, 5.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#b5c1a6'; ctx.beginPath(); ctx.arc(x - .5, y - .7, 3.8, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#40503c'; ctx.lineWidth = 1.4;
+                ctx.beginPath(); ctx.moveTo(x - 2, y); ctx.lineTo(x + 2, y); ctx.moveTo(x, y - 2); ctx.lineTo(x, y + 2); ctx.stroke();
+            }
+            ctx.restore();
+            drawHeader(record, all, pulse);
+        }
+
+        function component(x, y, kind, angle, pulse) {
+            ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+            ctx.strokeStyle = '#bdc7b2'; ctx.lineWidth = 2;
+            if (kind === 0) {
+                for (let pin = -9; pin <= 9; pin += 6) {
+                    ctx.beginPath(); ctx.moveTo(pin, -7); ctx.lineTo(pin, 7); ctx.stroke();
+                }
+                const chip = ctx.createLinearGradient(0, -5, 0, 5); chip.addColorStop(0, '#586259'); chip.addColorStop(.25, '#292d29'); chip.addColorStop(1, '#101811');
+                ctx.fillStyle = chip; ctx.fillRect(-14, -5, 28, 10);
+                ctx.fillStyle = '#82967b'; ctx.font = '5px monospace'; ctx.textAlign = 'center'; ctx.fillText('A-08', 0, 2);
+                ctx.fillStyle = '#c9d3c0'; ctx.beginPath(); ctx.arc(-10, -2, 1, 0, Math.PI * 2); ctx.fill();
+            } else if (kind === 1) {
+                ctx.beginPath(); ctx.moveTo(-15, 0); ctx.lineTo(15, 0); ctx.stroke();
+                ctx.fillStyle = '#d5ba83'; ctx.beginPath(); ctx.roundRect(-8, -3.5, 16, 7, 2); ctx.fill();
+                for (const [at, color] of [[-5, '#a74725'], [-1, '#3c2621'], [3, '#d1a037']]) { ctx.fillStyle = color; ctx.fillRect(at, -3.5, 2, 7); }
+                ctx.fillStyle = '#ffedbd88'; ctx.fillRect(-7, -3, 14, 1);
+            } else {
+                ctx.fillStyle = '#172a22'; ctx.fillRect(-7, -5, 14, 10);
+                const cap = ctx.createLinearGradient(-5, 0, 5, 0); cap.addColorStop(0, '#18392e'); cap.addColorStop(.4, '#75ac88'); cap.addColorStop(.7, '#346b50'); cap.addColorStop(1, '#0d251c');
+                ctx.fillStyle = cap; ctx.fillRect(-5, -5, 10, 10);
+                ctx.fillStyle = '#c5d4bf'; ctx.beginPath(); ctx.ellipse(0, -4, 5, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#60715a'; ctx.lineWidth = .6; ctx.beginPath(); ctx.moveTo(-3, -4); ctx.lineTo(3, -4); ctx.stroke();
+            }
+            ctx.fillStyle = '#10271b'; ctx.fillRect(20, -3, 7, 6);
+            ctx.shadowColor = kind % 2 ? '#7cf7ce' : '#ffd16c'; ctx.shadowBlur = 4 + pulse * 5;
+            ctx.fillStyle = kind % 2 ? `rgba(122,247,206,${.45 + pulse * .55})` : `rgba(255,201,95,${.45 + pulse * .55})`;
+            ctx.fillRect(21, -2, 5, 4); ctx.restore();
+        }
+
+        function drawHeader(record, all, pulse) {
+            const bar = record.element?.querySelector('.vd-window-titlebar');
+            if (!bar) return;
+            const rect = bar.getBoundingClientRect();
+            const y = rect.bottom - 12;
+            ctx.save();
+            clipOutside(ctx, all.filter(other => Number(other.z) > Number(record.z)).map(rectFor).filter(Boolean).concat(overlayMasks.filter(mask => !mask.desktop)));
+            ctx.beginPath(); ctx.rect(rect.x + 6, rect.bottom - 23, rect.width - 12, 22); ctx.clip();
+            ctx.strokeStyle = '#9a6838'; ctx.lineWidth = .8;
+            for (let lane = 0; lane < 3; lane++) {
+                ctx.beginPath(); ctx.moveTo(rect.x + 10, y - 5 + lane * 5);
+                for (let x = rect.x + 20; x < rect.right; x += 42) { ctx.lineTo(x, y - 5 + lane * 5); ctx.lineTo(x + 6, y - 8 + lane * 5); ctx.lineTo(x + 24, y - 8 + lane * 5); }
+                ctx.stroke();
+            }
+            for (let i = 0; i < Math.min(12, Math.floor(rect.width / 86)); i++) {
+                component(rect.x + 34 + i * 86, y, i % 3, 0, motion ? .5 + .5 * Math.sin(elapsed * 2.6 - i * .9) : pulse);
+            }
+            ctx.strokeStyle = '#baf3da'; ctx.shadowColor = '#7fffd4'; ctx.shadowBlur = 5;
+            ctx.setLineDash([8, 93]); ctx.lineDashOffset = motion ? -elapsed * 42 : 0;
+            ctx.beginPath(); ctx.moveTo(rect.x, y + 8); ctx.lineTo(rect.right, y + 8); ctx.stroke();
             ctx.restore();
         }
 

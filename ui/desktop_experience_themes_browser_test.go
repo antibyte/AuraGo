@@ -54,9 +54,14 @@ func TestDesktopExperienceWindowLifecycleBrowser(t *testing.T) {
 
 func TestDesktopExperienceThemeAtomicSelectionBrowser(t *testing.T) {
 	s := newThemeSweepSession(t, "reduce")
+	s.store.set(map[string]string{"appearance.wallpaper": "forest", "appearance.wallpaper_by_space": `{"1":"midnight","2":"forest"}`, "appearance.theme_cursors": "false", "sound.theme": "wood", "sound.enabled": "false"})
+	s.pushSettings(t)
 	s.openApps(t, "settings")
 	s.eval(t, `()=>{const send=window.fetch;window.themePuts=[];window.rejectTheme=false;window.fetch=async function(url,init){if(String(url).includes('/api/desktop/settings')&&init?.method==='PUT'){const body=JSON.parse(init.body);themePuts.push(body);if(rejectTheme&&body.settings?.['appearance.theme'])return new Response(JSON.stringify({error:'Fixture theme transaction rejected'}),{status:409,headers:{'Content-Type':'application/json'}});}return send.apply(this,arguments);};document.querySelector('[data-desktop-theme="windows_xp"]').click();}`)
 	s.waitFor(t, "XP transaction", 10*time.Second, `()=>document.body.dataset.theme==='windows_xp' && !!document.querySelector('.vd-start-xp-links')`)
+	if got := s.eval(t, `()=>({puts:themePuts.length,wallpaper:auditTest.settingValue('appearance.wallpaper'),spaces:auditTest.settingValue('appearance.wallpaper_by_space'),cursor:document.body.dataset.cursorTheme,sound:auditTest.settingValue('sound.theme'),enabled:auditTest.settingValue('sound.enabled'),keys:Object.keys(themePuts[0].settings).length})`).Value; got.Get("puts").Int() != 1 || got.Get("keys").Int() != 6 || got.Get("wallpaper").Str() != "windows_xp" || got.Get("spaces").Str() != "{}" || got.Get("cursor").Str() != "windows_xp" || got.Get("sound").Str() != "windows_xp" || got.Get("enabled").Str() != "false" {
+		t.Fatalf("theme preset was not applied atomically or changed master mute: %s", got.String())
+	}
 	if got := s.eval(t, `()=>({theme:themePuts.find(x=>x.settings?.['appearance.theme'])?.settings['appearance.theme'],icon:auditTest.settingValue('appearance.icon_theme'),variant:document.body.dataset.startMenu})`).Value; got.Get("theme").Str() != "windows_xp" || got.Get("icon").Str() != "windows_xp" || got.Get("variant").Str() != "xp" {
 		t.Fatalf("non-atomic theme selection: %s", got.String())
 	}
@@ -71,6 +76,20 @@ func TestDesktopExperienceThemeAtomicSelectionBrowser(t *testing.T) {
 	if got := s.eval(t, `()=>[auditTest.settingValue('appearance.theme'),auditTest.settingValue('appearance.icon_theme'),document.body.dataset.theme].join(',')`).Value.Str(); got != "windows_xp,windows_xp,windows_xp" {
 		t.Fatalf("failed transaction partially applied: %s", got)
 	}
+	if !s.eval(t, `()=>['appearance.wallpaper','sound.theme'].every(key=>auditTest.settingValue(key)==='windows_xp') && document.body.dataset.cursorTheme==='windows_xp'`).Value.Bool() {
+		t.Fatal("failed theme transaction changed a paired preset setting")
+	}
+	s.eval(t, `()=>{window.rejectTheme=false;}`)
+	for _, id := range []string{"electronic_dreams", "green_slime", "voxel_world", "windows_xp"} {
+		s.eval(t, `(id)=>document.querySelector('[data-desktop-theme="'+id+'"]').click()`, id)
+		s.waitFor(t, "complete selected preset", 10*time.Second, `(id)=>document.body.dataset.theme===id && document.body.dataset.cursorTheme===id && ['appearance.wallpaper','sound.theme'].every(key=>auditTest.settingValue(key)===id)`, id)
+	}
+	s.page.MustReload().MustWaitLoad()
+	s.waitFor(t, "saved preset after reload", 10*time.Second, `()=>document.body.dataset.theme==='windows_xp' && document.body.dataset.cursorTheme==='windows_xp' && ['appearance.wallpaper','sound.theme'].every(key=>auditTest.settingValue(key)==='windows_xp')`)
+	// Later customizations belong to the user until they deliberately select a theme again.
+	s.store.set(map[string]string{"appearance.wallpaper": "forest", "appearance.wallpaper_by_space": `{"2":"midnight"}`, "appearance.theme_cursors": "false", "sound.theme": "wood"})
+	s.page.MustReload().MustWaitLoad()
+	s.waitFor(t, "customized preset after reload", 10*time.Second, `()=>document.body.dataset.theme==='windows_xp' && auditTest.settingValue('appearance.wallpaper')==='forest' && auditTest.settingValue('appearance.wallpaper_by_space')==='{"2":"midnight"}' && auditTest.settingValue('sound.theme')==='wood' && document.body.dataset.cursorTheme!=='windows_xp'`)
 }
 
 // Real WebGL rendering and Rapier loading are checked separately from the CPU-only theme sweep.
@@ -133,6 +152,9 @@ func checkDesktopThemeOcclusion(t *testing.T, id string, fallback bool) {
 	s.store.set(map[string]string{"appearance.theme": id, "appearance.wallpaper": id, "windows.animations": "false"})
 	s.pushSettings(t)
 	s.openApps(t, "files", "calculator")
+	// Desktop objects are behind windows. Their rectangles must not punch holes
+	// through the material frame of a foreground window (including WebGL fallback).
+	s.eval(t, `()=>{for(const [name,top] of [['vd-widget',320],['vd-icon',460]]){const el=document.createElement('div');el.className=name;el.style.cssText='position:fixed;left:560px;top:'+top+'px;width:160px;height:120px;background:#604c80;z-index:10;';document.body.appendChild(el);}}`)
 	s.eval(t, `()=>{for(const w of auditTest.state.windows.values()){Object.assign(w.element.style,w.appId==='files'?{left:'140px',top:'120px',width:'700px',height:'560px'}:{left:'620px',top:'300px',width:'380px',height:'480px'});}dispatchEvent(new CustomEvent('aurago:desktop-windows-refresh'));}`)
 	s.waitFor(t, "two rendered windows", 30*time.Second, `(id)=>{const f=window.AuraDesktopThemeFx?.inspect();return f?.activeId===id && (f.ready || f.renderer==='fallback') && f.windowCount===2;}`, id)
 	if id == "voxel_world" {

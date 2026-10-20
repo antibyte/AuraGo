@@ -94,7 +94,7 @@
             if (!fallbackContext || !fallbackDirty || s.stopped) return;
             fallbackDirty = false;
             const ctx = fallbackContext;
-            const { width, height, windowRects, maskRects } = s;
+            const { width, height, windowRects, maskRects, desktopRects } = s;
             const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
             fallback.width = Math.max(1, Math.round(width * dpr));
             fallback.height = Math.max(1, Math.round(height * dpr));
@@ -102,7 +102,7 @@
             ctx.clearRect(0, 0, width, height);
             if (fullWallpaper) {
                 ctx.save();
-                clipOutsideRects(ctx, windowRects.map(item => item.rect).concat(maskRects), width, height);
+                clipOutsideRects(ctx, windowRects.map(item => item.rect).concat(maskRects, desktopRects), width, height);
                 const tile = clamp(Math.round(height / 30), 18, 30);
                 const fillBlock = (x, y, w, h, color, alpha) => {
                     ctx.globalAlpha = alpha == null ? .9 : alpha;
@@ -448,7 +448,7 @@
 
             const backgroundMaskMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
             setStencil(backgroundMaskMaterial, true, 2, 0xff, 2);
-            backgroundMaskMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), backgroundMaskMaterial, MAX_WINDOWS);
+            backgroundMaskMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), backgroundMaskMaterial, MAX_WINDOWS + MAX_MASKS);
             backgroundMaskMesh.count = 0;
             backgroundMaskMesh.frustumCulled = false;
             backgroundMaskMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -481,7 +481,7 @@
         function updateSceneInstances() {
             const s = state();
             if (!ready || !scene || !THREE || !windowDepthMesh) return;
-            const { width, height, windowRects, maskRects, damageWindows, assemblingWindows } = s;
+            const { width, height, windowRects, maskRects, desktopRects, damageWindows, assemblingWindows } = s;
             let frameIndex = 0;
             const now = performance.now();
             const windowCount = Math.min(windowRects.length, MAX_WINDOWS);
@@ -562,9 +562,10 @@
             }
             maskMesh.instanceMatrix.needsUpdate = true;
 
-            backgroundMaskMesh.count = Math.min(windowRects.length, MAX_WINDOWS);
+            const backgroundRects = windowRects.map(item => item.rect).concat(desktopRects);
+            backgroundMaskMesh.count = Math.min(backgroundRects.length, MAX_WINDOWS + MAX_MASKS);
             for (let i = 0; i < backgroundMaskMesh.count; i++) {
-                const rect = windowRects[i].rect;
+                const rect = backgroundRects[i];
                 workObject.position.set(pixelX(rect.x + rect.width / 2, width), pixelY(rect.y + rect.height / 2, height), 2);
                 workObject.rotation.set(0, 0, 0);
                 workObject.scale.set(rect.width / PIXELS_PER_METER, rect.height / PIXELS_PER_METER, 1);

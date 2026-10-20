@@ -102,7 +102,7 @@
     position: relative;
     border-bottom: 1px solid #657c3b;
     border-radius: 19px 16px 8px 8px;
-    background: linear-gradient(165deg, #91b94a 0%, #4c682b 16%, #31471f 67%, #29391c 100%);
+    background: linear-gradient(172deg, #d5f878 0%, #8dbd3a 6%, #4c7325 20%, #31471f 62%, #203811 88%, #658d28);
     color: #f5f9e8;
     text-shadow: 0 1px 2px rgba(13, 23, 6, .8);
 }
@@ -112,19 +112,44 @@
     z-index: 1;
     left: 16px;
     right: 24px;
-    top: calc(100% - 1px);
-    height: 9px;
-    background: linear-gradient(180deg, #354c20, #526c2c);
-    clip-path: polygon(0 0, 100% 0, 100% 48%, 91% 48%, 89% 100%, 86% 100%, 84% 48%, 66% 48%, 64% 75%, 61% 75%, 59% 48%, 38% 48%, 36% 100%, 33% 100%, 31% 48%, 12% 48%, 10% 72%, 7% 72%, 6% 48%, 0 48%);
-    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .24));
+    bottom: 1px;
+    height: 12px;
+    background:
+        radial-gradient(ellipse at 18% 70%, #e5ff9b88 0 2px, #547b2b44 3px 5px, transparent 6px),
+        radial-gradient(ellipse at 43% 60%, #d5f97588 0 1px, #43691d55 2px 4px, transparent 5px),
+        radial-gradient(ellipse at 76% 75%, #e5ff9b88 0 3px, #3d5e2088 4px 6px, transparent 7px),
+        linear-gradient(180deg, transparent 65%, #b1e95866);
     pointer-events: none;
 }
 .desktop-body[data-theme="green_slime"] .vd-window-button {
+    position: relative;
     border: 1px solid rgba(206, 238, 126, .56);
     border-radius: 50%;
     background: radial-gradient(circle at 34% 25%, #d7f293, #8fba43 42%, #4d6a27 100%);
     color: #19240c;
     box-shadow: inset 0 1px 2px #f4ffd3, 0 2px 3px rgba(0, 0, 0, .28);
+}
+.desktop-body[data-theme="green_slime"] .vd-window-button::before {
+    content: "";
+    display: block;
+    position: absolute;
+    inset: 2px 4px 56%;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #fbffe4aa, #dbff7e11);
+    pointer-events: none;
+    transform-origin: 40% 65%;
+}
+.desktop-body[data-theme="green_slime"]:not([data-animations="false"]) .vd-window-button::before { animation: vd-theme-green-slime-gloss 3.8s ease-in-out infinite alternate; }
+.desktop-body[data-theme="green_slime"]:not([data-animations="false"]) .vd-window-titlebar::after { animation: vd-theme-green-slime-bubbles 5.5s ease-in-out infinite alternate; }
+.desktop-body[data-theme="green_slime"] .vd-window-button:active::before { transform: scale(.7, .5); opacity: .45; }
+.desktop-body[data-theme="green_slime"]:not([data-animations="false"]) .vd-window-button:active::before { animation: none; }
+@keyframes vd-theme-green-slime-gloss {
+    from { transform: translate(-1px, 0) scale(.88, 1); opacity: .65; }
+    to { transform: translate(1px, 1px) scale(1.08, .7); opacity: 1; }
+}
+@keyframes vd-theme-green-slime-bubbles {
+    from { transform: translateX(-3px) scaleY(.8); opacity: .6; }
+    to { transform: translateX(4px) scaleY(1.15); opacity: 1; }
 }
 .desktop-body[data-theme="green_slime"] .vd-window-button:hover { background: radial-gradient(circle at 34% 25%, #ecffb5, #a7d756 45%, #5f8030); }
 .desktop-body[data-theme="green_slime"] .vd-window-button[data-action="close"] { color: #3a220d; background: radial-gradient(circle at 34% 25%, #ffe1a0, #d88d40 55%, #845323); }

@@ -50,7 +50,6 @@
         const springs = new Set();
         const springAt = new Map();
         const surfaces = new Map();
-        const nextDropAt = new Map();
         const motionDrives = new Map();
         let clock = 0;
         let frameCount = 0;
@@ -99,7 +98,6 @@
                 for (const id of surfaces.keys()) {
                     if (!records.has(id)) {
                         surfaces.delete(id);
-                        nextDropAt.delete(id);
                         motionDrives.delete(id);
                     }
                 }
@@ -149,7 +147,6 @@
                 }
                 records.delete(id);
                 surfaces.delete(id);
-                nextDropAt.delete(id);
                 motionDrives.delete(id);
                 dirty = true;
                 requestFrame();
@@ -159,7 +156,6 @@
             else {
                 records.delete(id);
                 surfaces.delete(id);
-                nextDropAt.delete(id);
                 motionDrives.delete(id);
             }
             if (record.phase === 'drag' && record.velocity) {
@@ -195,7 +191,8 @@
                 if (style && (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)) continue;
                 const rect = element.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.right >= 0 && rect.top <= height && rect.left <= width) {
-                    masks.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+                    masks.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height,
+                        desktop: element.matches('.vd-icon, .vd-widget') && !element.classList.contains('vd-dragging') });
                 }
             }
             cachedOverlayMasks = masks;
@@ -226,24 +223,25 @@
         }
 
         function surfaceTargets(rect) {
-            const outline = { x: rect.x - 5, y: rect.y - 5, width: rect.width + 10, height: rect.height + 10 };
+            const outline = { x: rect.x - 8, y: rect.y - 8, width: rect.width + 16, height: rect.height + 16 };
             const sideCount = SURFACE_SAMPLES / 4;
+            const corner = 14;
             const points = [];
             for (let i = 0; i < sideCount; i++) {
-                const t = (i + .5) / sideCount;
-                points.push({ x: outline.x + outline.width * t, y: outline.y });
+                const t = i / (sideCount - 1);
+                points.push({ x: outline.x + corner + (outline.width - corner * 2) * t, y: outline.y });
             }
             for (let i = 0; i < sideCount; i++) {
-                const t = (i + .5) / sideCount;
-                points.push({ x: outline.x + outline.width, y: outline.y + outline.height * t });
+                const t = i / (sideCount - 1);
+                points.push({ x: outline.x + outline.width, y: outline.y + corner + (outline.height - corner * 2) * t });
             }
             for (let i = 0; i < sideCount; i++) {
-                const t = (i + .5) / sideCount;
-                points.push({ x: outline.x + outline.width * (1 - t), y: outline.y + outline.height });
+                const t = i / (sideCount - 1);
+                points.push({ x: outline.x + corner + (outline.width - corner * 2) * (1 - t), y: outline.y + outline.height });
             }
             for (let i = 0; i < sideCount; i++) {
-                const t = (i + .5) / sideCount;
-                points.push({ x: outline.x, y: outline.y + outline.height * (1 - t) });
+                const t = i / (sideCount - 1);
+                points.push({ x: outline.x, y: outline.y + corner + (outline.height - corner * 2) * (1 - t) });
             }
             return points;
         }
@@ -252,19 +250,28 @@
             const baseTargets = surfaceTargets(rect);
             const drive = motionDrives.get(id);
             const targets = baseTargets.map((point, i) => {
-                if (!motion || !drive || drive.strength < .1) return point;
+                if (!motion) return point;
                 const side = Math.floor(i / (SURFACE_SAMPLES / 4));
                 const normal = SURFACE_NORMALS[side];
+                // Slow, travelling surface tension, independent of dragging. Adjacent
+                // points have different phases so the skin flows instead of translating.
+                const breathing = Math.sin(clock * 1.35 + i * .71) * 4.5 + Math.sin(clock * .63 - i * 1.11) * 1.8;
+                const living = { x: point.x + normal.x * breathing, y: point.y + normal.y * breathing };
+                if (!drive || drive.strength < .1) return living;
                 const trailing = Math.max(0, -(drive.x * normal.x + drive.y * normal.y));
                 const along = (i % (SURFACE_SAMPLES / 4) + .5) / (SURFACE_SAMPLES / 4);
                 const bulge = drive.strength * trailing * (.42 + .58 * Math.sin(Math.PI * along));
-                return { x: point.x - drive.x * bulge, y: point.y - drive.y * bulge };
+                return { x: living.x - drive.x * bulge, y: living.y - drive.y * bulge };
             });
             let surface = surfaces.get(id);
             if (!surface) {
-                surface = { nodes: baseTargets.map(point => ({ ...point, vx: 0, vy: 0 })) };
+                const seed = Array.from(id).reduce((sum, letter) => sum + letter.charCodeAt(0), 0);
+                surface = {
+                    nodes: baseTargets.map(point => ({ ...point, vx: 0, vy: 0 })),
+                    drips: [17, 19, 21, 22, 13, 27].map((node, i) => ({ node,
+                        period: 4.6 + i * .61, offset: (seed % 17) * .23 + i * 1.13, cycle: -1 }))
+                };
                 surfaces.set(id, surface);
-                if (motion) nextDropAt.set(id, clock + 1.8 + Math.random() * 1.8);
             }
             const nodes = surface.nodes;
             if (!motion || dt <= 0) {
@@ -322,12 +329,17 @@
 
         function detachPeriodicDrop(id, surface) {
             if (!motion) return;
-            const due = nextDropAt.get(id);
-            if (due == null || clock < due) return;
-            const node = surface.nodes[17 + Math.floor(Math.random() * 6)];
-            addDrop(node.x, node.y + 1, 3.5 + Math.random() * 2.5,
-                node.vx * .08 + (Math.random() - .5) * 24, 30 + Math.random() * 28, 1.05 + Math.random() * .55);
-            nextDropAt.set(id, clock + 2.2 + Math.random() * 2.8);
+            for (const drip of surface.drips) {
+                const time = (clock + drip.offset) / drip.period;
+                const cycle = Math.floor(time);
+                const phase = time - cycle;
+                if (phase < .84 || drip.cycle === cycle) continue;
+                drip.cycle = cycle;
+                const node = surface.nodes[drip.node];
+                addDrop(node.x, node.y + 44, 6.5, node.vx * .08, 28, 1.6);
+                // Recoil travels back into the membrane after the neck tears.
+                node.vy -= 48;
+            }
         }
 
         function contourPath(nodes) {
@@ -347,9 +359,10 @@
             const stretch = 1 + Math.min(1.2, Math.abs(drop.vy) / 220);
             const size = drop.size;
             const gradient = ctx.createLinearGradient(drop.x - size, drop.y - size, drop.x + size, drop.y + size);
-            gradient.addColorStop(0, 'rgba(239,249,168,.98)');
-            gradient.addColorStop(.36, 'rgba(177,207,68,.97)');
-            gradient.addColorStop(1, 'rgba(96,124,31,.94)');
+            gradient.addColorStop(0, '#f2ffbc');
+            gradient.addColorStop(.26, '#c3f34c');
+            gradient.addColorStop(.62, '#75ac1e');
+            gradient.addColorStop(1, '#354f0c');
             ctx.globalAlpha = alpha;
             ctx.fillStyle = gradient;
             ctx.shadowColor = 'rgba(126,158,40,.48)';
@@ -362,28 +375,39 @@
             ctx.closePath();
             ctx.fill();
             ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(250,255,214,.9)';
+            ctx.beginPath();
+            ctx.ellipse(drop.x - size * .25, drop.y, size * .14, size * .4, -.25, 0, Math.PI * 2);
+            ctx.fill();
             ctx.globalAlpha = 1;
         }
 
-        function drawDrip(point, len, dripWidth, pulse) {
+        function drawDrip(point, len, dripWidth, phase) {
             const y = point.y;
             const end = y + len;
-            const gradient = ctx.createLinearGradient(point.x, y, point.x + 4, end);
-            gradient.addColorStop(0, 'rgba(220,239,118,.96)');
-            gradient.addColorStop(1, 'rgba(112,145,37,.96)');
+            const gradient = ctx.createLinearGradient(point.x - dripWidth, y, point.x + dripWidth, end);
+            gradient.addColorStop(0, '#e5ff91');
+            gradient.addColorStop(.28, '#b2e936');
+            gradient.addColorStop(.66, '#73a51d');
+            gradient.addColorStop(1, '#3d6413');
             ctx.fillStyle = gradient;
-            ctx.shadowColor = 'rgba(117,151,39,.48)';
-            ctx.shadowBlur = 10 + pulse * 3;
+            ctx.shadowColor = 'rgba(12,28,1,.5)';
+            ctx.shadowBlur = 5;
+            ctx.shadowOffsetY = 3;
+            const bulb = 4 + phase * 4;
+            const neck = Math.max(.7, dripWidth * (1 - phase * .9));
             ctx.beginPath();
             ctx.moveTo(point.x - dripWidth, y);
-            ctx.bezierCurveTo(point.x - dripWidth * .8, y + len * .32, point.x - 2, end - dripWidth, point.x, end);
-            ctx.bezierCurveTo(point.x + 2, end - dripWidth, point.x + dripWidth * .8, y + len * .32, point.x + dripWidth, y);
+            ctx.bezierCurveTo(point.x - neck, y + len * .3, point.x - neck, end - bulb * 1.8, point.x - bulb, end - bulb);
+            ctx.bezierCurveTo(point.x - bulb * 1.35, end + bulb, point.x + bulb * 1.35, end + bulb, point.x + bulb, end - bulb);
+            ctx.bezierCurveTo(point.x + neck, end - bulb * 1.8, point.x + neck, y + len * .3, point.x + dripWidth, y);
             ctx.closePath();
             ctx.fill();
             ctx.shadowBlur = 0;
-            ctx.fillStyle = 'rgba(244,255,184,.82)';
+            ctx.shadowOffsetY = 0;
+            ctx.fillStyle = 'rgba(249,255,210,.92)';
             ctx.beginPath();
-            ctx.ellipse(point.x - 1, y + 7, 1.3, Math.max(2, len * .14), -.16, 0, Math.PI * 2);
+            ctx.ellipse(point.x - bulb * .3, end - bulb * .4, 1.5, bulb * .55, -.3, 0, Math.PI * 2);
             ctx.fill();
         }
 
@@ -391,37 +415,65 @@
             if (!rect || !surface) return;
             ctx.save();
             clipOut(ctx, blockers);
-            const pulse = motion ? .5 + .5 * Math.sin(clock * 2.25 + (Number(record.z) || 0) * .011) : .55;
             const nodes = surface.nodes;
             const first = nodes[0];
             const gradient = ctx.createLinearGradient(first.x, first.y, nodes[16].x, nodes[16].y);
-            gradient.addColorStop(0, 'rgba(225,244,132,.98)');
-            gradient.addColorStop(.28, 'rgba(174,207,69,.98)');
-            gradient.addColorStop(.62, 'rgba(121,157,43,.97)');
-            gradient.addColorStop(1, 'rgba(76,108,32,.97)');
+            gradient.addColorStop(0, '#bce65b');
+            gradient.addColorStop(.28, '#83b529');
+            gradient.addColorStop(.62, '#537f19');
+            gradient.addColorStop(1, '#9bcb38');
             ctx.lineJoin = 'round';
-            ctx.lineWidth = 14;
-            ctx.strokeStyle = 'rgba(139,174,48,' + (.12 + pulse * .14) + ')';
-            ctx.shadowColor = 'rgba(122,157,40,.5)';
-            ctx.shadowBlur = 18 + pulse * 8;
+            ctx.lineWidth = 28;
+            ctx.strokeStyle = '#38550d';
+            ctx.shadowColor = 'rgba(8,19,0,.5)';
+            ctx.shadowBlur = 9;
+            ctx.shadowOffsetY = 5;
             contourPath(nodes);
             ctx.stroke();
             ctx.shadowBlur = 0;
-            ctx.lineWidth = 8;
+            ctx.shadowOffsetY = 0;
+            ctx.lineWidth = 24;
             ctx.strokeStyle = gradient;
             contourPath(nodes);
             ctx.stroke();
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = 'rgba(246,255,193,.88)';
+            // Broad rounded gel lobes merge into the membrane. Their highlights
+            // follow the spring nodes, so the material keeps its volume as it bends.
+            for (let i = 2; i < nodes.length; i += 5) {
+                const node = nodes[i];
+                const radius = 12.5 + (motion ? Math.sin(clock * .72 + i) * 2 : 0);
+                const gel = ctx.createRadialGradient(node.x - 4, node.y - 5, 1, node.x, node.y, radius);
+                gel.addColorStop(0, '#efffb4');
+                gel.addColorStop(.19, '#badd53');
+                gel.addColorStop(.58, '#88b92b');
+                gel.addColorStop(1, '#547f17');
+                ctx.fillStyle = gel;
+                ctx.beginPath(); ctx.arc(node.x, node.y, radius, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = 'rgba(237,255,183,.87)';
+            ctx.save();
+            ctx.translate(-5, -6);
             contourPath(nodes);
             ctx.stroke();
-
-            const drips = [
-                { point: nodes[17], len: 18 + pulse * 8, width: 4 },
-                { point: nodes[20], len: 11 + pulse * 7, width: 3 },
-                { point: nodes[22], len: 25 + pulse * 11, width: 5 }
-            ];
-            for (const drip of drips) drawDrip(drip.point, drip.len, drip.width, pulse);
+            ctx.restore();
+            for (let i = 1; i < nodes.length; i += 2) {
+                const node = nodes[i];
+                const radius = 1.5 + (i % 4) * .7;
+                const drift = motion ? Math.sin(clock * .75 + i) * 2 : 0;
+                ctx.fillStyle = '#547d16';
+                ctx.strokeStyle = '#d2f277';
+                ctx.lineWidth = .8;
+                ctx.beginPath();
+                ctx.ellipse(node.x + drift, node.y, radius, radius * 1.2, .3, 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#f4ffc8';
+                ctx.beginPath(); ctx.arc(node.x + drift - .6, node.y - radius * .55, .7, 0, Math.PI * 2); ctx.fill();
+            }
+            for (const drip of surface.drips) {
+                const phase = motion ? ((clock + drip.offset) / drip.period) % 1 : .45;
+                const growth = phase < .84 ? phase / .84 : Math.max(0, (1 - phase) * 1.7);
+                drawDrip(nodes[drip.node], 7 + 37 * growth * growth, 9 - growth * 3, growth);
+            }
             ctx.restore();
         }
 
@@ -455,7 +507,7 @@
                 const id = String(record.id);
                 const surface = followSurface(id, rect, dt);
                 detachPeriodicDrop(id, surface);
-                const frameBlockers = all.filter(other => (Number(other.z) || 0) >= (Number(record.z) || 0)).map(rectFor).filter(Boolean).concat(overlays);
+                const frameBlockers = all.filter(other => (Number(other.z) || 0) >= (Number(record.z) || 0)).map(rectFor).filter(Boolean).concat(overlays.filter(mask => !mask.desktop));
                 drawWindow(record, rect, surface, frameBlockers);
             }
             if (freeDrops.length) {
@@ -513,7 +565,6 @@
             freeDrops.length = 0;
             records.clear();
             surfaces.clear();
-            nextDropAt.clear();
             motionDrives.clear();
             canvas.remove();
         }
