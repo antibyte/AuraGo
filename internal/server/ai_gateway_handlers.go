@@ -13,6 +13,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/prompts"
+	"aurago/internal/security"
 	openai "github.com/sashabaranov/go-openai"
 )
 
@@ -68,6 +69,7 @@ func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, parent context.
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	s.CfgMu.RLock()
+	revision := s.providerETag()
 	cfg := *s.Cfg
 	cfg.Providers = append([]config.ProviderEntry(nil), s.Cfg.Providers...)
 	s.CfgMu.RUnlock()
@@ -78,6 +80,9 @@ func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, parent context.
 	p := config.ProviderEntry{ID: providerID, Type: cfg.LLM.ProviderType, BaseURL: cfg.LLM.BaseURL, APIKey: cfg.LLM.APIKey, AccountID: cfg.LLM.AccountID, GatewayID: cfg.LLM.GatewayID, Model: cfg.LLM.Model}
 	if saved := cfg.FindProvider(providerID); saved != nil {
 		p = *saved
+		if normalizeProviderAuthType(p.AuthType) == "oauth2" {
+			p.APIKey = p.RuntimeAPIKey()
+		}
 	} else if providerID != "" && providerID != cfg.LLM.Provider {
 		writeAIGatewayError(w, nil, "provider_not_found", http.StatusNotFound, 0)
 		return
@@ -90,7 +95,27 @@ func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, parent context.
 		json.NewEncoder(w).Encode(result)
 		return
 	}
-	RegisterLLMSecrets(&cfg)
+	writeSavedProviderProbe(w, s, parent, &cfg, p, kind, result, revision)
+}
+
+func executeProviderProbeNetwork(w http.ResponseWriter, s *Server, parent context.Context, cfg *config.Config, p config.ProviderEntry, kind string, result map[string]any) {
+	var probeSecrets llmSecretScope
+	probeSecrets.register(cfg, s.Vault)
+	defer probeSecrets.replaceAccessTokens(nil)
+	release := security.RegisterScopedSensitiveExact(p.APIKey)
+	defer release()
+	if p.APIKey == maskedKey || p.OAuthClientSecret == maskedKey {
+		writeAIGatewayError(w, result, "invalid_masked_credential", 409, 0)
+		return
+	}
+	if normalizeProviderAuthType(p.AuthType) == "oauth2" && p.APIKey == "" {
+		writeAIGatewayError(w, result, "provider_auth_missing", 409, 0)
+		return
+	}
+	if err := config.ValidateGatewayProvider(p); err != nil {
+		writeAIGatewayError(w, result, "provider_incomplete", 409, 0)
+		return
+	}
 	ctx, cancel := context.WithTimeout(parent, 20*time.Second)
 	defer cancel()
 	if s.integrationCtx != nil {
@@ -98,7 +123,7 @@ func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, parent context.
 		defer stop()
 	}
 	if kind == "generation" {
-		if p.APIKey == "" || p.Model == "" {
+		if (p.APIKey == "" && !providerTypeWorksWithoutKey(p.Type)) || p.Model == "" || p.APIKey == maskedKey {
 			writeAIGatewayError(w, result, "provider_auth_missing", http.StatusConflict, 0)
 			return
 		}
@@ -106,7 +131,7 @@ func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, parent context.
 			writeAIGatewayError(w, result, "budget_unavailable", http.StatusConflict, 0)
 			return
 		}
-		client := llm.NewClientFromProviderWithConfig(&cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID, p.GatewayID)
+		client := llm.NewClientFromProviderWithConfig(cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID, p.GatewayID)
 		ctx = budget.WithTracking(llm.WithSingleCompletionAttempt(ctx), s.BudgetTracker, "ai_gateway_test")
 		request := openai.ChatCompletionRequest{Model: p.Model, MaxTokens: 32, Messages: []openai.ChatCompletionMessage{{Role: "user", Content: "Reply OK."}}}
 		response, err := budget.CompleteChat(ctx, llm.WrapOpenAIClient(client), request, llm.ModelRoute{ProviderID: p.ID, ProviderType: p.Type, BaseURL: p.BaseURL, Model: p.Model}, "ai_gateway_test", 32, prompts.CountTokensForModelContext)
@@ -139,12 +164,15 @@ func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, parent context.
 		writeAIGatewayError(w, result, "provider_auth_missing", http.StatusConflict, 0)
 		return
 	}
-	req, client, err := llm.AIGatewayMetadataProbe(ctx, &cfg, p)
+	req, client, err := llm.ProviderMetadataProbe(ctx, cfg, p)
 	if err != nil {
 		writeAIGatewayError(w, result, "probe_failed", http.StatusServiceUnavailable, 0)
 		return
 	}
 	if req == nil {
+		if _, known := result["status"]; !known {
+			result["status"] = "unsupported"
+		}
 		result["live_status"] = "skipped"
 		result["code"] = "metadata_probe_unavailable"
 		json.NewEncoder(w).Encode(result)

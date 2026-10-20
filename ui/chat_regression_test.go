@@ -2078,8 +2078,8 @@ func TestConfigFrontendManifestProviderTypeIsExplicitAndManaged(t *testing.T) {
 		"config.providers.hint.manifest",
 		"config.providers.manifest_url_auto",
 		"const isManagedGateway = typ === 'manifest' || typ === 'omniroute';",
-		"type === 'workers-ai'",
-		"type === 'manifest'",
+		"['workers-ai', 'cloudflare-rest']",
+		"typ === 'manifest'",
 	} {
 		if !strings.Contains(moduleJS, marker) {
 			t.Fatalf("%s missing explicit Manifest provider marker %q", modulePath, marker)
@@ -2286,7 +2286,7 @@ func TestConfigFrontendOmniRouteProviderTypeIsExplicitAndManaged(t *testing.T) {
 		"config.providers.hint.omniroute",
 		"config.providers.omniroute_url_auto",
 		"const isManagedGateway = typ === 'manifest' || typ === 'omniroute';",
-		"type === 'omniroute'",
+		"typ === 'omniroute'",
 	} {
 		if !strings.Contains(moduleJS, marker) {
 			t.Fatalf("%s missing explicit OmniRoute provider marker %q", modulePath, marker)

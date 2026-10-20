@@ -139,6 +139,9 @@ func handleSetVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Key = canonicalVaultSecretKey(req.Key)
+	if rejectManagedProviderVaultWrite(s, w, req.Key) {
+		return
+	}
 	if reservedVaultSecretKey(req.Key) {
 		jsonError(w, "Authentication and session secrets require the dedicated security settings workflow", http.StatusForbidden)
 		return
@@ -203,6 +206,9 @@ func handleDeleteVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	key = canonicalVaultSecretKey(key)
+	if rejectManagedProviderVaultWrite(s, w, key) {
+		return
+	}
 	if reservedVaultSecretKey(key) {
 		jsonError(w, "Authentication and session secrets require the dedicated security settings workflow", http.StatusForbidden)
 		return

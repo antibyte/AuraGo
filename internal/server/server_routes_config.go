@@ -25,6 +25,8 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/security/hints", handleSecurityHints(s))
 	mux.HandleFunc("/api/security/harden", handleSecurityHarden(s))
 
+	mux.Handle("/api/providers/status", requireAdmin(s, handleProviderStatus(s)))
+	mux.Handle("/api/providers/test", requireAdmin(s, handleProviderTest(s)))
 	mux.HandleFunc("/api/providers", handleProviders(s))
 	mux.HandleFunc("/api/providers/capabilities", handleProviderCapabilities(s))
 	mux.HandleFunc("/api/providers/pricing", handleProviderPricing(s))

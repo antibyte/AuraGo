@@ -110,7 +110,7 @@ func TestLLMRouterConfigSaveClearAndReferences(t *testing.T) {
 	before, _ := os.ReadFile(s.Cfg.ConfigPath)
 	rejected := httptest.NewRecorder()
 	handleUpdateConfig(s).ServeHTTP(rejected, httptest.NewRequest("PUT", "/api/config", strings.NewReader(`{"llm_router":{"areas":{"coding":{"provider":"missing"}}}}`)))
-	if rejected.Code != 400 {
+	if rejected.Code != 409 {
 		t.Fatalf("accepted missing provider: %d", rejected.Code)
 	}
 	after, _ := os.ReadFile(s.Cfg.ConfigPath)

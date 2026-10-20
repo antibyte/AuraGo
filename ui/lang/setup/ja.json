@@ -121,11 +121,11 @@
   "setup.step0_provider_openai": "OpenAI",
   "setup.step0_provider_openrouter": "OpenRouter",
   "setup.step0_security_heading": "🔐 管理者パスワード",
-  "setup.step0_test_connection": "🔌 接続テスト",
+  "setup.step0_test_connection": "メタデータを確認",
   "setup.step0_test_failed": "接続失敗。",
   "setup.step0_test_no_model": "先にモデル名を入力してください。",
-  "setup.step0_test_success": "接続成功！",
-  "setup.step0_test_testing": "接続テスト中...",
+  "setup.step0_test_success": "メタデータの接続先に到達できました。モデルによる生成はテストしていません。",
+  "setup.step0_test_testing": "メタデータを確認…",
   "setup.step0_title": "LLM 接続",
   "setup.step1_badge": "⭐ 推奨",
   "setup.step1_description": "これらの設定により、AuraGo の機能が大幅に向上します。今すぐ設定するか、後で Config UI で設定できます。",
@@ -230,5 +230,6 @@
   "setup.https_selfsigned": "ローカル証明書は自動生成されます。証明書を確認し、必要に応じてブラウザーや端末で信頼するように設定してください。",
   "setup.secure_ready": "このブラウザーは安全なコンテキストを報告しています。デスクトップ機能には、引き続きブラウザーの対応と端末の権限が必要です。",
   "setup.secure_unavailable": "このブラウザーは安全なコンテキストを報告していません。音声チャットやマイクへのアクセスなど、多くのデスクトップ機能を利用できない場合があります。",
-  "setup.https_manage": "HTTPSはインストーラー、またはセットアップ完了後のConfig → サーバーで変更できます。プロキシ経由のHTTPSやlocalhostでも安全なコンテキストを利用できる場合があります。"
+  "setup.https_manage": "HTTPSはインストーラー、またはセットアップ完了後のConfig → サーバーで変更できます。プロキシ経由のHTTPSやlocalhostでも安全なコンテキストを利用できる場合があります。",
+  "setup.step0_test_unsupported": "このプロバイダーはメタデータのテストに対応していません。"
 }

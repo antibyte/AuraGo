@@ -121,11 +121,11 @@
   "setup.step0_provider_openai": "OpenAI",
   "setup.step0_provider_openrouter": "OpenRouter",
   "setup.step0_security_heading": "🔐 एडमिन पासवर्ड",
-  "setup.step0_test_connection": "🔌 कनेक्शन टेस्ट",
+  "setup.step0_test_connection": "मेटाडेटा जाँचें",
   "setup.step0_test_failed": "कनेक्शन विफल।",
   "setup.step0_test_no_model": "कृपया पहले एक मॉडल नाम दर्ज करें।",
-  "setup.step0_test_success": "कनेक्शन सफल!",
-  "setup.step0_test_testing": "कनेक्शन टेस्ट हो रहा है...",
+  "setup.step0_test_success": "मेटाडेटा पता उपलब्ध है। मॉडल से उत्तर बनाना नहीं जाँचा गया।",
+  "setup.step0_test_testing": "मेटाडेटा जाँचें…",
   "setup.step0_title": "LLM कनेक्शन",
   "setup.step1_badge": "⭐ अनुशंसित",
   "setup.step1_description": "ये सेटिंग्स AuraGo की क्षमताओं में काफी सुधार करती हैं। अभी या बाद में कॉन्फ़िगर करें।",
@@ -230,5 +230,6 @@
   "setup.https_selfsigned": "स्थानीय प्रमाणपत्र अपने आप बनता है। उसकी जाँच करें और ज़रूरत हो तो ब्राउज़र या डिवाइस में उसे विश्वसनीय बनाएँ।",
   "setup.secure_ready": "यह ब्राउज़र सुरक्षित संदर्भ की सूचना देता है। डेस्कटॉप सुविधाओं के लिए अब भी ब्राउज़र समर्थन और डिवाइस अनुमतियाँ ज़रूरी हैं।",
   "setup.secure_unavailable": "यह ब्राउज़र सुरक्षित संदर्भ की सूचना नहीं देता है। वॉइस चैट और माइक्रोफ़ोन सहित डेस्कटॉप की कई सुविधाएँ अनुपलब्ध हो सकती हैं।",
-  "setup.https_manage": "HTTPS को इंस्टॉलर में या सेटअप पूरा होने के बाद Config → सर्वर में बदलें। प्रॉक्सी के ज़रिए HTTPS और localhost भी सुरक्षित संदर्भ दे सकते हैं।"
+  "setup.https_manage": "HTTPS को इंस्टॉलर में या सेटअप पूरा होने के बाद Config → सर्वर में बदलें। प्रॉक्सी के ज़रिए HTTPS और localhost भी सुरक्षित संदर्भ दे सकते हैं।",
+  "setup.step0_test_unsupported": "यह प्रदाता मेटाडेटा परीक्षण का समर्थन नहीं करता।"
 }

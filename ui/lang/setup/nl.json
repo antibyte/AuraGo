@@ -121,11 +121,11 @@
   "setup.step0_provider_openai": "OpenAI",
   "setup.step0_provider_openrouter": "OpenRouter",
   "setup.step0_security_heading": "🔐 Beheerderswachtwoord",
-  "setup.step0_test_connection": "🔌 Verbinding testen",
+  "setup.step0_test_connection": "Metadata controleren",
   "setup.step0_test_failed": "Verbinding mislukt.",
   "setup.step0_test_no_model": "Voer eerst een modelnaam in.",
-  "setup.step0_test_success": "Verbinding geslaagd!",
-  "setup.step0_test_testing": "Verbinding testen...",
+  "setup.step0_test_success": "Het metadata-adres is bereikbaar. Modelgeneratie is niet getest.",
+  "setup.step0_test_testing": "Metadata controleren…",
   "setup.step0_title": "LLM Verbinding",
   "setup.step1_badge": "⭐ Aanbevolen",
   "setup.step1_description": "Deze instellingen verbeteren de mogelijkheden van AuraGo aanzienlijk. Je kunt ze nu of later in de configuratie-interface configureren.",
@@ -230,5 +230,6 @@
   "setup.https_selfsigned": "Een lokaal certificaat wordt automatisch aangemaakt. Controleer het en voeg zo nodig vertrouwen toe in je browser of op je apparaat.",
   "setup.secure_ready": "Deze browser meldt een veilige context. Bureaubladfuncties vereisen nog steeds browserondersteuning en apparaatmachtigingen.",
   "setup.secure_unavailable": "Deze browser meldt geen veilige context. Veel bureaubladfuncties, waaronder spraakchat en microfoontoegang, zijn mogelijk niet beschikbaar.",
-  "setup.https_manage": "Wijzig HTTPS in het installatieprogramma of na de installatie onder Config → Server. HTTPS via een proxy en localhost kunnen ook een veilige context bieden."
+  "setup.https_manage": "Wijzig HTTPS in het installatieprogramma of na de installatie onder Config → Server. HTTPS via een proxy en localhost kunnen ook een veilige context bieden.",
+  "setup.step0_test_unsupported": "Deze provider ondersteunt geen metadatatest."
 }

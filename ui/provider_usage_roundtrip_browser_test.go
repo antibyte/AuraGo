@@ -23,16 +23,19 @@ func TestProviderUsageRoundTripKeepsGeneralDraftBrowser(t *testing.T) {
 			capabilities: {auto:false, tool_calling:true, structured_outputs:false, multimodal:true, detected_model:'claude/custom-model', source:'manual'}
 		}];
 		window.savedProviderPayloads = [];
+        window.fixtureProviderRevision = '"usage-r1"';
 		const originalFetch = window.fetch.bind(window);
 		window.fetch = async (input, options = {}) => {
 			const path = new URL(typeof input === 'string' ? input : input.url, location.origin).pathname;
 			if (path === '/api/providers') {
 				if (options.method === 'PUT') {
-					window.fixtureProviders = JSON.parse(options.body);
+					if (options.headers['If-Match'] !== window.fixtureProviderRevision) throw new Error('missing or stale provider revision');
+                    window.fixtureProviders = JSON.parse(options.body);
 					window.savedProviderPayloads.push(window.fixtureProviders);
-					return new Response(JSON.stringify({status:'ok'}));
+					window.fixtureProviderRevision = '"usage-r'+(window.savedProviderPayloads.length+1)+'"';
+                    return new Response(JSON.stringify({status:'ok',revision:window.fixtureProviderRevision}), {headers:{ETag:window.fixtureProviderRevision}});
 				}
-				return new Response(JSON.stringify(window.fixtureProviders));
+				return new Response(JSON.stringify(window.fixtureProviders), {headers:{ETag:window.fixtureProviderRevision}});
 			}
 			if (path === '/api/providers/capabilities') {
 				return new Response(JSON.stringify({auto:true, tool_calling:false, structured_outputs:false, multimodal:false, detected_model:'', source:'fixture', known:true}));
@@ -40,7 +43,7 @@ func TestProviderUsageRoundTripKeepsGeneralDraftBrowser(t *testing.T) {
 			return originalFetch(input, options);
 		};
 	}`)
-	page.MustEval(`async () => { await selectSection('providers', {scrollBehavior:'auto'}); }`)
+	page.MustEval(`async () => { await selectSection('providers', {scrollBehavior:'auto'}); await loadProviders(); }`)
 	waitForJSBool(t, page, `() => !!document.querySelector('#providers-list') && typeof providerEdit === 'function' && typeof providerAdd === 'function' && providersLoaded`)
 	page.MustEval(`() => { providersCache = window.fixtureProviders; providersLoaded = true; providerRenderCards(); providerEdit(0); }`)
 	waitForJSBool(t, page, `() => !!document.querySelector('#provider-modal-overlay')`)
@@ -80,6 +83,7 @@ func TestProviderUsageRoundTripKeepsGeneralDraftBrowser(t *testing.T) {
 		t.Errorf("existing provider capabilities were not preserved: %#v", existing["capabilities"])
 	}
 
+	waitForJSBool(t, page, `() => !document.getElementById('provider-modal-overlay') && !providersSaving`)
 	page.MustEval(`() => providerAdd()`)
 	waitForJSBool(t, page, `() => !!document.querySelector('#provider-modal-overlay')`)
 	page.MustEval(`() => {
