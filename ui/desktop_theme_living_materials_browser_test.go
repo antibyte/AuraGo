@@ -18,8 +18,9 @@ func TestDesktopLivingMaterialsIdleBrowser(t *testing.T) {
 			s.openApps(t, "calendar", "calculator")
 			s.eval(t, `()=>{let i=0;for(const w of auditTest.state.windows.values()){Object.assign(w.element.style,i++?{left:'1080px',top:'260px',width:'380px',height:'530px'}:{left:'130px',top:'120px',width:'820px',height:'650px'});}dispatchEvent(new CustomEvent('aurago:desktop-windows-refresh'));}`)
 			s.waitFor(t, "living material renderer", 10*time.Second, `()=>AuraDesktopThemeFx?.inspect().motion && AuraDesktopThemeFx.inspect().windowCount===2`)
-			s.eval(t, `()=>{const canvas=document.querySelector('.vd-theme-fx-layer canvas');window.idleMaterialSample=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;window.idleMaterialClock=AuraDesktopThemeFx.inspect().frameCount;}`)
-			s.waitFor(t, "visible idle material change", 5*time.Second, `()=>{if(AuraDesktopThemeFx.inspect().frameCount-idleMaterialClock<30)return false;const canvas=document.querySelector('.vd-theme-fx-layer canvas'),next=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let changed=0;for(let i=0;i<next.length;i+=4)if(next[i]!==idleMaterialSample[i]||next[i+1]!==idleMaterialSample[i+1]||next[i+3]!==idleMaterialSample[i+3])changed++;window.idleMaterialChanged=changed;return changed>700;}`)
+			s.eval(t, slimeSamplerJS)
+			s.eval(t, `()=>{window.idleMaterialSample=slimeRegion(0,0,innerWidth,innerHeight).data;window.idleMaterialClock=AuraDesktopThemeFx.inspect().frameCount;}`)
+			s.waitFor(t, "visible idle material change", 5*time.Second, `()=>{if(AuraDesktopThemeFx.inspect().frameCount-idleMaterialClock<30)return false;const next=slimeRegion(0,0,innerWidth,innerHeight).data;let changed=0;for(let i=0;i<next.length;i+=4)if(next[i]!==idleMaterialSample[i]||next[i+1]!==idleMaterialSample[i+1]||next[i+3]!==idleMaterialSample[i+3])changed++;window.idleMaterialChanged=changed;return changed>700;}`)
 			if id == "green_slime" {
 				s.waitFor(t, "growing drips detach without input", 8*time.Second, `()=>AuraDesktopThemeFx.inspect().dropCount>=3 && AuraDesktopThemeFx.inspect().currentMaxDisplacement>.2`)
 				if !s.eval(t, `()=>[...document.querySelectorAll('.vd-window-button')].every(button=>getComputedStyle(button,'::before').display!=='none')`).Value.Bool() {

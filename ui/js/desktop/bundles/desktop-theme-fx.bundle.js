@@ -78,6 +78,18 @@
         return active ? active.id : '';
     }
 
+    // Tests/debug: forwards to instance.command(name, payload) when the active effect has one.
+    function command(name, payload) {
+        const current = active;
+        if (!current || !current.instance || typeof current.instance.command !== 'function') return null;
+        try {
+            const result = current.instance.command(name, payload);
+            return result === undefined ? null : result;
+        } catch (_) {
+            return null;
+        }
+    }
+
     function inspect() {
         const current = active;
         if (!current) return { activeId: '', motion: false, paused: false, rendererReady: false };
@@ -97,7 +109,7 @@
         };
     }
 
-    window.AuraDesktopThemeFx = { register, start, stop, activeId, inspect };
+    window.AuraDesktopThemeFx = { register, start, stop, activeId, inspect, command };
 })();
 
 ;
@@ -786,16 +798,2065 @@
 })();
 
 ;
+/* ui/js/desktop/theme-fx/green_slime_geometry.js */
+(function () {
+    'use strict';
+
+    // Constants, small math helpers, the seeded RNG and the rounded-rectangle geometry of the Green Slime
+    // gel. Pure functions without state (no document, no performance, no Math.random): shared by the
+    // simulation modules (green_slime_sim.js and its parts) and by the renderers.
+    // Units: pixels, seconds, screen coordinates (y points down).
+
+    const SURFACE_SAMPLES = 32;
+    const TABLE_SAMPLES = 128;
+    const MAX_DROPS = 72;
+    const MAX_SPRAY = 24;
+    const MAX_SPLATS = 12;
+    const MAX_BUBBLES = 5;
+    const MAX_BUBBLES_PER_WINDOW = 2;
+    const STRAND_SNAP = 170;
+    const STRAND_HOLD = 2.5;
+    const MIN_GEL_RADIUS = 10;
+    const MAX_GEL_RADIUS = 44;
+    const MAX_DEFORMATION = 18;
+    const FRAME_DEPTH = 19;
+    const SAG_TOP = 13;
+    const SAG_BOTTOM = 24;
+    const GRAVITY = 250;
+    const SPRAY_GRAVITY = 520;
+    const RIPPLE_SPEED = 200;
+    const RIPPLE_DAMPING = 3.4;
+    const RIPPLE_STIFFNESS = 5;
+    const RIPPLE_LIMIT = 7;
+    const STRAND_OMEGA = 22;
+    const DEFAULT_RADIUS = 22;
+    const BUBBLE_STAGES = Object.freeze(['nucleate', 'grow', 'hold', 'burst', 'crater']);
+    const SURFACE_NORMALS = Object.freeze([{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }]);
+    const HALF_PI = Math.PI / 2;
+    const TWO_PI = Math.PI * 2;
+
+    function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function smoothstep(a, b, x) { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
+    function wrap(value, period) { const m = value % period; return m < 0 ? m + period : m; }
+    function cyclicDelta(a, b, period) { const d = wrap(a - b, period); return d > period / 2 ? d - period : d; }
+    function easeOut(t) { return 1 - (1 - t) * (1 - t) * (1 - t); }
+    function inRect(rect, x, y) {
+        return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
+    }
+
+    function hashString(text) {
+        let h = 2166136261;
+        for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
+        return h >>> 0;
+    }
+
+    function mulberry32(seed) {
+        let a = seed >>> 0;
+        return function () {
+            a = (a + 0x6D2B79F5) >>> 0;
+            let t = a;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Rounded-rectangle perimeter. Arclength sample k of 128 sits at perimeter fraction (k + .5) / 128,
+    // starting where the top edge begins (end of the top-left arc) and running clockwise. The shader
+    // mirrors this walk one to one: eight segments, top edge first, then the top-right arc, right edge,
+    // bottom-right arc, bottom edge (right to left), bottom-left arc, left edge (bottom to top) and the
+    // top-left arc.
+
+    function normalizeRadii(width, height, radii) {
+        const source = Array.isArray(radii) ? radii : radii == null ? [DEFAULT_RADIUS, DEFAULT_RADIUS, DEFAULT_RADIUS, DEFAULT_RADIUS] : [radii, radii, radii, radii];
+        const r = [0, 1, 2, 3].map(i => Math.max(0, Number(source[i]) || 0));
+        // CSS scales all radii by one factor when two neighbours overflow a side.
+        let factor = 1;
+        for (const [sum, side] of [[r[0] + r[1], width], [r[3] + r[2], width], [r[0] + r[3], height], [r[1] + r[2], height]]) {
+            if (sum > side && sum > 0) factor = Math.min(factor, side / sum);
+        }
+        return factor < 1 ? r.map(value => value * factor) : r;
+    }
+
+    function layout(rect, radii) {
+        const w = rect.width, h = rect.height, x = rect.x, y = rect.y;
+        const r = normalizeRadii(w, h, radii);
+        const tl = r[0], tr = r[1], br = r[2], bl = r[3];
+        const segs = [
+            { arc: false, x0: x + tl, y0: y, dx: 1, dy: 0, nx: 0, ny: -1, len: Math.max(0, w - tl - tr) },
+            { arc: true, cx: x + w - tr, cy: y + tr, r: tr, a0: -HALF_PI, len: tr * HALF_PI },
+            { arc: false, x0: x + w, y0: y + tr, dx: 0, dy: 1, nx: 1, ny: 0, len: Math.max(0, h - tr - br) },
+            { arc: true, cx: x + w - br, cy: y + h - br, r: br, a0: 0, len: br * HALF_PI },
+            { arc: false, x0: x + w - br, y0: y + h, dx: -1, dy: 0, nx: 0, ny: 1, len: Math.max(0, w - br - bl) },
+            { arc: true, cx: x + bl, cy: y + h - bl, r: bl, a0: HALF_PI, len: bl * HALF_PI },
+            { arc: false, x0: x, y0: y + h - bl, dx: 0, dy: -1, nx: -1, ny: 0, len: Math.max(0, h - bl - tl) },
+            { arc: true, cx: x + tl, cy: y + tl, r: tl, a0: Math.PI, len: tl * HALF_PI }
+        ];
+        let total = 0;
+        for (const segment of segs) { segment.start = total; total += segment.len; }
+        return { x, y, w, h, radii: r, segs, length: total };
+    }
+
+    // Point on a segment at fraction t (0..1) with the outward normal.
+    function segmentPoint(g, t, out) {
+        if (g.arc) {
+            const a = g.a0 + t * HALF_PI;
+            out.nx = Math.cos(a);
+            out.ny = Math.sin(a);
+            out.x = g.cx + g.r * out.nx;
+            out.y = g.cy + g.r * out.ny;
+        } else {
+            out.x = g.x0 + g.dx * g.len * t;
+            out.y = g.y0 + g.dy * g.len * t;
+            out.nx = g.nx;
+            out.ny = g.ny;
+        }
+        return out;
+    }
+
+    function pointAt(lay, s, out) {
+        out = out || {};
+        const u = wrap(s, lay.length);
+        let last = null;
+        for (const g of lay.segs) {
+            if (g.len <= 0) continue;
+            last = g;
+            if (u < g.start + g.len) return segmentPoint(g, (u - g.start) / g.len, out);
+        }
+        return last ? segmentPoint(last, 1, out) : segmentPoint(lay.segs[0], 0, out);
+    }
+
+    // Exact signed distance to the rounded rectangle (negative inside).
+    function signedDistance(lay, px, py) {
+        const qx = px - (lay.x + lay.w / 2), qy = py - (lay.y + lay.h / 2);
+        const r = qx < 0 ? (qy < 0 ? lay.radii[0] : lay.radii[3]) : (qy < 0 ? lay.radii[1] : lay.radii[2]);
+        const ax = Math.abs(qx) - (lay.w / 2 - r), ay = Math.abs(qy) - (lay.h / 2 - r);
+        return Math.min(Math.max(ax, ay), 0) + Math.hypot(Math.max(ax, 0), Math.max(ay, 0)) - r;
+    }
+
+    const projectProbe = {};
+    // Nearest perimeter point of (px, py): arclength s, signed distance (positive outside) and the
+    // outward normal of the perimeter there.
+    function project(lay, px, py, out) {
+        out = out || {};
+        let bestD = Infinity, bestSegment = null, bestT = 0, bx = 0, by = 0, bnx = 0, bny = -1;
+        for (const g of lay.segs) {
+            if (g.len <= 0) continue;
+            let t = 0;
+            if (g.arc) {
+                if (g.r > 0) {
+                    const a = wrap(Math.atan2(py - g.cy, px - g.cx) - g.a0, TWO_PI);
+                    t = a <= HALF_PI ? a / HALF_PI : (a - HALF_PI < TWO_PI - a ? 1 : 0);
+                }
+            } else {
+                t = clamp(((px - g.x0) * g.dx + (py - g.y0) * g.dy) / g.len, 0, 1);
+            }
+            segmentPoint(g, t, projectProbe);
+            const dx = px - projectProbe.x, dy = py - projectProbe.y;
+            const d2 = dx * dx + dy * dy;
+            if (d2 < bestD) {
+                bestD = d2; bestSegment = g; bestT = t;
+                bx = projectProbe.x; by = projectProbe.y; bnx = projectProbe.nx; bny = projectProbe.ny;
+            }
+        }
+        out.s = bestSegment ? bestSegment.start + bestT * bestSegment.len : 0;
+        const sign = signedDistance(lay, px, py) < 0 ? -1 : 1;
+        out.dist = sign * Math.sqrt(bestD);
+        out.x = bx; out.y = by; out.nx = bnx; out.ny = bny;
+        return out;
+    }
+
+    const geometry = Object.freeze({
+        layout, pointAt, project, signedDistance, normalizeRadii, segmentPoint,
+        perimeterLength(rect, radii) { return layout(rect, radii).length; },
+        perimeterPoint(rect, radii, s) { return pointAt(layout(rect, radii), s, {}); },
+        projectPerimeter(rect, radii, x, y) { return project(layout(rect, radii), x, y, {}); }
+    });
+
+    // ---------------------------------------------------------------------------------------------
+    // Spring nodes: the 32 base targets sit on the outline FRAME_DEPTH around the window with a
+    // 34 px corner inset (the contour the effect always used).
+
+    function surfaceTargets(rect) {
+        const outline = { x: rect.x - FRAME_DEPTH, y: rect.y - FRAME_DEPTH, width: rect.width + FRAME_DEPTH * 2, height: rect.height + FRAME_DEPTH * 2 };
+        const sideCount = SURFACE_SAMPLES / 4;
+        const corner = 34;
+        const points = [];
+        for (let i = 0; i < sideCount; i++) {
+            const t = i / (sideCount - 1);
+            points.push({ x: outline.x + corner + (outline.width - corner * 2) * t, y: outline.y });
+        }
+        for (let i = 0; i < sideCount; i++) {
+            const t = i / (sideCount - 1);
+            points.push({ x: outline.x + outline.width, y: outline.y + corner + (outline.height - corner * 2) * t });
+        }
+        for (let i = 0; i < sideCount; i++) {
+            const t = i / (sideCount - 1);
+            points.push({ x: outline.x + corner + (outline.width - corner * 2) * (1 - t), y: outline.y + outline.height });
+        }
+        for (let i = 0; i < sideCount; i++) {
+            const t = i / (sideCount - 1);
+            points.push({ x: outline.x, y: outline.y + corner + (outline.height - corner * 2) * (1 - t) });
+        }
+        return points;
+    }
+
+    // The part of a window's gel that depends only on its size: where the nodes sit along the
+    // perimeter, the cubic Hermite weights of every table sample and the gravity sag.
+    function buildProfile(width, height, radii) {
+        const lay = layout({ x: 0, y: 0, width, height }, radii);
+        const L = lay.length;
+        const targets = surfaceTargets({ x: 0, y: 0, width, height });
+        const nodeS = new Float64Array(SURFACE_SAMPLES);
+        const probe = {};
+        for (let i = 0; i < SURFACE_SAMPLES; i++) nodeS[i] = project(lay, targets[i].x, targets[i].y, probe).s;
+        if (nodeS[0] > L / 2) nodeS[0] -= L;
+        let ordered = nodeS[SURFACE_SAMPLES - 1] < nodeS[0] + L;
+        for (let i = 1; i < SURFACE_SAMPLES && ordered; i++) ordered = nodeS[i] > nodeS[i - 1];
+        if (!ordered) for (let i = 0; i < SURFACE_SAMPLES; i++) nodeS[i] = nodeS[0] + i * L / SURFACE_SAMPLES;
+        const den = new Float64Array(SURFACE_SAMPLES);
+        for (let n = 0; n < SURFACE_SAMPLES; n++) {
+            const before = n === 0 ? nodeS[0] + L - nodeS[SURFACE_SAMPLES - 1] : nodeS[n] - nodeS[n - 1];
+            const after = n === SURFACE_SAMPLES - 1 ? nodeS[0] + L - nodeS[n] : nodeS[n + 1] - nodeS[n];
+            den[n] = before + after;
+        }
+        const profile = {
+            width, height, radii: lay.radii, length: L, nodeS, den,
+            ia: new Uint8Array(TABLE_SAMPLES), ib: new Uint8Array(TABLE_SAMPLES), gap: new Float32Array(TABLE_SAMPLES),
+            h00: new Float32Array(TABLE_SAMPLES), h10: new Float32Array(TABLE_SAMPLES),
+            h01: new Float32Array(TABLE_SAMPLES), h11: new Float32Array(TABLE_SAMPLES),
+            sag: new Float32Array(TABLE_SAMPLES)
+        };
+        for (let k = 0; k < TABLE_SAMPLES; k++) {
+            const s = (k + .5) / TABLE_SAMPLES * L;
+            let sk = s;
+            if (sk >= nodeS[0] + L) sk -= L; else if (sk < nodeS[0]) sk += L;
+            let i = 0;
+            while (i < SURFACE_SAMPLES - 1 && nodeS[i + 1] <= sk) i++;
+            const a = nodeS[i];
+            const b = i === SURFACE_SAMPLES - 1 ? nodeS[0] + L : nodeS[i + 1];
+            const t = (sk - a) / (b - a);
+            profile.ia[k] = i;
+            profile.ib[k] = (i + 1) % SURFACE_SAMPLES;
+            profile.gap[k] = b - a;
+            profile.h00[k] = 2 * t * t * t - 3 * t * t + 1;
+            profile.h10[k] = t * t * t - 2 * t * t + t;
+            profile.h01[k] = -2 * t * t * t + 3 * t * t;
+            profile.h11[k] = t * t * t - t * t;
+            // Gravity sag: thin on top, heavy at the bottom, sides in between (normal-driven, so the
+            // corners blend smoothly).
+            profile.sag[k] = (SAG_TOP + SAG_BOTTOM) / 2 + (SAG_BOTTOM - SAG_TOP) / 2 * pointAt(lay, s, probe).ny;
+        }
+        return profile;
+    }
+
+    // Soft lower bound at MIN_GEL_RADIUS: C1 blend over +-3 px so breathing never shows a kink.
+    function softFloor(radius) {
+        const x = radius - MIN_GEL_RADIUS;
+        return MIN_GEL_RADIUS + (x >= 3 ? x : x <= -3 ? 0 : (x + 3) * (x + 3) / 12);
+    }
+
+    function strandRadii(length) {
+        // Volume conservation: the thread thins as it is drawn out; below ~1.6 px the middle breaks
+        // up into beads (Rayleigh-Plateau).
+        const mid = clamp(4.6 * Math.pow(28 / Math.max(length, 12), .8), .45, 6.2);
+        const beads = mid < 1.6 ? clamp(Math.round(2 + (1.6 - mid) / .45 * 1.5), 2, 4) : 0;
+        return { root: Math.min(9, mid * 1.9 + 2.2), mid, tip: mid * 1.5 + 1.1, beads };
+    }
+
+    window.AuraGreenSlimeGeometry = Object.freeze({
+        clamp, lerp, smoothstep, wrap, cyclicDelta, easeOut, inRect, hashString, mulberry32,
+        geometry, surfaceTargets, buildProfile, softFloor, strandRadii, SURFACE_NORMALS,
+        constants: Object.freeze({
+            SURFACE_SAMPLES, TABLE_SAMPLES, MAX_DROPS, MAX_SPRAY, MAX_SPLATS, MAX_BUBBLES, MAX_BUBBLES_PER_WINDOW,
+            STRAND_SNAP, STRAND_HOLD, MIN_GEL_RADIUS, MAX_GEL_RADIUS, MAX_DEFORMATION, FRAME_DEPTH, SAG_TOP, SAG_BOTTOM,
+            GRAVITY, SPRAY_GRAVITY, RIPPLE_SPEED, RIPPLE_DAMPING, RIPPLE_STIFFNESS, RIPPLE_LIMIT, STRAND_OMEGA,
+            DEFAULT_RADIUS, BUBBLE_STAGES, HALF_PI, TWO_PI
+        })
+    });
+})();
+
+;
+/* ui/js/desktop/theme-fx/green_slime_bubbles.js */
+(function () {
+    'use strict';
+
+    // Bubble lifecycle of the Green Slime gel, a part of the simulation (see green_slime_sim.js):
+    // nucleate (gas pocket in the gel) -> grow (dome swells, film thins) -> hold (quiver, faint
+    // interference) -> burst (rim retracts, micro-droplets fly) -> crater (damped ring, rebound, heals).
+    // All times are randomised; agitation spawns small fast bubbles. DOM-free.
+
+    const kit = window.AuraGreenSlimeGeometry;
+    const { clamp, lerp, smoothstep, wrap, cyclicDelta, easeOut, mulberry32, geometry } = kit;
+    const { MAX_BUBBLES, MAX_BUBBLES_PER_WINDOW, SAG_BOTTOM, BUBBLE_STAGES, TWO_PI } = kit.constants;
+    const { pointAt, project } = geometry;
+
+    function create(core) {
+        const { motion, rng, jitter, surfaces, state, counters, stageEntries } = core;
+        const scratch = {};
+        const scratchB = {};
+        const centerProbe = {};
+        let sequence = 0;
+
+        function active() {
+            let count = 0;
+            for (const surface of surfaces.values()) count += surface.bubbles.length;
+            return count;
+        }
+
+        function inCornerZone(lay, s) {
+            for (const g of lay.segs) {
+                if (!g.arc) continue;
+                if (wrap(s - (g.start - 30), lay.length) <= g.len + 60) return true;
+            }
+            return false;
+        }
+
+        function nearDrip(surface, s) {
+            const L = surface.layout.length;
+            for (const drip of surface.drips) {
+                if (Math.abs(cyclicDelta(s, surface.profile.nodeS[drip.node], L)) < 30) return true;
+            }
+            return false;
+        }
+
+        function overlaps(surface, s, base) {
+            const L = surface.layout.length;
+            for (const other of surface.bubbles) {
+                if (Math.abs(cyclicDelta(s, other.s, L)) < base + other.base + 8) return true;
+            }
+            return false;
+        }
+
+        // Where a gas pocket may form: thick regions (bottom, lower sides) are likelier, never within
+        // 30 px of a drip root or a corner, never hidden behind a higher window or overlay.
+        function pickSite(surface, random, requested) {
+            const lay = surface.layout, L = lay.length;
+            for (let attempt = 0; attempt < 14; attempt++) {
+                const s = random() * L;
+                const R = core.radiusAt(surface, s);
+                if (random() > Math.pow(R / SAG_BOTTOM, 2.2)) continue;
+                if (inCornerZone(lay, s) || nearDrip(surface, s)) continue;
+                const base = Math.min(clamp(requested, 3, 12), R * .45);
+                if (base < 3 || overlaps(surface, s, base)) continue;
+                const depth = R * .55;
+                const p = pointAt(lay, s, scratch);
+                if (core.blockedAt(surface, p.x + p.nx * depth, p.y + p.ny * depth)) continue;
+                return { s, depth, base };
+            }
+            return null;
+        }
+
+        function createBubble(site, fast) {
+            const durations = fast
+                ? { nucleate: jitter(.09, .15), grow: jitter(.4, .6), hold: jitter(.06, .14), burst: jitter(.11, .16), crater: jitter(.5, .8) }
+                : { nucleate: jitter(.5, .9), grow: jitter(1.4, 3.2), hold: jitter(.2, .8), burst: jitter(.11, .16), crater: jitter(.675, 1.125) };
+            return { id: ++sequence, s: site.s, depth: site.depth, base: site.base, fast, stage: 'nucleate', time: 0, dur: durations,
+                phase: rng() * TWO_PI, rupture: rng() * 2 - 1 };
+        }
+
+        // Spawns a bubble now: { windowId?, at?: {x, y}, base?, fast? }. Returns its id or null.
+        function spawn(opts) {
+            opts = opts || {};
+            const env = state.env;
+            if (!motion || !env.windows.length || active() >= MAX_BUBBLES) return null;
+            let surface = null;
+            if (opts.windowId != null) surface = surfaces.get(String(opts.windowId));
+            else if (opts.at) {
+                for (let i = env.windows.length - 1; i >= 0 && !surface; i--) {
+                    const candidate = surfaces.get(String(env.windows[i].id));
+                    if (!candidate || !candidate.layout) continue;
+                    const hit = project(candidate.layout, opts.at.x, opts.at.y, scratch);
+                    if (hit.dist > 0 && hit.dist < core.radiusAt(candidate, hit.s)) surface = candidate;
+                }
+            } else {
+                const open = [...surfaces.values()].filter(item => item.layout && item.grow > .5 && item.bubbles.length < MAX_BUBBLES_PER_WINDOW);
+                surface = open.length ? open[Math.floor(rng() * open.length)] : null;
+            }
+            if (!surface || !surface.layout || surface.bubbles.length >= MAX_BUBBLES_PER_WINDOW) return null;
+            const fast = !!opts.fast;
+            const requested = opts.base != null ? Number(opts.base) : fast ? jitter(3, 5) : jitter(4, 12);
+            let site = null;
+            if (opts.at && Number.isFinite(opts.at.x) && Number.isFinite(opts.at.y)) {
+                const hit = project(surface.layout, opts.at.x, opts.at.y, scratch);
+                const R = core.radiusAt(surface, hit.s);
+                const base = Math.min(clamp(requested, 2.5, 12), R * .45);
+                if (hit.dist > 0 && hit.dist < R && base >= 2.5 && !overlaps(surface, hit.s, base)) {
+                    site = { s: hit.s, depth: clamp(hit.dist, base * .9, Math.max(base * .9, R - base)), base };
+                }
+            } else site = pickSite(surface, rng, requested);
+            if (!site) return null;
+            const bubble = createBubble(site, fast);
+            surface.bubbles.push(bubble);
+            counters.bubbleCount++;
+            stageEntries.nucleate++;
+            return bubble.id;
+        }
+
+        function center(surface, bubble, out) {
+            const p = pointAt(surface.layout, bubble.s, scratchB);
+            const depth = Math.min(bubble.depth, Math.max(2, core.radiusAt(surface, bubble.s) - bubble.base * .9));
+            out.x = p.x + p.nx * depth;
+            out.y = p.y + p.ny * depth;
+            return out;
+        }
+
+        function enter(surface, bubble, stage) {
+            bubble.stage = stage;
+            bubble.time = 0;
+            stageEntries[stage]++;
+            if (stage === 'burst') {
+                counters.bubbleBursts++;
+                // Micro-droplets are flung from the retracting film, upward-biased.
+                center(surface, bubble, scratch);
+                const count = bubble.base < 5 ? 3 + Math.floor(rng() * 2) : 3 + Math.floor(rng() * 5);
+                for (let i = 0; i < count; i++) {
+                    const angle = rng() * TWO_PI;
+                    const speed = jitter(80, 220);
+                    core.addSpray(scratch.x + Math.cos(angle) * bubble.base * .8, scratch.y + Math.sin(angle) * bubble.base * .8 - bubble.base * .3,
+                        jitter(.8, 2.2) * clamp(bubble.base / 9, .6, 1), Math.cos(angle) * speed, Math.sin(angle) * speed * .7 - jitter(60, 150), jitter(.5, .85));
+                }
+            } else if (stage === 'crater') {
+                core.rippleImpulse(surface, bubble.s, 1.2 + bubble.base * .14, 14 + bubble.base * 1.2);
+                // The small central rebound pulls the frame back for a moment.
+                surface.pending.push({ at: state.clock + .12, kind: 'ripple', s: bubble.s, amplitude: -(.6 + bubble.base * .05), width: 12 });
+            }
+        }
+
+        function step(surface, dt) {
+            for (let i = surface.bubbles.length - 1; i >= 0; i--) {
+                const bubble = surface.bubbles[i];
+                bubble.time += dt;
+                let guard = 5;
+                while (bubble.time >= bubble.dur[bubble.stage] && guard-- > 0) {
+                    const rest = bubble.time - bubble.dur[bubble.stage];
+                    const next = BUBBLE_STAGES[BUBBLE_STAGES.indexOf(bubble.stage) + 1];
+                    if (!next) { surface.bubbles.splice(i, 1); break; }
+                    enter(surface, bubble, next);
+                    bubble.time = rest;
+                }
+            }
+        }
+
+        // What the renderer needs of one bubble (see the scene contract in the design notes).
+        function view(surface, bubble) {
+            const stage = bubble.stage;
+            const u = clamp(bubble.time / bubble.dur[stage], 0, 1);
+            const seconds = bubble.time;
+            const out = { id: bubble.id, x: 0, y: 0, base: bubble.base, r: bubble.base, dome: 0, stage, t: u,
+                hole: 0, holeR: 0, hx: 0, hy: 0, crater: 0, rebound: 0, rim: 0, film: 1, interference: 0 };
+            const c = center(surface, bubble, centerProbe);
+            let lift = 0;
+            if (stage === 'nucleate') {
+                out.r = lerp(1, bubble.base * .4, easeOut(u));
+                lift = 2.4 * u;
+            } else if (stage === 'grow') {
+                const g = easeOut(u);
+                const wobble = .045 * (1 - u) * Math.sin(TWO_PI * 9 * seconds + bubble.phase);
+                out.r = bubble.base * (.4 + .6 * g) * (1 + wobble);
+                out.dome = clamp(g * (1 + wobble * 2), 0, 1.02);
+                out.film = 1 - .8 * g;
+                lift = 2.4 * (1 - g);
+            } else if (stage === 'hold') {
+                const quiver = Math.sin(TWO_PI * 17 * seconds + bubble.phase);
+                out.r = bubble.base * (1 + .014 * quiver);
+                out.dome = 1 + .012 * quiver;
+                out.film = .2 - .12 * u;
+                out.interference = smoothstep(.15, .9, u);
+            } else if (stage === 'burst') {
+                out.r = bubble.base;
+                out.dome = 1 - .35 * u;
+                out.film = .08;
+                out.hole = Math.pow(u, .85);
+                out.holeR = out.hole * 1.5 * bubble.base;
+                out.rim = lerp(1.2, 3.5, u);
+                out.hx = c.x + bubble.base * .22 * bubble.rupture;
+                out.hy = c.y - bubble.base * .3;
+            } else {
+                out.r = bubble.base;
+                out.crater = Math.exp(-3.6 * seconds) * Math.cos(TWO_PI * 3.2 * seconds);
+                out.rebound = .6 * Math.exp(-Math.pow((seconds - .12) / .075, 2))
+                    + (seconds > .12 ? .18 * Math.exp(-4 * seconds) * Math.sin(TWO_PI * 2.4 * (seconds - .12)) : 0);
+            }
+            out.x = c.x;
+            out.y = c.y - lift;
+            return out;
+        }
+
+        // Static mode keeps one deterministic, half-grown bubble per window.
+        function frozen(surface) {
+            const key = surface.profile.width + 'x' + surface.profile.height + ':' + surface.profile.radii.join(',');
+            if (surface.frozenKey !== key) {
+                surface.frozenKey = key;
+                const site = pickSite(surface, mulberry32(surface.hash ^ 0x9e3779b9), 7);
+                surface.frozen = site ? { id: -1, s: site.s, depth: site.depth, base: site.base, fast: false, stage: 'grow', time: 1.3,
+                    dur: { nucleate: .7, grow: 2.4, hold: .5, burst: .13, crater: .9 }, phase: 1.3, rupture: 0 } : null;
+            }
+            return surface.frozen ? view(surface, surface.frozen) : null;
+        }
+
+        // Poisson process, mean interval ~9 s per window.
+        function spawnAmbient(dt) {
+            const now = state.env.now;
+            for (const surface of surfaces.values()) {
+                if (surface.age < 1.5 || surface.grow < .95 || now - surface.dragAt < .5) continue;
+                if (rng() < 1 - Math.exp(-dt / 9)) spawn({ windowId: surface.id });
+            }
+        }
+
+        // Resizing stretches the perimeter: bubbles move along proportionally instead of jumping.
+        function rescale(surface, ratio) {
+            for (const bubble of surface.bubbles) bubble.s *= ratio;
+        }
+
+        function report() {
+            const stages = { nucleate: 0, grow: 0, hold: 0, burst: 0, crater: 0 };
+            const samples = [];
+            let count = 0;
+            for (const surface of surfaces.values()) {
+                for (const bubble of surface.bubbles) {
+                    stages[bubble.stage]++;
+                    count++;
+                    // Where a test can look at it (screen coordinates of the dome centre).
+                    const shown = view(surface, bubble);
+                    samples.push({ id: bubble.id, window: surface.id, stage: bubble.stage, t: shown.t, x: shown.x, y: shown.y, r: shown.r, base: bubble.base });
+                }
+            }
+            return { stages, active: count, samples };
+        }
+
+        return { active, spawn, step, view, frozen, spawnAmbient, rescale, report };
+    }
+
+    window.AuraGreenSlimeBubbles = Object.freeze({ create });
+})();
+
+;
+/* ui/js/desktop/theme-fx/green_slime_touch.js */
+(function () {
+    'use strict';
+
+    // Pointer interaction of the Green Slime gel, a part of the simulation (see green_slime_sim.js):
+    // hover attraction (sticky lean toward a slow pointer), wake (a fast pointer dents the gel), poke
+    // (a press on the visible gel) and the pull-able strand with its snap and recoil. DOM-free: the
+    // bridge passes coordinates and timestamps in seconds.
+
+    const kit = window.AuraGreenSlimeGeometry;
+    const { clamp, lerp, smoothstep, cyclicDelta } = kit;
+    const { STRAND_SNAP, STRAND_HOLD, STRAND_OMEGA } = kit.constants;
+    const { pointAt, project } = kit.geometry;
+
+    function create(core) {
+        const { motion, jitter, rng, surfaces, state, counters } = core;
+        const pointer = { x: -10000, y: -10000, speed: 0, at: -1, down: false, seen: false };
+        const scratch = {};
+        const scratchB = {};
+        let strand = null;
+
+        function pointerMove(x, y, now, buttons) {
+            if (!motion) return;
+            const px = pointer.x, py = pointer.y;
+            const elapsed = now - pointer.at;
+            if (pointer.seen && elapsed > 0 && elapsed < .25) {
+                const instant = Math.hypot(x - px, y - py) / Math.max(.004, elapsed);
+                pointer.speed = lerp(pointer.speed, instant, .45);
+            } else pointer.speed = 0;
+            const previousSeen = pointer.seen;
+            pointer.x = x; pointer.y = y; pointer.at = now; pointer.seen = true;
+            if (strand && buttons != null && !(buttons & 1)) pointerUp();
+            if (previousSeen && pointer.speed > 320) wake(px, py, x, y, now);
+        }
+
+        // A fast pointer crossing or ploughing through the gel dents it where it passes.
+        function wake(px, py, x, y, now) {
+            for (const win of state.env.windows) {
+                const surface = surfaces.get(String(win.id));
+                if (!surface || !surface.layout || now - surface.wakeAt < .07 || surface.grow < .6) continue;
+                const a = project(surface.layout, px, py, scratch);
+                const b = project(surface.layout, x, y, scratchB);
+                if (a.dist <= -2 || b.dist <= -2) continue;
+                const insideA = a.dist < core.radiusAt(surface, a.s), insideB = b.dist < core.radiusAt(surface, b.s);
+                if (!insideA && !insideB) continue;
+                if (core.blockedAt(surface, x, y)) continue;
+                surface.wakeAt = now;
+                const strength = clamp(pointer.speed * .0045, .8, 4.2);
+                const entering = insideB && !insideA;
+                const leaving = insideA && !insideB;
+                core.rippleImpulse(surface, b.s, (leaving ? .45 : -1) * strength, 22 + pointer.speed * .02);
+                if (entering || (insideB && insideA && pointer.speed > 500)) core.nudgeNodes(surface, b.s, -pointer.speed * .04, 40);
+            }
+        }
+
+        function hitGel(x, y) {
+            const windows = state.env.windows;
+            for (let i = windows.length - 1; i >= 0; i--) {
+                const surface = surfaces.get(String(windows[i].id));
+                if (!surface || !surface.layout) continue;
+                const hit = project(surface.layout, x, y, {});
+                const radius = core.radiusAt(surface, hit.s);
+                if (hit.dist <= 0 || hit.dist > radius || core.blockedAt(surface, x, y)) continue;
+                return { id: surface.id, s: hit.s, dist: hit.dist, radius, nx: hit.nx, ny: hit.ny };
+            }
+            return null;
+        }
+
+        // A press on the visible gel: dent, ring ripple, maybe a small bubble a moment later.
+        function poke(x, y) {
+            if (!motion) return null;
+            const hit = hitGel(x, y);
+            if (!hit) return null;
+            const surface = surfaces.get(hit.id);
+            counters.pokeCount++;
+            core.rippleImpulse(surface, hit.s, -2.6, 16);
+            core.nudgeNodes(surface, hit.s, -36, 28);
+            if (rng() < .6) surface.pending.push({ at: state.clock + .3, kind: 'bubble', x, y });
+            return hit;
+        }
+
+        function pointerDown(x, y, now) {
+            if (!motion) return null;
+            pointer.x = x; pointer.y = y; pointer.at = now; pointer.seen = true; pointer.down = true;
+            const hit = poke(x, y);
+            if (!hit) return null;
+            const surface = surfaces.get(hit.id);
+            const anchor = pointAt(surface.layout, hit.s, scratch);
+            const depth = clamp(hit.dist, 3, Math.max(3, hit.radius - 2));
+            strand = { id: hit.id, s: hit.s, depth, state: 'pressed',
+                tx: x, ty: y, tvx: 0, tvy: 0, born: state.clock, pulledAt: 0, threshold: Math.max(18, depth + 12),
+                ax: anchor.x + anchor.nx * depth, ay: anchor.y + anchor.ny * depth, length: 0, recoil: 0, stub: 0, dirX: anchor.nx, dirY: anchor.ny };
+            return { id: hit.id, s: hit.s };
+        }
+
+        function pointerUp() {
+            pointer.down = false;
+            if (!strand) return;
+            const surface = surfaces.get(strand.id);
+            if (strand.state === 'pulled' && surface) snap(surface);
+            else if (strand.state !== 'recoil') strand = null;
+        }
+
+        // Hover attraction: the gel leans toward a slow pointer near it, smoothed so it feels viscous.
+        function update(dt, now) {
+            if (!motion) return;
+            if (pointer.seen && now - pointer.at > .08) pointer.speed *= Math.exp(-dt / .12);
+            for (const win of state.env.windows) {
+                const surface = surfaces.get(String(win.id));
+                if (!surface || !surface.layout) continue;
+                let target = 0, hoverS = surface.hoverS;
+                if (pointer.seen && !(strand && strand.id === surface.id) && now - pointer.at < 6) {
+                    const hit = project(surface.layout, pointer.x, pointer.y, scratch);
+                    const gap = hit.dist - core.radiusAt(surface, hit.s);
+                    if (hit.dist > 0 && gap < 60 && !core.blockedAt(surface, pointer.x, pointer.y)) {
+                        target = 10 * (1 - smoothstep(0, 60, gap)) * (1 - smoothstep(140, 480, pointer.speed));
+                        hoverS = hit.s;
+                    }
+                }
+                surface.hoverAmp += (target - surface.hoverAmp) * (1 - Math.exp(-dt / (target > surface.hoverAmp ? .22 : .35)));
+                if (surface.hoverAmp < .05) surface.hoverS = hoverS;
+                else if (target > 0) surface.hoverS += cyclicDelta(hoverS, surface.hoverS, surface.layout.length) * (1 - Math.exp(-dt / .12));
+                surface.hover = surface.hoverAmp > .02 ? { s: surface.hoverS, amp: surface.hoverAmp, sigma: 52 } : null;
+            }
+        }
+
+        function snap(surface) {
+            const s = strand;
+            const length = s.length;
+            const radii = kit.strandRadii(length);
+            const dirX = (s.tx - s.ax) / (length || 1), dirY = (s.ty - s.ay) / (length || 1);
+            // The thread parts near its thin end: the tip becomes a drop, the middle sheds satellites.
+            core.addDrop(s.tx, s.ty, Math.max(2.6, radii.tip * 1.5), clamp(s.tvx, -900, 900), clamp(s.tvy, -900, 900), 2.8, { origin: surface.id, wobble: .5 });
+            const satellites = 1 + Math.floor(rng() * 2);
+            for (let i = 0; i < satellites; i++) {
+                const u = .45 + .3 * rng();
+                core.addDrop(lerp(s.tx, s.ax, u), lerp(s.ty, s.ay, u), jitter(1.2, 2.2), s.tvx * .6 + jitter(-30, 30), s.tvy * .6 + jitter(-30, 10) - 20, 2, { origin: surface.id, wobble: .5 });
+            }
+            counters.strandSnaps++;
+            // The base recoils with overshoot and the stub retracts into the gel.
+            const pull = surface.pull || (surface.pull = { s: s.s, amp: 0, v: 0, sigma: 26 });
+            pull.v = -Math.max(pull.amp, 2) * 18;
+            core.rippleImpulse(surface, s.s, 1.8, 20);
+            core.nudgeNodes(surface, s.s, 40, 40);
+            s.state = 'recoil';
+            s.recoil = 0;
+            s.stub = Math.max(14, length * .32);
+            s.dirX = dirX; s.dirY = dirY;
+            s.tx = s.ax + dirX * s.stub; s.ty = s.ay + dirY * s.stub;
+        }
+
+        function step(dt) {
+            if (!strand) return;
+            const surface = surfaces.get(strand.id);
+            if (!surface || !surface.layout) { strand = null; return; }
+            const anchor = pointAt(surface.layout, strand.s, scratch);
+            strand.ax = anchor.x + anchor.nx * strand.depth;
+            strand.ay = anchor.y + anchor.ny * strand.depth;
+            if (strand.state === 'recoil') {
+                strand.recoil += dt;
+                const k = Math.max(0, 1 - strand.recoil / .25);
+                const stub = strand.stub * k * k;
+                strand.length = stub;
+                strand.tx = strand.ax + strand.dirX * stub;
+                strand.ty = strand.ay + strand.dirY * stub;
+                if (strand.recoil >= .25) strand = null;
+                return;
+            }
+            // The tip follows the pointer with a critically damped lag (exact solution of the step).
+            const w = STRAND_OMEGA, e = Math.exp(-w * dt);
+            const dx = strand.tx - pointer.x, dy = strand.ty - pointer.y;
+            const nvx = (strand.tvx - w * (strand.tvx + w * dx) * dt) * e;
+            const nvy = (strand.tvy - w * (strand.tvy + w * dy) * dt) * e;
+            strand.tx = pointer.x + (dx + (strand.tvx + w * dx) * dt) * e;
+            strand.ty = pointer.y + (dy + (strand.tvy + w * dy) * dt) * e;
+            strand.tvx = nvx; strand.tvy = nvy;
+            strand.length = Math.hypot(strand.tx - strand.ax, strand.ty - strand.ay);
+            if (strand.state === 'pressed' && strand.length > strand.threshold) {
+                strand.state = 'pulled';
+                strand.pulledAt = state.clock;
+                counters.strandCount++;
+            }
+            if (strand.state !== 'pulled') return;
+            // The gel stretches toward the tip while the thread is drawn out.
+            const pull = surface.pull || (surface.pull = { s: strand.s, amp: 0, v: 0, sigma: 26 });
+            const wanted = Math.min(7, strand.length * .055);
+            const before = pull.amp;
+            pull.s = strand.s;
+            pull.amp += (wanted - pull.amp) * (1 - Math.exp(-dt / .06));
+            pull.v = dt > 0 ? (pull.amp - before) / dt : 0;
+            if (strand.length > STRAND_SNAP || state.clock - strand.pulledAt > STRAND_HOLD || !pointer.down) snap(surface);
+        }
+
+        // After a snap (or without a strand) the bulge at the anchor oscillates back to rest.
+        function relax(surface, dt) {
+            const pull = surface.pull;
+            if (!pull || (strand && strand.id === surface.id && strand.state !== 'recoil')) return;
+            const w = 24, z = .3, steps = dt > .025 ? 2 : 1, h = dt / steps;
+            for (let n = 0; n < steps; n++) {
+                pull.v += (-w * w * pull.amp - 2 * z * w * pull.v) * h;
+                pull.amp += pull.v * h;
+            }
+            if (Math.abs(pull.amp) < .02 && Math.abs(pull.v) < .2) surface.pull = null;
+        }
+
+        function view(surface) {
+            if (!strand || strand.id !== surface.id || strand.state === 'pressed') return null;
+            const radii = kit.strandRadii(Math.max(strand.length, strand.state === 'recoil' ? 14 : 0));
+            return { ax: strand.ax, ay: strand.ay, bx: strand.tx, by: strand.ty,
+                root: radii.root, mid: radii.mid, tip: radii.tip, beads: strand.state === 'recoil' ? 0 : radii.beads };
+        }
+
+        function clear(id) { if (strand && strand.id === id) strand = null; }
+        function rescale(id, ratio) { if (strand && strand.id === id) strand.s *= ratio; }
+        function sample() {
+            return strand && strand.state !== 'pressed'
+                ? [{ window: strand.id, state: strand.state, length: strand.length, ax: strand.ax, ay: strand.ay, bx: strand.tx, by: strand.ty }] : [];
+        }
+        function reset() { strand = null; }
+
+        return { pointerMove, pointerDown, pointerUp, poke, hitGel, update, step, relax, view, clear, rescale, sample, reset,
+            get strand() { return strand; } };
+    }
+
+    window.AuraGreenSlimeTouch = Object.freeze({ create });
+})();
+
+;
+/* ui/js/desktop/theme-fx/green_slime_sim.js */
+(function () {
+    'use strict';
+
+    // DOM-free state and physics of the Green Slime gel (no document, no performance, no Math.random).
+    // green_slime.js feeds it window geometry and pointer input, takes the finished scene out and hands
+    // that to a renderer. The simulation is split over four files (bundle order): green_slime_geometry.js
+    // (constants, rounded-rectangle geometry, profile), green_slime_bubbles.js, green_slime_touch.js and
+    // this one, which owns the surfaces, the drops and the per-frame update and exports
+    // window.AuraGreenSlimeSim = { createSim, geometry, constants, strandRadii }.
+    //
+    // Every window owns
+    //  - 32 spring nodes (the old jelly contour: breathing, drag inertia, hover attraction),
+    //  - a 128-sample periodic ripple wave over the arclength of its rounded rectangle,
+    //  - drips, bubbles and a radius table (outer gel distance from the window edge per arclength sample).
+
+    const kit = window.AuraGreenSlimeGeometry;
+    const { clamp, lerp, wrap, cyclicDelta, inRect, hashString, mulberry32, geometry, surfaceTargets, buildProfile, softFloor, SURFACE_NORMALS } = kit;
+    const { SURFACE_SAMPLES, TABLE_SAMPLES, MAX_DROPS, MAX_SPRAY, MAX_SPLATS, MIN_GEL_RADIUS, MAX_GEL_RADIUS, MAX_DEFORMATION,
+        SAG_TOP, SAG_BOTTOM, GRAVITY, SPRAY_GRAVITY, RIPPLE_SPEED, RIPPLE_DAMPING, RIPPLE_STIFFNESS, RIPPLE_LIMIT, TWO_PI } = kit.constants;
+    const { layout, pointAt, project, normalizeRadii } = geometry;
+
+    const EMPTY_ENV = Object.freeze({ dt: 0, now: 0, width: 0, height: 0, dpr: 1, windows: [], masks: [], taskbar: null });
+
+    function createSim(options) {
+        const motion = !!(options && options.motion);
+        const rng = mulberry32(options && options.seed != null ? options.seed : 0x2c9f1a);
+        const surfaces = new Map();
+        const motionDrives = new Map();
+        const drops = [];
+        const spray = [];
+        const splats = [];
+        const counters = {
+            dropCount: 0, sprayCount: 0, bubbleCount: 0, bubbleBursts: 0, strandCount: 0, strandSnaps: 0,
+            absorbedDrops: 0, splatCount: 0, pokeCount: 0
+        };
+        const stageEntries = { nucleate: 0, grow: 0, hold: 0, burst: 0, crater: 0 };
+        // Shared with the parts: the clock and the geometry of the latest update.
+        const state = { clock: 0, env: EMPTY_ENV };
+        const scratch = {};
+        let maxDisplacement = 0;
+        let currentMaxDisplacement = 0;
+
+        function jitter(low, high) { return low + rng() * (high - low); }
+
+        const core = { motion, rng, jitter, surfaces, state, counters, stageEntries,
+            radiusAt, blockedAt, rippleImpulse, nudgeNodes, addDrop, addSpray };
+        const bubbles = window.AuraGreenSlimeBubbles.create(core);
+        const touch = window.AuraGreenSlimeTouch.create(core);
+
+        // -----------------------------------------------------------------------------------------
+        // Surfaces
+
+        function createSurface(id) {
+            const seed = Array.from(id).reduce((sum, letter) => sum + letter.charCodeAt(0), 0);
+            return {
+                id,
+                // Only local deformation is sprung. Window translation/resize reprojects every
+                // node immediately, without storing world lag.
+                nodes: surfaceTargets({ x: 0, y: 0, width: 400, height: 300 }).map(point => ({ ...point, dx: 0, dy: 0, vx: 0, vy: 0 })),
+                seed: seed * .17,
+                hash: hashString(id),
+                drips: [17, 19, 21, 22, 13, 27].map((node, i) => ({ node,
+                    period: 4.6 + i * .61, offset: (seed % 17) * .23 + i * 1.13, cycle: -1, sw: 0, swv: 0 })),
+                ripple: new Float32Array(TABLE_SAMPLES),
+                rippleV: new Float32Array(TABLE_SAMPLES),
+                rippleLive: false,
+                energy: 0,
+                radius: new Float32Array(TABLE_SAMPLES).fill((SAG_TOP + SAG_BOTTOM) / 2),
+                off: new Float64Array(SURFACE_SAMPLES),
+                lastX: new Float64Array(SURFACE_SAMPLES),
+                lastY: new Float64Array(SURFACE_SAMPLES),
+                slope: new Float64Array(SURFACE_SAMPLES),
+                grow: 1, growV: 0,
+                z: 0, active: false,
+                sig: null, layout: null, profile: null,
+                winV: { x: 0, y: 0 }, dragAt: -9, flingAt: -9, wakeAt: -9,
+                bubbles: [], pending: [],
+                hoverAmp: 0, hoverS: 0, hover: null,
+                pull: null,
+                frozenKey: '', frozen: null,
+                age: 0
+            };
+        }
+
+        function surfaceFor(id, rect) {
+            let surface = surfaces.get(id);
+            if (!surface) {
+                surface = createSurface(id);
+                surfaces.set(id, surface);
+            }
+            const r = normalizeRadii(rect.width, rect.height, rect.radii);
+            const sig = [rect.x, rect.y, rect.width, rect.height, r[0], r[1], r[2], r[3]];
+            if (!surface.sig || sig.some((value, i) => value !== surface.sig[i])) {
+                const shape = surface.sig && sig.slice(2).every((value, i) => value === surface.sig[i + 2]);
+                const previousLength = surface.layout ? surface.layout.length : 0;
+                surface.sig = sig;
+                surface.layout = layout(rect, r);
+                if (!shape || !surface.profile) surface.profile = buildProfile(rect.width, rect.height, r);
+                if (previousLength > 0 && Math.abs(surface.layout.length - previousLength) > .01) {
+                    // Resizing stretches the perimeter: what sits on it (bubbles, a thread's anchor) moves
+                    // along proportionally instead of jumping to another place.
+                    const ratio = surface.layout.length / previousLength;
+                    bubbles.rescale(surface, ratio);
+                    touch.rescale(id, ratio);
+                    for (const item of surface.pending) if (item.s != null) item.s *= ratio;
+                    if (surface.pull) surface.pull.s *= ratio;
+                    surface.hoverS *= ratio;
+                }
+            }
+            return surface;
+        }
+
+        function removeWindow(id) {
+            surfaces.delete(id);
+            motionDrives.delete(id);
+            touch.clear(id);
+        }
+
+        function radiusAt(surface, s) {
+            const f = wrap(s, surface.layout.length) / surface.layout.length * TABLE_SAMPLES - .5;
+            const k0 = Math.floor(f), t = f - k0;
+            return lerp(surface.radius[wrap(k0, TABLE_SAMPLES)], surface.radius[wrap(k0 + 1, TABLE_SAMPLES)], t);
+        }
+
+        // Is (x, y) hidden behind a window above this surface or behind a solid overlay?
+        function blockedAt(surface, x, y) {
+            const env = state.env;
+            for (const win of env.windows) {
+                if (String(win.id) !== surface.id && win.z >= surface.z && inRect(win.rect, x, y)) return true;
+            }
+            for (const mask of env.masks) if (!mask.desktop && inRect(mask, x, y)) return true;
+            return false;
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // Ripple wave
+
+        function rippleImpulse(surface, s, amplitude, width) {
+            const L = surface.layout.length, ds = L / TABLE_SAMPLES;
+            const sigma = Math.max(ds * .8, width * .5);
+            const reach = Math.ceil(sigma * 3 / ds);
+            const center = Math.round(s / ds - .5);
+            for (let j = -reach; j <= reach; j++) {
+                const k = wrap(center + j, TABLE_SAMPLES);
+                const d = cyclicDelta((k + .5) * ds, s, L);
+                surface.ripple[k] = clamp(surface.ripple[k] + amplitude * Math.exp(-d * d / (2 * sigma * sigma)), -RIPPLE_LIMIT, RIPPLE_LIMIT);
+            }
+            surface.rippleLive = true;
+        }
+
+        // One-dimensional damped wave equation u_tt = c^2 u_xx - gamma u_t - kappa u over the
+        // periodic arclength, symplectic Euler with CFL sub-steps.
+        function rippleStep(surface, dt) {
+            if (!surface.rippleLive || dt <= 0) return;
+            const u = surface.ripple, v = surface.rippleV;
+            const ds = surface.layout.length / TABLE_SAMPLES;
+            const cs = RIPPLE_SPEED / ds;
+            const steps = clamp(Math.ceil(cs * dt / .8), 1, 8);
+            const h = dt / steps, c2 = cs * cs;
+            for (let n = 0; n < steps; n++) {
+                for (let k = 0; k < TABLE_SAMPLES; k++) {
+                    const laplace = u[(k + TABLE_SAMPLES - 1) & 127] + u[(k + 1) & 127] - 2 * u[k];
+                    v[k] += (c2 * laplace - RIPPLE_DAMPING * v[k] - RIPPLE_STIFFNESS * u[k]) * h;
+                }
+                for (let k = 0; k < TABLE_SAMPLES; k++) u[k] += v[k] * h;
+            }
+            let energy = 0;
+            for (let k = 0; k < TABLE_SAMPLES; k++) energy += u[k] * u[k] + v[k] * v[k] / c2;
+            surface.energy = energy;
+            if (energy < 2e-4) {
+                u.fill(0); v.fill(0);
+                surface.energy = 0;
+                surface.rippleLive = false;
+            }
+        }
+
+        function nudgeNodes(surface, s, amount, sigma) {
+            const L = surface.layout.length, nodeS = surface.profile.nodeS;
+            for (let i = 0; i < surface.nodes.length; i++) {
+                const d = cyclicDelta(nodeS[i], s, L);
+                const weight = Math.exp(-d * d / (2 * sigma * sigma));
+                if (weight < .02) continue;
+                const normal = SURFACE_NORMALS[Math.floor(i / (SURFACE_SAMPLES / 4))];
+                surface.nodes[i].vx += normal.x * amount * weight;
+                surface.nodes[i].vy += normal.y * amount * weight;
+            }
+        }
+
+        // The gel radius per arclength sample: gravity sag + the spring-node offsets (cubic Hermite
+        // over the node arclengths) + ripple wave + strand bulge, softly floored, scaled by the open
+        // ooze factor (the thin meniscus ring itself never disappears).
+        function computeRadius(surface) {
+            const profile = surface.profile, nodes = surface.nodes, off = surface.off, slope = surface.slope;
+            for (let n = 0; n < SURFACE_SAMPLES; n++) {
+                const normal = SURFACE_NORMALS[n >> 3];
+                off[n] = nodes[n].dx * normal.x + nodes[n].dy * normal.y;
+            }
+            for (let n = 0; n < SURFACE_SAMPLES; n++) {
+                slope[n] = (off[(n + 1) & 31] - off[(n + 31) & 31]) / profile.den[n];
+            }
+            const L = profile.length, pull = surface.pull, ooze = clamp(surface.grow, 0, 1.15);
+            for (let k = 0; k < TABLE_SAMPLES; k++) {
+                const a = profile.ia[k], b = profile.ib[k], gap = profile.gap[k];
+                let r = profile.sag[k]
+                    + profile.h00[k] * off[a] + profile.h10[k] * gap * slope[a]
+                    + profile.h01[k] * off[b] + profile.h11[k] * gap * slope[b]
+                    + surface.ripple[k];
+                if (pull && pull.amp !== 0) {
+                    const d = cyclicDelta((k + .5) / TABLE_SAMPLES * L, pull.s, L);
+                    r += pull.amp * Math.exp(-d * d / (2 * pull.sigma * pull.sigma));
+                }
+                r = MIN_GEL_RADIUS + (softFloor(r) - MIN_GEL_RADIUS) * ooze;
+                surface.radius[k] = clamp(r, MIN_GEL_RADIUS, MAX_GEL_RADIUS);
+            }
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // Spring nodes (the jelly contour)
+
+        function followSurface(id, rect, dt) {
+            const surface = surfaceFor(id, rect);
+            const baseTargets = surfaceTargets(rect);
+            const drive = motionDrives.get(id);
+            const nodes = surface.nodes;
+            // Neighbour coupling reads last frame's offsets, not the ones being updated.
+            const lastX = surface.lastX, lastY = surface.lastY;
+            for (let i = 0; i < nodes.length; i++) { lastX[i] = nodes[i].dx; lastY[i] = nodes[i].dy; }
+            const step = motion ? clamp(dt, 0, 1 / 30) : 0;
+            const spring = 155;
+            const tension = 22;
+            const damping = Math.exp(-9.5 * step);
+            const hover = surface.hover;
+            const nodeS = surface.profile.nodeS, L = surface.layout.length;
+            for (let i = 0; i < nodes.length; i++) {
+                const node = nodes[i];
+                const normal = SURFACE_NORMALS[i >> 3];
+                const breathing = motion
+                    ? Math.sin(state.clock * 1.65 + i * .71 + surface.seed) * 5.1 + Math.sin(state.clock * .83 - i * 1.11) * 1.5
+                    : Math.sin(i * .71 + surface.seed) * 1.8;
+                const along = (i % (SURFACE_SAMPLES / 4) + .5) / (SURFACE_SAMPLES / 4);
+                const drag = drive ? -(drive.x * normal.x + drive.y * normal.y) * drive.strength * (.4 + .6 * Math.sin(Math.PI * along)) : 0;
+                // The gel leans toward a slow pointer hovering near it (sticky, viscous).
+                let attraction = 0;
+                if (hover) {
+                    const d = cyclicDelta(nodeS[i], hover.s, L);
+                    attraction = hover.amp * Math.exp(-d * d / (2 * hover.sigma * hover.sigma));
+                }
+                const target = clamp(breathing + drag + attraction, -6, 16);
+                const previous = (i + nodes.length - 1) % nodes.length, next = (i + 1) % nodes.length;
+                const neighborX = (lastX[previous] + lastX[next]) * .5;
+                const neighborY = (lastY[previous] + lastY[next]) * .5;
+                if (!motion) {
+                    node.dx = normal.x * target;
+                    node.dy = normal.y * target;
+                    node.vx = node.vy = 0;
+                } else if (step > 0) {
+                    const ax = (normal.x * target - node.dx) * spring + (neighborX - node.dx) * tension;
+                    const ay = (normal.y * target - node.dy) * spring + (neighborY - node.dy) * tension;
+                    node.vx = clamp((node.vx + ax * step) * damping, -180, 180);
+                    node.vy = clamp((node.vy + ay * step) * damping, -180, 180);
+                    node.dx += node.vx * step;
+                    node.dy += node.vy * step;
+                }
+                // Preserve a substantial meniscus around the fixed inner aperture,
+                // including when the leading edge compresses during a hard reversal.
+                const inward = node.dx * normal.x + node.dy * normal.y;
+                if (inward < -6) {
+                    node.dx += normal.x * (-6 - inward);
+                    node.dy += normal.y * (-6 - inward);
+                }
+                const deformation = Math.sqrt(node.dx * node.dx + node.dy * node.dy);
+                if (deformation > MAX_DEFORMATION) {
+                    node.dx *= MAX_DEFORMATION / deformation;
+                    node.dy *= MAX_DEFORMATION / deformation;
+                    node.vx *= .5;
+                    node.vy *= .5;
+                }
+                node.x = baseTargets[i].x + node.dx;
+                node.y = baseTargets[i].y + node.dy;
+                currentMaxDisplacement = Math.max(currentMaxDisplacement, Math.min(deformation, MAX_DEFORMATION));
+            }
+            if (drive) {
+                drive.strength *= Math.exp(-4.5 * step);
+                if (drive.strength < .1) motionDrives.delete(id);
+            }
+            maxDisplacement = Math.max(maxDisplacement, currentMaxDisplacement);
+            return surface;
+        }
+
+        function sampleContour(nodes, position) {
+            const wrapped = ((position % nodes.length) + nodes.length) % nodes.length;
+            const i = Math.floor(wrapped), t = wrapped - i, u = 1 - t;
+            const previous = nodes[(i + nodes.length - 1) % nodes.length];
+            const node = nodes[i], next = nodes[(i + 1) % nodes.length];
+            const a = { x: (previous.x + node.x) / 2, y: (previous.y + node.y) / 2 };
+            const b = { x: (node.x + next.x) / 2, y: (node.y + next.y) / 2 };
+            const tx = 2 * u * (node.x - a.x) + 2 * t * (b.x - node.x);
+            const ty = 2 * u * (node.y - a.y) + 2 * t * (b.y - node.y);
+            const length = Math.hypot(tx, ty) || 1;
+            return { x: u * u * a.x + 2 * u * t * node.x + t * t * b.x,
+                y: u * u * a.y + 2 * u * t * node.y + t * t * b.y,
+                nx: ty / length, ny: -tx / length, angle: Math.atan2(ty, tx) };
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // Drips and drops
+
+        function addDrop(x, y, size, vx, vy, life, extra) {
+            if (drops.length >= MAX_DROPS) drops.shift();
+            const drop = { x, y, size, vx, vy, age: 0, life,
+                wobAmp: extra && extra.wobble != null ? extra.wobble : .26,
+                wobFreq: 8 + rng() * 4, wobPhase: rng() * TWO_PI, wob: 0,
+                origin: extra && extra.origin ? extra.origin : '' };
+            drops.push(drop);
+            counters.dropCount++;
+            return drop;
+        }
+
+        function addSpray(x, y, size, vx, vy, life) {
+            if (spray.length >= MAX_SPRAY) spray.shift();
+            spray.push({ x, y, size, vx, vy, age: 0, life });
+            counters.sprayCount++;
+        }
+
+        function dripGrowth(surface, drip) {
+            const phase = motion ? ((state.clock + drip.offset) / drip.period) % 1 : .45;
+            return phase < .84 ? phase / .84 : Math.max(0, (1 - phase) * 1.7);
+        }
+
+        function dripShape(surface, drip, growth) {
+            const point = sampleContour(surface.nodes, drip.node + .5);
+            const idle = motion ? Math.sin(state.clock * 1.8 + drip.offset) * 3 * growth + surface.nodes[drip.node].vx * .018 : 0;
+            return { x: point.x - point.nx * 6, y: point.y - 4,
+                length: 6 + (32 + (drip.node % 3) * 8) * growth * growth,
+                // The pendulum carries the drip against the window's motion (sloshing).
+                sway: idle + drip.sw * (.25 + .75 * growth) };
+        }
+
+        function detachPeriodicDrop(id, surface) {
+            if (!motion || surface.grow < .9) return;
+            for (const drip of surface.drips) {
+                const time = (state.clock + drip.offset) / drip.period;
+                const cycle = Math.floor(time);
+                const phase = time - cycle;
+                if (phase < .84 || drip.cycle === cycle) continue;
+                drip.cycle = cycle;
+                const node = surface.nodes[drip.node];
+                const shape = dripShape(surface, drip, 1);
+                const side = SURFACE_NORMALS[Math.floor(drip.node / (SURFACE_SAMPLES / 4))];
+                addDrop(shape.x + shape.sway, shape.y + shape.length, 6.5, node.vx * .18 + side.x * 36, 28, 2.8, { origin: id, wobble: .34 });
+                // Recoil travels back into the membrane after the neck tears.
+                node.vy -= 48;
+            }
+        }
+
+        function stepDrops(dt) {
+            const env = state.env, taskbar = env.taskbar;
+            for (let i = drops.length - 1; i >= 0; i--) {
+                const drop = drops[i];
+                const previousY = drop.y;
+                drop.age += dt;
+                drop.vy += GRAVITY * dt;
+                drop.x += drop.vx * dt;
+                drop.y += drop.vy * dt;
+                drop.wob = drop.wobAmp * Math.exp(-4.2 * drop.age) * Math.sin(TWO_PI * drop.wobFreq * drop.age + drop.wobPhase);
+                const foot = drop.size * .8;
+                if (taskbar && previousY + foot < taskbar.y && drop.y + foot >= taskbar.y
+                    && drop.x >= taskbar.x + 4 && drop.x <= taskbar.x + taskbar.width - 4) {
+                    landDrop(drop, taskbar.y);
+                    drops.splice(i, 1);
+                    continue;
+                }
+                if (absorbDrop(drop)) { drops.splice(i, 1); continue; }
+                if (drop.age >= drop.life || drop.y > env.height + 40) drops.splice(i, 1);
+            }
+        }
+
+        // A falling drop that reaches another window's visible gel merges into it: the surface
+        // bulges for a moment and a ring travels around the frame.
+        function absorbDrop(drop) {
+            const windows = state.env.windows;
+            for (let i = windows.length - 1; i >= 0; i--) {
+                const surface = surfaces.get(String(windows[i].id));
+                if (!surface || !surface.layout) continue;
+                if (surface.id === drop.origin && drop.age < .6) continue;
+                const lay = surface.layout;
+                if (drop.x < lay.x - 50 || drop.x > lay.x + lay.w + 50 || drop.y < lay.y - 50 || drop.y > lay.y + lay.h + 50) continue;
+                const hit = project(lay, drop.x, drop.y, scratch);
+                if (hit.dist <= 0 || hit.dist >= radiusAt(surface, hit.s) - 1.5) continue;
+                if (blockedAt(surface, drop.x, drop.y)) continue;
+                rippleImpulse(surface, hit.s, clamp(.9 + drop.size * .22, .9, 3.4), 18 + drop.size * 2);
+                nudgeNodes(surface, hit.s, 14 + drop.size * 3, 30);
+                counters.absorbedDrops++;
+                return true;
+            }
+            return false;
+        }
+
+        function landDrop(drop, edgeY) {
+            counters.splatCount++;
+            for (const splat of splats) {
+                if (Math.abs(splat.x - drop.x) < (splat.r + drop.size) * 1.2 && splat.age < splat.life - 1) {
+                    // Two drops that touch run into one blob.
+                    splat.r = Math.min(14, Math.sqrt(splat.r * splat.r + drop.size * drop.size * .8));
+                    splat.x = lerp(splat.x, drop.x, .3);
+                    splat.age = 0;
+                    splat.life = jitter(2.4, 3.8);
+                    return;
+                }
+            }
+            if (splats.length >= MAX_SPLATS) splats.shift();
+            splats.push({ x: drop.x, y: edgeY, r: clamp(drop.size * .95, 2.5, 11), age: 0, life: jitter(2.2, 4) });
+        }
+
+        function stepSplats(dt) {
+            for (let i = splats.length - 1; i >= 0; i--) {
+                const splat = splats[i];
+                splat.age += dt;
+                if (state.env.taskbar) splat.y = state.env.taskbar.y;
+                if (splat.age >= splat.life) splats.splice(i, 1);
+            }
+        }
+
+        function stepSpray(dt) {
+            for (let i = spray.length - 1; i >= 0; i--) {
+                const drop = spray[i];
+                drop.age += dt;
+                drop.vy += SPRAY_GRAVITY * dt;
+                drop.vx *= Math.exp(-.8 * dt);
+                drop.x += drop.vx * dt;
+                drop.y += drop.vy * dt;
+                if (drop.age >= drop.life || drop.y > state.env.height + 40) spray.splice(i, 1);
+            }
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // Window motion: inertia, sloshing drips, hard stops
+
+        function setWindowVelocity(surface, vx, vy, now) {
+            const dvx = vx - surface.winV.x;
+            const previousSpeed = Math.hypot(surface.winV.x, surface.winV.y);
+            const speed = Math.hypot(vx, vy);
+            // The root of a pendulum accelerates: its bob changes velocity against the window's.
+            for (const drip of surface.drips) drip.swv -= dvx * .12;
+            const hardStop = motion && previousSpeed >= 520 && speed < previousSpeed * .4 && now - surface.flingAt > 1.2;
+            const dirX = surface.winV.x / (previousSpeed || 1), dirY = surface.winV.y / (previousSpeed || 1);
+            surface.winV.x = vx;
+            surface.winV.y = vy;
+            if (hardStop) {
+                surface.flingAt = now;
+                fling(surface, dirX, dirY, previousSpeed);
+            }
+        }
+
+        // A hard stop throws ripe drips and a few droplets off the leading edge.
+        function fling(surface, dirX, dirY, speed) {
+            if (!surface.layout) return;
+            for (const drip of surface.drips) {
+                const growth = dripGrowth(surface, drip);
+                const time = (state.clock + drip.offset) / drip.period;
+                if (growth < .55 || time - Math.floor(time) >= .84) continue;
+                const node = surface.nodes[drip.node];
+                const shape = dripShape(surface, drip, growth);
+                addDrop(shape.x + shape.sway, shape.y + shape.length, 3 + growth * 3, dirX * speed * .2, 20 + dirY * speed * .1, 2.4, { origin: surface.id, wobble: .42 });
+                // Restart the drip small.
+                drip.offset += (1 - (time - Math.floor(time))) * drip.period;
+                node.vy -= 30;
+            }
+            let lead = 0, leadDot = -2;
+            const L = surface.layout.length;
+            for (let k = 0; k < TABLE_SAMPLES; k++) {
+                const p = pointAt(surface.layout, (k + .5) / TABLE_SAMPLES * L, scratch);
+                const dot = p.nx * dirX + p.ny * dirY;
+                if (dot > leadDot) { leadDot = dot; lead = (k + .5) / TABLE_SAMPLES * L; }
+            }
+            const count = 2 + Math.floor(rng() * 3);
+            for (let i = 0; i < count; i++) {
+                const s = lead + jitter(-40, 40);
+                const p = pointAt(surface.layout, s, scratch);
+                const radius = radiusAt(surface, s);
+                addDrop(p.x + p.nx * radius, p.y + p.ny * radius, jitter(2, 3.8),
+                    dirX * speed * .22 + p.nx * 30 + jitter(-25, 25), dirY * speed * .22 + p.ny * 30 - 25 + jitter(-20, 20), 2.2, { origin: surface.id, wobble: .45 });
+            }
+            rippleImpulse(surface, lead, 2.8, 38);
+            const extra = 1 + Math.floor(rng() * 2);
+            for (let i = 0; i < extra; i++) bubbles.spawn({ windowId: surface.id, fast: true });
+        }
+
+        function windowEvent(event, now) {
+            if (!event || event.id == null) return;
+            const id = String(event.id);
+            const rect = event.rect;
+            if (event.phase === 'close') {
+                if (rect && motion && !event.silent) {
+                    for (let i = 0; i < 5; i++) {
+                        const corner = i % 2 ? rect.x + rect.width : rect.x;
+                        addDrop(corner + (rng() - .5) * 16, rect.y + rect.height + 3,
+                            5 + rng() * 8, (rng() - .5) * 46, 30 + rng() * 65, 2.4 + rng() * .6, { wobble: .4 });
+                    }
+                }
+                removeWindow(id);
+                return;
+            }
+            let surface = surfaces.get(id);
+            if (event.phase === 'open' && motion && !event.silent && rect) {
+                // The gel oozes out of the new window.
+                surface = surfaceFor(id, rect);
+                surface.grow = 0;
+                surface.growV = 0;
+            }
+            if (event.phase === 'drag' && event.velocity) {
+                const vx = Number(event.velocity.x) || 0;
+                const vy = Number(event.velocity.y) || 0;
+                const speed = Math.hypot(vx, vy);
+                if (speed > 8) motionDrives.set(id, { x: vx / speed, y: vy / speed, strength: Math.min(13, speed * .014) });
+                if (surface) { setWindowVelocity(surface, vx, vy, now); surface.dragAt = now; }
+            } else if (event.phase !== 'drag-end') motionDrives.delete(id);
+            if (event.phase === 'drag-end' && surface) {
+                // A release right after a quick drag stops the window dead; a long pause already did.
+                if (now - surface.dragAt > .14) { surface.winV.x = surface.winV.y = 0; }
+                else setWindowVelocity(surface, 0, 0, now);
+            }
+        }
+
+        // Windows the bridge no longer knows about disappear; drag drives are reset like a fresh snapshot.
+        function syncWindows(ids) {
+            for (const id of [...surfaces.keys()]) if (!ids.has(id)) removeWindow(id);
+            motionDrives.clear();
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // Per-frame update
+
+        function runPending(surface) {
+            for (let i = surface.pending.length - 1; i >= 0; i--) {
+                const item = surface.pending[i];
+                if (state.clock < item.at) continue;
+                surface.pending.splice(i, 1);
+                if (item.kind === 'ripple') rippleImpulse(surface, item.s, item.amplitude, item.width);
+                else if (item.kind === 'bubble') bubbles.spawn({ windowId: surface.id, at: { x: item.x, y: item.y }, fast: true });
+            }
+        }
+
+        function stepGrow(surface, dt) {
+            if (surface.grow === 1 && surface.growV === 0) return;
+            const w = 13, z = .6, h = dt / 2;
+            for (let n = 0; n < 2; n++) {
+                surface.growV += (w * w * (1 - surface.grow) - 2 * z * w * surface.growV) * h;
+                surface.grow += surface.growV * h;
+            }
+            if (Math.abs(1 - surface.grow) < .002 && Math.abs(surface.growV) < .02) { surface.grow = 1; surface.growV = 0; }
+            surface.grow = clamp(surface.grow, 0, 1.15);
+        }
+
+        function stepPendulums(surface, dt) {
+            const w = 9.2, z = .2;
+            for (const drip of surface.drips) {
+                drip.swv += (-w * w * drip.sw - 2 * z * w * drip.swv) * dt;
+                drip.sw = clamp(drip.sw + drip.swv * dt, -16, 16);
+            }
+        }
+
+        function stepSurface(surface, dt, now) {
+            if (!motion) return;
+            surface.age += dt;
+            // No events during a drag for a while: the window stands still.
+            if ((surface.winV.x || surface.winV.y) && now - surface.dragAt > .14) setWindowVelocity(surface, 0, 0, now);
+            stepGrow(surface, dt);
+            rippleStep(surface, dt);
+            stepPendulums(surface, dt);
+            touch.relax(surface, dt);
+            runPending(surface);
+            detachPeriodicDrop(surface.id, surface);
+            bubbles.step(surface, dt);
+        }
+
+        function update(next) {
+            const env = state.env = next || EMPTY_ENV;
+            const dt = clamp(env.dt || 0, 0, .05);
+            const now = env.now || 0;
+            currentMaxDisplacement = 0;
+            if (motion) state.clock += dt;
+            const seen = new Set();
+            for (const win of env.windows) {
+                const id = String(win.id);
+                win.rect.radii = win.radii;
+                const surface = surfaceFor(id, win.rect);
+                surface.z = win.z;
+                surface.active = !!win.active;
+                seen.add(id);
+            }
+            for (const id of [...surfaces.keys()]) if (!seen.has(id)) removeWindow(id);
+            touch.update(dt, now);
+            for (const win of env.windows) {
+                const surface = followSurface(String(win.id), win.rect, dt);
+                stepSurface(surface, dt, now);
+            }
+            if (motion) {
+                touch.step(dt);
+                bubbles.spawnAmbient(dt);
+                stepDrops(dt);
+                stepSpray(dt);
+                stepSplats(dt);
+            }
+            for (const surface of surfaces.values()) computeRadius(surface);
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // Scene
+
+        function sceneWindow(surface, win) {
+            const drips = [];
+            const ooze = clamp(surface.grow, 0, 1);
+            for (const drip of surface.drips) {
+                // A freshly opened window has not built up its drips yet.
+                const growth = dripGrowth(surface, drip) * ooze;
+                const shape = dripShape(surface, drip, growth);
+                const root = 9 - growth * 3;
+                drips.push({ x: shape.x, y: shape.y, length: shape.length, root, neck: Math.max(.7, root * (1 - growth * .9)),
+                    bulb: 4 + growth * 4, sway: shape.sway });
+            }
+            const shown = surface.bubbles.map(bubble => bubbles.view(surface, bubble));
+            if (!motion) {
+                const frozen = bubbles.frozen(surface);
+                if (frozen) shown.push(frozen);
+            }
+            const thread = touch.view(surface);
+            const rect = surface.layout;
+            return { id: surface.id, rect: { x: rect.x, y: rect.y, width: rect.w, height: rect.h }, radii: rect.radii,
+                z: win.z, active: !!win.active, grow: Math.min(1, surface.grow), radius: surface.radius,
+                drips, bubbles: shown, strands: thread ? [thread] : [], occluders: [], under: [] };
+        }
+
+        function scene(next) {
+            const e = next || state.env;
+            const out = { time: state.clock, width: e.width, height: e.height, dpr: e.dpr, motion, backdrop: null,
+                windows: [], drops: [], splats: [], dropOccluders: [] };
+            for (const win of e.windows) {
+                const surface = surfaces.get(String(win.id));
+                if (surface && surface.layout) out.windows.push(sceneWindow(surface, win));
+            }
+            for (const drop of drops) {
+                out.drops.push({ x: drop.x, y: drop.y, r: drop.size, vx: drop.vx, vy: drop.vy, wobble: drop.wob,
+                    alpha: clamp((drop.life - drop.age) / .25, 0, 1) });
+            }
+            for (const drop of spray) {
+                out.drops.push({ x: drop.x, y: drop.y, r: drop.size, vx: drop.vx, vy: drop.vy, wobble: 0,
+                    alpha: clamp((drop.life - drop.age) / .15, 0, 1), spray: true });
+            }
+            for (const splat of splats) {
+                const age = splat.age;
+                out.splats.push({ x: splat.x, y: splat.y, r: splat.r * (1 - .28 * age / splat.life),
+                    spread: 1 - Math.exp(-11 * age) * Math.cos(24 * age),
+                    alpha: age > splat.life - 1.2 ? clamp((splat.life - age) / 1.2, 0, 1) : 1 });
+            }
+            return out;
+        }
+
+        function stats() {
+            const shown = bubbles.report();
+            let energy = 0;
+            for (const surface of surfaces.values()) energy += surface.energy;
+            const threads = touch.sample();
+            return {
+                dropCount: counters.dropCount,
+                activeDrops: drops.length,
+                sprayCount: counters.sprayCount,
+                activeSpray: spray.length,
+                bubbleCount: counters.bubbleCount,
+                activeBubbles: shown.active,
+                bubbleBursts: counters.bubbleBursts,
+                bubbleStages: shown.stages,
+                bubbleStageEntries: { ...stageEntries },
+                bubbleSamples: shown.samples,
+                strandCount: counters.strandCount,
+                activeStrands: threads.length,
+                strandSamples: threads,
+                strandSnaps: counters.strandSnaps,
+                absorbedDrops: counters.absorbedDrops,
+                splatCount: counters.splatCount,
+                activeSplats: splats.length,
+                splatSamples: splats.map(splat => ({ x: splat.x, y: splat.y, r: splat.r, age: splat.age })),
+                rippleEnergy: Math.round(energy * 1000) / 1000,
+                pokeCount: counters.pokeCount,
+                maxDisplacement: Math.min(MAX_DEFORMATION, maxDisplacement),
+                currentMaxDisplacement: Math.min(MAX_DEFORMATION, currentMaxDisplacement),
+                surfaceCount: surfaces.size,
+                surfaceNodeCount: surfaces.size * SURFACE_SAMPLES
+            };
+        }
+
+        function reset() {
+            surfaces.clear();
+            motionDrives.clear();
+            drops.length = 0;
+            spray.length = 0;
+            splats.length = 0;
+            touch.reset();
+            state.env = EMPTY_ENV;
+        }
+
+        return {
+            motion, surfaces, motionDrives,
+            update, scene, stats, reset,
+            surfaceTargets, followSurface, detachPeriodicDrop, addDrop, sampleContour, dripShape,
+            rippleImpulse, rippleStep, radiusAt, windowEvent, syncWindows, removeWindow,
+            spawnBubble: bubbles.spawn,
+            poke: touch.poke, pointerMove: touch.pointerMove, pointerDown: touch.pointerDown, pointerUp: touch.pointerUp, hitGel: touch.hitGel,
+            get clock() { return state.clock; },
+            get strand() { return touch.strand; },
+            get drops() { return drops; },
+            get spray() { return spray; },
+            get splats() { return splats; }
+        };
+    }
+
+    window.AuraGreenSlimeSim = Object.freeze({
+        createSim, geometry, strandRadii: kit.strandRadii,
+        constants: kit.constants
+    });
+})();
+
+;
+/* ui/js/desktop/theme-fx/green_slime_canvas2d.js */
+(function () {
+    'use strict';
+
+    // Canvas 2D renderer of the Green Slime effect: the fallback for browsers without WebGL2 and the
+    // renderer of record until a better one takes the slot. It draws the scene contract of
+    // green_slime_sim.js (gel contour from the radius table, drips, bubbles, strands, drops, splats)
+    // with everything clipped by the scene's occluders. A renderer is
+    // { kind, render(scene), resize(cssWidth, cssHeight, dpr), dispose() }.
+
+    const TWO_PI = Math.PI * 2;
+
+    function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+    function smoothstep(a, b, x) { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
+    function rgba(r, g, b, a) { return 'rgba(' + r + ',' + g + ',' + b + ',' + clamp(a, 0, 1).toFixed(3) + ')'; }
+
+    function tableRadius(table, s, length) {
+        const f = (((s % length) + length) % length) / length * table.length - .5;
+        const k0 = Math.floor(f), t = f - k0;
+        const n = table.length;
+        return table[((k0 % n) + n) % n] * (1 - t) + table[(((k0 + 1) % n) + n) % n] * t;
+    }
+
+    function createCanvas2DRenderer(canvas) {
+        const geometry = window.AuraGreenSlimeSim.geometry;
+        // The material and DOM window must be presented in the same compositor
+        // frame. A desynchronized canvas can visibly trail a fast pointer drag.
+        const ctx = canvas.getContext('2d', { alpha: true });
+        if (!ctx) return null;
+        let width = 1;
+        let height = 1;
+
+        function resize(cssWidth, cssHeight, dpr) {
+            width = cssWidth;
+            height = cssHeight;
+            canvas.width = Math.max(1, Math.round(cssWidth * dpr));
+            canvas.height = Math.max(1, Math.round(cssHeight * dpr));
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        function clipOut(ctx2d, blockers) {
+            ctx2d.beginPath();
+            ctx2d.rect(0, 0, width, height);
+            ctx2d.clip();
+            for (const rect of blockers) {
+                ctx2d.beginPath();
+                ctx2d.rect(0, 0, width, height);
+                const radii = rect.radii || (rect.radius ? [rect.radius, rect.radius, rect.radius, rect.radius] : null);
+                if (radii) ctx2d.roundRect(rect.x, rect.y, rect.width, rect.height, radii);
+                else ctx2d.rect(rect.x, rect.y, rect.width, rect.height);
+                ctx2d.clip('evenodd');
+            }
+        }
+
+        // Closed polygon of the gel: every perimeter point moved outward by the radius table (minus
+        // "inset"). Arcs get at least four points, so even square corners are rounded off.
+        function gelPath(lay, table, inset) {
+            const path = new Path2D();
+            const p = {};
+            let first = true;
+            for (const g of lay.segs) {
+                if (!g.arc && g.len <= 0) continue;
+                const steps = g.arc ? Math.max(4, Math.ceil(g.len / 5)) : Math.max(1, Math.ceil(g.len / 8));
+                for (let i = 0; i < steps; i++) {
+                    const t = i / steps;
+                    geometry.segmentPoint(g, t, p);
+                    const r = tableRadius(table, g.start + t * g.len, lay.length) - inset;
+                    if (first) { path.moveTo(p.x + p.nx * r, p.y + p.ny * r); first = false; }
+                    else path.lineTo(p.x + p.nx * r, p.y + p.ny * r);
+                }
+            }
+            path.closePath();
+            return path;
+        }
+
+        function contourPoint(lay, table, s, inset) {
+            const p = geometry.pointAt(lay, s, {});
+            const r = tableRadius(table, s, lay.length) - inset;
+            return { x: p.x + p.nx * r, y: p.y + p.ny * r, nx: p.nx, ny: p.ny, angle: Math.atan2(p.nx, -p.ny) };
+        }
+
+        function drawDrop(drop) {
+            const size = drop.r;
+            ctx.globalAlpha = drop.alpha;
+            if (drop.spray || size < 2.4) {
+                // Micro-droplets: a flat disc with a pin highlight, no gradient or blur.
+                ctx.fillStyle = '#9fcf3c';
+                ctx.beginPath();
+                ctx.arc(drop.x, drop.y, Math.max(.6, size), 0, TWO_PI);
+                ctx.fill();
+                ctx.fillStyle = 'rgba(250,255,222,.9)';
+                ctx.beginPath();
+                ctx.arc(drop.x - size * .3, drop.y - size * .3, Math.max(.3, size * .32), 0, TWO_PI);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                return;
+            }
+            // A falling drop stretches with its speed and squashes/stretches with a damped wobble.
+            const stretch = 1 + Math.min(1.2, Math.abs(drop.vy) / 220);
+            ctx.save();
+            ctx.translate(drop.x, drop.y);
+            ctx.scale(1 - drop.wobble * .55, stretch * (1 + drop.wobble));
+            const gradient = ctx.createLinearGradient(-size, -size, size, size);
+            gradient.addColorStop(0, '#f2ffbc');
+            gradient.addColorStop(.26, '#c3f34c');
+            gradient.addColorStop(.62, '#75ac1e');
+            gradient.addColorStop(1, '#354f0c');
+            ctx.fillStyle = gradient;
+            ctx.shadowColor = 'rgba(126,158,40,.48)';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.moveTo(0, -size);
+            ctx.bezierCurveTo(size * .9, -size * .3, size * .82, size * .48, size * .35, size * .76);
+            ctx.quadraticCurveTo(0, size, -size * .35, size * .76);
+            ctx.bezierCurveTo(-size * .82, size * .48, -size * .9, -size * .3, 0, -size);
+            ctx.closePath();
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(250,255,214,.9)';
+            ctx.beginPath();
+            ctx.ellipse(-size * .25, 0, size * .14, size * .4, -.25, 0, TWO_PI);
+            ctx.fill();
+            ctx.restore();
+            ctx.globalAlpha = 1;
+        }
+
+        // A drop that landed on the taskbar edge: a flattened blob that spreads with a short
+        // oscillation and then slowly thins out.
+        function drawSplat(splat) {
+            const spread = splat.spread;
+            const w = splat.r * (.9 + 1.5 * spread);
+            const h = splat.r * clamp(1.25 - .6 * spread, .38, 1.3);
+            const x = splat.x, y = splat.y;
+            ctx.save();
+            ctx.globalAlpha = splat.alpha;
+            const gradient = ctx.createRadialGradient(x - w * .25, y - h * .8, 0, x, y - h * .4, Math.max(w, h) * 1.1);
+            gradient.addColorStop(0, '#d9ff7c');
+            gradient.addColorStop(.4, '#9ccf34');
+            gradient.addColorStop(.85, '#4f7a12');
+            gradient.addColorStop(1, '#2e4a0a');
+            ctx.fillStyle = gradient;
+            ctx.shadowColor = 'rgba(126,158,40,.4)';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.moveTo(x - w - 3, y);
+            ctx.quadraticCurveTo(x - w * .92, y, x - w * .8, y - h * .35);
+            ctx.bezierCurveTo(x - w * .55, y - h * 1.08, x + w * .55, y - h * 1.08, x + w * .8, y - h * .35);
+            ctx.quadraticCurveTo(x + w * .92, y, x + w + 3, y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(250,255,222,.85)';
+            ctx.beginPath();
+            ctx.ellipse(x - w * .28, y - h * .62, w * .2, h * .14, -.2, 0, TWO_PI);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawDrip(drip) {
+            const y = drip.y;
+            const len = drip.length;
+            const end = y + len;
+            const x = drip.x + drip.sway;
+            const root = drip.root, neck = drip.neck, bulb = drip.bulb;
+            const gradient = ctx.createLinearGradient(drip.x - root, y, x + root, end);
+            gradient.addColorStop(0, '#b4d96c');
+            gradient.addColorStop(.25, '#a1cc45');
+            gradient.addColorStop(.56, '#699722');
+            gradient.addColorStop(.86, '#36591a');
+            gradient.addColorStop(1, '#9abd47');
+            ctx.fillStyle = gradient;
+            ctx.shadowColor = 'rgba(12,28,1,.5)';
+            ctx.shadowBlur = 5;
+            ctx.shadowOffsetY = 3;
+            ctx.beginPath();
+            ctx.moveTo(drip.x - root, y);
+            ctx.bezierCurveTo(drip.x - neck, y + len * .3, x - neck, end - bulb * 1.8, x - bulb, end - bulb);
+            ctx.bezierCurveTo(x - bulb * 1.35, end + bulb, x + bulb * 1.35, end + bulb, x + bulb, end - bulb);
+            ctx.bezierCurveTo(x + neck, end - bulb * 1.8, drip.x + neck, y + len * .3, drip.x + root, y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+            ctx.fillStyle = 'rgba(249,255,210,.92)';
+            ctx.beginPath();
+            ctx.ellipse(x - bulb * .3, end - bulb * .4, 1.2, bulb * .55, -.3, 0, TWO_PI);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(241,255,196,.65)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(drip.x - root * .6, y + 2);
+            ctx.bezierCurveTo(drip.x - neck * .65, y + len * .3, x - neck * .7, end - bulb * 2, x - bulb * .65, end - bulb);
+            ctx.stroke();
+        }
+
+        // Gas pocket inside the gel: clearer centre, dark refracted rim, pin highlight.
+        function drawPocket(b) {
+            const r = Math.max(1.2, b.r), x = b.x, y = b.y;
+            ctx.save();
+            ctx.globalAlpha = clamp(b.r / 2.2, .3, 1);
+            const gradient = ctx.createRadialGradient(x - r * .2, y - r * .25, r * .1, x, y, r);
+            gradient.addColorStop(0, 'rgba(244,255,200,.62)');
+            gradient.addColorStop(.6, 'rgba(206,240,130,.3)');
+            gradient.addColorStop(.88, 'rgba(48,84,14,.45)');
+            gradient.addColorStop(1, 'rgba(26,48,6,.7)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.ellipse(x, y, r, r * 1.1, 0, 0, TWO_PI);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(226,250,150,.5)';
+            ctx.lineWidth = Math.max(.6, r * .1);
+            ctx.beginPath();
+            ctx.arc(x, y, r * .9, Math.PI * .15, Math.PI * .8);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,244,.9)';
+            ctx.beginPath();
+            ctx.ellipse(x - r * .35, y - r * .4, Math.max(.4, r * .2), Math.max(.3, r * .11), -.6, 0, TWO_PI);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Dome of a bubble seen through its own film: the gel shows through, the silhouette is a
+        // darker green ring (long path through the film), a curved soft-box reflection and a pin
+        // highlight sit up-left, the lime caustic lower-right; before failure a faint interference tint.
+        function drawDome(b, alpha) {
+            const x = b.x, y = b.y, r = b.r;
+            const d = clamp(b.dome, 0, 1.02);
+            ctx.save();
+            ctx.globalAlpha = alpha == null ? 1 : alpha;
+            ctx.fillStyle = rgba(14, 30, 3, .26 * d);
+            ctx.beginPath();
+            ctx.ellipse(x + r * .14 * d, y + r * .22 * d, r * 1.02, r * .96, 0, 0, TWO_PI);
+            ctx.fill();
+            const body = ctx.createRadialGradient(x - r * .2 * d, y - r * .24 * d, r * .05, x, y, r);
+            body.addColorStop(0, rgba(236, 255, 176, .1 + .12 * b.film));
+            body.addColorStop(.58, rgba(160, 208, 78, .07 + .1 * b.film));
+            body.addColorStop(.86, rgba(70, 112, 22, .06 + .34 * d));
+            body.addColorStop(1, rgba(24, 46, 6, .1 + .7 * d));
+            ctx.fillStyle = body;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, TWO_PI);
+            ctx.fill();
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, TWO_PI);
+            ctx.clip();
+            const caustic = ctx.createRadialGradient(x + r * .42, y + r * .46, 0, x + r * .42, y + r * .46, r * .62);
+            caustic.addColorStop(0, rgba(228, 255, 128, .4 * d));
+            caustic.addColorStop(1, rgba(228, 255, 128, 0));
+            ctx.fillStyle = caustic;
+            ctx.fillRect(x - r, y - r, r * 2, r * 2);
+            if (b.interference > .02) {
+                const tint = ctx.createLinearGradient(x - r * .5, y - r * .6, x + r * .4, y + r * .1);
+                tint.addColorStop(0, rgba(255, 214, 84, .13 * b.interference));
+                tint.addColorStop(.45, rgba(255, 110, 214, .11 * b.interference));
+                tint.addColorStop(.8, rgba(110, 200, 255, .08 * b.interference));
+                tint.addColorStop(1, rgba(255, 214, 84, 0));
+                ctx.fillStyle = tint;
+                ctx.fillRect(x - r, y - r, r * 2, r * 2);
+            }
+            ctx.translate(x - r * .3, y - r * .36);
+            ctx.rotate(-.62);
+            ctx.scale(1, .44);
+            const box = ctx.createRadialGradient(0, 0, 0, 0, 0, r * .5);
+            box.addColorStop(0, rgba(255, 255, 244, .82 * d));
+            box.addColorStop(.6, rgba(244, 255, 214, .36 * d));
+            box.addColorStop(1, rgba(244, 255, 214, 0));
+            ctx.fillStyle = box;
+            ctx.beginPath();
+            ctx.arc(0, 0, r * .5, 0, TWO_PI);
+            ctx.fill();
+            ctx.restore();
+            ctx.fillStyle = rgba(255, 255, 248, .95 * Math.min(1, d * 1.3));
+            ctx.beginPath();
+            ctx.ellipse(x - r * .46, y - r * .5, Math.max(.4, r * .13), Math.max(.3, r * .075), -.62, 0, TWO_PI);
+            ctx.fill();
+            ctx.strokeStyle = rgba(238, 255, 180, .5 * d);
+            ctx.lineWidth = Math.max(.6, r * .07);
+            ctx.beginPath();
+            ctx.arc(x, y, r * .88, Math.PI * .12, Math.PI * .72);
+            ctx.stroke();
+            ctx.strokeStyle = rgba(30, 56, 8, .1 + .5 * d);
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, TWO_PI);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // The film retracts from the rupture point behind a thick, bright rim.
+        function drawBurst(b) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(b.x - b.r * 2.2, b.y - b.r * 2.2, b.r * 4.4, b.r * 4.4);
+            ctx.moveTo(b.hx + b.holeR, b.hy);
+            ctx.arc(b.hx, b.hy, b.holeR, 0, TWO_PI);
+            ctx.clip('evenodd');
+            drawDome(b, 1 - .55 * b.t);
+            ctx.restore();
+            if (b.holeR < .5) return;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.r * 1.02, 0, TWO_PI);
+            ctx.clip();
+            ctx.fillStyle = rgba(30, 54, 8, .28 * (1 - b.t));
+            ctx.beginPath();
+            ctx.arc(b.hx, b.hy, b.holeR, 0, TWO_PI);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(94,142,30,.85)';
+            ctx.lineWidth = b.rim + 1.6;
+            ctx.beginPath();
+            ctx.arc(b.hx, b.hy, b.holeR, 0, TWO_PI);
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(250,255,214,.95)';
+            ctx.lineWidth = Math.max(.6, b.rim * .55);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // Where the dome stood: a depression with a damped ring oscillation and a small central rebound.
+        function drawCrater(b) {
+            const a = Math.min(1, Math.abs(b.crater));
+            const pit = b.crater >= 0;
+            const x = b.x, y = b.y, r = b.r;
+            ctx.save();
+            if (a > .03) {
+                ctx.lineCap = 'round';
+                ctx.lineWidth = Math.max(1, r * .2);
+                // Lit from the upper left: the far wall of a pit is dark, the near wall catches light.
+                ctx.strokeStyle = pit ? rgba(22, 44, 6, .6 * a) : rgba(240, 255, 190, .75 * a);
+                ctx.beginPath();
+                ctx.arc(x, y, r * .92, Math.PI * .72, Math.PI * 1.78);
+                ctx.stroke();
+                ctx.strokeStyle = pit ? rgba(240, 255, 190, .75 * a) : rgba(22, 44, 6, .6 * a);
+                ctx.beginPath();
+                ctx.arc(x, y, r * .92, -Math.PI * .28, Math.PI * .78);
+                ctx.stroke();
+                ctx.strokeStyle = rgba(228, 252, 160, .35 * a * (1 - b.t));
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(x, y, r * (1.18 + .5 * b.t), 0, TWO_PI);
+                ctx.stroke();
+            }
+            if (b.rebound > .04) {
+                const bump = ctx.createRadialGradient(x - r * .08, y - r * .1, 0, x, y, r * .4);
+                bump.addColorStop(0, rgba(250, 255, 222, .75 * b.rebound));
+                bump.addColorStop(.5, rgba(214, 246, 130, .3 * b.rebound));
+                bump.addColorStop(1, rgba(214, 246, 130, 0));
+                ctx.fillStyle = bump;
+                ctx.beginPath();
+                ctx.arc(x, y, r * .4, 0, TWO_PI);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        function drawBubble(b) {
+            if (b.r < .4) return;
+            if (b.stage === 'nucleate') drawPocket(b);
+            else if (b.stage === 'burst') drawBurst(b);
+            else if (b.stage === 'crater') drawCrater(b);
+            else drawDome(b);
+        }
+
+        // A drawn-out thread: tapered, drooping, beaded once it is thin enough.
+        function drawStrand(strand, time) {
+            const dx = strand.bx - strand.ax, dy = strand.by - strand.ay;
+            const length = Math.hypot(dx, dy) || 1;
+            const cx = (strand.ax + strand.bx) / 2, cy = (strand.ay + strand.by) / 2 + Math.min(16, length * .09);
+            const count = clamp(Math.ceil(length / 6), 10, 36);
+            const left = [], right = [], spine = [];
+            for (let i = 0; i <= count; i++) {
+                const u = i / count, m = 1 - u;
+                const x = m * m * strand.ax + 2 * m * u * cx + u * u * strand.bx;
+                const y = m * m * strand.ay + 2 * m * u * cy + u * u * strand.by;
+                const tx = 2 * m * (cx - strand.ax) + 2 * u * (strand.bx - cx);
+                const ty = 2 * m * (cy - strand.ay) + 2 * u * (strand.by - cy);
+                const tl = Math.hypot(tx, ty) || 1;
+                const nx = -ty / tl, ny = tx / tl;
+                let r = strand.mid + (strand.root - strand.mid) * Math.pow(m, 3) + (strand.tip - strand.mid) * Math.pow(u, 5);
+                if (strand.beads) {
+                    // Rayleigh-Plateau: beads swell, the necks between them thin.
+                    let bead = 0;
+                    for (let j = 0; j < strand.beads; j++) {
+                        const centre = (j + 1) / (strand.beads + 1) + Math.sin(time * 2.1 + j * 1.7) * .012;
+                        bead += Math.exp(-Math.pow((u - centre) / .05, 2));
+                    }
+                    r *= 1 + (.62 - 1 + 1.9 * Math.min(1, bead)) * smoothstep(.05, .2, u) * (1 - smoothstep(.85, .97, u));
+                }
+                left.push(x + nx * r, y + ny * r);
+                right.push(x - nx * r, y - ny * r);
+                spine.push(x - nx * r * .35, y - ny * r * .35);
+            }
+            const gradient = ctx.createLinearGradient(strand.ax, strand.ay, strand.bx, strand.by);
+            gradient.addColorStop(0, '#a9d352');
+            gradient.addColorStop(.55, '#79ad28');
+            gradient.addColorStop(1, '#4f7a14');
+            ctx.save();
+            ctx.fillStyle = gradient;
+            ctx.strokeStyle = 'rgba(36,60,10,.55)';
+            ctx.lineWidth = .8;
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(left[0], left[1]);
+            for (let i = 2; i < left.length; i += 2) ctx.lineTo(left[i], left[i + 1]);
+            for (let i = right.length - 2; i >= 0; i -= 2) ctx.lineTo(right[i], right[i + 1]);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(250,255,214,.8)';
+            ctx.lineWidth = Math.max(.6, strand.mid * .4);
+            ctx.beginPath();
+            ctx.moveTo(spine[0], spine[1]);
+            for (let i = 2; i < spine.length - 2; i += 2) ctx.lineTo(spine[i], spine[i + 1]);
+            ctx.stroke();
+            const bulb = strand.tip * 1.15;
+            const tipGradient = ctx.createRadialGradient(strand.bx - bulb * .3, strand.by - bulb * .3, 0, strand.bx, strand.by, bulb);
+            tipGradient.addColorStop(0, '#e8ffa6');
+            tipGradient.addColorStop(.5, '#8fc232');
+            tipGradient.addColorStop(1, '#4a7512');
+            ctx.fillStyle = tipGradient;
+            ctx.beginPath();
+            ctx.arc(strand.bx, strand.by, bulb, 0, TWO_PI);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawWindow(win, time) {
+            const rect = win.rect;
+            const occluders = win.occluders;
+            const lay = geometry.layout(rect, win.radii);
+            const table = win.radius;
+            ctx.save();
+            const paint = { x: rect.x - 48, y: rect.y - 48, width: rect.width + 96, height: rect.height + 144 };
+            ctx.beginPath();
+            ctx.rect(paint.x, paint.y, paint.width, paint.height);
+            ctx.clip();
+            const blockers = occluders.filter(r => r.x < paint.x + paint.width && r.x + r.width > paint.x && r.y < paint.y + paint.height && r.y + r.height > paint.y);
+            clipOut(ctx, blockers);
+            // Draw attached drops first; the body covers their roots, so a neck
+            // grows out of one continuous volume instead of sitting on its edge.
+            for (const drip of win.drips) drawDrip(drip);
+            const gradient = ctx.createLinearGradient(rect.x, rect.y - 20, rect.x + rect.width * .45, rect.y + rect.height);
+            gradient.addColorStop(0, '#8eaf3f');
+            gradient.addColorStop(.22, '#6b8f25');
+            gradient.addColorStop(.58, '#42631b');
+            gradient.addColorStop(1, '#85a834');
+            ctx.lineJoin = 'round';
+            ctx.fillStyle = gradient;
+            // The DOM already supplies the window's soft cast shadow. Blurring a
+            // second window-sized silhouette every frame is costly in software.
+            const outer = gelPath(lay, table, 0);
+            ctx.fill(outer);
+            // A filled membrane, bounded by the live outer curve and the anchored
+            // round window aperture. Unlike a displaced stroke, it cannot detach.
+            ctx.save();
+            ctx.clip(outer);
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = 'rgba(29,49,9,.65)';
+            ctx.stroke(outer);
+            const volume = ctx.createLinearGradient(rect.x - 20, rect.y - 20, rect.x + rect.width, rect.y + rect.height);
+            volume.addColorStop(0, '#cae884');
+            volume.addColorStop(.3, '#96bc49');
+            volume.addColorStop(.65, '#6d9026');
+            volume.addColorStop(1, '#b5d75b');
+            ctx.lineWidth = 11;
+            ctx.strokeStyle = volume;
+            ctx.stroke(gelPath(lay, table, 7));
+            // Long, soft reflections flow over the curved material, with thin
+            // Fresnel glints at grazing angles and darker absorbed light inside.
+            const seed = Array.from(win.id).reduce((sum, letter) => sum + letter.charCodeAt(0), 0) * .17;
+            for (let i = 0; i < 8; i++) {
+                const p = contourPoint(lay, table, (((i * 4.13 + .8 + seed + time * .12) / 32) % 1) * lay.length, 7);
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.angle);
+                ctx.scale(7, 1);
+                const sheen = ctx.createRadialGradient(0, 0, .3, 0, 0, 6);
+                sheen.addColorStop(0, 'rgba(244,255,211,.72)');
+                sheen.addColorStop(.3, 'rgba(218,245,150,.3)');
+                sheen.addColorStop(1, 'rgba(218,245,150,0)');
+                ctx.fillStyle = sheen;
+                ctx.fillRect(-6, -6, 12, 12);
+                ctx.restore();
+            }
+            const reflection = ctx.createLinearGradient(rect.x, rect.y, rect.x + rect.width * .6, rect.y + rect.height);
+            reflection.addColorStop(0, 'rgba(250,255,224,.95)');
+            reflection.addColorStop(.42, 'rgba(222,246,159,.5)');
+            reflection.addColorStop(.75, 'rgba(198,232,121,.13)');
+            reflection.addColorStop(1, 'rgba(239,255,180,.64)');
+            ctx.strokeStyle = reflection;
+            ctx.lineWidth = 1.4;
+            ctx.stroke(gelPath(lay, table, 3));
+            ctx.beginPath();
+            ctx.roundRect(rect.x - 1.5, rect.y - 1.5, rect.width + 3, rect.height + 3, win.radii.map(r => r + 1.5));
+            ctx.strokeStyle = 'rgba(20,38,6,.6)';
+            ctx.lineWidth = 5;
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(194,226,112,.62)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            // Air inclusions advect through the membrane; each has a dark lens,
+            // a refracted lower rim and an off-centre wet highlight.
+            for (let i = 0; i < 22; i++) {
+                const flow = (i * 1.457 + seed + time * (.07 + (i % 3) * .025)) / 32;
+                const p = contourPoint(lay, table, (flow % 1) * lay.length, 7 + (i % 3) * 2);
+                const radius = 1.1 + (i % 4) * .65;
+                ctx.fillStyle = 'rgba(38,66,12,.45)';
+                ctx.beginPath();
+                ctx.ellipse(p.x, p.y, radius, radius * 1.23, p.angle, 0, TWO_PI);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(222,247,162,.65)';
+                ctx.lineWidth = .7;
+                ctx.beginPath(); ctx.arc(p.x, p.y, radius, .1, Math.PI * .85); ctx.stroke();
+                ctx.fillStyle = 'rgba(251,255,229,.85)';
+                ctx.beginPath(); ctx.ellipse(p.x - radius * .33, p.y - radius * .5, .65, radius * .43, -.4, 0, TWO_PI); ctx.fill();
+            }
+            ctx.restore();
+            for (const bubble of win.bubbles) drawBubble(bubble);
+            ctx.restore();
+            if (win.strands.length) {
+                // A thread reaches far outside the window's paint box.
+                ctx.save();
+                clipOut(ctx, occluders);
+                for (const strand of win.strands) drawStrand(strand, time);
+                ctx.restore();
+            }
+        }
+
+        function render(scene) {
+            ctx.clearRect(0, 0, width, height);
+            for (const win of scene.windows) drawWindow(win, scene.time);
+            if (scene.splats.length) {
+                ctx.save();
+                clipOut(ctx, scene.dropOccluders.filter(item => !item.taskbar));
+                for (const splat of scene.splats) drawSplat(splat);
+                ctx.restore();
+            }
+            if (scene.drops.length) {
+                const blockers = scene.dropOccluders;
+                ctx.save();
+                clipOut(ctx, blockers);
+                for (const drop of scene.drops) drawDrop(drop);
+                ctx.restore();
+            }
+        }
+
+        function dispose() { canvas.remove(); }
+
+        return { kind: 'canvas2d', render, resize, dispose };
+    }
+
+    window.AuraGreenSlimeCanvas2D = Object.freeze({ create: createCanvas2DRenderer });
+})();
+
+;
 /* ui/js/desktop/theme-fx/green_slime.js */
 (function () {
     'use strict';
 
-    const MAX_DROPS = 72;
-    const MAX_DEFORMATION = 18;
-    const SURFACE_SAMPLES = 32;
-    const FRAME_DEPTH = 19;
-    const SURFACE_NORMALS = Object.freeze([{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }]);
+    // DOM bridge of the Green Slime effect. The green_slime_sim.js family owns all state and physics;
+    // this file reads window geometry, masks and pointer input, hands them to the simulation, completes
+    // the scene (occluders, backdrop) and gives it to the active renderer. A renderer is { kind,
+    // render(scene), resize(cssWidth, cssHeight, dpr), dispose() }; green_slime_canvas2d.js provides the
+    // Canvas 2D one, which is the only renderer for now.
+
     const MASK_SELECTORS = '.vd-icon, .vd-widget, .vd-taskbar, .vd-dock, .vd-start-menu, .vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover, .vd-modal-backdrop, .vd-modal, .vd-dialog, [role="dialog"], dialog[open], .vd-toast-container, .vd-global-menu, .vd-radial-menu';
+    // A press that lands in a window, icon, widget, taskbar, menu or dialog belongs to the user, not to the gel.
+    const POKE_BLOCKERS = MASK_SELECTORS + ', .vd-window';
+    const OCCLUDER_LIMIT = 24;
+    const UNDER_LIMIT = 16;
 
     function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
@@ -817,17 +2878,34 @@
         return !!record && record.visible !== false && !record.minimized;
     }
 
+    // Keeps the nearest (max - 1) rectangles and merges the rest into one bounding box. A bounding box
+    // hides more than it should, never less, so content stays protected when the list overflows.
+    function capList(list, max, focus) {
+        if (list.length <= max) return list;
+        const cx = focus.x + focus.width / 2, cy = focus.y + focus.height / 2;
+        const ranked = list.map(item => ({ item, d: Math.hypot(item.x + item.width / 2 - cx, item.y + item.height / 2 - cy) }))
+            .sort((a, b) => a.d - b.d);
+        const keep = ranked.slice(0, max - 1).map(entry => entry.item);
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        for (const entry of ranked.slice(max - 1)) {
+            x0 = Math.min(x0, entry.item.x); y0 = Math.min(y0, entry.item.y);
+            x1 = Math.max(x1, entry.item.x + entry.item.width); y1 = Math.max(y1, entry.item.y + entry.item.height);
+        }
+        keep.push({ x: x0, y: y0, width: x1 - x0, height: y1 - y0, radius: 0 });
+        return keep;
+    }
+
     function start({ layer, signal, options }) {
         const motion = !!(options && options.motion);
+        const slime = window.AuraGreenSlimeSim;
         const canvas = document.createElement('canvas');
         canvas.className = 'vd-fx-slime-canvas';
         canvas.setAttribute('aria-hidden', 'true');
         canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;';
         layer.appendChild(canvas);
-        // The material and DOM window must be presented in the same compositor
-        // frame. A desynchronized canvas can visibly trail a fast pointer drag.
-        const ctx = canvas.getContext('2d', { alpha: true });
-        if (!ctx) return { stop() { canvas.remove(); } };
+        const renderer = slime ? window.AuraGreenSlimeCanvas2D.create(canvas) : null;
+        if (!renderer) return { stop() { canvas.remove(); } };
+        const sim = slime.createSim({ motion, seed: Date.now() >>> 0 });
 
         let width = 0;
         let height = 0;
@@ -838,17 +2916,9 @@
         let lastTime = 0;
         let dirty = true;
         const records = new Map();
-        const freeDrops = [];
         const springs = new Set();
         const springAt = new Map();
-        const surfaces = new Map();
-        const motionDrives = new Map();
-        const pointer = { x: -10000, y: -10000, energy: 0, at: 0 };
-        let clock = 0;
         let frameCount = 0;
-        let dropCount = 0;
-        let maxDisplacement = 0;
-        let currentMaxDisplacement = 0;
         let resizeObserver = null;
         let mutationObserver = null;
         let maskRectsDirty = true;
@@ -865,9 +2935,7 @@
             width = Math.max(1, layer.clientWidth || window.innerWidth || 1);
             height = Math.max(1, layer.clientHeight || window.innerHeight || 1);
             dpr = Math.min(window.devicePixelRatio || 1, motion ? 1.5 : 1.25);
-            canvas.width = Math.max(1, Math.round(width * dpr));
-            canvas.height = Math.max(1, Math.round(height * dpr));
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            renderer.resize(width, height, dpr);
             maskRectsDirty = true;
             dirty = true;
             requestFrame();
@@ -888,22 +2956,10 @@
                 }
                 records.clear();
                 for (const [id, record] of next) records.set(id, record);
-                for (const id of surfaces.keys()) {
-                    if (!records.has(id)) {
-                        surfaces.delete(id);
-                        motionDrives.delete(id);
-                    springAt.delete(id);
-                    }
-                }
-                motionDrives.clear();
+                for (const id of springAt.keys()) if (!records.has(id)) springAt.delete(id);
+                sim.syncWindows(new Set(records.keys()));
                 dirty = true;
             } catch (_) { /* the desktop may be tearing down */ }
-        }
-
-        function addDrop(x, y, size, vx, vy, life) {
-            if (freeDrops.length >= MAX_DROPS) freeDrops.shift();
-            freeDrops.push({ x, y, size, vx, vy, age: 0, life, wobble: Math.random() * Math.PI * 2 });
-            dropCount++;
         }
 
         function springControls(record) {
@@ -931,53 +2987,28 @@
             if (!record || record.id == null) return;
             const id = String(record.id);
             const rect = rectFor(record);
+            const now = performance.now() / 1000;
             if (record.phase === 'close') {
-                if (rect && motion && !record.silent) {
-                    for (let i = 0; i < 5; i++) {
-                        const corner = i % 2 ? rect.x + rect.width : rect.x;
-                        addDrop(corner + (Math.random() - .5) * 16, rect.y + rect.height + 3,
-                            5 + Math.random() * 8, (Math.random() - .5) * 46, 30 + Math.random() * 65, 1.2 + Math.random() * .6);
-                    }
-                }
+                sim.windowEvent({ id, phase: 'close', rect, silent: !!record.silent }, now);
                 records.delete(id);
-                surfaces.delete(id);
-                motionDrives.delete(id);
                 springAt.delete(id);
                 dirty = true;
                 requestFrame();
                 return;
             }
-            if (rect && usable(record)) records.set(id, { ...record, rect });
-            else {
+            if (rect && usable(record)) {
+                records.set(id, { ...record, rect });
+                sim.windowEvent({ id, phase: record.phase, rect, velocity: record.velocity, silent: !!record.silent }, now);
+            } else {
                 records.delete(id);
-                surfaces.delete(id);
-                motionDrives.delete(id);
+                sim.removeWindow(id);
             }
-            if (record.phase === 'drag' && record.velocity) {
-                const vx = Number(record.velocity.x) || 0;
-                const vy = Number(record.velocity.y) || 0;
-                const speed = Math.hypot(vx, vy);
-                if (speed > 8) motionDrives.set(id, { x: vx / speed, y: vy / speed, strength: Math.min(13, speed * .014) });
-            } else if (record.phase !== 'drag-end') motionDrives.delete(id);
             if (!record.silent && (record.phase === 'open' || record.phase === 'focus')) springControls(record);
             dirty = true;
             // Window-manager motion is already frame-batched. Paint its new bounds
             // now, even when our animation callback ran earlier in this frame.
             if (motion && /^(drag|resize|snap|maximize|restore)/.test(record.phase)) render(performance.now());
             requestFrame();
-        }
-
-        function clipOut(ctx2d, blockers) {
-            ctx2d.beginPath();
-            ctx2d.rect(0, 0, width, height);
-            ctx2d.clip();
-            for (const rect of blockers) {
-                ctx2d.beginPath();
-                ctx2d.rect(0, 0, width, height);
-                if (rect.radii) ctx2d.roundRect(rect.x, rect.y, rect.width, rect.height, rect.radii);
-                else ctx2d.rect(rect.x, rect.y, rect.width, rect.height);
-                ctx2d.clip('evenodd');
-            }
         }
 
         function overlayMasks() {
@@ -991,7 +3022,8 @@
                 const rect = element.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.right >= 0 && rect.top <= height && rect.left <= width) {
                     masks.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height,
-                        desktop: element.matches('.vd-icon, .vd-widget') && !element.classList.contains('vd-dragging') });
+                        desktop: element.matches('.vd-icon, .vd-widget') && !element.classList.contains('vd-dragging'),
+                        taskbar: element.matches('.vd-taskbar') });
                 }
             }
             cachedOverlayMasks = masks;
@@ -1021,369 +3053,49 @@
             });
         }
 
-        function surfaceTargets(rect) {
-            const outline = { x: rect.x - FRAME_DEPTH, y: rect.y - FRAME_DEPTH, width: rect.width + FRAME_DEPTH * 2, height: rect.height + FRAME_DEPTH * 2 };
-            const sideCount = SURFACE_SAMPLES / 4;
-            const corner = 34;
-            const points = [];
-            for (let i = 0; i < sideCount; i++) {
-                const t = i / (sideCount - 1);
-                points.push({ x: outline.x + corner + (outline.width - corner * 2) * t, y: outline.y });
-            }
-            for (let i = 0; i < sideCount; i++) {
-                const t = i / (sideCount - 1);
-                points.push({ x: outline.x + outline.width, y: outline.y + corner + (outline.height - corner * 2) * t });
-            }
-            for (let i = 0; i < sideCount; i++) {
-                const t = i / (sideCount - 1);
-                points.push({ x: outline.x + corner + (outline.width - corner * 2) * (1 - t), y: outline.y + outline.height });
-            }
-            for (let i = 0; i < sideCount; i++) {
-                const t = i / (sideCount - 1);
-                points.push({ x: outline.x, y: outline.y + corner + (outline.height - corner * 2) * (1 - t) });
-            }
-            return points;
+        // Everything the simulation needs of the page for one step.
+        function buildEnv(dt, time) {
+            const all = Array.from(records.values()).sort((a, b) => (Number(a.z) || 0) - (Number(b.z) || 0)).map(record => {
+                const rect = rectFor(record);
+                if (!rect) return null;
+                const style = record.element ? getComputedStyle(record.element) : null;
+                const radii = style
+                    ? [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomRightRadius, style.borderBottomLeftRadius].map(r => parseFloat(r) || 0)
+                    : [22, 22, 22, 22];
+                return { id: String(record.id), rect, radii, z: Number(record.z) || 0, active: !!record.focused };
+            }).filter(Boolean);
+            const masks = overlayMasks();
+            return { dt, now: time / 1000, width, height, dpr, motion, windows: all, masks,
+                taskbar: masks.find(mask => mask.taskbar) || null };
         }
 
-        function followSurface(id, rect, dt) {
-            const baseTargets = surfaceTargets(rect);
-            const drive = motionDrives.get(id);
-            let surface = surfaces.get(id);
-            if (!surface) {
-                const seed = Array.from(id).reduce((sum, letter) => sum + letter.charCodeAt(0), 0);
-                surface = {
-                    // Only local deformation is sprung. Window translation/resize
-                    // reprojects every node immediately, without storing world lag.
-                    nodes: baseTargets.map(point => ({ ...point, dx: 0, dy: 0, vx: 0, vy: 0 })),
-                    seed: seed * .17,
-                    drips: [17, 19, 21, 22, 13, 27].map((node, i) => ({ node,
-                        period: 4.6 + i * .61, offset: (seed % 17) * .23 + i * 1.13, cycle: -1 }))
-                };
-                surfaces.set(id, surface);
-            }
-            const nodes = surface.nodes;
-            const offsets = nodes.map(node => ({ x: node.dx, y: node.dy }));
-            const step = motion ? clamp(dt, 0, 1 / 30) : 0;
-            const spring = 155;
-            const tension = 22;
-            const damping = Math.exp(-9.5 * step);
-            for (let i = 0; i < nodes.length; i++) {
-                const node = nodes[i];
-                const normal = SURFACE_NORMALS[Math.floor(i / (SURFACE_SAMPLES / 4))];
-                const breathing = motion
-                    ? Math.sin(clock * 1.65 + i * .71 + surface.seed) * 5.1 + Math.sin(clock * .83 - i * 1.11) * 1.5
-                    : Math.sin(i * .71 + surface.seed) * 1.8;
-                const along = (i % (SURFACE_SAMPLES / 4) + .5) / (SURFACE_SAMPLES / 4);
-                const drag = drive ? -(drive.x * normal.x + drive.y * normal.y) * drive.strength * (.4 + .6 * Math.sin(Math.PI * along)) : 0;
-                const distance = Math.hypot(pointer.x - baseTargets[i].x, pointer.y - baseTargets[i].y);
-                const touch = motion ? Math.exp(-distance * distance / 1800) * pointer.energy * Math.cos(distance * .09 - clock * 12) : 0;
-                const target = clamp(breathing + drag + touch, -6, 16);
-                const previous = offsets[(i + nodes.length - 1) % nodes.length];
-                const next = offsets[(i + 1) % nodes.length];
-                const neighborX = (previous.x + next.x) * .5;
-                const neighborY = (previous.y + next.y) * .5;
-                if (!motion) {
-                    node.dx = normal.x * target;
-                    node.dy = normal.y * target;
-                    node.vx = node.vy = 0;
-                } else if (step > 0) {
-                    const ax = (normal.x * target - node.dx) * spring + (neighborX - node.dx) * tension;
-                    const ay = (normal.y * target - node.dy) * spring + (neighborY - node.dy) * tension;
-                    node.vx = clamp((node.vx + ax * step) * damping, -180, 180);
-                    node.vy = clamp((node.vy + ay * step) * damping, -180, 180);
-                    node.dx += node.vx * step;
-                    node.dy += node.vy * step;
-                }
-                // Preserve a substantial meniscus around the fixed inner aperture,
-                // including when the leading edge compresses during a hard reversal.
-                const inward = node.dx * normal.x + node.dy * normal.y;
-                if (inward < -6) {
-                    node.dx += normal.x * (-6 - inward);
-                    node.dy += normal.y * (-6 - inward);
-                }
-                const deformation = Math.hypot(node.dx, node.dy);
-                if (deformation > MAX_DEFORMATION) {
-                    node.dx *= MAX_DEFORMATION / deformation;
-                    node.dy *= MAX_DEFORMATION / deformation;
-                    node.vx *= .5;
-                    node.vy *= .5;
-                }
-                node.x = baseTargets[i].x + node.dx;
-                node.y = baseTargets[i].y + node.dy;
-                currentMaxDisplacement = Math.max(currentMaxDisplacement, Math.hypot(node.dx, node.dy));
-            }
-            if (drive) {
-                drive.strength *= Math.exp(-4.5 * step);
-                if (drive.strength < .1) motionDrives.delete(id);
-            }
-            maxDisplacement = Math.max(maxDisplacement, currentMaxDisplacement);
-            return surface;
-        }
-
-        function detachPeriodicDrop(id, surface) {
-            if (!motion) return;
-            for (const drip of surface.drips) {
-                const time = (clock + drip.offset) / drip.period;
-                const cycle = Math.floor(time);
-                const phase = time - cycle;
-                if (phase < .84 || drip.cycle === cycle) continue;
-                drip.cycle = cycle;
-                const node = surface.nodes[drip.node];
-                const shape = dripShape(surface, drip, 1);
-                addDrop(shape.x + shape.sway, shape.y + shape.length, 6.5, node.vx * .18, 28, 1.6);
-                // Recoil travels back into the membrane after the neck tears.
-                node.vy -= 48;
-            }
-        }
-
-        function contourPath(nodes, inset = 0) {
-            const points = inset ? nodes.map((node, i) => {
-                const normal = SURFACE_NORMALS[Math.floor(i / (SURFACE_SAMPLES / 4))];
-                return { x: node.x - normal.x * inset, y: node.y - normal.y * inset };
-            }) : nodes;
-            ctx.beginPath();
-            const first = points[0];
-            const last = points[points.length - 1];
-            ctx.moveTo((first.x + last.x) * .5, (first.y + last.y) * .5);
-            for (let i = 0; i < points.length; i++) {
-                const current = points[i];
-                const next = points[(i + 1) % points.length];
-                ctx.quadraticCurveTo(current.x, current.y, (current.x + next.x) * .5, (current.y + next.y) * .5);
-            }
-            ctx.closePath();
-        }
-
-        function sampleContour(nodes, position) {
-            const wrapped = ((position % nodes.length) + nodes.length) % nodes.length;
-            const i = Math.floor(wrapped), t = wrapped - i, u = 1 - t;
-            const previous = nodes[(i + nodes.length - 1) % nodes.length];
-            const node = nodes[i], next = nodes[(i + 1) % nodes.length];
-            const a = { x: (previous.x + node.x) / 2, y: (previous.y + node.y) / 2 };
-            const b = { x: (node.x + next.x) / 2, y: (node.y + next.y) / 2 };
-            const tx = 2 * u * (node.x - a.x) + 2 * t * (b.x - node.x);
-            const ty = 2 * u * (node.y - a.y) + 2 * t * (b.y - node.y);
-            const length = Math.hypot(tx, ty) || 1;
-            return { x: u * u * a.x + 2 * u * t * node.x + t * t * b.x,
-                y: u * u * a.y + 2 * u * t * node.y + t * t * b.y,
-                nx: ty / length, ny: -tx / length, angle: Math.atan2(ty, tx) };
-        }
-
-        function dripShape(surface, drip, growth) {
-            const point = sampleContour(surface.nodes, drip.node + .5);
-            return { x: point.x - point.nx * 6, y: point.y - 4,
-                length: 6 + (32 + (drip.node % 3) * 8) * growth * growth,
-                sway: motion ? Math.sin(clock * 1.8 + drip.offset) * 3 * growth + surface.nodes[drip.node].vx * .018 : 0 };
-        }
-
-        function drawDrop(drop, alpha) {
-            const stretch = 1 + Math.min(1.2, Math.abs(drop.vy) / 220);
-            const size = drop.size;
-            const gradient = ctx.createLinearGradient(drop.x - size, drop.y - size, drop.x + size, drop.y + size);
-            gradient.addColorStop(0, '#f2ffbc');
-            gradient.addColorStop(.26, '#c3f34c');
-            gradient.addColorStop(.62, '#75ac1e');
-            gradient.addColorStop(1, '#354f0c');
-            ctx.globalAlpha = alpha;
-            ctx.fillStyle = gradient;
-            ctx.shadowColor = 'rgba(126,158,40,.48)';
-            ctx.shadowBlur = 12;
-            ctx.beginPath();
-            ctx.moveTo(drop.x, drop.y - size * stretch);
-            ctx.bezierCurveTo(drop.x + size * .9, drop.y - size * .3, drop.x + size * .82, drop.y + size * .48 * stretch, drop.x + size * .35, drop.y + size * .76 * stretch);
-            ctx.quadraticCurveTo(drop.x, drop.y + size * stretch, drop.x - size * .35, drop.y + size * .76 * stretch);
-            ctx.bezierCurveTo(drop.x - size * .82, drop.y + size * .48 * stretch, drop.x - size * .9, drop.y - size * .3, drop.x, drop.y - size * stretch);
-            ctx.closePath();
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = 'rgba(250,255,214,.9)';
-            ctx.beginPath();
-            ctx.ellipse(drop.x - size * .25, drop.y, size * .14, size * .4, -.25, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalAlpha = 1;
-        }
-
-        function drawDrip(point, len, dripWidth, phase) {
-            const y = point.y;
-            const end = y + len;
-            const x = point.x + point.sway;
-            const gradient = ctx.createLinearGradient(point.x - dripWidth, y, x + dripWidth, end);
-            gradient.addColorStop(0, '#b4d96c');
-            gradient.addColorStop(.25, '#a1cc45');
-            gradient.addColorStop(.56, '#699722');
-            gradient.addColorStop(.86, '#36591a');
-            gradient.addColorStop(1, '#9abd47');
-            ctx.fillStyle = gradient;
-            ctx.shadowColor = 'rgba(12,28,1,.5)';
-            ctx.shadowBlur = 5;
-            ctx.shadowOffsetY = 3;
-            const bulb = 4 + phase * 4;
-            const neck = Math.max(.7, dripWidth * (1 - phase * .9));
-            ctx.beginPath();
-            ctx.moveTo(point.x - dripWidth, y);
-            ctx.bezierCurveTo(point.x - neck, y + len * .3, x - neck, end - bulb * 1.8, x - bulb, end - bulb);
-            ctx.bezierCurveTo(x - bulb * 1.35, end + bulb, x + bulb * 1.35, end + bulb, x + bulb, end - bulb);
-            ctx.bezierCurveTo(x + neck, end - bulb * 1.8, point.x + neck, y + len * .3, point.x + dripWidth, y);
-            ctx.closePath();
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.shadowOffsetY = 0;
-            ctx.fillStyle = 'rgba(249,255,210,.92)';
-            ctx.beginPath();
-            ctx.ellipse(x - bulb * .3, end - bulb * .4, 1.2, bulb * .55, -.3, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(241,255,196,.65)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(point.x - dripWidth * .6, y + 2);
-            ctx.bezierCurveTo(point.x - neck * .65, y + len * .3, x - neck * .7, end - bulb * 2, x - bulb * .65, end - bulb);
-            ctx.stroke();
-        }
-
-        function drawWindow(record, rect, surface, blockers) {
-            if (!rect || !surface) return;
-            ctx.save();
-            const paint = { x: rect.x - 48, y: rect.y - 48, width: rect.width + 96, height: rect.height + 144 };
-            ctx.beginPath();
-            ctx.rect(paint.x, paint.y, paint.width, paint.height);
-            ctx.clip();
-            blockers = blockers.filter(r => r.x < paint.x + paint.width && r.x + r.width > paint.x && r.y < paint.y + paint.height && r.y + r.height > paint.y);
-            clipOut(ctx, blockers);
-            const nodes = surface.nodes;
-            // Draw attached drops first; the body covers their roots, so a neck
-            // grows out of one continuous volume instead of sitting on its edge.
-            for (const drip of surface.drips) {
-                const phase = motion ? ((clock + drip.offset) / drip.period) % 1 : .45;
-                const growth = phase < .84 ? phase / .84 : Math.max(0, (1 - phase) * 1.7);
-                const shape = dripShape(surface, drip, growth);
-                drawDrip(shape, shape.length, 9 - growth * 3, growth);
-            }
-            const gradient = ctx.createLinearGradient(rect.x, rect.y - 20, rect.x + rect.width * .45, rect.y + rect.height);
-            gradient.addColorStop(0, '#8eaf3f');
-            gradient.addColorStop(.22, '#6b8f25');
-            gradient.addColorStop(.58, '#42631b');
-            gradient.addColorStop(1, '#85a834');
-            ctx.lineJoin = 'round';
-            ctx.fillStyle = gradient;
-            // The DOM already supplies the window's soft cast shadow. Blurring a
-            // second window-sized silhouette every frame is costly in software.
-            contourPath(nodes);
-            ctx.fill();
-            // A filled membrane, bounded by the live outer curve and the anchored
-            // round window aperture. Unlike a displaced stroke, it cannot detach.
-            contourPath(nodes);
-            ctx.clip();
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = 'rgba(29,49,9,.65)';
-            ctx.stroke();
-            const volume = ctx.createLinearGradient(rect.x - 20, rect.y - 20, rect.x + rect.width, rect.y + rect.height);
-            volume.addColorStop(0, '#cae884');
-            volume.addColorStop(.3, '#96bc49');
-            volume.addColorStop(.65, '#6d9026');
-            volume.addColorStop(1, '#b5d75b');
-            ctx.lineWidth = 11;
-            ctx.strokeStyle = volume;
-            contourPath(nodes, 7);
-            ctx.stroke();
-            // Long, soft reflections flow over the curved material, with thin
-            // Fresnel glints at grazing angles and darker absorbed light inside.
-            for (let i = 0; i < 8; i++) {
-                const p = sampleContour(nodes, i * 4.13 + .8 + surface.seed + clock * .12);
-                ctx.save();
-                ctx.translate(p.x - p.nx * 7, p.y - p.ny * 7);
-                ctx.rotate(p.angle);
-                ctx.scale(7, 1);
-                const sheen = ctx.createRadialGradient(0, 0, .3, 0, 0, 6);
-                sheen.addColorStop(0, 'rgba(244,255,211,.72)');
-                sheen.addColorStop(.3, 'rgba(218,245,150,.3)');
-                sheen.addColorStop(1, 'rgba(218,245,150,0)');
-                ctx.fillStyle = sheen;
-                ctx.fillRect(-6, -6, 12, 12);
-                ctx.restore();
-            }
-            const reflection = ctx.createLinearGradient(rect.x, rect.y, rect.x + rect.width * .6, rect.y + rect.height);
-            reflection.addColorStop(0, 'rgba(250,255,224,.95)');
-            reflection.addColorStop(.42, 'rgba(222,246,159,.5)');
-            reflection.addColorStop(.75, 'rgba(198,232,121,.13)');
-            reflection.addColorStop(1, 'rgba(239,255,180,.64)');
-            ctx.strokeStyle = reflection;
-            ctx.lineWidth = 1.4;
-            contourPath(nodes, 3);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.roundRect(rect.x - 1.5, rect.y - 1.5, rect.width + 3, rect.height + 3, (rect.radii || [22, 22, 22, 22]).map(r => r + 1.5));
-            ctx.strokeStyle = 'rgba(20,38,6,.6)';
-            ctx.lineWidth = 5;
-            ctx.stroke();
-            ctx.strokeStyle = 'rgba(194,226,112,.62)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-            // Air inclusions advect through the membrane; each has a dark lens,
-            // a refracted lower rim and an off-centre wet highlight.
-            for (let i = 0; i < 22; i++) {
-                const p = sampleContour(nodes, i * 1.457 + surface.seed + clock * (.07 + (i % 3) * .025));
-                const radius = 1.1 + (i % 4) * .65;
-                const x = p.x - p.nx * (7 + (i % 3) * 2), y = p.y - p.ny * (7 + (i % 3) * 2);
-                ctx.fillStyle = 'rgba(38,66,12,.45)';
-                ctx.beginPath();
-                ctx.ellipse(x, y, radius, radius * 1.23, p.angle, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = 'rgba(222,247,162,.65)';
-                ctx.lineWidth = .7;
-                ctx.beginPath(); ctx.arc(x, y, radius, .1, Math.PI * .85); ctx.stroke();
-                ctx.fillStyle = 'rgba(251,255,229,.85)';
-                ctx.beginPath(); ctx.ellipse(x - radius * .33, y - radius * .5, .65, radius * .43, -.4, 0, Math.PI * 2); ctx.fill();
-            }
-            ctx.restore();
+        // Completes the simulation's scene with what only the page knows: which rectangles hide the
+        // gel of each window, which lie beneath it, and the backdrop.
+        function buildScene(env, scene) {
+            const solid = env.masks.filter(mask => !mask.desktop).map(mask => ({ x: mask.x, y: mask.y, width: mask.width, height: mask.height, radius: 0 }));
+            const desktop = env.masks.filter(mask => mask.desktop).map(mask => ({ x: mask.x, y: mask.y, width: mask.width, height: mask.height }));
+            const frames = scene.windows.map(win => ({ x: win.rect.x, y: win.rect.y, width: win.rect.width, height: win.rect.height,
+                radii: win.radii, radius: Math.max(...win.radii), z: win.z }));
+            scene.windows.forEach(win => {
+                win.occluders = capList(frames.filter(other => other.z >= win.z).concat(solid), OCCLUDER_LIMIT, win.rect);
+                win.under = capList(frames.filter(other => other.z < win.z).map(other => ({ x: other.x, y: other.y, width: other.width, height: other.height })).concat(desktop), UNDER_LIMIT, win.rect);
+            });
+            scene.dropOccluders = frames.concat(env.masks.map(mask => ({ x: mask.x, y: mask.y, width: mask.width, height: mask.height, radius: 0, taskbar: mask.taskbar })));
+            scene.backdrop = { mode: 'translucent', image: null, rect: { x: 0, y: 0, w: env.width, h: env.height } };
+            return scene;
         }
 
         function render(time) {
             if (stopped || paused) return;
             frameCount++;
+            time = Math.max(time, lastTime);
             const dt = lastTime ? clamp((time - lastTime) / 1000, 0, .05) : 0;
             lastTime = time;
-            currentMaxDisplacement = 0;
-            if (motion) clock += dt;
-            pointer.energy *= Math.exp(-5 * dt);
-            if (motion) {
-                for (let i = freeDrops.length - 1; i >= 0; i--) {
-                    const drop = freeDrops[i];
-                    drop.age += dt;
-                    drop.vy += 250 * dt;
-                    drop.x += drop.vx * dt;
-                    drop.y += drop.vy * dt;
-                    if (drop.age >= drop.life || drop.y > height + 40) freeDrops.splice(i, 1);
-                }
-            }
-
             if (!dirty && !motion) return;
             dirty = false;
-            ctx.clearRect(0, 0, width, height);
-            const all = Array.from(records.values()).sort((a, b) => (Number(a.z) || 0) - (Number(b.z) || 0)).map(record => {
-                const rect = rectFor(record);
-                if (rect) {
-                    const style = record.element ? getComputedStyle(record.element) : null;
-                    rect.radii = style
-                        ? [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomRightRadius, style.borderBottomLeftRadius].map(r => parseFloat(r) || 0)
-                        : [22, 22, 22, 22];
-                }
-                return { record, rect };
-            }).filter(item => item.rect);
-            const overlays = overlayMasks();
-            const blockers = all.map(item => item.rect).concat(overlays);
-            for (const { record, rect } of all) {
-                const id = String(record.id);
-                const surface = followSurface(id, rect, dt);
-                detachPeriodicDrop(id, surface);
-                const frameBlockers = all.filter(other => (Number(other.record.z) || 0) >= (Number(record.z) || 0)).map(item => item.rect).concat(overlays.filter(mask => !mask.desktop));
-                drawWindow(record, rect, surface, frameBlockers);
-            }
-            if (freeDrops.length) {
-                ctx.save();
-                clipOut(ctx, blockers);
-                for (const drop of freeDrops) drawDrop(drop, clamp(1 - drop.age / drop.life, 0, 1));
-                ctx.restore();
-            }
-            if (motion && freeDrops.length) dirty = true;
+            const env = buildEnv(dt, time);
+            sim.update(env);
+            renderer.render(buildScene(env, sim.scene(env)));
         }
 
         function requestFrame() {
@@ -1398,11 +3110,29 @@
             });
         }
 
+        // Pointer input is motion-only, passive and never consumed: the desktop below keeps every event.
+        function onPointerMove(event) {
+            if (paused || stopped) return;
+            sim.pointerMove(event.clientX, event.clientY, performance.now() / 1000, event.buttons);
+        }
+
+        function onPointerDown(event) {
+            if (paused || stopped || event.button !== 0) return;
+            const target = event.target;
+            if (target && typeof target.closest === 'function' && target.closest(POKE_BLOCKERS)) return;
+            sim.pointerDown(event.clientX, event.clientY, performance.now() / 1000);
+        }
+
+        function onPointerEnd() {
+            sim.pointerUp();
+        }
+
         function pause() {
             paused = true;
             if (raf) cancelAnimationFrame(raf);
             raf = 0;
             lastTime = 0;
+            sim.pointerUp();
             for (const animation of springs) {
                 animation.onfinish = animation.oncancel = null;
                 animation.cancel();
@@ -1430,29 +3160,45 @@
             }
             springs.clear();
             springAt.clear();
-            freeDrops.length = 0;
             records.clear();
-            surfaces.clear();
-            motionDrives.clear();
-            canvas.remove();
+            sim.reset();
+            renderer.dispose();
+        }
+
+        // Test/debug hook: force a bubble, a poke or a drop. Motion-only.
+        function command(name, payload) {
+            if (!motion || stopped || paused) return null;
+            const data = payload || {};
+            if (name === 'bubble') return sim.spawnBubble({ windowId: data.windowId, at: data.at, base: data.base, fast: data.fast });
+            if (name === 'poke') {
+                const hit = sim.poke(Number(data.x), Number(data.y));
+                return hit ? hit.id : null;
+            }
+            if (name === 'drop') {
+                const x = Number(data.x), y = Number(data.y);
+                if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+                sim.addDrop(x, y, Number(data.r) || 5, Number(data.vx) || 0, Number(data.vy) || 0, 4, { wobble: .4 });
+                return true;
+            }
+            return null;
         }
 
         function inspect() {
             return {
-                ready: !!ctx,
+                ready: !!renderer,
+                renderer: renderer.kind,
+                backdrop: 'translucent',
+                qualityScale: 1,
+                contextLost: false,
+                error: '',
                 motion,
                 paused,
                 rafPending: !!raf,
                 windowCount: records.size,
                 frameCount,
-                maxDisplacement: Math.min(MAX_DEFORMATION, maxDisplacement),
-                currentMaxDisplacement: Math.min(MAX_DEFORMATION, currentMaxDisplacement),
-                dropCount,
-                activeDrops: freeDrops.length,
                 maskCount: cachedOverlayMasks.length,
                 maskRefreshCount,
-                surfaceCount: surfaces.size,
-                surfaceNodeCount: surfaces.size * SURFACE_SAMPLES
+                ...sim.stats()
             };
         }
 
@@ -1464,21 +3210,19 @@
         window.addEventListener('transitionend', invalidateMasks, { passive: true, capture: true, signal });
         window.addEventListener('animationend', invalidateMasks, { passive: true, capture: true, signal });
         window.addEventListener('aurago:desktop-window', onWindowEvent, { signal });
-        if (motion) window.addEventListener('pointermove', event => {
-            if (paused) return;
-            const now = performance.now();
-            const distance = Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y);
-            pointer.energy = clamp(distance / Math.max(8, now - pointer.at) * 2.5, 0, 7);
-            pointer.x = event.clientX;
-            pointer.y = event.clientY;
-            pointer.at = now;
-        }, { passive: true, signal });
+        if (motion) {
+            const pointerOptions = { passive: true, capture: true, signal };
+            window.addEventListener('pointermove', onPointerMove, pointerOptions);
+            window.addEventListener('pointerdown', onPointerDown, pointerOptions);
+            window.addEventListener('pointerup', onPointerEnd, pointerOptions);
+            window.addEventListener('pointercancel', onPointerEnd, pointerOptions);
+        }
         window.addEventListener('aurago:desktop-windows-refresh', () => { snapshot(); requestFrame(); }, { signal });
         if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', stop, { once: true });
         resize();
         snapshot();
         requestFrame();
-        return { pause, resume, stop, inspect };
+        return { pause, resume, stop, inspect, command };
     }
 
     window.AuraDesktopThemeFx.register('green_slime', { start });

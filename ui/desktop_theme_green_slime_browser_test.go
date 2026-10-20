@@ -9,6 +9,35 @@ import (
 	"github.com/go-rod/rod/lib/proto"
 )
 
+// slimeSamplerJS installs window.slimeRegion(x, y, w, h) in CSS pixels. It copies a region of the effect
+// canvas into a scratch 2D canvas and reads that, which works for any renderer behind the canvas (a WebGL
+// canvas has no 2D context to call getImageData on). The result carries the raw RGBA data of the region
+// plus alpha(x, y) and rgba(x, y) lookups in CSS coordinates; points outside the canvas read as transparent.
+// It must not contain backticks (Go raw string).
+const slimeSamplerJS = `() => {
+	const scratch = document.createElement('canvas');
+	const scratchCtx = scratch.getContext('2d', { willReadFrequently: true });
+	window.slimeRegion = (x, y, w, h) => {
+		const canvas = document.querySelector('.vd-theme-fx-layer canvas');
+		const scale = canvas.width / canvas.clientWidth;
+		const sx = Math.max(0, Math.floor(x * scale)), sy = Math.max(0, Math.floor(y * scale));
+		const sw = Math.max(1, Math.min(canvas.width - sx, Math.ceil(w * scale)));
+		const sh = Math.max(1, Math.min(canvas.height - sy, Math.ceil(h * scale)));
+		scratch.width = sw;
+		scratch.height = sh;
+		scratchCtx.clearRect(0, 0, sw, sh);
+		scratchCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+		const data = scratchCtx.getImageData(0, 0, sw, sh).data;
+		const rgba = (px, py) => {
+			const cx = Math.floor(px * scale) - sx, cy = Math.floor(py * scale) - sy;
+			if (cx < 0 || cy < 0 || cx >= sw || cy >= sh) return [0, 0, 0, 0];
+			const i = (cy * sw + cx) * 4;
+			return [data[i], data[i + 1], data[i + 2], data[i + 3]];
+		};
+		return { data, scale, width: sw, height: sh, rgba, alpha: (px, py) => rgba(px, py)[3] };
+	};
+}`
+
 func TestDesktopGreenSlimeSpringSurfaceBrowser(t *testing.T) {
 	s := newThemeSweepSession(t, "no-preference")
 	s.store.set(map[string]string{
@@ -81,6 +110,7 @@ func TestDesktopGreenSlimeAttachedMembraneBrowser(t *testing.T) {
 	s.pushSettings(t)
 	s.openApps(t, "settings")
 	s.waitFor(t, "slime material", 10*time.Second, `()=>AuraDesktopThemeFx?.inspect().surfaceCount===1`)
+	s.eval(t, slimeSamplerJS)
 	s.eval(t, `()=>{
 		const win=[...auditTest.state.windows.values()][0];
 		Object.assign(win.element.style,{left:'400px',top:'180px',width:'780px',height:'560px'});
@@ -88,10 +118,10 @@ func TestDesktopGreenSlimeAttachedMembraneBrowser(t *testing.T) {
 		dispatchEvent(new CustomEvent('aurago:desktop-windows-refresh'));
 		window.slimeCoverage={samples:0,missing:[],interior:[],positions:[]};
 		window.sampleSlimeCoverage=()=>{
-			const canvas=document.querySelector('.vd-fx-slime-canvas');
-			const ctx=canvas.getContext('2d'),scale=canvas.width/canvas.clientWidth;
 			const r=slimeDragWindow.element.getBoundingClientRect();
-			const alpha=(x,y)=>ctx.getImageData(Math.floor(x*scale),Math.floor(y*scale),1,1).data[3];
+			// One region read around the window; every probe point lies within 14 px of its edge.
+			const region=slimeRegion(r.left-14,r.top-14,r.width+28,r.height+28);
+			const alpha=(x,y)=>region.alpha(x,y);
 			const points=[];
 			for(const t of [.12,.3,.5,.7,.88])for(const d of [2,7]){
 				points.push([r.left+r.width*t,r.top-d],[r.left+r.width*t,r.bottom+d],

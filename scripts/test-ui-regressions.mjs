@@ -4424,6 +4424,313 @@ function testInvasionNestSecretFieldHidesOnlyWithoutEffect() {
   assert.match(source, /secretInput\.dataset\.stored = isEdit && nest\?\.has_secret \? 'true' : ''/);
 }
 
+// The Green Slime simulation is DOM-free: geometry, bubbles, strands, pools and splats run in plain Node.
+function testGreenSlimeSimulation() {
+  const context = { window: {} };
+  vm.createContext(context);
+  // The simulation parts in bundle order (scripts/build-ui-bundles.js).
+  for (const part of ['geometry', 'bubbles', 'touch', 'sim']) vm.runInContext(read('ui/js/desktop/theme-fx/green_slime_' + part + '.js'), context);
+  const slime = context.window.AuraGreenSlimeSim;
+  const { createSim, geometry, constants } = slime;
+  assert.equal(constants.SURFACE_SAMPLES, 32);
+  assert.equal(constants.TABLE_SAMPLES, 128);
+  assert.equal(constants.MAX_DROPS, 72);
+  assert.equal(constants.MAX_SPRAY, 24);
+  assert.equal(constants.MIN_GEL_RADIUS, 10);
+  assert.equal(constants.STRAND_SNAP, 170);
+
+  // Perimeter projection round trip, including square and uneven corners (sharp corners are ambiguous).
+  const box = { x: 120, y: 80, width: 400, height: 300 };
+  for (const radii of [[22, 22, 22, 22], [0, 0, 0, 0], [22, 10, 0, 30], [200, 200, 200, 200]]) {
+    const lay = geometry.layout(box, radii);
+    assert.ok(lay.length > 1000 && lay.length < 1500, 'perimeter ' + lay.length);
+    const corners = [[box.x, box.y, radii[0]], [box.x + box.width, box.y, radii[1]], [box.x + box.width, box.y + box.height, radii[2]], [box.x, box.y + box.height, radii[3]]];
+    let checked = 0;
+    for (let i = 0; i < 300; i++) {
+      const s = (i + .37) / 300 * lay.length;
+      const p = geometry.pointAt(lay, s, {});
+      if (corners.some(([cx, cy, r]) => r < 1 && Math.hypot(p.x - cx, p.y - cy) < 9)) continue;
+      for (const d of [7, -5, 1.5]) {
+        const q = geometry.project(lay, p.x + p.nx * d, p.y + p.ny * d, {});
+        const ds = Math.abs(((q.s - s + lay.length * 1.5) % lay.length) - lay.length / 2);
+        assert.ok(Math.abs(q.dist - d) < 1e-6 && ds < 1e-6, 'round trip radii=' + radii + ' s=' + s + ' d=' + d + ' got s=' + q.s + ' dist=' + q.dist);
+        checked++;
+      }
+    }
+    assert.ok(checked > 600);
+  }
+  assert.equal(geometry.perimeterLength(box, [0, 0, 0, 0]), 1400);
+
+  const windowA = () => ({ id: 'a', rect: { x: 300, y: 200, width: 400, height: 300 }, radii: [22, 22, 22, 22], z: 5, active: true });
+  const windowB = () => ({ id: 'b', rect: { x: 760, y: 220, width: 300, height: 260 }, radii: [22, 22, 22, 22], z: 6, active: false });
+  const windowC = () => ({ id: 'c', rect: { x: 80, y: 120, width: 260, height: 200 }, radii: [22, 22, 22, 22], z: 4, active: false });
+  const taskbar = { x: 0, y: 662, width: 1280, height: 58, desktop: false, taskbar: true };
+  const frame = (sim, windows, dt = 1 / 60, extra = {}) => {
+    sim.update({ dt, now: sim.clock, width: 1280, height: 720, dpr: 1, windows, masks: [taskbar], taskbar, ...extra });
+  };
+  const run = (sim, windows, seconds, each) => {
+    for (let i = 0, n = Math.round(seconds * 60); i < n; i++) {
+      frame(sim, windows);
+      if (each) each(i);
+    }
+  };
+  const radiusRange = (sim) => {
+    let min = Infinity, max = 0;
+    for (const win of sim.scene().windows) for (const r of win.radius) { min = Math.min(min, r); max = Math.max(max, r); }
+    return [min, max];
+  };
+
+  // Bubble lifecycle: forced bubble, stage order and timing bounds, spray, crater ripple, healing.
+  {
+    const sim = createSim({ motion: true, seed: 11 });
+    const wins = [windowA()];
+    run(sim, wins, .5);
+    const id = sim.spawnBubble({ windowId: 'a', base: 8 });
+    assert.ok(id > 0, 'forced bubble returns its id');
+    const timings = [], views = {};
+    let current = '', since = 0, time = 0, sprayBefore = sim.stats().sprayCount, peakEnergy = 0;
+    for (let i = 0; i < 60 * 12; i++) {
+      frame(sim, wins);
+      time += 1 / 60;
+      const bubble = sim.scene().windows[0].bubbles[0];
+      const stage = bubble ? bubble.stage : 'gone';
+      if (stage !== current) {
+        if (current) timings.push([current, time - since]);
+        current = stage; since = time;
+      }
+      if (bubble) (views[stage] = views[stage] || []).push(bubble);
+      peakEnergy = Math.max(peakEnergy, sim.stats().rippleEnergy);
+      if (stage === 'gone') break;
+    }
+    assert.deepEqual(timings.map(([stage]) => stage), ['nucleate', 'grow', 'hold', 'burst', 'crater']);
+    const bounds = { nucleate: [.5, .9], grow: [1.4, 3.2], hold: [.2, .8], burst: [.11, .16], crater: [.675, 1.125] };
+    for (const [stage, seconds] of timings) {
+      assert.ok(seconds >= bounds[stage][0] - .04 && seconds <= bounds[stage][1] + .04, stage + ' lasted ' + seconds.toFixed(3) + ' s');
+    }
+    const grow = views.grow;
+    assert.ok(grow[0].dome < .2 && grow[grow.length - 1].dome > .9, 'the dome rises while the bubble grows');
+    assert.ok(grow[grow.length - 1].r > grow[0].r, 'the footprint swells');
+    assert.ok(views.burst[views.burst.length - 1].holeR > views.burst[0].holeR, 'the rupture hole opens');
+    assert.ok(views.crater[0].crater > .5, 'the crater starts deep');
+    const sprayed = sim.stats().sprayCount - sprayBefore;
+    assert.ok(sprayed >= 3 && sprayed <= 7, 'micro-droplets flung: ' + sprayed);
+    assert.ok(peakEnergy > .05, 'the crater rings the frame');
+    const stats = sim.stats();
+    assert.equal(stats.bubbleBursts, 1);
+    assert.equal(JSON.stringify(stats.bubbleStageEntries), JSON.stringify({ nucleate: 1, grow: 1, hold: 1, burst: 1, crater: 1 }));
+    assert.equal(stats.activeBubbles, 0);
+    run(sim, wins, 5);
+    assert.equal(sim.stats().rippleEnergy, 0, 'the ripple decays to rest');
+  }
+
+  // Ripple wave: an impulse rises, travels and decays; the radius table follows it.
+  {
+    const sim = createSim({ motion: true, seed: 3 });
+    const wins = [windowA()];
+    run(sim, wins, 1);
+    const surface = sim.surfaces.get('a');
+    assert.equal(sim.stats().rippleEnergy, 0);
+    sim.rippleImpulse(surface, 600, 3, 20);
+    const energy0 = (frame(sim, wins), sim.stats().rippleEnergy);
+    assert.ok(energy0 > .5, 'impulse energy ' + energy0);
+    run(sim, wins, .4);
+    assert.ok(Math.max(...surface.ripple.map(Math.abs)) < 3, 'the bump spreads');
+    run(sim, wins, 4);
+    assert.ok(sim.stats().rippleEnergy < .05, 'energy decays: ' + sim.stats().rippleEnergy);
+  }
+
+  // Caps: per window and global, spray pool, free drop pool.
+  {
+    const sim = createSim({ motion: true, seed: 5 });
+    const wins = [windowA(), windowB(), windowC()];
+    run(sim, wins, 2);
+    let maxSpray = 0, maxActive = 0, maxPerWindow = 0, spawned = 0;
+    for (let i = 0; i < 60 * 14; i++) {
+      frame(sim, wins);
+      if (i % 12 === 0) for (const win of wins) if (sim.spawnBubble({ windowId: win.id, fast: true })) spawned++;
+      const stats = sim.stats();
+      maxSpray = Math.max(maxSpray, stats.activeSpray);
+      maxActive = Math.max(maxActive, stats.activeBubbles);
+      for (const win of sim.scene().windows) maxPerWindow = Math.max(maxPerWindow, win.bubbles.length);
+    }
+    assert.ok(spawned > 6, 'bubbles were spawned: ' + spawned);
+    assert.ok(maxActive <= 5 && maxPerWindow <= 2 && maxSpray <= 24, 'caps ' + [maxActive, maxPerWindow, maxSpray]);
+    for (let i = 0; i < 100; i++) sim.addDrop(20 + i, 10, 4, 0, 0, 5);
+    assert.equal(sim.stats().activeDrops, 72);
+    assert.ok(sim.stats().dropCount >= 100);
+    const sceneDrops = sim.scene().drops.length;
+    assert.ok(sceneDrops <= 96, 'scene drops ' + sceneDrops);
+    const [min, max] = radiusRange(sim);
+    assert.ok(min >= 10 - 1e-6 && max <= constants.MAX_GEL_RADIUS + 1e-6, 'gel radius stays bounded: ' + [min, max]);
+  }
+
+  // Strand: press on the gel, pull away, thin, bead, snap; release and timeout also snap.
+  {
+    const sim = createSim({ motion: true, seed: 9 });
+    const wins = [windowA()];
+    run(sim, wins, .5);
+    const downAt = { x: 500, y: 514 };
+    assert.equal(sim.pointerDown(downAt.x - 2000, downAt.y, sim.clock), null, 'a press outside any gel is ignored');
+    const hit = sim.pointerDown(downAt.x, downAt.y, sim.clock);
+    assert.ok(hit && hit.id === 'a', 'the press lands on the gel');
+    assert.equal(sim.stats().pokeCount, 1);
+    let pulledAt = -1, beadedAt = -1, lastMid = Infinity;
+    const dropsBefore = sim.stats().dropCount;
+    for (let i = 0; i < 90 && sim.stats().strandSnaps === 0; i++) {
+      sim.pointerMove(downAt.x, downAt.y + 6 + i * 3.4, sim.clock, 1);
+      frame(sim, wins);
+      const strand = sim.scene().windows[0].strands[0];
+      if (strand) {
+        if (pulledAt < 0) pulledAt = i;
+        assert.ok(strand.mid <= lastMid + 1e-9, 'the thread only thins');
+        lastMid = strand.mid;
+        if (strand.beads && beadedAt < 0) { beadedAt = i; assert.ok(strand.mid < 1.6 && strand.beads >= 2 && strand.beads <= 4); }
+      }
+    }
+    const stats = sim.stats();
+    assert.equal(stats.strandCount, 1);
+    assert.equal(stats.strandSnaps, 1, 'snaps beyond 170 px');
+    assert.ok(pulledAt >= 0 && beadedAt > pulledAt, 'pulled, then beaded: ' + [pulledAt, beadedAt]);
+    assert.ok(stats.dropCount - dropsBefore >= 2, 'tip drop plus satellites');
+    assert.ok(sim.strand && sim.strand.state === 'recoil', 'the base recoils');
+    run(sim, wins, .4);
+    assert.equal(sim.strand, null);
+    assert.equal(sim.stats().activeStrands, 0);
+    const [min] = radiusRange(sim);
+    assert.ok(min >= 10 - 1e-6);
+
+    // release snaps a pulled thread, a plain click leaves none behind
+    sim.pointerDown(downAt.x, downAt.y, sim.clock);
+    sim.pointerUp();
+    assert.equal(sim.strand, null);
+    sim.pointerDown(downAt.x, downAt.y, sim.clock);
+    for (let i = 0; i < 20; i++) { sim.pointerMove(downAt.x, downAt.y + 60, sim.clock, 1); frame(sim, wins); }
+    assert.equal(sim.stats().strandCount, 2);
+    assert.ok(sim.strand.state === 'pulled' && sim.strand.length < 100);
+    sim.pointerUp();
+    assert.equal(sim.stats().strandSnaps, 2, 'release snaps');
+    run(sim, wins, .4);
+
+    // a held thread gives way after 2.5 s
+    sim.pointerDown(downAt.x, downAt.y, sim.clock);
+    let held = 0;
+    for (let i = 0; i < 60 * 4 && sim.stats().strandSnaps < 3; i++) { sim.pointerMove(downAt.x, downAt.y + 60, sim.clock, 1); frame(sim, wins); held += 1 / 60; }
+    assert.equal(sim.stats().strandSnaps, 3);
+    assert.ok(held > 2.3 && held < 3.1, 'held ' + held.toFixed(2));
+    // a button that is no longer down ends the press
+    run(sim, wins, .4);
+    sim.pointerDown(downAt.x, downAt.y, sim.clock);
+    sim.pointerMove(downAt.x, downAt.y + 50, sim.clock, 0);
+    assert.equal(sim.strand, null);
+  }
+
+  // Drops: merge into another window's gel, splat on the taskbar edge, fade after 2-4 s.
+  {
+    const sim = createSim({ motion: true, seed: 2 });
+    const wins = [windowA()];
+    run(sim, wins, .3);
+    const absorbedBefore = sim.stats().absorbedDrops;
+    const falling = sim.addDrop(500, 120, 5, 0, 0, 6);
+    run(sim, wins, 1.2);
+    assert.equal(sim.stats().absorbedDrops, absorbedBefore + 1, 'the drop merged into the window gel');
+    assert.ok(!sim.drops.includes(falling));
+    // Without windows there are no periodic drips: the splat is the only thing on the taskbar edge.
+    const quiet = createSim({ motion: true, seed: 2 });
+    run(quiet, [], .2);
+    const landing = quiet.addDrop(120, 560, 6, 0, 0, 6);
+    run(quiet, [], 1.5);
+    assert.ok(!quiet.drops.includes(landing));
+    assert.equal(quiet.stats().splatCount, 1);
+    assert.equal(quiet.stats().activeSplats, 1);
+    const splat = quiet.scene().splats[0];
+    assert.ok(splat.spread > 0 && splat.alpha === 1 && splat.y === 662);
+    run(quiet, [], 4.2);
+    assert.equal(quiet.stats().activeSplats, 0, 'the splat fades away');
+  }
+
+  // Window inertia: a quick drag stop flings droplets, nodes stay bounded, the radius never drops below the minimum.
+  {
+    const sim = createSim({ motion: true, seed: 4 });
+    const wins = [windowA()];
+    run(sim, wins, 1.2);
+    const dropsBefore = sim.stats().dropCount;
+    for (let i = 0; i < 20; i++) {
+      wins[0].rect.x += 14;
+      sim.windowEvent({ id: 'a', phase: 'drag', rect: { ...wins[0].rect }, velocity: { x: 840, y: 0 } }, sim.clock);
+      frame(sim, wins);
+      assert.ok(radiusRange(sim)[0] >= 10 - 1e-6);
+    }
+    sim.windowEvent({ id: 'a', phase: 'drag-end', rect: { ...wins[0].rect }, velocity: { x: 840, y: 0 } }, sim.clock);
+    run(sim, wins, 1, () => assert.ok(sim.stats().currentMaxDisplacement <= 18));
+    assert.ok(sim.stats().dropCount - dropsBefore >= 2, 'a hard stop flings droplets');
+  }
+
+  // Pointer: a slow pointer near the gel makes it lean toward it, a fast one dents it where it crosses.
+  {
+    const still = createSim({ motion: true, seed: 12 });
+    const near = createSim({ motion: true, seed: 12 });
+    const wins = [windowA()];
+    run(still, wins, 1);
+    run(near, wins, 1);
+    near.pointerMove(500, 530, near.clock, 0);
+    run(near, wins, 1.4);
+    run(still, wins, 1.4);
+    const a = still.scene().windows[0].radius, b = near.scene().windows[0].radius;
+    let lean = 0;
+    for (let k = 0; k < a.length; k++) lean = Math.max(lean, b[k] - a[k]);
+    assert.ok(lean >= 3 && lean <= 16, 'the gel leans toward a slow pointer: ' + lean.toFixed(2));
+    // Once the pointer is gone the gel settles back to where an undisturbed one is.
+    near.pointerMove(1100, 90, near.clock, 0);
+    run(near, wins, 3);
+    run(still, wins, 3);
+    const c = near.scene().windows[0].radius, d = still.scene().windows[0].radius;
+    let rest = 0;
+    for (let k = 0; k < c.length; k++) rest = Math.max(rest, Math.abs(c[k] - d[k]));
+    assert.ok(rest < 1.5, 'the lean fades again: ' + rest.toFixed(2));
+
+    const fast = createSim({ motion: true, seed: 12 });
+    run(fast, wins, 1);
+    assert.equal(fast.stats().rippleEnergy, 0);
+    for (let y = 600; y >= 470; y -= 25) { fast.pointerMove(500, y, fast.clock, 0); frame(fast, wins); }
+    assert.ok(fast.stats().rippleEnergy > .1, 'a fast pointer dents the gel: ' + fast.stats().rippleEnergy);
+    assert.ok(radiusRange(fast)[0] >= 10 - 1e-6);
+  }
+
+  // Open ooze: the gel starts as a thin meniscus ring and swells to full size.
+  {
+    const sim = createSim({ motion: true, seed: 6 });
+    const wins = [windowA()];
+    sim.windowEvent({ id: 'a', phase: 'open', rect: { ...wins[0].rect }, silent: false }, 0);
+    frame(sim, wins, 1 / 60);
+    const first = sim.scene().windows[0];
+    assert.ok(first.grow < .2 && Math.max(...first.radius) < 12, 'starts thin: ' + Math.max(...first.radius));
+    assert.ok(Math.min(...first.radius) >= 10 - 1e-6);
+    run(sim, wins, 1.5);
+    const last = sim.scene().windows[0];
+    assert.equal(last.grow, 1);
+    assert.ok(Math.max(...last.radius) > 20, 'full size: ' + Math.max(...last.radius));
+  }
+
+  // Static mode: deterministic, quiet, no bubbles, strands or pointer reactions.
+  {
+    const sim = createSim({ motion: false, seed: 1 });
+    const other = createSim({ motion: false, seed: 99 });
+    const wins = [windowA()];
+    for (let i = 0; i < 5; i++) { frame(sim, wins, 0); frame(other, wins, 0); }
+    const a = sim.scene().windows[0], b = other.scene().windows[0];
+    assert.deepEqual(Array.from(a.radius), Array.from(b.radius));
+    assert.ok(a.bubbles.length <= 1 && a.strands.length === 0);
+    assert.equal(sim.stats().activeBubbles, 0);
+    assert.equal(sim.spawnBubble({ windowId: 'a' }), null);
+    assert.equal(sim.pointerDown(500, 514, 0), null);
+    assert.equal(sim.poke(500, 514), null);
+    assert.equal(sim.stats().dropCount, 0);
+    assert.equal(sim.stats().surfaceNodeCount, 32);
+    const [min, max] = radiusRange(sim);
+    assert.ok(min >= 10 - 1e-6 && max < 40);
+  }
+}
+
 const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
@@ -4502,7 +4809,8 @@ const tests = [
   ['Config 3D printer lists save as complete lists', testConfigThreeDPrinterListsSaveAsCompleteLists],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting],
   ['Invasion nest form sends export_nest_secret', testInvasionNestFormSendsExportNestSecret],
-  ['Invasion nest secret field hides only without effect', testInvasionNestSecretFieldHidesOnlyWithoutEffect]
+  ['Invasion nest secret field hides only without effect', testInvasionNestSecretFieldHidesOnlyWithoutEffect],
+  ['Green Slime simulation: geometry, bubbles, strands, pools and splats', testGreenSlimeSimulation]
 ];
 
 let failures = 0;

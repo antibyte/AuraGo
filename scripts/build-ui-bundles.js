@@ -146,6 +146,11 @@ const jsBundles = [
       'ui/js/desktop/theme-fx/fx-core.js',
       'ui/js/desktop/theme-fx/crazy.js',
       'ui/js/desktop/theme-fx/electronic_dreams.js',
+      'ui/js/desktop/theme-fx/green_slime_geometry.js',
+      'ui/js/desktop/theme-fx/green_slime_bubbles.js',
+      'ui/js/desktop/theme-fx/green_slime_touch.js',
+      'ui/js/desktop/theme-fx/green_slime_sim.js',
+      'ui/js/desktop/theme-fx/green_slime_canvas2d.js',
       'ui/js/desktop/theme-fx/green_slime.js',
       'ui/js/desktop/theme-fx/voxel-graphics.js',
       'ui/js/desktop/theme-fx/voxel_world.js'

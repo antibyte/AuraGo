@@ -40,14 +40,21 @@ func TestNewDesktopThemeCursorsAreNativeAndComplete(t *testing.T) {
 func TestGreenSlimeEffectHasBoundedSpringSurfaceAndDetachedDrops(t *testing.T) {
 	t.Parallel()
 
+	// The effect is split: the green_slime_sim.js family (geometry, bubbles, touch, sim) owns the DOM-free
+	// state and physics, green_slime_canvas2d.js draws the scene and green_slime.js is the DOM bridge with
+	// the renderer slot. The contract markers may live in any of them.
 	source := readDesktopAssetText(t, "js/desktop/theme-fx/green_slime.js")
+	for _, part := range []string{"geometry", "bubbles", "touch", "sim", "canvas2d"} {
+		source += "\n" + readDesktopAssetText(t, "js/desktop/theme-fx/green_slime_"+part+".js")
+	}
 	for _, marker := range []string{
 		"MAX_DEFORMATION = 18", "SURFACE_SAMPLES = 32", "function surfaceTargets(rect)",
 		"function followSurface(id, rect, dt)", "const tension = 22", "motionDrives",
 		"function detachPeriodicDrop(id, surface)", "dropCount", "currentMaxDisplacement",
 		"surfaceNodeCount", "clipOut(ctx, blockers)", "pointer-events:none",
 		"observeMaskChanges()", "maskRectsDirty", "maskRefreshCount",
-		"ready: !!ctx", "motion,", "paused,", "rafPending: !!raf", "windowCount: records.size",
+		"ready: !!renderer", "motion,", "paused,", "rafPending: !!raf", "windowCount: records.size",
+		"MAX_SPRAY = 24", "MIN_GEL_RADIUS = 10", "STRAND_SNAP = 170", "window.AuraGreenSlimeSim",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Errorf("Green Slime effect is missing its bounded spring-surface contract marker %q", marker)

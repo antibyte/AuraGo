@@ -73,6 +73,18 @@
         return active ? active.id : '';
     }
 
+    // Tests/debug: forwards to instance.command(name, payload) when the active effect has one.
+    function command(name, payload) {
+        const current = active;
+        if (!current || !current.instance || typeof current.instance.command !== 'function') return null;
+        try {
+            const result = current.instance.command(name, payload);
+            return result === undefined ? null : result;
+        } catch (_) {
+            return null;
+        }
+    }
+
     function inspect() {
         const current = active;
         if (!current) return { activeId: '', motion: false, paused: false, rendererReady: false };
@@ -92,5 +104,5 @@
         };
     }
 
-    window.AuraDesktopThemeFx = { register, start, stop, activeId, inspect };
+    window.AuraDesktopThemeFx = { register, start, stop, activeId, inspect, command };
 })();
