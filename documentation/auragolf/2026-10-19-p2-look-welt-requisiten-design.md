@@ -185,7 +185,7 @@ Spur und Banden bekommen nur ein neues Material und Vertexfarben im Punktbereich
 | Feld | Inhalt |
 |---|---|
 | `courses[].look` | `pirate`, `temple` oder `moon` |
-| `courses[].path` | Spurmitte (Spuroberfläche) vom Abschlag zum Loch in Laufzeitkoordinaten: jeder dritte Generator-Stützpunkt plus der letzte (17–33 Punkte), 3 Nachkommastellen |
+| `courses[].path` | Spurmitte (Spuroberfläche) vom Abschlag bis zum Spurende in Laufzeitkoordinaten: jeder dritte Generator-Stützpunkt plus der letzte (17–33 Punkte), 3 Nachkommastellen. Die Spur läuft hinter dem Loch (bei 91 %) noch kurz weiter, das Ende liegt bis zu 1 m vom Loch. |
 | `courses[].props` | Platzierungen `[name, x, y, z, yaw, scale]`; `name` ohne Präfix, `yaw` in Radiant um Y |
 | `kits` | Je Look: `{ model, bytes, sha256, triangles, props: { <name>: { triangles, radius, height, tags } } }` |
 | `worlds` | `[{ id, look, preview }]` in Reihenfolge des ersten Auftretens, z. B. `{ id: 'coast', look: 'pirate', preview: 'previews/pirate.webp' }` |
@@ -369,7 +369,7 @@ Die Stufe folgt `tier()` (P4-Governor bei „auto“).
   - neue Budgets aus Abschnitt 6;
   - Kollider-Fingerabdruck je Bahn (SHA-256 über die Kollider-JSON) gleich der P1-Datei `scripts/fixtures/minigolf-p1-colliders.json`;
   - `look` passt zur Welt;
-  - `path` beginnt ≤ 0,3 m vom Abschlag und endet ≤ 0,5 m vom Loch;
+  - `path` beginnt ≤ 0,3 m vom Abschlag und endet ≤ 1,0 m vom Loch (das Spurende liegt hinter dem Loch; der Korridor schützt so auch das Endstück);
   - jede Platzierung verweist auf ein Kit-Requisit, liegt im Inselradius und hält den Spurkorridor frei (außer `span`);
   - Kits: gültig nach glTF-Validator, eingebettet, Requisitenknoten mit `COLOR_0`, Budgets, Manifest-Hash;
   - Vorschaubilder vorhanden (WebP-Kennung, Größe);

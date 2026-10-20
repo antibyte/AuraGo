@@ -76,9 +76,16 @@ def build_kits():
 
 
 def build_courses():
+    """All 18 courses, dressed as pirate, temple and moon dioramas."""
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
-    return [courses_v1.build_course(i, c) for i, c in enumerate(courses_v1.COURSES, 1)]
+    return [courses_v1.build_course(i, c, dress.Dresser(i, c)) for i, c in enumerate(courses_v1.COURSES, 1)]
+
+
+def world_entries(courses):
+    """Menu worlds in order of first appearance: ``{id, look, preview}`` (the preview images come from ``--only previews``)."""
+    return [{"id": world, "look": dress.LOOK[world], "preview": "previews/%s.webp" % dress.LOOK[world]}
+            for world in dict.fromkeys(c["world"] for c in courses)]
 
 
 def build_one_course(number, manifest):
@@ -105,11 +112,13 @@ def main():
     if "courses" in args.parts:
         if args.course:
             manifest["courses"] = build_one_course(args.course, manifest)
+            manifest["worlds"] = world_entries(manifest["courses"])
             write_manifest(manifest)
             print(f"Patched course {args.course} in {RUNTIME}")
         else:
             courses = build_courses()
             manifest["courses"] = courses
+            manifest["worlds"] = world_entries(courses)
             write_manifest(manifest)
             print(f"Wrote {len(courses)} courses to {RUNTIME}")
     if "previews" in args.parts:

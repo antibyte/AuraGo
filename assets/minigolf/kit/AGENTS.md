@@ -89,9 +89,13 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
   templates, obstacles, rails and shore are hidden from the occluders. The
   per-course GLB budget lives in the asset test; the island alone is about 11-12k
   triangles.
-  `generate.py --course N` rebuilds one course with the dresser and patches its
-  manifest entry (`look`, `path`, `props` included); without it the courses stay
-  legacy until the full redress.
+  `generate.py` dresses all 18 courses (`look`, `path`, `props` per course,
+  `worlds` and `kits` at top level); `--course N` rebuilds one course and patches
+  its manifest entry. Blender suffixes node and mesh names of later courses
+  (`.001`), so a `--course N` GLB differs from the full-run GLB in those names:
+  commit full-run output only. The manifest `path` runs to the lane end, up to 1 m
+  behind the cup (the cup sits at 91 % of the lane), so the corridor also covers
+  the end stub.
 - Specials and placement: `dress_specials.build` turns each legacy layout special
   into fixed kit placements (gate, palms of the beach, harbour posts, neon posts,
   crystals, tower, lighthouse as hero, ...) and/or hand-built geometry
@@ -158,12 +162,13 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
   world; a second run must give identical GLB hashes. A full run must leave
   `git status ui/3d/minigolf` free of course GLB changes and
   `node scripts/test-minigolf-assets.mjs` green.
-- Dressed courses: `blender --background --factory-startup --python
-  assets/minigolf/generate.py -- --only courses --course N` (about 2 s of build
-  plus Blender start-up), then `node scripts/test-minigolf-assets.mjs`; the P1
-  collider fingerprint must stay green. Building all 18 with the dresser twice
-  must give identical GLB hashes. Reviewing a course: `--save-blend` and a
-  scratch Cycles render of its scene.
+- Dressed courses: a full run (`generate.py` without arguments, about 2 minutes)
+  rebuilds the three kits and all 18 courses; `node scripts/test-minigolf-assets.mjs`
+  (budgets, P1 collider fingerprint, kits, placements), `test-minigolf-courses.mjs`
+  and `test-minigolf-physics.mjs` must stay green, and a second full run must give
+  identical GLB and manifest hashes. `-- --only courses --course N` (about 15 s)
+  is for iteration. Reviewing a course: `--save-blend` and a scratch Cycles render
+  of its scene with the baked kit props linked in as real objects.
 - `blender --background --factory-startup --python assets/minigolf/kit/probe.py
   -- --out <scratch> --world all` renders the three probes (about 2.5 minutes
   each on 16 cores at 128 samples) and prints per-prop and scene triangle counts,

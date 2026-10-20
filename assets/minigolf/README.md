@@ -26,13 +26,17 @@ top-level half-extents retained as a conservative runtime fallback.
 The runtime manifest is compact JSON to reduce download size; pretty-print it
 for inspection with `python -m json.tool ui/3d/minigolf/manifest.json`.
 
-Current baseline: 18 GLBs total 5,033,308 bytes, the compact manifest is
-3,260,075 bytes, and the complete course package is 8,293,383 bytes. The scenes
-contain 68,856 triangles total (5,049 maximum per course). The asset test
-enforces a 12 MiB combined runtime budget, fewer than 100,000 triangles per
-course, embedded local resources, valid GLBs, geometry/collider agreement,
-named obstacle nodes, and open cup collision geometry. Regenerated sizes can
-vary with edits; the test is the authoritative budget check.
+Current baseline: the 18 dressed course GLBs total 9,508,384 bytes (at most
+713,720 bytes and 20,133 triangles per course, 318,912 triangles in all), the
+compact manifest is 3,310,776 bytes, the three prop kits total 5,029,080 bytes
+and the whole runtime package including audio is 20,708,359 bytes. The asset
+test enforces the budgets (course at most 768 KiB, 24,000 triangles and 24 mesh
+nodes; kit at most 3 MiB and 60,000 triangles; prop at most 15,000 triangles,
+hero 20,000; runtime package at most 32 MiB), the P1 collider fingerprint, a
+lane corridor free of props, embedded local resources, valid GLBs,
+geometry/collider agreement, named obstacle nodes, and open cup collision
+geometry. Regenerated sizes can vary with edits; the test is the authoritative
+budget check.
 
 All art is original and generated locally from this source. The generator has
 no network or third-party art dependencies.
