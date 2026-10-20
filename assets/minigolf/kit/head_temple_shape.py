@@ -82,7 +82,7 @@ def front_y(x, z):
 
 
 def _levels():
-    zs = [0.0, 0.2, 0.4] + [0.6 + 0.15 * k for k in range(17)]
+    zs = [0.0, 0.2, 0.4] + [0.6 + 0.12 * k for k in range(21)]
     zs.extend(DOME_Z + (ZTOP - DOME_Z) * math.sin(0.5 * math.pi * k / 9) for k in range(0, 10))
     return sorted(set(round(z, 4) for z in zs))
 
@@ -93,7 +93,7 @@ def _theta(j, cols):
     return -math.pi / 2 + math.tau * u - 0.45 * math.sin(math.tau * u)
 
 
-def build_skull(cols=64):
+def build_skull(cols=88):
     """Closed skull with the mouth recess cut into the front (Boolean), before bevel and colour."""
     rings = []
     for z in _levels():
