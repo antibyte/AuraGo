@@ -44,7 +44,7 @@ func TestPersonalityEvidenceRequiresCurrentHumanProof(t *testing.T) {
 	stm := newTestPersonalityDB(t)
 	before, _ := stm.GetPersonalitySnapshotAt(time.Now())
 	update := []ProfileUpdate{{Category: "prefs", Key: "language", Value: "german"}}
-	for i, input := range []*HumanInput{nil, {Text: "model says human", SessionID: "default"}, evidenceInput("default", "media", "", time.Now())} {
+	for i, input := range []*HumanInput{nil, {Text: "model says human", SessionID: "default", OccurredAt: time.Now()}, evidenceInput("default", "media", "", time.Now())} {
 		_, err := stm.ApplyPersonalityObservation(PersonalityObservation{ID: fmt.Sprint(i), Input: input, Human: true, Signal: "praise", Target: "agent", Confidence: 1, AffinityDelta: .1, ProfileUpdates: update})
 		if err != nil {
 			t.Fatal(err)
@@ -54,6 +54,131 @@ func TestPersonalityEvidenceRequiresCurrentHumanProof(t *testing.T) {
 	after, _ := stm.GetPersonalitySnapshotAt(time.Now())
 	if len(entries) != 0 || after.Traits[TraitAffinity] != before.Traits[TraitAffinity] {
 		t.Fatalf("missing or empty proof manufactured evidence: %+v", entries)
+	}
+}
+
+func TestPersonalityExplicitZeroEventTimeExpiresBeforeMutation(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	now := time.Now().UTC()
+	before, err := stm.GetPersonalitySnapshotAt(now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := evidenceInput("default", "zero-time", "Positive feedback", time.Time{})
+	_, err = stm.ApplyPersonalityObservation(PersonalityObservation{
+		ID: input.TurnID, Input: input, Human: true, At: now,
+		Signal: "praise", Target: "agent", Confidence: 1, AffinityDelta: .1,
+		ProfileUpdates: []ProfileUpdate{{Category: "prefs", Key: "language", Value: "german"}},
+	})
+	if !errors.Is(err, ErrPersonalityEventExpired) {
+		t.Fatalf("zero event time: %v", err)
+	}
+	after, err := stm.GetPersonalitySnapshotAt(now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Dynamics.Revision != before.Dynamics.Revision || after.Traits[TraitAffinity] != before.Traits[TraitAffinity] {
+		t.Fatal("expired event changed personality state")
+	}
+	for _, table := range []string{"personality_observations", "personality_profile_evidence", "user_profile"} {
+		var count int
+		if err := stm.db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count != 0 {
+			t.Fatalf("expired event wrote %s", table)
+		}
+	}
+}
+
+func TestPersonalityTransportReplayCannotRestoreDeletedProfileAfterRestart(t *testing.T) {
+	for _, transport := range []string{"telegram:1:42", "discord:42", "rocketchat:42"} {
+		t.Run(transport, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "memory.db")
+			open := func() *SQLiteMemory {
+				t.Helper()
+				stm, err := NewSQLiteMemory(path, slog.Default())
+				if err != nil {
+					t.Fatal(err)
+				}
+				return stm
+			}
+			stm := open()
+			t.Cleanup(func() { _ = stm.Close() })
+			kg, err := NewKnowledgeGraph(":memory:", "", slog.Default())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer kg.Close()
+			session, err := stm.ResolveUserSession(t.Context(), "default")
+			if err != nil {
+				t.Fatal(err)
+			}
+			occurred := time.Now().UTC().Add(-time.Minute)
+			original := NewHumanInputEvent("I prefer English", session, transport, occurred)
+			observation := func(input *HumanInput, semantic bool) PersonalityObservation {
+				o := PersonalityObservation{ID: input.TurnID, Input: input, Source: "human", Human: true, BeginTurn: !semantic, Semantic: semantic}
+				if semantic {
+					o.Source = "helper"
+					o.ProfileUpdates = []ProfileUpdate{{Category: "prefs", Key: "language", Value: "English"}}
+				}
+				return o
+			}
+			for _, semantic := range []bool{false, true} {
+				if _, err := stm.ApplyPersonalityObservation(observation(original, semantic)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			entries, err := stm.GetProfileEntries("prefs")
+			if err != nil || len(entries) != 1 {
+				t.Fatalf("missing original profile: %+v, %v", entries, err)
+			}
+			if _, err := stm.DeleteChatSessionWithMemories(t.Context(), session, nil, kg, true); err != nil {
+				t.Fatal(err)
+			}
+			if err := stm.Close(); err != nil {
+				t.Fatal(err)
+			}
+			stm = open()
+			next, err := stm.ResolveUserSession(t.Context(), "default")
+			if err != nil || next == session {
+				t.Fatalf("session did not advance: %v", err)
+			}
+			replay := NewHumanInputEvent(original.Text, next, transport, occurred)
+			if replay.TurnID != original.TurnID || !replay.OccurredAt.Equal(original.OccurredAt) {
+				t.Fatal("session rotation changed transport identity or event time")
+			}
+			before, err := stm.GetPersonalitySnapshotAt(time.Now())
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, semantic := range []bool{false, true} {
+				if _, err := stm.ApplyPersonalityObservation(observation(replay, semantic)); !errors.Is(err, ErrPersonalityEventConflict) {
+					t.Fatalf("replay phase semantic=%t: %v", semantic, err)
+				}
+			}
+			after, err := stm.GetPersonalitySnapshotAt(time.Now())
+			if err != nil || after.Dynamics.Revision != before.Dynamics.Revision {
+				t.Fatalf("replay changed numeric development: %v", err)
+			}
+			entries, err = stm.GetProfileEntries("prefs")
+			if err != nil || len(entries) != 0 {
+				t.Fatalf("replay restored deleted profile: %+v, %v", entries, err)
+			}
+			if _, err := stm.ApplyPersonalityObservation(observation(original, true)); !errors.Is(err, ErrSessionDeleted) {
+				t.Fatalf("old session lost its durable fence: %v", err)
+			}
+			fresh := NewHumanInputEvent(original.Text, next, transport+"-next", time.Now())
+			for _, semantic := range []bool{false, true} {
+				if _, err := stm.ApplyPersonalityObservation(observation(fresh, semantic)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			entries, err = stm.GetProfileEntries("prefs")
+			if err != nil || len(entries) != 1 || entries[0].Confidence != 1 {
+				t.Fatalf("fresh human input was not accepted once: %+v, %v", entries, err)
+			}
+		})
 	}
 }
 

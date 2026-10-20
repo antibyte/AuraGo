@@ -38,7 +38,8 @@ func NewHumanInput(text, sessionID string) *HumanInput {
 func NewHumanInputEvent(text, sessionID, eventID string, occurredAt time.Time) *HumanInput {
 	input := NewHumanInput(text, sessionID)
 	if eventID != "" {
-		input.TurnID = personalityObservationKey("human", sessionID+":"+eventID)
+		// Session rotation after deletion must not make a transport retry new evidence.
+		input.TurnID = personalityObservationKey("human", eventID)
 	}
 	if !occurredAt.IsZero() {
 		input.OccurredAt = occurredAt.UTC()

@@ -75,6 +75,7 @@ func TestPersonalityFeedbackEventContract(t *testing.T) {
 	post(`{"type":"positive","event_id":"stable"}`, 400)
 	old := time.Now().Add(-memory.PersonalityObservationLifetime - time.Second).UTC().Format(time.RFC3339Nano)
 	post(`{"type":"positive","event_id":"old","occurred_at":"`+old+`"}`, 410)
+	post(`{"type":"positive","event_id":"zero","occurred_at":"0001-01-01T00:00:00Z"}`, 410)
 	future := time.Now().Add(6 * time.Minute).UTC().Format(time.RFC3339Nano)
 	post(`{"type":"positive","event_id":"future","occurred_at":"`+future+`"}`, 400)
 	// Known pre-upgrade IDs are no-op replays without a supplied timestamp.

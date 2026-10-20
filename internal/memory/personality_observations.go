@@ -244,8 +244,10 @@ func (s *SQLiteMemory) ApplyPersonalityObservation(observation PersonalityObserv
 		now = time.Now()
 	}
 	now = now.UTC()
-	if observation.Input.Valid() {
+	if observation.Input != nil {
 		observation.OccurredAt = observation.Input.OccurredAt
+	}
+	if observation.Input.Valid() {
 		if strings.TrimSpace(observation.Input.Text) == "" {
 			observation.Human = false
 			observation.ProfileUpdates = nil
@@ -258,7 +260,7 @@ func (s *SQLiteMemory) ApplyPersonalityObservation(observation PersonalityObserv
 	if fingerprint == "" {
 		fingerprint = observationFingerprint(observation)
 	}
-	if observation.OccurredAt.IsZero() {
+	if observation.OccurredAt.IsZero() && observation.Input == nil {
 		observation.OccurredAt = now
 	}
 	if !now.Before(observation.OccurredAt.Add(PersonalityObservationLifetime)) {
