@@ -134,7 +134,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	}
 	retention := resolveMaintenanceRetention(cfg)
 
-	ledger.recordError("stm_retention", RunSTMPRetentionMaintenance(cfg, logger, shortTermMem))
+	ledger.recordError("stm_retention", RunSTMPRetentionMaintenanceContext(taskCtx, cfg, logger, shortTermMem))
 
 	// Phase A5: Clean up old interaction patterns
 	if shortTermMem != nil {
@@ -304,6 +304,11 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 			}
 		} else {
 			ledger.addError("consolidation_backlog: " + err.Error())
+		}
+		if terminal, err := shortTermMem.CountTerminalConsolidationFailures(taskCtx, 3); err != nil {
+			ledger.addError("consolidation_terminal_failures: " + err.Error())
+		} else {
+			addTerminalConsolidationFailuresToLedger(ledger, terminal)
 		}
 	}
 	if consolidationEnabled && consolidationBudgetExpired && ledger.phaseDeferred("consolidation") == 0 {
@@ -1277,14 +1282,16 @@ func storeConsolidationFactsWithContext(ctx context.Context, logger *slog.Logger
 		stored++
 	}
 	if len(storeErrors) > 0 {
-		rollbackErr := rollbackStoredConsolidationFacts(logger, stm, ltm, createdWrites)
+		rollbackErr := rollbackStoredConsolidationFacts(ctx, logger, stm, ltm, createdWrites)
 		return 0, skipped, errors.Join(append(storeErrors, rollbackErr)...)
 	}
 	return stored, skipped, nil
 }
 
-func rollbackStoredConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, writes []memory.AutomaticMemoryWrite) error {
-	err := stm.RollbackAutomaticMemoryWrites(ltm, writes)
+func rollbackStoredConsolidationFacts(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, writes []memory.AutomaticMemoryWrite) error {
+	cleanupCtx, cancel := boundedMaintenanceRollbackContext(ctx)
+	defer cancel()
+	err := stm.RollbackAutomaticMemoryWritesContext(cleanupCtx, ltm, writes)
 	if err != nil && logger != nil {
 		logger.Warn("[Consolidation] Rollback retained unproven or changed memories", "error", err)
 	}
@@ -1449,7 +1456,16 @@ func resolveMaintenanceRetention(cfg *config.Config) maintenanceRetentionDays {
 const nightlyMemoryMetaFetchLimit = 50000
 const nightlyMemoryConflictScanLimit = 250
 const nightlyMemoryConflictPageSize = 500
+const nightlyMemoryConflictRetryLimit = 25
 const memoryConflictScanCursorKey = "memory_conflict_scan.cursor"
+
+func addTerminalConsolidationFailuresToLedger(ledger *maintenanceRunLedger, count int) {
+	if count <= 0 {
+		return
+	}
+	ledger.addDeferred("consolidation", count)
+	ledger.addPhaseCode("consolidation", "terminal_failures_require_recovery")
+}
 
 const maintenanceProtectedTailReserve = 90 * time.Second
 const maintenanceConsolidationBudget = 2 * time.Minute
@@ -1518,10 +1534,10 @@ func loadNightlyMemoryMeta(ctx context.Context, cfg *config.Config, logger *slog
 		resultErr = errors.Join(resultErr, err)
 		logger.Warn("[Maintenance] Failed to fetch memory metadata for nightly memory maintenance", "error", err)
 	}
-	if cfg != nil && cfg.Consolidation.MemoryMetaBudget > 0 && ltm != nil {
-		if evicted, err := stm.ApplyMemoryBudgetEnforcement(cfg.Consolidation.MemoryMetaBudget, ltm); err != nil {
+	if cfg != nil && ltm != nil {
+		if evicted, err := stm.ApplyMemoryBudgetEnforcementContext(ctx, cfg.Consolidation.MemoryMetaBudget, ltm); err != nil {
 			resultErr = errors.Join(resultErr, err)
-			logger.Warn("[Maintenance] Memory meta budget enforcement failed", "error", err, "budget", cfg.Consolidation.MemoryMetaBudget)
+			logger.Warn("[Maintenance] Memory archive cleanup failed", "error", err, "budget", cfg.Consolidation.MemoryMetaBudget)
 		} else if evicted > 0 {
 			logger.Info("[Maintenance] Memory meta budget enforced", "evicted", evicted, "budget", cfg.Consolidation.MemoryMetaBudget)
 			refreshed, refreshErr := stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
@@ -1542,7 +1558,7 @@ func runNightlyMemoryHygieneWithContext(ctx context.Context, cfg *config.Config,
 		logger.Warn("[Maintenance] Stopping nightly memory maintenance: maintenance context canceled", "error", err)
 		return err
 	}
-	curationErr := autoCurateMemory(cfg, logger, stm, metas)
+	curationErr := autoCurateMemoryWithContext(ctx, cfg, logger, stm, metas)
 	if err := ctx.Err(); err != nil {
 		logger.Warn("[Maintenance] Stopping memory conflict scan: maintenance context canceled", "error", err)
 		return err
@@ -1613,299 +1629,16 @@ type consolidationRunResult struct {
 	MessagesExcluded     int
 }
 
-func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) (result consolidationRunResult) {
-	if !runtimeMemoryWriteAllowed(cfg, "memory", "") {
-		return result
-	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	budget, _ := ctx.Value(consolidationRunBudgetContextKey{}).(*consolidationRunBudget)
-	rootClaim := budget == nil
-	if rootClaim {
-		maxMessages := cfg.Consolidation.MaxBatchMessages
-		if maxMessages <= 0 {
-			maxMessages = 200
-		}
-		budget = &consolidationRunBudget{remaining: maxMessages}
-		ctx = context.WithValue(ctx, consolidationRunBudgetContextKey{}, budget)
-		defer func() {
-			if err := cleanConsolidationArchivedMessages(cfg, logger, stm); err != nil {
-				result.Errors = append(result.Errors, err)
-			}
-		}()
-		excluded, excludeErr := stm.FinalizeIneligibleConsolidationCandidates()
-		if excludeErr != nil {
-			result.Errors = append(result.Errors, excludeErr)
-			logger.Warn("[Consolidation] Failed to exclude internal archive rows", "error", excludeErr)
-		} else if excluded > 0 {
-			result.MessagesExcluded = int(excluded)
-			logger.Info("[Consolidation] Excluded internal archive rows", "count", excluded)
-		}
-	}
-	if err := ctx.Err(); err != nil {
-		result.Errors = append(result.Errors, err)
-		logger.Warn("[Consolidation] STM->LTM consolidation skipped: maintenance context canceled", "error", err)
-		return result
-	}
-
-	consolidationClient, consolidationModel := resolveHelperBackedLLM(cfg, client, resolveConsolidationModel(cfg))
-	if consolidationClient == nil || consolidationModel == "" {
-		logger.Warn("[Consolidation] STM->LTM consolidation skipped: no helper/main LLM available")
-		return result
-	}
-
-	if rootClaim {
-		if reclaimed, reclaimErr := stm.ReclaimStaleConsolidationClaims(30 * time.Minute); reclaimErr != nil {
-			result.Errors = append(result.Errors, reclaimErr)
-			logger.Warn("[Consolidation] Failed to reclaim stale in_progress rows", "error", reclaimErr)
-		} else if reclaimed > 0 {
-			logger.Info("[Consolidation] Reclaimed stale in_progress rows", "count", reclaimed)
-		}
-	}
-
-	// Atomically claim rows so concurrent runs cannot process the same messages.
-	claimLimit := budget.remaining
-	if claimLimit > 40 {
-		claimLimit = 40
-	}
-	if claimLimit <= 0 {
-		return result
-	}
-	archived, err := stm.ClaimConsolidationCandidates(claimLimit, 3)
-	if err != nil {
-		result.Errors = append(result.Errors, err)
-		logger.Error("[Consolidation] Failed to fetch unconsolidated messages", "error", err)
-		return result
-	}
-	if len(archived) == 0 {
-		logger.Debug("[Consolidation] No unconsolidated archived messages")
-		return result
-	}
-	defer func() {
-		ids := make([]int64, 0, len(archived))
-		for _, msg := range archived {
-			ids = append(ids, msg.ID)
-		}
-		if err := stm.ReleaseConsolidationClaims(ids); err != nil {
-			result.Errors = append(result.Errors, err)
-		}
-	}()
-	budget.remaining -= len(archived)
-	result.MessagesClaimed += len(archived)
-
-	logger.Info("[Consolidation] Starting STM→LTM consolidation", "messages", len(archived))
-
-	// Group messages into batches of ~4000 characters for LLM processing
-	const maxBatchChars = 4000
-	var batches [][]memory.ArchivedMessage
-	var currentBatch []memory.ArchivedMessage
-	currentLen := 0
-
-	for _, msg := range archived {
-		msgLen := len(msg.Content) + len(msg.SessionID) + len(msg.Role) + len(msg.Timestamp) + 100
-		if len(currentBatch) > 0 && (currentLen+msgLen > maxBatchChars || msg.SessionID != currentBatch[0].SessionID || msg.Role != currentBatch[0].Role) {
-			batches = append(batches, currentBatch)
-			currentBatch = nil
-			currentLen = 0
-		}
-		currentBatch = append(currentBatch, msg)
-		currentLen += msgLen
-	}
-	if len(currentBatch) > 0 {
-		batches = append(batches, currentBatch)
-	}
-
-	helperManager := newHelperLLMManager(cfg, logger)
-	workItems := make([]consolidationWorkItem, 0, len(batches))
-	for i, batch := range batches {
-		workItems = append(workItems, buildConsolidationWorkItem(i, batch))
-	}
-
-	persistWorkItem := func(item consolidationWorkItem, batchIndex int, facts []helperConsolidationFact) {
-		started := time.Now()
-		if !runtimeMemoryWriteAllowed(cfg, "memory", item.messages[0].SessionID) {
-			_ = stm.ReleaseConsolidationClaims(item.messageIDs)
-			return
-		}
-		stored, skipped, storeErr := storeConsolidationFactsWithContext(ctx, logger, stm, ltm, facts, memory.MemoryMetaUpdate{SourceSessionID: item.messages[0].SessionID, SourceRole: item.messages[0].Role})
-		logger.Info("[Consolidation] Batch storage finished", "batch", batchIndex, "messages", len(item.messageIDs),
-			"facts", len(facts), "stored", stored, "skipped", skipped, "duration_ms", time.Since(started).Milliseconds(), "failed", storeErr != nil)
-		if storeErr != nil {
-			result.Errors = append(result.Errors, storeErr)
-			logger.Warn("[Consolidation] LTM storage failed for batch", "batch", batchIndex, "error", storeErr)
-			claimErr := finishConsolidationError(ctx, stm, item.messageIDs, storeErr)
-			if claimErr != nil {
-				result.Errors = append(result.Errors, claimErr)
-			}
-			return
-		}
-		ok, storedCount, finalizeErr := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, batchIndex, len(workItems))
-		if finalizeErr != nil {
-			result.Errors = append(result.Errors, finalizeErr)
-		}
-		if ok {
-			result.FactsStored += storedCount
-			result.MessagesConsolidated += len(item.messageIDs)
-		}
-	}
-
-	processWorkItem := func(item consolidationWorkItem, batchIndex int) {
-		if err := ctx.Err(); err != nil {
-			result.Errors = append(result.Errors, err)
-			logger.Warn("[Consolidation] Batch skipped: maintenance context canceled", "batch", batchIndex, "error", err)
-			if releaseErr := stm.ReleaseConsolidationClaims(item.messageIDs); releaseErr != nil {
-				result.Errors = append(result.Errors, releaseErr)
-			}
-			return
-		}
-		started := time.Now()
-		facts := make([]helperConsolidationFact, 0)
-		var err error
-		for _, part := range item.parts {
-			var extracted []helperConsolidationFact
-			extracted, err = extractConsolidationFactsWithLLM(ctx, cfg, logger, consolidationClient, consolidationModel, part)
-			if err != nil {
-				break
-			}
-			facts = append(facts, extracted...)
-		}
-		logger.Info("[Consolidation] Batch extraction finished", "batch", batchIndex,
-			"duration_ms", time.Since(started).Milliseconds(), "failed", err != nil)
-		if err != nil {
-			result.Errors = append(result.Errors, err)
-			logger.Warn("[Consolidation] LLM extraction failed for batch", "batch", batchIndex, "error", err)
-			if deadline, ok := ctx.Deadline(); ctx.Err() != nil || (ok && !time.Now().Before(deadline)) {
-				if releaseErr := stm.ReleaseConsolidationClaims(item.messageIDs); releaseErr != nil {
-					result.Errors = append(result.Errors, releaseErr)
-				}
-				return
-			}
-			if markErr := finishConsolidationError(ctx, stm, item.messageIDs, err); markErr != nil {
-				result.Errors = append(result.Errors, markErr)
-			}
-			return
-		}
-		persistWorkItem(item, batchIndex, facts)
-	}
-
-	for i := 0; i < len(workItems); {
-		if err := ctx.Err(); err != nil {
-			result.Errors = append(result.Errors, err)
-			logger.Warn("[Consolidation] Stopping STM->LTM consolidation: maintenance context canceled", "error", err)
-			for _, item := range workItems[i:] {
-				if releaseErr := stm.ReleaseConsolidationClaims(item.messageIDs); releaseErr != nil {
-					result.Errors = append(result.Errors, releaseErr)
-				}
-			}
-			break
-		}
-		if helperManager == nil || len(workItems[i].parts) > 1 {
-			processWorkItem(workItems[i], i+1)
-			i++
-			continue
-		}
-
-		end := i + helperConsolidationBatchSize
-		if end > len(workItems) {
-			end = len(workItems)
-		}
-		for next := i + 1; next < end; next++ {
-			if len(workItems[next].parts) > 1 {
-				end = next
-				break
-			}
-		}
-
-		inputs := make([]helperConsolidationBatchInput, 0, end-i)
-		group := workItems[i:end]
-		for _, item := range group {
-			inputs = append(inputs, helperConsolidationBatchInput{
-				BatchID:      item.batchID,
-				Conversation: item.conversation,
-			})
-		}
-
-		consolidationCtx, consolidationCancel := context.WithTimeout(ctx, 60*time.Second)
-		started := time.Now()
-		batchAnalysis, err := helperManager.AnalyzeConsolidationBatches(consolidationCtx, inputs)
-		consolidationCancel()
-		logger.Info("[Consolidation] Batch extraction finished", "start_batch", i+1, "batches", len(group),
-			"duration_ms", time.Since(started).Milliseconds(), "failed", err != nil)
-		if err != nil {
-			helperManager.ObserveFallback("consolidation_batches", err.Error())
-			logger.Warn("[HelperLLM] Consolidation batch failed, splitting into single batches", "start_batch", i+1, "error", err)
-			for offset, item := range group {
-				if ctx.Err() != nil {
-					result.Errors = append(result.Errors, ctx.Err())
-					if releaseErr := stm.ReleaseConsolidationClaims(item.messageIDs); releaseErr != nil {
-						result.Errors = append(result.Errors, releaseErr)
-					}
-					continue
-				}
-				singleCtx, singleCancel := context.WithTimeout(ctx, 45*time.Second)
-				singleResult, singleErr := helperManager.AnalyzeConsolidationBatches(singleCtx, []helperConsolidationBatchInput{{
-					BatchID: item.batchID, Conversation: item.conversation,
-				}})
-				singleCancel()
-				if singleErr != nil {
-					result.Errors = append(result.Errors, singleErr)
-					if deadline, ok := ctx.Deadline(); ctx.Err() != nil || (ok && !time.Now().Before(deadline)) {
-						if releaseErr := stm.ReleaseConsolidationClaims(item.messageIDs); releaseErr != nil {
-							result.Errors = append(result.Errors, releaseErr)
-						}
-						continue
-					}
-					if markErr := finishConsolidationError(ctx, stm, item.messageIDs, singleErr); markErr != nil {
-						result.Errors = append(result.Errors, markErr)
-					}
-					continue
-				}
-				persistWorkItem(item, i+offset+1, singleResult.Batches[0].Facts)
-			}
-			i = end
-			continue
-		}
-
-		byID := make(map[string][]helperConsolidationFact, len(batchAnalysis.Batches))
-		for _, batchResult := range batchAnalysis.Batches {
-			byID[batchResult.BatchID] = batchResult.Facts
-		}
-		for offset, item := range group {
-			persistWorkItem(item, i+offset+1, byID[item.batchID])
-		}
-		i = end
-	}
-
-	if budget.remaining > 0 && len(archived) == claimLimit && ctx.Err() == nil {
-		more := consolidateSTMtoLTMWithContext(ctx, cfg, logger, client, stm, ltm, kg)
-		result.FactsStored += more.FactsStored
-		result.MessagesConsolidated += more.MessagesConsolidated
-		result.MessagesClaimed += more.MessagesClaimed
-		result.Errors = append(result.Errors, more.Errors...)
-	}
-
-	// Create one journal entry for the complete consolidation run.
-	if rootClaim && cfg.Tools.Journal.Enabled && result.FactsStored > 0 {
-		if _, err := stm.InsertJournalEntry(memory.JournalEntry{
-			EntryType: "system",
-			Title:     "Nightly STM→LTM Consolidation",
-			Content:   fmt.Sprintf("Consolidated %d archived messages into %d LTM facts.", result.MessagesConsolidated, result.FactsStored),
-			Tags:      []string{"consolidation", "maintenance", "memory"},
-		}); err != nil {
-			result.Errors = append(result.Errors, fmt.Errorf("store consolidation journal: %w", err))
-		}
-	}
-
-	if rootClaim {
-		logger.Info("[Consolidation] STM→LTM consolidation complete",
-			"messages_processed", result.MessagesConsolidated,
-			"facts_stored", result.FactsStored,
-			"remaining_claim_budget", budget.remaining)
-	}
-	return result
+func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) consolidationRunResult {
+	return consolidateSTMtoLTMWithDurableProgress(ctx, cfg, logger, client, stm, ltm, kg)
 }
 
+func boundedMaintenanceRollbackContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if ctx == nil || ctx.Err() != nil {
+		return context.WithTimeout(context.Background(), 3*time.Second)
+	}
+	return context.WithTimeout(ctx, 3*time.Second)
+}
 func maintenanceContextHasAtLeast(ctx context.Context, minimum time.Duration) bool {
 	if ctx == nil {
 		return true
@@ -2027,7 +1760,7 @@ func consolidateEpisodicHierarchyWritable(ctx context.Context, logger *slog.Logg
 		})
 		ids := append(append(append([]string{}, owned.CreatedIDs...), owned.ReusedIDs...), owned.UnknownIDs...)
 		if err != nil {
-			resultErr = errors.Join(resultErr, err, rollbackStoredConsolidationFacts(logger, stm, ltm, owned.Writes))
+			resultErr = errors.Join(resultErr, err, rollbackStoredConsolidationFacts(ctx, logger, stm, ltm, owned.Writes))
 			logger.Warn("[Hierarchy] Failed to store episodic synthesis", "group", groupKey, "error", err)
 			continue
 		}
@@ -2091,17 +1824,32 @@ func detectMemoryConflictsAcrossLTMWithContext(ctx context.Context, logger *slog
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	cursor, err := stm.GetMemoryMaintenanceState(memoryConflictScanCursorKey)
+	retryTargets, _, retryErr := stm.GetMemoryMaintenanceFailureRetryPage(ctx, "memory_conflict_scan", nightlyMemoryConflictRetryLimit)
+	if retryErr != nil {
+		return retryErr
+	}
+	defer func() {
+		if ctx.Err() == nil {
+			resultErr = errors.Join(resultErr, retryMemoryConflictScanFailures(ctx, logger, stm, ltm, retryTargets))
+		}
+	}()
+	cursor, err := stm.GetMemoryMaintenanceStateContext(ctx, memoryConflictScanCursorKey)
 	if err != nil {
 		return err
 	}
 	initialCursor := cursor
 	defer func() {
 		if cursor != initialCursor {
+			saveCtx := ctx
+			cancel := func() {}
+			if ctx.Err() != nil {
+				saveCtx, cancel = context.WithTimeout(context.Background(), 3*time.Second)
+			}
+			defer cancel()
 			if cursor == "" {
-				resultErr = errors.Join(resultErr, stm.ClearMemoryMaintenanceState(memoryConflictScanCursorKey))
+				resultErr = errors.Join(resultErr, stm.ClearMemoryMaintenanceStateContext(saveCtx, memoryConflictScanCursorKey))
 			} else {
-				resultErr = errors.Join(resultErr, stm.SetMemoryMaintenanceState(memoryConflictScanCursorKey, cursor))
+				resultErr = errors.Join(resultErr, stm.SetMemoryMaintenanceStateContext(saveCtx, memoryConflictScanCursorKey, cursor))
 			}
 		}
 	}()
@@ -2110,7 +1858,7 @@ func detectMemoryConflictsAcrossLTMWithContext(ctx context.Context, logger *slog
 			return errors.Join(resultErr, ctx.Err())
 		}
 		pageSize := min(nightlyMemoryConflictPageSize, nightlyMemoryMetaFetchLimit-seen)
-		metas, err := stm.GetMemoryMetaAfter(cursor, pageSize)
+		metas, err := stm.GetMemoryMetaAfterContext(ctx, cursor, pageSize)
 		if err != nil {
 			return errors.Join(resultErr, err)
 		}
@@ -2134,9 +1882,9 @@ func detectMemoryConflictsAcrossLTMWithContext(ctx context.Context, logger *slog
 				resultErr = errors.Join(resultErr, err)
 				var trackingErr error
 				if err != nil {
-					trackingErr = stm.RecordMemoryMaintenanceFailure("memory_conflict_scan", meta.DocID, err)
+					trackingErr = stm.RecordMemoryMaintenanceFailureContext(ctx, "memory_conflict_scan", meta.DocID, err)
 				} else {
-					trackingErr = stm.ClearMemoryMaintenanceFailure("memory_conflict_scan", meta.DocID)
+					trackingErr = stm.ClearMemoryMaintenanceFailureContext(ctx, "memory_conflict_scan", meta.DocID)
 				}
 				if trackingErr != nil {
 					return errors.Join(resultErr, trackingErr)
@@ -2152,6 +1900,49 @@ func detectMemoryConflictsAcrossLTMWithContext(ctx context.Context, logger *slog
 		if scanned >= nightlyMemoryConflictScanLimit {
 			return resultErr
 		}
+	}
+	return resultErr
+}
+
+func retryMemoryConflictScanFailures(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, targetIDs []string) (resultErr error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if stm == nil || ltm == nil || ctx.Err() != nil {
+		return ctx.Err()
+	}
+	if len(targetIDs) == 0 {
+		return nil
+	}
+	for _, targetID := range targetIDs {
+		if err := ctx.Err(); err != nil {
+			return errors.Join(resultErr, err)
+		}
+		failureCount, countErr := stm.MemoryMaintenanceFailureCountContext(ctx, "memory_conflict_scan", targetID)
+		if countErr != nil {
+			return errors.Join(resultErr, countErr)
+		}
+		if failureCount == 0 {
+			continue
+		}
+		err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, []string{targetID}, "", conflictStoredDocument)
+		if ctx.Err() != nil {
+			return errors.Join(resultErr, err, ctx.Err())
+		}
+		resultErr = errors.Join(resultErr, err)
+		if err != nil {
+			if recordErr := stm.RecordMemoryMaintenanceFailureContext(ctx, "memory_conflict_scan", targetID, err); recordErr != nil {
+				return errors.Join(resultErr, recordErr)
+			}
+		} else if clearErr := stm.ClearMemoryMaintenanceFailureContext(ctx, "memory_conflict_scan", targetID); clearErr != nil {
+			return errors.Join(resultErr, clearErr)
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return errors.Join(resultErr, err)
+	}
+	if err := stm.AdvanceMemoryMaintenanceFailureRetryCursor(ctx, "memory_conflict_scan", targetIDs[len(targetIDs)-1]); err != nil {
+		return errors.Join(resultErr, err)
 	}
 	return resultErr
 }
@@ -2435,7 +2226,19 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 	return result
 }
 
-func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, prefetchedMetas []memory.MemoryMeta) (resultErr error) {
+func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, prefetchedMetas []memory.MemoryMeta) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return autoCurateMemoryWithContext(ctx, cfg, logger, stm, prefetchedMetas)
+}
+
+func autoCurateMemoryWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, prefetchedMetas []memory.MemoryMeta) (resultErr error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if !runtimeMemoryWriteAllowed(cfg, "memory", "") {
 		return nil
 	}
@@ -2469,7 +2272,10 @@ func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLit
 	appliedConfirm := 0
 	appliedArchive := 0
 	for _, action := range plan.AutoConfirm {
-		changed, err := stm.ApplyAutomaticMemoryCurationAction(action)
+		if err := ctx.Err(); err != nil {
+			return errors.Join(resultErr, err)
+		}
+		changed, err := stm.ApplyAutomaticMemoryCurationActionContext(ctx, action)
 		if err != nil {
 			resultErr = errors.Join(resultErr, err)
 			logger.Warn("[MemoryCurator] Failed to confirm memory", "doc_id", action.DocID, "error", err)
@@ -2480,7 +2286,10 @@ func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLit
 		}
 	}
 	for _, action := range plan.AutoArchive {
-		changed, err := stm.ApplyAutomaticMemoryCurationAction(action)
+		if err := ctx.Err(); err != nil {
+			return errors.Join(resultErr, err)
+		}
+		changed, err := stm.ApplyAutomaticMemoryCurationActionContext(ctx, action)
 		if err != nil {
 			resultErr = errors.Join(resultErr, err)
 			logger.Warn("[MemoryCurator] Failed to archive memory", "doc_id", action.DocID, "error", err)

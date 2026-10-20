@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -101,7 +100,7 @@ func TestConsolidationOnlyFinalizesFullyProcessedGiantMessages(t *testing.T) {
 				calls++
 				source.WriteString(req.Messages[len(req.Messages)-1].Content)
 				if fail && calls > 1 {
-					return openai.ChatCompletionResponse{}, errors.New("503 provider unavailable")
+					return openai.ChatCompletionResponse{}, context.DeadlineExceeded
 				}
 				return skillQualityTestClient{response: `{"facts":[]}`}.CreateChatCompletion(ctx, req)
 			}}

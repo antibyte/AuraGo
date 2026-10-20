@@ -341,7 +341,7 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details, ctx); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store fact in LTM", "error", err)
 					if ctx.Err() == nil {
-						queuePendingMemoryAnalysisWrite(logger, stm, concept, content, details, err)
+						queuePendingMemoryAnalysisWrite(ctx, logger, stm, concept, content, details, err)
 					}
 				} else {
 					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, f.Content, conflictRawFact); err != nil {
@@ -385,7 +385,7 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details, ctx); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store preference in LTM", "error", err)
 					if ctx.Err() == nil {
-						queuePendingMemoryAnalysisWrite(logger, stm, concept, content, details, err)
+						queuePendingMemoryAnalysisWrite(ctx, logger, stm, concept, content, details, err)
 					}
 				} else {
 					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, p.Content, conflictRawFact); err != nil {
@@ -413,7 +413,7 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details, ctx); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store correction in LTM", "error", err)
 					if ctx.Err() == nil {
-						queuePendingMemoryAnalysisWrite(logger, stm, concept, content, details, err)
+						queuePendingMemoryAnalysisWrite(ctx, logger, stm, concept, content, details, err)
 					}
 				} else {
 					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, c.Content, conflictRawFact); err != nil {
@@ -460,14 +460,14 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 	return stored
 }
 
-func queuePendingMemoryAnalysisWrite(logger *slog.Logger, stm *memory.SQLiteMemory, concept, content string, details memory.MemoryMetaUpdate, cause error) {
+func queuePendingMemoryAnalysisWrite(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, concept, content string, details memory.MemoryMetaUpdate, cause error) {
 	if errors.Is(cause, memory.ErrAutomaticMemorySkipped) || errors.Is(cause, context.Canceled) {
 		return
 	}
 	if stm == nil {
 		return
 	}
-	if err := stm.EnqueuePendingMemoryWrite(memory.PendingMemoryWrite{
+	if err := stm.EnqueuePendingMemoryWriteContext(ctx, memory.PendingMemoryWrite{
 		Concept:  concept,
 		Content:  content,
 		Domain:   "memory_analysis",

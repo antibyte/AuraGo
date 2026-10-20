@@ -85,8 +85,19 @@ func runAutomaticMemoryHygieneWithContext(ctx context.Context, cfg *config.Confi
 		} else {
 			notesReview = plan.ReviewRequiredCount
 			for _, action := range plan.AutoArchive {
+				if err := ctx.Err(); err != nil {
+					deferred++
+					failures = append(failures, err)
+					break
+				}
 				targetID := fmt.Sprintf("note:%d", action.NoteID)
-				if stm.ShouldSkipMemoryMaintenanceAction("note_archive", targetID, 3) {
+				skip, checkErr := stm.ShouldSkipMemoryMaintenanceActionContext(ctx, "note_archive", targetID, 3)
+				if checkErr != nil {
+					failures = append(failures, fmt.Errorf("check note archive retry state: %w", checkErr))
+					deferred++
+					continue
+				}
+				if skip {
 					deferred++
 					logger.Warn("[MemoryHygiene] Skipping stale note archive after repeated failures", "note_id", action.NoteID)
 					continue
@@ -94,12 +105,12 @@ func runAutomaticMemoryHygieneWithContext(ctx context.Context, cfg *config.Confi
 				if err := stm.ApplyNoteCurationAction(action, "maintenance", false); err != nil {
 					failures = append(failures, err)
 					logger.Warn("[MemoryHygiene] Failed to archive stale note", "note_id", action.NoteID, "error", err)
-					if recordErr := stm.RecordMemoryMaintenanceFailure("note_archive", targetID, err); recordErr != nil {
+					if recordErr := stm.RecordMemoryMaintenanceFailureContext(ctx, "note_archive", targetID, err); recordErr != nil {
 						failures = append(failures, fmt.Errorf("record note archive failure: %w", recordErr))
 					}
 					continue
 				}
-				if clearErr := stm.ClearMemoryMaintenanceFailure("note_archive", targetID); clearErr != nil {
+				if clearErr := stm.ClearMemoryMaintenanceFailureContext(ctx, "note_archive", targetID); clearErr != nil {
 					failures = append(failures, fmt.Errorf("clear note archive failure: %w", clearErr))
 				}
 				notesArchived++
@@ -130,14 +141,14 @@ func runAutomaticMemoryHygieneWithContext(ctx context.Context, cfg *config.Confi
 				if targetID == "" {
 					targetID = strings.Join(item.NewDocIDs, ",")
 				}
-				if recordErr := stm.RecordMemoryMaintenanceFailure("canonical_repair", targetID, errors.New(item.Error)); recordErr != nil {
+				if recordErr := stm.RecordMemoryMaintenanceFailureContext(ctx, "canonical_repair", targetID, errors.New(item.Error)); recordErr != nil {
 					failures = append(failures, fmt.Errorf("record canonical repair failure: %w", recordErr))
 				}
 			}
 		} else {
 			for _, item := range report.Items {
 				if item.OldDocID != "" && strings.TrimSpace(item.Error) == "" {
-					if clearErr := stm.ClearMemoryMaintenanceFailure("canonical_repair", item.OldDocID); clearErr != nil {
+					if clearErr := stm.ClearMemoryMaintenanceFailureContext(ctx, "canonical_repair", item.OldDocID); clearErr != nil {
 						failures = append(failures, fmt.Errorf("clear canonical repair failure: %w", clearErr))
 					}
 				}

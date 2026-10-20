@@ -338,17 +338,9 @@ const consolidationCandidateEligibilitySQL = `
 // from the LLM consolidation queue. The archive row remains available until the
 // configured archive retention removes it.
 func (s *SQLiteMemory) FinalizeIneligibleConsolidationCandidates() (int64, error) {
-	res, err := s.db.Exec(`UPDATE archived_messages
-		SET consolidated = 1,
-		    consolidation_status = 'excluded',
-		    consolidation_last_error = '',
-		    consolidation_claimed_at = NULL
-		WHERE consolidated = 0
-		  AND NOT (` + consolidationCandidateEligibilitySQL + `)`)
-	if err != nil {
-		return 0, fmt.Errorf("finalize ineligible consolidation candidates: %w", err)
-	}
-	return res.RowsAffected()
+	ctx, cancel := maintenanceCompatibilityContext()
+	defer cancel()
+	return s.FinalizeIneligibleConsolidationCandidatesContext(ctx, 1000)
 }
 
 // GetConsolidationCandidates returns user-visible conversation messages that
@@ -402,100 +394,9 @@ func (s *SQLiteMemory) GetConsolidationCandidates(limit int, maxRetries int) ([]
 // On success the caller owns the returned messages and must eventually call
 // MarkConsolidationSuccess or MarkConsolidationFailure to finalize them.
 func (s *SQLiteMemory) ClaimConsolidationCandidates(limit int, maxRetries int) ([]ArchivedMessage, error) {
-	if limit <= 0 {
-		limit = 200
-	}
-	if maxRetries <= 0 {
-		maxRetries = 3
-	}
-
-	tx, err := s.db.Begin()
-	if err != nil {
-		return nil, fmt.Errorf("begin claim tx: %w", err)
-	}
-	defer tx.Rollback()
-
-	// Step 1: Find eligible row IDs
-	rows, err := tx.Query(`
-		SELECT id FROM archived_messages
-		WHERE consolidated = 0
-		  AND `+consolidationCandidateEligibilitySQL+`
-		  AND (
-		    consolidation_status = 'pending'
-		    OR (
-		      consolidation_status = 'failed'
-		      AND consolidation_retries < ?
-		      AND next_retry_at <= CURRENT_TIMESTAMP
-		    )
-		  )
-		ORDER BY original_timestamp ASC
-		LIMIT ?
-	`, maxRetries, limit)
-	if err != nil {
-		return nil, fmt.Errorf("query eligible ids: %w", err)
-	}
-	defer rows.Close()
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan eligible id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate eligible ids: %w", err)
-	}
-
-	if len(ids) == 0 {
-		_ = tx.Commit()
-		return nil, nil
-	}
-
-	// Step 2: Atomically claim these rows → in_progress
-	placeholders := make([]string, len(ids))
-	args := make([]interface{}, len(ids))
-	for i, id := range ids {
-		placeholders[i] = "?"
-		args[i] = id
-	}
-	claimQuery := fmt.Sprintf(
-		"UPDATE archived_messages SET consolidation_status = 'in_progress', consolidation_claimed_at = CURRENT_TIMESTAMP WHERE id IN (%s)",
-		strings.Join(placeholders, ","),
-	)
-	if _, err := tx.Exec(claimQuery, args...); err != nil {
-		return nil, fmt.Errorf("claim rows: %w", err)
-	}
-
-	// Step 3: Fetch full row data for the claimed rows
-	fetchQuery := fmt.Sprintf(`
-		SELECT id, session_id, role, content, original_timestamp, consolidation_status, consolidation_retries
-		FROM archived_messages
-		WHERE id IN (%s)
-		ORDER BY original_timestamp ASC
-	`, strings.Join(placeholders, ","))
-	dataRows, err := tx.Query(fetchQuery, args...)
-	if err != nil {
-		return nil, fmt.Errorf("fetch claimed rows: %w", err)
-	}
-	defer dataRows.Close()
-
-	var msgs []ArchivedMessage
-	for dataRows.Next() {
-		var m ArchivedMessage
-		if err := dataRows.Scan(&m.ID, &m.SessionID, &m.Role, &m.Content, &m.Timestamp, &m.ConsolidationStatus, &m.ConsolidationRetries); err != nil {
-			return nil, fmt.Errorf("scan claimed: %w", err)
-		}
-		msgs = append(msgs, m)
-	}
-	if err := dataRows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate claimed: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("commit claim: %w", err)
-	}
-	return msgs, nil
+	ctx, cancel := maintenanceCompatibilityContext()
+	defer cancel()
+	return s.ClaimConsolidationCandidatesContext(ctx, limit, maxRetries)
 }
 
 // MarkConsolidated marks a batch of archived messages as consolidated.
@@ -506,88 +407,69 @@ func (s *SQLiteMemory) MarkConsolidated(ids []int64) error {
 
 // MarkConsolidationSuccess marks archived messages as successfully consolidated.
 func (s *SQLiteMemory) MarkConsolidationSuccess(ids []int64) error {
+	ctx, cancel := maintenanceCompatibilityContext()
+	defer cancel()
+	return s.MarkConsolidationSuccessContext(ctx, ids)
+}
+
+func (s *SQLiteMemory) MarkConsolidationSuccessContext(ctx context.Context, ids []int64) error {
 	if len(ids) == 0 {
 		return nil
 	}
-	placeholders := make([]string, len(ids))
-	args := make([]interface{}, len(ids))
-	for i, id := range ids {
-		placeholders[i] = "?"
-		args[i] = id
+	ctx = maintenanceContext(ctx)
+	for start := 0; start < len(ids); start += 500 {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		end := min(start+500, len(ids))
+		placeholders := make([]string, end-start)
+		args := make([]any, 0, end-start)
+		for i, id := range ids[start:end] {
+			placeholders[i] = "?"
+			args = append(args, id)
+		}
+		query := fmt.Sprintf(`UPDATE archived_messages
+			SET consolidated = 1,
+			    consolidation_status = 'done',
+			    consolidation_last_error = '',
+			    consolidation_claimed_at = NULL
+			WHERE id IN (%s)`, strings.Join(placeholders, ","))
+		if _, err := s.db.ExecContext(ctx, query, args...); err != nil {
+			return fmt.Errorf("mark consolidation success: %w", err)
+		}
 	}
-	query := fmt.Sprintf(`UPDATE archived_messages
-		SET consolidated = 1,
-		    consolidation_status = 'done',
-		    consolidation_last_error = '',
-		    consolidation_claimed_at = NULL
-		WHERE id IN (%s)`, strings.Join(placeholders, ","))
-	_, err := s.db.Exec(query, args...)
-	return err
+	return nil
 }
 
 // MarkConsolidationFailure records a failed consolidation attempt and schedules retry.
 func (s *SQLiteMemory) MarkConsolidationFailure(ids []int64, reason string) error {
-	return s.markConsolidationFailure(ids, reason, true)
+	ctx, cancel := maintenanceCompatibilityContext()
+	defer cancel()
+	return s.RecordConsolidationFailureContext(ctx, ids, reason)
 }
 
 // DeferConsolidationClaims backs off unavailable infrastructure without exhausting extraction retries.
 func (s *SQLiteMemory) DeferConsolidationClaims(ids []int64) error {
-	return s.markConsolidationFailure(ids, "infrastructure_unavailable", false)
+	ctx, cancel := maintenanceCompatibilityContext()
+	defer cancel()
+	return s.DeferConsolidationClaimsContext(ctx, ids)
 }
 
 func (s *SQLiteMemory) markConsolidationFailure(ids []int64, reason string, consumeRetry bool) error {
-	if len(ids) == 0 {
-		return nil
-	}
-	if len(reason) > 300 {
-		reason = reason[:300]
-	}
-	placeholders := make([]string, len(ids))
-	args := make([]interface{}, 0, len(ids)+2)
-	increment := 0
+	ctx, cancel := maintenanceCompatibilityContext()
+	defer cancel()
 	if consumeRetry {
-		increment = 1
+		return s.RecordConsolidationFailureContext(ctx, ids, reason)
 	}
-	args = append(args, increment, reason)
-	for i, id := range ids {
-		placeholders[i] = "?"
-		args = append(args, id)
-	}
-	query := fmt.Sprintf(`UPDATE archived_messages
-		SET consolidation_status = 'failed',
-		    consolidation_retries = consolidation_retries + ?,
-		    consolidation_last_error = ?,
-		    consolidation_claimed_at = NULL,
-		    next_retry_at = datetime('now', '+' || (CASE
-		    	WHEN consolidation_retries < 1 THEN 5
-		    	WHEN consolidation_retries < 2 THEN 30
-		    	ELSE 120
-		    END) || ' minutes')
-		WHERE consolidated = 0 AND id IN (%s)`, strings.Join(placeholders, ","))
-	_, err := s.db.Exec(query, args...)
-	return err
+	return s.DeferConsolidationClaimsContext(ctx, ids)
 }
 
 // ReleaseConsolidationClaims returns work that was claimed but never attempted
 // to pending without consuming a retry.
 func (s *SQLiteMemory) ReleaseConsolidationClaims(ids []int64) error {
-	if len(ids) == 0 {
-		return nil
-	}
-	placeholders := make([]string, len(ids))
-	args := make([]interface{}, len(ids))
-	for i, id := range ids {
-		placeholders[i] = "?"
-		args[i] = id
-	}
-	query := fmt.Sprintf(`UPDATE archived_messages
-		SET consolidation_status = 'pending',
-		    consolidation_claimed_at = NULL
-		WHERE consolidated = 0
-		  AND consolidation_status = 'in_progress'
-		  AND id IN (%s)`, strings.Join(placeholders, ","))
-	_, err := s.db.Exec(query, args...)
-	return err
+	ctx, cancel := maintenanceCompatibilityContext()
+	defer cancel()
+	return s.ReleaseConsolidationClaimsContext(ctx, ids)
 }
 
 // CountConsolidationCandidates reports the eligible conversation backlog.
@@ -611,47 +493,18 @@ func (s *SQLiteMemory) CountConsolidationCandidates(maxRetries int) (int, error)
 // ReclaimStaleConsolidationClaims resets long-running in_progress consolidation rows
 // back to pending so a crashed or interrupted maintenance run can retry them.
 func (s *SQLiteMemory) ReclaimStaleConsolidationClaims(maxAge time.Duration) (int64, error) {
-	if maxAge <= 0 {
-		maxAge = 30 * time.Minute
-	}
-	minutes := int(maxAge.Minutes())
-	if minutes < 1 {
-		minutes = 1
-	}
-	res, err := s.db.Exec(`
-		UPDATE archived_messages
-		SET consolidation_status = 'pending',
-		    consolidation_claimed_at = NULL,
-		    consolidation_last_error = CASE
-		    	WHEN TRIM(COALESCE(consolidation_last_error, '')) = '' THEN 'stale_in_progress_reclaimed'
-		    	ELSE consolidation_last_error
-		    END
-		WHERE consolidated = 0
-		  AND consolidation_status = 'in_progress'
-		  AND (
-		    consolidation_claimed_at IS NULL
-		    OR consolidation_claimed_at < datetime('now', ?)
-		  )`,
-		fmt.Sprintf("-%d minutes", minutes),
-	)
-	if err != nil {
-		return 0, fmt.Errorf("reclaim stale consolidation claims: %w", err)
-	}
-	return res.RowsAffected()
+	ctx, cancel := maintenanceCompatibilityContext()
+	defer cancel()
+	return s.ReclaimStaleConsolidationClaimsContext(ctx, maxAge, 1000)
 }
 
 // CleanOldArchivedMessages removes archived messages older than the given number of days.
 // Only terminal messages (consolidated = 1 AND consolidation_status IN ('done', 'excluded'))
 // are removed. Pending, failed, or in-progress rows are always retained to prevent data loss.
 func (s *SQLiteMemory) CleanOldArchivedMessages(days int) (int64, error) {
-	res, err := s.db.Exec(
-		"DELETE FROM archived_messages WHERE consolidated = 1 AND consolidation_status IN ('done', 'excluded') AND archived_at < datetime('now', ?)",
-		fmt.Sprintf("-%d days", days),
-	)
-	if err != nil {
-		return 0, fmt.Errorf("clean terminal archived messages: %w", err)
-	}
-	return res.RowsAffected()
+	ctx, cancel := maintenanceCompatibilityContext()
+	defer cancel()
+	return s.CleanOldArchivedMessagesContext(ctx, days, 1000)
 }
 
 func (s *SQLiteMemory) DeleteMessagesByID(sessionID string, ids []int64) error {

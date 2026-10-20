@@ -78,3 +78,52 @@ func TestClaimMaintenanceDayFailsClosedWithoutMemory(t *testing.T) {
 		t.Fatalf("nil memory claim = (%v, %v), want (false, error)", claimed, err)
 	}
 }
+
+func TestReleaseMaintenanceDayClaimRequiresMatchingOwner(t *testing.T) {
+	stm := newMaintenanceProgressStore(t, ":memory:")
+	first := time.Date(2026, 9, 22, 4, 0, 0, 123456789, time.UTC)
+	claimed, err := stm.ClaimMaintenanceDay(first)
+	if err != nil || !claimed {
+		t.Fatalf("first claim=(%v,%v), want true,nil", claimed, err)
+	}
+
+	wrongAttempt := first.Add(time.Second)
+	if released, err := stm.ReleaseMaintenanceDayClaim(wrongAttempt); err != nil || released {
+		t.Fatalf("wrong-attempt release=(%v,%v), want false,nil", released, err)
+	}
+	if claimed, err := stm.IsMaintenanceDayClaimed(first); err != nil || !claimed {
+		t.Fatalf("wrong release cleared claim=(%v,%v), want true,nil", claimed, err)
+	}
+
+	if released, err := stm.ReleaseMaintenanceDayClaim(first); err != nil || !released {
+		t.Fatalf("owner release=(%v,%v), want true,nil", released, err)
+	}
+	second := first.Add(2 * time.Second)
+	claimed, err = stm.ClaimMaintenanceDay(second)
+	if err != nil || !claimed {
+		t.Fatalf("reclaim after release=(%v,%v), want true,nil", claimed, err)
+	}
+	if released, err := stm.ReleaseMaintenanceDayClaim(first); err != nil || released {
+		t.Fatalf("late old-owner release=(%v,%v), want false,nil", released, err)
+	}
+	if claimed, err := stm.IsMaintenanceDayClaimed(second); err != nil || !claimed {
+		t.Fatalf("late release cleared new claim=(%v,%v), want true,nil", claimed, err)
+	}
+}
+
+func TestReleaseMaintenanceDayClaimPreservesLegacyDayOnlyClaim(t *testing.T) {
+	stm := newMaintenanceProgressStore(t, ":memory:")
+	started := time.Date(2026, 9, 22, 4, 0, 0, 0, time.UTC)
+	if err := stm.SetMemoryMaintenanceState(MaintenanceAutomaticDayKey, started.Format("2006-01-02")); err != nil {
+		t.Fatal(err)
+	}
+	if released, err := stm.ReleaseMaintenanceDayClaim(started); err != nil || released {
+		t.Fatalf("legacy claim release=(%v,%v), want false,nil", released, err)
+	}
+	if claimed, err := stm.IsMaintenanceDayClaimed(started); err != nil || !claimed {
+		t.Fatalf("legacy claim was lost=(%v,%v), want true,nil", claimed, err)
+	}
+	if claimed, err := stm.ClaimMaintenanceDay(started); err != nil || claimed {
+		t.Fatalf("claim over legacy day-only state=(%v,%v), want false,nil", claimed, err)
+	}
+}

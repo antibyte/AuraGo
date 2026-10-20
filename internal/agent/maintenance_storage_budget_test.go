@@ -46,15 +46,10 @@ func TestConsolidationStorageDeadlineReleasesClaims(t *testing.T) {
 				vdb := &consolidationDeadlineVector{}
 				const facts = `"facts":[{"concept":"Backup","content":"The backup target is the NAS."}]`
 				client := maintenanceCompletionTestClient{complete: func(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
-					response := `{` + facts + `}`
-					if path != "direct" {
-						paired := strings.Contains(req.Messages[len(req.Messages)-1].Content, "=== batch_2 ===")
-						response = `{"batches":[{"batch_id":"batch_1",` + facts + `}]}`
-						if paired && path == "helper fallback" {
-							response = `{"batches":[]}`
-						} else if paired {
-							response = `{"batches":[{"batch_id":"batch_1",` + facts + `},{"batch_id":"batch_2",` + facts + `}]}`
-						}
+					response := maintenanceConsolidationResponseForRequest(req, facts)
+					paired := strings.Contains(req.Messages[len(req.Messages)-1].Content, "=== batch_2 ===")
+					if paired && path == "helper fallback" {
+						response = `{"batches":[]}`
 					}
 					return skillQualityTestClient{response: response}.CreateChatCompletion(ctx, req)
 				}}

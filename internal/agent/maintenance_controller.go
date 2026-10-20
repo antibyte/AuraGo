@@ -439,6 +439,11 @@ func (c *maintenanceController) startRun(cfg *config.Config) bool {
 		return false
 	}
 	if c.stopped || c.ctx.Err() != nil {
+		if c.deps.ShortTermMem != nil {
+			if _, releaseErr := c.deps.ShortTermMem.ReleaseMaintenanceDayClaim(startedAt); releaseErr != nil {
+				c.logger.Warn("failed to release canceled maintenance day claim", "error", releaseErr)
+			}
+		}
 		c.mu.Unlock()
 		return false
 	}
