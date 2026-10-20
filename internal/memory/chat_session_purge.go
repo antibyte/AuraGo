@@ -1,10 +1,12 @@
 package memory
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -62,20 +64,44 @@ func (s *SQLiteMemory) PurgeChatSession(sessionID string) error {
 	defer s.finishSessionDeletion(sessionID)
 	s.sessionWriteMu.Lock()
 	defer s.sessionWriteMu.Unlock()
+	s.correctionMu.Lock()
+	defer s.correctionMu.Unlock()
 	s.automaticMemoryMu.Lock()
 	defer s.automaticMemoryMu.Unlock()
 	return s.purgeChatSessionLocked(sessionID)
 }
 
 func (s *SQLiteMemory) purgeChatSessionLocked(sessionID string) error {
-	return s.purgeChatSessionWithPrivacyJobLocked(sessionID, "")
+	return s.purgeChatSessionWithGraphPrivacyJobLocked(sessionID, "", nil)
 }
 
 func (s *SQLiteMemory) purgeChatSessionWithPrivacyJobLocked(sessionID, privacyJobID string) error {
+	return s.purgeChatSessionWithGraphPrivacyJobLocked(sessionID, privacyJobID, nil)
+}
+
+func (s *SQLiteMemory) purgeChatSessionWithGraphPrivacyJobLocked(sessionID, privacyJobID string, kg *KnowledgeGraph) error {
 	if strings.TrimSpace(sessionID) == "" {
 		return fmt.Errorf("a session ID is required")
 	}
-	tx, err := s.db.Begin()
+	ctx := context.Background()
+	var internalJob bool
+	var internalTargets []privacyDeletionTarget
+	if privacyJobID == "" {
+		if err := s.db.QueryRowContext(ctx, `SELECT COALESCE((SELECT d.privacy_job_id FROM deleted_chat_sessions d JOIN privacy_deletion_jobs j ON j.deletion_job_id=d.privacy_job_id WHERE d.session_id=? AND d.privacy_job_id<>'' LIMIT 1),'')`, sessionID).Scan(&privacyJobID); err != nil {
+			return fmt.Errorf("find existing chat privacy job: %w", err)
+		}
+	}
+	if privacyJobID == "" {
+		var err error
+		internalTargets, err = s.sessionCorrectionCleanupTargets(ctx, sessionID)
+		if err != nil {
+			return err
+		}
+		internalTargets = append(internalTargets, privacyGraphTranscriptTarget(sessionID))
+		privacyJobID = newPrivacyDeletionID()
+		internalJob = true
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin chat session purge: %w", err)
 	}
@@ -91,9 +117,26 @@ func (s *SQLiteMemory) purgeChatSessionWithPrivacyJobLocked(sessionID, privacyJo
 		return fmt.Errorf("record chat deletion fence: %w", err)
 	}
 	if privacyJobID != "" {
-		if _, err := tx.Exec(`UPDATE deleted_chat_sessions SET privacy_job_id=? WHERE session_id=? AND (privacy_job_id='' OR privacy_job_id=?)`, privacyJobID, sessionID, privacyJobID); err != nil {
+		if _, err := tx.Exec(`UPDATE deleted_chat_sessions SET privacy_job_id=? WHERE session_id=? AND (privacy_job_id='' OR privacy_job_id=? OR NOT EXISTS(SELECT 1 FROM privacy_deletion_jobs j WHERE j.deletion_job_id=deleted_chat_sessions.privacy_job_id))`, privacyJobID, sessionID, privacyJobID); err != nil {
 			return fmt.Errorf("link chat deletion job: %w", err)
 		}
+	}
+	if internalJob {
+		if err := s.createPrivacyDeletionJobTx(ctx, tx, privacyJobID, "chat", PrivacyDeletionPreparing, false, "", "", time.Now().UTC(), internalTargets); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE privacy_deletion_jobs SET session_hash=? WHERE deletion_job_id=?`, strings.TrimPrefix(sessionPrivacyMarker(sessionID), "deleted:"), privacyJobID); err != nil {
+			return fmt.Errorf("persist transient chat session fingerprint: %w", err)
+		}
+		if err := s.setPrivacyPublicationMarkerTx(ctx, tx, privacyJobID); err != nil {
+			return err
+		}
+	}
+	if err := scrubLearningEvidenceTx(ctx, tx, sessionID); err != nil {
+		return err
+	}
+	if err := s.scrubSessionCorrectionsTx(ctx, tx, sessionID, kg); err != nil {
+		return err
 	}
 	var pendingMetadata bool
 	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM pragma_table_info('pending_memory_writes') WHERE name='metadata_json')`).Scan(&pendingMetadata); err != nil {
@@ -110,6 +153,19 @@ func (s *SQLiteMemory) purgeChatSessionWithPrivacyJobLocked(sessionID, privacyJo
 			if _, err := tx.Exec(`CREATE TRIGGER IF NOT EXISTS deleted_session_pending_memory_` + operation + ` BEFORE ` + operation + ` ON pending_memory_writes WHEN EXISTS(SELECT 1 FROM deleted_chat_sessions WHERE session_id=CASE WHEN json_valid(NEW.metadata_json) THEN json_extract(NEW.metadata_json,'$.details.SourceSessionID') ELSE NULL END) BEGIN SELECT RAISE(ABORT,'chat session deleted'); END`); err != nil {
 				return fmt.Errorf("fence queued session memory: %w", err)
 			}
+		}
+	}
+	var pendingTombstones bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='pending_memory_write_tombstones')`).Scan(&pendingTombstones); err != nil {
+		return fmt.Errorf("inspect pending memory tombstones: %w", err)
+	}
+	if pendingTombstones {
+		fingerprint := PendingMemorySessionFingerprint(sessionID)
+		if fingerprint == "" {
+			return fmt.Errorf("pending memory session fingerprint is unavailable")
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM pending_memory_write_tombstones WHERE source_session_hash=?`, fingerprint); err != nil {
+			return fmt.Errorf("purge pending memory write tombstones: %w", err)
 		}
 	}
 	// An anonymous retained observation prevents shared memories becoming falsely exclusive.
@@ -171,6 +227,11 @@ func (s *SQLiteMemory) purgeChatSessionWithPrivacyJobLocked(sessionID, privacyJo
 		}
 		if changed != 1 {
 			return fmt.Errorf("record deleted chat transcript: privacy job is missing")
+		}
+	}
+	if internalJob {
+		if _, err := tx.ExecContext(ctx, `UPDATE privacy_deletion_jobs SET deletion_status=?,updated_at=? WHERE deletion_job_id=?`, PrivacyDeletionPending, time.Now().UTC().Format(time.RFC3339Nano), privacyJobID); err != nil {
+			return fmt.Errorf("activate transient correction cleanup: %w", err)
 		}
 	}
 	if err := tx.Commit(); err != nil {

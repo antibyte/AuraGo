@@ -70,3 +70,49 @@ func (cv *ChromemVectorDB) StoreCorrectionDocument(ctx context.Context, id, cont
 	}
 	return cv.addDocumentsWithPrecomputedEmbeddings(ctx, cv.collection, docs)
 }
+
+// deleteUnpublishedCorrectionDocument removes a vector only while its stored
+// metadata proves the exact correction owner. Missing vectors are idempotent.
+func (cv *ChromemVectorDB) deleteUnpublishedCorrectionDocument(ctx context.Context, id, correctionID string) (bool, error) {
+	if cv == nil || id == "" || correctionID == "" {
+		return false, fmt.Errorf("correction vector identity is required")
+	}
+	done, err := cv.beginTrackedOperation(&cv.storeWg)
+	if err != nil {
+		return false, err
+	}
+	defer done()
+	if err := cv.requireReadyForDelete(); err != nil {
+		return false, err
+	}
+	lock := cv.getConceptMutex(id)
+	lock.Lock()
+	defer lock.Unlock()
+	cv.mu.Lock()
+	defer cv.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	var doc chromem.Document
+	var readErr error
+	if cv.corpus != nil {
+		doc, readErr = cv.corpusDocument(ctx, "aurago_memories", id)
+	} else if cv.collection != nil {
+		doc, readErr = cv.collection.GetByID(ctx, id)
+	} else {
+		readErr = fmt.Errorf("correction vector collection is unavailable")
+	}
+	if readErr != nil {
+		if readErr.Error() == fmt.Sprintf("document with ID '%v' not found", id) {
+			return true, nil
+		}
+		return false, fmt.Errorf("read staged correction vector: %w", readErr)
+	}
+	if doc.Metadata["correction_id"] != id || doc.Metadata["source_type"] != "memory_correction" || doc.Metadata["collection"] != "aurago_memories" {
+		return false, fmt.Errorf("staged correction vector ownership is uncertain")
+	}
+	if err := cv.deleteStoredDocuments(ctx, "aurago_memories", cv.collection, nil, id); err != nil {
+		return false, fmt.Errorf("delete staged correction vector: %w", err)
+	}
+	return true, nil
+}

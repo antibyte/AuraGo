@@ -27,7 +27,12 @@ func newChatPrivacyStatusFixture(t *testing.T) (*Server, *sql.DB) {
 	}
 	adminDB.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = adminDB.Close() })
-	return &Server{ShortTermMem: stm}, adminDB
+	kg, err := memory.NewKnowledgeGraph(filepath.Join(t.TempDir(), "knowledge.db"), "", slog.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+	return &Server{ShortTermMem: stm, KG: kg}, adminDB
 }
 
 func createMessageDeleteFailureTrigger(t *testing.T, db *sql.DB) {
@@ -78,7 +83,7 @@ func TestChatSessionDeleteStatusUsesRequestedJobWhenAnotherJobFails(t *testing.T
 		t.Fatal(err)
 	}
 	createMessageDeleteFailureTrigger(t, adminDB)
-	otherJob, prepareErr := s.ShortTermMem.PrepareChatPrivacyDeletion(t.Context(), other.ID, nil, nil, false)
+	otherJob, prepareErr := s.ShortTermMem.PrepareChatPrivacyDeletion(t.Context(), other.ID, nil, s.KG, false)
 	if prepareErr == nil || otherJob.DeletionStatus != memory.PrivacyDeletionRetryWait {
 		t.Fatalf("setup did not produce retryable older job: job=%+v err=%v", otherJob, prepareErr)
 	}
@@ -97,11 +102,11 @@ func TestChatSessionDeleteStatusUsesRequestedJobWhenAnotherJobFails(t *testing.T
 	if _, err := adminDB.Exec(`UPDATE privacy_deletion_jobs SET next_retry_at=? WHERE deletion_job_id=?`, farFuture, otherJob.DeletionJobID); err != nil {
 		t.Fatal(err)
 	}
-	requestedJob, err := s.ShortTermMem.PrepareChatPrivacyDeletion(t.Context(), requested.ID, nil, nil, false)
+	requestedJob, err := s.ShortTermMem.PrepareChatPrivacyDeletion(t.Context(), requested.ID, nil, s.KG, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.ShortTermMem.ProcessDuePrivacyDeletionJobs(t.Context(), nil, nil, time.Now().UTC(), 10); err != nil {
+	if err := s.ShortTermMem.ProcessDuePrivacyDeletionJobs(t.Context(), nil, s.KG, time.Now().UTC(), 10); err != nil {
 		t.Fatal(err)
 	}
 	requestedJob, err = s.ShortTermMem.GetPrivacyDeletionJob(t.Context(), requestedJob.DeletionJobID)

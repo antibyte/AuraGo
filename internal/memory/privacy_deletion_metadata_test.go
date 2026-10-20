@@ -9,6 +9,7 @@ import (
 
 func TestChatPrivacyDeletionRetainsMemoryArchivedAfterPreparation(t *testing.T) {
 	store := openPrivacyJobsStore(t, filepath.Join(t.TempDir(), "memory.db"))
+	kg := openPrivacyJobsGraph(t)
 	const sessionID = "chat-conflict-archive"
 	addPrivacyJobTranscript(t, store, sessionID)
 	addPrivacyJobOwnedMemory(t, store, "losing-fact", sessionID)
@@ -23,14 +24,14 @@ func TestChatPrivacyDeletionRetainsMemoryArchivedAfterPreparation(t *testing.T) 
 		t.Fatalf("open conflicts=%d err=%v", len(conflicts), err)
 	}
 	vectors := &privacyJobsVectors{documents: map[string]string{"losing-fact": "private fact"}}
-	job, err := store.PrepareChatPrivacyDeletion(context.Background(), sessionID, vectors, nil, true)
+	job, err := store.PrepareChatPrivacyDeletion(context.Background(), sessionID, vectors, kg, true)
 	if err != nil || job.DeletionStatus != PrivacyDeletionPending {
 		t.Fatalf("prepare job=%+v err=%v", job, err)
 	}
 	if err := store.ResolveMemoryConflict(conflicts[0].ID, "winning-fact", "reviewed winner"); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, nil, time.Now().UTC().Add(time.Minute), 10); err != nil {
+	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, kg, time.Now().UTC().Add(time.Minute), 10); err != nil {
 		t.Fatal(err)
 	}
 	if _, exists := vectors.documents["losing-fact"]; !exists {
@@ -44,18 +45,19 @@ func TestChatPrivacyDeletionRetainsMemoryArchivedAfterPreparation(t *testing.T) 
 
 func TestChatPrivacyDeletionIgnoresUsageOnlyMetadataChanges(t *testing.T) {
 	store := openPrivacyJobsStore(t, filepath.Join(t.TempDir(), "memory.db"))
+	kg := openPrivacyJobsGraph(t)
 	const sessionID = "chat-usage-update"
 	addPrivacyJobTranscript(t, store, sessionID)
 	addPrivacyJobOwnedMemory(t, store, "used-fact", sessionID)
 	vectors := &privacyJobsVectors{documents: map[string]string{"used-fact": "private fact"}}
-	job, err := store.PrepareChatPrivacyDeletion(context.Background(), sessionID, vectors, nil, true)
+	job, err := store.PrepareChatPrivacyDeletion(context.Background(), sessionID, vectors, kg, true)
 	if err != nil || job.DeletionStatus != PrivacyDeletionPending {
 		t.Fatalf("prepare job=%+v err=%v", job, err)
 	}
 	if _, err := store.db.Exec(`UPDATE memory_meta SET access_count=access_count+1,last_accessed=CURRENT_TIMESTAMP,useful_count=useful_count+1,useless_count=useless_count+1,last_effectiveness_at=CURRENT_TIMESTAMP WHERE doc_id='used-fact'`); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, nil, time.Now().UTC().Add(time.Minute), 10); err != nil {
+	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, kg, time.Now().UTC().Add(time.Minute), 10); err != nil {
 		t.Fatal(err)
 	}
 	if _, exists := vectors.documents["used-fact"]; exists {
@@ -75,11 +77,12 @@ func TestChatPrivacyDeletionReconcilesMissingMetadataAndVectorConservatively(t *
 		}
 		t.Run(name, func(t *testing.T) {
 			store := openPrivacyJobsStore(t, filepath.Join(t.TempDir(), "memory.db"))
+			kg := openPrivacyJobsGraph(t)
 			const sessionID = "chat-missing-target"
 			addPrivacyJobTranscript(t, store, sessionID)
 			addPrivacyJobOwnedMemory(t, store, "missing-fact", sessionID)
 			vectors := &privacyJobsVectors{documents: map[string]string{"missing-fact": "private fact"}}
-			job, err := store.PrepareChatPrivacyDeletion(context.Background(), sessionID, vectors, nil, true)
+			job, err := store.PrepareChatPrivacyDeletion(context.Background(), sessionID, vectors, kg, true)
 			if err != nil || job.DeletionStatus != PrivacyDeletionPending {
 				t.Fatalf("prepare job=%+v err=%v", job, err)
 			}
@@ -89,7 +92,7 @@ func TestChatPrivacyDeletionReconcilesMissingMetadataAndVectorConservatively(t *
 			if !vectorPresent {
 				delete(vectors.documents, "missing-fact")
 			}
-			if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, nil, time.Now().UTC().Add(time.Minute), 10); err != nil {
+			if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, kg, time.Now().UTC().Add(time.Minute), 10); err != nil {
 				t.Fatal(err)
 			}
 			job, err = store.GetPrivacyDeletionJob(context.Background(), job.DeletionJobID)

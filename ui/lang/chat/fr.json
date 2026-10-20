@@ -3,6 +3,7 @@
   "chat.sessions_delete_memories": "Supprimer aussi les souvenirs associés",
   "chat.sessions_delete_backups": "Les sauvegardes peuvent conserver les données supprimées jusqu'au nettoyage prévu.",
   "chat.sessions_delete_failed": "La conversation n'a pas pu être entièrement supprimée. Actualise la vue avant de réessayer.",
+  "chat.sessions_delete_scope_conflict": "Une autre option de suppression des souvenirs a déjà été choisie pour cette conversation. Actualisez la page et vérifiez son état avant de réessayer.",
   "chat.sessions_delete_report": "Supprimés : {deleted}. Conservés car leur origine est partagée, protégée ou inconnue : {retained}.",
   "chat.speech_lab_auth_required": "La connexion à AuraGo est nécessaire pour ouvrir Speech Lab.",
   "chat.speech_lab_browser_url_missing": "Configurez l’URL navigateur de Speech Lab dans Média → Speech Lab.",

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 )
 
 type SessionDeletionReport struct {
@@ -23,6 +24,8 @@ func (s *SQLiteMemory) DeleteChatSessionWithMemories(ctx context.Context, sessio
 		return SessionDeletionReport{}, err
 	}
 	defer s.sessionWriteMu.Unlock()
+	s.correctionMu.Lock()
+	defer s.correctionMu.Unlock()
 	s.automaticMemoryMu.Lock()
 	defer s.automaticMemoryMu.Unlock()
 	var report SessionDeletionReport
@@ -86,19 +89,45 @@ func (s *SQLiteMemory) DeleteChatSessionWithMemories(ctx context.Context, sessio
 				tx.Rollback()
 				cleanupErr = errors.Join(cleanupErr, err)
 			} else {
-				cleanupErr = errors.Join(cleanupErr, tx.Commit())
+				if commitErr := tx.Commit(); commitErr != nil {
+					cleanupErr = errors.Join(cleanupErr, commitErr)
+					continue
+				}
+				report.DeletedMemories++
 			}
-			report.DeletedMemories++
 		}
 		if kg != nil {
 			report.DeletedGraphItems, report.RetainedGraphItems, err = kg.deleteExclusiveSessionGraph(ctx, sessionID)
 			cleanupErr = errors.Join(cleanupErr, err)
 		}
 	}
-	purgeErr := s.purgeChatSessionLocked(sessionID)
+	purgeErr := s.purgeChatSessionWithGraphPrivacyJobLocked(sessionID, "", kg)
 	report.TranscriptDeleted = purgeErr == nil
 	if kg != nil {
-		cleanupErr = errors.Join(cleanupErr, kg.ScrubSessionTranscriptEvidence(ctx, sessionID))
+		graphErr := kg.ScrubSessionTranscriptEvidence(ctx, sessionID)
+		cleanupErr = errors.Join(cleanupErr, graphErr)
+		if graphErr == nil {
+			var jobID string
+			if err := s.db.QueryRowContext(ctx, `SELECT privacy_job_id FROM deleted_chat_sessions WHERE session_id=?`, sessionID).Scan(&jobID); err != nil {
+				cleanupErr = errors.Join(cleanupErr, err)
+			} else if jobID != "" {
+				tx, err := s.db.BeginTx(ctx, nil)
+				if err != nil {
+					cleanupErr = errors.Join(cleanupErr, err)
+				} else {
+					target := privacyGraphTranscriptTarget(sessionID)
+					if err = markPrivacyTargetStateTx(ctx, tx, jobID, target, "deleted", ""); err == nil {
+						err = tx.Commit()
+					} else {
+						_ = tx.Rollback()
+					}
+					cleanupErr = errors.Join(cleanupErr, err)
+					if err == nil {
+						cleanupErr = errors.Join(cleanupErr, s.refreshPrivacyDeletionCounts(ctx, jobID, time.Now().UTC()))
+					}
+				}
+			}
+		}
 	}
 	return report, errors.Join(cleanupErr, purgeErr)
 }

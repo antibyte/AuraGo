@@ -55,13 +55,22 @@ func (c *MemoryCorrectionService) Apply(ctx context.Context, id, sessionID strin
 	if c.Memory == nil {
 		return nil, fmt.Errorf("memory unavailable")
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	c.Memory.correctionMu.Lock()
 	defer c.Memory.correctionMu.Unlock()
 	c.Memory.automaticMemoryMu.Lock()
 	defer c.Memory.automaticMemoryMu.Unlock()
+	if err := rejectDeletedChatSessionEvidence(ctx, c.Memory.db, sessionID); err != nil {
+		return nil, err
+	}
 	correction, err := c.Memory.MemoryCorrection(id, sessionID)
 	if err != nil {
 		return nil, err
+	}
+	if correction.Status == "canceled" {
+		return correction, fmt.Errorf("memory correction has been canceled")
 	}
 	// Check every gate and snapshot before the first mutation, including on resumed runs.
 	for i := range correction.Items {

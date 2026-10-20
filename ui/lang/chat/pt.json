@@ -3,6 +3,7 @@
   "chat.sessions_delete_memories": "Eliminar também as memórias associadas",
   "chat.sessions_delete_backups": "As cópias de segurança podem manter dados eliminados até à limpeza agendada.",
   "chat.sessions_delete_failed": "Não foi possível eliminar completamente a conversa. Atualiza a vista antes de tentar novamente.",
+  "chat.sessions_delete_scope_conflict": "Este chat já tem outra opção de exclusão de memórias. Atualize a página e verifique o status antes de tentar novamente.",
   "chat.sessions_delete_report": "Eliminados: {deleted}. Mantidos por terem origem partilhada, protegida ou desconhecida: {retained}.",
   "chat.speech_lab_auth_required": "É necessário iniciar sessão no AuraGo para abrir o Speech Lab.",
   "chat.speech_lab_browser_url_missing": "Configure o URL do Speech Lab no navegador em Multimédia → Speech Lab.",

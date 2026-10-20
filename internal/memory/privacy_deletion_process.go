@@ -9,6 +9,15 @@ import (
 	"time"
 )
 
+const privacyDeletionFinalizeTimeout = 5 * time.Second
+
+func boundedPrivacyDeletionFinalizationContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithTimeout(context.WithoutCancel(ctx), privacyDeletionFinalizeTimeout)
+}
+
 // ProcessDuePrivacyDeletionJobs applies already journaled chat-memory cleanup.
 // It is safe to call at startup and from a periodic worker.
 func (s *SQLiteMemory) ProcessDuePrivacyDeletionJobs(ctx context.Context, ltm VectorDB, kg *KnowledgeGraph, now time.Time, limit int) error {
@@ -26,8 +35,8 @@ func (s *SQLiteMemory) ProcessDuePrivacyDeletionJobs(ctx context.Context, ltm Ve
 	}
 	stamp := now.UTC().Format(time.RFC3339Nano)
 	rows, err := s.db.QueryContext(ctx, `SELECT deletion_job_id FROM privacy_deletion_jobs
-		WHERE kind='chat' AND deletion_status IN (?,?,?,?) AND next_retry_at<=?
-		ORDER BY next_retry_at,created_at LIMIT ?`, PrivacyDeletionPreparing, PrivacyDeletionPending, PrivacyDeletionRetryWait, PrivacyDeletionProcessing, stamp, limit)
+		WHERE kind='chat' AND deletion_status IN (?,?,?,?,?) AND next_retry_at<=?
+		ORDER BY next_retry_at,created_at LIMIT ?`, PrivacyDeletionPreparing, PrivacyDeletionPending, PrivacyDeletionRetryWait, PrivacyDeletionProcessing, PrivacyDeletionReconcilePending, stamp, limit)
 	if err != nil {
 		return fmt.Errorf("list due privacy deletion jobs: %w", err)
 	}
@@ -55,11 +64,34 @@ func (s *SQLiteMemory) ProcessDuePrivacyDeletionJobs(ctx context.Context, ltm Ve
 	return joined
 }
 
-func (s *SQLiteMemory) processChatPrivacyDeletion(ctx context.Context, id string, ltm VectorDB, kg *KnowledgeGraph, now time.Time) error {
+func (s *SQLiteMemory) processChatPrivacyDeletion(ctx context.Context, id string, ltm VectorDB, kg *KnowledgeGraph, now time.Time) (resultErr error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	defer func() {
+		if resultErr == nil || ctx.Err() != nil {
+			return
+		}
+		var reconcile *privacyDeletionReconcileError
+		finalizeCtx, cancel := boundedPrivacyDeletionFinalizationContext(ctx)
+		defer cancel()
+		if errors.As(resultErr, &reconcile) {
+			resultErr = errors.Join(resultErr, s.markPrivacyDeletionReconcilePending(finalizeCtx, id, reconcile.code, now))
+			return
+		}
+		resultErr = errors.Join(resultErr, s.markPrivacyDeletionFailure(finalizeCtx, id, "privacy_cleanup_failed", now))
+	}()
 	if err := lockMemoryMutex(ctx, &s.sessionWriteMu); err != nil {
 		return err
 	}
 	defer s.sessionWriteMu.Unlock()
+	if err := lockMemoryMutex(ctx, &s.correctionMu); err != nil {
+		return err
+	}
+	defer s.correctionMu.Unlock()
 	if err := lockMemoryMutex(ctx, &s.automaticMemoryMu); err != nil {
 		return err
 	}
@@ -88,7 +120,6 @@ func (s *SQLiteMemory) processChatPrivacyDeletion(ctx context.Context, id string
 	}
 	if job.DeletionStatus == PrivacyDeletionPreparing || markerState == "scrub" {
 		if err := s.finishChatPrivacyScrub(ctx, id, sessionID, kg); err != nil {
-			_ = s.markPrivacyDeletionFailure(context.Background(), id, "privacy_scrub_failed", now)
 			return err
 		}
 		job, err = s.GetPrivacyDeletionJob(ctx, id)
@@ -119,7 +150,6 @@ func (s *SQLiteMemory) processChatPrivacyDeletion(ctx context.Context, id string
 	}
 	targets, err := s.privacyDeletionTargets(ctx, id)
 	if err != nil {
-		_ = s.markPrivacyDeletionFailure(context.Background(), id, "privacy_manifest_read_failed", now)
 		return err
 	}
 	for _, target := range targets {
@@ -136,11 +166,26 @@ func (s *SQLiteMemory) processChatPrivacyDeletion(ctx context.Context, id string
 			} else {
 				deleted, err = kg.applySessionGraphPrivacyTarget(ctx, target)
 			}
+		case privacyTargetCorrectionReceipt:
+			if kg == nil {
+				err = privacyNeedsReconciliation("correction_receipt_store_unavailable", fmt.Errorf("knowledge graph is unavailable for correction receipt cleanup"))
+			} else {
+				err = kg.deleteCorrectionReceipts(ctx, []string{target.TargetID})
+				deleted = err == nil
+			}
+		case privacyTargetCorrectionVector:
+			deleted, err = s.applyPrivacyCorrectionVectorTarget(ctx, ltm, id, target)
+		case privacyTargetGraphTranscript:
+			if kg == nil {
+				err = privacyNeedsReconciliation("graph_transcript_store_unavailable", fmt.Errorf("knowledge graph is unavailable for transcript evidence scrub"))
+			} else {
+				err = kg.ScrubSessionTranscriptEvidence(ctx, sessionID)
+				deleted = err == nil
+			}
 		default:
 			err = fmt.Errorf("unknown privacy target store %q", target.Store)
 		}
 		if err != nil {
-			_ = s.markPrivacyDeletionFailure(context.Background(), id, "privacy_target_apply_failed", now)
 			return err
 		}
 		state, reason := "deleted", ""
@@ -148,15 +193,31 @@ func (s *SQLiteMemory) processChatPrivacyDeletion(ctx context.Context, id string
 			state, reason = PrivacyDeletionRetainedReview, "candidate_changed_or_shared"
 		}
 		if err := s.setPrivacyTargetState(ctx, id, target.Store, target.TargetID, state, reason); err != nil {
-			_ = s.markPrivacyDeletionFailure(context.Background(), id, "privacy_target_state_failed", now)
 			return err
 		}
 	}
 	if err := s.refreshPrivacyDeletionCounts(ctx, id, now); err != nil {
-		_ = s.markPrivacyDeletionFailure(context.Background(), id, "privacy_status_update_failed", now)
 		return err
 	}
 	return nil
+}
+
+type privacyDeletionReconcileError struct {
+	code  string
+	cause error
+}
+
+func (e *privacyDeletionReconcileError) Error() string {
+	if e == nil || e.cause == nil {
+		return "privacy deletion requires reconciliation"
+	}
+	return e.cause.Error()
+}
+
+func (e *privacyDeletionReconcileError) Unwrap() error { return e.cause }
+
+func privacyNeedsReconciliation(code string, cause error) error {
+	return &privacyDeletionReconcileError{code: safePrivacyDeletionErrorCode(code), cause: cause}
 }
 
 func (s *SQLiteMemory) hasPrivacyPublicationMarker(ctx context.Context, id string) bool {
@@ -343,15 +404,15 @@ func (s *SQLiteMemory) refreshPrivacyDeletionCounts(ctx context.Context, id stri
 		return err
 	}
 	defer tx.Rollback()
-	var existingStatus string
-	if err := tx.QueryRowContext(ctx, `SELECT deletion_status FROM privacy_deletion_jobs WHERE deletion_job_id=?`, id).Scan(&existingStatus); err != nil {
+	var existingStatus, kind string
+	if err := tx.QueryRowContext(ctx, `SELECT deletion_status,kind FROM privacy_deletion_jobs WHERE deletion_job_id=?`, id).Scan(&existingStatus, &kind); err != nil {
 		return err
 	}
 	if existingStatus == PrivacyDeletionCompleted || existingStatus == PrivacyDeletionAborted || existingStatus == PrivacyDeletionRetainedReview {
 		return nil
 	}
 	var pending, deleted, retained int
-	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN state='pending' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN state='deleted' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN state='retained_review' THEN 1 ELSE 0 END),0) FROM privacy_deletion_targets WHERE deletion_job_id=?`, id).Scan(&pending, &deleted, &retained); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN state='pending' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN state='deleted' AND (?<>'chat' OR store IN ('ltm','kg_node','kg_edge','kg_claim')) THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN state='retained_review' THEN 1 ELSE 0 END),0) FROM privacy_deletion_targets WHERE deletion_job_id=?`, kind, id).Scan(&pending, &deleted, &retained); err != nil {
 		return err
 	}
 	status := PrivacyDeletionCompleted

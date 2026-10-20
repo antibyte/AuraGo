@@ -204,8 +204,14 @@ func (c *MemoryCorrectionService) Preview(ctx context.Context, sessionID, runID,
 	if c.Memory == nil {
 		return nil, fmt.Errorf("memory unavailable")
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	c.Memory.correctionMu.Lock()
 	defer c.Memory.correctionMu.Unlock()
+	if err := rejectDeletedChatSessionEvidence(ctx, c.Memory.db, sessionID); err != nil {
+		return nil, err
+	}
 	correction, err := newCorrection(sessionID, runID, reason, evidence)
 	if err != nil {
 		return nil, err
