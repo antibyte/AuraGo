@@ -270,6 +270,17 @@ func ExecuteHomepageOperation(cfg HomepageConfig, db *sql.DB, op HomepageOperati
 		}
 		for _, site := range otherSites {
 			if _, err := os.Stat(site.LocalRoot); os.IsNotExist(err) {
+				if outcome == "failed" {
+					outcome = "partial"
+					result["status"] = "partial_success"
+					result["retry_safe"] = false
+				}
+				if _, err := db.Exec("UPDATE homepage_project_state SET drift_status='local_changed',drift_message='Project location missing after workspace command',updated_at=CURRENT_TIMESTAMP WHERE project_id=?", site.ID); err != nil {
+					ledgerErr = err
+				}
+				if _, err := recordHomepageOperationEvent(db, site.ID, op, "project_location_missing", outcome, map[string]interface{}{"previous_local_root": site.LocalRoot, "observed_during_workspace_command": true}); err != nil {
+					ledgerErr = err
+				}
 				continue
 			}
 			saved := SaveHomepageRevisionAndState(cfg, db, site.ProjectDir, "Workspace command: "+op.Name, op.Reason, op.Source, map[string]interface{}{"operation_id": op.ID, "reason": op.Reason, "actor": op.Actor}, logger)

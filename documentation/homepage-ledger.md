@@ -3,7 +3,8 @@
 AuraGo stores website identity, provenance, locations, change reasons, revisions,
 deployment targets and observations in data/homepage_registry.db (or the
 configured sqlite.homepage_registry_path). Homepage Studio and the agent use the
-same persistent inventory.
+same persistent inventory. Disabling the Homepage container runtime does not hide
+existing inventory or disable its registry lookup tool.
 
 ## Find a website
 

@@ -215,3 +215,53 @@ func TestHomepageAutomaticWebServerIntentUsesSavedProject(t *testing.T) {
 		t.Fatalf("%+v %v", events, err)
 	}
 }
+
+func TestHomepageProviderMutationPreservesKnownAccountIdentity(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	cfg := HomepageConfig{WorkspacePath: t.TempDir()}
+	project, err := EnsureHomepageProjectForDir(db, cfg, "site", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := RecordHomepageDeployment(db, HomepageDeploymentRecord{ProjectID: project.ID, Provider: "here_now", ProviderTargetID: "slug", URL: "https://slug.example.test", Metadata: map[string]interface{}{"account": "account-id"}}); err != nil {
+		t.Fatal(err)
+	}
+	raw := ExecuteHomepageProviderOperation(cfg, db, "here_now", "slug", "", "update_metadata", HomepageOperation{Reason: "Correct the title"}, slog.Default(), func() string { return `{"status":"ok"}` })
+	if !strings.Contains(raw, `"ledger_updated":true`) {
+		t.Fatal(raw)
+	}
+	targets, err := ListHomepageManagedDeployTargets(db, project.ID)
+	if err != nil || len(targets) != 1 {
+		t.Fatalf("provider identity split: %+v %v", targets, err)
+	}
+}
+
+func TestHomepageWorkspaceCommandRecordsMissingOtherProject(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	cfg := HomepageConfig{WorkspacePath: t.TempDir()}
+	var otherID int64
+	for _, name := range []string{"main", "other"} {
+		os.MkdirAll(filepath.Join(cfg.WorkspacePath, name), 0755)
+		os.WriteFile(filepath.Join(cfg.WorkspacePath, name, "index.html"), []byte(name), 0644)
+		site, err := EnsureHomepageProjectForDir(db, cfg, name, "", "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if name == "other" {
+			otherID = site.ID
+		}
+	}
+	raw := ExecuteHomepageOperation(cfg, db, HomepageOperation{Name: "exec", ProjectDir: "main", Reason: "Consolidate campaign folders", FilesMayChange: true}, slog.Default(), func(c HomepageConfig) string {
+		if err := os.RemoveAll(filepath.Join(c.WorkspacePath, "other")); err != nil {
+			t.Fatal(err)
+		}
+		return ErrorJSON("remaining command failed")
+	})
+	if !strings.Contains(raw, `"status":"partial_success"`) || !strings.Contains(raw, `"retry_safe":false`) {
+		t.Fatal(raw)
+	}
+	site, err := GetHomepageManagedSite(db, otherID)
+	if err != nil || site.LocalStatus != "missing" || len(site.Events) == 0 || site.Events[0].EventType != "project_location_missing" || site.Events[0].Reason != "Consolidate campaign folders" {
+		t.Fatalf("%+v %v", site, err)
+	}
+}

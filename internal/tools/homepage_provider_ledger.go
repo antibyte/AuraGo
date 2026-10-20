@@ -26,6 +26,7 @@ func ExecuteHomepageProviderOperation(cfg HomepageConfig, db *sql.DB, provider, 
 		return ErrorJSON("provider site identity is required")
 	}
 	var projectID int64
+	selectedAccount := ""
 	rows, err := db.Query("SELECT project_id,metadata_json FROM homepage_deploy_targets WHERE provider=? AND provider_target_id=?", provider, target)
 	if err != nil {
 		return ErrorJSON(err.Error())
@@ -47,12 +48,22 @@ func ExecuteHomepageProviderOperation(cfg HomepageConfig, db *sql.DB, provider, 
 			rows.Close()
 			return ErrorJSON("provider target maps to several projects; select an explicit account")
 		}
+		if account == "" && selectedAccount != "" && knownAccount != "" && selectedAccount != knownAccount {
+			rows.Close()
+			return ErrorJSON("provider target maps to several accounts; select an explicit account")
+		}
+		if knownAccount != "" {
+			selectedAccount = knownAccount
+		}
 		projectID = id
 	}
 	err = rows.Err()
 	rows.Close()
 	if err != nil {
 		return ErrorJSON(err.Error())
+	}
+	if account == "" {
+		account = selectedAccount
 	}
 	if projectID == 0 {
 		name := provider + ":" + account + ":" + target

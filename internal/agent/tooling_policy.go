@@ -502,7 +502,7 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 	toolFlags.RemoteControlEnabled = cfg.RemoteControl.Enabled && runCfg.RemoteHub != nil
 	toolFlags.AgoDeskChatEnabled = hasConnectedAgoDeskChatDevice(runCfg.RemoteHub)
 	toolFlags.MediaRegistryEnabled = cfg.MediaRegistry.Enabled && runCfg.MediaRegistryDB != nil
-	toolFlags.HomepageRegistryEnabled = cfg.Homepage.Enabled && runCfg.HomepageRegistryDB != nil
+	toolFlags.HomepageRegistryEnabled = runCfg.HomepageRegistryDB != nil
 	toolFlags.ContactsEnabled = cfg.Tools.Contacts.Enabled && runCfg.ContactsDB != nil
 	toolFlags.PlannerEnabled = cfg.Tools.Planner.Enabled && runCfg.PlannerDB != nil
 	toolFlags.SQLConnectionsEnabled = cfg.SQLConnections.Enabled && runCfg.SQLConnectionsDB != nil && runCfg.SQLConnectionPool != nil
@@ -714,7 +714,7 @@ func buildManagedSitesPromptContext(runCfg RunConfig) string {
 			return ""
 		}
 	}
-	if runCfg.Config == nil || !runCfg.Config.Homepage.Enabled || runCfg.HomepageRegistryDB == nil {
+	if runCfg.Config == nil || runCfg.HomepageRegistryDB == nil {
 		return ""
 	}
 	sites, err := tools.ListHomepageManagedSites(runCfg.HomepageRegistryDB)

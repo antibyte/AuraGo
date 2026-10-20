@@ -92,3 +92,24 @@ func TestHomepageInventoryHonorsEmptyToolScope(t *testing.T) {
 		t.Fatal("explicit homepage scope lost its inventory")
 	}
 }
+
+func TestHomepageInventoryRemainsReadableWhenRuntimeDisabled(t *testing.T) {
+	db, err := tools.InitHomepageRegistryDB(filepath.Join(t.TempDir(), "sites.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	cfg := &config.Config{}
+	cfg.Homepage.WorkspacePath = t.TempDir()
+	if _, err := tools.EnsureHomepageProjectForDir(db, tools.HomepageConfig{WorkspacePath: cfg.Homepage.WorkspacePath}, "existing-site", "", ""); err != nil {
+		t.Fatal(err)
+	}
+	run := RunConfig{Config: cfg, HomepageRegistryDB: db}
+	if got := buildManagedSitesPromptContext(run); !strings.Contains(got, "existing-site") {
+		t.Fatal("disabling the runtime hid existing website locations")
+	}
+	flags := resolveToolFeatureState(run, buildToolingPolicy(cfg, "web")).ToolFlags
+	if !flags.HomepageRegistryEnabled || flags.HomepageEnabled {
+		t.Fatal("registry availability must follow the database independently of runtime mutation tools")
+	}
+}

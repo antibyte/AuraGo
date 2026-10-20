@@ -297,7 +297,7 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				providerWorkspace = filepath.Join(cfg.Directories.DataDir, "homepage")
 			}
 			providerReason := firstNonEmptyToolString(tc.Reason, toolArgString(tc.Params, "reason"))
-			return "Tool Output: " + tools.ExecuteHomepageProviderOperation(tools.HomepageConfig{Context: ctx, WorkspacePath: providerWorkspace}, dc.HomepageRegistryDB, "here_now", req.Slug, req.Account, req.Operation,
+			return "Tool Output: " + tools.ExecuteHomepageProviderOperation(tools.HomepageConfig{Context: ctx, WorkspacePath: providerWorkspace}, dc.HomepageRegistryDB, "here_now", req.Slug, firstNonEmptyToolString(req.Account, cfg.HereNow.DefaultAccount), req.Operation,
 				tools.HomepageOperation{Reason: providerReason, Actor: "agent", Source: tc.Action, SessionID: dc.SessionID, RunID: dc.RunID}, logger, func() string {
 
 					switch req.Operation {
