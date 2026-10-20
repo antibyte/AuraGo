@@ -49,6 +49,14 @@ Memory retrieval, hygiene, indexing, and maintenance.
   Verify `TestModelRememberProvenanceAtomicAndDoesNotRelabelExistingFact`.
 
 ### Memory System
+- **Schema lifecycle**: Read `user_version` before schema writes and reject newer
+  versions. Version 12 is the one-time legacy bridge; later steps commit their
+  changes and version atomically. Back up existing stores before migration,
+  fail and close on required initialization errors, and keep bounded crash
+  recovery separate from data migrations. Never repair a missing required table
+  in a database already claiming the current version by silently recreating it.
+  Verify `TestMemorySchema*`. Contract test references, including documented
+  wildcard prefixes, are checked by `TestMemoryContractTestReferencesResolve`.
 - **Short-Term**: SQLite sliding-window conversation context
 - **Long-Term**: `directories.vectordb_dir/documents.sqlite` is the canonical document corpus: collection names, raw IDs, complete content, metadata, vectors, dimensions and provider/model fingerprints. Chromem is an in-memory derived index; its legacy 32-bit disk filenames must never define identity. Commit source documents before publishing index changes and retain durable pending work after failures/cancellation. Open and count sources even when embeddings are disabled.
 - **Corpus Migration and Reset**: Under the application lock, back up legacy files before migration, verify copied/decoded source digests, complete counts/content and raw IDs transactionally, retain originals and refuse corrupt/orphan/unverified data. A reset or model change schedules reindex only: preserve source documents, archive/curation, extraction sources, file pointers and KG SQL facts. Unknown/incompatible fingerprints or dimensions never enter a live index. Pending multimodal records expose blocked status until the existing authorized file indexer can re-embed their source. Reproduced unchanged chunks preserve raw IDs and provenance; actual content/chunk drift uses the file-generation protocol. The retained legacy `kg_embeddings` snapshot is never restored into the live KG index; KG SQL is authoritative. Verify `TestDocumentCorpus*`, including SQLite FULL, cancellation/restart, collision and available/missing multimodal source cases.

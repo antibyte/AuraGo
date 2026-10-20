@@ -42,11 +42,11 @@ func (s *SQLiteMemory) InitPersonalityTables() error {
 	}
 	for _, trait := range []string{TraitCuriosity, TraitThoroughness, TraitCreativity, TraitEmpathy, TraitConfidence, TraitAffinity} {
 		if _, err := s.db.Exec(`INSERT OR IGNORE INTO personality_traits (trait, value) VALUES (?, ?)`, trait, traitDefault); err != nil {
-			s.logger.Warn("Failed to seed personality trait", "trait", trait, "error", err)
+			return fmt.Errorf("seed personality trait %s: %w", trait, err)
 		}
 	}
 	if _, err := s.db.Exec(`INSERT OR IGNORE INTO personality_traits (trait, value) VALUES (?, ?)`, TraitLoneliness, 0.0); err != nil {
-		s.logger.Warn("Failed to seed loneliness trait", "error", err)
+		return fmt.Errorf("seed loneliness trait: %w", err)
 	}
 
 	// Existing zero values are valid learned/user-configured state. Seeding

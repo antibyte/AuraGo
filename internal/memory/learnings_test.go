@@ -137,7 +137,7 @@ func TestLearningMigrationBacksUpCopyAndRestarts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.db.Exec(`INSERT INTO core_memory(fact,normalized_fact) VALUES('keep me','keep me'); DROP TABLE memory_learnings; DROP TABLE memory_learning_revisions; DROP TABLE memory_learning_metrics; DELETE FROM memory_schema_meta WHERE key='learnings'`); err != nil {
+	if _, err = s.db.Exec(`INSERT INTO core_memory(fact,normalized_fact) VALUES('keep me','keep me'); DROP TABLE memory_learnings; DROP TABLE memory_learning_revisions; DROP TABLE memory_learning_metrics; DELETE FROM memory_schema_meta WHERE key='learnings'; PRAGMA user_version=11`); err != nil {
 		t.Fatal(err)
 	}
 	s.Close()
