@@ -45,7 +45,10 @@ func writeEffectsMarkerPNG(t *testing.T, path string) {
 //   - the LUT texture is rebuilt after a context loss;
 //   - a crop moves a marker to where cropRect puts it, a flip mirrors it, and a keyframed crop draws what the static crop
 //     draws;
-//   - a fragment shader that does not compile passes its input through and is reported once as ('effect', id).
+//   - a fragment shader that does not compile passes its input through and is reported once as ('effect', id);
+//   - scene.effectCap (plan 2f O2): 0 draws what a scene without it draws; a cap below the canvas runs the passes
+//     smaller, a flat picture keeps its colour, and a picture-in-picture box gets passes of its drawn size and lands
+//     where the uncapped one does.
 func TestDesktopVideoStudioEffectsGLBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	dir := t.TempDir()
@@ -162,6 +165,22 @@ func TestDesktopVideoStudioEffectsGLBrowser(t *testing.T) {
 		painter.frame(scene(keyed, marker));
 		const animatedFlip = Array.from(painter.read().data);
 		out.animatedDiff = staticFlip.reduce((max, value, index) => Math.max(max, Math.abs(value - animatedFlip[index])), 0);
+		// O2 (plan 2f Task 11): scene.effectCap. A cap of 32 on the 64x36 canvas halves the pass targets, so the marker's
+		// edges soften after PLACE scales the target back up; cap 0 is the scene without the field. A flat picture keeps
+		// its colour, and a picture-in-picture box (drawn at 32x18) gets passes of its drawn size.
+		const capped = (clip, el, cap) => Object.assign(scene(clip, el), { effectCap: cap });
+		const diffMax = (a, b) => a.reduce((max, value, index) => Math.max(max, Math.abs(value - b[index])), 0);
+		const graded = clipOf({ effects: [effect('color', { exposure: 0.2 })] });
+		painter.frame(scene(graded, marker)); const markerPlain = Array.from(painter.read().data);
+		painter.frame(capped(graded, marker, 0)); const markerZero = Array.from(painter.read().data);
+		painter.frame(capped(graded, marker, 32)); const markerCapped = Array.from(painter.read().data);
+		out.capZeroDiff = diffMax(markerPlain, markerZero);
+		out.capMarkerDiff = diffMax(markerPlain, markerCapped);
+		painter.frame(capped(colour, flat, 32)); out.cappedColour = px(32, 18);
+		const pip = clipOf({ x: 0.25, y: 0.25, width: 0.5, height: 0.5, effects: [effect('color', { exposure: 0.35, contrast: 1.2, saturation: 1.3 })] });
+		out.pipWant = bytes(P.applyColor(E.clipState(pip, 0, project).effects[0].values, rgb));
+		painter.frame(capped(pip, flat, 0)); out.pipExact = [px(32, 18), px(4, 4)];
+		painter.frame(capped(pip, flat, 64)); out.pipDrawn = [px(32, 18), px(4, 4)];
 		out.cropFailures = failures.slice();
 		painter.dispose();
 
@@ -223,6 +242,29 @@ func TestDesktopVideoStudioEffectsGLBrowser(t *testing.T) {
 			if got := jsonRGBA(pixels[i]); !rgbaNear(got, want[i], 8) {
 				t.Errorf("%s pixel %d = %v, want %v (the marker did not land where cropRect puts it)", name, i, got, want[i])
 			}
+		}
+	}
+	if diff := checks["capZeroDiff"].Int(); diff != 0 {
+		t.Errorf("effectCap 0 differs from a scene without it by %d/255, want 0 (Full stays exact)", diff)
+	}
+	if diff := checks["capMarkerDiff"].Int(); diff <= 20 {
+		t.Errorf("effectCap 32 on the 64x36 canvas changed the marker by %d/255, want more than 20 (the passes did not run smaller)", diff)
+	}
+	if got, want := jsonRGBA(checks["cappedColour"]), jsonRGBA(checks["colourWant"]); !rgbaNear(got, want, 3) {
+		t.Errorf("cappedColour = %v, want %v ±3 (a capped pass must keep a flat colour)", got, want)
+	}
+	pipWant := jsonRGBA(checks["pipWant"])
+	for _, name := range []string{"pipExact", "pipDrawn"} {
+		pixels := checks[name].Arr()
+		if len(pixels) != 2 {
+			t.Errorf("%s = %s", name, checks[name].JSON("", ""))
+			continue
+		}
+		if got := jsonRGBA(pixels[0]); !rgbaNear(got, pipWant, 3) {
+			t.Errorf("%s centre = %v, want %v ±3", name, got, pipWant)
+		}
+		if got := jsonRGBA(pixels[1]); !rgbaNear(got, black, 0) {
+			t.Errorf("%s outside the box = %v, want opaque black", name, got)
 		}
 	}
 	if !checks["animated"].Bool() {

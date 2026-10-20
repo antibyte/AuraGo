@@ -53,6 +53,9 @@
     // The stage preview's painter request, P.previewEngine(s) (index §4.5): 'auto' (GL when available) unless the hidden
     // per-viewer setting says '2d'. s is unused today; it keeps the contract's P.*(s) call shape.
     function previewEngine(s) { return readPref(PREF_PREVIEW_ENGINE) === '2d' ? '2d' : 'auto'; }
+    // O2 (plan 2f, index §4.26.8): the stage preview's effectCap option, the long-edge cap in px of its GL effect passes.
+    // Full is the exact preview (0, uncapped); Auto, Half and Quarter cap at VideoStudioPicture.EFFECT_CAP_LONG.
+    function previewEffectCap(s) { const picture = window.VideoStudioPicture; return ((s && s.previewQuality) || 'auto') === 'full' ? 0 : (picture && Number(picture.EFFECT_CAP_LONG)) || 0; }
     // Generated artwork files get readable names: the sticker's name or "Title".
     function assetDisplayName(s, asset) {
         const name = String(asset && asset.name || '');
@@ -638,5 +641,5 @@
     async function clearDraft(s) { try { localStorage.removeItem(draftKey(s)); } catch (_) {} }
     function selectedClip(s) { return s.project ? T().clipFor(s.project, s.selectedClipId) : null; }
 
-    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, PREF_MEDIA_VIEW, PREF_MEDIA_SORT, PREF_PREVIEW_ENGINE, LABEL_COLORS, PREF_MAGNETIC, clone, clamp, idempotencyKey, T, I, tr, trCount, esc, icon, readPref, writePref, previewEngine, maxFrames, rateOf, request, canonicalProject, hydrateProject, assetAtProjectRate, keepOwnedAssetFields, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, dropEffectKeySelection, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia, forgetServerRemovedMedia, serverMediaIds, stripAssets, forgetMedia });
+    Object.assign(P, { uiLocale, assetDisplayName, API, MAX_CLIPS, CANVASES, READ_ONLY_SAFE, TERMINAL, PREF_TIMELINE, PREF_SNAP, PREF_QUALITY, PREF_MEDIA_VIEW, PREF_MEDIA_SORT, PREF_PREVIEW_ENGINE, LABEL_COLORS, PREF_MAGNETIC, clone, clamp, idempotencyKey, T, I, tr, trCount, esc, icon, readPref, writePref, previewEngine, previewEffectCap, maxFrames, rateOf, request, canonicalProject, hydrateProject, assetAtProjectRate, keepOwnedAssetFields, trackName, makeTrack, defaultTracks, defaultProject, showNotice, clearNotice, projectDuration, snapshot, recordChange, mutate, dropEffectKeySelection, undo, totalClipCount, nextStart, addTrackTo, freeStart, scheduleSave, queueAutosave, saveProject, showConflict, saveUntilClean, draftKey, persistDraft, recoverDraft, clearDraft, selectedClip, flushTextBefore, normalizeTextStyle, adoptServerMedia, forgetServerRemovedMedia, serverMediaIds, stripAssets, forgetMedia });
 })();

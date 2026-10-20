@@ -229,12 +229,17 @@
         // - uv is the part of the returned Texture or Target that placeClip samples.
         // There are three cases:
         // - Without effects or flips nothing is drawn. uv is the crop rect, so the picture is resampled once.
-        // - Static crop: PICTURE crops and flips into a target of capSize(cropped texture px, canvas). The effect passes
-        //   ping-pong in that size, and uv is the whole target.
+        // - Static crop: PICTURE crops and flips into a target of effectSize(cropped texture px, canvas, drawn, cap). The
+        //   effect passes ping-pong in that size, and uv is the whole target.
         // - Crop keyframes: PICTURE flips the whole picture and the effects run on all of it. uv is the frame's crop rect
         //   mirrored for the flips (mirroredCrop), so the crop follows the effects as in the export.
         // 2e: while state.anim.blur is set, the blur_in cascade runs after the effects (blurPasses, blurCascade). It
         // forces the PICTURE pass when the clip has no effects or flips.
+        // 2f (O2, index §4.26.8):
+        // - scene.effectCap > 0 (every preview quality but Full) caps the canvas's long edge for the passes;
+        // - a static crop and a static size also size them to the picture as drawn (passDrawn);
+        // - PICTURE does the downscale, so u_size, the blur σ and the blur_in passes follow the target;
+        // - effectCap 0 (Full, and the golden engine page) gives capSize exactly.
         // The returned target stays the clip's (entry.out) until its next passes or release(clipId).
         function clipPasses(item, texture) {
             const state = item.state || {}, entry = clips.get(item.clip.id);
@@ -246,7 +251,8 @@
             if (entry && entry.out) { ctx.release(entry.out); entry.out = null; }
             const animated = !!E().cropAnimated(item.clip);
             const source = animated ? [0, 0, 1, 1] : cropUV;
-            const size = Pic().capSize(texture.width * source[2], texture.height * source[3], canvasSize());
+            const cap = Math.max(0, Number(current && current.effectCap) || 0);
+            const size = Pic().effectSize(texture.width * source[2], texture.height * source[3], canvasSize(), cap > 0 && !animated ? passDrawn(item, state, rect) : null, cap);
             const passes = effectPasses(state.effects, size), blur = blurPasses(state.anim, size);
             if (!passes.length && !flipH && !flipV && !blur) return texture;
             let input = ctx.target(size.width, size.height), spare = null;
@@ -265,6 +271,16 @@
             if (entry) entry.out = input;
             item.picture.uv = animated ? uvRect(Pic().cropRect(Pic().mirroredCrop(crop, flipH, flipV), decoded.width, decoded.height), decoded) : [0, 0, 1, 1];
             return input;
+        }
+        // O2's drawn picture: placement's draw rect in canvas px at rest (without state.anim). For contain it is the fitted
+        // picture, for cover the larger fitted rect. It is null while width or height has keyframes, so a clip that changes
+        // size keeps one pass size and the size-keyed target pool stays small; pop and the slides keep the rest size too.
+        function passDrawn(item, state, rect) {
+            const keyframes = (item.clip && item.clip.keyframes) || {}, keyed = path => Array.isArray(keyframes[path]) && keyframes[path].length > 0;
+            if (keyed('width') || keyed('height')) return null;
+            const project = (current && current.project) || {}, frame = canvasSize();
+            const place = E().placement(state, frame, { width: Number(project.width) || frame.width, height: Number(project.height) || frame.height }, { width: rect.w, height: rect.h });
+            return place && place.draw ? place.draw : null;
         }
 
         // Stage 3: transform, opacity, mask and in/out animation from item.state.

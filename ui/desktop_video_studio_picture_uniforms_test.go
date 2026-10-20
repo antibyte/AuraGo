@@ -4,8 +4,9 @@ import "testing"
 
 // TestVideoStudioPictureUniforms checks the GL side of the 2c effect passes without a browser (plan 2c, Task 10;
 // index §4.7, §4.8). VideoStudioPicture.passUniforms per effect id: identity entries draw nothing, blur has two
-// directions, a sigma and a kernel radius, and sharpen gets the CAS peak constants. It also checks capSize and
-// decodedSize, and that every uniform passUniforms returns is declared by the matching VideoStudioShaders.effect pass.
+// directions, a sigma and a kernel radius, and sharpen gets the CAS peak constants. It also checks capSize, effectSize
+// (plan 2f O2) and decodedSize, and that every uniform passUniforms returns is declared by the matching
+// VideoStudioShaders.effect pass.
 func TestVideoStudioPictureUniforms(t *testing.T) {
 	runVideoStudioEffectsScript(t, `
 require('./js/desktop/apps/video-studio-picture.js');
@@ -72,5 +73,22 @@ assert.deepEqual(P.capSize(0.2, 0, canvas), {width: 1, height: 1}, 'at least one
 assert.deepEqual(P.decodedSize({width: 1920, height: 1080}, 960, 540), {width: 1920, height: 1080}, 'a proxy keeps the original pixels');
 assert.deepEqual(P.decodedSize({width: 1920, height: 1080}, 1080, 1920), {width: 1080, height: 1920}, 'a rotated phone video swaps');
 assert.deepEqual(P.decodedSize({}, 64, 36), {width: 64, height: 36}, 'without an asset size the element size');
+// O2 (plan 2f Task 11, index §4.26.8): effectSize sizes the effect passes. drawn null and cap 0 give capSize exactly, so
+// Full quality and the goldens keep their targets; the drawn picture and the long-edge cap only shrink the target.
+assert.equal(P.EFFECT_CAP_LONG, 1280, 'the cap of spike S4');
+const hd = {width: 1920, height: 1080}, pip = {x: 528, y: 297, w: 864, h: 486};
+assert.deepEqual(P.effectSize(1920, 1080, hd, null, 1280), {width: 1280, height: 720}, 'Auto caps a full-frame 1080p clip at 1280 px');
+assert.deepEqual(P.effectSize(1920, 1080, hd, null, 0), {width: 1920, height: 1080}, 'cap 0 is capSize');
+assert.deepEqual(P.effectSize(1920, 1080, {width: 1280, height: 720}, null, 1280), P.capSize(1920, 1080, {width: 1280, height: 720}), 'a canvas at the cap: capSize');
+assert.deepEqual(P.effectSize(1920, 1080, hd, pip, 0), {width: 864, height: 486}, 'the drawn picture-in-picture size');
+assert.deepEqual(P.effectSize(1920, 1080, hd, pip, 1280), {width: 576, height: 324}, 'drawn and capped');
+assert.deepEqual(P.effectSize(3840, 2160, hd, null, 1280), {width: 1280, height: 720}, 'a 4K source on the Auto backing');
+assert.deepEqual(P.effectSize(960, 540, hd, {x: 0, y: 0, w: 1920, h: 1080}, 1280), {width: 960, height: 540}, 'a 540p proxy is never upscaled');
+assert.deepEqual(P.effectSize(1920, 1080, hd, {x: 0, y: 0, w: 0, h: 0}, 0), {width: 1920, height: 1080}, 'an empty drawn rect is ignored');
+for (const [w, h] of [[1920, 1080], [3840, 2160], [720, 1280], [1080, 1920], [320, 180], [0.2, 0], [1281, 719]]) {
+  for (const c of [{width: 1280, height: 720}, hd, {width: 640, height: 360}, {width: 1080, height: 1350}]) {
+    assert.deepEqual(P.effectSize(w, h, c, null, 0), P.capSize(w, h, c), 'effectSize(' + w + ', ' + h + ', ' + c.width + 'x' + c.height + ', null, 0) equals capSize');
+  }
+}
 `)
 }
