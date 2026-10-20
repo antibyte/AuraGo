@@ -51,7 +51,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 			return
 		}
 
-		migrationNotices := config.ToolDisclosureMigrationNotices(data)
+		migrationNotices := append(config.ToolDisclosureMigrationNotices(data), config.PersonalityMigrationNotices(data)...)
 		data, err = config.NormalizeToolDisclosureConfig(data)
 		if err != nil {
 			jsonError(w, "Invalid configuration migration", http.StatusInternalServerError)
@@ -98,6 +98,9 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 				delete(pMap, "v2_url")
 				delete(pMap, "v2_api_key")
 				delete(pMap, "v2_timeout_secs")
+				if voice := rawMap(pMap, "inner_voice"); voice != nil {
+					delete(voice, "error_streak_min")
+				}
 			}
 		}
 
@@ -476,6 +479,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 		delete(patch, "_effective_tool_policy")
 		delete(patch, "_config_migrations")
+		if err := config.ValidatePersonalityLegacyPatch(patch); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if _, present := patch["providers"]; present {
 			writeProviderError(w, &providerWriteError{status: http.StatusBadRequest, code: "provider_use_api_providers", message: "Change provider settings through /api/providers"})
 			return
@@ -2020,23 +2027,25 @@ func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 
 // sensitiveKeys are YAML keys whose values should be masked in the API response.
 var sensitiveKeys = map[string]bool{
-	"api_key":        true,
-	"bot_token":      true,
-	"password":       true,
-	"app_password":   true,
-	"access_token":   true,
-	"token":          true,
-	"user_key":       true,
-	"app_token":      true,
-	"login_token":    true, // MeshCentral token
-	"access_key":     true, // S3 access key ID
-	"secret_key":     true, // S3 secret access key
-	"secret":         true, // Proxmox token secret and similar vault-backed secrets
-	"master_key":     true, // vault AES-256 key — never expose
-	"password_hash":  true, // auth: bcrypt hash — never expose
-	"session_secret": true, // auth: HMAC signing key — never expose
-	"totp_secret":    true, // auth: TOTP base32 secret — never expose
-	"shared_key":     true, // egg mode shared AES key — never expose
+	"v2_api_key":             true,
+	"personality_v2_api_key": true,
+	"api_key":                true,
+	"bot_token":              true,
+	"password":               true,
+	"app_password":           true,
+	"access_token":           true,
+	"token":                  true,
+	"user_key":               true,
+	"app_token":              true,
+	"login_token":            true, // MeshCentral token
+	"access_key":             true, // S3 access key ID
+	"secret_key":             true, // S3 secret access key
+	"secret":                 true, // Proxmox token secret and similar vault-backed secrets
+	"master_key":             true, // vault AES-256 key — never expose
+	"password_hash":          true, // auth: bcrypt hash — never expose
+	"session_secret":         true, // auth: HMAC signing key — never expose
+	"totp_secret":            true, // auth: TOTP base32 secret — never expose
+	"shared_key":             true, // egg mode shared AES key — never expose
 }
 
 // maskSensitiveFields recursively masks sensitive string values in a config map.

@@ -29,6 +29,9 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if s.Cfg == nil {
 		return nil, fmt.Errorf("applyConfigPatch: server has no config")
 	}
+	if err := config.ValidatePersonalityLegacyPatch(patch); err != nil {
+		return nil, err
+	}
 	configPath := s.Cfg.ConfigPath
 	if configPath == "" {
 		return nil, fmt.Errorf("applyConfigPatch: config path not set")

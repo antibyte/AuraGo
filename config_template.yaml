@@ -1647,24 +1647,24 @@ ollama:
         memory_limit: ""               # Docker memory limit, e.g. "8g" (empty = unlimited)
         volume_path: ""                # host path for /root/.ollama; empty uses named volume aurago_ollama_managed_models
 personality:
-    core_personality: friend           # active personality profile, e.g. 'neutral', 'punk', 'zen'
-    engine: true                       # enable personality engine (mood, micro-traits)
-    engine_v2: true                    # enable advanced V2 engine with async LLM mood analysis
+    core_personality: neutral          # active personality profile, e.g. 'neutral', 'punk', 'friend'
+    engine: false                      # enable personality engine (mood, micro-traits)
+    engine_v2: false                   # enable advanced V2 engine with async LLM mood analysis
     v2_provider: ""                    # deprecated compatibility field; personality V2 now uses llm.helper_*
     user_profiling: false              # auto-detect user preferences from conversation
-    user_profiling_threshold: 2        # confirmations needed before injecting a trait into prompt
+    user_profiling_threshold: 3        # confirmations needed before injecting a trait into prompt
     emotion_synthesizer:
         enabled: false                 # enable emotion synthesis
         min_interval_seconds: 60       # minimum seconds between emotion synthesis runs
         max_history_entries: 100       # max emotion history entries to keep
-        trigger_on_mood_change: true   # synthesize when V2 detects a mood change (default: true)
+        trigger_on_mood_change: true   # narrate when the Go mood changes (default: true)
         trigger_always: false          # synthesize on every message (default: false)
     inner_voice:
         enabled: false                 # enable inner voice / subconscious nudge engine (requires emotion_synthesizer + engine_v2)
         min_interval_secs: 60          # minimum seconds between inner voice generations
         max_per_session: 20            # maximum inner voice thoughts per session
         decay_turns: 3                 # inner voice thought expires after N turns
-        error_streak_min: 2            # minimum consecutive errors before error-streak trigger fires
+        decay_max_age_secs: 300        # absolute age limit, even if no new turn arrives
 rocketchat:
     enabled: false
     url: ""

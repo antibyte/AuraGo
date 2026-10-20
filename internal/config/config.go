@@ -359,6 +359,9 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
+	for _, notice := range PersonalityMigrationNotices(data) {
+		slog.Warn("[Config] Deprecated personality setting", "setting", notice)
+	}
 	// Pre-process: fix common YAML corruption issues
 	data = fixCommonConfigIssues(data)
 	data = normalizeFritzBoxLegacyKeys(data)
@@ -2011,9 +2014,6 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Personality.InnerVoice.DecayMaxAgeSecs <= 0 {
 		cfg.Personality.InnerVoice.DecayMaxAgeSecs = 300 // 5 minutes
-	}
-	if cfg.Personality.InnerVoice.ErrorStreakMin <= 0 {
-		cfg.Personality.InnerVoice.ErrorStreakMin = 2
 	}
 	// Inner Voice requires Emotion Synthesizer + V2
 	if cfg.Personality.InnerVoice.Enabled && !cfg.Personality.EmotionSynthesizer.Enabled {

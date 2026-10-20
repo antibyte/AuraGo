@@ -74,7 +74,6 @@ var plaintextSecretVaultPaths = map[string]string{
 	"fallback_llm.api_key":             "provider_fallback_api_key",
 	"co_agents.llm.api_key":            "provider_coagent_api_key",
 	"a2a.llm.api_key":                  "provider_a2a_api_key",
-	"personality.v2_api_key":           "provider_helper_api_key",
 	"manifest.api_key":                 "manifest_api_key",
 	"manifest.postgres_password":       "manifest_postgres_password",
 	"manifest.better_auth_secret":      "manifest_better_auth_secret",
@@ -369,7 +368,7 @@ func MigratePlaintextSecretsToVault(configPath string, vault SecretReadWriter, l
 		return
 	}
 
-	migrated := false
+	migrated := migratePersonalityLegacySecrets(rawCfg, vault, log)
 	for path, vaultKey := range plaintextSecretVaultPaths {
 		// Generated egg configs intentionally include a fresh per-deploy shared
 		// key. Egg containers keep a persistent vault volume, so this one secret

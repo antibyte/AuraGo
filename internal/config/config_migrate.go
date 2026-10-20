@@ -774,6 +774,15 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	if c == nil {
 		return
 	}
+	legacyV2Keys := []string{c.Personality.V2APIKey, c.Agent.LegacyPersonalityV2APIKey}
+	c.Personality.V2APIKey, c.Personality.V2ResolvedKey, c.Agent.LegacyPersonalityV2APIKey = "", "", ""
+	for i := range c.Providers {
+		for _, key := range legacyV2Keys {
+			if key != "" && c.Providers[i].APIKey == key {
+				c.Providers[i].APIKey = ""
+			}
+		}
+	}
 	password, _, err := ResolveMQTTPassword(vault)
 	if err != nil {
 		slog.Warn("[Config] Could not resolve MQTT password; using an empty value")
