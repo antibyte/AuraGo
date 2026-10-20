@@ -54,3 +54,7 @@ scripts/localwiki/fixtures/*.txt text eol=lf
 # The Decisions safety patch is verified by its exact SHA-256 during builds.
 # Blank unified-diff context lines retain their required leading space.
 decisions_runtime/patches/*.patch text eol=lf whitespace=-blank-at-eol
+# Keep embedded sidecar build inputs identical on Windows and Linux. Unified
+# diff context deliberately contains leading spaces before tabs and blank lines.
+internal/tools/go2rtc_sidecar/* text eol=lf
+internal/tools/go2rtc_sidecar/*.patch text eol=lf whitespace=-blank-at-eol,-space-before-tab

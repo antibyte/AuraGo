@@ -7954,5 +7954,8 @@
   "desktop.network_cameras.snapshot_fallback": "摄像头快照不可用；正在使用码流图像。",
   "desktop.network_cameras.camera_error": "上一次图像请求失败。请查看摄像头诊断。",
   "desktop.network_cameras.talk_permission": "需要对讲权限。",
-  "desktop.network_cameras.talk_busy": "摄像头麦克风正在使用中"
+  "desktop.network_cameras.talk_busy": "摄像头麦克风正在使用中",
+  "desktop.network_cameras.method_tuya": "Tuya",
+  "desktop.network_cameras.method_tuya_help": "添加 Tuya 摄像头",
+  "desktop.network_cameras.talk_unavailable": "尚未确认音频回传通道。"
 }

@@ -2,6 +2,30 @@
 
 let _go2rtcSection = null;
 
+function go2rtcTuyaOpen(mode) {
+	window.AuraGoTuya.open({ mode, t,
+		onCreated(result) { showToast(t('common.go2rtc_tuya.' + (result.runtime_reconciled === false ? 'saved_pending' : 'saved')), result.runtime_reconciled === false ? 'warning' : 'success'); },
+		onChanged(result) {
+			const data = go2rtcEnsureData();
+			const state = window.AuraConfigState;
+			if (state && state.syncFromDOM) state.syncFromDOM();
+			if (result.accounts) {
+				data.tuya_accounts = result.accounts;
+				if (state && state.markSaved) state.markSaved('go2rtc.tuya_accounts', result.accounts);
+			}
+			if (result.stream) {
+				const draft = JSON.parse(JSON.stringify(go2rtcStreams()));
+				const saved = JSON.parse(JSON.stringify(state && state.get('go2rtc.streams', { saved: true }) || []));
+				for (const list of [draft, saved]) if (!list.some(s => s.id === result.stream.id)) list.push(result.stream);
+				if (state && state.markSaved) state.markSaved('go2rtc.streams', saved);
+				data.streams = draft;
+				if (state && state.replace) state.replace('go2rtc.streams', draft, () => renderGo2RTCSection(null));
+			}
+		},
+		onClose() { if (window.AuraConfigState && window.AuraConfigState.syncFromDOM) window.AuraConfigState.syncFromDOM(); renderGo2RTCSection(null); }
+	});
+}
+
 function go2rtcEnsureData() {
     if (!configData.go2rtc) configData.go2rtc = {};
     const data = configData.go2rtc;
@@ -84,6 +108,7 @@ function renderGo2RTCSection(section) {
     html += '</div>';
 
     html += '<div class="cfg-group-title cfg-group-title-top">' + t('config.go2rtc.streams_title') + '</div>';
+	 html += '<div class="field-group"><button type="button" class="btn-secondary" onclick="go2rtcTuyaOpen(\'accounts\')">' + t('common.go2rtc_tuya.accounts') + '</button> <button type="button" class="btn-secondary" onclick="go2rtcTuyaOpen(\'setup\')">' + t('common.go2rtc_tuya.add_camera') + '</button></div>';
     html += '<div class="field-help">' + t('help.go2rtc.streams') + '</div>';
     streams.forEach((stream, index) => {
         const base = 'go2rtc.streams.' + index;
@@ -93,13 +118,22 @@ function renderGo2RTCSection(section) {
         html += go2rtcToggle(base + '.enabled', stream.enabled !== false, 'config.go2rtc.stream_enabled', 'help.go2rtc.stream_enabled');
         html += go2rtcField(base + '.id', stream.id || '', 'config.go2rtc.stream_id', 'help.go2rtc.stream_id', 'front-door', lockedID);
         html += go2rtcField(base + '.name', stream.name || '', 'config.go2rtc.stream_name', 'help.go2rtc.stream_name', t('config.go2rtc.stream_name_placeholder'), false);
-        html += go2rtcSecret(base + '.source', stream.source || '', 'config.go2rtc.source', 'help.go2rtc.source', 'rtsp://camera.example/stream');
+		if (stream.tuya) {
+			html += go2rtcSelect(base + '.tuya.account_id', stream.tuya.account_id, 'common.go2rtc_tuya.account', (data.tuya_accounts || []).map(a => [a.id, a.name]));
+			html += go2rtcSelect(base + '.tuya.main_resolution', stream.tuya.main_resolution, 'common.go2rtc_tuya.main', [['hd', 'HD'], ['sd', 'SD']]);
+			html += go2rtcSelect(base + '.tuya.sub_resolution', stream.tuya.sub_resolution || '', 'common.go2rtc_tuya.sub', [['', t('common.go2rtc_tuya.none')], ['sd', 'SD'], ['hd', 'HD']]);
+			html += '<p class="field-help">' + t('common.go2rtc_tuya.cloud_notice') + '</p>';
+		} else html += go2rtcSecret(base + '.source', stream.source || '', 'config.go2rtc.source', 'help.go2rtc.source', 'rtsp://camera.example/stream');
         html += '<details class="cfg-advanced-panel"><summary class="cfg-advanced-summary">' + t('config.go2rtc.media_settings') + '</summary><div class="cfg-advanced-body">';
         for (const key of ['sub_source', 'snapshot_source']) {
+			if (stream.tuya) continue;
             html += go2rtcSecret(base + '.' + key, stream[key] || '', 'config.go2rtc.' + key, '', t('config.go2rtc.keep_source'));
             html += go2rtcToggle(base + '.clear_' + key, stream['clear_' + key] === true, 'config.go2rtc.clear_' + key, '');
         }
-        for (const [key, options] of Object.entries(go2rtcMediaChoices)) html += go2rtcSelect(base + '.' + key, stream[key] || options[0][0], 'config.go2rtc.' + key, options);
+		for (const [key, options] of Object.entries(go2rtcMediaChoices)) {
+			if (stream.tuya && key === 'transport') continue;
+			html += go2rtcSelect(base + '.' + key, stream[key] || options[0][0], 'config.go2rtc.' + key, options.filter(([value]) => !(stream.tuya && key === 'snapshot_mode' && value === 'camera')));
+		}
         html += go2rtcToggle(base + '.preload', stream.preload === true, 'config.go2rtc.preload', '');
         html += go2rtcToggle(base + '.talk_enabled', stream.talk_enabled === true, 'config.go2rtc.talk_enabled', '');
         html += '</div></details>';
@@ -284,7 +318,8 @@ function go2rtcStreamDefaults() {
 }
 
 function go2rtcSelect(path, value, label, choices, rerender) {
-    return '<div class="field-group"><label class="field-label" for="' + escapeAttr(path) + '">' + t(label) + '</label><select class="field-select" id="' + escapeAttr(path) + '" data-path="' + escapeAttr(path) + '"' + (rerender ? ' onchange="setNestedValue(configData,\'' + path + '\',this.value);renderGo2RTCSection(null)"' : '') + '>' + choices.map(([key, caption]) => '<option value="' + key + '" ' + (key === value ? 'selected' : '') + '>' + escapeHtml(/[A-Z]/.test(caption) ? caption : t('config.go2rtc.' + caption)) + '</option>').join('') + '</select></div>';
+	const literalCaptions = path.includes('.tuya.');
+    return '<div class="field-group"><label class="field-label" for="' + escapeAttr(path) + '">' + t(label) + '</label><select class="field-select" id="' + escapeAttr(path) + '" data-path="' + escapeAttr(path) + '"' + (rerender ? ' onchange="setNestedValue(configData,\'' + path + '\',this.value);renderGo2RTCSection(null)"' : '') + '>' + choices.map(([key, caption]) => '<option value="' + key + '" ' + (key === value ? 'selected' : '') + '>' + escapeHtml(literalCaptions || /[A-Z]/.test(caption) ? caption : t('config.go2rtc.' + caption)) + '</option>').join('') + '</select></div>';
 }
 
 async function go2rtcHardwareTest() {

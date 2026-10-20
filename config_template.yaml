@@ -1563,6 +1563,11 @@ go2rtc:
     container_name: "aurago_go2rtc"
     url: ""                         # default: http://go2rtc:1984 in Docker, otherwise http://127.0.0.1:1984
     api_host_port: 1984             # native AuraGo only; always bound to 127.0.0.1
+    # Manage central Tuya credentials through Config / Network Cameras; Vault-only.
+    # Metadata fields: id, name, method (smart/cloud), region, server-owned revision.
+    # Smart regions: eu-central, eu-east, us-west, us-east, china, india.
+    # Cloud regions: eu-central, eu-west, us-west, us-east, china, india, singapore.
+    tuya_accounts: []
     webrtc:
         enabled: false
         bind_address: ""            # required concrete private LAN IP when enabled
@@ -1590,6 +1595,12 @@ go2rtc:
     #     playback_mode: "auto"      # auto, webrtc_tcp, mse, hls, mp4 or mjpeg
     #     preload: false            # keep main stream warm through internal API
     #     talk_enabled: false       # requires go2rtc.talk/admin and enabled LAN WebRTC
+    #     # Optional binding for an account-managed Tuya camera. Device ID and
+    #     # generated source URLs are written by the setup dialog to the Vault.
+    #     # tuya:
+    #     #   account_id: "tuya-home"
+    #     #   main_resolution: "hd"
+    #     #   sub_resolution: "sd"  # empty disables substream; must differ from main
     #     # Person detection for this camera (Network Cameras app). Keys left out take
     #     # the defaults shown here, except the zones: the Driveway zone is only an
     #     # example, the default is no zones (the whole frame is watched).

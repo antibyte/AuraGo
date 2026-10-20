@@ -26,10 +26,12 @@ func (m *Go2RTCManager) Diagnose(ctx context.Context, id string) (out Go2RTCDiag
 	start := time.Now()
 	budget := 15 * time.Second
 	var tuyaSource string
+	var tuyaAccount string
 	for _, camera := range m.Config().Streams {
 		if camera.ID == id && camera.Tuya != nil {
 			budget = 45 * time.Second
 			tuyaSource = camera.Source
+			tuyaAccount = camera.Tuya.AccountID
 		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, budget)
@@ -55,8 +57,14 @@ func (m *Go2RTCManager) Diagnose(ctx context.Context, id string) (out Go2RTCDiag
 		out.EffectiveBackend = out.Hardware.Backend
 	}
 	if tuyaSource != "" {
-		probe := m.TuyaTest(ctx, tuyaSource)
+		probe := m.TuyaTest(ctx, tuyaSource, tuyaAccount)
 		out.Tuya = &probe
+		if !m.MediaRevisionCurrent(id, stream.Revision) {
+			out.Tuya = nil
+			out.ErrorCode = "camera_changed"
+			out.Stage = "stream"
+			return
+		}
 		if probe.Status != "ok" {
 			out.ErrorCode = probe.ErrorCode
 			out.Stage = "tuya_source"
@@ -70,6 +78,11 @@ func (m *Go2RTCManager) Diagnose(ctx context.Context, id string) (out Go2RTCDiag
 		return
 	}
 	info, err := jpeg.DecodeConfig(bytes.NewReader(data))
+	if !m.MediaRevisionCurrent(id, stream.Revision) {
+		out.ErrorCode = "camera_changed"
+		out.Stage = "stream"
+		return
+	}
 	if err != nil {
 		out.ErrorCode = "invalid_camera_image"
 		return

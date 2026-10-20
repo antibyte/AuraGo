@@ -228,7 +228,7 @@ func handleGo2RTCTuyaSetup(s *Server, discover bool) http.HandlerFunc {
 				jsonError(w, "Invalid Tuya device or quality", 400)
 				return
 			}
-			result = s.Go2RTC.TuyaTest(ctx, source)
+			result = s.Go2RTC.TuyaTest(ctx, source, a.ID)
 		}
 		current, err := s.tuyaAccount(a.ID)
 		if err != nil || current.Revision != a.Revision || r.Context().Err() != nil {
@@ -237,6 +237,14 @@ func handleGo2RTCTuyaSetup(s *Server, discover bool) http.HandlerFunc {
 		}
 		response := go2RTCDetectionProjection(result)
 		if result.Status == "ok" {
+			if !discover && input.SetupToken != "" {
+				if _, _, err := s.tuyaDevice(r, a, input.go2RTCTuyaCameraRequest, false); err == nil {
+					response["setup_token"] = input.SetupToken
+					response["candidates"] = []map[string]string{{"id": input.CandidateID, "name": ""}}
+					writeGo2RTCJSON(w, response)
+					return
+				}
+			}
 			devices := []go2RTCTuyaDevice{}
 			if discover {
 				for _, candidate := range result.Candidates {

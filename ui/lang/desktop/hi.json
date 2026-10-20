@@ -7954,5 +7954,8 @@
   "desktop.network_cameras.snapshot_fallback": "कैमरा स्नैपशॉट उपलब्ध नहीं; स्ट्रीम से चित्र लिया जा रहा है।",
   "desktop.network_cameras.camera_error": "पिछला चित्र अनुरोध विफल हुआ। कैमरा निदान जाँचें।",
   "desktop.network_cameras.talk_permission": "बात करने की अनुमति चाहिए।",
-  "desktop.network_cameras.talk_busy": "कैमरे का माइक्रोफ़ोन व्यस्त है"
+  "desktop.network_cameras.talk_busy": "कैमरे का माइक्रोफ़ोन व्यस्त है",
+  "desktop.network_cameras.method_tuya": "Tuya",
+  "desktop.network_cameras.method_tuya_help": "Tuya कैमरा जोड़ें",
+  "desktop.network_cameras.talk_unavailable": "ऑडियो बैकचैनल की पुष्टि नहीं हुई है।"
 }

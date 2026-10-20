@@ -7954,5 +7954,8 @@
   "desktop.network_cameras.snapshot_fallback": "Camera snapshot unavailable; using a stream image.",
   "desktop.network_cameras.camera_error": "The last image request failed. Check the camera diagnosis.",
   "desktop.network_cameras.talk_permission": "Talk permission required.",
-  "desktop.network_cameras.talk_busy": "Camera microphone is busy"
+  "desktop.network_cameras.talk_busy": "Camera microphone is busy",
+  "desktop.network_cameras.method_tuya": "Tuya",
+  "desktop.network_cameras.method_tuya_help": "Add Tuya camera",
+  "desktop.network_cameras.talk_unavailable": "No confirmed audio backchannel."
 }

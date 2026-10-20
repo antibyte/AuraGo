@@ -7954,5 +7954,8 @@
   "desktop.network_cameras.snapshot_fallback": "カメラのスナップショットを取得できないため、ストリームの画像を使用します。",
   "desktop.network_cameras.camera_error": "最新の画像取得に失敗しました。カメラの診断を確認してください。",
   "desktop.network_cameras.talk_permission": "通話の権限が必要です。",
-  "desktop.network_cameras.talk_busy": "カメラのマイクは使用中です"
+  "desktop.network_cameras.talk_busy": "カメラのマイクは使用中です",
+  "desktop.network_cameras.method_tuya": "Tuya",
+  "desktop.network_cameras.method_tuya_help": "Tuyaカメラを追加",
+  "desktop.network_cameras.talk_unavailable": "音声バックチャネルが確認されていません。"
 }

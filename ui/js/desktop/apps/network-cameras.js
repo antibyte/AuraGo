@@ -171,7 +171,7 @@
                     '<button type="button" data-mode="detections" aria-pressed="' + (state.mode === 'detections') + '" class="' + (state.mode === 'detections' ? 'is-active' : '') + '">' + ctx.esc(text(ctx, 'detection.mode')) + '</button>' +
                 '</div>' +
                 '<button class="nc-icon-button" type="button" data-action="refresh" title="' + ctx.esc(text(ctx, 'refresh')) + '">' + appIcon(ctx, 'refresh', 'R', 17) + '</button>' +
-                (canManage ? '<button class="nc-primary" type="button" data-action="add" aria-label="' + ctx.esc(text(ctx, 'add_camera')) + '">' + appIcon(ctx, 'plus', '+', 16) + '<span>' + ctx.esc(text(ctx, 'add_camera')) + '</span></button>' : '') +
+                (canManage ? '<button type="button" data-action="tuya">' + ctx.esc(ctx.t('common.go2rtc_tuya.accounts')) + '</button><button class="nc-primary" type="button" data-action="add" aria-label="' + ctx.esc(text(ctx, 'add_camera')) + '">' + appIcon(ctx, 'plus', '+', 16) + '<span>' + ctx.esc(text(ctx, 'add_camera')) + '</span></button>' : '') +
             '</div></header>';
     }
 
@@ -326,6 +326,7 @@
     async function handleAction(state, action) {
         if (action === 'refresh') return loadState(state, true);
         if (action === 'add') return openSetupModal(state);
+        if (action === 'tuya') return openTuya(state, 'accounts');
         if (action === 'enable') return enableIntegration(state);
         if (action === 'focus') {
             if (state.mode === 'detections') state.mode = 'snapshots';
@@ -533,7 +534,8 @@
 
     function manageMarkup(state, modal, detectionStream) {
         const ctx = state.ctx;
-        const general = '<div class="nc-form" role="tabpanel" data-tab-panel="general"' + (detectionStream && modal.tab === 'detection' ? ' hidden' : '') + '><label>' + ctx.esc(text(ctx, 'camera_name')) + '<input data-field="name" value="' + ctx.esc(modal.name) + '"></label><label class="nc-check"><input data-field="enabled" type="checkbox" ' + (modal.enabled ? 'checked' : '') + '><span>' + ctx.esc(text(ctx, 'camera_enabled')) + '</span></label><label>' + ctx.esc(text(ctx, 'replace_source')) + '<input data-field="source" type="password" autocomplete="off" value="" placeholder="' + ctx.esc(text(ctx, 'keep_source')) + '"></label>' + window.NetworkCamerasMedia.fields(state, modal) + '</div>';
+        const sourceField = modal.tuya_account_id ? '' : '<label>' + ctx.esc(text(ctx, 'replace_source')) + '<input data-field="source" type="password" autocomplete="off" value="" placeholder="' + ctx.esc(text(ctx, 'keep_source')) + '"></label>';
+        const general = '<div class="nc-form" role="tabpanel" data-tab-panel="general"' + (detectionStream && modal.tab === 'detection' ? ' hidden' : '') + '><label>' + ctx.esc(text(ctx, 'camera_name')) + '<input data-field="name" value="' + ctx.esc(modal.name) + '"></label><label class="nc-check"><input data-field="enabled" type="checkbox" ' + (modal.enabled ? 'checked' : '') + '><span>' + ctx.esc(text(ctx, 'camera_enabled')) + '</span></label>' + sourceField + window.NetworkCamerasMedia.fields(state, modal) + '</div>';
         if (!detectionStream) return general;
         const tab = (id, label) => '<button type="button" role="tab" data-modal-tab="' + id + '" aria-selected="' + (modal.tab === id) + '" tabindex="' + (modal.tab === id ? '0' : '-1') + '" class="' + (modal.tab === id ? 'is-active' : '') + '">' + ctx.esc(label) + '</button>';
         return '<div class="nc-tabs" role="tablist" aria-label="' + ctx.esc(text(ctx, 'manage_title')) + '">' + tab('general', text(ctx, 'tab_general')) + tab('detection', text(ctx, 'detection.tab')) + '</div>' + general +
@@ -559,6 +561,7 @@
         if (modal.step === 1) return '<div class="nc-methods">' +
             setupMethod(ctx, 'discover', 'radar', 'method_discover', 'method_discover_help', state.data.discovery && state.data.discovery.available, state.data.discovery && state.data.discovery.available ? '' : text(ctx, 'discovery_unavailable')) +
             setupMethod(ctx, 'address', 'network', 'method_address', 'method_address_help', true, '') +
+            setupMethod(ctx, 'tuya', 'camera', 'method_tuya', 'method_tuya_help', true, '') +
             setupMethod(ctx, 'url', 'link', 'method_url', 'method_url_help', true, '') + '</div>';
         if (modal.step === 2) {
             if (modal.method === 'discover' && modal.busy) {
@@ -635,8 +638,19 @@
         });
     }
 
+    function openTuya(state, mode) {
+        if (!window.AuraGoTuya) return;
+        if (state.tuyaDialog) state.tuyaDialog.close();
+        state.tuyaDialog = window.AuraGoTuya.open({ mode, t: state.ctx.t,
+            api: (path, init) => state.ctx.api(path, init),
+            onCreated: result => { if (!state.disposed && result.stream) { state.selected = result.stream.id; savePreferences(state); notify(state, text(state.ctx, mutationNoticeKey(result, 'camera_saved'))); } },
+            onClose: () => { state.tuyaDialog = null; if (!state.disposed) reloadState(state, false); }
+        });
+    }
+
     async function chooseSetupMethod(state, method) {
         const modal = state.modal;
+        if (method === 'tuya') { state.modal = null; drawModal(state); return openTuya(state, 'setup'); }
         modal.method = method;
         modal.error = '';
         if (method === 'url') { modal.step = 4; return drawModal(state); }
@@ -862,6 +876,7 @@
         const state = instances.get(windowId);
         if (!state) return;
         state.disposed = true;
+        if (state.tuyaDialog) state.tuyaDialog.close();
         stopActivity(state);
         window.NetworkCamerasMedia.stop(state, true);
         disposeDetectionSettings(state);

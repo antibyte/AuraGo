@@ -7954,5 +7954,8 @@
   "desktop.network_cameras.snapshot_fallback": "La instantánea no está disponible; se usa una imagen del flujo.",
   "desktop.network_cameras.camera_error": "La última solicitud de imagen falló. Revise el diagnóstico de la cámara.",
   "desktop.network_cameras.talk_permission": "Se requiere permiso para hablar.",
-  "desktop.network_cameras.talk_busy": "El micrófono de la cámara está ocupado"
+  "desktop.network_cameras.talk_busy": "El micrófono de la cámara está ocupado",
+  "desktop.network_cameras.method_tuya": "Tuya",
+  "desktop.network_cameras.method_tuya_help": "Añadir cámara Tuya",
+  "desktop.network_cameras.talk_unavailable": "No se ha confirmado un canal de audio de retorno."
 }

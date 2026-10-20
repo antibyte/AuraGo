@@ -7954,5 +7954,8 @@
   "desktop.network_cameras.snapshot_fallback": "Snímek kamery není dostupný; použije se obraz ze streamu.",
   "desktop.network_cameras.camera_error": "Poslední načtení obrazu selhalo. Zkontrolujte diagnostiku kamery.",
   "desktop.network_cameras.talk_permission": "Je vyžadováno oprávnění k hovoru.",
-  "desktop.network_cameras.talk_busy": "Mikrofon kamery je obsazený"
+  "desktop.network_cameras.talk_busy": "Mikrofon kamery je obsazený",
+  "desktop.network_cameras.method_tuya": "Tuya",
+  "desktop.network_cameras.method_tuya_help": "Přidat kameru Tuya",
+  "desktop.network_cameras.talk_unavailable": "Zpětný zvukový kanál není potvrzen."
 }

@@ -10,26 +10,82 @@ import (
 	"time"
 )
 
-type auraGoTransport func(*http.Request)(*http.Response,error)
-func(f auraGoTransport)RoundTrip(r *http.Request)(*http.Response,error){return f(r)}
+type auraGoTransport func(*http.Request) (*http.Response, error)
 
-func TestAuraGoTuyaHTTPBudgets(t *testing.T){
-	ctx,cancel:=context.WithCancel(context.Background())
-	client:=BoundHTTPClient(ctx,&http.Client{Transport:auraGoTransport(func(r *http.Request)(*http.Response,error){
-		if r.Context()!=ctx{t.Error("caller context lost")}
-		return &http.Response{StatusCode:200,Body:io.NopCloser(strings.NewReader("{}")),Header:http.Header{}},nil
-	})},1)
-	if _,err:=client.Get("https://protect-eu.ismartlife.me");err!=nil{t.Fatal(err)}
-	if _,err:=client.Get("https://protect-eu.ismartlife.me");err==nil{t.Fatal("request budget ignored")}
+func (f auraGoTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestAuraGoTuyaHTTPBudgets(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	client := BoundHTTPClient(ctx, &http.Client{Transport: auraGoTransport(func(r *http.Request) (*http.Response, error) {
+		if r.Context() != ctx {
+			t.Error("caller context lost")
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("{}")), Header: http.Header{}}, nil
+	})}, 1)
+	if _, err := client.Get("https://protect-eu.ismartlife.me"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Get("https://protect-eu.ismartlife.me"); err == nil {
+		t.Fatal("request budget ignored")
+	}
 	cancel()
-	client=BoundHTTPClient(context.Background(),&http.Client{Transport:auraGoTransport(func(r *http.Request)(*http.Response,error){return &http.Response{StatusCode:200,Body:io.NopCloser(strings.NewReader(strings.Repeat("x",(1<<20)+1)))},nil})},1)
-	if _,err:=client.Get("https://protect-eu.ismartlife.me");err==nil{t.Fatal("oversized body accepted")}
+	client = BoundHTTPClient(context.Background(), &http.Client{Transport: auraGoTransport(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(strings.Repeat("x", (1<<20)+1)))}, nil
+	})}, 1)
+	if _, err := client.Get("https://protect-eu.ismartlife.me"); err == nil {
+		t.Fatal("oversized body accepted")
+	}
 }
 
-func TestAuraGoTuyaCancellation(t *testing.T){
-	ctx,cancel:=context.WithTimeout(context.Background(),10*time.Millisecond);defer cancel()
-	client:=BoundHTTPClient(ctx,&http.Client{Transport:auraGoTransport(func(r *http.Request)(*http.Response,error){<-r.Context().Done();return nil,r.Context().Err()})},1)
-	_,err:=client.Get("https://protect-eu.ismartlife.me")
-	if !errors.Is(err,context.DeadlineExceeded){t.Fatal("login did not stop",err)}
-	if TuyaErrorCode(errors.New("invalid password secret-value"))!="tuya_auth_failed"{t.Fatal("login error classification")}
+func TestAuraGoTuyaCancellation(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	client := BoundHTTPClient(ctx, &http.Client{Transport: auraGoTransport(func(r *http.Request) (*http.Response, error) { <-r.Context().Done(); return nil, r.Context().Err() })}, 1)
+	_, err := client.Get("https://protect-eu.ismartlife.me")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatal("login did not stop", err)
+	}
+	if TuyaErrorCode(errors.New("invalid password secret-value")) != "tuya_auth_failed" {
+		t.Fatal("login error classification")
+	}
+}
+
+type auraGoPendingToken struct{ done chan struct{} }
+
+func (t *auraGoPendingToken) Wait() bool { <-t.done; return true }
+func (t *auraGoPendingToken) WaitTimeout(d time.Duration) bool {
+	select {
+	case <-t.done:
+		return true
+	case <-time.After(d):
+		return false
+	}
+}
+func (t *auraGoPendingToken) Done() <-chan struct{} { return t.done }
+func (t *auraGoPendingToken) Error() error          { return nil }
+
+func TestAuraGoTuyaMQTTDeadline(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if err := waitTuyaToken(ctx, &auraGoPendingToken{done: make(chan struct{})}); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatal("MQTT acknowledgement ignored cancellation", err)
+	}
+}
+
+type auraGoIdleTransport struct{ closed chan struct{} }
+
+func (t *auraGoIdleTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("unused")
+}
+func (t *auraGoIdleTransport) CloseIdleConnections() { close(t.closed) }
+func TestAuraGoTuyaClosesIdleLoginConnections(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	transport := &auraGoIdleTransport{closed: make(chan struct{})}
+	_ = BoundHTTPClient(ctx, &http.Client{Transport: transport}, 1)
+	cancel()
+	select {
+	case <-transport.closed:
+	case <-time.After(time.Second):
+		t.Fatal("cancelled login retained its HTTP pool")
+	}
 }

@@ -3118,6 +3118,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"go2rtc", "webrtc", "bind_address"}, c.Go2RTC.WebRTC.BindAddress},
 		{[]string{"go2rtc", "webrtc", "port"}, c.Go2RTC.WebRTC.Port},
 		{[]string{"go2rtc", "streams"}, c.Go2RTC.Streams},
+		{[]string{"go2rtc", "tuya_accounts"}, c.Go2RTC.TuyaAccounts},
 		{[]string{"go2rtc", "hardware"}, c.Go2RTC.Hardware},
 		{[]string{"go2rtc", "detection"}, c.Go2RTC.Detection},
 		{[]string{"decisions", "enabled"}, c.Decisions.Enabled},

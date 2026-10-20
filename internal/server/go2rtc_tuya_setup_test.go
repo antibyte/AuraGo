@@ -152,3 +152,40 @@ func TestGo2RTCTuyaFullAuthenticationAndProxyBoundaries(t *testing.T) {
 		t.Fatal("foreign origin accepted")
 	}
 }
+
+func TestGo2RTCTuyaCreateReservesUntilPublication(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, "offline", 503) }))
+	defer upstream.Close()
+	s, _, vault := newGo2RTCMutationTestServer(t, upstream.URL, true)
+	a := config.Go2RTCTuyaAccount{ID: "home", Name: "Home", Method: "smart", Region: "eu-central", Revision: "fixture"}
+	s.Cfg.Go2RTC.TuyaAccounts = []config.Go2RTCTuyaAccount{a}
+	s.Cfg.Go2RTC.Streams = []config.Go2RTCStreamConfig{{ID: "existing", Name: "Existing", Enabled: false}}
+	_ = vault.WriteSecret(config.Go2RTCTuyaAccountKey("home"), `{"email":"email@example.org","password":"secretABC"}`)
+	identity := httptest.NewRequest("POST", "http://aurago.local/api/go2rtc/streams", nil)
+	token, items, err := s.newTuyaSession(identity, a, []go2RTCTuyaDevice{{ID: "device123", Name: "Door"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	create := func(id string) *httptest.ResponseRecorder {
+		body := map[string]interface{}{"id": id, "name": "Door", "tuya": map[string]string{"account_id": "home", "setup_token": token, "candidate_id": items[0]["id"], "main_resolution": "hd", "sub_resolution": "sd"}}
+		encoded, _ := json.Marshal(body)
+		w := httptest.NewRecorder()
+		handleGo2RTCCreateStream(s)(w, httptest.NewRequest("POST", "http://aurago.local/api/go2rtc/streams", strings.NewReader(string(encoded))))
+		return w
+	}
+	if w := create("existing"); w.Code != 409 {
+		t.Fatalf("duplicate: %d %s", w.Code, w.Body.String())
+	}
+	w := create("tuya-door")
+	if w.Code != 201 && w.Code != 202 {
+		t.Fatalf("Tuya create: %d %s", w.Code, w.Body.String())
+	}
+	for _, secret := range []string{"device123", "secretABC", token} {
+		if strings.Contains(w.Body.String(), secret) {
+			t.Fatal("camera response leaked setup data")
+		}
+	}
+	if w := create("replay"); w.Code != 400 {
+		t.Fatal("committed selection reused", w.Code)
+	}
+}

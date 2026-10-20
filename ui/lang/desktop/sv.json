@@ -7954,5 +7954,8 @@
   "desktop.network_cameras.snapshot_fallback": "Kamerabild saknas; en bild från strömmen används.",
   "desktop.network_cameras.camera_error": "Den senaste bildhämtningen misslyckades. Kontrollera kameradiagnosen.",
   "desktop.network_cameras.talk_permission": "Behörighet att tala krävs.",
-  "desktop.network_cameras.talk_busy": "Kamerans mikrofon är upptagen"
+  "desktop.network_cameras.talk_busy": "Kamerans mikrofon är upptagen",
+  "desktop.network_cameras.method_tuya": "Tuya",
+  "desktop.network_cameras.method_tuya_help": "Lägg till Tuya-kamera",
+  "desktop.network_cameras.talk_unavailable": "Ingen bekräftad ljudkanal tillbaka."
 }

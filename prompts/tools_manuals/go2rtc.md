@@ -43,3 +43,7 @@ returns bounded/sanitized stages, dimensions, codecs and effective transcoding b
 and remains usable for outage diagnosis. It neither starts a stopped sidecar nor probes
 hardware or opens a microphone. Viewer counts exclude preload and diagnostic consumers.
 See `documentation/go2rtc-media.md` for the administrator's media/GPU/talk controls.
+
+## Tuya cameras
+
+Tuya accounts are administered only through Configuration / Network Cameras. Do not request credentials, call raw Tuya endpoints or construct source URLs. Existing `status`, `diagnose_stream`, snapshot and analysis operations use the configured logical camera ID and the same AgentAccess policy. Diagnostics may return `tuya_auth_failed`, `tuya_region_error`, `tuya_permission_missing`, `tuya_mqtt_failed`, `tuya_timeout`, `tuya_sidecar_unsupported` or `tuya_busy`. Explain the code without exposing sources or credentials. A missing HD stream can be tested as SD by an administrator; never silently change quality or accounts. Camera source connections may use Tuya cloud/MQTT/STUN/TURN. This does not enable public ICE servers in the browser. Agents have no microphone or account-management rights.

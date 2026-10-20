@@ -4353,3 +4353,8 @@ registration lives in `internal/desktop/types.go`.
   Validate TestDesktopNotesAppBrowser, the AURAGO_NOTES_MATRIX shell fixture, vendor
   --check and OfficeSession tests. The API, permission and packaging contracts are in
   documentation/desktop-notes.md. No child DOX file needed.
+
+## Tuya camera setup
+- `js/go2rtc-tuya.js` owns the shared account/setup dialog used by Config and Network Cameras; load it before the camera modules with `css/go2rtc-tuya.css`. Strings use `common.go2rtc_tuya.*` in all 16 common locales. Config adopts committed account/camera metadata without replacing other drafts.
+- Entered credentials exist only in dialog drafts until save or disposal. Discovery selections are opaque; account checks test saved inputs explicitly. Probe each selected HD/SD quality; failed HD offers an explicit SD choice. Cancel/close/window disposal abort requests, drop late results and clear drafts.
+- Tuya role settings hide RTSP transport/manual source controls. Talk is disabled without a confirmed source backchannel; state refresh never recreates a microphone or unchanged viewer. Verify `TestGo2RTCTuya*Browser`, existing media browser smokes and `node scripts/test-ui-regressions.mjs`.

@@ -40,7 +40,7 @@ var go2RTCSidecarAliasTest []byte
 
 func go2RTCManagedImage(base string) string {
 	input := append(append([]byte(base), go2RTCSidecarDockerfile...), go2RTCSidecarPatch...)
-	for _, part := range [][]byte{go2RTCSidecarTuyaPatch, go2RTCSidecarTuyaAPI, go2RTCSidecarTuyaRuntime, go2RTCSidecarTuyaTest, go2RTCSidecarTuyaAPITest} {
+	for _, part := range [][]byte{go2RTCSidecarTest, go2RTCSidecarAliasTest, go2RTCSidecarTuyaPatch, go2RTCSidecarTuyaAPI, go2RTCSidecarTuyaRuntime, go2RTCSidecarTuyaTest, go2RTCSidecarTuyaAPITest} {
 		input = append(input, part...)
 	}
 	sum := sha256.Sum256(input)

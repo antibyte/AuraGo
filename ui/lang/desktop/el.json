@@ -7954,5 +7954,8 @@
   "desktop.network_cameras.snapshot_fallback": "Το στιγμιότυπο δεν είναι διαθέσιμο· χρησιμοποιείται εικόνα από τη ροή.",
   "desktop.network_cameras.camera_error": "Το τελευταίο αίτημα εικόνας απέτυχε. Ελέγξτε τη διάγνωση κάμερας.",
   "desktop.network_cameras.talk_permission": "Απαιτείται άδεια ομιλίας.",
-  "desktop.network_cameras.talk_busy": "Το μικρόφωνο της κάμερας είναι κατειλημμένο"
+  "desktop.network_cameras.talk_busy": "Το μικρόφωνο της κάμερας είναι κατειλημμένο",
+  "desktop.network_cameras.method_tuya": "Tuya",
+  "desktop.network_cameras.method_tuya_help": "Προσθήκη κάμερας Tuya",
+  "desktop.network_cameras.talk_unavailable": "Δεν έχει επιβεβαιωθεί κανάλι επιστροφής ήχου."
 }

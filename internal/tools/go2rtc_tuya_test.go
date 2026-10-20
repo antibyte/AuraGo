@@ -54,3 +54,19 @@ func TestGo2RTCTuyaPrivateRequestAndCapability(t *testing.T) {
 		t.Fatal("unexpected or unsafe Tuya result")
 	}
 }
+
+func TestGo2RTCTuyaAccountLimitIncludesNativeProbes(t *testing.T) {
+	m := NewGo2RTCManager(&config.Config{}, nil, nil, nil)
+	defer m.Close()
+	release, ok := m.claimTuya("home")
+	if !ok {
+		t.Fatal("could not reserve account")
+	}
+	if result := m.TuyaTest(context.Background(), "", "home"); result.ErrorCode != "tuya_busy" {
+		t.Fatal("second native/REST probe admitted")
+	}
+	if result := m.TuyaDiscover(context.Background(), config.Go2RTCTuyaAccount{ID: "home"}, config.Go2RTCTuyaCredentials{}); result.ErrorCode != "tuya_busy" {
+		t.Fatal("discovery bypassed account limit")
+	}
+	release()
+}

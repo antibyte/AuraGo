@@ -7954,5 +7954,8 @@
   "desktop.network_cameras.snapshot_fallback": "Zdjęcie z kamery niedostępne; użyto obrazu ze strumienia.",
   "desktop.network_cameras.camera_error": "Ostatnie żądanie obrazu nie powiodło się. Sprawdź diagnostykę kamery.",
   "desktop.network_cameras.talk_permission": "Wymagane uprawnienie do mówienia.",
-  "desktop.network_cameras.talk_busy": "Mikrofon kamery jest zajęty"
+  "desktop.network_cameras.talk_busy": "Mikrofon kamery jest zajęty",
+  "desktop.network_cameras.method_tuya": "Tuya",
+  "desktop.network_cameras.method_tuya_help": "Dodaj kamerę Tuya",
+  "desktop.network_cameras.talk_unavailable": "Brak potwierdzonego zwrotnego kanału audio."
 }

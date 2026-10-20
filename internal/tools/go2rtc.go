@@ -112,6 +112,8 @@ type go2RTCSnapshotCacheEntry struct {
 
 // Go2RTCManager owns AuraGo's client, sidecar lifecycle, and runtime reconciliation.
 type Go2RTCManager struct {
+	tuyaMu             sync.Mutex
+	tuyaBusy           map[string]bool
 	hardwareVerifiedAt string
 	hardwareBackend    string
 	hardwareKey        string

@@ -52,6 +52,48 @@ func prepareTuyaChanges(old config.Go2RTCConfig, next *config.Go2RTCConfig, vaul
 	accounts := map[string]config.Go2RTCTuyaAccount{}
 	credentials := map[string]config.Go2RTCTuyaCredentials{}
 	changes := append([]go2RTCSourceChange(nil), sources...)
+	wantedCameras := map[string]bool{}
+	for _, camera := range next.Streams {
+		wantedCameras[camera.ID] = true
+	}
+	for _, previous := range old.Streams {
+		if !wantedCameras[previous.ID] {
+			for _, role := range []string{"main", "sub", "snapshot"} {
+				changes = append(changes, go2RTCSourceChange{ID: previous.ID, Role: role, Delete: true})
+			}
+			continue
+		}
+		if previous.Tuya == nil {
+			continue
+		}
+		for _, camera := range next.Streams {
+			if camera.ID != previous.ID || camera.Tuya != nil {
+				continue
+			}
+			replaced := false
+			explicitRoles := map[string]bool{}
+			for _, change := range sources {
+				if change.ID == camera.ID {
+					role := change.Role
+					if role == "" {
+						role = "main"
+					}
+					explicitRoles[role] = true
+					if role == "main" && !change.Delete && change.Value != "" {
+						replaced = true
+					}
+				}
+			}
+			if !replaced {
+				return nil, fmt.Errorf("removing a Tuya binding requires replacing the camera source or deleting the camera")
+			}
+			for _, role := range []string{"sub", "snapshot"} {
+				if !explicitRoles[role] {
+					changes = append(changes, go2RTCSourceChange{ID: camera.ID, Role: role, Delete: true})
+				}
+			}
+		}
+	}
 	for i, a := range next.TuyaAccounts {
 		if config.Go2RTCTuyaAccountKey(a.ID) == "" || accounts[a.ID].ID != "" {
 			return nil, fmt.Errorf("invalid or duplicate Tuya account ID")

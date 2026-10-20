@@ -19,47 +19,103 @@ import (
 func BoundHTTPClient(ctx context.Context, client *http.Client, requests int32) *http.Client {
 	copy := *client
 	base := client.Transport
-	if base == nil { transport := http.DefaultTransport.(*http.Transport).Clone(); transport.Proxy = nil; base = transport }
-	copy.Transport = &boundedTuyaTransport{ctx:ctx, base:base, requests:requests}
+	if base == nil {
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.Proxy = nil
+		base = transport
+	}
+	copy.Transport = &boundedTuyaTransport{ctx: ctx, base: base, requests: requests}
 	copy.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	context.AfterFunc(ctx, copy.CloseIdleConnections)
 	return &copy
 }
 
-type boundedTuyaTransport struct { ctx context.Context; base http.RoundTripper; requests int32; count atomic.Int32 }
-func (t *boundedTuyaTransport) RoundTrip(r *http.Request) (*http.Response,error) {
-	if t.count.Add(1) > t.requests { return nil, errors.New("Tuya request budget exceeded") }
-	response, err := t.base.RoundTrip(r.Clone(t.ctx)); if err != nil { return nil, err }
+func (t *boundedTuyaTransport) CloseIdleConnections() {
+	if base, ok := t.base.(interface{ CloseIdleConnections() }); ok {
+		base.CloseIdleConnections()
+	}
+}
+
+type boundedTuyaTransport struct {
+	ctx      context.Context
+	base     http.RoundTripper
+	requests int32
+	count    atomic.Int32
+}
+
+func (t *boundedTuyaTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if t.count.Add(1) > t.requests {
+		return nil, errors.New("Tuya request budget exceeded")
+	}
+	response, err := t.base.RoundTrip(r.Clone(t.ctx))
+	if err != nil {
+		return nil, err
+	}
 	defer response.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(response.Body,(1<<20)+1))
-	if err != nil { return nil,err }; if len(data)>1<<20 { return nil,errors.New("Tuya response exceeds limit") }
-	if response.StatusCode != http.StatusOK { return nil,fmt.Errorf("Tuya HTTP %d",response.StatusCode) }
-	response.Body = io.NopCloser(bytes.NewReader(data)); return response,nil
+	data, err := io.ReadAll(io.LimitReader(response.Body, (1<<20)+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > 1<<20 {
+		return nil, errors.New("Tuya response exceeds limit")
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Tuya HTTP %d", response.StatusCode)
+	}
+	response.Body = io.NopCloser(bytes.NewReader(data))
+	return response, nil
 }
 
 func (c *TuyaClient) SetContext(ctx context.Context) {
 	c.ctx = ctx
-	c.httpClient = BoundHTTPClient(ctx,c.httpClient,16)
+	c.httpClient = BoundHTTPClient(ctx, c.httpClient, 16)
 }
-func (c *TuyaClient) requestContext() context.Context { if c.ctx != nil { return c.ctx }; return context.Background() }
+func (c *TuyaClient) requestContext() context.Context {
+	if c.ctx != nil {
+		return c.ctx
+	}
+	return context.Background()
+}
 func (c *TuyaClient) TalkSupported() bool {
-	if c.skill == nil { return false }
-	if c.skill.WebRTC & (1<<4) != 0 { return true }
+	if c.skill == nil {
+		return false
+	}
+	if c.skill.WebRTC&(1<<4) != 0 {
+		return true
+	}
 	return false
 }
 
 func waitTuyaToken(ctx context.Context, token mqtt.Token) error {
-	ctx,cancel:=context.WithTimeout(ctx,5*time.Second); defer cancel()
-	select { case <-ctx.Done(): return ctx.Err(); case <-token.Done(): return token.Error() }
+	budget := 5 * time.Second
+	if deadline, ok := ctx.Deadline(); ok {
+		budget = time.Until(deadline)
+	}
+	ctx, cancel := context.WithTimeout(ctx, budget)
+	defer cancel()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-token.Done():
+		return token.Error()
+	}
 }
 
 func TuyaErrorCode(err error) string {
-	if errors.Is(err,context.Canceled) || errors.Is(err,context.DeadlineExceeded) { return "tuya_timeout" }
-	s:=strings.ToLower(err.Error())
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return "tuya_timeout"
+	}
+	s := strings.ToLower(err.Error())
 	switch {
-	case strings.Contains(s,"region"): return "tuya_region_error"
-	case strings.Contains(s,"permission"), strings.Contains(s,"service"), strings.Contains(s,"subscription"), strings.Contains(s,"http 403"), strings.Contains(s,"1106"): return "tuya_permission_missing"
-	case strings.Contains(s,"password"), strings.Contains(s,"login"), strings.Contains(s,"token"), strings.Contains(s,"http 401"): return "tuya_auth_failed"
-	case strings.Contains(s,"mqtt"): return "tuya_mqtt_failed"
-	default: return "tuya_connection_failed"
+	case strings.Contains(s, "region"):
+		return "tuya_region_error"
+	case strings.Contains(s, "permission"), strings.Contains(s, "service"), strings.Contains(s, "subscription"), strings.Contains(s, "http 403"), strings.Contains(s, "1106"):
+		return "tuya_permission_missing"
+	case strings.Contains(s, "password"), strings.Contains(s, "login"), strings.Contains(s, "token"), strings.Contains(s, "http 401"):
+		return "tuya_auth_failed"
+	case strings.Contains(s, "mqtt"):
+		return "tuya_mqtt_failed"
+	default:
+		return "tuya_connection_failed"
 	}
 }

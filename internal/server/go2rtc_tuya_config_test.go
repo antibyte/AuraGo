@@ -91,3 +91,34 @@ func TestGo2RTCTuyaConfigPatchAndRollback(t *testing.T) {
 		t.Fatal("GET config leaked credentials")
 	}
 }
+
+func TestGo2RTCTuyaRemovingCameraClearsVaultAndCannotDetachSilently(t *testing.T) {
+	s, _, vault := newGo2RTCMutationTestServer(t, "http://127.0.0.1:1984", false)
+	_, err := updateManagedGo2RTCConfigWithTuya(context.Background(), s, func(c *config.Go2RTCConfig) error {
+		c.TuyaAccounts = []config.Go2RTCTuyaAccount{{ID: "home", Name: "Home", Method: "smart", Region: "eu-central"}}
+		c.Streams = []config.Go2RTCStreamConfig{{ID: "door", Name: "Door", Tuya: &config.Go2RTCTuyaBinding{AccountID: "home", MainResolution: "hd", SubResolution: "sd"}}}
+		return nil
+	}, nil, false, go2RTCTuyaInputs{Accounts: map[string]map[string]string{"home": {"email": "email@example.org", "password": "secretABC"}}, Devices: map[string]string{"door": "device123"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := func(body string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		handleUpdateConfig(s)(w, httptest.NewRequest("PUT", "/api/config", strings.NewReader(body)))
+		return w
+	}
+	if w := request(`{"go2rtc":{"streams":[{"id":"door","name":"Door","enabled":false,"tuya":null}]}}`); w.Code != 400 {
+		t.Fatal("binding silently detached", w.Code, w.Body.String())
+	}
+	if _, err := vault.ReadSecret(config.Go2RTCSourceKey("door", "main")); err != nil {
+		t.Fatal("failed edit removed source")
+	}
+	if w := request(`{"go2rtc":{"streams":[],"tuya_accounts":[]}}`); w.Code != 200 {
+		t.Fatal("camera/account removal failed", w.Code, w.Body.String())
+	}
+	for _, key := range []string{config.Go2RTCSourceKey("door", "main"), config.Go2RTCSourceKey("door", "sub"), config.Go2RTCTuyaAccountKey("home")} {
+		if _, err := vault.ReadSecret(key); err == nil {
+			t.Fatal("removed camera or account retained credentials", key)
+		}
+	}
+}

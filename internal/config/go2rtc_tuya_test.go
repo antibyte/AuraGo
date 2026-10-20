@@ -2,6 +2,8 @@ package config
 
 import (
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -31,5 +33,25 @@ func TestGo2RTCTuyaSources(t *testing.T) {
 	data, err := yaml.Marshal(Go2RTCConfig{TuyaAccounts: []Go2RTCTuyaAccount{{ID: "tuya-home", Name: "Home", Method: "smart", Region: "eu-central"}}})
 	if err != nil || strings.Contains(string(data), "password") || strings.Contains(string(data), "email") {
 		t.Fatal("account YAML includes credentials")
+	}
+}
+
+func TestGo2RTCTuyaMetadataRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("server:\n  ui_language: en\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Go2RTC.TuyaAccounts = []Go2RTCTuyaAccount{{ID: "home", Name: "Home", Method: "smart", Region: "eu-central", Revision: "fixture"}}
+	cfg.Go2RTC.Streams = []Go2RTCStreamConfig{{ID: "door", Name: "Door", Tuya: &Go2RTCTuyaBinding{AccountID: "home", MainResolution: "hd", SubResolution: "sd"}}}
+	if err := cfg.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(path)
+	if err != nil || len(loaded.Go2RTC.TuyaAccounts) != 1 || loaded.Go2RTC.Streams[0].Tuya.AccountID != "home" {
+		t.Fatal("Tuya metadata did not survive Config.Save", err)
 	}
 }

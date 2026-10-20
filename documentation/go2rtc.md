@@ -190,4 +190,8 @@ The optional administrator Web UI is a read-only subset of the original go2rtc i
 
 ## License
 
-go2rtc is Copyright AlexxIT and contributors and is distributed under the MIT License. AuraGo does not modify or rebuild the upstream image; it pulls the pinned published image at runtime. Review the upstream [license](https://github.com/AlexxIT/go2rtc/blob/v1.9.14/LICENSE) and [release notes](https://github.com/AlexxIT/go2rtc/releases/tag/v1.9.14) before overriding the pinned image.
+go2rtc is Copyright AlexxIT and contributors and is distributed under the MIT License. AuraGo builds its managed sidecar from pinned upstream sources and base images, adding the reviewed private lifecycle and Tuya patches. Review the upstream [license](https://github.com/AlexxIT/go2rtc/blob/v1.9.14/LICENSE) and [release notes](https://github.com/AlexxIT/go2rtc/releases/tag/v1.9.14) before overriding the pinned image.
+
+## Tuya cameras
+
+The shared Tuya account editor supports Smart discovery and Cloud device-ID setup, with HD/SD probes and Vault-only credentials. See [Tuya setup, security and acceptance](go2rtc-tuya.md).

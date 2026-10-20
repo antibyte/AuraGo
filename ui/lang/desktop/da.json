@@ -7954,5 +7954,8 @@
   "desktop.network_cameras.snapshot_fallback": "Kamerabilledet er utilgængeligt; et billede fra strømmen bruges.",
   "desktop.network_cameras.camera_error": "Seneste billedforespørgsel mislykkedes. Kontrollér kameradiagnosen.",
   "desktop.network_cameras.talk_permission": "Tilladelse til at tale kræves.",
-  "desktop.network_cameras.talk_busy": "Kameraets mikrofon er optaget"
+  "desktop.network_cameras.talk_busy": "Kameraets mikrofon er optaget",
+  "desktop.network_cameras.method_tuya": "Tuya",
+  "desktop.network_cameras.method_tuya_help": "Tilføj Tuya-kamera",
+  "desktop.network_cameras.talk_unavailable": "Ingen bekræftet lydkanal tilbage."
 }

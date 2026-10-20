@@ -804,3 +804,10 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
 ## Child DOX Index
 
 None.
+
+### Tuya camera contract
+- `go2rtc.tuya_accounts` contains metadata only. The account credential JSON and generated role URLs are Vault-only. `prepareTuyaChanges` is shared by app/account mutations and generic config saves under `CfgSaveMu`; rollback includes accounts and every affected role. Full account lists replace atomically; deletion of referenced accounts is a conflict. Masked/blank fields preserve credentials; changing method requires a complete replacement.
+- Tuya management/discovery/probes require the full admin/auth/origin chain. Both `api/tuya` and `api/aurago/*` stay blocked even through the optional upstream Web UI. Discovery returns opaque identity/account/revision-bound selections, never device IDs or URLs. Reserve until publication; 202 consumes the reservation because desired state is already saved.
+- Setup tokens: 5 minutes, 32 sessions, 128 candidates. Search: 20 seconds, 32 households, 1 MiB responses. Account mutations invalidate old selections by server-owned random revisions. Deleted/recreated IDs never recover an old selection.
+- Account renaming must not alter source/revision identity. Credential changes retire only bound cameras; account metadata never joins container fingerprints. Stopped sidecars remain stopped on save.
+- Verify `TestGo2RTCTuya*`, the full-route auth tests and camera/source revision regressions. See `documentation/go2rtc-tuya.md`.

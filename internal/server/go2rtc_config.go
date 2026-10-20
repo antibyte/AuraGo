@@ -91,6 +91,21 @@ func updateManagedGo2RTCConfigWithTuya(ctx context.Context, s *Server, mutate fu
 				s.Logger.Error("[go2rtc] Failed to roll back camera source transaction", "error", rollbackErr)
 			}
 		}()
+		for i := range nextCfg.Go2RTC.Streams {
+			for _, change := range changes {
+				if change.ID == nextCfg.Go2RTC.Streams[i].ID && change.AccountID == "" {
+					value := change.Value
+					if change.Delete {
+						value = ""
+					}
+					role := change.Role
+					if role == "" {
+						role = "main"
+					}
+					config.Go2RTCSetRoleSource(&nextCfg.Go2RTC.Streams[i], role, value)
+				}
+			}
+		}
 		if err := validateManagedDockerBackends(nextCfg, oldCfg.Runtime); err != nil {
 			return publication{}, err
 		}

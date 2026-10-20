@@ -13,6 +13,7 @@ import (
 	"aurago/internal/tools"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -535,7 +536,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			return
 		}
 		if err := prepareTuyaConfigPatch(s, rawCfg, patch, go2RTCSourceTxn); err != nil {
-			jsonError(w, security.Scrub(err.Error()), http.StatusBadRequest)
+			var mutation *go2RTCMutationError
+			if errors.As(err, &mutation) {
+				writeGo2RTCMutationFailure(w, err)
+			} else {
+				jsonError(w, security.Scrub(err.Error()), http.StatusBadRequest)
+			}
 			return
 		}
 		// The local_wikipedia values before the merge: the save validates

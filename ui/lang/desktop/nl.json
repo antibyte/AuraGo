@@ -7954,5 +7954,8 @@
   "desktop.network_cameras.snapshot_fallback": "Cameraopname niet beschikbaar; er wordt een streambeeld gebruikt.",
   "desktop.network_cameras.camera_error": "De laatste beeldaanvraag is mislukt. Controleer de cameradiagnose.",
   "desktop.network_cameras.talk_permission": "Spreektoestemming vereist.",
-  "desktop.network_cameras.talk_busy": "De cameramicrofoon is bezet"
+  "desktop.network_cameras.talk_busy": "De cameramicrofoon is bezet",
+  "desktop.network_cameras.method_tuya": "Tuya",
+  "desktop.network_cameras.method_tuya_help": "Tuya-camera toevoegen",
+  "desktop.network_cameras.talk_unavailable": "Geen bevestigd audioterugkanaal."
 }

@@ -3,7 +3,9 @@ package tools
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -96,6 +98,11 @@ func (m *Go2RTCManager) tuyaRequest(ctx context.Context, request map[string]stri
 }
 
 func (m *Go2RTCManager) TuyaDiscover(ctx context.Context, a config.Go2RTCTuyaAccount, c config.Go2RTCTuyaCredentials) Go2RTCTuyaResult {
+	release, ok := m.claimTuya(a.ID)
+	if !ok {
+		return Go2RTCTuyaResult{Status: "error", ErrorCode: "tuya_busy"}
+	}
+	defer release()
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	if a.Method != "smart" || config.ValidateGo2RTCTuyaCredentials(a.Method, c) != nil {
@@ -106,7 +113,26 @@ func (m *Go2RTCManager) TuyaDiscover(ctx context.Context, a config.Go2RTCTuyaAcc
 	return m.tuyaRequest(ctx, map[string]string{"action": "discover", "region": config.Go2RTCTuyaHost(a.Method, a.Region), "email": c.Email, "password": c.Password})
 }
 
-func (m *Go2RTCManager) TuyaTest(ctx context.Context, source string) Go2RTCTuyaResult {
+func (m *Go2RTCManager) TuyaTest(ctx context.Context, source string, accounts ...string) Go2RTCTuyaResult {
+	account := ""
+	if len(accounts) > 0 {
+		account = accounts[0]
+	} else {
+		for _, camera := range m.Config().Streams {
+			if camera.Source == source && camera.Tuya != nil {
+				account = camera.Tuya.AccountID
+				break
+			}
+		}
+	}
+	if account == "" {
+		account = fmt.Sprintf("%x", sha256.Sum256([]byte(source)))
+	}
+	release, ok := m.claimTuya(account)
+	if !ok {
+		return Go2RTCTuyaResult{Status: "error", ErrorCode: "tuya_busy"}
+	}
+	defer release()
 	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 	if config.ValidateGo2RTCTuyaSource(source) != nil {
@@ -118,6 +144,19 @@ func (m *Go2RTCManager) TuyaTest(ctx context.Context, source string) Go2RTCTuyaR
 		result.Suggestion = "sd"
 	}
 	return result
+}
+
+func (m *Go2RTCManager) claimTuya(account string) (func(), bool) {
+	m.tuyaMu.Lock()
+	defer m.tuyaMu.Unlock()
+	if m.tuyaBusy == nil {
+		m.tuyaBusy = map[string]bool{}
+	}
+	if m.tuyaBusy[account] {
+		return nil, false
+	}
+	m.tuyaBusy[account] = true
+	return func() { m.tuyaMu.Lock(); delete(m.tuyaBusy, account); m.tuyaMu.Unlock() }, true
 }
 
 func go2RTCTuyaTalkSupported(raw interface{}) bool {

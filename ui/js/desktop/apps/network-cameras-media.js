@@ -25,6 +25,7 @@
         for (const key of Object.keys(choices)) result[key] = saved[key] || choices[key][0][0];
         result.preload = !!saved.preload;
         result.talk_enabled = !!saved.talk_enabled;
+        if (stream.tuya) { result.tuya_account_id = stream.tuya.account_id; result.tuya_main = stream.tuya.main_resolution; result.tuya_sub = stream.tuya.sub_resolution || ""; }
         return result;
     }
     function patch(modal) {
@@ -33,17 +34,25 @@
         for (const key of ['preload', 'talk_enabled', 'clear_sub_source', 'clear_snapshot_source']) result[key] = !!modal[key];
         result.sub_source = modal.sub_source || '';
         result.snapshot_source = modal.snapshot_source || '';
+        if (modal.tuya_account_id) result.tuya = { account_id: modal.tuya_account_id, main_resolution: modal.tuya_main, sub_resolution: modal.tuya_sub || '' };
         return result;
     }
     function fields(state, modal) {
         const esc = state.ctx.esc;
         let html = '<details class="nc-media-options"><summary>' + esc(text(state, 'media_settings')) + '</summary><div class="nc-form">';
+        if (modal.tuya_account_id) {
+            const tr = key => state.ctx.t('common.go2rtc_tuya.' + key);
+            for (const [field, label, options] of [['tuya_account_id', 'account', (state.data.tuya_accounts || []).map(a => [a.id, a.name])], ['tuya_main', 'main', [['hd', 'HD'], ['sd', 'SD']]], ['tuya_sub', 'sub', [['', tr('none')], ['sd', 'SD'], ['hd', 'HD']]]]) html += '<label>' + esc(tr(label)) + '<select data-field="' + field + '">' + options.map(([value, label]) => '<option value="' + esc(value) + '" ' + (modal[field] === value ? 'selected' : '') + '>' + esc(label) + '</option>').join('') + '</select></label>';
+            html += '<p>' + esc(tr('cloud_notice')) + '</p>';
+        }
         for (const key of ['sub_source', 'snapshot_source']) {
+            if (modal.tuya_account_id) continue;
             html += '<label>' + esc(text(state, key)) + '<input type="password" autocomplete="off" data-field="' + key + '" value="' + esc(modal[key] || '') + '" placeholder="' + esc(text(state, 'keep_source')) + '"></label>';
             html += '<label class="nc-check"><input type="checkbox" data-field="clear_' + key + '" ' + (modal['clear_' + key] ? 'checked' : '') + '><span>' + esc(text(state, 'clear_' + key)) + '</span></label>';
         }
         for (const [key, options] of Object.entries(choices)) {
-            html += '<label>' + esc(text(state, key)) + '<select data-field="' + key + '">' + options.map(([value, label]) => '<option value="' + value + '" ' + ((modal[key] || options[0][0]) === value ? 'selected' : '') + '>' + esc(optionText(state, label)) + '</option>').join('') + '</select></label>';
+            if (modal.tuya_account_id && key === "transport") continue;
+            html += '<label>' + esc(text(state, key)) + '<select data-field="' + key + '">' + options.filter(([value]) => !(modal.tuya_account_id && key === 'snapshot_mode' && value === 'camera')).map(([value, label]) => '<option value="' + value + '" ' + ((modal[key] || options[0][0]) === value ? 'selected' : '') + '>' + esc(optionText(state, label)) + '</option>').join('') + '</select></label>';
         }
         for (const key of ['preload', 'talk_enabled']) html += '<label class="nc-check"><input type="checkbox" data-field="' + key + '" ' + (modal[key] ? 'checked' : '') + '><span>' + esc(text(state, key)) + '</span></label>';
         return html + '</div></details>';
@@ -56,7 +65,7 @@
         if (stream.has_substream) html += '<label class="nc-source-choice"><span>' + esc(text(state, 'media_source')) + '</span><select data-role="media-source"><option value="main" ' + (sourceRole(state, stream) === 'main' ? 'selected' : '') + '>' + esc(text(state, 'main_stream')) + '</option><option value="sub" ' + (sourceRole(state, stream) === 'sub' ? 'selected' : '') + '>' + esc(text(state, 'sub_stream')) + '</option></select></label>';
         if (state.data.can_manage) html += '<button type="button" data-media-action="diagnose">' + esc(text(state, 'diagnose')) + '</button>';
         if (stream.media && stream.media.talk_enabled) {
-            const reason = !state.data.can_talk ? 'talk_permission' : (stream.talk_busy && (!state.mediaTalk || state.mediaTalk.camera !== stream.id)) ? 'talk_busy' : !state.data.webrtc_enabled ? 'talk_requires_webrtc' : stream.media_ready === false ? 'connecting' : (!window.isSecureContext || !navigator.mediaDevices ? 'talk_https' : '');
+            const reason = !state.data.can_talk ? 'talk_permission' : stream.source_type === 'tuya' && !stream.talk_supported ? 'talk_unavailable' : (stream.talk_busy && (!state.mediaTalk || state.mediaTalk.camera !== stream.id)) ? 'talk_busy' : !state.data.webrtc_enabled ? 'talk_requires_webrtc' : stream.media_ready === false ? 'connecting' : (!window.isSecureContext || !navigator.mediaDevices ? 'talk_https' : '');
             html += '<button class="nc-talk" type="button" data-role="talk" aria-pressed="false" title="' + esc(text(state, reason || 'talk_hold')) + '" ' + (reason ? 'disabled' : '') + '>' + esc(text(state, reason === 'talk_busy' ? 'talk_busy' : 'talk_hold')) + '</button>';
         }
         return html;

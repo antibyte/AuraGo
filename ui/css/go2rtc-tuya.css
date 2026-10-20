@@ -1,0 +1,13 @@
+.go2rtc-tuya-dialog{box-sizing:border-box;width:min(700px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--border-color,#435063);border-radius:14px;background:var(--vd-surface-strong,var(--bg-secondary,#182231));color:var(--vd-text,var(--text-primary,#edf1f5));font:inherit;overflow:auto}
+.go2rtc-tuya-dialog::backdrop{background:#0009}
+.go2rtc-tuya-dialog header,.go2rtc-tuya-dialog nav,.go2rtc-tuya-dialog .gt-actions,.go2rtc-tuya-dialog .gt-account-list{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.go2rtc-tuya-dialog header{justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border-color,#435063)}
+.go2rtc-tuya-dialog h2{font-size:1.2rem;margin:0}.go2rtc-tuya-dialog nav{padding:12px 20px}.go2rtc-tuya-dialog .gt-body{padding:8px 20px 20px}
+.go2rtc-tuya-dialog button{min-height:44px;padding:8px 14px;border:1px solid var(--border-color,#52627b);border-radius:8px;background:var(--vd-surface,var(--bg-tertiary,#28384d));color:inherit;font:inherit;cursor:pointer}
+.go2rtc-tuya-dialog button:disabled{opacity:.5;cursor:default}.go2rtc-tuya-dialog button:focus-visible,.go2rtc-tuya-dialog input:focus-visible,.go2rtc-tuya-dialog select:focus-visible{outline:2px solid var(--accent-color,#79b5ff);outline-offset:2px}
+.go2rtc-tuya-dialog .gt-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}.go2rtc-tuya-dialog label{display:grid;gap:6px;min-width:0;margin:10px 0}
+.go2rtc-tuya-dialog input,.go2rtc-tuya-dialog select{box-sizing:border-box;width:100%;min-height:44px;padding:8px 10px;border:1px solid var(--border-color,#52627b);border-radius:7px;background:var(--vd-bg,var(--bg-primary,#111b29));color:inherit;font:inherit}
+.go2rtc-tuya-dialog p{font-size:.92rem;line-height:1.5;overflow-wrap:anywhere}.go2rtc-tuya-dialog .gt-error{color:var(--danger-color,#ffaaa6)}.go2rtc-tuya-dialog .gt-status{color:var(--vd-muted,var(--text-secondary,#bbc8d8))}
+@media(max-width:520px){.go2rtc-tuya-dialog .gt-form{grid-template-columns:1fr}.go2rtc-tuya-dialog header,.go2rtc-tuya-dialog nav{padding:12px}.go2rtc-tuya-dialog .gt-body{padding:4px 12px 14px}.go2rtc-tuya-dialog .gt-actions>button{flex:1}}
+
+.desktop-body[data-theme="fruity"] .go2rtc-tuya-dialog .gt-error{color:#a51b1b}
