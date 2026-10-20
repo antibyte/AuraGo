@@ -103,7 +103,7 @@ func mutateTuyaAccount(s *Server, w http.ResponseWriter, r *http.Request, id str
 				}
 			}
 			if len(cameras) > 0 {
-				return &go2RTCMutationError{Status: 409, Code: "tuya_account_in_use", Message: fmt.Sprintf("Tuya account is used by cameras: %s", strings.Join(cameras, ", "))}
+				return &go2RTCMutationError{Status: 409, Code: "tuya_account_in_use", Cameras: cameras, Message: fmt.Sprintf("Tuya account is used by cameras: %s", strings.Join(cameras, ", "))}
 			}
 			cfg.TuyaAccounts = append(cfg.TuyaAccounts[:found], cfg.TuyaAccounts[found+1:]...)
 			return nil

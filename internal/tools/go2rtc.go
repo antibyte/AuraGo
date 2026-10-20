@@ -38,6 +38,8 @@ const (
 
 // Go2RTCStreamStatus is the deliberately sanitized public stream view.
 type Go2RTCStreamStatus struct {
+	SourceType        string              `json:"source_type,omitempty"`
+	TalkSupported     bool                `json:"talk_supported"`
 	Revision          uint64              `json:"revision"`
 	MediaReady        bool                `json:"media_ready"`
 	SourcePending     bool                `json:"source_pending"`
@@ -64,6 +66,7 @@ type Go2RTCStreamStatus struct {
 
 // Go2RTCStatus distinguishes configuration, container, and API state.
 type Go2RTCStatus struct {
+	TuyaSetup          bool   `json:"tuya_setup"`
 	Configured         bool   `json:"configured"`
 	Enabled            bool   `json:"enabled"`
 	ContainerRunning   bool   `json:"container_running"`
@@ -484,6 +487,9 @@ func (m *Go2RTCManager) Test(ctx context.Context) (Go2RTCStatus, error) {
 	}
 	m.mu.Lock()
 	m.status.WebRTCSessionBound = bound
+	if object, ok := raw.(map[string]interface{}); ok {
+		m.status.TuyaSetup = firstString(object, "aurago_tuya") == "post-v1"
+	}
 	m.mu.Unlock()
 	m.setAPIStatus(true, version, "")
 	return m.currentStatus(), nil
@@ -530,6 +536,9 @@ func (m *Go2RTCManager) ListStreams(ctx context.Context) ([]Go2RTCStreamStatus, 
 			continue
 		}
 		entry := Go2RTCStreamStatus{ID: stream.ID, Name: stream.Name, Codecs: []string{}}
+		if stream.Tuya != nil {
+			entry.SourceType = "tuya"
+		}
 		m.applyMediaStatus(&entry, stream)
 		aliases := m.mediaAliases(stream.ID)
 		seen := map[string]bool{}
@@ -539,6 +548,7 @@ func (m *Go2RTCManager) ListStreams(ctx context.Context) ([]Go2RTCStreamStatus, 
 			}
 			seen[alias] = true
 			if raw, ok := upstream[alias].(map[string]interface{}); ok {
+				entry.TalkSupported = entry.TalkSupported || go2RTCTuyaTalkSupported(raw)
 				entry.Producers += sliceLength(raw["producers"])
 				entry.Consumers += go2RTCViewerCount(raw["consumers"])
 				readGo2RTCTelemetry(raw, &entry)
@@ -1084,7 +1094,20 @@ func (m *Go2RTCManager) requestBytes(ctx context.Context, method, path string, b
 	}
 	req.SetBasicAuth(go2RTCAPIUser, password)
 	req.Header.Set("User-Agent", "AuraGo Camera Snapshot")
-	resp, err := m.client.Do(req)
+	client := m.client
+	if strings.HasPrefix(path, "/api/aurago/tuya") {
+		copy := *client
+		copy.Timeout = 45 * time.Second
+		if transport, ok := copy.Transport.(*http.Transport); ok {
+			cloned := transport.Clone()
+			cloned.ResponseHeaderTimeout = 45 * time.Second
+			copy.Transport = cloned
+		}
+		client = &copy
+		defer client.CloseIdleConnections()
+		req.Header.Set("Content-Type", "application/json")
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		var requestErr *url.Error
 		if errors.As(err, &requestErr) && requestErr.Err != nil {

@@ -38,6 +38,8 @@ func registerGo2RTCRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/go2rtc/discovery", admin(handleGo2RTCDiscovery(s)))
 	mux.HandleFunc("/api/go2rtc/tuya/accounts", admin(handleGo2RTCTuyaAccounts(s)))
 	mux.HandleFunc("/api/go2rtc/tuya/accounts/", admin(handleGo2RTCTuyaAccount(s)))
+	mux.HandleFunc("/api/go2rtc/tuya/discover", admin(handleGo2RTCTuyaSetup(s, true)))
+	mux.HandleFunc("/api/go2rtc/tuya/test", admin(handleGo2RTCTuyaSetup(s, false)))
 	mux.HandleFunc("/api/go2rtc/discovery/profiles", admin(handleGo2RTCDiscoveryProfiles(s)))
 	mux.HandleFunc("/api/go2rtc/streams", handleGo2RTCStreamsRoute(s))
 	mux.HandleFunc("/api/go2rtc/streams/", admin(handleGo2RTCStreamMutation(s)))
@@ -494,6 +496,9 @@ func maskGo2RTCRuntimeSources(value interface{}) {
 
 func go2RTCProxyPathAllowed(path, method string, adminUI bool) bool {
 	path = strings.TrimLeft(strings.TrimSpace(path), "/")
+	if path == "api/tuya" || strings.HasPrefix(path, "api/tuya/") || path == "api/aurago" || strings.HasPrefix(path, "api/aurago/") {
+		return false
+	}
 	if strings.Contains(path, "..") || strings.Contains(path, "\\") {
 		return false
 	}

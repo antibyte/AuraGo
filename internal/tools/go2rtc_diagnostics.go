@@ -19,11 +19,20 @@ type Go2RTCDiagnostics struct {
 	Width            int                  `json:"width"`
 	Height           int                  `json:"height"`
 	Bytes            int                  `json:"bytes"`
+	Tuya             *Go2RTCTuyaResult    `json:"tuya,omitempty"`
 }
 
 func (m *Go2RTCManager) Diagnose(ctx context.Context, id string) (out Go2RTCDiagnostics) {
 	start := time.Now()
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	budget := 15 * time.Second
+	var tuyaSource string
+	for _, camera := range m.Config().Streams {
+		if camera.ID == id && camera.Tuya != nil {
+			budget = 45 * time.Second
+			tuyaSource = camera.Source
+		}
+	}
+	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 	defer func() { out.DurationMS = time.Since(start).Milliseconds() }()
 	out.Status = "error"
@@ -44,6 +53,15 @@ func (m *Go2RTCManager) Diagnose(ctx context.Context, id string) (out Go2RTCDiag
 	out.EffectiveBackend = "original"
 	if stream.Media.CodecProfile != "" && stream.Media.CodecProfile != "original" {
 		out.EffectiveBackend = out.Hardware.Backend
+	}
+	if tuyaSource != "" {
+		probe := m.TuyaTest(ctx, tuyaSource)
+		out.Tuya = &probe
+		if probe.Status != "ok" {
+			out.ErrorCode = probe.ErrorCode
+			out.Stage = "tuya_source"
+			return
+		}
 	}
 	out.Stage = "snapshot"
 	_, data, err := m.SnapshotBytes(ctx, id, Go2RTCSnapshotOptions{Width: 1280})

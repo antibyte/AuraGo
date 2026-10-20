@@ -1,0 +1,334 @@
+--- a/internal/tuya/tuya.go
++++ b/internal/tuya/tuya.go
+@@ -16,6 +16,7 @@
+ )
+ 
+ func Init() {
++	initAuraGoTuya()
+ 	streams.HandleFunc("tuya", func(source string) (core.Producer, error) {
+ 		return tuya.Dial(source)
+ 	})
+--- a/pkg/tuya/interface.go
++++ b/pkg/tuya/interface.go
+@@ -2,12 +2,15 @@
+ 
+ import (
+ 	"net/http"
++ "context"
+ 
+ 	"github.com/AlexxIT/go2rtc/pkg/core"
+ 	pionWebrtc "github.com/pion/webrtc/v4"
+ )
+ 
+ type TuyaAPI interface {
++ SetContext(context.Context)
++ TalkSupported() bool
+ 	GetMqtt() *TuyaMqttClient
+ 
+ 	GetStreamType(streamResolution string) int
+@@ -26,7 +29,8 @@
+ type TuyaClient struct {
+ 	TuyaAPI
+ 
+-	httpClient *http.Client
++	ctx context.Context
++ httpClient *http.Client
+ 	mqtt       *TuyaMqttClient
+ 	baseUrl    string
+ 	expireTime int64
+--- a/pkg/tuya/client.go
++++ b/pkg/tuya/client.go
+@@ -2,6 +2,9 @@
+ 
+ import (
+ 	"encoding/json"
++ "context"
++ "time"
++ "sync/atomic"
+ 	"errors"
+ 	"fmt"
+ 	"net/url"
+@@ -20,7 +23,7 @@
+ 	conn      *webrtc.Conn
+ 	pc        *pion.PeerConnection
+ 	connected core.Waiter
+-	closed    bool
++	closed    atomic.Bool
+ 
+ 	// HEVC only:
+ 	dc         *pion.DataChannel
+@@ -47,7 +50,10 @@
+ 	} `json:"audio"`
+ }
+ 
+-func Dial(rawURL string) (core.Producer, error) {
++func Dial(rawURL string) (core.Producer,error) { return DialContext(context.Background(),rawURL) }
++
++func DialContext(parent context.Context, rawURL string) (core.Producer,error) {
++ ctx,cancel:=context.WithTimeout(parent,45*time.Second);defer cancel()
+ 	escapedURL := strings.ReplaceAll(rawURL, "#", "%23")
+ 	u, err := url.Parse(escapedURL)
+ 	if err != nil {
+@@ -96,7 +102,9 @@
+ 		}
+ 	}
+ 
+-	if err := client.api.Init(); err != nil {
++	client.api.SetContext(ctx)
++ if err := client.api.Init(); err != nil {
++ client.Close(err)
+ 		return nil, fmt.Errorf("tuya: %w", err)
+ 	}
+ 
+@@ -314,7 +322,7 @@
+ 	offer = re.ReplaceAllString(offer, "")
+ 
+ 	// Send offer
+-	if err := mqttClient.SendOffer(offer, streamResolution, client.streamType, client.isHEVC); err != nil {
++	if err := mqttClient.SendOffer(ctx, offer, streamResolution, client.streamType, client.isHEVC); err != nil {
+ 		err = fmt.Errorf("tuya: %w", err)
+ 		client.Close(err)
+ 		return nil, err
+@@ -323,7 +331,10 @@
+ 	sendOffer.Done(nil)
+ 
+ 	// Wait for connection
+-	if err = client.connected.Wait(); err != nil {
++	connected:=make(chan error,1)
++ go func(){ connected<-client.connected.Wait() }()
++ select { case err= <-connected: case <-ctx.Done(): err=ctx.Err() }
++ if err != nil {
+ 		err = fmt.Errorf("tuya: %w", err)
+ 		client.Close(err)
+ 		return nil, err
+@@ -445,11 +456,11 @@
+ }
+ 
+ func (c *Client) Stop() error {
+-	if c.closed {
++	if !c.closed.CompareAndSwap(false,true) {
+ 		return nil
+ 	}
+ 
+-	c.closed = true
++	c.connected.Done(errors.New("tuya: stopped"))
+ 
+ 	c.clearHandlers()
+ 
+@@ -469,8 +480,11 @@
+ 	return c.Stop()
+ }
+ 
+-func (c *Client) MarshalJSON() ([]byte, error) {
+-	return c.conn.MarshalJSON()
++func (c *Client) TalkSupported() bool { return c.api.TalkSupported() }
++func (c *Client) MarshalJSON() ([]byte,error) {
++ data,err:=c.conn.MarshalJSON();if err!=nil{return nil,err}
++ var object map[string]any;if err=json.Unmarshal(data,&object);err!=nil{return nil,err}
++ object["tuya_talk_supported"]=c.TalkSupported();return json.Marshal(object)
+ }
+ 
+ func (c *Client) setHandler(ssrc uint32, handler func(*rtp.Packet)) {
+--- a/pkg/tuya/smart_api.go
++++ b/pkg/tuya/smart_api.go
+@@ -310,12 +310,12 @@
+ 		return fmt.Errorf("failed to load hub config: %w", err)
+ 	}
+ 
+-	if err := c.mqtt.Start(hubConfig, webrtcConfig, c.skill.WebRTC); err != nil {
++	if err := c.mqtt.Start(c.requestContext(), hubConfig, webrtcConfig, c.skill.WebRTC); err != nil {
+ 		return fmt.Errorf("failed to start MQTT: %w", err)
+ 	}
+ 
+ 	if c.skill.LowPower > 0 {
+-		_ = c.mqtt.WakeUp(c.localKey)
++		_ = c.mqtt.WakeUp(c.requestContext(), c.localKey)
+ 	}
+ 
+ 	return nil
+--- a/pkg/tuya/cloud_api.go
++++ b/pkg/tuya/cloud_api.go
+@@ -113,12 +113,12 @@
+ 		return fmt.Errorf("failed to load hub config: %w", err)
+ 	}
+ 
+-	if err := c.mqtt.Start(hubConfig, webrtcConfig, c.skill.WebRTC); err != nil {
++	if err := c.mqtt.Start(c.requestContext(), hubConfig, webrtcConfig, c.skill.WebRTC); err != nil {
+ 		return fmt.Errorf("failed to start MQTT: %w", err)
+ 	}
+ 
+ 	if c.skill.LowPower > 0 {
+-		_ = c.mqtt.WakeUp(c.localKey)
++		_ = c.mqtt.WakeUp(c.requestContext(), c.localKey)
+ 	}
+ 
+ 	return nil
+@@ -208,7 +208,7 @@
+ 	}
+ 
+ 	if !webRTCConfigResponse.Success {
+-		return nil, fmt.Errorf(webRTCConfigResponse.Msg)
++		return nil, errors.New(webRTCConfigResponse.Msg)
+ 	}
+ 
+ 	err = json.Unmarshal([]byte(webRTCConfigResponse.Result.Skill), &c.skill)
+@@ -254,7 +254,7 @@
+ 	}
+ 
+ 	if !openIoTHubConfigResponse.Success {
+-		return nil, fmt.Errorf(openIoTHubConfigResponse.Msg)
++		return nil, errors.New(openIoTHubConfigResponse.Msg)
+ 	}
+ 
+ 	return &MQTTConfig{
+--- a/pkg/tuya/mqtt.go
++++ b/pkg/tuya/mqtt.go
+@@ -3,6 +3,8 @@
+ import (
+ 	"encoding/hex"
+ 	"encoding/json"
++ "context"
++ "sync/atomic"
+ 	"errors"
+ 	"fmt"
+ 	"hash/crc32"
+@@ -26,7 +28,8 @@
+ 	motoId           string
+ 	deviceId         string
+ 	sessionId        string
+-	closed           bool
++	closed           atomic.Bool
++ stopped atomic.Bool
+ 	webrtcVersion    int
+ 	handleAnswer     func(answer AnswerFrame)
+ 	handleCandidate  func(candidate CandidateFrame)
+@@ -113,7 +116,7 @@
+ 	}
+ }
+ 
+-func (c *TuyaMqttClient) Start(hubConfig *MQTTConfig, webrtcConfig *WebRTCConfig, webrtcVersion int) error {
++func (c *TuyaMqttClient) Start(ctx context.Context, hubConfig *MQTTConfig, webrtcConfig *WebRTCConfig, webrtcVersion int) error {
+ 	c.webrtcVersion = webrtcVersion
+ 	c.motoId = webrtcConfig.MotoID
+ 	c.auth = webrtcConfig.Auth
+@@ -141,34 +144,32 @@
+ 
+ 	c.client = mqtt.NewClient(opts)
+ 
+-	if token := c.client.Connect(); token.Wait() && token.Error() != nil {
+-		return token.Error()
+-	}
+-
+-	if err := c.waiter.Wait(); err != nil {
+-		return err
+-	}
++	if err:=waitTuyaToken(ctx,c.client.Connect());err!=nil{return err}
++
++	waiting:=make(chan error,1);go func(){ waiting<-c.waiter.Wait() }()
++ select{case err:= <-waiting:if err!=nil{return err};case <-ctx.Done(): c.waiter.Done(ctx.Err());return ctx.Err()}
+ 
+ 	return nil
+ }
+ 
+ func (c *TuyaMqttClient) Stop() {
++ if !c.stopped.CompareAndSwap(false,true){return}
+ 	c.waiter.Done(errors.New("mqtt: stopped"))
+ 	c.wakeupWaiter.Done(errors.New("mqtt: stopped"))
+ 	c.speakerWaiter.Done(errors.New("mqtt: stopped"))
+ 
+ 	if c.client != nil {
+-		_ = c.SendDisconnect()
++		if c.client.IsConnected() { _ = c.SendDisconnect() }
+ 		c.client.Disconnect(100)
+ 	}
+ 
+-	c.closed = true
++	c.closed.Store(true)
+ }
+ 
+ // WakeUp sends a wake-up signal to battery-powered cameras (LowPower mode).
+ // The camera wakes up and starts responding immediately - we don't wait for dps[149].
+ // Note: LowPower cameras sleep after ~3 minutes of inactivity.
+-func (c *TuyaMqttClient) WakeUp(localKey string) error {
++func (c *TuyaMqttClient) WakeUp(ctx context.Context, localKey string) error {
+ 	// Calculate CRC32 of localKey as wake-up payload
+ 	crc := crc32.ChecksumIEEE([]byte(localKey))
+ 
+@@ -188,21 +189,17 @@
+ 	// Publish to wake-up topic: m/w/{deviceId}
+ 	wakeUpTopic := fmt.Sprintf("m/w/%s", c.deviceId)
+ 	token := c.client.Publish(wakeUpTopic, 1, false, payload)
+-	if token.Wait() && token.Error() != nil {
+-		return fmt.Errorf("failed to publish wake-up message: %w", token.Error())
+-	}
++	if err:=waitTuyaToken(ctx,token);err!=nil{return err}
+ 
+ 	// Subscribe to lowPower topic to receive dps[149] status updates
+ 	// (we don't wait for this signal - camera responds immediately)
+ 	lowPowerTopic := fmt.Sprintf("smart/decrypt/in/%s", c.deviceId)
+-	if token := c.client.Subscribe(lowPowerTopic, 1, c.onLowPowerMessage); token.Wait() && token.Error() != nil {
+-		return fmt.Errorf("failed to subscribe to lowPower topic: %w", token.Error())
+-	}
++	if err:=waitTuyaToken(ctx,c.client.Subscribe(lowPowerTopic,1,c.onLowPowerMessage));err!=nil{return err}
+ 
+ 	return nil
+ }
+ 
+-func (c *TuyaMqttClient) SendOffer(sdp string, streamResolution string, streamType int, isHEVC bool) error {
++func (c *TuyaMqttClient) SendOffer(ctx context.Context, sdp string, streamResolution string, streamType int, isHEVC bool) error {
+ 	// Map Skill StreamType to MQTT stream_type values
+ 	// streamType comes from GetStreamType() and uses Skill StreamType values:
+ 	// - mainStream = 2 (HD)
+@@ -220,7 +217,7 @@
+ 		mqttStreamType = 1 // substream (SD)
+ 	}
+ 
+-	return c.sendMqttMessage("offer", 302, "", OfferFrame{
++	return c.sendMqttMessageContext(ctx, "offer", 302, "", OfferFrame{
+ 		Mode:              "webrtc",
+ 		Sdp:               sdp,
+ 		StreamType:        mqttStreamType,
+@@ -273,8 +270,8 @@
+ }
+ 
+ func (c *TuyaMqttClient) onConnect(client mqtt.Client) {
+-	if token := client.Subscribe(c.subscribeTopic, 1, c.onMessage); token.Wait() && token.Error() != nil {
+-		c.waiter.Done(token.Error())
++	if err:=waitTuyaToken(context.Background(),client.Subscribe(c.subscribeTopic,1,c.onMessage));err!=nil {
++ c.waiter.Done(err)
+ 		return
+ 	}
+ 
+@@ -352,7 +349,7 @@
+ }
+ 
+ func (c *TuyaMqttClient) onMqttDisconnect() {
+-	c.closed = true
++	c.closed.Store(true)
+ 	c.onDisconnect()
+ }
+ 
+@@ -396,7 +393,11 @@
+ }
+ 
+ func (c *TuyaMqttClient) sendMqttMessage(messageType string, protocol int, transactionID string, data interface{}) error {
+-	if c.closed {
++ return c.sendMqttMessageContext(context.Background(),messageType,protocol,transactionID,data)
++}
++
++func(c *TuyaMqttClient) sendMqttMessageContext(ctx context.Context,messageType string,protocol int,transactionID string,data interface{})error{
++	if c.closed.Load() {
+ 		return fmt.Errorf("mqtt client is closed, send mqtt message fail")
+ 	}
+ 
+@@ -428,9 +429,7 @@
+ 	}
+ 
+ 	token := c.client.Publish(c.publishTopic, 1, false, payload)
+-	if token.Wait() && token.Error() != nil {
+-		return token.Error()
+-	}
++	if err:=waitTuyaToken(ctx,token);err!=nil{return err}
+ 
+ 	return nil
+ }

@@ -211,6 +211,9 @@ type Server struct {
 	BackgroundTasks           *tools.BackgroundTaskManager
 	Go2RTC                    *tools.Go2RTCManager
 	go2RTCTalkMu              sync.Mutex
+	go2RTCTuyaMu              sync.Mutex
+	go2RTCTuyaSessions        map[string]*go2RTCTuyaSession
+	go2RTCTuyaBusy            map[string]bool
 	go2RTCTalks               map[string]*go2RTCTalkSession
 	RuView                    *ruview.Manager
 	LocalLLM                  *localllm.Manager

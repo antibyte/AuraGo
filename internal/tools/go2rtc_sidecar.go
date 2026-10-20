@@ -17,6 +17,21 @@ var go2RTCSidecarDockerfile []byte
 //go:embed go2rtc_sidecar/lifecycle.patch
 var go2RTCSidecarPatch []byte
 
+//go:embed go2rtc_sidecar/tuya.patch
+var go2RTCSidecarTuyaPatch []byte
+
+//go:embed go2rtc_sidecar/tuya_api.go.txt
+var go2RTCSidecarTuyaAPI []byte
+
+//go:embed go2rtc_sidecar/tuya_runtime.go.txt
+var go2RTCSidecarTuyaRuntime []byte
+
+//go:embed go2rtc_sidecar/tuya_test.go.txt
+var go2RTCSidecarTuyaTest []byte
+
+//go:embed go2rtc_sidecar/tuya_api_test.go.txt
+var go2RTCSidecarTuyaAPITest []byte
+
 //go:embed go2rtc_sidecar/lifecycle_test.go.txt
 var go2RTCSidecarTest []byte
 
@@ -24,7 +39,11 @@ var go2RTCSidecarTest []byte
 var go2RTCSidecarAliasTest []byte
 
 func go2RTCManagedImage(base string) string {
-	sum := sha256.Sum256(append(append([]byte(base), go2RTCSidecarDockerfile...), go2RTCSidecarPatch...))
+	input := append(append([]byte(base), go2RTCSidecarDockerfile...), go2RTCSidecarPatch...)
+	for _, part := range [][]byte{go2RTCSidecarTuyaPatch, go2RTCSidecarTuyaAPI, go2RTCSidecarTuyaRuntime, go2RTCSidecarTuyaTest, go2RTCSidecarTuyaAPITest} {
+		input = append(input, part...)
+	}
+	sum := sha256.Sum256(input)
 	return fmt.Sprintf("aurago/go2rtc:1.9.14-lease-%x", sum[:8])
 }
 
@@ -57,7 +76,7 @@ func (m *Go2RTCManager) ensureManagedSidecarImage(ctx context.Context, docker Do
 	}
 	buildCtx, cancel := lifetimePullContext(ctx, m.pullLifetime())
 	defer cancel()
-	return BuildImageContextWait(buildCtx, docker, image, "Dockerfile", go2RTCSidecarDockerfile, map[string][]byte{"lifecycle.patch": go2RTCSidecarPatch, "lifecycle_test.go.txt": go2RTCSidecarTest, "aliases_test.go.txt": go2RTCSidecarAliasTest}, map[string]string{"BASE_IMAGE": base}, m.logger)
+	return BuildImageContextWait(buildCtx, docker, image, "Dockerfile", go2RTCSidecarDockerfile, map[string][]byte{"lifecycle.patch": go2RTCSidecarPatch, "lifecycle_test.go.txt": go2RTCSidecarTest, "aliases_test.go.txt": go2RTCSidecarAliasTest, "tuya.patch": go2RTCSidecarTuyaPatch, "tuya_api.go.txt": go2RTCSidecarTuyaAPI, "tuya_runtime.go.txt": go2RTCSidecarTuyaRuntime, "tuya_test.go.txt": go2RTCSidecarTuyaTest, "tuya_api_test.go.txt": go2RTCSidecarTuyaAPITest}, map[string]string{"BASE_IMAGE": base}, m.logger)
 }
 
 func (m *Go2RTCManager) SupportsBoundWebRTC() bool {

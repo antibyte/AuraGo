@@ -561,6 +561,9 @@ type Go2RTCMediaSettings struct {
 }
 
 func (m *Go2RTCManager) applyMediaStatus(out *Go2RTCStreamStatus, s config.Go2RTCStreamConfig) {
+	if s.Tuya != nil {
+		out.SourceType = "tuya"
+	}
 	m.mediaMu.Lock()
 	defer m.mediaMu.Unlock()
 	if r := m.media[s.ID]; r != nil {

@@ -22,6 +22,7 @@ import (
 const go2RTCAppBodyLimit = 64 << 10
 
 type go2RTCMutationError struct {
+	Cameras []string
 	Status  int
 	Code    string
 	Message string
@@ -51,11 +52,18 @@ func writeGo2RTCMutationFailure(w http.ResponseWriter, err error) {
 	}
 	writeGo2RTCJSONStatus(w, status, map[string]interface{}{
 		"status": "error", "code": code, "message": security.Scrub(message), "saved": false,
+		"cameras": func() []string {
+			if mutationErr != nil {
+				return mutationErr.Cameras
+			}
+			return nil
+		}(),
 	})
 }
 
 // go2RTCAppStream is a stream entry of the app state; managers also see its detection settings.
 type go2RTCAppStream struct {
+	Tuya *config.Go2RTCTuyaBinding `json:"tuya,omitempty"`
 	tools.Go2RTCStreamStatus
 	TalkBusy        bool                                `json:"talk_busy"`
 	Actions         []string                            `json:"actions"`
@@ -73,6 +81,13 @@ func go2RTCAppStreams(streams []tools.Go2RTCStreamStatus, cfg config.Go2RTCConfi
 		entry := go2RTCAppStream{Go2RTCStreamStatus: stream}
 		for _, camera := range cfg.Streams {
 			if camera.ID == stream.ID {
+				if camera.Tuya != nil {
+					entry.SourceType = "tuya"
+					if canManage {
+						b := *camera.Tuya
+						entry.Tuya = &b
+					}
+				}
 				settings := tools.Go2RTCMediaSettingsFor(camera)
 				if canManage {
 					entry.ConfiguredMedia = &settings
@@ -170,7 +185,7 @@ func handleGo2RTCAppState(s *Server) http.HandlerFunc {
 			if canManage {
 				entry.Actions = append(entry.Actions, "manage", "diagnose")
 			}
-			if canTalk && entry.Media.TalkEnabled && cfg.WebRTC.Enabled && manager.SupportsBoundWebRTC() {
+			if canTalk && entry.Media.TalkEnabled && cfg.WebRTC.Enabled && manager.SupportsBoundWebRTC() && (entry.SourceType != "tuya" || entry.TalkSupported) {
 				entry.Actions = append(entry.Actions, "talk")
 			}
 		}
@@ -196,6 +211,7 @@ func handleGo2RTCAppState(s *Server) http.HandlerFunc {
 				}
 				disabled = append(disabled, go2RTCMediaProjection(stream))
 			}
+			response["tuya_accounts"] = safeTuyaAccounts(cfg)
 			response["disabled_streams"] = disabled
 			response["detection_settings"] = config.NormalizeGo2RTCDetectionSettings(detectionSettings)
 		}
@@ -482,6 +498,34 @@ func handleGo2RTCCreateStream(s *Server) http.HandlerFunc {
 			return
 		}
 		source := strings.TrimSpace(payload.Source)
+		inputs := go2RTCTuyaInputs{Devices: map[string]string{}}
+		var tuyaReservation *go2RTCTuyaReservation
+		if payload.Tuya != nil {
+			if source != "" || payload.SetupToken != "" || payload.ProfileID != "" {
+				jsonError(w, "Use Tuya setup without another camera source", 400)
+				return
+			}
+			a, err := s.tuyaAccount(payload.Tuya.AccountID)
+			if err != nil {
+				jsonError(w, "Tuya account was not found", 400)
+				return
+			}
+			device, reserved, err := s.tuyaDevice(r, a, *payload.Tuya, true)
+			if err != nil {
+				jsonError(w, err.Error(), 400)
+				return
+			}
+			tuyaReservation = reserved
+			if reserved == nil {
+				tuyaReservation = &go2RTCTuyaReservation{s: s, account: a.ID, revision: a.Revision}
+			}
+			defer tuyaReservation.finish(false)
+			inputs.Devices[id] = device
+			if payload.Tuya.MainResolution == "" && payload.Tuya.SubResolution == "" {
+				payload.Tuya.MainResolution = "hd"
+				payload.Tuya.SubResolution = "sd"
+			}
+		}
 		var reservation *onvif.SetupReservation
 		if strings.TrimSpace(payload.SetupToken) != "" {
 			if source != "" {
@@ -504,7 +548,7 @@ func handleGo2RTCCreateStream(s *Server) http.HandlerFunc {
 			source = reservation.Source()
 		}
 		security.RegisterSensitive(source)
-		if err := tools.ValidateGo2RTCSource(source); err != nil {
+		if err := tools.ValidateGo2RTCSource(source); payload.Tuya == nil && err != nil {
 			jsonError(w, "A supported network stream URL or ONVIF profile is required", http.StatusBadRequest)
 			return
 		}
@@ -517,7 +561,9 @@ func handleGo2RTCCreateStream(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), 400)
 			return
 		}
-		changes = append(changes, go2RTCSourceChange{ID: id, Value: source})
+		if payload.Tuya == nil {
+			changes = append(changes, go2RTCSourceChange{ID: id, Value: source})
+		}
 		if reservation != nil {
 			for _, role := range []string{"sub", "snapshot"} {
 				if value := reservation.RoleSource(role); value != "" {
@@ -525,7 +571,10 @@ func handleGo2RTCCreateStream(s *Server) http.HandlerFunc {
 				}
 			}
 		}
-		result, err := updateManagedGo2RTCConfig(r.Context(), s, func(value *config.Go2RTCConfig) error {
+		result, err := updateManagedGo2RTCConfigWithTuya(r.Context(), s, func(value *config.Go2RTCConfig) error {
+			if err := tuyaReservation.check(*value); err != nil {
+				return err
+			}
 			if !value.Enabled {
 				return &go2RTCMutationError{Status: http.StatusPreconditionFailed, Code: "go2rtc_disabled", Message: "Enable go2rtc before adding cameras"}
 			}
@@ -538,7 +587,7 @@ func handleGo2RTCCreateStream(s *Server) http.HandlerFunc {
 			payload.go2RTCMediaPatch.apply(&stream)
 			value.Streams = append(value.Streams, stream)
 			return nil
-		}, changes, false)
+		}, changes, false, inputs)
 		if err != nil {
 			writeGo2RTCMutationFailure(w, err)
 			return
@@ -546,6 +595,7 @@ func handleGo2RTCCreateStream(s *Server) http.HandlerFunc {
 		if reservation != nil {
 			reservation.Commit()
 		}
+		tuyaReservation.finish(true)
 		writeGo2RTCMutationResult(w, http.StatusCreated, result, map[string]interface{}{"stream": safeGo2RTCStream(result.Config, id)})
 	}
 }
@@ -614,6 +664,26 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 				return
 			}
 		}
+		inputs := go2RTCTuyaInputs{Devices: map[string]string{}}
+		var tuyaReservation *go2RTCTuyaReservation
+		if payload.Tuya != nil {
+			a, err := s.tuyaAccount(payload.Tuya.AccountID)
+			if err != nil {
+				jsonError(w, "Tuya account was not found", 400)
+				return
+			}
+			device, reserved, err := s.tuyaDevice(r, a, *payload.Tuya, true)
+			if err != nil {
+				jsonError(w, err.Error(), 400)
+				return
+			}
+			tuyaReservation = reserved
+			if reserved == nil {
+				tuyaReservation = &go2RTCTuyaReservation{s: s, account: a.ID, revision: a.Revision}
+			}
+			defer tuyaReservation.finish(false)
+			inputs.Devices[streamID] = device
+		}
 		changes, err := payload.go2RTCMediaPatch.changes(streamID)
 		if err != nil {
 			jsonError(w, err.Error(), 400)
@@ -628,7 +698,10 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 			}
 			changes = append(changes, go2RTCSourceChange{ID: streamID, Value: source})
 		}
-		result, err := updateManagedGo2RTCConfig(r.Context(), s, func(value *config.Go2RTCConfig) error {
+		result, err := updateManagedGo2RTCConfigWithTuya(r.Context(), s, func(value *config.Go2RTCConfig) error {
+			if err := tuyaReservation.check(*value); err != nil {
+				return err
+			}
 			if !value.Enabled {
 				return &go2RTCMutationError{Status: http.StatusPreconditionFailed, Code: "go2rtc_disabled", Message: "Enable go2rtc before managing cameras"}
 			}
@@ -665,11 +738,12 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 				return nil
 			}
 			return &go2RTCMutationError{Status: http.StatusNotFound, Code: "stream_not_found", Message: fmt.Sprintf("stream %q was not found", streamID)}
-		}, changes, false)
+		}, changes, false, inputs)
 		if err != nil {
 			writeGo2RTCMutationFailure(w, err)
 			return
 		}
+		tuyaReservation.finish(true)
 		writeGo2RTCMutationResult(w, http.StatusOK, result, map[string]interface{}{"stream": safeGo2RTCStream(result.Config, streamID)})
 	}
 }

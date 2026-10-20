@@ -9,21 +9,29 @@ import (
 )
 
 type go2RTCMediaPatch struct {
-	SubSource           *string `json:"sub_source"`
-	SnapshotSource      *string `json:"snapshot_source"`
-	ClearSubSource      bool    `json:"clear_sub_source"`
-	ClearSnapshotSource bool    `json:"clear_snapshot_source"`
-	PreviewSource       *string `json:"preview_source"`
-	DetectionSource     *string `json:"detection_source"`
-	SnapshotMode        *string `json:"snapshot_mode"`
-	CodecProfile        *string `json:"codec_profile"`
-	Transport           *string `json:"transport"`
-	PlaybackMode        *string `json:"playback_mode"`
-	Preload             *bool   `json:"preload"`
-	TalkEnabled         *bool   `json:"talk_enabled"`
+	Tuya                *go2RTCTuyaCameraRequest `json:"tuya"`
+	SubSource           *string                  `json:"sub_source"`
+	SnapshotSource      *string                  `json:"snapshot_source"`
+	ClearSubSource      bool                     `json:"clear_sub_source"`
+	ClearSnapshotSource bool                     `json:"clear_snapshot_source"`
+	PreviewSource       *string                  `json:"preview_source"`
+	DetectionSource     *string                  `json:"detection_source"`
+	SnapshotMode        *string                  `json:"snapshot_mode"`
+	CodecProfile        *string                  `json:"codec_profile"`
+	Transport           *string                  `json:"transport"`
+	PlaybackMode        *string                  `json:"playback_mode"`
+	Preload             *bool                    `json:"preload"`
+	TalkEnabled         *bool                    `json:"talk_enabled"`
 }
 
 func (p go2RTCMediaPatch) apply(s *config.Go2RTCStreamConfig) {
+	if p.Tuya != nil {
+		main := p.Tuya.MainResolution
+		if main == "" {
+			main = "hd"
+		}
+		s.Tuya = &config.Go2RTCTuyaBinding{AccountID: p.Tuya.AccountID, MainResolution: main, SubResolution: p.Tuya.SubResolution}
+	}
 	for dst, src := range map[*string]*string{&s.PreviewSource: p.PreviewSource, &s.DetectionSource: p.DetectionSource, &s.SnapshotMode: p.SnapshotMode, &s.CodecProfile: p.CodecProfile, &s.Transport: p.Transport, &s.PlaybackMode: p.PlaybackMode} {
 		if src != nil {
 			*dst = *src
@@ -49,6 +57,9 @@ func (p go2RTCMediaPatch) changes(id string) ([]go2RTCSourceChange, error) {
 }
 
 func (p go2RTCMediaPatch) present() bool {
+	if p.Tuya != nil {
+		return true
+	}
 	return p.SubSource != nil || p.SnapshotSource != nil || p.ClearSubSource || p.ClearSnapshotSource || p.PreviewSource != nil || p.DetectionSource != nil || p.SnapshotMode != nil || p.CodecProfile != nil || p.Transport != nil || p.PlaybackMode != nil || p.Preload != nil || p.TalkEnabled != nil
 }
 

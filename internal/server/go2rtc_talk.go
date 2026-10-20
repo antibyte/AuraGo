@@ -139,6 +139,17 @@ func handleGo2RTCTalk(s *Server) http.HandlerFunc {
 		}
 		identity := go2RTCTalkIdentity(r)
 		if r.Method == http.MethodPost && len(parts) == 1 {
+			for _, camera := range manager.Config().Streams {
+				if camera.ID == id && camera.Tuya != nil {
+					ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+					status, err := manager.StreamStatus(ctx, id)
+					cancel()
+					if err != nil || !status.TalkSupported {
+						jsonError(w, "Tuya camera has no confirmed audio backchannel", 412)
+						return
+					}
+				}
+			}
 			var body struct{}
 			if err := decodeGo2RTCAppJSON(w, r, &body); err != nil {
 				jsonError(w, "Invalid talk request", 400)

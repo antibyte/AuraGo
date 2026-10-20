@@ -1,0 +1,35 @@
+package tuya
+
+import (
+	"context"
+	"errors"
+	"io"
+	"net/http"
+	"strings"
+	"testing"
+	"time"
+)
+
+type auraGoTransport func(*http.Request)(*http.Response,error)
+func(f auraGoTransport)RoundTrip(r *http.Request)(*http.Response,error){return f(r)}
+
+func TestAuraGoTuyaHTTPBudgets(t *testing.T){
+	ctx,cancel:=context.WithCancel(context.Background())
+	client:=BoundHTTPClient(ctx,&http.Client{Transport:auraGoTransport(func(r *http.Request)(*http.Response,error){
+		if r.Context()!=ctx{t.Error("caller context lost")}
+		return &http.Response{StatusCode:200,Body:io.NopCloser(strings.NewReader("{}")),Header:http.Header{}},nil
+	})},1)
+	if _,err:=client.Get("https://protect-eu.ismartlife.me");err!=nil{t.Fatal(err)}
+	if _,err:=client.Get("https://protect-eu.ismartlife.me");err==nil{t.Fatal("request budget ignored")}
+	cancel()
+	client=BoundHTTPClient(context.Background(),&http.Client{Transport:auraGoTransport(func(r *http.Request)(*http.Response,error){return &http.Response{StatusCode:200,Body:io.NopCloser(strings.NewReader(strings.Repeat("x",(1<<20)+1)))},nil})},1)
+	if _,err:=client.Get("https://protect-eu.ismartlife.me");err==nil{t.Fatal("oversized body accepted")}
+}
+
+func TestAuraGoTuyaCancellation(t *testing.T){
+	ctx,cancel:=context.WithTimeout(context.Background(),10*time.Millisecond);defer cancel()
+	client:=BoundHTTPClient(ctx,&http.Client{Transport:auraGoTransport(func(r *http.Request)(*http.Response,error){<-r.Context().Done();return nil,r.Context().Err()})},1)
+	_,err:=client.Get("https://protect-eu.ismartlife.me")
+	if !errors.Is(err,context.DeadlineExceeded){t.Fatal("login did not stop",err)}
+	if TuyaErrorCode(errors.New("invalid password secret-value"))!="tuya_auth_failed"{t.Fatal("login error classification")}
+}

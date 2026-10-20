@@ -7,7 +7,12 @@ WORKDIR /src
 COPY lifecycle.patch /lifecycle.patch
 COPY lifecycle_test.go.txt /src/internal/webrtc/aurago_lifecycle_test.go
 COPY aliases_test.go.txt /src/internal/streams/aurago_aliases_test.go
-RUN patch -p1 < /lifecycle.patch && GOTOOLCHAIN=local go test -mod=readonly ./internal/webrtc ./internal/streams -run TestAuraGo -count=1 && CGO_ENABLED=0 GOTOOLCHAIN=local go build -mod=readonly -trimpath -ldflags "-s -w -X github.com/AlexxIT/go2rtc/internal/app.Version=1.9.14-aurago1" -o /aurago-go2rtc .
+COPY tuya.patch /tuya.patch
+COPY tuya_api.go.txt /src/internal/tuya/aurago.go
+COPY tuya_runtime.go.txt /src/pkg/tuya/aurago.go
+COPY tuya_test.go.txt /src/pkg/tuya/aurago_test.go
+COPY tuya_api_test.go.txt /src/internal/tuya/aurago_test.go
+RUN patch -p1 < /lifecycle.patch && patch -p1 < /tuya.patch && GOTOOLCHAIN=local go test -mod=readonly ./internal/webrtc ./internal/streams ./internal/tuya ./pkg/tuya -run TestAuraGo -count=1 && CGO_ENABLED=0 GOTOOLCHAIN=local go build -mod=readonly -trimpath -ldflags "-s -w -X github.com/AlexxIT/go2rtc/internal/app.Version=1.9.14-aurago2" -o /aurago-go2rtc .
 FROM ${BASE_IMAGE}
 COPY --from=build /aurago-go2rtc /usr/local/bin/aurago-go2rtc
 COPY --from=build /src/LICENSE /usr/share/licenses/aurago-go2rtc/LICENSE

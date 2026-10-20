@@ -821,6 +821,7 @@ api:
     - "/api/go2rtc/proxy/api"
     - "/api/go2rtc/proxy/api/streams"
     - "/api/go2rtc/proxy/api/preload"
+    - "/api/go2rtc/proxy/api/aurago/tuya"
     - "/api/go2rtc/proxy/api/ffmpeg/hardware"
     - "/api/go2rtc/proxy/api/frame.jpeg"
     - "/api/go2rtc/proxy/api/ws"
