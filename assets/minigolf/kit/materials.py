@@ -9,7 +9,7 @@ gradients.
 
 Material contract (read by the runtime from the glTF material ``extras``): every
 datablock carries ``aurago_kind``; ``emissive``/``glow`` add ``aurago_strength``
-(snapped to ``EMISSION_STEPS``), flames add ``aurago_flicker`` and
+(snapped to ``EMISSION_STEPS``, or ``GLOW_STEPS`` for ``glow``), flames add ``aurago_flicker`` and
 ``foliage``/``cloth`` add ``aurago_sway`` (metres). Only ``foliage``, ``cloth``
 and ``glass`` are double sided; every other kind culls back faces.
 """
@@ -23,6 +23,9 @@ COLOR_ATTRIBUTE = "Col"
 # Emission strengths are snapped to these steps so a prop never needs more than
 # one primitive per brightness; brightness differences come from the vertex colour.
 EMISSION_STEPS = (1.0, 1.6, 2.5)
+# ``glow`` keeps full lighting plus a soft emission (water, eyes, gems), so it needs much lower
+# strengths than the self-lit ``emissive`` kind; it snaps to its own steps.
+GLOW_STEPS = (0.3, 0.7, 1.0)
 DOUBLE_SIDED = ("foliage", "cloth", "glass")
 
 # kind -> Principled settings (colour always comes from the attribute).
@@ -45,9 +48,10 @@ def _set(bsdf, name, value):
         sock.default_value = value
 
 
-def snap_strength(strength):
-    """Nearest ``EMISSION_STEPS`` value (the lower step wins a tie)."""
-    return min(EMISSION_STEPS, key=lambda step: (abs(step - strength), step))
+def snap_strength(strength, kind="emissive"):
+    """Nearest step of the kind (``GLOW_STEPS`` for ``glow``, else ``EMISSION_STEPS``); the lower step wins a tie."""
+    steps = GLOW_STEPS if kind == "glow" else EMISSION_STEPS
+    return min(steps, key=lambda step: (abs(step - strength), step))
 
 
 def get(kind, strength=3.0, bump=0.0, flicker=0.0, sway=0.0):
@@ -55,7 +59,7 @@ def get(kind, strength=3.0, bump=0.0, flicker=0.0, sway=0.0):
 
     ``strength`` applies to ``emissive`` (self-lit, base nearly black) and ``glow``
     (lit surface plus a soft emission, for gems and eyes) and is snapped to
-    ``EMISSION_STEPS``; ``flicker`` (0-1) marks flames; ``sway`` (metres) is the
+    ``EMISSION_STEPS`` (``GLOW_STEPS`` for ``glow``); ``flicker`` (0-1) marks flames; ``sway`` (metres) is the
     wind amplitude of ``foliage`` and ``cloth``; ``bump`` adds a render-only
     ripple to ``water``. Variants get their own datablock name (for example
     ``kit-emissive-1.6-f0.35`` or ``kit-foliage-s0.06``) so repeated calls with
@@ -65,7 +69,7 @@ def get(kind, strength=3.0, bump=0.0, flicker=0.0, sway=0.0):
         raise KeyError(kind)
     name = "kit-" + kind
     if kind in ("emissive", "glow"):
-        strength = snap_strength(strength)
+        strength = snap_strength(strength, kind)
         name += "-%g" % strength
         if flicker:
             name += "-f%g" % flicker

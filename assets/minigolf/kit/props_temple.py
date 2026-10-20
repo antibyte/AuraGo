@@ -11,6 +11,10 @@ from . import shapes
 from .head_temple import build_head
 from .palette import mix, scale
 from .prop import Prop
+from .props_temple_extra import build_pebble, build_vines
+from .props_temple_gate import build_gate, build_stairs
+from .props_temple_statues import build_idol, build_sunwheel
+from .props_temple_water import build_waterfall
 
 WORLD = "temple"
 
@@ -55,7 +59,7 @@ def build_totem(seed=1):
     p.add(beak, "satin", ("gold_dark", "gold_light"), loc=(0, -0.62, 1.55), rot=(24, 0, 0), bevel=0.05, segments=2, dens=0)
     for s in (-1, 1):
         eye = shapes.sphere("t-eagle-eye", 0.065, seg=10, rings=6)
-        p.add(eye, "glow", ("gold_dark", "gold_light"), loc=(s * 0.22, -0.42, 1.68), bevel=0, dens=0, ao=0.3, strength=1.0)
+        p.add(eye, "glow", ("gold_dark", "gold_light"), loc=(s * 0.22, -0.42, 1.68), bevel=0, dens=0, ao=0.3, strength=0.7)
         wing = shapes.box("t-wing", (0.12, 0.5, 0.6), base=False)
         p.add(wing, "matte", _dark(p, "totem_teal", 0.7), loc=(s * 0.46, 0.0, 1.55), rot=(0, 0, s * 10), bevel=0.04, segments=2, dens=0.3)
     # jaguar (tier 3)
@@ -64,7 +68,7 @@ def build_totem(seed=1):
         p.add(ear, "matte", _dark(p, "totem_red", 0.6), loc=(s * 0.26, 0.0, 2.84), bevel=0, dens=0)
         eye = shapes.sphere("t-cat-eye", 0.07, seg=10, rings=6)
         p.add(eye, "glow", ("gold_dark", "gold_light"), loc=(s * 0.2, -0.4, 2.52), scale=(1.2, 0.6, 0.9), bevel=0, dens=0, ao=0.3,
-              strength=1.0)
+              strength=0.7)
         fang = shapes.cone("t-fang", 0.045, 0.16, seg=8)
         p.add(fang, "satin", ("stone_light", "gold_light"), loc=(s * 0.14, -0.43, 2.22), rot=(180, 0, 0), bevel=0, dens=0)
     snout = shapes.box("t-snout", (0.3, 0.22, 0.2), base=False)
@@ -186,68 +190,6 @@ def build_bush(seed=1, size=1.0):
 
 
 # --------------------------------------------------------------------------
-# Waterfall
-# --------------------------------------------------------------------------
-
-def _curtain(p, rng, x, y, z_top, drop, width, bulge, steps=7, across=10):
-    """Continuous water curtain over a lip: streaked teal, foam at the top and the bottom."""
-    spine, widths = [], []
-    for i in range(steps + 1):
-        s = i / steps
-        spine.append((x, y - bulge * (1 - (1 - s) ** 2.2), z_top - drop * s ** 1.15))
-        widths.append(width / 2)
-    sheet = shapes.ribbon("curtain", spine, widths, normal_hint=(0, 1, 0), fold=-0.05, across=across)
-    stops = [(0.0, p.pal.c("foam")), (0.18, p.pal.c("water_white")), (0.55, p.pal.c("water_light")), (1.0, p.pal.c("water"))]
-    seed = rng.uniform(0, 6)
-
-    def streaks(px, py, pz):
-        return 0.86 + 0.14 * math.sin(px * 31.0 + seed + pz * 1.3)
-
-    p.add(sheet, "glow", "water", stops=stops, solidify=0.05, bevel=0, dens=0, ao=0.25, mode="z", strength=1.0, pattern=streaks,
-          jitter=0.0)
-
-
-def build_waterfall(seed=2):
-    """Stepped sandstone cascade: three terraces with water curtains, pool and foam (front faces -Y)."""
-    p = Prop(WORLD, "waterfall", seed)
-    rng = p.rng
-    stops = [(0.0, p.pal.c("stone_deep")), (0.55, p.pal.c("stone_dark")), (0.86, p.pal.c("stone")),
-             (0.93, p.pal.c("moss")), (1.0, p.pal.c("moss_light"))]
-    # terraces: (width, depth, height, y offset)
-    tiers = [(3.6, 1.9, 0.9, 0.0), (3.0, 1.7, 0.9, 0.75), (2.4, 1.5, 0.9, 1.45)]
-    z = 0.0
-    tops = []
-    for w, d, h, yo in tiers:
-        block = shapes.rounded_box("terrace", (w, d, h), bevel=0.1, segments=2, base=True, dens=0.9)
-        p.add(block, "matte", "stone", stops=stops, span=(0.0, 2.8), loc=(0, yo, z), rot=(0, 0, rng.uniform(-1.5, 1.5)), finish=False,
-              noise_amp=0.06, ao=0.7)
-        tops.append((z + h, yo - d / 2, w, d, yo))
-        z += h
-    cliff = shapes.rounded_box("cliff", (3.0, 1.0, 3.9), bevel=0.16, segments=2, base=True, dens=0.9)
-    p.add(cliff, "matte", "stone", stops=stops, span=(0.0, 3.9), loc=(0, 2.35, 0.0), finish=False, noise_amp=0.07, ao=0.7)
-    # water on each terrace top and curtains over the lips
-    for k, (zt, yf, w, d, yo) in enumerate(tops):
-        film = shapes.box("film", (w - 0.5, d - 0.35, 0.04), base=True)
-        p.add(film, "glow", ("water", "water_light"), loc=(0, yo + 0.05, zt - 0.005), bevel=0.01, segments=1, dens=0, ao=0.2,
-              strength=1.0, mode="y")
-        below = tops[k - 1][0] if k else 0.0
-        _curtain(p, rng, 0.0, yf + 0.05, zt - 0.01, zt - below - 0.04, w - 0.5, 0.2)
-    pool = shapes.lathe("pool", [(0.0, 0.03), (1.7, 0.03), (1.85, 0.0)], seg=28, caps=False)
-    p.add(pool, "glow", ("water_deep", "water"), loc=(0, -1.45, 0.0), scale=(1.15, 0.7, 1), bevel=0, dens=0, ao=0.2, strength=1.0,
-          mode="radial", center=(0, -1.45))
-    for k in range(7):
-        a = rng.uniform(math.pi * 0.85, math.pi * 2.15)
-        fo = shapes.ico_sphere("foam", rng.uniform(0.1, 0.22), 1)
-        p.add(fo, "satin", ("water_white", "foam"), loc=(math.cos(a) * 0.9, -1.0 + math.sin(a) * 0.4, 0.1), scale=(1, 1, 0.6), bevel=0,
-              dens=0, ao=0.2)
-    for k, (x, y, r) in enumerate(((-2.2, 0.2, 0.7), (2.15, 0.1, 0.62), (-1.9, 1.5, 0.8), (1.8, 1.7, 0.7))):
-        rock = shapes.blob("rock-side", r, rng, subdiv=2, amp=0.2, squash=(1.0, 0.9, 1.1), cuts=3, flat_bottom=0.45, relax=2)
-        p.add(rock, "matte", "stone", stops=stops, span=(0.0, 2.8), loc=(x, y, r * 0.5), bevel=0, dens=0, ao=0.7, noise_amp=0.08,
-              smooth_angle=80)
-    return p.build()
-
-
-# --------------------------------------------------------------------------
 # Ruins
 # --------------------------------------------------------------------------
 
@@ -330,12 +272,14 @@ def build_lilypad(seed=1, flower=False):
 
 PROPS = {"head": build_head, "totem": build_totem, "torch": build_torch, "liana": build_liana, "fern": build_fern,
          "bush": build_bush, "waterfall": build_waterfall, "tile": build_tile, "pillar": build_pillar, "rock": build_rock,
-         "islet": build_islet, "lilypad": build_lilypad}
+         "islet": build_islet, "lilypad": build_lilypad, "gate": build_gate, "idol": build_idol, "sunwheel": build_sunwheel,
+         "stairs": build_stairs, "vines": build_vines, "pebble": build_pebble}
 
 # Placement tags per prop (hero, tall, scatter, flat, span) plus optional ``clearance`` / ``spin``.
 PROP_META = {
-    "head": {"tags": ["hero"]}, "totem": {"tags": []}, "torch": {"tags": []}, "liana": {"tags": []},
-    "fern": {"tags": ["scatter"]}, "bush": {"tags": ["scatter"]}, "waterfall": {"tags": []},
-    "tile": {"tags": ["scatter", "flat"]}, "pillar": {"tags": []}, "rock": {"tags": []}, "islet": {"tags": []},
-    "lilypad": {"tags": []},
+    "head": {"tags": ["hero"]}, "gate": {"tags": ["span"], "clearance": 1.4}, "totem": {"tags": ["tall"]},
+    "pillar": {"tags": ["tall"]}, "torch": {"tags": ["tall"]}, "liana": {"tags": ["tall"]}, "vines": {"tags": ["tall"]},
+    "fern": {"tags": ["scatter"]}, "bush": {"tags": ["scatter"]}, "pebble": {"tags": ["scatter"]},
+    "tile": {"tags": ["scatter", "flat"]}, "rock": {"tags": []}, "idol": {"tags": []}, "waterfall": {"tags": []},
+    "sunwheel": {"tags": []}, "stairs": {"tags": []}, "lilypad": {"tags": []}, "islet": {"tags": []},
 }
