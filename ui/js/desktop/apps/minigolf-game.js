@@ -288,7 +288,11 @@ export function mountGame(host, context = {}) {
                 view.update(round, course, false);
                 if (round.mode === 'practice') nextHole().catch(fail); else showScore(true);
             }
-            else { setTurn(); if (round.players.length > 1 && round.turnIndex !== before) turnBanner(); if (!reduced) scene.focusBall(); }
+            else {
+                setTurn(); if (round.players.length > 1 && round.turnIndex !== before) turnBanner();
+                // focusBall cancels the turn tween setTurn just started; re-issue it (a no-op while the aim camera is off).
+                if (!reduced) { scene.focusBall(); scene.frameTurn?.(angle, round.players[round.turnIndex].position); }
+            }
         }
     }
     function showScore(animate = false, focus) {

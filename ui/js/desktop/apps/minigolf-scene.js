@@ -159,7 +159,7 @@ export function createScene(host, options) {
     const ghosts = new THREE.Group();
     scene.add(ghosts);
     const ray = new THREE.Raycaster(), pointer = new THREE.Vector2(), floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const hit = new THREE.Vector3();
+    const hit = new THREE.Vector3(), puttOffset = new THREE.Vector3();
     let course = null, courseRoot = null, disposed = false, generation = 0, request = null;
     let quality = options.quality || 'auto', reduced = !!options.reducedMotion, cameraMode = false, canAim = false;
     let followEnabled = true, aimCamEnabled = false, camTween = null, userOrbiting = false;
@@ -176,6 +176,8 @@ export function createScene(host, options) {
     const kits = new Map(), environments = new Map(), fxContext = { ball: ball.position, moving: false, speed: 0, color: undefined, surface: undefined, waterLevel: -1.15, groundY: 0 };
     let lookId = 'pirate', look = LOOKS.pirate, sky = null, water = null, props = null;
     let intro = null, introTime = 0, pendingTurn = null;
+    // Last colour id applied to the ball meshes and handed to the effects; null forces the next lookup.
+    let ballColorKey = null, fxColorKey = null;
     const introPosition = [0, 0, 0], introTarget = [0, 0, 0];
     // Props kits are fetched once per look; a failed fetch resolves to null so a course still plays without props.
     function kitFor(id) {
@@ -263,7 +265,7 @@ export function createScene(host, options) {
         }
         if (putter) {
             putter.visible = canAim || swing > 0;
-            putter.position.copy(ball.position).add(new THREE.Vector3(-aimDirection[0] * (.38 + swing * .25), -.13, -aimDirection[1] * (.38 + swing * .25)));
+            putter.position.copy(ball.position).add(puttOffset.set(-aimDirection[0] * (.38 + swing * .25), -.13, -aimDirection[1] * (.38 + swing * .25)));
             putter.rotation.y = Math.atan2(aimDirection[0], aimDirection[1]);
         }
     }
@@ -277,7 +279,14 @@ export function createScene(host, options) {
         updateAim();
     }
     function focusBall(overview = false) {
-        if (intro) { intro = null; pendingTurn = null; }
+        if (intro) {
+            // Ends the flight in the end pose; a turn framing queued meanwhile runs afterwards.
+            const turn = pendingTurn;
+            intro = null; pendingTurn = null;
+            focusBall(true);
+            if (turn) frameTurn(...turn);
+            return;
+        }
         // Flush pending orbit/pan damping before moving the camera and its target together.
         camTween = null;
         const damping = controls.enableDamping;
@@ -324,7 +333,13 @@ export function createScene(host, options) {
     function setBall(position, rotation, color) {
         ball.position.fromArray(position);
         if (rotation) ball.quaternion.fromArray(rotation);
-        ball.traverse(node => { if (node.isMesh) node.material.color.set(colorValue(color)); });
+        // update() calls this every frame; only a colour change walks the ball and resolves the palette.
+        const colorKey = color ?? '';
+        if (colorKey !== ballColorKey) {
+            ballColorKey = colorKey;
+            const hex = colorValue(color);
+            ball.traverse(node => { if (node.isMesh) node.material.color.set(hex); });
+        }
         blob.position.set(ball.position.x, ball.position.y - .152, ball.position.z);
         updateAim();
     }
@@ -365,7 +380,7 @@ export function createScene(host, options) {
         const [gltf, kit] = await Promise.all([new GLTFLoader().parseAsync(bytes, ''), kitPromise]);
         if (disposed || generation !== version) { disposeTree(gltf.scene); return false; }
         if (courseRoot) { scene.remove(courseRoot); disposeTree(courseRoot); }
-        disposeTree(ball); ball.clear();
+        disposeTree(ball); ball.clear(); ballColorKey = null;
         if (putter) { scene.remove(putter); disposeTree(putter); putter = null; }
         props?.dispose(); props = null; sky?.dispose(); water?.dispose();
         course = next; courseRoot = gltf.scene; scene.add(courseRoot);
@@ -406,6 +421,7 @@ export function createScene(host, options) {
         props = kit ? buildProps(kit, lookId, next.props, { scatter: cfg().scatter, state: shaderState }) : null;
         if (props) scene.add(props.group);
         fx.clear();
+        intro = null; pendingTurn = null;
         setBall(next.tee); focusBall(true); resize();
         startIntro();
         return true;
@@ -538,7 +554,8 @@ export function createScene(host, options) {
         const velocity = snapshot?.velocity;
         fxContext.moving = !!snapshot?.moving;
         fxContext.speed = velocity ? Math.hypot(velocity[0], velocity[1], velocity[2]) : 0;
-        fxContext.color = colorValue(snapshot?.color);
+        const fxKey = snapshot?.color ?? '';
+        if (fxKey !== fxColorKey) { fxColorKey = fxKey; fxContext.color = colorValue(snapshot?.color); }
         fxContext.surface = snapshot?.surface;
         fxContext.waterLevel = course?.water?.[0]?.max?.[1] ?? -1.15;
         fxContext.groundY = (course?.tee?.[1] ?? .16) - .16;

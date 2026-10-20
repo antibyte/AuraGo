@@ -16,7 +16,8 @@ export function patchMaterial(material, state, height = 1) {
     const glow = kind === 'emissive' || kind === 'glow';
     const sway = kind === 'foliage' || kind === 'cloth' ? Number(data.aurago_sway) || 0 : 0;
     const flicker = glow ? Math.max(0, Math.min(1, Number(data.aurago_flicker) || 0)) : 0;
-    if (glow) material.emissive?.setRGB(1, 1, 1);
+    // The glTF emissiveFactor (glow strength) and emissive strength (emissiveIntensity) stay as exported;
+    // the shader below tints the result with the vertex colour.
     if (!glow && !sway) return material;
     const uniforms = { golfTime: state.golfTime, golfMotion: state.golfMotion, golfSway: { value: sway }, golfHeight: { value: Math.max(.1, Number(height) || 1) }, golfFlicker: { value: flicker } };
     material.onBeforeCompile = shader => {
