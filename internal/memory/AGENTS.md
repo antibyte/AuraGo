@@ -10,6 +10,21 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 ## Local Contracts
 
+### Personality evidence
+
+- Only ingress-owned `HumanInput` supplies current human evidence. Missing or
+  empty proof never falls back to history, media, snapshots or model JSON.
+- `ApplyPersonalityObservation` atomically commits numeric state, profile
+  contributions, provenance, narration and receipts. Expire original events after
+  90 days before mutation; never evict valid receipts to satisfy a row cap.
+- Normal model/tool/history/reflection readers must never read
+  `personality_legacy_review`. Administrative adoption is explicit manual curation;
+  old emotion/inner-voice text cannot be reactivated.
+- Chat privacy jobs capture personality candidates before transcript purge,
+  recheck ownership/protection/fingerprints and fence late writes. Preserve manual
+  corrections, shared evidence and numeric development. Keep additive counts and
+  unknown legacy state accurate. Explicit profile deletion fences old analyses.
+
 ### Session ingress turns
 
 - `BeginSessionTurn` registers an ingress run before waiting on the store/session
