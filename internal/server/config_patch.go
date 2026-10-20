@@ -122,7 +122,8 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 		return nil, cfErr
 	}
 	defer cfFinish(false)
-	if err := extractSecretsToVault(patch, s.Vault, s.Logger); err != nil {
+	secretMutations, err := prepareConfigSecrets(patch, s.Logger)
+	if err != nil {
 		return nil, err
 	}
 	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
@@ -133,7 +134,8 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if err != nil {
 		return nil, fmt.Errorf("marshal config: %w", err)
 	}
-	reloaded, err := saveProviderConfig(s, configPath, data, out, providerMutations)
+	mutations := append(providerMutations, secretMutations...)
+	reloaded, err := saveProviderConfig(s, configPath, data, out, mutations)
 	if err != nil {
 		return nil, err
 	}

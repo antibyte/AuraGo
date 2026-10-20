@@ -50,9 +50,14 @@ func (scope *llmSecretScope) register(cfg *config.Config, readers ...config.Secr
 	// the slot that references it; those values are scoped, everything else is
 	// a static key that stays masked even after the user rotates it.
 	accessTokens := make(map[string]struct{})
+	registerAccessToken := func(value string) {
+		if trimmed := strings.TrimSpace(value); trimmed != "" && trimmed != maskedKey {
+			accessTokens[value] = struct{}{}
+		}
+	}
 	for _, provider := range cfg.Providers {
-		if provider.AuthType == "oauth2" && llmSecretWorthMasking(provider.RuntimeOAuthToken) {
-			accessTokens[provider.RuntimeOAuthToken] = struct{}{}
+		if provider.AuthType == "oauth2" {
+			registerAccessToken(provider.RuntimeOAuthToken)
 		}
 	}
 	slot := func(providerID, value string) {
@@ -60,9 +65,7 @@ func (scope *llmSecretScope) register(cfg *config.Config, readers ...config.Secr
 			registerStaticLLMSecret(value)
 			return
 		}
-		if value = strings.TrimSpace(value); llmSecretWorthMasking(value) {
-			accessTokens[value] = struct{}{}
-		}
+		registerAccessToken(value)
 	}
 	slot(cfg.LLM.Provider, cfg.LLM.APIKey)
 	slot(cfg.LLM.HelperProvider, cfg.LLM.HelperAPIKey)
@@ -108,8 +111,8 @@ func (scope *llmSecretScope) register(cfg *config.Config, readers ...config.Secr
 				continue
 			}
 			var token config.OAuthToken
-			if json.Unmarshal([]byte(raw), &token) == nil && llmSecretWorthMasking(token.AccessToken) {
-				accessTokens[token.AccessToken] = struct{}{}
+			if json.Unmarshal([]byte(raw), &token) == nil {
+				registerAccessToken(token.AccessToken)
 			}
 		}
 	}

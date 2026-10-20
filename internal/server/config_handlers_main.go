@@ -2480,7 +2480,7 @@ func extractSecretsToVault(patch map[string]interface{}, vault *security.Vault, 
 	return extractRecursive(patch, "", vault, logger)
 }
 
-func extractRecursive(m map[string]interface{}, prefix string, vault *security.Vault, logger *slog.Logger) error {
+func extractRecursive(m map[string]interface{}, prefix string, vault configSecretWriter, logger *slog.Logger) error {
 	var firstErr error
 	for key, val := range m {
 		fullPath := key
@@ -2547,7 +2547,7 @@ func extractRecursive(m map[string]interface{}, prefix string, vault *security.V
 			if v == "" || v == "••••••••" {
 				continue
 			}
-			if vault == nil {
+			if configSecretWriterMissing(vault) {
 				// No vault available — credential is stripped but cannot be persisted.
 				// Return an error so the caller can inform the user.
 				if firstErr == nil {
@@ -2568,14 +2568,14 @@ func extractRecursive(m map[string]interface{}, prefix string, vault *security.V
 					firstErr = fmt.Errorf("failed to save credential '%s' to vault: %w", fullPath, err)
 				}
 			} else {
-				logger.Info("[Config] Secret saved to vault", "key", vaultKey)
+				logger.Info("[Config] Secret accepted for Vault storage", "key", vaultKey)
 			}
 		}
 	}
 	return firstErr
 }
 
-func extractKlipperPrinterAPIKeysToVault(items []interface{}, vault *security.Vault, logger *slog.Logger) error {
+func extractKlipperPrinterAPIKeysToVault(items []interface{}, vault configSecretWriter, logger *slog.Logger) error {
 	var firstErr error
 	for _, item := range items {
 		printer, ok := item.(map[string]interface{})
@@ -2604,7 +2604,7 @@ func extractKlipperPrinterAPIKeysToVault(items []interface{}, vault *security.Va
 			}
 			continue
 		}
-		if vault == nil {
+		if configSecretWriterMissing(vault) {
 			if firstErr == nil {
 				firstErr = fmt.Errorf("credential 'three_d_printers.klipper.printers.%s.api_key' cannot be saved: no vault configured (AURAGO_MASTER_KEY required)", id)
 			}
@@ -2620,13 +2620,13 @@ func extractKlipperPrinterAPIKeysToVault(items []interface{}, vault *security.Va
 			continue
 		}
 		if logger != nil {
-			logger.Info("[Config] Klipper API key saved to vault", "key", vaultKey)
+			logger.Info("[Config] Klipper API key accepted for Vault storage", "key", vaultKey)
 		}
 	}
 	return firstErr
 }
 
-func extractGo2RTCStreamSourcesToVault(items []interface{}, vault *security.Vault, logger *slog.Logger) error {
+func extractGo2RTCStreamSourcesToVault(items []interface{}, vault configSecretWriter, logger *slog.Logger) error {
 	var firstErr error
 	seen := make(map[string]struct{}, len(items))
 	for _, item := range items {
@@ -2669,7 +2669,7 @@ func extractGo2RTCStreamSourcesToVault(items []interface{}, vault *security.Vaul
 			}
 			continue
 		}
-		if vault == nil {
+		if configSecretWriterMissing(vault) {
 			if firstErr == nil {
 				firstErr = fmt.Errorf("go2rtc stream source for %q cannot be saved: no vault configured (AURAGO_MASTER_KEY required)", id)
 			}
@@ -2683,7 +2683,7 @@ func extractGo2RTCStreamSourcesToVault(items []interface{}, vault *security.Vaul
 		}
 		security.RegisterSensitive(value)
 		if logger != nil {
-			logger.Info("[Config] go2rtc stream source saved to vault", "stream_id", id)
+			logger.Info("[Config] go2rtc stream source accepted for Vault storage", "stream_id", id)
 		}
 	}
 	return firstErr

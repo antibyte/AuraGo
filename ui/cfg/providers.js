@@ -2804,7 +2804,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 const entry = { id, name: name || id, usage, type: decisionsOnly ? 'openrouter' : type, base_url, model, context_window, max_output_tokens, auth_type, account_id, gateway_id };
 
                 if (auth_type === 'oauth2') {
-                    entry.api_key = data.api_key === '••••••••' ? '••••••••' : '';
+                    entry.api_key = data.api_key === '••••••••' && !apiKeyCleared ? '••••••••' : '';
                     const oauthConfig = providerOAuthConfigFromInputs(type);
                     entry.oauth_auth_url = oauthConfig.auth_url;
                     entry.oauth_token_url = oauthConfig.token_url;
