@@ -2,6 +2,8 @@ package memory
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -97,6 +99,13 @@ func (cv *ChromemVectorDB) deleteUnpublishedCorrectionDocument(ctx context.Conte
 	var readErr error
 	if cv.corpus != nil {
 		doc, readErr = cv.corpusDocument(ctx, "aurago_memories", id)
+		if errors.Is(readErr, sql.ErrNoRows) {
+			if cv.collection == nil {
+				return true, nil
+			}
+			// A failed acknowledgement may leave only the derived entry.
+			doc, readErr = cv.collection.GetByID(ctx, id)
+		}
 	} else if cv.collection != nil {
 		doc, readErr = cv.collection.GetByID(ctx, id)
 	} else {

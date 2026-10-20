@@ -49,7 +49,7 @@ func (s *SQLiteMemory) ApplyMemoryBudgetEnforcementContext(ctx context.Context, 
 		if err := scanMemoryMeta(s.db.QueryRowContext(ctx, `SELECT `+memoryMetaSelectColumns+` FROM memory_meta WHERE doc_id=?`, id), &candidate.meta); err != nil {
 			return 0, err
 		}
-		candidate.identity, candidate.hash, err = archiveDocumentIdentity(ctx, vector, id)
+		candidate.identity, candidate.hash, err = s.archiveDocumentIdentity(ctx, vector, id)
 		if err != nil {
 			return 0, err
 		}

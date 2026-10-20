@@ -300,7 +300,7 @@ func (s *SQLiteMemory) applyMemoryCurationAction(ctx context.Context, action Mem
 	vector := s.boundArchiveVector()
 	if !dryRun && (normalizedAction == MemoryCurationActionArchive ||
 		normalizedAction == MemoryCurationActionConfirm || normalizedAction == MemoryCurationActionUnverify) {
-		identity, _, err = archiveDocumentIdentity(ctx, vector, action.DocID)
+		identity, _, err = s.archiveDocumentIdentity(ctx, vector, action.DocID)
 		if err != nil {
 			return false, err
 		}
@@ -462,7 +462,7 @@ func (s *SQLiteMemory) ArchiveMemoryMetaBatchContext(ctx context.Context, docIDs
 		if err != nil {
 			return nil, err
 		}
-		candidate.identity, _, err = archiveDocumentIdentity(ctx, s.boundArchiveVector(), id)
+		candidate.identity, _, err = s.archiveDocumentIdentity(ctx, s.boundArchiveVector(), id)
 		if err != nil {
 			return nil, err
 		}

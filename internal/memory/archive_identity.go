@@ -66,6 +66,24 @@ func archiveDocumentIdentity(ctx context.Context, vector VectorDB, id string) (i
 	return memoryDocumentIdentity(content, domain), contentSHA256(content), nil
 }
 
+// Automatic chunks retain the identity of their complete source document.
+// The hash still describes the individual chunk for conditional cleanup.
+func (s *SQLiteMemory) archiveDocumentIdentity(ctx context.Context, vector VectorDB, id string) (identity, hash string, err error) {
+	identity, hash, err = archiveDocumentIdentity(ctx, vector, id)
+	if err != nil || hash == "" {
+		return identity, hash, err
+	}
+	var original string
+	err = s.db.QueryRowContext(ctx, `SELECT identity FROM memory_document_identities WHERE doc_id=?`, id).Scan(&original)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", "", fmt.Errorf("read original archive identity: %w", err)
+	}
+	if original != "" {
+		identity = original
+	}
+	return identity, hash, nil
+}
+
 func (s *SQLiteMemory) recordDocumentIdentity(ctx context.Context, id, identity string) error {
 	if identity == "" {
 		return nil
@@ -115,7 +133,7 @@ func (s *SQLiteMemory) backfillArchiveIdentities(ctx context.Context, vector Vec
 			return err
 		}
 		for _, id := range ids {
-			identity, _, err := archiveDocumentIdentity(ctx, vector, id)
+			identity, _, err := s.archiveDocumentIdentity(ctx, vector, id)
 			if err != nil {
 				return fmt.Errorf("backfill archive identity: %w", err)
 			}
