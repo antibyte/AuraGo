@@ -1,8 +1,12 @@
 package ui
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/go-rod/rod/lib/proto"
 )
 
 func TestDesktopGreenSlimeSpringSurfaceBrowser(t *testing.T) {
@@ -65,4 +69,147 @@ func TestDesktopGreenSlimeSpringSurfaceBrowser(t *testing.T) {
 	s.eval(t, `()=>document.getElementById('green-slime-mask-probe')?.remove()`)
 	s.waitFor(t, "static modal mask removal refresh", 3*time.Second,
 		`before=>AuraDesktopThemeFx.inspect().maskCount===before`, maskCount)
+}
+
+// Sample the actual painted canvas in the window manager's motion event, before
+// the next frame can conceal a one-frame gap. Real pointer input exercises the
+// manager's scheduling and fast reversals, unlike synthetic geometry snapshots.
+func TestDesktopGreenSlimeAttachedMembraneBrowser(t *testing.T) {
+	s := newThemeSweepSession(t, "no-preference")
+	s.page.MustSetViewport(1920, 1080, 1, false)
+	s.store.set(map[string]string{"appearance.theme": "green_slime", "appearance.wallpaper": "green_slime", "windows.animations": "true"})
+	s.pushSettings(t)
+	s.openApps(t, "settings")
+	s.waitFor(t, "slime material", 10*time.Second, `()=>AuraDesktopThemeFx?.inspect().surfaceCount===1`)
+	s.eval(t, `()=>{
+		const win=[...auditTest.state.windows.values()][0];
+		Object.assign(win.element.style,{left:'400px',top:'180px',width:'780px',height:'560px'});
+		window.slimeDragWindow=win;
+		dispatchEvent(new CustomEvent('aurago:desktop-windows-refresh'));
+		window.slimeCoverage={samples:0,missing:[],interior:[],positions:[]};
+		window.sampleSlimeCoverage=()=>{
+			const canvas=document.querySelector('.vd-fx-slime-canvas');
+			const ctx=canvas.getContext('2d'),scale=canvas.width/canvas.clientWidth;
+			const r=slimeDragWindow.element.getBoundingClientRect();
+			const alpha=(x,y)=>ctx.getImageData(Math.floor(x*scale),Math.floor(y*scale),1,1).data[3];
+			const points=[];
+			for(const t of [.12,.3,.5,.7,.88])for(const d of [2,7]){
+				points.push([r.left+r.width*t,r.top-d],[r.left+r.width*t,r.bottom+d],
+					[r.left-d,r.top+r.height*t],[r.right+d,r.top+r.height*t]);
+			}
+			// These are outside the DOM's round corners but inside the gel.
+			points.push([r.left+3,r.top+3],[r.right-3,r.top+3],[r.left+3,r.bottom-3],[r.right-3,r.bottom-3]);
+			for(const [x,y] of points)if(alpha(x,y)<220)slimeCoverage.missing.push({x,y,alpha:alpha(x,y),frame:slimeCoverage.samples});
+			for(const [x,y] of [[r.left+70,r.top+22],[r.left+100,r.top+150],[r.right-70,r.bottom-60]])
+				if(alpha(x,y)>0)slimeCoverage.interior.push({x,y});
+			slimeCoverage.samples++;
+			slimeCoverage.positions.push({x:r.left,y:r.top,w:r.width,h:r.height});
+		};
+		addEventListener('aurago:desktop-window',e=>{
+			if(e.detail.id===win.id && /^(drag|resize)/.test(e.detail.phase))sampleSlimeCoverage();
+		});
+	}`)
+	s.settle(t)
+	s.eval(t, `()=>sampleSlimeCoverage()`)
+	var start struct{ X, Y float64 }
+	s.evalInto(t, &start, `()=>{const r=slimeDragWindow.element.querySelector('.vd-window-titlebar').getBoundingClientRect();return {X:r.left+170,Y:r.top+20};}`)
+	if err := s.page.Mouse.MoveTo(proto.Point{X: start.X, Y: start.Y}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.page.Mouse.Down(proto.InputMouseButtonLeft, 1); err != nil {
+		t.Fatal(err)
+	}
+	for _, offset := range []proto.Point{{X: 200, Y: 150}, {X: 400, Y: 240}, {X: 160, Y: 70}, {X: -180, Y: 240}, {X: 90, Y: 20}, {X: 300, Y: 150}, {X: -170, Y: 80}, {X: 0, Y: 0}} {
+		if err := s.page.Mouse.MoveTo(proto.Point{X: start.X + offset.X, Y: start.Y + offset.Y}); err != nil {
+			t.Fatal(err)
+		}
+		s.settle(t)
+	}
+	if err := s.page.Mouse.Up(proto.InputMouseButtonLeft, 1); err != nil {
+		t.Fatal(err)
+	}
+	// Resizing reprojects local contour offsets as well; it must not leave the
+	// stationary content corner behind while the outer geometry catches up.
+	s.evalInto(t, &start, `()=>{const r=slimeDragWindow.element.querySelector('[data-resize="se"]').getBoundingClientRect();return {X:r.left+r.width/2,Y:r.top+r.height/2};}`)
+	if err := s.page.Mouse.MoveTo(proto.Point{X: start.X, Y: start.Y}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.page.Mouse.Down(proto.InputMouseButtonLeft, 1); err != nil {
+		t.Fatal(err)
+	}
+	for _, offset := range []proto.Point{{X: 130, Y: 70}, {X: -80, Y: -45}, {X: 65, Y: 40}} {
+		if err := s.page.Mouse.MoveTo(proto.Point{X: start.X + offset.X, Y: start.Y + offset.Y}); err != nil {
+			t.Fatal(err)
+		}
+		s.settle(t)
+	}
+	if err := s.page.Mouse.Up(proto.InputMouseButtonLeft, 1); err != nil {
+		t.Fatal(err)
+	}
+	s.screenshot(t, filepath.Join("..", "reports", "desktop-experience-themes", "green-slime-attached.png"))
+	// Native browser crop for inspecting the reported corner at full pixel detail.
+	s.evalInto(t, &start, `()=>{const r=slimeDragWindow.element.getBoundingClientRect();return {X:r.left-35,Y:r.top-35};}`)
+	corner, err := s.page.Screenshot(false, &proto.PageCaptureScreenshot{
+		Format: proto.PageCaptureScreenshotFormatPng,
+		Clip:   &proto.PageViewport{X: start.X, Y: start.Y, Width: 360, Height: 235, Scale: 2},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join("..", "reports", "desktop-experience-themes", "green-slime-corner.png"), corner, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.eval(t, `()=>slimeCoverage`).Value; got.Get("samples").Int() < 10 || len(got.Get("missing").Arr()) != 0 || len(got.Get("interior").Arr()) != 0 {
+		t.Fatalf("slime membrane detached or painted over content: %s", got.String())
+	}
+	if !s.eval(t, `()=>new Set(slimeCoverage.positions.map(p=>p.x)).size>4 && new Set(slimeCoverage.positions.map(p=>p.w)).size>1`).Value.Bool() {
+		t.Fatal("pointer input did not exercise both drag and resize")
+	}
+	// Switch to the still material and verify both geometry and a quiet renderer.
+	s.store.set(map[string]string{"windows.animations": "false"})
+	s.pushSettings(t)
+	s.waitFor(t, "static membrane", 5*time.Second, `()=>!AuraDesktopThemeFx.inspect().motion && AuraDesktopThemeFx.inspect().surfaceCount===1`)
+	s.eval(t, `()=>{slimeCoverage.missing=[];slimeCoverage.interior=[];sampleSlimeCoverage();}`)
+	if got := s.eval(t, `()=>({missing:slimeCoverage.missing,interior:slimeCoverage.interior,raf:AuraDesktopThemeFx.inspect().rafPending,errors:fixtureErrors})`).Value; got.Get("missing").String() != "[]" || got.Get("interior").String() != "[]" || got.Get("raf").Bool() || got.Get("errors").String() != "[]" {
+		t.Fatalf("static rounded membrane failed: %s", got.String())
+	}
+}
+
+func TestDesktopGreenSlimeSixWindowsBrowser(t *testing.T) {
+	s := newThemeSweepSession(t, "no-preference")
+	s.page.MustSetViewport(1920, 1080, 1, false)
+	s.store.set(map[string]string{"appearance.theme": "green_slime", "appearance.wallpaper": "green_slime", "windows.animations": "true"})
+	s.pushSettings(t)
+	s.openApps(t, "files", "calculator", "settings", "calendar", "notes", "editor")
+	s.eval(t, `()=>{let i=0;for(const w of auditTest.state.windows.values()){
+		Object.assign(w.element.style,{left:(110+(i%3)*530)+'px',top:(90+Math.floor(i/3)*400)+'px',width:'490px',height:'350px'});i++;
+	}dispatchEvent(new CustomEvent('aurago:desktop-windows-refresh'));}`)
+	s.waitFor(t, "six bounded slime surfaces", 10*time.Second, `()=>AuraDesktopThemeFx.inspect().surfaceNodeCount===192 && AuraDesktopThemeFx.inspect().dropCount>=6`)
+	// Report frame cadence as a local observation, not a target-hardware guarantee.
+	got := s.eval(t, `async()=>{
+		const times=[];let last=performance.now();
+		for(let i=0;i<90;i++){await new Promise(requestAnimationFrame);const now=performance.now();times.push(now-last);last=now;}
+		times.sort((a,b)=>a-b);
+		const fx=AuraDesktopThemeFx.inspect();
+		return {median:times[45],p95:times[85],activeDrops:fx.activeDrops,nodes:fx.surfaceNodeCount};
+	}`).Value
+	t.Logf("six windows at 1920x1080: %s", got.String())
+	if got.Get("activeDrops").Int() > 72 || got.Get("nodes").Int() != 192 {
+		t.Fatalf("slime resource budget escaped: %s", got.String())
+	}
+	s.screenshot(t, filepath.Join("..", "reports", "desktop-experience-themes", "green-slime-six-windows.png"))
+	s.eval(t, `()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));}`)
+	if !s.eval(t, `async()=>{const before=AuraDesktopThemeFx.inspect();await new Promise(r=>setTimeout(r,180));const after=AuraDesktopThemeFx.inspect();return after.paused && !after.rafPending && before.frameCount===after.frameCount;}`).Value.Bool() {
+		t.Fatal("hidden slime theme kept animating")
+	}
+	s.eval(t, `()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));}`)
+	s.waitFor(t, "resumed slime", 5*time.Second, `()=>!AuraDesktopThemeFx.inspect().paused && AuraDesktopThemeFx.inspect().rafPending`)
+	s.closeAllWindows(t)
+	s.waitFor(t, "closed membrane disposal", 5*time.Second, `()=>AuraDesktopThemeFx.inspect().surfaceCount===0`)
+	s.store.set(map[string]string{"appearance.theme": "standard"})
+	s.pushSettings(t)
+	s.waitFor(t, "slime host disposal", 5*time.Second, `()=>!document.querySelector('.vd-fx-slime-canvas') && !document.querySelector('.vd-theme-fx-layer')`)
+	if errors := s.eval(t, `()=>fixtureErrors`).Value.String(); errors != "[]" {
+		t.Fatalf("slime lifecycle errors: %s", errors)
+	}
 }
