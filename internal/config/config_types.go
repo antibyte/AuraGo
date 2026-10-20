@@ -381,6 +381,7 @@ type Go2RTCStreamDetectionConfig struct {
 
 // Go2RTCStreamConfig describes one stable, user-visible stream. Source is vault-only.
 type Go2RTCStreamConfig struct {
+	Tuya                     *Go2RTCTuyaBinding          `yaml:"tuya,omitempty" json:"tuya,omitempty"`
 	ID                       string                      `yaml:"id" json:"id"`
 	Name                     string                      `yaml:"name" json:"name"`
 	Enabled                  bool                        `yaml:"enabled" json:"enabled"`
@@ -410,6 +411,7 @@ type Go2RTCWebRTCConfig struct {
 
 // Go2RTCConfig holds settings for AuraGo's managed go2rtc sidecar.
 type Go2RTCConfig struct {
+	TuyaAccounts  []Go2RTCTuyaAccount   `yaml:"tuya_accounts,omitempty" json:"tuya_accounts"`
 	Enabled       bool                  `yaml:"enabled" json:"enabled"`
 	AutoStart     bool                  `yaml:"auto_start" json:"auto_start"`
 	WebUIEnabled  bool                  `yaml:"web_ui_enabled" json:"web_ui_enabled"`

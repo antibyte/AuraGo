@@ -219,6 +219,7 @@ func injectGo2RTCConfig(rawCfg map[string]interface{}, cfg *config.Config, vault
 	section["web_ui_enabled"] = cfg.Go2RTC.WebUIEnabled
 	section["agent_access"] = cfg.Go2RTC.AgentAccess
 	section["store_media"] = cfg.Go2RTC.StoreMedia
+	section["tuya_accounts"] = safeTuyaAccounts(cfg.Go2RTC)
 	section["image"] = cfg.Go2RTC.Image
 	section["container_name"] = cfg.Go2RTC.ContainerName
 	section["url"] = cfg.Go2RTC.URL
@@ -531,6 +532,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 		if err := validateMQTTConfigPatch(rawCfg, patch); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := prepareTuyaConfigPatch(s, rawCfg, patch, go2RTCSourceTxn); err != nil {
+			jsonError(w, security.Scrub(err.Error()), http.StatusBadRequest)
 			return
 		}
 		// The local_wikipedia values before the merge: the save validates

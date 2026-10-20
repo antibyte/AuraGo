@@ -13,6 +13,7 @@ import (
 // complete; a sparse or partial copy would delete every entry and field it
 // leaves out. go2rtc.streams has its own stricter check.
 var completeConfigListPaths = []string{
+	"go2rtc.tuya_accounts",
 	"a2a.server.skills",
 	"a2a.client.remote_agents",
 	"three_d_printers.elegoo_centauri_carbon.printers",

@@ -36,6 +36,8 @@ func registerGo2RTCRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/go2rtc/thumbnail/", requireGo2RTCView(s, handleGo2RTCThumbnail(s)))
 	mux.HandleFunc("/api/go2rtc/setup/enable", admin(handleGo2RTCSetupEnable(s)))
 	mux.HandleFunc("/api/go2rtc/discovery", admin(handleGo2RTCDiscovery(s)))
+	mux.HandleFunc("/api/go2rtc/tuya/accounts", admin(handleGo2RTCTuyaAccounts(s)))
+	mux.HandleFunc("/api/go2rtc/tuya/accounts/", admin(handleGo2RTCTuyaAccount(s)))
 	mux.HandleFunc("/api/go2rtc/discovery/profiles", admin(handleGo2RTCDiscoveryProfiles(s)))
 	mux.HandleFunc("/api/go2rtc/streams", handleGo2RTCStreamsRoute(s))
 	mux.HandleFunc("/api/go2rtc/streams/", admin(handleGo2RTCStreamMutation(s)))

@@ -975,6 +975,8 @@ func ValidateGo2RTCSource(raw string) error {
 		return fmt.Errorf("a complete network URL is required")
 	}
 	switch strings.ToLower(parsed.Scheme) {
+	case "tuya":
+		return config.ValidateGo2RTCTuyaSource(strings.TrimSpace(raw))
 	case "rtsp", "rtsps", "rtspx", "http", "https", "onvif":
 		return nil
 	default:

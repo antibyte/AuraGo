@@ -10,17 +10,17 @@ import (
 	"time"
 
 	"aurago/internal/config"
-	"aurago/internal/security"
 	"aurago/internal/tools"
 
 	"gopkg.in/yaml.v3"
 )
 
 type go2RTCSourceChange struct {
-	ID     string
-	Role   string
-	Value  string
-	Delete bool
+	AccountID string
+	ID        string
+	Role      string
+	Value     string
+	Delete    bool
 }
 
 type go2RTCConfigUpdateResult struct {
@@ -39,6 +39,10 @@ func updateManagedGo2RTCConfig(
 	sourceChanges []go2RTCSourceChange,
 	forceStart bool,
 ) (go2RTCConfigUpdateResult, error) {
+	return updateManagedGo2RTCConfigWithTuya(ctx, s, mutate, sourceChanges, forceStart, go2RTCTuyaInputs{})
+}
+
+func updateManagedGo2RTCConfigWithTuya(ctx context.Context, s *Server, mutate func(*config.Go2RTCConfig) error, sourceChanges []go2RTCSourceChange, forceStart bool, inputs go2RTCTuyaInputs) (go2RTCConfigUpdateResult, error) {
 	if s == nil || s.Cfg == nil || s.Vault == nil || s.Go2RTC == nil {
 		return go2RTCConfigUpdateResult{}, fmt.Errorf("go2rtc configuration service is unavailable")
 	}
@@ -55,12 +59,14 @@ func updateManagedGo2RTCConfig(
 		s.CfgMu.RLock()
 		oldCfg := *s.Cfg
 		oldCfg.Go2RTC.Streams = append([]config.Go2RTCStreamConfig(nil), s.Cfg.Go2RTC.Streams...)
+		oldCfg.Go2RTC.TuyaAccounts = append([]config.Go2RTCTuyaAccount(nil), s.Cfg.Go2RTC.TuyaAccounts...)
 		s.CfgMu.RUnlock()
 		if strings.TrimSpace(oldCfg.ConfigPath) == "" {
 			return publication{}, fmt.Errorf("config path is not set")
 		}
 		nextCfg := oldCfg
 		nextCfg.Go2RTC.Streams = append([]config.Go2RTCStreamConfig(nil), oldCfg.Go2RTC.Streams...)
+		nextCfg.Go2RTC.TuyaAccounts = append([]config.Go2RTCTuyaAccount(nil), oldCfg.Go2RTC.TuyaAccounts...)
 		if err := mutate(&nextCfg.Go2RTC); err != nil {
 			return publication{}, err
 		}
@@ -68,7 +74,15 @@ func updateManagedGo2RTCConfig(
 			return publication{}, fmt.Errorf("Docker mutations must remain enabled while the managed go2rtc container is disabled")
 		}
 
-		vaultTxn, err := stageGo2RTCSourceChanges(s, sourceChanges)
+		changes, err := prepareTuyaChanges(oldCfg.Go2RTC, &nextCfg.Go2RTC, s.Vault, inputs, sourceChanges)
+		if err != nil {
+			var mutation *go2RTCMutationError
+			if !errors.As(err, &mutation) {
+				err = &go2RTCMutationError{Status: 400, Code: "tuya_invalid_configuration", Message: err.Error()}
+			}
+			return publication{}, err
+		}
+		vaultTxn, err := stageGo2RTCSourceChanges(s, changes)
 		if err != nil {
 			return publication{}, err
 		}
@@ -211,39 +225,9 @@ func applyGo2RTCRuntimeTransition(ctx context.Context, s *Server, oldCfg, newCfg
 
 func stageGo2RTCSourceChanges(s *Server, changes []go2RTCSourceChange) (*go2RTCSourceVaultTransaction, error) {
 	txn := &go2RTCSourceVaultTransaction{vault: s.Vault, previous: make(map[string]go2RTCSourceVaultSnapshot)}
-	for _, change := range changes {
-		key := config.Go2RTCSourceKey(change.ID, change.Role)
-		if key == "" {
-			return nil, fmt.Errorf("invalid go2rtc stream id")
-		}
-		if _, captured := txn.previous[key]; !captured {
-			value, err := s.Vault.ReadSecret(key)
-			if err == nil {
-				txn.previous[key] = go2RTCSourceVaultSnapshot{value: value, exists: true}
-			} else if strings.Contains(strings.ToLower(err.Error()), "secret not found") {
-				txn.previous[key] = go2RTCSourceVaultSnapshot{}
-			} else {
-				_ = txn.Rollback()
-				return nil, fmt.Errorf("read previous source for stream %q: %w", change.ID, err)
-			}
-		}
-		if change.Delete {
-			if err := s.Vault.DeleteSecret(key); err != nil {
-				_ = txn.Rollback()
-				return nil, fmt.Errorf("delete source for stream %q: %w", change.ID, err)
-			}
-			continue
-		}
-		value := strings.TrimSpace(change.Value)
-		if value == "" {
-			_ = txn.Rollback()
-			return nil, fmt.Errorf("stream %q requires a source", change.ID)
-		}
-		security.RegisterSensitive(value)
-		if err := s.Vault.WriteSecret(key, value); err != nil {
-			_ = txn.Rollback()
-			return nil, fmt.Errorf("save source for stream %q: %w", change.ID, err)
-		}
+	if err := txn.apply(changes); err != nil {
+		_ = txn.Rollback()
+		return nil, err
 	}
 	return txn, nil
 }

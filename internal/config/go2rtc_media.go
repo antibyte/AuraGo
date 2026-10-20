@@ -53,6 +53,9 @@ func Go2RTCSetRoleSource(s *Go2RTCStreamConfig, role, value string) {
 }
 
 func ValidateGo2RTCMedia(c Go2RTCConfig) error {
+	if err := ValidateGo2RTCTuya(c); err != nil {
+		return err
+	}
 	h := c.Hardware
 	if !slices.Contains([]string{"", "software", "vaapi", "cuda"}, h.Backend) {
 		return fmt.Errorf("go2rtc.hardware.backend must be software, vaapi or cuda")
