@@ -8,8 +8,12 @@ monolithic ``generate.py``.
 import json
 import struct
 
+import bmesh
 import bpy
 from mathutils import Vector
+
+FUNCTIONAL_NAMES = ("flag", "ball-template", "putter-template", "water-shore")
+FUNCTIONAL_PREFIXES = ("surface-", "rail-", "obstacle-", "windmill-sail")
 
 
 def scene_bounds(objects, obstacles):
@@ -151,3 +155,67 @@ def glb_json(path):
             return json.loads(data[offset:offset + size].decode("utf-8").rstrip(" \0"))
         offset += size
     raise RuntimeError("GLB has no JSON chunk: " + path)
+
+
+def is_functional(obj):
+    """Objects the runtime or the physics look up by name stay single nodes."""
+    base = obj.name.split(".")[0]
+    return (obj.type != "MESH" or base in FUNCTIONAL_NAMES or base.startswith(FUNCTIONAL_PREFIXES)
+            or bool(obj.get("aurago_obstacle")) or bool(obj.get("aurago_obstacle_component")))
+
+
+def _split_materials(obj):
+    """Split a multi-material mesh object into one object per material slot (in slot order)."""
+    slots = [slot.material for slot in obj.material_slots]
+    if len(slots) < 2:
+        return [obj]
+    parts = []
+    for index, mat in enumerate(slots):
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.material_index != index], context="FACES")
+        if not bm.faces:
+            bm.free()
+            continue
+        mesh = bpy.data.meshes.new("%s-%d" % (obj.data.name, index))
+        bm.to_mesh(mesh)
+        bm.free()
+        mesh.materials.append(mat)
+        part = bpy.data.objects.new("%s-m%d" % (obj.name, index), mesh)
+        part.matrix_world = obj.matrix_world
+        for coll in obj.users_collection:
+            coll.objects.link(part)
+        parts.append(part)
+    data = obj.data
+    bpy.data.objects.remove(obj, do_unlink=True)
+    if data.users == 0:
+        bpy.data.meshes.remove(data)
+    return parts
+
+
+def join_scenery(model):
+    """Join every non-functional mesh of ``model`` per material into ``scenery-<material>`` nodes; returns them.
+
+    Functional nodes (lane, rails, trims, obstacles, templates, flag, shore, sun
+    wheel blades) stay as they are. Builder bookkeeping properties are dropped.
+    """
+    loose = [obj for obj in model.objects if not is_functional(obj)]
+    singles = []
+    for obj in loose:
+        singles.extend(_split_materials(obj))
+    groups = {}
+    for obj in singles:
+        mat = obj.material_slots[0].material.name if obj.material_slots and obj.material_slots[0].material else "none"
+        groups.setdefault(mat, []).append(obj)
+    joined = []
+    for mat, objs in sorted(groups.items()):
+        target = objs[0]
+        if len(objs) > 1:
+            with bpy.context.temp_override(active_object=target, object=target, selected_objects=objs, selected_editable_objects=objs):
+                bpy.ops.object.join()
+        target.name = "scenery-" + mat.replace("kit-", "").replace(".", "_")
+        target.data.name = target.name + "-mesh"
+        for key in list(target.keys()):
+            del target[key]
+        joined.append(target)
+    return joined

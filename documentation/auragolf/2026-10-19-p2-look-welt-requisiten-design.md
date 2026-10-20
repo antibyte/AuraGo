@@ -49,7 +49,7 @@ P2 gibt AuraGolf den Look eines stilisierten Dioramas: weich gefaste Formen, Far
 | Vorschaubilder | Cycles-Renders 640×360 WebP unter `ui/3d/minigolf/previews/<look>.webp`. Manifest `worlds: [{ id, preview }]` aus dem Generator (P4-Schnittstelle). | P4 zeigt sie ohne Codeänderung. |
 | Komprimierung | Keine Draco- oder Meshopt-Kompression. Budgets werden über Dreiecksbudgets und geteilte Vertices eingehalten. Der Blender-Exporter schreibt `COLOR_0` als float32. | Kein Decoder im Bundle; Kollisions-GLBs bleiben lesbar. Blender 5.2 kann Meshopt exportieren und three.js bringt den Decoder lokal mit; das bleibt die Reserve, falls Kits das Budget sprengen. |
 | Blender-Datei | `aura-golf-courses.blend` wird nicht mehr versioniert. `generate.py --save-blend` schreibt sie bei Bedarf nach `assets/minigolf/build/` (ignoriert). | Der Generator ist die Quelle (Fahrplan: Variante A); eine Datei mit Kits und gebackenen Bahnen würde das Repository bei jedem Lauf um viele MB wachsen lassen. |
-| Materialien je Requisit | Höchstens 3 Primitive je Requisit; je Welt höchstens 8 Materialien. Emission bekommt eine Stärke je Requisit; Helligkeitsunterschiede kommen aus der Vertexfarbe. Rückseiten werden außer bei `foliage` und dünnen Flächen weggelassen. | Jede Primitive ist ein Draw Call je Instanzgruppe. Der Spike zeigte 5 Primitive bei der Fackel durch fünf Emissionsstärken. |
+| Materialien je Requisit | Höchstens 3 Primitive je Requisit, ein `hero` darf 4 (Schiff: Holz, Tuch, Licht und Metall); je Welt höchstens 8 Materialien. Emission bekommt eine Stärke je Requisit; Helligkeitsunterschiede kommen aus der Vertexfarbe. Rückseiten werden außer bei `foliage` und dünnen Flächen weggelassen. | Jede Primitive ist ein Draw Call je Instanzgruppe. Der Spike zeigte 5 Primitive bei der Fackel durch fünf Emissionsstärken. Das Metall der Schiffsbeschläge ist sichtbare Qualität und kostet bei einem einzigen Hingucker je Welt nur einen Draw Call mehr je Bahn (Nutzerregel: Budgets dürfen moderat steigen, wo es sichtbare Qualität kauft). |
 
 ## 3. Generator (`assets/minigolf/`)
 
@@ -64,7 +64,9 @@ P2 gibt AuraGolf den Look eines stilisierten Dioramas: weich gefaste Formen, Far
 | `kit/props_<look>.py` (+ `ship_pirate.py`, `head_temple.py`) | Requisiten je Welt mit `PROPS`-Registrierung und Metadaten (Abschnitt 3.3). |
 | `kit/kits.py` | Baut je Welt alle Requisiten einzeln, backt AO, exportiert `props-<look>.glb`, liefert Metadaten für das Manifest. |
 | `kit/courses_v1.py` | Die 18 bisherigen Bahndefinitionen und die unveränderte Erzeugung von Spur, Banden, Loch, Hindernissen und Sprunglücken (aus `generate.py` verschoben, Geometriecode wortgleich). |
-| `kit/dress.py` | Umkleiden einer Bahn: Insel (`island.py`), Bandenverkleidung, Sonderteile je Layout, Requisiten-Platzierung. |
+| `kit/dress.py` (+ `dress_island.py`, `trim.py`) | Umkleiden einer Bahn: Insel (`island.py`), Bandenverkleidung, Bake mit den platzierten Requisiten als Verdeckern. |
+| `kit/dress_specials.py`, `special_parts.py`, `dress_parts.py` | Sonderteile je Layout (feste Platzierungen und handgebaute Geometrie), Weltstil für Hindernisse, Vorlagen, Fahne, Loch und Abschlag. |
+| `kit/placement.py`, `occluders.py` | Deterministische Platzierung (Hingucker, Rand, Streudeko, Regelprüfung) und die Kit-Objekte als Bake-Verdecker. |
 | `kit/export.py` | Export, kanonische Knotennamen, Zusammenfassen statischer Deko je Material, GLB-Lesen (Dreiecke, Kollider), Manifest-Einträge. |
 | `kit/previews.py` | Vorschaubilder je Welt (Cycles, `--only previews`). |
 | `kit/probe.py`, `scene_<look>.py`, `stage.py`, `compose.py`, `island.py`, `lane.py` | Bleiben für Proben und Feinschliff; `island.py` und `compose.py` werden von `dress.py` mitbenutzt. |
@@ -89,7 +91,8 @@ Laufzeit des Generators etwa 10–15 Minuten auf 16 Kernen. Ein Export-Abbruch d
 ### 3.3 Requisiten-Vertrag
 
 - Ein Requisit ist ein Mesh-Knoten `prop-<look>-<name>` auf oberster Ebene, Y-up nach Export, Fuß bei y = 0, Grundriss zentriert, Meter.
-- Es hat höchstens drei Primitive. Jede Primitive hat `COLOR_0` aus Palettenverlauf × AO, 8 Bit je Kanal.
+- Es hat höchstens drei Primitive (ein `hero` vier). Jede Primitive hat `COLOR_0` aus Palettenverlauf × AO, 8 Bit je Kanal.
+- Der Ursprung eines `hero` liegt in der Mitte seines kleinsten Grundrisskreises. Der `radius` ist so klein wie möglich und die Platzierung kann ihn größer skalieren.
 - Knoten-Extras `aurago_prop`:
   - `radius`: Grundrissradius,
   - `height`,
@@ -151,11 +154,12 @@ Spur und Banden bekommen nur ein neues Material und Vertexfarben im Punktbereich
   | `moonbridge` | moon | Metallbrücke und Schlucht |
   | `lilyjump` | moon | Schwebe-Landepads statt Seerosen und Schlucht |
 - **Platzierung (`dress.py`):** deterministisch aus einem festen Seed je Bahn.
-  1. **Hingucker:** Das `hero`-Requisit der Welt kommt auf die größte freie Fläche (Kandidatenraster, höchste Freiheit). Bei Gleichstand gewinnt die kleinste Rasterposition.
+  1. **Hingucker:** Das `hero`-Requisit der Welt kommt auf die größte freie Fläche (Kandidatenraster, höchste Freiheit, leicht nach hinten bevorzugt); es wird so groß skaliert, wie sein Kreis passt (mindestens 0,42). Bei Gleichstand gewinnt die kleinste Rasterposition. Die Insel ist nur etwa 9,8 × 10,7 m groß und die Spur teilt sie, deshalb liegt der Hingucker meist bei 0,55 bis 0,75.
   2. **Rand:** 8–14 mittlere Requisiten in Randplätzen.
   3. **Streudeko:** in freien Flächen bis zu einer Dichte von etwa 0,8 je m².
-  - Kein Grundriss schneidet den Korridor von 1,0 m um die Spurmitte, außer `span`.
-  - Alles liegt innerhalb des Inselrands mit 0,3 m Abstand.
+  - Kein Grundriss schneidet den Korridor um die Spurmitte, außer `span`. Der Test verlangt 1,0 m, der Generator hält 1,2 m, damit Bandenverkleidung und Pfosten frei bleiben.
+  - Alles liegt innerhalb des Inselrands mit 0,3 m Abstand. Hohe Requisiten, Pflanzen und der Hingucker dürfen mit einem Anteil ihres Radius überhängen (Palmwedel, Takelage, Brauen), weil der Radius der Hüllkreis ist und dünne Teile ihn dominieren.
+  - Nichts steht im Graben einer Sprunglücke; hohe Requisiten, die die Spur aus der Spielkamera verdecken würden, und alles Hohe vor dem Hingucker entfallen.
   - Die Höhe kommt aus der Inselfunktion.
 
 ### 3.5 Export und Zusammenfassen
@@ -353,7 +357,7 @@ Die Stufe folgt `tier()` (P4-Governor bei „auto“).
 | Bahn-GLB | ≤ 768 KiB und ≤ 24 000 Dreiecke (Export kostet etwa 33 B je Dreieck) | ≤ 458 KB, ≤ 5 609 Dreiecke |
 | Knoten mit Mesh je Bahn-GLB | ≤ 24 | 135 |
 | Kit-GLB je Welt | ≤ 3 MiB und ≤ 60 000 Dreiecke | – |
-| Einzelnes Requisit | ≤ 15 000 Dreiecke (`hero` ≤ 16 000) | – |
+| Einzelnes Requisit | ≤ 15 000 Dreiecke (`hero` ≤ 20 000; der Tempelkopf braucht 16 444 für lesbare Gesichtszüge) | – |
 | Instanzen je Bahn | ≤ 160 | – |
 | Vorschaubild | ≤ 80 KB, 640×360 WebP | – |
 | Spiel-Bundle | ≤ 6 MiB (seit P4) | ca. 5,1 MB |

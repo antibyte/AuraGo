@@ -655,6 +655,8 @@ def build_scene(number, course, dresser=None):
     flag=mesh_object(scene,model,"flag",flag_verts,[(0,1,2)],flagmat,"marker")
     digit_mat=material("hole-number-"+course["world"],(1.0,.87,.46,1),roughness=.42,emission=1.2)
     hole_number(scene,model,cup,number,digit_mat)
+    if dresser is not None:
+        dresser.restyle(model)
     add_studio(scene,studio,palette)
     return {"course_id":course_id,"scene":scene,"model":model,"studio":studio,"palette":palette,"path":path,"cup":cup,"tee":tee,"obstacles":obstacles}
 
@@ -686,6 +688,7 @@ def build_course(number, course, dresser=None):
     course_id,scene,model,palette,path,cup,tee,obstacles=(built[k] for k in ("course_id","scene","model","palette","path","cup","tee","obstacles"))
     if dresser is not None:
         dresser.bake(model)
+        export.join_scenery(model)
     bpy.context.window.scene=scene
     bpy.ops.object.select_all(action="DESELECT")
     for obj in model.objects: obj.select_set(True)

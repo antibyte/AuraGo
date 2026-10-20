@@ -57,14 +57,20 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
   both to emissive strength plus `COLOR_0`.
 - Material contract (glTF material `extras`): `aurago_kind` on every material;
   `aurago_strength` on `emissive`/`glow`, snapped to `EMISSION_STEPS` (1.0, 1.6,
-  2.5) so one prop never needs a primitive per brightness; `aurago_flicker` for
+  2.5) so one prop never needs a primitive per brightness; `glow` (gems, eyes,
+  water) is much softer and snaps to its own `GLOW_STEPS` (0.3, 0.7, 1.0), so pass
+  glow strengths from that set; `aurago_flicker` for
   flames (`get("emissive", 1.6, flicker=0.35)`); `aurago_sway` (metres) on
   `foliage`/`cloth`. Only `foliage`, `cloth` and `glass` are double sided. Pass
   `strength`, `flicker`, `sway` through `Prop.add`.
-- Kits (`kits.py`): at most 3 primitives per prop and 8 materials per world
-  (build errors otherwise), each prop a top-level node `prop-<look>-<name>` at
-  the origin with `COLOR_0` on every primitive, built with `seed=1`. Kit
-  budgets: < 3 MiB and < 60,000 triangles per world, hero <= 16,000 triangles.
+- Kits (`kits.py`): at most 3 primitives per prop (4 for a `hero`, which is where
+  the metal fittings next to wood, cloth and light are worth a fourth draw call)
+  and 8 materials per world (build errors otherwise), each prop a top-level node
+  `prop-<look>-<name>` at the origin with `COLOR_0` on every primitive, built with
+  `seed=1`. A `hero` is moved so the centre of its smallest enclosing plan circle
+  is the origin (`kits.centre_footprint`): the radius stays as small as possible
+  and the placement can scale it up. Kit budgets: < 3 MiB and < 60,000 triangles
+  per world, hero <= 20,000 triangles.
 - Dressing (`dress.Dresser`, `courses_v1.build_course(number, course, dresser)`):
   lane, collision rails, obstacles, tee, cup and flag come from the unchanged
   `courses_v1` code; the dresser replaces `add_decor` / `add_special`. `surface-*`
@@ -86,6 +92,32 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
   `generate.py --course N` rebuilds one course with the dresser and patches its
   manifest entry (`look`, `path`, `props` included); without it the courses stay
   legacy until the full redress.
+- Specials and placement: `dress_specials.build` turns each legacy layout special
+  into fixed kit placements (gate, palms of the beach, harbour posts, neon posts,
+  crystals, tower, lighthouse as hero, ...) and/or hand-built geometry
+  (`special_parts`: pier beams and posts, jump ramps, bridge parapets, sun wheel with
+  the four `windmill-sail` blades, moon pads, gate hub) in the place and size of the
+  old part. `placement.place` then fills the island deterministically
+  (`Random(1000 + number)`, 0.25 m grid): fixed placements, the hero (largest free
+  circle, scale >= 0.42, towards the back), medium props (biggest first, same kind
+  at least 2.2 m apart), scatter (beach critters in a shore band). Rules: the footprint
+  circle (`radius` x scale) keeps `CORRIDOR` (1.2 m, the asset test needs 1.0) from the
+  manifest `path` polyline except `span` props; tall props, foliage and the hero may
+  overhang the rim by a share of their radius (`RIM` shares, their bounding circle is
+  mostly thin parts); nothing stands in a gap trench; tall props that would hide the
+  lane from the game camera and everything tall in front of the hero are skipped;
+  `placement.check` repeats the asset test rules and fails the build. The dish is
+  `dishbase` plus `dishhead` with one transform (the head is not based at z = 0).
+  Contact shading: `Dresser.bake` links a copy of every placed prop (`occluders`,
+  unbaked kit objects of the look, built once per process) into the course scene as
+  occluder and removes them before the export.
+- Functional parts (`dress_parts.restyle`): obstacles (bevel only, exact extents),
+  ball (icosphere on exactly r = 0.16, plain white, the game tints it), putter (steel
+  shaft 0 to 0.82 m, bevelled head), flag (`cloth`, double sided), hole digits
+  (`emissive`), tee ring, cup rim and lining, a felt-coloured `cup-patch` that hides
+  the dark ground in the stepped lane cut-out. `export.join_scenery` joins every
+  other mesh per material into `scenery-<material>` nodes (`FUNCTIONAL_NAMES` /
+  `FUNCTIONAL_PREFIXES` stay single nodes) and strips builder properties.
 - Look: Khronos PBR Neutral view transform (look None, exposure 0, gamma 1) to
   match three.js `NeutralToneMapping`; keep emission strength near 1-2.5 because
   Neutral desaturates highlights above ~0.8. Camera: perspective, 43 degrees
@@ -100,9 +132,11 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
 
 - Module map: `courses_v1` (the 18 legacy courses; code moved verbatim from the
   old generator and bit-identical, guarded by the P1 collider fingerprint),
-  `export` (canonical node names, `export_glb`, bounds, collider read-back),
-  `dress` (per-course Dresser, lane colours, bake), `dress_island` (terrain,
-  island, shore), `trim` (rail trims),
+  `export` (canonical node names, `export_glb`, bounds, `join_scenery`, collider
+  read-back), `dress` (per-course Dresser, lane colours, bake), `dress_island`
+  (terrain, island, shore), `dress_specials` + `special_parts` (layout specials),
+  `dress_parts` (functional parts), `placement` (prop placement), `occluders`
+  (kit objects as bake occluders), `trim` (rail trims),
   `kits` (per-world prop kit GLB), `palette` (tones, gradient presets), `shapes`
   (builders, `finish`), `colors` (vertex-colour gradients), `bake`, `materials`,
   `prop` (composition),

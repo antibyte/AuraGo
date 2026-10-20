@@ -171,7 +171,7 @@ def _hull_bands(p, stations):
                     ring.append((side * x, _hull_y(t), zz))
                 rings.append(ring)
             obj = shapes.loft("wale", rings, closed=True, recalc=True)
-            p.add(obj, "matte", grad, bevel=0, dens=0, ao=0.55, mode="z")
+            p.add(obj, "metal" if grad[0] == "gold_dark" else "matte", grad, bevel=0, dens=0, ao=0.55, mode="z")
 
 
 def _rim_rail(p, stations):
@@ -302,7 +302,7 @@ def build_ship(seed=3):
         for k in range(2):
             ring = shapes.torus("porthole-ring", 0.085, 0.022, seg=12, rseg=5)
             ypos = cy0 + 0.42 + k * 0.5
-            p.add(ring, "matte", ("gold_dark", "gold_light"), loc=(s * (cw / 2 + 0.005), ypos, DECK_Z + 0.58), rot=(0, 90, 0),
+            p.add(ring, "metal", ("gold_dark", "gold_light"), loc=(s * (cw / 2 + 0.005), ypos, DECK_Z + 0.58), rot=(0, 90, 0),
                   bevel=0, dens=0, ao=0.4)
             glass = shapes.cylinder("porthole-glass", 0.075, 0.075, 0.02, seg=14, base=False)
             p.add(glass, "emissive", ("glass", "glass"), loc=(s * (cw / 2 - 0.005), ypos, DECK_Z + 0.58), rot=(0, 90, 0), bevel=0,
@@ -327,7 +327,7 @@ def build_ship(seed=3):
     p.add(glow, "emissive", ("gold", "gold_light"), loc=(0, cy0 - 0.02, rz + 0.58), scale=(1, 1, 1.2), bevel=0, dens=0,
           ao=0.0, strength=1.6, flicker=0.35)
     cap = shapes.cone("lantern-cap", 0.1, 0.09, seg=12)
-    p.add(cap, "matte", "iron", loc=(0, cy0 - 0.02, rz + 0.7), bevel=0, dens=0, ao=0.4)
+    p.add(cap, "metal", "iron", loc=(0, cy0 - 0.02, rz + 0.7), bevel=0, dens=0, ao=0.4)
 
     # cannon ports -----------------------------------------------------------
     for ty in (0.27, 0.42, 0.57):
@@ -357,7 +357,7 @@ def build_ship(seed=3):
     nest = shapes.lathe("nest", nest_prof, seg=14)
     p.add(nest, "matte", ("wood_dark", "wood"), loc=(0, my, 4.55), bevel=0, dens=0.3)
     topcap = shapes.cone("mast-top", 0.07, 0.2, seg=10)
-    p.add(topcap, "matte", ("gold_dark", "gold_light"), loc=(0, my, 5.0), bevel=0, dens=0, ao=0.3)
+    p.add(topcap, "metal", ("gold_dark", "gold_light"), loc=(0, my, 5.0), bevel=0, dens=0, ao=0.3)
     # sail, flag, rigging
     _sail(p)
     _skull_flag(p, 0.0, my - 0.02, 5.05)
@@ -389,7 +389,7 @@ def build_ship(seed=3):
         spoke = shapes.cylinder("spoke", 0.014, 0.014, 0.5, seg=6, base=False)
         p.add(spoke, "matte", "wood_dark", loc=(0, wy, wz), rot=(90, 0, a), bevel=0, dens=0, ao=0.4)
     hub = shapes.cylinder("hub", 0.045, 0.045, 0.08, seg=10, base=False)
-    p.add(hub, "matte", ("gold_dark", "gold_light"), loc=(0, wy, wz), rot=(90, 0, 0), bevel=0, dens=0, ao=0.3)
+    p.add(hub, "metal", ("gold_dark", "gold_light"), loc=(0, wy, wz), rot=(90, 0, 0), bevel=0, dens=0, ao=0.3)
     post = shapes.cylinder("wheel-post", 0.05, 0.05, 0.62, seg=8)
     p.add(post, "matte", "wood_dark", loc=(0, wy + 0.04, DECK_Z), bevel=0.006, dens=0)
     obj = p.build()

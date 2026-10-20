@@ -9,12 +9,16 @@ replaces the old decor around them:
 * ``dress``         island (``dress_island``), ``water-shore`` strip, rail trims
                     (``trim``) and the lane colours
 * ``top_height``    ground height under any point (cup floor, placements)
-* ``specials``      layout specific parts (Task 7 hook, builds nothing yet)
-* ``placements``    prop placements in Blender coordinates (Task 7 fills the list,
-                    ``runtime_props`` converts it for the manifest)
-* ``bake``          vertex AO for island, trims and lane; templates, obstacles,
-                    rails and the shore are hidden from the occluders, the shore
-                    only gets ``Col``
+* ``specials``      layout specific parts (``dress_specials``) and the prop
+                    placements in Blender coordinates (``placement``);
+                    ``runtime_props`` converts them for the manifest
+* ``restyle``       world materials and colours for the functional parts
+                    (``dress_parts``)
+* ``bake``          vertex AO for island, trims, specials, cup parts and lane with
+                    the placed kit props as occluders (``occluders``, removed
+                    again before the export); templates, obstacles, rails and the
+                    shore are hidden from the occluders, the shore and the
+                    templates only get ``Col``
 
 Lane meshes (``surface-*``) only receive a POINT colour attribute and the
 collision rails (``rail-*``) nothing but ``aurago_hidden``; neither gets a bevel,
@@ -23,9 +27,10 @@ before (guarded by the P1 collider fingerprint). The rails carry no colour: they
 are hidden at runtime and COLOR_0 would cost about 30 KB per course.
 """
 
+import copy
 import math
 
-from . import bake, colors, dress_island, materials, palette, shapes, trim
+from . import bake, colors, dress_island, dress_parts, dress_specials, materials, occluders, palette, placement, shapes, trim
 from .courses_v1 import LANE_ROWS
 from .island import smoothstep
 from .palette import mix
@@ -52,6 +57,9 @@ class Dresser:
         self.island = None
         self.shore = None
         self.trims = []
+        self.specials_out = None
+        self.bake_parts = []
+        self.pass_parts = []
         self.placements = []
 
     # -- hooks used by courses_v1.build_course ------------------------------
@@ -77,10 +85,35 @@ class Dresser:
         self._paint_lane(coll)
 
     def specials(self, scene, coll, course, path, mats):
-        """Layout specific parts (pier, gate, wheel, ...): Task 7."""
+        """Layout parts (pier, gate, wheel, ...), then the placement of every prop around them."""
+        templates = occluders.templates(self.look)
+        shapes.set_collection(coll)
+        try:
+            self.specials_out = dress_specials.build(self.look, course, path, templates.catalog)
+        finally:
+            shapes.set_collection(None)
+        out = self.specials_out
+        lane = [(p[0], p[1]) for i, p in enumerate(path) if i % 3 == 0 or i == len(path) - 1]
+        plan = copy.deepcopy(placement.PLANS[self.look])
+        plan["scatter"] = plan["scatter"] + out.scatter
+        plan["medium"] = [(name, out.medium.get(name, count)) for name, count in plan["medium"]]
+        cup = self.terrain.cup
+        self.placements = placement.place(self.look, self.number, placement.Field(lane, self.terrain.outline, self.terrain.in_trench), self.terrain.top_height,
+                                          templates.catalog, plan, fixed=out.fixed, reserved=out.reserved, cup=(cup[0], cup[1]),
+                                          hero=out.hero)
+        placement.check(self.placements, lane, templates.catalog)
+
+    def restyle(self, coll):
+        """World material and colours for obstacles, templates, flag, hole and tee parts."""
+        self.bake_parts, self.pass_parts = dress_parts.restyle(self.look, coll)
 
     def runtime_props(self):
-        return [[name, x, z, -y, yaw, scale] for name, x, y, z, yaw, scale in self.placements]
+        """Placements as ``[name, x, y, z, yaw, scale]`` in runtime coordinates, rounded to millimetres."""
+        out = []
+        for name, x, y, z, yaw, scale in self.placements:
+            yaw = math.atan2(math.sin(yaw), math.cos(yaw))
+            out.append([name] + [round(v, 3) for v in (x, z, -y, yaw, scale)])
+        return out
 
     # -- colours --------------------------------------------------------------
 
@@ -123,9 +156,9 @@ class Dresser:
     # -- bake -----------------------------------------------------------------
 
     def bake(self, coll):
-        """Bake AO into island, trims and lane; everything else is hidden from or skips the bake."""
-        bakeable = [self.island] + list(self.trims)
-        passthrough = [self.shore] if self.shore else []
+        """Bake AO into the diorama parts with the placed props as occluders; templates, obstacles and shore only get ``Col``."""
+        bakeable = [self.island] + list(self.trims) + list(self.specials_out.objects) + list(self.bake_parts)
+        passthrough = ([self.shore] if self.shore else []) + list(self.pass_parts)
         hidden = []
         for obj in coll.objects:
             base = _base(obj)
@@ -134,5 +167,9 @@ class Dresser:
             elif (base in ("rail-left", "rail-right", "ball-template", "putter-template")
                   or obj.get("aurago_obstacle") or obj.get("aurago_obstacle_component")):
                 hidden.append(obj)
-        return bake.process(bakeable, passthrough=passthrough, hidden=hidden + passthrough,
-                            samples=BAKE_SAMPLES, distance=BAKE_DISTANCE, tint=BAKE_TINT[self.look])
+        copies = occluders.templates(self.look).instantiate(coll, self.placements)
+        try:
+            return bake.process(bakeable, passthrough=passthrough, hidden=hidden + ([self.shore] if self.shore else []),
+                                samples=BAKE_SAMPLES, distance=BAKE_DISTANCE, tint=BAKE_TINT[self.look])
+        finally:
+            occluders.remove(copies)
