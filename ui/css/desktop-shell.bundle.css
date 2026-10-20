@@ -15437,6 +15437,8 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --ds-blur-coarse: none;
     --vd-taskbar-height: 40px;
     --vd-start-button-size: 40px;
+    --vd-xp-title-height: 30px;
+    --vd-xp-menu-height: 26px;
 }
 
 .desktop-body[data-theme="windows_xp"] .vd-taskbar {
@@ -15488,23 +15490,36 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="windows_xp"] .vd-task-button.active,
 .desktop-body[data-theme="windows_xp"] .vd-task-button[aria-pressed="true"] { background: linear-gradient(180deg, #174b99, #2b68b9); box-shadow: inset 0 2px 5px rgba(5, 29, 74, .42); }
 .desktop-body[data-theme="windows_xp"] .vd-window {
+    grid-template-rows: var(--vd-xp-title-height) minmax(0, 1fr);
     border: 3px solid #1658b0;
     border-radius: 3px;
     background: #ece9d8;
     box-shadow: var(--vd-shadow-window);
     overflow: hidden;
 }
+.desktop-body[data-theme="windows_xp"] .vd-window.has-window-menu {
+    grid-template-rows: calc(var(--vd-xp-title-height) + var(--vd-xp-menu-height)) minmax(0, 1fr);
+}
+.desktop-body[data-theme="windows_xp"] .vd-window.no-titlebar { grid-template-rows: minmax(0, 1fr); }
 .desktop-body[data-theme="windows_xp"] .vd-window-titlebar {
-    height: 30px;
-    min-height: 30px;
-    padding: 2px 6px;
+    height: auto;
+    min-height: 0;
+    padding: 0 6px;
     gap: 7px;
-    background: linear-gradient(180deg, #3b8cff 0 3px, #0054e3 4px 66%, #0644ad 67% 100%);
-    border-bottom: 1px solid #073b91;
+    background: linear-gradient(180deg, #3b8cff 0 3px, #0054e3 4px 66%, #0644ad 67% 100%) top / 100% var(--vd-xp-title-height) no-repeat #ece9d8;
+    border: 0;
     color: #fff;
+    font-family: var(--vd-font-ui);
     text-shadow: 0 1px 2px #17427f;
 }
-.desktop-body[data-theme="windows_xp"] .vd-window:not(.active) .vd-window-titlebar { background: linear-gradient(180deg, #9bb8df 0 3px, #5579ae 4px 66%, #3f6092 67% 100%); }
+.desktop-body[data-theme="windows_xp"] .vd-window.has-window-menu .vd-window-titlebar {
+    grid-template-rows: var(--vd-xp-title-height) var(--vd-xp-menu-height);
+    padding: 0;
+    gap: 0 7px;
+}
+.desktop-body[data-theme="windows_xp"] .vd-window.has-window-menu .vd-window-title-group { padding-left: 6px; }
+.desktop-body[data-theme="windows_xp"] .vd-window.has-window-menu .vd-window-actions { margin-right: 6px; }
+.desktop-body[data-theme="windows_xp"] .vd-window:not(.active) .vd-window-titlebar { background-image: linear-gradient(180deg, #9bb8df 0 3px, #5579ae 4px 66%, #3f6092 67% 100%); }
 .desktop-body[data-theme="windows_xp"] .vd-window-title { color: #fff; font-weight: 700; letter-spacing: .01em; }
 .desktop-body[data-theme="windows_xp"] .vd-window:not(.active) .vd-window-title { opacity: 1; }
 .desktop-body[data-theme="windows_xp"] .vd-window-titlebar .vd-window-subtitle { color: #dce9f8; }
@@ -15521,43 +15536,62 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="windows_xp"] .vd-window-button[data-action="close"] { background: linear-gradient(180deg, #d84f3c, #bd3025 52%, #922019); border-color: #761712; }
 .desktop-body[data-theme="windows_xp"] .vd-window-button[data-action="close"]:hover { background: linear-gradient(180deg, #e4674d, #cb3a2b 52%, #a6251e); }
 .desktop-body[data-theme="windows_xp"] :is(.vd-window-menubar, .vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover) { border-color: #a8b8ce; background: #fffef9; color: #1c2d45; box-shadow: 0 8px 22px rgba(28, 53, 87, .22); }
+.desktop-body[data-theme="windows_xp"] .vd-window-menubar {
+    align-self: stretch;
+    min-height: 0;
+    margin: 0;
+    padding: 0 3px;
+    border: 0;
+    border-bottom: 1px solid #d1cdb9;
+    background: #ece9d8;
+    box-shadow: none;
+    text-shadow: none;
+}
+.desktop-body[data-theme="windows_xp"] .vd-window-menu-button { height: calc(var(--vd-xp-menu-height) - 2px); padding: 0 8px; color: #1c2d45; font-size: 12px; }
 .desktop-body[data-theme="windows_xp"] :is(.vd-window-menu-button, .vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible, [aria-selected="true"]) { border-radius: 3px; background: #dce9f8; color: #163f79; outline-color: #1d5faf; }
 .desktop-body[data-theme="windows_xp"] .vd-start-menu {
-    width: min(560px, calc(100vw - 14px));
+    width: min(520px, calc(100vw - 14px));
     border: 1px solid #2a67bc;
     border-radius: 3px;
     background: #f4f2e9;
     box-shadow: 0 12px 36px rgba(18, 45, 84, .38), inset 0 1px #fff;
     overflow: hidden;
+    font-family: var(--vd-font-ui);
 }
 .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-header {
     display: flex;
-    min-height: 42px;
+    flex: 0 0 auto;
+    min-height: 54px;
     align-items: center;
     gap: 9px;
-    padding: 5px 12px;
+    padding: 7px 12px;
     border-bottom: 1px solid #184b99;
     background: linear-gradient(180deg, #4a8de4, #235eb5);
     color: #fff;
     text-shadow: 0 1px 2px #17427f;
 }
-.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-body { display: grid; grid-template-columns: minmax(0, 1fr) 180px; grid-template-rows: minmax(0, 1fr) minmax(120px, .76fr); gap: 0; }
+.desktop-body[data-theme="windows_xp"] .vd-start-xp-header strong { font: 700 16px var(--vd-font-ui); }
+.desktop-body[data-theme="windows_xp"] .vd-start-xp-avatar { flex: 0 0 auto; border: 2px solid #e8f3ff; border-radius: 4px; background-color: #bad5f4; box-shadow: 0 1px 3px #17427f; }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-body { display: grid; grid-template-columns: minmax(0, 1fr) 230px; grid-template-rows: auto minmax(0, 1fr); gap: 0; background: #d3e5fa; }
 .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-pane { grid-column: 1; grid-row: 1 / span 2; min-width: 0; }
-.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-links { grid-column: 2; grid-row: 1; display: grid; align-content: start; gap: 2px; padding: 8px; border-left: 1px solid #c1c9d4; background: #f4f2e9; }
-.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link { min-height: 34px; padding: 6px 8px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #24466f; font: 600 12px Tahoma, 'Segoe UI', sans-serif; text-align: left; }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-links { grid-column: 2; grid-row: 1; display: grid; align-content: start; gap: 2px; padding: 8px; border-left: 1px solid #99b5d8; }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link { display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 38px; padding: 5px 7px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #24466f; font: 700 12px/1.3 var(--vd-font-ui); text-align: left; }
+.desktop-body[data-theme="windows_xp"] .vd-start-xp-link > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link:hover,
 .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link:focus-visible { border-color: #b1c8e3; background: #dce9f8; color: #163f79; }
-.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-rail { grid-column: 2; grid-row: 2; min-height: 0; overflow: auto; border-top: 1px solid #8ea8ca; border-right: 0; }
-.desktop-body[data-theme="windows_xp"] .vd-start-search { padding: 10px 12px; background: linear-gradient(180deg, #fefefe, #dce8f6); border-bottom: 1px solid #b8c8de; }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-rail { grid-column: 2; grid-row: 2; min-width: 0; min-height: 0; flex-direction: column; align-items: stretch; gap: 2px; padding: 8px; overflow: hidden auto; border-top: 1px solid #a5bfdc; border-left: 1px solid #99b5d8; border-right: 0; background: transparent; scrollbar-width: thin; }
+.desktop-body[data-theme="windows_xp"] .vd-start-search { padding: 8px 12px; background: linear-gradient(180deg, #fefefe, #dce8f6); border-bottom: 1px solid #b8c8de; }
 .desktop-body[data-theme="windows_xp"] .vd-start-search input { border: 1px solid #91a6c1; border-radius: 3px; background: #fff; color: #1c2d45; box-shadow: inset 0 1px 2px rgba(33, 57, 89, .14); }
-.desktop-body[data-theme="windows_xp"] .vd-start-rail { border-right: 1px solid #8ea8ca; background: linear-gradient(180deg, #3978c9, #1a559f); }
-.desktop-body[data-theme="windows_xp"] .vd-start-category { border: 1px solid transparent; border-radius: 3px; color: #fff; }
-.desktop-body[data-theme="windows_xp"] .vd-start-category:is(:hover, [aria-selected="true"]) { border-color: #9abce6; background: linear-gradient(180deg, rgba(255,255,255,.28), rgba(185,216,255,.12)); color: #fff; }
+.desktop-body[data-theme="windows_xp"] .vd-start-rail-indicator { display: none; }
+.desktop-body[data-theme="windows_xp"] .vd-start-category { grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; min-height: 34px; padding: 5px 7px; border: 1px solid transparent; border-radius: 3px; color: #24466f; font-size: 12px; }
+.desktop-body[data-theme="windows_xp"] .vd-start-category:is(:hover, [aria-selected="true"]) { border-color: #215da7; background: #2b65af; color: #fff; }
+.desktop-body[data-theme="windows_xp"] .vd-start-category:is(:hover, [aria-selected="true"]) .vd-start-category-count { color: #fff; background: rgba(0, 0, 0, .15); }
 .desktop-body[data-theme="windows_xp"] .vd-start-pane { background: linear-gradient(90deg, #fffef9, #f2f0e6); }
-.desktop-body[data-theme="windows_xp"] .vd-start-pane-head { border-bottom: 1px solid #c3c9d1; }
+.desktop-body[data-theme="windows_xp"] .vd-start-pane-head { padding: 10px 14px 8px; border-bottom: 1px solid #c3c9d1; }
 .desktop-body[data-theme="windows_xp"] .vd-start-pane-title { color: #174c91; font-weight: 700; }
-.desktop-body[data-theme="windows_xp"] :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-window-menu-item):hover { background-color: #dce9f8; color: #173f75; }
-.desktop-body[data-theme="windows_xp"] .vd-start-item { border-radius: 3px; color: #253b56; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-start-item, .vd-context-item, .vd-window-menu-item):hover { background-color: #dce9f8; color: #173f75; }
+.desktop-body[data-theme="windows_xp"] .vd-start-grid { grid-template-columns: minmax(0, 1fr); }
+.desktop-body[data-theme="windows_xp"] .vd-start-item { min-height: 36px; padding: 3px 7px; gap: 8px; border-radius: 3px; color: #253b56; font-family: var(--vd-font-ui); }
 .desktop-body[data-theme="windows_xp"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-toast, .vd-notification-center, .vd-clock-popup) { border: 1px solid #91a9c7; border-radius: 3px; background: #f7f6ef; color: #1c2d45; box-shadow: var(--vd-theme-shadow-modal); }
 .desktop-body[data-theme="windows_xp"] :is(.vd-button, .vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input, .vd-shortcuts-row) { border: 1px solid #8b9db3; border-radius: 2px; background: linear-gradient(180deg, #fff, #e8e7df); color: #1c2d45; box-shadow: inset 0 1px #fff; }
 .desktop-body[data-theme="windows_xp"] .vd-button:hover { border-color: #3c77c3; background: linear-gradient(180deg, #fff, #dcecff); }
@@ -15571,18 +15605,22 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="windows_xp"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-modal, .vd-file-dialog, .vd-context-menu, .vd-toast) :is(button, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid #174f97; outline-offset: 2px; }
 .desktop-body[data-theme="windows_xp"] ::selection { background: #286dc2; color: #fff; }
 @media (max-width: 480px) {
-    .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-body { grid-template-columns: minmax(0, 1fr) 146px; grid-template-rows: minmax(0, 1fr) 118px; }
+    .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-body { grid-template-columns: minmax(0, 1fr) 44%; }
     .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-links { gap: 0; padding: 4px; }
-    .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link { min-height: 29px; padding: 4px; font-size: 11px; }
-    .desktop-body[data-theme="windows_xp"] .vd-start-category { min-height: 38px; padding-inline: 6px; }
+    .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link { padding: 4px; gap: 6px; font-size: 11px; }
+    .desktop-body[data-theme="windows_xp"] .vd-start-category { padding-inline: 3px; gap: 6px; }
+    .desktop-body[data-theme="windows_xp"] .vd-start-category-count { display: none; }
+    .desktop-body[data-theme="windows_xp"] .vd-start-apps { padding-inline: 4px; }
+    .desktop-body[data-theme="windows_xp"] .vd-start-item { padding-inline: 3px; gap: 5px; }
+    .desktop-body[data-theme="windows_xp"] .vd-start-sheet-handle { order: -1; background: #4a8de4; }
 }
 @media (pointer: coarse) {
-    .desktop-body[data-theme="windows_xp"] { --vd-taskbar-height: 52px; }
-    .desktop-body[data-theme="windows_xp"] .vd-window-titlebar { height: 44px; min-height: 44px; padding-inline: 8px; }
+    .desktop-body[data-theme="windows_xp"] { --vd-taskbar-height: 52px; --vd-xp-title-height: 52px; --vd-xp-menu-height: 46px; }
     .desktop-body[data-theme="windows_xp"] .vd-window-button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
     .desktop-body[data-theme="windows_xp"] .vd-start-button { height: 44px; min-height: 44px; }
     .desktop-body[data-theme="windows_xp"] .vd-taskbar-system :is(button, .vd-space-pager button) { min-width: 44px; min-height: 44px; }
     .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link,
+    .desktop-body[data-theme="windows_xp"] .vd-start-item,
     .desktop-body[data-theme="windows_xp"] .vd-start-category { min-height: 44px; }
     .desktop-body[data-theme="windows_xp"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar { width: 18px; height: 18px; }
 }

@@ -856,19 +856,18 @@ func TestDesktopThemeSweepBrowser(t *testing.T) {
 		saved(t, "the wallpaper to follow from Amiga to Cyberpunk", map[string]string{"appearance.theme": "cyberpunk", "appearance.wallpaper": "city_rain"})
 	})
 
-	t.Run("a wallpaper the user picked stays", func(t *testing.T) {
-		freshSettings(t, map[string]string{"appearance.wallpaper": "ember"})
+	t.Run("custom wallpaper stays until the user explicitly selects another theme", func(t *testing.T) {
+		freshSettings(t, map[string]string{"appearance.wallpaper": "ember", "appearance.wallpaper_by_space": `{"2":"forest"}`})
+		s.waitFor(t, "saved custom wallpaper to survive settings hydration", 5*time.Second, `() => document.body.dataset.wallpaper === 'ember'`)
 		click(t, "crazy")
-		saved(t, "the Crazy theme to be saved", map[string]string{"appearance.theme": "crazy"})
-		time.Sleep(600 * time.Millisecond) // a wrong hand-over would be a PUT right behind the theme
-		if got := s.store.value("appearance.wallpaper"); got != "ember" {
-			t.Errorf("the wallpaper became %q, want the user's ember", got)
-		}
-		if writes := append(s.store.writesTo("appearance.wallpaper"), s.store.writesTo("appearance.wallpaper_by_space")...); len(writes) > 0 {
-			t.Errorf("the picker wrote wallpaper settings %v although the user chose the wallpaper", writes)
-		}
-		if got := s.eval(t, `() => document.body.dataset.wallpaper`).Value.Str(); got != "ember" {
-			t.Errorf("the desktop shows the wallpaper %q, want ember", got)
+		saved(t, "the explicit Crazy preset to replace custom backgrounds", map[string]string{
+			"appearance.theme": "crazy", "appearance.wallpaper": "fractal_trip", "appearance.wallpaper_by_space": "{}",
+		})
+		s.waitFor(t, "the selected theme background to become visible", 5*time.Second, `() => document.body.dataset.wallpaper === 'fractal_trip'`)
+		for key, want := range map[string]string{"appearance.wallpaper": "fractal_trip", "appearance.wallpaper_by_space": "{}"} {
+			if writes := s.store.writesTo(key); len(writes) != 1 || writes[0] != want {
+				t.Errorf("explicit theme selection must write %s=%s once, got %v", key, want, writes)
+			}
 		}
 	})
 }

@@ -1062,7 +1062,7 @@
             header.className = 'vd-start-xp-header';
             menu.prepend(header);
         }
-        header.innerHTML = iconMarkup('computer', 'A', 'vd-start-xp-avatar', 36) + '<strong>AuraGo</strong>';
+        header.innerHTML = iconMarkup('desktop', '', 'vd-start-xp-avatar', 36) + '<strong>AuraGo</strong>';
         let links = menu.querySelector('.vd-start-xp-links');
         if (!links) {
             links = document.createElement('div');
@@ -1072,7 +1072,7 @@
         const shortcuts = [
             ['files', 'Documents', 'folder', 'desktop.settings_folder_documents'],
             ['files', 'Pictures', 'image', 'desktop.settings_folder_pictures'],
-            ['system-info', '', 'computer', 'desktop.app_system_info'],
+            ['system-info', '', 'desktop', 'desktop.app_system_info'],
             ['settings', '', 'settings', 'desktop.app_settings']
         ];
         links.innerHTML = shortcuts.map(([app, folder, icon, key]) => `<button type="button" class="vd-start-xp-link" data-xp-app="${app}" data-xp-folder="${folder}">${iconMarkup(icon, '', '', 24)}<span>${esc(t(key))}</span></button>`).join('');
