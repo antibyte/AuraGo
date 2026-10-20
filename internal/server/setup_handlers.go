@@ -8,7 +8,6 @@ import (
 	"aurago/internal/security"
 	"aurago/internal/setup"
 	"aurago/internal/warnings"
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -25,8 +24,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	openai "github.com/sashabaranov/go-openai"
 )
 
 const setupCSRFTokenTTL = 30 * time.Minute
@@ -241,31 +238,6 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		}
 		stripSetupAdminPassword(authPatch)
 
-		// Pre-extract provider API keys into the vault BEFORE applyConfigPatch.
-		// Provider keys live at dynamic paths (providers[N].api_key) which the
-		// generic extractSecretsToVault helper cannot reach — vault keys are
-		// derived as "provider_<id>_api_key". Strip them from the patch so they
-		// never reach config.yaml (ProviderEntry.APIKey has yaml:"-").
-		if s.Vault != nil {
-			if providers, ok := patch["providers"].([]interface{}); ok {
-				for _, item := range providers {
-					if prov, ok := item.(map[string]interface{}); ok {
-						id, _ := prov["id"].(string)
-						key, _ := prov["api_key"].(string)
-						if id != "" && key != "" {
-							vaultKey := "provider_" + id + "_api_key"
-							if werr := s.Vault.WriteSecret(vaultKey, key); werr != nil {
-								s.Logger.Warn("[Setup] Failed to write API key to vault", "provider", id, "error", werr)
-							} else {
-								s.Logger.Info("[Setup] Provider API key stored in vault", "provider", id)
-							}
-						}
-						delete(prov, "api_key")
-					}
-				}
-			}
-		}
-
 		// Apply the patch: extract secrets to vault (TTS keys via vaultKeyMap),
 		// deep-merge, write to disk, reload and resolve vault secrets. This is the
 		// shared read/merge/write/reload sequence used by /api/setup and /api/config.
@@ -276,6 +248,11 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			return
 		}
 		if err != nil {
+			var providerErr *providerWriteError
+			if errors.As(err, &providerErr) {
+				writeProviderError(w, err)
+				return
+			}
 			s.Logger.Error("[Setup] Failed to apply config patch", "error", err)
 			// Marshal/YAML errors are user-input issues (e.g., bad profile data
 			// with mismatched quotes). Other errors (read/write/disk) are
@@ -617,10 +594,8 @@ func setupOllamaBaseURL(isDocker bool) string {
 	return "http://localhost:11434/v1"
 }
 
-// handleSetupTestConnection performs a lightweight LLM connectivity test using
-// the provider details supplied by the setup wizard. It creates a temporary
-// client, sends a minimal completion request, and returns success or an error
-// message so the user can verify their API key/URL before saving.
+// handleSetupTestConnection is the protected first-run metadata preview.
+// It never generates content or stores the supplied credentials.
 func handleSetupTestConnection(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -669,33 +644,26 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 			return
 		}
 
-		client := llm.NewClientFromProviderDetails(req.ProviderType, req.BaseURL, req.APIKey, req.AccountID)
-
-		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-		defer cancel()
-
-		_, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-			Model: req.Model,
-			Messages: []openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleUser, Content: "respond with ok"},
-			},
-			MaxTokens: 5,
-		})
-
-		w.Header().Set("Content-Type", "application/json")
-		if err != nil {
-			s.Logger.Warn("[Setup] Test connection failed", "provider", req.ProviderType, "error", err)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"ok":    false,
-				"error": err.Error(),
-			})
+		if _, busy := s.providerTests.LoadOrStore("setup-preview", true); busy {
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "code": "provider_test_busy"})
 			return
 		}
-
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"ok":      true,
-			"message": i18n.T(s.Cfg.Server.UILanguage, "backend.setup_connection_successful"),
-		})
+		defer s.providerTests.Delete("setup-preview")
+		s.CfgMu.RLock()
+		cfg := s.Cfg.Clone()
+		revision := s.providerETag()
+		s.CfgMu.RUnlock()
+		provider := config.ProviderEntry{ID: "setup-preview", Type: req.ProviderType, BaseURL: req.BaseURL, APIKey: req.APIKey, AccountID: req.AccountID, Model: req.Model}
+		buffer := &providerProbeBuffer{header: make(http.Header)}
+		executeProviderProbeNetwork(buffer, s, r.Context(), cfg, provider, "metadata", map[string]any{"probe_kind": "metadata"})
+		var result map[string]any
+		_ = json.Unmarshal(buffer.Bytes(), &result)
+		s.CfgMu.RLock()
+		current := s.providerETag() == revision
+		s.CfgMu.RUnlock()
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": result["live_status"] == "ok" && current, "unsupported": result["code"] == "metadata_probe_unavailable", "probe_kind": "metadata", "code": result["code"], "current": current})
 	}
 }
 

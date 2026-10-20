@@ -217,6 +217,8 @@ llm:
 		}
 	}]`
 	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+
+	req.Header.Set("If-Match", server.providerETag())
 	rec := httptest.NewRecorder()
 	handleProviders(server).ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -273,6 +275,8 @@ llm:
 		"max_output_tokens":6144
 	}]`
 	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+
+	req.Header.Set("If-Match", server.providerETag())
 	rec := httptest.NewRecorder()
 	handleProviders(server).ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -411,6 +415,8 @@ llm:
 		"max_output_tokens":4096
 	}]`
 	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+
+	req.Header.Set("If-Match", server.providerETag())
 	rec := httptest.NewRecorder()
 	handleProviders(server).ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -434,6 +440,8 @@ llm:
 	// Spaces and uppercase remain invalid; dots in IDs are allowed (e.g. llama-3.1-8b).
 	body := `[{"id":"main","name":"Main","type":"openai","base_url":"https://api.openai.com/v1","model":"gpt-4o-mini","auth_type":"api_key"},{"id":"Bad ID","name":"Bad","type":"openai","base_url":"https://api.openai.com/v1","model":"gpt-4o-mini","auth_type":"api_key"}]`
 	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+
+	req.Header.Set("If-Match", server.providerETag())
 	rec := httptest.NewRecorder()
 
 	handleProviders(server).ServeHTTP(rec, req)
@@ -461,6 +469,8 @@ llm:
 `)
 	body := `[{"id":"main","name":"Main","type":"openai","base_url":"https://api.openai.com/v1","model":"gpt-4o-mini","auth_type":"api_key"},{"id":"llama-3.1-8b","name":"Llama 3.1","type":"openrouter","base_url":"https://openrouter.ai/api/v1","model":"meta-llama/llama-3.1-8b-instruct","auth_type":"api_key"},{"id":"crof.ai","name":"CROF","type":"openai","base_url":"https://crof.ai/v2","model":"deepseek-v4-pro","auth_type":"api_key"}]`
 	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+
+	req.Header.Set("If-Match", server.providerETag())
 	rec := httptest.NewRecorder()
 
 	handleProviders(server).ServeHTTP(rec, req)
@@ -497,6 +507,8 @@ llm:
 	// Re-save the legacy invalid ID and add a valid new provider — must succeed.
 	body := `[{"id":"main","name":"Main","type":"openai","base_url":"https://api.openai.com/v1","model":"gpt-4o-mini","auth_type":"api_key"},{"id":"llama-3.1-8b","name":"Llama 3.1","type":"openrouter","base_url":"https://openrouter.ai/api/v1","model":"meta-llama/llama-3.1-8b-instruct","auth_type":"api_key"},{"id":"agnesai","name":"agnes","type":"openai","base_url":"https://apihub.agnes-ai.com/v1","model":"agnes-2.0-flash","auth_type":"api_key"}]`
 	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+
+	req.Header.Set("If-Match", server.providerETag())
 	rec := httptest.NewRecorder()
 
 	handleProviders(server).ServeHTTP(rec, req)
@@ -534,6 +546,8 @@ llm:
 
 		body := `[{"id":"source","name":"Source","type":"openai","base_url":"https://api.openai.com/v1","api_key":"••••••••","model":"gpt-4o-mini","auth_type":"api_key"},{"id":"target","name":"Target","type":"openai","base_url":"https://api.openai.com/v1","api_key":"__copy_from__source","model":"gpt-4o-mini","auth_type":"api_key"}]`
 		req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+
+		req.Header.Set("If-Match", server.providerETag())
 		rec := httptest.NewRecorder()
 
 		handleProviders(server).ServeHTTP(rec, req)
@@ -561,6 +575,8 @@ llm:
 		server.Cfg.Providers[0].APIKey = "config-secret"
 		body := `[{"id":"source","name":"Source","type":"openai","base_url":"https://api.openai.com/v1","api_key":"••••••••","model":"gpt-4o-mini","auth_type":"api_key"},{"id":"target","name":"Target","type":"openai","base_url":"https://api.openai.com/v1","api_key":"__copy_from__source","model":"gpt-4o-mini","auth_type":"api_key"}]`
 		req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+
+		req.Header.Set("If-Match", server.providerETag())
 		rec := httptest.NewRecorder()
 
 		handleProviders(server).ServeHTTP(rec, req)
@@ -590,6 +606,8 @@ llm:
 `)
 	body := `[{"id":"source","name":"Source","type":"openai","base_url":"https://api.openai.com/v1","api_key":"","model":"gpt-4o-mini","auth_type":"api_key"},{"id":"target","name":"Target","type":"openai","base_url":"https://api.openai.com/v1","api_key":"__copy_from__source","model":"gpt-4o-mini","auth_type":"api_key"}]`
 	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+
+	req.Header.Set("If-Match", server.providerETag())
 	rec := httptest.NewRecorder()
 
 	handleProviders(server).ServeHTTP(rec, req)
@@ -624,6 +642,8 @@ llm:
 `)
 	body := `[{"id":"main","name":"Renamed","type":"openai","base_url":"https://api.openai.com/v1","api_key":"","model":"gpt-4o-mini","auth_type":"api_key"}]`
 	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+
+	req.Header.Set("If-Match", server.providerETag())
 	rec := httptest.NewRecorder()
 
 	handleProviders(server).ServeHTTP(rec, req)
@@ -668,6 +688,8 @@ llm:
 
 	body := `[{"id":"main","name":"Main","type":"openai","base_url":"https://api.openai.com/v1","api_key":"","model":"gpt-4o-mini","auth_type":"api_key"}]`
 	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+
+	req.Header.Set("If-Match", server.providerETag())
 	rec := httptest.NewRecorder()
 
 	handleProviders(server).ServeHTTP(rec, req)
@@ -709,6 +731,8 @@ llm:
 
 	body := `[{"id":"oauth","name":"OAuth Provider","type":"openai","base_url":"https://api.openai.com/v1","api_key":"","model":"gpt-4o-mini","auth_type":"oauth2","oauth_auth_url":"https://accounts.example/authorize","oauth_token_url":"https://accounts.example/token","oauth_client_id":"client-id","oauth_client_secret":"••••••••"}]`
 	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+
+	req.Header.Set("If-Match", server.providerETag())
 	rec := httptest.NewRecorder()
 
 	handleProviders(server).ServeHTTP(rec, req)
@@ -755,6 +779,8 @@ llm:
 `)
 		body := `[{"id":"router","name":"OpenRouter","type":"openrouter","base_url":"https://openrouter.ai/api/v1","model":"","auth_type":"api_key"}]`
 		req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+
+		req.Header.Set("If-Match", server.providerETag())
 		rec := httptest.NewRecorder()
 		handleProviders(server).ServeHTTP(rec, req)
 		if rec.Code != http.StatusOK {
@@ -789,10 +815,12 @@ llm:
   provider: ""
 `)
 		req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(`[]`))
+
+		req.Header.Set("If-Match", server.providerETag())
 		rec := httptest.NewRecorder()
 		handleProviders(server).ServeHTTP(rec, req)
-		if rec.Code != http.StatusBadRequest {
-			t.Fatalf("PUT status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+		if rec.Code != http.StatusConflict {
+			t.Fatalf("PUT status = %d, want %d; body=%s", rec.Code, http.StatusConflict, rec.Body.String())
 		}
 		if got := server.Cfg.FindProvider("router"); got == nil {
 			t.Fatal("active Decisions provider was removed after rejected update")
@@ -817,6 +845,8 @@ llm:
 `)
 		body := `[{"id":"router","name":"Router","type":"openai","base_url":"https://api.openai.com/v1","model":"","auth_type":"api_key"}]`
 		req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+
+		req.Header.Set("If-Match", server.providerETag())
 		rec := httptest.NewRecorder()
 		handleProviders(server).ServeHTTP(rec, req)
 		if rec.Code != http.StatusBadRequest {
@@ -831,6 +861,8 @@ llm:
 		server, _ := newProviderTestServer(t, `providers: []`)
 		body := `[{"id":"router","name":"Router","usage":"surprise","type":"openrouter","base_url":"https://openrouter.ai/api/v1","model":"model"}]`
 		req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+
+		req.Header.Set("If-Match", server.providerETag())
 		rec := httptest.NewRecorder()
 		handleProviders(server).ServeHTTP(rec, req)
 		if rec.Code != http.StatusBadRequest {

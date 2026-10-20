@@ -153,24 +153,27 @@ func panicRecoveryMiddleware(logger *slog.Logger, next http.Handler) http.Handle
 
 // Server holds the state and dependencies for the web server and socket bridge.
 type Server struct {
-	knowledge        projectKnowledge
-	Cfg              *config.Config
-	cfgSnapshot      atomic.Pointer[config.Config]
-	CfgMu            sync.RWMutex // protects Cfg during hot-reload
-	CfgSaveMu        sync.Mutex   // serializes config file writes to prevent TOCTOU races
-	httpDrainMu      sync.Mutex
-	httpDraining     bool
-	httpDrainCtx     context.Context
-	httpDrainCancel  context.CancelFunc
-	httpRequests     sync.WaitGroup
-	httpHijacked     map[*drainHTTPConn]struct{}
-	lockdownLogOnce  sync.Once
-	previewGrants    previewGrantRegistry
-	toolBridgeGrants toolBridgeGrantRegistry
-	SIPConfigMu      sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
-	infraMu          sync.Mutex
-	infraRuntime     *desktopInfraRuntime
-	infraRuntimeErr  error
+	knowledge            projectKnowledge
+	Cfg                  *config.Config
+	cfgSnapshot          atomic.Pointer[config.Config]
+	providerRevision     atomic.Pointer[string]
+	providerTests        sync.Map
+	providerProbeHistory sync.Map
+	CfgMu                sync.RWMutex // protects Cfg during hot-reload
+	CfgSaveMu            sync.Mutex   // serializes config file writes to prevent TOCTOU races
+	httpDrainMu          sync.Mutex
+	httpDraining         bool
+	httpDrainCtx         context.Context
+	httpDrainCancel      context.CancelFunc
+	httpRequests         sync.WaitGroup
+	httpHijacked         map[*drainHTTPConn]struct{}
+	lockdownLogOnce      sync.Once
+	previewGrants        previewGrantRegistry
+	toolBridgeGrants     toolBridgeGrantRegistry
+	SIPConfigMu          sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
+	infraMu              sync.Mutex
+	infraRuntime         *desktopInfraRuntime
+	infraRuntimeErr      error
 
 	infraConfigAdmission atomic.Pointer[config.Config]
 
@@ -596,9 +599,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	}
 	s.bindConfigAuthorization(cfg)
 	s.syncPersonalityConfig(cfg)
-	RegisterLLMSecrets(cfg)
+	llm.ReconfigureHealthReporter(cfg.FallbackLLM.ErrorThreshold)
+	RegisterLLMSecrets(cfg, s.Vault)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	s.bumpProviderRevision()
 	if cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.BookshelfEnabled &&
 		(previous == nil || !previous.VirtualDesktop.Enabled || !previous.VirtualDesktop.BookshelfEnabled) {
 		s.startDesktopBookshelfAtStartup(s.integrationCtx)
@@ -778,7 +783,7 @@ func Start(opts StartOptions) error {
 	// cmd/aurago already registered the LLM keys for log scrubbing before it
 	// built the LLM client; repeat it here for embedders that call Start
 	// directly. replaceConfigSnapshot repeats it for every reloaded config.
-	RegisterLLMSecrets(cfg)
+	RegisterLLMSecrets(cfg, opts.Vault)
 	if err := validateRemoteAuthExposure(cfg); err != nil {
 		return err
 	}

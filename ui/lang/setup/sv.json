@@ -121,11 +121,11 @@
   "setup.step0_provider_openai": "OpenAI",
   "setup.step0_provider_openrouter": "OpenRouter",
   "setup.step0_security_heading": "🔐 Administratörslösenord",
-  "setup.step0_test_connection": "🔌 Testa anslutning",
+  "setup.step0_test_connection": "Kontrollera metadata",
   "setup.step0_test_failed": "Anslutningen misslyckades.",
   "setup.step0_test_no_model": "Ange ett modellnamn först.",
-  "setup.step0_test_success": "Anslutningen lyckades!",
-  "setup.step0_test_testing": "Testar anslutning...",
+  "setup.step0_test_success": "Metadataadressen är nåbar. Modellgenerering har inte testats.",
+  "setup.step0_test_testing": "Kontrollera metadata…",
   "setup.step0_title": "LLM-anslutning",
   "setup.step1_badge": "⭐ Rekommenderas",
   "setup.step1_description": "Dessa inställningar förbättrar AuraGos kapacitet avsevärt. Du kan konfigurera dem nu eller senare i konfigurationsgränssnittet.",
@@ -230,5 +230,6 @@
   "setup.https_selfsigned": "Ett lokalt certifikat skapas automatiskt. Kontrollera det och lägg vid behov till förtroende i webbläsaren eller på enheten.",
   "setup.secure_ready": "Den här webbläsaren rapporterar en säker kontext. Skrivbordsfunktioner kräver fortfarande webbläsarstöd och enhetsbehörigheter.",
   "setup.secure_unavailable": "Den här webbläsaren rapporterar ingen säker kontext. Många skrivbordsfunktioner, inklusive röstchatt och mikrofonåtkomst, kan vara otillgängliga.",
-  "setup.https_manage": "Ändra HTTPS i installationsprogrammet eller under Config → Server efter installationen. HTTPS via en proxy och localhost kan också ge en säker kontext."
+  "setup.https_manage": "Ändra HTTPS i installationsprogrammet eller under Config → Server efter installationen. HTTPS via en proxy och localhost kan också ge en säker kontext.",
+  "setup.step0_test_unsupported": "Leverantören stöder inget metadatatest."
 }

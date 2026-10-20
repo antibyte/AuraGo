@@ -476,6 +476,14 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 		delete(patch, "_effective_tool_policy")
 		delete(patch, "_config_migrations")
+		if _, present := patch["providers"]; present {
+			writeProviderError(w, &providerWriteError{status: http.StatusBadRequest, code: "provider_use_api_providers", message: "Change provider settings through /api/providers"})
+			return
+		}
+		if err := validateProviderReferencePatch(s.ConfigSnapshot(), patch); err != nil {
+			writeProviderError(w, err)
+			return
+		}
 		if err := config.ValidateToolDisclosurePatch(patch); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -1002,6 +1010,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 						"provider", newCfg.LLM.ProviderType,
 						"base_url", newCfg.LLM.BaseURL)
 				}
+			}
+			if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
+				fm.ConfigureRetryPolicy(newCfg)
 			}
 			if s.LocalLLM != nil && oldCfg.LocalLLM != newCfg.LocalLLM {
 				s.LocalLLM.Configure(newCfg.LocalLLM)

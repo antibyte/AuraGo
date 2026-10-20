@@ -353,6 +353,10 @@ async function refreshVaultStatus() {
 
 // Provider management state (loaded from /api/providers)
 let providersCache = [];
+let providersDiagnostics = null;
+let providersRevision = '';
+let providersSaving = false;
+let providersConflict = false;
 let providersLoaded = false;
 let providersLoadError = '';
 let providersLoadRedirected = false;
@@ -370,8 +374,12 @@ async function loadProviders() {
             throw new Error(message || t('config.common.error'));
         }
         providersCache = await provResp.json();
+        providersRevision = provResp.headers.get('ETag') || '';
+        providersConflict = false;
         providersLoaded = true;
         providersLoadError = '';
+        providersDiagnostics = null;
+        try { const status = await fetch('/api/providers/status'); if (status.ok) providersDiagnostics = await status.json(); } catch (_) { /* status remains unknown */ }
         return true;
     } catch (e) {
         providersLoadError = e && e.message ? e.message : String(e);

@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -169,7 +170,14 @@ func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.Clie
 	isLocal := isLocalProviderType(providerType)
 	aiGatewayToken := ""
 	routingError := ""
+	if baseURLRaw == "" && providerType != "openai" && providerType != "cerebras" && providerType != "perplexity" && providerType != "workers-ai" && providerType != "cloudflare-rest" {
+		routingError = "Provider endpoint is missing; complete the saved provider settings"
+	}
 	gatewayRouted := providerType == "cloudflare-rest"
+
+	if providerType == "invalid-provider" || apiKey == "••••••••" || strings.HasPrefix(baseURLRaw, "invalid:") {
+		routingError = "Invalid provider reference or masked credential; repair the saved provider settings"
+	}
 
 	if apiKey == "" && isLocal {
 		apiKey = providerType
@@ -237,7 +245,7 @@ func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.Clie
 		clientConfig.HTTPClient = httpClient
 	}
 	if client, ok := clientConfig.HTTPClient.(*http.Client); ok {
-		client.Transport = &providerURLTransport{base: &responseTimeoutTransport{base: client.Transport, timeout: 3 * time.Minute}}
+		client.Transport = &providerURLTransport{base: &responseTimeoutTransport{base: client.Transport, timeout: providerAttemptTimeout(cfg), streamTimeout: 3 * time.Minute}}
 		if providerType == "workers-ai" && !validGatewayPathSegment(accountID) {
 			client.Transport = invalidProviderTransport{message: "Workers AI requires an explicit provider account ID"}
 		}
@@ -285,13 +293,13 @@ func NewClientWithTransport(cfg *config.Config, transport http.RoundTripper) *op
 		GatewayID:    cfg.LLM.GatewayID,
 	}
 	clientConfig := buildOpenAIClientConfig(cfg, p)
-	if transport != nil {
+	if transport != nil && p.ProviderType != "invalid-provider" && p.APIKey != "••••••••" && !strings.HasPrefix(p.BaseURL, "invalid:") {
 		client := &http.Client{CheckRedirect: httporigin.SameOriginRedirect}
 		if existing, ok := clientConfig.HTTPClient.(*http.Client); ok {
 			copy := *existing
 			client = &copy
 		}
-		client.Transport = &providerURLTransport{base: &responseTimeoutTransport{base: transport, timeout: 3 * time.Minute}}
+		client.Transport = &providerURLTransport{base: &responseTimeoutTransport{base: transport, timeout: providerAttemptTimeout(cfg), streamTimeout: 3 * time.Minute}}
 		clientConfig.HTTPClient = client
 	}
 	return openai.NewClientWithConfig(clientConfig)
@@ -327,11 +335,21 @@ func redactProviderError(err error) string {
 	if errors.As(err, &urlErr) {
 		message := urlErr.Op + " " + redactProviderURL(urlErr.URL)
 		if urlErr.Err != nil {
-			message += ": " + urlErr.Err.Error()
+			message += ": " + redactErrorText(urlErr.Err.Error())
 		}
 		return message
 	}
-	return err.Error()
+	return redactErrorText(err.Error())
+}
+
+// RedactProviderError is the shared diagnostic boundary; callers retain the
+// original error for errors.Is/As and classification.
+func RedactProviderError(err error) string { return redactProviderError(err) }
+
+var providerErrorURLs = regexp.MustCompile(`(?i)https?://[^\s"<>]+`)
+
+func redactErrorText(message string) string {
+	return providerErrorURLs.ReplaceAllStringFunc(message, redactProviderURL)
 }
 
 // loopbackHTTPSTransport returns an http.Transport suitable for loopback HTTPS:
@@ -406,7 +424,7 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 		slog.Debug("[LLM HTTP] Using extended ResponseHeaderTimeout for provider",
 			"provider", providerType,
 			"response_header_timeout", headerTimeout,
-			"per_attempt_timeout", perAttemptTimeout(),
+			"per_attempt_timeout", providerAttemptTimeout(cfg),
 			"base_url", redactProviderURL(baseURL),
 		)
 	}
@@ -474,7 +492,7 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 	client.Transport = newLoggingTransport(client.Transport, slog.Default())
 	// Bound normal responses by total time, but allow an active SSE response to
 	// outlive that window. Parent contexts still bound the whole operation.
-	client.Transport = &responseTimeoutTransport{base: client.Transport, timeout: 3 * time.Minute}
+	client.Transport = &responseTimeoutTransport{base: client.Transport, timeout: providerAttemptTimeout(cfg), streamTimeout: 3 * time.Minute}
 
 	return client
 }
@@ -503,7 +521,7 @@ func responseHeaderTimeoutForProvider(cfg *config.Config, providerType string) t
 	// aborts before the retry context does.  This prevents "http2: timeout
 	// awaiting response headers" on providers that need >30s just to start
 	// streaming a response for large prompt payloads.
-	ceiling := perAttemptTimeout()
+	ceiling := providerAttemptTimeout(cfg)
 	if ceiling <= 0 {
 		ceiling = 120 * time.Second
 	}

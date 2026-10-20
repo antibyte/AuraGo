@@ -85,6 +85,12 @@ func providerEntryYAMLNode(entry config.ProviderEntry) *yaml.Node {
 			appendYAMLStringField(modelNode, "name", model.Name)
 			appendYAMLFloatField(modelNode, "input_per_million", model.InputPerMillion)
 			appendYAMLFloatField(modelNode, "output_per_million", model.OutputPerMillion)
+			if model.Source != "" {
+				appendYAMLStringField(modelNode, "source", model.Source)
+			}
+			if model.Estimated {
+				appendYAMLBoolField(modelNode, "estimated", true)
+			}
 			models.Content = append(models.Content, modelNode)
 		}
 		appendYAMLNodeField(node, "models", models)
@@ -105,6 +111,8 @@ func providerEntryYAMLNode(entry config.ProviderEntry) *yaml.Node {
 	}
 	if entry.AuthType != "" && entry.AuthType != "api_key" {
 		appendYAMLStringField(node, "auth_type", entry.AuthType)
+	}
+	if entry.AuthType == "oauth2" || entry.OAuthAuthURL != "" || entry.OAuthTokenURL != "" || entry.OAuthClientID != "" || entry.OAuthScopes != "" {
 		appendYAMLStringField(node, "oauth_auth_url", entry.OAuthAuthURL)
 		appendYAMLStringField(node, "oauth_token_url", entry.OAuthTokenURL)
 		appendYAMLStringField(node, "oauth_client_id", entry.OAuthClientID)

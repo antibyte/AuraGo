@@ -910,9 +910,11 @@ agent:
 			loaded.ConfigPath = configPath
 			s := &Server{Cfg: loaded, Logger: slog.Default(), Vault: vault}
 
-			body := `{"providers":[{"id":"main","name":"Main","type":"openai","base_url":"https://api.openai.com/v1","model":"gpt-4o"}]}`
+			body := `[{"id":"main","name":"Main","type":"openai","base_url":"https://api.openai.com/v1","model":"gpt-4o"}]`
 			rec := httptest.NewRecorder()
-			handleUpdateConfig(s).ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(body)))
+			req := httptest.NewRequest(http.MethodPut, "/api/providers", strings.NewReader(body))
+			req.Header.Set("If-Match", s.providerETag())
+			handlePutProviders(s, rec, req)
 
 			if rec.Code != http.StatusOK {
 				t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())

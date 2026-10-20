@@ -569,10 +569,45 @@ Model wiring, failover, and embeddings.
 GET /api/providers
 ```
 
-#### Provider Pricing
+Reads return an array and an opaque quoted `ETag`. Save that revision and send
+it as `If-Match` for both writes below:
+
 ```http
-GET /api/providers/pricing
+PUT /api/providers
+If-Match: "<revision>"
+
+POST /api/providers/pricing?id=main
+If-Match: "<revision>"
 ```
+
+Successful writes return the new revision. Missing revisions return **428**;
+stale revisions return **412**. Provider removal with saved references returns
+**409**, `provider_in_use`, and all references, including disabled features.
+Any `providers` field on `PUT /api/config` returns **400**,
+`provider_use_api_providers`, before any mutation. AgoDesk list/get and writes
+use the same `revision`; force cannot bypass reference protection.
+
+#### Pricing, passive diagnostics and explicit tests
+
+```http
+GET /api/providers/pricing?id=main
+GET /api/providers/status
+POST /api/providers/test
+Content-Type: application/json
+
+{"provider_id":"main","probe_kind":"metadata"}
+```
+
+Status is authenticated and never probes providers. Test kind defaults to
+`metadata`; `generation` is explicit, potentially paid and booked through the
+budget path. Tests accept no endpoint/credential overrides, use saved settings,
+last at most 20 seconds and allow one concurrent test per provider. Unsupported
+metadata does not trigger generation. A stale result does not confirm a newer
+revision. Secrets stay in the Vault; a credential mask only keeps an existing
+valid value and an empty field clears it.
+
+See [Provider management](../../provider-management.md) for bootstrap, conflicts
+and the full compatibility contract.
 
 ### Ollama API
 

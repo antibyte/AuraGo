@@ -29,6 +29,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     _providerLimitRefreshAttempts = 0;
                     return;
                 }
+                if (document.getElementById('provider-modal-overlay')) { providerScheduleLimitRefresh(); return; }
                 _providerLimitRefreshAttempts++;
                 if (await loadProviders()) providerRenderCards();
             }, PROVIDER_LIMIT_REFRESH_DELAY_MS);
@@ -92,7 +93,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
 
             // Remove existing modal if any
             const existing = document.getElementById('or-browser-overlay');
-            if (existing) existing.remove();
+            if (existing) { existing._providerRequests?.abort(); existing.remove(); }
 
             const overlay = document.createElement('div');
             overlay.id = 'or-browser-overlay';
@@ -305,43 +306,6 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             searchInput.focus();
         }
 
-        /**
-         * Auto-update budget.models with pricing from OpenRouter model selection.
-         * Adds new entry or updates existing one.
-         * @param {object} m - model data with id, inputPerMillion, outputPerMillion
-         */
-        function updateBudgetModelCost(m) {
-            if (!m || !m.id) return;
-            // Only update if there are non-zero costs
-            const inputPM = m.inputPerMillion || 0;
-            const outputPM = m.outputPerMillion || 0;
-
-            // Ensure budget.models exists
-            if (!configData.budget) configData.budget = {};
-            if (!Array.isArray(configData.budget.models)) configData.budget.models = [];
-
-            // Check if model already exists
-            const existing = configData.budget.models.find(
-                e => e.name && e.name.toLowerCase() === m.id.toLowerCase()
-            );
-
-            if (existing) {
-                existing.input_per_million = inputPM;
-                existing.output_per_million = outputPM;
-            } else {
-                configData.budget.models.push({
-                    name: m.id,
-                    input_per_million: inputPM,
-                    output_per_million: outputPM,
-                });
-            }
-            setDirty(true);
-
-            // Show a brief toast-style notification
-            const msg = t('config.budget.model_cost_updated', { model: m.id });
-            showToast(msg, 'info');
-        }
-
         // ── Model Pricing Table helpers (inside provider modal) ──
 
         // Temporary model list for the currently open provider modal
@@ -395,6 +359,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 <tr class="prov-model-row">
                     <td class="prov-model-cell">
                         <input class="field-input prov-model-input" value="${escapeAttr(m.name)}" onchange="providerUpdateModelRow(${i},'name',this.value)">
+                        ${m.estimated ? `<span class="prov-field-hint" title="${escapeAttr(m.source || '')}">${escapeHtml(t('config.providers.limit_source_model_only_fallback'))}</span>` : ''}
                     </td>
                     <td class="prov-model-cell">
                         <input class="field-input prov-model-input prov-model-input-num" type="number" step="0.001" min="0" value="${m.input_per_million}" onchange="providerUpdateModelRow(${i},'input_per_million',parseFloat(this.value)||0)">
@@ -420,7 +385,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
         }
 
         function providerUpdateModelRow(idx, field, value) {
-            if (_provModalModels[idx]) _provModalModels[idx][field] = value;
+            if (_provModalModels[idx]) { _provModalModels[idx][field] = value; _provModalModels[idx].source = 'manual'; _provModalModels[idx].estimated = false; }
         }
 
         function providerDeleteModelRow(idx) {
@@ -433,22 +398,38 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
         }
 
         // Called from OpenRouter browser when a model is selected
+        function providerOpenModalOpenRouter() {
+            const owner = document.getElementById('provider-modal-overlay');
+            openOpenRouterBrowser(model => {
+                if (!owner?.isConnected) return;
+                const input = owner.querySelector('#prov-model');
+                if (!input) return;
+                input.value = model.id;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                updateProviderModelCost(model);
+                providerApplyOpenRouterModelCapabilities(model);
+            });
+        }
+
         function updateProviderModelCost(m) {
             if (!m || !m.id) return;
             const inputPM = m.inputPerMillion || 0;
             const outputPM = m.outputPerMillion || 0;
 
+            const priceSource = m.source || 'openrouter';
+            const estimated = m.estimated === true || (priceSource === 'openrouter' && document.getElementById('prov-type')?.value !== 'openrouter');
             const existing = _provModalModels.find(
                 e => e.name && e.name.toLowerCase() === m.id.toLowerCase()
             );
             if (existing) {
                 existing.input_per_million = inputPM;
                 existing.output_per_million = outputPM;
+                existing.source = priceSource; existing.estimated = estimated;
             } else {
                 _provModalModels.push({
                     name: m.id,
                     input_per_million: inputPM,
-                    output_per_million: outputPM,
+                    output_per_million: outputPM, source: priceSource, estimated,
                 });
             }
             providerRenderModelsTable();
@@ -595,7 +576,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
          * Opens a searchable picker modal to select which models/prices to import.
          * @param {Array<{name,input_per_million,output_per_million}>} allPricing
          */
-        function openPricingPickerModal(allPricing) {
+        function openPricingPickerModal(allPricing, owner = document.getElementById('provider-modal-overlay')) {
             if (!allPricing || allPricing.length === 0) {
                 showToast(t('config.providers.no_pricing_found'));
                 return;
@@ -610,6 +591,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
 
             const overlay = document.createElement('div');
             overlay.id = 'pricing-picker-overlay';
+            overlay._providerOwner = owner;
             overlay.className = 'prov-pricing-overlay';
 
             function getVisible() {
@@ -642,6 +624,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                                    placeholder="🔍 ${escapeHtml(t('config.providers.pricing_picker_search'))}"
                                    value="${escapeAttr(filterQuery)}">
                             <div class="prov-pricing-meta">
+                                ${allPricing.some(model => model.estimated) ? `<span class="prov-field-hint">${escapeHtml(t('config.providers.limit_source_model_only_fallback'))}</span>` : ''}
                                 <span class="prov-pricing-total">${visible.length} / ${allPricing.length} ${escapeHtml(t('config.providers.pricing_picker_total'))}</span>
                                 <span id="pp-sel-count" class="prov-pricing-selected">${selCount} ${escapeHtml(t('config.providers.pricing_picker_selected'))}</span>
                             </div>
@@ -696,11 +679,12 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 const confirmBtn = overlay.querySelector('#pp-confirm');
                 if (confirmBtn) {
                     confirmBtn.addEventListener('click', () => {
+                        if (!owner?.isConnected || owner !== document.getElementById('provider-modal-overlay')) { overlay.remove(); return; }
                         const toImport = allPricing.filter(m => selected.has(m.name));
                         for (const p of toImport) {
                             const ex = _provModalModels.find(e => e.name && e.name.toLowerCase() === p.name.toLowerCase());
-                            if (ex) { ex.input_per_million = p.input_per_million; ex.output_per_million = p.output_per_million; }
-                            else _provModalModels.push({ name: p.name, input_per_million: p.input_per_million, output_per_million: p.output_per_million });
+                            if (ex) { Object.assign(ex, p); }
+                            else _provModalModels.push({ ...p });
                         }
                         overlay.remove();
                         providerRenderModelsTable();
@@ -715,6 +699,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
         }
 
         async function providerFetchPricing() {
+            const owner = document.getElementById('provider-modal-overlay');
             const provId = (document.getElementById('prov-id') || {}).value;
             const provType = (document.getElementById('prov-type') || {}).value;
 
@@ -733,9 +718,10 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     return;
                 }
 
-                const resp = await fetch(url);
+                const resp = await fetch(url, { signal: owner?._providerRequests?.signal });
                 if (!resp.ok) throw new Error(await resp.text());
                 const json = await resp.json();
+                if (!owner?.isConnected || owner !== document.getElementById('provider-modal-overlay')) return;
 
                 let pricing;
                 if (json.data) {
@@ -747,21 +733,23 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                             name: prefix ? m.id.substring(prefix.length) : m.id,
                             input_per_million: parseFloat(m.pricing.prompt || '0') * 1000000,
                             output_per_million: parseFloat(m.pricing.completion || '0') * 1000000,
+                            source: 'openrouter', estimated: provType !== 'openrouter',
                         }));
                 } else if (Array.isArray(json)) {
                     pricing = json.map(m => ({
                         name: m.model_id,
                         input_per_million: m.input_per_million,
                         output_per_million: m.output_per_million,
+                        source: m.source || '', estimated: m.estimated === true,
                     }));
                 } else {
                     pricing = [];
                 }
 
                 // Open picker modal instead of bulk-importing
-                openPricingPickerModal(pricing);
+                openPricingPickerModal(pricing, owner);
             } catch (e) {
-                showToast('❌ ' + e.message);
+                if (e.name !== 'AbortError' && owner?.isConnected) showToast('❌ ' + e.message);
             } finally {
                 if (btn) { btn.disabled = false; btn.textContent = '📡 ' + t('config.providers.fetch_pricing'); }
             }
@@ -899,7 +887,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
         function providerLimitSourceLabel(source) {
             const normalized = String(source || '').trim();
             if (!normalized) return '—';
-            return t('config.providers.limit_source_' + normalized);
+            return normalized.split('+').map(part => { const key = 'config.providers.limit_source_' + part; const label = t(key); return label === key ? escapeHtml(part) : label; }).join(' + ');
         }
 
         function providerLimitDisplay(override, effective, source) {
@@ -1108,14 +1096,16 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 if (empty) setHidden(empty, true);
                 return;
             }
+            const missing = providersDiagnostics?.missing_references || [];
+            const diagnosticsNotice = missing.length ? `<p class="prov-text-error" role="alert">${escapeHtml(t('config.providers.missing_references', { paths: missing.map(ref => ref.path).join(', ') }))}</p>` : '';
             if (providersCache.length === 0) {
-                wrap.innerHTML = '';
+                wrap.innerHTML = diagnosticsNotice;
                 if (empty) setHidden(empty, false);
                 return;
             }
             if (empty) setHidden(empty, true);
 
-            let html = '';
+            let html = diagnosticsNotice;
             providersCache.forEach((p, idx) => {
                 const isOAuth = p.auth_type === 'oauth2';
                 const auth = providerAuthSummary(p, isOAuth);
@@ -1691,7 +1681,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             const idInput = document.getElementById('prov-id');
             const providerID = data.provider_id || (idInput ? idInput.value.trim() : '');
             if (!providerID) return;
-            providerRefreshOAuthStatus(providerID).then(() => providerRenderCards()).catch(() => {});
+            providerRefreshOAuthStatus(providerID).then(async () => { if (!document.getElementById('provider-modal-overlay')) await loadProviders(); providerRenderCards(); }).catch(() => {});
         }
 
         function providerHandleOAuthMessage(event) {
@@ -1865,12 +1855,18 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
         function providerShowModal(title, data, onSave) {
             // Remove existing modal
             const existing = document.getElementById('provider-modal-overlay');
-            if (existing) existing.remove();
+            if (existing) { existing._providerRequests?.abort(); existing.remove(); }
 
             const overlay = document.createElement('div');
             overlay.id = 'provider-modal-overlay';
             overlay.className = 'prov-modal-overlay';
             let copilotPollInterval = null;
+            let modalSaving = false;
+            let apiKeyCleared = false;
+            let oauthSecretCleared = false;
+            const modalRevision = providersRevision;
+            const requests = new AbortController();
+            overlay._providerRequests = requests;
             let initialModalSnapshot = '';
             function providerModalSnapshot() {
                 const ids = [
@@ -1886,7 +1882,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     if (el) fields[id] = el.value || '';
                 });
                 return JSON.stringify({
-                    fields,
+                    fields, apiKeyCleared, oauthSecretCleared,
                     models: providerGetModels(),
                     capabilities: providerReadCapabilities()
                 });
@@ -1895,6 +1891,8 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 return !!initialModalSnapshot && providerModalSnapshot() !== initialModalSnapshot;
             }
             function closeProviderModal() {
+                requests.abort();
+                document.querySelectorAll('.prov-pricing-overlay').forEach(picker => { if (picker._providerOwner === overlay) picker.remove(); });
                 if (copilotPollInterval) {
                     clearInterval(copilotPollInterval);
                     copilotPollInterval = null;
@@ -1902,6 +1900,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 overlay.remove();
             }
             async function requestCloseProviderModal() {
+                if (modalSaving) return;
                 if (providerModalDirty()) {
                     const confirmed = await showConfirm(
                         t('config.providers.discard_changes_confirm_title'),
@@ -1911,6 +1910,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 }
                 closeProviderModal();
             }
+            overlay.addEventListener('provider-reload', closeProviderModal);
             overlay.onclick = (e) => { if (e.target === overlay) requestCloseProviderModal(); };
             overlay.addEventListener('keydown', event => {
                 if (event.key === 'Escape') {
@@ -1946,6 +1946,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     <button type="button" class="prov-modal-tab" role="tab" aria-selected="false" data-prov-tab="capabilities">${escapeHtml(t('config.providers.tab_capabilities'))}</button>
                     <button type="button" class="prov-modal-tab" role="tab" aria-selected="false" data-prov-tab="pricing">${escapeHtml(t('config.providers.tab_pricing'))}</button>
                     <button type="button" class="prov-modal-tab" role="tab" aria-selected="false" data-prov-tab="auth">${escapeHtml(t('config.providers.tab_auth'))}</button>
+                    <button type="button" class="prov-modal-tab" role="tab" aria-selected="false" data-prov-tab="diagnostics">${escapeHtml(t('config.providers.tab_diagnostics'))}</button>
                 </div>
                 <div class="prov-modal-body">
                 <div class="prov-modal-panel-section" data-prov-panel="identity">
@@ -2031,7 +2032,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 <!-- OpenRouter model browser (only visible when type = openrouter) -->
                 <div id="prov-openrouter-block" class="field-group prov-provider-type-block is-openrouter ${(data.type || 'openai') === 'openrouter' ? '' : 'is-hidden'}">
                     <div class="prov-type-block-actions">
-                        <button type="button" class="btn-save prov-openrouter-btn" onclick="openOpenRouterBrowser(function(m){document.getElementById('prov-model').value=m.id;document.getElementById('prov-model').dispatchEvent(new Event('input',{bubbles:true}));updateProviderModelCost(m);providerApplyOpenRouterModelCapabilities(m);})">
+                        <button type="button" class="btn-save prov-openrouter-btn" onclick="providerOpenModalOpenRouter()">
                             🌐 ${t('config.providers.open_model_browser')}
                         </button>
                         <span class="prov-inline-muted">${t('config.providers.browse_openrouter')}</span>
@@ -2124,7 +2125,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                             <input class="field-input" id="prov-key" type="password" value="${escapeAttr(data.api_key === '••••••••' ? '' : (data.api_key || ''))}" placeholder="${data.api_key === '••••••••' ? t('config.providers.key_placeholder_existing') : t('config.providers.api_key_placeholder')}" autocomplete="off">
                             <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                         </div>
-                        ${data.api_key === '••••••••' ? `<div class="prov-field-hint">${t('config.providers.keep_existing_key')}</div>` : ''}
+                        ${data.api_key === '••••••••' ? `<div class="prov-field-hint">${t('config.providers.keep_existing_key')}</div><button type="button" id="prov-clear-api-key" class="btn-save prov-btn-muted prov-btn-xs">${escapeHtml(t('config.providers.remove_credential'))}</button>` : ''}
                     </div>
                 </div>
 
@@ -2259,8 +2260,18 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     </div>
                 </div>
                 </div>
-                </div>
 
+                <section class="prov-modal-panel-section is-hidden" data-prov-panel="diagnostics">
+                    <p class="field-help">${escapeHtml(t('config.providers.diagnostics_help'))}</p>
+                    <div id="prov-runtime-status" role="status">${escapeHtml(t('config.providers.status_unknown'))}</div>
+                    <p class="field-help">${escapeHtml(t('config.providers.saved_test_help'))}</p>
+                    <div class="prov-type-block-actions">
+                        <button type="button" class="btn-save prov-btn-muted" id="prov-test-metadata">${escapeHtml(t('config.providers.metadata_test'))}</button>
+                        <button type="button" class="btn-save prov-btn-muted" id="prov-test-generation">${escapeHtml(t('config.providers.generation_test'))}</button>
+                    </div>
+                    <p id="prov-test-result" role="status"></p>
+                </section>
+                </div>
                 <div class="prov-modal-actions">
                     <button type="button" id="provider-modal-cancel-btn" class="btn-save prov-btn-muted prov-btn-md">
                         ${t('config.providers.cancel')}
@@ -2277,6 +2288,87 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             document.getElementById('provider-modal-close-btn')?.addEventListener('click', requestCloseProviderModal);
             document.getElementById('provider-modal-cancel-btn')?.addEventListener('click', requestCloseProviderModal);
             providerBindModalTabs();
+            document.getElementById('prov-clear-api-key')?.addEventListener('click', () => {
+                apiKeyCleared = true;
+                document.getElementById('prov-key').value = '';
+                document.getElementById('prov-key').placeholder = '';
+                document.getElementById('prov-copy-key-from').value = '';
+                updateTestControls();
+            });
+            const clientSecretInput = document.getElementById('prov-oauth-client-secret');
+            if (data.oauth_client_secret === '••••••••' && clientSecretInput) {
+                const remove = document.createElement('button');
+                remove.type = 'button'; remove.className = 'btn-save prov-btn-muted prov-btn-xs';
+                remove.id = 'prov-clear-oauth-secret';
+                remove.textContent = t('config.providers.remove_credential');
+                remove.onclick = () => { oauthSecretCleared = true; clientSecretInput.value = ''; clientSecretInput.placeholder = ''; updateTestControls(); };
+                clientSecretInput.closest('.field-group').appendChild(remove);
+            }
+            let testRunning = false;
+            function testsUseSavedSettings() {
+                return data._editMode && !providerModalDirty() && !providersConflict && !providersSaving && modalRevision === providersRevision;
+            }
+            function updateTestControls() {
+                ['prov-test-metadata', 'prov-test-generation'].forEach(id => {
+                    const button = document.getElementById(id);
+                    if (button) button.disabled = testRunning || !testsUseSavedSettings();
+                });
+            }
+            overlay.addEventListener('input', updateTestControls);
+            overlay.addEventListener('change', updateTestControls);
+            async function runSavedTest(kind) {
+                if (!testsUseSavedSettings() || testRunning) return;
+                if (kind === 'generation' && !(await showConfirm(t('config.providers.generation_test'), t('config.providers.generation_confirm')))) return;
+                if (!overlay.isConnected || !testsUseSavedSettings()) return;
+                testRunning = true; updateTestControls();
+                const output = document.getElementById('prov-test-result');
+                output.textContent = t('config.providers.loading');
+                try {
+                    const response = await fetch('/api/providers/test', {
+                        method: 'POST', signal: requests.signal,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ provider_id: data.id, probe_kind: kind })
+                    });
+                    const result = await response.json();
+                    if (!overlay.isConnected) return;
+                    if (result.current === false || result.revision !== modalRevision) output.textContent = t('config.providers.test_stale');
+                    else if (result.code === 'metadata_probe_unavailable') output.textContent = t('config.providers.test_unsupported');
+                    else if (response.ok && result.live_status === 'ok') output.textContent = t('config.providers.test_' + kind + '_ok');
+                    else output.textContent = t('config.providers.test_failed', { code: result.code || response.status });
+                } catch (error) {
+                    if (error.name !== 'AbortError' && overlay.isConnected) output.textContent = t('config.providers.test_failed', { code: error.message });
+                } finally {
+                    testRunning = false;
+                    if (overlay.isConnected) updateTestControls();
+                }
+            }
+            document.getElementById('prov-test-metadata').onclick = () => runSavedTest('metadata');
+            document.getElementById('prov-test-generation').onclick = () => runSavedTest('generation');
+            if (data._editMode) fetch('/api/providers/status', { signal: requests.signal }).then(response => {
+                if (!response.ok) throw new Error();
+                return response.json();
+            }).then(status => {
+                if (!overlay.isConnected) return;
+                const item = (status.providers || []).find(provider => provider.provider_id === data.id);
+                if (!item) return;
+                const health = item.health || {};
+                const success = health.last_success?.Timestamp;
+                const failure = health.last_failure?.Timestamp;
+                const output = document.getElementById('prov-runtime-status');
+                output.textContent = t('config.providers.status_detail', {
+                    route: item.active ? t('config.providers.runtime_active') : t('config.providers.runtime_inactive'),
+                    oauth: item.oauth?.authorized && !item.oauth?.expired ? t('config.providers.oauth_connected') : (item.oauth?.expired ? t('config.providers.oauth_expired') : '—'),
+                    success: success ? new Date(success).toLocaleString() : t('config.providers.status_unknown'),
+                    failure: failure ? new Date(failure).toLocaleString() : t('config.providers.status_unknown'),
+                    source: providerLimitSourceLabel(item.metadata_source)
+                });
+                if (item.errors?.length) {
+                    const error = document.createElement('p'); error.className = 'prov-ollama-error';
+                    error.textContent = item.errors.includes('invalid_masked_credential') ? t('config.providers.invalid_credential') : t('config.providers.runtime_incomplete');
+                    output.appendChild(error);
+                }
+            }).catch(() => {});
+            updateTestControls();
 
             // ── Initialize model pricing table ──
             providerInitModelsTable(data.models);
@@ -2676,8 +2768,10 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 showConfigValidationErrors([{ controlId, message }]);
             }
             async function submitProviderModal(connectAfterSave) {
+                if (modalSaving || providersSaving || providersConflict) return;
+                if (modalRevision !== providersRevision) { providersConflict = true; providerShowConflict(); return; }
                 clearConfigValidation();
-                const id = document.getElementById('prov-id').value.trim();
+                const id = data._editMode ? data.id : document.getElementById('prov-id').value.trim();
                 const name = document.getElementById('prov-name').value.trim();
                 const usage = document.getElementById('prov-usage').value === 'decisions' ? 'decisions' : 'general';
                 const type = document.getElementById('prov-type').value;
@@ -2702,13 +2796,9 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     fieldError('prov-id', t('config.providers.id_invalid_error', { id }));
                     return;
                 }
-                if (type === 'workers-ai' || type === 'cloudflare-rest') {
-                    if (!account_id) { fieldError('prov-account-id', t('config.providers.account_id_empty_error')); return; }
-                    if (type === 'cloudflare-rest' && !gateway_id) { fieldError('prov-gateway-id', t('config.providers.gateway_id_empty_error')); return; }
-                } else if (type === 'manifest' || type === 'omniroute') {
-                    // Managed gateway providers are resolved from their integration settings.
-                } else if (!base_url) {
-                    fieldError('prov-url', t('config.providers.url_empty_error')); return;
+                if (base_url) {
+                    try { const url = new URL(base_url); if (!['http:', 'https:'].includes(url.protocol) || !url.hostname || url.username || url.password) throw new Error(); }
+                    catch (_) { fieldError('prov-url', t('config.providers.url_invalid')); return; }
                 }
 
                 const entry = { id, name: name || id, usage, type: decisionsOnly ? 'openrouter' : type, base_url, model, context_window, max_output_tokens, auth_type, account_id, gateway_id };
@@ -2720,18 +2810,11 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     entry.oauth_token_url = oauthConfig.token_url;
                     entry.oauth_client_id = oauthConfig.client_id;
                     let client_secret = oauthConfig.client_secret;
-                    if (!client_secret && data.oauth_client_secret === '••••••••') client_secret = '••••••••';
+                    if (!client_secret && data.oauth_client_secret === '••••••••' && !oauthSecretCleared) client_secret = '••••••••';
                     entry.oauth_client_secret = client_secret;
                     entry.oauth_scopes = oauthConfig.scopes;
 
-                    if (!entry.oauth_client_id) {
-                        fieldError('prov-oauth-client-id', t('config.providers.oauth_required_error'));
-                        return;
-                    }
-                    if (!entry.oauth_auth_url || !entry.oauth_token_url) {
-                        fieldError(!entry.oauth_auth_url ? 'prov-oauth-auth-url' : 'prov-oauth-token-url', t('config.providers.oauth_endpoint_required_error'));
-                        return;
-                    }
+
                 } else {
                     // Check if user selected "copy from existing provider"
                     const copyFromSelect = document.getElementById('prov-copy-key-from');
@@ -2741,10 +2824,10 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                         api_key = '__copy_from__' + copyFromId;
                     } else {
                         api_key = document.getElementById('prov-key').value.trim();
-                        if (!api_key && data.api_key === '••••••••') api_key = '••••••••';
+                        if (!api_key && data.api_key === '••••••••' && !apiKeyCleared) api_key = '••••••••';
                     }
 
-                    if (!api_key) {
+                    if (!api_key && !apiKeyCleared) {
                         // Warn only for types that usually require keys
                         const noKeyTypes = ['ollama', 'llamacpp', 'lmstudio', 'manifest', 'omniroute', 'copilot'];
                         if (!noKeyTypes.includes(type)) {
@@ -2757,12 +2840,12 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     }
 
                     entry.api_key = api_key;
-                    // Clear OAuth fields
-                    entry.oauth_auth_url = '';
-                    entry.oauth_token_url = '';
-                    entry.oauth_client_id = '';
-                    entry.oauth_client_secret = '';
-                    entry.oauth_scopes = '';
+                    // Keep inactive credentials until the operator explicitly removes them.
+                    entry.oauth_auth_url = data.oauth_auth_url || '';
+                    entry.oauth_token_url = data.oauth_token_url || '';
+                    entry.oauth_client_id = data.oauth_client_id || '';
+                    entry.oauth_client_secret = oauthSecretCleared ? '' : (data.oauth_client_secret || '');
+                    entry.oauth_scopes = data.oauth_scopes || '';
                 }
 
                 // Include model pricing data
@@ -2770,7 +2853,15 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 entry.capabilities = decisionsOnly ? {} : providerReadCapabilities();
 
                 const preparedPopup = connectAfterSave ? providerPrepareOAuthPopup() : null;
-                const savedID = await onSave(entry);
+                modalSaving = true;
+                const buttons = [document.getElementById('prov-save-btn'), saveConnectBtn].filter(Boolean);
+                buttons.forEach(button => { button.disabled = true; });
+                let savedID;
+                try { savedID = await onSave(entry, modalRevision); }
+                finally {
+                    modalSaving = false;
+                    buttons.forEach(button => { button.disabled = false; });
+                }
                 if (!savedID) {
                     if (preparedPopup && !preparedPopup.closed) preparedPopup.close();
                     return;
@@ -2800,25 +2891,27 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             }
             providerRenderCatalogModelPicker(typeSelect.value);
             initialModalSnapshot = providerModalSnapshot();
+            updateTestControls();
             providerLoadCatalog().then(() => {
+                if (!overlay.isConnected) return;
                 providerRenderCatalogModelPicker(typeSelect.value);
                 providerRefreshOAuthSetupGuide(typeSelect.value);
             });
         }
 
         function providerAdd(usage = 'general') {
-            if (!providerEnsureLoaded()) return;
+            if (!providerEnsureLoaded() || providersSaving) return;
             providerShowModal(
                 t('config.providers.new_provider'),
                 usage === 'decisions' ? { usage: 'decisions', type: 'openrouter', base_url: providerBaseURLForType('openrouter') || PROVIDER_BASE_URL_FALLBACKS.openrouter } : {},
-                async (entry) => {
+                async (entry, revision) => {
                     // Check unique ID
                     if (providersCache.some(p => p.id === entry.id)) {
                         showToast(t('config.providers.id_exists'), 'warn');
                         return null;
                     }
                     providersCache.push(entry);
-                    const ok = await providerSave(entry.id);
+                    const ok = await providerSave(entry.id, revision);
                     if (!ok) {
                         providersCache.pop();
                         providerRenderCards();
@@ -2830,15 +2923,15 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
         }
 
         function providerEdit(idx) {
-            if (!providerEnsureLoaded()) return;
+            if (!providerEnsureLoaded() || providersSaving) return;
             const p = { ...providersCache[idx], _editMode: true };
             providerShowModal(
                 t('config.providers.edit_provider'),
                 p,
-                async (entry) => {
+                async (entry, revision) => {
                     const previous = providersCache[idx];
                     providersCache[idx] = entry;
-                    const ok = await providerSave(entry.id);
+                    const ok = await providerSave(entry.id, revision);
                     if (!ok) {
                         providersCache[idx] = previous;
                         providerRenderCards();
@@ -2850,8 +2943,9 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
         }
 
         async function providerDelete(idx) {
-            if (!providerEnsureLoaded()) return;
+            if (!providerEnsureLoaded() || providersSaving) return;
             const p = providersCache[idx];
+            const revision = providersRevision;
             const refs = Array.isArray(p.references) ? p.references : [];
             let message = t('config.providers.delete_confirm', { name: p.name || p.id });
             if (refs.length > 0) {
@@ -2859,23 +2953,60 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     '\n' + refs.map(providerReferenceLabel).join('\n');
             }
             if (!(await showConfirm(t('config.providers.delete_confirm_title'), message))) return;
+            if (revision !== providersRevision) { providersConflict = true; providerShowConflict(); return; }
             providersCache.splice(idx, 1);
-            const ok = await providerSave();
+            const ok = await providerSave('', revision);
             if (!ok) {
                 providersCache.splice(idx, 0, p);
                 providerRenderCards();
             }
         }
 
-        async function providerSave(preferredProviderId = '') {
-            if (!providerEnsureLoaded()) return false;
+        function providerShowConflict() {
+            showToast(t('config.providers.revision_conflict'), 'error');
+            if (document.getElementById('provider-conflict-notice')) return;
+            const notice = document.createElement('div');
+            notice.id = 'provider-conflict-notice';
+            notice.className = 'prov-hint';
+            notice.setAttribute('role', 'alert');
+            const message = document.createElement('p');
+            message.textContent = t('config.providers.revision_conflict');
+            const reload = document.createElement('button');
+            reload.type = 'button';
+            reload.className = 'btn-save prov-btn-muted';
+            reload.textContent = t('config.providers.reload_saved');
+            reload.onclick = async () => {
+                reload.disabled = true;
+                const ok = await loadProviders();
+                if (ok) {
+                    document.getElementById('provider-modal-overlay')?.dispatchEvent(new Event('provider-reload'));
+                    notice.remove();
+                    providerRenderCards();
+                } else {
+                    reload.disabled = false;
+                    showToast(providersLoadError, 'error');
+                }
+            };
+            notice.append(message, reload);
+            const modal = document.querySelector('#provider-modal-overlay .prov-modal-panel');
+            (modal || document.getElementById('content')).prepend(notice);
+        }
+
+        async function providerSave(preferredProviderId = '', revision = providersRevision) {
+            if (!providerEnsureLoaded() || providersSaving || providersConflict) return false;
+            providersSaving = true;
             try {
                 const resp = await fetch('/api/providers', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'If-Match': revision },
                     body: JSON.stringify(providersCache)
                 });
                 if (!resp.ok) {
+                    if (resp.status === 412 || resp.status === 428) {
+                        providersConflict = true;
+                        providerShowConflict();
+                        return false;
+                    }
                     const txt = await resp.text();
                     let msg = txt || t('config.common.error');
                     try {
@@ -2886,6 +3017,8 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     return false;
                 }
                 const result = await resp.json();
+                providersRevision = resp.headers.get('ETag') || result.revision || providersRevision;
+                showToast(t('config.providers.save_success'), 'success');
                 // Reload providers from server (API keys will be masked)
                 const reloaded = await loadProviders();
                 if (!reloaded && providersLoadError) {
@@ -2903,5 +3036,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             } catch (e) {
                 showToast(e.message || t('config.common.error'), 'error');
                 return false;
+            } finally {
+                providersSaving = false;
             }
         }

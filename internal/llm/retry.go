@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/sashabaranov/go-openai"
 )
+
+var defaultPolicyMu sync.RWMutex
 
 var defaultRetryIntervals = []time.Duration{
 	30 * time.Second,
@@ -36,6 +39,8 @@ func FinalRetryInterval() time.Duration {
 // ignored. A common production default is 30s to avoid blocking the agent loop
 // for minutes on transient provider errors.
 func ConfigureFinalRetryInterval(d time.Duration) {
+	defaultPolicyMu.Lock()
+	defer defaultPolicyMu.Unlock()
 	if d <= 0 {
 		return
 	}
@@ -75,6 +80,8 @@ func defaultRetryIntervalsCopy() []time.Duration {
 // ExecuteWithRetry. Invalid entries are ignored so one bad config value does
 // not disable the retry policy entirely.
 func ConfigureDefaultRetryIntervals(intervalSpecs []string, logger *slog.Logger) {
+	defaultPolicyMu.Lock()
+	defer defaultPolicyMu.Unlock()
 	if len(intervalSpecs) == 0 {
 		resetDefaultRetryIntervals()
 		return
@@ -128,6 +135,8 @@ func perAttemptTimeout() time.Duration {
 // SetPerAttemptTimeout configures the per-attempt API timeout used by the retry loops.
 // It is safe to call concurrently.
 func SetPerAttemptTimeout(d time.Duration) {
+	defaultPolicyMu.Lock()
+	defer defaultPolicyMu.Unlock()
 	if d <= 0 {
 		d = defaultPerAttemptTimeout
 	}
@@ -142,6 +151,13 @@ type activeProviderModelProvider interface {
 	ActiveProviderAndModel() (string, string)
 }
 
+func activeProviderID(client ChatClient) string {
+	if owner, ok := client.(interface{ ActiveRoute() ModelRoute }); ok {
+		return owner.ActiveRoute().ProviderID
+	}
+	return ""
+}
+
 func activeProviderAndModel(client ChatClient, fallbackModel string) (string, string) {
 	if scopedClient, ok := client.(activeProviderModelProvider); ok {
 		return scopedClient.ActiveProviderAndModel()
@@ -149,13 +165,18 @@ func activeProviderAndModel(client ChatClient, fallbackModel string) (string, st
 	return "", fallbackModel
 }
 
-func reportProviderError(client ChatClient, req openai.ChatCompletionRequest, operation string, err error, attempt int, retryable bool, timeout time.Duration) {
+func reportProviderError(client ChatClient, req openai.ChatCompletionRequest, operation string, err error, attempt int, retryable bool, timeout time.Duration, routes ...ModelRoute) {
 	if err == nil {
 		return
 	}
 	provider, model := activeProviderAndModel(client, req.Model)
+	id := activeProviderID(client)
+	if len(routes) > 0 {
+		provider, model, id = routes[0].ProviderType, routes[0].Model, routes[0].ProviderID
+	}
 	ReportLLMHealthEvent(HealthEvent{
 		Operation:         operation,
+		ProviderID:        id,
 		Provider:          provider,
 		Model:             model,
 		ErrorCategory:     ClassifyError(err),
@@ -166,24 +187,43 @@ func reportProviderError(client ChatClient, req openai.ChatCompletionRequest, op
 	})
 }
 
-func reportProviderSuccess(client ChatClient, req openai.ChatCompletionRequest, operation string) {
+func reportProviderSuccess(client ChatClient, req openai.ChatCompletionRequest, operation string, routes ...ModelRoute) {
 	provider, model := activeProviderAndModel(client, req.Model)
+	id := activeProviderID(client)
+	if len(routes) > 0 {
+		provider, model, id = routes[0].ProviderType, routes[0].Model, routes[0].ProviderID
+	}
 	ReportLLMHealthSuccess(HealthSuccess{
-		Operation: operation,
-		Provider:  provider,
-		Model:     model,
+		Operation:  operation,
+		ProviderID: id,
+		Provider:   provider,
+		Model:      model,
 	})
 }
 
 func ExecuteWithRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider) (openai.ChatCompletionResponse, error) {
-	return ExecuteWithCustomRetry(ctx, client, req, logger, broker, defaultRetryIntervalsCopy(), FinalRetryInterval())
+	return executeRetry(ctx, client, req, logger, broker, retryPolicyFor(client))
 }
 
 func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider, intervals []time.Duration, finalInterval time.Duration) (openai.ChatCompletionResponse, error) {
+	policy := retryPolicyFor(client)
+	policy.Intervals = append([]time.Duration(nil), intervals...)
+	policy.FinalInterval = finalInterval
+	return executeRetry(ctx, client, req, logger, broker, policy)
+}
+
+func executeRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider, policy RetryPolicy) (openai.ChatCompletionResponse, error) {
+	callerCtx := ctx
+	ctx, totalCancel, _ := openingContext(ctx, policy.TotalTimeout, "total budget")
+	defer totalCancel()
+	intervals, finalInterval := policy.Intervals, policy.FinalInterval
+	timeout := policy.PerAttemptTimeout
 	attempt := 0
 
 	for {
-		timeout := perAttemptTimeout()
+		if ctx.Err() != nil {
+			return openai.ChatCompletionResponse{}, context.Cause(ctx)
+		}
 		attemptCtx, attemptCancel := context.WithTimeout(ctx, timeout)
 		providerBefore, modelBefore := activeProviderAndModel(client, req.Model)
 
@@ -197,14 +237,16 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 			)
 		}
 		callStart := time.Now()
-		resp, err := client.CreateChatCompletion(withAttemptParent(attemptCtx, ctx), req)
+		callCtx, observation := observeAttemptRoute(withAttemptParent(attemptCtx, callerCtx))
+		resp, err := client.CreateChatCompletion(callCtx, req)
+		route := observation.snapshot(client, req.Model)
 		callElapsed := time.Since(callStart)
 		attemptCtxErr := attemptCtx.Err()
-		parentCtxErr := ctx.Err()
+		parentCtxErr := callerCtx.Err()
 		attemptCancel()
 
 		if err == nil {
-			reportProviderSuccess(client, req, "chat_completion")
+			reportProviderSuccess(client, req, "chat_completion", route)
 			if logger != nil {
 				logger.Info("[LLM Retry] CreateChatCompletion succeeded",
 					"attempt", attempt+1,
@@ -215,11 +257,20 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 			return resp, nil
 		}
 
-		perAttemptContextError := IsContextError(err) && parentCtxErr == nil && attemptCtxErr != nil
+		if parentCtxErr == nil {
+			if isOwnedTransportTimeout(context.Cause(ctx)) {
+				err = context.Cause(ctx)
+			} else if isOwnedTransportTimeout(context.Cause(attemptCtx)) {
+				err = context.Cause(attemptCtx)
+			} else if attemptCtxErr != nil && IsContextError(err) {
+				err = &TransportTimeoutError{Stage: "attempt", After: timeout}
+			}
+		}
+		perAttemptContextError := isOwnedTransportTimeout(err)
 		if IsContextError(err) && !perAttemptContextError {
 			if logger != nil {
 				logger.Debug("[LLM Retry] Context error, aborting without retry",
-					"error", err,
+					"error", safeAPIError(err),
 					"category", ClassifyError(err),
 					"model", req.Model,
 					"messages", len(req.Messages),
@@ -233,10 +284,10 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 		}
 
 		if !perAttemptContextError && IsNonRetryable(err) {
-			reportProviderError(client, req, "chat_completion", err, attempt+1, false, timeout)
+			reportProviderError(client, req, "chat_completion", err, attempt+1, false, timeout, route)
 			if logger != nil {
 				logger.Error("[LLM Retry] Non-retryable error, aborting",
-					"error", err,
+					"error", safeAPIError(err),
 					"category", ClassifyError(err),
 					"model", req.Model,
 					"messages", len(req.Messages),
@@ -247,12 +298,12 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 		}
 
 		attempt++
-		reportProviderError(client, req, "chat_completion", err, attempt, true, timeout)
+		reportProviderError(client, req, "chat_completion", err, attempt, true, timeout, route)
 		if attempt >= maxRetryAttempts {
 			if logger != nil {
 				logger.Error("[LLM Retry] Max retry attempts reached, aborting",
 					"attempts", attempt,
-					"error", err,
+					"error", safeAPIError(err),
 					"category", ClassifyError(err),
 					"model", req.Model,
 					"messages", len(req.Messages),
@@ -265,17 +316,8 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 		waitTime := selectRetryWaitTime(attempt, intervals, finalInterval, err)
 		providerAfter, modelAfter := activeProviderAndModel(client, req.Model)
 		providerChanged := providerBefore != providerAfter || modelBefore != modelAfter
-		if providerChanged {
+		if providerChanged && GetRetryAfter(err) <= 0 {
 			waitTime = 0
-		}
-
-		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
-			remaining := time.Until(deadline)
-			if waitTime > 0 && remaining < waitTime {
-				waitTime = remaining
-			}
-		} else if waitTime > timeout && GetRetryAfter(err) <= 0 {
-			waitTime = timeout
 		}
 
 		safeErrMsg := safeAPIError(err)
@@ -307,25 +349,48 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 		}
 
 		if !waitForRetry(ctx, waitTime) {
-			return openai.ChatCompletionResponse{}, ctx.Err()
+			return openai.ChatCompletionResponse{}, context.Cause(ctx)
 		}
 	}
 }
 
 func ExecuteStreamWithRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider) (CompletionStream, context.CancelFunc, error) {
-	return ExecuteStreamWithCustomRetry(ctx, client, req, logger, broker, defaultRetryIntervalsCopy(), FinalRetryInterval())
+	return executeStreamRetry(ctx, client, req, logger, broker, retryPolicyFor(client))
 }
 
 func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider, intervals []time.Duration, finalInterval time.Duration) (CompletionStream, context.CancelFunc, error) {
+	policy := retryPolicyFor(client)
+	policy.Intervals = append([]time.Duration(nil), intervals...)
+	policy.FinalInterval = finalInterval
+	return executeStreamRetry(ctx, client, req, logger, broker, policy)
+}
+
+func executeStreamRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider, policy RetryPolicy) (CompletionStream, context.CancelFunc, error) {
+	callerCtx := ctx
+	ctx, totalCancel, stopTotal := openingContext(ctx, policy.TotalTimeout, "stream opening budget")
+	accepted := false
+	defer func() {
+		if !accepted {
+			totalCancel()
+		}
+	}()
+	intervals, finalInterval := policy.Intervals, policy.FinalInterval
+	timeout := policy.PerAttemptTimeout
+	if override, ok := ctx.Value(streamAttemptTimeoutKey{}).(time.Duration); ok && override > 0 {
+		timeout = override
+	}
 	attempt := 0
 	noCancel := func() {}
 
 	for {
-		timeout := streamAttemptTimeout(ctx)
-		attemptCtx, attemptCancel := context.WithTimeout(ctx, timeout)
+		if ctx.Err() != nil {
+			return nil, noCancel, context.Cause(ctx)
+		}
+		attemptCtx, attemptCancel, stopAttempt := openingContext(ctx, timeout, "stream opening attempt")
 		if hasThroughputDeadline(ctx) {
 			// The throughput deadline already bounds this call by its progress.
 			attemptCancel()
+			stopAttempt()
 			attemptCtx, attemptCancel = context.WithCancel(ctx)
 		}
 		providerBefore, modelBefore := activeProviderAndModel(client, req.Model)
@@ -340,13 +405,15 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 			)
 		}
 		callStart := time.Now()
-		stream, err := client.CreateChatCompletionStream(withAttemptParent(attemptCtx, ctx), req)
+		callCtx, observation := observeAttemptRoute(withAttemptParent(attemptCtx, callerCtx))
+		stream, err := client.CreateChatCompletionStream(callCtx, req)
+		route := observation.snapshot(client, req.Model)
 		callElapsed := time.Since(callStart)
 		attemptCtxErr := attemptCtx.Err()
-		parentCtxErr := ctx.Err()
+		parentCtxErr := callerCtx.Err()
 
 		if err == nil {
-			reportProviderSuccess(client, req, "chat_completion_stream")
+			// Stream success is reported only after all terminal finish markers.
 			if logger != nil {
 				logger.Info("[LLM Stream Retry] CreateChatCompletionStream succeeded",
 					"attempt", attempt+1,
@@ -354,15 +421,36 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 					"model", req.Model,
 				)
 			}
-			return stream, attemptCancel, nil
+			stopAttempt()
+			stopTotal()
+			if attemptCtx.Err() != nil {
+				_ = stream.Close()
+				return nil, noCancel, context.Cause(attemptCtx)
+			}
+			stream = observeCompletionStream(callCtx, stream, req,
+				func() { reportProviderSuccess(client, req, "chat_completion_stream", route) },
+				func(err error) {
+					reportProviderError(client, req, "chat_completion_stream", err, attempt+1, false, timeout, route)
+				})
+			accepted = true
+			return stream, func() { attemptCancel(); totalCancel() }, nil
 		}
 		attemptCancel()
 
-		perAttemptContextError := IsContextError(err) && parentCtxErr == nil && attemptCtxErr != nil
+		if parentCtxErr == nil {
+			if isOwnedTransportTimeout(context.Cause(ctx)) {
+				err = context.Cause(ctx)
+			} else if isOwnedTransportTimeout(context.Cause(attemptCtx)) {
+				err = context.Cause(attemptCtx)
+			} else if attemptCtxErr != nil && IsContextError(err) {
+				err = &TransportTimeoutError{Stage: "attempt", After: timeout}
+			}
+		}
+		perAttemptContextError := isOwnedTransportTimeout(err)
 		if IsContextError(err) && !perAttemptContextError {
 			if logger != nil {
 				logger.Debug("[LLM Stream Retry] Context error, aborting without retry",
-					"error", err,
+					"error", safeAPIError(err),
 					"category", ClassifyError(err),
 					"model", req.Model,
 					"messages", len(req.Messages),
@@ -376,10 +464,10 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		}
 
 		if !perAttemptContextError && IsNonRetryable(err) {
-			reportProviderError(client, req, "chat_completion_stream", err, attempt+1, false, timeout)
+			reportProviderError(client, req, "chat_completion_stream", err, attempt+1, false, timeout, route)
 			if logger != nil {
 				logger.Error("[LLM Stream Retry] Non-retryable error, aborting",
-					"error", err,
+					"error", safeAPIError(err),
 					"category", ClassifyError(err),
 					"model", req.Model,
 					"messages", len(req.Messages),
@@ -390,12 +478,12 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		}
 
 		attempt++
-		reportProviderError(client, req, "chat_completion_stream", err, attempt, true, timeout)
+		reportProviderError(client, req, "chat_completion_stream", err, attempt, true, timeout, route)
 		if attempt >= maxRetryAttempts {
 			if logger != nil {
 				logger.Error("[LLM Stream Retry] Max retry attempts reached, aborting",
 					"attempts", attempt,
-					"error", err,
+					"error", safeAPIError(err),
 					"category", ClassifyError(err),
 					"model", req.Model,
 					"messages", len(req.Messages),
@@ -408,17 +496,8 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		waitTime := selectRetryWaitTime(attempt, intervals, finalInterval, err)
 		providerAfter, modelAfter := activeProviderAndModel(client, req.Model)
 		providerChanged := providerBefore != providerAfter || modelBefore != modelAfter
-		if providerChanged {
+		if providerChanged && GetRetryAfter(err) <= 0 {
 			waitTime = 0
-		}
-
-		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
-			remaining := time.Until(deadline)
-			if waitTime > 0 && remaining < waitTime {
-				waitTime = remaining
-			}
-		} else if waitTime > timeout && GetRetryAfter(err) <= 0 {
-			waitTime = timeout
 		}
 
 		safeErrMsg := safeAPIError(err)
@@ -447,20 +526,24 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		}
 
 		if !waitForRetry(ctx, waitTime) {
-			return nil, noCancel, ctx.Err()
+			return nil, noCancel, context.Cause(ctx)
 		}
 	}
 }
 
 func selectRetryWaitTime(attempt int, intervals []time.Duration, finalInterval time.Duration, err error) time.Duration {
-	if retryAfter := GetRetryAfter(err); retryAfter > 0 {
-		return retryAfter
+	wait := finalInterval
+	if index := attempt - 1; index >= 0 && index < len(intervals) {
+		wait = intervals[index]
 	}
-	intervalIndex := attempt - 1
-	if intervalIndex >= 0 && intervalIndex < len(intervals) {
-		return intervals[intervalIndex]
+	if floor := GetRetryAfter(err); floor > wait {
+		wait = floor
 	}
-	return finalInterval
+	if wait <= 0 {
+		return 0
+	}
+	// Add up to ten percent; a provider's Retry-After is always a lower bound.
+	return wait + time.Duration(rand.Float64()*float64(wait)/10)
 }
 
 func waitForRetry(ctx context.Context, waitTime time.Duration) bool {
@@ -478,7 +561,7 @@ func waitForRetry(ctx context.Context, waitTime time.Duration) bool {
 func safeAPIError(err error) string {
 	var apiErr *openai.APIError
 	if errors.As(err, &apiErr) {
-		return fmt.Sprintf("status %d: %s", apiErr.HTTPStatusCode, apiErr.Message)
+		return fmt.Sprintf("status %d: %s", apiErr.HTTPStatusCode, redactErrorText(apiErr.Message))
 	}
-	return err.Error()
+	return redactProviderError(err)
 }

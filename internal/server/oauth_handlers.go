@@ -180,13 +180,11 @@ func handleOAuthCallback(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if err := storeOAuthToken(s.Vault, providerID, tokenResp, time.Now()); err != nil {
+		if err := storeProviderOAuthToken(s, entry, tokenResp, time.Now()); err != nil {
 			s.Logger.Error("[OAuth] Failed to store token", "provider", providerID, "error", err)
 			renderOAuthResult(w, false, "Failed to store token", providerID)
 			return
 		}
-
-		applyOAuthTokenToRuntime(s)
 
 		s.Logger.Info("[OAuth] Authorization successful", "provider", providerID)
 		renderOAuthResult(w, true, "Authorization successful for provider: "+providerID, providerID)
@@ -301,8 +299,7 @@ func applyOAuthTokenToRuntime(s *Server) {
 		s.CfgMu.Unlock()
 		return
 	}
-	updatedConfig := *current
-	updatedConfig.Providers = append([]config.ProviderEntry(nil), current.Providers...)
+	updatedConfig := *current.Clone()
 	updatedConfig.ApplyOAuthTokens(s.Vault)
 	s.replaceConfigSnapshot(&updatedConfig)
 	if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
@@ -328,28 +325,10 @@ func handleOAuthRevoke(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if s.Vault != nil {
-			if err := s.Vault.DeleteSecret("oauth_" + providerID); err != nil {
-				jsonError(w, "Could not revoke OAuth token", http.StatusInternalServerError)
-				return
-			}
+		if err := revokeProviderOAuth(s, providerID); err != nil {
+			jsonError(w, "Could not revoke OAuth token", http.StatusInternalServerError)
+			return
 		}
-
-		// Publish a copied snapshot so request paths never race a mutation of
-		// the immutable runtime configuration pointer.
-		s.CfgMu.Lock()
-		current := s.ConfigSnapshot()
-		if current != nil {
-			updated := *current
-			updated.Providers = append([]config.ProviderEntry(nil), current.Providers...)
-			if p := updated.FindProvider(providerID); p != nil && normalizeProviderAuthType(p.AuthType) == "oauth2" {
-				p.APIKey = ""
-			}
-			s.Cfg = &updated
-			s.cfgSnapshot.Store(&updated)
-		}
-		s.CfgMu.Unlock()
-		s.invalidateDecisionsProvider(providerID)
 
 		s.Logger.Info("[OAuth] Token revoked", "provider", providerID)
 
@@ -408,14 +387,14 @@ func exchangeCodeForToken(prov config.ProviderEntry, code, redirectURI, codeVeri
 
 	var tokenResp tokenExchangeResponse
 	if err := json.Unmarshal(body, &tokenResp); err != nil {
-		return nil, fmt.Errorf("failed to parse token response: %w — body: %s", err, string(body))
+		return nil, fmt.Errorf("failed to parse token response: %w", err)
 	}
 
 	if tokenResp.Error != "" {
 		return nil, fmt.Errorf("%s: %s", tokenResp.Error, tokenResp.ErrorDesc)
 	}
 	if tokenResp.AccessToken == "" {
-		return nil, fmt.Errorf("no access_token in response — body: %s", string(body))
+		return nil, fmt.Errorf("no access_token in token response")
 	}
 
 	return &tokenResp, nil
@@ -621,14 +600,12 @@ func handleOAuthManual(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if err := storeOAuthToken(s.Vault, providerID, tokenResp, time.Now()); err != nil {
+		if err := storeProviderOAuthToken(s, entry, tokenResp, time.Now()); err != nil {
 			s.Logger.Error("[OAuth] Failed to store token", "provider", providerID, "error", err)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "Failed to store token"})
 			return
 		}
-
-		applyOAuthTokenToRuntime(s)
 
 		s.Logger.Info("[OAuth] Manual authorization successful", "provider", providerID)
 		w.Header().Set("Content-Type", "application/json")
