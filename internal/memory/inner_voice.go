@@ -38,40 +38,6 @@ func (s *SQLiteMemory) InitInnerVoiceTables() error {
 	return nil
 }
 
-// StoreInnerVoice persists an inner voice thought alongside the latest emotion history entry.
-// It updates the most recent emotion_history row with the inner thought and nudge category.
-func (s *SQLiteMemory) StoreInnerVoice(thought, category string) error {
-	if thought == "" {
-		return nil
-	}
-	_, err := s.db.Exec(
-		`UPDATE emotion_history SET inner_thought = ?, nudge_category = ?
-		 WHERE id = (SELECT MAX(id) FROM emotion_history)`,
-		thought, category,
-	)
-	return err
-}
-
-// StoreInnerVoiceAfterEmotionID attaches an inner voice thought to the newest
-// emotion row created after previousEmotionID. If no newer row exists, it leaves
-// history unchanged so thoughts are not attached to a previous turn.
-func (s *SQLiteMemory) StoreInnerVoiceAfterEmotionID(thought, category string, previousEmotionID int) error {
-	if thought == "" {
-		return nil
-	}
-	_, err := s.db.Exec(
-		`UPDATE emotion_history SET inner_thought = ?, nudge_category = ?
-		 WHERE id = (
-			SELECT id FROM emotion_history
-			WHERE id > ?
-			ORDER BY id DESC
-			LIMIT 1
-		 )`,
-		thought, category, previousEmotionID,
-	)
-	return err
-}
-
 // GetRecentInnerVoices returns the N most recent inner voice entries (non-empty thoughts).
 func (s *SQLiteMemory) GetRecentInnerVoices(limit int) ([]InnerVoiceEntry, error) {
 	if limit <= 0 {
@@ -140,8 +106,8 @@ func FormatInnerVoiceHistory(entries []InnerVoiceEntry) string {
 		}
 		thought := e.InnerThought
 		// Truncate long thoughts for prompt efficiency
-		if len(thought) > 100 {
-			thought = thought[:97] + "..."
+		if runes := []rune(thought); len(runes) > 100 {
+			thought = string(runes[:97]) + "..."
 		}
 		b.WriteString(thought)
 		if e.NudgeCategory != "" {

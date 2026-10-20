@@ -1115,7 +1115,10 @@ type RunConfig struct {
 	// TaskRoutingText captures human text before media enrichment. A non-nil
 	// empty value prevents falling back to attachment contents or chat history.
 	TaskRoutingText *string
-	DiscoveryRunID  string
+	// HumanInput is captured only at authenticated human ingress. Never infer it
+	// from request roles, history, prefixes, snapshots or model output.
+	HumanInput     *memory.HumanInput
+	DiscoveryRunID string
 	// ExecutionHooks are optional server-owned boundaries for isolated jobs.
 	ExecutionHooks     *ExecutionHooks
 	IterationLimit     int
@@ -1205,7 +1208,7 @@ type RunConfig struct {
 	// nil keeps the fixed timeout.
 	StreamThroughput *llm.ThroughputPolicy
 	// ToolCallLimit is an optional server-owned fixed budget for this run.
-	// Zero retains the normal system/personality/tool-specific calculation.
+	// Zero retains the normal configuration and tool-specific calculation.
 	ToolCallLimit int
 	// AllowedTools is an additive hard scope for native tools. Nil preserves the
 	// historical unrestricted behavior; an explicit empty slice allows no tools.

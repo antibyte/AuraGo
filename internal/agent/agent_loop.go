@@ -835,7 +835,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Get the mood trigger context from the message history
-		triggerValue := getMoodTrigger(req.Messages, lastUserMsg)
+		triggerValue := ""
+		if runCfg.HumanInput.Valid() {
+			triggerValue = runCfg.HumanInput.Text
+		}
 		moodTrigger := func() string { return triggerValue }
 
 		// Note: The call to PrepareDynamicGuides will happen after the response is received
@@ -1386,11 +1389,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			s.learningContext = observation
 		}
 		if !runCfg.IsMission && !isAutonomousRun && personalityEnabled && shortTermMem != nil {
-			if cfg.Personality.EngineV2 {
+			if cfg.Personality.EngineV2 && loopIterationCount == 1 {
 				// V2 Feature: Narrative Events based on Milestones & Loneliness
-				processBehavioralEvents(shortTermMem, &req.Messages, sessionID, meta, s.currentLogger)
+				processBehavioralEvents(shortTermMem, &req.Messages, sessionID, meta, s.currentLogger, runCfg.HumanInput)
 			}
-			flags.PersonalityLine = shortTermMem.GetPersonalityLineWithMeta(cfg.Personality.EngineV2, meta)
+			flags.PersonalityLine = mergeEmotionBehaviorPrompt(shortTermMem.GetPersonalityLineWithMeta(cfg.Personality.EngineV2, meta), emotionPolicy)
 			flags.CharacterNotes = shortTermMem.FormatCharacterNotesForPrompt(memory.MaxCharacterNotesInPrompt)
 			flags.NarrativeVisible = shortTermMem.NarrativeVisible()
 
@@ -1516,7 +1519,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		// Trusted emotion/behavior hints stay active even when inner voice is
 		// injected. Inner voice is untrusted tone only; these hints are Go policy.
-		flags.AdditionalPrompt = mergeEmotionBehaviorPrompt(baseAdditionalPrompt, emotionPolicy)
+		flags.AdditionalPrompt = baseAdditionalPrompt
 		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, s.currentLogger)
 		budgetMessages := req.Messages
 		if lastGeneratedSystemPrompt != "" && len(budgetMessages) > 0 &&
@@ -2487,7 +2490,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			var turnPersonalityInput *helperTurnPersonalityInput
 			if useBatchedTurnPersonality {
 				contextHistory, userHistory := buildPersonalityHistories(req.Messages, "Assistant Response", content)
-				_, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
+				emotionEligible, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer, personalityBasis)
 				traits, _ := shortTermMem.GetTraits()
 				batchSuccessCount := s.toolCallCount - recoveryState.ConsecutiveErrorCount
 				batchTaskCompleted := recoveryState.ConsecutiveErrorCount == 0 && batchSuccessCount > 0
@@ -2500,7 +2503,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 				}
 				turnPersonalityInput = &helperTurnPersonalityInput{
-					CurrentUserMessage: lastUserMsg,
+					CurrentUserMessage: runCfg.HumanInput.Text,
+					EmotionEnabled:     emotionEligible,
 					Snapshot:           personalityBasis,
 					RecentHistory:      contextHistory,
 					UserOnlyHistory:    userHistory,
@@ -2515,7 +2519,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					InactivityHours:    userInactivityHours,
 					ErrorCount:         recoveryState.ConsecutiveErrorCount,
 					SuccessCount:       batchSuccessCount,
-					InnerVoiceEnabled:  batchIVEnabled,
+					InnerVoiceEnabled:  batchIVEnabled && emotionEligible,
 					InnerVoiceLanguage: cfg.Agent.SystemLanguage,
 					InnerVoiceHistory:  batchIVHistory,
 				}
@@ -2592,7 +2596,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				applyExtractedLearnings(analysisCtx, cfg, shortTermMem, sid, userMsg, batchResult.MemoryAnalysis.Learnings, runCfg.learningAnalysisScope())
 				if useBatchedTurnPersonality {
 					if personalityResult, ok := normalizeHelperTurnPersonalityResult(batchResult.PersonalityAnalysis, meta); ok {
-						personalityResult.Basis, personalityResult.ObservationID = personalityBasis, personalityBasis.TurnID
+						personalityResult.Basis, personalityResult.ObservationID, personalityResult.Input = personalityBasis, runCfg.HumanInput.TurnID, runCfg.HumanInput
+						if !turnPersonalityInput.EmotionEnabled {
+							personalityResult.SynthesizedEmotion = nil
+							personalityResult.InnerThought = ""
+						}
 						_, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
 						v2FailCount.Store(0)
 						applyPersonalityV2AnalysisResult(

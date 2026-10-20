@@ -186,6 +186,7 @@ func handleDeleteChatSession(s *Server) http.HandlerFunc {
 			job = current
 		}
 		report := memory.SessionDeletionReport{
+			PersonalityDeleted: job.PersonalityDeleted, PersonalityRetained: job.PersonalityRetained, PersonalityLegacyUnknown: job.PersonalityLegacyUnknown,
 			TranscriptDeleted: job.TranscriptDeleted,
 			DeletedMemories:   job.DeletedCount, RetainedMemories: job.RetainedCount,
 		}

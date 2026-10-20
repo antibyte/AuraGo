@@ -14,6 +14,13 @@ import (
 
 func observePersonality(t *testing.T, stm *SQLiteMemory, observation PersonalityObservation) PersonalitySnapshot {
 	t.Helper()
+	if observation.Human && !observation.Input.Valid() {
+		at := observation.At
+		if at.IsZero() {
+			at = time.Now()
+		}
+		observation.Input = &HumanInput{Text: "fixture human input", SessionID: "test", TurnID: observation.ID, OccurredAt: at}
+	}
 	snapshot, err := stm.ApplyPersonalityObservation(observation)
 	if err != nil {
 		t.Fatal(err)

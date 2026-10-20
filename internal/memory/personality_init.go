@@ -68,5 +68,5 @@ func (s *SQLiteMemory) InitPersonalityTables() error {
 		return fmt.Errorf("character note tables: %w", err)
 	}
 
-	return nil
+	return s.initPersonalityEvidence()
 }

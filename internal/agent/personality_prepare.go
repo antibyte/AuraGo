@@ -22,6 +22,10 @@ import (
 // stay in the existing background helper batch without delaying the reply.
 func prepareTurnEmotion(ctx context.Context, runCfg RunConfig, flags prompts.ContextFlags, userMessage string, meta memory.PersonalityMeta, logger *slog.Logger) *memory.PersonalitySnapshot {
 	cfg, stm := runCfg.Config, runCfg.ShortTermMem
+	if !runCfg.HumanInput.Valid() || runCfg.HumanInput.SessionID != runCfg.SessionID {
+		return nil
+	}
+	userMessage = runCfg.HumanInput.Text
 	if cfg == nil || stm == nil || !cfg.Personality.Engine || strings.TrimSpace(userMessage) == "" ||
 		!shouldRunTurnSideEffects(runCfg, runCfg.SessionID, flags) {
 		return nil
@@ -63,7 +67,7 @@ func prepareTurnEmotion(ctx context.Context, runCfg RunConfig, flags prompts.Con
 		affinityDelta = -0.015 * meta.EmpathyBias
 	}
 	snapshot, err := stm.ApplyPersonalityObservation(memory.PersonalityObservation{
-		ID: runCfg.DiscoveryRunID, Source: "chat", Target: appraisal.Target,
+		ID: runCfg.HumanInput.TurnID, Input: runCfg.HumanInput, Source: "chat", Target: appraisal.Target,
 		Confidence: appraisal.Confidence, Human: true, BeginTurn: true, At: time.Now(),
 		Event: &event, Mood: mood, TraitDeltas: deltas, Signal: appraisal.Signal,
 		AffinityDelta: affinityDelta, Explicit: appraisal.Signal == "criticism", Basis: &basis,

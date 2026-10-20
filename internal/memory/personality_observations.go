@@ -74,6 +74,13 @@ func (s *SQLiteMemory) InitPersonalityDynamics() error {
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("commit personality dynamics migration: %w", err)
 	}
+	var evidenceExists bool
+	if err = s.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='personality_profile_evidence')`).Scan(&evidenceExists); err != nil {
+		return err
+	}
+	if evidenceExists {
+		return s.initPersonalityEvidence()
+	}
 	return nil
 }
 
@@ -237,6 +244,29 @@ func (s *SQLiteMemory) ApplyPersonalityObservation(observation PersonalityObserv
 		now = time.Now()
 	}
 	now = now.UTC()
+	if observation.Input.Valid() {
+		observation.OccurredAt = observation.Input.OccurredAt
+		if strings.TrimSpace(observation.Input.Text) == "" {
+			observation.Human = false
+			observation.ProfileUpdates = nil
+		}
+	} else {
+		observation.Human = false
+		observation.ProfileUpdates = nil
+	}
+	fingerprint := observation.requestHash
+	if fingerprint == "" {
+		fingerprint = observationFingerprint(observation)
+	}
+	if observation.OccurredAt.IsZero() {
+		observation.OccurredAt = now
+	}
+	if !now.Before(observation.OccurredAt.Add(PersonalityObservationLifetime)) {
+		return PersonalitySnapshot{}, ErrPersonalityEventExpired
+	}
+	if observation.OccurredAt.After(now.Add(5 * time.Minute)) {
+		return PersonalitySnapshot{}, fmt.Errorf("personality event is in the future")
+	}
 	if observation.ID == "" {
 		observation.ID = rand.Text()
 	}
@@ -246,6 +276,9 @@ func (s *SQLiteMemory) ApplyPersonalityObservation(observation PersonalityObserv
 		return PersonalitySnapshot{}, fmt.Errorf("begin personality observation: %w", err)
 	}
 	defer tx.Rollback()
+	if err = checkPersonalityInputTx(tx, observation); err != nil {
+		return PersonalitySnapshot{}, err
+	}
 	state, err := loadPersonalityDynamics(tx)
 	if err != nil {
 		return PersonalitySnapshot{}, err
@@ -257,6 +290,22 @@ func (s *SQLiteMemory) ApplyPersonalityObservation(observation PersonalityObserv
 	traits, err := loadPersonalityTraits(tx)
 	if err != nil {
 		return PersonalitySnapshot{}, err
+	}
+	var primary, semantic, relational bool
+	var primaryHash, semanticHash string
+	err = tx.QueryRow(`SELECT primary_applied,semantic_applied,relationship_applied,primary_hash,semantic_hash FROM personality_observations WHERE id=?`, key).Scan(&primary, &semantic, &relational, &primaryHash, &semanticHash)
+	if err != nil && err != sql.ErrNoRows {
+		return PersonalitySnapshot{}, fmt.Errorf("read personality observation receipt: %w", err)
+	}
+	if (observation.Semantic && semantic) || (!observation.Semantic && primary) {
+		previousHash := primaryHash
+		if observation.Semantic {
+			previousHash = semanticHash
+		}
+		if previousHash != "" && previousHash != fingerprint {
+			return PersonalitySnapshot{}, ErrPersonalityEventConflict
+		}
+		return makePersonalitySnapshot(current, state, traits, now), nil
 	}
 	if basis := observation.Basis; basis != nil {
 		// Primary events integrate into the serialized current state so parallel
@@ -270,13 +319,10 @@ func (s *SQLiteMemory) ApplyPersonalityObservation(observation PersonalityObserv
 	if observation.OperationalIssueOpen != nil && *observation.OperationalIssueOpen == state.OperationalIssueOpen {
 		return makePersonalitySnapshot(current, state, traits, now), nil
 	}
-	var primary, semantic, relational bool
-	err = tx.QueryRow(`SELECT primary_applied,semantic_applied,relationship_applied FROM personality_observations WHERE id=?`, key).Scan(&primary, &semantic, &relational)
-	if err != nil && err != sql.ErrNoRows {
-		return PersonalitySnapshot{}, fmt.Errorf("read personality observation receipt: %w", err)
-	}
-	if (observation.Semantic && semantic) || (!observation.Semantic && primary) {
-		return makePersonalitySnapshot(current, state, traits, now), nil
+	if observation.Semantic {
+		semanticHash = fingerprint
+	} else {
+		primaryHash = fingerprint
 	}
 	if now.Before(state.UpdatedAt) {
 		now = state.UpdatedAt
@@ -302,6 +348,14 @@ func (s *SQLiteMemory) ApplyPersonalityObservation(observation PersonalityObserv
 		if err = updateObservedTrait(tx, traits, TraitAffinity, affinityDelta); err != nil {
 			return PersonalitySnapshot{}, err
 		}
+	}
+	if observation.LonelinessDelta != 0 && observation.Source == "inactivity" {
+		if err = updateObservedTrait(tx, traits, TraitLoneliness, clampFinite(observation.LonelinessDelta, -1, 1, 0)); err != nil {
+			return PersonalitySnapshot{}, err
+		}
+	}
+	if err = applyPersonalityProfilesTx(tx, observation.Input, observation.ProfileUpdates); err != nil {
+		return PersonalitySnapshot{}, fmt.Errorf("apply personality profile evidence: %w", err)
 	}
 	if err = saveAffectStateWith(tx, next); err != nil {
 		return PersonalitySnapshot{}, err
@@ -337,11 +391,18 @@ func (s *SQLiteMemory) ApplyPersonalityObservation(observation PersonalityObserv
 				return PersonalitySnapshot{}, fmt.Errorf("record personality inner voice: %w", err)
 			}
 		}
+		var emotionID int64
+		if err = tx.QueryRow(`SELECT last_insert_rowid()`).Scan(&emotionID); err != nil {
+			return PersonalitySnapshot{}, err
+		}
+		if err = recordPersonalityTextSource(tx, "emotion", fmt.Sprint(emotionID), observation.Input); err != nil {
+			return PersonalitySnapshot{}, err
+		}
 	}
 	primary = primary || !observation.Semantic
 	semantic = semantic || observation.Semantic
 	relational = relational || relationshipObservation(observation)
-	_, err = tx.Exec(`INSERT INTO personality_observations(id,primary_applied,semantic_applied,relationship_applied,created_at) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET primary_applied=excluded.primary_applied,semantic_applied=excluded.semantic_applied,relationship_applied=excluded.relationship_applied`, key, primary, semantic, relational, now.UTC().Format(time.RFC3339Nano))
+	_, err = tx.Exec(`INSERT INTO personality_observations(id,primary_applied,semantic_applied,relationship_applied,created_at,occurred_at,primary_hash,semantic_hash) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET primary_applied=excluded.primary_applied,semantic_applied=excluded.semantic_applied,relationship_applied=excluded.relationship_applied,primary_hash=excluded.primary_hash,semantic_hash=excluded.semantic_hash`, key, primary, semantic, relational, now.UTC().Format(time.RFC3339Nano), observation.OccurredAt.UTC().Format(time.RFC3339Nano), primaryHash, semanticHash)
 	if err != nil {
 		return PersonalitySnapshot{}, fmt.Errorf("save personality observation receipt: %w", err)
 	}
@@ -349,6 +410,9 @@ func (s *SQLiteMemory) ApplyPersonalityObservation(observation PersonalityObserv
 		return PersonalitySnapshot{}, fmt.Errorf("commit personality observation: %w", err)
 	}
 	s.invalidatePersonalityCaches()
+	if observation.applied != nil {
+		*observation.applied = true
+	}
 	if observation.Emotion != nil {
 		*observation.Emotion = emotion
 	}

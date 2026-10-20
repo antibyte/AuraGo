@@ -471,6 +471,9 @@ func requireAdmin(s *Server, next http.Handler) http.Handler {
 }
 
 func isAdminProtectedPath(path string) bool {
+	if path == "/api/personality/legacy" || path == "/api/personality/legacy/review" {
+		return true
+	}
 	switch path {
 	case "/api/learnings", "/api/desktop/learnings", "/api/code-graph", "/api/desktop/code-graph":
 		return true

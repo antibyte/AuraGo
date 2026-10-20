@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 func checkCorrectionProfileCapacity(ctx context.Context, q correctionQueryer, category string) error {
@@ -26,6 +27,15 @@ func (s *SQLiteMemory) deleteProfileEntries(category, key string, all bool) (int
 	if _, err = tx.Exec(`UPDATE user_profile SET key=key WHERE ? OR (category=? AND key=?)`, all, category, key); err != nil {
 		return 0, fmt.Errorf("lock profile deletion: %w", err)
 	}
+	stamp := time.Now().UTC().Format("2006-01-02T15:04:05.000000000Z")
+	if _, err = tx.Exec(`INSERT INTO personality_profile_deletions(category,key,deleted_at) SELECT category,key,? FROM user_profile WHERE ? OR (category=? AND key=?) ON CONFLICT(category,key) DO UPDATE SET deleted_at=excluded.deleted_at`, stamp, all, category, key); err != nil {
+		return 0, err
+	}
+	if all {
+		if _, err = tx.Exec(`INSERT INTO personality_profile_deletions(category,key,deleted_at) VALUES('*','*',?) ON CONFLICT(category,key) DO UPDATE SET deleted_at=excluded.deleted_at`, stamp); err != nil {
+			return 0, err
+		}
+	}
 	if _, err = tx.Exec(`INSERT INTO memory_correction_tombstones(reference,correction_id,previous_value)
 		SELECT json_object('store','profile','category',p.category,'key',p.key),c.correction_id,p.value
 		FROM user_profile p JOIN memory_profile_corrections c ON c.category=p.category AND c.key=p.key
@@ -36,6 +46,9 @@ func (s *SQLiteMemory) deleteProfileEntries(category, key string, all bool) (int
 	result, err := tx.Exec(`DELETE FROM user_profile WHERE ? OR (category=? AND key=?)`, all, category, key)
 	if err != nil {
 		return 0, fmt.Errorf("delete profile entries: %w", err)
+	}
+	if _, err = tx.Exec(`DELETE FROM personality_profile_evidence WHERE ? OR (category=? AND key=?)`, all, category, key); err != nil {
+		return 0, err
 	}
 	count, err := result.RowsAffected()
 	if err != nil {

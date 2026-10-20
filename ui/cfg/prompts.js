@@ -27,7 +27,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             html += '<div class="section-desc">' + section.desc + '</div>';
             if (promptsPersonalityNeedsHelper()) {
                 html += `<div class="cfg-note-banner cfg-note-banner-warning" id="personality-helper-banner">
-                    \u{26A0} ${t('config.personality.helper_required')}
+                    \u{26A0} ${t('personality_legacy.settings')}
                 </div>`;
             }
 
@@ -273,7 +273,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
                 document.getElementById('pers-content-input').value = data.body || '';
                 persApplyMeta(data.meta);
                 persState.extraMetaYaml = data.extra_meta_yaml || '';
-                status.textContent = '';
+                status.textContent = data.diagnostic ? t('personality_legacy.diagnostic') + ': ' + data.diagnostic : '';
             } catch (e) {
                 status.textContent = '❌ ' + e.message;
             }

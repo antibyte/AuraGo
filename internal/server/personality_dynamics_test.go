@@ -26,12 +26,13 @@ func TestPersonalityDynamicsFeedbackAndReset(t *testing.T) {
 		}
 		return response
 	}
-	post("/api/personality/feedback", `{"type":"negative","event_id":"feedback1"}`, handlePersonalityFeedback(s))
+	occurred := time.Now().UTC().Format(time.RFC3339Nano)
+	post("/api/personality/feedback", `{"type":"negative","event_id":"feedback1","occurred_at":"`+occurred+`"}`, handlePersonalityFeedback(s))
 	before, _ := s.ShortTermMem.GetPersonalitySnapshotAt(time.Now())
 	if before.Dynamics.Familiarity < .8 || before.Dynamics.Friction <= 0 {
 		t.Fatalf("criticism erased familiarity or omitted friction: %+v", before.Dynamics)
 	}
-	post("/api/personality/feedback", `{"type":"negative","event_id":"feedback1"}`, handlePersonalityFeedback(s))
+	post("/api/personality/feedback", `{"type":"negative","event_id":"feedback1","occurred_at":"`+occurred+`"}`, handlePersonalityFeedback(s))
 	duplicate, _ := s.ShortTermMem.GetPersonalitySnapshotAt(time.Now())
 	if duplicate.Dynamics.Revision != before.Dynamics.Revision {
 		t.Fatal("replayed feedback applied twice")

@@ -52,22 +52,10 @@ func TestDeriveEmotionBehaviorPolicyUsesStructuredStateAndTraits(t *testing.T) {
 
 	policy := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{}, "", "")
 
-	if policy.MaxToolCallsDelta != -1 {
-		t.Fatalf("MaxToolCallsDelta = %d, want -1", policy.MaxToolCallsDelta)
+	if policy.RecoveryNudge != "" || strings.Contains(strings.ToLower(policy.PromptHint), "confirm") {
+		t.Fatal("personality changed authorization guidance")
 	}
-	for _, want := range []string{
-		"modify or delete data",
-		"lightweight verification step",
-		"exact last error",
-		"warm and supportive",
-	} {
-		if !strings.Contains(strings.ToLower(policy.PromptHint), strings.ToLower(want)) {
-			t.Fatalf("PromptHint %q does not contain %q", policy.PromptHint, want)
-		}
-	}
-	if !strings.Contains(strings.ToLower(policy.RecoveryNudge), "avoid speculative retries") {
-		t.Fatalf("RecoveryNudge = %q, want speculative-retry warning", policy.RecoveryNudge)
-	}
+
 }
 
 func TestDeriveEmotionBehaviorPolicyAddsCasualCuriosityHintAboveHighThreshold(t *testing.T) {
@@ -78,18 +66,11 @@ func TestDeriveEmotionBehaviorPolicyAddsCasualCuriosityHintAboveHighThreshold(t 
 	}
 
 	policy := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{}, "web_chat", "")
-	hint := strings.ToLower(policy.CuriosityPromptHint)
-	for _, want := range []string{
-		"more curious",
-		"gather a little more context",
-		"not interrogate",
-		"weather",
-		"live there",
-	} {
-		if !strings.Contains(hint, want) {
-			t.Fatalf("CuriosityPromptHint %q does not contain %q", policy.CuriosityPromptHint, want)
-		}
+	_ = policy
+	if !strings.Contains(stm.GetPersonalityLineWithMeta(true, memory.DefaultPersonalityMeta()), "optional follow-up") {
+		t.Fatal("central style directive lost curiosity")
 	}
+
 }
 
 func TestDeriveEmotionBehaviorPolicyDoesNotAddCuriosityHintAtNeutral(t *testing.T) {
@@ -172,17 +153,13 @@ func TestDeriveEmotionBehaviorPolicyConfirmsOnlyWhenAmbiguous(t *testing.T) {
 	if err := stm.SetTrait(memory.TraitConfidence, 0.2); err != nil {
 		t.Fatalf("SetTrait: %v", err)
 	}
-	ambiguous := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{}, "web_chat", "lösch das bitte")
-	if !strings.Contains(strings.ToLower(ambiguous.PromptHint), "confirmation question") {
-		t.Fatalf("ambiguous delete should ask confirmation: %q", ambiguous.PromptHint)
+	for _, message := range []string{"lösch das bitte", "delete /tmp/cache.db"} {
+		policy := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{}, "web_chat", message)
+		if strings.Contains(strings.ToLower(policy.PromptHint+policy.RecoveryNudge), "confirm") {
+			t.Fatal("trait supplied confirmation policy")
+		}
 	}
-	concrete := deriveEmotionBehaviorPolicy(stm, nil, memory.PersonalityMeta{}, "web_chat", "delete /tmp/cache.db")
-	if strings.Contains(strings.ToLower(concrete.PromptHint), "ask one brief confirmation") {
-		t.Fatalf("concrete path should not ask confirmation: %q", concrete.PromptHint)
-	}
-	if !strings.Contains(strings.ToLower(concrete.PromptHint), "exact target") {
-		t.Fatalf("concrete path should still verify the target: %q", concrete.PromptHint)
-	}
+
 }
 
 func TestDeriveEmotionBehaviorPolicySkipsCuriosityOnShortChannels(t *testing.T) {
@@ -196,7 +173,7 @@ func TestDeriveEmotionBehaviorPolicySkipsCuriosityOnShortChannels(t *testing.T) 
 	}
 }
 
-func TestCalculateEffectiveMaxCallsAddsOneForHighThoroughness(t *testing.T) {
+func TestCalculateEffectiveMaxCallsIgnoresHighThoroughness(t *testing.T) {
 	stm := newTestEmotionBehaviorMemory(t)
 	if err := stm.SetTrait(memory.TraitThoroughness, 0.91); err != nil {
 		t.Fatalf("SetTrait: %v", err)
@@ -205,8 +182,8 @@ func TestCalculateEffectiveMaxCallsAddsOneForHighThoroughness(t *testing.T) {
 	cfg.CircuitBreaker.MaxToolCalls = 10
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	got := calculateEffectiveMaxCalls(RunConfig{Config: cfg}, ToolCall{}, false, true, stm, logger)
-	if got != 11 {
-		t.Fatalf("calculateEffectiveMaxCalls() = %d, want 11", got)
+	if got != 10 {
+		t.Fatalf("calculateEffectiveMaxCalls() = %d, want 10", got)
 	}
 	if got := calculateEffectiveMaxCalls(RunConfig{Config: cfg, ToolCallLimit: 40}, ToolCall{}, false, true, stm, logger); got != 40 {
 		t.Fatalf("fixed run budget changed by thoroughness: %d", got)
@@ -227,7 +204,7 @@ func TestTemperamentSnapshotPicksOneLine(t *testing.T) {
 	}
 }
 
-func TestCalculateEffectiveMaxCallsReducesForTenseRecoveryState(t *testing.T) {
+func TestCalculateEffectiveMaxCallsIgnoresTenseRecoveryState(t *testing.T) {
 	stm := newTestEmotionBehaviorMemory(t)
 	if err := stm.InsertEmotionStateHistory(memory.EmotionState{
 		Description: "I feel overloaded by repeated failures.",
@@ -246,8 +223,8 @@ func TestCalculateEffectiveMaxCallsReducesForTenseRecoveryState(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	got := calculateEffectiveMaxCalls(RunConfig{Config: cfg}, ToolCall{}, false, true, stm, logger)
-	if got != 9 {
-		t.Fatalf("calculateEffectiveMaxCalls() = %d, want 9", got)
+	if got != 10 {
+		t.Fatalf("calculateEffectiveMaxCalls() = %d, want 10", got)
 	}
 	if got := calculateEffectiveMaxCalls(RunConfig{Config: cfg, ToolCallLimit: 40}, ToolCall{}, false, true, stm, logger); got != 40 {
 		t.Fatalf("fixed run budget fell below its minimum: %d", got)

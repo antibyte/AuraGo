@@ -72,6 +72,11 @@ func (s *SQLiteMemory) PrepareChatPrivacyDeletion(ctx context.Context, sessionID
 		return PrivacyDeletionJob{}, err
 	}
 	targets = append(targets, correctionTargets...)
+	personalityTargets, err := s.preparePersonalityPrivacyTargets(ctx, sessionID, deleteMemories)
+	if err != nil {
+		return PrivacyDeletionJob{}, fmt.Errorf("prepare personality privacy targets: %w", err)
+	}
+	targets = append(targets, personalityTargets...)
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -82,6 +87,9 @@ func (s *SQLiteMemory) PrepareChatPrivacyDeletion(ctx context.Context, sessionID
 		return PrivacyDeletionJob{}, fmt.Errorf("persist chat privacy fence: %w", err)
 	}
 	if err := s.createPrivacyDeletionJobTx(ctx, tx, jobID, "chat", PrivacyDeletionPreparing, deleteMemories, "", "", time.Now().UTC(), targets); err != nil {
+		return PrivacyDeletionJob{}, err
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO personality_privacy_counts(job_id,legacy_unknown) SELECT ?,COUNT(*) FROM personality_legacy_review`, jobID); err != nil {
 		return PrivacyDeletionJob{}, err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE privacy_deletion_jobs SET session_hash=? WHERE deletion_job_id=?`, strings.TrimPrefix(marker, "deleted:"), jobID); err != nil {

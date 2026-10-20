@@ -3277,6 +3277,9 @@
             animation: flashGreen 0.5s ease;
         }
 
+        .mood-btn.flash-error { outline: 2px solid var(--error-color, #dc6060); }
+        #personality-feedback-status { display: block; font-size: .8rem; line-height: 1.4; overflow-wrap: anywhere; }
+
         @keyframes flashGreen {
             0% {
                 background: rgba(34, 197, 94, 0.4);

@@ -185,6 +185,18 @@ func (m PersonalityMeta) Normalized() PersonalityMeta {
 
 // Validate reports whether a meta configuration is valid after normalization.
 func (m PersonalityMeta) Validate() error {
+	for name, values := range map[string]map[string]float64{"anchor_traits": m.AnchorTraits, "decay_resistance": m.DecayResistance} {
+		for key, value := range values {
+			if !knownPersonalityTrait(key) || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || value > 1 {
+				return fmt.Errorf("invalid %s.%s", name, key)
+			}
+		}
+	}
+	for key, value := range map[string]float64{"high_affinity": m.Thresholds.HighAffinity, "low_affinity": m.Thresholds.LowAffinity, "high_confidence": m.Thresholds.HighConfidence, "low_confidence": m.Thresholds.LowConfidence, "high_thoroughness": m.Thresholds.HighThoroughness, "high_creativity": m.Thresholds.HighCreativity, "high_empathy": m.Thresholds.HighEmpathy, "high_loneliness": m.Thresholds.HighLoneliness, "warm_loneliness": m.Thresholds.WarmLoneliness, "low_curiosity": m.Thresholds.LowCuriosity, "high_curiosity": m.Thresholds.HighCuriosity} {
+		if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || value > 1 {
+			return fmt.Errorf("invalid thresholds.%s", key)
+		}
+	}
 	n := m.Normalized()
 	if n.Volatility != m.Volatility && m.Volatility != 0 {
 		return fmt.Errorf("invalid volatility %.4f", m.Volatility)
@@ -204,6 +216,14 @@ func (m PersonalityMeta) Validate() error {
 	default:
 		return fmt.Errorf("invalid conflict_response %q", m.ConflictResponse)
 	}
+}
+
+func knownPersonalityTrait(trait string) bool {
+	switch trait {
+	case TraitCuriosity, TraitThoroughness, TraitCreativity, TraitEmpathy, TraitConfidence, TraitAffinity, TraitLoneliness:
+		return true
+	}
+	return false
 }
 
 func (t PersonalityThresholds) normalized() PersonalityThresholds {
@@ -778,7 +798,7 @@ func (s *SQLiteMemory) GetPersonalityLineWithMeta(useV2 bool, meta PersonalityMe
 	traits, err := s.GetTraits()
 	dynamicsHint := ""
 	if snapshot, snapshotErr := s.GetPersonalitySnapshotAt(time.Now()); snapshotErr == nil {
-		mood, traits = snapshot.Affect.Mood, snapshot.Traits
+		mood, traits, err = snapshot.Affect.Mood, snapshot.Traits, nil
 		dynamicsHint = PersonalityDynamicsHint(snapshot)
 	}
 	if err != nil || len(traits) == 0 {
@@ -839,14 +859,14 @@ func (s *SQLiteMemory) GetPersonalityLineWithMeta(useV2 bool, meta PersonalityMe
 	if conf > thresholds.HighConfidence {
 		b.WriteString("Sound assured when evidence supports it; preserve uncertainty where it does not. ")
 	} else if conf < thresholds.LowConfidence {
-		b.WriteString("Verify the concrete target carefully; ask for confirmation on destructive actions only if the user's intent is ambiguous. ")
+		b.WriteString("Express uncertainty plainly in the active persona's voice. ")
 	}
 
 	// Thoroughness vs Creativity
 	tho := traits[TraitThoroughness]
 	cre := traits[TraitCreativity]
 	if tho > thresholds.HighThoroughness {
-		b.WriteString("Prefer at most one relevant verification step before reporting success; remain within the task and tool budget. ")
+		b.WriteString("Use precise, well-organized explanations in the active persona's voice. ")
 	} else if cre > thresholds.HighCreativity {
 		b.WriteString("Consider one useful unconventional option; express it in the active persona's vocabulary. ")
 	}
@@ -954,26 +974,9 @@ var positiveKeywords = []string{
 }
 
 var negativeKeywords = []string{
-	// DE
-	"falsch", "fehler", "schlecht", "müll", "mist", "quatsch", "blödsinn", "nutzlos", "furchtbar", "kaputt",
-	// EN
-	"wrong", "error", "bad", "terrible", "awful", "useless", "broken", "garbage", "trash", "stupid",
-	// FR
-	"faux", "erreur", "mauvais", "nul", "horrible", "inutile", "cassé", "stupide",
-	// ES
-	"mal", "error", "terrible", "horrible", "inútil", "basura", "roto", "estúpido",
-	// IT
-	"sbagliato", "errore", "terribile", "orribile", "inutile", "pessimo",
-	// PT
-	"errado", "erro", "terrível", "horrível", "inútil", "péssimo",
-	// NL
-	"fout", "slecht", "verschrikkelijk", "nutteloos", "vreselijk",
-	// SV
-	"fel", "dåligt", "hemskt", "värdelöst", "fruktansvärt",
-	// NO
-	"feil", "dårlig", "forferdelig", "ubrukelig", "elendig",
-	// DA
-	"forkert", "dårlig", "forfærdelig", "ubrugelig", "elendigt",
+	"your answer is wrong", "you misunderstood me", "deine antwort ist falsch", "du hast mich falsch verstanden",
+	"ta réponse est fausse", "tu respuesta es incorrecta", "la tua risposta è sbagliata", "sua resposta está errada",
+	"je antwoord is onjuist", "ditt svar är fel", "svaret ditt er feil", "dit svar er forkert",
 }
 
 var analyticalKeywords = []string{
@@ -1047,22 +1050,10 @@ var curiousKeywords = []string{
 
 // frustrationKeywords signals user frustration or repeated failures (O-05).
 var frustrationKeywords = []string{
-	// DE
-	"frustriert", "genervt", "nervt", "klappt nicht", "funktioniert nicht", "geht nicht", "schon wieder", "immer noch", "wieder falsch",
-	// EN
-	"frustrated", "annoying", "doesn't work", "not working", "still wrong", "again", "keeps failing", "give up", "hopeless",
-	// FR
-	"frustré", "énervant", "ça marche pas", "encore", "toujours pas", "ça ne fonctionne pas",
-	// ES
-	"frustrado", "irritante", "no funciona", "todavía", "de nuevo", "sigue sin funcionar",
-	// IT
-	"frustrato", "fastidioso", "non funziona", "ancora", "sempre sbagliato",
-	// PT
-	"frustrado", "irritante", "não funciona", "ainda", "de novo",
-	// NL
-	"gefrustreerd", "irritant", "werkt niet", "nog steeds", "alweer",
-	// SV/NO/DA
-	"frustrerad", "irriterande", "fungerar inte", "fortfarande", "igen",
+	"frustriert", "genervt", "das nervt mich", "das nervt", "frustrated", "frustrating", "i am annoyed", "i'm annoyed",
+	"frustré", "je suis énervé", "frustrado", "estoy irritado", "frustrato", "sono irritato",
+	"estou irritado", "gefrustreerd", "ik ben geïrriteerd", "frustrerad", "frustrerade", "jag är irriterad",
+	"jeg er frustrert", "jeg er frustreret",
 }
 
 // concernedKeywords signals worry, concern, or uncertainty (O-05).
@@ -1123,13 +1114,21 @@ var (
 // but should still classify a user turn as praise or frustration.
 var (
 	rxConversationalNegative = buildKeywordRx([]string{
-		"funktioniert nicht", "immer noch nicht", "geht nicht",
-		"not working", "still broken", "doesn't work", "doesnt work",
+		"deine antwort ist falsch", "du hast mich falsch verstanden",
+		"your answer is wrong", "you misunderstood me",
 	})
 	rxConversationalPositive = buildKeywordRx([]string{
 		"great job", "good job", "nice work", "dankeschön",
 	})
 )
+
+func explicitFeedbackComplaint(text string) bool {
+	switch strings.Trim(strings.TrimSpace(text), ".! ") {
+	case "das ist falsch", "that's wrong", "c'est faux", "esto está mal", "sbagliato", "dat is fout", "det er forkert", "das ist falsch und nutzlos", "this is wrong and bad", "das ist schlecht und falsch":
+		return true
+	}
+	return false
+}
 
 const maxConversationTriggerInputLen = 10_000
 
@@ -1147,7 +1146,7 @@ func ClassifyConversationEmotionTrigger(userMsg string) EmotionTriggerType {
 	lower := strings.ToLower(userMsg)
 	hasNegativeEmoji := containsAnyRuneSet(lower, negativeEmojiSet)
 	hasPositiveEmoji := containsAnyRuneSet(lower, positiveEmojiSet)
-	if rxFrustration.MatchString(lower) || rxNegative.MatchString(lower) || rxConversationalNegative.MatchString(lower) || hasNegativeEmoji {
+	if rxFrustration.MatchString(lower) || rxNegative.MatchString(lower) || rxConversationalNegative.MatchString(lower) || hasNegativeEmoji || explicitFeedbackComplaint(lower) {
 		return EmotionTriggerNegativeFeedback
 	}
 	if rxPositive.MatchString(lower) || rxConversationalPositive.MatchString(lower) || hasPositiveEmoji {
@@ -1178,18 +1177,13 @@ func DetectMood(userMsg, toolResult string, meta PersonalityMeta) (Mood, map[str
 	// ── Tier 2: Keyword matching (pre-compiled regex, O(log n) per category) ──
 	isPlayful := rxPlayful.MatchString(lower)
 	isPositive := rxPositive.MatchString(lower) || hasPositiveEmoji
-	isNegative := rxNegative.MatchString(lower) || hasNegativeEmoji
+	isNegative := rxNegative.MatchString(lower) || hasNegativeEmoji || explicitFeedbackComplaint(lower)
 	isAnalytical := rxAnalytical.MatchString(lower)
 	isCreative := rxCreative.MatchString(lower)
 	isCurious := rxCurious.MatchString(lower)
 	isFrustrated := rxFrustration.MatchString(lower)
 	isConcerned := rxConcerned.MatchString(lower)
 	isRelaxed := rxRelaxed.MatchString(lower)
-
-	// ── Tier 3: Short-message heuristic ─────────────────────────────────────
-	// Short messages (≤30 chars) without question marks are likely feedback
-	charCount := utf8.RuneCountInString(strings.TrimSpace(userMsg))
-	isShortFeedback := charCount > 0 && charCount <= 30 && !strings.Contains(userMsg, "?")
 
 	// Tool error detection from result
 	hasToolError := toolResult != "" && (strings.Contains(toolResult, "[EXECUTION ERROR]") ||
@@ -1255,8 +1249,8 @@ func DetectMood(userMsg, toolResult string, meta PersonalityMeta) (Mood, map[str
 		deltas[TraitAffinity] = +0.02
 		deltas[TraitEmpathy] = +0.01
 
-	// 9. Positive feedback (including short-message heuristic)
-	case isPositive || (isShortFeedback && !isNegative):
+	// 9. Explicit positive feedback
+	case isPositive:
 		mood = MoodFocused
 		deltas[TraitConfidence] = +0.03
 		deltas[TraitAffinity] = +0.03

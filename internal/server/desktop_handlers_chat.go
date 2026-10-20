@@ -607,6 +607,7 @@ func prepareDesktopAgentTurn(ctx context.Context, s *Server, message string, cha
 
 func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message string, chatContext desktopChatContext, stream bool, opts desktopAgentTurnOptions) (preparedDesktopAgentTurn, error) {
 	var turn preparedDesktopAgentTurn
+	humanOccurredAt := time.Now().UTC()
 	if s == nil || s.Cfg == nil {
 		return turn, fmt.Errorf("server not configured")
 	}
@@ -665,6 +666,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	if opts.TaskRoutingText != nil {
 		routingText = *opts.TaskRoutingText
 	}
+	humanInput := memory.NewHumanInputEvent(routingText, sessionID, "", humanOccurredAt)
 	routingRun.TaskRoutingText = &routingText
 	routingRun.NativeToolSchemas = opts.NativeToolSchemas
 	routingRun.TaskRoutingImageInput = strings.TrimSpace(chatContext.ImageBase64) != "" || taskRoutingHasImages(routingReq.Messages)
@@ -806,6 +808,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	}
 	turn.runCfg.UserIntent = message
 	turn.runCfg.TaskRoutingText = &routingText
+	turn.runCfg.HumanInput = humanInput
 	turn.runCfg.TaskRouting = routingRun.TaskRouting
 	turn.runCfg.TaskRoutingMode = routingRun.TaskRoutingMode
 	turn.runCfg.TaskRoutingImageInput = routingRun.TaskRoutingImageInput

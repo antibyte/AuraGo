@@ -32,19 +32,22 @@ const (
 )
 
 type PrivacyDeletionJob struct {
-	DeletionJobID     string `json:"deletion_job_id"`
-	Kind              string `json:"kind"`
-	DeletionStatus    string `json:"deletion_status"`
-	DeleteMemories    bool   `json:"delete_memories"`
-	TranscriptDeleted bool   `json:"transcript_deleted"`
-	CreatedAt         string `json:"created_at"`
-	UpdatedAt         string `json:"updated_at"`
-	NextRetryAt       string `json:"next_retry_at,omitempty"`
-	AttemptCount      int    `json:"attempt_count"`
-	PendingCount      int    `json:"pending_count"`
-	DeletedCount      int    `json:"deleted_count"`
-	RetainedCount     int    `json:"retained_count"`
-	ErrorCode         string `json:"error_code,omitempty"`
+	PersonalityDeleted       int    `json:"personality_deleted"`
+	PersonalityRetained      int    `json:"personality_retained"`
+	PersonalityLegacyUnknown int    `json:"personality_legacy_unknown"`
+	DeletionJobID            string `json:"deletion_job_id"`
+	Kind                     string `json:"kind"`
+	DeletionStatus           string `json:"deletion_status"`
+	DeleteMemories           bool   `json:"delete_memories"`
+	TranscriptDeleted        bool   `json:"transcript_deleted"`
+	CreatedAt                string `json:"created_at"`
+	UpdatedAt                string `json:"updated_at"`
+	NextRetryAt              string `json:"next_retry_at,omitempty"`
+	AttemptCount             int    `json:"attempt_count"`
+	PendingCount             int    `json:"pending_count"`
+	DeletedCount             int    `json:"deleted_count"`
+	RetainedCount            int    `json:"retained_count"`
+	ErrorCode                string `json:"error_code,omitempty"`
 }
 
 type privacyDeletionTarget struct {
@@ -164,6 +167,13 @@ func (s *SQLiteMemory) ListPrivacyDeletionJobs(ctx context.Context, limit int) (
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate privacy deletion jobs: %w", err)
 	}
+	rows.Close()
+	for i := range jobs {
+		jobs[i].PersonalityDeleted, jobs[i].PersonalityRetained, jobs[i].PersonalityLegacyUnknown, err = s.personalityPrivacyCounts(ctx, jobs[i].DeletionJobID)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return jobs, nil
 }
 
@@ -177,6 +187,10 @@ func (s *SQLiteMemory) GetPrivacyDeletionJob(ctx context.Context, id string) (Pr
 	}
 	if err != nil {
 		return PrivacyDeletionJob{}, fmt.Errorf("get privacy deletion job: %w", err)
+	}
+	job.PersonalityDeleted, job.PersonalityRetained, job.PersonalityLegacyUnknown, err = s.personalityPrivacyCounts(ctx, id)
+	if err != nil {
+		return PrivacyDeletionJob{}, err
 	}
 	return job, nil
 }

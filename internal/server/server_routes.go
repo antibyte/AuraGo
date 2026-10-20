@@ -485,6 +485,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/personality/state", handlePersonalityState(s))
 	mux.HandleFunc("/api/personality/character-notes", handlePersonalityCharacterNotes(s))
 	mux.HandleFunc("/api/personality/feedback", handlePersonalityFeedback(s))
+	mux.Handle("/api/personality/legacy", requireAdmin(s, handlePersonalityLegacy(s)))
+	mux.Handle("/api/personality/legacy/review", requireAdmin(s, handlePersonalityLegacyReview(s)))
 	mux.HandleFunc("/api/personality/dynamics/reset", handlePersonalityDynamicsReset(s))
 	mux.HandleFunc("/api/agent/question-status", handleQuestionStatus(s))
 	mux.HandleFunc("/api/agent/question-response", handleQuestionResponse(s))
@@ -735,8 +737,14 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				msg, quarantineAddenda := prepareIncomingSMSAgentInput(from, text, mediaURLs, quarantined)
 				s.Logger.Info("Telnyx SMS relayed to agent", "quarantined", quarantined)
 				runCfg := agent.RunConfig{
-					RoutingDecisions:   taskDecisionService{s},
-					TaskRoutingText:    &text,
+					RoutingDecisions: taskDecisionService{s},
+					TaskRoutingText:  &text,
+					HumanInput: func() *memory.HumanInput {
+						if quarantined {
+							return nil
+						}
+						return memory.NewHumanInput(text, sessionID)
+					}(),
 					Config:             s.Cfg,
 					Logger:             s.Logger,
 					LLMClient:          s.LLMClient,

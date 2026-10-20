@@ -18,7 +18,7 @@ func TestPersonalityDynamicsRuntimeDeduplicatesTurnWithoutHelper(t *testing.T) {
 	stm := newTestPersonalityRuntimeMemory(t)
 	cfg := &config.Config{}
 	cfg.Personality.Engine = true
-	run := RunConfig{Config: cfg, ShortTermMem: stm, SessionID: "default", DiscoveryRunID: "one-turn"}
+	run := RunConfig{Config: cfg, ShortTermMem: stm, SessionID: "default", DiscoveryRunID: "one-turn", HumanInput: memory.NewHumanInput("danke", "default")}
 	first := prepareTurnEmotion(context.Background(), run, prompts.ContextFlags{}, "danke", memory.DefaultPersonalityMeta(), slog.Default())
 	second := prepareTurnEmotion(context.Background(), run, prompts.ContextFlags{}, "danke", memory.DefaultPersonalityMeta(), slog.Default())
 	if first == nil || second == nil || first.Dynamics.Revision != second.Dynamics.Revision || !reflect.DeepEqual(first.Traits, second.Traits) {
@@ -35,7 +35,7 @@ func TestPersonalityDynamicsRuntimeRejectsSupersededHelper(t *testing.T) {
 			stm := newTestPersonalityRuntimeMemory(t)
 			cfg := &config.Config{}
 			cfg.Personality.Engine, cfg.Personality.EngineV2 = true, true
-			run := RunConfig{Config: cfg, ShortTermMem: stm, SessionID: "default", DiscoveryRunID: "older-turn"}
+			run := RunConfig{Config: cfg, ShortTermMem: stm, SessionID: "default", DiscoveryRunID: "older-turn", HumanInput: memory.NewHumanInput("Check this task", "default")}
 			basis := prepareTurnEmotion(context.Background(), run, prompts.ContextFlags{}, "Check this task", memory.DefaultPersonalityMeta(), slog.Default())
 			if basis == nil {
 				t.Fatal("missing snapshot")
@@ -51,11 +51,12 @@ func TestPersonalityDynamicsRuntimeRejectsSupersededHelper(t *testing.T) {
 				}
 			case "channel":
 				run.SessionID, run.DiscoveryRunID = "telegram", "new-turn"
+				run.HumanInput = memory.NewHumanInput("danke", "telegram")
 				prepareTurnEmotion(context.Background(), run, prompts.ContextFlags{}, "danke", memory.DefaultPersonalityMeta(), slog.Default())
 			}
 			before, _ := stm.GetPersonalitySnapshotAt(time.Now())
 			applyPersonalityV2AnalysisResult("default", cfg, slog.Default(), stm, nil, nil, "", "", "", 0, true, 0, 0, personalityV2AnalysisResult{
-				Basis: basis, ObservationID: basis.TurnID, Mood: memory.MoodFrustrated,
+				Input: memory.NewHumanInput("Check this task", "default"), Basis: basis, ObservationID: basis.TurnID, Mood: memory.MoodFrustrated,
 				Appraisal:     &memory.PersonalityAppraisal{Signal: "criticism", Target: "agent", Confidence: 1, Reference: "current_user_message"},
 				AffinityDelta: -.1, TraitDeltas: map[string]float64{memory.TraitConfidence: -.1},
 				ProfileUpdates: []memory.ProfileUpdate{{Category: "tech", Key: "language", Value: "rust"}},
@@ -85,12 +86,12 @@ func TestPersonalityDynamicsRuntimeRequiresHumanRelationshipEvidence(t *testing.
 			stm := newTestPersonalityRuntimeMemory(t)
 			cfg := &config.Config{}
 			cfg.Personality.Engine, cfg.Personality.EngineV2 = true, true
-			basis := prepareTurnEmotion(context.Background(), RunConfig{Config: cfg, ShortTermMem: stm, SessionID: "default", DiscoveryRunID: "turn"}, prompts.ContextFlags{}, tc.message, memory.DefaultPersonalityMeta(), slog.Default())
+			basis := prepareTurnEmotion(context.Background(), RunConfig{Config: cfg, ShortTermMem: stm, SessionID: "default", DiscoveryRunID: "turn", HumanInput: memory.NewHumanInput(tc.message, "default")}, prompts.ContextFlags{}, tc.message, memory.DefaultPersonalityMeta(), slog.Default())
 			if basis == nil {
 				t.Fatal("missing snapshot")
 			}
 			applyPersonalityV2AnalysisResult("default", cfg, slog.Default(), stm, nil, nil, "", "", "", 0, false, 0, 0, personalityV2AnalysisResult{
-				Basis: basis, ObservationID: "turn", AffinityDelta: -.1,
+				Input: memory.NewHumanInput(tc.message, "default"), Basis: basis, ObservationID: "turn", AffinityDelta: -.1,
 				Appraisal: &memory.PersonalityAppraisal{Signal: "criticism", Target: tc.target, Confidence: tc.confidence, Reference: tc.reference},
 			})
 			after, _ := stm.GetPersonalitySnapshotAt(time.Now())
@@ -114,7 +115,7 @@ func TestPersonalityDynamicsPublishedConfigOwnsContext(t *testing.T) {
 	if err := stm.SetPersonalityContext("", meta); err != nil {
 		t.Fatal(err)
 	}
-	run := RunConfig{Config: cfg, ShortTermMem: stm, SessionID: "default", DiscoveryRunID: "bound-turn"}
+	run := RunConfig{Config: cfg, ShortTermMem: stm, SessionID: "default", DiscoveryRunID: "bound-turn", HumanInput: memory.NewHumanInput("danke", "default")}
 	if prepareTurnEmotion(context.Background(), run, prompts.ContextFlags{}, "danke", meta, slog.Default()) == nil {
 		t.Fatal("empty configured persona did not match the neutral context")
 	}
@@ -184,7 +185,7 @@ func TestPersonalityDynamicsKeepsDistinctPersonasAndTask(t *testing.T) {
 				t.Fatal(err)
 			}
 			if _, err := run.ShortTermMem.ApplyPersonalityObservation(memory.PersonalityObservation{
-				Source: "feedback", Target: "agent", Human: true, Confidence: 1, Explicit: true, Signal: "criticism",
+				Input: memory.NewHumanInput("your answer is wrong", "feedback"), Source: "feedback", Target: "agent", Human: true, Confidence: 1, Explicit: true, Signal: "criticism",
 			}); err != nil {
 				t.Fatal(err)
 			}

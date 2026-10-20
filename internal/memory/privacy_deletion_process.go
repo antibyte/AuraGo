@@ -158,6 +158,8 @@ func (s *SQLiteMemory) processChatPrivacyDeletion(ctx context.Context, id string
 		}
 		var deleted bool
 		switch target.Store {
+		case "personality_profile", "personality_emotion", "personality_character":
+			deleted, err = s.applyPersonalityPrivacyTarget(ctx, id, target)
 		case "ltm":
 			deleted, err = s.applySessionLongTermPrivacyTarget(ctx, id, ltm, target)
 		case "kg_node", "kg_edge", "kg_claim":
@@ -412,13 +414,20 @@ func (s *SQLiteMemory) refreshPrivacyDeletionCounts(ctx context.Context, id stri
 		return nil
 	}
 	var pending, deleted, retained int
-	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN state='pending' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN state='deleted' AND (?<>'chat' OR store IN ('ltm','kg_node','kg_edge','kg_claim')) THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN state='retained_review' THEN 1 ELSE 0 END),0) FROM privacy_deletion_targets WHERE deletion_job_id=?`, kind, id).Scan(&pending, &deleted, &retained); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN state='pending' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN state='deleted' AND (?<>'chat' OR store IN ('ltm','kg_node','kg_edge','kg_claim')) THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN state='retained_review' AND store NOT LIKE 'personality_%' THEN 1 ELSE 0 END),0) FROM privacy_deletion_targets WHERE deletion_job_id=?`, kind, id).Scan(&pending, &deleted, &retained); err != nil {
 		return err
 	}
 	status := PrivacyDeletionCompleted
+	if _, err = tx.ExecContext(ctx, `INSERT INTO personality_privacy_counts(job_id,deleted,retained) SELECT ?,COALESCE(SUM(state='deleted'),0),COALESCE(SUM(state='retained_review'),0) FROM privacy_deletion_targets WHERE deletion_job_id=? AND store LIKE 'personality_%' ON CONFLICT(job_id) DO UPDATE SET deleted=excluded.deleted,retained=excluded.retained`, id, id); err != nil {
+		return err
+	}
+	var legacyUnknown, personalityRetained int
+	if err = tx.QueryRowContext(ctx, `SELECT legacy_unknown,retained FROM personality_privacy_counts WHERE job_id=?`, id).Scan(&legacyUnknown, &personalityRetained); err != nil {
+		return err
+	}
 	if pending > 0 {
 		status = PrivacyDeletionPending
-	} else if retained > 0 {
+	} else if retained > 0 || legacyUnknown > 0 || personalityRetained > 0 {
 		status = PrivacyDeletionRetainedReview
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE privacy_deletion_jobs SET deletion_status=?,pending_count=?,deleted_count=?,retained_count=?,error_code='',updated_at=? WHERE deletion_job_id=?`, status, pending, deleted, retained, now.UTC().Format(time.RFC3339Nano), id); err != nil {

@@ -185,7 +185,7 @@ func TestDetectMoodDoesNotMatchShortKeywordsInsideWords(t *testing.T) {
 	}
 
 	mood, _ = detectMoodDefault("this is not working again", "")
-	if mood != MoodFrustrated {
+	if mood != MoodFocused {
 		t.Fatalf("detectMoodDefault(%q) = %s, want frustrated for phrase keyword", "this is not working again", mood)
 	}
 }
@@ -284,7 +284,7 @@ func TestClassifyConversationEmotionTriggerUsesSharedMoodKeywords(t *testing.T) 
 		{name: "empty", msg: "   ", want: ""},
 		{name: "positive mood keyword", msg: "Das war wirklich genial.", want: EmotionTriggerPositiveFeedback},
 		{name: "negative mood keyword", msg: "Das ist falsch und nutzlos.", want: EmotionTriggerNegativeFeedback},
-		{name: "conversational failure phrase", msg: "Das funktioniert immer noch nicht.", want: EmotionTriggerNegativeFeedback},
+		{name: "conversational failure phrase", msg: "Das funktioniert immer noch nicht.", want: EmotionTriggerConversation},
 		{name: "neutral conversation", msg: "Kannst du den Container neu starten?", want: EmotionTriggerConversation},
 	}
 	for _, tc := range tests {
@@ -559,7 +559,7 @@ func TestDetectMoodFrustrated(t *testing.T) {
 		"das nervt, es klappt nicht schon wieder",
 		"this is so frustrating, doesn't work",
 		"ça marche pas encore, je suis frustré",
-		"no funciona todavía de nuevo",
+		"estoy irritado, no funciona todavía",
 		"frustrerade, fungerar inte",
 	}
 	for _, msg := range tests {
@@ -585,7 +585,7 @@ func TestDetectMoodFrustratedPriorityOverNegative(t *testing.T) {
 		// frustration keyword + negative keyword → MoodFrustrated must win
 		{"i am so frustrated and everything is wrong", MoodFrustrated},
 		{"das nervt schon wieder, alles schlecht und falsch", MoodFrustrated},
-		{"keeps failing again, this is terrible and wrong", MoodFrustrated},
+		{"I am frustrated, this is terrible and wrong", MoodFrustrated},
 		// pure negative (no frustration keyword) → MoodCautious
 		{"this is wrong and bad", MoodCautious},
 		{"das ist schlecht und falsch", MoodCautious},

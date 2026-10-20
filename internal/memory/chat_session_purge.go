@@ -79,7 +79,7 @@ func (s *SQLiteMemory) purgeChatSessionWithPrivacyJobLocked(sessionID, privacyJo
 	return s.purgeChatSessionWithGraphPrivacyJobLocked(sessionID, privacyJobID, nil)
 }
 
-func (s *SQLiteMemory) purgeChatSessionWithGraphPrivacyJobLocked(sessionID, privacyJobID string, kg *KnowledgeGraph) error {
+func (s *SQLiteMemory) purgeChatSessionWithGraphPrivacyJobLocked(sessionID, privacyJobID string, kg *KnowledgeGraph, personalityTargets ...[]privacyDeletionTarget) error {
 	if strings.TrimSpace(sessionID) == "" {
 		return fmt.Errorf("a session ID is required")
 	}
@@ -98,6 +98,9 @@ func (s *SQLiteMemory) purgeChatSessionWithGraphPrivacyJobLocked(sessionID, priv
 			return err
 		}
 		internalTargets = append(internalTargets, privacyGraphTranscriptTarget(sessionID))
+		if len(personalityTargets) > 0 {
+			internalTargets = append(internalTargets, personalityTargets[0]...)
+		}
 		privacyJobID = newPrivacyDeletionID()
 		internalJob = true
 	}
@@ -125,6 +128,9 @@ func (s *SQLiteMemory) purgeChatSessionWithGraphPrivacyJobLocked(sessionID, priv
 		if err := s.createPrivacyDeletionJobTx(ctx, tx, privacyJobID, "chat", PrivacyDeletionPreparing, false, "", "", time.Now().UTC(), internalTargets); err != nil {
 			return err
 		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO personality_privacy_counts(job_id,legacy_unknown) SELECT ?,COUNT(*) FROM personality_legacy_review`, privacyJobID); err != nil {
+			return err
+		}
 		if _, err := tx.ExecContext(ctx, `UPDATE privacy_deletion_jobs SET session_hash=? WHERE deletion_job_id=?`, strings.TrimPrefix(sessionPrivacyMarker(sessionID), "deleted:"), privacyJobID); err != nil {
 			return fmt.Errorf("persist transient chat session fingerprint: %w", err)
 		}
@@ -134,6 +140,9 @@ func (s *SQLiteMemory) purgeChatSessionWithGraphPrivacyJobLocked(sessionID, priv
 	}
 	if err := scrubLearningEvidenceTx(ctx, tx, sessionID); err != nil {
 		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE emotion_history SET trigger_summary='' WHERE id IN (SELECT item_id FROM personality_text_sources WHERE kind='emotion' AND session_hash=?)`, sessionPrivacyMarker(sessionID)); err != nil {
+		return fmt.Errorf("scrub personality transcript references: %w", err)
 	}
 	if err := s.scrubSessionCorrectionsTx(ctx, tx, sessionID, kg); err != nil {
 		return err

@@ -39,14 +39,16 @@ func runCharacterReflection(ctx context.Context, cfg *config.Config, stm *memory
 	}
 	input := stm.BuildCharacterReflectionInput(cfg.Personality.CorePersonality)
 	proposals := memory.ProposeCharacterNotesDeterministic(input)
+	source := memory.CharacterNoteSourceCode
 	if helper := newHelperLLMManager(cfg, logger); helper != nil {
 		if helperNotes, err := helper.ProposeCharacterNotes(ctx, input); err == nil && len(helperNotes) > 0 {
 			proposals = helperNotes
+			source = memory.CharacterNoteSourceStateReflection
 		} else if err != nil && logger != nil {
 			logger.Debug("[Character] Helper reflection unavailable, using deterministic notes", "error", err)
 		}
 	}
-	applied, err := stm.ApplyCharacterNoteProposals(cfg.Personality.CorePersonality, proposals, time.Now())
+	applied, err := stm.ApplyCharacterNoteProposals(cfg.Personality.CorePersonality, proposals, time.Now(), source)
 	if err != nil {
 		resultErr = errors.Join(resultErr, err)
 		if logger != nil {

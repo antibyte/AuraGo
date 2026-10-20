@@ -296,6 +296,10 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 
 	// Pin the caption or voice transcription before adding image/file contents.
 	routingText := inputText
+	humanInput := memory.NewHumanInputEvent(inputText, sessionID, fmt.Sprintf("telegram:%d:%d", msg.Chat.ID, msg.MessageID), time.Time{})
+	if msg.Date > 0 {
+		humanInput.OccurredAt = time.Unix(int64(msg.Date), 0).UTC()
+	}
 	// If it's a photo, process it
 	if len(msg.Photo) > 0 {
 		// Get the largest photo (usually the last one)
@@ -473,6 +477,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 	runCfg := agent.RunConfig{
 		RoutingDecisions:   decisionService,
 		TaskRoutingText:    &routingText,
+		HumanInput:         humanInput,
 		Config:             cfg,
 		Logger:             logger,
 		LLMClient:          client,

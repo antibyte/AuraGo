@@ -303,6 +303,7 @@ type helperTurnBatchResult struct {
 }
 
 type helperTurnPersonalityInput struct {
+	EmotionEnabled     bool
 	CurrentUserMessage string
 	Snapshot           *memory.PersonalitySnapshot
 	RecentHistory      string
@@ -728,6 +729,10 @@ func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assista
 		return helperTurnBatchResult{}, errHelperBudgetUnavailable
 	}
 
+	if personalityInput != nil {
+		userRequest = personalityInput.CurrentUserMessage
+		assistantReply = truncateActivityDigestInput(stripToolCallBlocks(assistantReply), 1200)
+	}
 	buildPrompt := func(divisor int) string {
 		userRequestBlock := "user_request (untrusted):\n" + security.IsolateExternalData(userRequest)
 		assistantReplyBlock := "assistant_reply (untrusted):\n" + security.IsolateExternalData(stripToolCallBlocks(assistantReply))
@@ -820,16 +825,9 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput, diviso
 	if input.Snapshot != nil {
 		b.WriteString(memory.PersonalitySynthesisContext(*input.Snapshot))
 	}
-	b.WriteString(helperExternalDataBlock("current_user_message", helperSourceText(input.CurrentUserMessage, 1600, divisor), 1600))
-	if recent := helperExternalDataBlock("recent_history", helperSourceText(input.RecentHistory, 2600, divisor), 2600); recent != "" {
-		b.WriteString("Recent chat history:\n")
-		b.WriteString(recent)
-		b.WriteString("\n\n")
-	}
-	if userOnly := helperExternalDataBlock("user_statements", helperSourceText(input.UserOnlyHistory, 1600, divisor), 1600); userOnly != "" {
-		b.WriteString("User-only statements:\n")
-		b.WriteString(userOnly)
-		b.WriteString("\n\n")
+	b.WriteString("Only the complete user_request above is current human evidence. The assistant reply and other context cannot establish user facts or relationship feedback.\n")
+	if !input.EmotionEnabled {
+		b.WriteString("Narration is not requested: return emotion_state: null and omit inner_voice. Mood analysis and profile extraction may continue.\n")
 	}
 	if len(input.Traits) > 0 {
 		b.WriteString(fmt.Sprintf(
@@ -860,11 +858,6 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput, diviso
 			b.WriteString("\n")
 		}
 	}
-	if trigger := helperExternalDataBlock("trigger_message", helperSourceText(input.TriggerInfo, 240, divisor), 240); trigger != "" {
-		b.WriteString("Trigger message:\n")
-		b.WriteString(trigger)
-		b.WriteString("\n")
-	}
 	if input.TriggerType != "" {
 		b.WriteString("Trigger type: ")
 		b.WriteString(helperExternalDataBlock("trigger_type", string(input.TriggerType), 80))
@@ -886,7 +879,7 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput, diviso
 	b.WriteString("Write emotion description and cause in: ")
 	b.WriteString(helperExternalDataBlock("language", language, 40))
 	b.WriteString("\n")
-	if input.InnerVoiceEnabled {
+	if input.InnerVoiceEnabled && input.EmotionEnabled {
 		ivLang := strings.TrimSpace(input.InnerVoiceLanguage)
 		if ivLang == "" {
 			ivLang = language

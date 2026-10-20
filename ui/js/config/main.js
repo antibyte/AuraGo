@@ -1598,7 +1598,7 @@ function renderOptimizations() {
     }
     // Group 3: Tool Visibility
     if (configMigrationNotices.length) {
-        html += `<div class="wh-notice"><div><strong>${t('config.tool_policy.migrations')}</strong><ul>${configMigrationNotices.map(path => `<li>${escapeHtml(path)}</li>`).join('')}</ul><small>${t('config.tool_policy.migrations_help')}</small></div></div>`;
+        html += `<div class="wh-notice"><div><strong>${t('config.tool_policy.migrations')}</strong><ul>${configMigrationNotices.map(path => `<li>${escapeHtml(path.startsWith('personality.inner_voice.error_streak_min') ? t('personality_legacy.deprecated') : path)}</li>`).join('')}</ul><small>${t('config.tool_policy.migrations_help')}</small></div></div>`;
     }
     html += `<div class="cfg-group-title cfg-group-title-top">${t('config.section.optimizations.group.tool_visibility')}</div>`;
     html += renderFields(
@@ -1754,7 +1754,7 @@ async function renderSection(key) {
     // V2 mood, emotion synthesis, and lived notes need the Helper LLM.
     if (key === 'personality' && personalitySectionNeedsHelperLLM()) {
         html += `<div class="cfg-note-banner cfg-note-banner-warning" id="personality-helper-banner">
-                    \u{26A0} ${t('config.personality.helper_required')}
+                    \u{26A0} ${t('personality_legacy.settings')}
                 </div>`;
     }
 
@@ -1882,13 +1882,20 @@ async function renderSection(key) {
         </div>`;
     }
 
-    if (key === 'personality') html += '<section id="config-personality-dynamics"></section>';
+    if (key === 'personality') {
+        html += '<p>' + t('personality_legacy.settings') + '</p><section id="config-personality-dynamics"></section>';
+        if (configMigrationNotices.some(path => path.startsWith('personality.inner_voice.error_streak_min'))) html += '<p role="status">' + t('personality_legacy.deprecated') + '</p>';
+    }
     if (sectionBlocked) html += '</div>'; // End feature-unavailable-fields
+    if (key === 'personality') html += '<section id="config-personality-legacy" class="personality-dynamics"></section>';
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
 
-    if (key === 'personality') window.AuraPersonalityDynamics.load(document.getElementById('config-personality-dynamics'));
+    if (key === 'personality') {
+        window.AuraPersonalityDynamics.load(document.getElementById('config-personality-dynamics'));
+        window.AuraPersonalityDynamics.loadLegacy(document.getElementById('config-personality-legacy'));
+    }
     _initArrayChipFields();
     if (integrationActions) integrationActions.bind(key);
 

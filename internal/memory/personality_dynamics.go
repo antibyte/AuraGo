@@ -34,6 +34,12 @@ func PersonalitySynthesisContext(snapshot PersonalitySnapshot) string {
 // PersonalityObservation is host-owned evidence. Model output may supply only
 // the bounded semantic fields, never provenance, identity, or revision guards.
 type PersonalityObservation struct {
+	requestHash          string
+	applied              *bool
+	Input                *HumanInput
+	OccurredAt           time.Time
+	ProfileUpdates       []ProfileUpdate
+	LonelinessDelta      float64 // Host-computed inactivity adjustment, never a model delta.
 	ID                   string
 	Source               string
 	Target               string
