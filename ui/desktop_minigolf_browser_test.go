@@ -95,6 +95,13 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	settle := func() {
 		page.MustEval(`()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
 	}
+	// A freshly loaded course flies the camera from tee to cup unless the browser asks for
+	// reduced motion. A wheel event on the canvas ends that flight, so camera checks never
+	// depend on how long it takes.
+	skipIntro := func() {
+		page.MustEval(`()=>{const c=document.querySelector('.mg-canvas canvas');if(c)c.dispatchEvent(new WheelEvent('wheel',{bubbles:true}));return true}`)
+		page.Timeout(2 * time.Second).MustWait(`()=>!golfFixture.inspect().graphics?.intro`)
+	}
 
 	// Home: one card per round kind, in a fixed order.
 	page.MustWait(`()=>golfFixture.inspect().menuStep==='home'`)
@@ -138,6 +145,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 
 	page.MustElement(`[data-action="start"]`).MustClick()
 	page.MustWait(`()=>{const s=golfFixture.inspect();return !s.loading&&s.panel===''&&s.tutorial==='aim'&&s.course==='garden-01'&&s.graphics?.geometries>0&&s.graphics?.triangles>0}`)
+	skipIntro()
 	if !page.MustEval(`()=>golfFixture.inspect().audio.unlocked && golfFixture.inspect().round.players.length===2`).Bool() {
 		t.Fatal("first gesture did not unlock audio or two-player mode was not applied")
 	}
@@ -486,6 +494,9 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		page.MustWait(`()=>golfFixture.inspect().menuStep==='players'`)
 	}
 	worldCaptured := map[string]bool{}
+	// The three legacy worlds wear one dressed look each.
+	lookOf := map[string]string{"garden": "temple", "coast": "pirate", "night": "moon"}
+	introChecked := false
 	for index, course := range courseManifest.Courses {
 		openHoles()
 		if index == 0 {
@@ -493,8 +504,35 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 			shot("holes-1280")
 		}
 		pickHole(course.ID)
+		// The headless Chrome here reports prefers-reduced-motion: reduce, which suppresses the
+		// intro flight. The first course loads under emulated normal motion instead, and the
+		// emulation is reset right after the flight was seen and skipped.
+		if !introChecked {
+			if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "no-preference"}}}).Call(page); err != nil {
+				t.Fatalf("emulate normal motion: %v", err)
+			}
+			page.Timeout(5 * time.Second).MustWait(`()=>!matchMedia('(prefers-reduced-motion: reduce)').matches`)
+		}
 		page.MustElement(`[data-action="start"]`).MustClick()
 		page.Timeout(30*time.Second).MustWait(`id=>{const s=golfFixture.inspect();return !s.loading&&s.course===id&&s.graphics?.geometries>0&&s.graphics?.triangles>0}`, course.ID)
+		page.Timeout(15*time.Second).MustWait(`look=>{const g=golfFixture.inspect().graphics;return g.look===look&&g.props>0&&g.env===true}`, lookOf[course.World])
+		if !introChecked {
+			if !page.MustEval(`()=>golfFixture.inspect().graphics.intro===true`).Bool() {
+				t.Fatalf("%s: loading a course did not start the intro flight", course.ID)
+			}
+			skipIntro()
+			if err := (proto.EmulationSetEmulatedMedia{}).Call(page); err != nil {
+				t.Fatalf("reset the media emulation: %v", err)
+			}
+			introChecked = true
+		} else if page.MustEval(`()=>matchMedia('(prefers-reduced-motion: reduce)').matches`).Bool() {
+			if page.MustEval(`()=>golfFixture.inspect().graphics.intro`).Bool() {
+				t.Fatalf("%s: a course loaded under reduced motion still starts the intro flight", course.ID)
+			}
+		} else {
+			// Without a reduced-motion preference every load flies; end it so later checks see a settled camera.
+			skipIntro()
+		}
 		if artifactDir != "" && !worldCaptured[course.World] {
 			if benchmark {
 				page.MustElement(`[data-action="settings"]`).MustClick()
