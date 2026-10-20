@@ -9,3 +9,8 @@ Project-scoped build, dev, publish, and deploy flows require a workspace-relativ
 For `deploy_here_now`, leave `slug` empty to create a permanent authenticated site or pass the exact slug to update it. Optional `account` selects a personal account or workspace exposed by the configured here.now account list. AuraGo validates the static artifact, finalizes the version, verifies the live URL, and only then writes the deployment ledger. Anonymous publishing and claim tokens are not supported.
 
 **After a successful deployment, call `homepage_registry` → `add_history` with `entry_type: milestone` and record the deployed URL.**
+
+
+## Managed website identity and change reasons
+
+Query homepage_registry overview/get_site before changing an existing page. Every mutation requires reason, a short statement of purpose. managed_site_id is the internal identity, distinct from provider IDs. Exec requires project_dir and starts there. Changes and outcomes are recorded automatically; avoid duplicate routine notes. Use list_events for what changed and why, and discover_workspace/adopt for unregistered projects. Historical unknown reasons remain unknown.

@@ -642,3 +642,8 @@ homepage:
 - **Build output**: Auto-detected: `out`, `dist`, `build`, `.next`, `public`
 - **Plain HTML projects**: Skip the build step entirely — no Docker dev container needed for deployment
 - **Auto-fix**: The `build` operation can automatically fix common errors when `auto_fix: true`
+
+
+## Managed website identity and change reasons
+
+Query homepage_registry overview/get_site before changing an existing page. Every mutation requires reason, a short statement of purpose. managed_site_id is the internal identity, distinct from provider IDs. Exec requires project_dir and starts there. Changes and outcomes are recorded automatically; avoid duplicate routine notes. Use list_events for what changed and why, and discover_workspace/adopt for unregistered projects. Historical unknown reasons remain unknown.

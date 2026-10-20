@@ -4377,3 +4377,10 @@ registration lives in `internal/desktop/types.go`.
   Validate TestDesktopNotesAppBrowser, the AURAGO_NOTES_MATRIX shell fixture, vendor
   --check and OfficeSession tests. The API, permission and packaging contracts are in
   documentation/desktop-notes.md. No child DOX file needed.
+
+
+### Homepage Studio managed website evidence
+
+- Render locations, provenance, check timestamps and grouped automatic reasons from the shared managed-site model. Escape all ledger strings and retain the safe URL filter.
+- Stored URLs do not prove liveness; render explicit target state. Keep Homepage labels translated in all sixteen Desktop locales.
+- Verify Homepage source/locale tests and the deterministic browser timeline fixture.

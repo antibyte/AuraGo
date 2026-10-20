@@ -7959,5 +7959,21 @@
   "desktop.settings_wallpaper_electronic_dreams": "Sogni elettronici",
   "desktop.settings_wallpaper_green_slime": "Melma verde",
   "desktop.settings_wallpaper_voxel_world": "Mondo voxel",
-  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss"
+  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss",
+  "homepage_studio.sites_local": "Cartella locale",
+  "homepage_studio.sites_container": "Cartella del contenitore",
+  "homepage_studio.sites_checked": "Ultima verifica",
+  "homepage_studio.sites_changes": "Modifiche e motivi",
+  "homepage_studio.sites_reason_unknown": "Motivo non registrato",
+  "homepage_studio.sites_origin_agent": "Creato dall’agente",
+  "homepage_studio.sites_origin_adopted": "Progetto importato",
+  "homepage_studio.sites_origin_unknown": "Origine sconosciuta",
+  "homepage_studio.sites_outcome_succeeded": "Completato",
+  "homepage_studio.sites_outcome_failed": "Non riuscito",
+  "homepage_studio.sites_outcome_pending": "In corso",
+  "homepage_studio.sites_outcome_partial": "Completato parzialmente",
+  "homepage_studio.sites_outcome_unknown": "Esito sconosciuto",
+  "homepage_studio.sites_target_active": "Attivo",
+  "homepage_studio.sites_target_inactive": "Arrestato",
+  "homepage_studio.sites_target_unknown": "Stato sconosciuto"
 }

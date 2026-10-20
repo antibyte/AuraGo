@@ -7959,5 +7959,21 @@
   "desktop.settings_wallpaper_electronic_dreams": "Electronic Dreams",
   "desktop.settings_wallpaper_green_slime": "Green Slime",
   "desktop.settings_wallpaper_voxel_world": "Voxel World",
-  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss"
+  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss",
+  "homepage_studio.sites_local": "Local folder",
+  "homepage_studio.sites_container": "Container folder",
+  "homepage_studio.sites_checked": "Last checked",
+  "homepage_studio.sites_changes": "Changes and reasons",
+  "homepage_studio.sites_reason_unknown": "Reason not recorded",
+  "homepage_studio.sites_origin_agent": "Created by agent",
+  "homepage_studio.sites_origin_adopted": "Imported project",
+  "homepage_studio.sites_origin_unknown": "Creation origin unknown",
+  "homepage_studio.sites_outcome_succeeded": "Completed",
+  "homepage_studio.sites_outcome_failed": "Failed",
+  "homepage_studio.sites_outcome_pending": "In progress",
+  "homepage_studio.sites_outcome_partial": "Partially completed",
+  "homepage_studio.sites_outcome_unknown": "Outcome unknown",
+  "homepage_studio.sites_target_active": "Active",
+  "homepage_studio.sites_target_inactive": "Stopped",
+  "homepage_studio.sites_target_unknown": "Status unknown"
 }

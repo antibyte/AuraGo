@@ -7959,5 +7959,21 @@
   "desktop.settings_wallpaper_electronic_dreams": "Elektroniska drömmar",
   "desktop.settings_wallpaper_green_slime": "Grönt slime",
   "desktop.settings_wallpaper_voxel_world": "Voxelvärld",
-  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss"
+  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss",
+  "homepage_studio.sites_local": "Lokal mapp",
+  "homepage_studio.sites_container": "Containermapp",
+  "homepage_studio.sites_checked": "Senast kontrollerad",
+  "homepage_studio.sites_changes": "Ändringar och skäl",
+  "homepage_studio.sites_reason_unknown": "Skäl har inte registrerats",
+  "homepage_studio.sites_origin_agent": "Skapad av agenten",
+  "homepage_studio.sites_origin_adopted": "Importerat projekt",
+  "homepage_studio.sites_origin_unknown": "Ursprung okänt",
+  "homepage_studio.sites_outcome_succeeded": "Slutfört",
+  "homepage_studio.sites_outcome_failed": "Misslyckades",
+  "homepage_studio.sites_outcome_pending": "Pågår",
+  "homepage_studio.sites_outcome_partial": "Delvis slutfört",
+  "homepage_studio.sites_outcome_unknown": "Resultat okänt",
+  "homepage_studio.sites_target_active": "Aktiv",
+  "homepage_studio.sites_target_inactive": "Stoppad",
+  "homepage_studio.sites_target_unknown": "Status okänd"
 }

@@ -492,3 +492,11 @@ None.
 
 ### EvoMap registration
 - Register nodes only when EvoMap is enabled and writable, through the server-owned configuration callback. Agent snapshots are immutable; no direct config.Save or Vault registration writes from dispatch. The callback rechecks current permissions and serializes persistence.
+
+
+### Managed website context and mutation intent
+
+- Homepage mutations require a purpose in reason before execution and use tools.ExecuteHomepageOperation. Do not duplicate routine events with manual notes.
+- Managed-site context is a required request-local addendum independent of ReuseContext, including prepared/stable and scoped minimal loops. Refresh after cache lookup on every physical request; never widen scoped registry access.
+- Keep active identity, locations, unknown outcomes and reasons visible. The registry overview/get_site/list_events operations expose the complete paginated read model.
+- Verify rendered-inventory and focused dispatch regression tests.

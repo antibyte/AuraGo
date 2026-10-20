@@ -821,3 +821,11 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
 ## Child DOX Index
 
 None.
+
+
+### Homepage ledger execution and observation
+
+- Server/configuration Caddy lifecycle uses managed wrappers with a system reason. Draft/unverified attempts may have intent/outcome events; successful deployment records remain verification gated.
+- Start reconciliation independently of startup enablement; each pass reads current config under CfgMu. Recover unfinished intents once before new work.
+- Site detail includes provenance, pinned local locations and events. The sites/{id}/events endpoint provides bounded incremental reads without changing existing envelopes.
+- Targets retain account/environment identity and active/inactive/unknown state. Closing temporary publication ends its target; development and Caddy lifecycles remain separate.

@@ -292,170 +292,182 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				}
 			}
 
-			switch req.Operation {
-			case "publish", "update":
-				if strings.TrimSpace(req.ProjectDir) == "" {
-					return `Tool Output: {"status":"error","message":"project_dir is required for here.now publishing"}`
-				}
-				if req.Operation == "update" {
-					if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
-						return msg
-					}
-				}
-				homepageCfg := tools.HomepageConfig{Context: ctx,
-					DockerHost: cfg.Docker.Host, WorkspacePath: cfg.Homepage.WorkspacePath,
-					AgentWorkspaceDir: cfg.Directories.WorkspaceDir, DataDir: cfg.Directories.DataDir,
-					WebServerPort: cfg.Homepage.WebServerPort, WebServerDomain: cfg.Homepage.WebServerDomain,
-					WebServerInternalOnly: cfg.Homepage.WebServerInternalOnly, AllowLocalServer: cfg.Homepage.AllowLocalServer,
-				}
-				if homepageCfg.WorkspacePath == "" {
-					homepageCfg.WorkspacePath = filepath.Join(cfg.Directories.DataDir, "homepage")
-				}
-				opts := tools.HereNowPublishOptions{
-					Account: req.Account, WorkspaceLabel: req.WorkspaceLabel,
-					DisplayName: req.DisplayName, DisplayDescription: req.DisplayDescription,
-					ViewerTitle: req.ViewerTitle, ViewerDescription: req.ViewerDescription,
-					OGImagePath: req.OGImagePath, SPAMode: req.SPAMode,
-				}
-				if req.Operation == "update" {
-					opts.Slug = req.Slug
-				}
-				logger.Info("LLM requested here.now publish", "operation", req.Operation, "project_dir", req.ProjectDir, "slug", req.Slug, "account", req.Account)
-				result := tools.HomepageDeployHereNow(ctx, homepageCfg, hnCfg, req.ProjectDir, req.BuildDir, opts, logger)
-				result = homepageRecordDeploymentStrictResult(homepageCfg, dc.HomepageRegistryDB, req.ProjectDir, "here_now", req.BuildDir, result, logger)
-				return "Tool Output: " + result
-			case "duplicate":
-				if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
-					return msg
-				}
-				viewer := map[string]interface{}{}
-				if req.ViewerTitle != "" {
-					viewer["title"] = req.ViewerTitle
-				}
-				if req.ViewerDescription != "" {
-					viewer["description"] = req.ViewerDescription
-				}
-				if req.OGImagePath != "" {
-					viewer["ogImagePath"] = req.OGImagePath
-				}
-				raw, err := client.DuplicateSite(ctx, req.Account, req.Slug, viewer)
-				return hereNowToolOutput(raw, err)
-			case "update_metadata":
-				if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
-					return msg
-				}
-				patch := map[string]interface{}{}
-				if req.DisplayName != "" {
-					patch["displayName"] = req.DisplayName
-				}
-				if req.DisplayDescription != "" {
-					patch["displayDescription"] = req.DisplayDescription
-				}
-				if req.SPAMode != nil {
-					patch["spaMode"] = *req.SPAMode
-				}
-				viewer := map[string]interface{}{}
-				if req.ViewerTitle != "" {
-					viewer["title"] = req.ViewerTitle
-				}
-				if req.ViewerDescription != "" {
-					viewer["description"] = req.ViewerDescription
-				}
-				if req.OGImagePath != "" {
-					viewer["ogImagePath"] = req.OGImagePath
-				}
-				if len(viewer) > 0 {
-					patch["viewer"] = viewer
-				}
-				if len(patch) == 0 {
-					return `Tool Output: {"status":"error","message":"No here.now metadata changes supplied"}`
-				}
-				raw, err := client.PatchMetadata(ctx, req.Account, req.Slug, patch)
-				return hereNowToolOutput(raw, err)
-			case "update_access":
-				if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
-					return msg
-				}
-				if req.Mode == "" {
-					return `Tool Output: {"status":"error","message":"mode is required for update_access"}`
-				}
-				var allowedEmails, allowedDomains *[]string
-				if req.AllowedEmailsSet {
-					allowedEmails = &req.AllowedEmails
-				}
-				if req.AllowedDomainsSet {
-					allowedDomains = &req.AllowedDomains
-				}
-				raw, err := client.UpdateAccess(ctx, req.Account, req.Slug, req.Mode, allowedEmails, allowedDomains)
-				return hereNowToolOutput(raw, err)
-			case "set_password":
-				if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
-					return msg
-				}
-				resolved, err := client.ResolveAccount(ctx, req.Account)
-				if err != nil {
-					return hereNowToolOutput(nil, err)
-				}
-				passwordKey := tools.HereNowSitePasswordVaultKey(resolved.AccountID, req.Slug)
-				password, err := vault.ReadSecret(passwordKey)
-				if err != nil || password == "" {
-					encoded, _ := json.Marshal(map[string]interface{}{"status": "secret_required", "vault_key": passwordKey, "message": "Use request_vault_secret with this exact vault_key, then retry set_password."})
-					return "Tool Output: " + string(encoded)
-				}
-				raw, err := client.SetPassword(ctx, req.Account, req.Slug, password)
-				return hereNowToolOutput(raw, err)
-			case "remove_password":
-				if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
-					return msg
-				}
-				resolved, err := client.ResolveAccount(ctx, req.Account)
-				if err != nil {
-					return hereNowToolOutput(nil, err)
-				}
-				raw, err := client.RemovePassword(ctx, req.Account, req.Slug)
-				if err != nil {
-					return hereNowToolOutput(nil, err)
-				}
-				_ = vault.DeleteSecret(tools.HereNowSitePasswordVaultKey(resolved.AccountID, req.Slug))
-				return hereNowToolOutput(raw, err)
-			case "restore_version":
-				if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
-					return msg
-				}
-				if strings.TrimSpace(req.VersionID) == "" {
-					return `Tool Output: {"status":"error","message":"version_id is required for restore_version"}`
-				}
-				raw, err := client.RestoreVersion(ctx, req.Account, req.Slug, req.VersionID)
-				return hereNowToolOutput(raw, err)
-			case "delete_site":
-				if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
-					return msg
-				}
-				resolved, err := client.ResolveAccount(ctx, req.Account)
-				if err != nil {
-					return hereNowToolOutput(nil, err)
-				}
-				err = client.DeleteSite(ctx, req.Account, req.Slug)
-				if err == nil {
-					_ = vault.DeleteSecret(tools.HereNowSitePasswordVaultKey(resolved.AccountID, req.Slug))
-				}
-				if err != nil {
-					return hereNowToolOutput(nil, err)
-				}
-				return `Tool Output: {"status":"ok","deleted":true}`
-			case "delete_version":
-				if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
-					return msg
-				}
-				if strings.TrimSpace(req.VersionID) == "" {
-					return `Tool Output: {"status":"error","message":"version_id is required for delete_version"}`
-				}
-				if err := client.DeleteVersion(ctx, req.Account, req.Slug, req.VersionID); err != nil {
-					return hereNowToolOutput(nil, err)
-				}
-				return `Tool Output: {"status":"ok","deleted":true}`
+			providerWorkspace := cfg.Homepage.WorkspacePath
+			if providerWorkspace == "" {
+				providerWorkspace = filepath.Join(cfg.Directories.DataDir, "homepage")
 			}
-			return `Tool Output: {"status":"error","message":"Unknown here_now_site operation"}`
+			providerReason := firstNonEmptyToolString(tc.Reason, toolArgString(tc.Params, "reason"))
+			return "Tool Output: " + tools.ExecuteHomepageProviderOperation(tools.HomepageConfig{Context: ctx, WorkspacePath: providerWorkspace}, dc.HomepageRegistryDB, "here_now", req.Slug, req.Account, req.Operation,
+				tools.HomepageOperation{Reason: providerReason, Actor: "agent", Source: tc.Action, SessionID: dc.SessionID, RunID: dc.RunID}, logger, func() string {
+
+					switch req.Operation {
+					case "publish", "update":
+						if strings.TrimSpace(req.ProjectDir) == "" {
+							return `Tool Output: {"status":"error","message":"project_dir is required for here.now publishing"}`
+						}
+						if req.Operation == "update" {
+							if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
+								return msg
+							}
+						}
+						homepageCfg := tools.HomepageConfig{Context: ctx,
+							DockerHost: cfg.Docker.Host, WorkspacePath: cfg.Homepage.WorkspacePath,
+							AgentWorkspaceDir: cfg.Directories.WorkspaceDir, DataDir: cfg.Directories.DataDir,
+							WebServerPort: cfg.Homepage.WebServerPort, WebServerDomain: cfg.Homepage.WebServerDomain,
+							WebServerInternalOnly: cfg.Homepage.WebServerInternalOnly, AllowLocalServer: cfg.Homepage.AllowLocalServer,
+						}
+						if homepageCfg.WorkspacePath == "" {
+							homepageCfg.WorkspacePath = filepath.Join(cfg.Directories.DataDir, "homepage")
+						}
+						opts := tools.HereNowPublishOptions{
+							Account: req.Account, WorkspaceLabel: req.WorkspaceLabel,
+							DisplayName: req.DisplayName, DisplayDescription: req.DisplayDescription,
+							ViewerTitle: req.ViewerTitle, ViewerDescription: req.ViewerDescription,
+							OGImagePath: req.OGImagePath, SPAMode: req.SPAMode,
+						}
+						if req.Operation == "update" {
+							opts.Slug = req.Slug
+						}
+						logger.Info("LLM requested here.now publish", "operation", req.Operation, "project_dir", req.ProjectDir, "slug", req.Slug, "account", req.Account)
+						reason := firstNonEmptyToolString(tc.Reason, toolArgString(tc.Params, "reason"))
+						result := tools.ExecuteHomepageOperation(homepageCfg, dc.HomepageRegistryDB, tools.HomepageOperation{Name: "deploy_here_now", ProjectDir: req.ProjectDir, Reason: reason, Actor: "agent", Source: "here_now", SessionID: dc.SessionID, RunID: dc.RunID, FilesMayChange: true}, logger, func(c tools.HomepageConfig) string {
+							result := tools.HomepageDeployHereNow(ctx, c, hnCfg, req.ProjectDir, req.BuildDir, opts, logger)
+							return homepageRecordDeploymentStrictResult(c, dc.HomepageRegistryDB, req.ProjectDir, "here_now", req.BuildDir, result, logger)
+						})
+						return "Tool Output: " + result
+					case "duplicate":
+						if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
+							return msg
+						}
+						viewer := map[string]interface{}{}
+						if req.ViewerTitle != "" {
+							viewer["title"] = req.ViewerTitle
+						}
+						if req.ViewerDescription != "" {
+							viewer["description"] = req.ViewerDescription
+						}
+						if req.OGImagePath != "" {
+							viewer["ogImagePath"] = req.OGImagePath
+						}
+						raw, err := client.DuplicateSite(ctx, req.Account, req.Slug, viewer)
+						return hereNowToolOutput(raw, err)
+					case "update_metadata":
+						if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
+							return msg
+						}
+						patch := map[string]interface{}{}
+						if req.DisplayName != "" {
+							patch["displayName"] = req.DisplayName
+						}
+						if req.DisplayDescription != "" {
+							patch["displayDescription"] = req.DisplayDescription
+						}
+						if req.SPAMode != nil {
+							patch["spaMode"] = *req.SPAMode
+						}
+						viewer := map[string]interface{}{}
+						if req.ViewerTitle != "" {
+							viewer["title"] = req.ViewerTitle
+						}
+						if req.ViewerDescription != "" {
+							viewer["description"] = req.ViewerDescription
+						}
+						if req.OGImagePath != "" {
+							viewer["ogImagePath"] = req.OGImagePath
+						}
+						if len(viewer) > 0 {
+							patch["viewer"] = viewer
+						}
+						if len(patch) == 0 {
+							return `Tool Output: {"status":"error","message":"No here.now metadata changes supplied"}`
+						}
+						raw, err := client.PatchMetadata(ctx, req.Account, req.Slug, patch)
+						return hereNowToolOutput(raw, err)
+					case "update_access":
+						if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
+							return msg
+						}
+						if req.Mode == "" {
+							return `Tool Output: {"status":"error","message":"mode is required for update_access"}`
+						}
+						var allowedEmails, allowedDomains *[]string
+						if req.AllowedEmailsSet {
+							allowedEmails = &req.AllowedEmails
+						}
+						if req.AllowedDomainsSet {
+							allowedDomains = &req.AllowedDomains
+						}
+						raw, err := client.UpdateAccess(ctx, req.Account, req.Slug, req.Mode, allowedEmails, allowedDomains)
+						return hereNowToolOutput(raw, err)
+					case "set_password":
+						if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
+							return msg
+						}
+						resolved, err := client.ResolveAccount(ctx, req.Account)
+						if err != nil {
+							return hereNowToolOutput(nil, err)
+						}
+						passwordKey := tools.HereNowSitePasswordVaultKey(resolved.AccountID, req.Slug)
+						password, err := vault.ReadSecret(passwordKey)
+						if err != nil || password == "" {
+							encoded, _ := json.Marshal(map[string]interface{}{"status": "secret_required", "vault_key": passwordKey, "message": "Use request_vault_secret with this exact vault_key, then retry set_password."})
+							return "Tool Output: " + string(encoded)
+						}
+						raw, err := client.SetPassword(ctx, req.Account, req.Slug, password)
+						return hereNowToolOutput(raw, err)
+					case "remove_password":
+						if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
+							return msg
+						}
+						resolved, err := client.ResolveAccount(ctx, req.Account)
+						if err != nil {
+							return hereNowToolOutput(nil, err)
+						}
+						raw, err := client.RemovePassword(ctx, req.Account, req.Slug)
+						if err != nil {
+							return hereNowToolOutput(nil, err)
+						}
+						_ = vault.DeleteSecret(tools.HereNowSitePasswordVaultKey(resolved.AccountID, req.Slug))
+						return hereNowToolOutput(raw, err)
+					case "restore_version":
+						if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
+							return msg
+						}
+						if strings.TrimSpace(req.VersionID) == "" {
+							return `Tool Output: {"status":"error","message":"version_id is required for restore_version"}`
+						}
+						raw, err := client.RestoreVersion(ctx, req.Account, req.Slug, req.VersionID)
+						return hereNowToolOutput(raw, err)
+					case "delete_site":
+						if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
+							return msg
+						}
+						resolved, err := client.ResolveAccount(ctx, req.Account)
+						if err != nil {
+							return hereNowToolOutput(nil, err)
+						}
+						err = client.DeleteSite(ctx, req.Account, req.Slug)
+						if err == nil {
+							_ = vault.DeleteSecret(tools.HereNowSitePasswordVaultKey(resolved.AccountID, req.Slug))
+						}
+						if err != nil {
+							return hereNowToolOutput(nil, err)
+						}
+						return `Tool Output: {"status":"ok","deleted":true}`
+					case "delete_version":
+						if msg := hereNowSlugRequired(req.Operation, req.Slug); msg != "" {
+							return msg
+						}
+						if strings.TrimSpace(req.VersionID) == "" {
+							return `Tool Output: {"status":"error","message":"version_id is required for delete_version"}`
+						}
+						if err := client.DeleteVersion(ctx, req.Account, req.Slug, req.VersionID); err != nil {
+							return hereNowToolOutput(nil, err)
+						}
+						return `Tool Output: {"status":"ok","deleted":true}`
+					}
+					return `Tool Output: {"status":"error","message":"Unknown here_now_site operation"}`
+				})
 
 		case "netlify":
 			if !cfg.Netlify.Enabled {

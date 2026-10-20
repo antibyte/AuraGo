@@ -49,6 +49,10 @@ func (o *homepageQuickOrigin) Close() {
 		_ = o.server.Shutdown(ctx)
 		_ = o.server.Close()
 		_ = o.root.Close()
+		if o.db != nil {
+			_, _ = o.db.Exec("UPDATE homepage_deploy_targets SET status='inactive',updated_at=CURRENT_TIMESTAMP WHERE project_id=? AND provider='cloudflare' AND provider_target_id=?", o.projectID, o.publicationID)
+			_, _ = RecordHomepageEvent(o.db, o.projectID, "publication_stopped", "cloudflare_tunnel", "Temporary publication ended", map[string]interface{}{"actor": "system", "reason": "Temporary publication ended or was revoked", "publication_id": o.publicationID})
+		}
 		_ = o.db.Close()
 		_ = o.snapshot.Close()
 	})

@@ -1799,3 +1799,8 @@ Die meisten Tools nutzen `{tool_name}.md`. Ausnahmen und gruppierte Manuals:
 
 **Vorheriges Kapitel:** [Kapitel 21: REST API Referenz](./21-api-reference.md)
 **Nächstes Kapitel:** [Kapitel 23: Interna](./23-internals.md)
+
+
+### Verwaltete Websites und Änderungshistorie
+
+Homepage-Änderungen benötigen einen Zweck in reason und werden automatisch erfasst. Mit homepage_registry overview/get_site/list_events findest Du Identität, lokale und entfernte Orte sowie Änderungsgründe. Discover_workspace/adopt übernehmen bisher nicht erfasste Projekte. Details: [Verwaltete Websites](../../homepage-ledger.md).

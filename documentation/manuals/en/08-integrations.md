@@ -3114,3 +3114,8 @@ Now that your integrations are set up:
 ---
 **Previous Chapter:** [Chapter 7: Configuration](./07-configuration.md)
 **Next Chapter:** [Chapter 9: Memory & Knowledge](./09-memory.md)
+
+
+### Managed website history
+
+Homepage mutations require reason and automatically record changes and outcomes. Use homepage_registry overview/get_site/list_events for identity, locations and reasons. Discover_workspace/adopt recover unregistered projects. See [Managed websites](../../homepage-ledger.md).

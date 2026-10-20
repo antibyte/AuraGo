@@ -7959,5 +7959,21 @@
   "desktop.settings_wallpaper_electronic_dreams": "इलेक्ट्रॉनिक सपने",
   "desktop.settings_wallpaper_green_slime": "हरी स्लाइम",
   "desktop.settings_wallpaper_voxel_world": "वॉक्सेल दुनिया",
-  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss"
+  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss",
+  "homepage_studio.sites_local": "स्थानीय फ़ोल्डर",
+  "homepage_studio.sites_container": "कंटेनर फ़ोल्डर",
+  "homepage_studio.sites_checked": "अंतिम जाँच",
+  "homepage_studio.sites_changes": "बदलाव और कारण",
+  "homepage_studio.sites_reason_unknown": "कारण दर्ज नहीं है",
+  "homepage_studio.sites_origin_agent": "एजेंट ने बनाया",
+  "homepage_studio.sites_origin_adopted": "आयातित परियोजना",
+  "homepage_studio.sites_origin_unknown": "निर्माण का स्रोत अज्ञात है",
+  "homepage_studio.sites_outcome_succeeded": "पूरा हुआ",
+  "homepage_studio.sites_outcome_failed": "विफल",
+  "homepage_studio.sites_outcome_pending": "कार्य जारी है",
+  "homepage_studio.sites_outcome_partial": "आंशिक रूप से पूरा हुआ",
+  "homepage_studio.sites_outcome_unknown": "परिणाम अज्ञात है",
+  "homepage_studio.sites_target_active": "सक्रिय",
+  "homepage_studio.sites_target_inactive": "बंद",
+  "homepage_studio.sites_target_unknown": "स्थिति अज्ञात है"
 }

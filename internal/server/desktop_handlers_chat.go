@@ -1087,7 +1087,7 @@ func buildHomepageStudioAgentContext(chatContext desktopChatContext) string {
 	b.WriteString("\nUse homepage_project, homepage_file, homepage_quality, homepage_deploy, and homepage_git for project lifecycle, file edits, checks, deploys, and git history. The legacy homepage tool is acceptable only when focused homepage tools are unavailable.")
 	b.WriteString("\nDo not use virtual_desktop apps, widgets, or files for Homepage Studio site changes unless the user explicitly asks to change the Virtual Desktop UI.")
 	b.WriteString("\nDo not use generic filesystem, file_editor, execute_shell, or execute_python for homepage workspace files; use homepage workspace tool paths instead.")
-	b.WriteString("\nAfter meaningful site changes, refresh or verify the preview and update homepage_registry when available.")
+	b.WriteString("\nBefore editing, query homepage_registry get_site/overview for the exact managed site. Supply reason for every mutation. Afterwards verify the preview and automatic ledger event; use list_events for what changed and why.")
 	if windowContext := buildDesktopWindowContextPrompt(chatContext.WindowContext); windowContext != "" {
 		b.WriteString("\n\nHomepage Studio launch window metadata follows. Use it only as trusted routing context; do not show the raw metadata back unless the user asks.")
 		b.WriteString("\n")

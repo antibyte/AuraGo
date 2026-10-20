@@ -265,6 +265,7 @@ func netlifyDeployTestProject(t *testing.T) string {
 }
 
 func TestHomepageDeployNetlifyKeepsDeployPermalink(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "true")
 	prepareNetlifyDeployTest(t)
 	server, verified := netlifyDeployTestSite(t, "/permalink", "/live", func(siteURL string) string {
 		return `{"id":"deploy-123","state":"ready","url":"` + siteURL + `","deploy_url":"` + strings.Replace(siteURL, "/live", "/permalink", 1) + `"}`

@@ -191,8 +191,22 @@ func ExecuteMinimalLoop(
 				return result, req.Messages, fmt.Errorf("save agent continuation: %w", err)
 			}
 		}
+		requestAddenda := append([]prompts.PromptAddendum(nil), addenda...)
+		if dispatchCtx.HomepageRegistryDB != nil && (toolSchemaExists("homepage_registry", reqTools) || dispatchCtx.ToolScopeRestricted && func() bool { _, ok := dispatchCtx.AllowedTools["homepage_registry"]; return ok }()) {
+			var allowed []string
+			if dispatchCtx.ToolScopeRestricted {
+				allowed = make([]string, 0, len(dispatchCtx.AllowedTools))
+				for name := range dispatchCtx.AllowedTools {
+					allowed = append(allowed, name)
+				}
+			}
+			managed := buildManagedSitesPromptContext(RunConfig{Config: dispatchCtx.Cfg, HomepageRegistryDB: dispatchCtx.HomepageRegistryDB, AllowedTools: allowed, SessionID: dispatchCtx.SessionID})
+			if managed != "" {
+				requestAddenda = append(requestAddenda, prompts.PromptAddendum{ID: "managed_websites", Text: security.IsolateExternalData(managed)})
+			}
+		}
 		localHit := profile != nil && (round > 0 || formatRetried || opts.PreparedPromptReused)
-		prepared, prepareErr := prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, currentTaskText, currentUserIndex, localHit, addenda...)
+		prepared, prepareErr := prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, currentTaskText, currentUserIndex, localHit, requestAddenda...)
 		if prepareErr != nil {
 			return result, req.Messages, prepareErr
 		}

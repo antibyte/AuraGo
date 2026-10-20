@@ -1,6 +1,9 @@
 package agent
 
-import openai "github.com/sashabaranov/go-openai"
+import (
+	openai "github.com/sashabaranov/go-openai"
+	"strings"
+)
 
 func replaceMegaToolSchemasWithFocused(toolSchemas []openai.Tool, ff ToolFeatureFlags) []openai.Tool {
 	skip := map[string]bool{}
@@ -124,6 +127,18 @@ func appendHomepageFocusedSchemas(toolSchemas []openai.Tool, ff ToolFeatureFlags
 			"file_path":   prop("string", "Alias for path."),
 		}, "operation")),
 	)
+
+	for _, entry := range toolSchemas {
+		if entry.Function == nil || !strings.HasPrefix(entry.Function.Name, "homepage") {
+			continue
+		}
+		if parameters, ok := entry.Function.Parameters.(map[string]interface{}); ok {
+			if properties, ok := parameters["properties"].(map[string]interface{}); ok {
+				properties["reason"] = prop("string", "Required for mutations: short purpose of the change.")
+				properties["managed_site_id"] = prop("integer", "Internal managed website ID; distinct from provider site_id/project_id.")
+			}
+		}
+	}
 	return toolSchemas
 }
 
@@ -833,6 +848,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"slug":                prop("string", "Exact here.now Site slug; required except for publish."),
 					"version_id":          prop("string", "Exact version ID for restore_version or delete_version."),
 					"project_dir":         prop("string", "Homepage workspace-relative project directory for publish/update."),
+					"reason":              prop("string", "Required purpose for publishing or updating a managed website."),
 					"build_dir":           prop("string", "Optional build output directory; auto-detected when omitted."),
 					"workspace_label":     prop("string", "Optional exact DNS-safe workspace label for a new Site."),
 					"display_name":        prop("string", "Owner-facing Site title, maximum 80 characters."),
@@ -1919,12 +1935,12 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	}
 	if ff.HomepageRegistryEnabled {
 		tools = append(tools, tool("homepage_registry",
-			"Track homepage/web projects, deploy history, project history, problems, metadata. register requires project_dir. Read list_history before changes; add_history after.",
+			"Track homepage/web projects, locations, deploy history and project history. Read overview/get_site/list_events; mutations need reason. add_history/list_history add notes.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"register", "search", "get", "list", "update", "delete", "log_edit", "log_deploy", "log_problem", "resolve_problem", "add_history", "list_history", "get_history", "search_history", "update_history", "delete_history"},
+					"enum":        []string{"register", "search", "get", "list", "update", "delete", "log_edit", "log_deploy", "log_problem", "resolve_problem", "add_history", "list_history", "get_history", "search_history", "update_history", "delete_history", "overview", "get_site", "list_events", "discover_workspace", "adopt", "relocate", "audit_revisions"},
 				},
 				"name":        prop("string", "Project name (unique identifier)"),
 				"query":       prop("string", "Search query (searches name, description, framework, URL, notes, history content)"),

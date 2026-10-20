@@ -540,14 +540,14 @@ func TestBuildPromptContextFlagsInjectsManagedSitesContext(t *testing.T) {
 		HomepageRegistryDB: db,
 	}, buildToolingPolicy(cfg, "update the homepage"), promptContextOptions{})
 
-	if !strings.Contains(flags.ReuseContext, "# MANAGED WEBSITES") || !strings.Contains(flags.ReuseContext, "site-a") {
-		t.Fatalf("ReuseContext missing managed site summary: %q", flags.ReuseContext)
+	if !strings.Contains(flags.ManagedSitesContext, "# MANAGED WEBSITES") || !strings.Contains(flags.ManagedSitesContext, "site-a") {
+		t.Fatalf("ReuseContext missing managed site summary: %q", flags.ManagedSitesContext)
 	}
-	if !strings.Contains(flags.ReuseContext, "netlify=") {
-		t.Fatalf("ReuseContext missing deploy target provider: %q", flags.ReuseContext)
+	if !strings.Contains(flags.ManagedSitesContext, "netlify=") {
+		t.Fatalf("ReuseContext missing deploy target provider: %q", flags.ManagedSitesContext)
 	}
-	if !strings.Contains(flags.ReuseContext, "remote=") {
-		t.Fatalf("ReuseContext missing remote observation summary: %q", flags.ReuseContext)
+	if !strings.Contains(flags.ManagedSitesContext, "remote=") {
+		t.Fatalf("ReuseContext missing remote observation summary: %q", flags.ManagedSitesContext)
 	}
 }
 

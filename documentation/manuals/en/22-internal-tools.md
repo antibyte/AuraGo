@@ -1815,3 +1815,8 @@ Most tools use `{tool_name}.md`. Exceptions and grouped manuals:
 
 **Previous Chapter:** [Chapter 21: REST API Reference](./21-api-reference.md)
 **Next Chapter:** [Chapter 23: Internals](./23-internals.md)
+
+
+### Managed website history
+
+Homepage mutations require reason and automatically record changes and outcomes. Use homepage_registry overview/get_site/list_events for identity, locations and reasons. Discover_workspace/adopt recover unregistered projects. See [Managed websites](../../homepage-ledger.md).

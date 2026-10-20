@@ -60,7 +60,7 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Only GET/HEAD retry (`429`/`5xx`, at most two repeats, `Retry-After` capped at 30 s). Mutations are sent once; `set_env` PATCHes the single key only after an "already exists" answer.
 - Environment variable operations resolve the account through `netlifyAccountSlug`: `team_slug` when set, otherwise `GET /accounts` (exactly one account is adopted, several require the setting). `/sites/{id}/env` is not used.
 - `buildNetlifyZip` packs regular files only (a symlink is never read), filters credential material by name and caps `netlifyZipMaxEntries`/`netlifyZipMaxBytes`. A generated `_headers` is the only MIME source, and the catch-all `_redirects` rewrite is added only for a single-page output (`netlifyLooksLikeSPA`).
-- `HomepageDeployNetlify` keeps `deploy_url` (immutable permalink) and `site_url` apart (`mergeNetlifyDeployObservation`), verifies the permalink, and reports `published: false` for a draft without touching the ledger (`homepageNetlifyResultPublished`). An unreadable build answer aborts instead of deploying blindly.
+- `HomepageDeployNetlify` keeps `deploy_url` (immutable permalink) and `site_url` apart (`mergeNetlifyDeployObservation`), verifies the permalink, and reports `published: false` for a draft without recording a successful deployment target; operation intent/outcome still belongs in the ledger (`homepageNetlifyResultPublished`). An unreadable build answer aborts instead of deploying blindly.
 - Verify `TestNetlify*`, `TestBuildNetlifyZip*`, `TestHomepageDeployNetlify*` and the `internal/audit` credentialed-redirect ratchet (no Netlify entry).
 
 ### Security Egress and Host Execution
@@ -274,3 +274,11 @@ Agent filesystem, external service and Docker tool safety boundaries.
 ## Child DOX Index
 
 None.
+
+
+### Managed Homepage mutation ledger
+
+- Production Homepage mutations use ExecuteHomepageOperation with reason and actor/run metadata. Low-level helpers are execution primitives, not separately accounted production entry points.
+- Record intent before side effects and preserve partial/unknown results with retry_safe:false. Serialize workspace mutations. Never silently rebind a pinned workspace or infer a moved site's identity.
+- Revision contents exclude credentials and generated manifests, remain bounded and restore only complete hash-verified states with rooted atomic replacement. Preserve unknown external files and retain complete recovery preimages on partial restore.
+- Schema v1 backs up v0 before DDL and preserves target links. Never prune delta revisions without verified checkpoints. See documentation/homepage-ledger.md and Homepage regression tests.

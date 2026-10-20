@@ -2847,3 +2847,8 @@ Jetzt, wo die Integrationen stehen:
 ---
 **Vorheriges Kapitel:** [Kapitel 7: Konfiguration](./07-configuration.md)
 **Nächstes Kapitel:** [Kapitel 9: Gedächtnis & Wissen](./09-memory.md)
+
+
+### Verwaltete Websites und Änderungshistorie
+
+Homepage-Änderungen benötigen einen Zweck in reason und werden automatisch erfasst. Mit homepage_registry overview/get_site/list_events findest Du Identität, lokale und entfernte Orte sowie Änderungsgründe. Discover_workspace/adopt übernehmen bisher nicht erfasste Projekte. Details: [Verwaltete Websites](../../homepage-ledger.md).

@@ -42,6 +42,10 @@ func (b homepageObservationBody) Read(p []byte) (int, error) { return b.read(p) 
 func (homepageObservationBody) Close() error                 { return nil }
 
 func TestHomepageRemoteObservationDoesNotPersistCancellationOrPartialHash(t *testing.T) {
+	originalConfiguredClient := homepageConfiguredProbeClient
+	t.Cleanup(func() { homepageConfiguredProbeClient = originalConfiguredClient })
+	homepageConfiguredProbeClient = func(string) (*http.Client, error) { return homepageVerifyHTTPClient, nil }
+
 	original := homepageVerifyHTTPClient
 	t.Cleanup(func() { homepageVerifyHTTPClient = original })
 	for _, mode := range []string{"headers_cancelled", "body_cancelled", "body_error"} {

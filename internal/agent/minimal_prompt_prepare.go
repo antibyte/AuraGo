@@ -121,10 +121,18 @@ func prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx context.Context, cfg 
 			return minimalPromptPreparation{}, err
 		}
 		if profile != nil {
-			if len(addenda) != 0 {
-				return minimalPromptPreparation{}, fmt.Errorf("prepared prompt cannot accept dynamic addenda")
+			for _, addendum := range addenda {
+				if addendum.ID != "managed_websites" {
+					return minimalPromptPreparation{}, fmt.Errorf("prepared prompt cannot accept dynamic addenda")
+				}
 			}
 			promptResult = prompts.PromptBuildResult{Text: profile.system, Tokens: tokenCache.Count(profile.system, req.Model), Revision: profile.revision}
+			if len(addenda) > 0 {
+				promptResult, err = prompts.FitSystemPromptToBudget(ctx, prompts.PromptFitRequest{Text: profile.system, Tokens: -1, Model: req.Model, TokenBudget: systemBudget, Addenda: addenda}, logger)
+				if err != nil {
+					return minimalPromptPreparation{}, err
+				}
+			}
 			promptResult.InputChars = len(profile.system)
 			promptResult.InputTokens = promptResult.Tokens
 			if promptResult.Tokens > systemBudget {

@@ -1338,7 +1338,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 							WebServerInternalOnly: newCfg.Homepage.WebServerInternalOnly,
 							AllowLocalServer:      newCfg.Homepage.AllowLocalServer,
 						}
-						result := tools.HomepageWebServerStart(homepageCfg, "", "", s.Logger)
+						result := tools.HomepageManagedWebServerStart(homepageCfg, s.HomepageRegistryDB, "", "", "Homepage web server configuration changed", s.Logger)
 						s.Logger.Info("[Config UI] Homepage web server auto-started", "result", result)
 					}()
 				} else if newCfg.Homepage.WebServerEnabled && !newCfg.Docker.Enabled {
@@ -1348,7 +1348,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				} else if newCfg.Docker.Enabled {
 					go func() {
 						homepageCfg := tools.HomepageConfig{DockerHost: newCfg.Docker.Host}
-						tools.HomepageWebServerStop(homepageCfg, s.Logger)
+						tools.HomepageManagedWebServerStop(homepageCfg, s.HomepageRegistryDB, "Homepage web server disabled or configuration changed", s.Logger)
 						s.Logger.Info("[Config UI] Homepage web server stopped")
 					}()
 				} else {

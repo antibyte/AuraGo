@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/security"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -49,7 +50,7 @@ type homepageVerifyResult struct {
 	CheckedAssets []string `json:"checked_assets,omitempty"`
 }
 
-var homepageVerifyHTTPClient = &http.Client{Timeout: 12 * time.Second}
+var homepageVerifyHTTPClient = security.NewSSRFProtectedHTTPClient(12 * time.Second)
 
 func homepageResolveProject(cfg HomepageConfig, projectDir string) (homepageProjectInfo, error) {
 	projectDir = strings.TrimSpace(projectDir)

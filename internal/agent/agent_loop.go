@@ -650,6 +650,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
+		flags.ManagedSitesContext = "" // Managed inventory is a request-local required addendum below.
 		flags.ReuseContext = ""
 		if !runCfg.IsMission && !runCfg.IsCoAgent && !isAutonomousRun {
 			trimmedReuseQuery := strings.TrimSpace(lastUserMsg)
@@ -1634,6 +1635,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			Addenda: append([]prompts.PromptAddendum(nil), s.runCfg.TrustedPromptAddenda...),
 		}
 		fitRequest.Addenda = append(fitRequest.Addenda, meshCorePromptAddenda(cfg)...)
+		managedSites := buildManagedSitesPromptContext(runCfg)
+		if managedSites != "" {
+			fitRequest.Addenda = append(fitRequest.Addenda, prompts.PromptAddendum{ID: "managed_websites", Text: security.IsolateExternalData(managedSites)})
+		}
 		if budgetHint != "" {
 			fitRequest.Addenda = append(fitRequest.Addenda, prompts.PromptAddendum{ID: "budget_status", Text: budgetHint})
 		}
@@ -1643,9 +1648,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if len(runCfg.TrustedPromptAddenda) != 0 {
 				return openai.ChatCompletionResponse{}, fmt.Errorf("prepared prompt cannot accept dynamic addenda")
 			}
-			promptResult = prompts.PromptBuildResult{Text: basePrompt, Tokens: basePromptTokens, Revision: runCfg.PreparedPrompt.revision, InputChars: len(basePrompt), InputTokens: basePromptTokens}
-			if basePromptTokens > flags.TokenBudget {
-				promptResult.BudgetExceeded = &prompts.PromptBudgetExceededError{Budget: flags.TokenBudget, RequiredTokens: basePromptTokens}
+			if managedSites != "" {
+				promptResult, promptFitErr = prompts.FitSystemPromptToBudget(ctx, prompts.PromptFitRequest{Text: basePrompt, Tokens: basePromptTokens, Model: req.Model, TokenBudget: flags.TokenBudget, Addenda: []prompts.PromptAddendum{{ID: "managed_websites", Text: security.IsolateExternalData(managedSites)}}}, s.currentLogger)
+			} else {
+				promptResult = prompts.PromptBuildResult{Text: basePrompt, Tokens: basePromptTokens, Revision: runCfg.PreparedPrompt.revision, InputChars: len(basePrompt), InputTokens: basePromptTokens}
+				if basePromptTokens > flags.TokenBudget {
+					promptResult.BudgetExceeded = &prompts.PromptBudgetExceededError{Budget: flags.TokenBudget, RequiredTokens: basePromptTokens}
+				}
 			}
 		} else {
 			promptResult, promptFitErr = prompts.FitSystemPromptToBudget(ctx, fitRequest, s.currentLogger)

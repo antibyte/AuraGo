@@ -7959,5 +7959,21 @@
   "desktop.settings_wallpaper_electronic_dreams": "Ηλεκτρονικά όνειρα",
   "desktop.settings_wallpaper_green_slime": "Πράσινη γλίτσα",
   "desktop.settings_wallpaper_voxel_world": "Κόσμος voxel",
-  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss"
+  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss",
+  "homepage_studio.sites_local": "Τοπικός φάκελος",
+  "homepage_studio.sites_container": "Φάκελος κοντέινερ",
+  "homepage_studio.sites_checked": "Τελευταίος έλεγχος",
+  "homepage_studio.sites_changes": "Αλλαγές και αιτίες",
+  "homepage_studio.sites_reason_unknown": "Η αιτία δεν καταγράφηκε",
+  "homepage_studio.sites_origin_agent": "Δημιουργήθηκε από τον πράκτορα",
+  "homepage_studio.sites_origin_adopted": "Εισαγόμενο έργο",
+  "homepage_studio.sites_origin_unknown": "Άγνωστη προέλευση",
+  "homepage_studio.sites_outcome_succeeded": "Ολοκληρώθηκε",
+  "homepage_studio.sites_outcome_failed": "Απέτυχε",
+  "homepage_studio.sites_outcome_pending": "Σε εξέλιξη",
+  "homepage_studio.sites_outcome_partial": "Ολοκληρώθηκε εν μέρει",
+  "homepage_studio.sites_outcome_unknown": "Άγνωστο αποτέλεσμα",
+  "homepage_studio.sites_target_active": "Ενεργό",
+  "homepage_studio.sites_target_inactive": "Σταματημένο",
+  "homepage_studio.sites_target_unknown": "Άγνωστη κατάσταση"
 }

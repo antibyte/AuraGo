@@ -286,6 +286,7 @@ type ContextFlags struct {
 	ErrorPatternContext      string               // Known error patterns with resolutions for agent learning
 	LearnedRulesContext      string               // Learned action rules from recurring errors/recovery
 	InjectedLearnedRules     []memory.LearnedRule // Rules injected this turn (for hit/miss tracking)
+	ManagedSitesContext      string               // Current managed website inventory; independent of reuse hints.
 	ReuseContext             string               // Reuse-first lookup hints for non-trivial tasks
 	ChatChannelsContext      string               // Reachable chat/notification channels for this runtime
 	ComposioServicesContext  string               // User-selected Composio services available through composio_call
@@ -570,6 +571,8 @@ func promptAddendumHeading(id string) string {
 	switch strings.TrimSpace(id) {
 	case promptSectionBudgetStatus, "budget_status":
 		return promptSectionBudgetStatus
+	case "managed_websites":
+		return "# MANAGED WEBSITES"
 	case PromptAddendumA2A:
 		return "# A2A EXECUTION CONTRACT"
 	case PromptAddendumCoAgent:
@@ -945,6 +948,11 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 			finalPrompt.WriteString(isolatePromptExternalData(flags.ReuseContext))
 			finalPrompt.WriteString("\n\n")
 		}
+	}
+	if flags.ManagedSitesContext != "" {
+		finalPrompt.WriteString("# MANAGED WEBSITES\n")
+		finalPrompt.WriteString(isolatePromptExternalData(flags.ManagedSitesContext))
+		finalPrompt.WriteString("\n\n")
 	}
 	sectionMemories := finalPrompt.Len() - posBeforeMemoryContext
 

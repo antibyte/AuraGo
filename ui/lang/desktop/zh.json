@@ -7959,5 +7959,21 @@
   "desktop.settings_wallpaper_electronic_dreams": "电子梦境",
   "desktop.settings_wallpaper_green_slime": "绿色黏液",
   "desktop.settings_wallpaper_voxel_world": "体素世界",
-  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss"
+  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss",
+  "homepage_studio.sites_local": "本地文件夹",
+  "homepage_studio.sites_container": "容器文件夹",
+  "homepage_studio.sites_checked": "上次检查",
+  "homepage_studio.sites_changes": "更改与原因",
+  "homepage_studio.sites_reason_unknown": "未记录原因",
+  "homepage_studio.sites_origin_agent": "由智能体创建",
+  "homepage_studio.sites_origin_adopted": "已导入的项目",
+  "homepage_studio.sites_origin_unknown": "创建来源未知",
+  "homepage_studio.sites_outcome_succeeded": "已完成",
+  "homepage_studio.sites_outcome_failed": "失败",
+  "homepage_studio.sites_outcome_pending": "进行中",
+  "homepage_studio.sites_outcome_partial": "部分完成",
+  "homepage_studio.sites_outcome_unknown": "结果未知",
+  "homepage_studio.sites_target_active": "运行中",
+  "homepage_studio.sites_target_inactive": "已停止",
+  "homepage_studio.sites_target_unknown": "状态未知"
 }

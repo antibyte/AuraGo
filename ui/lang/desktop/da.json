@@ -7959,5 +7959,21 @@
   "desktop.settings_wallpaper_electronic_dreams": "Elektroniske drømme",
   "desktop.settings_wallpaper_green_slime": "Grønt slim",
   "desktop.settings_wallpaper_voxel_world": "Voxelverden",
-  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss"
+  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss",
+  "homepage_studio.sites_local": "Lokal mappe",
+  "homepage_studio.sites_container": "Containermappe",
+  "homepage_studio.sites_checked": "Senest kontrolleret",
+  "homepage_studio.sites_changes": "Ændringer og begrundelser",
+  "homepage_studio.sites_reason_unknown": "Begrundelse ikke registreret",
+  "homepage_studio.sites_origin_agent": "Oprettet af agenten",
+  "homepage_studio.sites_origin_adopted": "Importeret projekt",
+  "homepage_studio.sites_origin_unknown": "Oprindelse ukendt",
+  "homepage_studio.sites_outcome_succeeded": "Fuldført",
+  "homepage_studio.sites_outcome_failed": "Mislykkedes",
+  "homepage_studio.sites_outcome_pending": "I gang",
+  "homepage_studio.sites_outcome_partial": "Delvist fuldført",
+  "homepage_studio.sites_outcome_unknown": "Resultat ukendt",
+  "homepage_studio.sites_target_active": "Aktiv",
+  "homepage_studio.sites_target_inactive": "Stoppet",
+  "homepage_studio.sites_target_unknown": "Status ukendt"
 }

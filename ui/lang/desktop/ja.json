@@ -7959,5 +7959,21 @@
   "desktop.settings_wallpaper_electronic_dreams": "電子の夢",
   "desktop.settings_wallpaper_green_slime": "グリーンスライム",
   "desktop.settings_wallpaper_voxel_world": "ボクセルワールド",
-  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss"
+  "desktop.settings_wallpaper_windows_xp": "Windows XP Bliss",
+  "homepage_studio.sites_local": "ローカルフォルダー",
+  "homepage_studio.sites_container": "コンテナーフォルダー",
+  "homepage_studio.sites_checked": "最終確認",
+  "homepage_studio.sites_changes": "変更と理由",
+  "homepage_studio.sites_reason_unknown": "理由は記録されていません",
+  "homepage_studio.sites_origin_agent": "エージェントが作成",
+  "homepage_studio.sites_origin_adopted": "取り込んだプロジェクト",
+  "homepage_studio.sites_origin_unknown": "作成元は不明です",
+  "homepage_studio.sites_outcome_succeeded": "完了",
+  "homepage_studio.sites_outcome_failed": "失敗",
+  "homepage_studio.sites_outcome_pending": "処理中",
+  "homepage_studio.sites_outcome_partial": "一部完了",
+  "homepage_studio.sites_outcome_unknown": "結果不明",
+  "homepage_studio.sites_target_active": "稼働中",
+  "homepage_studio.sites_target_inactive": "停止中",
+  "homepage_studio.sites_target_unknown": "状態不明"
 }

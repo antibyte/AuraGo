@@ -8,6 +8,7 @@ import (
 )
 
 func TestHomepageVerifyDeploymentURLRejectsProviderErrorPage(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "true")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
@@ -25,6 +26,7 @@ func TestHomepageVerifyDeploymentURLRejectsProviderErrorPage(t *testing.T) {
 }
 
 func TestHomepageVerifyDeploymentURLChecksScriptAssets(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "true")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/":

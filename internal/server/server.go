@@ -1162,7 +1162,7 @@ func Start(opts StartOptions) error {
 			// immediately after a system reboot.
 			const maxRetries = 5
 			for attempt := 1; attempt <= maxRetries; attempt++ {
-				result := tools.HomepageWebServerStart(homepageCfg, "", "", logger)
+				result := tools.HomepageManagedWebServerStart(homepageCfg, s.HomepageRegistryDB, "", "", "Start configured Homepage web server", logger)
 				if strings.Contains(result, `"status":"ok"`) || strings.Contains(result, `"status": "ok"`) {
 					logger.Info("Homepage web server auto-start succeeded", "attempt", attempt, "result", result)
 					return

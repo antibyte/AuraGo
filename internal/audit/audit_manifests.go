@@ -254,6 +254,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/speechlab/", Classification: "configured-private-speech-sidecar", AllowsLocalNet: true},
 		{Path: "internal/telegram/", Classification: "telegram-api", Credentialed: true},
 		{Path: "internal/telnyx/", Classification: "telnyx-api", Credentialed: true},
+		{Path: "internal/tools/homepage_remote.go", Classification: "homepage-target-scoped-observation", RequiresSSRF: true, AllowsLocalNet: true},
 		{Path: "internal/tools/", Classification: "tool-specific-network-policy", RequiresSSRF: true, AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/truenas/", Classification: "configured-home-lab", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/updater/", Classification: "github-release-check", Credentialed: false},
@@ -274,6 +275,7 @@ type DBMigrationDomain struct {
 
 func DBMigrationManifest() []DBMigrationDomain {
 	return []DBMigrationDomain{
+		{Domain: "homepage-registry", PackagePath: "internal/tools", SchemaVersioned: true, HasLegacyFixtureTest: true, OwnsRuntimeData: true},
 		{Domain: "contacts", PackagePath: "internal/contacts", SchemaVersioned: true, OwnsRuntimeData: true},
 		{Domain: "credentials", PackagePath: "internal/credentials", SchemaVersioned: true, OwnsRuntimeData: true},
 		{Domain: "inventory", PackagePath: "internal/inventory", SchemaVersioned: true, OwnsRuntimeData: true},

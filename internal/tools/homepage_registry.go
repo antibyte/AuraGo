@@ -61,13 +61,19 @@ type HomepageRevisionFile struct {
 	ContentHashAfter  string `json:"content_hash_after,omitempty"`
 	SizeBefore        int64  `json:"size_before,omitempty"`
 	SizeAfter         int64  `json:"size_after,omitempty"`
+	FileMode          int64  `json:"file_mode,omitempty"`
 }
 
 // InitHomepageRegistryDB initializes the homepage registry SQLite database.
 func InitHomepageRegistryDB(dbPath string) (*sql.DB, error) {
-	db, err := dbutil.Open(dbPath)
+	db, err := dbutil.Open(dbPath, dbutil.WithMaxOpenConns(1))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open homepage registry database: %w", err)
+	}
+
+	if err := prepareHomepageRegistryMigration(db, dbPath); err != nil {
+		db.Close()
+		return nil, err
 	}
 
 	schema := `
@@ -254,6 +260,11 @@ func InitHomepageRegistryDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to create homepage registry schema: %w", err)
 	}
 
+	if err := migrateHomepageRegistry(db); err != nil {
+		db.Close()
+		return nil, err
+	}
+	db.SetMaxOpenConns(4) // Migration owns one connection; runtime readers may perform nested lookups.
 	return db, nil
 }
 
@@ -312,13 +323,7 @@ func RegisterProject(db *sql.DB, p HomepageProject) (int64, bool, error) {
 }
 
 func invalidateHomepageRevisionStateCache(projectDir string) {
-	stateCacheMutex.Lock()
-	defer stateCacheMutex.Unlock()
-	if projectDir == "" {
-		stateCache = make(map[string]map[string]fileEntry)
-		return
-	}
-	delete(stateCache, projectDir)
+	// Historical reads are keyed by revision ID in SQLite, not a process-global path cache.
 }
 
 func scanProject(row interface {
@@ -628,7 +633,7 @@ func ListHomepageRevisions(db *sql.DB, projectDir string, limit, offset int) ([]
 	if countErr != nil {
 		return nil, 0, fmt.Errorf("failed to count revisions: %w", countErr)
 	}
-	rows, err := db.Query("SELECT id, project_id, project_dir, created_at, message, reason, author, file_count, restorable, metadata_json FROM homepage_revisions WHERE project_dir = ? ORDER BY created_at DESC LIMIT ? OFFSET ?", projectDir, limit, offset)
+	rows, err := db.Query("SELECT id, project_id, project_dir, created_at, message, reason, author, file_count, restorable, metadata_json FROM homepage_revisions WHERE project_dir = ? ORDER BY id DESC LIMIT ? OFFSET ?", projectDir, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list revisions: %w", err)
 	}
@@ -680,7 +685,7 @@ func GetHomepageRevisionFiles(db *sql.DB, revisionID int64) ([]HomepageRevisionF
 	if db == nil {
 		return nil, fmt.Errorf("homepage registry DB not initialized")
 	}
-	rows, err := db.Query("SELECT id, revision_id, path, change_type, content_before, content_after, content_hash_before, content_hash_after, size_before, size_after FROM homepage_revision_files WHERE revision_id = ? ORDER BY path", revisionID)
+	rows, err := db.Query("SELECT id, revision_id, path, change_type, content_before, content_after, content_hash_before, content_hash_after, size_before, size_after, file_mode FROM homepage_revision_files WHERE revision_id = ? ORDER BY path", revisionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list revision files: %w", err)
 	}
@@ -689,7 +694,7 @@ func GetHomepageRevisionFiles(db *sql.DB, revisionID int64) ([]HomepageRevisionF
 	var files []HomepageRevisionFile
 	for rows.Next() {
 		var f HomepageRevisionFile
-		err := rows.Scan(&f.ID, &f.RevisionID, &f.Path, &f.ChangeType, &f.ContentBefore, &f.ContentAfter, &f.ContentHashBefore, &f.ContentHashAfter, &f.SizeBefore, &f.SizeAfter)
+		err := rows.Scan(&f.ID, &f.RevisionID, &f.Path, &f.ChangeType, &f.ContentBefore, &f.ContentAfter, &f.ContentHashBefore, &f.ContentHashAfter, &f.SizeBefore, &f.SizeAfter, &f.FileMode)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan revision file: %w", err)
 		}
@@ -719,7 +724,7 @@ func GetLatestHomepageRevision(db *sql.DB, projectDir string) (*HomepageRevision
 	var r HomepageRevision
 	var projectID sql.NullInt64
 	var restorableInt int
-	err := db.QueryRow("SELECT id, project_id, project_dir, created_at, message, reason, author, file_count, restorable, metadata_json FROM homepage_revisions WHERE project_dir = ? ORDER BY created_at DESC LIMIT 1", projectDir).
+	err := db.QueryRow("SELECT id, project_id, project_dir, created_at, message, reason, author, file_count, restorable, metadata_json FROM homepage_revisions WHERE project_dir = ? ORDER BY id DESC LIMIT 1", projectDir).
 		Scan(&r.ID, &projectID, &r.ProjectDir, &r.CreatedAt, &r.Message, &r.Reason, &r.Author, &r.FileCount, &restorableInt, &r.MetadataJSON)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -735,7 +740,42 @@ func GetLatestHomepageRevision(db *sql.DB, projectDir string) (*HomepageRevision
 }
 
 // DispatchHomepageRegistry handles tool calls for the homepage_registry action.
-func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, framework, projectDir, url, status, reason, problem, notes string, tags []string, id int64, lighthouseScore string, limit, offset int) string {
+func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, framework, projectDir, url, status, reason, problem, notes string, tags []string, id int64, lighthouseScore string, limit, offset int) (result string) {
+	defer func() {
+		switch operation {
+		case "register", "update", "delete", "log_edit", "log_deploy", "log_problem", "resolve_problem":
+		default:
+			return
+		}
+		parsed := map[string]interface{}{}
+		if json.Unmarshal([]byte(result), &parsed) != nil || parsed["status"] != "success" {
+			return
+		}
+		projectID := id
+		if value, ok := parsed["id"].(float64); ok {
+			projectID = int64(value)
+		}
+		if projectID <= 0 && projectDir != "" {
+			if p, err := GetProjectByDir(db, projectDir); err == nil {
+				projectID = p.ID
+			}
+		}
+		if projectID <= 0 && name != "" {
+			if p, err := GetProjectByName(db, name); err == nil {
+				projectID = p.ID
+			}
+		}
+		if projectID > 0 {
+			why := reason
+			if why == "" {
+				why = "unknown"
+			}
+			if _, err := RecordHomepageEvent(db, projectID, "registry_"+operation, "homepage_registry", "Registry "+operation, map[string]interface{}{"reason": why, "actor": "agent"}); err != nil {
+				result = ErrorJSONf("registry updated but event recording failed: %v", err)
+			}
+		}
+	}()
+
 	switch operation {
 	case "register":
 		if name == "" {
@@ -851,10 +891,10 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 		if id <= 0 {
 			return `{"status":"error","message":"'id' or 'name' is required for delete."}`
 		}
-		if _, err := db.Exec("DELETE FROM homepage_projects WHERE id = ?", id); err != nil {
+		if _, err := db.Exec("UPDATE homepage_projects SET status = 'archived', updated_at = CURRENT_TIMESTAMP WHERE id = ?", id); err != nil {
 			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
 		}
-		return `{"status":"success","message":"Project deleted."}`
+		return `{"status":"success","message":"Project archived; locations and history retained."}`
 
 	case "log_edit":
 		if id <= 0 && name != "" {
