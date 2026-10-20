@@ -241,7 +241,7 @@ func (kg *KnowledgeGraph) reindexSemanticNodes(ctx context.Context) error {
 		return nil
 	}
 
-	now := time.Now().Format(time.RFC3339)
+	now := formatKGTimestamp(time.Now())
 
 	// Load dirty nodes under reindexMu, then release before expensive embedding I/O.
 	idx.ReindexMu.Lock()
@@ -249,6 +249,7 @@ func (kg *KnowledgeGraph) reindexSemanticNodes(ctx context.Context) error {
 		SELECT id, label, properties, protected, COALESCE(updated_at, '')
 		FROM kg_nodes
 		WHERE semantic_indexed_at IS NULL OR semantic_indexed_at < updated_at
+		ORDER BY updated_at ASC, id ASC
 		LIMIT 5000
 	`)
 	var nodes []Node
@@ -285,7 +286,7 @@ func (kg *KnowledgeGraph) reindexSemanticNodes(ctx context.Context) error {
 		return fmt.Errorf("load dirty nodes for semantic reindex: %w", err)
 	}
 
-	indexedNodeIDs, err := kg.upsertSemanticNodeReindexBatch(ctx, idx, nodes)
+	indexedNodeIDs, err := kg.upsertSemanticNodeReindexBatchWithSnapshot(ctx, idx, nodes, nodeUpdatedAt, loadedProperties)
 	if err != nil {
 		return err
 	}
@@ -296,12 +297,9 @@ func (kg *KnowledgeGraph) reindexSemanticNodes(ctx context.Context) error {
 		idx.ReindexMu.Lock()
 		for _, id := range indexedNodeIDs {
 			loadedUpdatedAt := nodeUpdatedAt[id]
-			if strings.TrimSpace(loadedUpdatedAt) == "" {
-				continue
-			}
 			node := loadedNodes[id]
 			if _, err := kg.db.ExecContext(ctx, `UPDATE kg_nodes SET semantic_indexed_at = ?
-				WHERE id = ? AND updated_at <= ? AND label = ? AND properties = ? AND protected = ?`,
+				WHERE id = ? AND updated_at = ? AND label = ? AND properties = ? AND protected = ?`,
 				now, id, loadedUpdatedAt, node.Label, loadedProperties[id], boolToInt(node.Protected)); err != nil {
 				idx.ReindexMu.Unlock()
 				return fmt.Errorf("complete reindexed node %s: %w", id, err)
@@ -313,19 +311,24 @@ func (kg *KnowledgeGraph) reindexSemanticNodes(ctx context.Context) error {
 	// Load dirty edges under reindexMu, then release before expensive embedding I/O.
 	idx.ReindexMu.Lock()
 	edgeRows, err := kg.db.QueryContext(ctx, `
-		SELECT e.source, e.target, e.relation, e.properties, COALESCE(e.updated_at, '')
+		SELECT e.source, e.target, e.relation, e.properties, COALESCE(e.updated_at, ''),
+			COALESCE(e.status, ''), COALESCE(e.status_reason, ''),
+			COALESCE(e.superseded_by_claim_id, ''), COALESCE(e.retracted_at, '')
 		FROM kg_edges e
 		WHERE `+kgsemantic.EdgeDirtyCondition("e")+`
+		ORDER BY e.updated_at ASC,e.source ASC,e.target ASC,e.relation ASC
 		LIMIT 5000
 	`)
 	var edges []Edge
-	edgeUpdatedAt := make(map[string]string)
+	edgeSnapshots := make(map[string]semanticEdgeSnapshot)
 	if err == nil {
 		for edgeRows.Next() {
 			var e Edge
 			var propsJSON string
-			var updatedAt string
-			if scanErr := edgeRows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON, &updatedAt); scanErr != nil {
+			var snapshot semanticEdgeSnapshot
+			if scanErr := edgeRows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON,
+				&snapshot.updatedAt, &snapshot.status, &snapshot.statusReason,
+				&snapshot.supersededByClaimID, &snapshot.retractedAt); scanErr != nil {
 				edgeRows.Close()
 				idx.ReindexMu.Unlock()
 				return fmt.Errorf("scan dirty edge for semantic reindex: %w", scanErr)
@@ -341,7 +344,8 @@ func (kg *KnowledgeGraph) reindexSemanticNodes(ctx context.Context) error {
 				e.Properties = make(map[string]string)
 			}
 			edges = append(edges, e)
-			edgeUpdatedAt[knowledgeGraphEdgeKey(e.Source, e.Target, e.Relation)] = updatedAt
+			snapshot.properties = propsJSON
+			edgeSnapshots[knowledgeGraphEdgeKey(e.Source, e.Target, e.Relation)] = snapshot
 		}
 		if rowErr := edgeRows.Err(); rowErr != nil {
 			edgeRows.Close()
@@ -360,7 +364,7 @@ func (kg *KnowledgeGraph) reindexSemanticNodes(ctx context.Context) error {
 		}
 		if len(indexedEdges) > 0 {
 			idx.ReindexMu.Lock()
-			err := kg.markSemanticEdgesIndexedAt(ctx, indexedEdges, edgeUpdatedAt, now)
+			err := kg.markSemanticEdgesIndexedAt(ctx, indexedEdges, edgeSnapshots, now)
 			idx.ReindexMu.Unlock()
 			if err != nil {
 				return fmt.Errorf("complete reindexed edges: %w", err)
@@ -372,6 +376,26 @@ func (kg *KnowledgeGraph) reindexSemanticNodes(ctx context.Context) error {
 }
 
 func (kg *KnowledgeGraph) upsertSemanticNodeReindexBatch(ctx context.Context, idx *kgsemantic.Index, nodes []Node) ([]string, error) {
+	return kg.upsertSemanticNodeReindexBatchWithSnapshot(ctx, idx, nodes, nil, nil)
+}
+
+type semanticNodeSnapshot struct {
+	label      string
+	properties string
+	protected  int
+	updatedAt  string
+}
+
+type semanticEdgeSnapshot struct {
+	updatedAt           string
+	properties          string
+	status              string
+	statusReason        string
+	supersededByClaimID string
+	retractedAt         string
+}
+
+func (kg *KnowledgeGraph) upsertSemanticNodeReindexBatchWithSnapshot(ctx context.Context, idx *kgsemantic.Index, nodes []Node, updatedAtByID, propertiesByID map[string]string) ([]string, error) {
 	if idx == nil || len(nodes) == 0 {
 		return nil, nil
 	}
@@ -382,15 +406,24 @@ func (kg *KnowledgeGraph) upsertSemanticNodeReindexBatch(ctx context.Context, id
 	docs := make([]chromem.Document, 0, len(nodes))
 	contentByID := make(map[string]string, len(nodes))
 	indexedIDs := make([]string, 0, len(nodes))
+	currentByID, err := kg.loadSemanticNodeSnapshots(ctx, nodes)
+	if err != nil {
+		return nil, err
+	}
 	for _, node := range nodes {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		current, err := kg.GetNode(node.ID)
-		if err != nil {
-			return nil, fmt.Errorf("recheck reindex node %s: %w", node.ID, err)
+		current, exists := currentByID[node.ID]
+		if !exists || current.label != node.Label || current.protected != boolToInt(node.Protected) {
+			continue
 		}
-		if current == nil || current.Label != node.Label || current.Protected != node.Protected || !maps.Equal(current.Properties, node.Properties) {
+		currentProperties := decodeKnowledgeGraphNodeProperties(idx.Logger, "reindex-recheck", node.ID, current.properties, current.protected)
+		if !maps.Equal(currentProperties, node.Properties) {
+			continue
+		}
+		if snapshotUpdatedAt, hasSnapshot := updatedAtByID[node.ID]; hasSnapshot &&
+			(current.updatedAt != snapshotUpdatedAt || current.properties != propertiesByID[node.ID]) {
 			continue
 		}
 		if !kgsemantic.ShouldIndexNode(semanticNodeContent(node)) {
@@ -439,6 +472,45 @@ func (kg *KnowledgeGraph) upsertSemanticNodeReindexBatch(ctx context.Context, id
 	}
 	idx.Mu.Unlock()
 	return indexedIDs, nil
+}
+
+func (kg *KnowledgeGraph) loadSemanticNodeSnapshots(ctx context.Context, nodes []Node) (map[string]semanticNodeSnapshot, error) {
+	const chunkSize = 400
+	snapshots := make(map[string]semanticNodeSnapshot, len(nodes))
+	for start := 0; start < len(nodes); start += chunkSize {
+		end := start + chunkSize
+		if end > len(nodes) {
+			end = len(nodes)
+		}
+		chunk := nodes[start:end]
+		placeholders := make([]string, 0, len(chunk))
+		args := make([]interface{}, 0, len(chunk))
+		for _, node := range chunk {
+			placeholders = append(placeholders, "?")
+			args = append(args, node.ID)
+		}
+		rows, err := kg.db.QueryContext(ctx, `SELECT id,label,properties,protected,COALESCE(updated_at,'') FROM kg_nodes WHERE id IN (`+strings.Join(placeholders, ",")+")", args...)
+		if err != nil {
+			return nil, fmt.Errorf("batch recheck dirty semantic nodes: %w", err)
+		}
+		for rows.Next() {
+			var id string
+			var snapshot semanticNodeSnapshot
+			if err := rows.Scan(&id, &snapshot.label, &snapshot.properties, &snapshot.protected, &snapshot.updatedAt); err != nil {
+				rows.Close()
+				return nil, fmt.Errorf("scan current semantic node snapshot: %w", err)
+			}
+			snapshots[id] = snapshot
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("iterate current semantic node snapshots: %w", err)
+		}
+		if err := rows.Close(); err != nil {
+			return nil, fmt.Errorf("close current semantic node snapshots: %w", err)
+		}
+	}
+	return snapshots, nil
 }
 
 func (kg *KnowledgeGraph) upsertSemanticEdgeReindexBatch(ctx context.Context, idx *kgsemantic.Index, edges []Edge) ([]Edge, error) {
@@ -492,7 +564,7 @@ func (kg *KnowledgeGraph) upsertSemanticEdgeReindexBatch(ctx context.Context, id
 	return indexedEdges, nil
 }
 
-func (kg *KnowledgeGraph) markSemanticEdgesIndexedAt(ctx context.Context, edges []Edge, loadedUpdatedAtByKey map[string]string, indexedAt string) error {
+func (kg *KnowledgeGraph) markSemanticEdgesIndexedAt(ctx context.Context, edges []Edge, snapshotsByKey map[string]semanticEdgeSnapshot, indexedAt string) error {
 	if kg == nil || kg.db == nil || len(edges) == 0 {
 		return nil
 	}
@@ -502,15 +574,18 @@ func (kg *KnowledgeGraph) markSemanticEdgesIndexedAt(ctx context.Context, edges 
 	}
 	defer tx.Rollback()
 	for _, edge := range edges {
-		loadedUpdatedAt := loadedUpdatedAtByKey[knowledgeGraphEdgeKey(edge.Source, edge.Target, edge.Relation)]
-		if strings.TrimSpace(loadedUpdatedAt) == "" {
+		snapshot, ok := snapshotsByKey[knowledgeGraphEdgeKey(edge.Source, edge.Target, edge.Relation)]
+		if !ok {
 			continue
 		}
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE kg_edges
 			SET semantic_indexed_at = ?
-			WHERE source = ? AND target = ? AND relation = ? AND updated_at <= ?
-		`, indexedAt, edge.Source, edge.Target, edge.Relation, loadedUpdatedAt); err != nil {
+			WHERE source = ? AND target = ? AND relation = ? AND updated_at = ? AND properties = ?
+			  AND COALESCE(status,'') = ? AND COALESCE(status_reason,'') = ?
+			  AND COALESCE(superseded_by_claim_id,'') = ? AND COALESCE(retracted_at,'') = ?
+		`, indexedAt, edge.Source, edge.Target, edge.Relation, snapshot.updatedAt, snapshot.properties,
+			snapshot.status, snapshot.statusReason, snapshot.supersededByClaimID, snapshot.retractedAt); err != nil {
 			return fmt.Errorf("update semantic edge timestamp: %w", err)
 		}
 	}

@@ -164,6 +164,11 @@ func (kg *KnowledgeGraph) SyncContactLocked(ctx context.Context, id, label strin
 		}
 		createdEdge = &Edge{Source: id, Target: target, Relation: "belongs_to", Properties: edgeProps}
 	}
+	if len(stale) > 0 {
+		if err := cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
+			return fmt.Errorf("cleanup orphan KG evidence after contact sync: %w", err)
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit contact sync: %w", err)
 	}

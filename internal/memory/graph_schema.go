@@ -11,7 +11,11 @@ import (
 	"strings"
 )
 
-const kgFTSSchemaVersion = "v1"
+const kgFTSSchemaVersion = "v2"
+const kgSchemaVersion = 1
+const kgTimestampMigrationVersion = 1
+const kgTimestampMigrationKey = "utc_timestamp_format_version"
+const kgTimestampLayout = "2006-01-02 15:04:05"
 
 const kgEdgesTableSchema = `CREATE TABLE kg_edges (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,6 +37,10 @@ const kgEdgesTableSchema = `CREATE TABLE kg_edges (
 		)`
 
 func (kg *KnowledgeGraph) initTables() error {
+	if err := kg.checkKGSchemaVersion(); err != nil {
+		return err
+	}
+
 	schema := `
 	CREATE TABLE IF NOT EXISTS kg_nodes (
 		rowid INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -126,22 +134,6 @@ func (kg *KnowledgeGraph) initTables() error {
 	if err := kg.db.QueryRow("SELECT count(*)>0 FROM pragma_table_xinfo('kg_nodes') WHERE name='node_type'").Scan(&hasNodeType); err != nil {
 		return fmt.Errorf("KG migration inspect kg_nodes.node_type: %w", err)
 	}
-	hasCascade, err := kg.kgEdgesHaveCascadeFKs()
-	if err != nil {
-		return fmt.Errorf("inspect kg_edges foreign keys: %w", err)
-	}
-	if !hasNodeType || !hasCascade {
-		var populated bool
-		if err := kg.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM kg_nodes) OR EXISTS(SELECT 1 FROM kg_edges)`).Scan(&populated); err != nil {
-			return fmt.Errorf("inspect KG before migration: %w", err)
-		}
-		if populated {
-			if _, err := backupMainDatabase(kg.db, "graph-schema-v2"); err != nil {
-				return fmt.Errorf("back up KG before migration: %w", err)
-			}
-		}
-	}
-
 	type colMigration struct {
 		table, column, def string
 	}
@@ -173,11 +165,6 @@ func (kg *KnowledgeGraph) initTables() error {
 		}
 		kg.logger.Info("KG migration: added column", "table", cm.table, "column", cm.column)
 	}
-	// The backfill only improves ordering data; readers COALESCE a missing value, so it stays a warning.
-	if _, err := kg.db.Exec("UPDATE kg_edges SET updated_at = COALESCE(updated_at, created_at, CURRENT_TIMESTAMP) WHERE updated_at IS NULL OR updated_at = ''"); err != nil {
-		kg.logger.Warn("KG migration: backfill kg_edges.updated_at failed", "error", err)
-	}
-
 	if !hasNodeType {
 		kg.logger.Info("KG migration: rebuilding kg_nodes to add generated columns")
 		rebuild := []string{
@@ -238,6 +225,8 @@ func (kg *KnowledgeGraph) initTables() error {
 		`CREATE INDEX IF NOT EXISTS idx_kg_edges_semantic_indexed_at ON kg_edges(semantic_indexed_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_edges_relation ON kg_edges(relation)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_edges_source_target ON kg_edges(source, target)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_nodes_file_sync_owner ON kg_nodes(json_extract(properties, '$.source'), json_extract(properties, '$.source_file')) WHERE json_valid(properties)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_edges_file_sync_owner ON kg_edges(json_extract(properties, '$.source'), json_extract(properties, '$.source_file')) WHERE json_valid(properties)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_claims_fact ON kg_claims(subject_id, predicate, object_id, object_literal)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_claims_status ON kg_claims(status, learned_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_claims_evidence ON kg_claims(evidence_id)`,
@@ -257,6 +246,20 @@ func (kg *KnowledgeGraph) initTables() error {
 			kg.logger.Warn("KG migration: index creation failed", "error", err, "stmt", stmt)
 		}
 	}
+	for _, stmt := range []string{
+		`CREATE TRIGGER IF NOT EXISTS kg_nodes_semantic_dirty AFTER UPDATE OF id, label, properties, protected ON kg_nodes
+			WHEN OLD.id IS NOT NEW.id OR OLD.label IS NOT NEW.label OR OLD.properties IS NOT NEW.properties OR OLD.protected IS NOT NEW.protected
+			BEGIN UPDATE kg_nodes SET semantic_indexed_at=NULL WHERE rowid=NEW.rowid; END`,
+		`CREATE TRIGGER IF NOT EXISTS kg_edges_semantic_dirty_v2 AFTER UPDATE OF source, target, relation, properties, status, status_reason, superseded_by_claim_id, retracted_at ON kg_edges
+			WHEN OLD.source IS NOT NEW.source OR OLD.target IS NOT NEW.target OR OLD.relation IS NOT NEW.relation OR OLD.properties IS NOT NEW.properties
+				OR OLD.status IS NOT NEW.status OR OLD.status_reason IS NOT NEW.status_reason
+				OR OLD.superseded_by_claim_id IS NOT NEW.superseded_by_claim_id OR OLD.retracted_at IS NOT NEW.retracted_at
+			BEGIN UPDATE kg_edges SET semantic_indexed_at=NULL WHERE rowid=NEW.rowid; END`,
+	} {
+		if _, err := kg.db.Exec(stmt); err != nil {
+			return fmt.Errorf("create KG semantic dirty trigger: %w", err)
+		}
+	}
 
 	var storedFTSVersion sql.NullString
 	markerErr := kg.db.QueryRow(`SELECT value FROM kg_meta WHERE key = 'fts_schema_version'`).Scan(&storedFTSVersion)
@@ -267,11 +270,7 @@ func (kg *KnowledgeGraph) initTables() error {
 		if err := kg.rebuildFTSIndexes(); err != nil {
 			return err
 		}
-		if _, err := kg.db.Exec(`INSERT OR REPLACE INTO kg_meta (key, value) VALUES ('fts_schema_version', ?)`, kgFTSSchemaVersion); err != nil {
-			return fmt.Errorf("write kg fts_schema_version: %w", err)
-		}
 	}
-
 	return nil
 }
 
@@ -374,6 +373,12 @@ func (kg *KnowledgeGraph) kgEdgesHaveCascadeFKs() (bool, error) {
 }
 
 func (kg *KnowledgeGraph) rebuildFTSIndexes() error {
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin KG FTS rebuild: %w", err)
+	}
+	defer tx.Rollback()
+
 	dropStatements := []string{
 		`DROP TRIGGER IF EXISTS kg_nodes_ai;`,
 		`DROP TRIGGER IF EXISTS kg_nodes_ad;`,
@@ -385,7 +390,7 @@ func (kg *KnowledgeGraph) rebuildFTSIndexes() error {
 		`DROP TABLE IF EXISTS kg_edges_fts;`,
 	}
 	for _, stmt := range dropStatements {
-		if _, err := kg.db.Exec(stmt); err != nil {
+		if _, err := tx.Exec(stmt); err != nil {
 			return fmt.Errorf("drop kg FTS artifact: %w", err)
 		}
 	}
@@ -405,7 +410,7 @@ func (kg *KnowledgeGraph) rebuildFTSIndexes() error {
 			INSERT INTO kg_nodes_fts(kg_nodes_fts, rowid, id, label, properties)
 			VALUES ('delete', old.rowid, old.id, old.label, old.properties);
 		END;`,
-		`CREATE TRIGGER kg_nodes_au AFTER UPDATE ON kg_nodes BEGIN
+		`CREATE TRIGGER kg_nodes_au AFTER UPDATE OF id, label, properties ON kg_nodes BEGIN
 			INSERT INTO kg_nodes_fts(kg_nodes_fts, rowid, id, label, properties)
 			VALUES ('delete', old.rowid, old.id, old.label, old.properties);
 			INSERT INTO kg_nodes_fts(rowid, id, label, properties)
@@ -419,7 +424,7 @@ func (kg *KnowledgeGraph) rebuildFTSIndexes() error {
 			INSERT INTO kg_edges_fts(kg_edges_fts, rowid, source, target, relation, properties)
 			VALUES ('delete', old.id, old.source, old.target, old.relation, old.properties);
 		END;`,
-		`CREATE TRIGGER kg_edges_au AFTER UPDATE ON kg_edges BEGIN
+		`CREATE TRIGGER kg_edges_au AFTER UPDATE OF source, target, relation, properties ON kg_edges BEGIN
 			INSERT INTO kg_edges_fts(kg_edges_fts, rowid, source, target, relation, properties)
 			VALUES ('delete', old.id, old.source, old.target, old.relation, old.properties);
 			INSERT INTO kg_edges_fts(rowid, source, target, relation, properties)
@@ -427,7 +432,7 @@ func (kg *KnowledgeGraph) rebuildFTSIndexes() error {
 		END;`,
 	}
 	for _, stmt := range createStatements {
-		if _, err := kg.db.Exec(stmt); err != nil {
+		if _, err := tx.Exec(stmt); err != nil {
 			return fmt.Errorf("create kg FTS artifact: %w", err)
 		}
 	}
@@ -437,9 +442,15 @@ func (kg *KnowledgeGraph) rebuildFTSIndexes() error {
 		`INSERT INTO kg_edges_fts(kg_edges_fts) VALUES ('rebuild');`,
 	}
 	for _, stmt := range rebuildStatements {
-		if _, err := kg.db.Exec(stmt); err != nil {
+		if _, err := tx.Exec(stmt); err != nil {
 			return fmt.Errorf("rebuild kg FTS index: %w", err)
 		}
+	}
+	if _, err := tx.Exec(`INSERT OR REPLACE INTO kg_meta (key, value) VALUES ('fts_schema_version', ?)`, kgFTSSchemaVersion); err != nil {
+		return fmt.Errorf("write kg fts_schema_version: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit KG FTS rebuild: %w", err)
 	}
 
 	return nil
