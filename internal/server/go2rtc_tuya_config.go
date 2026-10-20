@@ -277,7 +277,9 @@ func prepareTuyaConfigPatch(s *Server, raw, patch map[string]interface{}, txn *g
 	}
 	var sourceInputs []go2RTCSourceChange
 	if items, ok := section["streams"].([]interface{}); ok {
-		sourceInputs, err = go2RTCSourceChanges(items, false)
+		// This transaction owns manual and generated role changes. Strip their
+		// inputs so legacy secret extraction cannot replay a clear afterwards.
+		sourceInputs, err = go2RTCSourceChanges(items, true)
 		if err != nil {
 			return err
 		}
@@ -314,23 +316,32 @@ func (t *go2RTCSourceVaultTransaction) apply(changes []go2RTCSourceChange) error
 	if t.vault == nil {
 		return fmt.Errorf("Tuya requires the secrets vault")
 	}
-	for _, change := range changes {
+	// Only the final operation for a key is published. Earlier operations must
+	// neither remove a regenerated role nor leave an intermediate secret behind.
+	last := make(map[string]int, len(changes))
+	for i, change := range changes {
 		key := go2RTCChangeKey(change)
 		if key == "" {
 			return fmt.Errorf("invalid camera or account ID")
 		}
-		if _, ok := t.previous[key]; !ok {
-			value, err := t.vault.ReadSecret(key)
-			if err == nil {
-				t.previous[key] = go2RTCSourceVaultSnapshot{value: value, exists: true}
-			} else if strings.Contains(strings.ToLower(err.Error()), "secret not found") {
-				t.previous[key] = go2RTCSourceVaultSnapshot{}
-			} else {
-				return fmt.Errorf("saved credentials cannot be read")
-			}
+		last[key] = i
+	}
+	for i, change := range changes {
+		key := go2RTCChangeKey(change)
+		if last[key] != i {
+			continue
 		}
-		previous := t.previous[key]
-		if (change.Delete && !previous.exists) || (!change.Delete && previous.exists && previous.value == change.Value) {
+		current := go2RTCSourceVaultSnapshot{}
+		value, err := t.vault.ReadSecret(key)
+		if err == nil {
+			current = go2RTCSourceVaultSnapshot{value: value, exists: true}
+		} else if !strings.Contains(strings.ToLower(err.Error()), "secret not found") {
+			return fmt.Errorf("saved credentials cannot be read")
+		}
+		if _, ok := t.previous[key]; !ok {
+			t.previous[key] = current
+		}
+		if (change.Delete && !current.exists) || (!change.Delete && current.exists && current.value == change.Value) {
 			continue
 		}
 		if change.Delete {

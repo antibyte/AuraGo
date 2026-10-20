@@ -122,3 +122,67 @@ func TestGo2RTCTuyaRemovingCameraClearsVaultAndCannotDetachSilently(t *testing.T
 		}
 	}
 }
+
+func TestGo2RTCTuyaConfigClearSubKeepsManagedRole(t *testing.T) {
+	s, _, vault := newGo2RTCMutationTestServer(t, "http://127.0.0.1:1984", false)
+	_, err := updateManagedGo2RTCConfigWithTuya(context.Background(), s, func(c *config.Go2RTCConfig) error {
+		c.TuyaAccounts = []config.Go2RTCTuyaAccount{{ID: "home", Name: "Home", Method: "smart", Region: "eu-central"}}
+		c.Streams = []config.Go2RTCStreamConfig{{ID: "door", Name: "Door", Tuya: &config.Go2RTCTuyaBinding{AccountID: "home", MainResolution: "hd", SubResolution: "sd"}}}
+		return nil
+	}, nil, false, go2RTCTuyaInputs{Accounts: map[string]map[string]string{"home": {"email": "fixture@example.org", "password": "fixture-password"}}, Devices: map[string]string{"door": "device123"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := vault.ReadSecret(config.Go2RTCSourceKey("door", "sub"))
+	if err != nil || before == "" {
+		t.Fatal("fixture role missing")
+	}
+	w := httptest.NewRecorder()
+	handleUpdateConfig(s)(w, httptest.NewRequest("PUT", "/api/config", strings.NewReader(`{"go2rtc":{"streams":[{"id":"door","name":"Door","enabled":false,"tuya":{"account_id":"home","main_resolution":"hd","sub_resolution":"sd"},"clear_sub_source":true}]}}`)))
+	if w.Code != http.StatusOK {
+		t.Fatalf("save: %d %s", w.Code, w.Body.String())
+	}
+	after, err := vault.ReadSecret(config.Go2RTCSourceKey("door", "sub"))
+	if err != nil || after != before || !s.ConfigSnapshot().Go2RTC.Streams[0].SubSourceConfigured {
+		t.Fatal("published SD binding lost its managed source")
+	}
+}
+
+func TestGo2RTCSourceVaultTransactionFinalChangesAndRollback(t *testing.T) {
+	s, _, vault := newGo2RTCMutationTestServer(t, "http://127.0.0.1:1984", false)
+	key := config.Go2RTCSourceKey("one", "sub")
+	const original = "rtsp://camera.local/original"
+	if err := vault.WriteSecret(key, original); err != nil {
+		t.Fatal(err)
+	}
+	txn, err := stageGo2RTCSourceChanges(s, []go2RTCSourceChange{
+		{ID: "one", Role: "sub", Delete: true}, {ID: "one", Role: "sub", Value: original},
+		{ID: "two", Value: "rtsp://camera.local/temporary"}, {ID: "two", Delete: true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value, err := vault.ReadSecret(key); err != nil || value != original {
+		t.Fatal("delete followed by restoring the original source lost it")
+	}
+	if _, err := vault.ReadSecret(config.Go2RTCSourceKey("two", "main")); err == nil {
+		t.Fatal("a final delete left an intermediate source behind")
+	}
+	for _, value := range []string{"rtsp://camera.local/replacement", original} {
+		if err := txn.apply([]go2RTCSourceChange{{ID: "one", Role: "sub", Value: value}}); err != nil {
+			t.Fatal(err)
+		}
+		if saved, err := vault.ReadSecret(key); err != nil || saved != value {
+			t.Fatal("a later apply compared against the rollback snapshot")
+		}
+	}
+	if err := txn.apply([]go2RTCSourceChange{{ID: "one", Role: "sub", Delete: true}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := txn.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	if value, err := vault.ReadSecret(key); err != nil || value != original {
+		t.Fatal("rollback lost the original source")
+	}
+}

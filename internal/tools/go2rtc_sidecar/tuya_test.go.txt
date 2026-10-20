@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 type auraGoTransport func(*http.Request) (*http.Response, error)
@@ -87,5 +89,44 @@ func TestAuraGoTuyaClosesIdleLoginConnections(t *testing.T) {
 	case <-transport.closed:
 	case <-time.After(time.Second):
 		t.Fatal("cancelled login retained its HTTP pool")
+	}
+}
+
+type auraGoTeardownMQTT struct {
+	mqtt.Client
+	token     mqtt.Token
+	published int
+	quiesce   uint
+}
+
+func (c *auraGoTeardownMQTT) IsConnected() bool { return true }
+func (c *auraGoTeardownMQTT) Publish(string, byte, bool, interface{}) mqtt.Token {
+	c.published++
+	return c.token
+}
+func (c *auraGoTeardownMQTT) Disconnect(quiesce uint) { c.quiesce = quiesce }
+
+func TestAuraGoTuyaCloseAfterCancellationDoesNotWaitForMQTT(t *testing.T) {
+	api, err := NewTuyaSmartApiClient(&http.Client{}, "protect-eu.ismartlife.me", "fixture@example.org", "fixture-password", "device123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	api.SetContext(ctx)
+	client := &auraGoTeardownMQTT{token: &auraGoPendingToken{done: make(chan struct{})}}
+	api.GetMqtt().client = client
+	producer := &Client{api: api}
+	cancel()
+	start := time.Now()
+	_ = producer.Close(ctx.Err())
+	if elapsed := time.Since(start); elapsed > 500*time.Millisecond {
+		t.Fatalf("cancelled setup waited for a fresh MQTT acknowledgement budget: %s", elapsed)
+	}
+	if client.published != 1 || client.quiesce != 100 {
+		t.Fatal("shutdown did not attempt the disconnect notification and bounded drain")
+	}
+	_ = producer.Stop()
+	if client.published != 1 {
+		t.Fatal("shutdown was not idempotent")
 	}
 }

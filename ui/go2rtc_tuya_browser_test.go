@@ -137,3 +137,44 @@ func TestGo2RTCTuyaConfigKeepsOtherDraftsBrowser(t *testing.T) {
 		t.Fatal("camera import missing")
 	}
 }
+
+func TestGo2RTCTuyaTalkCapabilityRefreshBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	mux := http.NewServeMux()
+	mux.Handle("/js/", http.FileServer(http.FS(Content)))
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprint(w, `<!doctype html><html><body><script src="/js/desktop/apps/network-cameras-media.js"></script></body></html>`)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	browser := newSmokeBrowser(t)
+	page := browser.MustPage(server.URL).Timeout(20 * time.Second)
+	defer page.MustClose()
+	page.MustWait(`()=>!!window.NetworkCamerasMedia`)
+	if !page.MustEval(`()=>{
+		const host=document.createElement('div');
+		host.innerHTML='<div data-role="media-toolbar"></div><iframe data-camera="door" data-revision="1" src="about:blank"></iframe>';
+		document.body.appendChild(host);
+		const viewer=host.querySelector('iframe');
+		const stream={id:'door',revision:1,source_type:'tuya',talk_supported:false,media_ready:true,media:{talk_enabled:true}};
+		const state={host,selected:'door',ctx:{esc:s=>s,t:s=>s},data:{streams:[stream],can_talk:true,can_manage:true,webrtc_enabled:true},objectURLs:new Map()};
+		NetworkCamerasMedia.update(state);
+		if(!host.querySelector('[data-role="talk"]').disabled) throw Error('unconfirmed backchannel was enabled');
+		stream.talk_supported=true;
+		NetworkCamerasMedia.update(state);
+		const button=host.querySelector('[data-role="talk"]');
+		if(button.disabled||state.mediaTalk) throw Error('confirmed backchannel was not enabled or started a microphone');
+		NetworkCamerasMedia.update(state);
+		if(host.querySelector('[data-role="talk"]')!==button) throw Error('unchanged status rebuilt talk controls');
+		let stopped=0;
+		state.mediaTalk={camera:'door',stream:{getTracks:()=>[{stop(){stopped++}}]}};
+		stream.talk_supported=false;
+		NetworkCamerasMedia.update(state);
+		const safe=host.querySelector('[data-role="talk"]').disabled&&stopped===1&&!state.mediaTalk&&host.querySelector('iframe')===viewer&&viewer.getAttribute('src')==='about:blank';
+		NetworkCamerasMedia.stop(state,true);
+		return safe;
+	}`).Bool() {
+		t.Fatal("backchannel changes failed to reconcile talk safely or replaced the viewer")
+	}
+}

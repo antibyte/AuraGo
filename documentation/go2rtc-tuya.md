@@ -21,7 +21,7 @@ An account update regenerates main/substream sources of its assigned cameras in 
 
 Validation and publication failures roll back Vault changes. HTTP 202 means the desired configuration was saved but runtime reconciliation is pending; do not repeat the create request. Both the camera app and `PUT /api/config` use the same transaction. A config account list is a complete replacement; an omitted list preserves accounts and `[]` removes only unreferenced accounts.
 
-Selection tokens last five minutes, bind identity/account/revision and are reserved until publication. Limits are 32 setup sessions, 128 camera candidates, 32 searched households and 1 MiB per discovery response. Discovery has a 20-second deadline; connection setup and active probes have a 45-second maximum. One search/probe per account may run concurrently, including native diagnostics. Canceling the dialog releases its requests and clears credential drafts.
+Selection tokens last five minutes, bind identity/account/revision and are reserved until publication. Limits are 32 setup sessions, 128 camera candidates, 32 searched households and 1 MiB per discovery response. Discovery has a 20-second deadline; connection setup and active probes have a 45-second maximum. One search/probe per account may run concurrently, including native diagnostics. Canceling the dialog releases its requests and clears credential drafts. An abandoned check preserves the last confirmed service status. MQTT cleanup attempts the disconnect notification without a new acknowledgement timeout and allows at most 100 ms to drain its send queue.
 
 ## Network and sidecar
 

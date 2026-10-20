@@ -472,6 +472,11 @@ func (m *Go2RTCManager) Status(ctx context.Context) Go2RTCStatus {
 func (m *Go2RTCManager) Test(ctx context.Context) (Go2RTCStatus, error) {
 	var raw interface{}
 	err := m.requestJSON(ctx, http.MethodGet, "/api", nil, &raw, 1<<20)
+	// An abandoned caller supplies no health sample. Keep the last confirmed
+	// status, including capability flags, for other cameras and callers.
+	if ctx.Err() != nil {
+		return m.currentStatus(), ctx.Err()
+	}
 	version := ""
 	if object, ok := raw.(map[string]interface{}); ok {
 		version = sanitizeGo2RTCToken(firstString(object, "version", "go2rtc"), 32)

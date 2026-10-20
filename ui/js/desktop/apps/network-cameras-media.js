@@ -112,7 +112,7 @@
         const stream = streams.find(item => item.id === state.selected);
         if (!stream) return;
         const target = state.host.querySelector('[data-role="media-toolbar"]');
-        const signature = JSON.stringify([stream.has_substream, stream.media_ready !== false, !!state.data.can_talk, !!state.data.can_manage, !!state.data.webrtc_enabled, stream.media && stream.media.talk_enabled, !!stream.talk_busy && (!state.mediaTalk || state.mediaTalk.camera !== stream.id)]);
+        const signature = JSON.stringify([stream.has_substream, stream.media_ready !== false, stream.source_type, !!stream.talk_supported, !!state.data.can_talk, !!state.data.can_manage, !!state.data.webrtc_enabled, stream.media && stream.media.talk_enabled, !!stream.talk_busy && (!state.mediaTalk || state.mediaTalk.camera !== stream.id)]);
         if (target && target.dataset.signature !== signature) { stop(state); target.innerHTML = toolbar(state, stream); target.dataset.signature = signature; bind(state); }
         const stats = state.host.querySelector('[data-role="media-stats"]');
         if (!state.mediaCounters) state.mediaCounters = new Map();

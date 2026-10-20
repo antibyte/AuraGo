@@ -321,13 +321,15 @@
  		return fmt.Errorf("mqtt client is closed, send mqtt message fail")
  	}
  
-@@ -428,9 +429,7 @@
+@@ -428,9 +429,9 @@
  	}
  
  	token := c.client.Publish(c.publishTopic, 1, false, payload)
 -	if token.Wait() && token.Error() != nil {
 -		return token.Error()
 -	}
++ // Shutdown is best effort; Disconnect(100) drains the MQTT send queue.
++ if messageType == "disconnect" { return nil }
 +	if err:=waitTuyaToken(ctx,token);err!=nil{return err}
  
  	return nil
