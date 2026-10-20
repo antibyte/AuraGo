@@ -9,7 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const assetRoot = path.join(root, 'ui/3d/minigolf');
 const manifestBytes = await readFile(path.join(assetRoot, 'manifest.json'));
 const manifest = JSON.parse(manifestBytes.toString('utf8'));
-const p1Colliders = JSON.parse(await readFile(path.join(root, 'scripts/fixtures/minigolf-p1-colliders.json'), 'utf8'));
+const p1Fingerprints = JSON.parse(await readFile(path.join(root, 'scripts/fixtures/minigolf-p1-colliders.json'), 'utf8'));
 assert.equal(manifest.version, 1);
 assert.equal(manifest.ballRadius, 0.16);
 assert.equal(manifest.courses.length, 18);
@@ -21,6 +21,20 @@ const LOOK_OF = { coast: 'pirate', garden: 'temple', night: 'moon' };
 const KIB = 1024, MIB = 1024 * 1024;
 // Largest sizes a course, kit or prop may reach (spec section 6).
 const BUDGET = { courseBytes: 768 * KIB, courseTriangles: 24_000, meshNodes: 24, kitBytes: 3 * MIB, kitTriangles: 60_000, prop: 15_000, hero: 20_000, preview: 80 * KIB, package: 32 * MIB };
+// Placement rules of kit/placement.py: distance of a prop's centre to the island rim (EDGE plus its share of the footprint radius).
+const EDGE = 0.3, RIM_TOLERANCE = 0.01;
+const RIM_SHARE_BY_NAME = { fern: 0.5, bush: 0.5, tuft: 0.5, seaweed: 0.4, shell: 0.6, crab: 0.6, starfish: 0.6 };
+const rimShare = (name, tags) => RIM_SHARE_BY_NAME[name] ?? (tags.includes('tall') ? 0.6 : tags.includes('hero') ? 0.85 : 1.0);
+const sha256 = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+// Everything the physics reads besides the colliders; the key order is part of the fingerprint.
+const physicsOf = ({ obstacles, tee, cup, cupRadius, bounds, water, par }) => ({ obstacles, tee, cup, cupRadius, bounds, water, par });
+// Largest possible distance of (x, z) inside the rim: the rim is the superellipse scaled by at most 1 +/- wobble.
+function rimReserve(island, x, z) {
+  const dx = x - island.center[0], dz = z - island.center[1], theta = Math.atan2(dz, dx);
+  const [hx, hz] = island.half, n = island.power;
+  const ellipse = (Math.abs(Math.cos(theta) / hx) ** n + Math.abs(Math.sin(theta) / hz) ** n) ** (-1 / n);
+  return ellipse * (1 + island.wobble) - Math.hypot(dx, dz);
+}
 function pathDistance(points, x, z) {
   let best = Infinity;
   for (let i = 1; i < points.length; i++) {
@@ -148,14 +162,21 @@ for (const course of manifest.courses) {
   assert.match(course.id, /^(garden|coast|night)-\d{2}$/);
   assert.ok(course.par >= 2 && course.par <= 4, course.id);
   assert.equal(course.model, `course-${String(course.number).padStart(2, '0')}.glb`);
-  // P2 dresses courses without touching physics: the decoded collider data must
-  // stay identical to the P1 state (P3 replaces this fixture with new courses).
-  assert.equal(createHash('sha256').update(JSON.stringify(course.colliders)).digest('hex'), p1Colliders[course.id], `${course.id}: collision differs from the P1 fingerprint`);
+  // P2 dresses courses without touching physics: the decoded collider data and
+  // everything else the physics reads must stay identical to the P1 state (P3
+  // replaces this fixture with new courses).
+  const p1 = p1Fingerprints[course.id];
+  assert.ok(p1, `${course.id}: P1 fingerprint`);
+  assert.equal(sha256(course.colliders), p1.colliders, `${course.id}: collision differs from the P1 fingerprint`);
+  assert.equal(sha256(physicsOf(course)), p1.physics, `${course.id}: obstacles, tee, cup, bounds, water or par differ from the P1 fingerprint`);
   const bytes = await readFile(path.join(assetRoot, course.model));
   assert.equal(bytes.length, course.bytes, `${course.id}: byte count`);
   assert.equal(createHash('sha256').update(bytes).digest('hex'), course.sha256, `${course.id}: SHA-256`);
   const glb = parseGLB(bytes);
   assert.equal(glb.triangleCount, course.triangles, `${course.id}: triangle count`);
+  // A numbered name ("scenery-matte.001") means a datablock of another course or part was still around at export time.
+  const numbered = [...glb.json.nodes, ...glb.json.meshes].map(entry => entry.name).filter(name => /\.\d{3}$/.test(name ?? ''));
+  assert.deepEqual(numbered, [], `${course.id}: numbered node or mesh names`);
   assert.ok(course.bytes <= BUDGET.courseBytes, `${course.id}: course GLB exceeds ${BUDGET.courseBytes / KIB} KiB (${course.bytes})`);
   assert.ok(course.triangles <= BUDGET.courseTriangles, `${course.id}: triangle budget (${course.triangles})`);
   const meshNodes = glb.json.nodes.filter(node => node.mesh !== undefined).length;
@@ -170,11 +191,17 @@ for (const course of manifest.courses) {
   const catalog = manifest.kits?.[course.look]?.props;
   assert.ok(catalog, `${course.id}: kit catalog for ${course.look}`);
   assert.ok(course.props.length > 0 && course.props.length <= 160, `${course.id}: ${course.props.length} placements`);
+  // The island rim: a superellipse around `center` whose radius the wobble scales by at most 1 +/- wobble.
+  const island = course.island;
+  assert.ok(island && island.center.length === 2 && island.half.length === 2, `${course.id}: island outline`);
+  assert.ok([...island.center, ...island.half, island.power, island.wobble].every(Number.isFinite), `${course.id}: island numbers`);
+  assert.ok(island.half.every(value => value > 3 && value < 6.5) && island.power >= 2 && island.wobble >= 0 && island.wobble < 0.1, `${course.id}: island outline range`);
   for (const [name, x, y, z, yaw, scale] of course.props) {
     const prop = catalog[name];
     assert.ok(prop, `${course.id}: unknown prop ${name}`);
     assert.ok([x, y, z, yaw, scale].every(Number.isFinite) && scale > 0, `${course.id}: ${name} placement numbers`);
-    assert.ok(Math.hypot(x, z) <= 6.0, `${course.id}: ${name} outside the island`);
+    const reserve = rimReserve(island, x, z), needed = EDGE + rimShare(name, prop.tags) * prop.radius * scale;
+    assert.ok(reserve >= needed - RIM_TOLERANCE, `${course.id}: ${name} at (${x}, ${z}) reaches over the island rim (${reserve.toFixed(2)} m inside, needs ${needed.toFixed(2)} m)`);
     if (!prop.tags.includes('span')) assert.ok(pathDistance(course.path, x, z) >= 1.0 + prop.radius * scale - .05, `${course.id}: ${name} blocks the lane corridor`);
   }
   for (const name of ['flag', 'ball-template', 'putter-template']) assert.ok(glb.nodeByName.has(name), `${course.id}: missing ${name} node`);

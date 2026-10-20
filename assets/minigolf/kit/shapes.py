@@ -380,11 +380,12 @@ def _apply_modifiers(obj):
     evaluated = obj.evaluated_get(dg)
     new = bpy.data.meshes.new_from_object(evaluated, preserve_all_data_layers=True, depsgraph=dg)
     old = obj.data
+    name = old.name
     obj.modifiers.clear()
     obj.data = new
-    new.name = old.name
     if old.users == 0:
         bpy.data.meshes.remove(old)
+    new.name = name  # after the removal: while the old mesh lives, Blender would number the name (".001")
 
 
 def densify(mesh, max_edge, passes=6):

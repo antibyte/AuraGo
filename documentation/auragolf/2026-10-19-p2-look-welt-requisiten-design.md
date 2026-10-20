@@ -131,7 +131,7 @@ Spur und Banden bekommen nur ein neues Material und Vertexfarben im Punktbereich
   - Tempel: Steinblöcke mit Fugen;
   - Mond: Metall mit Neonleiste (Material `emissive`) und orangen Klammern.
   - Knoten-Extras `aurago_hidden: true` auf `rail-left/right`.
-- **Loch, Fahne und Bahnnummer:** im Weltstil gefast; Fahne in Weltfarbe.
+- **Loch, Fahne und Bahnnummer:** im Weltstil gefast; Fahne in Weltfarbe. Die Ziffernsegmente und der Lochrand bekommen eine Fase von 8 mm (zwei Segmente); der Lochrand wird dafür 2 cm dick, seine Oberkante bleibt, wo sie war. Beides ist keine Kollisionsgrundlage.
 - **Vorlagen:**
   - Der Ball wird feiner unterteilt; alle Vertices liegen exakt auf 0,16 m.
   - Der Putter bekommt einen gefasten Kopf; der Schaft reicht weiter von 0 bis 0,82 m.
@@ -158,7 +158,7 @@ Spur und Banden bekommen nur ein neues Material und Vertexfarben im Punktbereich
   2. **Rand:** 8–14 mittlere Requisiten in Randplätzen.
   3. **Streudeko:** in freien Flächen bis zu einer Dichte von etwa 0,8 je m².
   - Kein Grundriss schneidet den Korridor um die Spurmitte, außer `span`. Der Test verlangt 1,0 m, der Generator hält 1,2 m, damit Bandenverkleidung und Pfosten frei bleiben.
-  - Alles liegt innerhalb des Inselrands mit 0,3 m Abstand. Hohe Requisiten, Pflanzen und der Hingucker dürfen mit einem Anteil ihres Radius überhängen (Palmwedel, Takelage, Brauen), weil der Radius der Hüllkreis ist und dünne Teile ihn dominieren.
+  - Alles liegt innerhalb des Inselrands mit 0,3 m Abstand. Hohe Requisiten, Pflanzen und der Hingucker dürfen mit einem Anteil ihres Radius überhängen (Palmwedel, Takelage, Brauen), weil der Radius der Hüllkreis ist und dünne Teile ihn dominieren. Die Regel gilt für jede Platzierung, auch für feste Sonderteile (sie rücken nötigenfalls in Schritten zur Inselmitte), und für den Kopf der Parabolschüssel, dessen Kreis größer ist als der ihres Sockels. `placement.check` bricht den Bau ab, der Asset-Test prüft es gegen `courses[].island` (Abschnitt 4).
   - Nichts steht im Graben einer Sprunglücke; hohe Requisiten, die die Spur aus der Spielkamera verdecken würden, und alles Hohe vor dem Hingucker entfallen.
   - Die Höhe kommt aus der Inselfunktion.
 
@@ -178,6 +178,7 @@ Spur und Banden bekommen nur ein neues Material und Vertexfarben im Punktbereich
 - Zufall nur aus `random.Random(seed)` und `mathutils.noise`.
 - Bakes auf der CPU mit festem Seed und fester Samplezahl, ohne Denoise, auf 8 Bit gerundet.
 - Zwei Generatorläufe auf derselben Maschine mit Blender 5.2.2 ergeben dieselben GLB-Hashes und dasselbe Manifest. Das wird bei der Abnahme einmal geprüft.
+- Jede Bahn wird nach dem Export mit Objekten, Meshes, Szene und allen verwaisten Datenblöcken gelöscht. Dadurch trägt kein Knoten- oder Mesh-Name einen Blender-Zähler (`scenery-matte.001`), und `--course N` in einem frischen Prozess schreibt dieselben Dateien wie der volle Lauf. Die vier Sonnenrad-Flügel heißen `windmill-sail-0` bis `windmill-sail-3`. Mit `--save-blend` bleibt die Szene erhalten, deshalb ist es nur zusammen mit `--course N` erlaubt.
 - Vorschaubilder sind ausgenommen.
 
 ## 4. Manifest (Version bleibt 1, nur additive Felder)
@@ -187,6 +188,7 @@ Spur und Banden bekommen nur ein neues Material und Vertexfarben im Punktbereich
 | `courses[].look` | `pirate`, `temple` oder `moon` |
 | `courses[].path` | Spurmitte (Spuroberfläche) vom Abschlag bis zum Spurende in Laufzeitkoordinaten: jeder dritte Generator-Stützpunkt plus der letzte (17–33 Punkte), 3 Nachkommastellen. Die Spur läuft hinter dem Loch (bei 91 %) noch kurz weiter, das Ende liegt bis zu 1 m vom Loch. |
 | `courses[].props` | Platzierungen `[name, x, y, z, yaw, scale]`; `name` ohne Präfix, `yaw` in Radiant um Y |
+| `courses[].island` | Inselumriss in Laufzeitkoordinaten: `{ center: [x, z], half: [hx, hz], power, wobble }`. Der Rand ist die Superellipse `\|dx/hx\|^power + \|dz/hz\|^power = 1` um `center`; der echte Rand skaliert ihren Radius je Winkel um höchstens `1 ± wobble` (gemessene größte Abweichung über 720 Winkel, auf Tausendstel aufgerundet). `center` und `half` in Metern; alle Zahlen mit 3 Nachkommastellen. |
 | `kits` | Je Look: `{ model, bytes, sha256, triangles, props: { <name>: { triangles, radius, height, tags } } }` |
 | `worlds` | `[{ id, look, preview }]` in Reihenfolge des ersten Auftretens, z. B. `{ id: 'coast', look: 'pirate', preview: 'previews/pirate.webp' }` |
 
@@ -367,10 +369,11 @@ Die Stufe folgt `tier()` (P4-Governor bei „auto“).
 
 - **`scripts/test-minigolf-assets.mjs`:**
   - neue Budgets aus Abschnitt 6;
-  - Kollider-Fingerabdruck je Bahn (SHA-256 über die Kollider-JSON) gleich der P1-Datei `scripts/fixtures/minigolf-p1-colliders.json`;
+  - Fingerabdrücke je Bahn gleich der P1-Datei `scripts/fixtures/minigolf-p1-colliders.json`: `colliders` (SHA-256 über die Kollider-JSON) und `physics` (SHA-256 über `{ obstacles, tee, cup, cupRadius, bounds, water, par }` in dieser Schlüsselreihenfolge);
+  - keine nummerierten Namen (`scenery-matte.001`) bei Knoten und Meshes der Bahn-GLBs;
   - `look` passt zur Welt;
   - `path` beginnt ≤ 0,3 m vom Abschlag und endet ≤ 1,0 m vom Loch (das Spurende liegt hinter dem Loch; der Korridor schützt so auch das Endstück);
-  - jede Platzierung verweist auf ein Kit-Requisit, liegt im Inselradius und hält den Spurkorridor frei (außer `span`);
+  - jede Platzierung verweist auf ein Kit-Requisit, hält den Abstand zum Inselrand (`courses[].island` mit Wackeltoleranz; 0,3 m plus der Anteil des Radius, den das Requisit nicht überhängen darf) und hält den Spurkorridor frei (außer `span`);
   - Kits: gültig nach glTF-Validator, eingebettet, Requisitenknoten mit `COLOR_0`, Budgets, Manifest-Hash;
   - Vorschaubilder vorhanden (WebP-Kennung, Größe);
   - bestehende Prüfungen bleiben.

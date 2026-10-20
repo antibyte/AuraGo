@@ -42,6 +42,9 @@ def parse_args():
         ap.error("--course takes a number from 1 to %d" % len(courses_v1.COURSES))
     if args.course and "courses" not in parts:
         ap.error("--course needs the courses part")
+    if args.save_blend and "courses" in parts and not args.course:
+        ap.error("--save-blend keeps the course scenes in memory: use it with --course N (a full run deletes every course "
+                 "after its export, otherwise later courses would get numbered node names)")
     args.parts = parts
     return args
 
@@ -67,6 +70,16 @@ def fresh_scene():
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
 
+def clear_scene():
+    """Delete the objects of the active scene and every datablock nothing uses (the factory cube, kit leftovers).
+
+    A full run and a single ``--course N`` start from the same state, so both write the same GLBs.
+    """
+    bpy.ops.object.select_all(action="SELECT")
+    bpy.ops.object.delete(use_global=False)
+    bpy.data.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
+
+
 def build_kits():
     entries = {}
     for look in kits.MODULES:
@@ -76,9 +89,8 @@ def build_kits():
 
 
 def build_courses():
-    """All 18 courses, dressed as pirate, temple and moon dioramas."""
-    bpy.ops.object.select_all(action="SELECT")
-    bpy.ops.object.delete(use_global=False)
+    """All 18 courses, dressed as pirate, temple and moon dioramas (each scene is deleted after its export)."""
+    clear_scene()
     return [courses_v1.build_course(i, c, dress.Dresser(i, c)) for i, c in enumerate(courses_v1.COURSES, 1)]
 
 
@@ -88,15 +100,17 @@ def world_entries(courses):
             for world in dict.fromkeys(c["world"] for c in courses)]
 
 
-def build_one_course(number, manifest):
-    """Rebuild course ``number`` with the dresser and patch its entry; every other entry and ``kits`` stay."""
+def build_one_course(number, manifest, keep_scene=False):
+    """Rebuild course ``number`` with the dresser and patch its entry; every other entry and ``kits`` stay.
+
+    ``keep_scene`` leaves the course scene in the session (for ``--save-blend``).
+    """
     courses = manifest.get("courses")
     if not courses or len(courses) != len(courses_v1.COURSES):
         raise SystemExit("--course patches an existing manifest: run a full build first")
-    bpy.ops.object.select_all(action="SELECT")
-    bpy.ops.object.delete(use_global=False)
+    clear_scene()
     course = courses_v1.COURSES[number - 1]
-    courses[number - 1] = courses_v1.build_course(number, course, dress.Dresser(number, course))
+    courses[number - 1] = courses_v1.build_course(number, course, dress.Dresser(number, course), keep_scene=keep_scene)
     return courses
 
 
@@ -111,7 +125,7 @@ def main():
         write_manifest(manifest)
     if "courses" in args.parts:
         if args.course:
-            manifest["courses"] = build_one_course(args.course, manifest)
+            manifest["courses"] = build_one_course(args.course, manifest, keep_scene=args.save_blend)
             manifest["worlds"] = world_entries(manifest["courses"])
             write_manifest(manifest)
             print(f"Patched course {args.course} in {RUNTIME}")

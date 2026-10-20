@@ -34,13 +34,26 @@ class Outline:
         self.rng = random.Random(seed)
         self.off = Vector((self.rng.uniform(-30, 30), self.rng.uniform(-30, 30), 0.0))
 
-    def radius(self, theta):
+    def ellipse(self, theta):
+        """Radius of the plain superellipse (no wobble) along ``theta``."""
         c, s = math.cos(theta), math.sin(theta)
         a, b, n = self.half[0], self.half[1], self.power
-        r = (abs(c / a) ** n + abs(s / b) ** n) ** (-1.0 / n)
+        return (abs(c / a) ** n + abs(s / b) ** n) ** (-1.0 / n)
+
+    def radius(self, theta):
+        c, s = math.cos(theta), math.sin(theta)
+        r = self.ellipse(theta)
         w = 1.0 + self.wobble * noise.noise(Vector((c * 1.3, s * 1.3, 0.0)) + self.off)
         w += self.wobble * 0.5 * noise.noise(Vector((c * 3.1, s * 3.1, 0.0)) + self.off * 1.7)
         return r * w
+
+    def deviation(self, samples=720):
+        """Largest relative difference between the wobbled radius and the plain superellipse (sampled)."""
+        worst = 0.0
+        for k in range(samples):
+            theta = math.tau * k / samples
+            worst = max(worst, abs(self.radius(theta) / self.ellipse(theta) - 1.0))
+        return worst
 
     def point(self, u, v):
         """Map grid coordinates in [-1, 1]^2 onto the outline (boundary at |.|=1)."""

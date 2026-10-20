@@ -99,10 +99,11 @@ class Dresser:
         plan["scatter"] = plan["scatter"] + out.scatter
         plan["medium"] = [(name, out.medium.get(name, count)) for name, count in plan["medium"]]
         cup = self.terrain.cup
-        self.placements = placement.place(self.look, self.number, placement.Field(lane, self.terrain.outline, self.terrain.in_trench), self.terrain.top_height,
+        field = placement.Field(lane, self.terrain.outline, self.terrain.in_trench)
+        self.placements = placement.place(self.look, self.number, field, self.terrain.top_height,
                                           templates.catalog, plan, fixed=out.fixed, reserved=out.reserved, cup=(cup[0], cup[1]),
                                           hero=out.hero)
-        placement.check(self.placements, lane, templates.catalog)
+        placement.check(self.placements, field, templates.catalog)
 
     def restyle(self, coll):
         """World material and colours for obstacles, templates, flag, hole and tee parts."""
@@ -115,6 +116,19 @@ class Dresser:
             yaw = math.atan2(math.sin(yaw), math.cos(yaw))
             out.append([name] + [round(v, 3) for v in (x, z, -y, yaw, scale)])
         return out
+
+    def runtime_island(self):
+        """Island outline in runtime coordinates: ``{center: [x, z], half: [hx, hz], power, wobble}``.
+
+        The rim is a superellipse around ``center`` (``|dx/hx|^power + |dz/hz|^power = 1``) whose
+        radius is scaled by at most ``1 +/- wobble`` along the angle; ``wobble`` is the largest
+        deviation of the true outline (measured, rounded up to 1/1000).
+        """
+        outline = self.terrain.outline
+        return {"center": [round(outline.center.x, 3), round(-outline.center.y, 3)],
+                "half": [round(outline.half[0], 3), round(outline.half[1], 3)],
+                "power": round(outline.power, 3),
+                "wobble": math.ceil(outline.deviation() * 1000.0) / 1000.0}
 
     # -- colours --------------------------------------------------------------
 

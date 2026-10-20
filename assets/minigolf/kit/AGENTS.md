@@ -76,8 +76,8 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
   `courses_v1` code; the dresser replaces `add_decor` / `add_special`. `surface-*`
   only get a POINT colour (never bevel, smoothing or `shade_smooth`), `rail-*`
   only `aurago_hidden` (no colour, saves COLOR_0 bytes); the P1 collider
-  fingerprint and `bounds` (taken from a throw-away legacy build, so the physics
-  out-of-bounds test never changes) stay identical. Island: `dress_island.Terrain`
+  and physics fingerprints and `bounds` (taken from a throw-away legacy build, so the
+  physics out-of-bounds test never changes) stay identical. Island: `dress_island.Terrain`
   (`top_height(x, y)`: base ground, bed 6 cm under the lane within 1.1 m smoothing
   to 2.0 m, cup hollow, trench across the island for `gap` courses; a second
   stretch of lane close by never ends up below the island), three strata per
@@ -89,13 +89,23 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
   templates, obstacles, rails and shore are hidden from the occluders. The
   per-course GLB budget lives in the asset test; the island alone is about 11-12k
   triangles.
-  `generate.py` dresses all 18 courses (`look`, `path`, `props` per course,
+  `generate.py` dresses all 18 courses (`look`, `path`, `props`, `island` per course,
   `worlds` and `kits` at top level); `--course N` rebuilds one course and patches
-  its manifest entry. Blender suffixes node and mesh names of later courses
-  (`.001`), so a `--course N` GLB differs from the full-run GLB in those names:
-  commit full-run output only. The manifest `path` runs to the lane end, up to 1 m
-  behind the cup (the cup sits at 91 % of the lane), so the corridor also covers
-  the end stub.
+  its manifest entry. `courses_v1.build_course` deletes the course after its export
+  (`discard_scene`: objects, meshes, scene, then every orphan; `generate.clear_scene`
+  does the same before the first course), because Blender numbers a name that is
+  still taken (`scenery-matte.001`). No exported node or mesh name carries a counter
+  and `--course N` in a fresh process writes the very file of the full run. Keep it
+  that way: give repeated parts unique names (the sun wheel blades are
+  `windmill-sail-0` to `-3`), and rename a replacement mesh only after removing the
+  old one (`shapes._apply_modifiers`, `dress_parts._putter`). `--save-blend` keeps the
+  scene and is therefore only allowed together with `--course N`. The manifest `path`
+  runs to the lane end, up to 1 m behind the cup (the cup sits at 91 % of the lane),
+  so the corridor also covers the end stub. `island` is the rim in runtime
+  coordinates, `{center: [x, z], half: [hx, hz], power, wobble}`: a superellipse
+  around `center` (`dress.Dresser.runtime_island`, `island.Outline`) whose radius the
+  true wobbled outline scales by at most `1 +/- wobble` (measured over 720 angles,
+  rounded up to 1/1000); the asset test checks every placement against it.
 - Specials and placement: `dress_specials.build` turns each legacy layout special
   into fixed kit placements (gate, palms of the beach, harbour posts, neon posts,
   crystals, tower, lighthouse as hero, ...) and/or hand-built geometry
@@ -110,7 +120,11 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
   overhang the rim by a share of their radius (`RIM` shares, their bounding circle is
   mostly thin parts); nothing stands in a gap trench; tall props that would hide the
   lane from the game camera and everything tall in front of the hero are skipped;
-  `placement.check` repeats the asset test rules and fails the build. The dish is
+  a fixed special that reaches over the rim moves towards the island centre in 5 cm
+  steps (`settle`); the dish is placed with the larger circle of its head;
+  `placement.check` repeats the asset test rules for EVERY placement, fixed ones too
+  (corridor, and `EDGE` plus `rim_share` x radius x scale inside the rim), and fails
+  the build. The dish is
   `dishbase` plus `dishhead` with one transform (the head is not based at z = 0).
   Contact shading: `Dresser.bake` links a copy of every placed prop (`occluders`,
   unbaked kit objects of the look, built once per process) into the course scene as
@@ -118,7 +132,8 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
 - Functional parts (`dress_parts.restyle`): obstacles (bevel only, exact extents),
   ball (icosphere on exactly r = 0.16, plain white, the game tints it), putter (steel
   shaft 0 to 0.82 m, bevelled head), flag (`cloth`, double sided), hole digits
-  (`emissive`), tee ring, cup rim and lining, a felt-coloured `cup-patch` that hides
+  (`emissive`, bevel 8 mm), tee ring, cup rim (made 2 cm thick below its unchanged top, bevel 8 mm)
+  and lining, a felt-coloured `cup-patch` that hides
   the dark ground in the stepped lane cut-out. `export.join_scenery` joins every
   other mesh per material into `scenery-<material>` nodes (`FUNCTIONAL_NAMES` /
   `FUNCTIONAL_PREFIXES` stay single nodes) and strips builder properties.
@@ -168,10 +183,13 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
   -- --only kits` (about 15 s) prints one `kit <look>: ... bytes ...` line per
   world; a second run must give identical GLB hashes. A full run must leave
   `git status ui/3d/minigolf` free of course GLB changes and
-  `node scripts/test-minigolf-assets.mjs` green.
+  `node scripts/test-minigolf-assets.mjs` green; so must `-- --only courses
+  --course N` in a fresh process.
 - Dressed courses: a full run (`generate.py` without arguments, about 2 minutes)
   rebuilds the three kits and all 18 courses; `node scripts/test-minigolf-assets.mjs`
-  (budgets, P1 collider fingerprint, kits, placements), `test-minigolf-courses.mjs`
+  (budgets, P1 fingerprints of the colliders and of the other physics fields
+  `obstacles, tee, cup, cupRadius, bounds, water, par`, no numbered node or mesh names,
+  kits, placements against `island`), `test-minigolf-courses.mjs`
   and `test-minigolf-physics.mjs` must stay green, and a second full run must give
   identical GLB and manifest hashes. `-- --only courses --course N` (about 15 s)
   is for iteration. Reviewing a course: `--save-blend` and a scratch Cycles render

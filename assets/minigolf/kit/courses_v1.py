@@ -671,6 +671,19 @@ def legacy_bounds(number, course):
     built=build_scene(number,course)
     bpy.context.window.scene=built["scene"]; bpy.context.view_layer.update()
     bounds=export.scene_bounds(list(built["model"].objects),built["obstacles"])
+    discard_scene(built,keep)
+    return bounds
+
+
+def discard_scene(built, keep):
+    """Delete the scene of ``built`` with its objects, data, collections and every orphan left behind.
+
+    ``keep`` becomes the active scene again. Blender numbers a name that is still
+    taken (``scenery-matte.001``), so a course that stays in memory would leak
+    numbered node and mesh names into the GLBs of every later course: a full run
+    and a fresh ``--course N`` give identical files only when each course leaves
+    nothing behind.
+    """
     bpy.context.window.scene=keep
     for coll in (built["model"],built["studio"]):
         for obj in list(coll.objects):
@@ -679,11 +692,13 @@ def legacy_bounds(number, course):
                 (bpy.data.meshes if isinstance(data,bpy.types.Mesh) else bpy.data.cameras if isinstance(data,bpy.types.Camera) else bpy.data.lights).remove(data)
         bpy.data.collections.remove(coll)
     bpy.data.scenes.remove(built["scene"])
-    return bounds
+    bpy.data.orphans_purge(do_local_ids=True,do_linked_ids=True,do_recursive=True)
 
 
-def build_course(number, course, dresser=None):
+def build_course(number, course, dresser=None, keep_scene=False):
+    """Build, export and describe one course; the scene is deleted afterwards unless ``keep_scene`` (``--save-blend``)."""
     bounds=legacy_bounds(number,course) if dresser is not None else None
+    home=bpy.context.window.scene
     built=build_scene(number,course,dresser)
     course_id,scene,model,palette,path,cup,tee,obstacles=(built[k] for k in ("course_id","scene","model","palette","path","cup","tee","obstacles"))
     if dresser is not None:
@@ -705,6 +720,8 @@ def build_course(number, course, dresser=None):
     entry={"id":course_id,"number":number,"world":course["world"],"par":course["par"],"model":os.path.basename(glb),"tee":q([tee_rt[0],tee_rt[1]+BALL_RADIUS,tee_rt[2]]),"cup":q(cup_rt),"cupRadius":CUP_RADIUS,"bounds":export.scene_bounds(list(model.objects),obstacles) if bounds is None else bounds,"colliders":colliders,"obstacles":obstacles,"water":water,"sha256":hashlib.sha256(data).hexdigest(),"bytes":len(data),"triangles":export.glb_triangles(glb)}
     if dresser is not None:
         path_rt=[q(runtime((p[0],p[1],lane_center_height(course,path,i)))) for i,p in enumerate(path) if i%3==0 or i==len(path)-1]
-        entry.update({"look":dresser.look,"path":[[round(v,3) for v in p] for p in path_rt],"props":dresser.runtime_props()})
+        entry.update({"look":dresser.look,"path":[[round(v,3) for v in p] for p in path_rt],"props":dresser.runtime_props(),"island":dresser.runtime_island()})
     print(f"{course_id}: {len(data)} bytes, {entry['triangles']} triangles, {len(colliders)} colliders, {len(obstacles)} dynamic")
+    if not keep_scene:
+        discard_scene(built,home)
     return entry

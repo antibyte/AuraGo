@@ -7,10 +7,12 @@ grid, so a run is byte-stable.
 
 Rules (spec 3.4, asset test): no footprint circle (``radius`` x scale, the kit
 catalog) enters the corridor around the lane centre line except ``span`` props,
-everything lies inside the island rim with a margin, and the instance count stays
-below ``LIMIT``. The corridor here is a little wider than the test's 1.0 m so the
-rail trims and their posts stay clear. The lane polyline is exactly the manifest
-``path`` (every third sample plus the last), the one the test measures against.
+everything lies inside the island rim with a margin (``rim_share``: how much of
+its radius a prop needs inside the rim, the rest may overhang), and the instance
+count stays below ``LIMIT``. The corridor here is a little wider than the test's
+1.0 m so the rail trims and their posts stay clear. The lane polyline is exactly
+the manifest ``path`` (every third sample plus the last), the one the test
+measures against. ``check`` applies every rule to every placement, fixed ones too.
 """
 
 import math
@@ -27,6 +29,8 @@ HERO_SOLID = 0.6  # the same for a hero (a long thin hull or a head fills little
 HERO_MAX = {"lighthouse": 1.3}
 VIEW = (-0.58, 0.81)  # horizontal viewing direction of the game camera in Blender XY
 DEFAULT_SINK = 0.03
+TOLERANCE = 0.005  # metres: slack of the rim check for scales rounded to millimetres
+SETTLE_STEP, SETTLE_STEPS = 0.05, 40  # a fixed special that reaches over the rim moves inwards in these steps (metres)
 
 # front direction of the kit props per look (+1: front towards +Y, -1: towards -Y)
 FRONT = {"pirate": 1.0, "temple": -1.0, "moon": -1.0}
@@ -106,6 +110,12 @@ class Field:
         return min(self.lane(x, y)[0] - CORRIDOR, (self.edge(x, y) - EDGE) / rim)
 
 
+def rim_share(name, catalog):
+    """Share of a prop's footprint radius that must lie inside the island rim (the rest may overhang)."""
+    tags = catalog[name]["tags"]
+    return RIM.get(name, TALL_RIM if "tall" in tags else HERO_RIM if "hero" in tags else 1.0)
+
+
 def yaw_for(front, direction):
     """Yaw (radians, about +Z) that turns a prop whose front is ``front`` (+1/-1 along Y) towards ``direction``."""
     dx, dy = direction
@@ -152,7 +162,7 @@ def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(),
     """Placements ``[(name, x, y, z, yaw, scale)]``; see the module docstring.
 
     ``fixed`` are ``(name, x, y, yaw, scale)`` special placements that are kept
-    first; ``reserved`` are ``(x, y, radius)`` circles taken by special geometry;
+    first (moved inwards only as far as the rim rule needs); ``reserved`` are ``(x, y, radius)`` circles taken by special geometry;
     ``plan`` holds ``medium`` and ``scatter`` lists of ``(name, count)``; ``hero``
     overrides the plan's hero prop (None keeps it, False drops it).
     """
@@ -163,13 +173,17 @@ def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(),
     out, occupied, bubbles = [], [(x, y, r) for x, y, r in reserved], []
 
     def rim(name):
-        tags = catalog[name]["tags"]
-        return RIM.get(name, TALL_RIM if "tall" in tags else HERO_RIM if "hero" in tags else 1.0)
+        return rim_share(name, catalog)
 
     def solid(name, scale):
         tags = catalog[name]["tags"]
         share = SOLID.get(name, CANOPY if "tall" in tags else HERO_SOLID if "hero" in tags else 1.0)
         return catalog[name]["radius"] * scale * share
+
+    def reach(name):
+        """Footprint radius that must clear the corridor and the rim: the dish head is wider than its base."""
+        r = catalog[name]["radius"]
+        return max(r, catalog["dishhead"]["radius"]) if name == "dishbase" and "dishhead" in catalog else r
 
     def overlaps(x, y, r, gap, soft=False):
         return any(math.hypot(x - ox, y - oy) < r + orad + gap for ox, oy, orad in (occupied + bubbles if soft else occupied))
@@ -181,7 +195,19 @@ def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(),
         if name == "dishbase":  # the head turns on its own: same transform, no second footprint
             out.append(("dishhead", x, y, out[-1][3], yaw, scale))
 
+    def settle(name, x, y, scale):
+        """A fixed special keeps its legacy spot unless that reaches over the rim: pull it towards the island centre."""
+        need = EDGE + rim(name) * catalog[name]["radius"] * scale
+        cx, cy = field.outline.center.x, field.outline.center.y
+        for _ in range(SETTLE_STEPS):
+            d = math.hypot(cx - x, cy - y)
+            if field.edge(x, y) >= need or d < SETTLE_STEP:
+                break
+            x, y = x + (cx - x) / d * SETTLE_STEP, y + (cy - y) / d * SETTLE_STEP
+        return x, y
+
     for name, x, y, yaw, scale in fixed:
+        x, y = settle(name, x, y, scale)
         add(name, x, y, yaw, scale)
         if name in FOOTPRINT:  # a wide span prop blocks its two legs, not a circle around the lane
             occupied.pop()
@@ -226,7 +252,7 @@ def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(),
                 break
             base = round(rng.uniform(0.85, 1.15), 3)
             room = field.clearance(x, y, rim(key))
-            scale = round(min(base, room / r), 3) if r else base
+            scale = round(min(base, room / reach(key)), 3) if r else base
             if scale < 0.6 * base or overlaps(x, y, solid(key, scale), FOOT_GAP, soft=True) or not field.dry(x, y, 0.7 * r * scale):
                 continue
             if hero_front and info["height"] * scale > 0.9 and hero_front(x, y):
@@ -262,14 +288,20 @@ def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(),
     return out[:LIMIT]
 
 
-def check(placements, lane, catalog):
-    """Raise when a placement breaks a rule of the asset test (instance limit, island radius, lane corridor)."""
+def check(placements, field, catalog):
+    """Raise when a placement breaks a rule of the asset test (instance limit, lane corridor, island rim).
+
+    Every placement is checked, the fixed special placements too: the centre keeps
+    ``EDGE`` plus its ``rim_share`` of the footprint radius inside the island rim
+    (``TOLERANCE`` covers the rounding of the scale to millimetres).
+    """
     if not placements or len(placements) > LIMIT:
         raise RuntimeError("%d placements (limit %d)" % (len(placements), LIMIT))
-    field = Field(lane, None)
     for name, x, y, z, yaw, scale in placements:
         info = catalog[name]
-        if math.hypot(x, y) > 6.0:
-            raise RuntimeError("%s at (%.2f, %.2f) lies outside the island" % (name, x, y))
         if "span" not in info["tags"] and field.lane(x, y)[0] < 1.0 + info["radius"] * scale - 0.05:
             raise RuntimeError("%s at (%.2f, %.2f) scale %.2f blocks the lane corridor" % (name, x, y, scale))
+        need = EDGE + rim_share(name, catalog) * info["radius"] * scale
+        if field.edge(x, y) < need - TOLERANCE:
+            raise RuntimeError("%s at (%.2f, %.2f) scale %.2f is %.2f m inside the island rim (needs %.2f)"
+                               % (name, x, y, scale, field.edge(x, y), need))

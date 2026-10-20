@@ -5,10 +5,13 @@ come from the unchanged ``courses_v1`` code with legacy colour materials. After
 the build, ``restyle`` swaps their materials for the shared vertex-coloured kit
 materials and paints the world colours. Obstacle boxes only get a bevel (the asset
 test compares their exact extents), the ball stays exactly on r = 0.16 m and the
-putter keeps its 0 to 0.82 m shaft.
+putter keeps its 0 to 0.82 m shaft. The hole digit segments get a small bevel and
+the flat cup rim a 2 cm thickness (top unchanged) with the same bevel; neither is
+a collider input.
 """
 
 import bpy
+from mathutils import Matrix
 
 from . import colors, materials, palette, shapes
 from .courses_v1 import BALL_RADIUS, CUP_RADIUS, ring
@@ -23,6 +26,8 @@ PUTTER_HEAD = {"pirate": ("red_dark", "red"), "temple": ("gold_dark", "gold"), "
 SHAFT = {"pirate": ("iron", "iron_light"), "temple": ("bark", "bark_light"), "moon": ("metal_dark", "metal")}
 POLE = {"pirate": "cream", "temple": "cream", "moon": "panel_white"}
 ROUND = ("cup-bottom", "cup-lining", "flag-pole-base")
+SMALL_BEVEL = 0.008  # hole digit segments and cup rim
+RIM_THICKNESS = 0.02
 
 
 def _base(obj):
@@ -70,6 +75,17 @@ def _cup_patch(look, pal, model, rim):
     return patch
 
 
+def _bevel_digit(obj):
+    """Soften a seven-segment bar (a plain box in the legacy code)."""
+    shapes.finish(obj, bevel=SMALL_BEVEL, segments=2, dens=0)
+
+
+def _bevel_rim(obj):
+    """Give the flat cup ring a thickness below its top (the top stays where it was) and bevel it."""
+    shapes.finish(obj, bevel=SMALL_BEVEL, segments=2, dens=0, solidify=RIM_THICKNESS)
+    obj.data.transform(Matrix.Translation((0.0, 0.0, -RIM_THICKNESS / 2)))
+
+
 def _ball(obj):
     """Finer ball: an icosphere whose vertices all lie exactly on the ball radius, plain white (the game tints it)."""
     fresh = shapes.ico_sphere("ball-fresh", BALL_RADIUS, subdiv=2)
@@ -81,6 +97,8 @@ def _ball(obj):
 
 def _putter(look, model, old):
     """Steel shaft (0 to 0.82 m) and a bevelled head in the world accent colour."""
+    # The old object and mesh give up their names first, so the new ones are not numbered (".001").
+    old.name, old.data.name = "putter-template-old", "putter-template-old-mesh"
     shapes.set_collection(model)
     try:
         p = Prop(look, "putter", full_name="putter-template")
@@ -95,8 +113,10 @@ def _putter(look, model, old):
         del new[key]
     new["aurago_template"] = "putter"
     new["aurago_role"] = "template"
+    old_mesh = old.data
     bpy.data.objects.remove(old, do_unlink=True)
-    new.name = "putter-template"
+    if old_mesh.users == 0:
+        bpy.data.meshes.remove(old_mesh)
     return new
 
 
@@ -122,6 +142,7 @@ def restyle(look, model):
             _paint(obj, pal.c(POLE[look]), "satin", 0.4)
             bake.append(obj)
         elif base == "hole-digit-segment":
+            _bevel_digit(obj)
             _paint(obj, gold, "emissive", 0.0, strength=1.0)
             passthrough.append(obj)
         elif base == "tee-ring":
@@ -129,9 +150,11 @@ def restyle(look, model):
             bake.append(obj)
         elif base == "cup-rim":
             moon = look == "moon"
+            patch = _cup_patch(look, pal, model, obj)  # centre and height come from the flat ring
+            _bevel_rim(obj)
             _paint(obj, pal.c("cyan") if moon else gold, "emissive" if moon else "satin", 0.0 if moon else 0.5)
             (passthrough if moon else bake).append(obj)
-            bake.append(_cup_patch(look, pal, model, obj))
+            bake.append(patch)
         elif base == "cup-bottom":
             _paint(obj, black, "matte", 0.0)
             bake.append(obj)

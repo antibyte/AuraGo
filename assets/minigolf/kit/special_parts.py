@@ -116,7 +116,7 @@ def gate_hub(p, look, course, path, t=0.53):
 
 
 def sun_wheel(p, look, course, path, t=0.55):
-    """Stone mast, gold hub and sun face of the sun wheel; returns the four turning blades as standalone objects."""
+    """Stone mast, gold hub and sun face of the sun wheel; returns the four turning blades (``windmill-sail-0`` to ``-3``) as standalone objects."""
     f = frame(course, path, t)
     mx, my, mz = f["x"] + 1.48, f["y"], f["h"]
     mast = shapes.cylinder("wheel-mast", 0.13, 0.09, 2.1, seg=10)
@@ -129,7 +129,7 @@ def sun_wheel(p, look, course, path, t=0.55):
     p.add(face, "satin", ("gold", "gold_light"), loc=(mx, my - 0.11, mz + 2.13), rot=(90, 0, 0), bevel=0.01, segments=1, dens=0, ao=0.3)
     blades = []
     for i, angle in enumerate((0.0, math.pi / 2, math.pi, math.pi * 1.5)):
-        q = Prop(look, "blade", seed=i + 1, full_name="windmill-sail")
+        q = Prop(look, "blade", seed=i + 1, full_name="windmill-sail-%d" % i)  # unique names: Blender would number four equal ones
         blade = shapes.box("sun-blade", (0.88, 0.12, 0.26), base=False)
         q.add(blade, "satin", ("fire_orange", "fire_yellow") if i % 2 else ("gold_dark", "gold_light"), mode="x", bevel=0.03,
               segments=2, dens=0.25, ao=0.3)
