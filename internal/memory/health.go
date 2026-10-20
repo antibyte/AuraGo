@@ -2,7 +2,6 @@ package memory
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -350,14 +349,20 @@ type MemoryBudgetStats struct {
 // 3. Oldest low-access memories
 // Returns the IDs to evict, or empty slice if within budget.
 func (s *SQLiteMemory) EnforceMemoryBudget(budget int) ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return s.EnforceMemoryBudgetContext(ctx, budget)
+}
+
+func (s *SQLiteMemory) EnforceMemoryBudgetContext(ctx context.Context, budget int) ([]string, error) {
 	if budget <= 0 {
 		return nil, nil
 	}
 
 	var total int
-	if err := s.db.QueryRow(`
+	if err := s.db.QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM memory_meta
-		WHERE COALESCE(verification_status, 'unverified') != ?
+		WHERE COALESCE(verification_status, 'unverified') != ? AND COALESCE(archived_at,'')=''
 	`, MemoryVerificationArchived).Scan(&total); err != nil {
 		return nil, fmt.Errorf("count memory_meta: %w", err)
 	}
@@ -366,10 +371,12 @@ func (s *SQLiteMemory) EnforceMemoryBudget(budget int) ([]string, error) {
 		return nil, nil
 	}
 
-	overBy := total - budget
-	rows, err := s.db.Query(`
+	// Bound each maintenance pass. Subsequent runs continue from the remaining
+	// active rows after committed archives are excluded.
+	overBy := min(total-budget, 500)
+	rows, err := s.db.QueryContext(ctx, `
 		SELECT doc_id FROM memory_meta
-		WHERE keep_forever = 0 AND protected = 0
+		WHERE keep_forever = 0 AND protected = 0 AND COALESCE(archived_at,'')=''
 		  AND COALESCE(verification_status, 'unverified') NOT IN (?, ?)
 		ORDER BY
 			CASE WHEN useful_count + useless_count >= 3 AND useless_count >= useful_count + 2 THEN 0 ELSE 1 END,
@@ -386,66 +393,20 @@ func (s *SQLiteMemory) EnforceMemoryBudget(budget int) ([]string, error) {
 	var toEvict []string
 	for rows.Next() {
 		var docID string
-		if err := rows.Scan(&docID); err == nil {
-			toEvict = append(toEvict, docID)
+		if err := rows.Scan(&docID); err != nil {
+			return nil, err
 		}
+		toEvict = append(toEvict, docID)
 	}
 	return toEvict, rows.Err()
 }
 
 // ApplyMemoryBudgetEnforcement evicts lowest-priority tracked memories from LTM when over budget.
 // budget <= 0 disables enforcement. Protected and keep_forever rows are never evicted.
-func (s *SQLiteMemory) ApplyMemoryBudgetEnforcement(budget int, ltm VectorDB) (evicted int, resultErr error) {
-	if budget <= 0 || ltm == nil {
-		return 0, nil
-	}
-	// A correction may archive an eviction candidate while preparing its replacement.
-	s.automaticMemoryMu.Lock()
-	defer s.automaticMemoryMu.Unlock()
-	toEvict, err := s.EnforceMemoryBudget(budget)
-	if err != nil {
-		return 0, err
-	}
-	if len(toEvict) == 0 {
-		return 0, nil
-	}
-	ctx, publication := prepareMemoryPublication(context.Background(), s, nil)
-	if err := startMemoryPublication(ctx); err != nil {
-		return 0, err
-	}
-	complete := false
-	defer func() { resultErr = errors.Join(resultErr, publication.finish(complete)) }()
-
-	// Batch-delete vector documents when the implementation supports it.
-	if batcher, ok := ltm.(interface{ DeleteDocuments([]string) error }); ok {
-		if err := batcher.DeleteDocuments(toEvict); err != nil {
-			s.logger.Warn("Failed to batch evict memories from LTM for budget enforcement", "count", len(toEvict), "error", err)
-			return 0, fmt.Errorf("batch delete vector docs: %w", err)
-		}
-	} else {
-		var joinedErr error
-		for _, docID := range toEvict {
-			if err := ltm.DeleteDocument(docID); err != nil {
-				s.logger.Warn("Failed to evict memory from LTM for budget enforcement", "doc_id", docID, "error", err)
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("delete vector doc %s: %w", docID, err))
-			}
-		}
-		if joinedErr != nil {
-			return 0, joinedErr
-		}
-	}
-
-	// Batch cleanup SQLite references and archive metadata.
-	if err := s.CleanupDeletedVectorDocumentReferencesBatch(toEvict); err != nil {
-		return 0, fmt.Errorf("cleanup deleted vector document references: %w", err)
-	}
-	if err := s.ArchiveMemoryMetaBatch(toEvict, "memory_meta budget enforcement", "system"); err != nil {
-		return 0, fmt.Errorf("archive evicted memory metadata: %w", err)
-	}
-
-	s.logger.Info("Enforced memory_meta budget", "budget", budget, "evicted", len(toEvict))
-	complete = true
-	return len(toEvict), nil
+func (s *SQLiteMemory) ApplyMemoryBudgetEnforcement(budget int, ltm VectorDB) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return s.ApplyMemoryBudgetEnforcementContext(ctx, budget, ltm)
 }
 
 // GetMemoryBudgetStats returns current budget utilization statistics.

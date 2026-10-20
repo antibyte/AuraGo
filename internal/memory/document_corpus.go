@@ -42,7 +42,12 @@ func PrepareDocumentCorpus(dir string) error {
 }
 
 // BindMemoryMetadata provides current curation and file-generation eligibility.
-func (cv *ChromemVectorDB) BindMemoryMetadata(stm *SQLiteMemory) { cv.fileIndexMemory.Store(stm) }
+func (cv *ChromemVectorDB) BindMemoryMetadata(stm *SQLiteMemory) {
+	cv.fileIndexMemory.Store(stm)
+	if stm != nil {
+		stm.bindArchiveVector(cv)
+	}
+}
 
 func (cv *ChromemVectorDB) readCollectionDocument(ctx context.Context, col *chromem.Collection, id string) (chromem.Document, error) {
 	if cv.corpus != nil {

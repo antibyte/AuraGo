@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -1076,9 +1077,27 @@ func (s *SQLiteMemory) CleanupDeletedVectorDocumentReferences(docID string) erro
 // CleanupDeletedVectorDocumentReferences. It removes references for all given
 // docIDs in chunked DELETE statements to avoid N+1 overhead.
 func (s *SQLiteMemory) CleanupDeletedVectorDocumentReferencesBatch(docIDs []string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return s.CleanupDeletedVectorDocumentReferencesBatchContext(ctx, docIDs)
+}
+
+func (s *SQLiteMemory) CleanupDeletedVectorDocumentReferencesBatchContext(ctx context.Context, docIDs []string) error {
 	if s == nil || len(docIDs) == 0 {
 		return nil
 	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := cleanupDeletedVectorReferencesTx(ctx, tx, docIDs); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func cleanupDeletedVectorReferencesTx(ctx context.Context, tx *sql.Tx, docIDs []string) error {
 	normalizedIDs := make([]string, 0, len(docIDs))
 	seen := make(map[string]struct{}, len(docIDs))
 	for _, id := range docIDs {
@@ -1096,13 +1115,7 @@ func (s *SQLiteMemory) CleanupDeletedVectorDocumentReferencesBatch(docIDs []stri
 		return nil
 	}
 
-	tx, err := s.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if err := execChunkedInDeleteStrings(tx, "file_embedding_docs", "doc_id", normalizedIDs, defaultInClauseChunkSize); err != nil {
+	if err := deleteMemoryIDsContext(ctx, tx, "file_embedding_docs", "doc_id", normalizedIDs); err != nil {
 		return fmt.Errorf("cleanup file_embedding_docs: %w", err)
 	}
 
@@ -1127,7 +1140,7 @@ func (s *SQLiteMemory) CleanupDeletedVectorDocumentReferencesBatch(docIDs []stri
 		for _, id := range chunk {
 			args = append(args, id)
 		}
-		if _, err := tx.Exec(fmt.Sprintf(`
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(`
 			DELETE FROM memory_conflicts
 			WHERE doc_id_left IN (%s) OR doc_id_right IN (%s)
 		`, strings.Join(placeholders, ","), strings.Join(placeholders, ",")), args...); err != nil {
@@ -1135,7 +1148,23 @@ func (s *SQLiteMemory) CleanupDeletedVectorDocumentReferencesBatch(docIDs []stri
 		}
 	}
 
-	return tx.Commit()
+	return nil
+}
+
+// Callers supply internal table/column constants; values remain parameters.
+func deleteMemoryIDsContext(ctx context.Context, tx *sql.Tx, table, column string, ids []string) error {
+	for start := 0; start < len(ids); start += defaultInClauseChunkSize {
+		end := min(start+defaultInClauseChunkSize, len(ids))
+		args := make([]any, end-start)
+		for i, id := range ids[start:end] {
+			args[i] = id
+		}
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(args)), ",")
+		if _, err := tx.ExecContext(ctx, "DELETE FROM "+table+" WHERE "+column+" IN ("+placeholders+")", args...); err != nil {
+			return fmt.Errorf("delete %s batch: %w", table, err)
+		}
+	}
+	return nil
 }
 
 // GetUniversallyUsefulMemories returns memory IDs that were cited across multiple sessions,

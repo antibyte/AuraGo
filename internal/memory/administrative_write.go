@@ -12,6 +12,11 @@ func StoreAdministrativeMemoryDocument(ctx context.Context, stm *SQLiteMemory, v
 	if stm == nil || vector == nil {
 		return nil, fmt.Errorf("memory stores are required")
 	}
+	if err := lockMemoryMutex(ctx, &stm.automaticMemoryMu); err != nil {
+		return nil, err
+	}
+	defer stm.automaticMemoryMu.Unlock()
+	stm.bindArchiveVector(vector)
 	ctx, publication := prepareMemoryPublication(ctx, stm, nil)
 	complete := false
 	defer func() { resultErr = errors.Join(resultErr, publication.finish(complete)) }()

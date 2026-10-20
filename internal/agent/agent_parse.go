@@ -260,6 +260,12 @@ func serverHostNeedsLANIP(host string) bool {
 
 // runMemoryOrchestrator handles the Priority-Based Forgetting System across both RAG and Knowledge Graph.
 func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return runMemoryOrchestratorContext(ctx, req, cfg, logger, client, longTermMem, shortTermMem, kg)
+}
+
+func runMemoryOrchestratorContext(ctx context.Context, req memoryOrchestratorArgs, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph) string {
 	thresholdLow := req.ThresholdLow
 	if thresholdLow == 0 {
 		thresholdLow = 1
@@ -316,7 +322,7 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 		// source allows explicit administrative recovery after archiving.
 		for _, meta := range lowDocs {
 			docID := meta.DocID
-			changed, err := shortTermMem.ApplyAutomaticMemoryCurationAction(memory.MemoryCurationAction{
+			changed, err := shortTermMem.ApplyAutomaticMemoryCurationActionContext(ctx, memory.MemoryCurationAction{
 				DocID:        docID,
 				Action:       memory.MemoryCurationActionArchive,
 				Reason:       "memory maintenance low priority",
