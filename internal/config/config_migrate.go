@@ -239,6 +239,7 @@ func isTailscaleMagicDNSURL(raw string) bool {
 // the Providers list is empty but inline fields exist (old-format config), it
 // auto-creates provider entries and sets the references.
 func (c *Config) ResolveProviders() {
+	defer c.applyProviderCredentialBindings(nil)
 	c.migrateInlineProviders()
 	c.migrateBudgetModelsToProviders()
 
@@ -248,6 +249,10 @@ func (c *Config) ResolveProviders() {
 		if strings.EqualFold(strings.TrimSpace(p.ID), LocalLLMProviderID) {
 			slog.Error("[Config] Reserved provider entry is ignored", "provider_id", p.ID)
 			continue
+		}
+		p.AuthType = strings.ToLower(strings.TrimSpace(p.AuthType))
+		if p.AuthType == "oauth" {
+			p.AuthType = "oauth2"
 		}
 		lower := strings.ToLower(p.Type)
 		if lower != "" && !knownProviderTypes[lower] {
@@ -346,10 +351,10 @@ func (c *Config) ResolveProviders() {
 			c.Vision.Model = c.Vision.LegacyModel
 		}
 	}
-	if c.Vision.APIKey == "" {
+	if c.Vision.Provider == "" && c.Vision.APIKey == "" {
 		c.Vision.APIKey = c.LLM.APIKey
 	}
-	if c.Vision.BaseURL == "" {
+	if c.Vision.Provider == "" && c.Vision.BaseURL == "" {
 		c.Vision.BaseURL = c.LLM.BaseURL
 	}
 
@@ -366,10 +371,10 @@ func (c *Config) ResolveProviders() {
 			c.Whisper.Model = c.Whisper.LegacyModel
 		}
 	}
-	if c.Whisper.APIKey == "" {
+	if c.Whisper.Provider == "" && c.Whisper.APIKey == "" {
 		c.Whisper.APIKey = c.LLM.APIKey
 	}
-	if c.Whisper.BaseURL == "" {
+	if c.Whisper.Provider == "" && c.Whisper.BaseURL == "" {
 		c.Whisper.BaseURL = c.LLM.BaseURL
 	}
 
@@ -407,7 +412,7 @@ func (c *Config) ResolveProviders() {
 		c.Embeddings.APIKey = "ollama" // Ollama ignores auth but field must be non-empty
 		c.Embeddings.Model = model
 	}
-	if c.Embeddings.Provider != "local-granite" && c.Embeddings.APIKey == "" {
+	if c.Embeddings.Provider == "" && c.Embeddings.APIKey == "" {
 		c.Embeddings.APIKey = c.LLM.APIKey
 	}
 
@@ -424,13 +429,13 @@ func (c *Config) ResolveProviders() {
 			c.CoAgents.LLM.Model = c.CoAgents.LLM.LegacyModel
 		}
 	}
-	if c.CoAgents.LLM.APIKey == "" {
+	if c.CoAgents.LLM.Provider == "" && c.CoAgents.LLM.APIKey == "" {
 		c.CoAgents.LLM.APIKey = c.LLM.APIKey
 	}
-	if c.CoAgents.LLM.BaseURL == "" {
+	if c.CoAgents.LLM.Provider == "" && c.CoAgents.LLM.BaseURL == "" {
 		c.CoAgents.LLM.BaseURL = c.LLM.BaseURL
 	}
-	if c.CoAgents.LLM.Model == "" {
+	if c.CoAgents.LLM.Provider == "" && c.CoAgents.LLM.Model == "" {
 		c.CoAgents.LLM.Model = c.LLM.Model
 	}
 
@@ -454,16 +459,16 @@ func (c *Config) ResolveProviders() {
 			c.A2A.LLM.Model = c.A2A.LLM.LegacyModel
 		}
 	}
-	if c.A2A.LLM.APIKey == "" {
+	if c.A2A.LLM.Provider == "" && c.A2A.LLM.APIKey == "" {
 		c.A2A.LLM.APIKey = c.LLM.APIKey
 	}
-	if c.A2A.LLM.BaseURL == "" {
+	if c.A2A.LLM.Provider == "" && c.A2A.LLM.BaseURL == "" {
 		c.A2A.LLM.BaseURL = c.LLM.BaseURL
 	}
-	if c.A2A.LLM.Model == "" {
+	if c.A2A.LLM.Provider == "" && c.A2A.LLM.Model == "" {
 		c.A2A.LLM.Model = c.LLM.Model
 	}
-	if c.A2A.LLM.ProviderType == "" {
+	if c.A2A.LLM.Provider == "" && c.A2A.LLM.ProviderType == "" {
 		c.A2A.LLM.ProviderType = c.LLM.ProviderType
 	}
 
@@ -587,19 +592,19 @@ func (c *Config) ResolveProviders() {
 				c.LLMGuardian.ResolvedModel = c.LLMGuardian.Model
 			}
 		} else {
-			slog.Warn("[Config] llm_guardian.provider not found; falling back to main LLM", "provider", guardianProvider)
+			slog.Warn("[Config] llm_guardian.provider not found; route is blocked", "provider", guardianProvider)
 		}
 	}
-	if c.LLMGuardian.APIKey == "" {
+	if c.LLMGuardian.Provider == "" && c.LLMGuardian.APIKey == "" {
 		c.LLMGuardian.APIKey = c.LLM.APIKey
 	}
-	if c.LLMGuardian.BaseURL == "" {
+	if c.LLMGuardian.Provider == "" && c.LLMGuardian.BaseURL == "" {
 		c.LLMGuardian.BaseURL = c.LLM.BaseURL
 	}
-	if c.LLMGuardian.ResolvedModel == "" {
+	if c.LLMGuardian.Provider == "" && c.LLMGuardian.ResolvedModel == "" {
 		c.LLMGuardian.ResolvedModel = c.LLM.Model
 	}
-	if c.LLMGuardian.ProviderType == "" {
+	if c.LLMGuardian.Provider == "" && c.LLMGuardian.ProviderType == "" {
 		c.LLMGuardian.ProviderType = c.LLM.ProviderType
 	}
 
@@ -612,16 +617,16 @@ func (c *Config) ResolveProviders() {
 			c.MissionPreparation.Model = p.Model
 		}
 	}
-	if c.MissionPreparation.APIKey == "" {
+	if c.MissionPreparation.Provider == "" && c.MissionPreparation.APIKey == "" {
 		c.MissionPreparation.APIKey = c.LLM.APIKey
 	}
-	if c.MissionPreparation.BaseURL == "" {
+	if c.MissionPreparation.Provider == "" && c.MissionPreparation.BaseURL == "" {
 		c.MissionPreparation.BaseURL = c.LLM.BaseURL
 	}
-	if c.MissionPreparation.Model == "" {
+	if c.MissionPreparation.Provider == "" && c.MissionPreparation.Model == "" {
 		c.MissionPreparation.Model = c.LLM.Model
 	}
-	if c.MissionPreparation.ProviderType == "" {
+	if c.MissionPreparation.Provider == "" && c.MissionPreparation.ProviderType == "" {
 		c.MissionPreparation.ProviderType = c.LLM.ProviderType
 	}
 
@@ -695,16 +700,16 @@ func (c *Config) resolveSpecialistLLM(spec *SpecialistConfig) {
 		}
 	}
 	// Inherit from co_agents.llm for any unresolved fields
-	if spec.LLM.APIKey == "" {
+	if spec.LLM.Provider == "" && spec.LLM.APIKey == "" {
 		spec.LLM.APIKey = c.CoAgents.LLM.APIKey
 	}
-	if spec.LLM.BaseURL == "" {
+	if spec.LLM.Provider == "" && spec.LLM.BaseURL == "" {
 		spec.LLM.BaseURL = c.CoAgents.LLM.BaseURL
 	}
-	if spec.LLM.Model == "" {
+	if spec.LLM.Provider == "" && spec.LLM.Model == "" {
 		spec.LLM.Model = c.CoAgents.LLM.Model
 	}
-	if spec.LLM.ProviderType == "" {
+	if spec.LLM.Provider == "" && spec.LLM.ProviderType == "" {
 		spec.LLM.ProviderType = c.CoAgents.LLM.ProviderType
 	}
 }
@@ -713,12 +718,13 @@ func (c *Config) resolveSpecialistLLM(spec *SpecialistConfig) {
 // them into the resolved APIKey fields of providers that use auth_type "oauth2".
 // Call this after ResolveProviders() whenever a vault is available.
 func (c *Config) ApplyOAuthTokens(vault SecretReader) {
-	if vault == nil {
+	if vault == nil || reflect.ValueOf(vault).Kind() == reflect.Pointer && reflect.ValueOf(vault).IsNil() {
 		return
 	}
 	tokensByProvider := make(map[string]string)
 	for i := range c.Providers {
 		p := &c.Providers[i]
+		p.RuntimeOAuthToken = ""
 		if p.AuthType != "oauth2" {
 			continue
 		}
@@ -733,74 +739,11 @@ func (c *Config) ApplyOAuthTokens(vault SecretReader) {
 		if tok.AccessToken == "" {
 			continue
 		}
+		p.RuntimeOAuthToken = tok.AccessToken
 		tokensByProvider[p.ID] = tok.AccessToken
 	}
 
-	// Re-resolve: copy updated OAuth access tokens into the resolved slot fields.
-	applyIfOAuth := func(providerID string, target *string) {
-		p := c.FindProvider(providerID)
-		if p != nil && p.AuthType == "oauth2" {
-			if token := tokensByProvider[p.ID]; token != "" {
-				*target = token
-			}
-		}
-	}
-	applyIfHelperOAuth := func(providerID string) {
-		p := c.FindProvider(providerID)
-		if p == nil || p.AuthType != "oauth2" {
-			return
-		}
-		token := tokensByProvider[p.ID]
-		if token == "" {
-			return
-		}
-		c.LLM.HelperAPIKey = token
-		if c.Personality.V2ResolvedURL == c.LLM.HelperBaseURL && c.Personality.V2ResolvedModel == c.LLM.HelperResolvedModel {
-			c.Personality.V2ResolvedKey = token
-		}
-		if c.MemoryAnalysis.BaseURL == c.LLM.HelperBaseURL && c.MemoryAnalysis.ResolvedModel == c.LLM.HelperResolvedModel {
-			c.MemoryAnalysis.APIKey = token
-		}
-		for _, slot := range []struct {
-			baseURL *string
-			model   *string
-			apiKey  *string
-		}{
-			{&c.Tools.WebScraper.SummaryBaseURL, &c.Tools.WebScraper.SummaryModel, &c.Tools.WebScraper.SummaryAPIKey},
-			{&c.Tools.Wikipedia.SummaryBaseURL, &c.Tools.Wikipedia.SummaryModel, &c.Tools.Wikipedia.SummaryAPIKey},
-			{&c.Tools.DDGSearch.SummaryBaseURL, &c.Tools.DDGSearch.SummaryModel, &c.Tools.DDGSearch.SummaryAPIKey},
-			{&c.Tools.PDFExtractor.SummaryBaseURL, &c.Tools.PDFExtractor.SummaryModel, &c.Tools.PDFExtractor.SummaryAPIKey},
-		} {
-			if *slot.baseURL == c.LLM.HelperBaseURL && *slot.model == c.LLM.HelperResolvedModel {
-				*slot.apiKey = token
-			}
-		}
-	}
-	applyIfOAuth(c.LLM.Provider, &c.LLM.APIKey)
-	applyIfHelperOAuth(c.LLM.HelperProvider)
-	applyIfOAuth(c.FallbackLLM.Provider, &c.FallbackLLM.APIKey)
-	applyIfOAuth(c.Vision.Provider, &c.Vision.APIKey)
-	applyIfOAuth(c.Whisper.Provider, &c.Whisper.APIKey)
-	applyIfOAuth(c.Embeddings.Provider, &c.Embeddings.APIKey)
-	applyIfOAuth(c.CoAgents.LLM.Provider, &c.CoAgents.LLM.APIKey)
-	applyIfOAuth(c.Personality.V2Provider, &c.Personality.V2ResolvedKey)
-	applyIfOAuth(c.MemoryAnalysis.Provider, &c.MemoryAnalysis.APIKey)
-	applyIfOAuth(c.Tools.WebScraper.SummaryProvider, &c.Tools.WebScraper.SummaryAPIKey)
-	applyIfOAuth(c.Tools.Wikipedia.SummaryProvider, &c.Tools.Wikipedia.SummaryAPIKey)
-	applyIfOAuth(c.Tools.DDGSearch.SummaryProvider, &c.Tools.DDGSearch.SummaryAPIKey)
-	applyIfOAuth(c.Tools.PDFExtractor.SummaryProvider, &c.Tools.PDFExtractor.SummaryAPIKey)
-	// Additional slots that may use OAuth2 providers
-	applyIfOAuth(c.LLMGuardian.Provider, &c.LLMGuardian.APIKey)
-	applyIfOAuth(c.MissionPreparation.Provider, &c.MissionPreparation.APIKey)
-	applyIfOAuth(c.ImageGeneration.Provider, &c.ImageGeneration.APIKey)
-	applyIfOAuth(c.MusicGeneration.Provider, &c.MusicGeneration.APIKey)
-	applyIfOAuth(c.VideoGeneration.Provider, &c.VideoGeneration.APIKey)
-	applyIfOAuth(c.A2A.LLM.Provider, &c.A2A.LLM.APIKey)
-	applyIfOAuth(c.CoAgents.Specialists.Researcher.LLM.Provider, &c.CoAgents.Specialists.Researcher.LLM.APIKey)
-	applyIfOAuth(c.CoAgents.Specialists.Coder.LLM.Provider, &c.CoAgents.Specialists.Coder.LLM.APIKey)
-	applyIfOAuth(c.CoAgents.Specialists.Designer.LLM.Provider, &c.CoAgents.Specialists.Designer.LLM.APIKey)
-	applyIfOAuth(c.CoAgents.Specialists.Security.LLM.Provider, &c.CoAgents.Specialists.Security.LLM.APIKey)
-	applyIfOAuth(c.CoAgents.Specialists.Writer.LLM.Provider, &c.CoAgents.Specialists.Writer.LLM.APIKey)
+	c.applyProviderCredentialBindings(tokensByProvider)
 
 	// ── Google Workspace OAuth token ──
 	if raw, err := vault.ReadSecret("oauth_google_workspace"); err == nil && raw != "" {

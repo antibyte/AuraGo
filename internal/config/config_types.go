@@ -121,16 +121,17 @@ func (c ProviderCapabilities) AutoEnabled() bool {
 // ProviderEntry defines a named LLM provider connection that can be referenced
 // by multiple config slots (LLM, Fallback, Vision, Whisper, Embeddings, etc.).
 type ProviderEntry struct {
-	ID              string               `yaml:"id"       json:"id"`                                             // unique slug, e.g. "main", "vision", "local-ollama"
-	Name            string               `yaml:"name"     json:"name"`                                           // human-readable label shown in UI
-	Usage           string               `yaml:"usage,omitempty" json:"usage,omitempty"`                         // "general" (default/legacy) or "decisions"
-	Type            string               `yaml:"type"     json:"type"`                                           // openai, openrouter, ollama, anthropic, google, custom
-	BaseURL         string               `yaml:"base_url" json:"base_url"`                                       // API base URL
-	APIKey          string               `yaml:"-" vault:"api_key" json:"-"`                                     // API key (vault-only)
-	Model           string               `yaml:"model"    json:"model"`                                          // default model name
-	ContextWindow   int                  `yaml:"context_window,omitempty" json:"context_window,omitempty"`       // optional model-context override; 0 = automatic
-	MaxOutputTokens int                  `yaml:"max_output_tokens,omitempty" json:"max_output_tokens,omitempty"` // optional output-limit override; 0 = automatic
-	Capabilities    ProviderCapabilities `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
+	RuntimeOAuthToken string               `yaml:"-" json:"-"`                                                     // runtime-only access token; never a stored API key
+	ID                string               `yaml:"id"       json:"id"`                                             // unique slug, e.g. "main", "vision", "local-ollama"
+	Name              string               `yaml:"name"     json:"name"`                                           // human-readable label shown in UI
+	Usage             string               `yaml:"usage,omitempty" json:"usage,omitempty"`                         // "general" (default/legacy) or "decisions"
+	Type              string               `yaml:"type"     json:"type"`                                           // openai, openrouter, ollama, anthropic, google, custom
+	BaseURL           string               `yaml:"base_url" json:"base_url"`                                       // API base URL
+	APIKey            string               `yaml:"-" vault:"api_key" json:"-"`                                     // API key (vault-only)
+	Model             string               `yaml:"model"    json:"model"`                                          // default model name
+	ContextWindow     int                  `yaml:"context_window,omitempty" json:"context_window,omitempty"`       // optional model-context override; 0 = automatic
+	MaxOutputTokens   int                  `yaml:"max_output_tokens,omitempty" json:"max_output_tokens,omitempty"` // optional output-limit override; 0 = automatic
+	Capabilities      ProviderCapabilities `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
 
 	// Cloudflare account identity, required for Workers AI and Cloudflare REST.
 	AccountID string `yaml:"account_id,omitempty" json:"account_id"`           // Cloudflare account ID
@@ -2873,9 +2874,11 @@ type CloudflareIngressRule struct {
 
 // ModelCost defines per-model token pricing.
 type ModelCost struct {
-	Name             string  `yaml:"name"`
-	InputPerMillion  float64 `yaml:"input_per_million"`
-	OutputPerMillion float64 `yaml:"output_per_million"`
+	Name             string  `yaml:"name" json:"name"`
+	InputPerMillion  float64 `yaml:"input_per_million" json:"input_per_million"`
+	OutputPerMillion float64 `yaml:"output_per_million" json:"output_per_million"`
+	Source           string  `yaml:"source,omitempty" json:"source,omitempty"`
+	Estimated        bool    `yaml:"estimated,omitempty" json:"estimated,omitempty"`
 }
 
 // ModelCostRates defines fallback pricing for unlisted models.

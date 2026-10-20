@@ -61,6 +61,9 @@ func ClassifyError(err error) ErrorCategory {
 	if errors.As(err, &classified) && classified.Category != "" && classified.InnerError == nil {
 		return classified.Category
 	}
+	if isOwnedTransportTimeout(err) {
+		return ErrCategoryTemporaryTransport
+	}
 	if errors.Is(err, context.Canceled) {
 		return ErrCategoryContextCanceled
 	}
@@ -150,6 +153,9 @@ func IsContextLimitError(err error) bool {
 }
 
 func IsContextError(err error) bool {
+	if isOwnedTransportTimeout(err) {
+		return false
+	}
 	if err == nil {
 		return false
 	}

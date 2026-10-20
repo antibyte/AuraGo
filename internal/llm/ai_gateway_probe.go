@@ -41,18 +41,34 @@ func ResolveProviderAIGatewayRoute(cfg *config.Config, p config.ProviderEntry) A
 // authentication, redirect and per-request gateway policy as generation.
 // A nil request means no documented safe metadata endpoint is available.
 func AIGatewayMetadataProbe(ctx context.Context, cfg *config.Config, p config.ProviderEntry) (*http.Request, *http.Client, error) {
+	return providerMetadataProbe(ctx, cfg, p, false)
+}
+
+// ProviderMetadataProbe also supports saved direct endpoints, without generation.
+func ProviderMetadataProbe(ctx context.Context, cfg *config.Config, p config.ProviderEntry) (*http.Request, *http.Client, error) {
+	return providerMetadataProbe(ctx, cfg, p, true)
+}
+
+func providerMetadataProbe(ctx context.Context, cfg *config.Config, p config.ProviderEntry, direct bool) (*http.Request, *http.Client, error) {
 	route := ResolveProviderAIGatewayRoute(cfg, p)
-	if !route.RouteSupported {
+	if !route.RouteSupported && !direct {
 		return nil, nil, nil
 	}
 	endpoint := strings.TrimRight(route.Endpoint, "/")
+	var directClient *http.Client
+	if !route.RouteSupported {
+		endpoint, directClient = primaryProbeTransport(TaskProviderConfig(cfg, p))
+		endpoint = strings.TrimRight(endpoint, "/")
+	}
 	var target string
 	switch p.Type {
 	case "workers-ai", "cloudflare-rest":
 		target = strings.TrimSuffix(endpoint, "/ai/v1") + "/ai/models/search?per_page=1"
+	case "ollama":
+		target = strings.TrimSuffix(endpoint, "/v1") + "/api/tags"
 	case "anthropic":
-		target = endpoint + "/v1/models"
-	case "openai", "openrouter", "deepseek", "groq", "mistral", "xai", "cerebras":
+		target = strings.TrimSuffix(endpoint, "/v1") + "/v1/models"
+	case "openai", "openrouter", "deepseek", "groq", "mistral", "xai", "cerebras", "llamacpp", "lmstudio", "custom", "manifest", "omniroute":
 		target = endpoint + "/models"
 	default:
 		return nil, nil, nil
@@ -69,6 +85,11 @@ func AIGatewayMetadataProbe(ctx context.Context, cfg *config.Config, p config.Pr
 		req.Header.Set("anthropic-version", anthropicAPIVersion)
 	}
 	client := newProbeHTTPClient(20 * time.Second)
+	if directClient != nil {
+		copy := *directClient
+		copy.Timeout = 20 * time.Second
+		client = &copy
+	}
 	token := ""
 	if cfg != nil && route.AuthHeader == "cf-aig-authorization" {
 		token = cfg.AIGateway.Token

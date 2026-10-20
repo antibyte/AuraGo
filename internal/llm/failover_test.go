@@ -81,14 +81,15 @@ func TestReconfigureRedactsURLAndResetsUnsetRetryControls(t *testing.T) {
 	if !strings.Contains(logs, "https://example.test/v1") {
 		t.Fatalf("reconfigure log omitted redacted endpoint: %s", logs)
 	}
-	intervals := defaultRetryIntervalsCopy()
+	policy := fm.RetryPolicySnapshot()
+	intervals := policy.Intervals
 	if len(intervals) != 2 || intervals[0] != 30*time.Second || intervals[1] != 2*time.Minute {
 		t.Fatalf("intervals after empty config = %v, want [30s 2m]", intervals)
 	}
-	if got := perAttemptTimeout(); got != defaultPerAttemptTimeout {
+	if got := policy.PerAttemptTimeout; got != defaultPerAttemptTimeout {
 		t.Fatalf("timeout after empty config = %s, want %s", got, defaultPerAttemptTimeout)
 	}
-	if got := FinalRetryInterval(); got != 30*time.Second {
+	if got := policy.FinalInterval; got != 30*time.Second {
 		t.Fatalf("final retry interval after empty config = %s, want 30s", got)
 	}
 }
@@ -543,7 +544,7 @@ func TestLLMHTTPClientHasResponseAndHeaderTimeouts(t *testing.T) {
 		t.Fatal("buildLLMHTTPClient returned nil")
 	}
 	bounded, ok := client.Transport.(*responseTimeoutTransport)
-	if client.Timeout != 0 || !ok || bounded.timeout != 3*time.Minute {
+	if client.Timeout != 0 || !ok || bounded.timeout != 120*time.Second || bounded.streamTimeout != 3*time.Minute {
 		t.Fatal("expected stream-aware response timeout instead of a global stream cutoff")
 	}
 	transport, ok := unwrapLLMTransport(client.Transport).(*http.Transport)

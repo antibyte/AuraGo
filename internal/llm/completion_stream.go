@@ -10,6 +10,7 @@ import (
 )
 
 type streamRouteSnapshot struct {
+	route          ModelRoute
 	generation     int
 	onFallback     bool
 	fallbackClient bool
@@ -33,6 +34,7 @@ func (fm *FailoverManager) activeStreamRoute() streamRouteSnapshot {
 	defer fm.mu.RUnlock()
 	if fm.isOnFallback && fm.fallback != nil {
 		return streamRouteSnapshot{
+			route:          fm.fallbackRoute,
 			generation:     fm.generation,
 			onFallback:     true,
 			fallbackClient: true,
@@ -42,6 +44,7 @@ func (fm *FailoverManager) activeStreamRoute() streamRouteSnapshot {
 		}
 	}
 	return streamRouteSnapshot{
+		route:      fm.primaryRoute,
 		generation: fm.generation,
 		onFallback: fm.isOnFallback,
 		client:     fm.primary,
@@ -56,6 +59,7 @@ func (fm *FailoverManager) primaryStreamRoute(current streamRouteSnapshot) strea
 	if !current.valid || fm.generation != current.generation || fm.isOnFallback != current.onFallback || fm.primary == nil {
 		return streamRouteSnapshot{}
 	}
+	current.route = fm.primaryRoute
 	current.client = fm.primary
 	current.model = fm.primaryModel
 	current.fallbackClient = false
@@ -69,6 +73,7 @@ func (fm *FailoverManager) fallbackStreamRoute(generation int, client *openai.Cl
 		return streamRouteSnapshot{}
 	}
 	return streamRouteSnapshot{
+		route:          fm.fallbackRoute,
 		generation:     generation,
 		onFallback:     true,
 		fallbackClient: true,

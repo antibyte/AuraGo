@@ -100,32 +100,25 @@ func TestOpenAIPromptCacheTransportPreservesExistingKey(t *testing.T) {
 
 func TestFailoverManagerAppliesFinalRetryIntervalAtStartupAndReconfigure(t *testing.T) {
 	original := FinalRetryInterval()
-	t.Cleanup(func() { ConfigureFinalRetryInterval(original) })
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-
 	cfg := &config.Config{}
 	cfg.CircuitBreaker.FinalRetryInterval = "45s"
-	fm := NewFailoverManager(cfg, logger)
+	fm := NewFailoverManager(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	defer fm.Stop()
-	if got := FinalRetryInterval(); got != 45*time.Second {
-		t.Fatalf("startup final retry interval = %s, want 45s", got)
+	if got := fm.RetryPolicySnapshot().FinalInterval; got != 45*time.Second {
+		t.Fatalf("startup interval=%s", got)
 	}
-
 	for _, invalid := range []string{"not-a-duration", "0s"} {
-		ConfigureFinalRetryInterval(5 * time.Minute)
-		var logs strings.Builder
-		fm.logger = slog.New(slog.NewTextHandler(&logs, nil))
 		cfg.CircuitBreaker.FinalRetryInterval = invalid
 		fm.Reconfigure(cfg)
-		if got := FinalRetryInterval(); got != 30*time.Second {
-			t.Fatalf("reconfigured final retry interval for %q = %s, want fallback 30s", invalid, got)
+		if got := fm.RetryPolicySnapshot().FinalInterval; got != 30*time.Second {
+			t.Fatalf("reconfigured interval=%s", got)
 		}
-		if cfg.CircuitBreaker.FinalRetryInterval != "30s" {
-			t.Fatalf("normalized config interval for %q = %q, want 30s", invalid, cfg.CircuitBreaker.FinalRetryInterval)
+		if cfg.CircuitBreaker.FinalRetryInterval != invalid {
+			t.Fatal("manager mutated caller configuration")
 		}
-		if !strings.Contains(logs.String(), "Invalid final retry interval") {
-			t.Fatalf("expected invalid interval warning for %q, logs = %q", invalid, logs.String())
-		}
+	}
+	if FinalRetryInterval() != original {
+		t.Fatal("manager changed standalone retry defaults")
 	}
 }
 

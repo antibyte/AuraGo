@@ -2,8 +2,10 @@ package llm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -13,8 +15,27 @@ import (
 // SSE needs an inactivity deadline; http.Client.Timeout instead cuts off even
 // healthy long answers. Non-streaming requests retain their total deadline.
 type responseTimeoutTransport struct {
-	base    http.RoundTripper
-	timeout time.Duration
+	base          http.RoundTripper
+	timeout       time.Duration
+	streamTimeout time.Duration
+}
+
+// TransportTimeoutError marks an AuraGo-owned deadline, independent of caller
+// cancellation. Classification must recognize it before unwrapping the context.
+type TransportTimeoutError struct {
+	Stage string
+	After time.Duration
+}
+
+func (e *TransportTimeoutError) Error() string {
+	return fmt.Sprintf("LLM %s timeout after %s", e.Stage, e.After)
+}
+func (e *TransportTimeoutError) Unwrap() error   { return context.DeadlineExceeded }
+func (e *TransportTimeoutError) Timeout() bool   { return true }
+func (e *TransportTimeoutError) Temporary() bool { return true }
+func isOwnedTransportTimeout(err error) bool {
+	var target *TransportTimeoutError
+	return errors.As(err, &target)
 }
 
 func (t *responseTimeoutTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -24,21 +45,28 @@ func (t *responseTimeoutTransport) RoundTrip(req *http.Request) (*http.Response,
 	if stream {
 		kind = "stream inactivity"
 	}
-	timer := time.AfterFunc(t.timeout, func() {
-		cancel(fmt.Errorf("LLM %s timeout after %s: %w", kind, t.timeout, context.DeadlineExceeded))
-	})
+	limit := t.timeout
+	if stream && t.streamTimeout > 0 {
+		limit = t.streamTimeout
+	}
+	timer := time.AfterFunc(limit, func() { cancel(&TransportTimeoutError{Stage: kind, After: limit}) })
 	resp, err := t.base.RoundTrip(req.Clone(ctx))
 	if err != nil {
 		timer.Stop()
 		if ctx.Err() != nil {
 			err = context.Cause(ctx)
+		} else {
+			var timeout net.Error
+			if errors.As(err, &timeout) && timeout.Timeout() {
+				err = &TransportTimeoutError{Stage: "transport", After: limit}
+			}
 		}
 		cancel(context.Canceled)
 		return nil, err
 	}
 	body := &responseTimeoutBody{ReadCloser: resp.Body, ctx: ctx, cancel: cancel, timer: timer}
 	if stream && strings.HasPrefix(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") {
-		body.idle = t.timeout
+		body.idle = limit
 		timer.Reset(body.idle)
 	}
 	resp.Body = body

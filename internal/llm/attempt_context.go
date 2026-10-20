@@ -17,6 +17,12 @@ func providerOutcomeError(ctx context.Context, err error) error {
 		return nil
 	}
 	parent, _ := ctx.Value(attemptParentKey{}).(context.Context)
+	if parent != nil && parent.Err() == nil && isOwnedTransportTimeout(context.Cause(ctx)) {
+		return context.Cause(ctx)
+	}
+	if parent != nil && parent.Err() != nil {
+		return nil
+	}
 	if parent != nil && parent.Err() == nil && errors.Is(ctx.Err(), context.DeadlineExceeded) && IsContextError(err) {
 		return &LLMError{Category: ErrCategoryTemporaryTransport, Message: "provider attempt timed out"}
 	}
