@@ -170,7 +170,7 @@ Homepage workflows include an additional global `prompts/rules/homepage/DESIGN.m
 
 The `providers` section defines reusable LLM connections. Multiple components can reference the same provider by its `id`.
 
-> 🖥️ **Web UI:** Go to **Config → Providers** to add, edit, or delete providers. Use the **Test** button to verify connectivity before saving.
+> 🖥️ **Web UI:** Go to **Config → Providers** to manage connections and Vault credentials. Save first, then use the diagnostics tab: **Metadata test** never generates text; **Model test** is an explicit, potentially paid generation. Passive status makes no provider request. Conflicts keep your draft until you explicitly reload. See [Provider management](../../provider-management.md) for credential removal, limits, OAuth status and API migration.
 
 ```yaml
 providers:
@@ -178,14 +178,12 @@ providers:
     name: "OpenRouter Main"
     type: openrouter
     base_url: https://openrouter.ai/api/v1
-    api_key: "sk-or-v1-..."
     model: arcee-ai/trinity-large-preview:free
 
   - id: ollama-local
     name: "Local Ollama"
     type: ollama
     base_url: http://localhost:11434/v1
-    api_key: "dummy_key"
     model: llama3.1
 
 llm:
@@ -832,7 +830,7 @@ AuraGo validates the configuration on startup:
 
 | Error | Solution |
 |-------|----------|
-| `providers section requires at least one provider` | Configure a provider with an API key in the `providers` list |
+| `providers section requires at least one provider` | Configure a provider and store any required credential through Setup or Config → Providers |
 | `invalid yaml` | Check YAML syntax (indentation!) |
 | `invalid port number` | Choose a port between 1–65535 |
 | `directory not found` | Correct the directory path |
@@ -852,7 +850,6 @@ providers:
     name: "Local Ollama"
     type: ollama
     base_url: http://localhost:11434/v1
-    api_key: dummy_key
     model: llama3.1
 
 llm:
@@ -881,14 +878,12 @@ providers:
     name: "OpenRouter Main"
     type: openrouter
     base_url: https://openrouter.ai/api/v1
-    api_key: ${OPENROUTER_API_KEY}  # From environment
     model: anthropic/claude-3.5-sonnet
 
   - id: openrouter-vision
     name: "OpenRouter Vision"
     type: openrouter
     base_url: https://openrouter.ai/api/v1
-    api_key: ${OPENROUTER_API_KEY}
     model: google/gemini-2.5-flash-lite-preview-09-2025
 
 llm:
@@ -967,7 +962,6 @@ providers:
     name: OpenRouter
     type: openrouter
     base_url: https://openrouter.ai/api/v1
-    api_key: ${API_KEY}
     model: meta-llama/llama-3.1-8b-instruct:free
 
 llm:

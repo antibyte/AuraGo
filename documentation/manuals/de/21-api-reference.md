@@ -569,10 +569,46 @@ Modellanbindung, Failover und Embeddings.
 GET /api/providers
 ```
 
-#### Provider-Pricing
+Die Listenantwort bleibt ein Array und liefert eine opake, zitierte `ETag`.
+Sende diese Revision bei beiden Schreibzugriffen als `If-Match`:
+
 ```http
-GET /api/providers/pricing
+PUT /api/providers
+If-Match: "<revision>"
+
+POST /api/providers/pricing?id=main
+If-Match: "<revision>"
 ```
+
+Erfolgreiche Schreibzugriffe liefern die neue Revision. Fehlend: **428**,
+veraltet: **412**. Löschen verwendeter Provider liefert **409**,
+`provider_in_use`, mit allen Referenzen, auch deaktivierter Funktionen.
+Jedes `providers`-Feld bei `PUT /api/config` liefert **400**,
+`provider_use_api_providers`, vor jeder Änderung. AgoDesk nutzt dieselbe
+`revision`; force umgeht den Referenzschutz nicht.
+
+#### Preise, passive Diagnose und ausdrückliche Tests
+
+```http
+GET /api/providers/pricing?id=main
+GET /api/providers/status
+POST /api/providers/test
+Content-Type: application/json
+
+{"provider_id":"main","probe_kind":"metadata"}
+```
+
+Statusabfragen sind authentifiziert und starten keine Provider-Anfragen.
+`probe_kind` ist standardmäßig `metadata`; `generation` ist ausdrücklich,
+möglicherweise kostenpflichtig und wird über die Budgetlogik verbucht. Tests
+nutzen gespeicherte Einstellungen ohne URL-/Credential-Overrides, dauern maximal
+20 Sekunden und laufen höchstens einmal gleichzeitig je Provider. Ein nicht
+unterstützter Metadatentest startet keine Generierung. Veraltete Ergebnisse
+bestätigen keine neue Revision. Zugangsdaten bleiben im Vault: Eine Maske
+behält nur einen vorhandenen gültigen Wert; ein leeres Feld löscht ihn.
+
+Details zu Erstanlage, Konflikten und Kompatibilität:
+[Provider-Verwaltung](../../provider-management.md).
 
 ### Ollama API
 
