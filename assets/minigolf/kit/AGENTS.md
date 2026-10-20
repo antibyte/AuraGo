@@ -6,8 +6,9 @@ Reusable Blender 5.2 modules for the stylized AuraGolf diorama look: palettes,
 soft shape builders, vertex-colour gradients, baked ambient occlusion, per-world
 props, lane sections and the style-probe renders (P2 "Look & Welt-Requisiten").
 It is the modular generator behind `../generate.py` (a slim CLI: `--only
-kits,courses`, `--save-blend`): `courses_v1` and `export` hold the legacy
-course code moved verbatim, `kits` exports one prop kit GLB per world. The
+kits,courses`, `--course N`, `--save-blend`): `courses_v1` and `export` hold the
+legacy course code moved verbatim, `kits` exports one prop kit GLB per world,
+`dress` / `dress_island` / `trim` redress a legacy course as a diorama. The
 probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`.
 
 ## Ownership
@@ -64,6 +65,27 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
   (build errors otherwise), each prop a top-level node `prop-<look>-<name>` at
   the origin with `COLOR_0` on every primitive, built with `seed=1`. Kit
   budgets: < 3 MiB and < 60,000 triangles per world, hero <= 16,000 triangles.
+- Dressing (`dress.Dresser`, `courses_v1.build_course(number, course, dresser)`):
+  lane, collision rails, obstacles, tee, cup and flag come from the unchanged
+  `courses_v1` code; the dresser replaces `add_decor` / `add_special`. `surface-*`
+  only get a POINT colour (never bevel, smoothing or `shade_smooth`), `rail-*`
+  only `aurago_hidden` (no colour, saves COLOR_0 bytes); the P1 collider
+  fingerprint and `bounds` (taken from a throw-away legacy build, so the physics
+  out-of-bounds test never changes) stay identical. Island: `dress_island.Terrain`
+  (`top_height(x, y)`: base ground, bed 6 cm under the lane within 1.1 m smoothing
+  to 2.0 m, cup hollow, trench across the island for `gap` courses; a second
+  stretch of lane close by never ends up below the island), three strata per
+  world plus a submerged skirt (pirate, temple) or floating underside (moon), a
+  `water-shore` strip with `uv.x` 0 to 1 (no shore on the moon or across a
+  trench). Trims (`trim.py`): `rail-trim-left/right` share `courses_v1.rail_edge`
+  with the rails, inner face flush, <= +2 cm up and <= 3 cm out, outer face reaches
+  down to the ground (<= 0.5 m). Only `Dresser.bake` bakes (island, trims, lane);
+  templates, obstacles, rails and shore are hidden from the occluders. The
+  per-course GLB budget lives in the asset test; the island alone is about 11-12k
+  triangles.
+  `generate.py --course N` rebuilds one course with the dresser and patches its
+  manifest entry (`look`, `path`, `props` included); without it the courses stay
+  legacy until the full redress.
 - Look: Khronos PBR Neutral view transform (look None, exposure 0, gamma 1) to
   match three.js `NeutralToneMapping`; keep emission strength near 1-2.5 because
   Neutral desaturates highlights above ~0.8. Camera: perspective, 43 degrees
@@ -79,6 +101,8 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
 - Module map: `courses_v1` (the 18 legacy courses; code moved verbatim from the
   old generator and bit-identical, guarded by the P1 collider fingerprint),
   `export` (canonical node names, `export_glb`, bounds, collider read-back),
+  `dress` (per-course Dresser, lane colours, bake), `dress_island` (terrain,
+  island, shore), `trim` (rail trims),
   `kits` (per-world prop kit GLB), `palette` (tones, gradient presets), `shapes`
   (builders, `finish`), `colors` (vertex-colour gradients), `bake`, `materials`,
   `prop` (composition),
@@ -100,6 +124,12 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
   world; a second run must give identical GLB hashes. A full run must leave
   `git status ui/3d/minigolf` free of course GLB changes and
   `node scripts/test-minigolf-assets.mjs` green.
+- Dressed courses: `blender --background --factory-startup --python
+  assets/minigolf/generate.py -- --only courses --course N` (about 2 s of build
+  plus Blender start-up), then `node scripts/test-minigolf-assets.mjs`; the P1
+  collider fingerprint must stay green. Building all 18 with the dresser twice
+  must give identical GLB hashes. Reviewing a course: `--save-blend` and a
+  scratch Cycles render of its scene.
 - `blender --background --factory-startup --python assets/minigolf/kit/probe.py
   -- --out <scratch> --world all` renders the three probes (about 2.5 minutes
   each on 16 cores at 128 samples) and prints per-prop and scene triangle counts,

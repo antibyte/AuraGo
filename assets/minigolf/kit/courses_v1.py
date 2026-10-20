@@ -607,24 +607,42 @@ def add_studio(scene, studio, theme_data):
     scene.world=world; world.use_nodes=True; world.node_tree.nodes["Background"].inputs["Color"].default_value=theme_data["sky"]; world.node_tree.nodes["Background"].inputs["Strength"].default_value=.65
 
 
-def build_course(number, course):
+def build_scene(number, course, dresser=None):
+    """Create the course scene (geometry only, nothing exported).
+
+    Without a ``dresser`` this is the legacy course with its island, decor and
+    specials. With a ``kit.dress.Dresser`` the lane, rails, obstacles, tee, cup and
+    flag are built by the very same code, while island, trims and specials come
+    from the dresser. Returns a dict for ``build_course``.
+    """
     course_id=f"{course['world']}-{number:02d}"
     scene=bpy.data.scenes.new(f"{number:02d} - {course['name']}")
     scene["license"]="MIT"; scene["aurago_course_id"]=course_id; scene["authoring"]="AuraGo original Blender asset"
     model=link_collection(scene,"Course Model"); studio=link_collection(scene,"Review Lights and Camera")
     palette=theme(course["world"]); mats={key:material(key+"-"+course["world"],col,roughness=.72 if key not in ("water","light") else .28,metallic=.15 if key=="water" else 0) for key,col in palette.items()}
     mats["water"]=material("water-"+course["world"],palette["water"],roughness=.24,metallic=.08)
-    add_decor(scene,model,course,mats,number)
-    path,cup=make_surface(scene,model,course,mats)
+    if dresser is None:
+        add_decor(scene,model,course,mats,number)
+        path,cup=make_surface(scene,model,course,mats)
+    else:
+        # The dressing builds modifier-finished meshes and bakes, which both need
+        # this scene to be the active one.
+        bpy.context.window.scene=scene
+        path,cup=make_surface(scene,model,course,dresser.lane_mats(mats))
+        dresser.dress(model,path,cup)
     obstacles=add_obstacle(scene,model,course.get("obstacle"),path,mats)
-    add_special(scene,model,course,path,mats)
+    if dresser is None:
+        add_special(scene,model,course,path,mats)
+    else:
+        dresser.specials(scene,model,course,path,mats)
     tee_path=path[0]; tee=(tee_path[0],tee_path[1],lane_center_height(course,path,0)); add_templates(scene,model,mats,tee)
     # A thin inlaid tee mark and a genuine open cup: the annulus has no center
     # face, and the dark cup bottom sits below the green without a collider.
     ring(scene,model,"tee-ring",tee,.10,.18,tee[2]+.012,mats["light"],12)
     ring(scene,model,"cup-rim",cup,CUP_RADIUS,CUP_RADIUS+.075,cup[2]-.005,mats["stone"],20)
     cup_dark=material("cup-interior-"+course["world"],(.035,.045,.055,1),roughness=.22,metallic=.2)
-    floor_z = min(cup[2] - .02, max(cup[2] - .30, island_top_height(cup[0], cup[1]) + .022))
+    ground = island_top_height(cup[0], cup[1]) if dresser is None else dresser.top_height(cup[0], cup[1])
+    floor_z = min(cup[2] - .02, max(cup[2] - .30, ground + .022))
     cylinder(scene,model,"cup-bottom",(cup[0],cup[1],floor_z+.014),CUP_RADIUS-.035,.025,cup_dark,16)
     cup_wall_mat=material("cup-lining-"+course["world"],(.13,.15,.17,1),roughness=.36,metallic=.1)
     cup_lining(scene,model,cup,cup_wall_mat,floor_z)
@@ -638,6 +656,36 @@ def build_course(number, course):
     digit_mat=material("hole-number-"+course["world"],(1.0,.87,.46,1),roughness=.42,emission=1.2)
     hole_number(scene,model,cup,number,digit_mat)
     add_studio(scene,studio,palette)
+    return {"course_id":course_id,"scene":scene,"model":model,"studio":studio,"palette":palette,"path":path,"cup":cup,"tee":tee,"obstacles":obstacles}
+
+
+def legacy_bounds(number, course):
+    """Bounds of the legacy course (its island, water plane and decor), without keeping the scene.
+
+    Dressed courses keep these bounds bit-identical: the physics uses them for the
+    out-of-bounds test, so a smaller diorama must not change it.
+    """
+    keep=bpy.context.window.scene
+    built=build_scene(number,course)
+    bpy.context.window.scene=built["scene"]; bpy.context.view_layer.update()
+    bounds=export.scene_bounds(list(built["model"].objects),built["obstacles"])
+    bpy.context.window.scene=keep
+    for coll in (built["model"],built["studio"]):
+        for obj in list(coll.objects):
+            data=obj.data; bpy.data.objects.remove(obj,do_unlink=True)
+            if data is not None and data.users==0:
+                (bpy.data.meshes if isinstance(data,bpy.types.Mesh) else bpy.data.cameras if isinstance(data,bpy.types.Camera) else bpy.data.lights).remove(data)
+        bpy.data.collections.remove(coll)
+    bpy.data.scenes.remove(built["scene"])
+    return bounds
+
+
+def build_course(number, course, dresser=None):
+    bounds=legacy_bounds(number,course) if dresser is not None else None
+    built=build_scene(number,course,dresser)
+    course_id,scene,model,palette,path,cup,tee,obstacles=(built[k] for k in ("course_id","scene","model","palette","path","cup","tee","obstacles"))
+    if dresser is not None:
+        dresser.bake(model)
     bpy.context.window.scene=scene
     bpy.ops.object.select_all(action="DESELECT")
     for obj in model.objects: obj.select_set(True)
@@ -651,6 +699,9 @@ def build_course(number, course):
     colliders=export.glb_fixed_colliders(glb,course["layout"])
     data=open(glb,"rb").read(); tee_rt=runtime(tee); cup_rt=runtime(cup)
     water=[{"min":[-6.15,-1.55,-6.15],"max":[6.15,-1.15,6.15]}]
-    entry={"id":course_id,"number":number,"world":course["world"],"par":course["par"],"model":os.path.basename(glb),"tee":q([tee_rt[0],tee_rt[1]+BALL_RADIUS,tee_rt[2]]),"cup":q(cup_rt),"cupRadius":CUP_RADIUS,"bounds":export.scene_bounds(list(model.objects),obstacles),"colliders":colliders,"obstacles":obstacles,"water":water,"sha256":hashlib.sha256(data).hexdigest(),"bytes":len(data),"triangles":export.glb_triangles(glb)}
+    entry={"id":course_id,"number":number,"world":course["world"],"par":course["par"],"model":os.path.basename(glb),"tee":q([tee_rt[0],tee_rt[1]+BALL_RADIUS,tee_rt[2]]),"cup":q(cup_rt),"cupRadius":CUP_RADIUS,"bounds":export.scene_bounds(list(model.objects),obstacles) if bounds is None else bounds,"colliders":colliders,"obstacles":obstacles,"water":water,"sha256":hashlib.sha256(data).hexdigest(),"bytes":len(data),"triangles":export.glb_triangles(glb)}
+    if dresser is not None:
+        path_rt=[q(runtime((p[0],p[1],lane_center_height(course,path,i)))) for i,p in enumerate(path) if i%3==0 or i==len(path)-1]
+        entry.update({"look":dresser.look,"path":[[round(v,3) for v in p] for p in path_rt],"props":dresser.runtime_props()})
     print(f"{course_id}: {len(data)} bytes, {entry['triangles']} triangles, {len(colliders)} colliders, {len(obstacles)} dynamic")
     return entry

@@ -29,7 +29,7 @@ def scene_bounds(objects, obstacles):
 
 
 def canonical_export_names(objects):
-    required={"surface-grass","surface-sand","rail-left","rail-right","flag","ball-template","putter-template"}
+    required={"surface-grass","surface-sand","rail-left","rail-right","flag","ball-template","putter-template","rail-trim-left","rail-trim-right","water-shore"}
     current=[]; targets={}
     for obj in objects:
         base=obj.name.split(".")[0]

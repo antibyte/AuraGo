@@ -82,14 +82,16 @@ class Layer:
 
 
 def build_island(outline, nx, ny, height_fn, color_fn, layers, water_z, seed=1,
-                 tip=None, top_ao=0.7, wall_ao=0.7):
+                 tip=None, top_ao=0.7, wall_ao=0.7, clamp_down=False):
     """Build the island mesh. Returns ``(obj, waterline)``.
 
     ``height_fn(x, y, edge_m)`` gives the top height (``edge_m`` is the rough
     distance to the outline in metres); ``color_fn(x, y, z, edge_m)`` its
     colour. ``waterline`` is the list of (x, y) points of the wall at
     ``water_z`` for the water rings. ``tip`` (z) closes the bottom into a point
-    for floating islands.
+    for floating islands. ``clamp_down`` keeps every wall ring at or below the
+    ring above it, so a trench that cuts the rim below a stratum bottom does not
+    fold the wall upwards (the probes leave it off).
     """
     rng = random.Random(seed)
     verts, cols, aow = [], [], []
@@ -161,7 +163,7 @@ def build_island(outline, nx, ny, height_fn, color_fn, layers, water_z, seed=1,
             zs, offs = [], []
             for k in range(m):
                 zt = prev_z[k]
-                zs.append(zt + (layer.z - zt) * t)
+                zs.append(zt + ((min(layer.z, zt) if clamp_down else layer.z) - zt) * t)
                 bump = layer.noise_amp * noise.noise(
                     Vector((base[k][0] * 2.4, base[k][1] * 2.4, zs[-1] * 2.0)) + offs_seed)
                 block_bump = 0.0
@@ -194,7 +196,8 @@ def build_island(outline, nx, ny, height_fn, color_fn, layers, water_z, seed=1,
                 prev_z = zs
                 if abs(layer.z - water_z) < 1e-6:
                     ring_index["water"] = ids
-        prev_z = [layer.z] * m
+        if not clamp_down:
+            prev_z = [layer.z] * m
     if tip is not None:
         apex = len(verts)
         verts.append((center.x, center.y, tip))
