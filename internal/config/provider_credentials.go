@@ -2,15 +2,19 @@ package config
 
 import "strings"
 
+// HasMaskedCredentials distinguishes invalid placeholders from keyless providers.
+func (p ProviderEntry) HasMaskedCredentials() bool {
+	return strings.TrimSpace(p.APIKey) == "••••••••" ||
+		strings.TrimSpace(p.OAuthClientSecret) == "••••••••" ||
+		p.AuthType == "oauth2" && strings.TrimSpace(p.RuntimeOAuthToken) == "••••••••"
+}
+
 // RuntimeAPIKey never substitutes an inactive static key for OAuth credentials.
 func (p ProviderEntry) RuntimeAPIKey() string {
-	if strings.TrimSpace(p.APIKey) == "••••••••" || strings.TrimSpace(p.OAuthClientSecret) == "••••••••" {
+	if p.HasMaskedCredentials() {
 		return ""
 	}
 	if p.AuthType == "oauth2" {
-		if strings.TrimSpace(p.RuntimeOAuthToken) == "••••••••" {
-			return ""
-		}
 		return p.RuntimeOAuthToken
 	}
 	return p.APIKey
@@ -123,7 +127,7 @@ func (c *Config) applyProviderCredentialBindings(tokens map[string]string) {
 		if strings.TrimSpace(binding.id) == "" {
 			continue
 		}
-		if c.isManagedProviderBinding(binding) || binding.kind == &c.Embeddings.ProviderType && (binding.id == "disabled" || binding.id == "local-granite" || binding.id == "local-ollama-embeddings") {
+		if c.isManagedProviderBinding(binding) || binding.kind == &c.Embeddings.ProviderType && isBuiltinEmbeddingProvider(binding.id) {
 			continue
 		}
 		provider := c.FindProvider(binding.id)
@@ -135,7 +139,7 @@ func (c *Config) applyProviderCredentialBindings(tokens map[string]string) {
 			}
 			continue
 		}
-		if strings.TrimSpace(provider.APIKey) == "••••••••" || strings.TrimSpace(provider.OAuthClientSecret) == "••••••••" {
+		if provider.HasMaskedCredentials() {
 			*binding.key = "••••••••"
 			*binding.url = "invalid://provider-credential"
 			if binding.kind != nil {

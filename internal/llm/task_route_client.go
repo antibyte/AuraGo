@@ -119,7 +119,10 @@ func TaskProviderConfig(cfg *config.Config, p config.ProviderEntry) *config.Conf
 	view.LLM.Provider, view.LLM.ProviderType = p.ID, p.Type
 	view.LLM.Model, view.LLM.BaseURL, view.LLM.APIKey, view.LLM.AccountID = p.Model, p.BaseURL, p.RuntimeAPIKey(), p.AccountID
 	view.LLM.GatewayID = p.GatewayID
-	if p.AuthType == "oauth2" && view.LLM.APIKey == "" {
+	if p.HasMaskedCredentials() {
+		view.LLM.ProviderType = "invalid-provider"
+		view.LLM.BaseURL = "invalid://provider-credential"
+	} else if p.AuthType == "oauth2" && view.LLM.APIKey == "" {
 		view.LLM.ProviderType = "invalid-provider"
 		view.LLM.BaseURL = "invalid://provider-oauth"
 	}

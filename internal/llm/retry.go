@@ -245,6 +245,9 @@ func executeRetry(ctx context.Context, client ChatClient, req openai.ChatComplet
 		parentCtxErr := callerCtx.Err()
 		attemptCancel()
 
+		if parentCtxErr != nil {
+			return openai.ChatCompletionResponse{}, context.Cause(callerCtx)
+		}
 		if err == nil {
 			reportProviderSuccess(client, req, "chat_completion", route)
 			if logger != nil {
@@ -257,14 +260,12 @@ func executeRetry(ctx context.Context, client ChatClient, req openai.ChatComplet
 			return resp, nil
 		}
 
-		if parentCtxErr == nil {
-			if isOwnedTransportTimeout(context.Cause(ctx)) {
-				err = context.Cause(ctx)
-			} else if isOwnedTransportTimeout(context.Cause(attemptCtx)) {
-				err = context.Cause(attemptCtx)
-			} else if attemptCtxErr != nil && IsContextError(err) {
-				err = &TransportTimeoutError{Stage: "attempt", After: timeout}
-			}
+		if isOwnedTransportTimeout(context.Cause(ctx)) {
+			err = context.Cause(ctx)
+		} else if isOwnedTransportTimeout(context.Cause(attemptCtx)) {
+			err = context.Cause(attemptCtx)
+		} else if attemptCtxErr != nil && IsContextError(err) {
+			err = &TransportTimeoutError{Stage: "attempt", After: timeout}
 		}
 		perAttemptContextError := isOwnedTransportTimeout(err)
 		if IsContextError(err) && !perAttemptContextError {
@@ -412,6 +413,13 @@ func executeStreamRetry(ctx context.Context, client ChatClient, req openai.ChatC
 		attemptCtxErr := attemptCtx.Err()
 		parentCtxErr := callerCtx.Err()
 
+		if parentCtxErr != nil {
+			attemptCancel()
+			if stream != nil {
+				_ = stream.Close()
+			}
+			return nil, noCancel, context.Cause(callerCtx)
+		}
 		if err == nil {
 			// Stream success is reported only after all terminal finish markers.
 			if logger != nil {
@@ -437,14 +445,12 @@ func executeStreamRetry(ctx context.Context, client ChatClient, req openai.ChatC
 		}
 		attemptCancel()
 
-		if parentCtxErr == nil {
-			if isOwnedTransportTimeout(context.Cause(ctx)) {
-				err = context.Cause(ctx)
-			} else if isOwnedTransportTimeout(context.Cause(attemptCtx)) {
-				err = context.Cause(attemptCtx)
-			} else if attemptCtxErr != nil && IsContextError(err) {
-				err = &TransportTimeoutError{Stage: "attempt", After: timeout}
-			}
+		if isOwnedTransportTimeout(context.Cause(ctx)) {
+			err = context.Cause(ctx)
+		} else if isOwnedTransportTimeout(context.Cause(attemptCtx)) {
+			err = context.Cause(attemptCtx)
+		} else if attemptCtxErr != nil && IsContextError(err) {
+			err = &TransportTimeoutError{Stage: "attempt", After: timeout}
 		}
 		perAttemptContextError := isOwnedTransportTimeout(err)
 		if IsContextError(err) && !perAttemptContextError {

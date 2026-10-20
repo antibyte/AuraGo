@@ -13,6 +13,15 @@ type ProviderReference struct {
 	ProviderID string `json:"provider_id"`
 }
 
+func isBuiltinEmbeddingProvider(id string) bool {
+	switch id {
+	case "disabled", "internal", "external", "local-granite", "local-ollama-embeddings":
+		return true
+	default:
+		return false
+	}
+}
+
 // ProviderReferences is the shared inventory for deletion guards and diagnostics.
 func (c *Config) ProviderReferences() []ProviderReference {
 	if c == nil {
@@ -23,7 +32,7 @@ func (c *Config) ProviderReferences() []ProviderReference {
 		if path == "music_generation.provider" && id == LocalMusicProviderID {
 			return
 		}
-		if path == "embeddings.provider" && (id == "disabled" || id == "local-granite" || id == "local-ollama-embeddings") {
+		if path == "embeddings.provider" && isBuiltinEmbeddingProvider(id) {
 			return
 		}
 		if (path == "llm.provider" || path == "fallback_llm.provider") && strings.EqualFold(id, LocalLLMProviderID) {
