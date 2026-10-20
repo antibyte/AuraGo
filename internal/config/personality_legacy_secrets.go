@@ -21,7 +21,13 @@ func migratePersonalityLegacySecrets(root map[string]interface{}, vault SecretRe
 			continue
 		}
 		value, ok := raw.(string)
-		if !ok || strings.TrimSpace(value) == "" {
+		if !ok {
+			if log != nil {
+				log.Warn("[Config] Legacy personality credential remains in YAML because its value is not a string", "field", path[0]+"."+path[1])
+			}
+			continue
+		}
+		if strings.TrimSpace(value) == "" {
 			delete(section, path[1])
 			changed = true
 			continue

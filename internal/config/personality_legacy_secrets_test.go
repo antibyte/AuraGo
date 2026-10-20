@@ -1,10 +1,15 @@
 package config
 
 import (
+	"bytes"
 	"errors"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 type failingPersonalityVault struct {
@@ -74,6 +79,66 @@ func TestPersonalityLegacyVaultFailurePreservesYAMLAndCredentials(t *testing.T) 
 		}
 		if section["v2_api_key"] != "legacy-credential" || vault.data["provider_helper_api_key"] != "active-credential" {
 			t.Fatal("lost credential on Vault failure")
+		}
+	}
+}
+
+func TestPersonalityLegacyNumericSecretsSurviveDiskMigration(t *testing.T) {
+	for _, path := range [][2]string{{"personality", "v2_api_key"}, {"agent", "personality_v2_api_key"}} {
+		for _, rewrite := range []bool{false, true} {
+			name := path[0] + "/unchanged"
+			if rewrite {
+				name = path[0] + "/other_secret_migrated"
+			}
+			t.Run(name, func(t *testing.T) {
+				data := []byte(path[0] + ":\n  " + path[1] + ": 123456789\n")
+				if rewrite {
+					data = append(data, []byte("providers:\n  - id: unrelated\n    api_key: unrelated-credential\n")...)
+				}
+				var legacy Config
+				if err := yaml.Unmarshal(data, &legacy); err != nil {
+					t.Fatal(err)
+				}
+				if legacy.Personality.V2APIKey != "123456789" && legacy.Agent.LegacyPersonalityV2APIKey != "123456789" {
+					t.Fatal("numeric credential was not supported by the legacy decoder")
+				}
+				configPath := filepath.Join(t.TempDir(), "config.yaml")
+				if err := os.WriteFile(configPath, data, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				vault := &testSecretVault{data: map[string]string{"provider_helper_api_key": "active-helper-credential"}}
+				var warnings bytes.Buffer
+				log := slog.New(slog.NewTextHandler(&warnings, nil))
+				MigratePlaintextSecretsToVault(configPath, vault, log)
+				after, err := os.ReadFile(configPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !rewrite && !bytes.Equal(after, data) {
+					t.Fatal("unsupported credential rewrote the source YAML")
+				}
+				var raw map[string]interface{}
+				if err := yaml.Unmarshal(after, &raw); err != nil {
+					t.Fatal(err)
+				}
+				section, _ := raw[path[0]].(map[string]interface{})
+				if section[path[1]] != 123456789 {
+					t.Fatal("numeric credential was removed or changed without Vault storage")
+				}
+				wantSecrets := 1
+				if rewrite {
+					wantSecrets++
+					if vault.data["provider_unrelated_api_key"] != "unrelated-credential" {
+						t.Fatal("independent credential migration did not run")
+					}
+				}
+				if len(vault.data) != wantSecrets || vault.data["provider_helper_api_key"] != "active-helper-credential" {
+					t.Fatal("legacy migration changed unrelated credentials")
+				}
+				if !strings.Contains(warnings.String(), path[0]+"."+path[1]) || !strings.Contains(warnings.String(), "not a string") || strings.Contains(warnings.String(), "123456789") {
+					t.Fatal("migration did not provide a content-free field diagnostic")
+				}
+			})
 		}
 	}
 }
