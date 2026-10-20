@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -463,6 +464,13 @@ func handleGetPersonalityContent(s *Server) http.HandlerFunc {
 						}
 					}
 				}
+			}
+		}
+
+		// Invalid disk profiles must still produce editable JSON and a diagnostic.
+		for _, value := range []*float64{&meta.Volatility, &meta.EmpathyBias, &meta.LonelinessSusceptibility, &meta.TraitDecayRate} {
+			if math.IsNaN(*value) || math.IsInf(*value, 0) {
+				*value = 1.0
 			}
 		}
 
