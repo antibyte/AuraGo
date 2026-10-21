@@ -458,6 +458,29 @@ async function moduleChecks() {
         assert.equal(rt.activeLayer().visible, true);
     });
 
+    await check('module: replace background adds a colour or generated layer below the subject', async () => {
+        const subject = rt.activeLayer();
+        const count = rt.layers.length;
+        assert.equal(await rt.cutoutReplaceBackground({ mode: 'colour', color: '#336699' }), true);
+        assert.equal(rt.layers.length, count + 1);
+        assert.equal(rt.activeLayer(), subject, 'the subject stays active');
+        assert.equal(last(), 'cutout:replace-bg');
+        assert.equal(rt.layerIndexById(subject.id), 1);
+        rt.undo();
+        const generated = Pixel.GENERATORS.length ? await rt.cutoutReplaceBackground({ mode: 'generated', generator: 'clouds' }) : true;
+        assert.equal(generated, true);
+        if (Pixel.GENERATORS.length) {
+            assert.equal(rt.layers.length, count + 1);
+            assert.equal(last(), 'cutout:replace-bg');
+            rt.undo();
+        }
+        assert.equal(rt.layers.length, count);
+        const before = rt.historyIdx;
+        assert.equal(await rt.cutoutReplaceBackground({ mode: 'transparent' }), true, 'transparent = the mask already does it');
+        assert.equal(rt.historyIdx, before);
+        rt.cutoutState.replaceValues.replaceMode = 'colour';
+    });
+
     await check('module: refine values settle into one history step and follow undo', async () => {
         const layer = rt.activeLayer();
         const before = rt.historyIdx;

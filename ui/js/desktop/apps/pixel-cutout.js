@@ -177,7 +177,9 @@
         ctx.save();
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = mode === 'remove' ? 'destination-out' : 'source-over';
-        for (let i = length === 0 ? 0 : 1; i <= steps; i++) {
+        // a segment starts where the previous one ended, so only a lone point stamps its own start
+        const first = length === 0 ? 0 : 1, lastStep = length === 0 ? 0 : steps;
+        for (let i = first; i <= lastStep; i++) {
             const t = i / steps;
             stamp(ctx, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, radius, hardness);
         }
@@ -1095,8 +1097,7 @@
 
     function refreshPanel(r) {
         const st = stateOf(r);
-        if (!st.ui || gone(r)) return;
-        if (st.refreshFrame) return;
+        if (!st.ui || gone(r) || st.stroke || st.refreshFrame) return;
         const run = () => { st.refreshFrame = 0; if (!gone(r)) paintPanel(r); };
         if (typeof requestAnimationFrame === 'function') st.refreshFrame = requestAnimationFrame(run);
         else run();
@@ -1234,6 +1235,7 @@
         if (!layer || !layer.maskCanvas) return;
         const rec = stroke.record;
         const last = rec.pts[rec.pts.length - 1];
+        if (last[0] === p.x && last[1] === p.y) return;
         paintSegment(layer.maskCanvas.getContext('2d'), last[0], last[1], p.x, p.y, rec.size, rec.hardness, rec.mode);
         rec.pts.push([p.x, p.y]);
         r.markLayerDirty(layer, { mask: true });
@@ -1361,6 +1363,14 @@
             cutoutToLayer: Pixel.bindRuntime(r, function cutoutToLayer() { return cutOutToLayer(this); }),
             cutoutBlurBackground: Pixel.bindRuntime(r, function cutoutBlurBackground() { return blurBackground(this); }),
             cutoutApplyMask: Pixel.bindRuntime(r, function cutoutApplyMask() { return applyMask(this); }),
+            // options: { mode: 'colour' | 'transparent' | 'generated', color: '#rrggbb', generator: id } (defaults: the panel's values)
+            cutoutReplaceBackground: Pixel.bindRuntime(r, function cutoutReplaceBackground(options) {
+                const o = options || {};
+                if (o.mode) st.replaceValues.replaceMode = o.mode;
+                if (o.color) st.replaceValues.replaceColor = o.color;
+                if (o.generator) st.replaceValues.replaceGenerator = o.generator;
+                return replaceBackground(this);
+            }),
             // Sets one refine value (shift, feather, smooth, decontaminate, decontaminateRadius, view) like its slider does:
             // live preview now, one history step once the value has settled.
             cutoutSetRefine: Pixel.bindRuntime(r, function cutoutSetRefine(key, value) {
