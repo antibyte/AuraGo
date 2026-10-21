@@ -176,7 +176,8 @@ func TestPixelEditorUsesCanvasPoolAndBoundedHistory(t *testing.T) {
 
 	source := readPixelAppScripts(t)
 	for _, marker := range []string{
-		"const MAX_HISTORY = 30",
+		"const MAX_HISTORY = 60",
+		"const HISTORY_BYTE_BUDGET = 768 * 1024 * 1024",
 		"const canvasPool = []",
 		"function acquireTempCanvas(width, height)",
 		"function releaseTempCanvas(canvas)",

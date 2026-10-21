@@ -291,6 +291,9 @@ func TestPixelAdjustApplyCommitsPreviewWithoutRestoringOriginal(t *testing.T) {
 	if !strings.Contains(applyBody, "captureAdjustmentSource();") {
 		t.Fatalf("Pixel applyAdjustments should commit the adjusted canvas as the new original image: %s", applyBody)
 	}
+	if !strings.Contains(applyBody, "commitLayerPixels(") {
+		t.Fatalf("Pixel applyAdjustments should commit the non-destructive preview through commitLayerPixels: %s", applyBody)
+	}
 	captureBody := jsFunctionBodyInWindowMenuTest(t, js, "captureAdjustmentSource: Pixel.bindRuntime(runtime, function captureAdjustmentSource()")
 	if !strings.Contains(captureBody, "originalImage =") {
 		t.Fatal("Pixel captureAdjustmentSource must retain the adjusted image")
@@ -310,20 +313,96 @@ func TestPixelCompareModeClearsWhenLeavingAdjustPanel(t *testing.T) {
 	}
 }
 
-func TestPixelAddLayerPreservesCurrentCanvasAsBackground(t *testing.T) {
-	canvas := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-canvas.js"))
-	tools := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-tools.js"))
-	migrateBody := jsFunctionBodyInWindowMenuTest(t, canvas, "ensureBackgroundMigrated: Pixel.bindRuntime(runtime, function ensureBackgroundMigrated()")
-	addLayerBody := jsFunctionBodyInWindowMenuTest(t, tools, "addLayer: Pixel.bindRuntime(runtime, function addLayer()")
+func TestPixelLayersAlwaysOwnCanvases(t *testing.T) {
+	var scripts strings.Builder
+	for _, scriptPath := range pixelAppScriptPaths {
+		if strings.HasPrefix(scriptPath, "js/desktop/apps/pixel") {
+			scripts.WriteString(normalizePixelAsset(readDesktopAssetText(t, scriptPath)))
+			scripts.WriteByte('\n')
+		}
+	}
+	source := scripts.String()
+	for _, forbidden := range []string{"canvas: null", "ensureBackgroundMigrated", "layers[0].canvas"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("pixel scripts must not keep the shared display/background layer model (%q)", forbidden)
+		}
+	}
+	activeCtx := jsFunctionBodyInWindowMenuTest(t, source, "getActiveCtx: Pixel.bindRuntime(runtime, function getActiveCtx()")
+	if strings.Contains(activeCtx, "this.cctx") {
+		t.Fatalf("getActiveCtx must return the layer (or mask) context, never the display canvas: %s", activeCtx)
+	}
+	for _, signature := range []string{
+		"loadImageToCanvas: Pixel.bindRuntime(runtime, async function loadImageToCanvas(",
+		"newBlankCanvas: Pixel.bindRuntime(runtime, function newBlankCanvas(",
+		"addLayer: Pixel.bindRuntime(runtime, function addLayer()",
+		"flattenLayers: Pixel.bindRuntime(runtime, function flattenLayers()",
+	} {
+		if body := jsFunctionBodyInWindowMenuTest(t, source, signature); !strings.Contains(body, "createLayer(") {
+			t.Fatalf("%s must create layers through createLayer so every layer owns a document-sized canvas: %s", signature, body)
+		}
+	}
+	paste := jsFunctionBodyInWindowMenuTest(t, source, "pasteClipboard: Pixel.bindRuntime(runtime, async function pasteClipboard()")
+	if strings.Contains(paste, "newBlankCanvas(") || !strings.Contains(paste, "createLayer(") {
+		t.Fatalf("paste must add a layer instead of replacing the document: %s", paste)
+	}
+}
 
-	if strings.Contains(migrateBody, "layers.length <= 1") {
-		t.Fatalf("ensureBackgroundMigrated must also copy the single-layer canvas before a new layer is added: %s", migrateBody)
+func TestPixelCoreExposesLayerHistoryAndSelectionContract(t *testing.T) {
+	core := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-core.js"))
+	for _, want := range []string{
+		"Pixel.installCore = function installCore(runtime)",
+		"on: Pixel.bindRuntime(runtime, function on(event, fn)",
+		"emit: Pixel.bindRuntime(runtime, function emit(event, data)",
+		"createLayer: Pixel.bindRuntime(runtime, function createLayer(",
+		"markLayerDirty: Pixel.bindRuntime(runtime, function markLayerDirty(",
+		"getActiveReadCtx: Pixel.bindRuntime(runtime, function getActiveReadCtx()",
+		"flattenDocument: Pixel.bindRuntime(runtime, function flattenDocument(",
+		"setLayerPreview: Pixel.bindRuntime(runtime, function setLayerPreview(",
+		"commitLayerPixels: Pixel.bindRuntime(runtime, function commitLayerPixels(",
+		"getSelectionMask: Pixel.bindRuntime(runtime, function getSelectionMask()",
+		"setSelectionMask: Pixel.bindRuntime(runtime, function setSelectionMask(",
+		"invertSelection: Pixel.bindRuntime(runtime, function invertSelection()",
+		"'layers-changed'",
+		"'history-changed'",
+		"'document-changed'",
+		"'active-layer-changed'",
+	} {
+		if !strings.Contains(core, want) {
+			t.Fatalf("pixel-core.js is missing %q", want)
+		}
 	}
-	if !strings.Contains(migrateBody, "bgCanvas.getContext('2d').drawImage(this.canvas, 0, 0);") {
-		t.Fatalf("ensureBackgroundMigrated should preserve the current visible canvas as the background layer: %s", migrateBody)
+	// compositeLayers runs on every mouse move while painting and must not rebuild the sticker DOM.
+	composite := jsFunctionBodyInWindowMenuTest(t, core, "compositeLayers: Pixel.bindRuntime(runtime, function compositeLayers()")
+	if strings.Contains(composite, "refreshStickerControls") {
+		t.Fatalf("compositeLayers must not refresh sticker controls: %s", composite)
 	}
-	if strings.Index(addLayerBody, "ensureBackgroundMigrated();") < 0 || strings.Index(addLayerBody, "ensureBackgroundMigrated();") > strings.Index(addLayerBody, "layers.push(") {
-		t.Fatalf("addLayer should migrate the background before inserting a blank layer: %s", addLayerBody)
+	// Mask editing paints alpha: brush reveals with opaque white, the eraser hides; the eraser never paints black.
+	events := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-events.js"))
+	spec := jsFunctionBodyInWindowMenuTest(t, events, "brushStrokeSpec: Pixel.bindRuntime(runtime, function brushStrokeSpec()")
+	for _, want := range []string{"'destination-out'", "inMask ? '#ffffff'"} {
+		if !strings.Contains(spec, want) {
+			t.Fatalf("brushStrokeSpec must paint masks as alpha (missing %q): %s", want, spec)
+		}
+	}
+	if strings.Contains(events, "maskErase") {
+		t.Fatal("the mask eraser must hide through destination-out, not by painting opaque black")
+	}
+}
+
+func TestPixelHistorySharesUnchangedLayerSnapshots(t *testing.T) {
+	core := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-core.js"))
+	push := jsFunctionBodyInWindowMenuTest(t, core, "pushHistory: Pixel.bindRuntime(runtime, function pushHistory(label)")
+	for _, want := range []string{"old.snap.rev === l.rev", "old.maskSnap.maskRev === l.maskRev", "copyCanvas(", "HISTORY_BYTE_BUDGET", "this.MAX_HISTORY"} {
+		if !strings.Contains(push, want) {
+			t.Fatalf("pushHistory must reuse snapshots of layers whose rev did not change (missing %q): %s", want, push)
+		}
+	}
+	if strings.Contains(push, "acquireTempCanvas") {
+		t.Fatalf("history snapshots must be plain canvases; releasing a pooled canvas would clear shared snapshots: %s", push)
+	}
+	restore := jsFunctionBodyInWindowMenuTest(t, core, "restoreHistory: Pixel.bindRuntime(runtime, function restoreHistory(entry)")
+	if !strings.Contains(restore, "old.rev === meta.rev") || !strings.Contains(restore, "entry.selection") {
+		t.Fatalf("restoreHistory must reuse canvases with matching revs and restore the selection: %s", restore)
 	}
 }
 
@@ -437,7 +516,7 @@ func TestPixelNewToolsRegistered(t *testing.T) {
 		t.Fatal("pixel-canvas.js should expose expandCanvasToFit for oversized AI layers")
 	}
 	if strings.Contains(tools, "layers.length >= 10") {
-		t.Fatal("pixel-tools.js should use MAX_LAYERS (20) instead of hard-coded 10")
+		t.Fatal("pixel-tools.js should use MAX_LAYERS instead of hard-coded 10")
 	}
 }
 
@@ -541,6 +620,7 @@ var pixelAppScriptPaths = []string{
 	"js/desktop/shared/sticker-catalog.js",
 	"js/desktop/shared/sticker-library.js",
 	"js/desktop/apps/pixel-state.js",
+	"js/desktop/apps/pixel-core.js",
 	"js/desktop/apps/pixel-view.js",
 	"js/desktop/apps/pixel-canvas.js",
 	"js/desktop/apps/pixel-tools.js",

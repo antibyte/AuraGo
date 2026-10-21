@@ -212,6 +212,7 @@ var handoffAppScripts = []string{
 	"js/desktop/apps/video-studio-menus.js",
 	"js/desktop/apps/video-studio.js",
 	"js/desktop/apps/pixel-state.js",
+	"js/desktop/apps/pixel-core.js",
 	"js/desktop/apps/pixel-view.js",
 	"js/desktop/apps/pixel-canvas.js",
 	"js/desktop/apps/pixel-tools.js",
