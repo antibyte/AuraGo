@@ -73,7 +73,7 @@ Laufweg = Länge der Hauptroute (Mittellinie) vom Abschlag zum Loch. „Abkürzu
 |---|---|---|---|---|---|---|---|---|
 | 13 | moon-13 | Aufsetzer / Touchdown | 2 | ≈ 14 m | Gerade, Hügel, Grün | geringe Schwerkraft | Habitat | – (Einführung in die Schwerkraft) |
 | 14 | moon-14 | Boost-Spur / Boost Lane | 3 | ≈ 22 m | Gerade, Steilkurve, Staubstrecke (Regolith), Platz mit Abgrund, Kurve, Grün | 2 Boost-Felder, 2 Neon-Bumper | Parabolschüssel | Schuss über die offene Kante des Abgrunds im Platz (ab Stärke 0,6 fliegt der Ball hinüber, schwächer fällt er hinein) |
-| 15 | moon-15 | Kraterrinne / Crater Pipe | 3 | ≈ 22 m | Halfpipe in der Kurve, Gerade | – | Kraterwand und Rover | Sprung über den Abgrund |
+| 15 | moon-15 | Kraterrinne / Crater Pipe | 3 | ≈ 24 m | Gabelung (links S-förmige Halfpipe, der erste Bogen im Regolith; rechts Rampe mit Sprung über die Schlucht), Gerade, Kurve, Grün | – | Kraterwand und Rover | Sprung über die Schlucht (Schlag 0,3 bis 0,35 geradeaus aus der Gabelung) |
 | 16 | moon-16 | Beam-Station / Beam Station | 4 | ≈ 26 m | Platz, Kurve, Brücke | 2 Teleporter, drehender Radararm | Funkturm | Teleporter direkt aufs Grün |
 | 17 | moon-17 | Schwerelos / Zero-G Leap | 4 | ≈ 30 m | Rampe mit Sprung, Kurve, Platz | Schotttore, 2 Bumper | Habitat und Solarfeld | Langer Sprung über die Schlucht |
 | 18 | moon-18 | Orbit-Looping / Orbit Loop | 5 | ≈ 35 m | Boost, Looping, Gabelung, Trichter | Boost-Feld, Schotttor | Habitat, Rover, Erde | Halfpipe-Abkürzung statt Gabelung |
