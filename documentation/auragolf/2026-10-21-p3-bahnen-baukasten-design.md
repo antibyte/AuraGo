@@ -52,7 +52,7 @@ Laufweg = Länge der Hauptroute (Mittellinie) vom Abschlag zum Loch. „Abkürzu
 | 1 | pirate-01 | Ankerbucht / Anchor Cove | 2 | ≈ 12 m | Gerade, Kurve, Grün | – | Schiff vor Anker neben dem Grün | – (Einführung) |
 | 2 | pirate-02 | Fasskegeln / Barrel Bumpers | 3 | ≈ 17 m | Sandgerade, Sand-Steilkurve, Holzplatz mit seitlichem Ausgang, Kurve, Grün | 3 Fass-Bumper auf dem Platz | Kanone und Fässer | Bandenschuss zwischen den Bumpern |
 | 3 | pirate-03 | Plankensteg / Plank Walk | 3 | ≈ 22 m | Gabelung (links Sandbunker, rechts Rampe, Brücke ohne Bande, Rampe), Kurve, Grün; Lagune als freier Teich | – | Steg über der Lagune mit Bojen, Leuchtturm und Anlegesteg | Planke ohne Bande quer über die Lagune |
-| 4 | pirate-04 | Kanonenbucht / Cannon Cove | 4 | ≈ 26 m | Hügel, Stufen, Kurve, Rampe | Kanone | Schiff und Kanonenstellung | Präziser Schuss in die Kanone, die über die Lagune aufs Grün feuert |
+| 4 | pirate-04 | Kanonenbucht / Cannon Cove | 4 | ≈ 27 m | Kanonendeck (Platz), Rampe auf den Steg, Hügel, zwei Kurven (U um die Lagune, Steg auf Pfählen), Stufen, Grün | Kanone | Schiff und Kanonenstellung | Präziser Schuss in die Kanone, die über die Lagune aufs Grün feuert |
 | 5 | pirate-05 | Schmugglerhöhle / Smuggler's Cave | 4 | ≈ 28 m | Tunnel durch den Totenkopffelsen, Steilkurve | Ankerpendel, Teleporter (Luke → Fass) | Totenkopffelsen | Luke kurz hinter dem Abschlag |
 | 6 | pirate-06 | Krakenstrudel / Kraken's Whirlpool | 5 | ≈ 34 m | Rampe mit Sprung, Brücke, Platz, Trichter | Zugbrücke (Tor), 2 Bumper | Schiff und Strudel | Sprung über die Lagune |
 
