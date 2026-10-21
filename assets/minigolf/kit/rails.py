@@ -3,11 +3,12 @@
 Plain Python, no ``bpy``. ``rail_runs(track)`` collects the wall segments of all strips (a segment is walled
 on a side when its *later* section has the flag; zero-length riser edges of steps are skipped) and of all
 pad perimeters, and chains them into connected runs by their exact end points (seam points are shared
-objects, so chaining needs no tolerance). A run is a list of ``(point, outward, up)``: ``point`` is the
+objects, so chaining needs no tolerance). A run is a list of ``(point, outward, up, height)``: ``point`` is the
 inner floor edge, ``up`` the wall direction (the section's ``wall_up`` or its normal), ``outward`` points
-away from the lane, mitred at bends so the wall keeps its thickness. ``rail_mesh(run)`` turns a run into
-vertices and triangles shaped like the P1 rails: the inner face reaches ``WALL_DEPTH`` below the edge and
-``WALL_HEIGHT`` above it, the outer face is ``WALL_THICKNESS`` further out, both ends are closed.
+away from the lane, mitred at bends so the wall keeps its thickness, ``height`` the wall height above the edge
+(``WALL_HEIGHT``, or the section's ``wall_height`` where a piece raises its rails). ``rail_mesh(run)`` turns a
+run into vertices and triangles shaped like the P1 rails: the inner face reaches ``WALL_DEPTH`` below the edge
+and ``height`` above it, the outer face is ``WALL_THICKNESS`` further out, both ends are closed.
 The triangles face outwards (normal of the inner face points into the lane).
 """
 
@@ -42,31 +43,32 @@ def _unit(a):
 
 
 def _edge(section, side):
-    """Floor edge point, outward direction and wall direction of ``section`` on ``side`` (0 left, 1 right)."""
+    """Floor edge point, outward direction, wall direction and wall height of ``section`` on ``side`` (0 left, 1 right)."""
     up = _unit(section.wall_up[side] if section.wall_up else section.normal)
     lateral = _unit(_sub(section.points[0], section.points[ROWS]))
     out = lateral if side == 0 else _mul(lateral, -1.0)
-    return section.points[ROWS if side else 0], _unit(_sub(out, _mul(up, _dot(out, up)))), up
+    height = WALL_HEIGHT if section.wall_height is None else section.wall_height
+    return section.points[ROWS if side else 0], _unit(_sub(out, _mul(up, _dot(out, up)))), up, height
 
 
 def strip_segments(strip):
-    """Wall segments ``(point_a, point_b, outward, up_a, up_b)`` of one strip."""
+    """Wall segments ``(point_a, point_b, outward, up_a, up_b, height_a, height_b)`` of one strip."""
     segments = []
     for a, b in zip(strip.sections, strip.sections[1:]):
         for side in (0, 1):
             if not b.walls[side]:
                 continue
-            pa, oa, ua = _edge(a, side)
-            pb, ob, ub = _edge(b, side)
+            pa, oa, ua, ha = _edge(a, side)
+            pb, ob, ub, hb = _edge(b, side)
             if math.hypot(pa[0] - pb[0], pa[1] - pb[1]) < 1e-9:
                 continue
-            segments.append((pa, pb, _unit(_add(oa, ob)), ua, ub))
+            segments.append((pa, pb, _unit(_add(oa, ob)), ua, ub, ha, hb))
     return segments
 
 
 def pad_segments(pad):
     up = (0.0, 0.0, 1.0)
-    return [(pa, pb, out, up, up) for pa, pb, out in pad.walls]
+    return [(pa, pb, out, up, up, WALL_HEIGHT, WALL_HEIGHT) for pa, pb, out in pad.walls]
 
 
 def _miter(o1, o2):
@@ -77,7 +79,7 @@ def _miter(o1, o2):
 
 
 def chain_runs(segments):
-    """Chain segments into runs; returns a list of vertex lists ``[(point, outward, up), ...]``."""
+    """Chain segments into runs; returns a list of vertex lists ``[(point, outward, up, height), ...]``."""
     ends = {}
     for k, seg in enumerate(segments):
         ends.setdefault(seg[0], []).append(k)
@@ -88,7 +90,7 @@ def chain_runs(segments):
         return next((k for k in ends.get(point, ()) if not used[k]), None)
 
     def turned(seg):
-        return (seg[1], seg[0], seg[2], seg[4], seg[3])
+        return (seg[1], seg[0], seg[2], seg[4], seg[3], seg[6], seg[5])
 
     runs = []
     for first in range(len(segments)):
@@ -102,10 +104,10 @@ def chain_runs(segments):
         while (k := free(chain[0][0])) is not None:
             used[k] = True
             chain.insert(0, segments[k] if segments[k][1] == chain[0][0] else turned(segments[k]))
-        verts = [(chain[0][0], chain[0][2], chain[0][3])]
+        verts = [(chain[0][0], chain[0][2], chain[0][3], chain[0][5])]
         for before, after in zip(chain, chain[1:]):
-            verts.append((after[0], _miter(before[2], after[2]), _unit(_add(before[4], after[3]))))
-        verts.append((chain[-1][1], chain[-1][2], chain[-1][4]))
+            verts.append((after[0], _miter(before[2], after[2]), _unit(_add(before[4], after[3])), 0.5 * (before[6] + after[5])))
+        verts.append((chain[-1][1], chain[-1][2], chain[-1][4], chain[-1][6]))
         runs.append(verts)
     return runs
 
@@ -122,13 +124,13 @@ def rail_runs(track):
 
 def rail_mesh(run):
     """Vertices and triangles of one run (see the module docstring); the run is turned if needed so the faces point outwards."""
-    point, out, up = run[0]
+    point, out, up, _ = run[0]
     if _dot(_cross(_sub(run[1][0], point), up), out) > 0:
         run = run[::-1]
     verts = []
-    for point, out, up in run:
+    for point, out, up, height in run:
         inner_bottom = _sub(point, _mul(up, WALL_DEPTH))
-        inner_top = _add(point, _mul(up, WALL_HEIGHT))
+        inner_top = _add(point, _mul(up, height))
         verts.extend([inner_bottom, _add(inner_bottom, _mul(out, WALL_THICKNESS)), inner_top, _add(inner_top, _mul(out, WALL_THICKNESS))])
     faces = []
     for i in range(len(run) - 1):

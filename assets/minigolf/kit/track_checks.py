@@ -18,7 +18,7 @@ import math
 import struct
 
 from . import layout
-from .track import CUP_RADIUS, HOLE_MARGIN, ROWS, SPACING
+from .track import CUP_RADIUS, CUP_SEGMENTS, ROWS, SPACING
 
 
 def probe_course():
@@ -75,6 +75,7 @@ def _all_points(track):
         else:
             for row in pad.grid["points"]:
                 yield from row
+        yield from pad.cup_ring or ()
 
 
 def signature(track):
@@ -128,6 +129,8 @@ def check_seams(track):
             points = pad.grid["points"]
             for i, j in pad.faces:
                 group.update((points[i][j], points[i][j + 1], points[i + 1][j], points[i + 1][j + 1]))
+        for triangle in pad.tris:
+            group.update(triangle)
     objects = sum(len(ids) for ids in by_value.values())
     if objects != len(by_value):
         raise AssertionError("%d point tuples carry only %d distinct values: a seam was recomputed" % (objects, len(by_value)))
@@ -135,9 +138,10 @@ def check_seams(track):
 
 
 def _pad_points(pad):
+    ring = list(pad.cup_ring or ())
     if pad.grid.get("polar"):
-        return [p for ring in pad.grid["rings"] for p in ring]
-    return [p for row in pad.grid["points"] for p in row]
+        return [p for r in pad.grid["rings"] for p in r] + ring
+    return [p for row in pad.grid["points"] for p in row] + ring
 
 
 def _normal(a, b, c):
@@ -158,6 +162,10 @@ def check_geometry(track, name):
         if pad.grid.get("polar"):
             if any(_normal(*t)[2] <= 0 for t in pad.faces):
                 raise AssertionError("a funnel floor triangle does not face up")
+        if any(_normal(*t)[2] <= 0 for t in pad.tris):
+            raise AssertionError("a floor triangle around the %s hole does not face up" % pad.kind)
+        if pad.kind == "green":
+            check_cup_polygon(pad, "green")
     if name == "selftest":
         check_jump(track)
     if name != "selftest-moon":
@@ -169,6 +177,9 @@ def check_geometry(track, name):
     lips = max(s.points[0][2] for s in pipe.sections)
     if abs(lips - PIPE_RADIUS) > 1e-9 or any(s.wall_up != ((0.0, 0.0, 1.0), (0.0, 0.0, 1.0)) for s in pipe.sections[1:-1]):
         raise AssertionError("half-pipe lip height %.3f or wall direction wrong" % lips)
+    rails = [s.wall_height for s in pipe.sections]
+    if rails[0] is not None or rails[-1] is not None or abs(max(rails[1:-1]) - 0.45) > 1e-9 or min(rails[1:-1]) < 0.24:
+        raise AssertionError("the half-pipe lip rails must grow to 0.45 m from the plain rail height")
     if len(loop.sections) < 49 or not (loop.sections[0].flat and loop.sections[-1].flat):
         raise AssertionError("the loop needs at least 48 sections between two flat ends")
     first, last = loop.sections[0], loop.sections[-1]
@@ -184,11 +195,12 @@ def check_geometry(track, name):
     rings = funnel.grid["rings"]
     if any(a is not b for a, b in zip(rings[0], funnel.ports[0]["section"].points)):
         raise AssertionError("the funnel rim does not start with the entry section's point objects")
-    inner = min(math.dist(p[:2], funnel.cup[:2]) for p in rings[-1])
-    if abs(inner - (CUP_RADIUS + HOLE_MARGIN)) > 1e-6:
-        raise AssertionError("innermost funnel ring at %.4f m" % inner)
-    if abs(funnel.cup[2] - (rings[0][0][2] - FUNNEL_DEPTH)) > 1e-9:
-        raise AssertionError("the funnel hole is not at the bottom of the bowl")
+    check_cup_polygon(funnel, "funnel")
+    if rings[-1] != funnel.cup_ring or len(rings[-1]) != CUP_SEGMENTS:
+        raise AssertionError("the innermost funnel ring must be the %d point hole polygon" % CUP_SEGMENTS)
+    rim = rings[0][0][2] - FUNNEL_DEPTH * (1.0 - (CUP_RADIUS / FUNNEL_RADIUS) ** 1.5)
+    if abs(funnel.cup[2] - rim) > 1e-9:
+        raise AssertionError("the funnel hole rim is at %.4f m, expected %.4f" % (funnel.cup[2], rim))
     if len(track.corridors) != 2 or [p.kind for p in track.pads] != ["tee", "fork", "join", "funnel"]:
         raise AssertionError("expected one fork (two corridors) and a funnel, got %d corridors and pads %s"
                              % (len(track.corridors), [p.kind for p in track.pads]))
@@ -197,6 +209,16 @@ def check_geometry(track, name):
     anchors = track.anchors
     if not 0.0 < anchors["loop_in"][0] - BOOST["position"][0] <= 1.5 or abs(anchors["boost"][0] - BOOST["position"][0]) > 1e-9:
         raise AssertionError("the boost pad must lie at most 1.5 m before the loop")
+
+
+def check_cup_polygon(pad, name):
+    """The hole polygon: ``CUP_SEGMENTS`` corners exactly on the circle of radius ``CUP_RADIUS`` around the cup."""
+    ring = pad.cup_ring
+    if ring is None or len(ring) != CUP_SEGMENTS:
+        raise AssertionError("%s: the hole polygon needs %d corners" % (name, CUP_SEGMENTS))
+    for p in ring:
+        if abs(math.hypot(p[0] - pad.cup[0], p[1] - pad.cup[1]) - CUP_RADIUS) > 1e-9:
+            raise AssertionError("%s: a hole corner is not on the circle of radius %.2f" % (name, CUP_RADIUS))
 
 
 def check_jump(track):

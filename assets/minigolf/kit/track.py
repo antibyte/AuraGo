@@ -24,8 +24,10 @@ CUP_RADIUS = 0.32
 BALL_RADIUS = 0.16
 MAX_STEP = 0.30          # longest cross-section distance in bends and height changes
 GROUNDED_MAX = 0.30
-HOLE_MARGIN = 0.13       # raster cells whose centre is closer than CUP_RADIUS + this have no floor
+HOLE_MARGIN = 0.13       # funnel: legacy inner ring offset (the innermost ring now sits exactly at CUP_RADIUS)
 PAD_STEP = 0.25          # longest pad raster cell along the lane
+CUP_SEGMENTS = 32        # corners of the exact hole polygon of radius CUP_RADIUS
+CUP_DEPTH = 0.30         # the collision cup reaches this far below its rim
 
 SURFACES = ("grass", "sand")
 LOOKS = ("felt", "sand", "deck", "slab", "metal")
@@ -61,16 +63,19 @@ class Section:
     ``walls`` is ``(left, right)``: a rail runs along a side between two sections
     when the *later* section has the flag (it belongs to the piece that follows the
     seam). ``wall_up`` is ``(left_vec, right_vec)`` or ``None`` (then ``normal``).
-    ``arc`` is the distance along the main route, set by the layout.
+    ``arc`` is the distance along the main route, set by the layout. ``wall_height`` is the rail height above
+    the floor edge (``None`` = ``WALL_HEIGHT``); the half-pipe raises its lip rails.
     """
 
-    __slots__ = ("points", "center", "heading", "normal", "walls", "wall_up", "surface", "look", "grounded", "flat", "arc")
+    __slots__ = ("points", "center", "heading", "normal", "walls", "wall_up", "surface", "look", "grounded", "flat", "arc",
+                 "wall_height")
 
     def __init__(self, points, center, heading, normal=(0.0, 0.0, 1.0), walls=(True, True), wall_up=None,
-                 surface="grass", look="felt", grounded=True, flat=True):
+                 surface="grass", look="felt", grounded=True, flat=True, wall_height=None):
         self.points, self.center, self.heading, self.normal = points, center, heading, normal
         self.walls, self.wall_up, self.surface, self.look = walls, wall_up, surface, look
         self.grounded, self.flat, self.arc = grounded, flat, None
+        self.wall_height = wall_height
 
 
 class Strip:
@@ -86,15 +91,21 @@ class Pad:
     """Raster area. ``grid`` = ``{"nx", "ny", "points"}`` with ``points[i][j]`` (row ``i`` forward,
     column ``j`` from the left); ``faces`` are the kept cells ``(i, j)``; ``walls`` are perimeter
     edges ``(point_a, point_b, outward)`` without the ports; ``ports`` are ``{"side", "cols",
-    "section"}``; ``cup`` is the world position of the hole, ``holes`` the hazard pools,
-    ``mark`` the tee mark, ``frame`` = ``(x, y, z, heading)`` of the pad origin."""
+    "section"}``; ``cup`` is the world position of the hole (centre, rim height), ``holes`` the hazard pools,
+    ``mark`` the tee mark, ``frame`` = ``(x, y, z, heading)`` of the pad origin. ``tris`` are extra floor
+    triangles (point triples, counter-clockwise from above) and ``cup_ring`` the ``CUP_SEGMENTS`` corner points
+    of the exact hole polygon (the same tuple objects as in ``tris``/``faces``), both set by the green and the
+    funnel."""
 
-    __slots__ = ("kind", "grid", "faces", "surface", "look", "walls", "ports", "cup", "holes", "mark", "frame", "arc0", "size")
+    __slots__ = ("kind", "grid", "faces", "surface", "look", "walls", "ports", "cup", "holes", "mark", "frame", "arc0", "size",
+                 "tris", "cup_ring", "grounded")
 
-    def __init__(self, kind, grid, faces, surface, look, walls, ports, frame, size, cup=None, holes=(), mark=None):
+    def __init__(self, kind, grid, faces, surface, look, walls, ports, frame, size, cup=None, holes=(), mark=None,
+                 tris=(), cup_ring=None, grounded=True):
         self.kind, self.grid, self.faces, self.surface, self.look = kind, grid, faces, surface, look
         self.walls, self.ports, self.cup, self.holes, self.mark = walls, ports, cup, list(holes), mark
         self.frame, self.size, self.arc0 = frame, size, 0.0
+        self.tris, self.cup_ring, self.grounded = list(tris), cup_ring, grounded
 
 
 class Track:

@@ -5,7 +5,9 @@ height of the entry section. The outer ring is the 13 point objects of the entry
 spaced rim points over the rest of the circle (at about the angular step of the entry), so the lane seam needs
 no welding. The entry section is a straight chord, so its middle lies up to 0.25 m inside the rim circle; the
 first inner ring therefore sits ``FIRST_BAND`` (0.35 m) inside the deepest entry point. Further rings follow at equal
-radial steps (about 0.22 m) down to ``CUP_RADIUS + HOLE_MARGIN``; the hole inside the last ring stays open. Rings with different point counts are joined by a zipper over their angles.
+radial steps (about 0.22 m) down to the innermost ring, which lies exactly on ``CUP_RADIUS`` with ``CUP_SEGMENTS`` (32)
+points: that polygon is the hole (``pad.cup_ring``) and the rim of the collision cup. Rings with different point
+counts are joined by a zipper over their angles.
 The rim carries a wall everywhere except over the entry arc.
 
 The pad is registered in ``pads.PADS`` as ``funnel``. Its ``grid`` is ``{"polar": True, "rings", "centre",
@@ -16,14 +18,15 @@ from above, so they face up). ``samples`` are ``(route_distance, point)`` pairs 
 import math
 
 from . import pads
-from .track import CUP_RADIUS, HOLE_MARGIN, ROWS, Pad, lane_style
+from .cup_hole import zipper as _zipper
+from .track import CUP_RADIUS, CUP_SEGMENTS, ROWS, Pad, lane_style
 
 MIN_RADIUS = 2.0
 MAX_RADIUS = 4.0
 BAND = 0.25               # the entry section lies within this distance inside the rim circle
 RING_STEP = 0.22          # radial distance between rings
 FIRST_BAND = 0.35         # first inner ring: this far inside the deepest entry point
-INNER_RADIUS = CUP_RADIUS + HOLE_MARGIN
+INNER_RADIUS = CUP_RADIUS
 MIN_RING_POINTS = 16
 MAX_RIM_SLOPE = math.tan(math.radians(22.0))
 EXPONENT = 1.5
@@ -31,22 +34,6 @@ EXPONENT = 1.5
 
 def _wrap(angle):
     return (angle + math.pi) % (2.0 * math.pi) - math.pi
-
-
-def _zipper(outer, inner, triangles):
-    """Triangles between two closed rings, both counter-clockwise ``[(angle, point)]`` starting at the same angle."""
-    na, nb = len(outer), len(inner)
-    end = outer[0][0] + 2.0 * math.pi
-    i = j = 0
-    while i < na or j < nb:
-        a_next = outer[i + 1][0] if i + 1 < na else end
-        b_next = inner[j + 1][0] if j + 1 < nb else end
-        if j >= nb or (i < na and a_next <= b_next):
-            triangles.append((outer[i][1], outer[(i + 1) % na][1], inner[j % nb][1]))
-            i += 1
-        else:
-            triangles.append((inner[j][1], outer[i % na][1], inner[(j + 1) % nb][1]))
-            j += 1
 
 
 def funnel(prev, cursor, radius, depth, cup=None, **style):
@@ -102,15 +89,16 @@ def funnel(prev, cursor, radius, depth, cup=None, **style):
     z_cup = rim_z - depth
     first = min(radius - RING_STEP, min(math.hypot(x - cx, y - cy) for x, y in entry) - FIRST_BAND)
     steps = max(1, math.ceil((first - INNER_RADIUS) / RING_STEP - 1e-9))
-    radii = [first - (first - INNER_RADIUS) * k / steps for k in range(steps + 1)]
+    radii = [first - (first - INNER_RADIUS) * k / steps for k in range(steps)] + [INNER_RADIUS]
     rings, triangles = [ring0], []
-    for r in radii:
+    for k, r in enumerate(radii):
         z = z_cup + depth * (r / radius) ** EXPONENT
-        n = max(MIN_RING_POINTS, round(2.0 * math.pi * r / (step * radius)))
+        n = CUP_SEGMENTS if k == steps else max(MIN_RING_POINTS, round(2.0 * math.pi * r / (step * radius)))
         ring = [(a, world(cx + r * math.cos(a), cy + r * math.sin(a), z)) for a in (angles[0] + 2.0 * math.pi * j / n for j in range(n))]
         _zipper(rings[-1], ring, triangles)
         rings.append(ring)
-    centre = world(cx, cy, z_cup)
+    rim_z = z_cup + depth * (CUP_RADIUS / radius) ** EXPONENT
+    centre = world(cx, cy, rim_z)           # the hole: its rim height is the cup height
     walls = []
     if st["walls"] != (False, False):
         rim = [prev.points[ROWS]] + [p for _, p in ring0[ROWS + 1:]] + [prev.points[0]]
@@ -123,7 +111,8 @@ def funnel(prev, cursor, radius, depth, cup=None, **style):
     grid = {"polar": True, "rings": [[p for _, p in ring] for ring in rings], "centre": centre, "radius": radius, "samples": samples}
     ports = [{"side": "entry", "cols": (0, ROWS), "section": prev}]
     pad = Pad("funnel", grid, triangles, st["surface"], st["look"], walls, ports, (ox, oy, oz, heading), (2.0 * radius, 2.0 * radius),
-              cup=centre, holes=[{"kind": "cup", "center": centre, "radius": CUP_RADIUS}])
+              cup=centre, holes=[{"kind": "cup", "center": centre, "radius": CUP_RADIUS}], cup_ring=[p for _, p in rings[-1]],
+              grounded=st["grounded"])
     return pad, None, cursor
 
 

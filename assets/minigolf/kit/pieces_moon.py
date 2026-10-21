@@ -8,7 +8,8 @@ Both pieces start from a flat, aligned ``prev`` section. Importing this module r
 lie at equal arc-length steps on the profile. The lane blends from the flat section into the U and back
 over ``blend`` (at least 1.5 m) with ``point = lerp(flat, U, smoothstep(s / blend))``. The centreline is a
 straight line or an arc; the rim walls stand vertically on the lips (``wall_up`` = world up) and lean
-horizontally outwards.
+horizontally outwards. They rise ``lip_wall`` (default 0.45 m, blended from the plain rail height with the
+transition) above the lips so strong diagonal shots stay inside.
 
 ``loop``: a vertical circle with a lateral offset (a helix-like sweep), so the exit lane lies beside the
 entry lane. With ``f`` the heading, ``up`` world up and ``side`` the left vector the centreline is
@@ -20,11 +21,13 @@ the start, pointing into the circle at the top). The walls stand along ``n``.
 import math
 
 from . import pieces
-from .track import GROUNDED_MAX, LANE_WIDTH, MAX_STEP, ROWS, SPACING, WALL_THICKNESS, Cursor, Section, lane_style, make_section
+from .track import GROUNDED_MAX, LANE_WIDTH, MAX_STEP, ROWS, SPACING, WALL_HEIGHT, WALL_THICKNESS, Cursor, Section, lane_style, make_section
 
 MIN_BLEND = 1.5
 MIN_PIPE_RADIUS = 0.5
 MIN_PIPE_DEPTH = 0.3
+LIP_WALL = 0.45            # default height of the lip rails above the lips (a plain rail is 0.24 m)
+MAX_LIP_WALL = 1.0
 PIPE_MARGIN = 0.5          # a curved pipe's path radius exceeds the lip half span by this
 LOOP_RADII = (1.2, 1.5)
 LOOP_MIN_OFFSET = LANE_WIDTH + 2 * WALL_THICKNESS + 0.2
@@ -91,12 +94,14 @@ def _centreline(cursor, length, radius_path, angle_deg):
     return abs(angle) * radius_path, at
 
 
-def halfpipe(prev, cursor, width=1.2, radius=0.9, depth=None, length=None, radius_path=None, angle=None, blend=MIN_BLEND, **style):
+def halfpipe(prev, cursor, width=1.2, radius=0.9, depth=None, length=None, radius_path=None, angle=None, blend=MIN_BLEND,
+             lip_wall=LIP_WALL, **style):
     """U-shaped half-pipe.
 
     ``width`` is the flat floor, ``radius`` the quarter-circle radius, ``depth`` the lip height (default
     ``radius`` = vertical lips; a smaller value stops the arc earlier). The path is straight (``length`` m) or
     an arc (``radius_path`` m, ``angle`` degrees); ``blend`` (>= 1.5 m) is the flat-to-U transition at each end.
+    ``lip_wall`` (0.24 to 1 m) is the rail height on the lips; it grows from the plain rail height with the blend.
     """
     _require_flat_start(prev, cursor, "half-pipe")
     st = lane_style(style)
@@ -108,6 +113,8 @@ def halfpipe(prev, cursor, width=1.2, radius=0.9, depth=None, length=None, radiu
         raise ValueError("radius must be at least %.1f m and depth between %.1f m and the radius" % (MIN_PIPE_RADIUS, MIN_PIPE_DEPTH))
     if blend < MIN_BLEND:
         raise ValueError("blend must be at least %.1f m" % MIN_BLEND)
+    if not isinstance(lip_wall, (int, float)) or not WALL_HEIGHT <= lip_wall <= MAX_LIP_WALL:
+        raise ValueError("lip_wall must be between %g and %g m (got %r)" % (WALL_HEIGHT, MAX_LIP_WALL, lip_wall))
     if (length is None) == (radius_path is None or angle is None):
         raise ValueError("give either length or radius_path with angle")
     rows = _u_rows(width, radius, depth)
@@ -139,7 +146,8 @@ def halfpipe(prev, cursor, width=1.2, radius=0.9, depth=None, length=None, radiu
             a, h = fa + (ua - fa) * t, fh + (uh - fh) * t
             points.append((x + lx * a, y + ly * a, cursor.z + h))
         sections.append(Section(points, (x, y, cursor.z), heading, normal=UP, walls=st["walls"], wall_up=wall_up, surface=st["surface"],
-                                look=st["look"], grounded=st["grounded"], flat=False))
+                                look=st["look"], grounded=st["grounded"], flat=False,
+                                wall_height=WALL_HEIGHT + (lip_wall - WALL_HEIGHT) * t))
     last = sections[-1]
     return sections, Cursor(last.center[0], last.center[1], last.center[2], last.heading), {}
 

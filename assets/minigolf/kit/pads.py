@@ -12,9 +12,10 @@ points. Walls run along every perimeter edge except the ports; holes (cup, pools
 
 import math
 
-from .track import CUP_RADIUS, HOLE_MARGIN, LANE_WIDTH, PAD_STEP, ROWS, SPACING, Cursor, Pad, Section, lane_style
+from . import cup_hole
+from .track import CUP_RADIUS, LANE_WIDTH, PAD_STEP, ROWS, SPACING, Cursor, Pad, Section, lane_style
 
-CUP_EDGE_CLEARANCE = CUP_RADIUS + HOLE_MARGIN + 0.30   # the cup hole must not reach the perimeter walls
+CUP_REACH = CUP_RADIUS + SPACING   # raster cells touching this circle have no floor; a zipper joins the rest to the exact hole
 
 
 def _columns(width):
@@ -52,7 +53,11 @@ def _bump(bumps):
 
 def _pad(kind, prev, cursor, length, width, st, z_of=None, cup=None, pools=(), exit_shifts=(), mark=None, entries=None, tol=1e-6):
     """Build a raster pad. ``entries`` = ``[(section, first_column)]`` replaces the single centred entry of ``prev``
-    (a join has two); ``tol`` is the distance an entry's points may lie off the raster before it is rejected."""
+    (a join has two); ``tol`` is the distance an entry's points may lie off the raster before it is rejected.
+
+    The hole of ``cup`` is exact: cells that touch the circle of radius ``CUP_REACH`` are removed, and the gap
+    to the polygon of radius ``CUP_RADIUS`` is filled with a zipper of triangles (``pad.tris``, ``pad.cup_ring``).
+    """
     if not isinstance(length, (int, float)) or length < 0.5:
         raise ValueError("length must be at least 0.5 m (got %r)" % (length,))
     ncols = _columns(width)
@@ -80,19 +85,22 @@ def _pad(kind, prev, cursor, length, width, st, z_of=None, cup=None, pools=(), e
             points[0][c0 + k] = section.points[k]       # the very same tuple objects
         ports.append({"side": "entry", "cols": entry_cols[-1], "section": section})
     # holes: raster cells without floor
-    holes, removed = [], set()
+    holes, removed, cup_cells = [], set(), None
     cell_centre = lambda i, j: ((xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2)
+    world_xy = lambda x, y: (ox + fx * x + lx * y, oy + fy * x + ly * y)
+    world_point = lambda x, y: world_xy(x, y) + (oz + z_of(x, y),)
     if cup is not None:
         cx, cy = cup
-        if not (CUP_EDGE_CLEARANCE <= cx <= length - CUP_EDGE_CLEARANCE and abs(cy) <= width / 2 - CUP_EDGE_CLEARANCE):
-            raise ValueError("cup must be at least %.2f m from every pad edge (pad frame x=%g, y=%g)" % (CUP_EDGE_CLEARANCE, cx, cy))
+        need_x, need_y = CUP_REACH + 2.0 * (length / nx), CUP_REACH + 2.0 * SPACING
+        if not (need_x <= cx <= length - need_x and abs(cy) <= width / 2 - need_y):
+            raise ValueError("cup must be at least %.2f m from the front and back edge and %.2f m from the sides of the pad "
+                             "(pad frame x=%g, y=%g)" % (need_x, need_y, cx, cy))
         for i in range(nx):
             for j in range(ncols):
-                x, y = cell_centre(i, j)
-                if (math.hypot(x - cx, y - cy) < CUP_RADIUS + HOLE_MARGIN
-                        or _rect_distance(xs[i], xs[i + 1], ys[j + 1], ys[j], cx, cy) < CUP_RADIUS):
+                if _rect_distance(xs[i], xs[i + 1], ys[j + 1], ys[j], cx, cy) < CUP_REACH:
                     removed.add((i, j))
-        cup = (ox + fx * cx + lx * cy, oy + fy * cx + ly * cy, oz + z_of(cx, cy))
+        cup_cells = set(removed)
+        cup = world_point(cx, cy)
         holes.append({"kind": "cup", "center": cup, "radius": CUP_RADIUS})
     for pool in pools:
         polygon = [tuple(p) for p in pool["polygon"]]
@@ -108,6 +116,9 @@ def _pad(kind, prev, cursor, length, width, st, z_of=None, cup=None, pools=(), e
                       "min": (min(p[0] for p in world), min(p[1] for p in world)), "max": (max(p[0] for p in world), max(p[1] for p in world))})
     if any(i in (0, nx - 1) or j in (0, ncols - 1) for i, j in removed):
         raise ValueError("a hole or pool reaches the pad edge: keep it at least one raster cell inside")
+    tris, cup_ring = [], None
+    if cup_cells:
+        tris, cup_ring = cup_hole.fill(cup_cells, lambda i, j: points[i][j], lambda i, j: (xs[i], ys[j]), cx, cy, world_point)
     faces = [(i, j) for i in range(nx) for j in range(ncols) if (i, j) not in removed]
     # exit ports (a fork has two); the cursor continues from the first
     exit_cols, exit_sections, new_cursor = [], [], cursor
@@ -140,7 +151,8 @@ def _pad(kind, prev, cursor, length, width, st, z_of=None, cup=None, pools=(), e
             if not any(c0 <= j < c1 for c0, c1 in exit_cols):
                 walls.append((points[nx][j], points[nx][j + 1], out_f))
     pad = Pad(kind, {"nx": nx, "ny": ncols, "points": points, "xs": xs, "ys": ys}, faces, st["surface"], st["look"], walls, ports,
-              (ox, oy, oz, heading), (length, width), cup=cup, holes=holes, mark=mark)
+              (ox, oy, oz, heading), (length, width), cup=cup, holes=holes, mark=mark, tris=tris, cup_ring=cup_ring,
+              grounded=st["grounded"])
     return pad, exit_sections, new_cursor
 
 

@@ -7,7 +7,8 @@
   a dict keyed by the exact coordinate tuple, so the shared seam objects of strips and pads become one vertex.
   The vertex colours (``palette`` / ``ao_w``, see ``floor_paint``) are written for the dresser's bake;
 * one ``rail-<surface>`` node (``wood`` pirate, ``stone`` temple, ``metal`` moon) with ``aurago_collider`` and
-  ``aurago_hidden``, made from the runs of ``rails.rail_runs``.
+  ``aurago_hidden``, made from the runs of ``rails.rail_runs``;
+* the collision cup ``floor-cup`` (``cup_parts.floor_cup``), whose rim is the hole polygon of the floor.
 
 All collision objects keep the identity transform: their vertices are world coordinates, which is what the
 runtime reader expects. The wall runs are returned as well (the rail trims are built from them).
@@ -15,7 +16,7 @@ runtime reader expects. The wall runs are returned as well (the rail trims are b
 
 import math
 
-from . import basic_parts, floor_paint, materials, rails
+from . import basic_parts, cup_parts, floor_paint, materials, rails
 from .track import RAIL_SURFACES, ROWS
 
 
@@ -71,6 +72,14 @@ def _pad_quads(pad, mesh_of):
     for i, j in pad.faces:
         mesh.quad((points[i][j], meta(i, j)), (points[i][j + 1], meta(i, j + 1)),
                   (points[i + 1][j + 1], meta(i + 1, j + 1)), (points[i + 1][j], meta(i + 1, j)))
+    ox, oy, _, heading = pad.frame
+    fx, fy = math.cos(heading), math.sin(heading)
+
+    def frame_meta(point):
+        dx, dy = point[0] - ox, point[1] - oy
+        return (min(1.0, abs(-dx * fy + dy * fx) / half), pad.arc0 + dx * fx + dy * fy)
+    for triangle in pad.tris:          # the zipper floor around the hole
+        mesh.faces.append(tuple(mesh.vertex(point, frame_meta(point)) for point in triangle))
 
 
 def floor_objects(track, scene, coll):
@@ -109,12 +118,14 @@ def rail_objects(track, runs, scene, coll):
         return []
     surface = RAIL_SURFACES[track.world]
     obj = basic_parts.mesh_object(scene, coll, "rail-" + surface, verts, faces, materials.get("matte"), "boundary")
+    obj.data.shade_smooth()          # hidden collision: shared vertices keep the GLB small (the welded collision is the same)
     obj["aurago_collider"] = surface
     obj["aurago_hidden"] = True
     return [obj]
 
 
 def build(track, scene, coll):
-    """Floor and rail objects of ``track`` in ``coll``: ``{"floors", "rails", "runs"}``."""
+    """Floor, rail and cup objects of ``track`` in ``coll``: ``{"floors", "rails", "cup", "runs"}``."""
     runs = rails.rail_runs(track)
-    return {"floors": floor_objects(track, scene, coll), "rails": rail_objects(track, runs, scene, coll), "runs": runs}
+    return {"floors": floor_objects(track, scene, coll), "rails": rail_objects(track, runs, scene, coll),
+            "cup": [cup_parts.floor_cup(track, scene, coll)], "runs": runs}
