@@ -36,3 +36,4 @@ try {
     if (-not $resolved.StartsWith($scratchRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Fixture cleanup escaped its scratch directory.' }
     Remove-Item -LiteralPath $resolved -Recurse -Force
 }
+exit 0
