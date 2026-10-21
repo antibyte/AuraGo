@@ -279,24 +279,26 @@ func TestPixelGermanOpenLabelsUseUmlaut(t *testing.T) {
 }
 
 func TestPixelAdjustApplyCommitsPreviewWithoutRestoringOriginal(t *testing.T) {
-	js := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-canvas.js"))
+	// The Filters module (pixel-filters.js) owns the adjust sliders; the old code in pixel-canvas.js is replaced at install time.
+	js := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-filters.js"))
 	applyBody := jsFunctionBodyInWindowMenuTest(t, js, "applyAdjustments: Pixel.bindRuntime(runtime, function applyAdjustments()")
 
 	if strings.Contains(applyBody, "resetAdjustments();") {
-		t.Fatalf("Pixel applyAdjustments must not call resetAdjustments because it redraws the old original image: %s", applyBody)
+		t.Fatalf("Pixel applyAdjustments must not call resetAdjustments because it drops the preview before it is committed: %s", applyBody)
 	}
-	if !strings.Contains(applyBody, "resetAdjustmentControls();") {
-		t.Fatalf("Pixel applyAdjustments should reset slider controls without repainting the canvas: %s", applyBody)
+	if !strings.Contains(applyBody, "applyAdjustValues(") {
+		t.Fatalf("Pixel applyAdjustments should commit through the shared adjust commit path: %s", applyBody)
 	}
-	if !strings.Contains(applyBody, "captureAdjustmentSource();") {
-		t.Fatalf("Pixel applyAdjustments should commit the adjusted canvas as the new original image: %s", applyBody)
+	valuesBody := jsFunctionBodyInWindowMenuTest(t, js, "function applyAdjustValues(label)")
+	if !strings.Contains(valuesBody, "commit(s, label || 'adjust'") || !strings.Contains(valuesBody, "resetAdjustmentControls()") {
+		t.Fatalf("Pixel adjust apply should commit the preview and then reset the slider controls: %s", valuesBody)
 	}
-	if !strings.Contains(applyBody, "commitLayerPixels(") {
-		t.Fatalf("Pixel applyAdjustments should commit the non-destructive preview through commitLayerPixels: %s", applyBody)
+	finishBody := jsFunctionBodyInWindowMenuTest(t, js, "function finish(s, img, label)")
+	if !strings.Contains(finishBody, "commitLayerPixels(s.layer, canvas, { label })") {
+		t.Fatalf("Pixel previews should be committed through commitLayerPixels (selection, locks, history): %s", finishBody)
 	}
-	captureBody := jsFunctionBodyInWindowMenuTest(t, js, "captureAdjustmentSource: Pixel.bindRuntime(runtime, function captureAdjustmentSource()")
-	if !strings.Contains(captureBody, "originalImage =") {
-		t.Fatal("Pixel captureAdjustmentSource must retain the adjusted image")
+	if !strings.Contains(js, "captureAdjustmentSource: Pixel.bindRuntime(runtime, function captureAdjustmentSource()") {
+		t.Fatal("Pixel keeps captureAdjustmentSource for the modules that call it after a document or layer change")
 	}
 }
 
@@ -304,19 +306,21 @@ func TestPixelCompareModeClearsWhenLeavingAdjustPanel(t *testing.T) {
 	tools := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-tools.js"))
 	canvas := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-canvas.js"))
 	view := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-view.js"))
+	filtersJS := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-filters.js"))
 	showPanelBody := jsFunctionBodyInWindowMenuTest(t, tools, "showPanel: Pixel.bindRuntime(runtime, function showPanel(name)")
 
-	if !strings.Contains(canvas, "exitCompareMode: Pixel.bindRuntime(runtime, function exitCompareMode(") {
+	if !strings.Contains(canvas, "exitCompareMode: Pixel.bindRuntime(runtime, function exitCompareMode(") || !strings.Contains(filtersJS, "exitCompareMode: Pixel.bindRuntime(runtime, function exitCompareMode(") {
 		t.Fatalf("Pixel needs a shared exitCompareMode helper so panel changes can leave compare mode cleanly")
 	}
 	if !strings.Contains(showPanelBody, "runHook(old, 'onHide', this)") {
 		t.Fatalf("Pixel showPanel should run the onHide hook of the panel that is left: %s", showPanelBody)
 	}
-	adjust := pixelPanelRegistration(t, view, "adjust")
+	// The Filters module replaces the built-in adjust and filters panels by registering the same ids.
+	adjust := pixelPanelRegistration(t, filtersJS, "adjust")
 	if !strings.Contains(adjust, "onHide: r => { if (r.compareMode) r.exitCompareMode({ preservePreview: true }); }") {
 		t.Fatalf("the adjust panel should disable compare mode when it is left so drawing is not blocked: %s", adjust)
 	}
-	filters := pixelPanelRegistration(t, view, "filters")
+	filters := pixelPanelRegistration(t, filtersJS, "filters")
 	if !strings.Contains(filters, "onHide: r => r.resetFilterPreview()") {
 		t.Fatalf("the filters panel should drop its preview when it is left: %s", filters)
 	}
@@ -593,24 +597,65 @@ func TestPixelNewToolsRegistered(t *testing.T) {
 
 func TestPixelFilterCatalogHasNewFilters(t *testing.T) {
 	filters := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-filters.js"))
-	if !strings.Contains(filters, "filterStrength / 100") {
-		t.Fatal("pixel filter compare preview should honor filterStrength on the filtered side")
+	if !strings.Contains(filters, "Pixel.FILTERS = [") || !strings.Contains(filters, "def.op = 'fx.apply'") {
+		t.Fatal("pixel filters should keep the Pixel.FILTERS catalog and run every filter through the fx.apply worker op")
 	}
 
-	for _, id := range []string{"sharpen", "edge", "pixelate", "posterize", "duotone", "solarize", "tint", "bloom", "grain", "sketch", "aberration", "monochrome", "cyanotype", "fade", "glow", "tilt-shift", "mosaic", "denoise", "clarity"} {
+	// The v2 filters and every id of the first catalog, which must keep working (favourites and history labels use them).
+	for _, id := range []string{"levels", "curves", "hue-saturation", "color-balance", "vibrance", "channel-mixer", "black-white", "photo-filter", "gradient-map", "threshold", "equalize",
+		"auto-levels", "auto-contrast", "auto-white-balance", "box-blur", "motion-blur", "radial-blur", "zoom-blur", "lens-blur", "surface-blur", "median", "unsharp-mask", "high-pass",
+		"twirl", "pinch", "wave", "ripple", "polar", "spherize", "kaleidoscope", "displace", "glass", "lens-distortion", "oil-paint", "halftone", "dither", "pixel-art", "toon",
+		"crystallize", "pointillize", "glowing-edges", "comic", "neon", "add-noise", "dust-scratches", "light-leak", "lens-flare", "vhs", "crt", "glitch", "cross-process"} {
 		if !strings.Contains(filters, "id: '"+id+"'") {
 			t.Fatalf("pixel filter catalog missing new filter %q", id)
 		}
 	}
-	for _, legacy := range []string{"grayscale", "sepia", "invert", "blur", "vintage", "vignette", "warm", "cool", "high-contrast", "emboss"} {
+	for _, legacy := range []string{"grayscale", "monochrome", "sepia", "invert", "warm", "cool", "tint", "posterize", "duotone", "cyanotype", "solarize", "vintage", "fade", "high-contrast",
+		"vignette", "bloom", "glow", "blur", "sharpen", "edge", "emboss", "denoise", "clarity", "pixelate", "mosaic", "grain", "sketch", "aberration", "tilt-shift"} {
 		if !strings.Contains(filters, "id: '"+legacy+"'") {
 			t.Fatalf("pixel filter catalog lost legacy filter %q", legacy)
 		}
 	}
-	for _, want := range []string{"data-filter-strength", "data-filter-thumb", "data-filter-cat", "renderFiltered", "refreshFilterThumbnails", `data-action="apply-filter"`, `data-action="reset-filter"`, "toggleFilterFavorite", "filterCompareMode", "pixel.filter_favorites"} {
+	for _, cat := range []string{"adjust", "blur", "sharpen", "distort", "stylize", "noise", "light", "retro"} {
+		if !strings.Contains(filters, "cat: '"+cat+"'") {
+			t.Fatalf("pixel filter catalog has no %q category", cat)
+		}
+	}
+	for _, want := range []string{"data-filter-strength", "data-filter-thumb", "data-filter-cat", "data-filter-search", "refreshFilterThumbnails", `data-action="apply-filter"`, `data-action="reset-filter"`,
+		"toggleFilterFavorite", "filterCompareMode", "pixel.filter_favorites", "setLayerPreview(", "key: 'fx-preview'", "runJob('fx.apply'", "'filter:' + s.filterId", "repeatLastFilter", "'Ctrl+Alt+F'",
+		"shortcut: 'Ctrl+F'", "Pixel.registerMenuItems('filter'", "buildParamControls(", "wireParamControls("} {
 		if !strings.Contains(filters, want) {
 			t.Fatalf("pixel filters module missing %q", want)
 		}
+	}
+	// The fade (strength + blend mode) applies to the filtered side of the preview.
+	if !strings.Contains(filters, "data-filter-blend") || !strings.Contains(filters, "fade: rc.fade") {
+		t.Fatal("pixel filter preview should honour the strength and blend mode of the filtered side")
+	}
+}
+
+func TestPixelFiltersLibraryOpsAndAdjustPanel(t *testing.T) {
+	lib := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-lib-fx.js"))
+	for _, want := range []string{"Lib.registerOp('fx.apply'", "Lib.registerOp('fx.render'", "Lib.registerOp('fx.compose'", "Lib.registerOp('fx.histogram'", "Lib.registerOp('fx.autoTone'", "def('adjust'"} {
+		if !strings.Contains(lib, want) {
+			t.Fatalf("pixel-lib-fx.js missing %q", want)
+		}
+	}
+	filters := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-filters.js"))
+	for _, want := range []string{"Pixel.registerPanel({ id: 'adjust'", "Pixel.registerPanel({ id: 'filters'", "runJob('fx.autoTone'", "runJob('fx.histogram'", "data-fx-hist", `data-action="adjust-auto"`,
+		"autoEnhance", "ADJUST_PRESETS", "'Ctrl+Shift+L'", "dehaze", "curvesControl"} {
+		if !strings.Contains(filters, want) {
+			t.Fatalf("pixel filters module missing %q", want)
+		}
+	}
+	css := normalizePixelAsset(readDesktopAssetText(t, "css/pixel-filters.css"))
+	for _, selector := range []string{".pixel-fx-search", ".pixel-fx-detail", ".pixel-fx-hist", ".pixel-fx-curves-canvas", ".pixel-fx-status"} {
+		if !strings.Contains(css, selector) {
+			t.Fatalf("pixel-filters.css should style %q", selector)
+		}
+	}
+	if strings.Contains(css, ".cc-") || strings.Contains(filters, "cc-") {
+		t.Fatal("pixel filters must not use cookie-blocker-prone cc- class names")
 	}
 }
 
