@@ -1,1 +1,139 @@
-/* Pixel: WP3 selection tools. Empty until its work package fills it; loaded after pixel.css. Prefix every class with pixel-. */
+/* Pixel: WP3 selection tools. Loaded after pixel.css; every class carries the pixel- prefix. */
+
+/* The colour range panel floats over the canvas area, so the workspace is its positioning context. */
+.pixel-workspace {
+    position: relative;
+}
+
+/* Options bar of the selection tools */
+.pixel-sel-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.pixel-sel-seg {
+    flex: 0 0 auto;
+}
+
+.pixel-sel-seg .pixel-param-seg-btn {
+    padding: 4px 9px;
+}
+
+.pixel-sel-num {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pixel-sel-num .pixel-param-number {
+    width: 58px;
+}
+
+.pixel-sel-check {
+    white-space: nowrap;
+}
+
+.pixel-options-bar .pixel-sel-slider {
+    min-width: 150px;
+    max-width: 230px;
+}
+
+.pixel-sel-clear {
+    margin-left: auto;
+}
+
+.pixel-sel-hint {
+    margin: 0;
+    font-size: 0.74rem;
+    line-height: 1.35;
+    color: var(--pixel-muted);
+}
+
+.pixel-options-bar .pixel-sel-hint {
+    flex: 1 1 220px;
+}
+
+/* Colour range panel */
+.pixel-sel-cr {
+    position: absolute;
+    top: 12px;
+    right: 352px;
+    z-index: 30;
+    box-sizing: border-box;
+    width: 268px;
+    max-width: calc(100% - 24px);
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 12px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 10px;
+    background: var(--vd-theme-panel-bg);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+    user-select: none;
+}
+
+.pixel-sel-cr-title {
+    font-weight: 700;
+    font-size: 0.86rem;
+}
+
+.pixel-sel-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    min-height: 24px;
+}
+
+.pixel-sel-swatch {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    box-sizing: border-box;
+    border: 1px solid var(--pixel-line);
+    border-radius: 5px;
+}
+
+.pixel-sel-swatch-ex {
+    position: relative;
+    outline: 2px solid #ff4d4d;
+    outline-offset: -2px;
+}
+
+.pixel-sel-cr .pixel-slider-row {
+    min-width: 0;
+}
+
+.pixel-sel-cr .pixel-slider-label {
+    flex-basis: 70px;
+}
+
+.pixel-sel-cr .pixel-slider-value {
+    flex-basis: 30px;
+}
+
+.pixel-sel-cr .pixel-sel-group {
+    display: block;
+}
+
+.pixel-sel-cr .pixel-sel-seg {
+    width: 100%;
+}
+
+.pixel-sel-cr-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+/* Value dialogs (grow, shrink, border, smooth, feather, stroke) live in the page body, outside .pixel-app. */
+.pixel-sel-dialog .pixel-label {
+    font-size: 0.8rem;
+}
+
+.pixel-sel-dialog .vd-modal-input {
+    margin: 2px 0 8px;
+}
