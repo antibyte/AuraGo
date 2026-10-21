@@ -4824,6 +4824,14 @@ function testVoxelWorldIsland() {
   assert.ok(a.features.lanterns.length >= 4, 'lanterns');
   assert.ok(a.features.windows.length >= 6, 'windows');
   assert.ok(a.features.crystals.length >= 8, 'crystals');
+  let roots = 0;
+  for (let i = 0; i < a.voxels.length; i++) if (a.voxels[i] === M.ROOT) roots++;
+  assert.ok(roots > 0 && roots <= 30, 'ten short root strands of at most three voxels, got ' + roots + ' root voxels');
+  assert.equal(a.features.vines.length, 14, 'fourteen hanging vines');
+  for (const [x, y, z, len] of a.features.vines) {
+    assert.ok(len >= 2 && len <= 5, 'vine length ' + len);
+    assert.equal(at(x, y + a.yBase, z), M.OAK_LEAVES, 'a vine starts with a leaf voxel');
+  }
   assert.ok(Array.isArray(a.features.windmill.hub), 'windmill hub');
   assert.equal(a.islets.length, 2);
 

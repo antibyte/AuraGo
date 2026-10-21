@@ -51,6 +51,8 @@
     // moss patches grow between MOSS_FROM and MOSS_TO. The peak reaches about world y 26.
     const MOUNTAIN = Object.freeze({ x: 21, z: 17, amplitude: 21, sigma: 6, stoneFrom: 12, snowFrom: 22, snowPatchFrom: 19, mossFrom: 8, mossTo: 13 });
     const PINES = Object.freeze({ count: 9, minH: 6, maxH: 12 });
+    const ROOTS = Object.freeze({ count: 10, min: 1, max: 3 });                // strands under the rim, voxels per strand
+    const VINES = Object.freeze({ count: 14, min: 2, max: 5, spacing: 4 });    // leaf strands down the rim's outside, voxels per strand, cells apart
     const UNDERSIDE_SOLID = -3;           // underside cells above this world y use the top's own rock (stone) instead of dirt
     const LANTERN_POST = 2;               // oak log cells below a lantern
     const LANTERN_DECO = Object.freeze({ size: .5, color: '#ffd27a' });
@@ -423,7 +425,8 @@
             bottom[i] = y;
         }
 
-        // Roots dangle below the rim.
+        // A few short roots dangle below the rim. The candidate walk and its draws are those of the original eighteen long roots (so
+        // trees, flowers and the rest are generated exactly as before); only the first ROOTS.count get a strand of 1-3 voxels.
         const rim = [];
         for (let i = 0; i < s.cells; i++) if (inside[i] && rr[i] > .85) rim.push(i);
         const rooted = [];
@@ -434,7 +437,41 @@
             if (rooted.some(c => Math.abs(c[0] - x) < 3 && Math.abs(c[1] - z) < 3)) continue;
             rooted.push([x, z]);
             const len = 2 + Math.floor(rng() * 5);
-            for (let k = 1; k <= len; k++) g.putIfAir(x, bottom[i] - k, z, M.ROOT);
+            if (rooted.length > ROOTS.count) continue;
+            const strand = ROOTS.min + (len - 2) % (ROOTS.max - ROOTS.min + 1);
+            for (let k = 1; k <= strand; k++) g.putIfAir(x, bottom[i] - k, z, M.ROOT);
+        }
+    }
+
+    // Lush rim: hanging vines (oak leaves, so they sway with the foliage) down the outside faces of the rim, each from a grass edge
+    // cell into the air cell beside it. The ones the camera sees (outside faces towards +x or +z) come first. Own random stream.
+    function buildVines(s) {
+        const { g, w, d, inside, H, flags, topMat, features } = s;
+        const rng = mulberry32((s.seed ^ 0x71ae5) >>> 0);
+        const wf = features.waterfall;
+        const skip = F_LAKE | F_SHORE | F_RIVER | F_PATH | F_BUILD | F_POST | F_FIELD;
+        const candidates = [];
+        for (let z = 0; z < d; z++) {
+            for (let x = 0; x < w; x++) {
+                const i = x + z * w;
+                if (!inside[i] || topMat[i] !== M.GRASS || (flags[i] & skip)) continue;
+                if (Math.abs(x - wf.x) <= 3 && z >= wf.z - 3 && z <= wf.z + wf.width + 2) continue;
+                for (const [dx, dz] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
+                    const nx = x + dx;
+                    const nz = z + dz;
+                    if (nx < 0 || nz < 0 || nx >= w || nz >= d || inside[nx + nz * w] || g.get(nx, H[i], nz) !== M.AIR) continue;
+                    candidates.push({ x, z, nx, nz, y: H[i], seen: dx + dz > 0 ? 0 : 1 });
+                }
+            }
+        }
+        const order = shuffled(candidates, rng).sort((a, b) => a.seen - b.seen);
+        features.vines = [];
+        for (const c of order) {
+            if (features.vines.length >= VINES.count) break;
+            if (features.vines.some(v => Math.abs(v[0] - c.nx) < VINES.spacing && Math.abs(v[2] - c.nz) < VINES.spacing)) continue;
+            const len = VINES.min + Math.floor(rng() * (VINES.max - VINES.min + 1));
+            for (let k = 0; k < len; k++) g.putIfAir(c.nx, c.y - k, c.nz, M.OAK_LEAVES);
+            features.vines.push([c.nx, c.y, c.nz, len]);
         }
     }
 
@@ -735,6 +772,7 @@
         buildLanterns(s);
         buildTrees(s);
         buildDecorations(s);
+        buildVines(s);
         const islets = buildIslets(s.rng);
         const g = s.g;
         return {

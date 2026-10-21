@@ -2,7 +2,7 @@
     'use strict';
 
     // Everything that moves on the floating isle besides the foliage sway: the cloud sea and the sky clouds (and the cloud
-    // shadows they cast on the terrain), the waterfall with spray, mist and a rainbow, the windmill sails, chimney smoke, a flock
+    // shadows they cast on the terrain), the waterfall with spray, foam, mist and a rainbow, the windmill sails, chimney smoke, a flock
     // of birds, fireflies, glow halos at lanterns, windows and crystals, a shooting star, the bobbing islets and the boat.
     //
     // Every motion is a closed-form function of the clock t (no integration, no state beyond the instance buffers), so a frozen
@@ -13,16 +13,25 @@
     // The camera rig of voxel-scene.js at its base pose; the sky clouds and the shooting star are placed in the camera's frame.
     const VIEW = { yaw: 40, pitch: 26, distance: 215, fov: 21, target: [0, 4, 0] };
     const DRIFT_SPEED = .9;                       // u/s of the sky clouds and their shadows, along the screen's right
-    // The cloud sea: a carpet of flat puffs under and around the island, in a shallow bowl: its surface is `top` below the island and
-    // rises by `rise` between the radii `bowl`, clearing the island's underside and meeting the waterfall where the camera sees it.
-    // lateral is the half width of the wrap-around band (along the screen's right), near/far the extent along the view direction
-    // away from the island (the camera is at negative depth). From haze[0] to haze[1] the puffs blend into the horizon colour and
-    // they shrink away around `far`, so the far edge melts into the sky: it lies near the middle of the picture.
+    // The cloud sea: a smooth hazy floor under and around the island with puffy clouds on it, in a bowl: its surface is `top` below the
+    // island and rises by `rise` between the radii `bowl`, clearing the island's underside and meeting the waterfall where the camera
+    // sees it. A puff is a rigid cluster of 3-7 boxes in 1-3 tiers (a wide box in the middle, smaller ones around it and on top, each at
+    // least 45 % as high as wide) standing in the floor and drifting along the screen's right. Puffs shrink where the bowl is steep
+    // (slopeFade, height per distance) and around the waterfall's landing (clear, units), where the floor is a flat ledge (pad). They sit
+    // on a lattice (pitch across and along the view, skip = share left empty) whose half width per depth (span) follows the camera's view
+    // cone; near/far are depths along the view direction away from the island, eye the camera's horizontal distance from its axis. From
+    // haze[0] to haze[1] the sea blends into the horizon colour and the puffs shrink away around far, so the far edge melts into the sky.
+    // look: tops are the cloud tint x topGain, sides the tint mixed shadowMix towards the sky (mean of horizon and top colours) x shadowGain.
     const SEA = {
-        top: -32, rise: 15, bowl: [14, 28], lateral: 160, fadeFrom: 138, near: -150, far: 40, haze: [4, 34],
-        cellL: 14, cellS: 11, spread: .2, speed: .6, details: 3, gain: .92, glow: .42, wave: .6, jitter: 1.2,
-        base: { w: [20, 28], d: [16, 22], h: [2.6, 4], shade: [.84, .97] }, detail: { w: [5, 10], d: [4.5, 9], h: [1.4, 2.6], shade: [.96, 1.04] }
+        top: -36, rise: 19, bowl: [14, 28], near: -110, far: 40, haze: [4, 34], eye: 193, speed: .6, fadeBand: 16,
+        span: { slope: .55, base: 10, min: 66, max: 150 }, pitch: [11.5, 9], spread: .35, skip: .12,
+        slopeFade: [.45, 1.15], clear: [8, 15], pad: [4.5, 11],
+        floor: { drop: -3, sink: .8, rows: 40, cols: 48, wobble: .45, shade: [.9, 1], normalY: .5 },
+        puff: { w: [4.2, 8], aspect: [.85, 1.1], h: [.47, .56], ring: [.6, .85], bump: .9, tiers: [.3, .75], shade: { low: [.92, 1], high: [.97, 1.04] } },
+        look: { topGain: 1.55, shadowMix: .5, shadowGain: .9, sideLow: .78, key: .12 }
     };
+    const SKY_CLOUD_LOOK = { gain: .92, glow: .42 };   // the sky clouds are lit like terrain: tint x gain as colour, tint x glow as emissive
+    const SEA_LEGACY_DRAWS = 10350;                    // random draws the old sea took from the shared stream (keeps the sky clouds and fireflies where they were)
     // Sky clouds in the camera frame: d = distance along the view axis, q = height on screen in half pictures at that distance,
     // lat = world units right of the axis, w = cluster width, n = boxes.
     const SKY_CLOUDS = [
@@ -30,19 +39,24 @@
         { d: 175, q: .5, lat: -40, w: 16, n: 8 }, { d: 360, q: .4, lat: -170, w: 40, n: 14 }, { d: 215, q: .66, lat: 150, w: 24, n: 10 }
     ];
     const CLOUD_SHADOW = { scale: .045, strength: .28 };   // scale must match CLOUD_SHADOW_SCALE of voxel-blocks.js
+    // Where the sheet meets the clouds: `foam` white cubes churn in a ring around the landing (rx/rz: reach along x and z, lift: height of
+    // the bobbing, size: edge length) and `mist` soft cubes billow up from it (they grow from mistFrom to mistTo while they rise
+    // mistRise over mistLife seconds and fade; mistAlpha is their peak opacity).
     const FALL = {
-        vx: 1.2, gravity: 14, segments: 28, thickTop: .8, thickBottom: .4, sink: 1.2, spray: 140, sprayMin: .55, sprayMax: .8, mist: 24, mistLife: 1.6, mistGrow: 2.2, mistAlpha: .8,
-        deep: '#2a6fa8', shallow: '#4fb0d8', foam: '#ffffff', sprayFrom: '#8fd3ff', rainbow: { alpha: .22, width: 30, height: 17, inner: 9.5, outer: 12.8 }
+        vx: 1.2, gravity: 14, segments: 28, thickTop: .8, thickBottom: .4, sink: 1.2, spray: 140, sprayMin: .55, sprayMax: .8,
+        foam: 26, foamRx: [.4, 3.4], foamRz: [.3, 2.6], foamLift: 3, foamSize: [1, 2.1],
+        mist: 30, mistLife: 2.8, mistFrom: .8, mistTo: 2.3, mistRise: 3.6, mistAlpha: .5,
+        deep: '#2a6fa8', shallow: '#4fb0d8', white: '#ffffff', sprayFrom: '#8fd3ff', rainbow: { alpha: .22, width: 30, height: 17, inner: 9.5, outer: 12.8 }
     };
     const SAILS = { turn: .6, spar: [.3, 7, .3], cloth: [1.6, 5, .12], clothOffset: .95, spar_color: '#b38a55', cloth_color: '#efe6d2', hubOut: .55 };
     const SMOKE = { perChimney: 10, from: .5, to: 1.6, rise: .9, drift: .35, life: 4, alpha: .65 };
-    const BIRDS = { count: 7, a: 46, b: 34, yLow: 14, yHigh: 20, period: 48, flapHz: 6, flap: 35, glide: 8, bank: .32, back: 1.8, side: 1.5, color: '#2b2b33' };
+    const BIRDS = { count: 7, a: 46, b: 34, yLow: 14, yHigh: 20, period: 48, flapHz: 6, flap: 35, glide: 8, bank: .32, back: 1.8, side: 1.5, color: '#3b3b4a', wing: '#4a4a5e' };
     const FIREFLIES = { count: 48, size: .18, glow: 1.6, color: '#d8ff7a' };
     const HALO = { lantern: 3.5, window: 2.2, crystal: 2.8, pull: 1.4, gain: .9, lanternColor: '#ffb84a', windowColor: '#ffc76a', crystalColor: '#c48dff' };
     const SHOOTING = { every: 42, spread: 17, duration: .8, length: 7, d: 300, q: .8 };
     const ISLET = { bob: .6, period: 9, turn: 1.5, turnPeriod: 41 };
     const BOAT = { size: [3, .8, 1.6], draft: .3, bob: .08, rock: 3, color: '#b38a55', rim: '#8a6539' };
-    const QUALITY_HALF = { spray: .5, mist: .5, smoke: .5, birds: 4 / 7, fireflies: .5, seaDetails: .4 };
+    const QUALITY_HALF = { spray: .5, mist: .5, foam: .6, smoke: .5, birds: 4 / 7, fireflies: .5, seaDetails: .4 };
 
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
     function lerp(a, b, t) { return a + (b - a) * t; }
@@ -189,7 +203,7 @@ void main() {
         if (!Number.isFinite(scale)) scale = 1;
         let disposed = false;
         let skyNow = null;
-        const counts = { clouds: 0, seaPuffs: 0, skyClusters: SKY_CLOUDS.length, spray: 0, mist: 0, smoke: 0, birds: 0, fireflies: 0, halos: 0 };
+        const counts = { clouds: 0, seaPuffs: 0, skyClusters: SKY_CLOUDS.length, spray: 0, foam: 0, mist: 0, smoke: 0, birds: 0, fireflies: 0, halos: 0 };
 
         const rad = Math.PI / 180;
         const yaw = VIEW.yaw * rad;
@@ -237,14 +251,16 @@ void main() {
             array[o + 8] = 0; array[o + 9] = 0; array[o + 10] = sz; array[o + 11] = 0;
             array[o + 12] = x; array[o + 13] = y; array[o + 14] = z; array[o + 15] = 1;
         }
-        // Basic material whose opacity is a per-instance attribute (smoke, mist).
-        function fadeMaterial(color) {
+        // Basic material whose opacity is a per-instance attribute (smoke, mist). `shaded` darkens the sides of the cubes a little so
+        // that they read as puffs, not as flat patches.
+        function fadeMaterial(color, shaded) {
             const material = own(new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false }));
+            const shade = shaded ? '\n\tvShade = .72 + .28 * clamp(normal.y * .8 + .4, 0., 1.);' : '';
             material.onBeforeCompile = shader => {
-                shader.vertexShader = 'attribute float aFade;\nvarying float vFade;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvFade = aFade;');
-                shader.fragmentShader = 'varying float vFade;\n' + shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n\tdiffuseColor.a *= vFade;');
+                shader.vertexShader = 'attribute float aFade;\nvarying float vFade;\nvarying float vShade;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvFade = aFade;\n\tvShade = 1.;' + shade);
+                shader.fragmentShader = 'varying float vFade;\nvarying float vShade;\n' + shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n\tdiffuseColor.a *= vFade;\n\tdiffuseColor.rgb *= vShade;');
             };
-            material.customProgramCacheKey = () => 'voxel-life-fade';
+            material.customProgramCacheKey = () => shaded ? 'voxel-life-fade-shaded' : 'voxel-life-fade';
             return material;
         }
         function fadeBoxes(material, count) {
@@ -306,75 +322,182 @@ void main() {
         }
 
         // ---- 1. Cloud sea ----------------------------------------------------------------------
-        // The surface height at distance r from the island's axis: a bowl that clears the island's underside and rises to the level
-        // where the waterfall lands.
+        // The surface height at distance r from the island's axis (a bowl that clears the island's underside and rises to the level
+        // where the waterfall lands) and its slope.
         function bowl(r) { return SEA.top + SEA.rise * smooth(SEA.bowl[0], SEA.bowl[1], r); }
+        function bowlSlope(r) {
+            const width = SEA.bowl[1] - SEA.bowl[0];
+            const t = clamp((r - SEA.bowl[0]) / width, 0, 1);
+            return SEA.rise * 6 * t * (1 - t) / width;
+        }
+        // Half width of the lattice at a depth: the view cone of wide pictures, never less than the narrow ones need.
+        function seaSpan(depth) { return clamp(SEA.span.slope * (SEA.eye + depth) + SEA.span.base, SEA.span.min, SEA.span.max); }
 
-        // Lambert material whose colour blends into the horizon colour with the distance behind the island (uniforms.uHaze is the sky
-        // colour at the horizon row), so the far edge of the sea melts into the sky. Mixed before tone mapping, like the sky itself.
-        function hazeMaterial(material) {
+        // Basic material (no scene lights) that shades by face: the top of a box gets the top colour, its sides the shadow colour (lighter
+        // towards the top of the box and towards the key light); the floor mesh (normal.y = SEA.floor.normalY) mixes the two. The result
+        // blends into the horizon colour with the distance behind the island (uniforms.uHaze is the sky colour at the horizon row), so the
+        // far edge of the sea melts into the sky. Mixed before tone mapping, like the sky itself.
+        const seaLook = { uTop: { value: new THREE.Color() }, uSide: { value: new THREE.Color() }, uKey: { value: new THREE.Vector3(0, 1, 0) } };
+        function seaMaterial(floor) {
+            const material = own(new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, vertexColors: floor, side: floor ? THREE.DoubleSide : THREE.FrontSide }));
             const range = new THREE.Vector4(fh[0], fh[2], SEA.haze[0], SEA.haze[1]);
+            const low = SEA.look.sideLow;
             material.onBeforeCompile = shader => {
-                shader.uniforms.uHaze = uniforms.uHaze;
-                shader.uniforms.uHazeRange = { value: range };
-                shader.vertexShader = 'uniform vec4 uHazeRange;\nvarying float vHaze;\n' + shader.vertexShader.replace('#include <begin_vertex>',
-                    '#include <begin_vertex>\n\tvHaze = smoothstep(uHazeRange.z, uHazeRange.w, dot((modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xz, uHazeRange.xy));');
-                shader.fragmentShader = 'uniform vec3 uHaze;\nvarying float vHaze;\n' + shader.fragmentShader.replace('#include <opaque_fragment>',
-                    'outgoingLight = mix(outgoingLight, uHaze, vHaze);\n\t#include <opaque_fragment>');
+                Object.assign(shader.uniforms, seaLook, { uHaze: uniforms.uHaze, uHazeRange: { value: range } });
+                shader.vertexShader = 'uniform vec4 uHazeRange;\nuniform vec3 uKey;\nvarying float vHaze;\nvarying float vTop;\nvarying float vShade;\n' +
+                    shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+	vec4 cw = vec4(transformed, 1.0);
+	vShade = 1.0;
+	#ifdef USE_INSTANCING
+	cw = instanceMatrix * cw;
+	vShade = (${low.toFixed(3)} + ${(1 - low).toFixed(3)} * smoothstep(-0.5, 0.5, position.y)) * (1.0 + ${SEA.look.key.toFixed(3)} * dot(normal, uKey));
+	#endif
+	cw = modelMatrix * cw;
+	vHaze = smoothstep(uHazeRange.z, uHazeRange.w, dot(cw.xz, uHazeRange.xy));
+	vTop = clamp(normal.y, 0.0, 1.0);`);
+                shader.fragmentShader = 'uniform vec3 uHaze;\nuniform vec3 uTop;\nuniform vec3 uSide;\nvarying float vHaze;\nvarying float vTop;\nvarying float vShade;\n' +
+                    shader.fragmentShader.replace('#include <opaque_fragment>', 'outgoingLight = mix(mix(uSide * vShade, uTop, vTop) * diffuseColor.rgb, uHaze, vHaze);\n\t#include <opaque_fragment>');
             };
-            material.customProgramCacheKey = () => 'voxel-life-haze';
+            material.customProgramCacheKey = () => 'voxel-life-sea';
             return material;
         }
 
-        const sea = { n: 0, bases: 0, data: null, mesh: null, material: null };
-        function buildSea() {
-            const cols = Math.round(2 * SEA.lateral / SEA.cellL);
-            const rows = Math.ceil((SEA.far - SEA.near) / SEA.cellS);
-            const list = [];
-            const detailsOf = [];
-            // per box: lateral, depth, height relative to the bowl, size x/y/z, shade
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    const lat = -SEA.lateral + (c + .5 + (rng() - .5) * 2 * SEA.spread) * (2 * SEA.lateral / cols);
-                    const depth = SEA.near + (r + .5 + (rng() - .5) * 2 * SEA.spread) * SEA.cellS;
-                    const h = rand(SEA.base.h);
-                    // gently rolling surface: slow waves over the whole sea plus a per-puff jitter
-                    const top = SEA.wave * (Math.sin(lat * .045 + depth * .03) + Math.sin(lat * .02 - depth * .06 + 1.3)) + (rng() - .5) * SEA.jitter;
-                    const base = [lat, depth, top - h / 2, rand(SEA.base.w), h, rand(SEA.base.d), rand(SEA.base.shade)];
-                    list.push(base);
-                    for (let k = 0; k < SEA.details; k++) {
-                        const dh = rand(SEA.detail.h);
-                        detailsOf.push([lat + (rng() - .5) * .7 * base[3], depth + (rng() - .5) * .7 * base[5], top + dh / 2 - .45, rand(SEA.detail.w), dh, rand(SEA.detail.d), rand(SEA.detail.shade)]);
-                    }
+        const STRIDE = 11;
+        const sea = { n: 0, bases: 0, data: null, mesh: null, floor: null, material: null, floorMaterial: null };
+        // Appends one puff at a lattice site to the box lists (core: the bottom tier, detail: what stands on it). A box is: site
+        // lateral, site depth, offset across and along the view, bottom above the puff's base, size x/y/z, the row's half span, how far
+        // its foot reaches from the site, shade. The bottom tier's boxes include the part of them sunk into the floor.
+        function addPuff(srng, lat, depth, span, core, detail) {
+            const P = SEA.puff;
+            const pick = range => range[0] + (range[1] - range[0]) * srng();
+            const w0 = pick(P.w);
+            const d0 = w0 * pick(P.aspect);
+            const roll = srng();
+            const tiers = roll < P.tiers[0] ? 1 : roll < P.tiers[1] ? 2 : 3;
+            const sink = SEA.floor.sink;
+            // a box is at least 45 % as high as it is wide (the part sunk into the floor does not count)
+            const tall = (sx, sz, h, sunk) => Math.max(h, .46 * Math.max(sx, sz) + (sunk || 0));
+            const put = (list, dl, dd, y0, sx, sy, sz, foot, shade) => list.push([lat, depth, dl, dd, y0, sx, sy, sz, span, foot, shade]);
+            const h0 = tall(w0, d0, Math.max(w0, d0) * pick(P.h) + sink + srng() * P.bump, sink);
+            put(core, 0, 0, 0, w0, h0, d0, Math.max(w0, d0) / 2, pick(P.shade.low));
+            const ring = 3 + (srng() < .5 ? 1 : 0);
+            const a0 = srng() * 6.2832;
+            for (let k = 0; k < ring; k++) {
+                const a = a0 + (k + (srng() - .5) * .4) * 6.2832 / ring;
+                const wk = w0 * pick(P.ring);
+                const dk = wk * pick(P.aspect);
+                const hk = tall(wk, dk, h0 * pick([.55, .92]), sink);
+                const dl = Math.cos(a) * (w0 + wk) * .38;
+                const dd = Math.sin(a) * (d0 + dk) * .38;
+                put(core, dl, dd, 0, wk, hk, dk, Math.max(Math.abs(dl), Math.abs(dd)) + Math.max(wk, dk) / 2, pick(P.shade.low));
+                if (tiers === 2 && ring === 3 && k === 0 && srng() < .6) put(detail, dl, dd, hk, wk * .62, tall(wk * .62, dk * .62, hk * .55), dk * .62, 0, pick(P.shade.high));
+            }
+            if (tiers > 1) {
+                const wt = w0 * pick([.55, .75]);
+                const dt = wt * pick(P.aspect);
+                const ht = tall(wt, dt, h0 * pick([.4, .55]));
+                const ol = (srng() - .5) * .5 * w0;
+                const od = (srng() - .5) * .5 * d0;
+                put(detail, ol, od, h0, wt, ht, dt, 0, pick(P.shade.high));
+                if (tiers > 2) {
+                    const wc = wt * pick([.55, .7]);
+                    const dc = wc * pick(P.aspect);
+                    put(detail, ol * 1.2, od * 1.2, h0 + ht, wc, tall(wc, dc, ht * .5), dc, 0, pick(P.shade.high));
                 }
             }
-            const all = list.concat(detailsOf);
+        }
+
+        function buildSea() {
+            for (let i = 0; i < SEA_LEGACY_DRAWS; i++) rng();
+            const srng = mulberry32(0x5ea1c);
+            const core = [];
+            const detail = [];
+            let puffs = 0;
+            for (let row = SEA.near; row <= SEA.far + 8; row += SEA.pitch[1]) {
+                const span = seaSpan(row);
+                const cols = Math.max(2, Math.round(2 * span / SEA.pitch[0]));
+                for (let c = 0; c < cols; c++) {
+                    if (srng() < SEA.skip) continue;
+                    const lat = -span + (c + .5 + (srng() - .5) * 2 * SEA.spread) * 2 * span / cols;
+                    addPuff(srng, lat, row + (srng() - .5) * 2 * SEA.spread * SEA.pitch[1], span, core, detail);
+                    puffs++;
+                }
+            }
+            const all = core.concat(detail);
             sea.n = all.length;
-            sea.bases = list.length;
-            sea.data = new Float32Array(all.length * 7);
-            all.forEach((row, i) => sea.data.set(row, i * 7));
-            sea.material = hazeMaterial(lambert('#ffffff', { fog: false }));
+            sea.bases = core.length;
+            sea.data = new Float32Array(all.length * STRIDE);
+            sea.material = seaMaterial(false);
             sea.mesh = instanced(sea.material, all.length, root);
             const color = new THREE.Color();
-            all.forEach((row, i) => sea.mesh.setColorAt(i, color.setRGB(row[6], row[6], row[6], THREE.LinearSRGBColorSpace)));
+            all.forEach((row, i) => {
+                sea.data.set(row, i * STRIDE);
+                sea.mesh.setColorAt(i, color.setRGB(row[10], row[10], row[10], THREE.LinearSRGBColorSpace));
+            });
             sea.mesh.instanceColor.needsUpdate = true;
-            counts.seaPuffs = list.length;
+            counts.seaPuffs = puffs;
+            buildSeaFloor();
+        }
+
+        // The floor: one smooth mesh over the lattice's trapezoid that follows the bowl, with a flat ledge where the waterfall lands.
+        function buildSeaFloor() {
+            const F = SEA.floor;
+            const verts = (F.rows + 1) * (F.cols + 1);
+            const position = new Float32Array(verts * 3);
+            const normal = new Float32Array(verts * 3);
+            const color = new Float32Array(verts * 3);
+            const index = [];
+            let v = 0;
+            for (let j = 0; j <= F.rows; j++) {
+                const depth = lerp(SEA.near - 8, SEA.far + 14, j / F.rows);
+                const span = seaSpan(depth) + 10;
+                for (let i = 0; i <= F.cols; i++, v++) {
+                    const lat = lerp(-span, span, i / F.cols);
+                    const x = lat * right[0] + depth * fh[0];
+                    const z = lat * right[2] + depth * fh[2];
+                    const ledge = 1 - smooth(SEA.pad[0], SEA.pad[1], Math.hypot(x - landing.x, z - landing.z));
+                    const rolling = F.wobble * Math.sin(lat * .11 + depth * .07) * Math.cos(depth * .09 - lat * .05);
+                    position[v * 3] = x;
+                    position[v * 3 + 1] = lerp(bowl(Math.hypot(x, z)) + F.drop + rolling, seaFloor, ledge);
+                    position[v * 3 + 2] = z;
+                    normal[v * 3 + 1] = F.normalY;
+                    const blotch = lerp(F.shade[0], F.shade[1], .5 + .5 * Math.sin(lat * .08 + 1.1) * Math.sin(depth * .1 - .4));
+                    color[v * 3] = blotch * (1 - .3 * ledge);
+                    color[v * 3 + 1] = blotch * (1 - .1 * ledge);
+                    color[v * 3 + 2] = blotch;
+                    if (i < F.cols && j < F.rows) index.push(v, v + 1, v + F.cols + 1, v + 1, v + F.cols + 2, v + F.cols + 1);
+                }
+            }
+            const geometry = own(new THREE.BufferGeometry());
+            for (const [name, array] of [['position', position], ['normal', normal], ['color', color]]) geometry.setAttribute(name, new THREE.BufferAttribute(array, 3));
+            geometry.setIndex(index);
+            sea.floorMaterial = seaMaterial(true);
+            sea.floor = mesh(geometry, sea.floorMaterial, root);
+            sea.floor.frustumCulled = false;
         }
 
         function updateSea(t) {
             const array = sea.mesh.instanceMatrix.array;
             const d = sea.data;
             const shift = SEA.speed * t;
+            const baseDrop = SEA.floor.drop - SEA.floor.sink;
             for (let i = 0; i < sea.n; i++) {
-                const o = i * 7;
-                const lat = wrap(d[o] + shift, SEA.lateral);
+                const o = i * STRIDE;
+                const span = d[o + 8];
+                const lat = wrap(d[o] + shift, span);
                 const depth = d[o + 1];
-                const edge = 1 - smooth(SEA.fadeFrom, SEA.lateral, Math.abs(lat));
-                const far = 1 - smooth(SEA.far - 10, SEA.far + 8, depth);
-                const s = edge * far;
                 const x = lat * right[0] + depth * fh[0];
                 const z = lat * right[2] + depth * fh[2];
-                putBox(array, i, x, bowl(Math.hypot(x, z)) + d[o + 2], z, d[o + 3] * s, d[o + 4] * s, d[o + 5] * s);
+                const r = Math.hypot(x, z);
+                const slope = bowlSlope(r);
+                // dissolves at the lattice's side and far edges, on the bowl's steep wall and around the waterfall's landing
+                const s = (1 - smooth(span - SEA.fadeBand, span, Math.abs(lat))) * (1 - smooth(SEA.far - 10, SEA.far + 8, depth)) *
+                    (1 - smooth(SEA.slopeFade[0], SEA.slopeFade[1], slope)) * smooth(SEA.clear[0], SEA.clear[1], Math.hypot(x - landing.x, z - landing.z));
+                const foot = slope * d[o + 9] * s;      // the bottom tier reaches down to the floor on the low side of a slope
+                const sy = d[o + 6] * s;
+                const dl = d[o + 2] * s;
+                const dd = d[o + 3] * s;
+                putBox(array, i, x + dl * right[0] + dd * fh[0], bowl(r) + baseDrop + d[o + 4] * s + (sy - foot) / 2, z + dl * right[2] + dd * fh[2], d[o + 5] * s, sy + foot, d[o + 7] * s);
             }
             sea.mesh.instanceMatrix.needsUpdate = true;
         }
@@ -428,20 +551,25 @@ void main() {
 
         function updateClouds(t, sky) {
             const tint = skyNow.cloudTint;
-            sea.material.color.setRGB(tint[0], tint[1], tint[2], THREE.SRGBColorSpace).multiplyScalar(SEA.gain);
-            sea.material.emissive.setRGB(tint[0], tint[1], tint[2], THREE.SRGBColorSpace).multiplyScalar(SEA.glow);
-            skyCloud.material.color.copy(sea.material.color);
-            skyCloud.material.emissive.copy(sea.material.emissive);
+            const horizon = skyNow.skyHorizon;
+            const look = SEA.look;
+            // tops: the tint; sides: the tint towards the sky's horizon colour, a little darker (sky-tinted shadow, never neutral grey)
+            seaLook.uTop.value.setRGB(tint[0], tint[1], tint[2], THREE.SRGBColorSpace).multiplyScalar(look.topGain);
+            seaLook.uSide.value.setRGB(...tint.map((c, i) => (c + ((horizon[i] + skyNow.skyTop[i]) / 2 - c) * look.shadowMix) * look.shadowGain), THREE.SRGBColorSpace);
+            seaLook.uKey.value.fromArray(skyNow.keyDir);
+            skyCloud.material.color.setRGB(tint[0], tint[1], tint[2], THREE.SRGBColorSpace).multiplyScalar(SKY_CLOUD_LOOK.gain);
+            skyCloud.material.emissive.setRGB(tint[0], tint[1], tint[2], THREE.SRGBColorSpace).multiplyScalar(SKY_CLOUD_LOOK.glow);
             updateSea(t);
             updateSkyClouds(t);
             uniforms.uCloudShadow.value = CLOUD_SHADOW.strength * (1 - sky.night);
         }
 
         // ---- 3. Waterfall ----------------------------------------------------------------------
-        const fall = { sheet: null, material: null, spray: null, sprayN: 0, mist: null, mistN: 0, mistMaterial: null, rainbow: null, rainbowMaterial: null };
+        const fall = { sheet: null, material: null, spray: null, sprayN: 0, mist: null, mistN: 0, mistMaterial: null, foam: null, foamMaterial: null, foamSeed: [], rainbow: null, rainbowMaterial: null };
         const wf = features.waterfall;
         const lip = { x: wf.x - ox, z0: wf.z - oz, z1: wf.z + wf.width - oz, top: wf.y + 1 };
         const seaFloor = bowl(Math.hypot(lip.x + 2.6, (lip.z0 + lip.z1) / 2));   // where the sheet lands
+        const landing = { x: 0, z: 0 };                                          // the centre of the foam, on the sea ledge
         let fallDrop = 0;
         let fallTime = 0;
         function fallX(drop) { return lip.x + FALL.vx * Math.sqrt(2 * Math.max(drop, 0) / FALL.gravity); }
@@ -450,6 +578,8 @@ void main() {
             const bottom = seaFloor - FALL.sink;
             fallDrop = lip.top - bottom;
             fallTime = Math.sqrt(2 * fallDrop / FALL.gravity);
+            landing.x = fallX(fallDrop) + .3;
+            landing.z = (lip.z0 + lip.z1) / 2;
             const rows = FALL.segments;
             const positions = [];
             const uvs = [];
@@ -484,7 +614,7 @@ void main() {
             const fogUniforms = THREE.UniformsUtils.clone(THREE.UniformsLib.fog);
             const u = {
                 uTime: uniforms.uTime, uLen: { value: arc }, uDeep: { value: colorOf(FALL.deep) }, uShallow: { value: colorOf(FALL.shallow) },
-                uFoam: { value: colorOf(FALL.foam) }, uLight: { value: new THREE.Color(1, 1, 1) }
+                uFoam: { value: colorOf(FALL.white) }, uLight: { value: new THREE.Color(1, 1, 1) }
             };
             fall.material = own(new THREE.ShaderMaterial({
                 uniforms: Object.assign(fogUniforms, u), vertexShader: FALL_VERTEX, fragmentShader: FALL_FRAGMENT, side: THREE.DoubleSide, transparent: true, fog: true
@@ -495,11 +625,22 @@ void main() {
             // spray cubes leave the lip with the sheet's velocity and fall with it
             fall.sprayN = FALL.spray;
             fall.spray = instanced(own(new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: colorOf('#2a4a66') })), FALL.spray, dyn);
-            const mist = fadeBoxes(fadeMaterial(new THREE.Color(1, 1, 1)), FALL.mist);
+            const mist = fadeBoxes(fadeMaterial(new THREE.Color(1, 1, 1), true), FALL.mist);
             fall.mist = mist.mesh;
             fall.mistFade = mist.fade;
             fall.mistMaterial = mist.mesh.material;
             fall.mistN = FALL.mist;
+
+            // foam: opaque white cubes churning on the ledge where the sheet lands (hashed, so the shared random stream is left alone)
+            fall.foamMaterial = own(new THREE.MeshLambertMaterial({ color: 0xffffff }));
+            fall.foam = instanced(fall.foamMaterial, FALL.foam, dyn);
+            for (let i = 0; i < FALL.foam; i++) {
+                const h = k => hash1(i * 4.13 + k * 17.9);
+                fall.foamSeed.push({
+                    a: h(1) * 6.2832, rx: lerp(FALL.foamRx[0], FALL.foamRx[1], h(2)), rz: lerp(FALL.foamRz[0], FALL.foamRz[1], h(3)),
+                    phase: h(4) * 6.2832, rate: 1.6 + h(5) * 2.2, size: lerp(FALL.foamSize[0], FALL.foamSize[1], h(6)), spin: (h(7) - .5) * .7
+                });
+            }
 
             // the rainbow: a camera-facing quad in the mist
             const rb = FALL.rainbow;
@@ -558,20 +699,34 @@ void main() {
             }
             fall.spray.instanceMatrix.needsUpdate = true;
             fall.spray.instanceColor.needsUpdate = true;
-            // mist: puffs at the bottom grow and fade over mistLife
+            // foam: the cubes bob and pulse in a ring around the landing; the nearer its middle, the higher they churn
+            const foamCount = Math.round(FALL.foam * (scale >= 1 ? 1 : QUALITY_HALF.foam));
+            fall.foam.count = foamCount;
+            counts.foam = foamCount;
+            const farray = fall.foam.instanceMatrix.array;
+            for (let i = 0; i < foamCount; i++) {
+                const f = fall.foamSeed[i];
+                const a = f.a + t * f.spin;
+                const s = f.size * (.78 + .22 * Math.sin(t * f.rate * 1.7 + f.phase));
+                const y = seaFloor + .1 + (.5 + .5 * Math.sin(t * f.rate + f.phase)) * FALL.foamLift * (1 - .6 * f.rx / FALL.foamRx[1]);
+                putBox(farray, i, landing.x + Math.cos(a) * f.rx, y + s * .5, landing.z + Math.sin(a) * f.rz, s, s, s);
+            }
+            fall.foam.instanceMatrix.needsUpdate = true;
+            fall.foamMaterial.emissive.setRGB(lerp(.08, .16, day), lerp(.1, .2, day), lerp(.2, .26, day), THREE.SRGBColorSpace);
+            // mist: soft cubes rise from the foam, grow, pulse and fade over mistLife
             const mistCount = Math.round(FALL.mist * (scale >= 1 ? 1 : QUALITY_HALF.mist));
             fall.mist.count = mistCount;
             counts.mist = mistCount;
             const marray = fall.mist.instanceMatrix.array;
-            const baseX = fallX(fallDrop) + 1.2;
             for (let i = 0; i < mistCount; i++) {
-                const life = (t / FALL.mistLife + i / mistCount) % 1;
-                const n = Math.floor(t / FALL.mistLife + i / mistCount);
+                const phase = t / FALL.mistLife + i / mistCount;
+                const life = phase % 1;
+                const n = Math.floor(phase);
                 const r1 = hash1(i * 2.3 + n * 5.1);
                 const r2 = hash1(i * 6.7 + n * 1.9 + 4);
-                const size = lerp(1.5, 1.5 * FALL.mistGrow, life) * (.8 + .5 * r1);
-                putBox(marray, i, baseX + (r1 - .5) * 4.2, seaFloor + .4 + life * 2.4, (lip.z0 + lip.z1) / 2 + (r2 - .5) * 4.5, size, size * .8, size);
-                fall.mistFade.array[i] = FALL.mistAlpha * Math.sin(Math.PI * Math.min(life * 1.15, 1)) * (1 - life * .35);
+                const size = lerp(FALL.mistFrom, FALL.mistTo, smooth(0, 1, life)) * (.75 + .5 * r1) * (1 + .1 * Math.sin(t * 3 + i * 1.7));
+                putBox(marray, i, landing.x + (r1 - .4) * 4 + life, seaFloor + .2 + life * FALL.mistRise + size * .5, landing.z + (r2 - .5) * 3.8, size, size, size);
+                fall.mistFade.array[i] = FALL.mistAlpha * Math.sin(Math.PI * Math.min(life * 1.1, 1)) * (1 - life * .4);
             }
             fall.mist.instanceMatrix.needsUpdate = true;
             fall.mistFade.needsUpdate = true;
@@ -651,6 +806,7 @@ void main() {
         const birds = [];
         function buildBirds() {
             const material = lambert(BIRDS.color);
+            const wingMaterial = lambert(BIRDS.wing);
             const wingGeometry = unitBox;
             for (let k = 0; k < BIRDS.count; k++) {
                 const bird = new THREE.Group();
@@ -660,7 +816,7 @@ void main() {
                 const wings = [1, -1].map(side => {
                     const pivot = new THREE.Group();
                     pivot.position.set(side * .22, .05, .05);
-                    const wing = mesh(wingGeometry, material, pivot);
+                    const wing = mesh(wingGeometry, wingMaterial, pivot);
                     wing.scale.set(1.1, .12, .5);
                     wing.position.set(side * .55, 0, 0);
                     bird.add(pivot);
@@ -871,9 +1027,9 @@ void main() {
         }
 
         // ---- Public surface --------------------------------------------------------------------
+        buildFall();
         buildSea();
         buildSkyClouds();
-        buildFall();
         buildWindmill();
         buildSmoke();
         buildBirds();
@@ -916,7 +1072,7 @@ void main() {
             options.scene.remove(root);
             halos.islet.forEach(h => { h.object.parent && h.object.parent.remove(h.object); });
             for (const item of owned) { try { item.dispose(); } catch (_) { /* best effort */ } }
-            for (const m of [sea.mesh, skyCloud.mesh, fall.spray, fall.mist, flies.cubes, smoke.mesh]) {
+            for (const m of [sea.mesh, skyCloud.mesh, fall.spray, fall.foam, fall.mist, flies.cubes, smoke.mesh]) {
                 if (m && typeof m.dispose === 'function') { try { m.dispose(); } catch (_) { /* best effort */ } }
             }
             owned.length = 0;

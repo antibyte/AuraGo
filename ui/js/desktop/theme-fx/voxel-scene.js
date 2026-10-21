@@ -41,7 +41,8 @@
     const TILT = { focusY: .47, band: .16, feather: .28, maxBlur: 3.2, vignette: .16, saturation: 1.08, samples: 2, maxPixels: 2.4e6 };
     // Screen-space sky. Positions are fractions of the screen (x from the left, y from the top), sizes fractions of its height.
     // The sun crosses from x .88 to x .12 between the rise and set hours; the moon from x .85 to x .15 between set and rise.
-    // halos are [size multiple, alpha] of stepped square halos around the sun; craters are [x, y, half size] in moon sizes.
+    // halos are [size multiple, alpha] of stepped square halos around the sun; craters are [x, y, half size] in moon sizes; the moon's
+    // halo is a round glow of halo / 2 moon sizes in radius, added to the sky with strength haloAlpha.
     const SKY = {
         horizonAt: .62,
         sun: { size: .06, x: .88, dx: .76, y: .46, dy: .36, rise: 6.5, set: 19.5, gain: 2.2, tint: [1, .94, .72], halos: [[2.4, .15], [1.6, .35]], glow: .22, glowReach: 3.2 },
@@ -49,7 +50,7 @@
         // one-block craters at the listed block centres.
         moon: {
             size: .044, x: .85, dx: .7, y: .42, dy: .3, color: '#e8ecff', gain: 1.8, cells: 10, cut: [2.3, -1.5], cutRadius: 4,
-            craters: [[-3.5, .5], [-2.5, 3.5], [-4.5, -1.5]], crater: .22, halo: 1.9, haloAlpha: .03, haloColor: '#8fa8ff', haloGain: 1.4
+            craters: [[-3.5, .5], [-2.5, 3.5], [-4.5, -1.5]], crater: .22, halo: 4.2, haloAlpha: .09, haloColor: '#8fa8ff', haloGain: 1.4
         },
         stars: { cell: 12, small: .04, bright: .006, fadeFrom: .35, fadeTo: .9, gain: 1.5, parallax: 6 }   // cell in px at 1080 high; parallax in px per degree of camera yaw
     };

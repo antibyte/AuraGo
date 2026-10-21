@@ -26,7 +26,8 @@ void main() {
         const sun = sky.sun;
         const moon = sky.moon;
         const stars = sky.stars;
-        const haloCode = sun.halos.map(h => '    col = mix(col, uSunColor, pxSquare(p, sunC, sunHalf * ' + glslFloat(h[0]) + ') * ' + glslFloat(h[1]) + ' * uSunVisible);').join('\n');
+        // Halos only ever add light: max() keeps a halo from darkening a sky that is brighter than the sun colour.
+        const haloCode = sun.halos.map(h => '    col = max(col, mix(col, uSunColor, pxSquare(p, sunC, sunHalf * ' + glslFloat(h[0]) + ') * ' + glslFloat(h[1]) + ' * uSunVisible));').join('\n');
         const craterCode = moon.craters.map(c => '    crater += step(abs(mc.x - ' + glslFloat(c[0]) + '), 0.01) * step(abs(mc.y - ' + glslFloat(c[1]) + '), 0.01);').join('\n');
         return `
 uniform vec3 uTop;
@@ -73,11 +74,12 @@ void main() {
 ${haloCode}
     col = mix(col, uSunColor, pxSquare(p, sunC, sunHalf) * uSunVisible);
 
-    // Moon: a faint blue square halo and a pixel-art crescent: a disc of moon.cells blocks across minus an offset disc, with a few
-    // darker one-block craters. mc is the block centre relative to the moon's centre, in blocks.
+    // Moon: a soft round blue glow (added to the sky, no edge) and a pixel-art crescent: a disc of moon.cells blocks across minus an
+    // offset disc, with a few darker one-block craters. mc is the block centre relative to the moon's centre, in blocks.
     vec2 moonC = uMoonPos * uResolution;
     float moonSize = ${glslFloat(moon.size)} * H;
-    col = mix(col, ${glslVec3(linearHex(moon.haloColor, moon.haloGain))}, pxSquare(p, moonC, moonSize * 0.5 * ${glslFloat(moon.halo)}) * ${glslFloat(moon.haloAlpha)} * uMoonVisible);
+    float moonGlow = max(1.0 - length(p - moonC) / (moonSize * 0.5 * ${glslFloat(moon.halo)}), 0.0);
+    col += ${glslVec3(linearHex(moon.haloColor, moon.haloGain))} * (moonGlow * moonGlow) * ${glslFloat(moon.haloAlpha)} * uMoonVisible;
     vec2 mc = floor((p - moonC) / (moonSize / ${glslFloat(moon.cells)})) + 0.5;
     float lit = step(length(mc), ${glslFloat(moon.cells / 2)}) * (1.0 - step(length(mc - ${glslVec2(moon.cut)}), ${glslFloat(moon.cutRadius)}));
     float crater = 0.0;
