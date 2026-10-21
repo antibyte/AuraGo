@@ -112,6 +112,9 @@
   the extra `aurago_spin: { axis, speed }` turn about their local axis unless motion is reduced.
   `boost`, `teleport`, `cannon` and `bumper` events only play sound and effects (`spark` bursts,
   `scene.resetTrail?.()` on teleport, an extra `impact` burst on a bumper kick) and never end `busy`.
+  Developer route search lives in `scripts/lib/minigolf-routes.mjs` (`loadCourses`, `runShot`,
+  `progress`/`remaining` along `corridors`/`path`, `findRoute`, `timedRoute`, `replayRoute`) with the
+  CLI `scripts/minigolf-route-search.mjs [--dir] [--course id|number|look-NN] [--json]`.
 - `settings(values, track, focus)`, `audioSettings(settings, track)` and
   `credits(tracks)` in `minigolf-menus.js` are the stable entry points for the
   settings, sound and credits panels.
