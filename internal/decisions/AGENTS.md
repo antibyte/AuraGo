@@ -98,6 +98,9 @@ attestation, request validation, candidate-logit normalization, and status.
   Published Docker images use compiled immutable digests and need no BUILD grant.
   Developer bundles remain supported. Never invent missing release pins. See
   `documentation/decisions-runtime-release.md` for the publication gate.
+  Reuse a verified installed accelerator package without requiring downloads for
+  additional backends. A CPU package alone still preserves accelerator acquisition;
+  availability never grants readiness or CPU permission.
   Verify the pinned build identity and binary digest before provisioning.
   Publish with `fileutil.RenameContext` without deleting the existing target.
   Verification and publication must observe cancellation; failed replacement

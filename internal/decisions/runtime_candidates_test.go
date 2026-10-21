@@ -7,6 +7,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -16,6 +18,59 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/onnxrt"
 )
+
+func TestNativeInstallReusesVerifiedPackagesWithoutOtherDownloads(t *testing.T) {
+	for _, tc := range []struct {
+		name, location string
+		cpu, consent   bool
+	}{
+		{name: "developer accelerator", location: "developer", consent: true},
+		{name: "provisioned accelerator", location: "provisioned", consent: true},
+		{name: "CPU consent preserves accelerator preference", location: "provisioned", cpu: true, consent: true},
+		{name: "CPU without consent still needs accelerator", location: "provisioned", cpu: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source, data := t.TempDir(), t.TempDir()
+			managed := filepath.Join(data, "decisions", "runtime")
+			backend := "vulkan"
+			if runtime.GOOS == "darwin" {
+				backend = "metal"
+			}
+			if tc.cpu {
+				backend = "cpu"
+			}
+			directory := filepath.Join(managed, runtimeTarget(runtime.GOOS, runtime.GOARCH), backend)
+			if tc.location == "developer" {
+				directory = filepath.Join(source, "bin", "decisions-runtime", runtimeTarget(runtime.GOOS, runtime.GOARCH), backend)
+			}
+			writeTestRuntimeBundle(t, directory, backend)
+			previous := http.DefaultTransport
+			calls := 0
+			http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) {
+				calls++
+				return nil, errors.New("offline runtime fixture")
+			})
+			t.Cleanup(func() { http.DefaultTransport = previous })
+			manager := NewManager(config.DecisionsConfig{Enabled: true, Deployment: "native"}, data, WithRuntimeDirectory(source))
+			if check := manager.CheckInstallation(t.Context()); !check.RuntimeAvailable {
+				t.Fatalf("verified package not recognized: %+v", check)
+			}
+			err := ensureNativeRuntime(t.Context(), source, managed, tc.consent, nil)
+			if tc.cpu {
+				if err == nil || calls == 0 {
+					t.Fatalf("CPU package bypassed accelerator acquisition: %v, requests=%d", err, calls)
+				}
+			} else if err != nil || calls != 0 {
+				t.Fatalf("existing package required another download: %v, requests=%d", err, calls)
+			}
+			ctx, cancel := context.WithCancel(t.Context())
+			cancel()
+			if err := ensureNativeRuntime(ctx, source, managed, tc.consent, nil); ErrorCode(err) != CodeCancelled {
+				t.Fatalf("cancellation: %v", err)
+			}
+		})
+	}
+}
 
 func cachedRuntimePackage(t *testing.T, managed, backend string) runtimePackage {
 	t.Helper()

@@ -104,6 +104,12 @@ func ensureNativeRuntime(ctx context.Context, sourceRoot, managedRoot string, cp
 		}
 		available[backend] = true
 	}
+	// Additional backends must not make an installed accelerator depend on downloads.
+	for backend := range available {
+		if backend != "cpu" {
+			return nil
+		}
+	}
 	cache := onnxrt.NewAssetCache(filepath.Join(managedRoot, "packages"), "AuraGo-Decisions", func(status onnxrt.DownloadStatus) {
 		if progress != nil {
 			progress("downloading_runtime", status.Downloaded, status.Total)
