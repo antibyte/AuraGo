@@ -288,11 +288,28 @@
             scripts: ['/js/desktop/apps/zipper.js']
         },
         'pixel': {
-            styles: appStyles('/css/pixel.css', '/css/desktop-stickers.css', '/css/pixel-stickers.css'),
+            // pixel-worker.js is loaded by runtime.runJob as a Worker, never as a script; the pixel-lib-*.js files are imported by it too.
+            styles: appStyles(
+                '/css/pixel.css',
+                '/css/desktop-stickers.css',
+                '/css/pixel-stickers.css',
+                '/css/pixel-layers.css',
+                '/css/pixel-filters.css',
+                '/css/pixel-generators.css',
+                '/css/pixel-cutout.css',
+                '/css/pixel-selection.css',
+                '/css/pixel-tools-pro.css',
+                '/css/pixel-smart.css'
+            ),
             scripts: [
                 '/js/desktop/shared/sticker-catalog.js',
                 '/js/desktop/shared/sticker-library.js',
                 '/js/desktop/apps/pixel-state.js',
+                '/js/desktop/apps/pixel-lib-core.js',
+                '/js/desktop/apps/pixel-lib-fx.js',
+                '/js/desktop/apps/pixel-lib-gen.js',
+                '/js/desktop/apps/pixel-lib-cutout.js',
+                '/js/desktop/apps/pixel-lib-inpaint.js',
                 '/js/desktop/apps/pixel-core.js',
                 '/js/desktop/apps/pixel-view.js',
                 '/js/desktop/apps/pixel-canvas.js',
@@ -301,6 +318,16 @@
                 '/js/desktop/apps/pixel-filters.js',
                 '/js/desktop/apps/pixel-events.js',
                 '/js/desktop/apps/pixel-stickers.js',
+                '/js/desktop/apps/pixel-layers.js',
+                '/js/desktop/apps/pixel-selection.js',
+                '/js/desktop/apps/pixel-brush.js',
+                '/js/desktop/apps/pixel-tools-pro.js',
+                '/js/desktop/apps/pixel-transform.js',
+                '/js/desktop/apps/pixel-generators.js',
+                '/js/desktop/apps/pixel-cutout.js',
+                '/js/desktop/apps/pixel-smart.js',
+                '/js/desktop/apps/pixel-commands.js',
+                '/js/desktop/apps/pixel-ora.js',
                 '/js/desktop/apps/pixel.js'
             ]
         },

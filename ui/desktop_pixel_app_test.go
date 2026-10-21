@@ -303,14 +303,42 @@ func TestPixelAdjustApplyCommitsPreviewWithoutRestoringOriginal(t *testing.T) {
 func TestPixelCompareModeClearsWhenLeavingAdjustPanel(t *testing.T) {
 	tools := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-tools.js"))
 	canvas := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-canvas.js"))
+	view := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-view.js"))
 	showPanelBody := jsFunctionBodyInWindowMenuTest(t, tools, "showPanel: Pixel.bindRuntime(runtime, function showPanel(name)")
 
 	if !strings.Contains(canvas, "exitCompareMode: Pixel.bindRuntime(runtime, function exitCompareMode(") {
 		t.Fatalf("Pixel needs a shared exitCompareMode helper so panel changes can leave compare mode cleanly")
 	}
-	if !strings.Contains(showPanelBody, "if (name !== 'adjust' && this.compareMode) this.exitCompareMode({ preservePreview: true });") {
-		t.Fatalf("Pixel showPanel should disable compare mode when leaving adjustments so drawing is not blocked: %s", showPanelBody)
+	if !strings.Contains(showPanelBody, "runHook(old, 'onHide', this)") {
+		t.Fatalf("Pixel showPanel should run the onHide hook of the panel that is left: %s", showPanelBody)
 	}
+	adjust := pixelPanelRegistration(t, view, "adjust")
+	if !strings.Contains(adjust, "onHide: r => { if (r.compareMode) r.exitCompareMode({ preservePreview: true }); }") {
+		t.Fatalf("the adjust panel should disable compare mode when it is left so drawing is not blocked: %s", adjust)
+	}
+	filters := pixelPanelRegistration(t, view, "filters")
+	if !strings.Contains(filters, "onHide: r => r.resetFilterPreview()") {
+		t.Fatalf("the filters panel should drop its preview when it is left: %s", filters)
+	}
+	transform := pixelPanelRegistration(t, view, "transform")
+	if !strings.Contains(transform, "r.cancelCrop()") {
+		t.Fatalf("the transform panel should cancel a running crop when it is left: %s", transform)
+	}
+}
+
+// pixelPanelRegistration returns the source of one Pixel.registerPanel({ id: '<id>' ... }) call.
+func pixelPanelRegistration(t *testing.T, source, id string) string {
+	t.Helper()
+	marker := "Pixel.registerPanel({ id: '" + id + "'"
+	start := strings.Index(source, marker)
+	if start < 0 {
+		t.Fatalf("missing %s", marker)
+	}
+	end := strings.Index(source[start+len(marker):], "Pixel.registerPanel({")
+	if end < 0 {
+		end = len(source) - start - len(marker)
+	}
+	return source[start : start+len(marker)+end]
 }
 
 func TestPixelLayersAlwaysOwnCanvases(t *testing.T) {
@@ -426,20 +454,23 @@ func TestPixelModulesHaveValidTransformedSyntaxMarkers(t *testing.T) {
 }
 
 func TestPixelWiredActionsExistInMarkup(t *testing.T) {
-	shell := readDesktopAssetText(t, "js/desktop/apps/pixel.js")
-	markup := readPixelAppScripts(t)
+	scripts := readPixelAppScripts(t)
 	actionRe := regexp.MustCompile(`\[data-action="([^"]+)"\]`)
 	seen := make(map[string]bool)
-	for _, match := range actionRe.FindAllStringSubmatch(shell, -1) {
+	for _, match := range actionRe.FindAllStringSubmatch(scripts, -1) {
 		action := match[1]
 		if seen[action] {
 			continue
 		}
 		seen[action] = true
-		needle := `data-action="` + action + `"`
-		if !strings.Contains(markup, needle) {
+		// Markup is an attribute that is not the selector form [data-action="x"].
+		markup := regexp.MustCompile(`(?:^|[^\[])data-action="` + regexp.QuoteMeta(action) + `"`)
+		if !markup.MatchString(scripts) {
 			t.Fatalf("pixel markup is missing wired action %q", action)
 		}
+	}
+	if len(seen) < 20 {
+		t.Fatalf("expected the panels and toolbar to wire more than %d actions", len(seen))
 	}
 }
 
@@ -472,20 +503,60 @@ func TestPixelLoaderUsesOrderedSemanticScripts(t *testing.T) {
 	}
 }
 
+func TestPixelLoaderListsStylesInOrder(t *testing.T) {
+	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	// Only the pixel entry: other apps share some of these files (stickers) earlier in the loader.
+	start := strings.Index(loader, "'pixel': {")
+	end := strings.Index(loader[start:], "'galaxa-deluxe'")
+	if start < 0 || end < 0 {
+		t.Fatal("pixel entry not found in the module loader")
+	}
+	loader = loader[start : start+end]
+	last := -1
+	for _, stylePath := range pixelAppStylePaths {
+		needle := "'/" + stylePath + "'"
+		idx := strings.Index(loader, needle)
+		if idx < 0 {
+			t.Fatalf("pixel loader is missing %s", needle)
+		}
+		if idx <= last {
+			t.Fatalf("pixel loader should load %s after the previous Pixel style", needle)
+		}
+		last = idx
+	}
+	if strings.Contains(loader, "pixel-worker.js'") && strings.Contains(loader, "'/js/desktop/apps/pixel-worker.js'") {
+		t.Fatal("pixel-worker.js is a Worker script created by runtime.runJob and must not be listed in the module loader")
+	}
+}
+
 func TestPixelToolRailAndOptionsBarExist(t *testing.T) {
 	shell := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel.js"))
 	view := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-view.js"))
 
-	for _, want := range []string{"data-tool-rail", "data-options-bar", `data-panel="history"`, `data-panel="colors"`} {
+	for _, want := range []string{"data-tool-rail", "data-options-bar", "data-panel-container", "buildToolRailHTML()", "buildDocksHTML()"} {
 		if !strings.Contains(shell, want) {
-			t.Fatalf("pixel shell should contain %q for the tool rail / options bar layout", want)
+			t.Fatalf("pixel shell should contain %q for the tool rail / options bar / dock layout", want)
 		}
 	}
-	if !strings.Contains(view, "buildToolRailHTML") || !strings.Contains(view, "pixel-tool-rail") {
-		t.Fatal("pixel view should build the tool rail markup")
+	for _, want := range []string{"buildToolRailHTML", "pixel-tool-rail", "Pixel.toolGroups()", "pixel-rail-colors", "data-panel=\"${this.esc(def.id)}\"", "data-section=\"${this.esc(def.id)}\"", "data-dock-splitter"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("pixel view should contain %q: the rail, tabs and sections are built from the registries", want)
+		}
 	}
-	if !strings.Contains(view, "pixel-rail-colors") {
-		t.Fatal("pixel tool rail should host the compact color block")
+	// The built-in panels: inspector tabs plus the bottom dock with layers and history.
+	for _, id := range []string{"adjust", "filters", "colors", "transform", "ai"} {
+		if panel := pixelPanelRegistration(t, view, id); !strings.Contains(panel, "dock: 'inspector'") {
+			t.Fatalf("panel %q should live in the inspector dock: %s", id, panel)
+		}
+	}
+	for _, id := range []string{"layers", "history"} {
+		if panel := pixelPanelRegistration(t, view, id); !strings.Contains(panel, "dock: 'bottom'") {
+			t.Fatalf("panel %q should live in the bottom dock: %s", id, panel)
+		}
+	}
+	stickers := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-stickers.js"))
+	if !strings.Contains(stickers, "Pixel.registerPanel({ id: 'stickers'") {
+		t.Fatal("stickers should register as an inspector panel")
 	}
 }
 
@@ -612,14 +683,181 @@ func TestPixelNewToolI18nKeysExist(t *testing.T) {
 	}
 }
 
+// Every pixel-lib-*.js file must be imported by the worker (and nothing else may be): a new lib that the worker does not
+// import would work in the main-thread fallback and silently break in the worker.
+func TestPixelWorkerImportsEveryLib(t *testing.T) {
+	entries, err := Content.ReadDir("js/desktop/apps")
+	if err != nil {
+		t.Fatalf("list pixel apps: %v", err)
+	}
+	var libs []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasPrefix(name, "pixel-lib-") && strings.HasSuffix(name, ".js") {
+			libs = append(libs, name)
+		}
+	}
+	if len(libs) < 5 {
+		t.Fatalf("expected pixel-lib-core.js and the four stub libs, got %v", libs)
+	}
+	worker := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-worker.js"))
+	if !strings.Contains(worker, "importScripts(file + search)") || !strings.Contains(worker, "self.location.search") {
+		t.Fatal("pixel-worker.js must import every lib with the cache-busting query string of its own URL")
+	}
+	for _, lib := range libs {
+		if !strings.Contains(worker, "'"+lib+"'") {
+			t.Fatalf("pixel-worker.js does not import %s", lib)
+		}
+		if !slicesContains(pixelAppScriptPaths, "js/desktop/apps/"+lib) {
+			t.Fatalf("%s is missing from pixelAppScriptPaths / the module loader", lib)
+		}
+		source := readDesktopAssetText(t, "js/desktop/apps/"+lib)
+		for _, forbidden := range []string{"document.", "window.", "localStorage", "createElement"} {
+			if strings.Contains(source, forbidden) {
+				t.Fatalf("%s must stay DOM-free (it runs in a Worker): found %q", lib, forbidden)
+			}
+		}
+	}
+	for _, want := range []string{"handleMessage", "{ ready: true }", "transfer"} {
+		if !strings.Contains(worker, want) {
+			t.Fatalf("pixel-worker.js should contain %q", want)
+		}
+	}
+}
+
+func slicesContains(list []string, value string) bool {
+	for _, item := range list {
+		if item == value {
+			return true
+		}
+	}
+	return false
+}
+
+func TestPixelRegistriesExist(t *testing.T) {
+	core := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-core.js"))
+	for _, want := range []string{
+		"Pixel.registerModule = function registerModule(",
+		"Pixel.registerPanel = function registerPanel(",
+		"Pixel.registerTool = function registerTool(",
+		"Pixel.registerMenuItems = function registerMenuItems(",
+		"Pixel.registerCommand = function registerCommand(",
+		"Pixel.composeMenus = function composeMenus(",
+		"Pixel.listCommands = function listCommands(",
+		"registerOverlay: Pixel.bindRuntime(runtime, function registerOverlay(",
+		"unregisterOverlay: Pixel.bindRuntime(runtime, function unregisterOverlay(",
+		"requestOverlay: Pixel.bindRuntime(runtime, function requestOverlay(",
+		"runJob: Pixel.bindRuntime(runtime, function runJob(",
+		"imageFromCanvas: Pixel.bindRuntime(runtime, function imageFromCanvas(",
+		"canvasFromImage: Pixel.bindRuntime(runtime, function canvasFromImage(",
+		"new Worker(workerURL())",
+		"'/js/desktop/apps/pixel-worker.js'",
+		"AbortError",
+	} {
+		if !strings.Contains(core, want) {
+			t.Fatalf("pixel-core.js is missing %q", want)
+		}
+	}
+	view := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-view.js"))
+	for _, want := range []string{
+		"Pixel.registerPanel({ id: 'colors'",
+		"Pixel.registerPanel({ id: 'layers'",
+		"Pixel.registerPanel({ id: 'history'",
+		"buildParamControls: Pixel.bindRuntime(runtime, function buildParamControls(",
+		"wireParamControls: Pixel.bindRuntime(runtime, function wireParamControls(",
+		"defaultParams: Pixel.bindRuntime(runtime, function defaultParams(",
+	} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("pixel-view.js is missing %q", want)
+		}
+	}
+	// Every shell piece the later packages need is a registry call, so they never edit pixel.js.
+	shell := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel.js"))
+	for _, want := range []string{"Pixel.listModules().forEach", "runtime.rebuildMenus()", "runtime.mountPanels()", "runtime.initDocks()", "'pointerdown'", "setPointerCapture", "runtime.handleKeydown(e)"} {
+		if !strings.Contains(shell, want) {
+			t.Fatalf("pixel.js should contain %q", want)
+		}
+	}
+	if strings.Contains(shell, "'mousedown', onCanvasMouseDown") || strings.Contains(shell, "'mousemove', onCanvasMouseMove") {
+		t.Fatal("the canvas overlay must use pointer events, not mouse events")
+	}
+	events := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-events.js"))
+	for _, want := range []string{"handleKeydown: Pixel.bindRuntime(runtime, function handleKeydown(", "e.defaultPrevented", "this.runShortcut(e)", "registerOverlay('cursor'", "pointerInfo: Pixel.bindRuntime("} {
+		if !strings.Contains(events, want) {
+			t.Fatalf("pixel-events.js should contain %q", want)
+		}
+	}
+	tools := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-tools.js"))
+	for _, want := range []string{"registerOverlay('selection'", "registerOverlay('tool-preview'"} {
+		if !strings.Contains(tools, want) {
+			t.Fatalf("pixel-tools.js should contain %q", want)
+		}
+	}
+	canvas := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-canvas.js"))
+	if !strings.Contains(canvas, "registerOverlay('compare'") {
+		t.Fatal("the compare divider should be an overlay")
+	}
+	// clearOverlay clears the tool preview only; it must never wipe the shared overlay canvas again.
+	clearBody := jsFunctionBodyInWindowMenuTest(t, tools, "clearOverlay: Pixel.bindRuntime(runtime, function clearOverlay()")
+	if strings.Contains(clearBody, "clearRect") || !strings.Contains(clearBody, "requestOverlay()") {
+		t.Fatalf("clearOverlay should only drop the tool preview and request a repaint: %s", clearBody)
+	}
+}
+
+// Each later work package gets its own file that is already wired into the loader, so no shared file changes later.
+func TestPixelStubModulesRegisterThemselves(t *testing.T) {
+	for _, name := range []string{"layers", "selection", "brush", "tools-pro", "transform", "generators", "cutout", "smart", "commands", "ora"} {
+		path := "js/desktop/apps/pixel-" + name + ".js"
+		if !slicesContains(pixelAppScriptPaths, path) {
+			t.Fatalf("%s is not in the pixel script list", path)
+		}
+		source := readDesktopAssetText(t, path)
+		if !strings.Contains(source, "Pixel.registerModule('"+name+"'") {
+			t.Fatalf("%s should register itself with Pixel.registerModule('%s', ...)", path, name)
+		}
+	}
+	for _, stylePath := range pixelAppStylePaths {
+		if strings.HasPrefix(stylePath, "css/pixel-") && stylePath != "css/pixel-stickers.css" {
+			if strings.TrimSpace(readDesktopAssetText(t, stylePath)) == "" {
+				t.Fatalf("%s should at least carry a header comment", stylePath)
+			}
+		}
+	}
+}
+
+func TestPixelDocksLayoutCSS(t *testing.T) {
+	css := normalizePixelAsset(readDesktopAssetText(t, "css/pixel.css"))
+	for _, selector := range []string{".pixel-dock-inspector", ".pixel-dock-bottom", ".pixel-dock-body", ".pixel-splitter", ".pixel-param-list", ".pixel-param-segmented", ".pixel-param-switch", ".pixel-param-gradient-bar", ".pixel-param-dial", ".pixel-param-pad"} {
+		if !strings.Contains(css, selector) {
+			t.Fatalf("pixel.css should contain styles for %q", selector)
+		}
+	}
+	if !pixelCSSRuleContains(css, ".pixel-tabs", "flex-wrap: wrap") {
+		t.Fatal("pixel tabs may wrap to a second row in the inspector")
+	}
+	if !pixelCSSRuleContains(css, ".pixel-overlay", "touch-action: none") {
+		t.Fatal("the pointer-event canvas needs touch-action: none so touch and pen strokes are not scrolled away")
+	}
+	if strings.Contains(css, ".pixel-toolbar .pixel-tabs") {
+		t.Fatal("tabs moved out of the toolbar into the docks")
+	}
+}
+
 func normalizePixelAsset(text string) string {
 	return strings.ReplaceAll(text, "\r\n", "\n")
 }
 
+// pixelAppScriptPaths is the module loader's script order for Pixel. pixel-worker.js is not in it: runtime.runJob starts it
+// as a Worker. The lib files are listed because the main thread uses them as the fallback when no Worker is available.
 var pixelAppScriptPaths = []string{
 	"js/desktop/shared/sticker-catalog.js",
 	"js/desktop/shared/sticker-library.js",
 	"js/desktop/apps/pixel-state.js",
+	"js/desktop/apps/pixel-lib-core.js",
+	"js/desktop/apps/pixel-lib-fx.js",
+	"js/desktop/apps/pixel-lib-gen.js",
+	"js/desktop/apps/pixel-lib-cutout.js",
+	"js/desktop/apps/pixel-lib-inpaint.js",
 	"js/desktop/apps/pixel-core.js",
 	"js/desktop/apps/pixel-view.js",
 	"js/desktop/apps/pixel-canvas.js",
@@ -628,7 +866,31 @@ var pixelAppScriptPaths = []string{
 	"js/desktop/apps/pixel-filters.js",
 	"js/desktop/apps/pixel-events.js",
 	"js/desktop/apps/pixel-stickers.js",
+	"js/desktop/apps/pixel-layers.js",
+	"js/desktop/apps/pixel-selection.js",
+	"js/desktop/apps/pixel-brush.js",
+	"js/desktop/apps/pixel-tools-pro.js",
+	"js/desktop/apps/pixel-transform.js",
+	"js/desktop/apps/pixel-generators.js",
+	"js/desktop/apps/pixel-cutout.js",
+	"js/desktop/apps/pixel-smart.js",
+	"js/desktop/apps/pixel-commands.js",
+	"js/desktop/apps/pixel-ora.js",
 	"js/desktop/apps/pixel.js",
+}
+
+// pixelAppStylePaths is the loader's style order for Pixel.
+var pixelAppStylePaths = []string{
+	"css/pixel.css",
+	"css/desktop-stickers.css",
+	"css/pixel-stickers.css",
+	"css/pixel-layers.css",
+	"css/pixel-filters.css",
+	"css/pixel-generators.css",
+	"css/pixel-cutout.css",
+	"css/pixel-selection.css",
+	"css/pixel-tools-pro.css",
+	"css/pixel-smart.css",
 }
 
 func readPixelAppScripts(t *testing.T) string {

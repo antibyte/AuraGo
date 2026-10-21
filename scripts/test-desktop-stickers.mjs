@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const scripts = ['shared/sticker-catalog', 'shared/sticker-library', ...['state', 'view', 'canvas', 'tools', 'actions', 'filters', 'events', 'stickers'].map(name => 'apps/pixel-' + name), 'apps/pixel'];
+const scripts = ['shared/sticker-catalog', 'shared/sticker-library', ...['state', 'lib-core', 'lib-fx', 'lib-gen', 'lib-cutout', 'lib-inpaint', 'core', 'view', 'canvas', 'tools', 'actions', 'filters', 'events', 'stickers', 'layers', 'selection', 'brush', 'tools-pro', 'transform', 'generators', 'cutout', 'smart', 'commands', 'ora'].map(name => 'apps/pixel-' + name), 'apps/pixel'];
 const server = createServer(async (req, res) => {
     try {
         const name = new URL(req.url, 'http://localhost').pathname;
@@ -31,7 +31,7 @@ try {
         const locale = theme === 'fruity' ? 'de' : 'en';
         const strings = JSON.parse(await readFile(path.join(root, 'ui/lang/desktop/' + locale + '.json'), 'utf8'));
         await page.goto(origin);
-        for (const css of ['/shared-variables.css', '/shared-utilities.css', '/shared-components.css', '/css/desktop-shell.bundle.css', '/css/desktop-app-common.css', '/css/pixel.css', '/css/desktop-stickers.css', '/css/pixel-stickers.css']) await page.addStyleTag({ url: origin + css });
+        for (const css of ['/shared-variables.css', '/shared-utilities.css', '/shared-components.css', '/css/desktop-shell.bundle.css', '/css/desktop-app-common.css', '/css/pixel.css', '/css/desktop-stickers.css', '/css/pixel-stickers.css', '/css/pixel-layers.css', '/css/pixel-filters.css', '/css/pixel-generators.css', '/css/pixel-cutout.css', '/css/pixel-selection.css', '/css/pixel-tools-pro.css', '/css/pixel-smart.css']) await page.addStyleTag({ url: origin + css });
         for (const script of scripts) await page.addScriptTag({ url: origin + '/js/desktop/' + script + '.js' });
         await page.evaluate(({ theme, strings }) => {
             document.body.dataset.theme = theme; document.body.dataset.fruityMode = 'light';
