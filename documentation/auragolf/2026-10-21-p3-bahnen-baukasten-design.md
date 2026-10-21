@@ -153,6 +153,7 @@ Pad-Raster laufen im Reihenabstand der Spur; Anschlüsse liegen auf Rasterlinien
 - Ball-Lichtraum: über jeder Bodenfläche mindestens 0,5 m frei bis zur nächsten Geometrie (außer Tunneldach ≥ 0,45 m).
 - Kurvenradius ≥ 2,0 m, Steilkurve ≤ 30°, Rampen ≤ 22° (mit Lippe ≤ 30°), Höhenstufe einer Treppe ≤ 0,35 m.
 - Looping: Radius 1,2–1,5 m, seitlicher Versatz ≥ Spurbreite + 2 × Bande + 0,2 m; davor ein Boost-Feld oder ≥ 8 m gerader Anlauf.
+  Messung (Physik-Prototyp, 48 Querschnitte, Schwerkraft 4,0, Radius 1,3 m): Das Boost-Feld (9 m/s) muss höchstens etwa 1,5 m vor dem Looping liegen; dann gelingt Schlag 0,2 (Mindestschlag, um das Feld zu erreichen) ebenso wie 0,3. Sechs Meter davor reicht der Schwung nicht (der Ball löst sich vor dem Scheitel). Ohne Boost trägt erst Schlag 0,55 über 8 m Anlauf; Schlag 0,15 bleibt im Anlauf liegen. Ein Boost von 8 m/s reicht knapp, 7 m/s nicht; 9 m/s lässt Spielraum. Radius 1,2 und 1,5 m verhalten sich gleich.
 - Gabelungszweige enden parallel (Richtung ± 0,01°), auf gleicher Höhe (± 1 mm) und mit Querabstand als Vielfaches des Reihenabstands.
 - Laufweg 10–35 m, Loch auf einem `green` oder in einem `funnel`.
 - Alles liegt innerhalb der Insel; Abschlag, Loch, Mechaniken, Landepunkte und Hindernisse innerhalb von `bounds`.

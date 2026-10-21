@@ -34,16 +34,20 @@ function rotate(q, [x, y, z]) {
     return [ix * qw + iw * -qx + iy * -qz - iz * -qy, iy * qw + iw * -qy + iz * -qx - ix * -qz, iz * qw + iw * -qz + ix * -qy - iy * -qx];
 }
 
-// One rotated rectangle [x,z × 4] per obstacle part, posed like physics.getObstacles().
+// One rotated outline [x,z, ...] per obstacle part (rectangle, or a polygon for balls and cylinders), posed like physics.getObstacles().
 export function obstacleOutlines(course, poses = []) {
     const outlines = [];
     for (const obstacle of course?.obstacles || []) {
         const pose = poses.find(item => item.id === obstacle.id) || { position: obstacle.position, rotation: obstacle.rotation || [0, 0, 0, 1] };
         const parts = Array.isArray(obstacle.colliders) && obstacle.colliders.length ? obstacle.colliders : [{ position: [0, 0, 0], halfExtents: obstacle.halfExtents }];
         for (const part of parts) {
-            const [hx, , hz] = part.halfExtents, center = part.position || [0, 0, 0], outline = [];
-            for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-                const local = rotate(part.rotation, [sx * hx, 0, sz * hz]);
+            const center = part.position || [0, 0, 0], outline = [];
+            // Boxes are rectangles; balls and cylinders are drawn as their top-down circle.
+            const corners = part.shape === 'ball' || part.shape === 'cylinder'
+                ? Array.from({ length: 12 }, (_, i) => [part.radius * Math.cos(i * Math.PI / 6), part.radius * Math.sin(i * Math.PI / 6)])
+                : [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([sx, sz]) => [sx * part.halfExtents[0], sz * part.halfExtents[2]]);
+            for (const [lx, lz] of corners) {
+                const local = rotate(part.rotation, [lx, 0, lz]);
                 const world = rotate(pose.rotation, [local[0] + center[0], local[1] + center[1], local[2] + center[2]]);
                 outline.push(world[0] + pose.position[0], world[2] + pose.position[2]);
             }

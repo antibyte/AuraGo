@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import { createPhysics, MAX_ROLL, launchSpeedFor, rollDistance, strengthToPower } from '../ui/js/desktop/apps/minigolf-physics.js';
+import { multiply, obstaclePose } from '../ui/js/desktop/apps/minigolf-mechanics.js';
+import { readColliders } from '../ui/js/desktop/apps/minigolf-collision.js';
+import { buildColliderGlb } from './lib/minigolf-glb.mjs';
 
 const bounds = { min: [-20, -5, -20], max: [20, 10, 20] };
 const fixedStep = 1 / 120;
@@ -328,5 +331,278 @@ for (let i = 0; i < 360; i++) { gated.step(fixedStep); livePath.push(gated.getBa
 const offPath = Math.max(...gatePreview.points.map(point => Math.min(...livePath.map(live => Math.hypot(live[0] - point[0], live[2] - point[2])))));
 assert.ok(offPath <= 0.03, `preview follows the live shot past a moving gate (max ${(offPath * 100).toFixed(1)} cm off)`);
 gated.dispose();
+
+// --- Mechanics, obstacle kinds, gravity and loop (P3) ------------------------
+const TERMINAL = ['rest', 'cup', 'water', 'out'];
+const terminalOf = events => events.find(event => TERMINAL.includes(event.type));
+const horizontal = velocity => Math.hypot(velocity[0], velocity[2]);
+function runUntil(physics, done, limit = 1800) {
+    for (let step = 1; step <= limit; step++) { physics.step(fixedStep); if (done()) return step; }
+    return -1;
+}
+
+// 1. Per-course gravity.
+for (const bad of [0, -1, 25, NaN]) await assert.rejects(createPhysics(wide({ gravity: bad })), TypeError, `gravity ${bad} is rejected`);
+{
+    const events = [];
+    const moon = await createPhysics(wide({ gravity: 4 }), { onEvent: event => events.push(event) });
+    assert.equal(moon.setBall([0, 2, 0]), true);
+    assert.equal(moon.shoot([1, 0], 0.01), true);
+    for (let i = 0; i < 108; i++) moon.step(fixedStep);
+    assert.equal(events.some(event => event.type === 'impact'), false, `still falling after 0.9 s at 4 m/s² (y=${moon.getBall()[1].toFixed(2)})`);
+    for (let i = 0; i < 36; i++) moon.step(fixedStep);
+    assert.equal(events.some(event => event.type === 'impact'), true, 'landed by 1.2 s (fall time 0.96 s)');
+    moon.dispose();
+}
+
+// 2. A boost pad reports without ending the shot and sets the horizontal speed.
+const boostPad = { id: 'boost-a', kind: 'boost', position: [1.5, 0.16, 0], half: [0.3, 0.4, 3], yaw: 0, direction: [1, 0], speed: 6 };
+{
+    const events = [];
+    const physics = await createPhysics(wide({ mechanics: [boostPad] }), { onEvent: event => events.push(event) });
+    assert.equal(physics.shoot([1, 0], 0.1), true);
+    let afterBoost = null;
+    for (let i = 0; i < 1800 && !terminalOf(events); i++) {
+        const snapshot = physics.step(fixedStep);
+        if (!afterBoost && events.some(event => event.type === 'boost')) afterBoost = snapshot.velocity;
+    }
+    assert.equal(events.filter(event => event.type === 'boost').length, 1, 'exactly one boost event');
+    assert.equal(events.find(event => event.type === 'boost').id, 'boost-a');
+    assert.ok(horizontal(afterBoost) >= boostPad.speed - 0.3 && Math.abs(afterBoost[2]) < 1e-6, `boosted to ${horizontal(afterBoost).toFixed(2)} m/s along the pad`);
+    assert.ok(['rest', 'out'].includes(terminalOf(events)?.type), 'the shot ends with rest or out, not with the boost');
+    assert.ok(physics.getBall()[0] > 5, `the ball kept rolling after the pad (x=${physics.getBall()[0].toFixed(2)})`);
+    physics.dispose();
+}
+
+// 3. Teleporter: moves the ball once, keeps the shot alive, no second trigger at the exit.
+const teleporter = { id: 'tp-a', kind: 'teleport', position: [2, 0, 0], radius: 0.4, exit: [10, 0.17, 0], direction: [1, 0], minSpeed: 2 };
+{
+    const events = [];
+    const physics = await createPhysics(wide({ mechanics: [teleporter] }), { onEvent: event => events.push(event) });
+    assert.equal(physics.shoot([1, 0], 0.3), true);
+    let jump = null;
+    for (let i = 0; i < 1800 && !terminalOf(events); i++) {
+        const snapshot = physics.step(fixedStep);
+        if (!jump && events.some(event => event.type === 'teleport')) jump = snapshot;
+    }
+    assert.ok(jump, 'teleport event arrived');
+    assert.ok(jump.position[0] >= 10, `render pose jumps with the ball, no tween (x=${jump.position[0]})`);
+    assert.ok(horizontal(jump.velocity) >= 2 && jump.velocity[0] > 0, 'exit speed follows direction and minSpeed');
+    assert.equal(events.filter(event => event.type === 'teleport').length, 1, 'no second trigger at the exit');
+    assert.deepEqual(events.find(event => event.type === 'teleport').exit, [10, 0.17, 0]);
+    assert.ok(physics.getBall()[0] >= 10 && terminalOf(events)?.type === 'rest', 'the shot continues from the exit');
+    physics.dispose();
+}
+
+// 4. Cannon: captures, holds at the muzzle, fires once, deterministically.
+const cannon = { id: 'cannon-a', kind: 'cannon', position: [2, 0, 0], radius: 0.4, muzzle: [2, 1.2, 0], velocity: [4, 3, 0], delay: 0.6 };
+async function cannonRun() {
+    const events = [];
+    const physics = await createPhysics(wide({ mechanics: [cannon] }), { onEvent: event => events.push(event) });
+    assert.equal(physics.shoot([1, 0], 0.2), true);
+    const captured = runUntil(physics, () => physics.getBall()[1] > 1.1);
+    assert.ok(captured > 0, 'the cannon caught the ball');
+    for (let i = 0; i < 60; i++) physics.step(fixedStep);
+    cannon.muzzle.forEach((value, axis) => close(physics.getBall()[axis], value, 0.001, 'ball waits at the muzzle'));
+    assert.equal(physics.getSnapshot().moving, true, 'a held ball still counts as moving');
+    assert.equal(events.some(event => event.type === 'cannon'), false, 'no event before the shot is fired');
+    runUntil(physics, () => terminalOf(events));
+    const fired = events.filter(event => event.type === 'cannon');
+    assert.equal(fired.length, 1, 'exactly one cannon event');
+    assert.deepEqual(fired[0].position, cannon.muzzle);
+    assert.equal(terminalOf(events)?.type, 'rest');
+    const rest = physics.getBall();
+    physics.dispose();
+    return rest;
+}
+const cannonFirst = await cannonRun();
+assert.ok(cannonFirst[0] > 4, `the shell flies on (x=${cannonFirst[0].toFixed(2)})`);
+assert.deepEqual(await cannonRun(), cannonFirst, 'two cannon runs rest on bit-identical positions');
+
+// 5. Bumper: kicks the ball away at least with `kick`.
+{
+    const bumper = { id: 'pin-a', kind: 'bumper', position: [2, 0, 0], radius: 0.3, height: 0.5, surface: 'wood', kick: 5 };
+    const events = [];
+    const physics = await createPhysics(wide({ mechanics: [bumper] }), { onEvent: event => events.push(event) });
+    assert.equal(physics.shoot([1, 0], 0.08), true);
+    let kicked = null;
+    for (let i = 0; i < 1800 && !terminalOf(events); i++) {
+        const snapshot = physics.step(fixedStep);
+        if (!kicked && events.some(event => event.type === 'bumper')) kicked = snapshot;
+    }
+    assert.ok(kicked, 'bumper event arrived');
+    assert.ok(events.some(event => event.type === 'impact' && event.surface === 'wood'), 'the contact still reports an impact');
+    assert.ok(horizontal(kicked.velocity) >= 0.95 * bumper.kick && kicked.velocity[0] < 0, `kicked away at ${horizontal(kicked.velocity).toFixed(2)} m/s`);
+    assert.ok(physics.getBall()[0] < 1.54, 'the ball ends up behind the bumper');
+    physics.dispose();
+}
+
+// 6. Obstacle kinds follow their formulas; ball and cylinder parts collide.
+{
+    const q = (axis, angle) => [axis[0] * Math.sin(angle / 2), axis[1] * Math.sin(angle / 2), axis[2] * Math.sin(angle / 2), Math.cos(angle / 2)];
+    const nearly = (actual, expected, message, tolerance = 1e-12) => actual.forEach((value, i) => close(value, expected[i], tolerance, message));
+    const spin = { id: 'spin-a', kind: 'spin', position: [1, 2, 3], axis: [0, 1, 0], speed: 2, phase: 0.5, amplitude: 0 };
+    nearly(obstaclePose(spin, 0.7).rotation, q([0, 1, 0], 0.7 * 2 + 0.5), 'spin angle = speed * t + phase');
+    assert.deepEqual(obstaclePose(spin, 0.7).position, [1, 2, 3]);
+    const gate = { id: 'gate-a', kind: 'gate', position: [1, 0, 0], axis: [1, 0, 0], amplitude: 1, speed: 1, phase: 0, sharp: 3 };
+    const sineAt = value => Math.asin(value);
+    close(obstaclePose(gate, sineAt(0.2)).position[0], 1 + 0.6, 1e-12, 'gate moves with sharp * sin below the plateau');
+    close(obstaclePose(gate, sineAt(0.9)).position[0], 2, 1e-12, 'gate holds at +amplitude');
+    close(obstaclePose(gate, Math.PI + sineAt(0.9)).position[0], 0, 1e-12, 'gate holds at -amplitude');
+    const boulder = { id: 'rock-a', kind: 'boulder', position: [0, 0.4, 0], axis: [1, 0, 0], amplitude: 2, speed: 1, phase: 0, radius: 0.4 };
+    const travelled = 2 * Math.sin(1.1);
+    close(obstaclePose(boulder, 1.1).position[0], travelled, 1e-12, 'boulder slides like slide');
+    nearly(obstaclePose(boulder, 1.1).rotation, q([0, 0, -1], travelled / 0.4), 'boulder rolls by distance / radius about up x axis');
+    const swing = { id: 'swing-a', kind: 'rotate', position: [0, 1, 0], axis: [0, 0, 1], amplitude: 0.5, speed: 1, phase: 0, rotation: q([0, 1, 0], 0.3) };
+    nearly(obstaclePose(swing, 0.8).rotation, multiply(q([0, 0, 1], 0.5 * Math.sin(0.8)), swing.rotation), 'rotate composes the swing with the base rotation');
+
+    const live = await createPhysics(wide({ obstacles: [{ ...gate, position: [4, 0.3, 3], halfExtents: [0.1, 0.3, 0.5] }, { ...boulder, position: [4, 0.4, -3], colliders: [{ shape: 'ball', position: [0, 0, 0], radius: 0.4 }] }] }));
+    let snapshot;
+    for (let i = 0; i < 90; i++) snapshot = live.step(fixedStep);
+    const poses = live.getObstacles();
+    const expected = [obstaclePose({ ...gate, position: [4, 0.3, 3] }, snapshot.time - fixedStep), obstaclePose({ ...boulder, position: [4, 0.4, -3] }, snapshot.time - fixedStep)];
+    expected.forEach((pose, i) => { nearly(poses[i].position, pose.position, 'live position follows the formula', 1e-6); nearly(poses[i].rotation, pose.rotation, 'live rotation follows the formula', 1e-6); });
+    live.dispose();
+
+    for (const part of [{ shape: 'ball', position: [0, 0, 0], radius: 0.3 }, { shape: 'cylinder', position: [0, 0, 0], radius: 0.3, halfHeight: 0.3 }]) {
+        const events = [];
+        const physics = await createPhysics(wide({ obstacles: [{ id: 'post-a', kind: 'spin', position: [2, 0.3, 0], axis: [0, 1, 0], speed: 1, amplitude: 0, colliders: [part] }] }), { onEvent: event => events.push(event) });
+        assert.equal(physics.shoot([1, 0], 0.2), true);
+        runUntil(physics, () => terminalOf(events));
+        assert.ok(events.some(event => event.type === 'impact' && event.surface === 'wood'), `${part.shape} part reports a wood impact`);
+        assert.ok(physics.getBall()[0] < 1.6, `${part.shape} part stops the ball (x=${physics.getBall()[0].toFixed(2)})`);
+        physics.dispose();
+    }
+    for (const broken of [{ ...spin, colliders: [{ shape: 'cone', radius: 1 }] }, { ...spin, colliders: [{ shape: 'ball', radius: 0 }] }, { ...boulder, radius: 0 }, { ...gate, sharp: 9, halfExtents: [1, 1, 1] }, { ...spin, id: 'Bad Id', halfExtents: [1, 1, 1] }]) {
+        await assert.rejects(createPhysics(wide({ obstacles: [broken] })), /Invalid minigolf obstacle/, 'invalid obstacle is rejected');
+    }
+    for (const broken of [{ ...boostPad, speed: 0 }, { ...boostPad, direction: [2, 0] }, { ...teleporter, exit: [1, 2] }, { ...cannon, delay: -1 }, { id: 'pin-b', kind: 'bumper', position: [0, 0, 0], radius: 0.3, height: 0.5, kick: 0 }, { ...boostPad, kind: 'warp' }]) {
+        await assert.rejects(createPhysics(wide({ mechanics: [broken] })), /Invalid minigolf mechanic/, 'invalid mechanic is rejected');
+    }
+    await assert.rejects(createPhysics(wide({ mechanics: [boostPad, { ...teleporter, id: boostPad.id }] })), /Duplicate minigolf mechanic id/);
+}
+
+// 7. The preview applies boost pads and bumpers and stops at teleporters and cannons.
+{
+    const open = await createPhysics(wide());
+    const padded = await createPhysics(wide({ mechanics: [{ ...boostPad, position: [0.6, 0.16, 0], half: [0.2, 0.4, 3] }] }));
+    const withoutPad = open.predict([1, 0], 0.04), withPad = padded.predict([1, 0], 0.04);
+    assert.ok(pathLength(withPad.points) > pathLength(withoutPad.points) + 0.2, `boost lengthens the preview (${pathLength(withPad.points).toFixed(2)} m vs ${pathLength(withoutPad.points).toFixed(2)} m)`);
+    assert.equal(withPad.zone, null);
+    const livePath = [padded.getBall()];
+    assert.equal(padded.shoot([1, 0], 0.04), true);
+    for (let i = 0; i < 180; i++) { padded.step(fixedStep); livePath.push(padded.getBall()); }
+    const off = Math.max(...withPad.points.map(point => Math.min(...livePath.map(live => Math.hypot(live[0] - point[0], live[2] - point[2])))));
+    assert.ok(off <= 0.03, `the boosted preview follows the live shot (max ${(off * 100).toFixed(1)} cm off)`);
+    open.dispose(); padded.dispose();
+
+    for (const [mechanic, zone] of [[{ ...teleporter, position: [1.5, 0, 0] }, 'teleport'], [{ ...cannon, position: [1.5, 0, 0] }, 'cannon']]) {
+        const physics = await createPhysics(wide({ mechanics: [mechanic] }));
+        const preview = physics.predict([1, 0], 0.3);
+        assert.equal(preview.zone, zone, `the preview ends at the ${zone} zone`);
+        const end = preview.points[preview.points.length - 1];
+        assert.ok(end[0] > 1 && end[0] < 2, `the ${zone} preview stops inside the zone (x=${end[0].toFixed(2)})`);
+        physics.dispose();
+    }
+    const pin = await createPhysics(wide({ mechanics: [{ id: 'pin-a', kind: 'bumper', position: [2, 0, 0], radius: 0.3, height: 0.5, surface: 'wood', kick: 5 }] }));
+    const bounced = pin.predict([1, 0], 0.3);
+    assert.ok(bounced.contactIndex >= 0 && bounced.points[bounced.points.length - 1][0] < 2, 'the preview bounces off a bumper');
+    pin.dispose();
+}
+
+// 8. Loop prototype (feasibility): 8 m run-up, loop radius 1.3 m with a 2.2 m side drift,
+// 6 m run-out, gravity 4. Runtime coordinates, Y up, 48 cross sections around the loop.
+function loopCourse({ boost = true, radius = 1.3, offset = 2.2, runUp = 8, runOut = 6, steps = 48 } = {}) {
+    const WIDTH = 1.72, SPACING = WIDTH / 12, add = (a, b) => a.map((v, i) => v + b[i]), scale = (a, k) => a.map(v => v * k), minus = (a, b) => a.map((v, i) => v - b[i]);
+    const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], unit = a => scale(a, 1 / Math.hypot(...a));
+    const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const sections = [];
+    for (let i = 0; i <= runUp / 0.25; i++) sections.push({ center: [i * 0.25, 0, 0], across: [0, 0, 1], normal: [0, 1, 0] });
+    for (let k = 1; k <= steps; k++) {
+        const theta = 2 * Math.PI * k / steps, s = k / steps, side = [0, 0, 1];
+        const center = [runUp + radius * Math.sin(theta), radius * (1 - Math.cos(theta)), offset * (3 * s * s - 2 * s * s * s)];
+        const tangent = unit([radius * Math.cos(theta), radius * Math.sin(theta), offset * (6 * s - 6 * s * s) / (2 * Math.PI)]);
+        const across = unit(minus(side, scale(tangent, dot(side, tangent))));
+        sections.push({ center, across, normal: cross(across, tangent) });
+    }
+    for (let i = 1; i <= runOut / 0.25; i++) sections.push({ center: [runUp + i * 0.25, 0, offset], across: [0, 0, 1], normal: [0, 1, 0] });
+    const mesh = () => ({ vertices: [], indices: [] });
+    const floor = mesh(), rails = mesh();
+    const vertex = (target, p) => target.vertices.push(...p) / 3 - 1;
+    // Quads are wound so that their normal faces `facing` (the side the ball is on).
+    const quad = (target, ids, facing) => {
+        const [a, b, c] = ids.map(id => target.vertices.slice(id * 3, id * 3 + 3));
+        const [i0, i1, i2, i3] = ids;
+        if (dot(cross(minus(b, a), minus(c, a)), facing) >= 0) target.indices.push(i0, i1, i2, i0, i2, i3); else target.indices.push(i0, i2, i1, i0, i3, i2);
+    };
+    const rows = sections.map(({ center, across }) => Array.from({ length: 13 }, (_, j) => vertex(floor, add(center, scale(across, WIDTH / 2 - j * SPACING)))));
+    for (let i = 0; i + 1 < sections.length; i++) for (let j = 0; j < 12; j++) quad(floor, [rows[i][j], rows[i][j + 1], rows[i + 1][j + 1], rows[i + 1][j]], sections[i].normal);
+    for (const sign of [1, -1]) {
+        const profile = sections.map(({ center, across, normal }) => {
+            const edge = add(center, scale(across, sign * WIDTH / 2)), out = scale(across, sign * 0.14);
+            const bottom = minus(edge, scale(normal, 0.045)), top = add(edge, scale(normal, 0.24));
+            return [vertex(rails, bottom), vertex(rails, top), vertex(rails, add(top, out)), vertex(rails, add(bottom, out))];
+        });
+        for (let i = 0; i + 1 < sections.length; i++) for (const [p, q, facing] of [[0, 1, scale(sections[i].across, -sign)], [1, 2, sections[i].normal], [2, 3, scale(sections[i].across, sign)]]) {
+            quad(rails, [profile[i][p], profile[i][q], profile[i + 1][q], profile[i + 1][p]], facing);
+        }
+    }
+    const endX = runUp + runOut, lo = offset - WIDTH / 2 - 0.14, hi = offset + WIDTH / 2 + 0.14;
+    const face = (corners, facing) => quad(rails, corners.map(p => vertex(rails, p)), facing);
+    face([[endX, -0.045, lo], [endX, 0.24, lo], [endX, 0.24, hi], [endX, -0.045, hi]], [-1, 0, 0]);
+    face([[endX + 0.14, -0.045, lo], [endX + 0.14, -0.045, hi], [endX + 0.14, 0.24, hi], [endX + 0.14, 0.24, lo]], [1, 0, 0]);
+    face([[endX, 0.24, lo], [endX + 0.14, 0.24, lo], [endX + 0.14, 0.24, hi], [endX, 0.24, hi]], [0, 1, 0]);
+    return wide({
+        id: 'loop', tee: [0.5, 0.16, 0], cup: [endX - 1, 0, offset], gravity: 4, bounds: { min: [-4, -4, -4], max: [endX + 6, 8, offset + 4] },
+        // The pad sits 1.5 m ahead of the loop; farther away the run-up friction eats the boost.
+        mechanics: boost ? [{ id: 'boost-loop', kind: 'boost', position: [runUp - 1.5, 0.16, 0], half: [0.6, 0.4, WIDTH / 2], yaw: 0, direction: [1, 0], speed: 9 }] : [],
+        colliders: [{ type: 'mesh', surface: 'grass', vertices: Float32Array.from(floor.vertices), indices: Uint32Array.from(floor.indices) }, { type: 'mesh', surface: 'wood', vertices: Float32Array.from(rails.vertices), indices: Uint32Array.from(rails.indices) }]
+    });
+}
+async function loopShot(definition, power) {
+    const events = [];
+    const physics = await createPhysics(definition, { onEvent: event => events.push(event) });
+    assert.equal(physics.shoot([1, 0], power), true);
+    let apex = 0, exited = false;
+    for (let step = 0; step < 1800 && !terminalOf(events); step++) {
+        physics.step(fixedStep);
+        const [x, y, z] = physics.getBall();
+        apex = Math.max(apex, y);
+        if (x > 8.4 && Math.abs(z - 2.2) < 1 && y < 0.5) exited = true;
+    }
+    const end = physics.getBall();
+    physics.dispose();
+    return { apex, exited, end, boosts: events.filter(event => event.type === 'boost').length, terminal: terminalOf(events)?.type };
+}
+{
+    const boosted = loopCourse();
+    // The ball must hug the track over the apex (centre height 2 * 1.3 - 0.16 = 2.44 m) and arrive in the run-out.
+    for (const power of [0.2, 0.3]) {
+        const shot = await loopShot(boosted, power);
+        assert.ok(shot.boosts === 1 && shot.apex >= 2.38 && shot.exited && shot.terminal === 'rest', `power ${power} with boost passes the loop (apex ${shot.apex.toFixed(2)} m, ends x=${shot.end[0].toFixed(1)})`);
+    }
+    const plain = await loopShot(loopCourse({ boost: false }), 0.15);
+    assert.ok(plain.boosts === 0 && plain.apex < 0.3 && !plain.exited && plain.terminal === 'rest' && plain.end[0] < 8, `without a boost power 0.15 stays in the run-up (x=${plain.end[0].toFixed(1)})`);
+}
+
+// 9. A seam between two separately built strips is welded away: no hop above 1 cm.
+{
+    const strip = x0 => {
+        const vertices = [], indices = [];
+        for (let i = 0; i <= 16; i++) for (let j = 0; j <= 12; j++) vertices.push(x0 + i * 0.25, 0.3, -0.86 + j * (1.72 / 12));
+        for (let i = 0; i < 16; i++) for (let j = 0; j < 12; j++) { const a = i * 13 + j; indices.push(a, a + 1, a + 14, a, a + 14, a + 13); }
+        return { surface: 'grass', vertices, indices };
+    };
+    const welded = readColliders(buildColliderGlb([strip(0), strip(4)]));
+    assert.equal(welded.length, 1, 'both strips become one grass mesh');
+    assert.equal(welded[0].vertices.length / 3, 2 * 17 * 13 - 13, 'the 13 seam vertices are shared');
+    const seam = await createPhysics(wide({ tee: [0.5, 0.46, 0], colliders: welded }));
+    assert.equal(seam.shoot([1, 0], 0.4), true);
+    let hop = 0;
+    for (let i = 0; i < 400 && seam.getBall()[0] < 7.5; i++) { seam.step(fixedStep); hop = Math.max(hop, Math.abs(seam.getBall()[1] - 0.46)); }
+    assert.ok(seam.getBall()[0] > 7, 'the ball crossed the seam');
+    assert.ok(hop <= 0.01, `no hop above 1 cm over the seam (${(hop * 100).toFixed(2)} cm)`);
+    seam.dispose();
+}
 
 console.log('minigolf physics: all checks passed');

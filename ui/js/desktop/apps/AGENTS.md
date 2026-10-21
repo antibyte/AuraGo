@@ -85,6 +85,22 @@
   loads courses, runs the composer and exposes the public API. New modules import
   only `three`, `minigolf-shared.js` and each other; the pure parts are covered by
   `scripts/test-minigolf-look.mjs`.
+- P3 physics modules, DOM- and three-free so Node tests cover them. `minigolf-collision.js`
+  (`readColliders(glb)`, `colliderDigest(groups)`) reads physics meshes from the course GLB:
+  mesh nodes with the extra `aurago_collider` (`grass|sand|wood|stone|metal`), world
+  transform through TRS/matrix and the parent chain in the term order of
+  `export.glb_fixed_colliders`, bit-identical Float32 vertices welded per surface in triangle
+  order, collapsed triangles dropped (their vertices stay), groups in that surface order as
+  typed arrays. The digest (contract V1 in the P3 plan) must equal the Python
+  `glb_collision`. `minigolf-mechanics.js` imports nothing: obstacle poses
+  (`rotate|slide|spin|gate|boulder`), `validateObstacle|Mechanic` and the zone logic
+  (bumper kick, boost, teleport, cannon) that the live step and `predict()` share through a ball
+  adapter. Physics accepts typed mesh arrays, `course.gravity` (finite, 0 < g <= 20, default
+  9.81), `metal` rails (restitution 0.80), obstacle parts `box|ball|cylinder` and `mechanics`.
+  Only `rest|cup|water|out` end a shot; `impact`, `bumper`, `boost`, `teleport` and `cannon`
+  only report, and `predict()` returns `zone: 'teleport'|'cannon'|null`. Verify with
+  `scripts/test-minigolf-collision.mjs` and the mechanics, loop prototype and seam cases in
+  `scripts/test-minigolf-physics.mjs`.
 - `settings(values, track, focus)`, `audioSettings(settings, track)` and
   `credits(tracks)` in `minigolf-menus.js` are the stable entry points for the
   settings, sound and credits panels.

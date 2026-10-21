@@ -95,6 +95,9 @@ const xs = outline => outline.filter((_, index) => index % 2 === 0), zs = outlin
 const still = obstacleOutlines(gate);
 assert.equal(still.length, 2, 'one outline per obstacle part');
 close(Math.max(...xs(still[0])), 1, 1e-9, 'unrotated bar width'); close(Math.max(...zs(still[0])), 0.2, 1e-9, 'unrotated bar depth');
+const round = obstacleOutlines({ obstacles: [{ id: 'post', position: [1, 0.3, 2], colliders: [{ shape: 'ball', position: [0, 0, 0], radius: 0.5 }, { shape: 'cylinder', position: [1, 0, 0], radius: 0.25, halfHeight: 0.3 }] }] });
+assert.equal(round.length, 2, 'ball and cylinder parts get an outline');
+close(Math.max(...xs(round[0])), 1.5, 1e-9, 'ball outline radius'); close(Math.max(...zs(round[0])), 2.5, 1e-9, 'ball outline depth'); close(Math.max(...xs(round[1])), 2.25, 1e-9, 'cylinder outline centre and radius');
 const turned = obstacleOutlines(gate, [{ id: 'gate', position: [2, 0.3, 0], rotation: [0, Math.SQRT1_2, 0, Math.SQRT1_2] }]);
 close(Math.max(...xs(turned[0])), 2.2, 1e-9, 'physics pose turns and moves the bar'); close(Math.max(...zs(turned[0])), 1, 1e-9, 'turned bar depth');
 close(Math.min(...xs(obstacleOutlines({ obstacles: [{ id: 'box', position: [2, 0, 0], halfExtents: [0.5, 0.1, 0.5] }] })[0])), 1.5, 1e-9, 'single-box obstacle');
