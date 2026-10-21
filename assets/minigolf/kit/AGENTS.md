@@ -162,7 +162,7 @@ bullets of this section describe the P2 behaviour that the P3 pipeline generalis
 
 ### Track kit core (P3)
 
-`track.py`, `pieces.py`, `pieces_moon.py`, `pads.py`, `pads_funnel.py`, `layout.py`, `layout_fork.py`, `rails.py`,
+`track.py`, `pieces.py`, `pieces_moon.py`, `pads.py`, `pads_funnel.py`, `layout.py`, `layout_fork.py`, `layout_ponds.py`, `rails.py`,
 `build_track.py`, `floor_paint.py`, `cup_hole.py`, `cup_parts.py`, `track_checks.py` and `basic_parts.py` are the base
 of the P3 courses; `courses.py` (see "Course pipeline (P3)") drives them for `generate.py --set p3`. Plain Python (no
 `bpy`): everything except `build_track.py`, `basic_parts.py`, `cup_parts.py` and `track_selftest.py`.
@@ -322,6 +322,10 @@ checks the rules below. A track without structures builds bit-identically.
   polygon plus 0.45 m (the bank crosses the water level at about the polygon edge, so the border hides under it). They
   are joined into `scenery-water`. The manifest water volume runs from the pool bottom to 2 cm under the surface
   (`course_entry.water`). `void` pools have no water.
+- Free ponds (`layout_ponds`): the course data key `"ponds": [{"polygon": [(x, y), ...], "kind": "water"|"void", "z": h}]` (world
+  coordinates, `z` = ground height around the pond, default the tee height) adds the same hazard as a plaza pool, so a lagoon can lie
+  between fork branches, beside a lane or under a bridge. No floor within 0.4 m of the polygon may be lower than `z` + 0.5 m (only an
+  elevated bridge passes over a pond), unknown keys and fewer than three points fail the build.
 - Trenches (`terrain.warp`, `trench_parts`): a `gap` cuts a strip across the island. The top grid vertices within 0.6 m
   inside and 0.2 m outside a trench edge are snapped onto the edge (`Terrain.warp`, passed to `island.build_island`), so the
   island's wall is a straight, almost vertical strip; `trench-wall` objects (baked, matte) lay one row per stratum of the

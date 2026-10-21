@@ -5,7 +5,8 @@
 registries for each piece, chains the sections (each strip starts with the previous section object),
 collects the route (``path``, ``corridors``, ``length``), hazards and anchors and checks the kit rules.
 ``hero`` and ``props`` belong to the placement and are not read here; ``mechanics``, ``obstacles`` and
-``cycle`` are passed through. Errors are ``ValueError`` with the course number and the piece index.
+``cycle`` are passed through; ``ponds`` (free ponds in world coordinates, see ``layout_ponds``) become hazards.
+Errors are ``ValueError`` with the course number and the piece index.
 
 ``PIECES`` and ``PADS`` (the registries of ``pieces`` and ``pads``) are extended by ``pieces_moon`` (half-pipe,
 loop) and ``pads_funnel`` (funnel), which this module imports; the layout dispatches on them by name. A
@@ -20,7 +21,7 @@ always checked against each other.
 import copy
 import math
 
-from . import detail as detail_mod, layout_fork, pads, pads_funnel, pieces, pieces_moon  # noqa: F401  (the last two register their pieces)
+from . import detail as detail_mod, layout_fork, layout_ponds, pads, pads_funnel, pieces, pieces_moon  # noqa: F401  (the last two register their pieces)
 from .track import GRAVITY, LANE_WIDTH, WALL_THICKNESS, Cursor, Strip, Track, distance
 
 PIECES = pieces.PIECES
@@ -215,6 +216,7 @@ def build(course_data, world, check_length=True):
         _check_clearance(shared["samples"])
     except ValueError as exc:
         raise ValueError(where + str(exc)) from None
+    layout_ponds.add_ponds(track, course_data.get("ponds", []), number)
     track.mechanics = copy.deepcopy(mechanics)
     track.obstacles = copy.deepcopy(list(course_data.get("obstacles", [])))
     track.cycle = course_data.get("cycle")

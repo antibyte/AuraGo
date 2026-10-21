@@ -119,6 +119,7 @@ COURSES = [{
 - `pieces` ist die Hauptroute vom Abschlag zum Loch. Eine Gabelung trägt ihre zwei Zweige als eigene Stücklisten (`("fork", {"left": [...], "right": [...], ...})`); beide Zweige enden parallel, auf gleicher Höhe und gleichem Vorlauf, sonst bricht der Bau mit einer Meldung ab.
 - Optionale Stückfelder: `surface` (`grass`/`sand`), `look` (`felt`, `deck`, `slab`, `metal` – nur Optik), `walls` (`both`, `left`, `right`, `none`), `cover` (`tunnel`), `deck` (`bridge`), `grounded` (Erde folgt der Spur; Vorgabe ja bis 0,3 m über Grund).
 - Mechaniken und Hindernisse verweisen auf benannte Anker (`("anchor", {"name": "a1"})` in der Stückfolge) oder auf feste Koordinaten.
+- Freie Teiche: `"ponds": [{"polygon": [(x, y), ...], "kind": "water", "z": 0.0}]` legt eine Lagune in Weltkoordinaten neben, zwischen oder unter die Spur (z. B. unter einen Steg); sie wirkt wie ein Platz-Teich (Mulde, Wasserfläche, Gefahrenvolumen), darf aber keine Spur schneiden, die weniger als 0,5 m über dem Grund liegt.
 
 ### 4.3 Bahnstücke
 

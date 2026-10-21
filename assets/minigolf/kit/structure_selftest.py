@@ -5,7 +5,7 @@ blender --background --factory-startup --python assets/minigolf/kit/structure_se
 Builds track layouts (no Blender objects) and checks the rules of ``support_plan``, ``tunnel_plan``, ``layout`` and
 ``detail``: the bridge floor look per world, the rejected tunnel covers, the support rules (posts only where the floor
 is higher than ``MIN_DROP`` above the ground, none through another stretch or its rails), the tunnel opening and the
-straight-run and roof-crossing errors, and the ``detail`` validation. Prints ``structure selftest ok``.
+straight-run and roof-crossing errors, the free ponds of the course data and the ``detail`` validation. Prints ``structure selftest ok``.
 """
 
 import os
@@ -99,12 +99,28 @@ def check_detail():
     assert len(loop.sections) == 53, len(loop.sections)
 
 
+def check_ponds():
+    square = lambda x0, y0, x1, y1: [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+    beside = course("pirate", tee_green(("straight", {"length": 4.0}))) | {"ponds": [{"polygon": square(1.0, 2.0, 3.0, 4.0)}]}
+    track = build(beside, "pirate")
+    pond = next(h for h in track.hazards if "polygon" in h)
+    assert pond["kind"] == "water" and pond["z"] == 0.0 and pond["min"] == (1.0, 2.0) and pond["max"] == (3.0, 4.0), pond
+    expect_error("reaches a lane", lambda: build(beside | {"ponds": [{"polygon": square(1.0, -0.5, 3.0, 1.0)}]}, "pirate"))
+    expect_error("at least 3 points", lambda: build(beside | {"ponds": [{"polygon": [(0.0, 2.0), (1.0, 2.0)]}]}, "pirate"))
+    expect_error("unknown field", lambda: build(beside | {"ponds": [{"polygon": square(1.0, 2.0, 3.0, 4.0), "depth": 1.0}]}, "pirate"))
+    # an elevated bridge may pass over the pond
+    over = course("pirate", tee_green(("straight", {"length": 1.0}), ("ramp", {"length": 3.4, "rise": 0.8}), ("straight", {"length": 3.0, "deck": "bridge"}),
+                                      ("ramp", {"length": 3.4, "rise": -0.8}), ("straight", {"length": 1.0})))
+    assert any("polygon" in h for h in build(over | {"ponds": [{"polygon": square(5.5, -1.0, 8.0, 1.0)}]}, "pirate").hazards)
+
+
 def main():
     check_bridge_look()
     check_covers()
     check_supports()
     check_tunnel()
     check_detail()
+    check_ponds()
     print("structure selftest ok")
 
 
