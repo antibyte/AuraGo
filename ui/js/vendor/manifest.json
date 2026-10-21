@@ -320,7 +320,7 @@
       "license": "MIT"
     },
     "markdown-it": {
-      "version": "15.0.2",
+      "version": "15.0.3",
       "license": "MIT"
     },
     "marked": {
@@ -1422,8 +1422,8 @@
       "sha256": "d6c8b6b91fa8f25bc1c379e692adfa813f06daa7ad6eadfb1ea4a61d877dafac"
     },
     "ui/js/vendor/markdown-it.min.js": {
-      "bytes": 98918,
-      "sha256": "7ec915bf79111fefc051222f773fdf14f8b61520c8579ce9f76c2e35ecfc19e8"
+      "bytes": 99602,
+      "sha256": "d1bf0a258e5ad360f295fe2d1dce48f3e5e288129f63a35008c78c6b09aa4d1b"
     },
     "ui/js/vendor/GLTFLoader.min.js": {
       "bytes": 59081,
@@ -1487,7 +1487,7 @@
     },
     "ui/js/vendor/LICENSES.md": {
       "bytes": 239288,
-      "sha256": "24f4ff60f350816acdb511c146f553f12379e7d3a0167eed5733bde7bead455f"
+      "sha256": "066be57192d88d297616ddeb920905084ba569d3a1e77045bcfe05d8ef58acca"
     }
   }
 }

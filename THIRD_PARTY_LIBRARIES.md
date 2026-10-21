@@ -135,7 +135,7 @@ Browser packages and SHA-256 checksums are recorded in `ui/js/vendor/manifest.js
 | Asset / component | Path | License | Project |
 |---|---|---|---|
 | Chart.js v4.5.1 | `ui/chart.min.js` | MIT | https://www.chartjs.org / https://github.com/chartjs/Chart.js |
-| markdown-it 15.0.2 | `ui/js/vendor/markdown-it.min.js` | MIT | https://github.com/markdown-it/markdown-it |
+| markdown-it 15.0.3 | `ui/js/vendor/markdown-it.min.js` | MIT | https://github.com/markdown-it/markdown-it |
 | marked | `ui/js/vendor/marked.min.js` | MIT | https://github.com/markedjs/marked |
 | highlight.js | `ui/js/vendor/highlight.min.js` | BSD-3-Clause | https://github.com/highlightjs/highlight.js |
 | highlight.js GitHub themes | `ui/css/hljs-github.min.css`, `ui/css/hljs-github-dark.min.css` | BSD-3-Clause (theme lineage) | https://github.com/highlightjs/highlight.js |

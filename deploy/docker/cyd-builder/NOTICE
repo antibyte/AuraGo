@@ -73,11 +73,11 @@ only when an app enables it.
     In the image: /opt/cyd/libs/Adafruit NeoPixel (COPYING)
     Source:       https://github.com/adafruit/Adafruit_NeoPixel/tree/1.15.5
 
-1.5 certifi 2026.7.22 (PlatformIO dependency, unmodified)
+1.5 certifi 2026.10.19 (PlatformIO dependency, unmodified)
     Licence:      MPL-2.0
     In the image: /opt/cyd/pio-venv/lib/python3.11/site-packages/certifi
-                  (licence: certifi-2026.7.22.dist-info/licenses/LICENSE)
-    Source:       https://github.com/certifi/python-certifi/tree/2026.07.22
+                  (licence: certifi-2026.10.19.dist-info/licenses/LICENSE)
+    Source:       https://github.com/certifi/python-certifi/tree/2026.10.19
 
 1.6 FreeType, compiled to JavaScript inside lv_font_conv 1.5.3
     Licence:      FTL OR GPL-2.0-or-later
