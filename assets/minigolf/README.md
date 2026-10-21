@@ -39,7 +39,9 @@ provenance and rebuild steps are in [`audio/README.md`](audio/README.md).
 | `dress_specials.py`, `special_parts.py`, `dress_parts.py` | Layout specials as fixed placements or hand-built parts; the functional parts (obstacles, templates, flag, hole digits, tee ring, cup). |
 | `placement.py`, `occluders.py` | Deterministic prop placement and its rule check; the kit objects used as bake occluders. |
 | `track.py`, `pieces.py`, `pads.py`, `layout.py`, `rails.py` | The P3 track kit core (plain Python): sections and pads with shared seam points, lane pieces and raster pads, course data to `Track`, wall runs. Not wired into `generate.py` yet. |
-| `build_track.py`, `floor_paint.py`, `basic_parts.py`, `track_selftest.py` | Blender floor and collision rail nodes of a `Track`, floor colours, shared mesh helpers (copies from `courses_v1.py`), and the headless selftest. |
+| `pieces_moon.py`, `pads_funnel.py`, `layout_fork.py` | Moon half-pipe and loop, the polar funnel pad, and forks (split pad, branches built by the layout, join pad). Importing the layout registers them. |
+| `build_track.py`, `floor_paint.py`, `basic_parts.py` | Blender floor and collision rail nodes of a `Track`, floor colours, shared mesh helpers (copies from `courses_v1.py`). |
+| `track_checks.py`, `track_selftest.py` | The two probe courses with their pure-Python checks, and the headless Blender selftest that exports and reads them back. |
 | `export.py` | Export, canonical node names, merging of scenery per material, GLB reading, `glb_collision` (collision meshes and digest of a track-kit GLB). |
 | `kits.py` | Builds each world's prop kit and its manifest entry. |
 | `props_pirate.py`, `props_temple.py`, `props_moon.py` | The props of each world (`PROPS`, `PROP_META`). Helpers: `props_pirate_*.py`, `ship_pirate.py`, `props_temple_*.py`, `head_temple*.py`, `props_moon_*.py`. |

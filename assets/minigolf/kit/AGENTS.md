@@ -152,16 +152,17 @@ Nothing here writes `ui/` except `generate.py` through its runtime paths.
 
 ### Track kit core (P3)
 
-`track.py`, `pieces.py`, `pads.py`, `layout.py`, `rails.py`, `build_track.py`, `floor_paint.py` and
-`basic_parts.py` are the base of the P3 courses. `generate.py` does not call them yet; `courses_v1.py`
-keeps building the legacy courses until the switch-over. The first five are plain Python (no `bpy`).
+`track.py`, `pieces.py`, `pieces_moon.py`, `pads.py`, `pads_funnel.py`, `layout.py`, `layout_fork.py`, `rails.py`,
+`build_track.py`, `floor_paint.py`, `track_checks.py` and `basic_parts.py` are the base of the P3 courses.
+`generate.py` does not call them yet; `courses_v1.py` keeps building the legacy courses until the switch-over.
+Everything except `build_track.py`, `basic_parts.py` and `track_selftest.py` is plain Python (no `bpy`).
 
 - Coordinates are Blender X/Y/Z, `heading` in radians (0 = +X, positive turns left). A `Section` has
   `ROWS + 1` = 13 points from left to right, `SPACING` = 1.72 / 12 apart. A piece returns only its new
   sections; `layout` puts the previous section object in front, so seam points are the same tuple objects
   and are never recomputed. A pad uses the point objects of its entry section on its back row; its exit
   section is made from its own raster points. Floor meshes merge vertices through a dict keyed by the exact
-  tuple. `track_selftest.check_seams` guards this: one tuple object per distinct point value.
+  tuple. `track_checks.check_seams` guards this: one tuple object per distinct point value.
 - Pad frame: origin = centre of the entry section, x forward, y left. `cup = (x, y)`, `contour` bumps and
   `pools` polygons use it. Width is whole columns of `SPACING` with an even number beside the lane. Raster
   cells whose centre is closer than `CUP_RADIUS + 0.13` to the cup, or whose rectangle reaches within
@@ -169,8 +170,36 @@ keeps building the legacy courses until the switch-over. The first five are plai
 - Rails: a side is walled between two sections when the later one has the flag; the wall follows `wall_up`
   (default the section normal). Riser edges of `steps` have no wall. `rails.rail_runs(track)` chains strip
   sides and pad perimeters into runs `[(point, outward, up)]` (mitred at bends); the rail trims will use them.
-- `layout.PIECES` and `layout.PADS` are the registries; later modules extend them. Parameter errors are
-  `ValueError`s that `layout.build` prefixes with the course number and piece index.
+- `layout.PIECES` and `layout.PADS` are the registries; `pieces_moon` and `pads_funnel` add their entries when
+  imported (the layout imports them). Parameter errors are `ValueError`s that `layout.build` prefixes with the
+  course number and piece index (a fork branch adds `left branch,`/`right branch,` and its own piece index).
+- Moon pieces (`pieces_moon`): `halfpipe` needs a flat, aligned `prev`. Its `ROWS + 1` points sit at equal
+  arc-length steps on the U (quarter circle `radius`, flat `width`, `depth` <= `radius`; `depth == radius` ends the
+  lips vertically) and blend `lerp(flat, U, smoothstep(s / blend))` over `blend` >= 1.5 m at both ends; the path is
+  straight (`length`) or an arc (`radius_path`, `angle`), sections at most 0.30 m apart, lip walls with `wall_up` =
+  world up. `loop` (R 1.2-1.5, `offset` >= 2.2 m to either side, `sections` default 72, minimum 48) sweeps the
+  centreline formula of the plan; the first section is `prev`, the last is flat and offset; floor normal
+  `n = T x across`, walls along `n`. Each loop section costs 40 collision triangles (24 floor + 16 rail).
+- Funnel (`pads_funnel`): polar mesh around the cup, `z(r) = z_cup + depth * (r / R) ** 1.5`; outer ring = the entry
+  section's point objects plus evenly spaced rim points, rings joined by a zipper over their angles, first inner
+  ring 0.35 m inside the deepest entry point, innermost ring at `CUP_RADIUS + 0.13` (the cup stays open), rim wall
+  except over the entry arc. `R` 2-4 m, rim slope at most 22 degrees (`depth <= 0.27 R`), the whole entry section
+  within `[R - 0.25, R]` of the centre (the default centre puts the corners 5 cm inside). The pad's `grid` is
+  `{"polar": True, "rings", "centre", "radius", "samples"}` and `faces` are point triples. On the moon (g = 4) a
+  ball rests on slopes below 11 degrees (rolling deceleration 0.8 m/s^2), so a funnel needs `depth >= 0.172 R^1.5`
+  to keep resting balls within 0.6 m of the cup; `R` 2.4 with `depth` 0.64 collects shots of power 0.28-0.36.
+- Fork (`layout_fork`, `pads.fork`, `pads.join`): `("fork", {length, spread, left, right, main, join_length,
+  exit_offset, width, + style})`. `spread` is an even multiple of `SPACING`, at least 16 columns (2.29 m). The split
+  pad has two exit ports; each branch is a piece list walked with the layout (no green or funnel inside); the join
+  pad's back row is the left end section, raster points, the right end section. Branch ends must agree within 0.01
+  degrees (heading) and 1 mm (height, forward coordinate) and be an even multiple of `SPACING` apart. `main` is
+  `Track.path`; the other branch is an extra polyline in `Track.corridors` from the section before the fork to the
+  join exit.
+- Layout rules: a loop needs a `boost` mechanic anywhere in the course data or an 8 m flat straight run-up; clearance
+  (0.5 m) is checked between route parts more than 4 m apart along the route, never within one loop, always between
+  the two branches of a fork.
+- Jump: `ramp` with `lip` (degrees), then `gap` (hazard `water`/`void`, `landing` section stored in
+  `track.hazards`), then a flat piece; the pirate probe course covers it.
 - Collision nodes (contract V1): `floor-<look>` (`floor-<look>-<surface>` if one look has both surfaces) with
   the extra `aurago_collider` = `grass` or `sand`; `rail-wood|stone|metal` with `aurago_collider` and
   `aurago_hidden`. Collision objects keep the identity transform (world coordinates).
@@ -246,9 +275,10 @@ keeps building the legacy courses until the switch-over. The first five are plai
   and `node scripts/test-minigolf-physics.mjs`. A second full run must give
   identical GLB and manifest hashes.
 - Track kit: `blender --background --factory-startup --python assets/minigolf/kit/track_selftest.py -- --out <dir>`
-  builds the probe course, exports `selftest.glb`, checks seams and the open cup, writes `selftest.json` and
-  prints `selftest ok`. Run it twice: the GLB hash and the digest must match, and the digest must equal
-  `colliderDigest` of the same GLB.
+  runs the rule checks (`track_checks.check_rules`), builds the pirate and the moon probe course, exports
+  `selftest.glb` and `selftest-moon.glb`, checks seams, geometry and the open cup, writes `<name>.json` and prints
+  `selftest ok`. Run it twice: the GLB hashes and digests must match, and each digest must equal `colliderDigest`
+  of the same GLB. `track_checks` also runs without Blender.
 - Previews: `-- --only previews` (about a minute). They are never part of a full
   run, because Cycles output is not bit-reproducible.
 - Probes: `blender --background --factory-startup --python assets/minigolf/kit/probe.py -- --out <scratch> --world all`

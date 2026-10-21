@@ -1,19 +1,26 @@
-"""Headless selftest of the track kit core (MIT License, see ../LICENSE).
+"""Headless selftest of the track kit (MIT License, see ../LICENSE).
 
-Builds a probe course (tee, straight, curve, bank, ramp, hill, steps, straight, green), checks that
-the pieces share their seam objects, builds the Blender floor and rail nodes, exports a GLB, reads the
-collision back with ``export.glb_collision`` and checks that no floor triangle reaches the cup radius.
-Writes ``selftest.json`` (digest, counts, GLB hash) next to the GLB and prints ``selftest ok``.
+Two probe courses (``track_checks``) are built, exported and read back:
+
+* ``selftest`` (pirate): tee, straight, curve, bank, ramp, hill, steps, straight, a jump (ramp with a lip,
+  a water gap, a flat landing) and a green;
+* ``selftest-moon`` (moon): half-pipe, loop (R 1.3, offset 2.2) behind a boost pad, a fork with a straight
+  and a hill branch, and a funnel with the hole in its centre.
+
+For each course the pieces must share their seam objects, the Blender floor and rail nodes are exported as one
+GLB, ``export.glb_collision`` reads the collision back (groups, identity transforms, digest) and no floor
+triangle may reach the cup radius. Building a course twice must give the same geometry. ``<name>.json`` next
+to each GLB holds digest, counts, GLB hash and the runtime-coordinate data of the physics probe. Prints
+``selftest ok``.
 
 Run from the repository root:
   blender --background --factory-startup --python assets/minigolf/kit/track_selftest.py -- --out disposable/_p3/selftest
-The pure checks (``probe_course``, ``check_seams``) also run without Blender.
+The pure checks in ``track_checks`` also run without Blender.
 """
 
 import argparse
 import hashlib
 import json
-import math
 import os
 import sys
 
@@ -21,86 +28,46 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
 from kit import layout  # noqa: E402
-from kit.track import CUP_RADIUS, ROWS  # noqa: E402
+from kit.track import CUP_RADIUS  # noqa: E402
+from kit.track_checks import check_geometry, check_rules, check_seams, probe_course, probe_course_moon, signature, _distance_to_triangle  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 
-
-def probe_course():
-    """Probe course data (the design's data shape) in the pirate world."""
-    return {"number": 1, "par": 4, "name": "Selftest", "start": {"at": (0.0, 0.0, 0.0), "heading": 0},
-            "pieces": [("tee", {"length": 1.0}),
-                       ("straight", {"length": 3.0}),
-                       ("curve", {"radius": 3.0, "angle": 90}),
-                       ("bank", {"radius": 4.0, "angle": -60, "bank": 20}),
-                       ("ramp", {"length": 3.0, "rise": 0.4}),
-                       ("hill", {"length": 3.0, "height": -0.25}),
-                       ("steps", {"count": 3, "drop": 0.2, "tread": 0.8}),
-                       ("straight", {"length": 2.0}),
-                       ("green", {"length": 3.0, "width": 3.44, "cup": (1.8, 0.4)})],
-            "hero": None, "props": [], "mechanics": [], "obstacles": [], "cycle": None}
+SPECS = (
+    {"name": "selftest", "course": probe_course, "world": "pirate", "floors": (("floor-felt", "grass"),), "rail": ("rail-wood", "wood")},
+    {"name": "selftest-moon", "course": probe_course_moon, "world": "moon",
+     "floors": (("floor-felt", "grass"), ("floor-metal", "grass")), "rail": ("rail-metal", "metal")},
+)
 
 
-def check_seams(track):
-    """Every strip starts with the object that ended its predecessor; every distinct point value is ONE tuple object.
-
-    Returns the number of distinct points the floor uses (raster points inside a hole have no face).
-    """
-    ends = [strip.sections[-1] for strip in track.strips]
-    exits = [port["section"] for pad in track.pads for port in pad.ports if port["side"] == "exit"]
-    exits += [hazard["landing"] for hazard in track.hazards if "landing" in hazard]    # a gap starts a fresh strip
-    for k, strip in enumerate(track.strips):
-        if not any(strip.sections[0] is section for section in ends[:k] + exits):
-            raise AssertionError("strip %d (%s) does not start with the previous section object" % (k, strip.kind))
-    for pad in track.pads:
-        for port in pad.ports:
-            c0 = port["cols"][0]
-            row = pad.grid["points"][0 if port["side"] == "entry" else pad.grid["nx"]]
-            for k in range(ROWS + 1):
-                if row[c0 + k] is not port["section"].points[k]:
-                    raise AssertionError("pad %s %s port point %d is not the section's tuple" % (pad.kind, port["side"], k))
-    by_value = {}
-    for strip in track.strips:
-        for section in strip.sections:
-            for point in section.points:
-                by_value.setdefault(point, set()).add(id(point))
-    used = set(by_value)
-    for pad in track.pads:
-        points = pad.grid["points"]
-        for row in points:
-            for point in row:
-                by_value.setdefault(point, set()).add(id(point))
-        for i, j in pad.faces:
-            used.update((points[i][j], points[i][j + 1], points[i + 1][j], points[i + 1][j + 1]))
-    objects = sum(len(ids) for ids in by_value.values())
-    if objects != len(by_value):
-        raise AssertionError("%d point tuples carry only %d distinct values: a seam was recomputed" % (objects, len(by_value)))
-    return len(used)
 
 
-def _distance_to_triangle(p, a, b, c):
-    """Planar distance of point ``p`` to the triangle ``abc`` (0 inside)."""
-    def side(u, v, w):
-        return (u[0] - w[0]) * (v[1] - w[1]) - (v[0] - w[0]) * (u[1] - w[1])
-    d1, d2, d3 = side(p, a, b), side(p, b, c), side(p, c, a)
-    if not ((d1 < 0 or d2 < 0 or d3 < 0) and (d1 > 0 or d2 > 0 or d3 > 0)):
-        return 0.0
+def discard_scene(scene, collection):
+    """Delete a probe scene with its objects and meshes so the next course gets unnumbered node names."""
+    import bpy
 
-    def segment(u, v):
-        ex, ey = v[0] - u[0], v[1] - u[1]
-        t = max(0.0, min(1.0, ((p[0] - u[0]) * ex + (p[1] - u[1]) * ey) / (ex * ex + ey * ey))) if ex or ey else 0.0
-        return math.hypot(p[0] - u[0] - t * ex, p[1] - u[1] - t * ey)
-    return min(segment(a, b), segment(b, c), segment(c, a))
+    for obj in list(collection.objects):
+        data = obj.data
+        bpy.data.objects.remove(obj, do_unlink=True)
+        if data is not None and data.users == 0:
+            bpy.data.meshes.remove(data)
+    bpy.data.collections.remove(collection)
+    bpy.data.scenes.remove(scene)
+    bpy.data.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
 
 
-def run(out_dir):
+def run_course(spec, out_dir):
     import bpy
 
     from kit import basic_parts, bake, build_track, export
 
-    track = layout.build(probe_course(), "pirate")
+    name, world = spec["name"], spec["world"]
+    track = layout.build(spec["course"](), world)
+    if signature(track) != signature(layout.build(spec["course"](), world)):
+        raise AssertionError("%s: building the track twice gives different geometry" % name)
     distinct = check_seams(track)
-    scene = bpy.data.scenes.new("track-selftest")
+    check_geometry(track, name)
+    scene = bpy.data.scenes.new("track-" + name)
     bpy.context.window.scene = scene
     model = basic_parts.link_collection(scene, "Course Model")
     built = build_track.build(track, scene, model)
@@ -109,48 +76,62 @@ def run(out_dir):
     meshes = {obj.name: obj for obj in built["floors"] + built["rails"]}
     welded = sum(len(obj.data.vertices) for obj in built["floors"])
     if welded != distinct:
-        raise AssertionError("floor meshes have %d vertices, expected the %d distinct points" % (welded, distinct))
+        raise AssertionError("%s: floor meshes have %d vertices, expected the %d distinct points" % (name, welded, distinct))
     bpy.ops.object.select_all(action="DESELECT")
     for obj in model.objects:
         obj.select_set(True)
     bpy.context.view_layer.objects.active = built["floors"][0]
     os.makedirs(out_dir, exist_ok=True)
-    glb = os.path.join(out_dir, "selftest.glb")
+    glb = os.path.join(out_dir, name + ".glb")
     export.export_glb(glb, model.objects)
     nodes = {node["name"]: node for node in export.glb_json(glb)["nodes"]}
-    for name, surface, hidden in (("floor-felt", "grass", False), ("rail-wood", "wood", True)):
-        node = nodes.get(name)
-        extras = (node or {}).get("extras", {})
-        if node is None or extras.get("aurago_collider") != surface or bool(extras.get("aurago_hidden")) != hidden:
-            raise AssertionError("node %s is missing or its extras are wrong: %s" % (name, extras))
+    expected = [(floor, surface, False) for floor, surface in spec["floors"]] + [spec["rail"] + (True,)]
+    if sorted(nodes) != sorted(n for n, _, _ in expected):
+        raise AssertionError("%s: unexpected nodes %s" % (name, sorted(nodes)))
+    for node_name, surface, hidden in expected:
+        node = nodes[node_name]
+        extras = node.get("extras", {})
+        if extras.get("aurago_collider") != surface or bool(extras.get("aurago_hidden")) != hidden:
+            raise AssertionError("node %s: extras are wrong: %s" % (node_name, extras))
         if any(key in node for key in ("matrix", "translation", "rotation", "scale", "children")):
-            raise AssertionError("collision node %s must have the identity transform" % name)
+            raise AssertionError("collision node %s must have the identity transform" % node_name)
     result = export.glb_collision(glb)
     surfaces = [group["surface"] for group in result["groups"]]
-    if surfaces != ["grass", "wood"] or result["nodes"] != len(meshes):
-        raise AssertionError("unexpected collision groups %s with %d nodes" % (surfaces, result["nodes"]))
+    if surfaces != ["grass", spec["rail"][1]] or result["nodes"] != len(meshes):
+        raise AssertionError("%s: unexpected collision groups %s with %d nodes" % (name, surfaces, result["nodes"]))
     cup = basic_parts.runtime(track.cup)
     grass = result["groups"][0]
     vertices, indices = grass["vertices"], grass["indices"]
     nearest = min(_distance_to_triangle((cup[0], cup[2]), *[(vertices[3 * i], vertices[3 * i + 2]) for i in indices[k:k + 3]])
                   for k in range(0, len(indices), 3))
     if nearest < CUP_RADIUS - 1e-6:
-        raise AssertionError("a floor triangle reaches %.3f m from the cup centre (radius %.2f)" % (nearest, CUP_RADIUS))
+        raise AssertionError("%s: a floor triangle reaches %.3f m from the cup centre (radius %.2f)" % (name, nearest, CUP_RADIUS))
     data = open(glb, "rb").read()
-    floor_triangles = sum(len(obj.data.polygons) for obj in built["floors"])
+    to_runtime = lambda p: [round(v, 6) for v in basic_parts.runtime(p)]
     summary = {"digest": result["digest"], "nodes": result["nodes"], "triangles": result["triangles"],
                "groups": {g["surface"]: {"vertices": len(g["vertices"]) // 3, "triangles": len(g["indices"]) // 3} for g in result["groups"]},
-               "floor_triangles": floor_triangles, "rail_triangles": sum(len(obj.data.polygons) for obj in built["rails"]),
+               "floor_triangles": sum(len(obj.data.polygons) for obj in built["floors"]),
+               "rail_triangles": sum(len(obj.data.polygons) for obj in built["rails"]),
                "cup_clearance": round(nearest, 4), "length": round(track.length, 3), "glb_sha256": hashlib.sha256(data).hexdigest(),
-               "glb_bytes": len(data)}
-    with open(os.path.join(out_dir, "selftest.json"), "w", encoding="utf-8", newline="\n") as f:
+               "glb_bytes": len(data), "signature": signature(track),
+               "probe": {"tee": to_runtime(track.tee), "cup": to_runtime(track.cup), "gravity": track.gravity,
+                         "mechanics": track.mechanics, "anchors": {k: to_runtime(v[:3]) for k, v in sorted(track.anchors.items())}}}
+    with open(os.path.join(out_dir, name + ".json"), "w", encoding="utf-8", newline="\n") as f:
         json.dump(summary, f, indent=2, sort_keys=True)
         f.write("\n")
-    print("track: %d strips, %d pads, %.2f m, %d distinct points" % (len(track.strips), len(track.pads), track.length, distinct))
-    print("collision: %d nodes, %d triangles (floor %d + rails %d), cup clearance %.3f m" %
-          (result["nodes"], result["triangles"], summary["floor_triangles"], summary["rail_triangles"], nearest))
-    print("digest %s" % result["digest"])
-    print("glb %d bytes sha256 %s" % (len(data), summary["glb_sha256"]))
+    print("%s: %d strips, %d pads, %d corridors, %.2f m, %d distinct points" %
+          (name, len(track.strips), len(track.pads), len(track.corridors), track.length, distinct))
+    print("%s collision: %d nodes, %d triangles (floor %d + rails %d), cup clearance %.3f m" %
+          (name, result["nodes"], result["triangles"], summary["floor_triangles"], summary["rail_triangles"], nearest))
+    print("%s digest %s" % (name, result["digest"]))
+    print("%s glb %d bytes sha256 %s" % (name, len(data), summary["glb_sha256"]))
+    discard_scene(scene, model)
+
+
+def run(out_dir):
+    check_rules()
+    for spec in SPECS:
+        run_course(spec, out_dir)
     print("selftest ok")
 
 

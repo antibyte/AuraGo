@@ -1,4 +1,4 @@
-"""Raster pads of the track kit: tee, green and plaza (MIT License, see ../LICENSE).
+"""Raster pads of the track kit: tee, green, plaza, fork and join (MIT License, see ../LICENSE).
 
 A pad is a rectangular raster in the pad frame (origin = centre of the entry section, ``x``
 forward, ``y`` left). Columns are ``SPACING`` apart, rows at most ``PAD_STEP``; the width must be a
@@ -50,12 +50,16 @@ def _bump(bumps):
     return z_of
 
 
-def _pad(kind, prev, cursor, length, width, st, z_of=None, cup=None, pools=(), exit_shifts=(), mark=None):
+def _pad(kind, prev, cursor, length, width, st, z_of=None, cup=None, pools=(), exit_shifts=(), mark=None, entries=None, tol=1e-6):
+    """Build a raster pad. ``entries`` = ``[(section, first_column)]`` replaces the single centred entry of ``prev``
+    (a join has two); ``tol`` is the distance an entry's points may lie off the raster before it is rejected."""
     if not isinstance(length, (int, float)) or length < 0.5:
         raise ValueError("length must be at least 0.5 m (got %r)" % (length,))
-    if prev is not None and not prev.flat:
-        raise ValueError("a pad needs a flat entry: the piece before it must end level")
     ncols = _columns(width)
+    if entries is None and prev is not None:
+        entries = [(prev, (ncols - ROWS) // 2)]
+    if any(not section.flat for section, _ in entries or ()):
+        raise ValueError("a pad needs a flat entry: the piece before it must end level")
     z_of = z_of or (lambda x, y: 0.0)
     ox, oy, oz, heading = cursor.x, cursor.y, cursor.z, cursor.heading
     fx, fy = math.cos(heading), math.sin(heading)
@@ -66,16 +70,15 @@ def _pad(kind, prev, cursor, length, width, st, z_of=None, cup=None, pools=(), e
     if any(abs(z_of(0.0, y)) > 1e-12 for y in ys):
         raise ValueError("the pad surface must be level along the entry edge")
     points = [[(ox + fx * x + lx * y, oy + fy * x + ly * y, oz + z_of(x, y)) for y in ys] for x in xs]
-    entry_cols = None
+    entry_cols = []
     ports = []
-    if prev is not None:
-        c0 = (ncols - ROWS) // 2
-        entry_cols = (c0, c0 + ROWS)
+    for section, c0 in entries or ():
+        entry_cols.append((c0, c0 + ROWS))
         for k in range(ROWS + 1):
-            if math.dist(points[0][c0 + k], prev.points[k]) > 1e-6:
+            if math.dist(points[0][c0 + k], section.points[k]) > tol:
                 raise ValueError("entry section does not match the pad frame")
-            points[0][c0 + k] = prev.points[k]          # the very same tuple objects
-        ports.append({"side": "entry", "cols": entry_cols, "section": prev})
+            points[0][c0 + k] = section.points[k]       # the very same tuple objects
+        ports.append({"side": "entry", "cols": entry_cols[-1], "section": section})
     # holes: raster cells without floor
     holes, removed = [], set()
     cell_centre = lambda i, j: ((xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2)
@@ -132,7 +135,7 @@ def _pad(kind, prev, cursor, length, width, st, z_of=None, cup=None, pools=(), e
             if right_wall:
                 walls.append((points[i][ncols], points[i + 1][ncols], out_r))
         for j in range(ncols):
-            if entry_cols is None or not entry_cols[0] <= j < entry_cols[1]:
+            if not any(c0 <= j < c1 for c0, c1 in entry_cols):
                 walls.append((points[0][j], points[0][j + 1], out_b))
             if not any(c0 <= j < c1 for c0, c1 in exit_cols):
                 walls.append((points[nx][j], points[nx][j + 1], out_f))
@@ -181,6 +184,75 @@ def plaza(prev, cursor, length, width, pools=(), exit_offset=0, **style):
     if not isinstance(exit_offset, int):
         raise ValueError("exit_offset must be a whole number of columns")
     return _single(_pad("plaza", prev, cursor, length, width, lane_style(style), pools=list(pools), exit_shifts=(exit_offset,)))
+
+
+MIN_SPREAD_COLUMNS = 16     # two lanes plus the rails between them need at least 2.29 m between the exit centres
+MIN_FORK_LENGTH = 1.5
+JOIN_TOLERANCE = 1e-3       # heights and forward coordinates of the branch ends
+JOIN_ANGLE = math.radians(0.01)
+
+
+def _spread_columns(spread):
+    columns = round(spread / SPACING)
+    if abs(spread - columns * SPACING) > 1e-6 or columns % 2:
+        raise ValueError("spread must be an even multiple of the row spacing %.4f m (got %g)" % (SPACING, spread))
+    if columns < MIN_SPREAD_COLUMNS:
+        raise ValueError("spread must be at least %.2f m (got %g)" % (MIN_SPREAD_COLUMNS * SPACING, spread))
+    return columns
+
+
+def fork(prev, cursor, length, spread, width=None, **style):
+    """Splitting area with two exits ``spread`` m apart (an even multiple of the row spacing).
+
+    Returns ``(pad, [left_exit, right_exit], cursor)``; the layout builds the two branches from the exits and
+    closes the fork with ``join``. The default ``width`` makes the outer rails continue the branch rails.
+    """
+    if prev is None:
+        raise ValueError("a fork needs a piece before it")
+    if not isinstance(length, (int, float)) or length < MIN_FORK_LENGTH:
+        raise ValueError("a fork needs a length of at least %.1f m (got %r)" % (MIN_FORK_LENGTH, length))
+    columns = _spread_columns(spread)
+    width = (ROWS + columns) * SPACING if width is None else width
+    if round(width / SPACING) < ROWS + columns:
+        raise ValueError("width %g m is too narrow for two exits %g m apart" % (width, spread))
+    return _pad("fork", prev, cursor, length, width, lane_style(style), exit_shifts=(-columns // 2, columns // 2))
+
+
+def join(left, right, length, exit_offset=0, **style):
+    """Merging area built from the end sections of the left and right branch of a fork.
+
+    Both ends must be flat, point the same way (0.01 degrees), have the same height and forward coordinate
+    (1 mm) and lie an even multiple of the row spacing apart. The back row is the left section, the raster
+    points between the lanes and the right section; the exit is centred or shifted by ``exit_offset`` columns.
+    Returns ``(pad, exit_section, cursor)``.
+    """
+    if not isinstance(length, (int, float)) or length < MIN_FORK_LENGTH:
+        raise ValueError("the join needs a length of at least %.1f m (got %r)" % (MIN_FORK_LENGTH, length))
+    if not isinstance(exit_offset, int):
+        raise ValueError("exit_offset must be a whole number of columns")
+    if not (left.flat and right.flat):
+        raise ValueError("both branches must end level")
+    if abs(left.heading - right.heading) > JOIN_ANGLE:
+        raise ValueError("the branches end in different directions (%.3f and %.3f degrees)" % (math.degrees(left.heading), math.degrees(right.heading)))
+    (lx0, ly0, lz0), (rx0, ry0, rz0) = left.center, right.center
+    if abs(lz0 - rz0) > JOIN_TOLERANCE:
+        raise ValueError("the branches end at different heights (%.1f mm apart)" % (abs(lz0 - rz0) * 1000))
+    heading = left.heading
+    fx, fy = math.cos(heading), math.sin(heading)
+    dx, dy = lx0 - rx0, ly0 - ry0
+    if abs(dx * fx + dy * fy) > JOIN_TOLERANCE:
+        raise ValueError("the branches end at different distances along the route (%.1f mm apart)" % (abs(dx * fx + dy * fy) * 1000))
+    lateral = -dx * fy + dy * fx
+    if lateral < 0:
+        raise ValueError("the left branch ends to the right of the right branch")
+    columns = round(lateral / SPACING)
+    if abs(lateral - columns * SPACING) > JOIN_TOLERANCE:
+        raise ValueError("the branches end %.4f m apart, not a multiple of the row spacing %.4f m" % (lateral, SPACING))
+    if columns % 2 or columns < MIN_SPREAD_COLUMNS:
+        raise ValueError("the branches must end an even number of columns (at least %d) apart (got %d)" % (MIN_SPREAD_COLUMNS, columns))
+    origin = Cursor((lx0 + rx0) / 2, (ly0 + ry0) / 2, lz0, heading)
+    return _single(_pad("join", None, origin, length, (ROWS + columns) * SPACING, lane_style(style), exit_shifts=(exit_offset,),
+                        entries=[(left, 0), (right, columns)], tol=4 * JOIN_TOLERANCE))
 
 
 PADS = {"tee": tee, "green": green, "plaza": plaza}

@@ -13,6 +13,8 @@ All collision objects keep the identity transform: their vertices are world coor
 runtime reader expects. The wall runs are returned as well (the rail trims are built from them).
 """
 
+import math
+
 from . import basic_parts, floor_paint, materials, rails
 from .track import RAIL_SURFACES, ROWS
 
@@ -46,7 +48,21 @@ def _strip_quads(strip, mesh_of):
                       (s1.points[j + 1], (edge_d, s1.arc)), (s1.points[j], (edge_a, s1.arc)))
 
 
+def _pad_triangles(pad, mesh_of):
+    """Floor of a polar pad (funnel): ``pad.faces`` are point triples; ``edge`` grows from the centre to the rim."""
+    mesh = mesh_of(pad.look, pad.surface)
+    centre, radius = pad.grid["centre"], pad.grid["radius"]
+
+    def meta(point):
+        r = math.hypot(point[0] - centre[0], point[1] - centre[1])
+        return (min(1.0, r / radius), pad.arc0 + max(0.0, radius - r))
+    for triangle in pad.faces:
+        mesh.faces.append(tuple(mesh.vertex(point, meta(point)) for point in triangle))
+
+
 def _pad_quads(pad, mesh_of):
+    if pad.grid.get("polar"):
+        return _pad_triangles(pad, mesh_of)
     mesh = mesh_of(pad.look, pad.surface)
     grid = pad.grid
     points, xs, ys = grid["points"], grid["xs"], grid["ys"]
