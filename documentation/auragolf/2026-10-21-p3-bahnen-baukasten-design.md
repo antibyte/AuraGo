@@ -61,7 +61,7 @@ Laufweg = Länge der Hauptroute (Mittellinie) vom Abschlag zum Loch. „Abkürzu
 | Nr. | ID | Name (de / en) | Par | Laufweg | Stücke | Mechanik | Hingucker | Abkürzung |
 |---|---|---|---|---|---|---|---|---|
 | 7 | temple-07 | Tempelstufen / Temple Steps | 3 | ≈ 16 m | Stufen (3 Absätze), Kurve, Grün | – | Steinkopf über den Stufen | Bandenschuss über die Stufenkante |
-| 8 | temple-08 | Rollender Stein / Rolling Stone | 3 | ≈ 20 m | Senke, Gerade, Kurve | Rollstein quer durch die Senke | Stufentor über der Spur | Timing durch die Senke statt Umweg |
+| 8 | temple-08 | Rollender Stein / Rolling Stone | 3 | ≈ 19 m | Gabelung (Umweg links, Senke rechts), Gerade, Kurve | Rollstein quer durch die Senke | Stufentor über dem Abschlag | Timing durch die Senke statt Umweg |
 | 9 | temple-09 | Steinkopf / Stone Head | 4 | ≈ 24 m | Gabelung, Tunnel, Kurve | Steintor im Tunnel | Steinkopf mit Tunnelmaul | Tunnel durchs Maul hinter dem Tor |
 | 10 | temple-10 | Pendelstämme / Swinging Logs | 4 | ≈ 26 m | Brücke über den Kanal, Steilkurve, Hügel | 2 Baumstamm-Pendel | Wasserfall | Brücke ohne Bande am Rand des Kanals |
 | 11 | temple-11 | Heiliger Brunnen / Sacred Well | 4 | ≈ 26 m | Stufen, Kurve, Trichter | 2 Götzen-Portale (Teleporter) | Brunnen mit Totems | Portal über den Teich |
