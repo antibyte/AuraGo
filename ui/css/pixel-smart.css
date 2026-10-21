@@ -1,1 +1,411 @@
-/* Pixel: WP7 command palette and smart tools. Empty until its work package fills it; loaded after pixel.css. Prefix every class with pixel-. */
+/* Pixel: WP7 command palette, content-aware fill / remove object, colour panel and smart document dialogs. Loaded after pixel.css; every class is pixel- prefixed. */
+
+/* The palette and the busy bar are positioned inside the window. */
+.pixel-app {
+    position: relative;
+}
+
+/* Dialogs are appended to the page body, outside .pixel-app: they need the same colour variables. */
+.pixel-smart-dialog {
+    --pixel-line: var(--vd-theme-border);
+    --pixel-surface: var(--vd-theme-control-bg);
+    --pixel-hover: var(--vd-theme-control-hover);
+    --pixel-muted: var(--vd-theme-muted);
+    --pixel-accent: var(--vd-accent, #59d4c8);
+    width: min(380px, calc(100vw - 32px));
+}
+
+/* --- command palette --- */
+
+.pixel-palette-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 9% 12px 12px;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.38);
+    user-select: none;
+}
+
+.pixel-palette {
+    width: min(580px, 100%);
+    max-height: min(74%, 520px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--pixel-line);
+    border-radius: 12px;
+    background: var(--vd-theme-chrome-bg, #1b1f27);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+}
+
+.pixel-palette-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--pixel-line);
+    color: var(--pixel-muted);
+}
+
+.pixel-palette-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 4px 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--vd-text, #eff7ff);
+    font: inherit;
+    font-size: 1rem;
+    user-select: text;
+}
+
+.pixel-palette-input::placeholder {
+    color: var(--pixel-muted);
+}
+
+.pixel-palette-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 6px;
+}
+
+.pixel-palette-heading {
+    padding: 8px 10px 4px;
+    color: var(--pixel-muted);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.pixel-palette-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.pixel-palette-item.is-active {
+    background: var(--pixel-hover);
+    box-shadow: inset 2px 0 0 var(--pixel-accent);
+}
+
+.pixel-palette-item.is-disabled {
+    opacity: 0.45;
+}
+
+.pixel-palette-item.is-denied {
+    animation: pixel-palette-deny 260ms ease;
+}
+
+@keyframes pixel-palette-deny {
+    20%, 60% { transform: translateX(-3px); }
+    40%, 80% { transform: translateX(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pixel-palette-item.is-denied {
+        animation: none;
+        outline: 1px solid var(--pixel-accent);
+    }
+}
+
+.pixel-palette-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pixel-palette-label mark {
+    background: transparent;
+    color: var(--pixel-accent);
+    font-weight: 700;
+}
+
+.pixel-palette-group {
+    flex: 0 0 auto;
+    color: var(--pixel-muted);
+    font-size: 0.72rem;
+}
+
+.pixel-palette-kbd {
+    flex: 0 0 auto;
+}
+
+.pixel-palette-empty {
+    padding: 22px 10px;
+    color: var(--pixel-muted);
+    text-align: center;
+}
+
+.pixel-palette-foot {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 14px;
+    padding: 7px 14px;
+    border-top: 1px solid var(--pixel-line);
+    color: var(--pixel-muted);
+    font-size: 0.72rem;
+}
+
+.pixel-palette-foot .pixel-kbd {
+    min-width: 0;
+    margin-right: 3px;
+    padding: 0 4px;
+}
+
+.pixel-palette-btn {
+    margin-left: 4px;
+}
+
+/* --- content-aware fill progress --- */
+
+.pixel-smart-busy {
+    position: absolute;
+    left: 50%;
+    bottom: 44px;
+    z-index: 150;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: calc(100% - 24px);
+    padding: 8px 12px;
+    transform: translateX(-50%);
+    border: 1px solid var(--pixel-line);
+    border-radius: 10px;
+    background: var(--vd-theme-chrome-bg, #1b1f27);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.pixel-smart-busy-label {
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.pixel-smart-busy-bar {
+    position: relative;
+    width: 140px;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: var(--pixel-surface);
+}
+
+.pixel-smart-busy-bar > i {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: 3px;
+    background: var(--pixel-accent);
+    transition: width 120ms linear;
+}
+
+/* --- dialogs (canvas size, content-aware fill) --- */
+
+.pixel-smart-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pixel-smart-anchor {
+    display: grid;
+    grid-template-columns: repeat(3, 34px);
+    gap: 4px;
+}
+
+.pixel-smart-anchor-btn {
+    height: 30px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 6px;
+    background: var(--pixel-surface);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.pixel-smart-anchor-btn:hover {
+    background: var(--pixel-hover);
+}
+
+.pixel-smart-anchor-btn.active {
+    border-color: var(--pixel-accent);
+    background: var(--pixel-accent);
+    color: #0e1117;
+    font-weight: 700;
+}
+
+/* --- colour panel --- */
+
+.pixel-sc {
+    gap: 10px;
+}
+
+.pixel-sc-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pixel-sc-chip {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 2px solid var(--pixel-line);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.pixel-sc-chip:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.pixel-sc-chip-secondary {
+    width: 26px;
+    height: 26px;
+}
+
+.pixel-sc-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pixel-sc-sv,
+.pixel-sc-hue {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--pixel-line);
+    border-radius: 6px;
+    touch-action: none;
+    cursor: crosshair;
+}
+
+.pixel-sc-sv {
+    height: 150px;
+}
+
+.pixel-sc-hue {
+    height: 16px;
+}
+
+.pixel-sc-sv:focus-visible,
+.pixel-sc-hue:focus-visible {
+    outline: 2px solid var(--pixel-accent);
+    outline-offset: 1px;
+}
+
+.pixel-sc-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pixel-sc-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.pixel-sc-num {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    color: var(--pixel-muted);
+    font-size: 0.72rem;
+}
+
+.pixel-sc-num .pixel-param-number {
+    width: 100%;
+    min-width: 0;
+}
+
+.pixel-sc-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pixel-sc-group > summary {
+    cursor: pointer;
+    color: var(--pixel-muted);
+    font-size: 0.76rem;
+    margin-bottom: 4px;
+}
+
+.pixel-sc-harmonies {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pixel-sc-harmony {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pixel-sc-harmony-name {
+    flex: 0 0 96px;
+    color: var(--pixel-muted);
+    font-size: 0.72rem;
+}
+
+.pixel-sc-grid {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 3px;
+}
+
+.pixel-sc-grid-inline {
+    flex: 1 1 auto;
+    grid-template-columns: repeat(auto-fill, minmax(22px, 1fr));
+}
+
+.pixel-sc-swatch {
+    width: 100%;
+    aspect-ratio: 1;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.pixel-sc-swatch:hover {
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.12);
+}
+
+.pixel-sc-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.pixel-sc-actions[hidden] {
+    display: none;
+}
+
+.pixel-sc-actions .pixel-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+    white-space: normal;
+}
+
+.pixel-sc-count {
+    flex: 0 0 64px;
+    width: 64px;
+}

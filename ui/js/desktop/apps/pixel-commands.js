@@ -19,10 +19,16 @@
         return base || lower;
     }
 
+    const foldCache = new Map();
+
     function fold(text) {
-        let out = '';
         const source = String(text == null ? '' : text);
+        const cached = foldCache.get(source);
+        if (cached !== undefined) return cached;
+        let out = '';
         for (let i = 0; i < source.length; i++) out += foldChar(source.charAt(i));
+        if (foldCache.size > 6000) foldCache.clear();
+        foldCache.set(source, out);
         return out;
     }
 
@@ -508,7 +514,11 @@
             palette.el = el;
             palette.input = el.querySelector('[data-pal-input]');
             palette.list = el.querySelector('[data-pal-list]');
-            el.addEventListener('mousedown', e => { if (e.target === el) { e.preventDefault(); closePalette(); } });
+            // A click outside closes the palette; clicks inside must not take the focus away from the search field.
+            el.addEventListener('mousedown', e => {
+                if (e.target === el) { e.preventDefault(); closePalette(); return; }
+                if (e.target !== palette.input) e.preventDefault();
+            });
             palette.list.addEventListener('mousemove', e => {
                 const item = e.target.closest ? e.target.closest('[data-pal-index]') : null;
                 if (item && Number(item.dataset.palIndex) !== palette.active) setActive(Number(item.dataset.palIndex), false);
