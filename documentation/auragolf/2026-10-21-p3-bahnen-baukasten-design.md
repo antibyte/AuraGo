@@ -72,7 +72,7 @@ Laufweg = Länge der Hauptroute (Mittellinie) vom Abschlag zum Loch. „Abkürzu
 | Nr. | ID | Name (de / en) | Par | Laufweg | Stücke | Mechanik | Hingucker | Abkürzung |
 |---|---|---|---|---|---|---|---|---|
 | 13 | moon-13 | Aufsetzer / Touchdown | 2 | ≈ 14 m | Gerade, Hügel, Grün | geringe Schwerkraft | Habitat | – (Einführung in die Schwerkraft) |
-| 14 | moon-14 | Boost-Spur / Boost Lane | 3 | ≈ 22 m | Gerade, Steilkurve, Platz | 2 Boost-Felder, 2 Neon-Bumper | Parabolschüssel | Bandenschuss über die offene Kante |
+| 14 | moon-14 | Boost-Spur / Boost Lane | 3 | ≈ 22 m | Gerade, Steilkurve, Staubstrecke (Regolith), Platz mit Abgrund, Kurve, Grün | 2 Boost-Felder, 2 Neon-Bumper | Parabolschüssel | Schuss über die offene Kante des Abgrunds im Platz (ab Stärke 0,6 fliegt der Ball hinüber, schwächer fällt er hinein) |
 | 15 | moon-15 | Kraterrinne / Crater Pipe | 3 | ≈ 22 m | Halfpipe in der Kurve, Gerade | – | Kraterwand und Rover | Sprung über den Abgrund |
 | 16 | moon-16 | Beam-Station / Beam Station | 4 | ≈ 26 m | Platz, Kurve, Brücke | 2 Teleporter, drehender Radararm | Funkturm | Teleporter direkt aufs Grün |
 | 17 | moon-17 | Schwerelos / Zero-G Leap | 4 | ≈ 30 m | Rampe mit Sprung, Kurve, Platz | Schotttore, 2 Bumper | Habitat und Solarfeld | Langer Sprung über die Schlucht |
