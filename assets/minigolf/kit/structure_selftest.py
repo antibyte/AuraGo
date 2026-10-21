@@ -5,7 +5,7 @@ blender --background --factory-startup --python assets/minigolf/kit/structure_se
 Builds track layouts (no Blender objects) and checks the rules of ``support_plan``, ``tunnel_plan``, ``layout`` and
 ``detail``: the bridge floor look per world, the rejected tunnel covers, the support rules (posts only where the floor
 is higher than ``MIN_DROP`` above the ground, none through another stretch or its rails), the tunnel opening and the
-straight-run and roof-crossing errors, the free ponds of the course data, a cannon flight over a tunnel and the ``detail`` validation. Prints ``structure selftest ok``.
+straight-run and roof-crossing errors, the outer shell of a loop, the free ponds of the course data, a cannon flight over a tunnel and the ``detail`` validation. Prints ``structure selftest ok``.
 """
 
 import os
@@ -14,7 +14,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from kit import detail, layout, mechanic_data, rails, support_plan, tunnel_plan  # noqa: E402
+from kit import detail, layout, loop_shell, mechanic_data, rails, support_plan, tunnel_plan  # noqa: E402
 
 
 def build(data, world):
@@ -112,6 +112,36 @@ def check_detail():
     assert len(loop.sections) == 53, len(loop.sections)
 
 
+def check_loop_shell():
+    """The shell of a loop lies below the floor, outside the lane, and every face points away from the floor."""
+    track = build(course("moon", tee_green(("straight", {"length": 8.0}), ("loop", {"radius": 1.3, "offset": 2.2}), ("straight", {"length": 2.0}))) | {"detail": {"loop_sections": 52}}, "moon")
+    loop = next(strip for strip in track.strips if strip.kind == "loop")
+    verts, faces, arcs = loop_shell.shell_geometry(loop)
+    assert len(verts) == len(arcs) == loop_shell.RING * len(loop.sections), len(verts)
+    assert len(faces) == 8 * (len(loop.sections) - 1), len(faces)
+    for i, section in enumerate(loop.sections):
+        ring = verts[i * loop_shell.RING:(i + 1) * loop_shell.RING]
+        up = tuple(section.normal)
+        across = tuple((a - b) for a, b in zip(section.points[0], section.points[-1]))
+        length = sum(c * c for c in across) ** 0.5
+        across = tuple(c / length for c in across)
+        for k, point in enumerate(ring):
+            rel = tuple(point[j] - section.center[j] for j in range(3))
+            height = sum(rel[j] * up[j] for j in range(3))
+            lateral = sum(rel[j] * across[j] for j in range(3))
+            assert abs(lateral) <= 0.86 + loop_shell.REACH + 1e-9, "the shell reaches beyond the trim"
+            assert abs(height - (0.0 if k in (0, 4) else -loop_shell.THICKNESS)) < 1e-9, "shell points are on the floor plane or one thickness under it"
+    for a, b, c in faces:
+        pa, pb, pc = verts[a], verts[b], verts[c]
+        u, v = tuple(pb[j] - pa[j] for j in range(3)), tuple(pc[j] - pa[j] for j in range(3))
+        normal = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
+        section = loop.sections[a // loop_shell.RING]
+        column = a % loop_shell.RING
+        want = tuple(-c for c in section.normal) if column in (1, 2) else tuple(
+            (1.0 if column == 0 else -1.0) * (section.points[0][j] - section.points[-1][j]) for j in range(3))
+        assert sum(normal[j] * want[j] for j in range(3)) > 0, "a shell face points into the lane"
+
+
 def check_ponds():
     square = lambda x0, y0, x1, y1: [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
     beside = course("pirate", tee_green(("straight", {"length": 4.0}))) | {"ponds": [{"polygon": square(1.0, 2.0, 3.0, 4.0)}]}
@@ -133,6 +163,7 @@ def main():
     check_supports()
     check_tunnel()
     check_detail()
+    check_loop_shell()
     check_ponds()
     check_cannon_over_tunnel()
     print("structure selftest ok")

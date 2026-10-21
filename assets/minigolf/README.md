@@ -43,7 +43,7 @@ provenance and rebuild steps are in [`audio/README.md`](audio/README.md).
 | `cup_hole.py`, `cup_parts.py` | The exact cup: hole polygon and zipper floor around it (plain Python), the collision cup `floor-cup`, cup rim, tee ring and flag. |
 | `courses.py`, `course_entry.py`, `course_data_pirate.py`, `course_data_temple.py`, `course_data_moon.py` | The course pipeline: `build_scene` builds and dresses a course, `build_course` exports and describes it (the manifest v2 entry: bounds, water, routes); the course data of each world (plain literals). |
 | `footprint.py`, `terrain.py`, `bed_field.py` | Island outline fitted to the layout, island height (bed under grounded floors, cup hollow, ponds, trenches), the floor triangle hash behind it. |
-| `structures.py`, `support_plan.py`, `support_parts.py`, `bridge_parts.py`, `tunnel_plan.py`, `tunnel_parts.py`, `portal_pirate.py`, `portal_temple.py`, `pond_parts.py`, `trench_parts.py`, `detail.py`, `part_utils.py` | The structures of a P3 course: supports under elevated floors and loops, bridge railings and beams, tunnel roofs with the skull-rock and stone-head portals, pond water surfaces, trench and chasm walls, per-course detail overrides (`structure_selftest.py` checks the rules). |
+| `structures.py`, `support_plan.py`, `support_parts.py`, `bridge_parts.py`, `loop_shell.py`, `tunnel_plan.py`, `tunnel_parts.py`, `portal_pirate.py`, `portal_temple.py`, `pond_parts.py`, `trench_parts.py`, `detail.py`, `part_utils.py` | The structures of a P3 course: supports under elevated floors and loops, bridge railings and beams, the outer shell of a loop (its floor has no outer side), tunnel roofs with the skull-rock and stone-head portals, pond water surfaces, trench and chasm walls, per-course detail overrides (`structure_selftest.py` checks the rules). |
 | `mechanic_floor.py`, `mechanic_data.py`, `obstacle_data.py`, `cannon_flight.py` | Mechanics and obstacles of a course as data (plain Python): placement by position or anchor, floor height, manifest entries (runtime axes) with the collision parts of every obstacle, the cannon barrel and launch velocity with its flight checks, and the Python mirror of `validateMechanic` / `validateObstacle`. |
 | `mech_util.py`, `mechanic_parts.py`, `mechanic_portals.py`, `mechanic_cannon.py`, `obstacle_parts.py`, `obstacle_gates.py` | The visible parts per world: bumpers (barrel, stone mushroom, neon pylon), the boost plate, teleporters (hatch and barrel, idol arch, transporter pad with a spinning ring), the pirate cannon, the moving obstacle nodes `obstacle-<id>` drawn from their collision parts (anchor weight, log, boulder, radar arm, gate panels) and their gallows and door frames. |
 | `pieces_moon.py`, `pads_funnel.py`, `layout_fork.py`, `layout_ponds.py` | Moon half-pipe and loop, the polar funnel pad, forks (split pad, branches built by the layout, join pad) and the free ponds of the course data (`ponds`). Importing the layout registers them. |
@@ -119,11 +119,11 @@ compare the SHA-256 of every course GLB and of the manifest between the two runs
 
 | Item | Size |
 |---|---|
-| 18 course GLBs | 15,190,960 bytes (largest moon-18 1,187,592; 494,248 triangles in all, most temple-12 with 33,877) |
+| 18 course GLBs | 15,206,816 bytes (largest moon-18 1,203,448; 494,664 triangles in all, most temple-12 with 33,877) |
 | `manifest.json` | 132,124 bytes (version 2, no collider arrays) |
 | Three prop kits | 5,029,080 bytes (pirate 1,771,100, temple 1,768,908, moon 1,489,072) |
 | Three previews | 89,892 bytes (pirate-04 23,932, temple-09 32,320, moon-18 33,640) |
-| Whole `ui/3d/minigolf/` package, including audio and previews | 23,302,639 bytes |
+| Whole `ui/3d/minigolf/` package, including audio and previews | 23,318,031 bytes |
 
 The asset test enforces the budgets (course at most 1.25 MiB, 36,000 triangles and
 32 mesh nodes; manifest at most 256 KB; kit at most 3 MiB and 60,000 triangles;

@@ -257,7 +257,7 @@ bake (the previews render that scene), `build_course` exports and describes it. 
 
 `Dresser.build_structures(coll, built)` (after `dress`, before `place`) calls `structures.build`; its baked objects go to
 `Dresser.extra`, the pond water to `Dresser.ponds` (colours only, hidden from the AO bake) and the `reserved` circles
-to `place`. Modules: `support_plan` / `support_parts`, `bridge_parts`, `tunnel_plan` / `tunnel_parts` with
+to `place`. Modules: `support_plan` / `support_parts`, `bridge_parts`, `loop_shell`, `tunnel_plan` / `tunnel_parts` with
 `portal_pirate` and `portal_temple`, `pond_parts`, `trench_parts`, `detail`, helpers in `part_utils`. `structure_selftest.py`
 checks the rules below. A track without structures builds bit-identically.
 
@@ -273,6 +273,18 @@ checks the rules below. A track without structures builds bit-identically.
   pad therefore carries itself by its stringers. A loop gets a frame: at about every 2 m of its arc above 0.7 m, a post
   1.30 m (else 1.55 m) beside the centre line on each side with an arm to the outer face of the rail (the ball runs on the
   inside of the ring, nothing stands under it). Elevated pads are not supported (pads always count as grounded).
+- Loop shell (`loop_shell`): kit materials cull back faces, so the floor of a loop has no outer side and the game camera (which
+  looks onto the ring from outside) would see only the rail trims. Every `loop` strip therefore gets scenery that closes the ring:
+  the floor surface offset along its normal by `THICKNESS` (0.07 m, the depth of the rail trims, so the underside runs flush into
+  them), two quads across the lane with faces pointing away from the floor, and two side walls up to the floor plane `REACH`
+  (0.16 m) outside the lane edge, which is inside the volume of the trim (no z-fighting). Material `satin` (matte on the pirate
+  and temple worlds, `MATERIALS`) with the metal floor gradient of the world, lighter in the middle, panel tones every 0.45 m.
+  The shell lies on the far side of the floor (outside the ball clearance), is not collision (the digest of a course with a loop
+  is the same with or without it), is baked like the other structure parts and merges into the existing `scenery-<material>`
+  node. It costs about 8 triangles per loop section (moon-18: +416 triangles, +15.9 KB). Floors and rails stay untouched.
+  `shell_geometry(strip)` is plain Python; `structure_selftest.check_loop_shell` checks the winding and the extents. Half-pipes,
+  ramps, banks and other elevated strips need no shell: from the game camera (always above the lane) their underside is a back
+  face that cannot be seen, and a half-pipe's outer wall is covered by the island bed.
 - Bridges (`bridge_parts`): a piece with `deck: "bridge"` gets the floor look `deck` (pirate: planks, temple: bark) or
   `metal` (moon) unless it sets its own `look` (`layout`); railing posts 1.08 m from the centre line (outside the lane,
   rail and trim, which reach 1.03 m) along each side that has a rail wall, with ropes (pirate), a mossy stone curb
