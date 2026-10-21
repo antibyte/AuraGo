@@ -174,7 +174,7 @@ teleporter, a cannon).
   shore strip (`water-shore`) has an animated foam edge.
 - **Motion in the scene:** on medium and high, palms, ferns and grass sway, sails
   and flags ripple, torch and lamp flames flicker, and the dish turns. On every
-  tier, the flag on the pole and the sun wheel turn, unless reduced motion is on.
+  tier, the flag on the pole waves and the teleporter rings turn, unless reduced motion is on.
   Small scatter props (critters, pebbles) are hidden on low.
 
 ## Intro flight
@@ -221,7 +221,7 @@ disables:
 - the intro flight and camera turns (framing jumps to the end pose),
 - decorative particles, confetti and fireworks,
 - the gold ring's growth (it fades in and out at a fixed size),
-- sway, flicker, the dish, the sun wheel and the flags,
+- sway, flicker, the dish, the teleporter rings and the flags,
 - the animation of the water and the sky.
 
 The ball trail stays, because it only follows the ball. Obstacles keep moving,
@@ -245,7 +245,7 @@ more, and at least 12 seconds after the last change.
 | Particles (max per pool; confetti: half) | 60 | 160 | 320 |
 | Ball trail | off | on | on |
 
-The sun wheel and flags move on every tier unless reduced motion is on, and haze
+Flags and teleporter rings move on every tier unless reduced motion is on, and haze
 and the Jungle Temple silhouette are drawn on every tier.
 
 ## Sound and accessibility

@@ -445,7 +445,7 @@ Blender: `mech_util`, `mechanic_parts` (bumper, boost), `mechanic_portals` (tele
   `shapes.py` (about 490). Do not grow it; add new code to a neighbouring module.
 - New props go into the world's `props_<world>.py` and `PROPS`; shared builders go
   into `shapes.py`.
-- Give repeated parts unique names (`windmill-sail-0` to `-3`). Rename a replacement
+- Give repeated parts unique names (`rail-post-0`, `rail-post-1`). Rename a replacement
   mesh only after the old one is removed (`shapes._apply_modifiers`,
   `dress_parts._putter`).
 - Use `densify` (`dens=`) only where AO resolution matters (large flat faces). Thin

@@ -165,7 +165,7 @@ export function createScene(host, options) {
     let quality = options.quality || 'auto', reduced = !!options.reducedMotion, cameraMode = false, canAim = false;
     let followEnabled = true, aimCamEnabled = false, camTween = null, userOrbiting = false;
     let aimDirection = [0, -1], aimPower = .35, pointerId = null, dragged = false, dragStart = null;
-    let obstacleNodes = new Map(), flagNodes = [], spinNodes = [], windmill = null, putter = null, swing = 0, elapsed = 0;
+    let obstacleNodes = new Map(), flagNodes = [], spinNodes = [], putter = null, swing = 0, elapsed = 0;
     // Framing of the loaded island (overviewFor): overview pose, shadow camera size and open water radius.
     let overview = null;
     const governor = createQualityGovernor(), screenPoint = new THREE.Vector3();
@@ -403,7 +403,7 @@ export function createScene(host, options) {
         props?.dispose(); props = null; sky?.dispose(); water?.dispose();
         course = next; courseRoot = gltf.scene; scene.add(courseRoot);
         restMark.visible = false;
-        obstacleNodes = new Map(); flagNodes = []; spinNodes = []; windmill = null;
+        obstacleNodes = new Map(); flagNodes = []; spinNodes = [];
         lookId = nextLook; look = LOOKS[lookId];
         overview = overviewFor(next);
         applyLook();
@@ -424,16 +424,6 @@ export function createScene(host, options) {
             if (node.name === 'water-shore' && node.isMesh) water.attachShore(node);
             if (node.name === 'flag' || node.name.startsWith('flag-cloth')) flagNodes.push({ node, z: node.rotation.z });
         });
-        const sails = [];
-        courseRoot.traverse(node => { if (node.name.startsWith('windmill-sail')) sails.push(node); });
-        if (sails.length) {
-            courseRoot.updateMatrixWorld(true);
-            windmill = new THREE.Group();
-            for (const sail of sails) windmill.position.add(sail.getWorldPosition(new THREE.Vector3()));
-            windmill.position.divideScalar(sails.length); courseRoot.worldToLocal(windmill.position);
-            courseRoot.add(windmill); windmill.updateMatrixWorld(true);
-            for (const sail of sails) windmill.attach(sail);
-        }
         for (const obstacle of next.obstacles || []) {
             const node = courseRoot.getObjectByName(obstacle.node);
             if (node) obstacleNodes.set(obstacle.id, node);
@@ -572,7 +562,6 @@ export function createScene(host, options) {
         const motion = !reduced && cfg().motion;
         if (motion) shaderState.golfTime.value += dt;
         if (!reduced) {
-            if (windmill) windmill.rotation.z += dt * .35;
             for (const spin of spinNodes) spin.node.rotateOnAxis(spin.axis, spin.speed * dt);
             for (const flag of flagNodes) flag.node.rotation.z = flag.z + Math.sin(elapsed * (2.2 + fx.flagBoost * 3)) * (.045 + fx.flagBoost * .12);
         }

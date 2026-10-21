@@ -2,8 +2,8 @@
 
 ``idol``: a squat golden figure with a feather crown on a two-step plinth (the
 figure is ``glow``). ``sunwheel``: a standing stone disc with a carved sun face
-and a ring of rays; static decoration (the spinning windmill variant is built by
-the course code). Both face -Y; base at z=0, footprint centred.
+and a ring of rays; static decoration (it does not turn). Both face -Y; base at z=0,
+footprint centred.
 """
 
 import math

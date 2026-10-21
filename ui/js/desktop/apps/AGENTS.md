@@ -155,11 +155,11 @@
   reads `island` for framing. The game accepts only manifest `version` 2 with 18
   courses, `course-NN.glb` models and a string `collision.digest` per course; there is no v1 branch and no
   legacy world id (`garden|coast|night`) anywhere: `LEGACY_LOOK`, `WORLD_ALIAS` and the old icons and accents are gone.
-- Node contract: `aurago_hidden` on `rail-left`/`rail-right` hides them at load (the
-  collision stays in physics). `rail-trim-*` are plain decor. `water-shore` takes the
-  shore material (`TEXCOORD_0.x` is the distance to the shore; animated foam).
-  `windmill-sail*` nodes are gathered under one pivot that turns about Z unless
-  reduced motion is on. `flag` waves on every tier unless reduced.
+- Node contract: `aurago_hidden` on the `rail-wood|stone|metal` collision nodes hides them at
+  load (the collision stays in physics). `rail-trim` is plain decor. `water-shore` takes the
+  shore material (`TEXCOORD_0.x` is the distance to the shore; animated foam). Only nodes
+  with `aurago_spin` turn (teleporter rings, radar arm); the temple sun wheel is a static
+  prop and the scene has no windmill pivot. `flag` waves on every tier unless reduced.
 - Material extras (`patchMaterial`): `aurago_kind` picks the response. `foliage` and
   `cloth` with `aurago_sway` bend with height, scaled by the `golfMotion` switch;
   `emissive` and `glow` multiply their emission by `COLOR_0` and take
@@ -179,8 +179,8 @@
   `minigolf-game.js` calls `skipIntro` on any keydown without consuming the key. A
   `frameTurn` queued during the flight runs after it.
 - Reduced motion (OS/Desktop preference, `data-animations="false"` or the checkbox)
-  skips the flight, stops particles, fireworks, sway, flicker, spin, flags, the
-  windmill and water and sky animation, and keeps the gold ring static. The ball
+  skips the flight, stops particles, fireworks, sway, flicker, spin, flags and
+  water and sky animation, and keeps the gold ring static. The ball
   trail stays. Low tier also drops scatter props, sway, flicker and spin, the
   composer (bloom) and the trail, and freezes the water.
 - `stats()` also reports `look`, `props` (placed instances), `env` (environment
