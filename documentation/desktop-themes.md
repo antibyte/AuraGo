@@ -307,7 +307,7 @@ Two small islets bob nearby.
 
 **Day and night.** Dawn, day, golden hour, dusk and night follow the local clock. A pixel sun and moon cross the sky. Stars and shooting stars appear at night, when windows, lanterns and crystals glow and fireflies drift. A bird flock circles by day.
 
-**Interaction.** The pointer turns the camera gently (parallax), and the idle camera breathes. A left click on the empty desktop knocks loose a few grass and dirt blocks with physics and plays `window.impact` (earth), at most once per 350 ms.
+**Interaction.** The pointer turns the camera gently (parallax), and the idle camera breathes. A left click on the empty desktop knocks loose a few grass and dirt blocks with physics and plays `window.impact` (earth), at most once per 350 ms. A mouse or pen click does it on press. A touch does it on release, and only for a tap: it must end within 500 ms, move less than 8 px and not be cancelled, so the start of a pan or a pinch does nothing.
 
 **Window frames.** Each app's frame is built from pixel-art blocks in one of three materials:
 
@@ -320,7 +320,8 @@ Two small islets bob nearby.
 - Each 8×8 pattern is drawn crisp, with a baked bevel.
 - On open, the tiles drop in around the perimeter over 620 ms, with dust at the corners.
 - On close, the window crumbles into textured Rapier fragments. They pile up on the taskbar line and fade.
-- A fast drag shears tiles off the frame, and the frame repairs itself.
+- A fast drag shears tiles off the frame, and the frame repairs itself. The holes stay open while the drag goes on, but at most 3 s after its last drag or resize event.
+- A window that leaves the desktop snapshot while it assembles (space switch, minimise) drops its assembly at once, so the overlay loop can go idle.
 - Closing a window and shearing tiles play `window.fracture`, as listed under *Effect sounds*.
 
 **Shell.** The shell is styled like an inventory: a hotbar taskbar with bevelled slots and a white frame on the active window, a grass-block start button, oak-plank titlebars with a name plate, stone window buttons with a redstone close button, grey bevelled panels for menus, the start menu, toasts and dialogs, and light parchment window content.
@@ -340,6 +341,8 @@ Two small islets bob nearby.
 | Q3 | Static, with a probe render every 5 s that can step back up |
 | Q4 | Poster only |
 
+- The scene canvas has a pixel budget per level: Q0 3.7 million, Q1 3.0 million, Q2 2.2 million, Q3 1.6 million pixels. The pixel ratio is the lowest of the device ratio, the level's cap (1.5, 1.25, 1, 0.85) and the ratio at which the window fits the budget; CSS scales the canvas up.
+- Multisampling is requested only when the window at a pixel ratio of at most 1.5 fits 3.7 million pixels when the scene is built.
 - The loop drops to 2 fps while a window covers 96% or more of the screen.
 - It pauses while the page is hidden.
 - With reduced motion or disabled animations, the scene shows one still frame for the current time of day, refreshed every minute.
@@ -351,7 +354,7 @@ Two small islets bob nearby.
 - `voxel.freeze` `{t: seconds | null}` freezes the life clock.
 - `voxel.quality` `{level: 0..4 | null}` locks the quality level.
 
-`AuraDesktopThemeFx.inspect().scene` reports `backend`, `gpu`, `quality`, `fps`, `frames`, `buildMs`, `hour`, `phase`, `night`, `triangles`, `voxels`, `shadows`, `tiltShift`, `throttled`, `anchors` and the life counts.
+`AuraDesktopThemeFx.inspect().scene` reports `backend`, `gpu`, `quality`, `pixels` (the size of the canvas backbuffer), `fps`, `frames`, `buildMs`, `hour`, `phase`, `night`, `triangles`, `voxels`, `shadows`, `tiltShift`, `throttled`, `anchors` and the life counts.
 
 **Files.** All in `ui/js/desktop/theme-fx/`:
 
@@ -363,6 +366,7 @@ Two small islets bob nearby.
 - `voxel-life.js`: clouds, waterfall, windmill, smoke, birds, fireflies, halos, islets and the boat
 - `voxel-scene.js`: renderer, camera, light and quality
 - `voxel-graphics.js`: overlay frames, fragments and dust
+- `voxel-fragments.js`: the pool of fragment bodies (create, reuse, recycle)
 - `voxel-runtime-entry.js`: entry of the vendor bundle that loads Three.js and Rapier
 - `voxel_world.js`: orchestrator, registered with fx-core
 

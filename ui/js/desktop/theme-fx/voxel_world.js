@@ -9,7 +9,12 @@
     // A click on the bare desktop (.vd-workspace) bursts into earth fragments, unless it lands on any of these.
     const BURST_BLOCKERS = '.vd-window, .vd-icon, .vd-widget, .vd-taskbar, .vd-dock, .vd-start-menu, .vd-context-menu, .vd-modal-backdrop, .vd-toast-container, .vd-global-menu, .vd-radial-menu, .vd-sip-phone-gadget, button, a, input, textarea, select, [contenteditable]';
     const BURST_INTERVAL_MS = 350;
+    // A touch bursts only as a tap: it must end within TAP_MAX_MS and move less than TAP_SLOP_PX, else it was the start of a pan.
+    const TAP_MAX_MS = 500;
+    const TAP_SLOP_PX = 8;
     const ASSEMBLY_MS = 620;
+    // A frame hole held open while a window is dragged is repaired this long after the last drag or resize event at the latest.
+    const DRAG_HOLD_MAX_MS = 3000;
     const MATERIALS = window.AuraVoxelGraphics.materials;
 
     function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -65,6 +70,7 @@
         let lastSoundAt = 0;
         let lastPointerShearAt = 0;
         let lastBurstAt = 0;
+        let tap = null;                   // the touch that might become a tap: { id, x, y, at }
         let pointerInside = false;
         let pointerX = -1000;
         let pointerY = -1000;
@@ -114,6 +120,12 @@
                 raf = 0;
             },
             onContextRestored: () => requestRender()
+        });
+
+        const fragmentPool = window.AuraVoxelFragments.create({
+            fragments, colliderToFragment, graphics, materials: MATERIALS, maxFragments: MAX_FRAGMENTS,
+            physics: () => ({ ready: physicsReady, world: physicsWorld, RAPIER }),
+            onRecycled: () => { if (activeFragmentCount > 0) activeFragmentCount--; }
         });
 
         function snapshot(force) {
@@ -368,12 +380,13 @@
             const key = String(id);
             let damage = damageWindows.get(key);
             if (!damage) {
-                damage = { holes: new Set(), repairAt: performance.now() + 1100, dragging: false };
+                damage = { holes: new Set(), repairAt: performance.now() + 1100, dragging: false, dragAt: 0 };
                 damageWindows.set(key, damage);
             }
             if (damage.holes.size < 18) damage.holes.add(side + ':' + Math.max(0, index | 0));
             damage.dragging = !!dragging;
             damage.repairAt = dragging ? Infinity : performance.now() + 1100;
+            if (dragging) damage.dragAt = performance.now();
             return damage;
         }
 
@@ -408,55 +421,9 @@
             });
         }
 
-        function ensureFragmentPool(minimum) {
-            if (!physicsReady || !graphics.rendererReady) return;
-            const desired = Math.min(MAX_FRAGMENTS, Math.max(minimum || 0, Math.min(32, fragments.length + 32)));
-            while (fragments.length < desired) {
-                const body = physicsWorld.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setEnabled(false).setCanSleep(true)
-                    .setLinearDamping(.18).setAngularDamping(.22).setCcdEnabled(true));
-                const collider = physicsWorld.createCollider(RAPIER.ColliderDesc.cuboid(.055, .055, .055)
-                    .setDensity(1.7).setFriction(.78).setRestitution(.19)
-                    .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS)
-                    .setContactForceEventThreshold(.018), body);
-                body.setEnabled(false);
-                const slot = { body, collider, active: false, age: 0, settle: 0, size: 10, alpha: 1, lastImpactAge: -1, incoming: { x: 0, y: 0, z: 0 }, material: 'stone' };
-                fragments.push(slot);
-                colliderToFragment.set(collider.handle, slot);
-                graphics.setFragmentSlot(fragments.length - 1, MATERIALS.stone[0]);
-            }
-            graphics.commitFragments(fragments.length);
-        }
-
-        function recycleFragment(slot, index) {
-            if (!slot || !slot.active) return;
-            slot.active = false;
-            slot.age = 0;
-            slot.settle = 0;
-            slot.alpha = 0;
-            slot.body.setEnabled(false);
-            graphics.setFragmentOpacity(index, 0);
-            if (activeFragmentCount > 0) activeFragmentCount--;
-        }
-
-        function acquireFragment() {
-            if (!physicsReady) return null;
-            for (let i = 0; i < fragments.length; i++) {
-                if (!fragments[i].active) return { slot: fragments[i], index: i };
-            }
-            if (fragments.length < MAX_FRAGMENTS) {
-                const oldLength = fragments.length;
-                ensureFragmentPool(Math.min(MAX_FRAGMENTS, oldLength + 32));
-                return fragments.length > oldLength ? { slot: fragments[oldLength], index: oldLength } : null;
-            }
-            let oldest = 0;
-            for (let i = 1; i < fragments.length; i++) if (fragments[i].age > fragments[oldest].age) oldest = i;
-            recycleFragment(fragments[oldest], oldest);
-            return { slot: fragments[oldest], index: oldest };
-        }
-
         function spawnFragment(screenX, screenY, size, vx, vy, vz, color, material) {
             if (!motion || !physicsReady || activeFragmentCount >= dynamicLimit) return false;
-            const acquired = acquireFragment();
+            const acquired = fragmentPool.acquire();
             if (!acquired) return false;
             const { slot, index } = acquired;
             const x = toWorldX(screenX, width);
@@ -609,7 +576,7 @@
                 }
                 if (record.phase === 'open') {
                     damageWindows.delete(id);
-                    if (motion && !record.silent && rect) assemblingWindows.set(id, { at: performance.now(), duration: ASSEMBLY_MS, landed: 0 });
+                    if (motion && !record.silent && rect && usable(record)) assemblingWindows.set(id, { at: performance.now(), duration: ASSEMBLY_MS, landed: 0 });
                 }
                 if ((record.phase === 'drag' || record.phase === 'resize') && !record.silent && rect) {
                     const velocity = record.velocity || {};
@@ -619,6 +586,7 @@
                     if (damage) {
                         damage.dragging = true;
                         damage.repairAt = Infinity;
+                        damage.dragAt = performance.now();
                     }
                 }
                 if ((record.phase === 'drag-end' || record.phase === 'resize-end') && damageWindows.has(id)) {
@@ -634,6 +602,7 @@
         }
 
         function onPointerMove(event) {
+            if (tap && event.pointerId === tap.id && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) >= TAP_SLOP_PX) tap = null;
             if (motion && diorama) diorama.setPointer(clamp(event.clientX / width * 2 - 1, -1, 1), clamp(event.clientY / height * 2 - 1, -1, 1), true);
             if (!motion || !physicsReady || event.pointerType === 'touch') return;
             const now = performance.now();
@@ -672,22 +641,37 @@
             requestRender();
         }
 
-        function onPointerDown(event) {
-            const target = event.target;
-            if (!motion || !physicsReady || paused || event.button !== 0 || !(target instanceof Element)) return;
-            if (target.closest(BURST_BLOCKERS) || !target.closest('.vd-workspace')) return;
+        function burstAt(x, y) {
             const now = performance.now();
-            if (now - lastBurstAt < BURST_INTERVAL_MS) return;
+            if (!motion || !physicsReady || paused || now - lastBurstAt < BURST_INTERVAL_MS) return;
             lastBurstAt = now;
             // The cursor's own collider would trap the fragments, so it rests until the next pointer move.
             if (pointerBody && pointerBody.isEnabled()) pointerBody.setEnabled(false);
             for (let i = 0; i < 7; i++) {
-                spawnFragment(event.clientX + randomBetween(-5, 5), event.clientY + randomBetween(-4, 4), randomBetween(6, 11),
+                spawnFragment(x + randomBetween(-5, 5), y + randomBetween(-4, 4), randomBetween(6, 11),
                     randomBetween(-1.4, 1.4), randomBetween(2.2, 3.6), randomBetween(-.3, .3), null, 'earth');
             }
-            graphics.spawnDust(event.clientX, event.clientY, 4);
-            sound('window.impact', .32, event.clientX, 'earth');
+            graphics.spawnDust(x, y, 4);
+            sound('window.impact', .32, x, 'earth');
             requestRender();
+        }
+
+        // Mouse and pen burst on press. A touch may be the start of a pan of the workspace, so it bursts on release instead,
+        // and only when it was a short tap (see onPointerEnd).
+        function onPointerDown(event) {
+            if (event.pointerType === 'touch') tap = null;   // any new touch voids a pending tap (a second finger is a gesture)
+            const target = event.target;
+            if (!motion || !physicsReady || paused || event.button !== 0 || !(target instanceof Element)) return;
+            if (target.closest(BURST_BLOCKERS) || !target.closest('.vd-workspace')) return;
+            if (event.pointerType !== 'touch') burstAt(event.clientX, event.clientY);
+            else if (event.isPrimary) tap = { id: event.pointerId, x: event.clientX, y: event.clientY, at: performance.now() };
+        }
+
+        function onPointerEnd(event) {
+            if (!tap || tap.id !== event.pointerId) return;
+            const { x, y, at } = tap;
+            tap = null;
+            if (event.type === 'pointerup' && performance.now() - at < TAP_MAX_MS && Math.hypot(event.clientX - x, event.clientY - y) < TAP_SLOP_PX) burstAt(x, y);
         }
 
         function onPointerLeave() {
@@ -785,7 +769,7 @@
                 const fade = clamp((slot.age - 3.8) / 1.8, 0, 1);
                 slot.alpha = 1 - fade;
                 if (slot.age > 6.3 || slot.settle > 1.6 || pos.y < -height / PIXELS_PER_METER - 2) {
-                    recycleFragment(slot, i);
+                    fragmentPool.recycle(slot, i);
                 }
                 graphics.setFragmentMatrix(slot, i);
             }
@@ -827,6 +811,17 @@
             adjustQuality(lastRenderCost, performance.now());
         }
 
+        // A window can leave the snapshot mid-effect (space switch, minimise, visibility flip) and a drag-end can fail to arrive;
+        // neither may keep the loop alive: stale assemblies are dropped, and a held drag damage is repaired normally 3 s after the last drag.
+        function reapStaleEffects(now) {
+            for (const [id, assembly] of assemblingWindows) {
+                if (now - assembly.at > assembly.duration + 100 || !records.has(id)) assemblingWindows.delete(id);
+            }
+            for (const damage of damageWindows.values()) {
+                if (damage.dragging && now - damage.dragAt > DRAG_HOLD_MAX_MS) { damage.dragging = false; damage.repairAt = now + 1100; }
+            }
+        }
+
         function animate(time) {
             raf = 0;
             if (stopped || paused || !graphics.rendererReady || graphics.contextLost) return;
@@ -847,6 +842,7 @@
             }
             snapshot(false);
             graphics.updateDust(dt);
+            reapStaleEffects(begin);
             // The update also settles the tiles and removes an assembly once it has finished.
             if (assemblingWindows.size) graphics.updateSceneInstances();
             const assembling = assemblingWindows.size > 0;
@@ -1046,6 +1042,8 @@
         window.addEventListener('aurago:desktop-windows-refresh', onRefresh, { signal });
         document.addEventListener('pointermove', onPointerMove, { passive: true, signal });
         document.addEventListener('pointerdown', onPointerDown, { passive: true, signal });
+        document.addEventListener('pointerup', onPointerEnd, { passive: true, signal });
+        document.addEventListener('pointercancel', onPointerEnd, { passive: true, signal });
         document.addEventListener('pointerleave', onPointerLeave, { passive: true, signal });
         document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); else resume(); }, { signal });
         if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', stop, { once: true });

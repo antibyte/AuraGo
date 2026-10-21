@@ -7739,6 +7739,10 @@ void main() {
         { dpr: .85, shadow: 0, tilt: false, life: 0, interval: 0 },
         { dpr: 1, shadow: 0, tilt: false, life: 0, interval: 0, hidden: true }
     ];
+    // Backbuffer budget per quality level in pixels: the pixel ratio is lowered until width x height x dpr^2 fits, and CSS scales
+    // the canvas up (Q4 is hidden and shares Q3's value). MSAA is only requested when the first Q0 picture fits the Q0 budget.
+    const PIXEL_BUDGET = [3.7e6, 3.0e6, 2.2e6, 1.6e6, 1.6e6];
+    const MSAA_MAX_PIXELS = PIXEL_BUDGET[0];
     const FRAME_SLACK = 3;                // ms; requestAnimationFrame ticks are quantised
     const THROTTLE = { coverage: .96, interval: 500 };   // a window that hides the scene slows it down
     const STATIC_REFRESH_MS = 60000;
@@ -7751,7 +7755,7 @@ void main() {
     // Q3 renders one timed frame (including GPU time) every PROBE_MS; upAfterMs worth of probes under upCost step up to Q2.
     const PROBE = { level: 3, everyMs: 5000 };
     const RESIZE_DEBOUNCE_MS = 150;       // static redraw after a resize, and the stable-size wait before the tilt-shift target is recreated
-    const INITIAL_PIXELS = 4.2e6;
+    const INITIAL_PIXELS = 4.2e6;         // a display demanding more (before the pixel budget caps it) starts at Q1
     const SOFTWARE_GPU = /swiftshader|llvmpipe|lavapipe|softpipe|software|basic render/i;
 
     function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -7912,9 +7916,18 @@ void main() {
             renderer = null;
         }
 
+        function cssSize() {
+            const s = state();
+            return [Number(s.width) || window.innerWidth || 1, Number(s.height) || window.innerHeight || 1];
+        }
+
         function createRenderer() {
+            // Multisampling a large backbuffer costs memory and fill rate that the budgeted size and CSS scaling make up for.
+            const [cssW, cssH] = cssSize();
+            const ratio = Math.min(window.devicePixelRatio || 1, QUALITY[0].dpr);
+            const antialias = cssW * cssH * ratio * ratio <= MSAA_MAX_PIXELS;
             try {
-                renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'default', stencil: false, depth: true });
+                renderer = new THREE.WebGLRenderer({ canvas, antialias, alpha: false, powerPreference: 'default', stencil: false, depth: true });
             } catch (error) {
                 renderer = null;
                 backend = 'error';
@@ -8231,7 +8244,7 @@ void main() {
             const s = state();
             width = Math.max(1, Math.round(Number(s.width) || window.innerWidth || 1));
             height = Math.max(1, Math.round(Number(s.height) || window.innerHeight || 1));
-            dpr = Math.min(window.devicePixelRatio || 1, QUALITY[quality].dpr);
+            dpr = Math.min(window.devicePixelRatio || 1, QUALITY[quality].dpr, Math.sqrt(PIXEL_BUDGET[quality] / (width * height)));
         }
 
         // The tilt-shift target is drawn at min(dpr, 1); the post pass scales it to the canvas.
@@ -8537,9 +8550,7 @@ void main() {
                 buildLighting();
                 buildWorld();
                 buildPost();
-                const s = state();
-                const w = Number(s.width) || window.innerWidth || 1;
-                const h = Number(s.height) || window.innerHeight || 1;
+                const [w, h] = cssSize();
                 const ratio = Math.min(window.devicePixelRatio || 1, QUALITY[0].dpr);
                 initialQuality = w * h * ratio * ratio > INITIAL_PIXELS ? 1 : 0;
                 quality = -1;
@@ -8605,7 +8616,7 @@ void main() {
                 try { lifeState = life.inspect(); } catch (_) { lifeState = null; }
             }
             return {
-                ready, backend, gpu, quality, qualityLocked: qualityLock !== null, fps: Math.round(stamps.length / 2 * 10) / 10, frames, buildMs,
+                ready, backend, gpu, quality, qualityLocked: qualityLock !== null, pixels: renderer ? canvas.width * canvas.height : 0, fps: Math.round(stamps.length / 2 * 10) / 10, frames, buildMs,
                 hour: sky ? Math.round(sky.hour * 100) / 100 : null, phase: sky ? sky.phase : '', night: sky ? Math.round(sky.night * 100) / 100 : 0,
                 triangles: Math.round(triangles), voxels, shadows: shadowOn, tiltShift: tiltOn, throttled,
                 lastCostMs: Math.round(lastCost * 10) / 10, gapMs: gaps.length ? Math.round(mean(gaps) * 10) / 10 : 0, refreshMs: Math.round(refresh * 10) / 10,
@@ -9217,6 +9228,75 @@ void main() {
 })();
 
 ;
+/* ui/js/desktop/theme-fx/voxel-fragments.js */
+(function () {
+    'use strict';
+
+    // The pool of rigid-body cubes behind the fragments of the voxel overlay. Cubes are created in batches of 32 up to
+    // maxFragments, reused once recycled, and the oldest one is taken over when every slot is busy. voxel_world.js owns the
+    // physics world, the bookkeeping of active fragments and the stepping; this part only creates, finds and retires slots.
+    const BATCH = 32;
+
+    // options: fragments (the shared slot array) and colliderToFragment (collider handle -> slot), graphics (AuraVoxelGraphics
+    // instance), materials, maxFragments, physics() -> { ready, world, RAPIER } read when needed, onRecycled() after a slot was retired.
+    function create(options) {
+        const { fragments, colliderToFragment, graphics, materials, maxFragments, physics, onRecycled } = options;
+
+        function ensure(minimum) {
+            const { ready, world, RAPIER } = physics();
+            if (!ready || !graphics.rendererReady) return;
+            const desired = Math.min(maxFragments, Math.max(minimum || 0, Math.min(BATCH, fragments.length + BATCH)));
+            while (fragments.length < desired) {
+                const body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setEnabled(false).setCanSleep(true)
+                    .setLinearDamping(.18).setAngularDamping(.22).setCcdEnabled(true));
+                const collider = world.createCollider(RAPIER.ColliderDesc.cuboid(.055, .055, .055)
+                    .setDensity(1.7).setFriction(.78).setRestitution(.19)
+                    .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS)
+                    .setContactForceEventThreshold(.018), body);
+                body.setEnabled(false);
+                const slot = { body, collider, active: false, age: 0, settle: 0, size: 10, alpha: 1, lastImpactAge: -1, incoming: { x: 0, y: 0, z: 0 }, material: 'stone' };
+                fragments.push(slot);
+                colliderToFragment.set(collider.handle, slot);
+                graphics.setFragmentSlot(fragments.length - 1, materials.stone[0]);
+            }
+            graphics.commitFragments(fragments.length);
+        }
+
+        function recycle(slot, index) {
+            if (!slot || !slot.active) return;
+            slot.active = false;
+            slot.age = 0;
+            slot.settle = 0;
+            slot.alpha = 0;
+            slot.body.setEnabled(false);
+            graphics.setFragmentOpacity(index, 0);
+            onRecycled();
+        }
+
+        // A free slot as { slot, index }, a freshly grown one, or the oldest active one taken over; null while there is no physics.
+        function acquire() {
+            if (!physics().ready) return null;
+            for (let i = 0; i < fragments.length; i++) {
+                if (!fragments[i].active) return { slot: fragments[i], index: i };
+            }
+            if (fragments.length < maxFragments) {
+                const oldLength = fragments.length;
+                ensure(Math.min(maxFragments, oldLength + BATCH));
+                return fragments.length > oldLength ? { slot: fragments[oldLength], index: oldLength } : null;
+            }
+            let oldest = 0;
+            for (let i = 1; i < fragments.length; i++) if (fragments[i].age > fragments[oldest].age) oldest = i;
+            recycle(fragments[oldest], oldest);
+            return { slot: fragments[oldest], index: oldest };
+        }
+
+        return { ensure, recycle, acquire };
+    }
+
+    window.AuraVoxelFragments = Object.freeze({ create });
+})();
+
+;
 /* ui/js/desktop/theme-fx/voxel_world.js */
 (function () {
     'use strict';
@@ -9229,7 +9309,12 @@ void main() {
     // A click on the bare desktop (.vd-workspace) bursts into earth fragments, unless it lands on any of these.
     const BURST_BLOCKERS = '.vd-window, .vd-icon, .vd-widget, .vd-taskbar, .vd-dock, .vd-start-menu, .vd-context-menu, .vd-modal-backdrop, .vd-toast-container, .vd-global-menu, .vd-radial-menu, .vd-sip-phone-gadget, button, a, input, textarea, select, [contenteditable]';
     const BURST_INTERVAL_MS = 350;
+    // A touch bursts only as a tap: it must end within TAP_MAX_MS and move less than TAP_SLOP_PX, else it was the start of a pan.
+    const TAP_MAX_MS = 500;
+    const TAP_SLOP_PX = 8;
     const ASSEMBLY_MS = 620;
+    // A frame hole held open while a window is dragged is repaired this long after the last drag or resize event at the latest.
+    const DRAG_HOLD_MAX_MS = 3000;
     const MATERIALS = window.AuraVoxelGraphics.materials;
 
     function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -9285,6 +9370,7 @@ void main() {
         let lastSoundAt = 0;
         let lastPointerShearAt = 0;
         let lastBurstAt = 0;
+        let tap = null;                   // the touch that might become a tap: { id, x, y, at }
         let pointerInside = false;
         let pointerX = -1000;
         let pointerY = -1000;
@@ -9334,6 +9420,12 @@ void main() {
                 raf = 0;
             },
             onContextRestored: () => requestRender()
+        });
+
+        const fragmentPool = window.AuraVoxelFragments.create({
+            fragments, colliderToFragment, graphics, materials: MATERIALS, maxFragments: MAX_FRAGMENTS,
+            physics: () => ({ ready: physicsReady, world: physicsWorld, RAPIER }),
+            onRecycled: () => { if (activeFragmentCount > 0) activeFragmentCount--; }
         });
 
         function snapshot(force) {
@@ -9588,12 +9680,13 @@ void main() {
             const key = String(id);
             let damage = damageWindows.get(key);
             if (!damage) {
-                damage = { holes: new Set(), repairAt: performance.now() + 1100, dragging: false };
+                damage = { holes: new Set(), repairAt: performance.now() + 1100, dragging: false, dragAt: 0 };
                 damageWindows.set(key, damage);
             }
             if (damage.holes.size < 18) damage.holes.add(side + ':' + Math.max(0, index | 0));
             damage.dragging = !!dragging;
             damage.repairAt = dragging ? Infinity : performance.now() + 1100;
+            if (dragging) damage.dragAt = performance.now();
             return damage;
         }
 
@@ -9628,55 +9721,9 @@ void main() {
             });
         }
 
-        function ensureFragmentPool(minimum) {
-            if (!physicsReady || !graphics.rendererReady) return;
-            const desired = Math.min(MAX_FRAGMENTS, Math.max(minimum || 0, Math.min(32, fragments.length + 32)));
-            while (fragments.length < desired) {
-                const body = physicsWorld.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setEnabled(false).setCanSleep(true)
-                    .setLinearDamping(.18).setAngularDamping(.22).setCcdEnabled(true));
-                const collider = physicsWorld.createCollider(RAPIER.ColliderDesc.cuboid(.055, .055, .055)
-                    .setDensity(1.7).setFriction(.78).setRestitution(.19)
-                    .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS)
-                    .setContactForceEventThreshold(.018), body);
-                body.setEnabled(false);
-                const slot = { body, collider, active: false, age: 0, settle: 0, size: 10, alpha: 1, lastImpactAge: -1, incoming: { x: 0, y: 0, z: 0 }, material: 'stone' };
-                fragments.push(slot);
-                colliderToFragment.set(collider.handle, slot);
-                graphics.setFragmentSlot(fragments.length - 1, MATERIALS.stone[0]);
-            }
-            graphics.commitFragments(fragments.length);
-        }
-
-        function recycleFragment(slot, index) {
-            if (!slot || !slot.active) return;
-            slot.active = false;
-            slot.age = 0;
-            slot.settle = 0;
-            slot.alpha = 0;
-            slot.body.setEnabled(false);
-            graphics.setFragmentOpacity(index, 0);
-            if (activeFragmentCount > 0) activeFragmentCount--;
-        }
-
-        function acquireFragment() {
-            if (!physicsReady) return null;
-            for (let i = 0; i < fragments.length; i++) {
-                if (!fragments[i].active) return { slot: fragments[i], index: i };
-            }
-            if (fragments.length < MAX_FRAGMENTS) {
-                const oldLength = fragments.length;
-                ensureFragmentPool(Math.min(MAX_FRAGMENTS, oldLength + 32));
-                return fragments.length > oldLength ? { slot: fragments[oldLength], index: oldLength } : null;
-            }
-            let oldest = 0;
-            for (let i = 1; i < fragments.length; i++) if (fragments[i].age > fragments[oldest].age) oldest = i;
-            recycleFragment(fragments[oldest], oldest);
-            return { slot: fragments[oldest], index: oldest };
-        }
-
         function spawnFragment(screenX, screenY, size, vx, vy, vz, color, material) {
             if (!motion || !physicsReady || activeFragmentCount >= dynamicLimit) return false;
-            const acquired = acquireFragment();
+            const acquired = fragmentPool.acquire();
             if (!acquired) return false;
             const { slot, index } = acquired;
             const x = toWorldX(screenX, width);
@@ -9829,7 +9876,7 @@ void main() {
                 }
                 if (record.phase === 'open') {
                     damageWindows.delete(id);
-                    if (motion && !record.silent && rect) assemblingWindows.set(id, { at: performance.now(), duration: ASSEMBLY_MS, landed: 0 });
+                    if (motion && !record.silent && rect && usable(record)) assemblingWindows.set(id, { at: performance.now(), duration: ASSEMBLY_MS, landed: 0 });
                 }
                 if ((record.phase === 'drag' || record.phase === 'resize') && !record.silent && rect) {
                     const velocity = record.velocity || {};
@@ -9839,6 +9886,7 @@ void main() {
                     if (damage) {
                         damage.dragging = true;
                         damage.repairAt = Infinity;
+                        damage.dragAt = performance.now();
                     }
                 }
                 if ((record.phase === 'drag-end' || record.phase === 'resize-end') && damageWindows.has(id)) {
@@ -9854,6 +9902,7 @@ void main() {
         }
 
         function onPointerMove(event) {
+            if (tap && event.pointerId === tap.id && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) >= TAP_SLOP_PX) tap = null;
             if (motion && diorama) diorama.setPointer(clamp(event.clientX / width * 2 - 1, -1, 1), clamp(event.clientY / height * 2 - 1, -1, 1), true);
             if (!motion || !physicsReady || event.pointerType === 'touch') return;
             const now = performance.now();
@@ -9892,22 +9941,37 @@ void main() {
             requestRender();
         }
 
-        function onPointerDown(event) {
-            const target = event.target;
-            if (!motion || !physicsReady || paused || event.button !== 0 || !(target instanceof Element)) return;
-            if (target.closest(BURST_BLOCKERS) || !target.closest('.vd-workspace')) return;
+        function burstAt(x, y) {
             const now = performance.now();
-            if (now - lastBurstAt < BURST_INTERVAL_MS) return;
+            if (!motion || !physicsReady || paused || now - lastBurstAt < BURST_INTERVAL_MS) return;
             lastBurstAt = now;
             // The cursor's own collider would trap the fragments, so it rests until the next pointer move.
             if (pointerBody && pointerBody.isEnabled()) pointerBody.setEnabled(false);
             for (let i = 0; i < 7; i++) {
-                spawnFragment(event.clientX + randomBetween(-5, 5), event.clientY + randomBetween(-4, 4), randomBetween(6, 11),
+                spawnFragment(x + randomBetween(-5, 5), y + randomBetween(-4, 4), randomBetween(6, 11),
                     randomBetween(-1.4, 1.4), randomBetween(2.2, 3.6), randomBetween(-.3, .3), null, 'earth');
             }
-            graphics.spawnDust(event.clientX, event.clientY, 4);
-            sound('window.impact', .32, event.clientX, 'earth');
+            graphics.spawnDust(x, y, 4);
+            sound('window.impact', .32, x, 'earth');
             requestRender();
+        }
+
+        // Mouse and pen burst on press. A touch may be the start of a pan of the workspace, so it bursts on release instead,
+        // and only when it was a short tap (see onPointerEnd).
+        function onPointerDown(event) {
+            if (event.pointerType === 'touch') tap = null;   // any new touch voids a pending tap (a second finger is a gesture)
+            const target = event.target;
+            if (!motion || !physicsReady || paused || event.button !== 0 || !(target instanceof Element)) return;
+            if (target.closest(BURST_BLOCKERS) || !target.closest('.vd-workspace')) return;
+            if (event.pointerType !== 'touch') burstAt(event.clientX, event.clientY);
+            else if (event.isPrimary) tap = { id: event.pointerId, x: event.clientX, y: event.clientY, at: performance.now() };
+        }
+
+        function onPointerEnd(event) {
+            if (!tap || tap.id !== event.pointerId) return;
+            const { x, y, at } = tap;
+            tap = null;
+            if (event.type === 'pointerup' && performance.now() - at < TAP_MAX_MS && Math.hypot(event.clientX - x, event.clientY - y) < TAP_SLOP_PX) burstAt(x, y);
         }
 
         function onPointerLeave() {
@@ -10005,7 +10069,7 @@ void main() {
                 const fade = clamp((slot.age - 3.8) / 1.8, 0, 1);
                 slot.alpha = 1 - fade;
                 if (slot.age > 6.3 || slot.settle > 1.6 || pos.y < -height / PIXELS_PER_METER - 2) {
-                    recycleFragment(slot, i);
+                    fragmentPool.recycle(slot, i);
                 }
                 graphics.setFragmentMatrix(slot, i);
             }
@@ -10047,6 +10111,17 @@ void main() {
             adjustQuality(lastRenderCost, performance.now());
         }
 
+        // A window can leave the snapshot mid-effect (space switch, minimise, visibility flip) and a drag-end can fail to arrive;
+        // neither may keep the loop alive: stale assemblies are dropped, and a held drag damage is repaired normally 3 s after the last drag.
+        function reapStaleEffects(now) {
+            for (const [id, assembly] of assemblingWindows) {
+                if (now - assembly.at > assembly.duration + 100 || !records.has(id)) assemblingWindows.delete(id);
+            }
+            for (const damage of damageWindows.values()) {
+                if (damage.dragging && now - damage.dragAt > DRAG_HOLD_MAX_MS) { damage.dragging = false; damage.repairAt = now + 1100; }
+            }
+        }
+
         function animate(time) {
             raf = 0;
             if (stopped || paused || !graphics.rendererReady || graphics.contextLost) return;
@@ -10067,6 +10142,7 @@ void main() {
             }
             snapshot(false);
             graphics.updateDust(dt);
+            reapStaleEffects(begin);
             // The update also settles the tiles and removes an assembly once it has finished.
             if (assemblingWindows.size) graphics.updateSceneInstances();
             const assembling = assemblingWindows.size > 0;
@@ -10266,6 +10342,8 @@ void main() {
         window.addEventListener('aurago:desktop-windows-refresh', onRefresh, { signal });
         document.addEventListener('pointermove', onPointerMove, { passive: true, signal });
         document.addEventListener('pointerdown', onPointerDown, { passive: true, signal });
+        document.addEventListener('pointerup', onPointerEnd, { passive: true, signal });
+        document.addEventListener('pointercancel', onPointerEnd, { passive: true, signal });
         document.addEventListener('pointerleave', onPointerLeave, { passive: true, signal });
         document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); else resume(); }, { signal });
         if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', stop, { once: true });

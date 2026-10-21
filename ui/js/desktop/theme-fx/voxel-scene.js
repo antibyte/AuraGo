@@ -65,6 +65,10 @@
         { dpr: .85, shadow: 0, tilt: false, life: 0, interval: 0 },
         { dpr: 1, shadow: 0, tilt: false, life: 0, interval: 0, hidden: true }
     ];
+    // Backbuffer budget per quality level in pixels: the pixel ratio is lowered until width x height x dpr^2 fits, and CSS scales
+    // the canvas up (Q4 is hidden and shares Q3's value). MSAA is only requested when the first Q0 picture fits the Q0 budget.
+    const PIXEL_BUDGET = [3.7e6, 3.0e6, 2.2e6, 1.6e6, 1.6e6];
+    const MSAA_MAX_PIXELS = PIXEL_BUDGET[0];
     const FRAME_SLACK = 3;                // ms; requestAnimationFrame ticks are quantised
     const THROTTLE = { coverage: .96, interval: 500 };   // a window that hides the scene slows it down
     const STATIC_REFRESH_MS = 60000;
@@ -77,7 +81,7 @@
     // Q3 renders one timed frame (including GPU time) every PROBE_MS; upAfterMs worth of probes under upCost step up to Q2.
     const PROBE = { level: 3, everyMs: 5000 };
     const RESIZE_DEBOUNCE_MS = 150;       // static redraw after a resize, and the stable-size wait before the tilt-shift target is recreated
-    const INITIAL_PIXELS = 4.2e6;
+    const INITIAL_PIXELS = 4.2e6;         // a display demanding more (before the pixel budget caps it) starts at Q1
     const SOFTWARE_GPU = /swiftshader|llvmpipe|lavapipe|softpipe|software|basic render/i;
 
     function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -238,9 +242,18 @@
             renderer = null;
         }
 
+        function cssSize() {
+            const s = state();
+            return [Number(s.width) || window.innerWidth || 1, Number(s.height) || window.innerHeight || 1];
+        }
+
         function createRenderer() {
+            // Multisampling a large backbuffer costs memory and fill rate that the budgeted size and CSS scaling make up for.
+            const [cssW, cssH] = cssSize();
+            const ratio = Math.min(window.devicePixelRatio || 1, QUALITY[0].dpr);
+            const antialias = cssW * cssH * ratio * ratio <= MSAA_MAX_PIXELS;
             try {
-                renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'default', stencil: false, depth: true });
+                renderer = new THREE.WebGLRenderer({ canvas, antialias, alpha: false, powerPreference: 'default', stencil: false, depth: true });
             } catch (error) {
                 renderer = null;
                 backend = 'error';
@@ -557,7 +570,7 @@
             const s = state();
             width = Math.max(1, Math.round(Number(s.width) || window.innerWidth || 1));
             height = Math.max(1, Math.round(Number(s.height) || window.innerHeight || 1));
-            dpr = Math.min(window.devicePixelRatio || 1, QUALITY[quality].dpr);
+            dpr = Math.min(window.devicePixelRatio || 1, QUALITY[quality].dpr, Math.sqrt(PIXEL_BUDGET[quality] / (width * height)));
         }
 
         // The tilt-shift target is drawn at min(dpr, 1); the post pass scales it to the canvas.
@@ -863,9 +876,7 @@
                 buildLighting();
                 buildWorld();
                 buildPost();
-                const s = state();
-                const w = Number(s.width) || window.innerWidth || 1;
-                const h = Number(s.height) || window.innerHeight || 1;
+                const [w, h] = cssSize();
                 const ratio = Math.min(window.devicePixelRatio || 1, QUALITY[0].dpr);
                 initialQuality = w * h * ratio * ratio > INITIAL_PIXELS ? 1 : 0;
                 quality = -1;
@@ -931,7 +942,7 @@
                 try { lifeState = life.inspect(); } catch (_) { lifeState = null; }
             }
             return {
-                ready, backend, gpu, quality, qualityLocked: qualityLock !== null, fps: Math.round(stamps.length / 2 * 10) / 10, frames, buildMs,
+                ready, backend, gpu, quality, qualityLocked: qualityLock !== null, pixels: renderer ? canvas.width * canvas.height : 0, fps: Math.round(stamps.length / 2 * 10) / 10, frames, buildMs,
                 hour: sky ? Math.round(sky.hour * 100) / 100 : null, phase: sky ? sky.phase : '', night: sky ? Math.round(sky.night * 100) / 100 : 0,
                 triangles: Math.round(triangles), voxels, shadows: shadowOn, tiltShift: tiltOn, throttled,
                 lastCostMs: Math.round(lastCost * 10) / 10, gapMs: gaps.length ? Math.round(mean(gaps) * 10) / 10 : 0, refreshMs: Math.round(refresh * 10) / 10,

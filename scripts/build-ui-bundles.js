@@ -162,6 +162,7 @@ const jsBundles = [
       'ui/js/desktop/theme-fx/voxel-life.js',
       'ui/js/desktop/theme-fx/voxel-scene.js',
       'ui/js/desktop/theme-fx/voxel-graphics.js',
+      'ui/js/desktop/theme-fx/voxel-fragments.js',
       'ui/js/desktop/theme-fx/voxel_world.js'
     ]
   },

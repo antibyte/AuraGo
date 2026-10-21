@@ -324,6 +324,24 @@ func TestDesktopExperienceVoxelPhysicsBrowser(t *testing.T) {
 	s.waitFor(t, "Rapier contact-force events", 7*time.Second, `()=>AuraDesktopThemeFx.inspect().physicsCollisionCount>0`)
 	t.Log("six-window physics:", s.eval(t, `()=>AuraDesktopThemeFx.inspect()`).Value.String())
 	s.waitFor(t, "bounded fragment retirement", 12*time.Second, `()=>AuraDesktopThemeFx.inspect().fragmentCount===0 && !AuraDesktopThemeFx.inspect().rafPending`)
+	// A window that leaves the snapshot while it assembles (space switch, minimise) and a drag whose end never arrives must not keep
+	// the overlay loop alive: the orphaned assembly is reaped on the next frame, a held drag damage is repaired 3 s after the last drag.
+	if !s.eval(t, `()=>{dispatchEvent(new CustomEvent('aurago:desktop-window',{detail:{id:'orphan-assembly',phase:'open',visible:true,minimized:false,rect:{x:300,y:300,width:200,height:150}}}));return AuraDesktopThemeFx.inspect().rafPending;}`).Value.Bool() {
+		t.Fatal("the overlay loop did not start for the opened window")
+	}
+	s.waitFor(t, "orphaned assembly reaped", 2*time.Second, `()=>!AuraDesktopThemeFx.inspect().rafPending`)
+	// A touch on the bare desktop bursts only as a tap (released within 500 ms and 8 px, not cancelled); a pan that starts on it does not.
+	touch := s.eval(t, `()=>{const el=document.elementFromPoint(400,800);let id=0;const fire=(type,x)=>el.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerType:'touch',pointerId:id,isPrimary:true,button:0,clientX:x,clientY:800}));
+		const count=()=>AuraDesktopThemeFx.inspect().fragmentCount;
+		id=7;fire('pointerdown',400);fire('pointermove',440);fire('pointercancel',440);const afterPan=count();
+		id=8;fire('pointerdown',400);fire('pointermove',440);fire('pointerup',440);const afterDrag=count();
+		id=9;fire('pointerdown',400);const afterDown=count();fire('pointerup',402);
+		return {target:el.className||el.tagName,afterPan,afterDrag,afterDown,afterTap:count()};}`).Value
+	if touch.Get("afterPan").Int() != 0 || touch.Get("afterDrag").Int() != 0 || touch.Get("afterDown").Int() != 0 || touch.Get("afterTap").Int() == 0 {
+		t.Fatalf("touch burst must fire on the release of a tap only: %s", touch.String())
+	}
+	s.eval(t, `()=>{const r=AuraDesktopWindowEffects.snapshot()[0];dispatchEvent(new CustomEvent('aurago:desktop-window',{detail:{...r,phase:'drag',velocity:{x:1500,y:0}}}));}`)
+	s.waitFor(t, "held drag damage repaired", 15*time.Second, `()=>{const f=AuraDesktopThemeFx.inspect();return f.fragmentCount===0 && !f.rafPending;}`)
 	// Exercise a real visibility event through the host and ensure simulation does not advance.
 	s.eval(t, `()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));}`)
 	if !s.eval(t, `async()=>{const before=AuraDesktopThemeFx.inspect();await new Promise(r=>setTimeout(r,200));const after=AuraDesktopThemeFx.inspect();return after.paused && after.frameCount===before.frameCount && after.physicsSteps===before.physicsSteps;}`).Value.Bool() {
