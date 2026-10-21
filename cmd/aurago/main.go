@@ -39,6 +39,7 @@ import (
 	"aurago/internal/logger"
 	"aurago/internal/memory"
 	"aurago/internal/persondetect"
+	"aurago/internal/pixelmatte"
 	"aurago/internal/planner"
 	promptspkg "aurago/internal/prompts"
 	"aurago/internal/push"
@@ -137,6 +138,8 @@ func runIsolatedWorker(args []string, stdin io.Reader, stdout, stderr io.Writer)
 		return embeddings.RunONNXWorker(args[2:], stdin, stdout, stderr), true
 	case persondetect.WorkerFlag:
 		return persondetect.RunWorker(args[2:], stdin, stdout, stderr), true
+	case pixelmatte.WorkerFlag:
+		return pixelmatte.RunWorker(args[2:], stdin, stdout, stderr), true
 	default:
 		return 0, false
 	}
