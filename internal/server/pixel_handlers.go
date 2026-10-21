@@ -45,6 +45,7 @@ func handlePixelConfig(s *Server) http.HandlerFunc {
 			"supports_img2img":   supportsImg2Img,
 			"supports_remove_bg": cfg.Enabled && supportsImg2Img,
 			"supports_upscale":   true,
+			"supports_cutout_ai": pixelCutoutManager(s).Available(),
 			"default_size":       cfg.DefaultSize,
 			"default_quality":    cfg.DefaultQuality,
 			"default_style":      cfg.DefaultStyle,
