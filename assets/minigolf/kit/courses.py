@@ -20,7 +20,8 @@ import os
 
 import bpy
 
-from . import basic_parts, build_track, course_data_moon, course_data_pirate, course_data_temple, cup_parts, export, layout
+from . import basic_parts, build_track, course_data_moon, course_data_pirate, course_data_temple, cup_parts, export, layout, mechanic_data, mechanic_parts
+from . import course_entry
 from .course_entry import entry as manifest_entry
 from .dress import Dresser
 
@@ -76,6 +77,7 @@ def build_course(number, data, world, out, keep_scene=False):
     """Build, export and describe one course; see the module docstring."""
     data = dict(data, number=number)
     track = layout.build(data, world)
+    mech = mechanic_data.resolve(track)
     course_id = "%s-%02d" % (world, number)
     home = bpy.context.window.scene
     scene = bpy.data.scenes.new("%02d - %s" % (number, data.get("name", course_id)))
@@ -89,9 +91,12 @@ def build_course(number, data, world, out, keep_scene=False):
     built = build_track.build(track, scene, model)
     cup_parts.hole_marks(track, scene, model, number)
     dresser.dress(model, built)
+    mech.check(course_entry.bounds(track, dresser.outline_box()))
     dresser.build_structures(model, built)
-    dresser.place()
+    dresser.place(reserved=mech.reserved)
+    mech.check_props(dresser.placements, dresser.catalog)
     dresser.restyle(model)
+    mechanic_parts.build_all(mech, dresser, model)
     dresser.bake(model)
     export.join_scenery(model)
     bpy.context.window.scene = scene

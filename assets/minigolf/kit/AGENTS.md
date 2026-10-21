@@ -275,8 +275,8 @@ with probe content. The steps:
   `min(water - 0.4, lowest floor - 4)` (moon: second only) to the highest floor or cannon arc + 6; `water` = sea slab
   (pirate, temple), ponds and, outside the moon, gap volumes. `mechanics`, `obstacles` and `cycle` are passed through
   from the data. Budgets are enforced by `courses.check_budget`: 1.25 MiB, 36,000 triangles, 32 mesh nodes.
-- Structures (supports, bridges, tunnels, ponds, trench walls) are described in "Structures (P3)". Not built here:
-  the mechanic and obstacle parts.
+- Structures (supports, bridges, tunnels, ponds, trench walls) are described in "Structures (P3)", the mechanic and
+  obstacle parts in "Mechanics and obstacles (P3)".
 
 ### Structures (P3)
 
@@ -333,6 +333,47 @@ checks the rules below. A track without structures builds bit-identically.
   `trim_facets` (facets of the rounded rail-trim top, default 4, 1-6). Heavy courses (loop, half-pipe, fork and funnel
   together) use them to stay inside 1.25 MiB and 36,000 triangles: on the moon probe `island_quads` 3000, `loop_sections` 56,
   `trim_facets` 2 saved about 18 % of the triangles and 13 % of the bytes.
+
+### Mechanics and obstacles (P3)
+
+`courses.build_course` calls `mechanic_data.resolve(track)` right after `layout.build`: it converts the authored
+`track.mechanics` / `track.obstacles` into the manifest entries (runtime axes `(x, z, -y)`, the fields that
+`validateMechanic` / `validateObstacle` of `minigolf-mechanics.js` read) and returns a `Resolved` object. After `dress`
+`Resolved.check(bounds)` tests positions and cannon flights, `dresser.place(reserved=...)` keeps random props away, after
+`place` `check_props` tests the flights against the placed props, and after `restyle` `mechanic_parts.build_all` builds the
+parts: static parts are baked scenery (`Dresser.extra`), moving nodes go to `Dresser.pass_parts` (plain colours) and
+`Dresser.movers` (hidden from the AO bake). `course_entry.entry` runs `mechanic_data.validate_runtime`, the Python mirror of
+the two validators plus the cycle rule. Plain Python: `mechanic_floor`, `mechanic_data`, `obstacle_data`, `cannon_flight`;
+Blender: `mech_util`, `mechanic_parts` (bumper, boost), `mechanic_portals` (teleporter), `mechanic_cannon`,
+`obstacle_parts`, `obstacle_gates`.
+
+- Data (Blender metres, degrees): every entry has `id` (`^[a-z][a-z0-9-]{0,31}$`, unique over mechanics and obstacles) and
+  `kind`, placed by `at` `(x, y[, z])` or by `anchor` (a `("anchor", {"name": ...})` of the piece list) plus `offset`
+  `(forward, left[, up])`; `heading` defaults to the route direction there (relative to the anchor heading with an anchor);
+  `z` is the floor height from the track (the lowest floor where two stretches overlap: give `z`). Unknown keys fail.
+  Mechanics: `bumper` (`radius`, `height`, `kick`, `surface`), `boost` (moon; `length`, `width`, `speed`), `teleport`
+  (`radius`, `exit` as `(x, y[, z])` or a placement dict, `exit_heading`, `min_speed`), `cannon` (pirate; `target`, `flight`,
+  `delay`, `barrel`, `breech`). Obstacles: `rotate` (pirate anchor weight, temple log; `amplitude`, `length`, `swing`
+  `across|along`, `clearance`, `span`), `gate` (all worlds; `travel`, `width`, `height`, `sharp`), `slide` (`width`, `height`,
+  `amplitude`), `boulder` (temple; `radius`, `amplitude`, `move`), `spin` (moon radar arm; `radius`); each with `speed` (rad/s)
+  or `period` (s), `phase`, `surface`. `cycle * speed / (2 pi)` must be a whole number for every obstacle. The docstrings of
+  `mechanic_data` and `obstacle_data` list the defaults.
+- Collision shape = visible core. `obstacle_data` builds one body-frame part list (box, ball, cylinder; Blender axes, X along
+  the body heading, origin = body origin = `obstacle-<id>` node origin) and derives the manifest `colliders` from it;
+  `obstacle_parts` draws the node from the same list: the core is exactly the part extents, relief is flush or inside,
+  slabs are 12 mm thinner than their box so relief never shares a plane. The node has the pose of `obstaclePose(spec, 0)`
+  (`mech_util.pose_matrix`). A bumper's visible core is its collision cylinder (`mechanic_parts._bumper` fails the build
+  when radius or height differ). Gates, gallows and door posts are scenery in world coordinates beside the rails.
+- Teleporter art: pirate floor hatch (entry) and a lying barrel whose open end is at the exit; temple stone arch with idol
+  head (teal glow entry, gold exit); moon transporter pad with a floating ring node `mechanic-<id>-ring` (`<id>-exit-ring`)
+  carrying the node extra `aurago_spin` `{axis: [0, 1, 0], speed}`. The boost pad is a decal draped 5 mm over the floor.
+- Cannon (`cannon_flight`): `velocity = (target - muzzle - g T^2 / 2) / T` in runtime coordinates, the muzzle sits `barrel`
+  m from the breech point along the launch direction (fixed point iteration, elevation 18-72 degrees). Twenty samples of the
+  flight must stay inside `bounds` and 0.5 m from floor, rails, obstacles, bumpers and props (the landing spot within 1 m is
+  exempt from floor and rails). `bounds` takes the apex. In the Rapier probes (1/120 s steps) the first touchdown was within 1 mm of
+  `target`, also uphill onto a floor 0.35 m higher.
+- Budgets seen on scratch courses with everything of a world: bumper 0.7-0.9k triangles, hatch 0.9k, cannon 3.1k, pendulum with
+  gallows 2.0k, gate with frame 1.6-1.8k, boulder 1.3k, radar arm 0.6k; moving nodes are not densified.
 
 ### Placement (`placement.py`)
 

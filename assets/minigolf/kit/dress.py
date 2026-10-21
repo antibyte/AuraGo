@@ -58,6 +58,7 @@ class Dresser:
         self.reserved = []
         self.bake_parts = []
         self.pass_parts = []
+        self.movers = []            # moving nodes (obstacles, spinning rings): hidden from the ambient occlusion bake
         self.placements = []
 
     # -- course data ------------------------------------------------------------
@@ -174,7 +175,7 @@ class Dresser:
         """Bake AO into the diorama parts with the placed props as occluders; templates, obstacles and shore only get ``Col``."""
         bakeable = [self.island] + list(self.trims) + list(self.extra) + list(self.bake_parts)
         passthrough = ([self.shore] if self.shore else []) + list(self.ponds) + list(self.pass_parts)
-        hidden = []
+        hidden = list(self.movers)
         for obj in coll.objects:
             base = _base(obj)
             if base.startswith("floor-"):

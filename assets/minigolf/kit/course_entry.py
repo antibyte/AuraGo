@@ -10,6 +10,7 @@ moon, of every gap; on the moon only ponds (void pools and gaps are holes throug
 
 import copy
 
+from .mechanic_data import validate_runtime
 from .terrain import POND_DEPTH, POND_DROP, TRENCH_Z, WATER_Z
 from .track import BALL_RADIUS, CUP_RADIUS
 
@@ -92,6 +93,7 @@ def entry(number, data, track, dresser, glb_name, glb_bytes, sha256, triangles, 
     """The manifest entry (contract V2) of a built course."""
     limits = bounds(track, box)
     tee = runtime(track.tee)
+    validate_runtime(track.mechanics, track.obstacles, track.cycle, track.gravity)    # what validateMechanic/validateObstacle accept
     return {
         "id": "%s-%02d" % (track.world, number), "number": number, "world": track.world, "par": data["par"],
         "model": glb_name, "sha256": sha256, "bytes": glb_bytes, "triangles": triangles,
