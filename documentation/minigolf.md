@@ -138,7 +138,8 @@ teleporter, a cannon).
   water surfaces over a hollow, not a trench down to the sea.
 - **Track pieces:** straight, curve, banked curve, ramp with a jump, hill and
   dip, steps, funnel, tunnel, bridge, fork with two routes, plaza, and on the moon
-  a loop and a half-pipe. Elevated pieces stand on supports.
+  a loop and a half-pipe. Elevated pieces stand on supports, and a thin metal shell
+  closes the outer side of the loop (the floor has no back face, which the game hides).
 - **Rails:** each world has a trim along its rails: wooden posts (Pirate Bay),
   stone blocks with joints (Jungle Temple), and metal with a neon strip (Moon
   Station). The collision rails are part of the course GLB and hidden at runtime.
@@ -375,8 +376,8 @@ The generator fails earlier for primitive and material limits.
 
 | Item | Limit | Last full build |
 |---|---|---|
-| Runtime package (everything under `ui/3d/minigolf/`) | ≤ 32 MiB | 23,302,639 bytes |
-| Course GLB | ≤ 1.25 MiB and ≤ 36,000 triangles | largest 1,187,592 bytes (moon-18), most triangles 33,877 (temple-12); 494,248 triangles in all |
+| Runtime package (everything under `ui/3d/minigolf/`) | ≤ 32 MiB | 23,318,031 bytes |
+| Course GLB | ≤ 1.25 MiB and ≤ 36,000 triangles | largest 1,203,448 bytes (moon-18), most triangles 33,877 (temple-12); 494,664 triangles in all |
 | Mesh nodes per course GLB | ≤ 32 | enforced |
 | Manifest (`manifest.json`) | ≤ 256 KB | 132,124 bytes |
 | Kit GLB per world | ≤ 3 MiB and ≤ 60,000 triangles | pirate 1,771,100 bytes (46,745 triangles), temple 1,768,908 bytes (57,226), moon 1,489,072 bytes (41,584) |
@@ -388,9 +389,9 @@ The generator fails earlier for primitive and material limits.
 | Game bundle (`ui/js/vendor/minigolf/game.esm.js`) | ≤ 6 MiB | enforced by `scripts/build-minigolf.mjs` |
 | Frame rate per quality tier | at least the baseline measured on the same machine | see the benchmark below |
 
-Sizes of this build: the 18 course GLBs total 15,190,960 bytes, the manifest is
+Sizes of this build: the 18 course GLBs total 15,206,816 bytes, the manifest is
 132,124 bytes (the collision is no longer listed there), the three kits total
-5,029,080 bytes and the course triangles total 494,248.
+5,029,080 bytes and the course triangles total 494,664.
 
 ### Benchmark
 

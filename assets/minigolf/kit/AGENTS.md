@@ -283,8 +283,9 @@ checks the rules below. A track without structures builds bit-identically.
   is the same with or without it), is baked like the other structure parts and merges into the existing `scenery-<material>`
   node. It costs about 8 triangles per loop section (moon-18: +416 triangles, +15.9 KB). Floors and rails stay untouched.
   `shell_geometry(strip)` is plain Python; `structure_selftest.check_loop_shell` checks the winding and the extents. Half-pipes,
-  ramps, banks and other elevated strips need no shell: from the game camera (always above the lane) their underside is a back
-  face that cannot be seen, and a half-pipe's outer wall is covered by the island bed.
+  ramps, banks and other elevated strips need no shell: from the overview camera (37 degrees above the lane, `overviewFor`)
+  their underside is a back face that cannot be seen, and a half-pipe's outer wall is covered by the island bed. Only an orbit
+  camera lowered to the horizon limit (`maxPolarAngle`) looks under an elevated ramp; bridges have their own underside.
 - Bridges (`bridge_parts`): a piece with `deck: "bridge"` gets the floor look `deck` (pirate: planks, temple: bark) or
   `metal` (moon) unless it sets its own `look` (`layout`); railing posts 1.08 m from the centre line (outside the lane,
   rail and trim, which reach 1.03 m) along each side that has a rail wall, with ropes (pirate), a mossy stone curb
