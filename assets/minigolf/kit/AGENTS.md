@@ -395,8 +395,8 @@ Blender: `mech_util`, `mechanic_parts` (bumper, boost), `mechanic_portals` (tele
   other props. `HERO_SOLID` does the same for heroes.
 - Nothing stands in a trench or a pond. Tall props that would hide the lane from the game camera and everything tall in
   front of the hero are skipped; `_blocks_view` covers the ground behind a prop along `VIEW` for `SHADOW` (1.35, the
-  tangent of the 37 degree camera) x its height plus half its radius, as wide as the crown (the lane centre must stay
-  0.4 m + 0.6 x radius from that strip). Fixed props are not checked: keep tall ones on the far (upper left) side of the lanes.
+  tangent of the 37 degree camera) x its height plus half its radius, as wide as the crown (the lane edge and the nearest
+  floor vertex, so wide pads count, must stay 0.3 m + 0.6 x radius from that strip). Fixed props are not checked: keep tall ones on the far (upper left) side of the lanes.
 - Random dressing scales with the island (`placement_plan.scaled`): the counts of `PLANS` are for an island of about
   320 m^2 (half axes 9.6 x 9.4 m); a bigger superellipse multiplies every count with area / 320 m^2 (a single prop stays single
   below a factor of 1.5), so large dioramas are not empty. Every fixed prop circle also enlarges the island (it is part of the

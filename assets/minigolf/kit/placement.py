@@ -33,6 +33,7 @@ CANOPY = 0.5  # share of a tall prop's radius that is solid for other props (the
 HERO_SOLID = 0.6  # the same for a hero (a long thin hull or a head fills little of its enclosing circle)
 VIEW = (-0.58, 0.81)  # horizontal viewing direction of the game camera in Blender XY
 SHADOW = 1.35  # 1 / tan(37 degrees): ground covered behind a prop per metre of its height
+LANE_HALF = 0.86  # half the lane width: the lane edge lies this far from its centre line
 DEFAULT_SINK = 0.03
 TOLERANCE = 0.005  # metres: slack of the rim check for scales rounded to millimetres
 SETTLE_STEP, SETTLE_STEPS = 0.05, 40  # a fixed special that reaches over the rim moves inwards in these steps (metres)
@@ -220,11 +221,13 @@ def _blocks_view(field, x, y, height, radius):
     """True when the prop would hide the lane from the game camera.
 
     The camera looks down at 37 degrees, so a prop of ``height`` covers the ground behind it (along ``VIEW``) for
-    ``SHADOW`` x height, and its crown, ``radius`` wide, reaches half a radius further and as far to each side.
+    ``SHADOW`` x height, and its crown, ``radius`` wide, reaches half a radius further and as far to each side. The
+    lane edge (centre line minus its half width) and the nearest floor vertex (wide pads, plazas, greens) both count.
     """
     reach = SHADOW * height + 0.5 * radius
     for k in (0.2, 0.4, 0.6, 0.8, 1.0):
-        if field.lane(x + VIEW[0] * reach * k, y + VIEW[1] * reach * k)[0] < 0.4 + 0.6 * radius:
+        px, py = x + VIEW[0] * reach * k, y + VIEW[1] * reach * k
+        if min(field.lane(px, py)[0] - LANE_HALF, field.floor_distance(px, py)) < 0.3 + 0.6 * radius:
             return True
     return False
 
