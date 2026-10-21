@@ -19,7 +19,7 @@ This page covers choosing a theme, accessibility and the developer contract. The
 | Electronic Dreams | Taskbar | Dark | Papirus | Fixed amber | Graphite circuit boards, copper traces and quiet signal lights. |
 | Windows XP | Taskbar | Light | Windows XP | Fixed blue | Luna blue gradients, a green Start button, warm controls and a two-column Start menu. |
 | Green Slime | Taskbar | Dark | Papirus | Fixed lime | Glossy lime drips, mossy frames and soft, squishy controls. |
-| Voxel World | Taskbar | Light | Papirus | Fixed forest green | Grass, earth, stone and timber blocks in warm daylight. |
+| Voxel World | Taskbar | Light | Papirus | Fixed forest green | A live voxel island behind the shell, with block-framed windows and an inventory-style taskbar. |
 
 "Your accent" means the Accent color setting applies. Fruity's scheme follows its own Light/Dark setting.
 
@@ -208,7 +208,7 @@ Standard and Fruity have no skin file. Their core tokens live in `desktop-base.c
 - `stop()` runs before the signal is aborted and the layer is removed. Bind listeners to `signal` and release everything in `stop()`.
 - `options.motion` separates material rendering from movement. Electronic Dreams, Green Slime and Voxel World declare `staticFx: true`: reduced motion and disabled animations keep a still frame with no continuous animation loop. Crazy remains entirely inert in this mode. Mobile desktop mode uses the CSS skins and local wallpaper without loading a material renderer.
 - `window.AuraDesktopWindowEffects.snapshot()` exposes visible window geometry. The `aurago:desktop-window` event reports open, focus, drag/resize start/update/end, minimize, restore, maximize, snap and accepted close, with window ID, rectangle, z order, workspace, velocity and restoration-silence information. An `open` precedes focus; a rejected close never emits destruction. Effects must not mutate application state or intercept input.
-- Voxel rendering lives in `voxel-graphics.js`; `voxel_world.js` owns physics and lifecycle. The separate `vendor/desktop-themes/voxel-runtime.js` ESM bundle loads Three.js and Rapier only when needed. Frame cubes use instancing and ranked depth occlusion; shell overlays and window contents are stencil masked. WebGL failure retains the Canvas/CSS fallback.
+- The voxel island renders in `voxel-scene.js`, the block frames and fragments in `voxel-graphics.js`; `voxel_world.js` owns physics and lifecycle. The separate `vendor/desktop-themes/voxel-runtime.js` ESM bundle loads Three.js and Rapier only when needed. Frame cubes use instancing and ranked depth occlusion; shell overlays and window contents are stencil masked. WebGL failure retains the Canvas/CSS fallback.
 - Voxel physics advances at 60 fixed steps per second with at most 256 pooled fragments. Long frame intervals lower render resolution before reducing scenery and fragment budgets. Hidden tabs suspend work; switching themes releases observers, bodies, render targets and WebGL contexts. Hardware frame-rate acceptance is separate from the software-WebGL browser fixture.
 - Budget pattern (`theme-fx/crazy.js`): pools of spans created once, one Web Animation per particle on `transform` and `opacity`, no per-frame loop and no timer. Crazy has 36 confetti and 14 sparkle spans, one confetti burst at a time, at most one sparkle every 33 ms, and no sparkles over app content, the taskbar, menus, dialogs or toasts.
 
@@ -287,6 +287,94 @@ Ambient bubbles follow a Poisson process with a mean interval of about 9 s per w
 - `command('quality', { scale })` pins the render scale between 0.25 and 1, turns off the adaptive watch and returns the scale. It also works in static mode.
 
 `inspect()` returns `ready`, `renderer` (`webgl2` or `canvas2d`), `backdrop` (`texture`, `translucent` or `loading`), `backdropReason`, `qualityScale`, `contextLost` and `error`, which holds the reason for a fallback. WebGL2 timings and counters are `fade`, `gpu`, `compileMs`, `blockedMs`, `parallelCompile`, `firstRenderMs`, `lastRenderMs`, `averageRenderMs`, `drawCalls` and `quadCount`. Frame and mask counters are `frameCount`, `rafPending`, `windowCount`, `maskCount` and `maskRefreshCount`; `soundEvents` counts the sounds handed to `DesktopSounds.play` (the sound system decides what is heard). Simulation counters are `dropCount`, `activeDrops`, `sprayCount`, `activeSpray`, `splatCount`, `activeSplats`, `absorbedDrops`, `bubbleCount`, `activeBubbles`, `bubbleBursts`, `bubbleStages` (live per stage), `bubbleStageEntries` (entries per stage since start), `strandCount`, `strandSnaps`, `activeStrands`, `pokeCount`, `eventCount` (bursts and snaps queued for sound), `rippleEnergy`, `surfaceCount`, `surfaceNodeCount` (windows × 32) and `maxDisplacement`.
+
+### Voxel World
+
+Voxel World has two layers: a live 3D island behind the shell, and pixel-art block frames around windows. Its effect is registered as `voxel_world` and declares `staticFx: true`, so reduced motion keeps a still frame (see *Effects API*).
+
+**Island.** With the theme wallpaper, a 3D voxel diorama renders on its own canvas, `.vd-fx-voxel-scene`. The canvas is fixed at z-index -1, on the same layer as the live wallpapers, so it sits behind the whole shell. The island comes from a procedural generator with a fixed seed:
+
+- a snowy stone mountain with pines;
+- a lake with a dock and a rowing boat;
+- a river that falls over the rim as a waterfall into a sea of voxel clouds, with spray, foam, mist and a daytime rainbow;
+- a village of three houses with chimney smoke;
+- a windmill with turning sails, a wheat field, flowers, lanterns and hanging vines;
+- an underside of stone, ore and glowing crystals.
+
+Two small islets bob nearby.
+
+**Look.** Sun shadows, per-vertex ambient occlusion, subtle texel noise, drifting cloud shadows and depth haze. The top quality level adds a tilt-shift blur and a vignette.
+
+**Day and night.** Dawn, day, golden hour, dusk and night follow the local clock. A pixel sun and moon cross the sky. Stars and shooting stars appear at night, when windows, lanterns and crystals glow and fireflies drift. A bird flock circles by day.
+
+**Interaction.** The pointer turns the camera gently (parallax), and the idle camera breathes. A left click on the empty desktop knocks loose a few grass and dirt blocks with physics and plays `window.impact` (earth), at most once per 350 ms.
+
+**Window frames.** Each app's frame is built from pixel-art blocks in one of three materials:
+
+| Material | Design |
+| --- | --- |
+| Oak planks | Log-end corners, with the boards running along the edge |
+| Cobblestone | Smooth-stone corners |
+| Dirt | A grass top edge |
+
+- Each 8×8 pattern is drawn crisp, with a baked bevel.
+- On open, the tiles drop in around the perimeter over 620 ms, with dust at the corners.
+- On close, the window crumbles into textured Rapier fragments. They pile up on the taskbar line and fade.
+- A fast drag shears tiles off the frame, and the frame repairs itself.
+- Closing a window and shearing tiles play `window.fracture`, as listed under *Effect sounds*.
+
+**Shell.** The shell is styled like an inventory: a hotbar taskbar with bevelled slots and a white frame on the active window, a grass-block start button, oak-plank titlebars with a name plate, stone window buttons with a redstone close button, grey bevelled panels for menus, the start menu, toasts and dialogs, and light parchment window content.
+
+**Wallpaper and fallback.** The image `/img/wallpapers/themes/voxel_world.png` is a render of the island. It shows while the scene loads and wherever WebGL is unavailable. With any other wallpaper, the theme keeps only the block frames and fragments and builds no scene.
+
+**Performance.**
+
+- The ambient loop runs at about 30 fps.
+- The quality ladder follows the achieved frame cadence:
+
+| Level | Behaviour |
+| --- | --- |
+| Q0 | Tilt-shift and a 2048 × 2048 shadow map |
+| Q1 | A 1024 × 1024 shadow map |
+| Q2 | No shadows, life effects at half scale |
+| Q3 | Static, with a probe render every 5 s that can step back up |
+| Q4 | Poster only |
+
+- The loop drops to 2 fps while a window covers 96% or more of the screen.
+- It pauses while the page is hidden.
+- With reduced motion or disabled animations, the scene shows one still frame for the current time of day, refreshed every minute.
+- Software GL (SwiftShader, llvmpipe and similar) is refused, and the poster wallpaper shows. The scene needs a hardware WebGL context.
+
+**Commands.** Tests and screenshots drive the scene through `AuraDesktopThemeFx.command(name, payload)`:
+
+- `voxel.time` `{hour: 0..24 | null}` sets or clears a fixed hour.
+- `voxel.freeze` `{t: seconds | null}` freezes the life clock.
+- `voxel.quality` `{level: 0..4 | null}` locks the quality level.
+
+`AuraDesktopThemeFx.inspect().scene` reports `backend`, `gpu`, `quality`, `fps`, `frames`, `buildMs`, `hour`, `phase`, `night`, `triangles`, `voxels`, `shadows`, `tiltShift`, `throttled`, `anchors` and the life counts.
+
+**Files.** All in `ui/js/desktop/theme-fx/`:
+
+- `voxel-sky.js`: time-of-day model
+- `voxel-island.js`: generator
+- `voxel-mesher.js`: ambient-occlusion mesher
+- `voxel-blocks.js`: pixel-art atlas and material patches
+- `voxel-shaders.js`: sky and tilt-shift GLSL
+- `voxel-life.js`: clouds, waterfall, windmill, smoke, birds, fireflies, halos, islets and the boat
+- `voxel-scene.js`: renderer, camera, light and quality
+- `voxel-graphics.js`: overlay frames, fragments and dust
+- `voxel-runtime-entry.js`: entry of the vendor bundle that loads Three.js and Rapier
+- `voxel_world.js`: orchestrator, registered with fx-core
+
+**Tests.**
+
+- `node scripts/test-ui-regressions.mjs` covers the generator, the mesher and the sky. It needs no browser.
+- The browser tests in `ui/desktop_experience_themes_browser_test.go` need `AURAGO_RUN_BROWSER_SMOKE=1`.
+- The screenshot run writes day-cycle shots, close-ups and frame, assembly and fracture shots to the ignored `reports/desktop-experience-themes/voxel/` folder:
+
+```bash
+AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_THEME_RECORDINGS=1 go test ./ui -run '^TestDesktopVoxelWorldCloseUpsBrowser$' -count=1 -timeout 10m
+```
 
 ### Add a Theme
 
