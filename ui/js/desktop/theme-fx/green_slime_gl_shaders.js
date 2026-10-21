@@ -768,7 +768,8 @@ void main() {
         float z = sqrt(max(1.0 - rho * rho, 0.0));
         vec3 n = normalize(vec3(nl.x * hh / (w + skirt) * 0.95, nl.y * 0.95, z + 0.06));
         float hgt = hh * 1.5 * z;
-        vec4 col = shadeSlime(vPos - n.xy * (0.55 * hgt + 2.0), hgt, n, 1.0, 0.0, 0.9, 1.7, 0.0) * cover;
+        // uFrame.z: the real wallpaper is refracted (1) or the DOM shows through a translucent body (0).
+        vec4 col = shadeSlime(vPos - n.xy * (0.55 * hgt + 2.0), hgt, n, uFrame.z, 0.45 * (1.0 - uFrame.z), 0.9, 1.7, 0.0) * cover;
         vec4 sh = vec4(vec3(0.018, 0.06, 0.008) * shadow, shadow);
         col = col + sh * (1.0 - col.a);
         col *= alpha * uFrame.w;
@@ -793,7 +794,7 @@ void main() {
     float hm = min(ax, ay) * 0.95;
     vec3 n = normalize(vec3(nl.x * hm / ax, nl.y * hm / ay, z + 0.02));
     // A drop is a lens: the backdrop shows up inverted, the path is the whole chord.
-    vec4 col = shadeSlime(vA.xy - l * 0.8, 1.3 * hm * z, n, 1.0, 0.0, 1.0, 1.9, 0.0) * cover;
+    vec4 col = shadeSlime(vA.xy - l * 0.8, 1.3 * hm * z, n, uFrame.z, 0.45 * (1.0 - uFrame.z), 1.0, 1.9, 0.0) * cover;
     vec4 sh = vec4(vec3(0.018, 0.06, 0.008) * shadow, shadow);
     col = col + sh * (1.0 - col.a);
     col *= alpha * uFrame.w;

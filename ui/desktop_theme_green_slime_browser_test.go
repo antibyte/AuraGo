@@ -190,6 +190,19 @@ func checkSlimeAttachedMembrane(t *testing.T, label, renderer, wallpaper string)
 	// The settings pushed above can still restart the effect once; its WebGL2 gel fades in over 400 ms after
 	// every start, so measure only once it stands whole.
 	waitSlimeRenderer(t, s, renderer)
+	if renderer == "webgl2" && wallpaper != "green_slime" {
+		// Drops, spray and splats follow the gel's translucent mode: where the effect cannot refract the
+		// wallpaper the DOM shows through them, so a drop over the bare desktop is visible but not opaque.
+		alpha := s.eval(t, `async()=>{
+			AuraDesktopThemeFx.command('drop',{x:1500,y:200,vx:0,vy:0,r:9});
+			for(let i=0;i<3;i++)await new Promise(requestAnimationFrame);
+			return slimeRegion(1480,180,40,40).alpha(1500,200);
+		}`).Value.Int()
+		t.Logf("drop alpha at its centre in translucent mode: %d", alpha)
+		if alpha < 24 || alpha > 249 {
+			t.Fatalf("a drop in translucent mode has alpha %d at its centre, want visible (>= 24) and see-through (<= 249)", alpha)
+		}
+	}
 	s.eval(t, `()=>sampleSlimeCoverage()`)
 	var start struct{ X, Y float64 }
 	s.evalInto(t, &start, `()=>{const r=slimeDragWindow.element.querySelector('.vd-window-titlebar').getBoundingClientRect();return {X:r.left+170,Y:r.top+20};}`)

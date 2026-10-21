@@ -24,6 +24,8 @@
     const MIN_UNIFORM_VECTORS = 120;
     const COMPILE_TIMEOUT_MS = 30000;
     const FADE_MS = 400;
+    // What the backdrop texture holds when no wallpaper image is bound (a 1x1 dark moss green).
+    const DEFAULT_TEXEL = new Uint8Array([40, 60, 20, 255]);
     const SOFTWARE_GPU = /swiftshader|llvmpipe|lavapipe|softpipe|software|basic render/i;
     const STAGE = { nucleate: 0, grow: 1, hold: 2, burst: 3, crater: 4 };
     const CONTEXT_ATTRIBUTES = { alpha: true, premultipliedAlpha: true, antialias: false, preserveDrawingBuffer: true,
@@ -184,7 +186,7 @@
         const backdropTexture = track('texture', gl.createTexture());
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, backdropTexture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([40, 60, 20, 255]));
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, DEFAULT_TEXEL);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -206,7 +208,15 @@
         function setBackdrop(source) {
             if (lost || disposed) return;
             backdropSource = source || null;
-            if (!source) { backdropReady = false; return; }
+            if (!source) {
+                // Nothing may stay bound from the previous wallpaper: put the default texel back.
+                backdropReady = false;
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, backdropTexture);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, DEFAULT_TEXEL);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                return;
+            }
             try {
                 gl.activeTexture(gl.TEXTURE0);
                 gl.bindTexture(gl.TEXTURE_2D, backdropTexture);
@@ -551,6 +561,8 @@
         if (!parallel && !ready) { dispose(); return null; }
 
         return { kind: 'webgl2', render, resize, setBackdrop, inspect, dispose,
+            // True while the renderer still keeps a reference to this backdrop source.
+            holds(source) { return !!source && backdropSource === source; },
             get ready() { return ready; },
             get maxTextureSize() { return lost ? 0 : gl.getParameter(gl.MAX_TEXTURE_SIZE); } };
     }
