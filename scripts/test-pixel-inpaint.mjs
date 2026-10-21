@@ -134,6 +134,42 @@ check('inpaint fills a textured picture with matching, non-flat content', () => 
     }
 });
 
+// A few low-frequency waves: smooth like a sky, no repeating patches to copy from.
+function smoothScene(w, h, seed) {
+    const rand = Lib.mulberry32(seed);
+    const waves = [];
+    for (let k = 0; k < 7; k++) waves.push([rand() * 0.06 + 0.01, rand() * 0.06 + 0.01, rand() * 6.28, rand() * 40 + 15]);
+    return image(w, h, (x, y) => {
+        let v = 128;
+        for (const [fx, fy, phase, amp] of waves) v += amp * Math.sin(fx * x + fy * y + phase);
+        return [v, v * 0.9 + 10, 255 - v * 0.6];
+    });
+}
+
+check('colour adaptation brings the fill closer to smooth surroundings and leaves faithful copies alone', () => {
+    let off = 0, on = 0;
+    for (let seed = 1; seed <= 4; seed++) {
+        const truth = smoothScene(200, 160, seed);
+        const mask = rectMask(200, 160, 70, 50, 60, 50);
+        const before = punched(truth, mask);
+        const without = meanAbsError(Lib.inpaint(before, mask, { adapt: false }).image, truth, mask);
+        const withIt = meanAbsError(Lib.inpaint(before, mask, {}).image, truth, mask);
+        assert.ok(withIt <= without + 0.5, 'seed ' + seed + ': ' + withIt + ' vs ' + without);
+        off += without; on += withIt;
+    }
+    assert.ok(on < off, 'on average the adapted fill is closer: ' + (on / 4).toFixed(2) + ' vs ' + (off / 4).toFixed(2));
+    // Repeating stripes: the copy predicts its surroundings, so the adaptation must not move it.
+    const stripesTruth = stripes(120, 100, 11);
+    const stripesMask = rectMask(120, 100, 30, 30, 40, 40);
+    const stripesHole = punched(stripesTruth, stripesMask);
+    const plainErr = meanAbsError(Lib.inpaint(stripesHole, stripesMask, { adapt: false }).image, stripesTruth, stripesMask);
+    const adaptedErr = meanAbsError(Lib.inpaint(stripesHole, stripesMask, {}).image, stripesTruth, stripesMask);
+    assert.ok(Math.abs(adaptedErr - plainErr) < 0.5, 'stripes: ' + adaptedErr + ' vs ' + plainErr);
+    const exactTruth = stripes(96, 96, 6);
+    const exactMask = rectMask(96, 96, 34, 34, 28, 28);
+    assert.ok(meanAbsError(Lib.inpaint(punched(exactTruth, exactMask), exactMask, {}).image, exactTruth, exactMask) < 1, 'an exact copy stays exact');
+});
+
 check('speed: a 120 px hole in a 512 px image', () => {
     const truth = stripes(512, 512, 6);
     const mask = rectMask(512, 512, 200, 200, 120, 120);

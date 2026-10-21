@@ -439,10 +439,135 @@
                 stats.iterations++;
                 tick(L.targets.length);
             }
+            if (li === 0 && !useAlpha) voteRing(L, work, useAlpha, kernel);
             // The coarser level is no longer needed once its NNF has been handed down.
             L.acc = null; L.ws = null;
         }
         return stats;
+    }
+
+    // What the matched source patches predict for the known pixels right around the hole (the target patches overlap
+    // them). Where the copy is faithful the prediction equals the real pixel; where it is lighter or darker it shows how
+    // much the fill has to be corrected near the border. Stores work.ring = { pred, ok }.
+    function voteRing(L, work, useAlpha, kernel) {
+        const w = L.w, h = L.h, img = L.img, hole = L.hole, pr = L.pr, nx = L.nx, ny = L.ny, nd = L.nd, targets = L.targets;
+        const total = targets.length;
+        const span = pr * 2 + 1, norm = span * span * (useAlpha ? 4 : 3);
+        const acc = new Float32Array(w * h * 3), ws = new Float32Array(w * h);
+        const stride = Math.max(1, Math.floor(total / 2048));
+        const sample = [];
+        for (let k = 0; k < total; k += stride) sample.push(nd[targets[k]] / norm);
+        sample.sort((a, b) => a - b);
+        const sigma2 = Math.max(1, sample[Math.floor(sample.length * 0.75)] || 1);
+        for (let k = 0; k < total; k++) {
+            const p = targets[k], py = (p / w) | 0, px = p - py * w;
+            const qx = nx[p], qy = ny[p];
+            const wp = Math.exp(-(nd[p] / norm) / (2 * sigma2));
+            for (let dy = -pr; dy <= pr; dy++) {
+                const ti = (py + dy) * w + px - pr, si = (qy + dy) * w + qx - pr, ki = (dy + pr) * span;
+                for (let dx = 0; dx < span; dx++) {
+                    const t = ti + dx;
+                    if (hole[t]) continue;
+                    const wt = wp * kernel[ki + dx];
+                    const s4 = (si + dx) * 4;
+                    acc[t * 3] += wt * img[s4];
+                    acc[t * 3 + 1] += wt * img[s4 + 1];
+                    acc[t * 3 + 2] += wt * img[s4 + 2];
+                    ws[t] += wt;
+                }
+            }
+        }
+        const pred = new Float32Array(w * h * 3), ok = new Uint8Array(w * h);
+        for (let i = 0; i < w * h; i++) {
+            if (ws[i] <= 0) continue;
+            pred[i * 3] = acc[i * 3] / ws[i]; pred[i * 3 + 1] = acc[i * 3 + 1] / ws[i]; pred[i * 3 + 2] = acc[i * 3 + 2] / ws[i];
+            ok[i] = 1;
+        }
+        work.ring = { pred, ok };
+    }
+
+    // Colour adaptation: copied patches can sit a little lighter or darker than the pixels around the hole (a sky that
+    // fades). The mismatch between the real pixels around the hole and what the fill predicts for them is averaged on a
+    // coarse grid, spread over the hole by relaxation (harmonic interpolation) and added back, so the fill meets its
+    // surroundings without a visible edge. A faithful copy predicts its surroundings and is left alone.
+    function adaptColors(img, hole, w, h, ring) {
+        if (!ring) return;
+        let bx0 = w, by0 = h, bx1 = -1, by1 = -1;
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (!hole[y * w + x]) continue;
+                if (x < bx0) bx0 = x;
+                if (x > bx1) bx1 = x;
+                if (y < by0) by0 = y;
+                by1 = y;
+            }
+        }
+        if (bx1 < 0) return;
+        let shift = 2;
+        while (Math.max(bx1 - bx0 + 1, by1 - by0 + 1) / (1 << shift) > 24 && shift < 8) shift++;
+        const cell = 1 << shift;
+        const cw = ((w + cell - 1) >> shift), ch = ((h + cell - 1) >> shift), n = cw * ch;
+        const sum = new Float32Array(n * 3), count = new Float32Array(n), isHole = new Uint8Array(n);
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const i = y * w + x, c = (y >> shift) * cw + (x >> shift);
+                if (hole[i]) { isHole[c] = 1; continue; }
+                if (!ring.ok[i]) continue;
+                sum[c * 3] += img[i * 4] - ring.pred[i * 3];
+                sum[c * 3 + 1] += img[i * 4 + 1] - ring.pred[i * 3 + 1];
+                sum[c * 3 + 2] += img[i * 4 + 2] - ring.pred[i * 3 + 2];
+                count[c]++;
+            }
+        }
+        // Cells with ring data (they may overlap the hole border) are fixed, the other hole cells are solved, everything
+        // else is not part of the problem.
+        const delta = new Float32Array(n * 3), state = new Uint8Array(n);
+        const free = [];
+        let fixed = 0;
+        for (let c = 0; c < n; c++) {
+            if (count[c] >= 2) {
+                state[c] = 2; fixed++;
+                delta[c * 3] = sum[c * 3] / count[c]; delta[c * 3 + 1] = sum[c * 3 + 1] / count[c]; delta[c * 3 + 2] = sum[c * 3 + 2] / count[c];
+            } else if (isHole[c]) {
+                state[c] = 1; free.push(c);
+            }
+        }
+        if (!fixed) return;
+        const sweeps = Math.min(800, 80 + 10 * Math.max(cw, ch));
+        for (let s = 0; s < sweeps; s++) {
+            for (let k = 0; k < free.length; k++) {
+                const c = free[k], x = c % cw;
+                let m = 0, r = 0, g = 0, b = 0;
+                const take = j => { if (state[j]) { m++; r += delta[j * 3]; g += delta[j * 3 + 1]; b += delta[j * 3 + 2]; } };
+                if (x > 0) take(c - 1);
+                if (x < cw - 1) take(c + 1);
+                if (c >= cw) take(c - cw);
+                if (c + cw < n) take(c + cw);
+                if (m) { delta[c * 3] = r / m; delta[c * 3 + 1] = g / m; delta[c * 3 + 2] = b / m; }
+            }
+        }
+        const limit = 80;
+        for (let y = by0; y <= by1; y++) {
+            const fy = Math.max(0, Math.min(ch - 1, (y + 0.5) / cell - 0.5));
+            const y0 = Math.floor(fy), y1 = Math.min(ch - 1, y0 + 1), ty = fy - y0;
+            for (let x = bx0; x <= bx1; x++) {
+                if (!hole[y * w + x]) continue;
+                const fx = Math.max(0, Math.min(cw - 1, (x + 0.5) / cell - 0.5));
+                const x0 = Math.floor(fx), x1 = Math.min(cw - 1, x0 + 1), tx = fx - x0;
+                let total = 0, r = 0, g = 0, b = 0;
+                const add = (xx, yy, wt) => {
+                    const j = yy * cw + xx;
+                    if (wt <= 0 || !state[j]) return;
+                    total += wt; r += wt * delta[j * 3]; g += wt * delta[j * 3 + 1]; b += wt * delta[j * 3 + 2];
+                };
+                add(x0, y0, (1 - tx) * (1 - ty)); add(x1, y0, tx * (1 - ty)); add(x0, y1, (1 - tx) * ty); add(x1, y1, tx * ty);
+                if (total <= 0) continue;
+                const o = (y * w + x) * 4;
+                img[o] += Math.max(-limit, Math.min(limit, r / total));
+                img[o + 1] += Math.max(-limit, Math.min(limit, g / total));
+                img[o + 2] += Math.max(-limit, Math.min(limit, b / total));
+            }
+        }
     }
 
     // Premultiplied floats back to 8-bit RGBA, written for the hole pixels only.
@@ -505,6 +630,7 @@
             const work = buildWork(crop, cropMask, rw, rh, threshold);
             if (!work.known) throw new Error('no-sources');
             stats = solve(work, patch, base, rand, hk);
+            if (o.adapt !== false && !work.useAlpha && !stats.fallback) adaptColors(work.img, work.hole, work.w, work.h, work.ring);
             writeHole(work.img, work.hole, rw, rh, out, region, W);
         } else {
             const sw = Math.max(8, Math.round(rw * scale)), sh = Math.max(8, Math.round(rh * scale));
@@ -519,6 +645,7 @@
             const work = buildWork(small.data, smallMask, sw, sh, 127);
             if (!work.known) throw new Error('no-sources');
             stats = solve(work, patch, base, rand, hk);
+            if (o.adapt !== false && !work.useAlpha && !stats.fallback) adaptColors(work.img, work.hole, work.w, work.h, work.ring);
             const filled = { width: sw, height: sh, data: new Uint8ClampedArray(small.data) };
             writeHole(work.img, work.hole, sw, sh, filled, { x: 0, y: 0 }, sw);
             const up = Lib.resizeBilinear(filled, rw, rh);
