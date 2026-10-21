@@ -108,6 +108,64 @@
         'text': 'T'
     };
 
+    // Registry data: rail groups and top-level menus appear in exactly this order.
+    const TOOL_GROUP_ORDER = ['select', 'paint', 'retouch', 'fill', 'shape', 'type', 'view'];
+    // TOOL_GROUPS above holds the built-in tools; group i of it belongs to this registry group.
+    const BUILTIN_TOOL_GROUP_NAMES = ['select', 'paint', 'fill', 'shape', 'type'];
+    const MENU_ORDER = ['file', 'edit', 'image', 'layer', 'select', 'filter', 'generate', 'view', 'ai'];
+    const DOCKS = ['inspector', 'bottom'];
+
+    // --- keyboard shortcuts ---
+    // Shortcuts are compared as canonical strings: "ctrl+alt+shift+key". Ctrl and Meta are the same modifier, letters are
+    // lower case ("Shift+L" and a Shift+L key press both give "shift+l"), '+' and '=' are the same key, and characters that
+    // need Shift on a US keyboard are folded back to their base key plus Shift ("?" is "shift+/").
+    const SHIFTED_SYMBOLS = {
+        '{': '[', '}': ']', ':': ';', '"': '\'', '<': ',', '>': '.', '?': '/', '_': '-', '~': '`', '|': '\\',
+        '!': '1', '@': '2', '#': '3', '$': '4', '%': '5', '^': '6', '&': '7', '*': '8', '(': '9', ')': '0'
+    };
+    const KEY_ALIASES = { del: 'delete', esc: 'escape', space: ' ', spacebar: ' ', return: 'enter', plus: '=', minus: '-' };
+
+    function canonicalKey(key, shift) {
+        const text = String(key == null ? '' : key);
+        if (text === '+' || text === '=') return { key: '=', shift: false };
+        if (text.length === 1) {
+            if (SHIFTED_SYMBOLS[text]) return { key: SHIFTED_SYMBOLS[text], shift: true };
+            return { key: text.toLowerCase(), shift: !!shift };
+        }
+        const lower = text.toLowerCase();
+        return { key: KEY_ALIASES[lower] || lower, shift: !!shift };
+    }
+
+    function joinShortcut(ctrl, alt, shift, key) {
+        return [ctrl ? 'ctrl' : '', alt ? 'alt' : '', shift ? 'shift' : '', key].filter(Boolean).join('+');
+    }
+
+    // "Ctrl+Shift+Z" -> "ctrl+shift+z"; returns '' for text that is not a shortcut.
+    function normalizeShortcut(text) {
+        let rest = String(text == null ? '' : text).trim();
+        if (!rest) return '';
+        let ctrl = false, alt = false, shift = false;
+        for (;;) {
+            const match = /^(ctrl|control|cmd|command|meta|alt|option|shift)\+(?=.)/i.exec(rest);
+            if (!match) break;
+            const name = match[1].toLowerCase();
+            if (name === 'alt' || name === 'option') alt = true;
+            else if (name === 'shift') shift = true;
+            else ctrl = true;
+            rest = rest.slice(match[0].length);
+        }
+        if (!rest) return '';
+        const parsed = canonicalKey(rest, shift);
+        return joinShortcut(ctrl, alt, parsed.shift, parsed.key);
+    }
+
+    function shortcutFromEvent(e) {
+        if (!e || e.key == null) return '';
+        const parsed = canonicalKey(e.key, e.shiftKey);
+        if (['control', 'shift', 'alt', 'meta', 'os'].includes(parsed.key)) return '';
+        return joinShortcut(!!(e.ctrlKey || e.metaKey), !!e.altKey, parsed.shift, parsed.key);
+    }
+
     function bindRuntime(runtime, fn) {
         return function boundRuntimeFunction(...args) {
             return fn.apply(runtime, args);
@@ -115,6 +173,12 @@
     }
 
     Object.assign(Pixel, {
+        TOOL_GROUP_ORDER,
+        BUILTIN_TOOL_GROUP_NAMES,
+        MENU_ORDER,
+        DOCKS,
+        normalizeShortcut,
+        shortcutFromEvent,
         MAX_HISTORY,
         MAX_LAYERS,
         HISTORY_BYTE_BUDGET,
