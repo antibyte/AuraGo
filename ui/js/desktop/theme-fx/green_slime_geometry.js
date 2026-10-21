@@ -19,7 +19,7 @@
     const MAX_GEL_RADIUS = 44;
     const MAX_DEFORMATION = 18;
     const FRAME_DEPTH = 19;
-    const SAG_TOP = 13;
+    const SAG_TOP = 15;
     const SAG_BOTTOM = 24;
     const GRAVITY = 250;
     const SPRAY_GRAVITY = 520;

@@ -15725,6 +15725,11 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     box-shadow: var(--vd-shadow-window), 0 0 0 2px #364c1d, inset 0 2px 2px rgba(235, 255, 183, .13);
     overflow: visible;
 }
+/* While the slime effect layer runs, the gel wraps the window and throws its own soft shadow. The big DOM
+   shadow would darken the real wallpaper around a gel that shows the unshadowed texture, so keep it light. */
+.desktop-body[data-theme="green_slime"]:has(> .vd-theme-fx-layer) .vd-window:not(.maximized) {
+    box-shadow: 0 8px 22px rgba(3, 7, 1, .32), 0 0 0 2px #364c1d, inset 0 2px 2px rgba(235, 255, 183, .13);
+}
 .desktop-body[data-theme="green_slime"] .vd-window.active { border-color: #a7ce55; }
 .desktop-body[data-theme="green_slime"] .vd-window.maximized { border-radius: 0; }
 .desktop-body[data-theme="green_slime"] .vd-window.maximized > .vd-window-titlebar { border-radius: 0; }

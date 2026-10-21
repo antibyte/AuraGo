@@ -82,35 +82,48 @@ vec3 environment(vec3 r, float fill) {
 // The slime material. q: where the backdrop is looked up (the refracted position), h: path thickness in px,
 // n: surface normal, texW: how much of the real backdrop is refracted (1) versus left to the DOM below
 // (0, translucent), aMin: opacity floor of the translucent part, rimK: strength of the dark refracted rim.
-vec4 shadeSlime(vec2 q, float h, vec3 n, float texW, float aMin, float rimK, float gloss) {
+vec4 shadeSlime(vec2 q, float h, vec3 n, float texW, float aMin, float rimK, float gloss, float thin) {
     float ndv = clamp(n.z, 0.0, 1.0);
+    float tilt = sqrt(max(1.0 - ndv * ndv, 0.0));
     float F = 0.025 + 0.975 * pow(1.0 - ndv, 5.0);
     float path = h / max(ndv, 0.35);
     vec3 Tr = exp(-SIGMA * path);
     float wrapL = clamp(dot(n, LIGHT) * 0.5 + 0.5, 0.0, 1.0);
-    vec3 scatter = vec3(0.62, 0.82, 0.22) * (1.0 - exp(-0.05 * h)) * (0.35 + 0.65 * wrapL) * 0.26;
     vec2 nd = normalize(n.xy + vec2(1e-5));
-    float caust = pow(clamp(dot(nd, FOCUS), 0.0, 1.0), 3.0) * smoothstep(0.04, 0.5, 1.0 - ndv) * smoothstep(1.0, 6.0, h);
-    vec3 S = scatter + vec3(0.80, 0.98, 0.36) * caust * 0.32 * gloss;
+    // Which way the flank faces: lit toward the upper-left light, low toward the opposite side.
+    float toLight = dot(nd, vec2(-0.5145, -0.8575));
+    float lit = clamp(toLight * 1.4 - 0.1, 0.0, 1.0);
+    float low = clamp(-toLight * 1.3 - 0.05, 0.0, 1.0);
+    vec3 scatter = vec3(0.62, 0.82, 0.22) * (1.0 - exp(-0.05 * h)) * (0.35 + 0.65 * wrapL) * 0.19;
+    // Focused light: a bright lime band just inside the dark lower rim, and a broad faint glow.
+    float caustBand = exp(-pow((tilt - 0.40) / 0.14, 2.0)) * low * smoothstep(1.0, 5.0, h);
+    float caustWide = pow(clamp(-toLight, 0.0, 1.0), 3.0) * smoothstep(0.04, 0.5, tilt) * smoothstep(1.0, 6.0, h);
+    vec3 S = scatter + vec3(0.80, 0.98, 0.36) * (caustBand * 0.30 + caustWide * 0.10) * gloss;
     float aT = clamp(1.0 - dot(Tr, vec3(0.3333)) + 0.12, aMin, 1.0);
     // Without the real backdrop (translucent mode) a typical wallpaper tone stands in for it, so the gel
     // keeps its body colour near the frame and turns see-through only where it is thin.
     vec4 col = vec4((vec3(0.50, 0.62, 0.26) * Tr + S) * aT, aT);
     if (texW > 0.0) {
-        vec3 bg = backdropAt(q, 0.5 + 0.08 * h);
+        vec3 bg = backdropAt(q, 0.25 + 0.04 * h);
         col = mix(col, vec4(bg * Tr + S, 1.0), texW);
     }
+    // Contrast: darker and more saturated toward the lower inner side, then the dark refracted rim.
+    col.rgb *= mix(vec3(1.0), vec3(0.78, 0.92, 0.60), low * smoothstep(0.12, 0.5, tilt) * 0.8);
+    col.rgb *= mix(0.92, 1.03, wrapL);
     col = mix(col, vec4(0.10, 0.20, 0.03, 1.0), pow(1.0 - ndv, 2.5) * rimK);
     vec3 Rr = reflect(vec3(0.0, 0.0, -1.0), n);
-    float fill = gloss > 1.01 ? 0.0 : 1.0;
+    float fill = clamp(1.0 - (gloss - 1.0) * 2.0, 0.0, 1.0);
     col = mix(col, vec4(environment(Rr, fill), 1.0), F);
+    // A narrow darker gap inside the reflected line, as on the wallpaper beads.
+    col.rgb *= 1.0 - 0.32 * exp(-pow((tilt - 0.43) / 0.07, 2.0)) * lit;
     float nh = max(dot(n, HALFV), 0.0);
     // The soft box is far brighter than the sky: a gloss term keeps its reflection visible at low Fresnel.
     vec3 spec = vec3(1.0, 0.99, 0.9) * (pow(nh, 240.0) * 2.0 + pow(nh, 32.0) * 0.22 + softBox(Rr.xy * (1.0 / gloss), fill) * (0.22 + 0.6 * F) * gloss);
-    // Rim light: the steep flank toward the light throws a thin bright line, the opposite flank a dim one.
-    float steep = pow(1.0 - ndv, 3.0);
-    float toLight = dot(nd, vec2(-0.5145, -0.8575));
-    spec += vec3(1.0, 1.0, 0.9) * steep * (max(toLight, 0.0) * 1.0 + max(-toLight, 0.0) * 0.30) * gloss;
+    // The soft box on a curved flank: a crisp thin white line near the lit silhouette, a soft sheen on the crest.
+    float lineW = 0.05 + 0.25 * thin;
+    spec += vec3(1.0, 1.0, 0.94) * (exp(-pow((tilt - 0.60) / lineW, 2.0)) * 1.05 + exp(-pow((tilt - 0.18) / 0.10, 2.0)) * 0.20) * lit;
+    // Rim light at the very edge: toward the light a thin bright line, opposite a dim one.
+    spec += vec3(1.0, 1.0, 0.9) * pow(1.0 - ndv, 3.0) * (max(toLight, 0.0) * 0.8 + max(-toLight, 0.0) * 0.30) * gloss;
     col.rgb += spec;
     col.a = min(1.0, col.a + max(spec.r, max(spec.g, spec.b)));
     return col;
@@ -137,7 +150,7 @@ uniform vec4 uWin;
 uniform vec4 uCounts;
 uniform vec4 uDrip[12];
 uniform vec4 uBub[12];
-uniform vec4 uStrand[3];
+uniform vec4 uStrand[4];
 uniform vec4 uOcc[24];
 uniform vec4 uOccR[6];
 uniform vec4 uUnder[16];
@@ -153,6 +166,9 @@ struct Gel {
     float s;
     float dw;
     vec2 nrm;
+    // The strand's share of the field (x) and, where it dominates, the unit vector across the thread
+    // (yz) and the position across it from the axis (0) to the silhouette (1) in w.
+    vec4 thr;
 };
 
 // Arclength s, distance outside the rounded rectangle and the outward normal of the nearest perimeter point.
@@ -271,18 +287,32 @@ vec2 bezier2(vec2 a, vec2 c, vec2 b, float u) {
     return m * m * a + 2.0 * m * u * c + u * u * b;
 }
 
-vec2 strandField(vec2 p) {
+// Position across a round part: the unit vector from its axis (or centre) to the point and the distance
+// in units of the radius (0 on the axis, 1 on the silhouette).
+vec3 acrossInfo(vec2 p, vec2 axisPoint, float radius) {
+    vec2 v = p - axisPoint;
+    float l = length(v);
+    return vec3(l > 1e-3 ? v / l : vec2(0.0, -1.0), clamp(l / max(radius, 0.3), 0.0, 1.0));
+}
+
+// The drawn-out thread: a polyline through the drooping curve with a short flare where it leaves the gel
+// (a meniscus neck, 6-7 px wide at the surface), a body never thinner than 1.25 px, round beads once it
+// is thin, and a tip bulb. info carries the across-vector and position of whichever part is nearest.
+vec2 strandField(vec2 p, out vec3 info) {
+    info = vec3(0.0, -1.0, 1.0);
     vec4 s0 = uStrand[0];
     vec4 s1 = uStrand[1];
     vec4 s2 = uStrand[2];
     if (p.x < s2.x || p.x > s2.z || p.y < s2.y || p.y > s2.w) return vec2(1000.0, 3.0);
     vec2 A = s0.xy;
     vec2 B = s0.zw;
-    vec2 C = (A + B) * 0.5 + vec2(0.0, min(16.0, distance(A, B) * 0.09));
+    float len = distance(A, B);
+    vec2 C = (A + B) * 0.5 + vec2(0.0, min(16.0, len * 0.09));
     vec2 P1 = bezier2(A, C, B, 0.3333);
     vec2 P2 = bezier2(A, C, B, 0.6667);
     float best = 1000.0;
     float bu = 0.0;
+    vec2 axis = A;
     for (int i = 0; i < 3; i++) {
         vec2 a = i == 0 ? A : (i == 1 ? P1 : P2);
         vec2 b = i == 0 ? P1 : (i == 1 ? P2 : B);
@@ -290,22 +320,30 @@ vec2 strandField(vec2 p) {
         vec2 ba = b - a;
         float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-4), 0.0, 1.0);
         float d = length(pa - ba * h);
-        if (d < best) { best = d; bu = (float(i) + h) / 3.0; }
+        if (d < best) { best = d; bu = (float(i) + h) / 3.0; axis = a + ba * h; }
     }
-    float r = s1.y + (s1.x - s1.y) * pow(1.0 - bu, 3.0) + (s1.z - s1.y) * pow(bu, 5.0);
-    if (s1.w > 0.5) {
-        float bead = 0.0;
-        int beads = int(s1.w + 0.5);
-        for (int j = 0; j < beads; j++) {
-            float centre = (float(j) + 1.0) / (s1.w + 1.0) + 0.012 * sin(uFrame.x * 2.1 + float(j) * 1.7);
-            float x = (bu - centre) / 0.05;
-            bead += exp(-x * x);
-        }
-        r *= 1.0 + (-0.38 + 1.9 * min(1.0, bead)) * smoothstep(0.05, 0.2, bu) * (1.0 - smoothstep(0.85, 0.97, bu));
+    float mid = max(s1.y * 1.4, 2.2);
+    float neck = s1.w > 0.5 ? 0.82 : 1.0;
+    // Where the thread leaves the surface (uStrand[3].x below the anchor) it swells a little; the
+    // smooth union with the band does the rest, a concave meniscus fillet 6-7 px wide instead of a cone.
+    float outAt = max(bu * len - uStrand[3].x, 0.0);
+    float flare = 2.4 * exp(-outAt / 7.0);
+    float r = mid * neck + flare + (s1.z - mid) * pow(bu, 5.0);
+    vec2 f = vec2(best - r, r);
+    info = acrossInfo(p, axis, r);
+    int beads = int(s1.w + 0.5);
+    for (int j = 0; j < beads; j++) {
+        float centre = (float(j) + 1.0) / (s1.w + 1.0) + 0.012 * sin(uFrame.x * 2.1 + float(j) * 1.7);
+        vec2 bc = bezier2(A, C, B, centre);
+        float rb = mid * 2.3 + 0.4;
+        vec2 bead = vec2(distance(p, bc) - rb, rb);
+        if (bead.x < f.x) info = acrossInfo(p, bc, rb);
+        f = sminR(f, bead, 2.2);
     }
-    vec2 cap = vec2(best - r, r);
-    vec2 tipS = vec2(distance(p, B) - s1.z * 1.15, s1.z * 1.15);
-    return sminR(cap, tipS, 4.0);
+    float rt = max(s1.z * 1.15, 3.2);
+    vec2 tipS = vec2(distance(p, B) - rt, rt);
+    if (tipS.x < f.x) info = acrossInfo(p, B, rt);
+    return sminR(f, tipS, 4.0);
 }
 
 // The gel field at a point: smooth union of the window's band, its drips and the strand.
@@ -319,7 +357,16 @@ Gel gelAt(vec2 p) {
     vec2 f = vec2(pr.y - R, max(R, 4.0));
     int nd = int(uCounts.x + 0.5);
     for (int i = 0; i < nd; i++) f = sminR(f, dripField(p, i), 9.0);
-    if (uWin.w > 0.5) f = sminR(f, strandField(p), 11.0);
+    g.thr = vec4(0.0, 0.0, -1.0, 1.0);
+    if (uWin.w > 0.5) {
+        vec3 across;
+        vec2 sf = strandField(p, across);
+        // Inside the gel the thread is hidden anyway; a wide blend there would only raise a cone in the
+        // surface, so the fillet radius grows from nothing to 14 px as the outline is approached.
+        float kS = 14.0 * smoothstep(-9.0, -1.0, f.x) + 0.01;
+        g.thr = vec4(clamp(0.5 - 0.5 * (sf.x - f.x) / kS, 0.0, 1.0), across);
+        f = sminR(f, sf, kS);
+    }
     g.d = f.x;
     g.rl = f.y;
     return g;
@@ -356,9 +403,12 @@ float bubbleHeight(vec2 p) {
 // Thickness of the gel in px: circular profile from the outline, wetting dip at the frame, a slow
 // flow undulation and a fine relief that breaks up the sharp highlight.
 float gelHeight(vec2 p, Gel g) {
-    float rl = max(g.rl, 3.0);
+    float rl = max(g.rl, 0.6);
     float h = 0.95 * sqrt(max(0.0, -g.d * (2.0 * rl + g.d)));
     h *= 0.86 + 0.14 * smoothstep(0.0, 2.5, g.dw);
+    // A free thread is as thick as it is wide: the full chord of its round section.
+    float chord = 1.8 * rl * sqrt(max(1.0 - g.thr.w * g.thr.w, 0.0));
+    h = mix(h, chord, smoothstep(0.3, 0.9, g.thr.x));
     // Band coordinates (arclength as whole periods, distance from the frame): the waves run along the
     // gel and drift downward on the sides, along the band elsewhere.
     float u = g.s / uWin.z * 6.2831853;
@@ -368,7 +418,8 @@ float gelHeight(vec2 p, Gel g) {
               + 0.45 * sin(u * 31.0 - g.dw * 0.10 - flow * 0.35 + ph * 2.3)
               + 0.25 * sin(u * 57.0 + g.dw * 0.16 - flow * 0.70 + ph * 3.7);
     float micro = (vnoise(p * 0.30 + 7.3) - 0.5) * 0.10;
-    h += (und + micro) * smoothstep(0.0, 4.0, -g.d);
+    // The relief belongs to the broad gel, not to a thread or a drip a few pixels wide.
+    h += (und + micro) * smoothstep(0.0, 4.0, -g.d) * smoothstep(2.5, 9.0, rl) * (1.0 - smoothstep(0.05, 0.5, g.thr.x));
     h += bubbleHeight(p) * smoothstep(0.0, 3.0, -g.d);
     return max(h, 0.0);
 }
@@ -444,21 +495,25 @@ vec4 suspended(Gel g) {
 // the rim is dark (total reflection), a thin arc of focused light sits lower right, a pin highlight up left.
 vec4 pocketLayer(vec4 col, vec2 p, vec4 b0) {
     vec2 d = p - b0.xy;
-    float r = max(b0.w, 0.8);
-    float rho = length(d) / r;
-    if (rho > 1.12) return col;
-    float cover = 1.0 - smoothstep(0.95, 1.1, rho);
+    float r = max(b0.w, 1.0);
+    float len = length(d);
+    float dpx = len - r;
+    if (dpx > 1.2) return col;
+    // Everything is measured in pixels from the rim, so even a 2 px lens stays a round, smooth disc.
+    float cover = clamp(0.5 - dpx, 0.0, 1.0);
+    float rho = min(len / r, 1.0);
     float chord = sqrt(max(1.0 - rho * rho, 0.0));
     vec4 res = col;
-    res.rgb = mix(col.rgb, min(col.rgb * exp(SIGMA * chord * 7.0), vec3(1.2)) + vec3(0.05, 0.07, 0.02) * chord, 0.85);
+    res.rgb = mix(col.rgb, min(col.rgb * exp(SIGMA * chord * 7.0), vec3(1.2)) + vec3(0.06, 0.08, 0.025) * chord, 0.9);
     res.a = col.a * (1.0 - 0.3 * chord);
-    float ring = smoothstep(0.58, 0.9, rho) * (1.0 - smoothstep(0.96, 1.1, rho));
-    res = mix(res, vec4(0.04, 0.10, 0.015, 1.0), ring * 0.62);
-    vec2 dn = d / (length(d) + 1e-4);
-    float arc = smoothstep(0.62, 0.92, rho) * (1.0 - smoothstep(0.94, 1.08, rho)) * pow(max(dot(dn, FOCUS), 0.0), 2.0);
-    res.rgb += vec3(0.78, 1.0, 0.42) * arc * 0.34;
-    vec2 hl = d / r - vec2(-0.36, -0.40);
-    float spot = exp(-dot(hl, hl) / 0.035);
+    float ring = exp(-pow((dpx + 0.55) / 0.75, 2.0));
+    res = mix(res, vec4(0.04, 0.10, 0.015, 1.0), ring * 0.66);
+    vec2 dn = d / (len + 1e-4);
+    float arc = exp(-pow((dpx + 1.5) / 1.0, 2.0)) * pow(max(dot(dn, FOCUS), 0.0), 2.0);
+    res.rgb += vec3(0.78, 1.0, 0.42) * arc * 0.40;
+    vec2 hl = d - vec2(-0.36, -0.40) * r;
+    float hr = max(0.24 * r, 0.7);
+    float spot = exp(-dot(hl, hl) / (hr * hr));
     res.rgb += vec3(1.0, 1.0, 0.94) * spot * 0.9;
     res.a = min(1.0, res.a + spot * 0.5);
     return mix(col, res, cover * clamp(b0.w / 1.6, 0.25, 1.0));
@@ -496,6 +551,11 @@ vec4 domeLayer(vec4 col, vec2 p, vec4 b0, vec4 b1, vec4 b2, vec4 b3, int stage) 
     res.rgb += vec3(1.0, 1.0, 0.92) * box * (0.30 + 0.6 * F);
     float nh = max(dot(n, HALFV), 0.0);
     res.rgb += vec3(1.0, 0.99, 0.9) * (pow(nh, 150.0) * 1.7 + pow(nh, 22.0) * 0.14);
+    // Like the wallpaper beads: a crisp thin white line near the lit silhouette with a narrow dark gap inside.
+    float tiltD = length(n.xy);
+    float litD = clamp(dot(dn, vec2(-0.5145, -0.8575)) * 1.4 - 0.1, 0.0, 1.0);
+    res.rgb *= 1.0 - 0.28 * exp(-pow((tiltD - 0.66) / 0.07, 2.0)) * litD;
+    res.rgb += vec3(1.0, 1.0, 0.94) * exp(-pow((tiltD - 0.80) / 0.05, 2.0)) * litD * 0.9;
     if (stage == 2 && b3.z > 0.01) {
         float ph = (1.0 - rho / a) * 3.4 + uFrame.x * 0.3;
         vec3 tint = 0.5 + 0.5 * cos(6.2831 * (vec3(0.0, 0.33, 0.67) + ph));
@@ -535,7 +595,9 @@ out vec4 outColor;
 
 // gs: the field at the pixel shifted against the light (5, 9) px, g0: the field at the pixel.
 vec4 castShadow(Gel gs, Gel g0) {
-    float shadow = 0.30 * (1.0 - smoothstep(0.0, 14.0, gs.d));
+    // A thread or a drip throws a short, light shadow in proportion to its width.
+    float broad = smoothstep(1.0, 9.0, gs.rl);
+    float shadow = 0.30 * (0.22 + 0.78 * broad) * (1.0 - smoothstep(0.0, mix(4.0, 14.0, broad), gs.d));
     float facing = max(dot(g0.nrm, FOCUS), 0.0);
     float fringe = exp(-max(g0.d, 0.0) / 2.4) * 0.18 * facing;
     vec3 shadowRGB = vec3(0.018, 0.06, 0.008) * shadow;
@@ -572,7 +634,7 @@ void main() {
             under = underAt(p);
             outside = g.d > 0.0;
             if (outside && under) discard;
-            edge = !outside && -g.d < 1.25 && !under;
+            edge = !outside && -g.d < clamp(g.rl * 0.7, 0.55, 1.25) && !under;
             stop = outside ? 2 : 4;
             if (!outside) hs.x = gelHeight(p, g);
         } else if (k == 1) {
@@ -585,16 +647,25 @@ void main() {
     if (outside) {
         vec4 sh = castShadow(gs, g0);
         if (sh.a <= 0.002) discard;
-        outColor = vec4(min(sh.rgb, vec3(sh.a)), sh.a);
+        outColor = vec4(min(sh.rgb, vec3(sh.a)), sh.a) * uFrame.w;
         return;
     }
     float h0 = hs.x;
     vec3 n = normalize(vec3(-(hs.z - h0) / e, -(hs.w - h0) / e, 1.0));
+    // A thread is only a few pixels wide, too fine for finite differences: its normal comes straight
+    // from the round section (across-vector and position across it).
+    float wT = smoothstep(0.6, 0.97, g0.thr.x) * (1.0 - smoothstep(3.2, 5.2, g0.rl));
+    vec3 nRound = normalize(vec3(g0.thr.yz * g0.thr.w, sqrt(max(1.0 - g0.thr.w * g0.thr.w, 0.04))));
+    n = normalize(mix(n, nRound, wT));
     bool tex = uFrame.z > 0.5 && !under;
-    float texW = tex ? smoothstep(0.0, 2.5, -D) : 0.0;
+    float aaW = clamp(g0.rl * 0.7, 0.55, 1.25);
+    float texW = tex ? smoothstep(0.0, clamp(g0.rl * 0.8, 0.5, 2.5), -D) : 0.0;
     float aMin = 0.9 * (1.0 - smoothstep(8.5, 13.0, g0.dw));
-    vec2 look = p - n.xy * (0.55 * h0 + 2.0);
-    vec4 col = shadeSlime(look, h0, n, texW, aMin, 0.6, 1.0);
+    // A thread a few pixels wide has too little path to tint: count it as several times thicker so it
+    // reads as a lime body, not as clear glass.
+    float hShade = h0 * (1.0 + 4.5 * wT);
+    vec2 look = p - n.xy * (0.55 * hShade + 2.0);
+    vec4 col = shadeSlime(look, hShade, n, texW, aMin, 0.6 + 0.3 * wT, 1.0 + 0.7 * wT, wT);
     vec4 ov = suspended(g0);
     col = vec4(col.rgb * (1.0 - ov.a) + ov.rgb, min(1.0, col.a + ov.a * (1.0 - col.a)));
     int nb = int(uCounts.y + 0.5);
@@ -612,13 +683,14 @@ void main() {
     float face = clamp(dot(g0.nrm, LIGHT.xy / 0.8167) * 0.5 + 0.5, 0.0, 1.0);
     col.rgb += vec3(0.92, 1.0, 0.72) * exp(-glintX * glintX) * (0.12 + 0.4 * face);
     col.a = min(1.0, col.a + 0.2 * exp(-glintX * glintX));
-    float edgeA = smoothstep(0.0, 1.25, -D) * smoothstep(-0.5, 0.5, g0.dw);
+    float edgeA = smoothstep(0.0, aaW, -D) * smoothstep(-0.5, 0.5, g0.dw);
     col *= edgeA;
     if (edge) {
         vec4 sh = castShadow(gs, g0);
         col = vec4(col.rgb + sh.rgb * (1.0 - col.a), col.a + sh.a * (1.0 - col.a));
     }
-    outColor = vec4(min(col.rgb, vec3(col.a)), col.a);
+    // uFrame.w is the fade-in after the build: the gel oozes into view instead of popping.
+    outColor = vec4(min(col.rgb, vec3(col.a)), col.a) * uFrame.w;
 }
 `;
 
@@ -634,12 +706,13 @@ flat out vec4 vB;
 out vec2 vPos;
 void main() {
     vec2 corner = vec2(float(gl_VertexID & 1), float((gl_VertexID >> 1) & 1)) * 2.0 - 1.0;
-    float r = aA.z;
+    // A resting blob reads larger than the falling drop it came from (the gel pools out).
+    float r = aA.z * (aA.w > 1.5 ? 1.4 : 1.0);
     vec2 centre = aA.xy;
     vec2 hs;
     if (aA.w > 1.5) {
-        float w = r * (0.9 + 1.5 * aB.z) + 8.0;
-        float hh = r * 1.3 + 8.0;
+        float w = r * (0.95 + 0.55 * max(aB.z, 0.0)) + 14.0;
+        float hh = r * 0.8 + 8.0;
         hs = vec2(w, hh * 0.5 + 2.0);
         centre.y -= hh * 0.5 - 2.0;
     } else {
@@ -671,30 +744,34 @@ float dropShape(vec2 l, float ax, float ay, float tail, out vec2 nl) {
 }
 
 void main() {
-    float r = vA.z;
+    float r = vA.z * (vA.w > 1.5 ? 1.4 : 1.0);
     float kind = vA.w;
     float alpha = vB.w;
     if (kind > 1.5) {
         // Splat: a sessile blob resting on the taskbar edge (the baseline is y = vA.y).
+        // Right after the impact it is a rounded dome about 0.7 r high; as it spreads it relaxes flatter.
         float spread = vB.z;
-        float w = r * (0.9 + 1.5 * spread);
-        float hh = r * clamp(1.25 - 0.6 * spread, 0.38, 1.3);
+        float w = r * (0.95 + 0.55 * max(spread, 0.0));
+        float hh = r * clamp(0.74 - 0.20 * spread, 0.5, 0.74);
         vec2 l = vPos - vA.xy;
-        float skirt = 3.0 * (1.0 - smoothstep(0.0, 0.35 * hh, -l.y));
+        float skirt = 2.0 * (1.0 - smoothstep(0.0, 0.3 * hh, -l.y));
         vec2 nl = vec2(l.x / (w + skirt), l.y / hh);
         float rho = length(nl);
         float sd = (rho - 1.0) * min(w, hh);
         if (l.y > 1.0) discard;
-        float cover = clamp(0.5 - sd, 0.0, 1.0) * clamp(1.0 - l.y, 0.0, 1.0);
+        float below = clamp(1.0 - l.y, 0.0, 1.0);
+        float cover = clamp(0.5 - sd, 0.0, 1.0) * below;
+        // Contact shadow hugging the foot on the taskbar edge, plus the shadow thrown to the lower right.
+        float contactD = length(vec2(l.x / (w + skirt + 3.0), (l.y + 1.1) / 2.4)) - 1.0;
         float shadowD = length(vec2((l.x - 4.0) / (w + skirt + 2.0), (l.y - 3.0) / (hh + 2.0))) - 1.0;
-        float shadow = 0.22 * (1.0 - smoothstep(0.0, 0.5, shadowD)) * clamp(1.0 - l.y, 0.0, 1.0);
+        float shadow = (0.36 * (1.0 - smoothstep(0.0, 0.7, contactD)) + 0.18 * (1.0 - smoothstep(0.0, 0.5, shadowD))) * below;
         float z = sqrt(max(1.0 - rho * rho, 0.0));
-        vec3 n = normalize(vec3(nl.x * hh / (w + skirt) * 0.9, nl.y * 0.9, z + 0.08));
-        float hgt = hh * 0.9 * z;
-        vec4 col = shadeSlime(vPos - n.xy * (0.55 * hgt + 2.0), hgt, n, 1.0, 0.0, 0.8, 1.7) * cover;
+        vec3 n = normalize(vec3(nl.x * hh / (w + skirt) * 0.95, nl.y * 0.95, z + 0.06));
+        float hgt = hh * 1.5 * z;
+        vec4 col = shadeSlime(vPos - n.xy * (0.55 * hgt + 2.0), hgt, n, 1.0, 0.0, 0.9, 1.7, 0.0) * cover;
         vec4 sh = vec4(vec3(0.018, 0.06, 0.008) * shadow, shadow);
         col = col + sh * (1.0 - col.a);
-        col *= alpha;
+        col *= alpha * uFrame.w;
         if (col.a <= 0.002) discard;
         outColor = vec4(min(col.rgb, vec3(col.a)), col.a);
         return;
@@ -716,10 +793,10 @@ void main() {
     float hm = min(ax, ay) * 0.95;
     vec3 n = normalize(vec3(nl.x * hm / ax, nl.y * hm / ay, z + 0.02));
     // A drop is a lens: the backdrop shows up inverted, the path is the whole chord.
-    vec4 col = shadeSlime(vA.xy - l * 0.8, 1.3 * hm * z, n, 1.0, 0.0, 1.0, 1.9) * cover;
+    vec4 col = shadeSlime(vA.xy - l * 0.8, 1.3 * hm * z, n, 1.0, 0.0, 1.0, 1.9, 0.0) * cover;
     vec4 sh = vec4(vec3(0.018, 0.06, 0.008) * shadow, shadow);
     col = col + sh * (1.0 - col.a);
-    col *= alpha;
+    col *= alpha * uFrame.w;
     if (col.a <= 0.002) discard;
     outColor = vec4(min(col.rgb, vec3(col.a)), col.a);
 }

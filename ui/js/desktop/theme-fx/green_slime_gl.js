@@ -23,6 +23,7 @@
     const MAX_MASKS = 1024;
     const MIN_UNIFORM_VECTORS = 120;
     const COMPILE_TIMEOUT_MS = 30000;
+    const FADE_MS = 400;
     const SOFTWARE_GPU = /swiftshader|llvmpipe|lavapipe|softpipe|software|basic render/i;
     const STAGE = { nucleate: 0, grow: 1, hold: 2, burst: 3, crater: 4 };
     const CONTEXT_ATTRIBUTES = { alpha: true, premultipliedAlpha: true, antialias: false, preserveDrawingBuffer: true,
@@ -81,6 +82,8 @@
         let lost = false;
         let disposed = false;
         let ready = false;
+        let readyAt = 0;
+        let fade = 1;
         let compileMs = 0;
         let blockedMs = 0;
         let pollTimer = 0;
@@ -194,7 +197,8 @@
         const quadData = new Float32Array(MAX_WINDOWS * 5 * 12);
         const uDrip = new Float32Array(MAX_DRIPS * 8);
         const uBub = new Float32Array(MAX_BUBBLES * 16);
-        const uStrand = new Float32Array(12);
+        const uStrand = new Float32Array(16);
+        const strandProbe = {};
         const uOcc = new Float32Array(MAX_OCCLUDERS * 4);
         const uOccR = new Float32Array(MAX_OCCLUDERS);
         const uUnder = new Float32Array(MAX_UNDER * 4);
@@ -270,9 +274,16 @@
             if (strand) {
                 const margin = Math.max(strand.root, strand.mid, strand.tip * 1.15) + 24;
                 const droop = Math.min(16, Math.hypot(strand.bx - strand.ax, strand.by - strand.ay) * .09);
+                // How far the anchor lies below the gel's outline: the neck flares out where the thread
+                // leaves the surface, not at the buried anchor.
+                const hit = geometry.project(lay, strand.ax, strand.ay, strandProbe);
+                const f = (((hit.s % lay.length) + lay.length) % lay.length) / lay.length * TABLE - .5;
+                const k0 = Math.floor(f), t = f - k0;
+                const outline = win.radius[(k0 + TABLE) % TABLE] * (1 - t) + win.radius[(k0 + 1 + TABLE) % TABLE] * t;
                 uStrand.set([strand.ax, strand.ay, strand.bx, strand.by, strand.root, strand.mid, strand.tip, strand.beads,
                     Math.min(strand.ax, strand.bx) - margin, Math.min(strand.ay, strand.by) - margin,
-                    Math.max(strand.ax, strand.bx) + margin + 20, Math.max(strand.ay, strand.by) + droop + margin + 26]);
+                    Math.max(strand.ax, strand.bx) + margin + 20, Math.max(strand.ay, strand.by) + droop + margin + 26,
+                    Math.max(0, Math.min(40, outline - hit.dist)), 0, 0, 0]);
             }
             gl.uniform4fv(gelU.uStrand, uStrand);
             const occluders = win.occluders.slice(0, MAX_OCCLUDERS);
@@ -295,7 +306,7 @@
             gl.uniform4f(gelU.uView, view.sx, view.sy, view.bufferHeight, 0);
             gl.uniform2f(gelU.uSize, view.width, view.height);
             const textured = scene.backdrop && scene.backdrop.mode === 'texture' && backdropReady;
-            gl.uniform4f(gelU.uFrame, scene.time || 0, scene.motion ? 1 : 0, textured ? 1 : 0, 0);
+            gl.uniform4f(gelU.uFrame, scene.time || 0, scene.motion ? 1 : 0, textured ? 1 : 0, fade);
             const rect = scene.backdrop && scene.backdrop.rect ? scene.backdrop.rect : { x: 0, y: 0, w: view.width, h: view.height };
             gl.uniform4f(gelU.uBack, rect.x, rect.y, Math.max(rect.w, 1), Math.max(rect.h, 1));
             // Quads first (one upload), then one or two draws per window.
@@ -413,7 +424,7 @@
             gl.uniform4f(dropU.uView, view.sx, view.sy, view.bufferHeight, 0);
             gl.uniform2f(dropU.uSize, view.width, view.height);
             const textured = scene.backdrop && scene.backdrop.mode === 'texture' && backdropReady;
-            gl.uniform4f(dropU.uFrame, scene.time || 0, scene.motion ? 1 : 0, textured ? 1 : 0, 0);
+            gl.uniform4f(dropU.uFrame, scene.time || 0, scene.motion ? 1 : 0, textured ? 1 : 0, fade);
             const rect = scene.backdrop && scene.backdrop.rect ? scene.backdrop.rect : { x: 0, y: 0, w: view.width, h: view.height };
             gl.uniform4f(dropU.uBack, rect.x, rect.y, Math.max(rect.w, 1), Math.max(rect.h, 1));
             gl.activeTexture(gl.TEXTURE0);
@@ -443,6 +454,9 @@
             const begun = now();
             drawCalls = 0;
             quadCount = 0;
+            // After the build the gel oozes in over FADE_MS (animated mode only; static mode draws it whole).
+            const rise = scene.motion ? Math.min(1, (begun - readyAt) / FADE_MS) : 1;
+            fade = 1 - (1 - rise) * (1 - rise) * (1 - rise);
             if (scene.backdrop && scene.backdrop.image !== backdropSource) setBackdrop(scene.backdrop.image);
             gl.viewport(0, 0, canvas.width, canvas.height);
             gl.disable(gl.STENCIL_TEST);
@@ -463,7 +477,7 @@
 
         function inspect() {
             return {
-                kind: 'webgl2', gpu, ready, compileMs: Math.round(compileMs * 10) / 10, blockedMs: Math.round(blockedMs * 10) / 10,
+                kind: 'webgl2', gpu, ready, fade: Math.round(fade * 1000) / 1000, compileMs: Math.round(compileMs * 10) / 10, blockedMs: Math.round(blockedMs * 10) / 10,
                 parallelCompile: !!parallel, firstRenderMs: Math.round(firstRenderMs * 10) / 10,
                 lastRenderMs: Math.round(lastRenderMs * 100) / 100, averageRenderMs: Math.round(averageMs * 100) / 100,
                 drawCalls, quadCount, contextLost: lost, backdropReady, bufferWidth: canvas.width, bufferHeight: canvas.height,
@@ -514,7 +528,8 @@
                 gl.uniform1i(dropU.uBackdrop, 0);
             } catch (error) { failAsync(error); return; }
             ready = true;
-            blockedMs += now() - mark;
+            readyAt = now();
+            blockedMs += readyAt - mark;
             compileMs = now() - started;
             if (typeof opts.onReady === 'function') opts.onReady();
         }

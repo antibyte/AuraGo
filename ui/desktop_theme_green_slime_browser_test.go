@@ -33,10 +33,10 @@ func newSlimeSession(t *testing.T, renderer string) *themeSweepSession {
 }
 
 // waitSlimeRenderer waits until the effect runs on the wanted renderer; the WebGL2 gel additionally waits
-// until its backdrop (the wallpaper texture) is no longer loading.
+// until its backdrop (the wallpaper texture) is no longer loading and it has faded in (400 ms after the build).
 func waitSlimeRenderer(t *testing.T, s *themeSweepSession, renderer string) {
 	t.Helper()
-	s.waitFor(t, "slime renderer "+renderer, 60*time.Second, `(want)=>{const f=AuraDesktopThemeFx?.inspect();return !!f && f.ready && f.renderer===want && (want!=='webgl2'||f.backdrop!=='loading');}`, renderer)
+	s.waitFor(t, "slime renderer "+renderer, 60*time.Second, `(want)=>{const f=AuraDesktopThemeFx?.inspect();return !!f && f.ready && f.renderer===want && (want!=='webgl2'||(f.backdrop!=='loading' && f.fade>=1));}`, renderer)
 	// The contract tests measure the gel at full resolution, not at whatever the adaptive quality picked.
 	s.eval(t, `()=>AuraDesktopThemeFx.command('quality',{scale:1})`)
 }
@@ -187,6 +187,9 @@ func checkSlimeAttachedMembrane(t *testing.T, label, renderer, wallpaper string)
 		});
 	}`)
 	s.settle(t)
+	// The settings pushed above can still restart the effect once; its WebGL2 gel fades in over 400 ms after
+	// every start, so measure only once it stands whole.
+	waitSlimeRenderer(t, s, renderer)
 	s.eval(t, `()=>sampleSlimeCoverage()`)
 	var start struct{ X, Y float64 }
 	s.evalInto(t, &start, `()=>{const r=slimeDragWindow.element.querySelector('.vd-window-titlebar').getBoundingClientRect();return {X:r.left+170,Y:r.top+20};}`)

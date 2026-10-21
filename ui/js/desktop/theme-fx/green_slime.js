@@ -552,6 +552,7 @@
                 contextLost,
                 error: rendererError,
                 gpu: gl ? gl.gpu : '',
+                fade: gl ? gl.fade : 1,
                 compileMs: gl ? gl.compileMs : 0,
                 blockedMs: gl ? gl.blockedMs : 0,
                 parallelCompile: gl ? gl.parallelCompile : false,

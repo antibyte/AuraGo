@@ -4482,7 +4482,9 @@ function testGreenSlimeSimulation() {
 
   // Bubble lifecycle: forced bubble, stage order and timing bounds, spray, crater ripple, healing.
   {
-    const sim = createSim({ motion: true, seed: 11 });
+    // The ambient spawner shares the simulation's random stream, so the seed picks a run in which no
+    // second bubble appears while the forced one is being followed.
+    const sim = createSim({ motion: true, seed: 13 });
     const wins = [windowA()];
     run(sim, wins, .5);
     const id = sim.spawnBubble({ windowId: 'a', base: 8 });
