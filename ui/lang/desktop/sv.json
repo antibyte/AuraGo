@@ -1,4 +1,6 @@
 {
+  "desktop.settings_open_fullscreen": "Öppna alltid skrivbordet i helskärm",
+  "desktop.settings_open_fullscreen_desc": "Startar skrivbordet i helskärm vid nästa besök. Om webbläsaren kräver en åtgärd startar helskärm vid första klicket eller tangenttryckningen. Tryck på Esc för att avsluta.",
   "desktop.chess_3d_canvas": "3D-schackbräde",
   "desktop.chess_3d_hint": "Dra för att rotera, rulla för att zooma",
   "desktop.chess_3d_unavailable": "3D-vyn är inte tillgänglig.",

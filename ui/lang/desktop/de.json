@@ -1,4 +1,6 @@
 {
+  "desktop.settings_open_fullscreen": "Desktop immer im Vollbild öffnen",
+  "desktop.settings_open_fullscreen_desc": "Öffnet den Desktop beim nächsten Start im Vollbild. Falls Dein Browser eine Benutzeraktion verlangt, startet Vollbild beim ersten Klick oder Tastendruck. Mit Esc kannst Du es beenden.",
   "desktop.chess_3d_canvas": "3D-Schachbrett",
   "desktop.chess_3d_hint": "Ziehen zum Drehen, scrollen zum Zoomen",
   "desktop.chess_3d_unavailable": "Die 3D-Ansicht ist nicht verfügbar.",

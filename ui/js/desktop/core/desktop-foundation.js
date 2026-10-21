@@ -300,6 +300,7 @@
         'appearance.fruity_mode': 'light',
         'desktop.icon_size': 'medium',
         'desktop.show_widgets': 'true',
+        'desktop.open_fullscreen': 'false',
         'windows.animations': 'true',
         'sound.enabled': 'false',
         'sound.theme': 'desktop',

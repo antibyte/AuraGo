@@ -1,4 +1,6 @@
 {
+  "desktop.settings_open_fullscreen": "Abrir siempre el escritorio en pantalla completa",
+  "desktop.settings_open_fullscreen_desc": "Inicia el escritorio en pantalla completa en la próxima visita. Si el navegador requiere una interacción, se activa con el primer clic o pulsación de tecla. Pulsa Esc para salir.",
   "desktop.chess_3d_canvas": "Tablero de ajedrez 3D",
   "desktop.chess_3d_hint": "Arrastra para girar, desplaza para acercar",
   "desktop.chess_3d_unavailable": "La vista 3D no está disponible.",

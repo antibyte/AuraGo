@@ -1,4 +1,6 @@
 {
+  "desktop.settings_open_fullscreen": "始终以全屏模式打开桌面",
+  "desktop.settings_open_fullscreen_desc": "下次打开桌面时使用全屏模式。如果浏览器要求用户操作，则在首次点击或按键时进入全屏。按 Esc 可退出全屏。",
   "desktop.chess_3d_canvas": "3D 棋盘",
   "desktop.chess_3d_hint": "拖动旋转，滚轮缩放",
   "desktop.chess_3d_unavailable": "3D 视图不可用。",

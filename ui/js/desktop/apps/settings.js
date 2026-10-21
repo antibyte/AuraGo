@@ -46,6 +46,7 @@
             },
             {
                 id: 'desktop', icon: 'desktop-symbolic', fallback: 'D', title: 'desktop.settings_category_desktop', desc: 'desktop.settings_category_desktop_desc', items: [
+                    settingToggle('desktop.open_fullscreen', 'desktop.settings_open_fullscreen', 'desktop.settings_open_fullscreen_desc'),
                     settingSelect('desktop.icon_size', 'desktop.settings_icon_size', 'desktop.settings_icon_size_desc', [
                         ['small', 'desktop.settings_icon_size_small'], ['medium', 'desktop.settings_icon_size_medium'], ['large', 'desktop.settings_icon_size_large']
                     ]),
@@ -544,7 +545,7 @@
             ? ctx.wallpaperForActiveSpace()
             : settingValue(item.key);
         const control = item.type === 'toggle'
-            ? `<label class="vd-switch"><input type="checkbox" data-setting-key="${esc(item.key)}" ${settingBool(item.key) ? 'checked' : ''}><span></span></label>`
+            ? `<label class="vd-switch"><input type="checkbox" data-setting-key="${esc(item.key)}" aria-label="${esc(t(item.label))}" ${settingBool(item.key) ? 'checked' : ''}><span></span></label>`
             : `<select class="vd-setting-select" data-setting-key="${esc(item.key)}">${item.options.map(option => {
                 const normalized = normalizeSettingOption(option);
                 return `<option value="${esc(normalized.value)}" ${currentValue === normalized.value ? 'selected' : ''}>${esc(normalized.label)}</option>`;

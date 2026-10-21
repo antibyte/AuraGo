@@ -1,4 +1,6 @@
 {
+  "desktop.settings_open_fullscreen": "Apri sempre il desktop a schermo intero",
+  "desktop.settings_open_fullscreen_desc": "Avvia il desktop a schermo intero alla prossima visita. Se il browser richiede un'interazione, lo schermo intero si attiva al primo clic o alla pressione di un tasto. Premi Esc per uscire.",
   "desktop.chess_3d_canvas": "Scacchiera 3D",
   "desktop.chess_3d_hint": "Trascina per ruotare, scorri per ingrandire",
   "desktop.chess_3d_unavailable": "La vista 3D non è disponibile.",

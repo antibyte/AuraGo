@@ -1,4 +1,6 @@
 {
+  "desktop.settings_open_fullscreen": "Zawsze otwieraj pulpit na pełnym ekranie",
+  "desktop.settings_open_fullscreen_desc": "Przy następnym otwarciu uruchamia pulpit na pełnym ekranie. Jeśli przeglądarka wymaga interakcji, pełny ekran włączy się po pierwszym kliknięciu lub naciśnięciu klawisza. Naciśnij Esc, aby wyjść.",
   "desktop.chess_3d_canvas": "Szachownica 3D",
   "desktop.chess_3d_hint": "Przeciągnij, aby obrócić, przewiń, aby przybliżyć",
   "desktop.chess_3d_unavailable": "Widok 3D jest niedostępny.",

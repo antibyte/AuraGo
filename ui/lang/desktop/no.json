@@ -1,4 +1,6 @@
 {
+  "desktop.settings_open_fullscreen": "Åpne alltid skrivebordet i fullskjerm",
+  "desktop.settings_open_fullscreen_desc": "Starter skrivebordet i fullskjerm ved neste besøk. Hvis nettleseren krever en handling, starter fullskjerm ved første klikk eller tastetrykk. Trykk Esc for å avslutte.",
   "desktop.chess_3d_canvas": "3D-sjakkbrett",
   "desktop.chess_3d_hint": "Dra for å rotere, rull for å zoome",
   "desktop.chess_3d_unavailable": "3D-visning er ikke tilgjengelig.",

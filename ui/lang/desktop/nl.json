@@ -1,4 +1,6 @@
 {
+  "desktop.settings_open_fullscreen": "Bureaublad altijd op volledig scherm openen",
+  "desktop.settings_open_fullscreen_desc": "Opent het bureaublad bij het volgende bezoek op volledig scherm. Als de browser een handeling vereist, start volledig scherm bij de eerste klik of toetsaanslag. Druk op Esc om af te sluiten.",
   "desktop.chess_3d_canvas": "3D-schaakbord",
   "desktop.chess_3d_hint": "Sleep om te draaien, scroll om te zoomen",
   "desktop.chess_3d_unavailable": "3D-weergave is niet beschikbaar.",

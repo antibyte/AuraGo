@@ -1,4 +1,6 @@
 {
+  "desktop.settings_open_fullscreen": "デスクトップを常に全画面で開く",
+  "desktop.settings_open_fullscreen_desc": "次回からデスクトップを全画面で開きます。ブラウザーで操作が必要な場合は、最初のクリックまたはキー入力で全画面になります。Esc キーで解除できます。",
   "desktop.chess_3d_canvas": "3D チェスボード",
   "desktop.chess_3d_hint": "ドラッグで回転、スクロールで拡大",
   "desktop.chess_3d_unavailable": "3D ビューは利用できません。",

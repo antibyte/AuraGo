@@ -1,4 +1,6 @@
 {
+  "desktop.settings_open_fullscreen": "Always open the desktop in fullscreen",
+  "desktop.settings_open_fullscreen_desc": "Starts the desktop in fullscreen on the next visit. If your browser requires an interaction, fullscreen starts with your first click or keypress. Press Esc to leave fullscreen.",
   "desktop.chess_3d_canvas": "3D chess board",
   "desktop.chess_3d_hint": "Drag to rotate, scroll to zoom",
   "desktop.chess_3d_unavailable": "The 3D view is not available.",

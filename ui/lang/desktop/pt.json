@@ -1,4 +1,6 @@
 {
+  "desktop.settings_open_fullscreen": "Abrir sempre o ambiente de trabalho em ecrã inteiro",
+  "desktop.settings_open_fullscreen_desc": "Inicia o ambiente de trabalho em ecrã inteiro na próxima visita. Se o navegador exigir uma interação, o ecrã inteiro começa no primeiro clique ou ao premir uma tecla. Prima Esc para sair.",
   "desktop.chess_3d_canvas": "Tabuleiro de xadrez 3D",
   "desktop.chess_3d_hint": "Arraste para rodar, role para ampliar",
   "desktop.chess_3d_unavailable": "A vista 3D não está disponível.",

@@ -879,6 +879,7 @@
         mark('parallel-fetch-done');
         renderDesktop();
         initSpacesRuntime();
+        openDesktopFullscreenOnStartup();
         initSpacesOverviewRuntime();
         initTaskbarThumbnailsRuntime();
         initDesktopMediaKeysRuntime();

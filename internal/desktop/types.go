@@ -272,6 +272,7 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "appearance.fruity_mode", Default: "light", Values: []string{"light", "dark"}},
 		{Key: "desktop.icon_size", Default: "medium", Values: []string{"small", "medium", "large"}},
 		{Key: "desktop.show_widgets", Default: "true", Values: []string{"true", "false"}},
+		{Key: "desktop.open_fullscreen", Default: "false", Values: []string{"true", "false"}},
 		{Key: "windows.animations", Default: "true", Values: []string{"true", "false"}},
 		{Key: "sound.enabled", Default: "false", Values: []string{"true", "false"}},
 		{Key: "sound.theme", Default: "desktop", Values: []string{"desktop", "crystal", "wood", "analog", "workshop", "water", "amiga", "cyberpunk", "black_gloss", "crazy", "lollipop", "organic", "electronic_dreams", "windows_xp", "green_slime", "voxel_world"}},

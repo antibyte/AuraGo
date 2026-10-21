@@ -1,4 +1,6 @@
 {
+  "desktop.settings_open_fullscreen": "Toujours ouvrir le bureau en plein écran",
+  "desktop.settings_open_fullscreen_desc": "Ouvre le bureau en plein écran lors de la prochaine visite. Si le navigateur exige une interaction, le plein écran démarre au premier clic ou appui sur une touche. Appuyez sur Échap pour quitter.",
   "desktop.chess_3d_canvas": "Échiquier 3D",
   "desktop.chess_3d_hint": "Glisse pour pivoter, fais défiler pour zoomer",
   "desktop.chess_3d_unavailable": "La vue 3D n’est pas disponible.",
