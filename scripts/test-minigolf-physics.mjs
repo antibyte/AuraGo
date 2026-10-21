@@ -237,6 +237,11 @@ const tessellated = await rollOut(wide({ tee: [-28, 0.16, 0.13], colliders: [gri
 assert.ok(Math.abs(tessellated.distance - full.distance) <= full.distance * 0.05, `trimesh seams keep the roll distance (${tessellated.distance.toFixed(2)} m vs ${full.distance.toFixed(2)} m)`);
 assert.ok(tessellated.maxHop <= 0.01, `no seam hops above 1 cm (${(tessellated.maxHop * 100).toFixed(2)} cm)`);
 
+const typedGrid = gridMesh();
+const typedRoll = await rollOut(wide({ tee: [-28, 0.16, 0.13], colliders: [{ ...typedGrid, vertices: Float32Array.from(typedGrid.vertices), indices: Uint32Array.from(typedGrid.indices) }] }), [1, 0], 1);
+close(typedRoll.distance, tessellated.distance, 1e-9, 'typed-array meshes behave exactly like plain arrays');
+await assert.rejects(createPhysics(course({ colliders: [{ type: 'mesh', surface: 'grass', vertices: Float32Array.of(0, 0, 0, 1, 0, 0, 0, 0, 1), indices: Uint32Array.of(0, 1, 5) }] })), /Invalid minigolf mesh collider/, 'typed meshes keep the index range check');
+
 const bankRotation = [0, Math.sin(Math.PI / 8), 0, Math.cos(Math.PI / 8)];
 for (const surface of ['wood', 'stone']) {
     const events = [];

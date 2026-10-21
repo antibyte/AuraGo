@@ -45,6 +45,9 @@ const array3 = value => [value.x, value.y, value.z];
 const array4 = value => [value.x, value.y, value.z, value.w];
 const speed = value => Math.hypot(value.x, value.y, value.z);
 const finiteVec3 = value => Array.isArray(value) && value.length === 3 && value.every(Number.isFinite);
+// Mesh data arrives as plain arrays (manifest v1) or typed arrays (read from the course GLB).
+const numbers = value => Array.isArray(value) || value instanceof Float32Array;
+const integers = value => Array.isArray(value) || value instanceof Uint32Array;
 const lerp = (a, b, amount) => a + (b - a) * amount;
 
 function slerpQuaternion(a, b, amount) {
@@ -167,8 +170,8 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         for (const shape of course.colliders || []) {
             if (shape.type === 'box') addBox(shape.position, shape.halfExtents, shape.rotation, shape.surface);
             else if (shape.type === 'mesh') {
-                if (!Array.isArray(shape.vertices) || shape.vertices.length < 9 || shape.vertices.length > 3_000_000 || shape.vertices.length % 3 || shape.vertices.some(value => !Number.isFinite(value)) || !Array.isArray(shape.indices) || !shape.indices.length || shape.indices.length % 3 || shape.indices.some(index => !Number.isInteger(index) || index < 0 || index >= shape.vertices.length / 3)) throw new TypeError('Invalid minigolf mesh collider');
-                const desc = RAPIER.ColliderDesc.trimesh(new Float32Array(shape.vertices), new Uint32Array(shape.indices), RAPIER.TriMeshFlags.FIX_INTERNAL_EDGES)
+                if (!numbers(shape.vertices) || shape.vertices.length < 9 || shape.vertices.length > 3_000_000 || shape.vertices.length % 3 || shape.vertices.some(value => !Number.isFinite(value)) || !integers(shape.indices) || !shape.indices.length || shape.indices.length % 3 || shape.indices.some(index => !Number.isInteger(index) || index < 0 || index >= shape.vertices.length / 3)) throw new TypeError('Invalid minigolf mesh collider');
+                const desc = RAPIER.ColliderDesc.trimesh(Float32Array.from(shape.vertices), Uint32Array.from(shape.indices), RAPIER.TriMeshFlags.FIX_INTERNAL_EDGES)
                     .setFriction(surfaceFriction[shape.surface] ?? 0.75).setRestitution(0.02).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
                 const collider = world.createCollider(asWall(desc, shape.surface || 'grass'), fixed);
                 addSurface(collider, shape.surface);

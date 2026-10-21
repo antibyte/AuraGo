@@ -86,6 +86,8 @@ assert.equal(lane.walls.length, 12, 'rail tops count, the vertical rail side doe
 assert.deepEqual(lane.frame, { min: [-1.5, -3.5], max: [2.5, 3.5] }, 'floor bounds plus 0.5 m');
 assert.deepEqual(lane.water, [{ min: [2, -1], max: [3, 1] }]);
 assert.deepEqual(laneGeometry({ bounds: { min: [-5, -1, -4], max: [5, 2, 4] } }).frame, { min: [-5, -4], max: [5, 4] }, 'no floor falls back to bounds');
+const typedLane = laneGeometry({ bounds: { min: [-5, -1, -5], max: [5, 2, 5] }, colliders: [{ type: 'mesh', surface: 'grass', vertices: Float32Array.of(-1, 0, -3, 1, 0, -3, 1, 0, 3, -1, 0, 3), indices: Uint32Array.of(0, 1, 2, 0, 3, 2) }] });
+assert.deepEqual(typedLane.floor.grass, lane.floor.grass, 'typed collider arrays give the same lane triangles');
 const area = (list, at) => ((list[at + 2] - list[at]) * (list[at + 5] - list[at + 1]) - (list[at + 4] - list[at]) * (list[at + 3] - list[at + 1])) / 2;
 assert.equal(new Set([area(lane.floor.grass, 0), area(lane.floor.grass, 6), area(lane.floor.sand, 0)].map(Math.sign)).size, 1, 'floor triangles share one winding, so one fill never cancels overlaps');
 const gate = { obstacles: [{ id: 'gate', position: [0, 0.3, 0], halfExtents: [1, 0.1, 1], colliders: [{ position: [0, 0, 0], halfExtents: [1, 0.1, 0.2] }, { position: [0, 0, 0], halfExtents: [0.2, 0.1, 1] }] }] };

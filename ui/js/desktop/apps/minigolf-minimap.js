@@ -7,7 +7,7 @@ const FLAT = 0.55, MARGIN = 0.5;
 export function laneGeometry(course) {
     const floor = {}, walls = [], min = [Infinity, Infinity], max = [-Infinity, -Infinity];
     for (const shape of course?.colliders || []) {
-        if (shape?.type !== 'mesh' || !Array.isArray(shape.vertices) || !Array.isArray(shape.indices)) continue;
+        if (shape?.type !== 'mesh' || !(Array.isArray(shape.vertices) || shape.vertices instanceof Float32Array) || !(Array.isArray(shape.indices) || shape.indices instanceof Uint32Array)) continue;
         const v = shape.vertices, surface = shape.surface || 'grass', isFloor = FLOOR_SURFACES.has(surface);
         const target = isFloor ? (floor[surface] ||= []) : walls;
         for (let i = 0; i + 2 < shape.indices.length; i += 3) {
