@@ -89,6 +89,7 @@ def build_course(number, data, world, out, keep_scene=False):
     built = build_track.build(track, scene, model)
     cup_parts.hole_marks(track, scene, model, number)
     dresser.dress(model, built)
+    dresser.build_structures(model, built)
     dresser.place()
     dresser.restyle(model)
     dresser.bake(model)

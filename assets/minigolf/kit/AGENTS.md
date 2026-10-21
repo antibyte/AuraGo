@@ -34,7 +34,8 @@ Nothing here writes `ui/` except `generate.py` through its runtime paths.
 
 - Randomness is `random.Random(seed)` or `mathutils.noise` (fixed permutation). Seeds
   in use: kits and props `seed=1`, placement `1000 + number`, island `4000 + number`,
-  trims `7000 + 2 * number + side`.
+  trims `7000 + 2 * number + side`, support piles `8100 + number`, bridge parts and tunnel parts `number`
+  (portals `number + tunnel index`).
 - No time input and no unordered iteration.
 - Bakes are CPU, fixed seed and sample count, no denoise, rounded to 8 bits.
 - Each course is deleted after its export (`courses.discard_scene`, legacy `courses_v1.discard_scene`: objects,
@@ -274,8 +275,64 @@ with probe content. The steps:
   `min(water - 0.4, lowest floor - 4)` (moon: second only) to the highest floor or cannon arc + 6; `water` = sea slab
   (pirate, temple), ponds and, outside the moon, gap volumes. `mechanics`, `obstacles` and `cycle` are passed through
   from the data. Budgets are enforced by `courses.check_budget`: 1.25 MiB, 36,000 triangles, 32 mesh nodes.
-- Not built yet: supports and bridge posts under elevated pieces, tunnel portals, pond water surfaces and the
-  mechanic and obstacle parts.
+- Structures (supports, bridges, tunnels, ponds, trench walls) are described in "Structures (P3)". Not built here:
+  the mechanic and obstacle parts.
+
+### Structures (P3)
+
+`Dresser.build_structures(coll, built)` (after `dress`, before `place`) calls `structures.build`; its baked objects go to
+`Dresser.extra`, the pond water to `Dresser.ponds` (colours only, hidden from the AO bake) and the `reserved` circles
+to `place`. Modules: `support_plan` / `support_parts`, `bridge_parts`, `tunnel_plan` / `tunnel_parts` with
+`portal_pirate` and `portal_temple`, `pond_parts`, `trench_parts`, `detail`, helpers in `part_utils`. `structure_selftest.py`
+checks the rules below. A track without structures builds bit-identically.
+
+- Supports (`support_plan`): a station about every 2 m of route (first and last 0.3 m from the ends of a strip) where
+  the floor edge is more than 0.14 m above `terrain.top_height`: two posts under the lane edges, just inside the rail,
+  and a cap beam 2 cm under the floor edge. Pirate wooden piles (6 sides, slightly tilted) with a cap plank, crossing
+  braces from 0.6 m and a tie from 1.4 m; temple stone pillars (octagon, foot and capital blocks, moss at the foot) with a
+  lintel; moon metal struts (panel mast, plate, orange band, leg from 0.7 m, brace from 0.9 m). Strips count as elevated
+  where `bed_field` leaves them out of the ground (not `grounded`, or more than `GROUNDED_MAX` above the tee), and every
+  `deck: bridge` strip is checked, so a bridge over a pond or trench gets piles standing in the water. A post is dropped
+  where another stretch (floor triangles more than 1.2 m apart along the route, or a rail run) passes within 0.25 m in plan
+  at a height between its bottom and 0.12 m under its top, so a support never stands in another lane; a bridge over a wide
+  pad therefore carries itself by its stringers. A loop gets a frame: at about every 2 m of its arc above 0.7 m, a post
+  1.30 m (else 1.55 m) beside the centre line on each side with an arm to the outer face of the rail (the ball runs on the
+  inside of the ring, nothing stands under it). Elevated pads are not supported (pads always count as grounded).
+- Bridges (`bridge_parts`): a piece with `deck: "bridge"` gets the floor look `deck` (pirate: planks, temple: bark) or
+  `metal` (moon) unless it sets its own `look` (`layout`); railing posts 1.08 m from the centre line (outside the lane,
+  rail and trim, which reach 1.03 m) along each side that has a rail wall, with ropes (pirate), a mossy stone curb
+  (temple) or a neon tube (moon); stringers under the lane edges and joists every 0.55 m with their top 1.2 cm under the
+  floor (a stone slab 0.2 m thick in the temple). The trim skirt (`trim`) fades back to the plain trim where the ground
+  is more than 0.5 m below the lane edge, so the structure under a bridge stays visible.
+- Tunnels (`tunnel_plan`, `tunnel_parts`): connected strips with `cover: "tunnel"` form one run. The inner opening is
+  2.5 m wide and 1.45 m high over the floor (the rail trims reach 1.17 m; the rule is 1.9 x 1.0 m). The roof is an arch band
+  swept along the lane (rings every 0.45 m, dark inside, rock with noise pirate, mossy stone temple, panels with orange
+  bands moon, a thick collar at the exit and, on the moon, at the entrance). The entrance portal is a solid body of
+  `PORTAL` depth around the lane: the pirate skull rock (2.7 m deep, mouth arch cut through it, teeth along the top of
+  the arch above 1.3 m, round eye sockets, nose hollow, rocks at the foot) and, in the temple, a course-side copy of the kit
+  head (own skull with the mouth cut through, 0.8 x depth, same colours, moss cap, eyes, lips and teeth above 1.3 m; the
+  kit head has only a decorative recess and is not changed). The first `depth` metres of a tunnel must be straight and
+  level and the run at least `depth + 0.3` m long; another stretch of the track must stay out of the roof volume
+  (1.95 m above the floor); all three are `ValueError`s with the course and tunnel number. Roofs and portals have no
+  collision: `layout` rejects `cover` on a `loop`, a `halfpipe` or a ramp with `lip`, and the lane has rails, so the ball
+  cannot reach them. Props keep out through `reserved` circles along the tunnel and the island contains the portal
+  (`footprint_points`).
+- Ponds (`pond_parts`): every `water` pool of a plaza gets an object `pond-water` (kit material kind `water`, vertex
+  colours from the shore tone to the deep tone), 0.25 m under the surrounding floor, a grid of 0.4 m quads over the pool
+  polygon plus 0.45 m (the bank crosses the water level at about the polygon edge, so the border hides under it). They
+  are joined into `scenery-water`. The manifest water volume runs from the pool bottom to 2 cm under the surface
+  (`course_entry.water`). `void` pools have no water.
+- Trenches (`terrain.warp`, `trench_parts`): a `gap` cuts a strip across the island. The top grid vertices within 0.6 m
+  inside and 0.2 m outside a trench edge are snapped onto the edge (`Terrain.warp`, passed to `island.build_island`), so the
+  island's wall is a straight, almost vertical strip; `trench-wall` objects (baked, matte) lay one row per stratum of the
+  island in front of it (1.2 cm), so the cut shows the strata (moon: no water, dark floor). Where another stretch passes
+  through a trench the ground stays (dam, grounded stretch) or the trench stays open (bridge); the walls stop where the
+  trench is shallower than 0.3 m.
+- Detail overrides (`detail.resolve`): the course data may carry `"detail": {...}` with `island_quads` (island top grid,
+  default 4400 quads, 1200-8000), `loop_sections` (cross-sections of every loop without its own `sections`, 48-120) and
+  `trim_facets` (facets of the rounded rail-trim top, default 4, 1-6). Heavy courses (loop, half-pipe, fork and funnel
+  together) use them to stay inside 1.25 MiB and 36,000 triangles: on the moon probe `island_quads` 3000, `loop_sections` 56,
+  `trim_facets` 2 saved about 18 % of the triangles and 13 % of the bytes.
 
 ### Placement (`placement.py`)
 
@@ -339,6 +396,10 @@ with probe content. The steps:
   the floor) and the half-pipe rails, writes `<name>.json` and prints
   `selftest ok`. Run it twice: the GLB hashes and digests must match, and each digest must equal `colliderDigest`
   of the same GLB. `track_checks` also runs without Blender.
+- Structures: `blender --background --factory-startup --python assets/minigolf/kit/structure_selftest.py` checks the
+  bridge look, the rejected tunnel covers, the support rules, the tunnel rules and the `detail` validation and prints
+  `structure selftest ok`. Review a structure with a scratch course (bridge over a pond, ramp with supports, tunnel with
+  each portal, moon chasm) and a Cycles render from the front of the portal and from the side of the bridge.
 - P3 courses: `blender --background --factory-startup --python assets/minigolf/generate.py -- --set p3 --out assets/minigolf/build/p3 --only kits,courses`
   (course 1 of the data module; about 20 s with the kits, `--course N` about 15 s). Then
   `node scripts/minigolf-route-search.mjs --dir assets/minigolf/build/p3 --course pirate-01` must find a verified route.

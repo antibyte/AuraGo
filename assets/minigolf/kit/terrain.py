@@ -37,6 +37,7 @@ POND_DROP, POND_DEPTH = 0.25, 0.45
 POOL_IN, POOL_OUT = 0.30, 0.15     # a pool bank slopes from this far inside its polygon to this far outside
 TRENCH_Z = {"pirate": WATER_Z - 0.3, "temple": WATER_Z - 0.3, "moon": -3.0}
 TRENCH_PAD, TRENCH_SOFT = 0.05, 0.12
+SNAP_IN, SNAP_OUT = 0.6, 0.2   # grid vertices this close inside or outside a trench edge are snapped onto it (``Terrain.warp``)
 DAM_LATERAL = (2.4, 3.2)  # beyond this lateral distance from the lane a trench gives way to other stretches of the track
 
 
@@ -124,6 +125,19 @@ class Terrain:
     def lane_distance(self, x, y):
         """Plan distance to the nearest grounded floor (99 when none is within ``SCAN_REACH``)."""
         return self._scan(x, y)[0]
+
+    def warp(self, x, y):
+        """Position of a top grid vertex: next to the edge of a trench strip it moves onto the edge line (inside the
+        trench at ``half``, outside at ``half + TRENCH_SOFT``), so the walls of the trench are straight and vertical."""
+        for mx, my, fx, fy, half in self.gaps:
+            along = (x - mx) * fx + (y - my) * fy
+            s = abs(along)
+            if not half - SNAP_IN <= s <= half + TRENCH_SOFT + SNAP_OUT:
+                continue
+            target = half if s <= half + TRENCH_SOFT / 2.0 else half + TRENCH_SOFT
+            shift = math.copysign(target - s, along)
+            x, y = x + fx * shift, y + fy * shift
+        return x, y
 
     def in_trench(self, x, y, soft=TRENCH_SOFT):
         """True inside the strip of a ``gap`` hazard (``soft`` metres of margin)."""

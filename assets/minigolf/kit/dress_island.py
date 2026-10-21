@@ -120,26 +120,26 @@ def layers_for(look, pal):
     ]
 
 
-def grid_for(outline):
+def grid_for(outline, max_quads=MAX_TOP_QUADS):
     """Top grid ``(nx, ny)`` of the island: cells of ``CELL`` m, coarser when the island is so large that the top
-    would exceed ``MAX_TOP_QUADS`` quads."""
+    would exceed ``max_quads`` quads (``detail.island_quads``, default ``MAX_TOP_QUADS``)."""
     hx, hy = outline.half
-    cell = max(CELL, math.sqrt(4.0 * hx * hy / MAX_TOP_QUADS))
+    cell = max(CELL, math.sqrt(4.0 * hx * hy / max_quads))
     return math.ceil(2.0 * hx / cell), math.ceil(2.0 * hy / cell)
 
 
-def build(terrain, number):
+def build(terrain, number, max_quads=MAX_TOP_QUADS):
     """Build the island and return ``(island_obj, waterline)`` (waterline empty on the moon)."""
     look = terrain.look
     terrain.layers = layers_for(look, terrain.pal)
-    nx, ny = grid_for(terrain.outline)
+    nx, ny = grid_for(terrain.outline, max_quads)
 
     def height(x, y, edge):
         return terrain.top_height(x, y)
 
     obj, waterline = build_island(terrain.outline, nx, ny, height, lambda x, y, z, edge: ground_color(terrain, x, y, z, edge),
                                   terrain.layers, WATER_Z if look != "moon" else -100.0, seed=number, tip=TIP[look],
-                                  clamp_down=True)
+                                  clamp_down=True, warp=terrain.warp)
     obj.data.materials.append(materials.get("matte"))
     return obj, waterline
 

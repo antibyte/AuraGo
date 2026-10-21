@@ -95,7 +95,7 @@ class Layer:
 
 
 def build_island(outline, nx, ny, height_fn, color_fn, layers, water_z, seed=1,
-                 tip=None, top_ao=0.7, wall_ao=0.7, clamp_down=False):
+                 tip=None, top_ao=0.7, wall_ao=0.7, clamp_down=False, warp=None):
     """Build the island mesh. Returns ``(obj, waterline)``.
 
     ``height_fn(x, y, edge_m)`` gives the top height (``edge_m`` is the rough
@@ -104,7 +104,9 @@ def build_island(outline, nx, ny, height_fn, color_fn, layers, water_z, seed=1,
     ``water_z`` for the water rings. ``tip`` (z) closes the bottom into a point
     for floating islands. ``clamp_down`` keeps every wall ring at or below the
     ring above it, so a trench that cuts the rim below a stratum bottom does not
-    fold the wall upwards (the probes leave it off).
+    fold the wall upwards (the probes leave it off). ``warp(x, y) -> (x, y)`` moves a top grid vertex before its
+    height is read (the terrain snaps the vertices next to a trench onto the trench edge, so the walls come out
+    straight).
     """
     rng = random.Random(seed)
     verts, cols, aow = [], [], []
@@ -118,6 +120,8 @@ def build_island(outline, nx, ny, height_fn, color_fn, layers, water_z, seed=1,
         for i in range(nx + 1):
             u, v = -1 + 2 * i / nx, -1 + 2 * j / ny
             x, y, rr = outline.point(u, v)
+            if warp is not None:
+                x, y = warp(x, y)
             edge = (1.0 - rr) * min_half
             z = height_fn(x, y, edge)
             verts.append((x, y, z))

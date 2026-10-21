@@ -20,7 +20,7 @@ always checked against each other.
 import copy
 import math
 
-from . import layout_fork, pads, pads_funnel, pieces, pieces_moon  # noqa: F401  (the last two register their pieces)
+from . import detail as detail_mod, layout_fork, pads, pads_funnel, pieces, pieces_moon  # noqa: F401  (the last two register their pieces)
 from .track import GRAVITY, LANE_WIDTH, WALL_THICKNESS, Cursor, Strip, Track, distance
 
 PIECES = pieces.PIECES
@@ -28,6 +28,8 @@ PADS = pads.PADS
 LENGTH_RANGE = (10.0, 35.0)
 COVERS = (None, "tunnel")
 DECKS = (None, "bridge")
+BRIDGE_LOOK = {"pirate": "deck", "temple": "deck", "moon": "metal"}   # floor look of a bridge unless the piece sets its own
+NO_COVER = ("loop", "halfpipe")                                       # a ball can reach the roof (the roof has no collision)
 CLEARANCE = 0.5
 SEPARATE_ARC = 4.0       # parts of the route further apart than this must keep their distance
 LOOP_RUN_UP = 8.0
@@ -110,6 +112,12 @@ def _lane_piece(track, state, cursor, name, params):
     cover, deck = params.pop("cover", None), params.pop("deck", None)
     if cover not in COVERS or deck not in DECKS:
         raise ValueError("cover must be 'tunnel' and deck 'bridge' (or omitted)")
+    if cover and (name in NO_COVER or params.get("lip")):
+        raise ValueError("a tunnel roof has no collision: it must not cover a %s (a ball could reach it)" % ("ramp with a lip" if name == "ramp" else name))
+    if deck and "look" not in params:
+        params["look"] = BRIDGE_LOOK[track.world]
+    if name == "loop" and shared["loop_sections"] and "sections" not in params:
+        params["sections"] = shared["loop_sections"]
     if name == "loop" and state["run"] < LOOP_RUN_UP - 1e-9 and not shared["boost"]:
         raise ValueError("a loop needs a boost pad before it or a flat straight run-up of %g m (got %.1f m)" % (LOOP_RUN_UP, state["run"]))
     length = params.get("length", 0.0) if name == "straight" else 0.0
@@ -188,7 +196,8 @@ def build(course_data, world, check_length=True):
         raise ValueError("course %d: unknown world %r" % (number, world))
     track = Track(world, number, course_data.get("par", 0))
     mechanics = list(course_data.get("mechanics", []))
-    shared = {"samples": [], "alts": [], "forks": 0, "loops": 0, "boost": any(m.get("kind") == "boost" for m in mechanics)}
+    shared = {"samples": [], "alts": [], "forks": 0, "loops": 0, "boost": any(m.get("kind") == "boost" for m in mechanics),
+              "loop_sections": detail_mod.resolve(course_data)["loop_sections"]}
     state = new_state(shared)
     start = course_data["start"]
     at = _point(start["at"])

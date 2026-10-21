@@ -5,6 +5,7 @@
 
 * ``dress``       island outline from the layout (``footprint``), terrain and island mesh (``terrain``,
                   ``dress_island``), the ``water-shore`` strip and the rail trims (``trim``, from the rail runs)
+* ``build_structures``  supports, bridge parts, tunnel roofs and portals, pond water, trench walls (``structures``)
 * ``place``       the hero and the fixed props of the course data, then medium props and scatter
                   (``placement``); ``runtime_props`` converts them for the manifest
 * ``restyle``     world materials and colours for the functional parts (``dress_parts``)
@@ -22,7 +23,8 @@ Floors (``floor-*``) and collision rails (``rail-*``) are built by ``build_track
 import copy
 import math
 
-from . import bake, dress_island, dress_parts, footprint, occluders, palette, placement, shapes, trim
+from . import bake, dress_island, dress_parts, footprint, occluders, palette, placement, shapes, structures, trim
+from . import detail as detail_mod
 from .terrain import Terrain
 
 BAKE_TINT = {"pirate": (0.10, 0.10, 0.22), "temple": (0.16, 0.08, 0.10), "moon": (0.14, 0.12, 0.30)}
@@ -44,6 +46,7 @@ class Dresser:
         self.templates = occluders.templates(self.look)
         self.catalog = self.templates.catalog
         self.where = "course %d: " % number
+        self.detail = detail_mod.resolve(data)
         self.hero, self.props = self._data_placements()
         self.terrain = None
         self.island = None
@@ -51,6 +54,8 @@ class Dresser:
         self.shore = None
         self.trims = []
         self.extra = []
+        self.ponds = []
+        self.reserved = []
         self.bake_parts = []
         self.pass_parts = []
         self.placements = []
@@ -83,6 +88,7 @@ class Dresser:
         circles += [((x, y), self.catalog[name]["radius"] * scale) for name, x, y, _, scale in self.props]
         for (x, y), radius in circles:
             points.extend(footprint.circle_points(x, y, radius))
+        points.extend(structures.footprint_points(self.track))
         return points
 
     # -- island, shore and trims ---------------------------------------------------
@@ -93,11 +99,25 @@ class Dresser:
         shapes.set_collection(coll)
         try:
             self.terrain = Terrain(self.look, self.number, self.track, outline)
-            self.island, self.waterline = dress_island.build(self.terrain, self.number)
+            self.island, self.waterline = dress_island.build(self.terrain, self.number, self.detail["island_quads"])
             self.shore = dress_island.build_shore(self.terrain, self.waterline) if self.waterline else None
-            self.trims = trim.build_trims(self.look, built["runs"], self.number, self.track.corridors, self.terrain.top_height)
+            self.trims = trim.build_trims(self.look, built["runs"], self.number, self.track.corridors, self.terrain.top_height,
+                                         self.detail["trim_facets"])
         finally:
             shapes.set_collection(None)
+
+    def build_structures(self, coll, built):
+        """Supports, bridge parts, tunnels and pond water (``structures``); call after ``dress`` and before ``place``.
+
+        ``built`` is the result of ``build_track.build`` (its rail runs keep the supports clear of other lanes' rails)."""
+        shapes.set_collection(coll)
+        try:
+            built = structures.build(self.track, self.terrain, self.look, self.number, built["runs"])
+        finally:
+            shapes.set_collection(None)
+        self.extra.extend(built.baked)
+        self.ponds = built.water
+        self.reserved = built.reserved
 
     def top_height(self, x, y):
         return self.terrain.top_height(x, y)
@@ -111,7 +131,7 @@ class Dresser:
         cup = self.track.cup
         try:
             self.placements = placement.place(self.look, self.number, field, self.terrain.top_height, self.catalog, plan, fixed=fixed,
-                                              reserved=reserved, cup=(cup[0], cup[1]), hero=self.hero, props=self.props)
+                                              reserved=tuple(reserved) + tuple(self.reserved), cup=(cup[0], cup[1]), hero=self.hero, props=self.props)
             placement.check(self.placements, field, self.catalog)
         except (ValueError, RuntimeError) as exc:
             raise type(exc)(self.where + str(exc)) from None
@@ -153,7 +173,7 @@ class Dresser:
     def bake(self, coll):
         """Bake AO into the diorama parts with the placed props as occluders; templates, obstacles and shore only get ``Col``."""
         bakeable = [self.island] + list(self.trims) + list(self.extra) + list(self.bake_parts)
-        passthrough = ([self.shore] if self.shore else []) + list(self.pass_parts)
+        passthrough = ([self.shore] if self.shore else []) + list(self.ponds) + list(self.pass_parts)
         hidden = []
         for obj in coll.objects:
             base = _base(obj)
@@ -163,7 +183,7 @@ class Dresser:
                 hidden.append(obj)
         copies = self.templates.instantiate(coll, self.placements)
         try:
-            return bake.process(bakeable, passthrough=passthrough, hidden=hidden + ([self.shore] if self.shore else []),
+            return bake.process(bakeable, passthrough=passthrough, hidden=hidden + ([self.shore] if self.shore else []) + list(self.ponds),
                                 samples=BAKE_SAMPLES, distance=BAKE_DISTANCE, tint=BAKE_TINT[self.look])
         finally:
             occluders.remove(copies)

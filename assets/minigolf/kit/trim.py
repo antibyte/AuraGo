@@ -21,6 +21,7 @@ from .track import WALL_HEIGHT
 
 INNER_BOTTOM, OUTER_BOTTOM = -0.02, -0.07
 SKIRT_DEPTH = -0.5  # deepest reach of the outer face below the lane edge where the ground falls away
+SKIRT_FADE = 0.4    # where the ground is further down than that the skirt fades back to the plain trim over this much
 ARC_RISE = 0.045
 WIDTH = 0.17
 TOP_BELOW = 0.025   # the flat top of the profile lies this far under the rail top
@@ -166,12 +167,15 @@ def _colour_fn(look, pal, rng):
     return colour, "satin"
 
 
-def _ring_profile(entry, ground):
+def _ring_profile(entry, ground, facets=4):
     point, out, up, height = entry
-    profile = trim_profile(height)
+    profile = trim_profile(height, facets)
     if ground is not None and up[2] > UPRIGHT:
         low = ground(point[0] + out[0] * WIDTH, point[1] + out[1] * WIDTH) - point[2] - 0.02
-        profile[-1] = (WIDTH, max(SKIRT_DEPTH, min(OUTER_BOTTOM, low)))
+        depth = max(SKIRT_DEPTH, min(OUTER_BOTTOM, low))
+        if low < SKIRT_DEPTH:          # the ground is out of reach (bridge, ramp end): the skirt shrinks so supports and beams stay visible
+            depth = SKIRT_DEPTH + (OUTER_BOTTOM - SKIRT_DEPTH) * smoothstep(SKIRT_DEPTH - low, 0.0, SKIRT_FADE)
+        profile[-1] = (WIDTH, depth)
     return profile
 
 
@@ -197,11 +201,12 @@ def _strip_custom_props(obj):
         del obj[key]
 
 
-def build_trims(look, runs, number, corridors, ground=None):
+def build_trims(look, runs, number, corridors, ground=None, facets=4):
     """Build the node ``rail-trim`` of all ``runs`` in the active collection; returns ``[object]`` (empty without runs).
 
     ``corridors`` decide the side of each run (left: cyan on the moon, seed ``7000 + 2 * number``); ``ground(x, y)``
-    (the island height) lets the outer face reach down to the ground where it falls away, up to 0.5 m.
+    (the island height) lets the outer face reach down to the ground where it falls away, up to 0.5 m. ``facets`` is
+    the number of facets of the rounded top (``detail.trim_facets``, 1-6).
     """
     if not runs:
         return []
@@ -214,7 +219,7 @@ def build_trims(look, runs, number, corridors, ground=None):
         side = run_side(run, corridors)
         colour, kind = colours[side]
         arc = _arclength(run)
-        profiles = [_ring_profile(entry, ground) for entry in run]
+        profiles = [_ring_profile(entry, ground, facets) for entry in run]
         rings = [[tuple(point[k] + out[k] * a + up[k] * z for k in range(3)) for a, z in profile]
                  for profile, (point, out, up, height) in zip(profiles, run)]
         cols = [colour(arc[i], a, z, run[i][3] - TOP_BELOW) for i, profile in enumerate(profiles) for a, z in profile]

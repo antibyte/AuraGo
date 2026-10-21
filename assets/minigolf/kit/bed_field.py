@@ -5,7 +5,8 @@ those of sections (and pads) with ``grounded`` true whose centre is at most ``GR
 height. Elevated pieces (bridges, ramp ends, loops) are left out, so they do not pull the ground up.
 ``BedField`` hashes them by their centroid in 1 m cells and answers ``nearest(x, y, reach)``: every triangle
 within ``reach`` metres of the point with its plan distance, the triangle height at the nearest point and its
-route arc (the stretch of the course it belongs to).
+route arc (the stretch of the course it belongs to). ``floor_triangles(track, grounded_only=False)`` lists every floor
+triangle, which the structures use to keep supports clear of other stretches.
 """
 
 import math
@@ -21,19 +22,19 @@ def _quad(a, b, c, d, arc, out):
     out.append((a, c, d, arc))
 
 
-def grounded_triangles(track):
-    """``[(a, b, c, arc)]`` plan-view floor triangles of everything that rests on the ground (points are 3D)."""
+def floor_triangles(track, grounded_only=True):
+    """``[(a, b, c, arc)]`` plan-view floor triangles (points are 3D): those that rest on the ground, or all of them."""
     base = track.tee[2]
     out = []
     for strip in track.strips:
         for s0, s1 in zip(strip.sections, strip.sections[1:]):
-            if not (s1.grounded and s0.grounded and s1.center[2] - base <= GROUNDED_MAX and s0.center[2] - base <= GROUNDED_MAX):
+            if grounded_only and not (s1.grounded and s0.grounded and s1.center[2] - base <= GROUNDED_MAX and s0.center[2] - base <= GROUNDED_MAX):
                 continue
             arc = 0.5 * (s0.arc + s1.arc)
             for j in range(ROWS):
                 _quad(s0.points[j], s0.points[j + 1], s1.points[j + 1], s1.points[j], arc, out)
     for pad in track.pads:
-        if not pad.grounded:
+        if grounded_only and not pad.grounded:
             continue
         grid = pad.grid
         if grid.get("polar"):
@@ -45,6 +46,11 @@ def grounded_triangles(track):
                 _quad(points[i][j], points[i][j + 1], points[i + 1][j + 1], points[i + 1][j], pad.arc0 + xs[i], out)
             out.extend((a, b, c, pad.arc0 + 0.5 * pad.size[0]) for a, b, c in pad.tris)
     return out
+
+
+def grounded_triangles(track):
+    """``[(a, b, c, arc)]`` plan-view floor triangles of everything that rests on the ground (points are 3D)."""
+    return floor_triangles(track, True)
 
 
 def _closest(px, py, a, b, c):
