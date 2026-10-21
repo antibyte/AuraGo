@@ -74,42 +74,43 @@ type dockerArgs struct {
 }
 
 type homepageArgs struct {
-	Operation    string
-	Command      string
-	Framework    string
-	Name         string
-	Template     string
-	ProjectDir   string
-	AutoFix      bool
-	Force        bool
-	Packages     []string
-	URL          string
-	Viewport     string
-	Path         string
-	Content      string
-	SubOperation string
-	Old          string
-	New          string
-	Marker       string
-	StartLine    int
-	EndLine      int
-	JsonPath     string
-	SetValue     interface{}
-	Xpath        string
-	Port         int
-	BuildDir     string
-	SiteID       string
-	ProjectID    string
-	Alias        string
-	Domain       string
-	Target       string
-	Title        string
-	Draft        bool
-	GitMessage   string
-	Message      string
-	Reason       string
-	Count        int
-	RevisionID   int64
+	ManagedSiteID int64
+	Operation     string
+	Command       string
+	Framework     string
+	Name          string
+	Template      string
+	ProjectDir    string
+	AutoFix       bool
+	Force         bool
+	Packages      []string
+	URL           string
+	Viewport      string
+	Path          string
+	Content       string
+	SubOperation  string
+	Old           string
+	New           string
+	Marker        string
+	StartLine     int
+	EndLine       int
+	JsonPath      string
+	SetValue      interface{}
+	Xpath         string
+	Port          int
+	BuildDir      string
+	SiteID        string
+	ProjectID     string
+	Alias         string
+	Domain        string
+	Target        string
+	Title         string
+	Draft         bool
+	GitMessage    string
+	Message       string
+	Reason        string
+	Count         int
+	RevisionID    int64
 
 	Slug           string
 	Account        string
@@ -385,40 +386,41 @@ func (req dockerArgs) targetContainerID() string {
 
 func decodeHomepageArgs(tc ToolCall) homepageArgs {
 	req := homepageArgs{
-		Operation:    firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
-		Command:      firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command")),
-		Framework:    firstNonEmptyToolString(tc.Framework, toolArgString(tc.Params, "framework")),
-		Name:         firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
-		Template:     firstNonEmptyToolString(tc.Template, toolArgString(tc.Params, "template")),
-		ProjectDir:   firstNonEmptyToolString(tc.ProjectDir, toolArgString(tc.Params, "project_dir")),
-		AutoFix:      tc.AutoFix,
-		Force:        tc.Force,
-		URL:          firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
-		Viewport:     firstNonEmptyToolString(tc.Viewport, toolArgString(tc.Params, "viewport")),
-		Path:         firstNonEmptyToolString(tc.Path, toolArgString(tc.Params, "path", "file_path")),
-		Content:      firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
-		SubOperation: firstNonEmptyToolString(tc.SubOperation, toolArgString(tc.Params, "sub_operation")),
-		Old:          toolArgString(tc.Params, "old"),
-		New:          toolArgString(tc.Params, "new"),
-		Marker:       toolArgString(tc.Params, "marker"),
-		StartLine:    toolArgInt(tc.Params, 0, "start_line"),
-		EndLine:      toolArgInt(tc.Params, 0, "end_line"),
-		JsonPath:     toolArgString(tc.Params, "json_path"),
-		Xpath:        toolArgString(tc.Params, "xpath"),
-		Port:         firstNonEmptyInt(tc.Port, toolArgInt(tc.Params, 0, "port")),
-		BuildDir:     firstNonEmptyToolString(tc.BuildDir, toolArgString(tc.Params, "build_dir")),
-		SiteID:       firstNonEmptyToolString(tc.SiteID, toolArgString(tc.Params, "site_id")),
-		ProjectID:    firstNonEmptyToolString(toolArgString(tc.Params, "project_id")),
-		Alias:        firstNonEmptyToolString(toolArgString(tc.Params, "alias")),
-		Domain:       firstNonEmptyToolString(toolArgString(tc.Params, "domain")),
-		Target:       firstNonEmptyToolString(toolArgString(tc.Params, "target")),
-		Title:        firstNonEmptyToolString(tc.Title, toolArgString(tc.Params, "title")),
-		Draft:        tc.Draft,
-		GitMessage:   firstNonEmptyToolString(tc.GitMessage, toolArgString(tc.Params, "git_message")),
-		Message:      firstNonEmptyToolString(tc.Message, toolArgString(tc.Params, "message")),
-		Reason:       firstNonEmptyToolString(tc.Reason, toolArgString(tc.Params, "reason")),
-		Count:        firstNonEmptyInt(tc.Count, toolArgInt(tc.Params, 0, "count")),
-		RevisionID:   toolArgInt64(tc.Params, "revision_id"),
+		ManagedSiteID: toolArgInt64(tc.Params, "managed_site_id"),
+		Operation:     firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Command:       firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command")),
+		Framework:     firstNonEmptyToolString(tc.Framework, toolArgString(tc.Params, "framework")),
+		Name:          firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
+		Template:      firstNonEmptyToolString(tc.Template, toolArgString(tc.Params, "template")),
+		ProjectDir:    firstNonEmptyToolString(tc.ProjectDir, toolArgString(tc.Params, "project_dir")),
+		AutoFix:       tc.AutoFix,
+		Force:         tc.Force,
+		URL:           firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		Viewport:      firstNonEmptyToolString(tc.Viewport, toolArgString(tc.Params, "viewport")),
+		Path:          firstNonEmptyToolString(tc.Path, toolArgString(tc.Params, "path", "file_path")),
+		Content:       firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+		SubOperation:  firstNonEmptyToolString(tc.SubOperation, toolArgString(tc.Params, "sub_operation")),
+		Old:           toolArgString(tc.Params, "old"),
+		New:           toolArgString(tc.Params, "new"),
+		Marker:        toolArgString(tc.Params, "marker"),
+		StartLine:     toolArgInt(tc.Params, 0, "start_line"),
+		EndLine:       toolArgInt(tc.Params, 0, "end_line"),
+		JsonPath:      toolArgString(tc.Params, "json_path"),
+		Xpath:         toolArgString(tc.Params, "xpath"),
+		Port:          firstNonEmptyInt(tc.Port, toolArgInt(tc.Params, 0, "port")),
+		BuildDir:      firstNonEmptyToolString(tc.BuildDir, toolArgString(tc.Params, "build_dir")),
+		SiteID:        firstNonEmptyToolString(tc.SiteID, toolArgString(tc.Params, "site_id")),
+		ProjectID:     firstNonEmptyToolString(toolArgString(tc.Params, "project_id")),
+		Alias:         firstNonEmptyToolString(toolArgString(tc.Params, "alias")),
+		Domain:        firstNonEmptyToolString(toolArgString(tc.Params, "domain")),
+		Target:        firstNonEmptyToolString(toolArgString(tc.Params, "target")),
+		Title:         firstNonEmptyToolString(tc.Title, toolArgString(tc.Params, "title")),
+		Draft:         tc.Draft,
+		GitMessage:    firstNonEmptyToolString(tc.GitMessage, toolArgString(tc.Params, "git_message")),
+		Message:       firstNonEmptyToolString(tc.Message, toolArgString(tc.Params, "message")),
+		Reason:        firstNonEmptyToolString(tc.Reason, toolArgString(tc.Params, "reason")),
+		Count:         firstNonEmptyInt(tc.Count, toolArgInt(tc.Params, 0, "count")),
+		RevisionID:    toolArgInt64(tc.Params, "revision_id"),
 
 		Slug:           firstNonEmptyToolString(toolArgString(tc.Params, "slug"), tc.SiteID),
 		Account:        toolArgString(tc.Params, "account"),

@@ -17,6 +17,11 @@ func TestPrivacyDeletionWorkerRunsWhenMaintenanceIsDisabled(t *testing.T) {
 		t.Fatalf("open STM: %v", err)
 	}
 	defer stm.Close()
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("open knowledge graph: %v", err)
+	}
+	defer kg.Close()
 
 	session, err := stm.CreateChatSession()
 	if err != nil {
@@ -28,7 +33,7 @@ func TestPrivacyDeletionWorkerRunsWhenMaintenanceIsDisabled(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	controller := StartMaintenanceController(ctx, &config.Config{}, MaintenanceControllerDependencies{ShortTermMem: stm, Logger: logger})
+	controller := StartMaintenanceController(ctx, &config.Config{}, MaintenanceControllerDependencies{ShortTermMem: stm, KG: kg, Logger: logger})
 	defer func() {
 		cancel()
 		if err := controller.Stop(context.Background()); err != nil {

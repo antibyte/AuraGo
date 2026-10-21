@@ -1724,3 +1724,8 @@
         transform: rotate(360deg);
     }
 }
+
+.vd-hp-site-path { overflow-wrap:anywhere; white-space:normal; }
+.vd-hp-site-event { padding:8px 0; border-bottom:1px solid var(--border-color,rgba(128,128,128,.2)); overflow-wrap:anywhere; }
+.vd-hp-site-event summary { cursor:pointer; line-height:1.5; }
+.vd-hp-site-event time { opacity:.7; font-size:.85em; }

@@ -197,11 +197,16 @@ func (kg *KnowledgeGraph) applyContactPrivacyTarget(ctx context.Context, target 
 		if err != nil || blocked {
 			return false, err
 		}
-		if err := cleanupKGClaimsByIDTx(tx, []string{target.TargetID}); err != nil {
+		if err := deleteKGClaimsByIDTx(tx, []string{target.TargetID}); err != nil {
 			return false, err
 		}
 	default:
 		return false, fmt.Errorf("unknown contact privacy target type")
+	}
+	if target.Store == "kg_contact_claim" {
+		if err := cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
+			return false, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return false, err

@@ -24,8 +24,11 @@ func TestPersonalityProfileCredentialLabelsRejectOpaqueValues(t *testing.T) {
 		{"theme", "dark", true},
 	} {
 		t.Run(test.key, func(t *testing.T) {
-			stm, logger := maintenanceRegressionStores(t)
-			applyPersonalityProfileUpdates(stm, logger, []memory.ProfileUpdate{{Category: "prefs", Key: test.key, Value: test.value}})
+			stm, _ := maintenanceRegressionStores(t)
+			_, applyErr := stm.ApplyPersonalityObservation(memory.PersonalityObservation{Input: memory.NewHumanInput(test.value, "profile-test"), ProfileUpdates: []memory.ProfileUpdate{{Category: "prefs", Key: test.key, Value: test.value}}})
+			if applyErr != nil {
+				t.Fatal(applyErr)
+			}
 			entries, err := stm.GetProfileEntries("prefs")
 			wantCount := 0
 			if test.wantStored {

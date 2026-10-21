@@ -77,6 +77,8 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ### Co-agent lifecycle
 
+- Co-agents and specialists resolve the selected provider's complete account/gateway identity through `llm.TaskProviderConfig`; never inherit those fields from an unrelated main provider. Helper clients invalidate on effective transport changes, including logging, routing and gateway credentials. Legacy summary calls carry explicit provider IDs rather than inferring identity from a shared URL.
+
 - A queued co-agent waits at most its `timeout_seconds` for a slot. Every start failure is terminal through `CoAgentRegistry.FailIfActive`, which never overwrites a cancelled, completed or failed entry and releases a slot only when one was held. The execution timeout starts after queue promotion; Stop cancels both phases. Verify `TestCoAgentQueueTimeout*`.
 
 ### Optional task LLM router
@@ -490,3 +492,12 @@ None.
 
 ### EvoMap registration
 - Register nodes only when EvoMap is enabled and writable, through the server-owned configuration callback. Agent snapshots are immutable; no direct config.Save or Vault registration writes from dispatch. The callback rechecks current permissions and serializes persistence.
+
+
+### Managed website context and mutation intent
+
+- Homepage mutations require a purpose in reason before execution and use tools.ExecuteHomepageOperation. Do not duplicate routine events with manual notes.
+- Managed-site context is a required request-local addendum independent of ReuseContext, including prepared/stable and scoped minimal loops. Refresh after cache lookup on every physical request; never widen scoped registry access.
+- Keep active identity, locations, unknown outcomes and reasons visible. The registry overview/get_site/list_events operations expose the complete paginated read model.
+- Verify rendered-inventory and focused dispatch regression tests.
+- Existing inventory follows database availability even while the Homepage runtime is disabled; explicit tool scopes still gate exposure.

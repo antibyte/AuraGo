@@ -6,9 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"aurago/internal/agent"
 	"aurago/internal/config"
-	"aurago/internal/llm"
 	"aurago/internal/security"
 )
 
@@ -103,7 +101,6 @@ func refreshAllOAuthTokens(s *Server) {
 		updated := tok
 		updated.AccessToken = newTok.AccessToken
 		updated.TokenType = newTok.TokenType
-		security.RegisterSensitive(updated.AccessToken)
 		// Some providers don't return a new refresh_token; keep the old one
 		if newTok.RefreshToken != "" {
 			updated.RefreshToken = newTok.RefreshToken
@@ -123,7 +120,7 @@ func refreshAllOAuthTokens(s *Server) {
 		}
 
 		tokJSON, _ := json.Marshal(updated)
-		if err := s.Vault.CompareAndSwapSecret("oauth_"+prov.ID, raw, string(tokJSON)); err != nil {
+		if err := storeRefreshedProviderOAuth(s, prov, raw, string(tokJSON)); err != nil {
 			s.Logger.Error("[OAuth Refresh] Failed to store refreshed token", "provider", prov.ID, "error", err)
 			continue
 		}
@@ -133,24 +130,6 @@ func refreshAllOAuthTokens(s *Server) {
 	}
 
 	if refreshed > 0 {
-		// Apply updated tokens to live config and reconfigure all LLM clients
-		// so refreshed tokens take effect immediately without a restart.
-		s.CfgMu.Lock()
-		current := s.ConfigSnapshot()
-		if current == nil {
-			s.CfgMu.Unlock()
-			return
-		}
-		updatedConfig := *current
-		updatedConfig.Providers = append([]config.ProviderEntry(nil), current.Providers...)
-		updatedConfig.ApplyOAuthTokens(s.Vault)
-		s.replaceConfigSnapshot(&updatedConfig)
-		if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
-			fm.Reconfigure(&updatedConfig)
-		}
-		s.LLMGuardian = security.NewLLMGuardian(&updatedConfig, s.Logger)
-		s.CfgMu.Unlock()
-		agent.ResetGlobalHelperLLMManager()
 		s.Logger.Info("[OAuth Refresh] Applied refreshed tokens", "count", refreshed)
 	}
 }

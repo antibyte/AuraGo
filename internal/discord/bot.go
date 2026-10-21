@@ -727,6 +727,10 @@ func processDiscordAttachmentContext(ctx context.Context, att *discordgo.Message
 }
 
 func processDiscordMessage(ctx context.Context, sessionID string, s *discordgo.Session, m *discordgo.MessageCreate, inputText string, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, budgetTracker *budget.Tracker, webhookManager *webhooks.Manager, routingDecisions ...agent.TaskDecisionService) {
+	humanInput := memory.NewHumanInputEvent(m.Content, sessionID, "discord:"+m.ID, m.Timestamp)
+	if !m.Timestamp.IsZero() {
+		humanInput.OccurredAt = m.Timestamp.UTC()
+	}
 	releaseTurn, err := shortTermMem.LockSessionTurn(ctx, sessionID)
 	if err != nil {
 		return
@@ -754,6 +758,7 @@ func processDiscordMessage(ctx context.Context, sessionID string, s *discordgo.S
 	runCfg := agent.RunConfig{
 		RoutingDecisions:   decisionService,
 		TaskRoutingText:    &routingText,
+		HumanInput:         humanInput,
 		Config:             cfg,
 		Logger:             logger,
 		LLMClient:          client,
@@ -773,7 +778,6 @@ func processDiscordMessage(ctx context.Context, sessionID string, s *discordgo.S
 		BudgetTracker:      budgetTracker,
 		PreparationService: nil,
 		SessionID:          sessionID,
-		IsMaintenance:      tools.IsBusy(),
 		MessageSource:      "discord",
 		VoiceOutputActive:  agent.GetVoiceMode(),
 	}

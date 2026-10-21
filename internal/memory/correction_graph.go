@@ -29,27 +29,107 @@ func correctionGraphFieldAllowed(field string) bool {
 }
 
 func (kg *KnowledgeGraph) initCorrectionHistory() error {
-	var exists int
-	if err := kg.db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='kg_correction_receipts'`).Scan(&exists); err != nil {
-		return err
-	}
-	if exists == 0 {
-		var count int
-		if err := kg.db.QueryRow(`SELECT COUNT(*) FROM kg_nodes`).Scan(&count); err != nil {
-			return err
-		}
-		if count > 0 {
-			if _, err := backupMainDatabase(kg.db, "memory-corrections-v1"); err != nil {
-				return err
-			}
-		}
-	}
 	_, err := kg.db.Exec(`CREATE TABLE IF NOT EXISTS kg_correction_receipts (id TEXT PRIMARY KEY, after_json TEXT NOT NULL);
 	CREATE TABLE IF NOT EXISTS kg_correction_guards (reference TEXT NOT NULL, value TEXT NOT NULL, correction_id TEXT NOT NULL, PRIMARY KEY(reference,value));`)
 	if err != nil {
 		return err
 	}
 	return kg.initCorrectionFieldRevisions()
+}
+
+// correctionReceipts returns the saved post-commit snapshots for exact receipt
+// IDs. Missing IDs are omitted so privacy recovery can distinguish committed
+// correction items from work that never reached the graph transaction.
+func (kg *KnowledgeGraph) correctionReceipts(ctx context.Context, receiptIDs []string) (map[string]json.RawMessage, error) {
+	ids := uniqueExactNonEmptyStrings(receiptIDs)
+	receipts := make(map[string]json.RawMessage, len(ids))
+	tx, err := kg.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("begin KG correction receipt read: %w", err)
+	}
+	defer tx.Rollback()
+	for start := 0; start < len(ids); start += 400 {
+		end := start + 400
+		if end > len(ids) {
+			end = len(ids)
+		}
+		chunk := ids[start:end]
+		args := make([]interface{}, 0, len(chunk))
+		for _, id := range chunk {
+			args = append(args, id)
+		}
+		rows, err := tx.QueryContext(ctx, `SELECT id,after_json FROM kg_correction_receipts WHERE id IN (`+knowledgeGraphSQLInPlaceholders(len(chunk))+")", args...)
+		if err != nil {
+			return nil, fmt.Errorf("read KG correction receipts: %w", err)
+		}
+		for rows.Next() {
+			var id, payload string
+			if err := rows.Scan(&id, &payload); err != nil {
+				rows.Close()
+				return nil, fmt.Errorf("scan KG correction receipt: %w", err)
+			}
+			receipts[id] = json.RawMessage(payload)
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("iterate KG correction receipts: %w", err)
+		}
+		if err := rows.Close(); err != nil {
+			return nil, fmt.Errorf("close KG correction receipt rows: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit KG correction receipt read: %w", err)
+	}
+	return receipts, nil
+}
+
+// deleteCorrectionReceipts is idempotent and commits all requested receipt
+// deletions atomically. It accepts exact IDs and never stores session identity.
+func (kg *KnowledgeGraph) deleteCorrectionReceipts(ctx context.Context, receiptIDs []string) error {
+	ids := uniqueExactNonEmptyStrings(receiptIDs)
+	if len(ids) == 0 {
+		return nil
+	}
+	tx, err := kg.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin KG correction receipt deletion: %w", err)
+	}
+	defer tx.Rollback()
+	for start := 0; start < len(ids); start += 400 {
+		end := start + 400
+		if end > len(ids) {
+			end = len(ids)
+		}
+		chunk := ids[start:end]
+		args := make([]interface{}, 0, len(chunk))
+		for _, id := range chunk {
+			args = append(args, id)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM kg_correction_receipts WHERE id IN (`+knowledgeGraphSQLInPlaceholders(len(chunk))+")", args...); err != nil {
+			return fmt.Errorf("delete KG correction receipts: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit KG correction receipt deletion: %w", err)
+	}
+	return nil
+}
+
+func uniqueExactNonEmptyStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	ids := make([]string, 0, len(values))
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		ids = append(ids, value)
+	}
+	return ids
 }
 
 func (kg *KnowledgeGraph) correctionSnapshot(ctx context.Context, q correctionQueryer, ref MemoryReference) (correctionSnapshot, error) {

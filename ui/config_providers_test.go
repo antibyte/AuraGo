@@ -71,8 +71,8 @@ func TestConfigProvidersGuardLoadFailureBeforeMutation(t *testing.T) {
 		"config.providers.retry_load",
 		"async function providerRetryLoad()",
 		"function providerEnsureLoaded()",
-		"if (!providerEnsureLoaded()) return;",
-		"if (!providerEnsureLoaded()) return false;",
+		"if (!providerEnsureLoaded() || providersSaving) return;",
+		"if (!providerEnsureLoaded() || providersSaving || providersConflict) return false;",
 	} {
 		if !strings.Contains(providersJS, marker) {
 			t.Fatalf("providers.js missing provider mutation guard marker %q", marker)

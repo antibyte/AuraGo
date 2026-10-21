@@ -270,6 +270,9 @@ func TestMemoryCorrectionMigrationBacksUpPopulatedDatabase(t *testing.T) {
 	if _, err = s.db.Exec(`DROP TRIGGER core_correction_insert; DROP TRIGGER core_correction_update; DROP TABLE memory_corrections; DROP TABLE memory_profile_corrections; DROP TABLE memory_correction_guards`); err != nil {
 		t.Fatal(err)
 	}
+	if _, err = s.db.Exec(`PRAGMA user_version=11`); err != nil {
+		t.Fatal(err)
+	}
 	if err = s.Close(); err != nil {
 		t.Fatal(err)
 	}

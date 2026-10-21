@@ -28,7 +28,7 @@ func (s *Server) speechLabTokens() *speechLabTurnTokenRegistry {
 var (
 	errSpeechLabChatLLMUnavailable = errors.New("Speech Lab chat LLM is unavailable")
 	speechLabChatClientFactory     = func(cfg *config.Config, providerType, baseURL, apiKey, accountID string) llm.ChatClient {
-		return llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, providerType, baseURL, apiKey, accountID))
+		return llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, providerType, baseURL, apiKey, accountID, cfg.LLM.GatewayID))
 	}
 )
 
@@ -68,6 +68,10 @@ func speechLabRuntimeChatProviderWithAuth(provider *config.ProviderEntry, vault 
 		return status, ""
 	}
 
+	if strings.TrimSpace(provider.APIKey) == maskedKey || strings.TrimSpace(provider.OAuthClientSecret) == maskedKey {
+		status.Reason = "invalid_masked_credential"
+		return status, ""
+	}
 	providerType := catalog.NormalizeProviderID(provider.Type)
 	if providerType == "copilot" {
 		status.Configured = copilotConfigured != nil && copilotConfigured()
@@ -90,7 +94,7 @@ func speechLabRuntimeChatProviderWithAuth(provider *config.ProviderEntry, vault 
 			return status, ""
 		}
 		var token config.OAuthToken
-		if err := json.Unmarshal([]byte(raw), &token); err != nil || strings.TrimSpace(token.AccessToken) == "" {
+		if err := json.Unmarshal([]byte(raw), &token); err != nil || strings.TrimSpace(token.AccessToken) == "" || strings.TrimSpace(token.AccessToken) == maskedKey {
 			status.Reason = "invalid_oauth_token"
 			return status, ""
 		}
@@ -115,6 +119,10 @@ func speechLabRuntimeChatProviderWithAuth(provider *config.ProviderEntry, vault 
 		if secret, err := vault.ReadSecret("provider_" + provider.ID + "_api_key"); err == nil {
 			apiKey = strings.TrimSpace(secret)
 		}
+	}
+	if apiKey == maskedKey {
+		status.Reason = "invalid_masked_credential"
+		return status, ""
 	}
 	if apiKey != "" || providerTypeWorksWithoutKey(providerType) {
 		status.Configured = true
@@ -153,6 +161,7 @@ func speechLabChatTurnRuntime(marked bool, isFollowUp bool, missionID string, ba
 	turnCfg.LLM.BaseURL = provider.BaseURL
 	turnCfg.LLM.APIKey = apiKey
 	turnCfg.LLM.AccountID = provider.AccountID
+	turnCfg.LLM.GatewayID = provider.GatewayID
 	turnCfg.LLM.Model = provider.Model
 	turnCfg.LLM.HelperEnabled = false
 	turnCfg.FallbackLLM.Enabled = false

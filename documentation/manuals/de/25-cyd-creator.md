@@ -262,3 +262,4 @@ Archiv werden ignoriert und neu erzeugt. CYD Creator lehnt ein Archiv ab, wenn
 ---
 
 **Vorheriges Kapitel:** [Kapitel 24: EasyDrag](./24-easydrag.md)
+**Nächstes Kapitel:** [Kapitel 26: Video Studio](./26-video-studio.md)

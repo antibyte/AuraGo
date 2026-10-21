@@ -228,6 +228,9 @@
 
     function validate() {
         const errors = [];
+        if (Array.isArray(draftConfig.ai_gateway?.metadata)) {
+            errors.push({path: 'ai_gateway.metadata', code: 'pattern', message: window.t?.('config.ai_gateway.metadata_invalid') || 'Invalid metadata.'});
+        }
         Object.keys(rules).forEach(path => {
             const rule = rules[path] || {};
             // changedOnly rules check edits only; an unchanged saved value is not part of the patch.

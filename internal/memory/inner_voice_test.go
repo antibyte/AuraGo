@@ -32,20 +32,12 @@ func TestInitInnerVoiceTables_Idempotent(t *testing.T) {
 	}
 }
 
-func TestStoreInnerVoice_EmptyThought(t *testing.T) {
-	stm := newTestInnerVoiceDB(t)
-	// Storing empty thought should be a no-op
-	if err := stm.StoreInnerVoice("", "caution"); err != nil {
-		t.Fatalf("StoreInnerVoice empty: %v", err)
-	}
-}
-
 func TestStoreAndGetInnerVoices(t *testing.T) {
 	stm := newTestInnerVoiceDB(t)
 
 	// Insert some emotion_history rows first (inner voice piggybacks on them)
 	for i := 0; i < 3; i++ {
-		_, err := stm.db.Exec(
+		inserted, err := stm.db.Exec(
 			`INSERT INTO emotion_history (description, primary_mood, secondary_mood, valence, arousal, confidence, cause, recommended_response_style)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			"feeling good", "happy", "calm", 0.5, 0.3, 0.8, "test", "friendly",
@@ -65,7 +57,8 @@ func TestStoreAndGetInnerVoices(t *testing.T) {
 			category = "encouragement"
 		}
 		if thought != "" {
-			if err := stm.StoreInnerVoice(thought, category); err != nil {
+			id, _ := inserted.LastInsertId()
+			if _, err := stm.db.Exec(`UPDATE emotion_history SET inner_thought=?,nudge_category=? WHERE id=?`, thought, category, id); err != nil {
 				t.Fatalf("StoreInnerVoice %d: %v", i, err)
 			}
 		}
@@ -118,7 +111,7 @@ func TestGetTodayInnerVoiceSummary_ReturnsToday(t *testing.T) {
 	stm := newTestInnerVoiceDB(t)
 
 	// Insert emotion_history row with inner voice (timestamp defaults to now)
-	_, err := stm.db.Exec(
+	inserted, err := stm.db.Exec(
 		`INSERT INTO emotion_history (description, primary_mood, secondary_mood, valence, arousal, confidence, cause, recommended_response_style)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		"alert", "focused", "calm", 0.6, 0.4, 0.9, "work", "precise",
@@ -126,7 +119,8 @@ func TestGetTodayInnerVoiceSummary_ReturnsToday(t *testing.T) {
 	if err != nil {
 		t.Fatalf("insert: %v", err)
 	}
-	if err := stm.StoreInnerVoice("Stay focused on the goal", "focus"); err != nil {
+	id, _ := inserted.LastInsertId()
+	if _, err := stm.db.Exec(`UPDATE emotion_history SET inner_thought=?,nudge_category=? WHERE id=?`, "Stay focused on the goal", "focus", id); err != nil {
 		t.Fatalf("StoreInnerVoice: %v", err)
 	}
 
@@ -202,4 +196,3 @@ func TestFormatInnerVoiceHistory_LimitsToThree(t *testing.T) {
 		t.Fatalf("expected 'first' in result, got %q", result)
 	}
 }
-

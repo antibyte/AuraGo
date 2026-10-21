@@ -1,12 +1,14 @@
 """Protocol fixtures for the pinned supervisor; never starts Docker."""
 
 import importlib.util
-import io
 import json
 import os
+import http.server
 from pathlib import Path
+import shutil
+import ssl
+import subprocess
 import sys
-import tarfile
 import tempfile
 import threading
 import time
@@ -35,15 +37,49 @@ class Container:
     def __init__(self):
         self.killed = False
         self.responses = []
+        self.files = {}
+        self.id = "readonly-worker"
+        self.api = PublicationAPI(self)
+        self.client = types.SimpleNamespace(api=self.api)
 
     def kill(self):
         self.killed = True
 
     def put_archive(self, path, data):
-        with tarfile.open(fileobj=io.BytesIO(data)) as archive:
-            entry = archive.getmembers()[0]
-            self.responses.append((path, entry, json.load(archive.extractfile(entry))))
-        return True
+        raise RuntimeError("container rootfs is marked read-only")
+
+
+class PublicationAPI:
+    """Realistic counted-stdin exec fixture; archive writes always fail above."""
+    def __init__(self, container):
+        self.container = container
+        self.status = {"Running": False, "ExitCode": 0}
+        self.created = []
+        self.closed = False
+    def exec_create(self, container, command, **options):
+        self.created.append((container, command, options))
+        return {"Id": "private-publication"}
+    def exec_start(self, identity, **options):
+        self.stream_options = options
+        return types.SimpleNamespace(_sock=self, close=self.close)
+    def settimeout(self, value):
+        self.timeout = value
+    def sendall(self, data):
+        _, command, _ = self.created[-1]
+        self.data = data
+        if len(data) != int(command[4]):
+            raise AssertionError("counted stdin length differs")
+        destination = command[5]
+        self.container.files[destination] = data
+        if ".aurago_bridge_" in destination:
+            entry = types.SimpleNamespace(name=Path(destination).name, mode=0o600)
+            self.container.responses.append(("/sandbox", entry, json.loads(data)))
+    def exec_inspect(self, identity):
+        if identity != "private-publication":
+            raise AssertionError("wrong publication identity")
+        return self.status
+    def close(self):
+        self.closed = True
 
 
 def load_launcher():
@@ -56,8 +92,10 @@ def load_launcher():
     server._get_backend = lambda: "docker"
     docker = types.ModuleType("llm_sandbox.docker")
     docker.SandboxDockerSession = Session
+    data = types.ModuleType("llm_sandbox.data")
+    data.ConsoleOutput = lambda **kwargs: types.SimpleNamespace(**kwargs)
     modules = {name: types.ModuleType(name) for name in ("llm_sandbox", "llm_sandbox.mcp_server")}
-    modules.update({server.__name__: server, docker.__name__: docker})
+    modules.update({server.__name__: server, docker.__name__: docker, data.__name__: data})
     spec = importlib.util.spec_from_file_location("supervisor_fixture", Path(__file__).with_name("sandbox_mcp_launch.py"))
     module = importlib.util.module_from_spec(spec)
     with patch.dict(sys.modules, modules), patch.dict(os.environ, {
@@ -69,6 +107,201 @@ def load_launcher():
 
 
 class SupervisorSecurityTest(unittest.TestCase):
+    def test_private_source_publication_uses_counted_exec_on_readonly_root(self):
+        module, _ = load_launcher()
+        session = Session(); session.container = Container()
+        destination = "/sandbox/" + "a" * 32 + ".py"
+        content = b"# private source\nprint('hello')\n"
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.py"
+            source.write_bytes(content)
+            session.copy_to_runtime(source, destination)
+            self.assertEqual(session.container.files[destination], content)
+            api = session.container.api
+            self.assertEqual(api.created[0][2], {"stdin": True, "stdout": False, "stderr": False, "tty": False, "workdir": "/sandbox"})
+            self.assertEqual(api.created[0][1][:3], ["/bin/sh", "-c", module._PUBLISH_SCRIPT])
+            self.assertEqual(api.created[0][1][4:6], [str(len(content)), destination])
+            self.assertEqual(api.stream_options, {"socket": True, "tty": False})
+            self.assertEqual(api.timeout, 10)
+            self.assertTrue(api.closed)
+            for suffix in ("java", "js", "cpp", "go", "rb", "R"):
+                session.copy_to_runtime(source, "/sandbox/" + "b" * 32 + "." + suffix)
+
+    def test_private_publication_validates_paths_sources_and_byte_limit(self):
+        module, _ = load_launcher()
+        session = Session(); session.container = Container()
+        for destination in ("/tmp/source.py", "/sandbox/../source.py", "/sandbox/a;touch x.py", "/sandbox/" + "a" * 32 + ".py\n", "/sandbox/nested/file.py"):
+            with self.subTest(destination=destination), self.assertRaises(ValueError):
+                module._publish_worker_file(session, destination, b"x")
+        with tempfile.TemporaryDirectory() as directory:
+            destination = "/sandbox/" + "a" * 32 + ".py"
+            with self.assertRaises(ValueError):
+                session.copy_to_runtime(directory, destination)
+            source = Path(directory) / "large.py"
+            source.write_bytes(b"x" * (module._PUBLICATION_LIMIT + 1))
+            with self.assertRaises(ValueError):
+                session.copy_to_runtime(source, destination)
+            with patch.object(module.os, "lstat", return_value=types.SimpleNamespace(st_mode=0o120777)):
+                with self.assertRaises(ValueError):
+                    session.copy_to_runtime(source, destination)
+        self.assertEqual(session.container.api.created, [])
+
+    def test_private_publication_failure_unknown_status_and_cancellation_fail_closed(self):
+        module, server = load_launcher()
+        for status in ({"Running": False, "ExitCode": 7}, {"Running": False, "ExitCode": None}, {"Running": False, "ExitCode": True}, {}):
+            session = Session(); session.container = Container()
+            session.container.api.status = status
+            broker = module._Broker("http://127.0.0.1:1234", "secret", [], 1)
+            with self.subTest(status=status), self.assertRaises(RuntimeError):
+                broker.dispatch(session, {"id": 1, "tool": "denied", "parameters": {}})
+            self.assertTrue(session.container.killed)
+            self.assertTrue(session.container.api.closed)
+        session = Session(); session.container = Container()
+        session._aurago_cancelled = threading.Event()
+        session._aurago_cancelled.set()
+        with self.assertRaises(RuntimeError):
+            module._publish_worker_file(session, "/sandbox/" + "a" * 32 + ".py", b"x")
+        self.assertEqual(session.container.api.created, [])
+        session._aurago_cancelled.clear()
+        def cancelled_status(_):
+            session._aurago_cancelled.set()
+            return {"Running": True, "ExitCode": None}
+        session.container.api.exec_inspect = cancelled_status
+        with self.assertRaises(RuntimeError):
+            module._publish_worker_file(session, "/sandbox/" + "a" * 32 + ".py", b"x")
+        self.assertTrue(session.container.killed)
+
+    def test_private_publication_socket_error_is_bounded_and_never_success(self):
+        module, server = load_launcher()
+        container = Container()
+        container.api.sendall = lambda _: (_ for _ in ()).throw(TimeoutError("fixture blocked stdin"))
+        ran = []
+        class FailedSession:
+            def __init__(self): self.container = container
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def run(self, **_):
+                module._publish_worker_file(self, "/sandbox/" + "a" * 32 + ".py", b"x")
+                ran.append(True)
+        server.SandboxSession = lambda **_: FailedSession()
+        with tempfile.TemporaryDirectory() as directory:
+            channel = Path(directory) / "aurago-sandbox-cancel-fixture"
+            channel.write_bytes(b"")
+            result = server.mcp.tools["execute_supervised_code"]("print(1)", str(channel))
+        self.assertEqual(json.loads(result[0]["text"])["exit_code"], 1)
+        self.assertEqual(ran, [])
+        self.assertTrue(container.killed)
+        self.assertTrue(container.api.closed)
+
+    def test_streaming_exec_inspects_final_status_after_output(self):
+        module, _ = load_launcher()
+        for exit_code in (0, 7, 137, None, True, -1):
+            with self.subTest(exit_code=exit_code):
+                events = []
+                class ExecAPI:
+                    def exec_create(self, container, command, **kwargs):
+                        self.options = kwargs
+                        return {"Id": "exact-worker-exec"}
+                    def exec_start(self, identity, **kwargs):
+                        self.stream_options = kwargs
+                        if identity != "exact-worker-exec":
+                            raise AssertionError("wrong execution identity")
+                        # Real Docker stream=True exposes no exit code until
+                        # after the iterator is exhausted (high-level gives None).
+                        self.high_level_exit_code = None
+                        yield b"partial stdout\n", None
+                        yield None, b"worker stderr\n"
+                        events.append("drained")
+                    def exec_inspect(self, identity):
+                        if identity != "exact-worker-exec" or events != ["drained"]:
+                            raise AssertionError("inspect preceded output drain")
+                        events.append("inspected")
+                        return {"Running": False, "ExitCode": exit_code}
+                api = ExecAPI()
+                session = Session()
+                session.container = types.SimpleNamespace(id="worker-container", client=types.SimpleNamespace(api=api))
+                if type(exit_code) is int and exit_code >= 0:
+                    result = session.execute_command("fixture command", workdir="/sandbox")
+                    self.assertEqual(result.exit_code, exit_code)
+                    self.assertEqual(result.stdout, "partial stdout\n")
+                    self.assertEqual(result.stderr, "worker stderr\n")
+                    self.assertEqual(events, ["drained", "inspected"])
+                    self.assertEqual(api.stream_options, {"stream": True, "demux": True, "tty": False})
+                else:
+                    with self.assertRaises(RuntimeError):
+                        session.execute_command("fixture command")
+
+    def test_streaming_exec_missing_inspection_never_reports_success(self):
+        load_launcher()
+        for status in ({"Running": True, "ExitCode": 0}, {"ExitCode": 0}, {}):
+            api = types.SimpleNamespace(exec_create=lambda *_, **__: {"Id": "exec"},
+                exec_start=lambda *_, **__: iter([(b"output", None)]), exec_inspect=lambda _: status)
+            session = Session()
+            session.container = types.SimpleNamespace(id="worker", client=types.SimpleNamespace(api=api))
+            with self.assertRaises(RuntimeError):
+                session.execute_command("fixture")
+
+    def test_broker_https_self_signed_ignores_proxy_and_refuses_redirect(self):
+        module, _ = load_launcher()
+        calls, proxies = [], []
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):
+                calls.append((self.path, self.headers.get("X-Internal-Token")))
+                if self.path.startswith("/redirect/"):
+                    self.send_response(307)
+                    self.send_header("Location", "http://127.0.0.1:%d/stolen" % proxy.server_port)
+                    self.end_headers()
+                    return
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'{"status":"success","result":"local fixture"}')
+            def log_message(self, *_):
+                pass
+        class Proxy(Handler):
+            def do_POST(self):
+                proxies.append(self.headers.get("X-Internal-Token"))
+                self.send_response(500)
+                self.end_headers()
+            do_CONNECT = do_POST
+        openssl = shutil.which("openssl")
+        if openssl is None and os.name == "nt":
+            candidate = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Git/usr/bin/openssl.exe"
+            if candidate.is_file():
+                openssl = str(candidate)
+        self.assertIsNotNone(openssl, "OpenSSL is required to create the offline TLS fixture")
+        with tempfile.TemporaryDirectory(prefix="aurago-broker-tls-") as directory:
+            cert, key = Path(directory) / "cert.pem", Path(directory) / "key.pem"
+            subprocess.run([openssl, "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+                "-subj", "/CN=localhost", "-keyout", str(key), "-out", str(cert)], check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=15)
+            proxy = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Proxy)
+            origin = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            tls.load_cert_chain(cert, key)
+            origin.socket = tls.wrap_socket(origin.socket, server_side=True)
+            workers = [threading.Thread(target=server.serve_forever, daemon=True) for server in (proxy, origin)]
+            for worker in workers:
+                worker.start()
+            try:
+                proxy_url = "http://127.0.0.1:%d" % proxy.server_port
+                with patch.dict(os.environ, {"http_proxy": proxy_url, "https_proxy": proxy_url,
+                        "HTTP_PROXY": proxy_url, "HTTPS_PROXY": proxy_url, "no_proxy": "", "NO_PROXY": ""}):
+                    for path, expected in (("/bridge", "success"), ("/redirect", "error")):
+                        broker = module._Broker("https://127.0.0.1:%d%s" % (origin.server_port, path), "fixture-grant", ["allowed"], 2)
+                        session = Session(); session.container = Container()
+                        broker.dispatch(session, {"id": 1, "tool": "allowed", "parameters": {}})
+                        payload = session.container.responses[0][2]
+                        self.assertEqual(payload["status"], expected)
+                        self.assertNotIn("fixture-grant", json.dumps(payload))
+                self.assertEqual(proxies, [])
+                self.assertEqual(calls, [("/bridge/allowed", "fixture-grant"), ("/redirect/allowed", "fixture-grant")])
+            finally:
+                for server in (proxy, origin):
+                    server.shutdown()
+                    server.server_close()
+                for worker in workers:
+                    worker.join(2)
+
     def test_fixed_spec_has_no_host_mount_or_environment(self):
         module, server = load_launcher()
         spec = server.SandboxSession(lang="python", runtime_configs={"privileged": True, "volumes": ["/:/host"]}).options

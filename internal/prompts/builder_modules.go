@@ -98,6 +98,9 @@ func loadPromptSourceWithEmbeddedFallback(diskPath, embeddedPath string, logger 
 // frontmatter to degrade into unconditional core instructions.
 func ParsePromptSource(filename, content string, logger *slog.Logger) (PromptModule, PromptSourceStatus, error) {
 	mod, err := parsePromptModule(content)
+	if err == nil && (strings.Contains(filepath.ToSlash(filename), "/personalities/") || strings.HasPrefix(filepath.ToSlash(filename), "personalities/")) {
+		err = ValidatePersonalitySource(content)
+	}
 	if err == nil {
 		return *mod, PromptSourceValidFrontmatter, nil
 	}

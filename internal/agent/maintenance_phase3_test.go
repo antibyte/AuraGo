@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"log/slog"
@@ -55,6 +56,27 @@ type budgetMaintenanceVectorDB struct {
 func (v *budgetMaintenanceVectorDB) DeleteDocument(id string) error {
 	v.deleted = append(v.deleted, id)
 	return nil
+}
+
+func (v *budgetMaintenanceVectorDB) GetByID(id string) (string, error) {
+	for _, removed := range v.deleted {
+		if removed == id {
+			return "", nil
+		}
+	}
+	return "source fact " + id, nil
+}
+
+func (v *budgetMaintenanceVectorDB) StoreDocumentOwned(string, string, memory.VectorStoreMode) (memory.VectorStoreResult, error) {
+	return memory.VectorStoreResult{}, fmt.Errorf("fixture does not store documents")
+}
+
+func (v *budgetMaintenanceVectorDB) DeleteDocumentIfContentMatches(id, expected string) (bool, error) {
+	content, err := v.GetByID(id)
+	if err != nil || fmt.Sprintf("%x", sha256.Sum256([]byte(content))) != expected {
+		return false, err
+	}
+	return true, v.DeleteDocument(id)
 }
 
 func TestResolveMaintenanceRetentionDefaults(t *testing.T) {

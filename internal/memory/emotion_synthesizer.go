@@ -148,6 +148,10 @@ func (es *EmotionSynthesizer) GetLastEmotion() *EmotionState {
 	stateCopy := *es.lastState
 	es.mu.RUnlock()
 	if es.memory != nil {
+		latest, err := es.memory.GetLatestEmotion()
+		if err != nil || latest == nil || latest.DynamicsRevision != stateCopy.DynamicsRevision {
+			return nil
+		}
 		snapshot, err := es.memory.GetPersonalitySnapshotAt(time.Now())
 		if err != nil || stateCopy.DynamicsEpoch != snapshot.Epoch {
 			return nil
@@ -322,6 +326,14 @@ func parseEmotionSynthesisResponse(raw string, fallbackMood Mood) (*EmotionState
 // ParseStructuredEmotionState validates a structured helper emotion payload and
 // returns a normalized EmotionState that can be applied directly.
 func ParseStructuredEmotionState(raw string, fallbackMood Mood) (*EmotionState, error) {
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &object); err != nil || object == nil {
+		return nil, fmt.Errorf("emotion_state must be a JSON object")
+	}
+	var payload emotionSynthesisResult
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return nil, fmt.Errorf("invalid emotion_state: %w", err)
+	}
 	return parseEmotionSynthesisResponse(raw, fallbackMood)
 }
 
@@ -440,11 +452,14 @@ func (s *SQLiteMemory) InsertEmotionStateHistory(state EmotionState, triggerSumm
 }
 
 func insertEmotionStateHistoryWith(db affectExecer, state EmotionState, triggerSummary string) error {
+	if state.Timestamp.IsZero() {
+		state.Timestamp = time.Now().UTC()
+	}
 	_, err := db.Exec(
 		`INSERT INTO emotion_history (
 			description, primary_mood, secondary_mood, valence, arousal, confidence,
-			cause, source, recommended_response_style, trigger_summary, dynamics_revision, dynamics_epoch
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			cause, source, recommended_response_style, trigger_summary, dynamics_revision, dynamics_epoch,timestamp
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)`,
 		state.Description,
 		string(state.PrimaryMood),
 		state.SecondaryMood,
@@ -457,6 +472,7 @@ func insertEmotionStateHistoryWith(db affectExecer, state EmotionState, triggerS
 		triggerSummary,
 		state.DynamicsRevision,
 		state.DynamicsEpoch,
+		state.Timestamp.UTC().Format("2006-01-02 15:04:05"),
 	)
 	return err
 }

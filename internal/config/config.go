@@ -359,6 +359,9 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
+	for _, notice := range PersonalityMigrationNotices(data) {
+		slog.Warn("[Config] Deprecated personality setting", "setting", notice)
+	}
 	// Pre-process: fix common YAML corruption issues
 	data = fixCommonConfigIssues(data)
 	data = normalizeFritzBoxLegacyKeys(data)
@@ -463,6 +466,7 @@ func Load(path string) (*Config, error) {
 	cfg.FritzBox.Telephony.Polling.MaxCallbacksPerHour = 20
 
 	runningInDocker := probeDockerContainer()
+	cfg.Runtime.IsDocker = runningInDocker
 	cfg.Directories.AgentSkillsDir = "./agent_workspace/agent_skills"
 
 	// Document Creator defaults: Maroto backend, Gotenberg sidecar URL.
@@ -2011,9 +2015,6 @@ func Load(path string) (*Config, error) {
 	if cfg.Personality.InnerVoice.DecayMaxAgeSecs <= 0 {
 		cfg.Personality.InnerVoice.DecayMaxAgeSecs = 300 // 5 minutes
 	}
-	if cfg.Personality.InnerVoice.ErrorStreakMin <= 0 {
-		cfg.Personality.InnerVoice.ErrorStreakMin = 2
-	}
 	// Inner Voice requires Emotion Synthesizer + V2
 	if cfg.Personality.InnerVoice.Enabled && !cfg.Personality.EmotionSynthesizer.Enabled {
 		cfg.Personality.EmotionSynthesizer.Enabled = true
@@ -2444,6 +2445,9 @@ func Load(path string) (*Config, error) {
 	}
 
 	// Ollama defaults
+	if err := ValidateOllamaSettings(cfg); err != nil {
+		return nil, err
+	}
 	if cfg.Ollama.URL == "" {
 		cfg.Ollama.URL = "http://localhost:11434"
 	}
@@ -2455,7 +2459,7 @@ func Load(path string) (*Config, error) {
 	}
 	// When managed instance is active, point the Ollama URL to the local container.
 	if cfg.Ollama.ManagedInstance.Enabled {
-		cfg.Ollama.URL = fmt.Sprintf("http://localhost:%d", cfg.Ollama.ManagedInstance.ContainerPort)
+		cfg.Ollama.URL = ManagedOllamaURL(runningInDocker, false, cfg.Ollama.ManagedInstance.ContainerPort)
 	}
 
 	// RocketChat defaults
@@ -2901,16 +2905,7 @@ func NormalizeAIGatewayConfig(c *Config) {
 	if c.AIGateway.Metadata == nil {
 		c.AIGateway.Metadata = map[string]string{}
 	}
-	normalizedMetadata := make(map[string]string, len(c.AIGateway.Metadata))
-	for key, value := range c.AIGateway.Metadata {
-		key = strings.TrimSpace(key)
-		value = strings.TrimSpace(value)
-		if key == "" || value == "" || len(normalizedMetadata) >= 5 {
-			continue
-		}
-		normalizedMetadata[key] = value
-	}
-	c.AIGateway.Metadata = normalizedMetadata
+	// Keep operator data intact; validation rejects invalid or ambiguous pairs.
 	if c.AIGateway.RequestTimeoutMS < 0 {
 		c.AIGateway.RequestTimeoutMS = 0
 	}

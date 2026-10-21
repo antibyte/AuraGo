@@ -109,6 +109,13 @@ func TestGlobalTokenEstimatedAtomic(t *testing.T) {
 func TestGlobalTokenCountConcurrent(t *testing.T) {
 	const n = 100
 	const inc = 10
+	// Other completed loop fixtures have already booked tokens. Exercise a
+	// nonzero initial total even when this test runs alone, and remove only our
+	// own increments rather than resetting process-wide accounting.
+	const seed = 37
+	AddGlobalTokenCount(seed)
+	initial := GlobalTokenCount()
+	defer AddGlobalTokenCount(-(seed + n*inc))
 	var wg sync.WaitGroup
 	wg.Add(n)
 	start := make(chan struct{})
@@ -123,8 +130,8 @@ func TestGlobalTokenCountConcurrent(t *testing.T) {
 	}
 	close(start)
 	wg.Wait()
-	expected := GlobalTokenCount()
-	if expected != n*inc {
-		t.Errorf("GlobalTokenCount() = %d after %d goroutines × %d increments, want %d", expected, n, inc, n*inc)
+	got, want := GlobalTokenCount(), initial+n*inc
+	if got != want {
+		t.Errorf("GlobalTokenCount() = %d after %d goroutines × %d increments from %d, want %d", got, n, inc, initial, want)
 	}
 }

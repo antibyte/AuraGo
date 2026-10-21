@@ -23,7 +23,22 @@ func TestKGSearchReportsFTSFailureAndKeepsLikeResults(t *testing.T) {
 		t.Fatalf("nodes = %+v, want the LIKE fallback to keep alice", result.Nodes)
 	}
 
-	raw := kg.SearchWithOptions("Alice", KnowledgeGraphQueryOptions{})
+	var repaired bool
+	if err := kg.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='kg_nodes_fts')`).Scan(&repaired); err != nil || !repaired {
+		t.Fatalf("missing FTS table was not repaired: %v %v", repaired, err)
+	}
+	if _, err := kg.SearchResultWithOptions("Alice", KnowledgeGraphQueryOptions{}); err != nil {
+		t.Fatalf("search after proven FTS repair: %v", err)
+	}
+
+	jsonKG := newTestKG(t)
+	if err := jsonKG.AddNode("alice", "Alice Smith", map[string]string{"type": "person"}); err != nil {
+		t.Fatalf("AddNode for JSON partial result: %v", err)
+	}
+	if _, err := jsonKG.db.Exec(`DROP TABLE kg_nodes_fts`); err != nil {
+		t.Fatalf("drop kg_nodes_fts for JSON partial result: %v", err)
+	}
+	raw := jsonKG.SearchWithOptions("Alice", KnowledgeGraphQueryOptions{})
 	var payload struct {
 		Nodes  []Node `json:"nodes"`
 		Errors string `json:"errors"`

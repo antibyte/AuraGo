@@ -44,7 +44,7 @@ For build and deploy work, use this sequence: inspect project, edit source, run 
 
 For Netlify static exports, pass the directory that actually contains the deployable `index.html`. If a framework project cannot build but a sibling static export such as `my-site-static/` exists, deploy that static directory with `build_dir: "."` or rely on the Netlify fallback result when it reports `fallback_project_dir`.
 
-After meaningful homepage project changes, update the homepage registry with `homepage_registry` `log_edit`. If a problem blocks completion, record it with `homepage_registry` `log_problem`.
+Before editing, read homepage_registry get_site. Supply a meaningful reason for every mutation; automatic events and revisions record its effects. If a problem blocks completion, record it with `homepage_registry` `log_problem`.
 
 ## Web Interface Quality Bar
 
@@ -197,7 +197,7 @@ A homepage task is not complete until every applicable step below has actually r
 2. **Static checks pass.** Run `homepage_quality` `lint` and `check_js` on the changed project and fix reported errors before continuing. Warnings that cannot be fixed in scope must be logged with `homepage_registry` `log_problem`, not silently ignored.
 3. **Visual proof, not assumption.** Run `homepage_quality` `screenshot` against the built or preview URL at a desktop viewport (e.g. `1440x900`) and a mobile viewport (e.g. `390x844`). Inspect both images before claiming the page is finished. If the result does not visibly match Atmospheric Glass or the active project `DESIGN.md` — no blur, no translucent surfaces, generic flat cards, broken layout, overlapping text — fix it and re-screenshot instead of describing an unseen result as compliant.
 4. **Lighthouse before publishing.** Before deploying or publishing a project for real users, run `homepage_quality` `lighthouse` and address material accessibility or performance regressions it surfaces, or record them with `log_problem` when out of scope for the task.
-5. **Registry stays current.** Call `homepage_registry` `log_edit` for the change, or `log_problem` when something blocks completion. A task is not done while known problems remain unlogged.
+5. **Registry stays current.** Supply a meaningful reason for every mutation and verify its automatic ledger event. Use log_problem with a reason when something blocks completion. A task is not done while known problems remain unlogged.
 6. **Deploy verification.** For `deploy`, `deploy_netlify`, `deploy_vercel`, or `deploy_here_now`, report success only after the tool's own live-URL verification confirms the public page responds; the upload step alone is not proof of a working deploy.
 
 If a step was skipped because a capability was unavailable (Docker missing, `allow_local_server` fallback active, no deploy requested), say so explicitly instead of implying full verification happened.

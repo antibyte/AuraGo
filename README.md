@@ -27,7 +27,7 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 *October 2026*
 
 - **Video Studio.** A multitrack editor with keyframes, speed ramps, `.cube` LUTs, masks, chroma key, a WebGL2 preview and a project manager with versions. FFmpeg export, with optional GPU encoding. Off by default. [Guide](documentation/video-studio.md)
-- **Dashboard redesign.** A sidebar with 14 sections, customizable overview tiles, a summary feed and attention badges.
+- **Dashboard redesign.** A sidebar with 14 sections, customizable overview tiles, a summary feed and attention badges. [Chapter 13](documentation/manuals/en/13-dashboard.md)
 - **Bookshelf and Mailer.** A reader for EPUB, MOBI/KF8, FB2, CBZ, TXT and PDF, plus a mail client with background sync. [Bookshelf](documentation/bookshelf.md) · [Mailer](documentation/mailer.md)
 - **Galaxa Deluxe and AuraGolf.** A synthwave arcade shooter with 50 animated motifs, and 18 low-poly 3D minigolf holes for up to four players on one device. [Galaxa](documentation/galaxa-expansion.md) · [AuraGolf](documentation/minigolf.md)
 - **Synth Studio.** Five banks of ten presets, a General MIDI bank of 128 synthesized sounds, a piano roll and Web MIDI input. [Guide](documentation/synth-studio.md)
@@ -61,7 +61,7 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 
 ### Yes, there is an actual desktop
 
-[![Real AuraGo Virtual Desktop: app launcher, media gallery, radio and a Winamp-style player](documentation/screenshots/desktop.png)](documentation/screenshots/desktop.png)
+[![Real AuraGo Virtual Desktop: start menu with category rail, media gallery, Winamp-style music player, weather and system widgets and a desktop pet](documentation/screenshots/desktop.png)](documentation/screenshots/desktop.png)
 
 *Real screenshot. The desktop is experimental. Click any image to inspect it at full size.*
 
@@ -72,7 +72,14 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 
 [![AuraGo chat](documentation/screenshots/chat.png)](documentation/screenshots/chat.png)
 
-The dashboard got a sidebar redesign in October 2026. A fresh screenshot is on the to-do list.
+</details>
+
+<details>
+<summary>Dashboard screenshot</summary>
+
+[![AuraGo dashboard overview: sidebar with 14 sections, status line, Needs attention list, tiles, recent activity and agent state](documentation/screenshots/dashboard.png)](documentation/screenshots/dashboard.png)
+
+*Overview with sample data from a local test instance, dark theme.*
 
 </details>
 
@@ -160,7 +167,9 @@ AuraGo comes with **twelve personalities**: a friendly sidekick, a thoughtful ph
 
 ## Under the hood
 
-[![AuraGo system wiring: channels and triggers reach the agent loop; models, memory and co-agents connect to it; gated tool dispatch reaches infrastructure, workspaces and media services](assets/readme/system-wiring.svg)](assets/readme/system-wiring.svg)
+[![AuraGo architecture: Web UI and AgoDesk connect to the HTTP server; messages and jobs enter the agent runtime, which uses models, local memory and gated tools to reach optional runtimes and integrations](assets/readme/system-wiring.svg)](documentation/architecture.md)
+
+The **Go backend** serves the API and a verified, version-bound local web bundle. SQLite and the vector store persist locally; integrations and optional runtimes keep their own permissions. [Architecture guide](documentation/architecture.md).
 
 Messages and mission triggers reach the **agent loop**. It builds context, calls your chosen model, runs allowed tools and reads the results before the next round. **Co-agents** return subtask results. Service clients use the **vault** for credentials; optional sidecars provide things like local inference, speech and browser workspaces.
 

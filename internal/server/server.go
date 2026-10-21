@@ -56,6 +56,7 @@ import (
 	"aurago/internal/personalradio"
 	"aurago/internal/persondetect"
 	"aurago/internal/planner"
+	"aurago/internal/prompts"
 	"aurago/internal/proxy"
 	"aurago/internal/remote"
 	"aurago/internal/retrogames"
@@ -152,24 +153,27 @@ func panicRecoveryMiddleware(logger *slog.Logger, next http.Handler) http.Handle
 
 // Server holds the state and dependencies for the web server and socket bridge.
 type Server struct {
-	knowledge        projectKnowledge
-	Cfg              *config.Config
-	cfgSnapshot      atomic.Pointer[config.Config]
-	CfgMu            sync.RWMutex // protects Cfg during hot-reload
-	CfgSaveMu        sync.Mutex   // serializes config file writes to prevent TOCTOU races
-	httpDrainMu      sync.Mutex
-	httpDraining     bool
-	httpDrainCtx     context.Context
-	httpDrainCancel  context.CancelFunc
-	httpRequests     sync.WaitGroup
-	httpHijacked     map[*drainHTTPConn]struct{}
-	lockdownLogOnce  sync.Once
-	previewGrants    previewGrantRegistry
-	toolBridgeGrants toolBridgeGrantRegistry
-	SIPConfigMu      sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
-	infraMu          sync.Mutex
-	infraRuntime     *desktopInfraRuntime
-	infraRuntimeErr  error
+	knowledge            projectKnowledge
+	Cfg                  *config.Config
+	cfgSnapshot          atomic.Pointer[config.Config]
+	providerRevision     atomic.Pointer[string]
+	providerTests        sync.Map
+	providerProbeHistory sync.Map
+	CfgMu                sync.RWMutex // protects Cfg during hot-reload
+	CfgSaveMu            sync.Mutex   // serializes config file writes to prevent TOCTOU races
+	httpDrainMu          sync.Mutex
+	httpDraining         bool
+	httpDrainCtx         context.Context
+	httpDrainCancel      context.CancelFunc
+	httpRequests         sync.WaitGroup
+	httpHijacked         map[*drainHTTPConn]struct{}
+	lockdownLogOnce      sync.Once
+	previewGrants        previewGrantRegistry
+	toolBridgeGrants     toolBridgeGrantRegistry
+	SIPConfigMu          sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
+	infraMu              sync.Mutex
+	infraRuntime         *desktopInfraRuntime
+	infraRuntimeErr      error
 
 	infraConfigAdmission atomic.Pointer[config.Config]
 
@@ -493,6 +497,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
 	}
+	if s.integrationCtx != nil {
+		tools.ConfigureOllamaRuntime(s.integrationCtx, cfg)
+	}
 	if s.BackgroundTasks != nil {
 		s.BackgroundTasks.SetLimits(tools.BackgroundTaskLimits{
 			MaxActiveTasks: cfg.Agent.BackgroundTasks.MaxActiveTasks, MaxDueStartsPerTick: cfg.Agent.BackgroundTasks.MaxDueStartsPerTick,
@@ -592,9 +599,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	}
 	s.bindConfigAuthorization(cfg)
 	s.syncPersonalityConfig(cfg)
-	RegisterLLMSecrets(cfg)
+	llm.ReconfigureHealthReporter(cfg.FallbackLLM.ErrorThreshold)
+	RegisterLLMSecrets(cfg, s.Vault)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	s.bumpProviderRevision()
 	if cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.BookshelfEnabled &&
 		(previous == nil || !previous.VirtualDesktop.Enabled || !previous.VirtualDesktop.BookshelfEnabled) {
 		s.startDesktopBookshelfAtStartup(s.integrationCtx)
@@ -708,12 +717,13 @@ func (s *Server) reinitBudgetTracker(cfg *config.Config) {
 	}
 	if failover, ok := s.LLMClient.(*llm.FailoverManager); ok {
 		tracker := s.BudgetTracker
-		failover.SetProbeUsageRecorder(func(route llm.ModelRoute, capture *llm.UsageCapture, response openai.ChatCompletionResponse) {
+		failover.SetProbeUsageRecorder(func(ctx context.Context, route llm.ModelRoute, request openai.ChatCompletionRequest, capture *llm.UsageCapture, response openai.ChatCompletionResponse) {
 			model := response.Model
 			if model == "" {
 				model = route.Model
 			}
-			tracker.RecordResponseUsage("recovery_probe", route.ProviderType, model, capture, response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens > 0)
+			input, output, observed := budget.EstimateResponseUsage(ctx, request, response, prompts.CountTokensForModelContext)
+			tracker.RecordResponseUsage("recovery_probe", route.ProviderType, model, capture, input, output, observed)
 		})
 	}
 	if s.BudgetTracker != nil && s.MissionManagerV2 != nil {
@@ -773,7 +783,7 @@ func Start(opts StartOptions) error {
 	// cmd/aurago already registered the LLM keys for log scrubbing before it
 	// built the LLM client; repeat it here for embedders that call Start
 	// directly. replaceConfigSnapshot repeats it for every reloaded config.
-	RegisterLLMSecrets(cfg)
+	RegisterLLMSecrets(cfg, opts.Vault)
 	if err := validateRemoteAuthExposure(cfg); err != nil {
 		return err
 	}
@@ -827,6 +837,8 @@ func Start(opts StartOptions) error {
 	mqtt.SetDefaultController(s.MQTTController)
 	s.bindMQTTPermissions()
 	s.bindRuntimePermissions()
+	tools.ConfigureOllamaRuntime(serverCtx, cfg)
+	defer tools.ShutdownOllamaRuntime()
 	s.bindDockerSelfIdentity()
 	s.configureMQTTRelay()
 	defer s.MQTTController.Stop(context.Background())
@@ -1150,7 +1162,7 @@ func Start(opts StartOptions) error {
 			// immediately after a system reboot.
 			const maxRetries = 5
 			for attempt := 1; attempt <= maxRetries; attempt++ {
-				result := tools.HomepageWebServerStart(homepageCfg, "", "", logger)
+				result := tools.HomepageManagedWebServerStart(homepageCfg, s.HomepageRegistryDB, "", "", "Start configured Homepage web server", logger)
 				if strings.Contains(result, `"status":"ok"`) || strings.Contains(result, `"status": "ok"`) {
 					logger.Info("Homepage web server auto-start succeeded", "attempt", attempt, "result", result)
 					return

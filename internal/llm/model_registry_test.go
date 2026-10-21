@@ -189,8 +189,8 @@ func TestGetCapabilitiesFromRegistry(t *testing.T) {
 	if !ok {
 		t.Fatal("Expected provider-agnostic Oh-My-Pi capabilities for gpt-4o")
 	}
-	if caps.Source != CapabilitySourceOhMyPi {
-		t.Fatalf("capability source = %q, want %q", caps.Source, CapabilitySourceOhMyPi)
+	if caps.Source != "model_only_fallback" {
+		t.Fatalf("capability source = %q, want model_only_fallback", caps.Source)
 	}
 
 	// o3-pro supports reasoning

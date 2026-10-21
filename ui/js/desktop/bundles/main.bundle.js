@@ -534,7 +534,7 @@
         'desktop.show_widgets': 'true',
         'windows.animations': 'true',
         'sound.enabled': 'false',
-        'sound.theme': 'crystal',
+        'sound.theme': 'desktop',
         'sound.volume': '0.6',
         'sound.windows': 'true',
         'sound.notifications': 'true',
@@ -622,11 +622,12 @@
     }
 
     async function loadIconManifest() {
-        const [spriteManifest, defaultThemeManifest, whitesurThemeManifest, miniManifest] = await Promise.all([
+        const [spriteManifest, defaultThemeManifest, whitesurThemeManifest, miniManifest, xpThemeManifest] = await Promise.all([
             api('/img/desktop-icons-sprite.json').catch(() => null),
             api('/img/papirus/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null),
             api('/img/whitesur/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null),
-            api('/img/desktop-mini/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null)
+            api('/img/desktop-mini/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null),
+            api('/img/windows-xp/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null)
         ]);
         state.iconManifest = spriteManifest;
         state.miniIconManifest = miniManifest;
@@ -634,7 +635,8 @@
         state.iconMap = new Map(((spriteManifest && spriteManifest.icons) || []).map(icon => [icon.name, icon]));
         state.iconThemeManifests = {
             papirus: defaultThemeManifest,
-            whitesur: whitesurThemeManifest
+            whitesur: whitesurThemeManifest,
+            windows_xp: xpThemeManifest
         };
     }
 
@@ -1962,11 +1964,89 @@
         openApp(appId);
     }
 
+    // Glass taskbar, dock status pill and global menu bar use backdrop-filter.
+    // Chromium paints overflowing descendants behind that blur, so an open
+    // radial menu has to leave the chrome until it closes.
+    function placeLiftedRadialMenu() {
+        const anchor = document.getElementById('radialMenuAnchor');
+        const placeholder = anchor && anchor._radialPlaceholder;
+        if (!anchor || anchor.dataset.radialLifted !== 'true' || !placeholder || !placeholder.isConnected) return;
+        const rect = placeholder.getBoundingClientRect();
+        anchor.style.left = rect.left + 'px';
+        anchor.style.top = rect.top + 'px';
+        anchor.style.width = rect.width + 'px';
+        anchor.style.height = rect.height + 'px';
+    }
+
+    function bindRadialMenuBlurEscape(anchor) {
+        if (!anchor || anchor.dataset.radialBlurBound === 'true') return;
+        anchor.dataset.radialBlurBound = 'true';
+        const lift = () => {
+            const menu = anchor.querySelector('#radialMenu');
+            if (!menu || !menu.classList.contains('open')) return;
+            if (anchor.dataset.radialLifted === 'true') {
+                placeLiftedRadialMenu();
+                return;
+            }
+            const home = anchor.parentElement;
+            if (!home) return;
+            const placeholder = document.createElement('div');
+            placeholder.className = 'vd-radial-anchor vd-radial-anchor-placeholder';
+            placeholder.setAttribute('aria-hidden', 'true');
+            home.insertBefore(placeholder, anchor);
+            document.body.appendChild(anchor);
+            anchor._radialHome = home;
+            anchor._radialPlaceholder = placeholder;
+            anchor.dataset.radialLifted = 'true';
+            anchor.classList.add('is-lifted');
+            placeLiftedRadialMenu();
+            const track = () => {
+                if (anchor.dataset.radialLifted !== 'true') return;
+                placeLiftedRadialMenu();
+                anchor._radialLiftFrame = requestAnimationFrame(track);
+            };
+            anchor._radialLiftFrame = requestAnimationFrame(track);
+        };
+        const park = () => {
+            if (anchor.dataset.radialLifted !== 'true') return;
+            if (anchor._radialLiftFrame) cancelAnimationFrame(anchor._radialLiftFrame);
+            anchor._radialLiftFrame = 0;
+            const placeholder = anchor._radialPlaceholder;
+            const home = anchor._radialHome && anchor._radialHome.isConnected
+                ? anchor._radialHome
+                : document.querySelector('.vd-taskbar-system');
+            if (home) {
+                if (placeholder && placeholder.parentElement === home) home.insertBefore(anchor, placeholder);
+                else home.appendChild(anchor);
+            }
+            if (placeholder) placeholder.remove();
+            anchor._radialHome = null;
+            anchor._radialPlaceholder = null;
+            anchor.dataset.radialLifted = 'false';
+            anchor.classList.remove('is-lifted');
+            anchor.style.left = '';
+            anchor.style.top = '';
+            anchor.style.width = '';
+            anchor.style.height = '';
+        };
+        const sync = () => {
+            const menu = anchor.querySelector('#radialMenu');
+            if (menu && menu.classList.contains('open')) lift();
+            else park();
+        };
+        const observer = new MutationObserver(sync);
+        observer.observe(anchor, { attributes: true, attributeFilter: ['class'], subtree: true });
+        anchor.addEventListener('click', sync);
+        window.addEventListener('resize', placeLiftedRadialMenu);
+        sync();
+    }
+
     function ensureDesktopRadialMenuAnchor() {
         const taskbarSystem = document.querySelector('.vd-taskbar-system');
         if (!taskbarSystem) return null;
         let anchor = document.getElementById('radialMenuAnchor');
         const agentButton = $('vd-agent-button');
+        const lifted = anchor && anchor.dataset.radialLifted === 'true';
         if (!anchor) {
             anchor = document.createElement('div');
             anchor.id = 'radialMenuAnchor';
@@ -1976,7 +2056,7 @@
             } else {
                 taskbarSystem.appendChild(anchor);
             }
-        } else {
+        } else if (!lifted) {
             anchor.classList.add('vd-radial-anchor');
             if (anchor.parentElement !== taskbarSystem) {
                 if (agentButton && agentButton.parentElement === taskbarSystem) {
@@ -1986,8 +2066,11 @@
                 }
             }
         }
-        if (typeof injectRadialMenu === 'function') injectRadialMenu();
-        if (typeof initRadialMenu === 'function') initRadialMenu();
+        if (!lifted) {
+            if (typeof injectRadialMenu === 'function') injectRadialMenu();
+            if (typeof initRadialMenu === 'function') initRadialMenu();
+        }
+        bindRadialMenuBlurEscape(anchor);
         return anchor;
     }
 
@@ -1998,13 +2081,18 @@
     // Parsed by ui/desktop_theme_registry_test.go: one descriptor per line, single quotes, keys in this order.
     // Ids and order must equal desktop.DesktopThemeIDs() in internal/desktop/themes.go.
     const DESKTOP_THEMES = Object.freeze([
-        Object.freeze({ id: 'standard', labelKey: 'desktop.settings_theme_standard', descKey: 'desktop.settings_theme_standard_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'user', glassPolish: true, fx: false, wallpaper: 'groupshoot', thumb: '/img/themes/standard.svg', motion: Object.freeze({ open: 240, close: 130, minimize: 170, restore: 180, menuOpen: 100, menuClose: 100, startOpen: 130, startClose: 120 }) }),
-        Object.freeze({ id: 'fruity', labelKey: 'desktop.settings_theme_fruity', descKey: 'desktop.settings_theme_fruity_desc', scheme: 'light', schemeSetting: 'appearance.fruity_mode', shell: 'dock', globalMenu: true, iconTheme: 'whitesur', iconFamily: 'fruity', accent: 'user', glassPolish: true, fx: false, wallpaper: 'groupshoot', thumb: '/img/themes/fruity.svg', motion: Object.freeze({ open: 240, close: 180, minimize: 200, restore: 230, menuOpen: 150, menuClose: 150, startOpen: 190, startClose: 170 }) }),
-        Object.freeze({ id: 'amiga', labelKey: 'desktop.settings_theme_amiga', descKey: 'desktop.settings_theme_amiga_desc', scheme: 'light', schemeSetting: '', shell: 'taskbar', globalMenu: true, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: false, wallpaper: 'slate', thumb: '/img/themes/amiga.svg', motion: Object.freeze({ open: 20, close: 20, minimize: 20, restore: 20, menuOpen: 20, menuClose: 20, startOpen: 20, startClose: 20 }) }),
-        Object.freeze({ id: 'cyberpunk', labelKey: 'desktop.settings_theme_cyberpunk', descKey: 'desktop.settings_theme_cyberpunk_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: false, wallpaper: 'city_rain', thumb: '/img/themes/cyberpunk.svg', motion: Object.freeze({ open: 200, close: 150, minimize: 190, restore: 190, menuOpen: 120, menuClose: 100, startOpen: 160, startClose: 120 }) }),
-        Object.freeze({ id: 'black_gloss', labelKey: 'desktop.settings_theme_black_gloss', descKey: 'desktop.settings_theme_black_gloss_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'whitesur', iconFamily: 'fruity', accent: 'user', glassPolish: true, fx: false, wallpaper: 'midnight', thumb: '/img/themes/black_gloss.svg', motion: Object.freeze({ open: 260, close: 180, minimize: 230, restore: 240, menuOpen: 150, menuClose: 130, startOpen: 200, startClose: 160 }) }),
-        Object.freeze({ id: 'crazy', labelKey: 'desktop.settings_theme_crazy', descKey: 'desktop.settings_theme_crazy_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: true, fx: true, wallpaper: 'fractal_trip', thumb: '/img/themes/crazy.svg', motion: Object.freeze({ open: 520, close: 380, minimize: 440, restore: 440, menuOpen: 240, menuClose: 180, startOpen: 340, startClose: 220 }) }),
-        Object.freeze({ id: 'lollipop', labelKey: 'desktop.settings_theme_lollipop', descKey: 'desktop.settings_theme_lollipop_desc', scheme: 'light', schemeSetting: '', shell: 'dock', globalMenu: true, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: true, fx: false, wallpaper: 'paper_waves', thumb: '/img/themes/lollipop.svg', motion: Object.freeze({ open: 300, close: 200, minimize: 260, restore: 280, menuOpen: 180, menuClose: 140, startOpen: 240, startClose: 180 }) })
+        Object.freeze({ id: 'standard', labelKey: 'desktop.settings_theme_standard', descKey: 'desktop.settings_theme_standard_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'user', glassPolish: true, fx: false, staticFx: false, wallpaper: 'groupshoot', thumb: '/img/themes/standard.svg', cursorTheme: '', soundTheme: 'crystal', motion: Object.freeze({ open: 240, close: 130, minimize: 170, restore: 180, menuOpen: 100, menuClose: 100, startOpen: 130, startClose: 120 }) }),
+        Object.freeze({ id: 'fruity', labelKey: 'desktop.settings_theme_fruity', descKey: 'desktop.settings_theme_fruity_desc', scheme: 'light', schemeSetting: 'appearance.fruity_mode', shell: 'dock', startMenu: 'classic', globalMenu: true, iconTheme: 'whitesur', iconFamily: 'fruity', accent: 'user', glassPolish: true, fx: false, staticFx: false, wallpaper: 'groupshoot', thumb: '/img/themes/fruity.svg', cursorTheme: '', soundTheme: 'crystal', motion: Object.freeze({ open: 240, close: 180, minimize: 200, restore: 230, menuOpen: 150, menuClose: 150, startOpen: 190, startClose: 170 }) }),
+        Object.freeze({ id: 'amiga', labelKey: 'desktop.settings_theme_amiga', descKey: 'desktop.settings_theme_amiga_desc', scheme: 'light', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: true, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: false, staticFx: false, wallpaper: 'slate', thumb: '/img/themes/amiga.svg', cursorTheme: 'amiga', soundTheme: 'amiga', motion: Object.freeze({ open: 20, close: 20, minimize: 20, restore: 20, menuOpen: 20, menuClose: 20, startOpen: 20, startClose: 20 }) }),
+        Object.freeze({ id: 'cyberpunk', labelKey: 'desktop.settings_theme_cyberpunk', descKey: 'desktop.settings_theme_cyberpunk_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: false, staticFx: false, wallpaper: 'city_rain', thumb: '/img/themes/cyberpunk.svg', cursorTheme: 'cyberpunk', soundTheme: 'cyberpunk', motion: Object.freeze({ open: 200, close: 150, minimize: 190, restore: 190, menuOpen: 120, menuClose: 100, startOpen: 160, startClose: 120 }) }),
+        Object.freeze({ id: 'black_gloss', labelKey: 'desktop.settings_theme_black_gloss', descKey: 'desktop.settings_theme_black_gloss_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'whitesur', iconFamily: 'fruity', accent: 'user', glassPolish: true, fx: false, staticFx: false, wallpaper: 'midnight', thumb: '/img/themes/black_gloss.svg', cursorTheme: 'black_gloss', soundTheme: 'black_gloss', motion: Object.freeze({ open: 260, close: 180, minimize: 230, restore: 240, menuOpen: 150, menuClose: 130, startOpen: 200, startClose: 160 }) }),
+        Object.freeze({ id: 'crazy', labelKey: 'desktop.settings_theme_crazy', descKey: 'desktop.settings_theme_crazy_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: true, fx: true, staticFx: false, wallpaper: 'fractal_trip', thumb: '/img/themes/crazy.svg', cursorTheme: 'crazy', soundTheme: 'crazy', motion: Object.freeze({ open: 520, close: 380, minimize: 440, restore: 440, menuOpen: 240, menuClose: 180, startOpen: 340, startClose: 220 }) }),
+        Object.freeze({ id: 'lollipop', labelKey: 'desktop.settings_theme_lollipop', descKey: 'desktop.settings_theme_lollipop_desc', scheme: 'light', schemeSetting: '', shell: 'dock', startMenu: 'classic', globalMenu: true, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: true, fx: false, staticFx: false, wallpaper: 'paper_waves', thumb: '/img/themes/lollipop.svg', cursorTheme: 'lollipop', soundTheme: 'lollipop', motion: Object.freeze({ open: 300, close: 200, minimize: 260, restore: 280, menuOpen: 180, menuClose: 140, startOpen: 240, startClose: 180 }) }),
+        Object.freeze({ id: 'organic', labelKey: 'desktop.settings_theme_organic', descKey: 'desktop.settings_theme_organic_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: true, fx: false, staticFx: false, wallpaper: 'forest', thumb: '/img/themes/organic.svg', cursorTheme: 'organic', soundTheme: 'organic', motion: Object.freeze({ open: 280, close: 190, minimize: 240, restore: 250, menuOpen: 160, menuClose: 130, startOpen: 220, startClose: 170 }) }),
+        Object.freeze({ id: 'electronic_dreams', labelKey: 'desktop.settings_theme_electronic_dreams', descKey: 'desktop.settings_theme_electronic_dreams_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: true, staticFx: true, wallpaper: 'electronic_dreams', thumb: '/img/themes/electronic_dreams.svg', cursorTheme: 'electronic_dreams', soundTheme: 'electronic_dreams', motion: Object.freeze({ open: 240, close: 160, minimize: 180, restore: 220, menuOpen: 120, menuClose: 100, startOpen: 150, startClose: 120 }) }),
+        Object.freeze({ id: 'windows_xp', labelKey: 'desktop.settings_theme_windows_xp', descKey: 'desktop.settings_theme_windows_xp_desc', scheme: 'light', schemeSetting: '', shell: 'taskbar', startMenu: 'xp', globalMenu: false, iconTheme: 'windows_xp', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: false, staticFx: false, wallpaper: 'windows_xp', thumb: '/img/themes/windows_xp.svg', cursorTheme: 'windows_xp', soundTheme: 'windows_xp', motion: Object.freeze({ open: 120, close: 100, minimize: 180, restore: 220, menuOpen: 120, menuClose: 100, startOpen: 150, startClose: 120 }) }),
+        Object.freeze({ id: 'green_slime', labelKey: 'desktop.settings_theme_green_slime', descKey: 'desktop.settings_theme_green_slime_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: true, staticFx: true, wallpaper: 'green_slime', thumb: '/img/themes/green_slime.svg', cursorTheme: 'green_slime', soundTheme: 'green_slime', motion: Object.freeze({ open: 360, close: 220, minimize: 180, restore: 220, menuOpen: 120, menuClose: 100, startOpen: 150, startClose: 120 }) }),
+        Object.freeze({ id: 'voxel_world', labelKey: 'desktop.settings_theme_voxel_world', descKey: 'desktop.settings_theme_voxel_world_desc', scheme: 'light', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: true, staticFx: true, wallpaper: 'voxel_world', thumb: '/img/themes/voxel_world.svg', cursorTheme: 'voxel_world', soundTheme: 'voxel_world', motion: Object.freeze({ open: 260, close: 100, minimize: 180, restore: 220, menuOpen: 120, menuClose: 100, startOpen: 150, startClose: 120 }) })
     ]);
 
     // Load token of the lazy effects bundle: a newer sync invalidates an older pending load.
@@ -2044,10 +2132,15 @@
 
     function applyDesktopThemeAttributes(body) {
         const theme = currentDesktopTheme();
-        if (body.dataset.theme !== theme.id) body.dataset.theme = theme.id;
+        if (body.dataset.theme !== theme.id) {
+            body.dataset.theme = theme.id;
+            desktopWindowEffectSamples.clear();
+        }
         body.dataset.shell = theme.shell;
+        body.dataset.startMenu = theme.startMenu;
         body.dataset.scheme = themeScheme(theme);
         body.dataset.polish = theme.glassPolish ? 'on' : 'off';
+        applyDesktopCursors(body, theme);
     }
 
     function bindThemeFxMotionListener() {
@@ -2058,29 +2151,33 @@
         else if (query && typeof query.addListener === 'function') query.addListener(() => syncDesktopThemeFx());
     }
 
-    // Starts the lazily loaded effects of an fx theme and stops them for every other case
-    // (other theme, animations off, reduced motion, mobile desktop mode).
+    // Material themes retain a still rendering when motion is disabled. Legacy FX remain opt-in.
+    let themeFxOptionsKey = '';
     function syncDesktopThemeFx() {
         bindThemeFxMotionListener();
         const theme = currentDesktopTheme();
-        const wants = !!theme.fx && animationsEnabled() && !useMobileDesktopMode();
+        const motion = animationsEnabled();
+        const wants = !!theme.fx && (motion || theme.staticFx) && !useMobileDesktopMode();
+        const key = theme.id + ':' + motion + ':' + document.body.dataset.wallpaper;
         if (!wants) {
+            ++themeFxLoadToken;
+            themeFxOptionsKey = '';
             if (window.AuraDesktopThemeFx) window.AuraDesktopThemeFx.stop();
             return;
         }
-        if (window.AuraDesktopThemeFx && window.AuraDesktopThemeFx.activeId() === theme.id) return;
-        const loadBundle = window.AuraDesktopModules && window.AuraDesktopModules.loadBundle;
+        if (window.AuraDesktopThemeFx?.activeId() === theme.id && themeFxOptionsKey === key) return;
+        const loadBundle = window.AuraDesktopModules?.loadBundle;
         if (typeof loadBundle !== 'function') return;
         const token = ++themeFxLoadToken;
         loadBundle('desktop-theme-fx').then(() => {
             if (token !== themeFxLoadToken) return;
             const latest = currentDesktopTheme();
             const fx = window.AuraDesktopThemeFx;
-            if (!fx || !latest.fx || !animationsEnabled() || useMobileDesktopMode()) return;
-            if (fx.activeId() !== latest.id) {
-                fx.stop();
-                fx.start(latest.id, {});
-            }
+            const enabled = animationsEnabled();
+            if (!fx || !latest.fx || (!enabled && !latest.staticFx) || useMobileDesktopMode()) return;
+            fx.stop();
+            themeFxOptionsKey = latest.id + ':' + enabled + ':' + document.body.dataset.wallpaper;
+            fx.start(latest.id, { motion: enabled, wallpaper: document.body.dataset.wallpaper });
         }).catch(err => console.warn('Theme effects failed to load', err));
     }
 
@@ -2107,18 +2204,87 @@
         });
         if (!owned) return false;
         const written = { 'appearance.wallpaper': next.wallpaper, 'appearance.wallpaper_by_space': '{}' };
-        let last = null;
-        for (const key of Object.keys(written)) {
-            last = await api('/api/desktop/settings', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key, value: written[key] })
-            });
-        }
+        const last = await api('/api/desktop/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ settings: written })
+        });
         if (!state.bootstrap) state.bootstrap = {};
         const remote = last && last.settings && typeof last.settings === 'object' ? last.settings : {};
         state.bootstrap.settings = Object.assign({}, desktopSettings(), remote, written);
         return true;
+    }
+
+;
+/* ui/js/desktop/core/window-effects-runtime.js */
+    // Read-only geometry bridge. Effects never own application state or pointer handling.
+    const desktopWindowEffectSamples = new Map();
+
+    function desktopWindowEffectRecord(item, phase, options) {
+        if (!item || !item.element || item.isGadget) return null;
+        const element = item.element;
+        const bounds = element.getBoundingClientRect();
+        const rect = { x: bounds.left, y: bounds.top, width: bounds.width, height: bounds.height };
+        const previous = desktopWindowEffectSamples.get(item.id);
+        const now = performance.now();
+        const elapsed = previous ? Math.max(8, now - previous.time) / 1000 : 0;
+        const moving = phase === 'drag' || phase === 'resize';
+        const ended = phase === 'drag-end' || phase === 'resize-end';
+        const velocity = moving && previous && elapsed < 0.25
+            ? { x: (rect.x - previous.rect.x) / elapsed, y: (rect.y - previous.rect.y) / elapsed }
+            : ended && previous ? previous.velocity : { x: 0, y: 0 };
+        const minimized = item.minimizing || element.hidden || element.style.display === 'none';
+        const visible = element.isConnected && !minimized && !element.hasAttribute('data-space-hidden') && bounds.width > 0 && bounds.height > 0;
+        if (phase !== 'snapshot') desktopWindowEffectSamples.set(item.id, { rect, velocity, time: now });
+        return {
+            phase, id: item.id, appId: item.appId, rect,
+            z: Number(element.style.zIndex) || 0,
+            space: item.spaceId || element.dataset.spaceId || '1',
+            velocity, visible, minimized, focused: state.activeWindowId === item.id,
+            silent: !!state.sessionRestoring || !!(options && options.silent), element
+        };
+    }
+
+    function emitDesktopWindowEffect(phase, id, options) {
+        // Ordinary themes pay no layout-read cost for effects they do not use.
+        if (!currentDesktopTheme().fx) return;
+        const detail = desktopWindowEffectRecord(state.windows.get(id), phase, options);
+        if (!detail) return;
+        window.dispatchEvent(new CustomEvent('aurago:desktop-window', { detail }));
+        if (phase === 'close') desktopWindowEffectSamples.delete(id);
+    }
+
+    function snapshotDesktopWindowEffects() {
+        return [...state.windows.values()].map(item => desktopWindowEffectRecord(item, 'snapshot')).filter(item => item && item.visible && !state.windows.get(item.id)?.closing);
+    }
+
+    function refreshDesktopWindowEffects() {
+        desktopWindowEffectSamples.clear();
+        if (currentDesktopTheme().fx) window.dispatchEvent(new CustomEvent('aurago:desktop-windows-refresh'));
+    }
+
+    window.AuraDesktopWindowEffects = Object.freeze({ snapshot: snapshotDesktopWindowEffects });
+
+;
+/* ui/js/desktop/core/cursor-runtime.js */
+    // Native CSS cursors: no pointer-following DOM, animation loop or input interception.
+    const DESKTOP_CURSOR_ROLES = Object.freeze({
+        default: [3, 2], pointer: [13, 3], text: [16, 16], grab: [16, 16], grabbing: [16, 16],
+        move: [16, 16], 'ew-resize': [16, 16], 'ns-resize': [16, 16],
+        'nesw-resize': [16, 16], 'nwse-resize': [16, 16], 'not-allowed': [16, 16], wait: [16, 16]
+    });
+
+    function applyDesktopCursors(body, theme) {
+        const id = settingValue('appearance.theme_cursors') !== 'false' ? theme.cursorTheme : '';
+        if (body.dataset.cursorTheme === (id || 'system')) return;
+        body.dataset.cursorTheme = id || 'system';
+        Object.entries(DESKTOP_CURSOR_ROLES).forEach(([role, hotspot]) => {
+            const property = '--vd-cursor-' + role;
+            if (!id) { body.style.removeProperty(property); return; }
+            const path = '/img/cursors/' + id + '/' + role + '.svg';
+            const url = window.AuraLazyAssets ? window.AuraLazyAssets.versionedURL(path) : path;
+            body.style.setProperty(property, 'url("' + url + '") ' + hotspot.join(' ') + ', ' + role);
+        });
     }
 
 ;
@@ -2129,13 +2295,16 @@
     const EVENT_CATEGORY = {
         'window.open': 'windows', 'window.close': 'windows', 'window.minimize': 'windows',
         'window.restore': 'windows', 'window.maximize': 'windows', 'window.snap': 'windows', 'window.deny': 'windows',
+        'window.fracture': 'windows', 'window.impact': 'windows',
         'notify.info': 'notifications', 'notify.message': 'notifications', 'notify.error': 'notifications',
         'menu.open': 'navigation', 'menu.close': 'navigation', 'space.switch': 'navigation',
         'dialog.open': 'files', 'dialog.confirm': 'files', 'dialog.cancel': 'files',
         'file.trash': 'files', 'file.delete': 'files', 'file.drop': 'files'
     };
 
-    const THEME_IDS = ['crystal', 'wood', 'analog', 'workshop', 'water'];
+    const THEME_IDS = ['crystal', 'wood', 'analog', 'workshop', 'water', 'amiga', 'cyberpunk', 'black_gloss', 'crazy', 'lollipop', 'organic', 'electronic_dreams', 'windows_xp', 'green_slime', 'voxel_world'];
+    const VOXEL_FX_EVENTS = new Set(['window.fracture', 'window.impact']);
+    const VOXEL_FX_MATERIALS = new Set(['wood', 'stone', 'earth']);
     let actx = null;
     let master = null;
     let compressor = null;
@@ -2147,6 +2316,16 @@
     let lastEventAt = {};
     let recentVoices = [];
     let notifyBurst = { at: 0, played: false };
+    let soundEpoch = 0;
+    let previewEpoch = 0;
+    let voxelFxTimer = null;
+    let voxelFxQueue = new Map();
+    let recentVoxelFxPlays = [];
+    let voxelFxBuffers = { theme: '', buffers: {} };
+    const pendingVoxelFxRenders = new Map();
+    let observedSettings = '';
+    const pendingRenders = new Map();
+    const voices = new Set();
     let stats = { plays: 0, renders: 0, previewPlays: 0, lastEvent: '', lastPeak: 0, lastRms: 0 };
 
     function soundsEnabled() {
@@ -2166,9 +2345,13 @@
         return clamped * clamped;
     }
 
-    function currentThemeId() {
-        const id = settingValue('sound.theme') || 'crystal';
+    function resolveThemeId(id) {
+        if (!id || id === 'desktop') id = currentDesktopTheme().soundTheme;
         return THEME_IDS.indexOf(id) >= 0 ? id : 'crystal';
+    }
+
+    function currentThemeId() {
+        return resolveThemeId(settingValue('sound.theme'));
     }
 
     function ensureContext(force) {
@@ -2199,6 +2382,18 @@
     }
 
     function syncDesktopSoundSettings() {
+        const signature = [soundsEnabled(), currentThemeId(), ...['windows', 'notifications', 'navigation', 'files'].map(categoryEnabled)].join('|');
+        if (observedSettings && signature !== observedSettings) {
+            soundEpoch++;
+            previewEpoch++;
+            window.DesktopSoundsPreviewActive = false;
+            stopVoices();
+            cancelVoxelFx();
+            invalidateVoxelFxBuffers();
+            if (!soundsEnabled()) closeSoundContext();
+        }
+        observedSettings = signature;
+        if (soundsEnabled() && !unlocked) wireUnlock();
         if (!master) return;
         master.gain.value = volumeGain();
         ['windows', 'notifications', 'navigation', 'files'].forEach(cat => {
@@ -2207,9 +2402,6 @@
     }
 
     function setDesktopSoundVolume(value) {
-        if (!master) {
-            ensureContext(true);
-        }
         syncDesktopSoundSettings();
         if (master && isFinite(value)) {
             const clamped = Math.min(1, Math.max(0, value));
@@ -2217,16 +2409,41 @@
         }
     }
 
+    function stopVoices() {
+        voices.forEach(src => { try { src.stop(); } catch (e) {} });
+        voices.clear();
+    }
+
+    function cancelVoxelFx() {
+        if (voxelFxTimer !== null) clearTimeout(voxelFxTimer);
+        voxelFxTimer = null;
+        voxelFxQueue.clear();
+        recentVoxelFxPlays = [];
+    }
+
+    function invalidateVoxelFxBuffers() {
+        voxelFxBuffers = { theme: '', buffers: {} };
+        pendingVoxelFxRenders.clear();
+    }
+
     async function closeSoundContext() {
-        if (actx && typeof actx.close === 'function') {
-            try { await actx.close(); } catch (e) {}
-        }
+        soundEpoch++;
+        previewEpoch++;
+        window.DesktopSoundsPreviewActive = false;
+        cancelVoxelFx();
+        invalidateVoxelFxBuffers();
+        stopVoices();
+        const closing = actx;
+        if (master) master.gain.value = 0;
         actx = null;
         master = null;
         compressor = null;
         categoryGains = {};
         unlocked = false;
         cache = { theme: '', buffers: {}, stats: {} };
+        if (closing && typeof closing.close === 'function') {
+            try { await closing.close(); } catch (e) {}
+        }
     }
 
     function wireUnlock() {
@@ -2240,6 +2457,7 @@
             unlocked = true;
             document.removeEventListener('pointerdown', unlock, true);
             document.removeEventListener('keydown', unlock, true);
+            window.DesktopSoundsUnlockWired = false;
         };
         document.addEventListener('pointerdown', unlock, true);
         document.addEventListener('keydown', unlock, true);
@@ -2280,7 +2498,10 @@
 
     async function ensureBuffers(themeId) {
         if (cache.theme === themeId && cache.buffers && Object.keys(cache.buffers).length) return cache;
-        return renderTheme(themeId);
+        if (pendingRenders.has(themeId)) return pendingRenders.get(themeId);
+        const pending = renderTheme(themeId).finally(() => pendingRenders.delete(themeId));
+        pendingRenders.set(themeId, pending);
+        return pending;
     }
 
     function rateLimited(eventId) {
@@ -2302,6 +2523,66 @@
         return false;
     }
 
+    function cleanVoxelFxOptions(options) {
+        const rawStrength = options && Number(options.strength);
+        const rawPan = options && Number(options.pan);
+        const strength = Number.isFinite(rawStrength) ? Math.min(1, Math.max(0, rawStrength)) : 0.5;
+        return {
+            material: VOXEL_FX_MATERIALS.has(options && options.material) ? options.material : 'stone',
+            strength,
+            pan: Number.isFinite(rawPan) ? Math.min(1, Math.max(-1, rawPan)) : 0
+        };
+    }
+
+    function queueVoxelFx(eventId, options) {
+        if (options.preview || options.silent || document.hidden || !soundsEnabled() || !unlocked ||
+            !categoryEnabled('windows') || currentThemeId() !== 'voxel_world' ||
+            (typeof state !== 'undefined' && state.sessionRestoring)) return false;
+        const next = cleanVoxelFxOptions(options);
+        if (next.strength <= 0) return false;
+        next.expiresAt = performance.now() + 240;
+        const previous = voxelFxQueue.get(eventId);
+        if (previous) {
+            const total = previous.strength + next.strength;
+            const stronger = next.strength >= previous.strength ? next : previous;
+            previous.pan = total ? ((previous.pan * previous.strength) + (next.pan * next.strength)) / total : 0;
+            previous.strength = Math.max(previous.strength, next.strength);
+            previous.material = stronger.material;
+        } else voxelFxQueue.set(eventId, next);
+        if (voxelFxTimer === null) {
+            voxelFxTimer = setTimeout(() => {
+                const queued = Array.from(voxelFxQueue.entries());
+                voxelFxQueue.clear();
+                voxelFxTimer = null;
+                queued.forEach(([queuedEvent, queuedOptions]) => {
+                    desktopSound(queuedEvent, Object.assign({}, queuedOptions, { voxelCoalesced: true }));
+                });
+            }, 75);
+        }
+        return true;
+    }
+
+    async function ensureVoxelFxBuffer(themeId, eventId, material, epoch) {
+        const theme = (window.DesktopSoundThemes || {})[themeId];
+        const layers = theme && theme.specialFx && theme.specialFx[eventId] && theme.specialFx[eventId][material];
+        if (!Array.isArray(layers) || !layers.length) return null;
+        if (voxelFxBuffers.theme !== themeId) voxelFxBuffers = { theme: themeId, buffers: {} };
+        const cacheKey = eventId + ':' + material;
+        if (voxelFxBuffers.buffers[cacheKey]) return voxelFxBuffers.buffers[cacheKey];
+        const pendingKey = [epoch, themeId, cacheKey].join(':');
+        if (pendingVoxelFxRenders.has(pendingKey)) return pendingVoxelFxRenders.get(pendingKey);
+        const synth = window.DesktopSoundSynth;
+        const pending = synth.renderLayers(layers, 0.7).then(rendered => {
+            if (epoch !== soundEpoch || document.hidden || currentThemeId() !== themeId) return null;
+            if (voxelFxBuffers.theme !== themeId) voxelFxBuffers = { theme: themeId, buffers: {} };
+            voxelFxBuffers.buffers[cacheKey] = rendered.buffer;
+            stats.renders++;
+            return rendered.buffer;
+        }).finally(() => pendingVoxelFxRenders.delete(pendingKey));
+        pendingVoxelFxRenders.set(pendingKey, pending);
+        return pending;
+    }
+
     function playBuffer(buffer, category, options) {
         const ctx = ensureContext(true);
         if (!ctx || !buffer || !master) return false;
@@ -2315,7 +2596,15 @@
         const jitterGain = Math.pow(10, ((Math.random() * 3) - 1.5) / 20);
         g.gain.value = (options && options.gain != null ? options.gain : 1) * jitterGain;
         src.connect(g);
-        g.connect(dest);
+        let panner = null;
+        if (options && Number.isFinite(options.pan) && typeof ctx.createStereoPanner === 'function') {
+            panner = ctx.createStereoPanner();
+            panner.pan.value = Math.min(1, Math.max(-1, options.pan));
+            g.connect(panner);
+            panner.connect(dest);
+        } else g.connect(dest);
+        voices.add(src);
+        src.onended = () => { voices.delete(src); src.disconnect(); g.disconnect(); if (panner) panner.disconnect(); };
         src.start();
         stats.plays++;
         stats.lastEvent = options && options.event || '';
@@ -2324,6 +2613,7 @@
 
     async function desktopSound(eventId, options) {
         options = options || {};
+        if (VOXEL_FX_EVENTS.has(eventId) && !options.voxelCoalesced) return queueVoxelFx(eventId, options);
         if (options.silent || document.hidden) return;
         if (options.sessionRestore || (typeof state !== 'undefined' && state.sessionRestoring)) return;
         if (!soundsEnabled() && !options.preview) return;
@@ -2333,37 +2623,73 @@
             wireUnlock();
             return;
         }
-        if (rateLimited(eventId) && !options.preview) return;
+        if (!options.preview && rateLimited(eventId)) return;
+        const epoch = soundEpoch;
         try {
-            const themeId = options.theme || currentThemeId();
-            await ensureBuffers(themeId);
-            if (document.hidden || (typeof state !== 'undefined' && state.sessionRestoring)) return;
-            const buffer = cache.buffers[eventId] || cache.buffers['notify.info'];
+            const themeId = options.theme ? resolveThemeId(options.theme) : currentThemeId();
+            const voxelFx = VOXEL_FX_EVENTS.has(eventId);
+            if (voxelFx && (options.preview || themeId !== 'voxel_world')) return false;
+            const fxOptions = voxelFx ? cleanVoxelFxOptions(options) : null;
+            if (voxelFx && fxOptions.strength <= 0) return false;
+            // FX has its own small material bank. Avoid rendering all 19 ordinary
+            // events just to play a single fracture or impact on first use.
+            if (voxelFx) await loadSoundBundle();
+            const rendered = voxelFx ? null : await ensureBuffers(themeId);
+            if (epoch !== soundEpoch || document.hidden || (typeof state !== 'undefined' && state.sessionRestoring)) return;
+            if (!categoryEnabled(category)) return;
+            if (options.preview) {
+                if (options.previewToken !== previewEpoch || !window.DesktopSoundsPreviewActive) return;
+            } else if (!soundsEnabled() || !unlocked || themeId !== currentThemeId()) return;
+            const buffer = voxelFx
+                ? await ensureVoxelFxBuffer(themeId, eventId, fxOptions.material, epoch)
+                : (rendered.buffers[eventId] || rendered.buffers['notify.info']);
+            if (epoch !== soundEpoch || !buffer || document.hidden || (!options.preview && currentThemeId() !== themeId)) return;
             if (!buffer) return;
-            const meta = cache.stats[eventId] || {};
+            if (voxelFx) {
+                const now = performance.now();
+                if (!Number.isFinite(options.expiresAt) || now > options.expiresAt) return false;
+                recentVoxelFxPlays = recentVoxelFxPlays.filter(at => now - at < 1000);
+                if (recentVoxelFxPlays.length >= 4 || now - (recentVoxelFxPlays.at(-1) ?? -Infinity) < 190) return false;
+                recentVoxelFxPlays.push(now);
+            }
+            const meta = rendered && rendered.stats[eventId] || {};
             stats.lastPeak = meta.peak || 0;
             stats.lastRms = meta.rms || 0;
-            playBuffer(buffer, category, { event: eventId, gain: options.gain });
+            const gain = voxelFx ? Math.pow(fxOptions.strength, 0.85) * 0.52 : options.gain;
+            playBuffer(buffer, category, { event: eventId, gain, pan: voxelFx ? fxOptions.pan : undefined });
+            return true;
         } catch (e) {
             console.warn('Desktop sound failed', eventId, e);
+            return false;
         }
     }
 
     async function previewDesktopSound(themeId) {
+        syncDesktopSoundSettings();
+        const token = ++previewEpoch;
+        soundEpoch++;
+        cancelVoxelFx();
+        invalidateVoxelFxBuffers();
+        stopVoices();
         window.DesktopSoundsPreviewActive = true;
         try {
             ensureContext(true);
             if (actx && actx.state === 'suspended') actx.resume().catch(function () {});
+            if (!actx) throw new Error('Web Audio unavailable');
             unlocked = true;
-            await ensureBuffers(themeId || currentThemeId());
-            await desktopSound('window.open', { preview: true, theme: themeId });
-            await new Promise(r => setTimeout(r, 180));
-            await desktopSound('notify.info', { preview: true, theme: themeId });
-            await new Promise(r => setTimeout(r, 220));
-            await desktopSound('window.close', { preview: true, theme: themeId });
-            stats.previewPlays++;
+            const resolved = resolveThemeId(themeId || currentThemeId());
+            await ensureBuffers(resolved);
+            for (const event of ['window.open', 'notify.info', 'window.close']) {
+                if (token !== previewEpoch || document.hidden) return;
+                await desktopSound(event, { preview: true, theme: resolved, previewToken: token });
+                await new Promise(r => setTimeout(r, 420));
+            }
+            if (token === previewEpoch) stats.previewPlays++;
         } finally {
-            window.DesktopSoundsPreviewActive = false;
+            if (token === previewEpoch) {
+                window.DesktopSoundsPreviewActive = false;
+                if (!soundsEnabled()) await closeSoundContext();
+            }
         }
     }
 
@@ -2393,19 +2719,23 @@
     }
 
     function applySoundSettingsChange(key, value) {
-        if (key === 'sound.enabled' && value !== 'true') {
-            closeSoundContext();
-            return;
-        }
-        if (key === 'sound.enabled' && value === 'true') {
-            wireUnlock();
-        }
-        if (key === 'sound.theme') {
-            cache = { theme: '', buffers: {}, stats: {} };
-            if (soundsEnabled() && unlocked) ensureBuffers(currentThemeId()).catch(function () {});
-        }
         syncDesktopSoundSettings();
+        if (key === 'sound.enabled' && value !== 'true') closeSoundContext();
     }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            soundEpoch++;
+            previewEpoch++;
+            window.DesktopSoundsPreviewActive = false;
+            cancelVoxelFx();
+            invalidateVoxelFxBuffers();
+            stopVoices();
+            if (!soundsEnabled()) closeSoundContext();
+        }
+    });
+    window.addEventListener('pagehide', () => closeSoundContext());
+    window.addEventListener('aurago:auth-ended', () => closeSoundContext());
 
     window.desktopSound = desktopSound;
     window.syncDesktopSoundSettings = syncDesktopSoundSettings;
@@ -6335,6 +6665,53 @@
         if (menu) menu.classList.toggle('vd-start-searching', !!state.startQuery.trim());
         renderStartRail(model, active);
         renderStartPane(model, active, options);
+        renderStartMenuVariant();
+    }
+
+    function renderStartMenuVariant() {
+        const menu = $('vd-start-menu');
+        if (!menu) return;
+        const xp = currentDesktopTheme().startMenu === 'xp';
+        const startButton = $('vd-start-button');
+        if (!xp) {
+            menu.querySelector('.vd-start-xp-header')?.remove();
+            menu.querySelector('.vd-start-xp-links')?.remove();
+            startButton?.querySelector('.vd-start-xp-label')?.remove();
+            return;
+        }
+        if (startButton) {
+            let label = startButton.querySelector('.vd-start-xp-label');
+            if (!label) {
+                label = document.createElement('span');
+                label.className = 'vd-start-xp-label';
+                startButton.appendChild(label);
+            }
+            label.textContent = t('desktop.start_menu');
+        }
+        let header = menu.querySelector('.vd-start-xp-header');
+        if (!header) {
+            header = document.createElement('div');
+            header.className = 'vd-start-xp-header';
+            menu.prepend(header);
+        }
+        header.innerHTML = iconMarkup('desktop', '', 'vd-start-xp-avatar', 36) + '<strong>AuraGo</strong>';
+        let links = menu.querySelector('.vd-start-xp-links');
+        if (!links) {
+            links = document.createElement('div');
+            links.className = 'vd-start-xp-links';
+            menu.querySelector('.vd-start-body').appendChild(links);
+        }
+        const shortcuts = [
+            ['files', 'Documents', 'folder', 'desktop.settings_folder_documents'],
+            ['files', 'Pictures', 'image', 'desktop.settings_folder_pictures'],
+            ['system-info', '', 'desktop', 'desktop.app_system_info'],
+            ['settings', '', 'settings', 'desktop.app_settings']
+        ];
+        links.innerHTML = shortcuts.map(([app, folder, icon, key]) => `<button type="button" class="vd-start-xp-link" data-xp-app="${app}" data-xp-folder="${folder}">${iconMarkup(icon, '', '', 24)}<span>${esc(t(key))}</span></button>`).join('');
+        links.querySelectorAll('[data-xp-app]').forEach(button => button.addEventListener('click', () => {
+            closeStartMenu();
+            openApp(button.dataset.xpApp, button.dataset.xpFolder ? { path: button.dataset.xpFolder } : {});
+        }));
     }
 
     function renderTaskbar() {
@@ -6959,6 +7336,7 @@
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
         state.windows.set(id, { id, sessionKey: sessionRestore?.key || id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId, alwaysOnTop: !!(sessionRestore && sessionRestore.alwaysOnTop) });
         wireWindow(win, id);
+        emitDesktopWindowEffect('open', id, { silent: !!sessionRestore });
         animateThen(win, 'vd-window-opening', themeMotionMs('open'));
         if (!sessionRestore) desktopSound('window.open');
         if (sessionRestore && sessionRestore.maximized) toggleMaximizeWindow(id);
@@ -7392,6 +7770,7 @@ function windowOverlapsFruityDock(win, dockRect) {
         if (!item) return;
         if (item.isGadget) return; // gadgets cannot be minimized
         if (item.minimizing) return;
+        emitDesktopWindowEffect('minimize', id);
         desktopSound('window.minimize');
         item.minimizing = true;
         if (state.activeWindowId === id) state.activeWindowId = '';
@@ -7403,6 +7782,7 @@ function windowOverlapsFruityDock(win, dockRect) {
         renderTaskbar();
         animateThen(item.element, 'vd-window-minimizing', themeMotionMs('minimize'), () => {
             item.element.style.display = 'none';
+            refreshDesktopWindowEffects();
             item.minimizing = false;
             scheduleFruityDockOcclusionCheck();
         });
@@ -7543,6 +7923,7 @@ function wireWindow(win, id) {
             };
             bar.setPointerCapture(event.pointerId);
             win.classList.add('dragging');
+            emitDesktopWindowEffect('drag-start', id);
         });
         bar.addEventListener('pointermove', (event) => {
             if (!drag) return;
@@ -7559,12 +7940,14 @@ function wireWindow(win, id) {
                 const newTop = Math.min(maxTop, Math.max(0, activeDrag.top + activeDrag.clientY - activeDrag.y));
                 win.style.left = newLeft + 'px';
                 win.style.top = newTop + 'px';
+                emitDesktopWindowEffect('drag', id);
                 updateSnapZone(activeDrag, newLeft, newTop, win.offsetWidth, win.offsetHeight);
                 scheduleFruityDockOcclusionCheck();
             });
         });
         bar.addEventListener('pointerup', () => {
             cancelWindowPointerFrame(drag, true);
+            if (drag) emitDesktopWindowEffect('drag-end', id);
             if (drag && drag.snapZone) applyWindowSnap(win, drag.snapZone);
             hideSnapOverlay();
             drag = null;
@@ -7573,6 +7956,7 @@ function wireWindow(win, id) {
         });
         bar.addEventListener('pointercancel', () => {
             cancelWindowPointerFrame(drag);
+            if (drag) emitDesktopWindowEffect('drag-end', id);
             hideSnapOverlay();
             drag = null;
             win.classList.remove('dragging');
@@ -7673,6 +8057,7 @@ function wireWindow(win, id) {
             win.style.width = width + 'px';
             win.style.height = height + 'px';
         });
+        emitDesktopWindowEffect('snap', windowId);
         desktopSound('window.snap');
         scheduleFruityDockOcclusionCheck();
     }
@@ -7695,6 +8080,7 @@ function wireWindow(win, id) {
                 item.maximized = false;
                 item.snapped = '';
             });
+            emitDesktopWindowEffect('restore', id);
             scheduleFruityDockOcclusionCheck();
             return;
         }
@@ -7805,6 +8191,7 @@ function wireWindow(win, id) {
                 item.maximized = true;
             }
         });
+        emitDesktopWindowEffect(item.maximized ? 'maximize' : 'restore', id);
         focusWindow(id);
         renderWindowMenus(id);
         scheduleFruityDockOcclusionCheck();
@@ -7831,6 +8218,7 @@ function wireWindow(win, id) {
                 };
                 handle.setPointerCapture(event.pointerId);
                 win.classList.add('resizing');
+                emitDesktopWindowEffect('resize-start', id);
             });
             handle.addEventListener('pointermove', event => {
                 if (!resize) return;
@@ -7842,12 +8230,14 @@ function wireWindow(win, id) {
                     const dx = activeResize.clientX - activeResize.x;
                     const dy = activeResize.clientY - activeResize.y;
                     applyResize(win, activeResize.edge, activeResize.bounds, dx, dy);
+                    emitDesktopWindowEffect('resize', id);
                 });
             });
             handle.addEventListener('pointerup', event => {
                 if (!resize) return;
                 handle.releasePointerCapture(event.pointerId);
                 cancelWindowPointerFrame(resize, true);
+                emitDesktopWindowEffect('resize-end', id);
                 resize = null;
                 win.classList.remove('resizing');
                 scheduleSessionPersist();
@@ -7857,6 +8247,7 @@ function wireWindow(win, id) {
                     handle.releasePointerCapture(event.pointerId);
                 }
                 cancelWindowPointerFrame(resize);
+                if (resize) emitDesktopWindowEffect('resize-end', id);
                 resize = null;
                 win.classList.remove('resizing');
             });
@@ -7943,6 +8334,7 @@ function wireWindow(win, id) {
         assignWindowZ(win);
         state.activeWindowId = id;
         state.windows.forEach(item => item.element.classList.toggle('active', item.id === id));
+        emitDesktopWindowEffect(wasHidden ? 'restore' : 'focus', id);
         if (wasHidden) {
             animateThen(win.element, 'vd-window-restoring', themeMotionMs('restore'));
             desktopSound('window.restore');
@@ -7970,6 +8362,7 @@ function wireWindow(win, id) {
             if (!state.windows.has(id)) return;
         }
         win.closing = true;
+        emitDesktopWindowEffect('close', id);
         desktopSound('window.close');
         clearWindowMenus(id);
         if (state.activeWindowId === id) state.activeWindowId = '';
@@ -7978,6 +8371,7 @@ function wireWindow(win, id) {
             disposeAppWindow(win);
             win.element.remove();
             state.windows.delete(id);
+            refreshDesktopWindowEffects();
             renderTaskbar();
             scheduleFruityDockOcclusionCheck();
             scheduleSessionPersist();
@@ -9344,7 +9738,7 @@ function wireWindow(win, id) {
     }
 
     function knownWallpaperIds() {
-        return ['groupshoot', 'aurora', 'midnight', 'slate', 'ember', 'forest', 'alpine_dawn', 'city_rain', 'ocean_cliff', 'aurora_glass', 'nebula_flow', 'paper_waves', 'silk_flow', 'firefly_dusk', 'neon_overdrive', 'fractal_trip'];
+        return ['groupshoot', 'aurora', 'midnight', 'slate', 'ember', 'forest', 'alpine_dawn', 'city_rain', 'ocean_cliff', 'aurora_glass', 'nebula_flow', 'paper_waves', 'silk_flow', 'firefly_dusk', 'neon_overdrive', 'fractal_trip', 'electronic_dreams', 'windows_xp', 'green_slime', 'voxel_world'];
     }
 
     function normalizeWallpaperId(value) {
@@ -9379,6 +9773,7 @@ function wireWindow(win, id) {
 
     function applyActiveSpaceWallpaper() {
         if (document.body) document.body.dataset.wallpaper = wallpaperForActiveSpace();
+        syncDesktopThemeFx();
     }
 
     function normalizeSpaceId(id) {
@@ -9417,6 +9812,7 @@ function wireWindow(win, id) {
             if (onActive) win.element.removeAttribute('data-space-hidden');
             else win.element.setAttribute('data-space-hidden', 'true');
         });
+        refreshDesktopWindowEffects();
     }
 
     function renderSpacePager() {
@@ -16554,7 +16950,8 @@ function updateTaskbarSystemButtonsForMobile() {
             ['ocean_cliff', 'desktop.settings_wallpaper_ocean_cliff'],
             ['aurora_glass', 'desktop.settings_wallpaper_aurora_glass'],
             ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'],
-            ['paper_waves', 'desktop.settings_wallpaper_paper_waves']
+            ['paper_waves', 'desktop.settings_wallpaper_paper_waves'],
+            ['electronic_dreams', 'desktop.settings_wallpaper_electronic_dreams'], ['windows_xp', 'desktop.settings_wallpaper_windows_xp'], ['green_slime', 'desktop.settings_wallpaper_green_slime'], ['voxel_world', 'desktop.settings_wallpaper_voxel_world']
         ];
         const animated = [
             ['silk_flow', 'desktop.settings_wallpaper_silk_flow'],

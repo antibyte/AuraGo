@@ -502,7 +502,7 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 	toolFlags.RemoteControlEnabled = cfg.RemoteControl.Enabled && runCfg.RemoteHub != nil
 	toolFlags.AgoDeskChatEnabled = hasConnectedAgoDeskChatDevice(runCfg.RemoteHub)
 	toolFlags.MediaRegistryEnabled = cfg.MediaRegistry.Enabled && runCfg.MediaRegistryDB != nil
-	toolFlags.HomepageRegistryEnabled = cfg.Homepage.Enabled && runCfg.HomepageRegistryDB != nil
+	toolFlags.HomepageRegistryEnabled = runCfg.HomepageRegistryDB != nil
 	toolFlags.ContactsEnabled = cfg.Tools.Contacts.Enabled && runCfg.ContactsDB != nil
 	toolFlags.PlannerEnabled = cfg.Tools.Planner.Enabled && runCfg.PlannerDB != nil
 	toolFlags.SQLConnectionsEnabled = cfg.SQLConnections.Enabled && runCfg.SQLConnectionsDB != nil && runCfg.SQLConnectionPool != nil
@@ -647,7 +647,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		TelnyxEnabled:            state.TelnyxEnabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 		MessageSource:            runCfg.MessageSource,
-		ReuseContext:             buildManagedSitesPromptContext(runCfg),
+		ManagedSitesContext:      buildManagedSitesPromptContext(runCfg),
 		ChatChannelsContext:      buildReachableChatChannelsContext(runCfg),
 		ComposioServicesContext:  buildComposioServicesPromptContext(cfg),
 		ToolsDir:                 "",
@@ -708,15 +708,39 @@ func buildComposioServicesPromptContext(cfg *config.Config) string {
 }
 
 func buildManagedSitesPromptContext(runCfg RunConfig) string {
-	if runCfg.Config == nil || !runCfg.Config.Homepage.Enabled || runCfg.HomepageRegistryDB == nil {
+	if runCfg.AllowedTools != nil {
+		allowed := normalizedAllowedToolSet(runCfg.AllowedTools)
+		if _, ok := allowed["homepage_registry"]; !ok {
+			return ""
+		}
+	}
+	if runCfg.Config == nil || runCfg.HomepageRegistryDB == nil {
 		return ""
 	}
 	sites, err := tools.ListHomepageManagedSites(runCfg.HomepageRegistryDB)
 	if err != nil || len(sites) == 0 {
 		return ""
 	}
+	activeID := int64(0)
+	if runCfg.SessionID != "" {
+		_ = runCfg.HomepageRegistryDB.QueryRow("SELECT project_id FROM homepage_site_events WHERE json_extract(CASE WHEN json_valid(payload_json) THEN payload_json ELSE '{}' END,'$.session_id')=? ORDER BY id DESC LIMIT 1", runCfg.SessionID).Scan(&activeID)
+	}
+	intent := strings.ToLower(runCfg.UserIntent)
+	sort.SliceStable(sites, func(i, j int) bool {
+		score := func(site tools.HomepageManagedSite) int {
+			if site.ID == activeID {
+				return 2
+			}
+			if intent != "" && (site.ProjectDir != "" && strings.Contains(intent, strings.ToLower(site.ProjectDir)) || site.Name != "" && strings.Contains(intent, strings.ToLower(site.Name))) {
+				return 1
+			}
+			return 0
+		}
+		return score(sites[i]) > score(sites[j])
+	})
 	var b strings.Builder
-	b.WriteString("# MANAGED WEBSITES\n")
+	version, _ := tools.HomepageLedgerVersion(runCfg.HomepageRegistryDB)
+	b.WriteString(fmt.Sprintf("# MANAGED WEBSITES\nInventory version=%d; total=%d. Use homepage_registry overview (limit/offset) for the complete inventory, get_site for the exact site and list_events for what changed and why. Query before editing; never invent a folder or remote URL.\n", version, len(sites)))
 	limit := len(sites)
 	if limit > 8 {
 		limit = 8
@@ -726,7 +750,14 @@ func buildManagedSitesPromptContext(runCfg RunConfig) string {
 		if detailed, detailErr := tools.GetHomepageManagedSite(runCfg.HomepageRegistryDB, site.ID); detailErr == nil {
 			site = detailed
 		}
-		line := fmt.Sprintf("- %s (`%s`): drift=%s", site.Name, site.ProjectDir, site.DriftStatus)
+		line := fmt.Sprintf("- id=%d %s (`%s`): origin=%s, drift=%s", site.ID, site.Name, site.ProjectDir, site.Origin, site.DriftStatus)
+		line += ", local_status=" + site.LocalStatus
+		if site.LastEditReason != "" {
+			line += ", reason=" + site.LastEditReason
+		}
+		if len(site.Events) > 0 {
+			line += ", latest=" + site.Events[0].EventType + "/" + site.Events[0].Outcome + ", why=" + site.Events[0].Reason
+		}
 		if site.LocalRoot != "" {
 			line += fmt.Sprintf(", local=%s", site.LocalRoot)
 		}

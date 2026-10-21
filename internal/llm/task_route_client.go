@@ -35,9 +35,10 @@ func WithSingleCompletionAttempt(ctx context.Context) context.Context {
 
 // TaskRouteClient freezes route identities and clients for one run. It owns no probes.
 type TaskRouteClient struct {
-	mu      sync.Mutex
-	entries []taskRouteEntry
-	active  int
+	mu          sync.Mutex
+	entries     []taskRouteEntry
+	active      int
+	retryPolicy RetryPolicy
 }
 
 var taskProviderClients = struct {
@@ -51,8 +52,9 @@ var taskProviderClients = struct {
 func TaskConfigFingerprint(cfg *config.Config) [32]byte {
 	data, _ := json.Marshal([]any{cfg.LLM, cfg.LLMRouter, cfg.Providers, cfg.AIGateway, cfg.Manifest, cfg.CircuitBreaker, cfg.Agent.ContextWindow})
 	secrets := []string{cfg.LLM.ProviderType, cfg.LLM.BaseURL, cfg.LLM.Model, cfg.LLM.APIKey, cfg.LLM.AccountID, cfg.LLM.HelperBaseURL, cfg.LLM.HelperAPIKey, cfg.LLM.HelperResolvedModel}
+	secrets = append(secrets, cfg.AIGateway.Token)
 	for _, p := range cfg.Providers {
-		secrets = append(secrets, p.ID, p.APIKey, p.OAuthClientSecret)
+		secrets = append(secrets, p.ID, p.APIKey, p.OAuthClientSecret, p.RuntimeOAuthToken)
 	}
 	encoded, _ := json.Marshal(secrets)
 	return sha256.Sum256(append(data, encoded...))
@@ -60,11 +62,12 @@ func TaskConfigFingerprint(cfg *config.Config) [32]byte {
 
 // NewTaskRouteClient captures the existing failover state without reconfiguring it.
 func NewTaskRouteClient(cfg *config.Config, ordinary ChatClient, selected *config.ProviderEntry) *TaskRouteClient {
-	client := &TaskRouteClient{}
+	client := &TaskRouteClient{retryPolicy: RetryPolicyFromConfig(cfg)}
 	factory := NewClient
 	if fm, ok := ordinary.(*FailoverManager); ok {
 		fm.mu.RLock()
 		factory = fm.clientFactory
+		client.retryPolicy = fm.retryPolicy.clone()
 		primary := taskRouteEntry{client: WrapOpenAIClient(fm.primary), route: fm.primaryRoute}
 		fallback := taskRouteEntry{client: WrapOpenAIClient(fm.fallback), route: fm.fallbackRoute}
 		if fm.isOnFallback && fm.fallback != nil {
@@ -114,7 +117,15 @@ func NewTaskRouteClient(cfg *config.Config, ordinary ChatClient, selected *confi
 func TaskProviderConfig(cfg *config.Config, p config.ProviderEntry) *config.Config {
 	view := cfg.Clone()
 	view.LLM.Provider, view.LLM.ProviderType = p.ID, p.Type
-	view.LLM.Model, view.LLM.BaseURL, view.LLM.APIKey, view.LLM.AccountID = p.Model, p.BaseURL, p.APIKey, p.AccountID
+	view.LLM.Model, view.LLM.BaseURL, view.LLM.APIKey, view.LLM.AccountID = p.Model, p.BaseURL, p.RuntimeAPIKey(), p.AccountID
+	view.LLM.GatewayID = p.GatewayID
+	if p.HasMaskedCredentials() {
+		view.LLM.ProviderType = "invalid-provider"
+		view.LLM.BaseURL = "invalid://provider-credential"
+	} else if p.AuthType == "oauth2" && view.LLM.APIKey == "" {
+		view.LLM.ProviderType = "invalid-provider"
+		view.LLM.BaseURL = "invalid://provider-oauth"
+	}
 	// Exact model metadata must also be visible to existing capability resolution.
 	for i := range view.Providers {
 		if view.Providers[i].ID == p.ID {
@@ -152,7 +163,7 @@ func (c *TaskRouteClient) ActiveProviderAndModel() (string, string) {
 
 // CanFallbackTaskRequest excludes cancellation and permission/configuration errors.
 func CanFallbackTaskRequest(err error) bool {
-	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+	if err == nil || IsContextError(err) {
 		return false
 	}
 	var api *openai.APIError
@@ -193,6 +204,7 @@ func (c *TaskRouteClient) CreateChatCompletion(ctx context.Context, req openai.C
 		}
 		copy := req
 		copy.Model = e.route.Model
+		recordAttemptRoute(ctx, e.route)
 		resp, err := e.client.CreateChatCompletion(ctx, copy)
 		if err == nil || !CanFallbackTaskRequest(err) || i+1 == len(c.entries) {
 			return resp, err
@@ -212,6 +224,7 @@ func (c *TaskRouteClient) CreateChatCompletionStream(ctx context.Context, req op
 		}
 		copy := req
 		copy.Model = e.route.Model
+		recordAttemptRoute(ctx, e.route)
 		stream, err := e.client.CreateChatCompletionStream(ctx, copy)
 		if err == nil || !CanFallbackTaskRequest(err) || i+1 == len(c.entries) {
 			return stream, err

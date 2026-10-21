@@ -148,12 +148,16 @@ func NewLLMGuardian(cfg *config.Config, logger *slog.Logger) *LLMGuardian {
 		}
 	}
 
+	accountID, gatewayID := cfg.LLM.AccountID, cfg.LLM.GatewayID
+	if provider := cfg.FindProvider(cfg.LLMGuardian.Provider); provider != nil {
+		accountID, gatewayID = provider.AccountID, provider.GatewayID
+	}
 	client := llm.NewClientFromProviderWithConfig(
 		cfg,
 		cfg.LLMGuardian.ProviderType,
 		cfg.LLMGuardian.BaseURL,
 		cfg.LLMGuardian.APIKey,
-		"",
+		accountID, gatewayID,
 	)
 
 	maxChecks := cfg.LLMGuardian.MaxChecksPerMin

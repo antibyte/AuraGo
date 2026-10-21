@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sort"
@@ -251,44 +252,71 @@ func normalizedReliability(value float64) float64 {
 }
 
 func (s *SQLiteMemory) ApplyMemoryCurationAction(action MemoryCurationAction, actor string, dryRun bool) error {
-	_, err := s.applyMemoryCurationAction(action, actor, dryRun, false)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return s.ApplyMemoryCurationActionContext(ctx, action, actor, dryRun)
+}
+
+func (s *SQLiteMemory) ApplyMemoryCurationActionContext(ctx context.Context, action MemoryCurationAction, actor string, dryRun bool) error {
+	_, err := s.applyMemoryCurationAction(ctx, action, actor, dryRun, false)
 	return err
 }
 
 // ApplyAutomaticMemoryCurationAction requires an internal snapshot and reports skipped actions.
 // Actor labels never grant permission to override a current human decision.
 func (s *SQLiteMemory) ApplyAutomaticMemoryCurationAction(action MemoryCurationAction) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return s.ApplyAutomaticMemoryCurationActionContext(ctx, action)
+}
+
+func (s *SQLiteMemory) ApplyAutomaticMemoryCurationActionContext(ctx context.Context, action MemoryCurationAction) (bool, error) {
 	if action.ExpectedMeta == nil {
 		return false, fmt.Errorf("automatic curation requires a metadata snapshot")
 	}
-	return s.applyMemoryCurationAction(action, "system", false, true)
+	return s.applyMemoryCurationAction(ctx, action, "system", false, true)
 }
 
-func (s *SQLiteMemory) applyMemoryCurationAction(action MemoryCurationAction, actor string, dryRun, automatic bool) (bool, error) {
+func (s *SQLiteMemory) applyMemoryCurationAction(ctx context.Context, action MemoryCurationAction, actor string, dryRun, automatic bool) (bool, error) {
 	if s == nil || s.db == nil || strings.TrimSpace(action.DocID) == "" {
 		return false, fmt.Errorf("memory curation store or document ID is unavailable")
 	}
+	if err := lockMemoryMutex(ctx, &s.automaticMemoryMu); err != nil {
+		return false, err
+	}
+	defer s.automaticMemoryMu.Unlock()
+	ctx, release, err := s.BeginMemoryPublication(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer release()
 	actor = strings.TrimSpace(actor)
 	if actor == "" {
 		actor = "system"
 	}
 	normalizedAction := strings.ToLower(strings.TrimSpace(action.Action))
-	reason := strings.TrimSpace(action.Reason)
-	if len(reason) > 500 {
-		reason = reason[:500]
+	reason := truncateUTF8Bytes(strings.TrimSpace(action.Reason), 500)
+	var identity string
+	vector := s.boundArchiveVector()
+	if !dryRun && (normalizedAction == MemoryCurationActionArchive ||
+		normalizedAction == MemoryCurationActionConfirm || normalizedAction == MemoryCurationActionUnverify) {
+		identity, _, err = s.archiveDocumentIdentity(ctx, vector, action.DocID)
+		if err != nil {
+			return false, err
+		}
 	}
 
-	tx, err := s.db.Begin()
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return false, fmt.Errorf("begin memory curation action: %w", err)
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.Exec(`UPDATE memory_meta SET doc_id=doc_id WHERE doc_id=?`, action.DocID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE memory_meta SET doc_id=doc_id WHERE doc_id=?`, action.DocID); err != nil {
 		return false, err
 	}
 	var current MemoryMeta
-	err = scanMemoryMeta(tx.QueryRow(`SELECT `+memoryMetaSelectColumns+` FROM memory_meta WHERE doc_id=?`, action.DocID), &current)
+	err = scanMemoryMeta(tx.QueryRowContext(ctx, `SELECT `+memoryMetaSelectColumns+` FROM memory_meta WHERE doc_id=?`, action.DocID), &current)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
@@ -308,31 +336,58 @@ func (s *SQLiteMemory) applyMemoryCurationAction(action MemoryCurationAction, ac
 	}
 	previousStatus := normalizeMemoryVerificationStatus(current.VerificationStatus)
 	newStatus := previousStatus
+	if !dryRun {
+		if normalizedAction == MemoryCurationActionArchive {
+			if identity != "" {
+				if _, err := tx.ExecContext(ctx, `INSERT INTO memory_archive_identities(doc_id,identity) VALUES(?,?)
+					ON CONFLICT(doc_id) DO UPDATE SET identity=excluded.identity`, action.DocID, identity); err != nil {
+					return false, err
+				}
+			} else if _, err := tx.ExecContext(ctx, `INSERT INTO memory_archive_identities(doc_id,identity)
+				SELECT doc_id,identity FROM memory_document_identities WHERE doc_id=?
+				ON CONFLICT(doc_id) DO NOTHING`, action.DocID); err != nil {
+				return false, err
+			}
+		} else if IsMemoryArchived(current) && (normalizedAction == MemoryCurationActionConfirm || normalizedAction == MemoryCurationActionUnverify) {
+			var blocked bool
+			if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM memory_archive_identities WHERE doc_id=?)`, action.DocID).Scan(&blocked); err != nil {
+				return false, err
+			}
+			if blocked && identity == "" {
+				return false, fmt.Errorf("archived document content is unavailable; restore its source before reactivating it")
+			}
+			for _, table := range []string{"memory_archive_cleanup", "memory_archive_identities"} {
+				if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE doc_id=?`, action.DocID); err != nil {
+					return false, err
+				}
+			}
+		}
+	}
 
 	if !dryRun {
 		switch normalizedAction {
 		case MemoryCurationActionConfirm:
 			newStatus = MemoryVerificationConfirmed
-			_, err = tx.Exec(`
+			_, err = tx.ExecContext(ctx, `
 				UPDATE memory_meta
 				SET verification_status = ?, archived_at = NULL, archived_reason = '', last_reviewed_at = CURRENT_TIMESTAMP, review_note = ?, last_event_at = CURRENT_TIMESTAMP
 				WHERE doc_id = ?`, newStatus, reason, action.DocID)
 		case MemoryCurationActionArchive:
 			newStatus = MemoryVerificationArchived
-			_, err = tx.Exec(`
+			_, err = tx.ExecContext(ctx, `
 				UPDATE memory_meta
 				SET verification_status = ?, archived_at = CURRENT_TIMESTAMP, archived_reason = ?, last_reviewed_at = CURRENT_TIMESTAMP, review_note = ?, last_event_at = CURRENT_TIMESTAMP
 				WHERE doc_id = ?`, newStatus, reason, reason, action.DocID)
 		case MemoryCurationActionUnverify:
 			newStatus = MemoryVerificationUnverified
-			_, err = tx.Exec(`
+			_, err = tx.ExecContext(ctx, `
 				UPDATE memory_meta
 				SET verification_status = ?, archived_at = NULL, archived_reason = '', last_reviewed_at = CURRENT_TIMESTAMP, review_note = ?, last_event_at = CURRENT_TIMESTAMP
 				WHERE doc_id = ?`, newStatus, reason, action.DocID)
 		case MemoryCurationActionProtect:
-			_, err = tx.Exec(`UPDATE memory_meta SET protected = 1, last_reviewed_at = CURRENT_TIMESTAMP, review_note = ?, last_event_at = CURRENT_TIMESTAMP WHERE doc_id = ?`, reason, action.DocID)
+			_, err = tx.ExecContext(ctx, `UPDATE memory_meta SET protected = 1, last_reviewed_at = CURRENT_TIMESTAMP, review_note = ?, last_event_at = CURRENT_TIMESTAMP WHERE doc_id = ?`, reason, action.DocID)
 		case MemoryCurationActionUnprotect:
-			_, err = tx.Exec(`UPDATE memory_meta SET protected = 0, keep_forever = 0, last_reviewed_at = CURRENT_TIMESTAMP, review_note = ?, last_event_at = CURRENT_TIMESTAMP WHERE doc_id = ?`, reason, action.DocID)
+			_, err = tx.ExecContext(ctx, `UPDATE memory_meta SET protected = 0, keep_forever = 0, last_reviewed_at = CURRENT_TIMESTAMP, review_note = ?, last_event_at = CURRENT_TIMESTAMP WHERE doc_id = ?`, reason, action.DocID)
 		default:
 			return false, fmt.Errorf("unsupported memory curation action %q", action.Action)
 		}
@@ -346,7 +401,7 @@ func (s *SQLiteMemory) applyMemoryCurationAction(action MemoryCurationAction, ac
 	if normalizedAction == MemoryCurationActionProtect || normalizedAction == MemoryCurationActionUnprotect {
 		newStatus = previousStatus
 	}
-	if _, err := tx.Exec(`
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO memory_curation_events (doc_id, action, actor, previous_status, new_status, reason, dry_run)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		action.DocID, normalizedAction, actor, previousStatus, newStatus, reason, dryRun,
@@ -364,81 +419,82 @@ func (s *SQLiteMemory) applyMemoryCurationAction(action MemoryCurationAction, ac
 // enforcement or bulk curation. It updates verification_status and records a
 // single curation event per docID in one transaction.
 func (s *SQLiteMemory) ArchiveMemoryMetaBatch(docIDs []string, reason, actor string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	_, err := s.ArchiveMemoryMetaBatchContext(ctx, docIDs, reason, actor)
+	return err
+}
+
+// ArchiveMemoryMetaBatchContext returns only the documents actually archived.
+func (s *SQLiteMemory) ArchiveMemoryMetaBatchContext(ctx context.Context, docIDs []string, reason, actor string) ([]string, error) {
 	if s == nil || len(docIDs) == 0 {
-		return nil
+		return nil, nil
 	}
-	reason = strings.TrimSpace(reason)
+	if err := lockMemoryMutex(ctx, &s.automaticMemoryMu); err != nil {
+		return nil, err
+	}
+	defer s.automaticMemoryMu.Unlock()
+	ctx, release, err := s.BeginMemoryPublication(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	reason = truncateUTF8Bytes(strings.TrimSpace(reason), 500)
 	if reason == "" {
 		reason = "bulk archive"
-	}
-	if len(reason) > 500 {
-		reason = reason[:500]
 	}
 	actor = strings.TrimSpace(actor)
 	if actor == "" {
 		actor = "system"
 	}
-
-	tx, err := s.db.Begin()
+	var candidates []memoryArchiveCandidate
+	seen := make(map[string]bool)
+	for _, id := range docIDs {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		var candidate memoryArchiveCandidate
+		err := scanMemoryMeta(s.db.QueryRowContext(ctx, `SELECT `+memoryMetaSelectColumns+` FROM memory_meta WHERE doc_id=?`, id), &candidate.meta)
+		if err == sql.ErrNoRows {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		candidate.identity, _, err = s.archiveDocumentIdentity(ctx, s.boundArchiveVector(), id)
+		if err != nil {
+			return nil, err
+		}
+		candidates = append(candidates, candidate)
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("begin archive batch: %w", err)
+		return nil, err
 	}
 	defer tx.Rollback()
-
-	chunkSize := defaultInClauseChunkSize
-	for start := 0; start < len(docIDs); start += chunkSize {
-		end := start + chunkSize
-		if end > len(docIDs) {
-			end = len(docIDs)
+	var applied []string
+	for _, candidate := range candidates {
+		var current MemoryMeta
+		err := scanMemoryMeta(tx.QueryRowContext(ctx, `SELECT `+memoryMetaSelectColumns+` FROM memory_meta WHERE doc_id=?`, candidate.meta.DocID), &current)
+		if err == sql.ErrNoRows {
+			continue
 		}
-		chunk := docIDs[start:end]
-		placeholders := make([]string, len(chunk))
-		args := make([]interface{}, 0, len(chunk)+5)
-		for i, id := range chunk {
-			placeholders[i] = "?"
-			args = append(args, id)
+		if err != nil {
+			return nil, err
 		}
-		args = append([]interface{}{MemoryVerificationArchived, reason, reason}, args...)
-		if _, err := tx.Exec(fmt.Sprintf(`
-			UPDATE memory_meta
-			SET verification_status = ?,
-			    archived_at = CURRENT_TIMESTAMP,
-			    archived_reason = ?,
-			    last_reviewed_at = CURRENT_TIMESTAMP,
-			    review_note = ?,
-			    last_event_at = CURRENT_TIMESTAMP
-			WHERE doc_id IN (%s)
-		`, strings.Join(placeholders, ",")), args...); err != nil {
-			return fmt.Errorf("archive memory_meta chunk %d-%d: %w", start, end-1, err)
+		if current.Protected || current.KeepForever || IsMemoryArchived(current) || !memoryMetaEqual(current, candidate.meta) {
+			continue
 		}
+		if err := archiveMemoryCandidate(ctx, tx, candidate, reason, actor, false); err != nil {
+			return nil, err
+		}
+		applied = append(applied, current.DocID)
 	}
-
-	// Record curation events. Batch INSERT with chunks to stay within parameter limits.
-	const valuesPerRow = 7
-	chunkSize = defaultInClauseChunkSize / valuesPerRow
-	if chunkSize < 1 {
-		chunkSize = 1
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
-	for start := 0; start < len(docIDs); start += chunkSize {
-		end := start + chunkSize
-		if end > len(docIDs) {
-			end = len(docIDs)
-		}
-		chunk := docIDs[start:end]
-		placeholders := make([]string, len(chunk))
-		args := make([]interface{}, 0, len(chunk)*valuesPerRow)
-		for i, id := range chunk {
-			placeholders[i] = "(?, ?, ?, ?, ?, ?, ?)"
-			args = append(args, id, MemoryCurationActionArchive, actor, MemoryVerificationUnverified, MemoryVerificationArchived, reason, false)
-		}
-		if _, err := tx.Exec(fmt.Sprintf(`
-			INSERT INTO memory_curation_events (doc_id, action, actor, previous_status, new_status, reason, dry_run)
-			VALUES %s`, strings.Join(placeholders, ",")), args...); err != nil {
-			return fmt.Errorf("record curation events chunk %d-%d: %w", start, end-1, err)
-		}
-	}
-
-	return tx.Commit()
+	return applied, nil
 }
 
 func (s *SQLiteMemory) ListMemoryCurationEvents(limit int) ([]MemoryCurationEvent, error) {

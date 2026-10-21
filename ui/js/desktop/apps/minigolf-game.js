@@ -255,7 +255,7 @@ export function mountGame(host, context = {}) {
         meterLeft = 0; sessionShots++; tutorialEvent({ type: 'shot' });
         const ballPosition = physics.getBall();
         audio.effect('strike', { speed: amount * 12, pan: scene?.panAt?.(ballPosition) ?? 0 });
-        scene.burst('strike', ballPosition, amount * 2);
+        scene.burst('strike', ballPosition, amount * 2, { surface: lastSurface });
         scene.setRestMark?.(null);
         view.update(round, course, busy); updateAim();
     }
@@ -266,7 +266,7 @@ export function mountGame(host, context = {}) {
                 if (busy && event.speed > .25 && performance.now() - soundTime > 65) {
                     soundTime = performance.now();
                     audio.effect('impact', { speed: event.speed, surface: lastSurface, pan: scene?.panAt?.(event.position) ?? 0 });
-                    scene.burst('impact', event.position, event.speed * .25);
+                    scene.burst('impact', event.position, event.speed * .25, { surface: lastSurface });
                 }
                 continue;
             }
@@ -288,7 +288,11 @@ export function mountGame(host, context = {}) {
                 view.update(round, course, false);
                 if (round.mode === 'practice') nextHole().catch(fail); else showScore(true);
             }
-            else { setTurn(); if (round.players.length > 1 && round.turnIndex !== before) turnBanner(); if (!reduced) scene.focusBall(); }
+            else {
+                setTurn(); if (round.players.length > 1 && round.turnIndex !== before) turnBanner();
+                // focusBall cancels the turn tween setTurn just started; re-issue it (a no-op while the aim camera is off).
+                if (!reduced) { scene.focusBall(); scene.frameTurn?.(angle, round.players[round.turnIndex].position); }
+            }
         }
     }
     function showScore(animate = false, focus) {
@@ -390,6 +394,7 @@ export function mountGame(host, context = {}) {
     const heldMap = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
     function key(event) {
         if (context.isActive?.() === false || event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.type === 'keydown') scene?.skipIntro?.();
         const name = heldMap[event.key];
         if (event.key === 'Shift') { held.fine = event.type === 'keydown'; return; }
         if (name && event.type === 'keyup') { held[name] = false; return; }
@@ -444,7 +449,7 @@ export function mountGame(host, context = {}) {
         let snapshot = physics?.getSnapshot();
         if (physics && !loading && panelKind === '' && !round?.completed) { snapshot = physics.step(dt); handleEvents(); }
         if (scene) {
-            snapshot = { ...(physics?.getSnapshot() || snapshot), obstacles: physics?.getObstacles() || [], color: round?.players[round.turnIndex]?.color || DEFAULT_COLORS[0] };
+            snapshot = { ...(physics?.getSnapshot() || snapshot), obstacles: physics?.getObstacles() || [], color: round?.players[round.turnIndex]?.color || DEFAULT_COLORS[0], surface: lastSurface };
             scene.update(panelKind === 'pause' ? 0 : dt, snapshot);
         }
         if (busy && !panelKind && snapshot?.velocity) audio.rolling(Math.hypot(...snapshot.velocity), lastSurface, scene?.panAt?.(snapshot.position) ?? 0);

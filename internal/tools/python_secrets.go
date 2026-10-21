@@ -16,6 +16,7 @@ import (
 // blockedSecretPrefixes lists vault key prefixes that are exclusively managed by
 // system integrations and must NEVER be accessible to Python tools.
 var blockedSecretPrefixes = []string{
+	"personality_legacy_",
 	"email_",
 	"agentmail_",
 	"google_workspace_",

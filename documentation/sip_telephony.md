@@ -49,8 +49,11 @@ files, and does not add SRTP media encryption or WS/WSS support.
 
 ## Policy and privacy
 
-- Incoming calls require both a trusted source IP/CIDR and an exact caller
-  allowlist match. A spoofable `From` header alone is never trusted.
+- Incoming calls require both a trusted source IP/CIDR and a matching caller
+  allowlist entry. A spoofable `From` header alone is never trusted.
+- The guided **All callers** choice stores `*` in `inbound.allowed_callers`.
+  It accepts any caller from the trusted registrar IPs resolved during setup,
+  subject to `inbound.denied_callers`. It does not bypass the source-IP/CIDR check.
 - Outgoing calls require a canonical `sip:` URI, an exact allowed domain, and
   either an exact user or an allowed E.164 prefix. Empty lists deny all.
 - Destination domains never include a port. FRITZ!Box internal destinations

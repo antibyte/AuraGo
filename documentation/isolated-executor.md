@@ -67,10 +67,27 @@ file inside the worker. The worker receives neither the grant token nor an
 HTTP connection to AuraGo. The server rechecks current permissions and the
 captured originating run's narrower policy for each call.
 
+Code and broker response files are bounded and published through Docker Exec
+stdin into fixed, validated `/sandbox` filenames. Publication requires a
+confirmed successful exit; it does not use the Engine archive-write API or
+make the worker root filesystem writable.
+
 Frames are limited to 64 KiB, responses to 1 MiB and grants to at most 32 calls.
 The supervisor accepts only a loopback bridge origin and refuses redirects.
 Cancelling a foreground caller cancels its MCP request and retires that
 connection. A required supervisor remains fail-closed.
+
+Daemon skills use the existing stdout/stdin IPC and one SDK reader for tool
+results, Stop and configuration commands. The trusted Go supervisor owns the
+bridge grant; daemon workers receive neither an authentication token nor a
+bridge URL. Calls retain the original `daemon:<skill>:<generation>` session and
+are cancelled with that generation or server shutdown. Tool access intersects
+the manifest, startup configuration and current configuration; SQL connections
+must satisfy both startup and current allowlists. Each grant permits at most
+32 calls in five minutes; exhaustion cannot trigger an early refill. Actions
+requiring authorization need matching background action rules. Existing daemon
+execution gates still apply: this IPC does not grant unsafe host execution or
+provide a sandbox for long-running daemons.
 
 Background execution uses the existing durable Background Task Manager and
 returns a task ID. System Tasks shows bounded output, status and cancellation;
@@ -90,6 +107,8 @@ managed process/PID path.
 container specification, split broker frames, denied tools, origin checks,
 protocol limits and output termination without Docker. Focused Go tests cover
 default routing, cancellation, rooted publication and lint argument safety.
-Live Docker/Podman execution and cancellation remain separate acceptance checks;
-the local Windows Docker Desktop Linux engine was unavailable during this
-implementation.
+Real Linux Docker checks cover the pinned Python image, actual worker limits
+and isolation, zero and nonzero exits, stdout/stderr, output limits, cancellation
+during execution and a broker round trip against a synthetic local service.
+These exercise the launcher, installed SDK and Engine. Podman and full Go/MCP
+transport with server-issued grants remain separate acceptance checks.

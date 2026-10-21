@@ -2151,6 +2151,36 @@
     height: 32px;
 }
 
+/* Open menu is reparented onto the body so it is not a descendant of a
+   backdrop-filter bar. The trigger stays aligned with the tray placeholder. */
+.desktop-body .vd-radial-anchor.is-lifted {
+    position: fixed;
+    z-index: calc(var(--vd-z-toast) + 1);
+    margin: 0;
+    overflow: visible;
+    pointer-events: none;
+}
+
+.desktop-body .vd-radial-anchor.is-lifted .radial-menu {
+    pointer-events: auto;
+}
+
+.desktop-body .vd-radial-anchor .radial-menu {
+    position: relative;
+    z-index: 2;
+}
+
+/* The shared backdrop is position:fixed. Once the anchor leaves the bar it
+   would cover the viewport, so the desktop keeps the menu sharp and undimmed. */
+.desktop-body .vd-radial-anchor.is-lifted .radial-backdrop,
+.desktop-body .vd-radial-anchor.is-lifted .radial-backdrop.open {
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    opacity: 0;
+    pointer-events: none;
+}
+
 .desktop-body .radial-items {
     top: auto;
     right: 0;

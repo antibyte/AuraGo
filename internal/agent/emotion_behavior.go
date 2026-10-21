@@ -13,7 +13,6 @@ type emotionBehaviorPolicy struct {
 	PromptHint          string
 	CuriosityPromptHint string
 	RecoveryNudge       string
-	MaxToolCallsDelta   int
 }
 
 func latestEmotionState(stm *memory.SQLiteMemory, synthesizer *memory.EmotionSynthesizer) *memory.EmotionState {
@@ -85,74 +84,7 @@ func deriveEmotionBehaviorPolicy(stm *memory.SQLiteMemory, synthesizer *memory.E
 		return emotionBehaviorPolicy{}
 	}
 
-	meta = meta.Normalized()
-	state := latestEmotionState(stm, synthesizer)
-	traits, _ := stm.GetTraits()
-
-	confidenceTrait := traits[memory.TraitConfidence]
-	curiosityTrait := traits[memory.TraitCuriosity]
-	thoroughnessTrait := traits[memory.TraitThoroughness]
-	empathyTrait := traits[memory.TraitEmpathy]
-
-	lowConfidence := confidenceTrait > 0 && confidenceTrait < 0.35
-	highThoroughness := thoroughnessTrait > meta.Thresholds.HighThoroughness
-	highEmpathy := empathyTrait > meta.Thresholds.HighEmpathy
-	tenseRecovery := false
-	ambiguousIntent := intentLooksAmbiguous(userMessage)
-
-	if state != nil {
-		if state.Confidence > 0 && state.Confidence < 0.45 {
-			lowConfidence = true
-		}
-		if state.Confidence >= 0.45 && state.Valence <= -0.25 && state.Arousal >= 0.65 {
-			tenseRecovery = true
-		}
-	}
-
-	hints := make([]string, 0, 5)
-	if snapshot, err := stm.GetPersonalitySnapshotAt(time.Now()); err == nil {
-		if hint := memory.PersonalityDynamicsHint(snapshot); hint != "" {
-			hints = append(hints, hint)
-		}
-	}
-	if lowConfidence && ambiguousIntent {
-		hints = append(hints, "When a step could modify or delete data, verify the target first and ask one brief confirmation question if the user intent is ambiguous.")
-	} else if lowConfidence {
-		hints = append(hints, "When a step could modify or delete data, verify the exact target first. Do not ask a confirmation question when the user already named a concrete target.")
-	}
-	if highThoroughness {
-		hints = append(hints, "After making changes, prefer one lightweight verification step such as a focused test, diff, stat, or read-back before declaring success.")
-	}
-	if tenseRecovery {
-		hints = append(hints, "During error recovery, inspect the exact last error and make one concrete correction at a time instead of trying multiple speculative alternatives.")
-	}
-	if highEmpathy {
-		hints = append(hints, "Keep explanations warm and supportive in a way that fits the active persona; stay concise and practical.")
-	}
-	if channelHint := channelToneHint(messageSource); channelHint != "" {
-		hints = append(hints, channelHint)
-	}
-
-	policy := emotionBehaviorPolicy{}
-	if len(hints) > 0 {
-		policy.PromptHint = "Emotion-aware runtime guidance: " + strings.Join(hints, " ")
-	}
-	shortChannel := isShortChannel(messageSource)
-	if curiosityTrait > meta.Thresholds.HighCuriosity && !shortChannel {
-		policy.CuriosityPromptHint = "Curiosity-aware runtime guidance: Be more curious and gather a little more context when it naturally fits. Ask casual, optional follow-up questions only when they would help the conversation, and do not interrogate the user. For example, if the user asks for the weather in a place, answer the request first and, if it feels natural, casually ask in the user's language whether they live there. Keep it easy to ignore and consistent with the active persona's voice."
-	}
-	if tenseRecovery {
-		policy.RecoveryNudge = "Inspect the exact last error and make one concrete correction. Avoid speculative retries."
-		policy.MaxToolCallsDelta = -1
-	}
-	if highThoroughness && policy.MaxToolCallsDelta == 0 {
-		policy.MaxToolCallsDelta = 1
-	}
-	if lowConfidence && ambiguousIntent && policy.RecoveryNudge == "" {
-		policy.RecoveryNudge = "If the next step could modify or delete data and the request is ambiguous, ask one brief confirmation question instead of guessing."
-	}
-
-	return policy
+	return emotionBehaviorPolicy{PromptHint: channelToneHint(messageSource)}
 }
 
 var filenameLikeToken = regexp.MustCompile(`\S+\.\w{1,8}\b`)
@@ -251,8 +183,7 @@ func mergeEmotionBehaviorPrompt(base string, policy emotionBehaviorPolicy) strin
 func shouldUseEmotionBehavior(policy emotionBehaviorPolicy, state *memory.EmotionState) bool {
 	if strings.TrimSpace(policy.PromptHint) != "" ||
 		strings.TrimSpace(policy.CuriosityPromptHint) != "" ||
-		strings.TrimSpace(policy.RecoveryNudge) != "" ||
-		policy.MaxToolCallsDelta != 0 {
+		strings.TrimSpace(policy.RecoveryNudge) != "" {
 		return true
 	}
 	if state == nil {

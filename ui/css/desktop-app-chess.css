@@ -23,7 +23,8 @@
     height: 100%;
     min-height: 0;
     display: grid;
-    grid-template-columns: minmax(360px, 1fr) 340px;
+    grid-template-columns: minmax(340px, 1fr) clamp(340px, 22vw, 420px);
+    --chess-column: 660px;
     background:
         radial-gradient(ellipse 80% 60% at 18% 12%, color-mix(in srgb, var(--chess-accent) 18%, transparent), transparent 55%),
         radial-gradient(ellipse 70% 50% at 88% 88%, rgba(226, 168, 74, 0.1), transparent 50%),
@@ -40,6 +41,22 @@
     grid-template-rows: auto minmax(0, 1fr) auto;
     padding: 16px 16px 14px;
     gap: 10px;
+}
+
+/* One centered column: view switch and material score above the board. Keeps a
+   wide window from stretching a compact row across the whole pane. */
+.vd-chess-pane-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: var(--chess-column);
+    margin-inline: auto;
+}
+
+.vd-chess-pane-head .vd-chess-material-bar {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .vd-chess-material-bar {
@@ -101,6 +118,7 @@
     min-height: 0;
     width: 100%;
     height: 100%;
+    container-type: size;
     display: grid;
     place-items: center;
     overflow: hidden;
@@ -136,8 +154,8 @@
     --chess-rim: 12px;
     position: relative;
     z-index: 1;
-    width: min(100%, 620px);
-    height: min(100%, 620px);
+    width: min(100%, var(--chess-column), 100cqh);
+    height: auto;
     max-width: 100%;
     max-height: 100%;
     min-width: 0;
@@ -309,6 +327,9 @@
 }
 
 .vd-chess-ribbon {
+    width: 100%;
+    max-width: var(--chess-column);
+    margin-inline: auto;
     min-height: 54px;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -405,6 +426,7 @@
 .vd-chess-side {
     min-width: 0;
     min-height: 0;
+    container-type: inline-size;
     display: grid;
     grid-template-rows: auto auto auto minmax(0, 1fr);
     gap: 10px;
@@ -483,6 +505,21 @@
     display: grid;
     gap: 10px;
     padding: 14px;
+}
+
+/* A roomy sidebar keeps its fields side by side, so the column stops growing
+   taller than the window; long rows still span the full width. */
+@container (min-width: 380px) {
+    .vd-chess-controls {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+    }
+
+    .vd-chess-controls > .vd-chess-field:has([data-color-group]),
+    .vd-chess-controls > .vd-chess-actions,
+    .vd-chess-controls > .vd-chess-replay {
+        grid-column: 1 / -1;
+    }
 }
 
 .vd-chess-field {
@@ -1058,7 +1095,7 @@
         --chess-rim: 10px;
     }
 
-    .vd-chess-side {
+.vd-chess-side {
         grid-template-columns: minmax(0, 1fr);
         grid-template-rows: auto auto auto minmax(130px, 220px);
         padding: 0 12px 12px;
@@ -1105,4 +1142,79 @@
     .vd-chess-modal-actions button:hover {
         transform: none;
     }
+}
+
+/* 3D board mode: view switch, canvas host and fallback note */
+.vd-chess-view-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    justify-self: start;
+    padding: 3px;
+    border-radius: 999px;
+    background: var(--chess-panel);
+    border: 1px solid var(--chess-line);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.vd-chess-view-switch button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--chess-muted);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 5px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+
+.vd-chess-view-switch button:hover {
+    color: var(--chess-ink);
+}
+
+.vd-chess-view-switch button.is-active {
+    background: color-mix(in srgb, var(--chess-accent) 24%, transparent);
+    color: var(--chess-ink);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chess-accent) 45%, transparent);
+}
+
+.vd-chess-view-switch button:focus-visible {
+    outline: 2px solid var(--chess-accent);
+    outline-offset: 2px;
+}
+
+.vd-chess-board-3d {
+    position: absolute;
+    inset: var(--chess-rim);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #0d1017;
+}
+
+.vd-chess-board-3d[hidden] {
+    display: none;
+}
+
+.vd-chess-3d-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+}
+
+.vd-chess-3d-note {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: 16px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--chess-muted);
+    background: #0d1017;
 }

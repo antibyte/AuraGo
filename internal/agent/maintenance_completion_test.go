@@ -54,7 +54,7 @@ func TestMaintenanceBriefingWaitsForCatchupAndKeepsMainDeadlineIndependent(t *te
 			if ctx.Err() != nil {
 				t.Fatal("catch-up inherited the expired normal-phase deadline")
 			}
-			return skillQualityTestClient{response: `{"facts":[]}`}.CreateChatCompletion(ctx, req)
+			return skillQualityTestClient{response: maintenanceConsolidationResponseForRequest(req, `"facts":[]`)}.CreateChatCompletion(ctx, req)
 		}}
 		runMaintenanceTask(t.Context(), cfg, logger, client, nil, nil, nil, nil, &hierarchyVectorDB{}, stm, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		run, err := stm.GetLatestMaintenanceRun()
@@ -102,10 +102,12 @@ func TestMaintenanceCatchupCountsFactsAndOutstandingWorkOnce(t *testing.T) {
 	ledger.beginPhase("entity_extraction")
 	ledger.addDeferred("entity_extraction", 1)
 	ledger.finishPhase("entity_extraction", true)
-	client := skillQualityTestClient{response: `{"facts":[{"concept":"Backup target","content":"The backup target is the NAS."}]}`}
+	client := maintenanceCompletionTestClient{complete: func(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+		return skillQualityTestClient{response: maintenanceConsolidationResponseForRequest(req, `"facts":[{"concept":"Backup target","content":"The backup target is the NAS."}]`)}.CreateChatCompletion(ctx, req)
+	}}
 	runConsolidationCatchup(t.Context(), cfg, logger, client, stm, &hierarchyVectorDB{}, nil, ledger)
 	results := ledger.results()
-	if results.Processed != 42 || results.ConsolidationFacts != 12 || results.ConsolidationBacklog != 2 || results.Deferred != 3 {
+	if results.Processed != 42 || results.ConsolidationFacts != 13 || results.ConsolidationBacklog != 2 || results.Deferred != 3 {
 		t.Fatalf("combined results=%+v", results)
 	}
 	if ledger.phaseDeferred("consolidation") != 0 || ledger.phaseDeferred("consolidation_catchup") != 2 || ledger.phaseDeferred("entity_extraction") != 1 {
@@ -115,8 +117,8 @@ func TestMaintenanceCatchupCountsFactsAndOutstandingWorkOnce(t *testing.T) {
 		cfg.Server.UILanguage = language
 		briefing := formatMorningBriefing(cfg, time.Now(), ledger.status(), results, 0)
 		for _, want := range map[string][]string{
-			"de": {"verarbeitete Archivnachrichten: 42", "neue Fakten: 12", "Nachhol-Lauf: partial"},
-			"en": {"archive messages processed: 42", "new facts: 12", "Catch-up: partial"},
+			"de": {"verarbeitete Archivnachrichten: 42", "neue Fakten: 13", "Nachhol-Lauf: partial"},
+			"en": {"archive messages processed: 42", "new facts: 13", "Catch-up: partial"},
 		}[language] {
 			if !strings.Contains(briefing, want) {
 				t.Fatalf("missing %q in %s", want, briefing)
@@ -136,7 +138,7 @@ func TestMaintenanceSummaryAndKGRecoverIndependently(t *testing.T) {
 					http.Error(w, "invalid fixture request", http.StatusBadRequest)
 					return
 				}
-				kind, content := "batch", "not valid JSON"
+				kind, content := "batch", maintenanceConsolidationResponseForRequest(request, `"facts":[]`)
 				system := request.Messages[0].Content
 				if strings.Contains(system, "concise activity summarizer") {
 					kind, content = "summary", "Configured NAS backups."

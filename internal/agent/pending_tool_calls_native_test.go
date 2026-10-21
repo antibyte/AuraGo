@@ -105,6 +105,8 @@ func TestDetachNewSystemMessagesKeepsNativeToolResultsAdjacent(t *testing.T) {
 
 func TestProcessPendingNativeToolCallDefersRecoveryHintUntilAfterResult(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.VirtualDesktop.Enabled, cfg.VirtualDesktop.AllowAgentControl, cfg.Tools.VirtualDesktop.Enabled = true, true, true
+	cfg.VirtualDesktop.AllowGeneratedApps = true
 	logger := slog.New(slog.NewTextHandler(testDiscardWriter{}, &slog.HandlerOptions{Level: slog.LevelError}))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)
 	if err != nil {
@@ -142,13 +144,17 @@ func TestProcessPendingNativeToolCallDefersRecoveryHintUntilAfterResult(t *testi
 		pendingTCs: []ToolCall{second},
 	}
 
-	s.runCfg.ExecutionHooks = &ExecutionHooks{HandleTool: func(context.Context, ToolCall) (string, bool) { return errorResult, true }}
+	hookCalls := 0
+	s.runCfg.ExecutionHooks = &ExecutionHooks{HandleTool: func(context.Context, ToolCall) (string, bool) { hookCalls++; return errorResult, true }}
 
 	if !processPendingToolCalls(s, context.Background(), "install app") {
 		t.Fatal("expected pending native tool call to be processed")
 	}
 	if len(s.req.Messages) != 5 {
 		t.Fatalf("messages = %d, want user, assistant, two results, recovery hint", len(s.req.Messages))
+	}
+	if hookCalls != 1 || !strings.Contains(s.req.Messages[3].Content, "files are required") {
+		t.Fatalf("fixture did not reach the intended handler failure once: calls=%d result=%s", hookCalls, s.req.Messages[3].Content)
 	}
 	if s.req.Messages[3].Role != openai.ChatMessageRoleTool || s.req.Messages[3].ToolCallID != "call_second" {
 		t.Fatalf("fourth message = %#v, want second tool result", s.req.Messages[3])

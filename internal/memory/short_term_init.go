@@ -1,14 +1,12 @@
 package memory
 
 import (
-	"aurago/internal/dbutil"
 	"context"
 	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -29,6 +27,8 @@ type SQLiteMemory struct {
 	closingSessions   map[string]int
 	nextSessionRun    uint64
 	correctionMu      sync.Mutex
+	archiveVectorMu   sync.RWMutex
+	archiveVector     VectorDB
 
 	auditNotifierMu sync.RWMutex
 	auditNotifier   func(AuditUpdate)
@@ -49,18 +49,8 @@ type SQLiteMemory struct {
 // openSQLiteDB was removed - it was dead code that duplicated dbutil.Open().
 // Use dbutil.Open() instead which handles corruption recovery.
 
-func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) {
-	previous, _ := os.Stat(dbPath)
-	backupLearnings := previous != nil && previous.Size() > 0
-	db, err := dbutil.Open(dbPath, dbutil.WithCorruptionRecovery(logger), dbutil.WithImmediateTransactions())
-	if err != nil {
-		return nil, err
-	}
-	if err := protectMemoryDatabase(db); err != nil {
-		db.Close()
-		return nil, err
-	}
-
+func initializeLegacySQLiteMemory(stm *SQLiteMemory, backupExisting bool) error {
+	db, logger := stm.db, stm.logger
 	schema := `
 	CREATE TABLE IF NOT EXISTS messages (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -285,8 +275,9 @@ CREATE INDEX IF NOT EXISTS idx_memory_usage_log_used_at ON memory_usage_log(used
 	CREATE INDEX IF NOT EXISTS idx_memory_conflicts_status ON memory_conflicts(status, detected_at DESC);
 	CREATE INDEX IF NOT EXISTS idx_memory_conflicts_docs ON memory_conflicts(doc_id_left, doc_id_right);`
 
-	if _, err := db.Exec(schema); err != nil {
-		return nil, fmt.Errorf("failed to create sqlite schema: %w", err)
+	tables, indexes := splitLegacyMemorySchema(schema)
+	if _, err := db.Exec(tables); err != nil {
+		return fmt.Errorf("failed to create sqlite schema: %w", err)
 	}
 	fileIndexMigrations := []struct {
 		column string
@@ -297,106 +288,86 @@ CREATE INDEX IF NOT EXISTS idx_memory_usage_log_used_at ON memory_usage_log(used
 	}
 	for _, migration := range fileIndexMigrations {
 		if err := migrateAddColumn(db, logger, "file_indices", migration.column, migration.def); err != nil {
-			if closeErr := db.Close(); closeErr != nil {
-				logger.Warn("Failed to close SQLite after file_indices migration error", "error", closeErr)
-			}
-			return nil, fmt.Errorf("file_indices migration %s: %w", migration.column, err)
+			return fmt.Errorf("file_indices migration %s: %w", migration.column, err)
 		}
 	}
 
 	deletedCoreDuplicates, err := migrateCoreMemoryUniqueFacts(db, logger)
 	if err != nil {
-		if closeErr := db.Close(); closeErr != nil {
-			logger.Warn("Failed to close SQLite after core_memory duplicate cleanup error", "error", closeErr)
-		}
-		return nil, fmt.Errorf("core_memory duplicate cleanup: %w", err)
+		return fmt.Errorf("core_memory duplicate cleanup: %w", err)
 	}
 	if deletedCoreDuplicates > 0 {
 		logger.Warn("Removed duplicate core memory facts before unique-index migration", "deleted", deletedCoreDuplicates)
 	}
 	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_core_memory_fact_unique ON core_memory(fact)`); err != nil {
-		if closeErr := db.Close(); closeErr != nil {
-			logger.Warn("Failed to close SQLite after core_memory unique-index error", "error", closeErr)
-		}
-		return nil, fmt.Errorf("core_memory unique index: %w", err)
+		return fmt.Errorf("core_memory unique index: %w", err)
 	}
 	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_core_memory_normalized_fact_unique ON core_memory(normalized_fact)`); err != nil {
-		if closeErr := db.Close(); closeErr != nil {
-			logger.Warn("Failed to close SQLite after core_memory normalized unique-index error", "error", closeErr)
-		}
-		return nil, fmt.Errorf("core_memory normalized unique index: %w", err)
+		return fmt.Errorf("core_memory normalized unique index: %w", err)
 	}
 
 	if _, err := db.Exec(conflictSchema); err != nil {
-		return nil, fmt.Errorf("failed to create conflict schema: %w", err)
+		return fmt.Errorf("failed to create conflict schema: %w", err)
 	}
 
 	if err := applySQLiteMemoryMigrations(db, logger); err != nil {
-		if closeErr := db.Close(); closeErr != nil {
-			logger.Warn("Failed to close SQLite after migration error", "error", closeErr)
-		}
-		return nil, fmt.Errorf("sqlite memory migrations: %w", err)
+		return fmt.Errorf("sqlite memory migrations: %w", err)
 	}
 
-	logger.Info("Initialized SQLite Short-Term Memory", "path", dbPath)
-	stm := &SQLiteMemory{db: db, logger: logger}
+	if _, err := db.Exec(indexes); err != nil {
+		return fmt.Errorf("create legacy memory indexes: %w", err)
+	}
 	if err := stm.initMemoryCorrections(); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("initialize memory corrections: %w", err)
+		return fmt.Errorf("initialize memory corrections: %w", err)
 	}
 	if err := stm.initExtractionSources(); err != nil {
-		_ = db.Close()
-		return nil, err
+		return err
 	}
 	if err := stm.initPrivacyDeletionJobs(); err != nil {
-		_ = db.Close()
-		return nil, err
+		return err
 	}
-	if err := stm.initLearnings(backupLearnings); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("initialize learnings: %w", err)
+	if err := stm.initLearnings(backupExisting); err != nil {
+		return fmt.Errorf("initialize learnings: %w", err)
 	}
 	if err := stm.InitPendingMemoryWritesTable(); err != nil {
-		_ = db.Close()
-		return nil, err
+		return err
 	}
 
 	if err := stm.InitPersonalityTables(); err != nil {
-		logger.Warn("Failed to initialize personality tables", "error", err)
+		return fmt.Errorf("initialize personality tables: %w", err)
 	}
 	if err := stm.InitActivityTables(); err != nil {
-		logger.Warn("Failed to initialize activity tables", "error", err)
+		return fmt.Errorf("initialize activity tables: %w", err)
 	}
 	if err := stm.InitAuditTables(); err != nil {
-		logger.Warn("Failed to initialize audit tables", "error", err)
+		return fmt.Errorf("initialize audit tables: %w", err)
 	}
 	if err := stm.InitPlanTables(); err != nil {
-		logger.Warn("Failed to initialize plan tables", "error", err)
+		return fmt.Errorf("initialize plan tables: %w", err)
 	}
 	if err := stm.InitCompressedOutputTable(); err != nil {
-		logger.Warn("Failed to initialize compressed output table", "error", err)
+		return fmt.Errorf("initialize compressed output table: %w", err)
 	}
 	if err := stm.InitMaintenanceRunsTable(); err != nil {
-		logger.Warn("Failed to initialize maintenance runs table", "error", err)
+		return fmt.Errorf("initialize maintenance runs table: %w", err)
 	}
 	if err := stm.InitAgoDeskAttachmentsTable(); err != nil {
-		logger.Warn("Failed to initialize agodesk attachments table", "error", err)
+		return fmt.Errorf("initialize agodesk attachments table: %w", err)
 	}
 	if err := stm.InitAgoDeskKnowledgeTables(); err != nil {
-		logger.Warn("Failed to initialize agodesk knowledge tables", "error", err)
+		return fmt.Errorf("initialize agodesk knowledge tables: %w", err)
 	}
 
 	if err := stm.initRememberOrigins(); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("initialize remember origins: %w", err)
+		return fmt.Errorf("initialize remember origins: %w", err)
 	}
 
 	// Ensure at least a default chat session exists (backward compatibility)
 	if err := stm.EnsureDefaultSession(); err != nil {
-		logger.Warn("Failed to ensure default chat session", "error", err)
+		return fmt.Errorf("ensure default chat session: %w", err)
 	}
 
-	return stm, nil
+	return nil
 }
 
 // coreMemoryNormalizedMarker records in memory_schema_meta that every
@@ -614,10 +585,6 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 	errs = append(errs, migrateAddColumn(db, logger, "system_notifications", "title", "TEXT NOT NULL DEFAULT ''"))
 	errs = append(errs, migrateAddColumn(db, logger, "system_notifications", "data_json", "TEXT NOT NULL DEFAULT '{}'"))
 	errs = append(errs, migrateAddColumn(db, logger, "system_notifications", "source_id", "TEXT NOT NULL DEFAULT ''"))
-	if _, err := db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_system_notifications_source ON system_notifications(source_id) WHERE source_id <> ''"); err != nil {
-		logger.Warn("Failed to create idx_system_notifications_source", "error", err)
-		errs = append(errs, err)
-	}
 	errs = append(errs, migrateAddColumn(db, logger, "messages", "is_tool_output", `BOOLEAN GENERATED ALWAYS AS (
 		is_internal = 1 AND (
 			role = 'tool'
@@ -625,22 +592,6 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 			OR content LIKE '[Tool Output]%'
 		)
 	) VIRTUAL`))
-	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_messages_tool_output ON messages(session_id, is_tool_output) WHERE is_tool_output = 1"); err != nil {
-		logger.Warn("Failed to create idx_messages_tool_output", "error", err)
-		errs = append(errs, err)
-	}
-	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_memory_meta_status_archived ON memory_meta(verification_status, archived_at)"); err != nil {
-		logger.Warn("Failed to create idx_memory_meta_status_archived", "error", err)
-		errs = append(errs, err)
-	}
-	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_memory_meta_status_source ON memory_meta(source_type, verification_status)"); err != nil {
-		logger.Warn("Failed to create idx_memory_meta_status_source", "error", err)
-		errs = append(errs, err)
-	}
-	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_memory_usage_log_used_at ON memory_usage_log(used_at)"); err != nil {
-		logger.Warn("Failed to create idx_memory_usage_log_used_at", "error", err)
-		errs = append(errs, err)
-	}
 	errs = append(errs, migrateAddColumn(db, logger, "user_profile", "first_seen", "DATETIME DEFAULT NULL"))
 	errs = append(errs, migrateAddColumn(db, logger, "tool_usage_adaptive", "success_count", "INTEGER DEFAULT 0"))
 	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "last_event_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"))
@@ -675,22 +626,12 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 		errs = append(errs, err)
 	}
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_status", "TEXT DEFAULT 'pending'"))
-	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_archived_messages_retry ON archived_messages(consolidation_status, next_retry_at)"); err != nil {
-		logger.Warn("Failed to create idx_archived_messages_retry", "error", err)
-		errs = append(errs, err)
-	}
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_retries", "INTEGER DEFAULT 0"))
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_last_error", "TEXT DEFAULT ''"))
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "next_retry_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"))
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_claimed_at", "DATETIME"))
 	errs = append(errs, migrateArchivedMessageInternalOrigin(db, logger))
 
-	// Reset stale in_progress rows back to pending (crash recovery from a previous
-	// consolidation run that was interrupted before completing).
-	if err := execChunkedArchivedMessagesUpdate(db, "reset stale in_progress consolidation rows", "consolidation_status = 'pending'", "consolidated = 0 AND consolidation_status = 'in_progress'"); err != nil {
-		logger.Warn("Failed to reset stale in_progress consolidation rows", "error", err)
-		errs = append(errs, err)
-	}
 	if err := execChunkedArchivedMessagesUpdate(db, "normalize consolidation_status pending rows", "consolidation_status = 'pending'", "consolidated = 0 AND (consolidation_status IS NULL OR consolidation_status = '' OR consolidation_status NOT IN ('pending', 'failed', 'in_progress', 'done', 'excluded'))"); err != nil {
 		logger.Warn("Failed to normalize consolidation_status pending rows", "error", err)
 		errs = append(errs, err)
@@ -706,22 +647,31 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 		errs = append(errs, err)
 	}
 
-	joinedErr := errors.Join(errs...)
-	if joinedErr == nil {
-		const shortTermSchemaVersion = 11
-		var currentVer int
-		if err := db.QueryRow("PRAGMA user_version").Scan(&currentVer); err != nil {
-			logger.Warn("Failed to read schema version", "error", err)
-		} else if currentVer != shortTermSchemaVersion {
-			if _, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", shortTermSchemaVersion)); err != nil {
-				logger.Warn("Failed to update schema version", "error", err)
-			}
-		}
-	} else {
-		logger.Warn("Skipping schema version bump due to migration errors", "errors", joinedErr)
+	if _, err := db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_system_notifications_source ON system_notifications(source_id) WHERE source_id <> ''"); err != nil {
+		logger.Warn("Failed to create idx_system_notifications_source", "error", err)
+		errs = append(errs, err)
 	}
-
-	return joinedErr
+	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_messages_tool_output ON messages(session_id, is_tool_output) WHERE is_tool_output = 1"); err != nil {
+		logger.Warn("Failed to create idx_messages_tool_output", "error", err)
+		errs = append(errs, err)
+	}
+	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_memory_meta_status_archived ON memory_meta(verification_status, archived_at)"); err != nil {
+		logger.Warn("Failed to create idx_memory_meta_status_archived", "error", err)
+		errs = append(errs, err)
+	}
+	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_memory_meta_status_source ON memory_meta(source_type, verification_status)"); err != nil {
+		logger.Warn("Failed to create idx_memory_meta_status_source", "error", err)
+		errs = append(errs, err)
+	}
+	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_memory_usage_log_used_at ON memory_usage_log(used_at)"); err != nil {
+		logger.Warn("Failed to create idx_memory_usage_log_used_at", "error", err)
+		errs = append(errs, err)
+	}
+	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_archived_messages_retry ON archived_messages(consolidation_status, next_retry_at)"); err != nil {
+		logger.Warn("Failed to create idx_archived_messages_retry", "error", err)
+		errs = append(errs, err)
+	}
+	return errors.Join(errs...)
 }
 
 func execChunkedArchivedMessagesUpdate(db *sql.DB, label, setClause, whereClause string, args ...interface{}) error {

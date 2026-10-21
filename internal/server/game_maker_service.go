@@ -537,12 +537,7 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		if !config.ProviderUsageAllowsGeneralChat(provider) {
 			return fmt.Errorf("selected Game Maker provider is not available for general chat")
 		}
-		cfg.LLM.Provider = provider.ID
-		cfg.LLM.ProviderType = provider.Type
-		cfg.LLM.BaseURL = provider.BaseURL
-		cfg.LLM.APIKey = provider.APIKey
-		cfg.LLM.AccountID = provider.AccountID
-		cfg.LLM.Model = provider.Model
+		cfg = *llm.TaskProviderConfig(&cfg, *provider)
 	}
 	if model := strings.TrimSpace(run.Job.Model); model != "" {
 		cfg.LLM.Model = model
@@ -553,7 +548,7 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	if strings.TrimSpace(run.Job.ProviderID) != "" || strings.TrimSpace(run.Job.Model) != "" {
 		// The global failover client overwrites request.Model with its system route.
 		cfg.FallbackLLM.Enabled = false
-		client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, cfg.LLM.ProviderType, cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.AccountID))
+		client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, cfg.LLM.ProviderType, cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.AccountID, cfg.LLM.GatewayID))
 	}
 	if run.Stage == "visual" {
 		return r.reviewGameImages(ctx, &cfg, client, run)

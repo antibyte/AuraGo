@@ -36,6 +36,12 @@ func applyTokenEstimationFallback(promptTokens, completionTokens, totalTokens in
 			if completionTokens < 0 {
 				completionTokens = 0
 			}
+			// Anthropic's initial stream total includes output=0. Later text
+			// still consumed tokens if the stream ended before its final usage.
+			if completionTokens == 0 && strings.TrimSpace(completionText) != "" {
+				completionTokens = estimateTokensForModel(completionText, req.Model)
+				return promptTokens, completionTokens, promptTokens + completionTokens, "fallback_estimate", true
+			}
 			return promptTokens, completionTokens, totalTokens, tokenSource, false
 		}
 		if promptTokens == 0 && completionTokens == 0 {

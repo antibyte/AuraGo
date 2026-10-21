@@ -254,9 +254,10 @@ type ChatResponsePayload struct {
 }
 
 type ChatErrorPayload struct {
-	RequestID string `json:"request_id,omitempty"`
-	Code      string `json:"code"`
-	Message   string `json:"message"`
+	References []ProviderReferencePayload `json:"references,omitempty"`
+	RequestID  string                     `json:"request_id,omitempty"`
+	Code       string                     `json:"code"`
+	Message    string                     `json:"message"`
 }
 
 type LocalAgentErrorPayload struct {
@@ -788,6 +789,7 @@ type ConfigProvidersListPayload struct {
 }
 
 type ConfigProvidersPayload struct {
+	Revision  string                       `json:"revision"`
 	SessionID string                       `json:"session_id"`
 	Status    string                       `json:"status"`
 	Providers []ConfigProviderEntryPayload `json:"providers"`
@@ -799,12 +801,14 @@ type ConfigProviderGetPayload struct {
 }
 
 type ConfigProviderPayload struct {
+	Revision  string                     `json:"revision"`
 	SessionID string                     `json:"session_id"`
 	Status    string                     `json:"status"`
 	Provider  ConfigProviderEntryPayload `json:"provider"`
 }
 
 type ConfigProviderUpsertPayload struct {
+	Revision  string                         `json:"revision"`
 	SessionID string                         `json:"session_id"`
 	Mode      string                         `json:"mode"`
 	Provider  ConfigProviderEntryPayload     `json:"provider"`
@@ -812,6 +816,7 @@ type ConfigProviderUpsertPayload struct {
 }
 
 type ConfigProviderDeletePayload struct {
+	Revision   string `json:"revision"`
 	SessionID  string `json:"session_id"`
 	ProviderID string `json:"provider_id"`
 	Force      bool   `json:"force,omitempty"`
@@ -832,12 +837,14 @@ type ConfigProviderTestResultPayload struct {
 }
 
 type ConfigProviderEntryPayload struct {
+	Revision              string                           `json:"revision,omitempty"`
 	ID                    string                           `json:"id"`
 	Name                  string                           `json:"name"`
 	Type                  string                           `json:"type"`
 	BaseURL               string                           `json:"base_url"`
 	Model                 string                           `json:"model"`
 	AccountID             string                           `json:"account_id,omitempty"`
+	GatewayID             string                           `json:"gateway_id,omitempty"`
 	AuthType              string                           `json:"auth_type"`
 	OAuthAuthURL          string                           `json:"oauth_auth_url,omitempty"`
 	OAuthTokenURL         string                           `json:"oauth_token_url,omitempty"`
@@ -852,6 +859,8 @@ type ConfigProviderEntryPayload struct {
 }
 
 type ProviderModelCostPayload struct {
+	Source           string  `json:"source,omitempty"`
+	Estimated        bool    `json:"estimated,omitempty"`
 	Name             string  `json:"name"`
 	InputPerMillion  float64 `json:"input_per_million"`
 	OutputPerMillion float64 `json:"output_per_million"`

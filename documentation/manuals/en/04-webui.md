@@ -56,7 +56,7 @@ Different buttons appear depending on the page:
 - `Agent Active` – Status pill
 
 **In Dashboard:**
-- Filter buttons for different views
+- Menu button for the section sidebar (only in windows up to 900 px wide) and the density toggle (**Comfortable** / **Compact**)
 
 **In Config:**
 - `Save` – Save changes
@@ -171,34 +171,19 @@ Click the arrow ▼/▶ to expand/collapse details.
 
 ## The Dashboard
 
-The dashboard shows system information and statistics.
+The dashboard (`/dashboard`) answers "Is everything OK?" and holds the statistics. A sidebar groups 14 sections:
 
-### Sections
+| Group | Sections |
+|-------|----------|
+| — | **Overview**: status line, **Needs attention** list and tiles |
+| **Agent** | **Personality**, **Memory**, **User** |
+| **Knowledge** | **Knowledge graph**, **File sync** |
+| **Operations** | **Problems**, **Automations**, **System and services**, **Audit**, **Logs** |
+| **Analytics** | **LLM and costs**, **Prompts**, **Tools** |
 
-**1. System Metrics**
-- CPU usage
-- RAM consumption
-- Disk space
-- Uptime
+The status block at the top of the sidebar shows the overall state on every section; badges count attention items, open problems and automation errors. In windows up to 900 px wide the sidebar becomes a drawer behind the menu button. Every section header has a refresh button, and links like `/dashboard#automations` open a section directly.
 
-**2. Mood History**
-- Temporal development of agent mood
-- Color-coded (Green = positive, Red = negative)
-
-**3. Prompt Builder Analytics**
-- Token consumption per request
-- Context compression
-- Cost per model
-
-**4. Memory Statistics**
-- Size of vector database
-- Number of stored facts
-- Knowledge graph size
-
-**5. Budget Tracking** (if enabled)
-- Today's costs
-- Daily limit progress bar
-- Model usage
+Details: [Chapter 13: Dashboard](13-dashboard.md)
 
 ## The Config Interface
 
@@ -255,6 +240,10 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Terminal** | Workspace terminal with selectable CRT styles (retro tube look); with **Retro-Net** (on by default) also a dialing directory for Telnet BBSes, C64 boards, MUDs and more — see below |
 | **Writer / Sheets / Notes / Viewer** | Native DOCX word processor, native spreadsheet, and rich note editor (list, live preview, tags, rich layout), plus a file viewer |
 | **Pixel** | Image editor for local files, canvas edits, filters, crop/resize, and optional AI generation/enhancement |
+| **Video Studio** | Multitrack video editor with keyframes, speed ramps, LUTs, masks, chroma key, a WebGL2 preview and FFmpeg export. Off by default ([Chapter 26](26-video-studio.md)) |
+| **Bookshelf** | Library and ebook reader for EPUB, MOBI/KF8, FB2, CBZ, TXT and PDF from local folders, uploads and connected sources ([Chapter 27](27-bookshelf.md)) |
+| **Mailer** | Mail client for IMAP, POP3 and SMTP accounts, Google via gog and AgentMail, with background sync ([Chapter 28](28-mailer.md)) |
+| **Infra** | The shared homelab atlas: atlas, topology and inventory views with live power readings, filled from explicit source imports; source edits and power actions are optional ([Chapter 29](29-infra.md)) |
 | **Zipper** | Browse ZIP archives and extract files into the workspace |
 | **Camera / Gallery / Music Player** | Camera capture, gallery, and music playback |
 | **Radio / TeeVee / Noisemaker** | Vintage stereo radio receiver, CRT television for live streams (IPTV); Noisemaker: AI music studio laid out as a workbench – song creation on the left (Simple mode with genre presets or Custom mode with style, lyrics, title and local ACE-Step controls), the library on the right (grid/list, search, favorites, multi-select) and a persistent player bar below with queue, shuffle/repeat, visualizer and a Now Playing view. Window menus (File/Edit/View/Playback) and context menus cover every action. |
@@ -279,7 +268,7 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Detective** | Bounded desktop research with adjustable effort, cited reports, and exports |
 | **Personal Radio** | Your own radio station: topic and music selection per station, a personal audio library, news, and speech segments |
 | **RTL-SDR** | Receive-only RTL-SDR stick support: live tuning, recordings, schedules, and automatic speech recognition (ASR) |
-| **RuView** | Wi-Fi sensing (experimental): dashboard, observatory and pose fusion for ESP32 CSI or RSSI, plus calibration, recording and training — managed in [chapter 8](08-integrations.md#ruview-wi-fi-sensing) |
+| **RuView** | Wi-Fi sensing (experimental): dashboard, observatory and pose fusion for ESP32 CSI or RSSI, plus calibration, recording and training — walkthrough in [Chapter 30](30-ruview.md), management in [chapter 8](08-integrations.md#ruview-wi-fi-sensing) |
 | **Bluetooth** | Manage the server's Bluetooth adapter: scan, pair (with number comparison), connect, trust, remove and make the server visible. Shown only when an adapter is present |
 | **HA Switchboard** | Home Assistant switches as a nostalgic switchboard with silver levers (selected `switch.*` entities only) |
 | **Tresor** | Browser-encrypted desktop vault: entries (names, notes, files) are stored only as ciphertext in `data/tresor.db`; the server never sees plaintext. Password plus recovery key, revisions, automatic note saving, and locking on close |

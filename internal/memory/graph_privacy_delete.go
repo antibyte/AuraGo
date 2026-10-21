@@ -324,6 +324,11 @@ func (kg *KnowledgeGraph) deleteExclusiveGraphSource(ctx context.Context, key, v
 		removedNodes = append(removedNodes, node.ID)
 		deleted++
 	}
+	if len(exclusiveEdges) > 0 || len(removedNodes) > 0 {
+		if err = cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
+			return deleted, retained, err
+		}
+	}
 	if err = tx.Commit(); err != nil {
 		return 0, retained, err
 	}

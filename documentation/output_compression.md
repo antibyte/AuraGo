@@ -231,7 +231,7 @@ There is no per-tool toggle. Use the category toggles (`shell_compression`, `pyt
 
 ## Dashboard Monitoring
 
-The Dashboard (Overview tab) shows an **Output Compression** card with:
+The Dashboard's **Prompts** section shows an **Output Compression** card with:
 
 - **Saved Characters** — total characters saved across all compressions
 - **Savings Ratio** — average compression ratio (higher = more savings)

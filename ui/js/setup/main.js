@@ -498,7 +498,7 @@ async function testQuickConnection() {
             result.textContent = '✓ ' + (t('setup.step0_test_success'));
             result.className = 'field-hint success';
         } else {
-            result.textContent = '✕ ' + (data.error || t('setup.step0_test_failed'));
+            result.textContent = data.unsupported ? t('setup.step0_test_unsupported') : '✕ ' + t('setup.step0_test_failed');
             result.className = 'field-hint error';
         }
     } catch (err) {
@@ -1046,7 +1046,7 @@ async function testConnection() {
             result.textContent = '✓ ' + t('setup.step0_test_success');
             result.className = 'field-hint test-result-ok';
         } else {
-            result.textContent = '✕ ' + (data.error || t('setup.step0_test_failed'));
+            result.textContent = data.unsupported ? t('setup.step0_test_unsupported') : '✕ ' + t('setup.step0_test_failed');
             result.className = 'field-hint test-result-fail';
         }
     } catch (err) {

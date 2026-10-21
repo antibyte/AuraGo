@@ -56,7 +56,7 @@ Je nach Seite werden verschiedene Buttons angezeigt:
 - `Agent Active` – Status-Pill
 
 **Im Dashboard:**
-- Filter-Buttons für verschiedene Ansichten
+- Menü-Button für die Bereichs-Seitenleiste (nur in Fenstern bis 900 px Breite) und der Dichte-Umschalter (**Komfortabel** / **Kompakt**)
 
 **In Config:**
 - `Save` – Änderungen speichern
@@ -171,34 +171,19 @@ Klicke auf den Pfeil ▼/▶ um Details ein-/auszuklappen.
 
 ## Das Dashboard
 
-Das Dashboard zeigt System-Informationen und Statistiken.
+Das Dashboard (`/dashboard`) beantwortet „Ist alles in Ordnung?“ und sammelt die Statistiken. Eine Seitenleiste gliedert 14 Bereiche:
 
-### Bereiche
+| Gruppe | Bereiche |
+|--------|----------|
+| — | **Lagebild**: Statuszeile, Liste **Braucht Aufmerksamkeit** und Kacheln |
+| **Agent** | **Persönlichkeit**, **Gedächtnis**, **Benutzer** |
+| **Wissen** | **Wissensgraph**, **Dateisync** |
+| **Betrieb** | **Probleme**, **Automationen**, **System und Dienste**, **Audit**, **Logs** |
+| **Analyse** | **LLM und Kosten**, **Prompts**, **Tools** |
 
-**1. System-Metriken**
-- CPU-Auslastung
-- RAM-Verbrauch
-- Disk-Platz
-- Laufzeit
+Der Statusblock oben in der Seitenleiste zeigt in jedem Bereich den Gesamtzustand; Badges zählen Aufmerksamkeitspunkte, offene Probleme und Automationsfehler. In Fenstern bis 900 px Breite wird die Seitenleiste zur Schublade hinter dem Menü-Button. Jeder Bereichskopf hat einen Aktualisieren-Button, und Links wie `/dashboard#automations` öffnen einen Bereich direkt.
 
-**2. Mood-Verlauf**
-- Zeitliche Entwicklung der Agent-Stimmung
-- Farbcodiert (Grün = positiv, Rot = negativ)
-
-**3. Prompt-Builder Analytics**
-- Token-Verbrauch pro Anfrage
-- Kontext-Kompression
-- Kosten pro Modell
-
-**4. Memory-Statistiken**
-- Größe der Vektordatenbank
-- Anzahl gespeicherter Fakten
-- Knowledge-Graph-Größe
-
-**5. Budget-Tracking** (falls aktiviert)
-- Heutige Kosten
-- Tageslimit-Fortschrittsbalken
-- Modell-Nutzung
+Details: [Kapitel 13: Dashboard](13-dashboard.md)
 
 ## Die Config-Oberfläche
 
@@ -255,6 +240,10 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Terminal** | Workspace-Terminal mit wählbaren CRT-Stilen (Retro-Röhren-Look); mit **Retro-Net** (standardmäßig an) zusätzlich ein Wählerverzeichnis für Telnet-BBS, C64-Boards, MUDs u. a. — siehe unten |
 | **Autor / Tabellen / Notizen / Viewer** | Nativer DOCX-Textprozessor, native Tabellenkalkulation und Rich-Notiz-Editor (Liste, Live-Vorschau, Tags, Rich-Layout) sowie Dateibetrachter |
 | **Pixel** | Bildeditor für lokale Dateien, Canvas-Edits, Filter, Crop/Resize und optionale KI-Generierung/-Verbesserung |
+| **Video Studio** | Mehrspur-Videoeditor mit Keyframes, Speed-Ramps, LUTs, Masken, Chroma-Key, WebGL2-Vorschau und FFmpeg-Export. Standardmäßig aus ([Kapitel 26](26-video-studio.md)) |
+| **Bookshelf** | Bibliothek und E-Book-Reader für EPUB, MOBI/KF8, FB2, CBZ, TXT und PDF aus lokalen Ordnern, Uploads und verbundenen Quellen ([Kapitel 27](27-bookshelf.md)) |
+| **Mailer** | Mail-Client für IMAP-, POP3- und SMTP-Konten, Google über gog und AgentMail, mit Hintergrund-Sync ([Kapitel 28](28-mailer.md)) |
+| **Infra** | Der gemeinsame Homelab-Atlas: Atlas-, Topologie- und Inventar-Ansicht mit Live-Stromwerten, gefüllt aus ausdrücklichen Quell-Importen; Quellenänderungen und Energieaktionen sind optional ([Kapitel 29](29-infra.md)) |
 | **Zipper** | ZIP-Archive durchsuchen und Dateien in den Workspace extrahieren |
 | **Camera / Gallery / Music Player** | Kamera-Aufnahme, Galerie und Musikwiedergabe |
 | **Radio / TeeVee / Noisemaker** | Retro-Radioempfänger, CRT-Fernseher für Live-Streams (IPTV); Noisemaker: KI-Musikstudio als Werkbank – links die Song-Erstellung (Einfach-Modus mit Genre-Presets oder Eigener Modus mit Stil, Lyrics, Titel und lokalen ACE-Step-Reglern), rechts die Bibliothek (Raster/Liste, Suche, Favoriten, Mehrfachauswahl) und unten eine persistente Player-Leiste mit Warteschlange, Shuffle/Repeat, Visualizer und „Jetzt läuft“-Ansicht. Fenstermenüs (Datei/Bearbeiten/Ansicht/Wiedergabe) und Kontextmenüs decken alle Aktionen ab. |
@@ -279,7 +268,7 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Detective** | Gebundene Desktop-Recherchen mit einstellbarer Intensität, belegten Berichten und Export |
 | **Personal Radio** | Eigener Radiosender: Stationen mit Themen- und Musikauswahl, persönliche Audio-Bibliothek, Nachrichten und Sprachbeiträge |
 | **RTL-SDR** | Empfang für einen RTL-SDR-Stick: Live-Abstimmung, Aufnahmen, Zeitpläne und automatische Spracherkennung (ASR) |
-| **RuView** | Wi-Fi-Sensing (experimentell): Dashboard, Observatory und Pose Fusion für ESP32-CSI oder RSSI, plus Kalibrierung, Aufnahmen und Training — Verwaltung in [Kapitel 8](08-integrations.md#ruview-wi-fi-sensing) |
+| **RuView** | Wi-Fi-Sensing (experimentell): Dashboard, Observatory und Pose Fusion für ESP32-CSI oder RSSI, plus Kalibrierung, Aufnahmen und Training — Anleitung in [Kapitel 30](30-ruview.md), Verwaltung in [Kapitel 8](08-integrations.md#ruview-wi-fi-sensing) |
 | **Bluetooth** | Bluetooth-Adapter des Servers verwalten: suchen, koppeln (mit Zahlenvergleich), verbinden, vertrauen, entfernen und den Server sichtbar machen. Nur sichtbar, wenn ein Adapter vorhanden ist |
 | **HA Switchboard** | Home-Assistant-Schalter als nostalgisches Pult mit Silberhebeln (nur ausgewählte `switch.*`-Entitäten) |
 | **Tresor** | Browser-verschlüsselter Desktop-Safe: Einträge (Namen, Notizen, Dateien) liegen ausschließlich verschlüsselt in `data/tresor.db`; der Server sieht nur Ciphertext. Passwort plus Wiederherstellungsschlüssel, Versionen, automatisches Speichern von Notizen und Verriegeln beim Schließen |

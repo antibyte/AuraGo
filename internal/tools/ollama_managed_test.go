@@ -8,60 +8,13 @@ import (
 	"testing"
 )
 
-func TestOllamaContainerNeedsRecreateWhenConfiguredDeviceIsMissing(t *testing.T) {
-	inspect := []byte(`{
-		"HostConfig": {
-			"Devices": [
-				{"PathOnHost": "/definitely/missing/aurago-gpu-device", "PathInContainer": "/dev/dri/card1", "CgroupPermissions": "rwm"}
-			]
-		}
-	}`)
-
-	if !ollamaContainerNeedsRecreateForHostDevices(inspect) {
-		t.Fatal("expected container with missing host GPU device to require recreation")
+func TestOllamaDoesNotInferDaemonDevicesFromLocalFilesystem(t *testing.T) {
+	desired, err := ollamaManagedCreatePayload(11434, "", "", GPUInfo{Backend: "intel", Devices: []string{"/not-mounted-in-aurago/renderD128"}}, true)
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestOllamaContainerNeedsRecreateIgnoresContainersWithoutHostDevices(t *testing.T) {
-	inspect := []byte(`{"HostConfig": {}}`)
-
-	if ollamaContainerNeedsRecreateForHostDevices(inspect) {
-		t.Fatal("did not expect CPU-only container to require recreation")
-	}
-}
-
-func TestOllamaContainerListHasHostPortMatchesPublishedPort(t *testing.T) {
-	list := []byte(`[
-		{
-			"Id": "abc",
-			"Image": "ollama/ollama:latest",
-			"Ports": [
-				{"PrivatePort": 11434, "PublicPort": 11435, "IP": "127.0.0.1", "Type": "tcp"}
-			]
-		}
-	]`)
-
-	if !ollamaContainerListHasHostPort(list, 11435) {
-		t.Fatal("expected container list to match published host port 11435")
-	}
-	if ollamaContainerListHasHostPort(list, 11434) {
-		t.Fatal("did not expect private container port 11434 to match host port")
-	}
-}
-
-func TestOllamaContainerListHasHostPortIgnoresUnpublishedContainers(t *testing.T) {
-	list := []byte(`[
-		{
-			"Id": "abc",
-			"Image": "ollama/ollama:latest",
-			"Ports": [
-				{"PrivatePort": 11434, "Type": "tcp"}
-			]
-		}
-	]`)
-
-	if ollamaContainerListHasHostPort(list, 11434) {
-		t.Fatal("did not expect unpublished container port to match host port")
+	if ollamaManagedSpecDrift(inspectFromCreatePayload(t, desired), desired) {
+		t.Fatal("unchanged daemon device spec was treated as drift")
 	}
 }
 
@@ -120,7 +73,7 @@ func TestOllamaManagedSpecDrift(t *testing.T) {
 	}
 	body.HostConfig.PortBindings["11434/tcp"][0].HostPort = "11499"
 	changed, err := json.Marshal(map[string]any{
-		"Config":     map[string]any{"Image": body.Image},
+		"Config":     map[string]any{"Image": body.Image, "Labels": body.Labels},
 		"HostConfig": body.HostConfig,
 	})
 	if err != nil {
@@ -128,6 +81,37 @@ func TestOllamaManagedSpecDrift(t *testing.T) {
 	}
 	if !ollamaManagedSpecDrift(changed, desired) {
 		t.Fatal("different host port was not drift")
+	}
+}
+
+func TestOllamaManagedSpecDriftNormalizesNativeNetwork(t *testing.T) {
+	desired, err := ollamaManagedCreatePayload(11434, "", "", GPUInfo{}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"", "default", "bridge", "host", "another_app"} {
+		t.Run(mode, func(t *testing.T) {
+			var doc map[string]any
+			if err := json.Unmarshal(inspectFromCreatePayload(t, desired), &doc); err != nil {
+				t.Fatal(err)
+			}
+			doc["HostConfig"].(map[string]any)["NetworkMode"] = mode
+			inspect, err := json.Marshal(doc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantDrift := mode == "host" || mode == "another_app"
+			if drift := ollamaManagedSpecDrift(inspect, desired); drift != wantDrift {
+				t.Fatalf("native network %q: drift=%v, want %v", mode, drift, wantDrift)
+			}
+		})
+	}
+	placed, err := ollamaPlacePayload(desired, "app_default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ollamaManagedSpecDrift(inspectFromCreatePayload(t, desired), placed) {
+		t.Fatal("native bridge was treated as the named application bridge")
 	}
 }
 
@@ -168,7 +152,7 @@ func TestOllamaManagedSpecDriftIgnoresRegistryPrefixAndBindMode(t *testing.T) {
 	body.Image = "docker.io/" + body.Image
 	body.HostConfig.Binds[0] += ":rw"
 	inspect, err := json.Marshal(map[string]any{
-		"Config":     map[string]any{"Image": body.Image},
+		"Config":     map[string]any{"Image": body.Image, "Labels": body.Labels},
 		"HostConfig": body.HostConfig,
 	})
 	if err != nil {
@@ -188,7 +172,7 @@ func TestOllamaManagedSpecDriftIgnoresRegistryPrefixAndBindMode(t *testing.T) {
 	body.Image = "index.docker.io/" + body.Image
 	body.HostConfig.Binds[0] += ":rw,z"
 	inspect, err = json.Marshal(map[string]any{
-		"Config":     map[string]any{"Image": body.Image},
+		"Config":     map[string]any{"Image": body.Image, "Labels": body.Labels},
 		"HostConfig": body.HostConfig,
 	})
 	if err != nil {
@@ -257,8 +241,9 @@ func inspectFromCreatePayload(t *testing.T, desired []byte) []byte {
 	}
 	raw, err := json.Marshal(map[string]any{
 		"Config": map[string]any{
-			"Image": body.Image,
-			"Env":   append([]string{"PATH=/usr/bin"}, body.Env...),
+			"Image":  body.Image,
+			"Labels": body.Labels,
+			"Env":    append([]string{"PATH=/usr/bin"}, body.Env...),
 		},
 		"HostConfig": body.HostConfig,
 	})

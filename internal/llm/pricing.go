@@ -14,6 +14,8 @@ import (
 
 // ModelPricing holds pricing information for a single model.
 type ModelPricing struct {
+	Source           string  `json:"source,omitempty"`
+	Estimated        bool    `json:"estimated,omitempty"`
 	ModelID          string  `json:"model_id"`
 	InputPerMillion  float64 `json:"input_per_million"`
 	OutputPerMillion float64 `json:"output_per_million"`
@@ -129,6 +131,8 @@ func StaticPricingForModel(providerType, modelID string) (ModelPricing, bool) {
 		}
 	}
 	if bestMatchLength > 0 {
+		best.Source = "legacy_prefix"
+		best.Estimated = true
 		return best, true
 	}
 
@@ -224,6 +228,8 @@ func fetchOpenRouterPricingFiltered(prefix string) ([]ModelPricing, error) {
 	for _, m := range all {
 		if strings.HasPrefix(strings.ToLower(m.ModelID), lowerPrefix) {
 			m.ModelID = m.ModelID[len(prefix):]
+			m.Source = "openrouter"
+			m.Estimated = true
 			filtered = append(filtered, m)
 		}
 	}
@@ -353,7 +359,8 @@ func ToModelCosts(pricing []ModelPricing) []config.ModelCost {
 	costs := make([]config.ModelCost, len(pricing))
 	for i, p := range pricing {
 		costs[i] = config.ModelCost{
-			Name:             p.ModelID,
+			Name:   p.ModelID,
+			Source: p.Source, Estimated: p.Estimated,
 			InputPerMillion:  p.InputPerMillion,
 			OutputPerMillion: p.OutputPerMillion,
 		}

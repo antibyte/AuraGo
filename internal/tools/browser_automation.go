@@ -552,7 +552,14 @@ func browserAutomationAuthToken(cfg *config.Config) string {
 		security.RegisterSensitive(token)
 		return token
 	}
-	masterKey := strings.TrimSpace(cfg.Server.MasterKey)
+	masterKey := strings.TrimSpace(security.ProcessMasterKey())
+	if masterKey == "" {
+		// Standalone embedders may not use the private startup handoff.
+		masterKey = strings.TrimSpace(cfg.Server.MasterKey)
+	}
+	if masterKey == "" {
+		masterKey = strings.TrimSpace(os.Getenv("AURAGO_MASTER_KEY"))
+	}
 	if masterKey == "" {
 		return ""
 	}

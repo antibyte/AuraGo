@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build:minigolf": "node scripts/build-minigolf-audio.mjs --check && node scripts/build-minigolf.mjs",
-    "test:minigolf": "node scripts/test-minigolf-model.mjs && node scripts/test-minigolf-ui.mjs && node scripts/test-minigolf-physics.mjs && node scripts/test-minigolf-assets.mjs && node scripts/test-minigolf-courses.mjs && node scripts/test-minigolf-audio.mjs",
+    "test:minigolf": "node scripts/test-minigolf-model.mjs && node scripts/test-minigolf-look.mjs && node scripts/test-minigolf-ui.mjs && node scripts/test-minigolf-physics.mjs && node scripts/test-minigolf-assets.mjs && node scripts/test-minigolf-courses.mjs && node scripts/test-minigolf-audio.mjs",
     "test:synth-studio": "node scripts/test-synth-studio-audio.mjs",
     "build:codemirror": "node scripts/build-codemirror.js",
     "build:chess-vendor": "node scripts/build-chess-vendor.js",
@@ -27,6 +27,8 @@
     "test:missions-page": "node scripts/test-missions-page-flows.mjs",
     "test:terminal-retronet": "node scripts/test-terminal-modem.mjs && node scripts/test-terminal-geometry.mjs && node scripts/test-terminal-retronet-directory.mjs && node scripts/test-terminal-retronet-session.mjs && node scripts/test-terminal-retronet-entries.mjs",
     "build:ui": "node scripts/build-ui-bundles.js",
+    "build:desktop-themes": "node scripts/build-desktop-cursors.mjs && node scripts/build-desktop-windows-xp-icons.mjs && node scripts/build-desktop-theme-vendor.mjs && node scripts/build-ui-bundles.js",
+    "check:desktop-themes": "node scripts/build-desktop-cursors.mjs --check && node scripts/build-desktop-windows-xp-icons.mjs --check && node scripts/build-desktop-theme-vendor.mjs --check && node scripts/build-ui-bundles.js --check",
     "build:game-maker-3d": "node scripts/build-game-maker-3d.js",
     "test:game-maker-glbs": "node scripts/validate-game-maker-glbs.mjs",
     "check:ui": "node scripts/build-ui-bundles.js --check",

@@ -6,9 +6,12 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/security"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 )
 
@@ -32,6 +35,7 @@ type providerJSON struct {
 	ModelLimitsMetadataSource string                     `json:"model_limits_metadata_source,omitempty"`
 	ContextCapApplied         bool                       `json:"context_cap_applied,omitempty"`
 	AccountID                 string                     `json:"account_id"`
+	GatewayID                 string                     `json:"gateway_id,omitempty"`
 	AuthType                  string                     `json:"auth_type"`
 	OAuthAuthURL              string                     `json:"oauth_auth_url"`
 	OAuthTokenURL             string                     `json:"oauth_token_url"`
@@ -134,9 +138,19 @@ type vaultSnapshot struct {
 	value  string
 }
 
-func snapshotVaultSecrets(vault *security.Vault, keys []string) map[string]vaultSnapshot {
+type providerVaultStore interface {
+	ReadSecret(string) (string, error)
+	WriteSecret(string, string) error
+	DeleteSecret(string) error
+}
+
+func providerVaultMissing(vault providerVaultStore) bool {
+	return vault == nil || reflect.ValueOf(vault).Kind() == reflect.Pointer && reflect.ValueOf(vault).IsNil()
+}
+
+func snapshotVaultSecrets(vault providerVaultStore, keys []string) map[string]vaultSnapshot {
 	snapshots := make(map[string]vaultSnapshot, len(keys))
-	if vault == nil {
+	if providerVaultMissing(vault) {
 		return snapshots
 	}
 	for _, key := range keys {
@@ -153,26 +167,27 @@ func snapshotVaultSecrets(vault *security.Vault, keys []string) map[string]vault
 	return snapshots
 }
 
-func restoreVaultSecrets(vault *security.Vault, snapshots map[string]vaultSnapshot) error {
-	if vault == nil {
+func restoreVaultSecrets(vault providerVaultStore, snapshots map[string]vaultSnapshot) error {
+	if providerVaultMissing(vault) {
 		return nil
 	}
+	var failures []error
 	for key, snapshot := range snapshots {
+		var err error
 		if snapshot.exists {
-			if err := vault.WriteSecret(key, snapshot.value); err != nil {
-				return fmt.Errorf("restore vault secret %s: %w", key, err)
-			}
-			continue
+			err = vault.WriteSecret(key, snapshot.value)
+		} else {
+			err = vault.DeleteSecret(key)
 		}
-		if err := vault.DeleteSecret(key); err != nil {
-			return fmt.Errorf("delete restored vault secret %s: %w", key, err)
+		if err != nil {
+			failures = append(failures, fmt.Errorf("restore vault secret %s: %w", key, err))
 		}
 	}
-	return nil
+	return errors.Join(failures...)
 }
 
-func applyVaultMutations(vault *security.Vault, mutations []vaultMutation) (map[string]vaultSnapshot, error) {
-	if vault == nil || len(mutations) == 0 {
+func applyVaultMutations(vault providerVaultStore, mutations []vaultMutation) (map[string]vaultSnapshot, error) {
+	if providerVaultMissing(vault) || len(mutations) == 0 {
 		return nil, nil
 	}
 
@@ -180,8 +195,24 @@ func applyVaultMutations(vault *security.Vault, mutations []vaultMutation) (map[
 	for _, mutation := range mutations {
 		keys = append(keys, mutation.key)
 	}
-	snapshots := snapshotVaultSecrets(vault, keys)
+	snapshots := make(map[string]vaultSnapshot, len(keys))
+	for _, key := range keys {
+		if _, exists := snapshots[key]; exists {
+			continue
+		}
+		value, err := vault.ReadSecret(key)
+		if err != nil && !errors.Is(err, security.ErrSecretNotFound) {
+			return nil, fmt.Errorf("snapshot provider credential: %w", err)
+		}
+		snapshots[key] = vaultSnapshot{exists: err == nil, value: value}
+	}
+	applied := make(map[string]vaultSnapshot)
 	for _, mutation := range mutations {
+		before := snapshots[mutation.key]
+		if mutation.delete && !before.exists || !mutation.delete && before.exists && before.value == mutation.value {
+			continue
+		}
+		applied[mutation.key] = before
 		var err error
 		if mutation.delete {
 			err = vault.DeleteSecret(mutation.key)
@@ -189,17 +220,22 @@ func applyVaultMutations(vault *security.Vault, mutations []vaultMutation) (map[
 			err = vault.WriteSecret(mutation.key, mutation.value)
 		}
 		if err != nil {
-			_ = restoreVaultSecrets(vault, snapshots)
-			return nil, err
+			rollback := restoreVaultSecrets(vault, applied)
+			if rollback != nil {
+				return applied, errors.Join(err, rollback, &providerWriteError{status: 500, code: "provider_rollback_failed", message: "Provider credential rollback was incomplete; inspect the server log"})
+			}
+			return applied, err
 		}
 	}
-	return snapshots, nil
+	return applied, nil
 }
 
 type providerSaveResult struct {
 	Count             int
 	ActiveLLMModel    string
 	ActiveLLMProvider string
+	Revision          string
+	config            *config.Config
 }
 
 // handleProviders dispatches GET / PUT for /api/providers.
@@ -220,6 +256,7 @@ func handleProviders(s *Server) http.HandlerFunc {
 func handleGetProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	s.CfgMu.RLock()
 	cfgSnapshot := *s.Cfg
+	revision := s.providerETag()
 	providers := append([]config.ProviderEntry(nil), s.Cfg.Providers...)
 	fallback := llm.CapabilityFallback{
 		ToolCalling:       s.Cfg.LLM.UseNativeFunctions,
@@ -236,7 +273,7 @@ func handleGetProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 			ProviderID:              provider.ID,
 			ProviderType:            provider.Type,
 			BaseURL:                 provider.BaseURL,
-			APIKey:                  provider.APIKey,
+			APIKey:                  provider.RuntimeAPIKey(),
 			Model:                   provider.Model,
 			ContextWindowOverride:   provider.ContextWindow,
 			MaxOutputTokensOverride: provider.MaxOutputTokens,
@@ -253,11 +290,11 @@ func handleGetProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 		limits := limitResults[i]
 		authType := normalizeProviderAuthType(p.AuthType)
 		apiKey := ""
-		if authType != "oauth2" && p.APIKey != "" {
+		if p.APIKey != "" {
 			apiKey = maskedKey
 		}
 		clientSecret := ""
-		if authType == "oauth2" && p.OAuthClientSecret != "" {
+		if p.OAuthClientSecret != "" {
 			clientSecret = maskedKey
 		}
 		runtimeChat, _ := speechLabRuntimeChatProvider(&p, s.Vault)
@@ -279,6 +316,7 @@ func handleGetProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 			ModelLimitsMetadataSource: limits.MetadataSource,
 			ContextCapApplied:         limits.ContextCapApplied,
 			AccountID:                 p.AccountID,
+			GatewayID:                 p.GatewayID,
 			AuthType:                  authType,
 			OAuthAuthURL:              p.OAuthAuthURL,
 			OAuthTokenURL:             p.OAuthTokenURL,
@@ -301,305 +339,101 @@ func handleGetProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("ETag", revision)
 	json.NewEncoder(w).Encode(out)
 }
 
 // handlePutProviders saves a new provider array to config.yaml and hot-reloads.
 func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	var incoming []providerJSON
-	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 10<<20))
+	if err := decoder.Decode(&incoming); err != nil || decoder.Decode(&struct{}{}) != io.EOF {
 		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-
-	// Build id → old secret maps so masked keys are preserved
-	s.CfgMu.RLock()
-	oldKeyMap := make(map[string]string, len(s.Cfg.Providers))
-	oldSecretMap := make(map[string]string, len(s.Cfg.Providers))
-	oldAuthTypeMap := make(map[string]string, len(s.Cfg.Providers))
-	oldUsageMap := make(map[string]string, len(s.Cfg.Providers))
-	oldProviderIDs := make([]string, len(s.Cfg.Providers))
-	for i, p := range s.Cfg.Providers {
-		oldAuthTypeMap[p.ID] = normalizeProviderAuthType(p.AuthType)
-		oldUsageMap[p.ID] = p.Usage
-		if normalizeProviderAuthType(p.AuthType) != "oauth2" && strings.TrimSpace(p.APIKey) != "" {
-			oldKeyMap[p.ID] = p.APIKey
-		}
-		if strings.TrimSpace(p.OAuthClientSecret) != "" {
-			oldSecretMap[p.ID] = p.OAuthClientSecret
-		}
-		oldProviderIDs[i] = p.ID
-	}
-	configPath := s.Cfg.ConfigPath
-	s.CfgMu.RUnlock()
-	if s.Vault != nil {
-		for _, id := range oldProviderIDs {
-			if secret, err := s.Vault.ReadSecret("provider_" + id + "_api_key"); err == nil && strings.TrimSpace(secret) != "" {
-				oldKeyMap[id] = secret
-			}
-			if secret, err := s.Vault.ReadSecret("provider_" + id + "_oauth_client_secret"); err == nil && strings.TrimSpace(secret) != "" {
-				oldSecretMap[id] = secret
-			}
-		}
-	}
-
-	if configPath == "" {
-		jsonError(w, "Config path not set", http.StatusInternalServerError)
-		return
-	}
-
-	// Convert to ProviderEntry slice and stage vault mutations; secrets stay in the vault, not YAML.
-	existingIDSet := make(map[string]bool, len(oldProviderIDs))
-	for _, id := range oldProviderIDs {
-		existingIDSet[id] = true
-	}
-	entries := make([]config.ProviderEntry, len(incoming))
-	seenIDs := make(map[string]bool, len(incoming))
-	vaultMutations := make([]vaultMutation, 0, len(incoming)*3)
-	for i, p := range incoming {
-		p.ID = strings.TrimSpace(p.ID)
-		p.Usage = config.NormalizeProviderUsage(p.Usage)
-		if p.Usage == "" {
-			p.Usage = config.NormalizeProviderUsage(oldUsageMap[p.ID])
-		}
-		if p.ContextWindow < 0 || p.MaxOutputTokens < 0 {
-			jsonError(w, "context_window and max_output_tokens must be zero or positive", http.StatusBadRequest)
-			return
-		}
-		if err := validateProviderIDForSave(p.ID, existingIDSet); err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if !isValidProviderID(p.ID) && s.Logger != nil {
-			s.Logger.Warn("[Providers] Re-saving legacy provider with non-canonical ID",
-				"id", p.ID)
-		}
-		if seenIDs[p.ID] {
-			jsonError(w, "Duplicate provider ID: "+p.ID, http.StatusBadRequest)
-			return
-		}
-		seenIDs[p.ID] = true
-		if err := config.ValidateProviderEntryUsage(config.ProviderEntry{ID: p.ID, Type: p.Type, Usage: p.Usage}); err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		authType := normalizeProviderAuthType(p.AuthType)
-
-		// ── API Key → vault ──
-		apiKey := p.APIKey
-		if authType == "oauth2" {
-			apiKey = ""
-		} else {
-			if apiKey == maskedKey {
-				// Unchanged — keep existing vault value
-				if old, ok := oldKeyMap[p.ID]; ok {
-					apiKey = old
-				}
-			} else if strings.HasPrefix(apiKey, copyFromPrefix) {
-				// User selected "copy from existing provider" in the UI.
-				sourceID := strings.TrimSpace(strings.TrimPrefix(apiKey, copyFromPrefix))
-				copied := oldKeyMap[sourceID]
-				if strings.TrimSpace(copied) == "" {
-					if s.Logger != nil {
-						s.Logger.Warn("[Providers] Copy-from source key not found",
-							"source_id", sourceID, "target_id", p.ID)
-					}
-					jsonError(w, fmt.Sprintf("Cannot copy API key from provider %q: no key found", sourceID), http.StatusBadRequest)
-					return
-				}
-				if s.Logger != nil {
-					s.Logger.Info("[Providers] Copied API key from source provider",
-						"source_id", sourceID, "target_id", p.ID)
-				}
-				apiKey = copied
-			}
-		}
-
-		// ── OAuth Client Secret → vault ──
-		clientSecret := p.OAuthClientSecret
-		if authType == "oauth2" {
-			if clientSecret == maskedKey {
-				if old, ok := oldSecretMap[p.ID]; ok {
-					clientSecret = old
-				}
-			}
-		} else {
-			clientSecret = ""
-		}
-
-		if s.Vault != nil {
-			apiKeyVaultID := "provider_" + p.ID + "_api_key"
-			clientSecretVaultID := "provider_" + p.ID + "_oauth_client_secret"
-			oauthTokenVaultID := "oauth_" + p.ID
-
-			if authType == "oauth2" {
-				if oldAuthTypeMap[p.ID] != "oauth2" {
-					vaultMutations = append(vaultMutations, vaultMutation{key: apiKeyVaultID, delete: true})
-				}
-				if strings.TrimSpace(clientSecret) == "" {
-					vaultMutations = append(vaultMutations, vaultMutation{key: clientSecretVaultID, delete: true})
-				} else {
-					vaultMutations = append(vaultMutations, vaultMutation{key: clientSecretVaultID, value: clientSecret})
-				}
-			} else {
-				vaultMutations = append(vaultMutations,
-					vaultMutation{key: clientSecretVaultID, delete: true},
-					vaultMutation{key: oauthTokenVaultID, delete: true},
-				)
-				if strings.TrimSpace(apiKey) == "" {
-					vaultMutations = append(vaultMutations, vaultMutation{key: apiKeyVaultID, delete: true})
-				} else {
-					vaultMutations = append(vaultMutations, vaultMutation{key: apiKeyVaultID, value: apiKey})
-				}
-			}
-		}
-
-		entries[i] = config.ProviderEntry{
-			ID:                p.ID,
-			Name:              p.Name,
-			Usage:             p.Usage,
-			Type:              p.Type,
-			BaseURL:           p.BaseURL,
-			APIKey:            apiKey,
-			Model:             p.Model,
-			ContextWindow:     p.ContextWindow,
-			MaxOutputTokens:   p.MaxOutputTokens,
-			AccountID:         p.AccountID,
-			AuthType:          authType,
-			OAuthAuthURL:      p.OAuthAuthURL,
-			OAuthTokenURL:     p.OAuthTokenURL,
-			OAuthClientID:     p.OAuthClientID,
-			OAuthClientSecret: clientSecret,
-			OAuthScopes:       p.OAuthScopes,
-			Models:            p.Models,
-			Capabilities:      providerCapabilitiesFromJSON(p.Capabilities),
-		}
-	}
-
-	s.CfgMu.RLock()
-	candidate := *s.Cfg
-	s.CfgMu.RUnlock()
-	candidate.Providers = append([]config.ProviderEntry(nil), entries...)
-	if err := config.ValidateDecisionsProvider(&candidate); err != nil {
-		jsonError(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	result, err := persistProviderEntries(s, entries, vaultMutations, oldProviderIDs)
-	if err != nil {
-		s.Logger.Error("[Providers] Failed to update providers", "error", err)
-		jsonError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":           "ok",
-		"count":            result.Count,
-		"active_llm_model": result.ActiveLLMModel,
-		"active_llm_type":  result.ActiveLLMProvider,
+	result, err := persistProviderEntries(s, r.Header.Get("If-Match"), func(current *config.Config) ([]config.ProviderEntry, []vaultMutation, error) {
+		return providerEntriesFromJSON(s, current, incoming)
 	})
+	if err != nil {
+		if s.Logger != nil {
+			s.Logger.Warn("[Providers] Save rejected", "error", err)
+		}
+		writeProviderError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("ETag", result.Revision)
+	_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "count": result.Count, "active_llm_model": result.ActiveLLMModel, "active_llm_type": result.ActiveLLMProvider, "revision": result.Revision})
 }
 
-func persistProviderEntries(s *Server, entries []config.ProviderEntry, vaultMutations []vaultMutation, oldProviderIDs []string) (providerSaveResult, error) {
-	if s == nil || s.Cfg == nil {
+func persistProviderEntries(s *Server, expectedRevision string, mutate providerMutation) (providerSaveResult, error) {
+	if s == nil {
 		return providerSaveResult{}, fmt.Errorf("server config is not available")
 	}
-	s.CfgMu.RLock()
-	candidate := *s.Cfg
-	configPath := s.Cfg.ConfigPath
-	s.CfgMu.RUnlock()
-	candidate.Providers = append([]config.ProviderEntry(nil), entries...)
-	if err := config.ValidateDecisionsProvider(&candidate); err != nil {
+	s.CfgSaveMu.Lock()
+	defer s.CfgSaveMu.Unlock()
+	s.CfgMu.Lock()
+	defer s.CfgMu.Unlock()
+	if err := s.checkProviderRevision(expectedRevision); err != nil {
 		return providerSaveResult{}, err
 	}
+	if s.Cfg == nil {
+		return providerSaveResult{}, fmt.Errorf("server config is not available")
+	}
+	current := s.Cfg.Clone()
+	candidate := current.Clone()
+	entries, mutations, err := mutate(candidate)
+	if err != nil {
+		return providerSaveResult{}, err
+	}
+	candidate.Providers = entries
+	if err = validateProviderEntries(current, candidate); err != nil {
+		return providerSaveResult{}, err
+	}
+	keep := map[string]bool{}
+	for _, p := range entries {
+		keep[p.ID] = true
+	}
+	for _, old := range current.Providers {
+		if !keep[old.ID] {
+			for _, key := range []string{"provider_" + old.ID + "_api_key", "provider_" + old.ID + "_oauth_client_secret", "oauth_" + old.ID} {
+				mutations = append(mutations, vaultMutation{key: key, delete: true})
+			}
+		}
+	}
+	configPath := current.ConfigPath
 	if strings.TrimSpace(configPath) == "" {
 		return providerSaveResult{}, fmt.Errorf("config path not set")
 	}
-
-	s.CfgSaveMu.Lock()
-	defer s.CfgSaveMu.Unlock()
-
-	if s.Vault != nil {
-		newIDSet := make(map[string]bool, len(entries))
-		for _, e := range entries {
-			newIDSet[e.ID] = true
-		}
-		for _, oldID := range oldProviderIDs {
-			if !newIDSet[oldID] {
-				vaultMutations = append(vaultMutations,
-					vaultMutation{key: "provider_" + oldID + "_api_key", delete: true},
-					vaultMutation{key: "provider_" + oldID + "_oauth_client_secret", delete: true},
-					vaultMutation{key: "oauth_" + oldID, delete: true},
-				)
-				if s.Logger != nil {
-					s.Logger.Info("[Providers] Cleaned up vault secrets for removed provider", "id", oldID)
-				}
-			}
-		}
-	}
-
-	data, err := os.ReadFile(configPath)
+	before, err := os.ReadFile(configPath)
 	if err != nil {
-		return providerSaveResult{}, fmt.Errorf("failed to read config: %w", err)
+		return providerSaveResult{}, fmt.Errorf("read provider config: %w", err)
 	}
-
-	out, err := marshalConfigWithProviderEntries(data, entries)
+	out, err := marshalConfigWithProviderEntries(before, entries)
 	if err != nil {
 		return providerSaveResult{}, err
 	}
-
-	if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
-		return providerSaveResult{}, fmt.Errorf("failed to write config: %w", err)
-	}
-
-	vaultSnapshots, err := applyVaultMutations(s.Vault, vaultMutations)
+	newCfg, err := saveProviderConfig(s, configPath, before, out, mutations)
 	if err != nil {
-		_ = config.WriteFileAtomic(configPath, data, 0o600)
-		return providerSaveResult{}, fmt.Errorf("failed to update provider secrets: %w", err)
+		return providerSaveResult{}, err
 	}
-
-	s.CfgMu.Lock()
-	newCfg, loadErr := config.Load(configPath)
-	if loadErr != nil {
-		s.CfgMu.Unlock()
-		_ = config.WriteFileAtomic(configPath, data, 0o600)
-		if restoreErr := restoreVaultSecrets(s.Vault, vaultSnapshots); restoreErr != nil && s.Logger != nil {
-			s.Logger.Error("[Providers] Failed to restore vault after hot-reload failure", "error", restoreErr)
-		}
-		return providerSaveResult{}, fmt.Errorf("saved but reload failed: %w", loadErr)
-	}
-	newCfg.ConfigPath = configPath
-	newCfg.ApplyVaultSecrets(s.Vault)
-	newCfg.ResolveProviders()
-	newCfg.ApplyOAuthTokens(s.Vault)
+	newCfg.Runtime = current.Runtime
 	s.replaceConfigSnapshot(newCfg)
+	if s.BudgetTracker != nil {
+		s.BudgetTracker.UpdateConfig(newCfg)
+	}
 	llm.InvalidateModelLimitCache()
-
-	if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
+	transportChanged := !reflect.DeepEqual(current.LLM, newCfg.LLM) || !reflect.DeepEqual(current.FallbackLLM, newCfg.FallbackLLM) || !reflect.DeepEqual(current.AIGateway, newCfg.AIGateway) || !reflect.DeepEqual(current.Manifest, newCfg.Manifest) || !reflect.DeepEqual(current.CircuitBreaker, newCfg.CircuitBreaker)
+	if fm, ok := s.LLMClient.(*llm.FailoverManager); ok && transportChanged {
 		fm.Reconfigure(newCfg)
-		if s.Logger != nil {
-			s.Logger.Info("[Providers] LLM client reconfigured",
-				"model", newCfg.LLM.Model,
-				"provider", newCfg.LLM.ProviderType)
-		}
 	}
 	s.LLMGuardian = security.NewLLMGuardian(newCfg, s.Logger)
-
-	result := providerSaveResult{
-		Count:             len(entries),
-		ActiveLLMModel:    newCfg.LLM.Model,
-		ActiveLLMProvider: newCfg.LLM.ProviderType,
-	}
-	s.CfgMu.Unlock()
-
 	agent.ResetGlobalHelperLLMManager()
-
 	if s.Logger != nil {
-		s.Logger.Info("[Providers] Updated", "count", len(entries))
+		s.Logger.Info("[Providers] Settings saved", "count", len(entries))
 	}
-	return result, nil
+	return providerSaveResult{Count: len(entries), ActiveLLMModel: newCfg.LLM.Model, ActiveLLMProvider: newCfg.LLM.ProviderType, Revision: s.providerETag(), config: newCfg}, nil
 }
 
 // handleProviderCapabilities detects capability flags for a provider/model pair.
@@ -686,7 +520,7 @@ func handleFetchPricing(s *Server, w http.ResponseWriter, providerID string) {
 	var providerType, apiKey, baseURL string
 	if p != nil {
 		providerType = p.Type
-		apiKey = p.APIKey
+		apiKey = p.RuntimeAPIKey()
 		baseURL = p.BaseURL
 		// Workers AI: auto-build URL from account ID if BaseURL is empty.
 		if providerType == "workers-ai" && baseURL == "" && p.AccountID != "" {
@@ -714,52 +548,27 @@ func handleFetchPricing(s *Server, w http.ResponseWriter, providerID string) {
 // handleApplyPricing writes the given model pricing to the provider's Models list.
 func handleApplyPricing(s *Server, w http.ResponseWriter, r *http.Request, providerID string) {
 	var incoming []llm.ModelPricing
-	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 10<<20))
+	if err := decoder.Decode(&incoming); err != nil || decoder.Decode(&struct{}{}) != io.EOF {
 		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-
 	models := llm.ToModelCosts(incoming)
-
-	s.CfgMu.Lock()
-	p := s.Cfg.FindProvider(providerID)
-	if p == nil {
-		s.CfgMu.Unlock()
-		jsonError(w, "Provider not found", http.StatusNotFound)
-		return
-	}
-	p.Models = models
-	configPath := s.Cfg.ConfigPath
-	s.CfgMu.Unlock()
-
-	// Persist to YAML
-	if err := persistProviders(s, configPath); err != nil {
-		jsonError(w, "Failed to save providers", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "ok",
-		"count":  len(models),
+	result, err := persistProviderEntries(s, r.Header.Get("If-Match"), func(current *config.Config) ([]config.ProviderEntry, []vaultMutation, error) {
+		p := current.FindProvider(providerID)
+		if p == nil {
+			return nil, nil, &providerWriteError{status: http.StatusNotFound, code: "provider_not_found", message: "Provider not found"}
+		}
+		p.Models = models
+		return current.Providers, nil, nil
 	})
-}
-
-// persistProviders writes the current in-memory providers to config.yaml.
-func persistProviders(s *Server, configPath string) error {
-	s.CfgMu.RLock()
-	providers := s.Cfg.Providers
-	s.CfgMu.RUnlock()
-
-	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return err
+		writeProviderError(w, err)
+		return
 	}
-	out, err := marshalConfigWithProviderEntries(data, providers)
-	if err != nil {
-		return err
-	}
-	return config.WriteFileAtomic(configPath, out, 0o600)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("ETag", result.Revision)
+	_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "count": len(models), "revision": result.Revision})
 }
 
 // buildProviderYAMLEntry converts a ProviderEntry to a map suitable for YAML marshalling.
@@ -782,6 +591,9 @@ func buildProviderYAMLEntry(e config.ProviderEntry) map[string]interface{} {
 	if e.AccountID != "" {
 		m["account_id"] = e.AccountID
 	}
+	if e.GatewayID != "" {
+		m["gateway_id"] = e.GatewayID
+	}
 	if len(e.Models) > 0 {
 		ml := make([]interface{}, len(e.Models))
 		for j, mc := range e.Models {
@@ -789,6 +601,12 @@ func buildProviderYAMLEntry(e config.ProviderEntry) map[string]interface{} {
 				"name":               mc.Name,
 				"input_per_million":  mc.InputPerMillion,
 				"output_per_million": mc.OutputPerMillion,
+			}
+			if mc.Source != "" {
+				ml[j].(map[string]interface{})["source"] = mc.Source
+			}
+			if mc.Estimated {
+				ml[j].(map[string]interface{})["estimated"] = true
 			}
 		}
 		m["models"] = ml
@@ -810,6 +628,8 @@ func buildProviderYAMLEntry(e config.ProviderEntry) map[string]interface{} {
 	}
 	if e.AuthType != "" && e.AuthType != "api_key" {
 		m["auth_type"] = e.AuthType
+	}
+	if e.AuthType == "oauth2" || e.OAuthAuthURL != "" || e.OAuthTokenURL != "" || e.OAuthClientID != "" || e.OAuthScopes != "" {
 		m["oauth_auth_url"] = e.OAuthAuthURL
 		m["oauth_token_url"] = e.OAuthTokenURL
 		m["oauth_client_id"] = e.OAuthClientID

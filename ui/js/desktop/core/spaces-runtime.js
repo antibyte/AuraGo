@@ -8,7 +8,7 @@
     }
 
     function knownWallpaperIds() {
-        return ['groupshoot', 'aurora', 'midnight', 'slate', 'ember', 'forest', 'alpine_dawn', 'city_rain', 'ocean_cliff', 'aurora_glass', 'nebula_flow', 'paper_waves', 'silk_flow', 'firefly_dusk', 'neon_overdrive', 'fractal_trip'];
+        return ['groupshoot', 'aurora', 'midnight', 'slate', 'ember', 'forest', 'alpine_dawn', 'city_rain', 'ocean_cliff', 'aurora_glass', 'nebula_flow', 'paper_waves', 'silk_flow', 'firefly_dusk', 'neon_overdrive', 'fractal_trip', 'electronic_dreams', 'windows_xp', 'green_slime', 'voxel_world'];
     }
 
     function normalizeWallpaperId(value) {
@@ -43,6 +43,7 @@
 
     function applyActiveSpaceWallpaper() {
         if (document.body) document.body.dataset.wallpaper = wallpaperForActiveSpace();
+        syncDesktopThemeFx();
     }
 
     function normalizeSpaceId(id) {
@@ -81,6 +82,7 @@
             if (onActive) win.element.removeAttribute('data-space-hidden');
             else win.element.setAttribute('data-space-hidden', 'true');
         });
+        refreshDesktopWindowEffects();
     }
 
     function renderSpacePager() {

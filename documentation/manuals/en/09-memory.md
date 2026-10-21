@@ -701,7 +701,7 @@ After each conversation turn, the Helper LLM analyzes:
 
 ### Dashboard Monitoring
 
-View Helper LLM statistics in the Dashboard → System tab:
+View Helper LLM statistics in the Dashboard → **LLM and costs** section (**Helper LLM** card):
 
 ```text
 Helper LLM Statistics

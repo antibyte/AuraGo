@@ -175,7 +175,7 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				err := runner.RunGameMakerJob(ctx, run)
 				conversation, loadErr := svc.LoadAgentConversation(ctx, run.Job.ID)
 				if loadErr != nil || !strings.Contains(string(conversation.Messages), "Keep the unusual movement rule") {
-					t.Errorf("completed/interrupted reasoning was lost: %v", loadErr)
+					t.Errorf("completed/interrupted reasoning was lost: loadErr=%v recoveryErr=%v requests=%d", loadErr, err, requests)
 				}
 				if (scenario.finish == "stream_error" || scenario.finish == "timeout") && !strings.Contains(string(conversation.Messages), "Generation was interrupted") {
 					t.Error("partial reasoning was not identified as interrupted")
@@ -204,7 +204,7 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 					wantRequests = 2 // Rejected envelopes get one code-only correction, never dispatch.
 				}
 				if common != commonAfter || requests != wantRequests {
-					t.Error("recovery rewrote lifecycle or repeated requests")
+					t.Errorf("recovery rewrote lifecycle or repeated requests: commonChanged=%t requests=%d wantRequests=%d recoveryErr=%v", common != commonAfter, requests, wantRequests, err)
 				}
 				// This fixture checks the write path, not gameplay acceptance.
 				return fmt.Errorf("verified code recovery")

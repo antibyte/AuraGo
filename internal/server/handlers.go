@@ -240,6 +240,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 	// Pre-create manifest once — it caches internally and auto-reloads on file changes
 	manifest := tools.NewManifest(s.Cfg.Directories.ToolsDir)
 	return withBackgroundCompletionReplay(s, func(w http.ResponseWriter, r *http.Request) {
+		humanOccurredAt := time.Now().UTC()
 		// Maintenance check: Inform the log but allow interaction via agent loop
 		inMaintenance := tools.IsBusy()
 		if inMaintenance {
@@ -524,6 +525,9 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			MissionID:          missionID,
 			MessageSource:      msgSource,
 			VoiceOutputActive:  GetSpeakerMode(),
+		}
+		if !isInternalRequestMessage && lastUserMsg.Role == openai.ChatMessageRoleUser {
+			runCfg.HumanInput = memory.NewHumanInputEvent(userIntent, sessionID, "", humanOccurredAt)
 		}
 		s.configureRunKnowledge(&runCfg)
 		if msgSource == "web_chat" && !inMaintenance && webVaultSecretPromptAuthenticated(s, r) && vaultSecretPromptWriteEnabled(s) {

@@ -299,7 +299,8 @@ func TestInvokeToolRoutesHiddenNativeTool(t *testing.T) {
 	resetToolCatalogForTest(t)
 	cfg := &config.Config{}
 	cfg.YepAPI.Enabled = true
-	cfg.YepAPI.Instagram.Enabled = false
+	cfg.YepAPI.Instagram.Enabled = true
+	routed := 0
 	schemas := []openai.Tool{testToolSchema("yepapi_instagram", "Instagram data via YepAPI")}
 	SetDiscoverToolsState("sess-invoke", schemas, nil, "")
 
@@ -316,12 +317,19 @@ func TestInvokeToolRoutesHiddenNativeTool(t *testing.T) {
 		Cfg:       cfg,
 		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
 		SessionID: "sess-invoke",
+		ExecutionHooks: &ExecutionHooks{HandleTool: func(_ context.Context, call ToolCall) (string, bool) {
+			if call.Action != "yepapi_instagram" || call.Operation != "user" || call.Params["username"] != "jopliness" {
+				t.Fatalf("hidden native routing changed the leaf or its arguments: %+v", call)
+			}
+			routed++
+			return `{"status":"success"}`, true
+		}},
 	})
 	if !ok {
 		t.Fatal("expected dispatchComm to handle invoke_tool")
 	}
-	if !strings.Contains(out, "YepAPI Instagram is disabled") {
-		t.Fatalf("expected native handler disabled response, got %s", out)
+	if classifyLegacyToolResult(out) != ToolResultSuccess || routed != 1 {
+		t.Fatalf("enabled hidden native tool did not reach its exact hook once: %s calls=%d", out, routed)
 	}
 	requested := GetDiscoverRequestedTools("sess-invoke")
 	if len(requested) != 1 || requested[0] != "yepapi_instagram" {
@@ -347,11 +355,16 @@ func TestInvokeToolAcceptsFlattenedArguments(t *testing.T) {
 	}
 }
 
-func TestInvokeToolRoutesActiveVirtualComputersWhenDirectCallIsUnavailable(t *testing.T) {
+func TestInvokeToolCannotEnableVirtualComputersThroughStalePresentation(t *testing.T) {
 	resetToolCatalogForTest(t)
 	schemas := []openai.Tool{testToolSchema("virtual_computers", "Manage virtual computers")}
 	SetDiscoverToolsState("sess-active-invoke", schemas, schemas, "")
 
+	handledCalls := 0
+	dc := &DispatchContext{
+		Cfg: &config.Config{}, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), SessionID: "sess-active-invoke",
+		ExecutionHooks: &ExecutionHooks{HandleTool: func(context.Context, ToolCall) (string, bool) { handledCalls++; return `{"status":"success"}`, true }},
+	}
 	out, ok := dispatchComm(context.Background(), ToolCall{
 		Action: "invoke_tool",
 		Params: map[string]interface{}{
@@ -360,55 +373,63 @@ func TestInvokeToolRoutesActiveVirtualComputersWhenDirectCallIsUnavailable(t *te
 				"operation": "status",
 			},
 		},
-	}, &DispatchContext{
-		Cfg:       &config.Config{},
-		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
-		SessionID: "sess-active-invoke",
-	})
+	}, dc)
 	if !ok {
 		t.Fatal("expected dispatchComm to handle invoke_tool")
 	}
-	if !strings.Contains(out, "virtual computers are disabled in config") {
-		t.Fatalf("expected invoke_tool to route active virtual_computers to its native handler, got %s", out)
+	// An active presentation snapshot cannot override current configuration.
+	assertCanonicalToolDenial(t, out, "tool_disabled")
+	direct := dispatchInner(context.Background(), ToolCall{Action: "virtual_computers", Operation: "status"}, dc)
+	assertCanonicalToolDenial(t, direct, "tool_disabled")
+	if handledCalls != 0 {
+		t.Fatal("disabled direct or wrapped tool reached an execution hook")
 	}
 }
 
 func TestInvokeToolLogsFlattenedArgumentsAndMissingOperation(t *testing.T) {
-	resetToolCatalogForTest(t)
-	var logs strings.Builder
-	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	cfg := &config.Config{}
-	cfg.YepAPI.Enabled = true
-	cfg.YepAPI.Instagram.Enabled = false
-	schemas := []openai.Tool{testToolSchema("yepapi_instagram", "Instagram data via YepAPI")}
-	SetDiscoverToolsState("sess-invoke-log", schemas, nil, "")
-
-	out, ok := dispatchComm(context.Background(), ToolCall{
-		Action: "invoke_tool",
-		Params: map[string]interface{}{
-			"tool_name":       "yepapi_instagram",
-			"username_or_url": "jopliness",
-		},
-	}, &DispatchContext{
-		Cfg:       cfg,
-		Logger:    logger,
-		SessionID: "sess-invoke-log",
-	})
-	if !ok {
-		t.Fatal("expected dispatchComm to handle invoke_tool")
-	}
-	if !strings.Contains(out, "YepAPI Instagram is disabled") {
-		t.Fatalf("expected disabled response, got %s", out)
-	}
-	got := logs.String()
-	if !strings.Contains(got, "invoke_tool received flattened arguments") {
-		t.Fatalf("logs = %q, want flattened argument diagnostic", got)
-	}
-	if !strings.Contains(got, "missing_operation") {
-		t.Fatalf("logs = %q, want missing operation diagnostic", got)
-	}
-	if strings.Contains(got, "jopliness") {
-		t.Fatalf("logs = %q, should not include raw argument values", got)
+	for _, enabled := range []bool{false, true} {
+		t.Run(map[bool]string{false: "disabled gate", true: "enabled handler validation"}[enabled], func(t *testing.T) {
+			resetToolCatalogForTest(t)
+			var logs strings.Builder
+			logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			cfg := &config.Config{}
+			cfg.YepAPI.Enabled, cfg.YepAPI.Instagram.Enabled = true, enabled
+			// The real handler logs missing_operation before key resolution. An
+			// absent configured provider then stops it before any HTTP client/call.
+			cfg.YepAPI.Provider = "missing-fixture-provider"
+			schemas := []openai.Tool{testToolSchema("yepapi_instagram", "Instagram data via YepAPI")}
+			SetDiscoverToolsState(t.Name(), schemas, nil, "")
+			hookCalls := 0
+			out, ok := dispatchComm(context.Background(), ToolCall{
+				Action: "invoke_tool",
+				Params: map[string]interface{}{"tool_name": "yepapi_instagram", "username_or_url": "jopliness"},
+			}, &DispatchContext{Cfg: cfg, Logger: logger, SessionID: t.Name(), ExecutionHooks: &ExecutionHooks{
+				BeforeTool: func(context.Context, ToolCall) error { hookCalls++; return nil },
+			}})
+			if !ok {
+				t.Fatal("expected dispatchComm to handle invoke_tool")
+			}
+			if enabled {
+				if hookCalls != 1 || classifyLegacyToolResult(out) != ToolResultFailed || !strings.Contains(out, "missing-fixture-provider") || !strings.Contains(out, "not found") {
+					t.Fatalf("enabled Instagram did not reach its real local handler validation: hooks=%d output=%s", hookCalls, out)
+				}
+			} else {
+				assertCanonicalToolDenial(t, out, "tool_disabled")
+				if hookCalls != 0 {
+					t.Fatal("disabled Instagram reached execution hooks")
+				}
+			}
+			got := logs.String()
+			if !strings.Contains(got, "invoke_tool received flattened arguments") {
+				t.Fatalf("logs = %q, want flattened argument diagnostic", got)
+			}
+			if strings.Contains(got, "missing_operation") != enabled {
+				t.Fatalf("missing operation diagnostic must occur only in the enabled handler: logs=%q", got)
+			}
+			if strings.Contains(got, "jopliness") {
+				t.Fatalf("logs = %q, should not include raw argument values", got)
+			}
+		})
 	}
 }
 
@@ -838,5 +859,17 @@ func decodeToolOutputJSON(t *testing.T, out string, dest interface{}) {
 	raw = strings.TrimSpace(raw)
 	if err := json.Unmarshal([]byte(raw), dest); err != nil {
 		t.Fatalf("decode %q: %v", out, err)
+	}
+}
+
+func assertCanonicalToolDenial(t *testing.T, out, code string) {
+	t.Helper()
+	var refusal struct {
+		Code   string           `json:"code"`
+		Status ToolResultStatus `json:"status"`
+	}
+	decodeToolOutputJSON(t, out, &refusal)
+	if refusal.Code != code || refusal.Status != ToolResultDenied || classifyLegacyToolResult(out) != ToolResultDenied {
+		t.Fatalf("expected canonical %s denial, got %s", code, out)
 	}
 }

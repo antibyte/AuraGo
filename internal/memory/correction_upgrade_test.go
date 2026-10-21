@@ -37,6 +37,9 @@ func TestMemoryCorrectionPublicationMigrationRepairsLegacyState(t *testing.T) {
 		DELETE FROM user_profile WHERE category='prefs' AND key='drink'`); err != nil {
 		t.Fatal(err)
 	}
+	if _, err = c.Memory.db.Exec(`PRAGMA user_version=11`); err != nil {
+		t.Fatal(err)
+	}
 	replacement := pending.Items[0].ReplacementID
 	if err = c.Memory.ApplyMemoryCurationAction(MemoryCurationAction{DocID: replacement, Action: "confirm"}, "admin", false); err != nil {
 		t.Fatal(err)
@@ -135,6 +138,9 @@ func TestMemoryCorrectionGraphRevisionMigrationAndRestart(t *testing.T) {
 	}
 	if _, err = g.db.Exec(`DROP TRIGGER kg_correction_revision_insert; DROP TRIGGER kg_correction_revision_delete;
 		DROP TRIGGER kg_correction_revision_update; DROP TABLE kg_correction_field_revisions`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = g.db.Exec(`PRAGMA user_version=0`); err != nil {
 		t.Fatal(err)
 	}
 	if err = g.Close(); err != nil {

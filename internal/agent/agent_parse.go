@@ -260,6 +260,12 @@ func serverHostNeedsLANIP(host string) bool {
 
 // runMemoryOrchestrator handles the Priority-Based Forgetting System across both RAG and Knowledge Graph.
 func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return runMemoryOrchestratorContext(ctx, req, cfg, logger, client, longTermMem, shortTermMem, kg)
+}
+
+func runMemoryOrchestratorContext(ctx context.Context, req memoryOrchestratorArgs, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph) string {
 	thresholdLow := req.ThresholdLow
 	if thresholdLow == 0 {
 		thresholdLow = 1
@@ -316,7 +322,7 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 		// source allows explicit administrative recovery after archiving.
 		for _, meta := range lowDocs {
 			docID := meta.DocID
-			changed, err := shortTermMem.ApplyAutomaticMemoryCurationAction(memory.MemoryCurationAction{
+			changed, err := shortTermMem.ApplyAutomaticMemoryCurationActionContext(ctx, memory.MemoryCurationAction{
 				DocID:        docID,
 				Action:       memory.MemoryCurationActionArchive,
 				Reason:       "memory maintenance low priority",
@@ -1923,7 +1929,7 @@ func decodeBase64(s string) ([]byte, error) {
 }
 
 // calculateEffectiveMaxCalls applies the server-owned tool budget and optional
-// personality/Homepage policy. Model arguments cannot grant additional calls.
+// Homepage policy. Model arguments cannot grant additional calls.
 func calculateEffectiveMaxCalls(runCfg RunConfig, tc ToolCall, homepageActiveInChain bool, personalityEnabled bool, shortTermMem *memory.SQLiteMemory, logger *slog.Logger) int {
 	if runCfg.ToolCallLimit > 0 {
 		return runCfg.ToolCallLimit
@@ -1935,35 +1941,6 @@ func calculateEffectiveMaxCalls(runCfg RunConfig, tc ToolCall, homepageActiveInC
 	effectiveMaxCalls := cfg.CircuitBreaker.MaxToolCalls
 	if effectiveMaxCalls <= 0 {
 		effectiveMaxCalls = 10
-	}
-
-	// 1. High thoroughness may spend one extra call on a verify step.
-	if personalityEnabled && shortTermMem != nil {
-		if traits, err := shortTermMem.GetTraits(); err == nil {
-			if thoroughness, ok := traits[memory.TraitThoroughness]; ok && thoroughness > 0.8 {
-				effectiveMaxCalls++
-				if logger != nil {
-					logger.Debug("[Behavioral Tool Calling] Allowed one extra verify call for high Thoroughness", "new_max", effectiveMaxCalls)
-				}
-			}
-		}
-	}
-
-	// 1b. Structured emotion state: when the agent is in a tense recovery state,
-	// slightly reduce exploratory retries so it focuses on one concrete correction.
-	if personalityEnabled && shortTermMem != nil {
-		if latestEmotion, err := shortTermMem.GetLatestEmotion(); err == nil && latestEmotion != nil {
-			if latestEmotion.Confidence >= 0.45 && latestEmotion.Valence <= -0.25 && latestEmotion.Arousal >= 0.65 {
-				if effectiveMaxCalls > 1 {
-					effectiveMaxCalls--
-					logger.Debug("[Behavioral Tool Calling] Reduced MaxToolCalls due to tense recovery state",
-						"new_max", effectiveMaxCalls,
-						"valence", latestEmotion.Valence,
-						"arousal", latestEmotion.Arousal,
-						"confidence", latestEmotion.Confidence)
-				}
-			}
-		}
 	}
 
 	// 2. Homepage Tool: absolutes Limit für komplexe Web-Workflows

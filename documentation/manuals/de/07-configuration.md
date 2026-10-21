@@ -156,7 +156,7 @@ Homepage-Workflows erhalten zusätzlich das globale `prompts/rules/homepage/DESI
 
 > 🆕 **Ab Version 2.x:** Das Provider-System ermöglicht die zentrale Verwaltung mehrerer LLM-Verbindungen.
 
-In der **Web-UI** findest du unter *Config → Provider* eine Liste aller konfigurierten Verbindungen. Über "Add Provider" kannst du neue Endpunkte hinzufügen und direkt mit "Test" die Erreichbarkeit prüfen. Die aktive Verbindung für `llm`, `vision`, `whisper` oder `embeddings` lässt sich per Dropdown zuweisen.
+In der **Web-UI** verwaltest du unter *Config → Provider* Verbindungen und Zugangsdaten im verschlüsselten Vault. Speichere zuerst und öffne dann die Diagnose: Der **Metadatentest** erzeugt niemals Text; der **Modelltest** ist eine ausdrücklich gestartete, möglicherweise kostenpflichtige Generierung. Die Statusanzeige stellt keine Provider-Anfrage. Bei einem Speicherkonflikt bleibt dein Entwurf erhalten, bis du ausdrücklich neu lädst. Die aktive Verbindung für `llm`, `vision`, `whisper` oder `embeddings` weist du per Dropdown zu. Details zu Entfernen, OAuth, Limits und API-Umstellung: [Provider-Verwaltung](../../provider-management.md).
 
 ### YAML-Beispiel
 
@@ -166,7 +166,6 @@ providers:
     name: "Haupt-LLM"
     type: "openrouter"
     base_url: "https://openrouter.ai/api/v1"
-    api_key: "sk-or-v1-DEIN-KEY"
     model: "arcee-ai/trinity-large-preview:free"
 
 llm:
@@ -552,6 +551,7 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | `realtime_speech` | Live-Sprachsessions | `realtime_speech:`<br>`  enabled: false`<br>`  default_profile: ""` |
 | `virtual_computers` | Verwaltete virtuelle Computer | `virtual_computers:`<br>`  enabled: false`<br>`  auto_setup: false`<br>`  readonly: false` |
 | `manus` | Asynchrone Manus-Aufgaben | `manus:`<br>`  enabled: false`<br>`  read_only: true` |
+| `ai_gateway` | Native Cloudflare-Routen und gemeinsame Datenschutzregeln; ausdrücklich gewählte `cloudflare-rest`-Anbieter bleiben eigenständig. | `ai_gateway:`<br>`  enabled: false`<br>`  account_id: ""`<br>`  gateway_id: ""`<br>`  huggingface_provider_slug: ""`<br>`  log_mode: metadata_only`<br>`  request_timeout_ms: 0`<br>`  metadata: {}` |
 | `omniroute` | OpenAI-kompatibles Gateway | `omniroute:`<br>`  enabled: false`<br>`  mode: managed` |
 | `evomap` | EvoMap GEP/A2A | `evomap:`<br>`  enabled: false`<br>`  readonly: true` |
 | `music_generation` | KI-Musik | `music_generation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  max_daily: 0` |
@@ -781,7 +781,6 @@ providers:
   - id: "main"
     type: "openrouter"
     base_url: "https://openrouter.ai/api/v1"
-    api_key: "DEIN-API-KEY"
     model: "arcee-ai/trinity-large-preview:free"
 
 llm:
@@ -847,7 +846,7 @@ AuraGo validiert die Konfiguration beim Start:
 
 | Fehler | Lösung |
 |--------|--------|
-| `providers section requires at least one provider` | Provider mit API-Key in `providers`-Liste konfigurieren |
+| `providers section requires at least one provider` | Provider konfigurieren und benötigte Zugangsdaten über Setup oder Config → Provider im Vault hinterlegen |
 | `invalid yaml` | YAML-Syntax prüfen (Einrückungen!) |
 | `invalid port number` | Port zwischen 1-65535 wählen |
 | `directory not found` | Verzeichnispfad korrigieren |

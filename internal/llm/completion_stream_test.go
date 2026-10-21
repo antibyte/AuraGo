@@ -3,8 +3,10 @@ package llm
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -13,6 +15,37 @@ type scriptedCompletionStream struct {
 	responses []openai.ChatCompletionStreamResponse
 	errors    []error
 	closeErr  error
+}
+
+func TestObservedStreamAttemptDeadlineCountsButParentCancelIsNeutral(t *testing.T) {
+	for _, parentCancelled := range []bool{false, true} {
+		t.Run(fmt.Sprintf("parent_cancelled=%t", parentCancelled), func(t *testing.T) {
+			parent, cancelParent := context.WithCancel(context.Background())
+			defer cancelParent()
+			attempt, cancel := context.WithDeadline(parent, time.Now().Add(-time.Second))
+			defer cancel()
+			if parentCancelled {
+				cancelParent()
+			}
+			failures := 0
+			stream := observeCompletionStream(withAttemptParent(attempt, parent), &scriptedCompletionStream{errors: []error{context.DeadlineExceeded, io.EOF}}, openai.ChatCompletionRequest{}, nil, func(err error) {
+				failures++
+				if ClassifyError(err) != ErrCategoryTemporaryTransport {
+					t.Fatalf("attempt outcome category=%s", ClassifyError(err))
+				}
+			})
+			_, _ = stream.Recv()
+			_, _ = stream.Recv()
+			_ = stream.Close()
+			want := 1
+			if parentCancelled {
+				want = 0
+			}
+			if failures != want {
+				t.Fatalf("failures=%d want %d", failures, want)
+			}
+		})
+	}
 }
 
 func (s *scriptedCompletionStream) Recv() (openai.ChatCompletionStreamResponse, error) {

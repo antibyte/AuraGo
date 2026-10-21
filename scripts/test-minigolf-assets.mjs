@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import validator from 'gltf-validator';
@@ -9,11 +9,41 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const assetRoot = path.join(root, 'ui/3d/minigolf');
 const manifestBytes = await readFile(path.join(assetRoot, 'manifest.json'));
 const manifest = JSON.parse(manifestBytes.toString('utf8'));
+const p1Fingerprints = JSON.parse(await readFile(path.join(root, 'scripts/fixtures/minigolf-p1-colliders.json'), 'utf8'));
 assert.equal(manifest.version, 1);
 assert.equal(manifest.ballRadius, 0.16);
 assert.equal(manifest.courses.length, 18);
 assert.deepEqual(['garden', 'coast', 'night'].map(world => manifest.courses.filter(course => course.world === world).length), [6, 6, 6]);
 assert.deepEqual(manifest.courses.map(course => course.number), Array.from({ length: 18 }, (_, i) => i + 1));
+
+// P2 dresses the courses as three worlds; the world ids stay as they are until P3.
+const LOOK_OF = { coast: 'pirate', garden: 'temple', night: 'moon' };
+const KIB = 1024, MIB = 1024 * 1024;
+// Largest sizes a course, kit or prop may reach (spec section 6).
+const BUDGET = { courseBytes: 768 * KIB, courseTriangles: 24_000, meshNodes: 24, kitBytes: 3 * MIB, kitTriangles: 60_000, prop: 15_000, hero: 20_000, preview: 80 * KIB, package: 32 * MIB };
+// Placement rules of kit/placement.py: distance of a prop's centre to the island rim (EDGE plus its share of the footprint radius).
+const EDGE = 0.3, RIM_TOLERANCE = 0.01;
+const RIM_SHARE_BY_NAME = { fern: 0.5, bush: 0.5, tuft: 0.5, seaweed: 0.4, shell: 0.6, crab: 0.6, starfish: 0.6 };
+const rimShare = (name, tags) => RIM_SHARE_BY_NAME[name] ?? (tags.includes('tall') ? 0.6 : tags.includes('hero') ? 0.85 : 1.0);
+const sha256 = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+// Everything the physics reads besides the colliders; the key order is part of the fingerprint.
+const physicsOf = ({ obstacles, tee, cup, cupRadius, bounds, water, par }) => ({ obstacles, tee, cup, cupRadius, bounds, water, par });
+// Largest possible distance of (x, z) inside the rim: the rim is the superellipse scaled by at most 1 +/- wobble.
+function rimReserve(island, x, z) {
+  const dx = x - island.center[0], dz = z - island.center[1], theta = Math.atan2(dz, dx);
+  const [hx, hz] = island.half, n = island.power;
+  const ellipse = (Math.abs(Math.cos(theta) / hx) ** n + Math.abs(Math.sin(theta) / hz) ** n) ** (-1 / n);
+  return ellipse * (1 + island.wobble) - Math.hypot(dx, dz);
+}
+function pathDistance(points, x, z) {
+  let best = Infinity;
+  for (let i = 1; i < points.length; i++) {
+    const [ax, , az] = points[i - 1], [bx, , bz] = points[i], vx = bx - ax, vz = bz - az;
+    const t = Math.max(0, Math.min(1, ((x - ax) * vx + (z - az) * vz) / Math.max(1e-9, vx * vx + vz * vz)));
+    best = Math.min(best, Math.hypot(x - ax - t * vx, z - az - t * vz));
+  }
+  return best;
+}
 
 // Manifest collision vertices are read directly from exported float32 GLB
 // accessors, so shortest-roundtrip decimal strings compare the same values
@@ -102,9 +132,13 @@ function parseGLB(bytes) {
     const meshes = json.meshes[node.mesh].primitives.map(primitive => {
       const positions = readAccessor(primitive.attributes.POSITION).map(point => worldPoint(index, point));
       const indices = primitive.indices === undefined ? positions.map((_, i) => i) : readAccessor(primitive.indices).map(value => value[0]);
-      const triangles = [];
-      if ((primitive.mode ?? 4) === 4) for (let i = 0; i + 2 < indices.length; i += 3) triangles.push(triangleKey([positions[indices[i]], positions[indices[i + 1]], positions[indices[i + 2]]]));
-      return { positions, triangles };
+      const triangles = [], faces = [];
+      if ((primitive.mode ?? 4) === 4) for (let i = 0; i + 2 < indices.length; i += 3) {
+        const face = [positions[indices[i]], positions[indices[i + 1]], positions[indices[i + 2]]];
+        faces.push(face);
+        triangles.push(triangleKey(face));
+      }
+      return { positions, triangles, faces };
     });
     geometryByNode.set(node.name, meshes);
   }
@@ -115,6 +149,20 @@ function parseGLB(bytes) {
   }, 0);
   return { json, nodeByName, parents, geometryByNode, triangleCount };
 }
+
+// The flat tee ring and cup patch are joined into the scenery nodes, so they are found by shape: all three
+// vertices on the inner or outer circle, at the ring's height. Their materials are single sided, hence the
+// faces must point up (+Y), or the runtime culls them seen from above.
+const RING_TOLERANCE = 0.002;
+function flatRingFaces(glb, centre, inner, outer, y) {
+  const onCircle = point => {
+    const radius = Math.hypot(point[0] - centre[0], point[2] - centre[2]);
+    return Math.abs(radius - inner) < RING_TOLERANCE || Math.abs(radius - outer) < RING_TOLERANCE;
+  };
+  return [...glb.geometryByNode].filter(([name]) => name.startsWith('scenery-')).flatMap(([, meshes]) => meshes)
+    .flatMap(mesh => mesh.faces).filter(face => face.every(point => onCircle(point) && Math.abs(point[1] - y) < RING_TOLERANCE));
+}
+const faceNormalY = ([a, b, c]) => (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]);
 
 function colliderTriangles(collider) {
   const vertices = Array.from({ length: collider.vertices.length / 3 }, (_, i) => collider.vertices.slice(i * 3, i * 3 + 3));
@@ -132,12 +180,48 @@ for (const course of manifest.courses) {
   assert.match(course.id, /^(garden|coast|night)-\d{2}$/);
   assert.ok(course.par >= 2 && course.par <= 4, course.id);
   assert.equal(course.model, `course-${String(course.number).padStart(2, '0')}.glb`);
+  // P2 dresses courses without touching physics: the decoded collider data and
+  // everything else the physics reads must stay identical to the P1 state (P3
+  // replaces this fixture with new courses).
+  const p1 = p1Fingerprints[course.id];
+  assert.ok(p1, `${course.id}: P1 fingerprint`);
+  assert.equal(sha256(course.colliders), p1.colliders, `${course.id}: collision differs from the P1 fingerprint`);
+  assert.equal(sha256(physicsOf(course)), p1.physics, `${course.id}: obstacles, tee, cup, bounds, water or par differ from the P1 fingerprint`);
   const bytes = await readFile(path.join(assetRoot, course.model));
   assert.equal(bytes.length, course.bytes, `${course.id}: byte count`);
   assert.equal(createHash('sha256').update(bytes).digest('hex'), course.sha256, `${course.id}: SHA-256`);
   const glb = parseGLB(bytes);
   assert.equal(glb.triangleCount, course.triangles, `${course.id}: triangle count`);
-  assert.ok(course.triangles < 100_000, `${course.id}: triangle budget`);
+  // A numbered name ("scenery-matte.001") means a datablock of another course or part was still around at export time.
+  const numbered = [...glb.json.nodes, ...glb.json.meshes].map(entry => entry.name).filter(name => /\.\d{3}$/.test(name ?? ''));
+  assert.deepEqual(numbered, [], `${course.id}: numbered node or mesh names`);
+  assert.ok(course.bytes <= BUDGET.courseBytes, `${course.id}: course GLB exceeds ${BUDGET.courseBytes / KIB} KiB (${course.bytes})`);
+  assert.ok(course.triangles <= BUDGET.courseTriangles, `${course.id}: triangle budget (${course.triangles})`);
+  const meshNodes = glb.json.nodes.filter(node => node.mesh !== undefined).length;
+  assert.ok(meshNodes <= BUDGET.meshNodes, `${course.id}: ${meshNodes} mesh nodes (max ${BUDGET.meshNodes})`);
+  assert.equal(course.look, LOOK_OF[course.world], `${course.id}: look`);
+  assert.ok(Array.isArray(course.path) && course.path.length >= 17 && course.path.length <= 33, `${course.id}: path samples`);
+  assert.ok(Math.hypot(course.path[0][0] - course.tee[0], course.path[0][2] - course.tee[2]) <= .3, `${course.id}: path starts at the tee`);
+  // The lane runs a little past the hole (the cup sits at 91 % of it), so the path may end up to a metre behind the cup.
+  assert.ok(Math.hypot(course.path.at(-1)[0] - course.cup[0], course.path.at(-1)[2] - course.cup[2]) <= 1.0, `${course.id}: path ends at the cup`);
+  for (const name of ['rail-left', 'rail-right']) assert.equal(glb.nodeByName.get(name)?.node.extras?.aurago_hidden, true, `${course.id}: ${name} hidden at runtime`);
+  for (const name of ['rail-trim-left', 'rail-trim-right']) assert.ok(glb.nodeByName.has(name), `${course.id}: missing ${name}`);
+  const catalog = manifest.kits?.[course.look]?.props;
+  assert.ok(catalog, `${course.id}: kit catalog for ${course.look}`);
+  assert.ok(course.props.length > 0 && course.props.length <= 160, `${course.id}: ${course.props.length} placements`);
+  // The island rim: a superellipse around `center` whose radius the wobble scales by at most 1 +/- wobble.
+  const island = course.island;
+  assert.ok(island && island.center.length === 2 && island.half.length === 2, `${course.id}: island outline`);
+  assert.ok([...island.center, ...island.half, island.power, island.wobble].every(Number.isFinite), `${course.id}: island numbers`);
+  assert.ok(island.half.every(value => value > 3 && value < 6.5) && island.power >= 2 && island.wobble >= 0 && island.wobble < 0.1, `${course.id}: island outline range`);
+  for (const [name, x, y, z, yaw, scale] of course.props) {
+    const prop = catalog[name];
+    assert.ok(prop, `${course.id}: unknown prop ${name}`);
+    assert.ok([x, y, z, yaw, scale].every(Number.isFinite) && scale > 0, `${course.id}: ${name} placement numbers`);
+    const reserve = rimReserve(island, x, z), needed = EDGE + rimShare(name, prop.tags) * prop.radius * scale;
+    assert.ok(reserve >= needed - RIM_TOLERANCE, `${course.id}: ${name} at (${x}, ${z}) reaches over the island rim (${reserve.toFixed(2)} m inside, needs ${needed.toFixed(2)} m)`);
+    if (!prop.tags.includes('span')) assert.ok(pathDistance(course.path, x, z) >= 1.0 + prop.radius * scale - .05, `${course.id}: ${name} blocks the lane corridor`);
+  }
   for (const name of ['flag', 'ball-template', 'putter-template']) assert.ok(glb.nodeByName.has(name), `${course.id}: missing ${name} node`);
   for (const key of ['tee', 'cup']) {
     assert.equal(course[key].length, 3, `${course.id}: ${key}`);
@@ -147,6 +231,15 @@ for (const course of manifest.courses) {
   for (const [markerName, marker, heightOffset] of [['tee', course.tee, manifest.ballRadius], ['cup', course.cup, 0]]) {
     const surfaceY = sampleCenterlineHeight(laneVertices, marker, course.id, markerName);
     assert.ok(Math.abs(marker[1] - heightOffset - surfaceY) < 0.0002, `${course.id}: ${markerName} height must match exported fairway + ${heightOffset} m`);
+  }
+  // Tee ring (12 segments) and cup patch (32 segments): flat annuli of two triangles per segment, all facing up.
+  for (const [label, centre, inner, outer, y, segments] of [
+    ['tee ring', course.tee, 0.10, 0.18, course.tee[1] - manifest.ballRadius + 0.012, 12],
+    ['cup patch', course.cup, course.cupRadius + 0.06, course.cupRadius + 0.4, course.cup[1] - 0.006, 32]
+  ]) {
+    const faces = flatRingFaces(glb, centre, inner, outer, y);
+    assert.equal(faces.length, segments * 2, `${course.id}: ${label} triangles`);
+    assert.ok(faces.every(face => faceNormalY(face) > 0), `${course.id}: ${label} must face up (single-sided material)`);
   }
   assert.ok(course.bounds.min.every((v, i) => Number.isFinite(v) && v < course.bounds.max[i]), `${course.id}: bounds`);
   assert.ok(course.water.length > 0, `${course.id}: water volume`);
@@ -233,5 +326,52 @@ for (const course of manifest.courses) {
   totalTriangles += course.triangles;
 }
 const runtimeBytes = totalBytes + manifestBytes.length;
-assert.ok(runtimeBytes < 12 * 1024 * 1024, `Runtime package budget exceeded: ${runtimeBytes} bytes including manifest`);
-console.log(`Mini golf: 18 courses, ${totalTriangles.toLocaleString()} triangles, ${totalBytes.toLocaleString()} GLB bytes + ${manifestBytes.length.toLocaleString()} manifest bytes = ${runtimeBytes.toLocaleString()} runtime bytes, ${warningCount} glTF warnings (${validator.version()})`);
+
+// One prop kit per world: valid, embedded, one top-level node per prop with vertex colours, within budget.
+let kitBytes = 0;
+for (const look of ['pirate', 'temple', 'moon']) {
+  const kit = manifest.kits[look];
+  const bytes = await readFile(path.join(assetRoot, kit.model));
+  assert.equal(kit.model, `props-${look}.glb`);
+  assert.equal(bytes.length, kit.bytes, `${look} kit bytes`);
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), kit.sha256, `${look} kit SHA-256`);
+  assert.ok(bytes.length <= BUDGET.kitBytes, `${look} kit exceeds ${BUDGET.kitBytes / MIB} MiB`);
+  const glb = parseGLB(bytes);
+  assert.equal(glb.triangleCount, kit.triangles, `${look} kit triangle count`);
+  assert.ok(kit.triangles <= BUDGET.kitTriangles, `${look} kit triangle budget`);
+  assert.ok(glb.json.materials.length <= 8, `${look} kit uses ${glb.json.materials.length} materials (max 8)`);
+  for (const [name, prop] of Object.entries(kit.props)) {
+    const node = glb.nodeByName.get(`prop-${look}-${name}`);
+    assert.ok(node && !glb.parents.has(node.index), `${look}: prop-${look}-${name} must be a top-level node`);
+    const hero = prop.tags.includes('hero');
+    const mesh = glb.json.meshes[node.node.mesh];
+    assert.ok(mesh.primitives.length <= (hero ? 4 : 3), `${look}/${name}: ${mesh.primitives.length} primitives`);
+    for (const primitive of mesh.primitives) assert.ok(primitive.attributes.COLOR_0 !== undefined, `${look}/${name}: COLOR_0`);
+    assert.ok(prop.triangles <= (hero ? BUDGET.hero : BUDGET.prop), `${look}/${name}: ${prop.triangles} triangles`);
+    assert.deepEqual(node.node.extras?.aurago_prop?.tags, prop.tags, `${look}/${name}: node extras`);
+  }
+  const result = await validator.validateBytes(bytes, { uri: kit.model, maxIssues: 100, externalResourceFunction: () => Promise.reject(Error('external resource forbidden')) });
+  assert.equal(result.issues.numErrors, 0, `${look} kit: glTF validation errors`);
+  kitBytes += bytes.length;
+}
+
+// The menu shows one rendered preview per world.
+assert.deepEqual(manifest.worlds, [
+  { id: 'garden', look: 'temple', preview: 'previews/temple.webp' },
+  { id: 'coast', look: 'pirate', preview: 'previews/pirate.webp' },
+  { id: 'night', look: 'moon', preview: 'previews/moon.webp' }
+]);
+for (const world of manifest.worlds) {
+  const image = await readFile(path.join(assetRoot, world.preview));
+  assert.equal(image.toString('ascii', 0, 4) + image.toString('ascii', 8, 12), 'RIFFWEBP', `${world.preview}: WebP`);
+  assert.ok(image.length <= BUDGET.preview, `${world.preview}: ${image.length} bytes`);
+}
+
+async function treeBytes(dir) {
+  let sum = 0;
+  for (const entry of await readdir(dir, { withFileTypes: true })) sum += entry.isDirectory() ? await treeBytes(path.join(dir, entry.name)) : (await stat(path.join(dir, entry.name))).size;
+  return sum;
+}
+const packageBytes = await treeBytes(assetRoot);
+assert.ok(packageBytes <= BUDGET.package, `AuraGolf runtime assets exceed ${BUDGET.package / MIB} MiB: ${packageBytes}`);
+console.log(`Mini golf: 18 courses, ${totalTriangles.toLocaleString()} triangles, ${totalBytes.toLocaleString()} GLB bytes + ${manifestBytes.length.toLocaleString()} manifest bytes = ${runtimeBytes.toLocaleString()} course bytes, 3 kits ${kitBytes.toLocaleString()} bytes, ${packageBytes.toLocaleString()} bytes in total, ${warningCount} glTF warnings (${validator.version()})`);

@@ -51,7 +51,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 			return
 		}
 
-		migrationNotices := config.ToolDisclosureMigrationNotices(data)
+		migrationNotices := append(config.ToolDisclosureMigrationNotices(data), config.PersonalityMigrationNotices(data)...)
 		data, err = config.NormalizeToolDisclosureConfig(data)
 		if err != nil {
 			jsonError(w, "Invalid configuration migration", http.StatusInternalServerError)
@@ -98,6 +98,9 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 				delete(pMap, "v2_url")
 				delete(pMap, "v2_api_key")
 				delete(pMap, "v2_timeout_secs")
+				if voice := rawMap(pMap, "inner_voice"); voice != nil {
+					delete(voice, "error_streak_min")
+				}
 			}
 		}
 
@@ -476,6 +479,18 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 		delete(patch, "_effective_tool_policy")
 		delete(patch, "_config_migrations")
+		if err := config.ValidatePersonalityLegacyPatch(patch); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if _, present := patch["providers"]; present {
+			writeProviderError(w, &providerWriteError{status: http.StatusBadRequest, code: "provider_use_api_providers", message: "Change provider settings through /api/providers"})
+			return
+		}
+		if err := validateProviderReferencePatch(s.ConfigSnapshot(), patch); err != nil {
+			writeProviderError(w, err)
+			return
+		}
 		if err := config.ValidateToolDisclosurePatch(patch); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -531,6 +546,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		rawCfg = normalizeConfigYAMLMap(rawCfg)
 
 		if err := validateMQTTConfigPatch(rawCfg, patch); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := validateAIGatewayConfigPatch(rawCfg, patch); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -681,7 +700,23 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		runtimeSnapshot := s.Cfg.Runtime
 		go2RTCWasEnabled := s.Cfg.Go2RTC.Enabled
 		localMusicWasEnabled := s.Cfg.UsesLocalMusic() && s.Cfg.MusicGeneration.Enabled
+		ollamaNeedsStop := s.Cfg.Ollama.ManagedInstance.Enabled && !validateCfg.Ollama.ManagedInstance.Enabled || s.Cfg.Embeddings.LocalOllama.Enabled && !validateCfg.Embeddings.LocalOllama.Enabled
+		ollamaPreviousHost := s.Cfg.Docker.Host
 		s.CfgMu.RUnlock()
+		if ollamaNeedsStop && ollamaPreviousHost != validateCfg.Docker.Host {
+			jsonError(w, "Stop managed Ollama before changing the Docker Engine", http.StatusBadRequest)
+			return
+		}
+		if ollamaNeedsStop && (!validateCfg.Docker.Enabled || validateCfg.Docker.ReadOnly) {
+			jsonError(w, "Disable managed Ollama while Docker writes are enabled, then revoke Docker writes in a separate save", http.StatusBadRequest)
+			return
+		}
+		if (!validateCfg.Docker.Enabled || validateCfg.Docker.ReadOnly) && tools.OllamaStopsPending() {
+			if err := tools.ConfirmOllamaStops(r.Context(), ollamaPreviousHost); err != nil {
+				jsonError(w, "Wait until managed Ollama has stopped before revoking Docker writes", http.StatusBadRequest)
+				return
+			}
+		}
 		if (localMusicWasEnabled || localMusicStopPending(s)) && (!validateCfg.Docker.Enabled || validateCfg.Docker.ReadOnly) {
 			jsonError(w, "Disable local music and wait until stopped before disabling Docker mutations", http.StatusBadRequest)
 			return
@@ -983,6 +1018,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 						"base_url", newCfg.LLM.BaseURL)
 				}
 			}
+			if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
+				fm.ConfigureRetryPolicy(newCfg)
+			}
 			if s.LocalLLM != nil && oldCfg.LocalLLM != newCfg.LocalLLM {
 				s.LocalLLM.Configure(newCfg.LocalLLM)
 				s.Logger.Info("[Config UI] Local LLM desired state updated")
@@ -1062,7 +1100,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				oldG.FailSafe != newG.FailSafe ||
 				oldG.TimeoutSecs != newG.TimeoutSecs ||
 				oldG.CacheTTL != newG.CacheTTL
-			if guardianChanged {
+			if guardianChanged || !reflect.DeepEqual(oldCfg.AIGateway, newCfg.AIGateway) {
 				s.LLMGuardian = security.NewLLMGuardian(newCfg, s.Logger)
 				if newCfg.LLMGuardian.Enabled {
 					s.Logger.Info("[Config UI] LLMGuardian reconfigured",
@@ -1300,7 +1338,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 							WebServerInternalOnly: newCfg.Homepage.WebServerInternalOnly,
 							AllowLocalServer:      newCfg.Homepage.AllowLocalServer,
 						}
-						result := tools.HomepageWebServerStart(homepageCfg, "", "", s.Logger)
+						result := tools.HomepageManagedWebServerStart(homepageCfg, s.HomepageRegistryDB, "", "", "Homepage web server configuration changed", s.Logger)
 						s.Logger.Info("[Config UI] Homepage web server auto-started", "result", result)
 					}()
 				} else if newCfg.Homepage.WebServerEnabled && !newCfg.Docker.Enabled {
@@ -1310,7 +1348,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				} else if newCfg.Docker.Enabled {
 					go func() {
 						homepageCfg := tools.HomepageConfig{DockerHost: newCfg.Docker.Host}
-						tools.HomepageWebServerStop(homepageCfg, s.Logger)
+						tools.HomepageManagedWebServerStop(homepageCfg, s.HomepageRegistryDB, "Homepage web server disabled or configuration changed", s.Logger)
 						s.Logger.Info("[Config UI] Homepage web server stopped")
 					}()
 				} else {
@@ -1324,13 +1362,8 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				go tools.EnsureOllamaEmbeddingsRunning(newCfg, s.Logger)
 			}
 			if oldCfg.Embeddings.LocalOllama.Enabled && !newCfg.Embeddings.LocalOllama.Enabled {
-				if !newCfg.Docker.Enabled {
-					s.Logger.Info("[Config UI] Docker is disabled; skipping Ollama embeddings container stop")
-				} else {
-					go func() {
-						tools.StopOllamaEmbeddingsContainer(newCfg.Docker.Host)
-						s.Logger.Info("[Config UI] Ollama embeddings container stopped")
-					}()
+				if _, err := tools.StartOllamaStop(newCfg, true); err != nil {
+					s.Logger.Warn("[Ollama] Embeddings stop refused", "error", err)
 				}
 			}
 
@@ -1339,12 +1372,13 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				(!oldCfg.Ollama.ManagedInstance.Enabled || ollamaManagedInputsChanged(&oldCfg, newCfg)) {
 				go tools.EnsureOllamaManagedRunning(newCfg, s.Logger)
 			}
-			// Stop managed Ollama container if just disabled
-			if !newCfg.Ollama.ManagedInstance.Enabled && oldCfg.Ollama.ManagedInstance.Enabled {
-				go func() {
-					tools.StopOllamaManagedContainer(newCfg.Docker.Host)
-					s.Logger.Info("[Config UI] Managed Ollama container stopped")
-				}()
+			if oldCfg.Ollama.ManagedInstance.Enabled && !newCfg.Ollama.ManagedInstance.Enabled {
+				if _, err := tools.StartOllamaStop(newCfg, false); err != nil {
+					s.Logger.Warn("[Ollama] Managed stop refused", "error", err)
+				}
+			}
+			if oldCfg.Docker.Host != newCfg.Docker.Host && (oldCfg.Ollama.ManagedInstance.Enabled || oldCfg.Embeddings.LocalOllama.Enabled) {
+				s.Logger.Warn("[Ollama] Docker endpoint changed; containers on the previous Engine were retained for administrator review")
 			}
 
 			// Auto-start Piper TTS container if just enabled
@@ -1722,6 +1756,7 @@ func normalizeAIGatewayYAMLSection(rawCfg map[string]interface{}) {
 	}
 
 	setString("mode", cfg.AIGateway.Mode, "auto")
+	setString("huggingface_provider_slug", cfg.AIGateway.HuggingFaceProviderSlug, "")
 	setString("log_mode", cfg.AIGateway.LogMode, "metadata_only")
 	setString("backoff", cfg.AIGateway.Backoff, "")
 	setInt("request_timeout_ms", cfg.AIGateway.RequestTimeoutMS)
@@ -1770,6 +1805,7 @@ func manifestSidecarAuthConfigChanged(oldCfg, newCfg config.Config) bool {
 }
 
 func validateManagedDockerBackends(cfg config.Config, rt config.Runtime) error {
+	cfg.Runtime = rt
 	if strings.TrimSpace(cfg.Docker.Host) == "" {
 		cfg.Docker.Host = strings.TrimSpace(os.Getenv("DOCKER_HOST"))
 	}
@@ -1780,8 +1816,11 @@ func validateManagedDockerBackends(cfg config.Config, rt config.Runtime) error {
 	if !cfg.Docker.Enabled {
 		return fmt.Errorf("Docker integration is disabled. Enable Docker before using managed Ollama or go2rtc containers")
 	}
-	if cfg.Go2RTC.Enabled && cfg.Docker.ReadOnly {
-		return fmt.Errorf("Docker read-only mode cannot create or reconcile the managed go2rtc container")
+	if cfg.Docker.ReadOnly {
+		return fmt.Errorf("Docker read-only mode cannot create or reconcile managed Ollama or go2rtc containers")
+	}
+	if err := tools.ValidateManagedOllamaInputs(&cfg); err != nil {
+		return err
 	}
 	if strings.TrimSpace(cfg.Docker.Host) != "" {
 		return nil
@@ -1905,6 +1944,9 @@ func rawString(parent map[string]interface{}, key string) string {
 }
 
 func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
+	if !reflect.DeepEqual(oldCfg.AIGateway, newCfg.AIGateway) {
+		return true
+	}
 	type providerCapabilityFingerprint struct {
 		ID                string
 		Model             string
@@ -1931,16 +1973,6 @@ func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 		Multimodal                   bool
 		MultimodalProviderTypesExtra []string
 		ProviderCapabilities         []providerCapabilityFingerprint
-		AIGatewayEnabled             bool
-		AIGatewayAccountID           string
-		AIGatewayGatewayID           string
-		AIGatewayMode                string
-		AIGatewayLogMode             string
-		AIGatewayMetadata            map[string]string
-		AIGatewayRequestTimeoutMS    int
-		AIGatewayMaxAttempts         int
-		AIGatewayRetryDelayMS        int
-		AIGatewayBackoff             string
 	}
 	providerCaps := func(cfg config.Config) []providerCapabilityFingerprint {
 		out := make([]providerCapabilityFingerprint, 0, len(cfg.Providers))
@@ -1974,16 +2006,6 @@ func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 		Multimodal:                   oldCfg.LLM.Multimodal,
 		MultimodalProviderTypesExtra: oldCfg.LLM.MultimodalProviderTypesExtra,
 		ProviderCapabilities:         providerCaps(oldCfg),
-		AIGatewayEnabled:             oldCfg.AIGateway.Enabled,
-		AIGatewayAccountID:           oldCfg.AIGateway.AccountID,
-		AIGatewayGatewayID:           oldCfg.AIGateway.GatewayID,
-		AIGatewayMode:                oldCfg.AIGateway.Mode,
-		AIGatewayLogMode:             oldCfg.AIGateway.LogMode,
-		AIGatewayMetadata:            oldCfg.AIGateway.Metadata,
-		AIGatewayRequestTimeoutMS:    oldCfg.AIGateway.RequestTimeoutMS,
-		AIGatewayMaxAttempts:         oldCfg.AIGateway.MaxAttempts,
-		AIGatewayRetryDelayMS:        oldCfg.AIGateway.RetryDelayMS,
-		AIGatewayBackoff:             oldCfg.AIGateway.Backoff,
 	}
 	newFP := llmFingerprint{
 		Provider:                     newCfg.LLM.Provider,
@@ -1999,39 +2021,31 @@ func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 		Multimodal:                   newCfg.LLM.Multimodal,
 		MultimodalProviderTypesExtra: newCfg.LLM.MultimodalProviderTypesExtra,
 		ProviderCapabilities:         providerCaps(newCfg),
-		AIGatewayEnabled:             newCfg.AIGateway.Enabled,
-		AIGatewayAccountID:           newCfg.AIGateway.AccountID,
-		AIGatewayGatewayID:           newCfg.AIGateway.GatewayID,
-		AIGatewayMode:                newCfg.AIGateway.Mode,
-		AIGatewayLogMode:             newCfg.AIGateway.LogMode,
-		AIGatewayMetadata:            newCfg.AIGateway.Metadata,
-		AIGatewayRequestTimeoutMS:    newCfg.AIGateway.RequestTimeoutMS,
-		AIGatewayMaxAttempts:         newCfg.AIGateway.MaxAttempts,
-		AIGatewayRetryDelayMS:        newCfg.AIGateway.RetryDelayMS,
-		AIGatewayBackoff:             newCfg.AIGateway.Backoff,
 	}
 	return !reflect.DeepEqual(oldFP, newFP)
 }
 
 // sensitiveKeys are YAML keys whose values should be masked in the API response.
 var sensitiveKeys = map[string]bool{
-	"api_key":        true,
-	"bot_token":      true,
-	"password":       true,
-	"app_password":   true,
-	"access_token":   true,
-	"token":          true,
-	"user_key":       true,
-	"app_token":      true,
-	"login_token":    true, // MeshCentral token
-	"access_key":     true, // S3 access key ID
-	"secret_key":     true, // S3 secret access key
-	"secret":         true, // Proxmox token secret and similar vault-backed secrets
-	"master_key":     true, // vault AES-256 key — never expose
-	"password_hash":  true, // auth: bcrypt hash — never expose
-	"session_secret": true, // auth: HMAC signing key — never expose
-	"totp_secret":    true, // auth: TOTP base32 secret — never expose
-	"shared_key":     true, // egg mode shared AES key — never expose
+	"v2_api_key":             true,
+	"personality_v2_api_key": true,
+	"api_key":                true,
+	"bot_token":              true,
+	"password":               true,
+	"app_password":           true,
+	"access_token":           true,
+	"token":                  true,
+	"user_key":               true,
+	"app_token":              true,
+	"login_token":            true, // MeshCentral token
+	"access_key":             true, // S3 access key ID
+	"secret_key":             true, // S3 secret access key
+	"secret":                 true, // Proxmox token secret and similar vault-backed secrets
+	"master_key":             true, // vault AES-256 key — never expose
+	"password_hash":          true, // auth: bcrypt hash — never expose
+	"session_secret":         true, // auth: HMAC signing key — never expose
+	"totp_secret":            true, // auth: TOTP base32 secret — never expose
+	"shared_key":             true, // egg mode shared AES key — never expose
 }
 
 // maskSensitiveFields recursively masks sensitive string values in a config map.
@@ -2177,6 +2191,11 @@ func deepMerge(dst, src map[string]interface{}, path string) {
 		}
 		switch sv := srcVal.(type) {
 		case map[string]interface{}:
+			// Metadata is a complete validated map: merging would resurrect removed tags.
+			if fullPath == "ai_gateway.metadata" {
+				dst[key] = sv
+				continue
+			}
 			if _, dstIsSlice := dst[key].([]interface{}); dstIsSlice || isConfigArrayPath(fullPath) {
 				if converted, ok := numericKeyedMapToSlice(sv); ok {
 					mergeConfigArrayValue(dst, key, fullPath, converted)
@@ -2461,7 +2480,7 @@ func extractSecretsToVault(patch map[string]interface{}, vault *security.Vault, 
 	return extractRecursive(patch, "", vault, logger)
 }
 
-func extractRecursive(m map[string]interface{}, prefix string, vault *security.Vault, logger *slog.Logger) error {
+func extractRecursive(m map[string]interface{}, prefix string, vault configSecretWriter, logger *slog.Logger) error {
 	var firstErr error
 	for key, val := range m {
 		fullPath := key
@@ -2528,7 +2547,7 @@ func extractRecursive(m map[string]interface{}, prefix string, vault *security.V
 			if v == "" || v == "••••••••" {
 				continue
 			}
-			if vault == nil {
+			if configSecretWriterMissing(vault) {
 				// No vault available — credential is stripped but cannot be persisted.
 				// Return an error so the caller can inform the user.
 				if firstErr == nil {
@@ -2549,14 +2568,14 @@ func extractRecursive(m map[string]interface{}, prefix string, vault *security.V
 					firstErr = fmt.Errorf("failed to save credential '%s' to vault: %w", fullPath, err)
 				}
 			} else {
-				logger.Info("[Config] Secret saved to vault", "key", vaultKey)
+				logger.Info("[Config] Secret accepted for Vault storage", "key", vaultKey)
 			}
 		}
 	}
 	return firstErr
 }
 
-func extractKlipperPrinterAPIKeysToVault(items []interface{}, vault *security.Vault, logger *slog.Logger) error {
+func extractKlipperPrinterAPIKeysToVault(items []interface{}, vault configSecretWriter, logger *slog.Logger) error {
 	var firstErr error
 	for _, item := range items {
 		printer, ok := item.(map[string]interface{})
@@ -2585,7 +2604,7 @@ func extractKlipperPrinterAPIKeysToVault(items []interface{}, vault *security.Va
 			}
 			continue
 		}
-		if vault == nil {
+		if configSecretWriterMissing(vault) {
 			if firstErr == nil {
 				firstErr = fmt.Errorf("credential 'three_d_printers.klipper.printers.%s.api_key' cannot be saved: no vault configured (AURAGO_MASTER_KEY required)", id)
 			}
@@ -2601,13 +2620,13 @@ func extractKlipperPrinterAPIKeysToVault(items []interface{}, vault *security.Va
 			continue
 		}
 		if logger != nil {
-			logger.Info("[Config] Klipper API key saved to vault", "key", vaultKey)
+			logger.Info("[Config] Klipper API key accepted for Vault storage", "key", vaultKey)
 		}
 	}
 	return firstErr
 }
 
-func extractGo2RTCStreamSourcesToVault(items []interface{}, vault *security.Vault, logger *slog.Logger) error {
+func extractGo2RTCStreamSourcesToVault(items []interface{}, vault configSecretWriter, logger *slog.Logger) error {
 	var firstErr error
 	seen := make(map[string]struct{}, len(items))
 	for _, item := range items {
@@ -2650,7 +2669,7 @@ func extractGo2RTCStreamSourcesToVault(items []interface{}, vault *security.Vaul
 			}
 			continue
 		}
-		if vault == nil {
+		if configSecretWriterMissing(vault) {
 			if firstErr == nil {
 				firstErr = fmt.Errorf("go2rtc stream source for %q cannot be saved: no vault configured (AURAGO_MASTER_KEY required)", id)
 			}
@@ -2664,7 +2683,7 @@ func extractGo2RTCStreamSourcesToVault(items []interface{}, vault *security.Vaul
 		}
 		security.RegisterSensitive(value)
 		if logger != nil {
-			logger.Info("[Config] go2rtc stream source saved to vault", "stream_id", id)
+			logger.Info("[Config] go2rtc stream source accepted for Vault storage", "stream_id", id)
 		}
 	}
 	return firstErr

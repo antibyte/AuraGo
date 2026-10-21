@@ -247,7 +247,7 @@ func (r *cydCreatorAgentRunner) RunCYDJob(ctx context.Context, run cydcreator.Jo
 		cfg.LLM.APIKey = provider.APIKey
 		cfg.LLM.AccountID = provider.AccountID
 		cfg.LLM.Model = provider.Model
-		client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID))
+		client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID, provider.GatewayID))
 	}
 	if strings.TrimSpace(cfg.LLM.Model) == "" {
 		return cydcreator.NewError(cydcreator.CodeDisabled, "the CYD Creator model is empty", nil)

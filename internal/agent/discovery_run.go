@@ -42,7 +42,13 @@ func dispatchCatalogSchemas(dc *DispatchContext) []openai.Tool {
 		return nil
 	}
 	policy := BuildToolingPolicy(dc.Cfg, "")
-	flags := buildToolFeatureFlags(RunConfig{Config: dc.Cfg, IsCoAgent: dc.IsCoAgent}, policy)
+	flags := buildToolFeatureFlags(RunConfig{
+		Config: dc.Cfg, IsCoAgent: dc.IsCoAgent, InvasionDB: dc.InvasionDB,
+		RemoteHub: dc.RemoteHub, MediaRegistryDB: dc.MediaRegistryDB,
+		HomepageRegistryDB: dc.HomepageRegistryDB, ContactsDB: dc.ContactsDB,
+		PlannerDB: dc.PlannerDB, SQLConnectionsDB: dc.SQLConnectionsDB,
+		SQLConnectionPool: dc.SQLConnectionPool, ShortTermMem: dc.ShortTermMem,
+	}, policy)
 	schemas := BuildNativeToolSchemas(dc.Cfg.Directories.SkillsDir, dc.Manifest, flags, dc.Logger)
 	if dc.ToolScopeRestricted {
 		names := make([]string, 0, len(dc.AllowedTools))
@@ -52,6 +58,16 @@ func dispatchCatalogSchemas(dc *DispatchContext) []openai.Tool {
 		schemas = filterSchemasByAllowedTools(schemas, names)
 	}
 	return schemas
+}
+
+func configuredNativeToolEnabled(dc *DispatchContext, name string) bool {
+	schemas := BuildNativeToolSchemas(dc.Cfg.Directories.SkillsDir, dc.Manifest, buildToolFlagsFromConfig(dc.Cfg), dc.Logger)
+	for _, schema := range schemas {
+		if schema.Function != nil && canonicalActionName(schema.Function.Name) == canonicalActionName(name) {
+			return true
+		}
+	}
+	return false
 }
 
 func setRunDiscoverToolsState(dc *DispatchContext, all, active []openai.Tool) {
@@ -79,8 +95,11 @@ func applyCatalogEntryPolicies(catalog *ToolCatalog, dc *DispatchContext) {
 			continue
 		}
 		entry.ReadOnly = catalogReadOnly(dc.Cfg, entry)
-		if entry.Enabled && (dc.ExecutionHooks == nil || dc.ExecutionHooks.HandleTool == nil) {
-			if reason := toolRuntimeUnavailable(dc, entry.Name); reason != "" {
+		if reason := toolRuntimeUnavailable(dc, entry.Name); reason != "" {
+			// A runtime-filtered schema must not disguise an enabled integration
+			// as config-disabled. Keep this metadata out of the callable schemas.
+			missingConfigured := !entry.Enabled && entry.HiddenReason == "config_disabled" && configuredNativeToolEnabled(dc, entry.Name)
+			if missingConfigured || entry.Enabled && (dc.ExecutionHooks == nil || dc.ExecutionHooks.HandleTool == nil) {
 				entry.Enabled, entry.Active, entry.Status, entry.HiddenReason = false, false, ToolStatusNeedsSetup, reason
 			}
 		}

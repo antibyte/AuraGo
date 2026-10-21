@@ -1,0 +1,44 @@
+/* Native cursors only on pointing devices. High-contrast mode keeps the OS cursor.
+   App canvases, remote desktops and inline tool cursors retain their own semantics. */
+@media (any-pointer: fine) and (forced-colors: none) {
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) {
+        cursor: var(--vd-cursor-default, default);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(
+        button, a[href], select, summary, [role="button"], [role="menuitem"], [role="tab"],
+        input[type="checkbox"], input[type="radio"], input[type="range"],
+        .vd-icon, .vd-taskbar-window, .vd-dock-app, .vd-menu-item, .vd-context-item,
+        .vd-start-app, .vd-window-button, .vd-space-button) {
+        cursor: var(--vd-cursor-pointer, pointer);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(
+        textarea, input:not([type]), input[type="text"], input[type="search"], input[type="password"],
+        input[type="email"], input[type="url"], input[type="number"], input[type="tel"],
+        [contenteditable="true"], [role="textbox"]) {
+        cursor: var(--vd-cursor-text, text);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) .vd-window-titlebar {
+        cursor: var(--vd-cursor-grab, grab);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) .vd-window.dragging .vd-window-titlebar {
+        cursor: var(--vd-cursor-grabbing, grabbing);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(.vd-resize-n, .vd-resize-s) {
+        cursor: var(--vd-cursor-ns-resize, ns-resize);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(.vd-resize-e, .vd-resize-w) {
+        cursor: var(--vd-cursor-ew-resize, ew-resize);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(.vd-resize-ne, .vd-resize-sw) {
+        cursor: var(--vd-cursor-nesw-resize, nesw-resize);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(.vd-resize-nw, .vd-resize-se) {
+        cursor: var(--vd-cursor-nwse-resize, nwse-resize);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(button, input, select, textarea, [role], [aria-disabled]):is(:disabled, [aria-disabled="true"]) {
+        cursor: var(--vd-cursor-not-allowed, not-allowed);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(button, input, select, textarea, [role], [aria-busy])[aria-busy="true"] {
+        cursor: var(--vd-cursor-wait, wait);
+    }
+}

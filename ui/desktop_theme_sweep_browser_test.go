@@ -16,6 +16,7 @@ import (
 	"aurago/internal/desktop"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
+	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -35,6 +36,7 @@ var themeSweepSeam = []string{
 	"state", "api", "openApp", "closeWindow", "focusWindow", "applyDesktopSettings", "refreshSpacesForViewport",
 	"renderIcons", "renderStartApps", "renderStartButtonIcon", "renderTaskbar",
 	"desktopThemes", "desktopThemeById", "currentDesktopTheme", "settingValue",
+	"applyWindowSnap", "toggleMaximizeWindow", "minimizeWindow", "switchSpace", "modalDialog",
 }
 
 // themeSweepWideMinWidth is the first viewport width that is not a compact layout.
@@ -330,10 +332,14 @@ type themeSweepSession struct {
 // prefers-reduced-motion value ("reduce" or "no-preference"): the OS animation setting changes the headless
 // default, so the media feature is always pinned.
 func newThemeSweepSession(t *testing.T, reducedMotion string) *themeSweepSession {
+	return newThemeSweepSessionWithBrowser(t, reducedMotion, nil)
+}
+
+func newThemeSweepSessionWithBrowser(t *testing.T, reducedMotion string, tweak func(*launcher.Launcher)) *themeSweepSession {
 	t.Helper()
 	requirePrecisionBrowserSmoke(t)
 	server := newThemeSweepServer(t)
-	page := newSmokeBrowserWith(t, nil).MustPage()
+	page := newSmokeBrowserWith(t, tweak).MustPage()
 	t.Cleanup(func() { _ = page.Close() })
 	s := &themeSweepSession{page: page, store: server.store}
 	if err := (proto.RuntimeEnable{}).Call(page); err != nil {
@@ -394,6 +400,7 @@ func (s *themeSweepSession) pageState() string {
 		storedTheme: window.auditTest ? auditTest.settingValue('appearance.theme') : null,
 		fxHost: typeof window.AuraDesktopThemeFx, fxActive: window.AuraDesktopThemeFx ? AuraDesktopThemeFx.activeId() : null,
 		fxLayers: document.querySelectorAll('.vd-theme-fx-layer').length,
+		fx: window.AuraDesktopThemeFx?.inspect?.(),
 		reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
 		windows: window.auditTest ? [...auditTest.state.windows.values()].map(w => w.appId) : null,
 		errors: window.fixtureErrors,
@@ -533,6 +540,9 @@ func (s *themeSweepSession) screenshot(t testing.TB, path string) {
 	png, err := s.page.Screenshot(false, &proto.PageCaptureScreenshot{Format: proto.PageCaptureScreenshotFormatPng})
 	if err != nil {
 		t.Fatalf("screenshot %s: %v", path, err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("create screenshot directory %s: %v", path, err)
 	}
 	if err := os.WriteFile(path, png, 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
@@ -846,19 +856,18 @@ func TestDesktopThemeSweepBrowser(t *testing.T) {
 		saved(t, "the wallpaper to follow from Amiga to Cyberpunk", map[string]string{"appearance.theme": "cyberpunk", "appearance.wallpaper": "city_rain"})
 	})
 
-	t.Run("a wallpaper the user picked stays", func(t *testing.T) {
-		freshSettings(t, map[string]string{"appearance.wallpaper": "ember"})
+	t.Run("custom wallpaper stays until the user explicitly selects another theme", func(t *testing.T) {
+		freshSettings(t, map[string]string{"appearance.wallpaper": "ember", "appearance.wallpaper_by_space": `{"2":"forest"}`})
+		s.waitFor(t, "saved custom wallpaper to survive settings hydration", 5*time.Second, `() => document.body.dataset.wallpaper === 'ember'`)
 		click(t, "crazy")
-		saved(t, "the Crazy theme to be saved", map[string]string{"appearance.theme": "crazy"})
-		time.Sleep(600 * time.Millisecond) // a wrong hand-over would be a PUT right behind the theme
-		if got := s.store.value("appearance.wallpaper"); got != "ember" {
-			t.Errorf("the wallpaper became %q, want the user's ember", got)
-		}
-		if writes := append(s.store.writesTo("appearance.wallpaper"), s.store.writesTo("appearance.wallpaper_by_space")...); len(writes) > 0 {
-			t.Errorf("the picker wrote wallpaper settings %v although the user chose the wallpaper", writes)
-		}
-		if got := s.eval(t, `() => document.body.dataset.wallpaper`).Value.Str(); got != "ember" {
-			t.Errorf("the desktop shows the wallpaper %q, want ember", got)
+		saved(t, "the explicit Crazy preset to replace custom backgrounds", map[string]string{
+			"appearance.theme": "crazy", "appearance.wallpaper": "fractal_trip", "appearance.wallpaper_by_space": "{}",
+		})
+		s.waitFor(t, "the selected theme background to become visible", 5*time.Second, `() => document.body.dataset.wallpaper === 'fractal_trip'`)
+		for key, want := range map[string]string{"appearance.wallpaper": "fractal_trip", "appearance.wallpaper_by_space": "{}"} {
+			if writes := s.store.writesTo(key); len(writes) != 1 || writes[0] != want {
+				t.Errorf("explicit theme selection must write %s=%s once, got %v", key, want, writes)
+			}
 		}
 	})
 }

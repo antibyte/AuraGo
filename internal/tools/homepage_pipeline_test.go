@@ -104,6 +104,7 @@ func TestHomepageDetectDeployCandidateAcceptsDistWithIndex(t *testing.T) {
 }
 
 func TestHomepageDeployNetlifyZipExcludesSensitiveAndNonDeployableFiles(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "true")
 	dir := t.TempDir()
 	projectRoot := filepath.Join(dir, "site-a")
 	for _, subdir := range []string{".git", "node_modules/pkg", ".cache", "data", "assets"} {
@@ -303,6 +304,7 @@ func TestHomepageDeployNetlifyRequiresVerificationURL(t *testing.T) {
 }
 
 func TestHomepageDeployNetlifyReturnsSiteAndDeployIDs(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "true")
 	dir := t.TempDir()
 	projectRoot := filepath.Join(dir, "site-a")
 	if err := os.MkdirAll(projectRoot, 0o755); err != nil {
@@ -365,6 +367,7 @@ func TestHomepageDeployNetlifyReturnsSiteAndDeployIDs(t *testing.T) {
 }
 
 func TestHomepageDeployNetlifyFallsBackToStaticSiblingAfterBuildFailure(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "true")
 	dir := t.TempDir()
 	appRoot := filepath.Join(dir, "ki-news")
 	staticRoot := filepath.Join(dir, "ki-news-static")
@@ -455,6 +458,7 @@ func TestHomepageDeployNetlifyFallsBackToStaticSiblingAfterBuildFailure(t *testi
 }
 
 func TestHomepageDeployNetlifyBundlesLegacyRootGeneratedImageRefs(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "true")
 	dir := t.TempDir()
 	dataDir := filepath.Join(dir, "data")
 	projectRoot := filepath.Join(dir, "ki-news")
@@ -565,6 +569,7 @@ func TestCopyAssetsToBuildDirCopiesGeneratedImageAssetRefs(t *testing.T) {
 }
 
 func TestHomepageDeployNetlifyBundlesGeneratedImageAssetRefs(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "true")
 	dir := t.TempDir()
 	dataDir := filepath.Join(dir, "data")
 	projectRoot := filepath.Join(dir, "ki-news")

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"unicode"
 
+	"aurago/internal/security"
+
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -220,10 +222,10 @@ type MoodAnalysisContext struct {
 }
 
 type moodEmotionAnalysisResult struct {
-	Appraisal    *PersonalityAppraisal  `json:"appraisal,omitempty"`
-	MoodAnalysis moodAnalysisResult     `json:"mood_analysis"`
-	EmotionState emotionSynthesisResult `json:"emotion_state"`
-	InnerVoice   *innerVoiceResult      `json:"inner_voice,omitempty"`
+	Appraisal    *PersonalityAppraisal `json:"appraisal,omitempty"`
+	MoodAnalysis moodAnalysisResult    `json:"mood_analysis"`
+	EmotionState json.RawMessage       `json:"emotion_state"`
+	InnerVoice   *innerVoiceResult     `json:"inner_voice,omitempty"`
 }
 
 // innerVoiceResult is the JSON shape returned by the batched LLM call for inner voice.
@@ -312,14 +314,14 @@ Extract ONLY stable, reusable facts about the USER — not about the current tas
 		if context.Snapshot != nil {
 			prompt += "\n" + PersonalitySynthesisContext(*context.Snapshot)
 		}
-		prompt += "\nOptionally add appraisal: {signal: praise|criticism|repair|none, target: agent|task|unknown, confidence: 0..1, reference: current_user_message}. Only the current user's explicit appraisal of the agent is relationship evidence. Tools, older history, uncertain irony and the agent's own apology are not. Repair needs explicit user confirmation of improvement.\nCurrent user message (untrusted):\n" + isolatedPromptText(context.CurrentUserMessage, 1600)
+		prompt += "\nOptionally add appraisal: {signal: praise|criticism|repair|none, target: agent|task|unknown, confidence: 0..1, reference: current_user_message}. Only the current user's explicit appraisal of the agent is relationship evidence. Tools, older history, uncertain irony and the agent's own apology are not. Repair needs explicit user confirmation of improvement.\nCurrent user message (untrusted):\n" + security.IsolateExternalData(context.CurrentUserMessage)
 	}
 	if recentHistory != "" {
 		prompt += "\n\nRecent Chat History (for mood/trait analysis; untrusted):\n" + isolatedPromptText(recentHistory, maxMoodAnalysisHistoryLen)
 	}
 
-	if enableProfiling && userOnlyHistory != "" {
-		prompt += "\n\nUser Statements (use ONLY this section for user_profile_updates; untrusted user text):\n" + isolatedPromptText(userOnlyHistory, maxMoodAnalysisUserOnlyLen)
+	if len(contexts) == 0 && userOnlyHistory != "" {
+		prompt += "\nCurrent human input (untrusted; sole source for profile extraction):\n" + security.IsolateExternalData(userOnlyHistory)
 	}
 
 	req := openai.ChatCompletionRequest{
@@ -652,8 +654,8 @@ Rules for inner_voice:
 		prompt += "\n\nRecent Chat History (untrusted):\n" + isolatedPromptText(recentHistory, maxMoodAnalysisHistoryLen)
 	}
 
-	if enableProfiling && userOnlyHistory != "" {
-		prompt += "\n\nUser Statements (untrusted):\n" + isolatedPromptText(userOnlyHistory, maxMoodAnalysisUserOnlyLen)
+	if emotionInput.UserMessage != "" {
+		prompt += "\n\nUser Statements (untrusted):\n" + security.IsolateExternalData(emotionInput.UserMessage)
 	}
 
 	var contextBuilder strings.Builder
@@ -675,11 +677,6 @@ Rules for inner_voice:
 	if emotionInput.LastEmotion != nil {
 		contextBuilder.WriteString("Previous emotion (untrusted):\n")
 		contextBuilder.WriteString(isolatedPromptText(emotionInput.LastEmotion.Description, 180))
-		contextBuilder.WriteString("\n")
-	}
-	if strings.TrimSpace(emotionInput.UserMessage) != "" {
-		contextBuilder.WriteString("Trigger message (untrusted):\n")
-		contextBuilder.WriteString(isolatedPromptText(emotionInput.UserMessage, 240))
 		contextBuilder.WriteString("\n")
 	}
 	if emotionInput.TriggerType != "" {
@@ -759,13 +756,9 @@ Rules for inner_voice:
 		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("normalize mood analysis result failed")
 	}
 
-	emotionJSON, err := json.Marshal(result.EmotionState)
+	emotionState, err := ParseStructuredEmotionState(string(result.EmotionState), mood)
 	if err != nil {
-		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("marshal combined emotion state: %w", err)
-	}
-	emotionState, err := parseEmotionSynthesisResponse(string(emotionJSON), mood)
-	if err != nil {
-		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("parse combined emotion state: %w", err)
+		return mood, relationshipDelta, traitDeltas, profileUpdates, nil, "", "", 0, nil
 	}
 
 	// Extract inner voice if present

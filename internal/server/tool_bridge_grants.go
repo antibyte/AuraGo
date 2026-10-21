@@ -87,7 +87,7 @@ func (s *Server) issueToolBridgeGrant(ctx context.Context, dc *agent.DispatchCon
 	leaseCtx, cancel := context.WithDeadline(ctx, expires)
 	releaseScrub := security.RegisterScopedSensitiveExact(token)
 	closeLease := func() { cancel(); releaseScrub() }
-	local := *dc
+	local := agent.ChildToolDispatchContext(dc)
 	local.AllowedTools = cloneBridgeScope(allowed)
 	local.ToolScopeRestricted = true
 	local.AllowedAgentSkills = cloneBridgeScope(dc.AllowedAgentSkills)

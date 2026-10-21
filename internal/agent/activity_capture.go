@@ -283,7 +283,7 @@ func buildActivityDigestWithConfiguredClient(ctx context.Context, cfg *config.Co
 	if llmCfg.model == "" {
 		return memory.ActivityDigest{}, fmt.Errorf("memory analysis model is empty")
 	}
-	client := llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, "")
+	client := llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, llmCfg.accountID, llmCfg.gatewayID)
 	model := llmCfg.model
 	if model == "" {
 		return memory.ActivityDigest{}, fmt.Errorf("memory analysis model is empty")

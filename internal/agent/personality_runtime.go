@@ -3,7 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"log/slog"
 	"math"
 	"strings"
@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"aurago/internal/config"
-	"aurago/internal/httporigin"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
@@ -21,7 +20,7 @@ import (
 
 func resolvePersonalityAnalyzerClient(cfg *config.Config, fallback memory.PersonalityAnalyzerClient) memory.PersonalityAnalyzerClient {
 	if helperCfg := llm.ResolveHelperLLM(cfg); helperCfg.Enabled && helperCfg.Model != "" {
-		client := llm.NewClientFromProviderWithConfig(cfg, helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey, helperCfg.AccountID)
+		client := llm.NewClientFromProviderWithConfig(cfg, helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey, helperCfg.AccountID, helperCfg.GatewayID)
 		if client != nil {
 			return client
 		}
@@ -41,14 +40,15 @@ func resolvePersonalityAnalyzerClient(cfg *config.Config, fallback memory.Person
 	if v2Key == "" {
 		v2Key = "dummy"
 	}
-	v2Cfg := openai.DefaultConfig(v2Key)
-	v2Cfg.BaseURL = v2URL
-	// The V2 key and conversation excerpt never follow a redirect off v2URL's
-	// origin. No client timeout: this client is shared by V2 mood
-	// analysis (v2_timeout_secs) and the emotion synthesizer (30 s), and each
-	// caller's context bounds its own calls.
-	v2Cfg.HTTPClient = httporigin.NewClient(0)
-	return openai.NewClientWithConfig(v2Cfg)
+	accountID := ""
+	gatewayID := ""
+	providerType := cfg.Personality.V2ProviderType
+	if provider := cfg.FindProvider(cfg.Personality.V2Provider); provider != nil {
+		accountID = provider.AccountID
+		gatewayID = provider.GatewayID
+		providerType = provider.Type
+	}
+	return llm.NewClientFromProviderWithConfig(cfg, providerType, v2URL, v2Key, accountID, gatewayID)
 }
 
 func resolvePersonalityModel(cfg *config.Config) string {
@@ -64,26 +64,17 @@ func resolvePersonalityModel(cfg *config.Config) string {
 	return cfg.LLM.Model
 }
 
-func buildPersonalityHistories(recentMsgs []openai.ChatCompletionMessage, extraLabel, extraContent string) (string, string) {
-	if len(recentMsgs) > 5 {
-		recentMsgs = recentMsgs[len(recentMsgs)-5:]
+func buildPersonalityHistories(_ []openai.ChatCompletionMessage, extraLabel, extraContent string) (string, string) {
+	// Conversation history is never new human evidence. Only a compact, labelled
+	// assistant response may accompany the separately captured current input.
+	runes := []rune(extraContent)
+	if len(runes) > 1200 {
+		extraContent = string(runes[:1200])
 	}
-
-	var historyBuilder strings.Builder
-	var userHistoryBuilder strings.Builder
-	for _, m := range recentMsgs {
-		if (m.Role != openai.ChatMessageRoleUser && m.Role != openai.ChatMessageRoleAssistant) || len(m.ToolCalls) > 0 || m.FunctionCall != nil {
-			continue
-		}
-		historyBuilder.WriteString(fmt.Sprintf("%s: %s\n", m.Role, m.Content))
-		if m.Role == openai.ChatMessageRoleUser {
-			userHistoryBuilder.WriteString(fmt.Sprintf("user: %s\n", m.Content))
-		}
+	if strings.TrimSpace(extraContent) == "" {
+		return "", ""
 	}
-	if strings.TrimSpace(extraContent) != "" {
-		historyBuilder.WriteString(fmt.Sprintf("%s: %s\n", extraLabel, extraContent))
-	}
-	return historyBuilder.String(), userHistoryBuilder.String()
+	return extraLabel + " (assistant context only): " + extraContent, ""
 }
 
 // v2FailCount tracks consecutive V2 LLM failures for the circuit breaker.
@@ -119,7 +110,12 @@ func v2RecordFailure(logger *slog.Logger) {
 	}
 }
 
+func personalityFailureCounts(parent context.Context, err error, calls int) bool {
+	return calls > 0 && parent.Err() == nil && !errors.Is(err, context.Canceled) && !errors.Is(err, memory.ErrSessionDeleted) && !errors.Is(err, errHelperBudgetUnavailable)
+}
+
 type personalityV2AnalysisResult struct {
+	Input              *memory.HumanInput
 	Basis              *memory.PersonalitySnapshot
 	ObservationID      string
 	Appraisal          *memory.PersonalityAppraisal
@@ -133,48 +129,42 @@ type personalityV2AnalysisResult struct {
 	NudgeConfidence    float64
 }
 
-func resolveHelperEmotionBatchState(cfg *config.Config, emotionSynthesizer *memory.EmotionSynthesizer) (bool, *memory.EmotionState) {
+// A malformed optional narration must not reject valid mood or profile fields.
+func (p *helperTurnPersonalityBlock) UnmarshalJSON(data []byte) error {
+	type plain helperTurnPersonalityBlock
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	emotion := fields["emotion_state"]
+	delete(fields, "emotion_state")
+	rest, err := json.Marshal(fields)
+	if err != nil {
+		return err
+	}
+	var result plain
+	if err = json.Unmarshal(rest, &result); err != nil {
+		return err
+	}
+	if err = json.Unmarshal(emotion, &result.EmotionState); err != nil {
+		result.EmotionState = helperTurnEmotionPayload{}
+	}
+	*p = helperTurnPersonalityBlock(result)
+	return nil
+}
+
+func resolveHelperEmotionBatchState(cfg *config.Config, emotionSynthesizer *memory.EmotionSynthesizer, bases ...*memory.PersonalitySnapshot) (bool, *memory.EmotionState) {
 	helperEmotionBatchEligible := cfg.Personality.EmotionSynthesizer.Enabled && emotionSynthesizer != nil
 	var previousEmotion *memory.EmotionState
 	if helperEmotionBatchEligible {
 		canSynthesize, lastEmotion := emotionSynthesizer.CanSynthesizeNow(time.Now())
 		previousEmotion = lastEmotion
 		helperEmotionBatchEligible = cfg.Personality.EmotionSynthesizer.TriggerAlways ||
-			cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange ||
+			(cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange && len(bases) > 0 && bases[0] != nil && previousEmotion != nil && bases[0].Affect.Mood != previousEmotion.PrimaryMood) ||
 			previousEmotion == nil
 		helperEmotionBatchEligible = helperEmotionBatchEligible && canSynthesize
 	}
 	return helperEmotionBatchEligible, previousEmotion
-}
-
-func applyPersonalityProfileUpdates(stm *memory.SQLiteMemory, logger *slog.Logger, profileUpdates []memory.ProfileUpdate) {
-	if stm == nil || len(profileUpdates) == 0 {
-		return
-	}
-	validCategories := map[string]bool{"tech": true, "prefs": true, "interests": true, "context": true, "comm": true}
-	count := 0
-	for _, pu := range profileUpdates {
-		if count >= 1 {
-			break
-		}
-		trimVal := strings.TrimSpace(pu.Value)
-		if validCategories[pu.Category] && pu.Key != "" && pu.Value != "" && !memory.HasDurableCredential(pu.Key+"="+pu.Value) &&
-			!strings.EqualFold(pu.Key, trimVal) && len(trimVal) >= 2 &&
-			!strings.ContainsAny(pu.Key, " \t") && pu.Key == strings.ToLower(pu.Key) {
-			if err := stm.UpsertProfileEntry(pu.Category, pu.Key, pu.Value, "v2"); err != nil {
-				logger.Warn("[User Profiling] Failed to upsert profile entry", "error", err)
-			}
-			count++
-		}
-	}
-	_ = stm.EnforceProfileSizeLimit(50)
-	if err := stm.DeduplicateProfileEntries(); err != nil {
-		logger.Warn("[User Profiling] Deduplication failed", "error", err)
-	}
-	if del, down, err := stm.PruneStaleProfileEntries(); err == nil && (del > 0 || down > 0) {
-		logger.Debug("[User Profiling] Pruned stale entries", "deleted", del, "downgraded", down)
-	}
-	logger.Debug("[User Profiling] Profile updates applied", "count", count)
 }
 
 // dampenTraitDelta reduces only updates that push a trait further toward an
@@ -214,7 +204,7 @@ func applyPersonalityV2AnalysisResult(
 	result personalityV2AnalysisResult,
 	contexts ...context.Context,
 ) {
-	if stm == nil || cfg == nil {
+	if stm == nil || cfg == nil || !result.Input.Valid() || result.Input.SessionID != sessionID {
 		return
 	}
 	ctx := context.Background()
@@ -240,36 +230,36 @@ func applyPersonalityV2AnalysisResult(
 		}
 		observation := memory.PersonalityObservation{
 			ID: result.ObservationID, Source: "helper", Target: "task", At: time.Now(),
-			Basis: basis, Semantic: true, Human: result.Basis != nil,
+			Basis: basis, Input: result.Input, Semantic: true, Human: true,
 			Mood: result.Mood, TraitDeltas: result.TraitDeltas,
 		}
 		if appraisal := result.Appraisal; appraisal != nil && appraisal.Reference == "current_user_message" {
 			observation.Signal, observation.Target, observation.Confidence = appraisal.Signal, appraisal.Target, appraisal.Confidence
 			observation.AffinityDelta = result.AffinityDelta
 		}
-		moodChanged := previousEmotion == nil || previousEmotion.PrimaryMood != result.Mood
+		moodChanged := previousEmotion == nil || previousEmotion.PrimaryMood != basis.Affect.Mood
 		if cfg.Personality.EmotionSynthesizer.Enabled && (cfg.Personality.EmotionSynthesizer.TriggerAlways ||
 			(cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange && moodChanged) || previousEmotion == nil) {
 			observation.Emotion = result.SynthesizedEmotion
 		}
 		var acceptedThought, acceptedCategory string
 		var acceptedConfidence float64
-		if cfg.Personality.InnerVoice.Enabled && result.InnerThought != "" {
+		if observation.Emotion != nil && cfg.Personality.InnerVoice.Enabled && result.InnerThought != "" {
 			thought, category, confidence, accepted, _ := normalizeInnerVoice(sessionID, result.InnerThought, result.NudgeCategory, result.NudgeConfidence)
 			if accepted {
 				acceptedThought, acceptedCategory, acceptedConfidence = thought, category, confidence
 				observation.InnerThought, observation.NudgeCategory = thought, category
 			}
 		}
-		_, _, err := emotionSynthesizer.ApplyObservation(stm, observation)
+		if profilingEnabled {
+			observation.ProfileUpdates = result.ProfileUpdates
+		}
+		_, narrated, err := emotionSynthesizer.ApplyObservation(stm, observation)
 		if err != nil {
 			logger.Debug("[Personality V2] Observation not applied", "error", err)
 			return
 		}
-		if profilingEnabled {
-			applyPersonalityProfileUpdates(stm, logger, result.ProfileUpdates)
-		}
-		if acceptedThought != "" {
+		if narrated && acceptedThought != "" {
 			applyInnerVoiceResult(sessionID, acceptedThought, acceptedCategory, acceptedConfidence)
 		}
 	}
@@ -311,9 +301,14 @@ func normalizeHelperTurnPersonalityResult(payload helperTurnPersonalityBlock, me
 		TraitDeltas:        traitDeltas,
 		ProfileUpdates:     profileUpdates,
 		SynthesizedEmotion: synthesizedEmotion,
-		InnerThought:       extractHelperInnerThought(payload),
-		NudgeCategory:      extractHelperNudgeCategory(payload),
-		NudgeConfidence:    extractHelperNudgeConfidence(payload),
+		InnerThought: func() string {
+			if synthesizedEmotion == nil {
+				return ""
+			}
+			return extractHelperInnerThought(payload)
+		}(),
+		NudgeCategory:   extractHelperNudgeCategory(payload),
+		NudgeConfidence: extractHelperNudgeConfidence(payload),
 	}, true
 }
 
@@ -362,7 +357,7 @@ func launchAsyncPersonalityV2Analysis(
 	isCoAgent bool,
 	basisSnapshots ...*memory.PersonalitySnapshot,
 ) {
-	if stm == nil || cfg == nil || isMission || isCoAgent || runCfg.BudgetTracker == nil || runCfg.BudgetTracker.IsBlocked("personality") {
+	if stm == nil || cfg == nil || !runCfg.HumanInput.Valid() || runCfg.HumanInput.SessionID != sessionID || strings.TrimSpace(runCfg.HumanInput.Text) == "" || isMission || isCoAgent || runCfg.BudgetTracker == nil || runCfg.BudgetTracker.IsBlocked("personality") {
 		return
 	}
 
@@ -385,6 +380,8 @@ func launchAsyncPersonalityV2Analysis(
 		return
 	}
 	contextHistory, userHistory := buildPersonalityHistories(recentMsgs, extraLabel, extraContent)
+	triggerInfo = runCfg.HumanInput.Text
+	userHistory = triggerInfo
 	modelName := resolvePersonalityModel(cfg)
 	helper := llm.ResolveHelperLLM(cfg)
 	mainFallback := !(helper.Enabled && helper.Model != "") && cfg.Personality.V2ResolvedURL == "" && cfg.Personality.V2URL == ""
@@ -400,7 +397,7 @@ func launchAsyncPersonalityV2Analysis(
 		timeout = min(timeout, 20*time.Second)
 		logger.Warn("[Personality V2] Using bounded main-model fallback", "model", modelName, "max_requests", 1, "max_output_tokens", llm.ReasoningOutputTokens, "timeout", timeout, "budget_category", "personality")
 	}
-	helperEmotionBatchEligible, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
+	helperEmotionBatchEligible, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer, basis)
 
 	sideEffectsFromRunConfig(runCfg).Go(func(parentCtx context.Context) {
 		defer func() {
@@ -486,6 +483,9 @@ func launchAsyncPersonalityV2Analysis(
 			result.Appraisal = observationContext.Appraisal
 		}
 		if err != nil {
+			if !personalityFailureCounts(sessionCtx, err, analyzerClient.calls) {
+				return
+			}
 			v2RecordFailure(logger)
 			v2URL := cfg.Personality.V2ResolvedURL
 			if v2URL == "" {
@@ -504,7 +504,7 @@ func launchAsyncPersonalityV2Analysis(
 		}
 
 		// Success — reset circuit breaker failure count.
-		result.Basis, result.ObservationID = basis, basis.TurnID
+		result.Basis, result.ObservationID, result.Input = basis, runCfg.HumanInput.TurnID, runCfg.HumanInput
 		if result.SynthesizedEmotion != nil {
 			result.Appraisal = result.SynthesizedEmotion.Appraisal
 		}

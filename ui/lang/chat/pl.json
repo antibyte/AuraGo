@@ -3,6 +3,7 @@
   "chat.sessions_delete_memories": "Usuń również powiązane wspomnienia",
   "chat.sessions_delete_backups": "Kopie zapasowe mogą zawierać usunięte dane do czasu planowego czyszczenia.",
   "chat.sessions_delete_failed": "Nie udało się całkowicie usunąć czatu. Odśwież widok przed ponowną próbą.",
+  "chat.sessions_delete_scope_conflict": "Dla tego czatu wybrano już inny zakres usuwania wspomnień. Odśwież stronę i sprawdź stan przed ponowną próbą.",
   "chat.sessions_delete_report": "Usunięto: {deleted}. Zachowano ze względu na wspólne, chronione lub nieznane pochodzenie: {retained}.",
   "chat.speech_lab_auth_required": "Otwarcie Speech Lab wymaga zalogowania do AuraGo.",
   "chat.speech_lab_browser_url_missing": "Skonfiguruj URL Speech Lab dla przeglądarki w Media → Speech Lab.",

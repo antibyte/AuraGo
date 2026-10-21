@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -157,7 +158,11 @@ func handleDeleteChatSession(s *Server) http.HandlerFunc {
 		if job.DeletionJobID == "" {
 			status := http.StatusInternalServerError
 			code := "deletion_prepare_failed"
-			if prepareErr != nil && strings.Contains(strings.ToLower(prepareErr.Error()), "lock") {
+			var scopeConflict *memory.PrivacyDeletionScopeConflictError
+			if errors.As(prepareErr, &scopeConflict) {
+				status = http.StatusConflict
+				code = "deletion_scope_conflict"
+			} else if prepareErr != nil && strings.Contains(strings.ToLower(prepareErr.Error()), "lock") {
 				status = http.StatusConflict
 				code = "deletion_in_progress"
 			}
@@ -181,6 +186,7 @@ func handleDeleteChatSession(s *Server) http.HandlerFunc {
 			job = current
 		}
 		report := memory.SessionDeletionReport{
+			PersonalityDeleted: job.PersonalityDeleted, PersonalityRetained: job.PersonalityRetained, PersonalityLegacyUnknown: job.PersonalityLegacyUnknown,
 			TranscriptDeleted: job.TranscriptDeleted,
 			DeletedMemories:   job.DeletedCount, RetainedMemories: job.RetainedCount,
 		}

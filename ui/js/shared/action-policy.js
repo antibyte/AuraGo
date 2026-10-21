@@ -2,7 +2,6 @@
 (function () {
     'use strict';
     let dictionary;
-    let catalog;
     let showing = false;
     const queue = [];
     const visible = new Set();
@@ -112,11 +111,9 @@
         } catch (_) { /* Reconnection or the next explicit refresh can recover pending decisions. */ }
     }
     async function tools() {
-        if (!catalog) catalog = fetch('/api/agent/action-policy/catalog').then(async response => {
-            if (!response.ok) throw new Error('admin_required');
-            return response.json();
-        }).catch(error => { catalog = null; throw error; });
-        return catalog;
+        const response = await fetch('/api/agent/action-policy/catalog');
+        if (!response.ok) throw new Error('admin_required');
+        return response.json();
     }
     async function mountSettings(host, config) {
         if (!host || host.querySelector('.action-policy-panel')) return;

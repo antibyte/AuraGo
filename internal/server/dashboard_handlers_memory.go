@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/embeddings"
 	"aurago/internal/memory"
 )
 
@@ -66,30 +67,47 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 		}
 		memoryStrategy := agent.BuildMemoryAnalysisDashboardState(s.Cfg, s.ShortTermMem)
 		pendingWriteCount, _ := s.ShortTermMem.CountPendingMemoryWrites()
+		var terminalFailures, exhaustedWrites *int
+		if count, err := s.ShortTermMem.CountTerminalConsolidationFailures(r.Context(), 3); err == nil {
+			terminalFailures = &count
+		}
+		if count, err := s.ShortTermMem.CountExhaustedMemoryWritesContext(r.Context()); err == nil {
+			exhaustedWrites = &count
+		}
+		var corpus *embeddings.CorpusStatus
+		if source, ok := s.LongTermMem.(interface {
+			CorpusStatus(context.Context) embeddings.CorpusStatus
+		}); ok {
+			status := source.CorpusStatus(r.Context())
+			corpus = &status
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"core_memory_facts":           coreCount,
-			"chat_messages":               msgCount,
-			"vectordb_entries":            vectorCount,
-			"vectordb_disabled":           vectorDisabled,
-			"knowledge_graph":             kgPayload,
-			"journal_entries":             journalCount,
-			"notes_count":                 notesCount,
-			"error_patterns":              errorPatternsCount,
-			"milestones":                  milestones,
-			"episodic":                    episodicStats,
-			"pending_actions":             pendingActions,
-			"memory_conflicts":            memoryConflicts,
-			"latest_reflection":           latestReflection,
-			"reflection_actionable_count": reflectionActionableCount,
-			"pending_memory_writes":       pendingWriteCount,
+			"core_memory_facts":               coreCount,
+			"chat_messages":                   msgCount,
+			"vectordb_entries":                vectorCount,
+			"vectordb_disabled":               vectorDisabled,
+			"knowledge_graph":                 kgPayload,
+			"journal_entries":                 journalCount,
+			"notes_count":                     notesCount,
+			"error_patterns":                  errorPatternsCount,
+			"milestones":                      milestones,
+			"episodic":                        episodicStats,
+			"pending_actions":                 pendingActions,
+			"memory_conflicts":                memoryConflicts,
+			"latest_reflection":               latestReflection,
+			"reflection_actionable_count":     reflectionActionableCount,
+			"pending_memory_writes":           pendingWriteCount,
+			"exhausted_memory_writes":         exhaustedWrites,
+			"terminal_consolidation_failures": terminalFailures,
 			"memory_health": map[string]interface{}{
 				"usage":         memoryHealth.Usage,
 				"confidence":    memoryHealth.Confidence,
 				"effectiveness": memoryHealth.Effectiveness,
 				"curator":       memoryHealth.Curator,
 				"strategy":      memoryStrategy,
+				"corpus":        corpus,
 			},
 		})
 	}

@@ -1114,5 +1114,11 @@
   "dashboard.memory_privacy_updated": "Atualizado: {{date}}",
   "dashboard.memory_privacy_reconcile_pending": "É necessário verificar novamente o estado do contacto",
   "dashboard.memory_privacy_reconcile_retry": "Verificar o estado do contacto",
-  "dashboard.memory_privacy_reconcile_queued": "A verificação do estado do contacto foi colocada na fila. Consulte o estado da tarefa após a atualização."
+  "dashboard.memory_privacy_reconcile_queued": "A verificação do estado do contacto foi colocada na fila. Consulte o estado da tarefa após a atualização.",
+  "dashboard.memory_corpus_documents": "Documentos do corpus",
+  "dashboard.memory_corpus_dimensions": "Dimensões dos vetores",
+  "dashboard.memory_corpus_storage": "Armazenamento do corpus, incluindo WAL",
+  "dashboard.memory_corpus_vector_estimate": "Dados vetoriais estimados, sem memória adicional",
+  "dashboard.memory_exhausted_writes": "Tarefas de escrita sem novas tentativas",
+  "dashboard.memory_terminal_consolidations": "Consolidações com falha definitiva"
 }

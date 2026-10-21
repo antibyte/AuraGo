@@ -844,7 +844,7 @@ func handleSIPEvents(s *Server) http.HandlerFunc {
 				return
 			case event := <-events:
 				data, _ := json.Marshal(event)
-				_, _ = fmt.Fprintf(w, "id: %d\nevent: sip\ndata: %s\n\n", event.Sequence, data)
+				_, _ = fmt.Fprintf(w, "id: %d\nevent: sip\ndata: %s\n\n", event.Sequence, scrubSSEJSON(string(data)))
 				flusher.Flush()
 			case <-heartbeat.C:
 				_, _ = fmt.Fprint(w, ": keepalive\n\n")

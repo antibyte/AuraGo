@@ -12,7 +12,7 @@ func TestInsertCharacterNoteAndPromptFormat(t *testing.T) {
 		Category:   CharacterNoteCategoryHabit,
 		Text:       "I verify changes with one concrete check before calling the work done.",
 		Confidence: 0.8,
-		Source:     CharacterNoteSourceReflection,
+		Source:     CharacterNoteSourceCode,
 	}); err != nil {
 		t.Fatalf("InsertCharacterNote: %v", err)
 	}
@@ -27,7 +27,7 @@ func TestDeletedCharacterNoteDoesNotReturn(t *testing.T) {
 	note, err := stm.InsertCharacterNote(CharacterNote{
 		Category: CharacterNoteCategoryValue,
 		Text:     "I stay warm and loyal with this user and check in on how they are doing.",
-		Source:   CharacterNoteSourceReflection,
+		Source:   CharacterNoteSourceCode,
 	})
 	if err != nil {
 		t.Fatalf("InsertCharacterNote: %v", err)
@@ -38,7 +38,7 @@ func TestDeletedCharacterNoteDoesNotReturn(t *testing.T) {
 	_, err = stm.InsertCharacterNote(CharacterNote{
 		Category: CharacterNoteCategoryValue,
 		Text:     "I stay warm and loyal with this user and check in on how they are doing.",
-		Source:   CharacterNoteSourceReflection,
+		Source:   CharacterNoteSourceCode,
 	})
 	if err == nil || !strings.Contains(err.Error(), "deleted by the user") {
 		t.Fatalf("reinsert error = %v, want deleted-by-user", err)
@@ -54,7 +54,7 @@ func TestDecaySkipsProtectedCharacterNotes(t *testing.T) {
 		Category:   CharacterNoteCategoryHabit,
 		Text:       "I keep a short checklist after every homelab change.",
 		Confidence: 0.4,
-		Source:     CharacterNoteSourceReflection,
+		Source:     CharacterNoteSourceCode,
 	})
 	if err != nil {
 		t.Fatalf("InsertCharacterNote: %v", err)

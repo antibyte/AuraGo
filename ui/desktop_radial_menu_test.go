@@ -9,6 +9,9 @@ func TestVirtualDesktopCreatesRadialMenuAnchorDynamically(t *testing.T) {
 	mainText := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, want := range []string{
 		"function ensureDesktopRadialMenuAnchor()",
+		"function placeLiftedRadialMenu()",
+		"anchor.dataset.radialLifted = 'true'",
+		"anchor.classList.add('is-lifted')",
 		"anchor.id = 'radialMenuAnchor'",
 		"anchor.className = 'vd-radial-anchor'",
 		"insertBefore(anchor, agentButton)",

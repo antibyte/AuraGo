@@ -499,7 +499,7 @@ func buildLooperRuntime(s *Server, providerID, model string) (*config.Config, ll
 				if !config.ProviderUsageAllowsGeneralChat(&p) {
 					return nil, nil, "", nil, nil, fmt.Errorf("selected provider is not available for general chat")
 				}
-				client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID))
+				client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID, p.GatewayID))
 				if resolvedModel == "" {
 					resolvedModel = p.Model
 				}
@@ -543,7 +543,6 @@ func buildLooperRuntime(s *Server, providerID, model string) (*config.Config, ll
 		SQLConnectionPool:  s.SQLConnectionPool,
 		RemoteHub:          s.RemoteHub,
 		HistoryMgr:         s.HistoryManager,
-		IsMaintenance:      tools.IsBusy(),
 		Guardian:           s.Guardian,
 		LLMGuardian:        s.LLMGuardian,
 		SessionID:          "looper",

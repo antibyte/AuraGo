@@ -23,19 +23,31 @@ func knowledgeGraphPlaceholderNodeProperties() map[string]string {
 }
 
 func ensureKnowledgeGraphPlaceholderNodeTx(tx *sql.Tx, id string) error {
+	_, err := ensureKnowledgeGraphPlaceholderNodeTrackedTx(tx, id)
+	return err
+}
+
+func ensureKnowledgeGraphPlaceholderNodeTrackedTx(tx *sql.Tx, id string) (bool, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
-		return nil
+		return false, nil
 	}
 	propsJSON, err := json.Marshal(knowledgeGraphPlaceholderNodeProperties())
 	if err != nil {
-		return fmt.Errorf("marshal placeholder node properties: %w", err)
+		return false, fmt.Errorf("marshal placeholder node properties: %w", err)
 	}
-	_, err = tx.Exec(`
+	result, err := tx.Exec(`
 		INSERT OR IGNORE INTO kg_nodes (id, label, properties, updated_at)
 		VALUES (?, ?, ?, CURRENT_TIMESTAMP)
 	`, id, knowledgeGraphPlaceholderLabel, string(propsJSON))
-	return err
+	if err != nil {
+		return false, err
+	}
+	inserted, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("check placeholder node insert: %w", err)
+	}
+	return inserted == 1, nil
 }
 
 func validateNodeSchema(properties map[string]string) map[string]string {
@@ -388,6 +400,9 @@ func (kg *KnowledgeGraph) DeleteNode(id string) error {
 	if _, err := tx.Exec("DELETE FROM kg_nodes WHERE id = ?", id); err != nil {
 		return fmt.Errorf("delete node %s: %w", id, err)
 	}
+	if err := cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
+		return fmt.Errorf("cleanup orphan KG evidence after node delete: %w", err)
+	}
 
 	if err := tx.Commit(); err != nil {
 		return err
@@ -712,6 +727,12 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 	`, targetID, sourceID, targetID, sourceID, targetID, sourceID, targetID, sourceID); err != nil {
 		return fmt.Errorf("deduplicate merged edges: %w", err)
 	}
+	if _, err := tx.Exec(`UPDATE kg_edges SET semantic_indexed_at=NULL WHERE source=? OR target=?`, targetID, targetID); err != nil {
+		return fmt.Errorf("mark merged incident edges pending: %w", err)
+	}
+	if err := cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
+		return fmt.Errorf("cleanup orphan KG evidence after node merge: %w", err)
+	}
 
 	_, err = tx.Exec("DELETE FROM kg_nodes WHERE id = ?", sourceID)
 	if err != nil {
@@ -724,12 +745,8 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 
 	kg.removeSemanticIndexesForDeletedGraphData([]string{sourceID}, removedEdges)
 	kg.indexSemanticNodeAfterWrite(Node{ID: targetID, Label: mergedLabel, Properties: mergedProps, Protected: mergedProtected})
-	incidentEdges, err := kg.GetImportantEdges(500, []string{targetID})
-	if err != nil {
-		return fmt.Errorf("reload merged incident edges: %w", err)
-	}
-	for _, edge := range incidentEdges {
-		kg.indexSemanticEdgeAfterWrite(edge)
+	if err := kg.RunSemanticReindexContext(context.Background()); err != nil {
+		return fmt.Errorf("reindex merged graph edges: %w", err)
 	}
 
 	return nil
@@ -789,6 +806,9 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 	rows.Close()
 
 	if len(ids) == 0 {
+		if err := cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
+			return 0, fmt.Errorf("cleanup orphan KG evidence after source-file edge delete: %w", err)
+		}
 		if err := tx.Commit(); err != nil {
 			return 0, fmt.Errorf("commit delete source-file edges: %w", err)
 		}
@@ -820,6 +840,9 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 		}
 		deleted64, _ := deleteRes.RowsAffected()
 		deleted = int(deleted64)
+	}
+	if err := cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
+		return 0, fmt.Errorf("cleanup orphan KG evidence after source-file node delete: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {

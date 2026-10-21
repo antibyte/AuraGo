@@ -3,6 +3,8 @@ package tools
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log/slog"
@@ -38,6 +40,7 @@ type DaemonRunner struct {
 
 	// Process state
 	stdinPipe io.WriteCloser
+	ipc       *daemonRunIPC
 	pid       int
 	cancel    context.CancelFunc
 	status    DaemonStatus
@@ -73,9 +76,8 @@ type DaemonRunner struct {
 	wakeCh chan<- daemonWakeEvent
 
 	// Tool bridge (optional)
-	bridgeURL   string
-	bridgeToken string
-	bridgeTools []string
+	bridgeFactory DaemonBridgeRunFactory
+	bridgeTools   []string
 }
 
 // daemonWakeEvent is sent from a DaemonRunner to the supervisor when a wake_agent message arrives.
@@ -104,9 +106,8 @@ type DaemonRunnerConfig struct {
 	RequireSandbox func() bool
 
 	// Tool bridge (optional): set by supervisor when bridge is enabled
-	BridgeURL   string
-	BridgeToken string
-	BridgeTools []string // intersection of manifest InternalTools with config AllowedTools
+	BridgeFactory DaemonBridgeRunFactory
+	BridgeTools   []string // intersection of manifest InternalTools with config AllowedTools
 }
 
 // NewDaemonRunner creates a new DaemonRunner for the given skill.
@@ -115,20 +116,19 @@ func NewDaemonRunner(cfg DaemonRunnerConfig) *DaemonRunner {
 	// constructing the config; do not call it again here to avoid overwriting
 	// user-provided defaults with zero-value fields.
 	return &DaemonRunner{
-		skillID:      cfg.SkillID,
-		skillName:    cfg.SkillName,
-		config:       cfg.Config,
-		manifest:     cfg.Manifest,
-		status:       DaemonStopped,
-		workspaceDir: cfg.WorkspaceDir,
-		skillsDir:    cfg.SkillsDir,
-		registry:     cfg.Registry,
-		logDir:       cfg.LogDir,
-		logger:       cfg.Logger.With("daemon", cfg.SkillName, "skill_id", cfg.SkillID),
-		wakeCh:       cfg.WakeCh,
-		bridgeURL:    cfg.BridgeURL,
-		bridgeToken:  cfg.BridgeToken,
-		bridgeTools:  cfg.BridgeTools,
+		skillID:       cfg.SkillID,
+		skillName:     cfg.SkillName,
+		config:        cfg.Config,
+		manifest:      cfg.Manifest,
+		status:        DaemonStopped,
+		workspaceDir:  cfg.WorkspaceDir,
+		skillsDir:     cfg.SkillsDir,
+		registry:      cfg.Registry,
+		logDir:        cfg.LogDir,
+		logger:        cfg.Logger.With("daemon", cfg.SkillName, "skill_id", cfg.SkillID),
+		wakeCh:        cfg.WakeCh,
+		bridgeFactory: cfg.BridgeFactory,
+		bridgeTools:   cfg.BridgeTools,
 
 		requireSandbox: cfg.RequireSandbox,
 	}
@@ -211,6 +211,33 @@ func (r *DaemonRunner) startLocked() error {
 		origCancel := r.cancel
 		r.cancel = func() { runtimeCancel(); origCancel() }
 	}
+	var bridge *DaemonBridgeRun
+	if len(r.bridgeTools) > 0 {
+		if r.bridgeFactory == nil {
+			r.cancel()
+			r.status = DaemonStopped
+			return fmt.Errorf("daemon tool bridge requires the trusted supervisor broker")
+		}
+		var nonce [16]byte
+		if _, err := rand.Read(nonce[:]); err != nil {
+			r.cancel()
+			r.status = DaemonStopped
+			return err
+		}
+		sessionID := "daemon:" + r.skillID + ":" + hex.EncodeToString(nonce[:])
+		bridge, err = r.bridgeFactory(ctx, sessionID, append([]string(nil), r.bridgeTools...))
+		if err != nil || bridge == nil || bridge.Owner == nil || bridge.Call == nil || bridge.Release == nil {
+			r.cancel()
+			r.status = DaemonStopped
+			if bridge != nil && bridge.Release != nil {
+				bridge.Release()
+			}
+			return fmt.Errorf("daemon broker initialization failed")
+		}
+		ctx = bridge.Owner
+		originalCancel := r.cancel
+		r.cancel = func() { originalCancel(); bridge.Release() }
+	}
 
 	cmd := buildSkillCommand(ctx, r.workspaceDir, r.manifest, absExecPath)
 	cmd.Dir = r.workspaceDir
@@ -223,11 +250,13 @@ func (r *DaemonRunner) startLocked() error {
 		fmt.Sprintf("AURAGO_WAKE_RATE_LIMIT=%d", r.config.WakeRateLimitSeconds),
 	)
 	for k, v := range r.config.Env {
+		if strings.HasPrefix(strings.ToUpper(k), "AURAGO_TOOL_BRIDGE_") || strings.EqualFold(k, "AURAGO_DAEMON_TOOL_BRIDGE") {
+			continue
+		}
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
 	}
-	// Inject tool bridge env vars if the skill has allowed internal tools.
-	if len(r.bridgeTools) > 0 && r.bridgeURL != "" && r.bridgeToken != "" {
-		InjectToolBridgeEnv(cmd, r.bridgeURL, r.bridgeToken, r.bridgeTools)
+	if bridge != nil {
+		cmd.Env = append(cmd.Env, "AURAGO_DAEMON_TOOL_BRIDGE=stdio-v1")
 	}
 
 	perms, _ := currentRuntimePermissions()
@@ -283,6 +312,7 @@ func (r *DaemonRunner) startLocked() error {
 		_ = r.stdinPipe.Close()
 	}
 	r.stdinPipe = stdinPipe
+	r.ipc = newDaemonRunIPC(ctx, stdinPipe, bridge)
 	r.pid = pid
 	r.startedAt = time.Now()
 	r.lastActivity = r.startedAt
@@ -302,9 +332,9 @@ func (r *DaemonRunner) startLocked() error {
 	r.logger.Info("Daemon started", "pid", pid)
 
 	// Start monitor goroutines
-	go r.monitorStdout(stdoutPipe, procInfo)
+	go r.monitorStdout(stdoutPipe, procInfo, r.ipc)
 	go r.monitorStderr(stderrPipe, procInfo)
-	go r.waitProcess(cmd, procInfo, cancel)
+	go r.waitProcess(cmd, procInfo, r.cancel)
 	go r.healthLoop(ctx, cmd.Process)
 
 	return nil
@@ -331,12 +361,9 @@ func (r *DaemonRunner) stopLocked(reason string) error {
 	r.logger.Info("Stopping daemon", "reason", reason)
 
 	// Send stop command via stdin
-	if r.stdinPipe != nil {
+	if r.ipc != nil {
 		cmd := NewStopCommand(reason, int(daemonStopGracePeriod.Seconds()))
-		if data, err := EncodeDaemonCommand(cmd); err == nil {
-			data = append(data, '\n')
-			_, _ = r.stdinPipe.Write(data)
-		}
+		r.ipc.send(cmd)
 	}
 
 	// Cancel the context — this will cause cmd.Wait to return
@@ -404,13 +431,27 @@ func (r *DaemonRunner) processPID() int {
 }
 
 // monitorStdout reads daemon stdout line by line and dispatches IPC messages.
-func (r *DaemonRunner) monitorStdout(pipe io.ReadCloser, procInfo *ProcessInfo) {
+func (r *DaemonRunner) monitorStdout(pipe io.ReadCloser, procInfo *ProcessInfo, runs ...*daemonRunIPC) {
 	defer pipe.Close()
 	scanner := bufio.NewScanner(pipe)
 	scanner.Buffer(make([]byte, 0, 64*1024), 256*1024) // up to 256 KB per line
 
 	for scanner.Scan() {
 		line := scanner.Text()
+		var run *daemonRunIPC
+		if len(runs) > 0 {
+			run = runs[0]
+			if run.ctx.Err() != nil {
+				return
+			}
+		}
+		// Tool arguments/results are protocol data, never daemon log lines.
+		if msg, err := ParseDaemonMessage(line); err == nil && msg.Type == DaemonMsgToolRequest {
+			if run != nil {
+				run.toolRequest(msg.Data)
+			}
+			continue
+		}
 		r.mu.Lock()
 		r.lastActivity = time.Now()
 		r.mu.Unlock()

@@ -4,13 +4,16 @@
     const EVENT_CATEGORY = {
         'window.open': 'windows', 'window.close': 'windows', 'window.minimize': 'windows',
         'window.restore': 'windows', 'window.maximize': 'windows', 'window.snap': 'windows', 'window.deny': 'windows',
+        'window.fracture': 'windows', 'window.impact': 'windows',
         'notify.info': 'notifications', 'notify.message': 'notifications', 'notify.error': 'notifications',
         'menu.open': 'navigation', 'menu.close': 'navigation', 'space.switch': 'navigation',
         'dialog.open': 'files', 'dialog.confirm': 'files', 'dialog.cancel': 'files',
         'file.trash': 'files', 'file.delete': 'files', 'file.drop': 'files'
     };
 
-    const THEME_IDS = ['crystal', 'wood', 'analog', 'workshop', 'water'];
+    const THEME_IDS = ['crystal', 'wood', 'analog', 'workshop', 'water', 'amiga', 'cyberpunk', 'black_gloss', 'crazy', 'lollipop', 'organic', 'electronic_dreams', 'windows_xp', 'green_slime', 'voxel_world'];
+    const VOXEL_FX_EVENTS = new Set(['window.fracture', 'window.impact']);
+    const VOXEL_FX_MATERIALS = new Set(['wood', 'stone', 'earth']);
     let actx = null;
     let master = null;
     let compressor = null;
@@ -22,6 +25,16 @@
     let lastEventAt = {};
     let recentVoices = [];
     let notifyBurst = { at: 0, played: false };
+    let soundEpoch = 0;
+    let previewEpoch = 0;
+    let voxelFxTimer = null;
+    let voxelFxQueue = new Map();
+    let recentVoxelFxPlays = [];
+    let voxelFxBuffers = { theme: '', buffers: {} };
+    const pendingVoxelFxRenders = new Map();
+    let observedSettings = '';
+    const pendingRenders = new Map();
+    const voices = new Set();
     let stats = { plays: 0, renders: 0, previewPlays: 0, lastEvent: '', lastPeak: 0, lastRms: 0 };
 
     function soundsEnabled() {
@@ -41,9 +54,13 @@
         return clamped * clamped;
     }
 
-    function currentThemeId() {
-        const id = settingValue('sound.theme') || 'crystal';
+    function resolveThemeId(id) {
+        if (!id || id === 'desktop') id = currentDesktopTheme().soundTheme;
         return THEME_IDS.indexOf(id) >= 0 ? id : 'crystal';
+    }
+
+    function currentThemeId() {
+        return resolveThemeId(settingValue('sound.theme'));
     }
 
     function ensureContext(force) {
@@ -74,6 +91,18 @@
     }
 
     function syncDesktopSoundSettings() {
+        const signature = [soundsEnabled(), currentThemeId(), ...['windows', 'notifications', 'navigation', 'files'].map(categoryEnabled)].join('|');
+        if (observedSettings && signature !== observedSettings) {
+            soundEpoch++;
+            previewEpoch++;
+            window.DesktopSoundsPreviewActive = false;
+            stopVoices();
+            cancelVoxelFx();
+            invalidateVoxelFxBuffers();
+            if (!soundsEnabled()) closeSoundContext();
+        }
+        observedSettings = signature;
+        if (soundsEnabled() && !unlocked) wireUnlock();
         if (!master) return;
         master.gain.value = volumeGain();
         ['windows', 'notifications', 'navigation', 'files'].forEach(cat => {
@@ -82,9 +111,6 @@
     }
 
     function setDesktopSoundVolume(value) {
-        if (!master) {
-            ensureContext(true);
-        }
         syncDesktopSoundSettings();
         if (master && isFinite(value)) {
             const clamped = Math.min(1, Math.max(0, value));
@@ -92,16 +118,41 @@
         }
     }
 
+    function stopVoices() {
+        voices.forEach(src => { try { src.stop(); } catch (e) {} });
+        voices.clear();
+    }
+
+    function cancelVoxelFx() {
+        if (voxelFxTimer !== null) clearTimeout(voxelFxTimer);
+        voxelFxTimer = null;
+        voxelFxQueue.clear();
+        recentVoxelFxPlays = [];
+    }
+
+    function invalidateVoxelFxBuffers() {
+        voxelFxBuffers = { theme: '', buffers: {} };
+        pendingVoxelFxRenders.clear();
+    }
+
     async function closeSoundContext() {
-        if (actx && typeof actx.close === 'function') {
-            try { await actx.close(); } catch (e) {}
-        }
+        soundEpoch++;
+        previewEpoch++;
+        window.DesktopSoundsPreviewActive = false;
+        cancelVoxelFx();
+        invalidateVoxelFxBuffers();
+        stopVoices();
+        const closing = actx;
+        if (master) master.gain.value = 0;
         actx = null;
         master = null;
         compressor = null;
         categoryGains = {};
         unlocked = false;
         cache = { theme: '', buffers: {}, stats: {} };
+        if (closing && typeof closing.close === 'function') {
+            try { await closing.close(); } catch (e) {}
+        }
     }
 
     function wireUnlock() {
@@ -115,6 +166,7 @@
             unlocked = true;
             document.removeEventListener('pointerdown', unlock, true);
             document.removeEventListener('keydown', unlock, true);
+            window.DesktopSoundsUnlockWired = false;
         };
         document.addEventListener('pointerdown', unlock, true);
         document.addEventListener('keydown', unlock, true);
@@ -155,7 +207,10 @@
 
     async function ensureBuffers(themeId) {
         if (cache.theme === themeId && cache.buffers && Object.keys(cache.buffers).length) return cache;
-        return renderTheme(themeId);
+        if (pendingRenders.has(themeId)) return pendingRenders.get(themeId);
+        const pending = renderTheme(themeId).finally(() => pendingRenders.delete(themeId));
+        pendingRenders.set(themeId, pending);
+        return pending;
     }
 
     function rateLimited(eventId) {
@@ -177,6 +232,66 @@
         return false;
     }
 
+    function cleanVoxelFxOptions(options) {
+        const rawStrength = options && Number(options.strength);
+        const rawPan = options && Number(options.pan);
+        const strength = Number.isFinite(rawStrength) ? Math.min(1, Math.max(0, rawStrength)) : 0.5;
+        return {
+            material: VOXEL_FX_MATERIALS.has(options && options.material) ? options.material : 'stone',
+            strength,
+            pan: Number.isFinite(rawPan) ? Math.min(1, Math.max(-1, rawPan)) : 0
+        };
+    }
+
+    function queueVoxelFx(eventId, options) {
+        if (options.preview || options.silent || document.hidden || !soundsEnabled() || !unlocked ||
+            !categoryEnabled('windows') || currentThemeId() !== 'voxel_world' ||
+            (typeof state !== 'undefined' && state.sessionRestoring)) return false;
+        const next = cleanVoxelFxOptions(options);
+        if (next.strength <= 0) return false;
+        next.expiresAt = performance.now() + 240;
+        const previous = voxelFxQueue.get(eventId);
+        if (previous) {
+            const total = previous.strength + next.strength;
+            const stronger = next.strength >= previous.strength ? next : previous;
+            previous.pan = total ? ((previous.pan * previous.strength) + (next.pan * next.strength)) / total : 0;
+            previous.strength = Math.max(previous.strength, next.strength);
+            previous.material = stronger.material;
+        } else voxelFxQueue.set(eventId, next);
+        if (voxelFxTimer === null) {
+            voxelFxTimer = setTimeout(() => {
+                const queued = Array.from(voxelFxQueue.entries());
+                voxelFxQueue.clear();
+                voxelFxTimer = null;
+                queued.forEach(([queuedEvent, queuedOptions]) => {
+                    desktopSound(queuedEvent, Object.assign({}, queuedOptions, { voxelCoalesced: true }));
+                });
+            }, 75);
+        }
+        return true;
+    }
+
+    async function ensureVoxelFxBuffer(themeId, eventId, material, epoch) {
+        const theme = (window.DesktopSoundThemes || {})[themeId];
+        const layers = theme && theme.specialFx && theme.specialFx[eventId] && theme.specialFx[eventId][material];
+        if (!Array.isArray(layers) || !layers.length) return null;
+        if (voxelFxBuffers.theme !== themeId) voxelFxBuffers = { theme: themeId, buffers: {} };
+        const cacheKey = eventId + ':' + material;
+        if (voxelFxBuffers.buffers[cacheKey]) return voxelFxBuffers.buffers[cacheKey];
+        const pendingKey = [epoch, themeId, cacheKey].join(':');
+        if (pendingVoxelFxRenders.has(pendingKey)) return pendingVoxelFxRenders.get(pendingKey);
+        const synth = window.DesktopSoundSynth;
+        const pending = synth.renderLayers(layers, 0.7).then(rendered => {
+            if (epoch !== soundEpoch || document.hidden || currentThemeId() !== themeId) return null;
+            if (voxelFxBuffers.theme !== themeId) voxelFxBuffers = { theme: themeId, buffers: {} };
+            voxelFxBuffers.buffers[cacheKey] = rendered.buffer;
+            stats.renders++;
+            return rendered.buffer;
+        }).finally(() => pendingVoxelFxRenders.delete(pendingKey));
+        pendingVoxelFxRenders.set(pendingKey, pending);
+        return pending;
+    }
+
     function playBuffer(buffer, category, options) {
         const ctx = ensureContext(true);
         if (!ctx || !buffer || !master) return false;
@@ -190,7 +305,15 @@
         const jitterGain = Math.pow(10, ((Math.random() * 3) - 1.5) / 20);
         g.gain.value = (options && options.gain != null ? options.gain : 1) * jitterGain;
         src.connect(g);
-        g.connect(dest);
+        let panner = null;
+        if (options && Number.isFinite(options.pan) && typeof ctx.createStereoPanner === 'function') {
+            panner = ctx.createStereoPanner();
+            panner.pan.value = Math.min(1, Math.max(-1, options.pan));
+            g.connect(panner);
+            panner.connect(dest);
+        } else g.connect(dest);
+        voices.add(src);
+        src.onended = () => { voices.delete(src); src.disconnect(); g.disconnect(); if (panner) panner.disconnect(); };
         src.start();
         stats.plays++;
         stats.lastEvent = options && options.event || '';
@@ -199,6 +322,7 @@
 
     async function desktopSound(eventId, options) {
         options = options || {};
+        if (VOXEL_FX_EVENTS.has(eventId) && !options.voxelCoalesced) return queueVoxelFx(eventId, options);
         if (options.silent || document.hidden) return;
         if (options.sessionRestore || (typeof state !== 'undefined' && state.sessionRestoring)) return;
         if (!soundsEnabled() && !options.preview) return;
@@ -208,37 +332,73 @@
             wireUnlock();
             return;
         }
-        if (rateLimited(eventId) && !options.preview) return;
+        if (!options.preview && rateLimited(eventId)) return;
+        const epoch = soundEpoch;
         try {
-            const themeId = options.theme || currentThemeId();
-            await ensureBuffers(themeId);
-            if (document.hidden || (typeof state !== 'undefined' && state.sessionRestoring)) return;
-            const buffer = cache.buffers[eventId] || cache.buffers['notify.info'];
+            const themeId = options.theme ? resolveThemeId(options.theme) : currentThemeId();
+            const voxelFx = VOXEL_FX_EVENTS.has(eventId);
+            if (voxelFx && (options.preview || themeId !== 'voxel_world')) return false;
+            const fxOptions = voxelFx ? cleanVoxelFxOptions(options) : null;
+            if (voxelFx && fxOptions.strength <= 0) return false;
+            // FX has its own small material bank. Avoid rendering all 19 ordinary
+            // events just to play a single fracture or impact on first use.
+            if (voxelFx) await loadSoundBundle();
+            const rendered = voxelFx ? null : await ensureBuffers(themeId);
+            if (epoch !== soundEpoch || document.hidden || (typeof state !== 'undefined' && state.sessionRestoring)) return;
+            if (!categoryEnabled(category)) return;
+            if (options.preview) {
+                if (options.previewToken !== previewEpoch || !window.DesktopSoundsPreviewActive) return;
+            } else if (!soundsEnabled() || !unlocked || themeId !== currentThemeId()) return;
+            const buffer = voxelFx
+                ? await ensureVoxelFxBuffer(themeId, eventId, fxOptions.material, epoch)
+                : (rendered.buffers[eventId] || rendered.buffers['notify.info']);
+            if (epoch !== soundEpoch || !buffer || document.hidden || (!options.preview && currentThemeId() !== themeId)) return;
             if (!buffer) return;
-            const meta = cache.stats[eventId] || {};
+            if (voxelFx) {
+                const now = performance.now();
+                if (!Number.isFinite(options.expiresAt) || now > options.expiresAt) return false;
+                recentVoxelFxPlays = recentVoxelFxPlays.filter(at => now - at < 1000);
+                if (recentVoxelFxPlays.length >= 4 || now - (recentVoxelFxPlays.at(-1) ?? -Infinity) < 190) return false;
+                recentVoxelFxPlays.push(now);
+            }
+            const meta = rendered && rendered.stats[eventId] || {};
             stats.lastPeak = meta.peak || 0;
             stats.lastRms = meta.rms || 0;
-            playBuffer(buffer, category, { event: eventId, gain: options.gain });
+            const gain = voxelFx ? Math.pow(fxOptions.strength, 0.85) * 0.52 : options.gain;
+            playBuffer(buffer, category, { event: eventId, gain, pan: voxelFx ? fxOptions.pan : undefined });
+            return true;
         } catch (e) {
             console.warn('Desktop sound failed', eventId, e);
+            return false;
         }
     }
 
     async function previewDesktopSound(themeId) {
+        syncDesktopSoundSettings();
+        const token = ++previewEpoch;
+        soundEpoch++;
+        cancelVoxelFx();
+        invalidateVoxelFxBuffers();
+        stopVoices();
         window.DesktopSoundsPreviewActive = true;
         try {
             ensureContext(true);
             if (actx && actx.state === 'suspended') actx.resume().catch(function () {});
+            if (!actx) throw new Error('Web Audio unavailable');
             unlocked = true;
-            await ensureBuffers(themeId || currentThemeId());
-            await desktopSound('window.open', { preview: true, theme: themeId });
-            await new Promise(r => setTimeout(r, 180));
-            await desktopSound('notify.info', { preview: true, theme: themeId });
-            await new Promise(r => setTimeout(r, 220));
-            await desktopSound('window.close', { preview: true, theme: themeId });
-            stats.previewPlays++;
+            const resolved = resolveThemeId(themeId || currentThemeId());
+            await ensureBuffers(resolved);
+            for (const event of ['window.open', 'notify.info', 'window.close']) {
+                if (token !== previewEpoch || document.hidden) return;
+                await desktopSound(event, { preview: true, theme: resolved, previewToken: token });
+                await new Promise(r => setTimeout(r, 420));
+            }
+            if (token === previewEpoch) stats.previewPlays++;
         } finally {
-            window.DesktopSoundsPreviewActive = false;
+            if (token === previewEpoch) {
+                window.DesktopSoundsPreviewActive = false;
+                if (!soundsEnabled()) await closeSoundContext();
+            }
         }
     }
 
@@ -268,19 +428,23 @@
     }
 
     function applySoundSettingsChange(key, value) {
-        if (key === 'sound.enabled' && value !== 'true') {
-            closeSoundContext();
-            return;
-        }
-        if (key === 'sound.enabled' && value === 'true') {
-            wireUnlock();
-        }
-        if (key === 'sound.theme') {
-            cache = { theme: '', buffers: {}, stats: {} };
-            if (soundsEnabled() && unlocked) ensureBuffers(currentThemeId()).catch(function () {});
-        }
         syncDesktopSoundSettings();
+        if (key === 'sound.enabled' && value !== 'true') closeSoundContext();
     }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            soundEpoch++;
+            previewEpoch++;
+            window.DesktopSoundsPreviewActive = false;
+            cancelVoxelFx();
+            invalidateVoxelFxBuffers();
+            stopVoices();
+            if (!soundsEnabled()) closeSoundContext();
+        }
+    });
+    window.addEventListener('pagehide', () => closeSoundContext());
+    window.addEventListener('aurago:auth-ended', () => closeSoundContext());
 
     window.desktopSound = desktopSound;
     window.syncDesktopSoundSettings = syncDesktopSoundSettings;

@@ -18,6 +18,24 @@ type llmProviderStreak struct {
 	emitted  bool
 }
 
+func healthIdentity(id, kind string) string {
+	if id != "" {
+		return "provider:" + id
+	}
+	return "unknown:" + kind
+}
+func (m *LLMProviderMonitor) Configure(threshold int) {
+	if m == nil {
+		return
+	}
+	if threshold <= 0 {
+		threshold = 3
+	}
+	m.mu.Lock()
+	m.threshold = threshold
+	m.mu.Unlock()
+}
+
 // LLMProviderMonitor converts repeated LLM provider failures into user-visible
 // system warnings.
 type LLMProviderMonitor struct {
@@ -58,7 +76,7 @@ func (m *LLMProviderMonitor) ReportLLMHealthEvent(event llm.HealthEvent) {
 		return
 	}
 
-	key := llmProviderHealthKey(event.Provider, event.Model, string(event.ErrorCategory))
+	key := llmProviderHealthKey(healthIdentity(event.ProviderID, event.Provider), event.Model, string(event.ErrorCategory))
 	m.mu.Lock()
 	streak := m.streaks[key]
 	if streak == nil {
@@ -89,7 +107,7 @@ func (m *LLMProviderMonitor) ReportLLMHealthSuccess(success llm.HealthSuccess) {
 	if m == nil {
 		return
 	}
-	prefix := llmProviderHealthKeyPrefix(success.Provider, success.Model)
+	prefix := llmProviderHealthKeyPrefix(healthIdentity(success.ProviderID, success.Provider), success.Model)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for key := range m.streaks {
@@ -112,13 +130,14 @@ func isImmediateLLMProviderProblem(event llm.HealthEvent) bool {
 }
 
 func (m *LLMProviderMonitor) warningForEvent(event llm.HealthEvent, severity, title string, count int) Warning {
-	provider := valueOrUnknown(event.Provider)
+	provider := valueOrUnknown(event.ProviderID)
 	model := valueOrUnknown(event.Model)
 	category := valueOrUnknown(string(event.ErrorCategory))
 	summary := sanitizeLLMWarningText(event.ErrorSummary, 260)
 	description := fmt.Sprintf(
-		"Provider %q with model %q reported %s during %s. Category: %s. Last error: %s. This warning is shown so you can see provider problems without opening the logs; detailed diagnostics remain in the application log.",
+		"Provider %q (%s) with model %q reported %s during %s. Category: %s. Last error: %s. This warning is shown so you can see provider problems without opening the logs; detailed diagnostics remain in the application log.",
 		provider,
+		valueOrUnknown(event.Provider),
 		model,
 		countDescription(count),
 		valueOrUnknown(event.Operation),
@@ -148,7 +167,7 @@ func llmProviderWarningID(event llm.HealthEvent) string {
 	ts := event.Timestamp.UTC().Format("20060102T150405")
 	return strings.Join([]string{
 		"llm_provider_health",
-		slug(event.Provider),
+		slug(healthIdentity(event.ProviderID, event.Provider)),
 		slug(event.Model),
 		slug(string(event.ErrorCategory)),
 		ts,

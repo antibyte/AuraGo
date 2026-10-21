@@ -130,6 +130,7 @@ func TestApplyPersonalityV2AnalysisResultPersistsPrecomputedBatch(t *testing.T) 
 
 	es := memory.NewEmotionSynthesizer(nil, "", 60, 100, "English", logger)
 	result := personalityV2AnalysisResult{
+		Input:         memory.NewHumanInput("I use Go", "default"),
 		Mood:          memory.MoodFocused,
 		AffinityDelta: 0.04,
 		TraitDeltas: map[string]float64{
@@ -227,7 +228,8 @@ func TestApplyPersonalityV2AnalysisResultSkipsBatchedEmotionInsideRateLimit(t *t
 		0,
 		1,
 		personalityV2AnalysisResult{
-			Mood: memory.MoodConcerned,
+			Input: memory.NewHumanInput("Please check this request", "rate-limit-session"),
+			Mood:  memory.MoodConcerned,
 			TraitDeltas: map[string]float64{
 				memory.TraitEmpathy: 0.05,
 			},
@@ -306,6 +308,7 @@ func TestApplyPersonalityV2AnalysisResultStoresInnerVoiceOnNewEmotionRow(t *test
 		0,
 		1,
 		personalityV2AnalysisResult{
+			Input:           memory.NewHumanInput("Please check this request", "default"),
 			Mood:            memory.MoodConcerned,
 			InnerThought:    "I feel ready to stay patient and verify this carefully.",
 			NudgeCategory:   "patience",
@@ -368,6 +371,7 @@ func TestApplyPersonalityV2AnalysisResultDampensAffinityNearCeiling(t *testing.T
 		0,
 		1,
 		personalityV2AnalysisResult{
+			Input:         memory.NewHumanInput("Please check this request", "default"),
 			Basis:         &basis,
 			Appraisal:     &memory.PersonalityAppraisal{Signal: "praise", Target: "agent", Confidence: 1, Reference: "current_user_message"},
 			Mood:          memory.MoodFocused,
@@ -414,7 +418,7 @@ func TestProcessBehavioralEventsLonelinessConvergesFasterWhenActive(t *testing.T
 
 	msgs := []openai.ChatCompletionMessage{}
 	meta := memory.PersonalityMeta{Volatility: 1.0, TraitDecayRate: 1.0, LonelinessSusceptibility: 1.0}
-	processBehavioralEvents(stm, &msgs, "test-session", meta, logger)
+	processBehavioralEvents(stm, &msgs, "test-session", meta, logger, memory.NewHumanInput("hello", "test-session"))
 
 	traits, err := stm.GetTraits()
 	if err != nil {

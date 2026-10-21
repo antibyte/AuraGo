@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -38,6 +39,12 @@ func TestRemoteRejectedHandshakeCannotOwnExistingReader(t *testing.T) {
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	hub := remote.NewRemoteHub(db, vault, logger)
+	registered := make(chan struct{}, 1)
+	hub.OnConnect = func(deviceID, _ string) {
+		if deviceID == id {
+			registered <- struct{}{}
+		}
+	}
 	s := &Server{RemoteHub: hub, Logger: logger}
 	server := httptest.NewTLSServer(handleRemoteWebSocket(s))
 	defer server.Close()
@@ -58,6 +65,20 @@ func TestRemoteRejectedHandshakeCannotOwnExistingReader(t *testing.T) {
 	var response remote.RemoteMessage
 	if err := good.ReadJSON(&response); err != nil {
 		t.Fatal(err)
+	}
+	var accepted remote.AuthResponsePayload
+	if err := json.Unmarshal(response.Payload, &accepted); err != nil {
+		t.Fatal(err)
+	}
+	if valid, err := remote.VerifyMessage(response, key); err != nil || !valid || accepted.Status != "authenticated" || accepted.DeviceID != id || accepted.RequestNonce != auth.Nonce {
+		t.Fatalf("accepted socket authentication failed: valid=%v status=%s err=%v", valid, accepted.Status, err)
+	}
+	// Authentication is written before Register publishes the connection so
+	// other writers cannot race the authentication response on this socket.
+	select {
+	case <-registered:
+	case <-time.After(3 * time.Second):
+		t.Fatal("accepted socket registration did not complete")
 	}
 	original := hub.GetConnection(id)
 	if original == nil {

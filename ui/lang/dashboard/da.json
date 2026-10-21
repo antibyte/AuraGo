@@ -1114,5 +1114,11 @@
   "dashboard.memory_privacy_updated": "Opdateret: {{date}}",
   "dashboard.memory_privacy_reconcile_pending": "Kontaktstatus skal kontrolleres",
   "dashboard.memory_privacy_reconcile_retry": "Kontrollér kontaktstatus",
-  "dashboard.memory_privacy_reconcile_queued": "Kontrol af kontaktstatus er sat i kø. Se jobbets status, når den er opdateret."
+  "dashboard.memory_privacy_reconcile_queued": "Kontrol af kontaktstatus er sat i kø. Se jobbets status, når den er opdateret.",
+  "dashboard.memory_corpus_documents": "Dokumenter i korpus",
+  "dashboard.memory_corpus_dimensions": "Vektordimensioner",
+  "dashboard.memory_corpus_storage": "Korpuslager inklusive WAL",
+  "dashboard.memory_corpus_vector_estimate": "Anslåede vektordata uden ekstraforbrug",
+  "dashboard.memory_exhausted_writes": "Skriveopgaver uden flere forsøg",
+  "dashboard.memory_terminal_consolidations": "Permanent mislykkede konsolideringer"
 }

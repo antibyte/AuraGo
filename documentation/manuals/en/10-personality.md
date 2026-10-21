@@ -41,7 +41,7 @@ Personality influences:
 
 ## Personality Engine
 
-AuraGo has two personality engines that can be activated independently:
+AuraGo has a local personality engine with optional asynchronous V2 enrichment:
 
 ### Personality Engine V1 (Heuristic)
 
@@ -76,7 +76,7 @@ The V2 engine provides:
 
 ### Web UI Setup
 1. Open **Config → Personality** and enable **Personality Engine V2**.
-2. Open **Config → LLM Settings** and enable the **Helper LLM** (required for V2 mood analysis).
+2. Open **Config → LLM Settings** and enable the **Helper LLM** (recommended; a bounded main-model fallback is available).
 3. Optionally enable **User Profiling**, **Emotion Synthesizer**, and **Inner Voice** on the Personality page.
 4. Save changes.
 
@@ -88,7 +88,7 @@ personality:
   engine_v2: true
   v2_provider: ""                    # deprecated – V2 now uses llm.helper_*
   user_profiling: false
-  user_profiling_threshold: 2
+  user_profiling_threshold: 3
   emotion_synthesizer:
     enabled: false
     min_interval_seconds: 60
@@ -100,7 +100,7 @@ personality:
     min_interval_secs: 60
     max_per_session: 20
     decay_turns: 3
-    error_streak_min: 2
+    decay_max_age_secs: 300
 ```
 
 > [!NOTE]
@@ -279,7 +279,7 @@ The values are written transactionally with revision guards; load and friction d
 
 ### Web UI Setup
 
-The Dashboard shows the current dynamics on the personality card (**Agent** tab) with a trend badge; **Config → Personality** renders the same block. The **Reset current dynamics** button zeroes the dynamics and returns affect to rest values without changing traits, lived notes, history, or the active persona (epoch and revision increase, in-flight results are invalidated). The reset is a same-origin POST with normal session authentication and requires the personality engine to be active.
+The Dashboard shows the current dynamics on the **Personality** card (**Personality** section, `#personality`) with a trend badge; **Config → Personality** renders the same block. The **Reset current dynamics** button zeroes the dynamics and returns affect to rest values without changing traits, lived notes, history, or the active persona (epoch and revision increase, in-flight results are invalidated). The reset is a same-origin POST with normal session authentication and requires the personality engine to be active.
 
 ### API Reference
 
@@ -357,3 +357,5 @@ Quick Info         → terminator
 
 **Previous Chapter:** [Chapter 9: Memory & Knowledge](./09-memory.md)
 **Next Chapter:** [Chapter 11: Mission Control](./11-missions.md)
+
+Defaults: `engine: false`, `engine_v2: false`, `core_personality: neutral`, profiling threshold `3`. Enabling Inner Voice also enables synthesis, V2 and the engine. `decay_max_age_secs` bounds narration age even between turns. See [provenance, deletion and legacy review](../../personality-dynamics.md).

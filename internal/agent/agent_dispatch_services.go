@@ -139,7 +139,9 @@ func homepageLedgerFatalResult(result string, err error) string {
 	if json.Unmarshal([]byte(result), &parsed) != nil {
 		parsed = map[string]interface{}{}
 	}
-	parsed["status"] = "error"
+	parsed["status"] = "partial_success"
+	parsed["retry_safe"] = false
+	parsed["ledger_updated"] = false
 	parsed["message"] = message
 	out, _ := json.Marshal(parsed)
 	return string(out)
@@ -201,7 +203,25 @@ func homepageNetlifyResultVerified(parsed map[string]interface{}) bool {
 	return homepageResultString(parsed, "verified_url", "deploy_url", "url", "deploy_deploy_url", "deploy_ssl_url") != ""
 }
 
+// homepageNetlifyResultPublished reports whether the deploy changed the site's
+// published content. A draft deploy keeps the previous publication, so the
+// ledger must not record it as a deployment. Older results carry no flag and
+// stay published by definition.
+func homepageNetlifyResultPublished(parsed map[string]interface{}) bool {
+	if parsed == nil {
+		return true
+	}
+	published, ok := parsed["published"].(bool)
+	if !ok {
+		return true
+	}
+	return published
+}
+
 func recordHomepageLedgerMutation(homepageCfg tools.HomepageConfig, db *sql.DB, projectDir, eventType, summary, source string, saveRevision bool, payload map[string]interface{}, logger *slog.Logger) []string {
+	if tools.HomepageOperationInProgress(homepageCfg) {
+		return nil
+	}
 	if db == nil {
 		return []string{"homepage registry DB not initialized"}
 	}
@@ -669,7 +689,18 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			// checked: the agent keeps its access to the proxy container, and
 			// dockerRequestCreatesReservedSecurityProxyName refuses create/run.
 			owned, ownershipErr := tools.DockerContainerOwnership(dockerCfg, containerID,
-				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", "local-llm", dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner, dockerutil.DecisionsOwner)
+				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", "local-llm", dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner, dockerutil.DecisionsOwner, dockerutil.OllamaOwner)
+			if dockerOperationTargetsContainer(req.Operation) && owned[dockerutil.OllamaOwner] {
+				return dockerAgentError("docker_managed_ollama_resource", "Managed Ollama containers belong to the administrator. Use the ollama tool for model operations.")
+			}
+			if dockerutil.IsOllamaVolumeName(req.Name) {
+				return dockerAgentError("docker_managed_ollama_resource", "Managed Ollama model volumes cannot be managed through the docker tool.")
+			}
+			for _, bind := range req.Volumes {
+				if tools.DockerBindUsesOllamaVolume(bind) {
+					return dockerAgentError("docker_managed_ollama_resource", "Managed Ollama model volumes cannot be mounted through the docker tool.")
+				}
+			}
 			if !localLLMDockerOperationSafe(req.Operation) && owned["ruview"] {
 				return dockerAgentError("docker_managed_ruview_resource", "Managed RuView resources are private. Use the read-only ruview tool or administrator RuView settings.")
 			}
@@ -757,7 +788,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch req.Operation {
 			case "list_containers", "ps":
 				logger.Info("LLM requested Docker list_containers", "all", req.All)
-				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner, dockerutil.DecisionsOwner)
+				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner, dockerutil.DecisionsOwner, dockerutil.OllamaOwner)
 			case "inspect", "inspect_container":
 				logger.Info("LLM requested Docker inspect", "container_id", containerID)
 				return "Tool Output: " + tools.DockerInspectContainer(dockerCfg, containerID)
@@ -812,7 +843,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.DockerListNetworks(dockerCfg)
 			case "list_volumes", "volumes":
 				logger.Info("LLM requested Docker list_volumes")
-				return "Tool Output: " + tools.DockerListVolumes(dockerCfg, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.CYDCreatorOwner)
+				return "Tool Output: " + tools.DockerListVolumes(dockerCfg, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.CYDCreatorOwner, dockerutil.OllamaOwner)
 			case "info", "system_info":
 				logger.Info("LLM requested Docker system_info")
 				return "Tool Output: " + tools.DockerSystemInfo(dockerCfg)
@@ -907,509 +938,576 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 			}
 
+			if req.Operation == "destroy" && !req.Force {
+				return "Tool Output: " + tools.ErrorJSON("homepage destroy is destructive and requires force=true")
+			}
+			if req.Operation == "exec" && strings.TrimSpace(req.Command) == "" {
+				return "Tool Output: " + tools.ErrorJSON("command is required for homepage exec. Do not retry an empty exec call. Use homepage list_files/read_file to inspect the project, homepage build for builds, or provide a concrete command inside the homepage container.")
+			}
+			if req.ManagedSiteID > 0 && req.Operation != "init_project" {
+				resolved, err := tools.ResolveHomepageProjectDir(homepageRegistryDB, homepageCfg, "", req.ProjectDir, req.ManagedSiteID)
+				if err != nil {
+					return "Tool Output: " + tools.ErrorJSON(err.Error())
+				}
+				req.ProjectDir = resolved
+			}
 			switch req.Operation {
-			case "init":
-				logger.Info("LLM requested homepage init")
-				return "Tool Output: " + tools.HomepageInit(homepageCfg, logger)
-			case "start":
-				logger.Info("LLM requested homepage start")
-				return "Tool Output: " + tools.HomepageStart(homepageCfg, logger)
-			case "stop":
-				logger.Info("LLM requested homepage stop")
-				return "Tool Output: " + tools.HomepageStop(homepageCfg, logger)
-			case "status":
-				logger.Info("LLM requested homepage status")
-				return "Tool Output: " + tools.HomepageStatus(homepageCfg, logger)
-			case "rebuild":
-				logger.Info("LLM requested homepage rebuild")
-				return "Tool Output: " + tools.HomepageRebuild(homepageCfg, logger)
-			case "destroy":
-				if !req.Force {
-					return `Tool Output: {"status":"error","message":"homepage destroy is destructive and requires force=true. Prefer status, start, init, rebuild, or targeted file operations unless the user explicitly asked to destroy the homepage environment."}`
+			case "publish_local", "deploy", "deploy_netlify", "deploy_here_now", "deploy_vercel", "build", "install_deps", "git_init", "git_commit", "git_rollback":
+				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
+					return validation
 				}
-				logger.Info("LLM requested homepage destroy")
-				return "Tool Output: " + tools.HomepageDestroy(homepageCfg, logger)
-			case "exec":
-				if strings.TrimSpace(req.Command) == "" {
-					return `Tool Output: {"status":"error","message":"command is required for homepage exec. Do not retry an empty exec call. Use homepage list_files/read_file to inspect the project, homepage build for builds, or provide a concrete command that should run inside the homepage container."}`
+				if _, err := tools.NormalizeHomepageProjectIdentity(req.ProjectDir, false); err != nil {
+					return "Tool Output: " + tools.ErrorJSON(err.Error())
 				}
-				logger.Info("LLM requested homepage exec", "cmd", req.Command)
-				execEnv := homepageExecEnvForCommand(vault, req.Command)
-				return "Tool Output: " + tools.HomepageExec(homepageCfg, req.Command, execEnv, logger)
-			case "init_project":
-				logger.Info("LLM requested homepage init_project", "framework", req.Framework, "name", req.Name, "template", req.Template)
-				result := tools.HomepageInitProject(homepageCfg, req.Framework, req.Name, req.Template, logger)
-				projectDir := homepageProjectDirFromResult(result, req.Name)
-				result = withHomepageResultFields(result, map[string]interface{}{"project_dir": projectDir})
-				var ledgerWarnings []string
-				var projectID int64
-				if homepageRegistryDB != nil && homepageResultSuccess(result) {
-					proj, err := tools.EnsureHomepageProjectForDir(homepageRegistryDB, homepageCfg, projectDir, req.Name, req.Framework)
+			}
+			if req.Operation == "deploy_vercel" && cfg.Vercel.ReadOnly {
+				return "Tool Output: " + tools.ErrorJSON("Vercel publishing is blocked by vercel.readonly; disable read-only mode before deploying")
+			}
+			if req.Operation == "deploy_netlify" && cfg.Netlify.ReadOnly {
+				return "Tool Output: " + tools.ErrorJSON("Netlify is read-only")
+			}
+			if req.Operation == "deploy_here_now" && (cfg.HereNow.ReadOnly || !cfg.HereNow.AllowPublish) {
+				return "Tool Output: " + tools.ErrorJSON("here.now publishing is disabled")
+			}
+			operationDir := req.ProjectDir
+			if tools.HomepageOperationMutates(req.Operation) {
+				switch req.Operation {
+				case "init_project":
+					operationDir = req.Name
+					if operationDir == "" {
+						operationDir = "my-site"
+						req.Name = operationDir
+					}
+				case "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit":
+					if req.Path == "" {
+						return homepagePathRequired(req.Operation)
+					}
+					resolved, err := tools.ResolveHomepageProjectDir(homepageRegistryDB, homepageCfg, req.Path, req.ProjectDir, req.ManagedSiteID)
 					if err != nil {
-						ledgerWarnings = append(ledgerWarnings, err.Error())
+						return "Tool Output: " + tools.ErrorJSON(err.Error())
+					}
+					operationDir = resolved
+					req.ProjectDir = resolved
+				case "restore_revision":
+					revision, err := tools.GetHomepageRevision(homepageRegistryDB, req.RevisionID)
+					if err != nil {
+						return "Tool Output: " + tools.ErrorJSON(err.Error())
+					}
+					if req.ProjectDir != "" && req.ProjectDir != revision.ProjectDir {
+						return "Tool Output: " + tools.ErrorJSON("revision does not belong to project_dir")
+					}
+					operationDir = revision.ProjectDir
+					req.ProjectDir = operationDir
+				default:
+					if req.ManagedSiteID > 0 {
+						resolved, err := tools.ResolveHomepageProjectDir(homepageRegistryDB, homepageCfg, "", req.ProjectDir, req.ManagedSiteID)
+						if err != nil {
+							return "Tool Output: " + tools.ErrorJSON(err.Error())
+						}
+						operationDir = resolved
+						req.ProjectDir = resolved
+					}
+				}
+				if req.Operation == "exec" && operationDir == "" {
+					return "Tool Output: " + tools.ErrorJSON("project_dir is required for homepage exec")
+				}
+			}
+			op := tools.HomepageOperation{Name: req.Operation, ProjectDir: operationDir, Reason: req.Reason, Actor: "agent", Source: tc.Action, SessionID: dc.SessionID, RunID: dc.RunID, FilesMayChange: tools.HomepageOperationChangesFiles(req.Operation)}
+			return "Tool Output: " + tools.ExecuteHomepageOperation(homepageCfg, homepageRegistryDB, op, logger, func(managedCfg tools.HomepageConfig) string {
+				homepageCfg = managedCfg
+				switch req.Operation {
+				case "init":
+					logger.Info("LLM requested homepage init")
+					return "Tool Output: " + tools.HomepageInit(homepageCfg, logger)
+				case "start":
+					logger.Info("LLM requested homepage start")
+					return "Tool Output: " + tools.HomepageStart(homepageCfg, logger)
+				case "stop":
+					logger.Info("LLM requested homepage stop")
+					return "Tool Output: " + tools.HomepageStop(homepageCfg, logger)
+				case "status":
+					logger.Info("LLM requested homepage status")
+					return "Tool Output: " + tools.HomepageStatus(homepageCfg, logger)
+				case "rebuild":
+					logger.Info("LLM requested homepage rebuild")
+					return "Tool Output: " + tools.HomepageRebuild(homepageCfg, logger)
+				case "destroy":
+					if !req.Force {
+						return `Tool Output: {"status":"error","message":"homepage destroy is destructive and requires force=true. Prefer status, start, init, rebuild, or targeted file operations unless the user explicitly asked to destroy the homepage environment."}`
+					}
+					logger.Info("LLM requested homepage destroy")
+					return "Tool Output: " + tools.HomepageDestroy(homepageCfg, logger)
+				case "exec":
+					if strings.TrimSpace(req.Command) == "" {
+						return `Tool Output: {"status":"error","message":"command is required for homepage exec. Do not retry an empty exec call. Use homepage list_files/read_file to inspect the project, homepage build for builds, or provide a concrete command that should run inside the homepage container."}`
+					}
+					logger.Info("LLM requested homepage exec", "cmd", req.Command)
+					execEnv := homepageExecEnvForCommand(vault, req.Command)
+					return "Tool Output: " + tools.HomepageExec(homepageCfg, req.Command, execEnv, logger)
+				case "init_project":
+					logger.Info("LLM requested homepage init_project", "framework", req.Framework, "name", req.Name, "template", req.Template)
+					result := tools.HomepageInitProject(homepageCfg, req.Framework, req.Name, req.Template, logger)
+					projectDir := homepageProjectDirFromResult(result, req.Name)
+					result = withHomepageResultFields(result, map[string]interface{}{"project_dir": projectDir})
+					return "Tool Output: " + result
+
+				case "build":
+					logger.Info("LLM requested homepage build", "dir", req.ProjectDir, "auto_fix", req.AutoFix)
+					var result string
+					if req.AutoFix {
+						result = tools.HomepageBuildWithAutoFix(homepageCfg, req.ProjectDir, logger)
 					} else {
-						projectID = proj.ID
-						if _, err := tools.RecordHomepageEvent(homepageRegistryDB, projectID, "project_initialized", "homepage_project",
-							fmt.Sprintf("Project initialized with framework %q", req.Framework), map[string]interface{}{"project_dir": projectDir}); err != nil {
-							ledgerWarnings = append(ledgerWarnings, err.Error())
-						}
+						result = tools.HomepageBuild(homepageCfg, req.ProjectDir, logger)
 					}
-				}
-				if homepageResultSuccess(result) && projectID > 0 {
-					_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, projectID, "milestone",
-						fmt.Sprintf("Project initialized with framework %q", req.Framework), "homepage_project", nil)
-				}
-				result = withHomepageLedgerWarnings(result, ledgerWarnings)
-				return "Tool Output: " + result
-			case "build":
-				logger.Info("LLM requested homepage build", "dir", req.ProjectDir, "auto_fix", req.AutoFix)
-				var result string
-				if req.AutoFix {
-					result = tools.HomepageBuildWithAutoFix(homepageCfg, req.ProjectDir, logger)
-				} else {
-					result = tools.HomepageBuild(homepageCfg, req.ProjectDir, logger)
-				}
-				// Auto-log edit and history in homepage registry
-				if homepageRegistryDB != nil && req.ProjectDir != "" {
-					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
-						tools.LogEdit(homepageRegistryDB, proj.ID, "build")
-						if homepageResultSuccess(result) {
-							_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "note",
-								fmt.Sprintf("Build completed for project directory %q", req.ProjectDir), "homepage_project", nil)
-						}
-					}
-				}
-				if homepageResultSuccess(result) {
-					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, req.ProjectDir, "build", fmt.Sprintf("Build completed for project directory %q", req.ProjectDir), "homepage_project", false, nil, logger)
-					result = withHomepageLedgerWarnings(result, warnings)
-				}
-				return "Tool Output: " + result
-			case "install_deps":
-				logger.Info("LLM requested homepage install_deps", "packages", req.Packages)
-				return "Tool Output: " + tools.HomepageInstallDeps(homepageCfg, req.ProjectDir, req.Packages, logger)
-			case "lighthouse":
-				logger.Info("LLM requested homepage lighthouse", "url", req.URL)
-				result := tools.HomepageLighthouse(homepageCfg, req.URL, logger)
-				// Auto-log lighthouse score in homepage registry
-				if homepageRegistryDB != nil && req.URL != "" {
-					projects, _, _ := tools.SearchProjects(homepageRegistryDB, req.URL, "", nil, 1, 0)
-					if len(projects) > 0 {
-						var scoreMap map[string]interface{}
-						var perfScore float64
-						if err := json.Unmarshal([]byte(result), &scoreMap); err == nil {
-							if perf, ok := scoreMap["performance"].(float64); ok {
-								perfScore = perf
-							}
-						}
-						if perfScore > 0 {
-							tools.UpdateProject(homepageRegistryDB, projects[0].ID, map[string]interface{}{
-								"lighthouse_score": perfScore,
-							})
-						}
-					}
-				}
-				return "Tool Output: " + result
-			case "screenshot":
-				logger.Info("LLM requested homepage screenshot", "url", req.URL, "viewport", req.Viewport)
-				return "Tool Output: " + tools.HomepageScreenshot(ctx, homepageCfg, req.URL, req.Viewport, logger)
-			case "check_js":
-				logger.Info("LLM requested homepage check_js", "url", req.URL)
-				return "Tool Output: " + tools.HomepageCheckJS(ctx, homepageCfg, req.URL, logger)
-			case "lint":
-				logger.Info("LLM requested homepage lint", "dir", req.ProjectDir)
-				return "Tool Output: " + tools.HomepageLint(homepageCfg, req.ProjectDir, logger)
-			case "list_files":
-				logger.Info("LLM requested homepage list_files", "path", req.Path)
-				return "Tool Output: " + tools.HomepageListFiles(homepageCfg, req.Path, logger)
-			case "read_file":
-				logger.Info("LLM requested homepage read_file", "path", req.Path)
-				if strings.TrimSpace(req.Path) == "" {
-					return homepagePathRequired(req.Operation)
-				}
-				return "Tool Output: " + tools.HomepageReadFile(homepageCfg, req.Path, logger)
-			case "write_file":
-				logger.Info("LLM requested homepage write_file", "path", req.Path)
-				if strings.TrimSpace(req.Path) == "" {
-					return homepagePathRequired(req.Operation)
-				}
-				result := tools.HomepageWriteFile(homepageCfg, req.Path, req.Content, logger)
-				if homepageResultSuccess(result) {
-					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, homepageProjectDirFromPath(req.Path), "file_written",
-						fmt.Sprintf("Wrote file %q", req.Path), "homepage_file", true, map[string]interface{}{"path": req.Path}, logger)
-					result = withHomepageLedgerWarnings(result, warnings)
-				}
-				return "Tool Output: " + result
-			case "edit_file":
-				editOp := req.SubOperation
-				logger.Info("LLM requested homepage edit_file", "path", req.Path, "op", editOp)
-				if strings.TrimSpace(req.Path) == "" {
-					return homepagePathRequired(req.Operation)
-				}
-				result := tools.HomepageEditFile(homepageCfg, req.Path, editOp, req.Old, req.New, req.Marker, req.Content, req.StartLine, req.EndLine, logger)
-				if homepageResultSuccess(result) {
-					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, homepageProjectDirFromPath(req.Path), "file_edited",
-						fmt.Sprintf("Edited file %q (operation: %s)", req.Path, editOp), "homepage_file", true, map[string]interface{}{"path": req.Path, "operation": editOp}, logger)
-					result = withHomepageLedgerWarnings(result, warnings)
-				}
-				return "Tool Output: " + result
-			case "json_edit":
-				editOp := req.SubOperation
-				logger.Info("LLM requested homepage json_edit", "path", req.Path, "op", editOp)
-				if strings.TrimSpace(req.Path) == "" {
-					return homepagePathRequired(req.Operation)
-				}
-				result := tools.HomepageJsonEdit(homepageCfg, req.Path, editOp, req.JsonPath, req.SetValue, req.Content, logger)
-				if homepageResultSuccess(result) {
-					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, homepageProjectDirFromPath(req.Path), "json_edited",
-						fmt.Sprintf("Edited JSON file %q (operation: %s)", req.Path, editOp), "homepage_file", true, map[string]interface{}{"path": req.Path, "operation": editOp}, logger)
-					result = withHomepageLedgerWarnings(result, warnings)
-				}
-				return "Tool Output: " + result
-			case "yaml_edit":
-				editOp := req.SubOperation
-				logger.Info("LLM requested homepage yaml_edit", "path", req.Path, "op", editOp)
-				if strings.TrimSpace(req.Path) == "" {
-					return homepagePathRequired(req.Operation)
-				}
-				result := tools.HomepageYamlEdit(homepageCfg, req.Path, editOp, req.JsonPath, req.SetValue, logger)
-				if homepageResultSuccess(result) {
-					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, homepageProjectDirFromPath(req.Path), "yaml_edited",
-						fmt.Sprintf("Edited YAML file %q (operation: %s)", req.Path, editOp), "homepage_file", true, map[string]interface{}{"path": req.Path, "operation": editOp}, logger)
-					result = withHomepageLedgerWarnings(result, warnings)
-				}
-				return "Tool Output: " + result
-			case "xml_edit":
-				editOp := req.SubOperation
-				logger.Info("LLM requested homepage xml_edit", "path", req.Path, "op", editOp)
-				if strings.TrimSpace(req.Path) == "" {
-					return homepagePathRequired(req.Operation)
-				}
-				xpath := req.Xpath
-				if xpath == "" {
-					xpath = req.JsonPath
-				}
-				result := tools.HomepageXmlEdit(homepageCfg, req.Path, editOp, xpath, req.SetValue, logger)
-				if homepageResultSuccess(result) {
-					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, homepageProjectDirFromPath(req.Path), "xml_edited",
-						fmt.Sprintf("Edited XML file %q (operation: %s)", req.Path, editOp), "homepage_file", true, map[string]interface{}{"path": req.Path, "operation": editOp}, logger)
-					result = withHomepageLedgerWarnings(result, warnings)
-				}
-				return "Tool Output: " + result
-			case "optimize_images":
-				logger.Info("LLM requested homepage optimize_images", "dir", req.ProjectDir)
-				result := tools.HomepageOptimizeImages(homepageCfg, req.ProjectDir, logger)
-				if homepageResultSuccess(result) {
-					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, req.ProjectDir, "images_optimized",
-						fmt.Sprintf("Optimized images in project directory %q", req.ProjectDir), "homepage_file", true, nil, logger)
-					result = withHomepageLedgerWarnings(result, warnings)
-				}
-				return "Tool Output: " + result
-			case "dev":
-				logger.Info("LLM requested homepage dev server", "dir", req.ProjectDir)
-				return "Tool Output: " + tools.HomepageDev(homepageCfg, req.ProjectDir, 3000, logger)
-			case "deploy":
-				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
-					return validation
-				}
-				logger.Info("LLM requested homepage deploy", "host", deployCfg.Host)
-				result := tools.HomepageDeploy(homepageCfg, deployCfg, req.ProjectDir, req.BuildDir, logger)
-				// Auto-log deploy and history in homepage registry
-				if homepageRegistryDB != nil && req.ProjectDir != "" && homepageResultSuccess(result) {
-					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
-						deployTarget := strings.TrimSpace(deployCfg.Host)
-						if deployTarget != "" {
-							if err := tools.LogDeploy(homepageRegistryDB, proj.ID, deployTarget); err == nil {
-								_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "milestone",
-									fmt.Sprintf("Deployed to %s", deployTarget), "homepage_deploy", nil)
+					// Auto-log edit and history in homepage registry
+					if homepageRegistryDB != nil && req.ProjectDir != "" {
+						if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
+							tools.LogEdit(homepageRegistryDB, proj.ID, "build")
+							if homepageResultSuccess(result) {
+								_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "note",
+									fmt.Sprintf("Build completed for project directory %q", req.ProjectDir), "homepage_project", nil)
 							}
 						}
 					}
-				}
-				if homepageResultSuccess(result) {
-					result = homepageRecordDeploymentStrictResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "sftp", req.BuildDir, result, logger)
-				}
-				return "Tool Output: " + result
-			case "test_connection":
-				logger.Info("LLM requested homepage test_connection")
-				return "Tool Output: " + tools.HomepageTestConnection(deployCfg, logger, ctx)
-			case "webserver_start":
-				logger.Info("LLM requested homepage webserver_start")
-				result := tools.HomepageWebServerStart(homepageCfg, req.ProjectDir, req.BuildDir, logger)
-				if homepageResultSuccess(result) {
-					projectDir := homepageProjectDirFromResult(result, req.ProjectDir)
-					result = homepageRecordDeploymentStrictResult(homepageCfg, homepageRegistryDB, projectDir, "caddy", req.BuildDir, result, logger)
-				}
-				return "Tool Output: " + result
-			case "webserver_stop":
-				logger.Info("LLM requested homepage webserver_stop")
-				return "Tool Output: " + tools.HomepageWebServerStop(homepageCfg, logger)
-			case "webserver_status":
-				logger.Info("LLM requested homepage webserver_status")
-				return "Tool Output: " + tools.HomepageWebServerStatus(homepageCfg, logger)
-			case "tunnel":
-				tunnelCfg := tools.CloudflareTunnelConfigFromConfig(cfg)
-				tunnelCfg.QuickProjectDir = req.ProjectDir
-				return "Tool Output: " + tools.CloudflareTunnelQuickTunnel(tunnelCfg, dc.Registry, logger, req.Port)
-			case "publish_local":
-				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
-					return validation
-				}
-				logger.Info("LLM requested homepage publish_local")
-				result := tools.HomepagePublishToLocal(homepageCfg, req.ProjectDir, logger)
-				if homepageResultSuccess(result) {
-					result = homepageRecordDeploymentStrictResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "local", req.BuildDir, result, logger)
-				}
-				return "Tool Output: " + result
-			case "deploy_netlify":
-				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
-					return validation
-				}
-				if !cfg.Netlify.AllowDeploy {
-					return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable netlify.allow_deploy in config."}`
-				}
-				if !cfg.Netlify.Enabled {
-					return `Tool Output: {"status":"error","message":"Netlify integration is not enabled. Set netlify.enabled=true in config.yaml."}`
-				}
-				nfToken, nfErr := vault.ReadSecret("netlify_token")
-				if nfErr != nil || nfToken == "" {
-					return `Tool Output: {"status":"error","message":"Netlify token not found in vault. Store it with key 'netlify_token' via the Config UI."}`
-				}
-				nfCfg := tools.NetlifyConfig{Context: ctx,
-					Token:               nfToken,
-					DefaultSiteID:       cfg.Netlify.DefaultSiteID,
-					TeamSlug:            cfg.Netlify.TeamSlug,
-					ReadOnly:            cfg.Netlify.ReadOnly,
-					AllowDeploy:         cfg.Netlify.AllowDeploy,
-					AllowSiteManagement: cfg.Netlify.AllowSiteManagement,
-					AllowEnvManagement:  cfg.Netlify.AllowEnvManagement,
-				}
-				logger.Info("LLM requested homepage deploy_netlify", "project", req.ProjectDir, "build_dir", req.BuildDir, "site_id", req.SiteID, "draft", req.Draft)
-				result := tools.HomepageDeployNetlify(homepageCfg, nfCfg, req.ProjectDir, req.BuildDir, req.SiteID, req.Title, req.Draft, logger)
-				var parsed map[string]interface{}
-				netlifyVerified := false
-				if homepageResultSuccess(result) {
-					if json.Unmarshal([]byte(result), &parsed) == nil {
-						netlifyVerified = homepageNetlifyResultVerified(parsed)
-					}
-				}
-				// Auto-log deploy and history in homepage registry
-				if homepageRegistryDB != nil && req.ProjectDir != "" && netlifyVerified {
-					deployURL := homepageResultString(parsed, "verified_url", "deploy_url", "url", "deploy_deploy_url", "deploy_ssl_url")
-					if deployURL == "" {
-						deployURL = firstNonEmpty(homepageResultString(parsed, "site_id", "new_site_id", "deploy_site_id"), req.SiteID, "netlify")
-					}
-					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
-						tools.LogDeploy(homepageRegistryDB, proj.ID, deployURL)
-						_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "milestone",
-							fmt.Sprintf("Deployed to Netlify (site: %s)", deployURL), "homepage_deploy", nil)
-						if siteID := firstNonEmpty(homepageResultString(parsed, "site_id", "new_site_id", "deploy_site_id"), req.SiteID); siteID != "" {
-							tools.UpdateProject(homepageRegistryDB, proj.ID, map[string]interface{}{
-								"netlify_site_id": siteID,
-							})
-						}
-					}
-				}
-				if homepageResultSuccess(result) {
-					if netlifyVerified {
-						result = homepageRecordDeploymentStrictResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "netlify", req.BuildDir, result, logger)
-					} else {
-						warnings := []string{"Netlify deploy result was not verified; deployment ledger was not updated"}
+					if homepageResultSuccess(result) {
+						warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, req.ProjectDir, "build", fmt.Sprintf("Build completed for project directory %q", req.ProjectDir), "homepage_project", false, nil, logger)
 						result = withHomepageLedgerWarnings(result, warnings)
 					}
-				}
-				return "Tool Output: " + result
-			case "deploy_here_now":
-				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
-					return validation
-				}
-				if !cfg.HereNow.Enabled {
-					return `Tool Output: {"status":"error","message":"here.now integration is not enabled. Set here_now.enabled=true in config.yaml."}`
-				}
-				if cfg.HereNow.ReadOnly || !cfg.HereNow.AllowPublish {
-					return `Tool Output: {"status":"error","message":"here.now publishing is disabled. Disable here_now.readonly and enable here_now.allow_publish."}`
-				}
-				hnKey, hnErr := vault.ReadSecret("here_now_api_key")
-				if hnErr != nil || strings.TrimSpace(hnKey) == "" {
-					return `Tool Output: {"status":"error","message":"here.now API key not found in Vault. Store it with key 'here_now_api_key' via the Config UI."}`
-				}
-				hnCfg := tools.HereNowConfig{
-					APIKey: hnKey, DefaultAccount: cfg.HereNow.DefaultAccount,
-					ReadOnly: cfg.HereNow.ReadOnly, AllowPublish: cfg.HereNow.AllowPublish,
-					AllowSiteManagement:   cfg.HereNow.AllowSiteManagement,
-					AllowAccessManagement: cfg.HereNow.AllowAccessManagement,
-					AllowDelete:           cfg.HereNow.AllowDelete,
-				}
-				logger.Info("LLM requested homepage deploy_here_now", "project", req.ProjectDir, "build_dir", req.BuildDir, "slug", req.Slug, "account", req.Account)
-				result := tools.HomepageDeployHereNow(ctx, homepageCfg, hnCfg, req.ProjectDir, req.BuildDir, tools.HereNowPublishOptions{
-					Account: req.Account, Slug: req.Slug, WorkspaceLabel: req.WorkspaceLabel, SPAMode: req.SPAMode,
-				}, logger)
-				verified := false
-				if homepageResultSuccess(result) {
-					var parsed map[string]interface{}
-					if json.Unmarshal([]byte(result), &parsed) == nil {
-						verified, _ = parsed["verified"].(bool)
-					}
-				}
-				if verified {
-					result = homepageRecordDeploymentStrictResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "here_now", req.BuildDir, result, logger)
-				} else if homepageResultSuccess(result) {
-					result = withHomepageLedgerWarnings(result, []string{"here.now result was not verified; deployment ledger was not updated"})
-				}
-				return "Tool Output: " + result
-			case "deploy_vercel":
-				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
-					return validation
-				}
-				if cfg.Vercel.ReadOnly || !cfg.Vercel.AllowDeploy {
-					return `Tool Output: {"status":"error","message":"Deployment requires vercel.readonly=false and vercel.allow_deploy=true."}`
-				}
-				if !cfg.Vercel.Enabled {
-					return `Tool Output: {"status":"error","message":"Vercel integration is not enabled. Set vercel.enabled=true in config.yaml."}`
-				}
-				vcToken, vcErr := vault.ReadSecret("vercel_token")
-				if vcErr != nil || vcToken == "" {
-					return `Tool Output: {"status":"error","message":"Vercel token not found in vault. Store it with key 'vercel_token' via the Config UI."}`
-				}
-				vcfg := tools.VercelConfig{Context: ctx,
-					Token:                  vcToken,
-					DefaultProjectID:       cfg.Vercel.DefaultProjectID,
-					TeamID:                 cfg.Vercel.TeamID,
-					TeamSlug:               cfg.Vercel.TeamSlug,
-					ReadOnly:               cfg.Vercel.ReadOnly,
-					AllowDeploy:            cfg.Vercel.AllowDeploy,
-					AllowProjectManagement: cfg.Vercel.AllowProjectManagement,
-					AllowEnvManagement:     cfg.Vercel.AllowEnvManagement,
-					AllowDomainManagement:  cfg.Vercel.AllowDomainManagement,
-				}
-				logger.Info("LLM requested homepage deploy_vercel", "project", req.ProjectDir, "build_dir", req.BuildDir, "project_id", req.ProjectID, "target", req.Target)
-				result := tools.HomepageDeployVercel(
-					homepageCfg,
-					vcfg,
-					req.ProjectDir,
-					req.BuildDir,
-					req.ProjectID,
-					req.Target,
-					req.Alias,
-					req.Domain,
-					cfg.Vercel.AllowProjectManagement,
-					cfg.Vercel.AllowDomainManagement,
-					logger,
-				)
-				if homepageRegistryDB != nil && req.ProjectDir != "" && homepageResultSuccess(result) {
-					deployURL := "vercel"
-					var parsed map[string]interface{}
-					if err := json.Unmarshal([]byte(result), &parsed); err == nil {
-						if url, _ := parsed["deployment_url"].(string); url != "" {
-							deployURL = url
-						}
-					}
-					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
-						tools.LogDeploy(homepageRegistryDB, proj.ID, deployURL)
-						_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "milestone",
-							fmt.Sprintf("Deployed to Vercel: %s", deployURL), "homepage_deploy", nil)
-						_ = tools.UpdateProject(homepageRegistryDB, proj.ID, map[string]interface{}{
-							"deploy_host": "vercel",
-							"url":         deployURL,
-						})
-					}
-				}
-				if homepageResultSuccess(result) {
-					result = homepageRecordDeploymentStrictResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "vercel", req.BuildDir, result, logger)
-				}
-				return "Tool Output: " + result
-			// ─── Git operations ─────────────────────────────────────
-			case "git_init":
-				logger.Info("LLM requested homepage git_init", "dir", req.ProjectDir)
-				return "Tool Output: " + tools.HomepageGitInit(homepageCfg, req.ProjectDir, logger)
-			case "git_commit":
-				msg := req.GitMessage
-				if msg == "" {
-					msg = req.Message
-				}
-				logger.Info("LLM requested homepage git_commit", "dir", req.ProjectDir, "message", msg)
-				result := tools.HomepageGitCommit(homepageCfg, req.ProjectDir, msg, logger)
-				if homepageResultSuccess(result) {
-					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, req.ProjectDir, "git_committed",
-						fmt.Sprintf("Git commit: %s", msg), "homepage_git", true, map[string]interface{}{"message": msg}, logger)
-					result = withHomepageLedgerWarnings(result, warnings)
-				}
-				return "Tool Output: " + result
-			case "git_status":
-				logger.Info("LLM requested homepage git_status", "dir", req.ProjectDir)
-				return "Tool Output: " + tools.HomepageGitStatus(homepageCfg, req.ProjectDir, logger)
-			case "git_diff":
-				logger.Info("LLM requested homepage git_diff", "dir", req.ProjectDir)
-				return "Tool Output: " + tools.HomepageGitDiff(homepageCfg, req.ProjectDir, logger)
-			case "git_log":
-				count := req.Count
-				if count <= 0 {
-					count = 10
-				}
-				logger.Info("LLM requested homepage git_log", "dir", req.ProjectDir, "count", count)
-				return "Tool Output: " + tools.HomepageGitLog(homepageCfg, req.ProjectDir, count, logger)
-			case "git_rollback":
-				count := req.Count
-				if count <= 0 {
-					count = 1
-				}
-				logger.Info("LLM requested homepage git_rollback", "dir", req.ProjectDir, "steps", count)
-				result := tools.HomepageGitRollback(homepageCfg, req.ProjectDir, count, logger)
-				if homepageResultSuccess(result) {
-					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, req.ProjectDir, "git_rolled_back",
-						fmt.Sprintf("Git rollback by %d step(s)", count), "homepage_git", true, map[string]interface{}{"steps": count}, logger)
-					result = withHomepageLedgerWarnings(result, warnings)
-				}
-				return "Tool Output: " + result
-			case "save_revision":
-				logger.Info("LLM requested homepage save_revision", "dir", req.ProjectDir, "message", req.Message)
-				ledgerResult := tools.SaveHomepageRevisionAndState(homepageCfg, homepageRegistryDB, req.ProjectDir, req.Message, req.Reason, "homepage_revisions", nil, logger)
-				result := withHomepageLedgerWarnings(ledgerResult.JSON, ledgerResult.Warnings)
-				if homepageResultSuccess(result) && homepageRegistryDB != nil && req.ProjectDir != "" {
-					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
-						msg := req.Message
-						if msg == "" {
-							msg = "Revision saved"
-						}
-						if req.Reason != "" {
-							msg += " (" + req.Reason + ")"
-						}
-						// Include change counts from the revision result if available.
-						var revInfo map[string]interface{}
-						if err := json.Unmarshal([]byte(result), &revInfo); err == nil {
-							added, _ := revInfo["added"].(float64)
-							modified, _ := revInfo["modified"].(float64)
-							deleted, _ := revInfo["deleted"].(float64)
-							if added+modified+deleted > 0 {
-								msg += fmt.Sprintf(" [%d added, %d modified, %d deleted]", int(added), int(modified), int(deleted))
+					return "Tool Output: " + result
+				case "install_deps":
+					logger.Info("LLM requested homepage install_deps", "packages", req.Packages)
+					return "Tool Output: " + tools.HomepageInstallDeps(homepageCfg, req.ProjectDir, req.Packages, logger)
+				case "lighthouse":
+					logger.Info("LLM requested homepage lighthouse", "url", req.URL)
+					result := tools.HomepageLighthouse(homepageCfg, req.URL, logger)
+					// Auto-log lighthouse score in homepage registry
+					if homepageRegistryDB != nil && req.URL != "" {
+						projects, _, _ := tools.SearchProjects(homepageRegistryDB, req.URL, "", nil, 1, 0)
+						if len(projects) > 0 {
+							var scoreMap map[string]interface{}
+							var perfScore float64
+							if err := json.Unmarshal([]byte(result), &scoreMap); err == nil {
+								if perf, ok := scoreMap["performance"].(float64); ok {
+									perfScore = perf
+								}
+							}
+							if perfScore > 0 {
+								tools.UpdateProject(homepageRegistryDB, projects[0].ID, map[string]interface{}{
+									"lighthouse_score": perfScore,
+								})
 							}
 						}
-						_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "note",
-							fmt.Sprintf("Saved revision: %s", msg), "homepage_revisions", nil)
 					}
+					return "Tool Output: " + result
+				case "screenshot":
+					logger.Info("LLM requested homepage screenshot", "url", req.URL, "viewport", req.Viewport)
+					return "Tool Output: " + tools.HomepageScreenshot(ctx, homepageCfg, req.URL, req.Viewport, logger)
+				case "check_js":
+					logger.Info("LLM requested homepage check_js", "url", req.URL)
+					return "Tool Output: " + tools.HomepageCheckJS(ctx, homepageCfg, req.URL, logger)
+				case "lint":
+					logger.Info("LLM requested homepage lint", "dir", req.ProjectDir)
+					return "Tool Output: " + tools.HomepageLint(homepageCfg, req.ProjectDir, logger)
+				case "list_files":
+					logger.Info("LLM requested homepage list_files", "path", req.Path)
+					return "Tool Output: " + tools.HomepageListFiles(homepageCfg, req.Path, logger)
+				case "read_file":
+					logger.Info("LLM requested homepage read_file", "path", req.Path)
+					if strings.TrimSpace(req.Path) == "" {
+						return homepagePathRequired(req.Operation)
+					}
+					return "Tool Output: " + tools.HomepageReadFile(homepageCfg, req.Path, logger)
+				case "write_file":
+					logger.Info("LLM requested homepage write_file", "path", req.Path)
+					if strings.TrimSpace(req.Path) == "" {
+						return homepagePathRequired(req.Operation)
+					}
+					result := tools.HomepageWriteFile(homepageCfg, req.Path, req.Content, logger)
+					if homepageResultSuccess(result) {
+						warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, homepageProjectDirFromPath(req.Path), "file_written",
+							fmt.Sprintf("Wrote file %q", req.Path), "homepage_file", true, map[string]interface{}{"path": req.Path}, logger)
+						result = withHomepageLedgerWarnings(result, warnings)
+					}
+					return "Tool Output: " + result
+				case "edit_file":
+					editOp := req.SubOperation
+					logger.Info("LLM requested homepage edit_file", "path", req.Path, "op", editOp)
+					if strings.TrimSpace(req.Path) == "" {
+						return homepagePathRequired(req.Operation)
+					}
+					result := tools.HomepageEditFile(homepageCfg, req.Path, editOp, req.Old, req.New, req.Marker, req.Content, req.StartLine, req.EndLine, logger)
+					if homepageResultSuccess(result) {
+						warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, homepageProjectDirFromPath(req.Path), "file_edited",
+							fmt.Sprintf("Edited file %q (operation: %s)", req.Path, editOp), "homepage_file", true, map[string]interface{}{"path": req.Path, "operation": editOp}, logger)
+						result = withHomepageLedgerWarnings(result, warnings)
+					}
+					return "Tool Output: " + result
+				case "json_edit":
+					editOp := req.SubOperation
+					logger.Info("LLM requested homepage json_edit", "path", req.Path, "op", editOp)
+					if strings.TrimSpace(req.Path) == "" {
+						return homepagePathRequired(req.Operation)
+					}
+					result := tools.HomepageJsonEdit(homepageCfg, req.Path, editOp, req.JsonPath, req.SetValue, req.Content, logger)
+					if homepageResultSuccess(result) {
+						warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, homepageProjectDirFromPath(req.Path), "json_edited",
+							fmt.Sprintf("Edited JSON file %q (operation: %s)", req.Path, editOp), "homepage_file", true, map[string]interface{}{"path": req.Path, "operation": editOp}, logger)
+						result = withHomepageLedgerWarnings(result, warnings)
+					}
+					return "Tool Output: " + result
+				case "yaml_edit":
+					editOp := req.SubOperation
+					logger.Info("LLM requested homepage yaml_edit", "path", req.Path, "op", editOp)
+					if strings.TrimSpace(req.Path) == "" {
+						return homepagePathRequired(req.Operation)
+					}
+					result := tools.HomepageYamlEdit(homepageCfg, req.Path, editOp, req.JsonPath, req.SetValue, logger)
+					if homepageResultSuccess(result) {
+						warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, homepageProjectDirFromPath(req.Path), "yaml_edited",
+							fmt.Sprintf("Edited YAML file %q (operation: %s)", req.Path, editOp), "homepage_file", true, map[string]interface{}{"path": req.Path, "operation": editOp}, logger)
+						result = withHomepageLedgerWarnings(result, warnings)
+					}
+					return "Tool Output: " + result
+				case "xml_edit":
+					editOp := req.SubOperation
+					logger.Info("LLM requested homepage xml_edit", "path", req.Path, "op", editOp)
+					if strings.TrimSpace(req.Path) == "" {
+						return homepagePathRequired(req.Operation)
+					}
+					xpath := req.Xpath
+					if xpath == "" {
+						xpath = req.JsonPath
+					}
+					result := tools.HomepageXmlEdit(homepageCfg, req.Path, editOp, xpath, req.SetValue, logger)
+					if homepageResultSuccess(result) {
+						warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, homepageProjectDirFromPath(req.Path), "xml_edited",
+							fmt.Sprintf("Edited XML file %q (operation: %s)", req.Path, editOp), "homepage_file", true, map[string]interface{}{"path": req.Path, "operation": editOp}, logger)
+						result = withHomepageLedgerWarnings(result, warnings)
+					}
+					return "Tool Output: " + result
+				case "optimize_images":
+					logger.Info("LLM requested homepage optimize_images", "dir", req.ProjectDir)
+					result := tools.HomepageOptimizeImages(homepageCfg, req.ProjectDir, logger)
+					if homepageResultSuccess(result) {
+						warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, req.ProjectDir, "images_optimized",
+							fmt.Sprintf("Optimized images in project directory %q", req.ProjectDir), "homepage_file", true, nil, logger)
+						result = withHomepageLedgerWarnings(result, warnings)
+					}
+					return "Tool Output: " + result
+				case "dev":
+					logger.Info("LLM requested homepage dev server", "dir", req.ProjectDir)
+					return "Tool Output: " + tools.HomepageDev(homepageCfg, req.ProjectDir, 3000, logger)
+				case "deploy":
+					if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
+						return validation
+					}
+					logger.Info("LLM requested homepage deploy", "host", deployCfg.Host)
+					result := tools.HomepageDeploy(homepageCfg, deployCfg, req.ProjectDir, req.BuildDir, logger)
+					// Auto-log deploy and history in homepage registry
+					if homepageRegistryDB != nil && req.ProjectDir != "" && homepageResultSuccess(result) {
+						if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
+							deployTarget := strings.TrimSpace(deployCfg.Host)
+							if deployTarget != "" {
+								if err := tools.LogDeploy(homepageRegistryDB, proj.ID, deployTarget); err == nil {
+									_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "milestone",
+										fmt.Sprintf("Deployed to %s", deployTarget), "homepage_deploy", nil)
+								}
+							}
+						}
+					}
+					if homepageResultSuccess(result) {
+						result = homepageRecordDeploymentStrictResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "sftp", req.BuildDir, result, logger)
+					}
+					return "Tool Output: " + result
+				case "test_connection":
+					logger.Info("LLM requested homepage test_connection")
+					return "Tool Output: " + tools.HomepageTestConnection(deployCfg, logger, ctx)
+				case "webserver_start":
+					logger.Info("LLM requested homepage webserver_start")
+					result := tools.HomepageWebServerStart(homepageCfg, req.ProjectDir, req.BuildDir, logger)
+					if homepageResultSuccess(result) {
+						projectDir := homepageProjectDirFromResult(result, req.ProjectDir)
+						result = homepageRecordDeploymentStrictResult(homepageCfg, homepageRegistryDB, projectDir, "caddy", req.BuildDir, result, logger)
+					}
+					return "Tool Output: " + result
+				case "webserver_stop":
+					logger.Info("LLM requested homepage webserver_stop")
+					return "Tool Output: " + tools.HomepageWebServerStop(homepageCfg, logger)
+				case "webserver_status":
+					logger.Info("LLM requested homepage webserver_status")
+					return "Tool Output: " + tools.HomepageWebServerStatus(homepageCfg, logger)
+				case "tunnel":
+					tunnelCfg := tools.CloudflareTunnelConfigFromConfig(cfg)
+					tunnelCfg.QuickProjectDir = req.ProjectDir
+					return "Tool Output: " + tools.CloudflareTunnelQuickTunnel(tunnelCfg, dc.Registry, logger, req.Port)
+				case "publish_local":
+					if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
+						return validation
+					}
+					logger.Info("LLM requested homepage publish_local")
+					result := tools.HomepagePublishToLocal(homepageCfg, req.ProjectDir, logger)
+					if homepageResultSuccess(result) {
+						result = homepageRecordDeploymentStrictResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "local", req.BuildDir, result, logger)
+					}
+					return "Tool Output: " + result
+				case "deploy_netlify":
+					if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
+						return validation
+					}
+					if !cfg.Netlify.Enabled {
+						return `Tool Output: {"status":"error","message":"Netlify integration is not enabled. Set netlify.enabled=true in config.yaml."}`
+					}
+					if !cfg.Netlify.AllowDeploy {
+						return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable netlify.allow_deploy in config."}`
+					}
+					nfToken, nfErr := vault.ReadSecret("netlify_token")
+					if nfErr != nil || nfToken == "" {
+						return `Tool Output: {"status":"error","message":"Netlify token not found in vault. Store it with key 'netlify_token' via the Config UI."}`
+					}
+					security.RegisterSensitive(nfToken)
+					nfCfg := tools.NetlifyConfig{Context: ctx,
+						Token:               nfToken,
+						DefaultSiteID:       cfg.Netlify.DefaultSiteID,
+						TeamSlug:            cfg.Netlify.TeamSlug,
+						ReadOnly:            cfg.Netlify.ReadOnly,
+						AllowDeploy:         cfg.Netlify.AllowDeploy,
+						AllowSiteManagement: cfg.Netlify.AllowSiteManagement,
+						AllowEnvManagement:  cfg.Netlify.AllowEnvManagement,
+					}
+					logger.Info("LLM requested homepage deploy_netlify", "project", req.ProjectDir, "build_dir", req.BuildDir, "site_id", req.SiteID, "draft", req.Draft)
+					result := tools.HomepageDeployNetlify(homepageCfg, nfCfg, req.ProjectDir, req.BuildDir, req.SiteID, req.Title, req.Draft, logger)
+					var parsed map[string]interface{}
+					netlifyVerified := false
+					netlifyPublished := true
+					if homepageResultSuccess(result) {
+						if json.Unmarshal([]byte(result), &parsed) == nil {
+							netlifyVerified = homepageNetlifyResultVerified(parsed)
+							netlifyPublished = homepageNetlifyResultPublished(parsed)
+						}
+					}
+					// A draft deploy never publishes content, so neither the deployment
+					// history nor the deployment ledger may record it.
+					netlifyLedgerWorthy := netlifyVerified && netlifyPublished
+					if homepageRegistryDB != nil && req.ProjectDir != "" && netlifyLedgerWorthy {
+						deployURL := homepageResultString(parsed, "verified_url", "deploy_url", "url", "deploy_deploy_url", "deploy_ssl_url")
+						if deployURL == "" {
+							deployURL = firstNonEmpty(homepageResultString(parsed, "site_id", "new_site_id", "deploy_site_id"), req.SiteID, "netlify")
+						}
+						if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
+							tools.LogDeploy(homepageRegistryDB, proj.ID, deployURL)
+							_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "milestone",
+								fmt.Sprintf("Deployed to Netlify (site: %s)", deployURL), "homepage_deploy", nil)
+							if siteID := firstNonEmpty(homepageResultString(parsed, "site_id", "new_site_id", "deploy_site_id"), req.SiteID); siteID != "" {
+								tools.UpdateProject(homepageRegistryDB, proj.ID, map[string]interface{}{
+									"netlify_site_id": siteID,
+								})
+							}
+						}
+					}
+					if homepageResultSuccess(result) {
+						switch {
+						case netlifyLedgerWorthy:
+							result = homepageRecordDeploymentStrictResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "netlify", req.BuildDir, result, logger)
+						case netlifyVerified:
+							result = withHomepageLedgerWarnings(result, []string{"Draft deploy was not published; the deployment ledger was not updated"})
+						default:
+							result = withHomepageLedgerWarnings(result, []string{"Netlify deploy result was not verified; deployment ledger was not updated"})
+						}
+					}
+					return "Tool Output: " + result
+				case "deploy_here_now":
+					if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
+						return validation
+					}
+					if !cfg.HereNow.Enabled {
+						return `Tool Output: {"status":"error","message":"here.now integration is not enabled. Set here_now.enabled=true in config.yaml."}`
+					}
+					if cfg.HereNow.ReadOnly || !cfg.HereNow.AllowPublish {
+						return `Tool Output: {"status":"error","message":"here.now publishing is disabled. Disable here_now.readonly and enable here_now.allow_publish."}`
+					}
+					hnKey, hnErr := vault.ReadSecret("here_now_api_key")
+					if hnErr != nil || strings.TrimSpace(hnKey) == "" {
+						return `Tool Output: {"status":"error","message":"here.now API key not found in Vault. Store it with key 'here_now_api_key' via the Config UI."}`
+					}
+					hnCfg := tools.HereNowConfig{
+						APIKey: hnKey, DefaultAccount: cfg.HereNow.DefaultAccount,
+						ReadOnly: cfg.HereNow.ReadOnly, AllowPublish: cfg.HereNow.AllowPublish,
+						AllowSiteManagement:   cfg.HereNow.AllowSiteManagement,
+						AllowAccessManagement: cfg.HereNow.AllowAccessManagement,
+						AllowDelete:           cfg.HereNow.AllowDelete,
+					}
+					logger.Info("LLM requested homepage deploy_here_now", "project", req.ProjectDir, "build_dir", req.BuildDir, "slug", req.Slug, "account", req.Account)
+					result := tools.HomepageDeployHereNow(ctx, homepageCfg, hnCfg, req.ProjectDir, req.BuildDir, tools.HereNowPublishOptions{
+						Account: req.Account, Slug: req.Slug, WorkspaceLabel: req.WorkspaceLabel, SPAMode: req.SPAMode,
+					}, logger)
+					verified := false
+					if homepageResultSuccess(result) {
+						var parsed map[string]interface{}
+						if json.Unmarshal([]byte(result), &parsed) == nil {
+							verified, _ = parsed["verified"].(bool)
+						}
+					}
+					if verified {
+						result = homepageRecordDeploymentStrictResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "here_now", req.BuildDir, result, logger)
+					} else if homepageResultSuccess(result) {
+						result = withHomepageLedgerWarnings(result, []string{"here.now result was not verified; deployment ledger was not updated"})
+					}
+					return "Tool Output: " + result
+				case "deploy_vercel":
+					if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
+						return validation
+					}
+					if cfg.Vercel.ReadOnly || !cfg.Vercel.AllowDeploy {
+						return `Tool Output: {"status":"error","message":"Deployment requires vercel.readonly=false and vercel.allow_deploy=true."}`
+					}
+					if !cfg.Vercel.Enabled {
+						return `Tool Output: {"status":"error","message":"Vercel integration is not enabled. Set vercel.enabled=true in config.yaml."}`
+					}
+					vcToken, vcErr := vault.ReadSecret("vercel_token")
+					if vcErr != nil || vcToken == "" {
+						return `Tool Output: {"status":"error","message":"Vercel token not found in vault. Store it with key 'vercel_token' via the Config UI."}`
+					}
+					vcfg := tools.VercelConfig{Context: ctx,
+						Token:                  vcToken,
+						DefaultProjectID:       cfg.Vercel.DefaultProjectID,
+						TeamID:                 cfg.Vercel.TeamID,
+						TeamSlug:               cfg.Vercel.TeamSlug,
+						ReadOnly:               cfg.Vercel.ReadOnly,
+						AllowDeploy:            cfg.Vercel.AllowDeploy,
+						AllowProjectManagement: cfg.Vercel.AllowProjectManagement,
+						AllowEnvManagement:     cfg.Vercel.AllowEnvManagement,
+						AllowDomainManagement:  cfg.Vercel.AllowDomainManagement,
+					}
+					logger.Info("LLM requested homepage deploy_vercel", "project", req.ProjectDir, "build_dir", req.BuildDir, "project_id", req.ProjectID, "target", req.Target)
+					result := tools.HomepageDeployVercel(
+						homepageCfg,
+						vcfg,
+						req.ProjectDir,
+						req.BuildDir,
+						req.ProjectID,
+						req.Target,
+						req.Alias,
+						req.Domain,
+						cfg.Vercel.AllowProjectManagement,
+						cfg.Vercel.AllowDomainManagement,
+						logger,
+					)
+					if homepageRegistryDB != nil && req.ProjectDir != "" && homepageResultSuccess(result) {
+						deployURL := "vercel"
+						var parsed map[string]interface{}
+						if err := json.Unmarshal([]byte(result), &parsed); err == nil {
+							if url, _ := parsed["deployment_url"].(string); url != "" {
+								deployURL = url
+							}
+						}
+						if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
+							tools.LogDeploy(homepageRegistryDB, proj.ID, deployURL)
+							_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "milestone",
+								fmt.Sprintf("Deployed to Vercel: %s", deployURL), "homepage_deploy", nil)
+							_ = tools.UpdateProject(homepageRegistryDB, proj.ID, map[string]interface{}{
+								"deploy_host": "vercel",
+								"url":         deployURL,
+							})
+						}
+					}
+					if homepageResultSuccess(result) {
+						result = homepageRecordDeploymentStrictResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "vercel", req.BuildDir, result, logger)
+					}
+					return "Tool Output: " + result
+				// ─── Git operations ─────────────────────────────────────
+				case "git_init":
+					logger.Info("LLM requested homepage git_init", "dir", req.ProjectDir)
+					return "Tool Output: " + tools.HomepageGitInit(homepageCfg, req.ProjectDir, logger)
+				case "git_commit":
+					msg := req.GitMessage
+					if msg == "" {
+						msg = req.Message
+					}
+					logger.Info("LLM requested homepage git_commit", "dir", req.ProjectDir, "message", msg)
+					result := tools.HomepageGitCommit(homepageCfg, req.ProjectDir, msg, logger)
+					if homepageResultSuccess(result) {
+						warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, req.ProjectDir, "git_committed",
+							fmt.Sprintf("Git commit: %s", msg), "homepage_git", true, map[string]interface{}{"message": msg}, logger)
+						result = withHomepageLedgerWarnings(result, warnings)
+					}
+					return "Tool Output: " + result
+				case "git_status":
+					logger.Info("LLM requested homepage git_status", "dir", req.ProjectDir)
+					return "Tool Output: " + tools.HomepageGitStatus(homepageCfg, req.ProjectDir, logger)
+				case "git_diff":
+					logger.Info("LLM requested homepage git_diff", "dir", req.ProjectDir)
+					return "Tool Output: " + tools.HomepageGitDiff(homepageCfg, req.ProjectDir, logger)
+				case "git_log":
+					count := req.Count
+					if count <= 0 {
+						count = 10
+					}
+					logger.Info("LLM requested homepage git_log", "dir", req.ProjectDir, "count", count)
+					return "Tool Output: " + tools.HomepageGitLog(homepageCfg, req.ProjectDir, count, logger)
+				case "git_rollback":
+					count := req.Count
+					if count <= 0 {
+						count = 1
+					}
+					logger.Info("LLM requested homepage git_rollback", "dir", req.ProjectDir, "steps", count)
+					result := tools.HomepageGitRollback(homepageCfg, req.ProjectDir, count, logger)
+					if homepageResultSuccess(result) {
+						warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, req.ProjectDir, "git_rolled_back",
+							fmt.Sprintf("Git rollback by %d step(s)", count), "homepage_git", true, map[string]interface{}{"steps": count}, logger)
+						result = withHomepageLedgerWarnings(result, warnings)
+					}
+					return "Tool Output: " + result
+				case "save_revision":
+					logger.Info("LLM requested homepage save_revision", "dir", req.ProjectDir, "message", req.Message)
+					ledgerResult := tools.SaveHomepageRevisionAndState(homepageCfg, homepageRegistryDB, req.ProjectDir, req.Message, req.Reason, "homepage_revisions", nil, logger)
+					result := withHomepageLedgerWarnings(ledgerResult.JSON, ledgerResult.Warnings)
+					if homepageResultSuccess(result) && homepageRegistryDB != nil && req.ProjectDir != "" {
+						if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
+							msg := req.Message
+							if msg == "" {
+								msg = "Revision saved"
+							}
+							if req.Reason != "" {
+								msg += " (" + req.Reason + ")"
+							}
+							// Include change counts from the revision result if available.
+							var revInfo map[string]interface{}
+							if err := json.Unmarshal([]byte(result), &revInfo); err == nil {
+								added, _ := revInfo["added"].(float64)
+								modified, _ := revInfo["modified"].(float64)
+								deleted, _ := revInfo["deleted"].(float64)
+								if added+modified+deleted > 0 {
+									msg += fmt.Sprintf(" [%d added, %d modified, %d deleted]", int(added), int(modified), int(deleted))
+								}
+							}
+							_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "note",
+								fmt.Sprintf("Saved revision: %s", msg), "homepage_revisions", nil)
+						}
+					}
+					return "Tool Output: " + result
+				case "list_revisions":
+					logger.Info("LLM requested homepage list_revisions", "dir", req.ProjectDir, "count", req.Count)
+					count := req.Count
+					if count <= 0 {
+						count = 20
+					}
+					return "Tool Output: " + tools.HomepageListRevisions(homepageRegistryDB, req.ProjectDir, count, 0, logger)
+				case "get_revision":
+					logger.Info("LLM requested homepage get_revision", "revision_id", req.RevisionID)
+					return "Tool Output: " + tools.HomepageGetRevision(homepageRegistryDB, req.RevisionID, logger)
+				case "diff_revision":
+					logger.Info("LLM requested homepage diff_revision", "revision_id", req.RevisionID, "path", req.Path)
+					return "Tool Output: " + tools.HomepageDiffRevision(homepageRegistryDB, req.RevisionID, req.Path, logger)
+				case "restore_revision":
+					logger.Info("LLM requested homepage restore_revision", "revision_id", req.RevisionID, "path", req.Path)
+					return "Tool Output: " + tools.HomepageRestoreRevision(homepageCfg, homepageRegistryDB, req.RevisionID, req.Path, logger)
+				case "revision_status":
+					logger.Info("LLM requested homepage revision_status", "dir", req.ProjectDir)
+					return "Tool Output: " + tools.HomepageRevisionStatus(homepageCfg, homepageRegistryDB, req.ProjectDir, logger)
+				default:
+					return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, deploy_netlify, deploy_here_now, deploy_vercel, test_connection, webserver_start, webserver_stop, webserver_status, publish_local, tunnel, git_init, git_commit, git_status, git_diff, git_log, git_rollback, save_revision, list_revisions, get_revision, diff_revision, restore_revision, revision_status"}`
 				}
-				return "Tool Output: " + result
-			case "list_revisions":
-				logger.Info("LLM requested homepage list_revisions", "dir", req.ProjectDir, "count", req.Count)
-				count := req.Count
-				if count <= 0 {
-					count = 20
-				}
-				return "Tool Output: " + tools.HomepageListRevisions(homepageRegistryDB, req.ProjectDir, count, 0, logger)
-			case "get_revision":
-				logger.Info("LLM requested homepage get_revision", "revision_id", req.RevisionID)
-				return "Tool Output: " + tools.HomepageGetRevision(homepageRegistryDB, req.RevisionID, logger)
-			case "diff_revision":
-				logger.Info("LLM requested homepage diff_revision", "revision_id", req.RevisionID, "path", req.Path)
-				return "Tool Output: " + tools.HomepageDiffRevision(homepageRegistryDB, req.RevisionID, req.Path, logger)
-			case "restore_revision":
-				logger.Info("LLM requested homepage restore_revision", "revision_id", req.RevisionID, "path", req.Path)
-				return "Tool Output: " + tools.HomepageRestoreRevision(homepageCfg, homepageRegistryDB, req.RevisionID, req.Path, logger)
-			case "revision_status":
-				logger.Info("LLM requested homepage revision_status", "dir", req.ProjectDir)
-				return "Tool Output: " + tools.HomepageRevisionStatus(homepageCfg, homepageRegistryDB, req.ProjectDir, logger)
-			default:
-				return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, deploy_netlify, deploy_here_now, deploy_vercel, test_connection, webserver_start, webserver_stop, webserver_status, publish_local, tunnel, git_init, git_commit, git_status, git_diff, git_log, git_rollback, save_revision, list_revisions, get_revision, diff_revision, restore_revision, revision_status"}`
-			}
+			})
 
 		case "webdav", "webdav_storage":
 			if !cfg.WebDAV.Enabled {
@@ -1551,7 +1649,21 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if op == "" {
 				op = "list"
 			}
+			switch op {
+			case "register", "update", "delete", "log_edit", "log_deploy", "log_problem", "resolve_problem", "adopt", "relocate":
+				if strings.TrimSpace(req.Reason) == "" {
+					return "Tool Output: " + tools.ErrorJSON("reason is required for a homepage registry mutation")
+				}
+			}
 			logger.Info("LLM requested homepage_registry", "operation", op, "name", req.Name)
+			workspace := cfg.Homepage.WorkspacePath
+			if workspace == "" {
+				workspace = filepath.Join(cfg.Directories.DataDir, "homepage")
+			}
+			if out, ok := tools.DispatchHomepageInventory(tools.HomepageConfig{Context: ctx, WorkspacePath: workspace}, homepageRegistryDB, op, req.ID, req.ProjectDir, req.Query, req.Limit, req.Offset, req.Reason, logger); ok {
+				return "Tool Output: " + out
+			}
+
 			historyOps := map[string]bool{
 				"add_history": true, "list_history": true, "get_history": true,
 				"search_history": true, "update_history": true, "delete_history": true,

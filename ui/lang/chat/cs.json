@@ -3,6 +3,7 @@
   "chat.sessions_delete_memories": "Smazat také související vzpomínky",
   "chat.sessions_delete_backups": "Zálohy mohou obsahovat smazaná data až do plánovaného vyčištění.",
   "chat.sessions_delete_failed": "Chat se nepodařilo úplně smazat. Před dalším pokusem obnov zobrazení.",
+  "chat.sessions_delete_scope_conflict": "Tato relace už má jiné nastavení mazání vzpomínek. Obnov stránku a před opakováním zkontroluj stav.",
   "chat.sessions_delete_report": "Smazáno: {deleted}. Zachováno kvůli sdílenému, chráněnému nebo neznámému původu: {retained}.",
   "chat.speech_lab_auth_required": "Pro otevření Speech Lab je nutné přihlášení do AuraGo.",
   "chat.speech_lab_browser_url_missing": "Nastavte URL Speech Labu pro prohlížeč v části Média → Speech Lab.",

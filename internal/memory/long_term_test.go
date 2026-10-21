@@ -945,9 +945,8 @@ func TestIsLocalEmbeddingProvider(t *testing.T) {
 // SearchMemoriesOnly and SearchSimilar return raw document content (without a
 // "[Similarity: x.xx]" prefix), so passing their output to ExtractSimilarityScore
 // always returned 0 — effectively bypassing deduplication.
-// The fix replaces that pattern with searchTopSimilarityScore which returns the
-// raw float32 similarity directly.  This test documents the incorrect old behaviour
-// so a future refactor cannot silently re-introduce it.
+// Dedupe must consume structured similarity results. This test documents the
+// incorrect old behaviour so a future refactor cannot silently re-introduce it.
 func TestExtractSimilarityScoreOnRawContent(t *testing.T) {
 	rawContents := []string{
 		"This is a document about Go memory management.",
@@ -1142,16 +1141,6 @@ func TestSearchSimilarScored_DisabledReturnsError(t *testing.T) {
 	_, err = cv.SearchMemoriesOnlyScored("query", 3)
 	if !errors.Is(err, ErrVectorDBDisabled) {
 		t.Fatalf("SearchMemoriesOnlyScored err = %v, want ErrVectorDBDisabled", err)
-	}
-}
-
-// TestSearchTopSimilarityScoreDisabled verifies that searchTopSimilarityScore
-// returns 0 safely when the VectorDB is disabled (e.g. no embedding model configured).
-func TestSearchTopSimilarityScoreDisabled(t *testing.T) {
-	cv := &ChromemVectorDB{}
-	cv.disabled.Store(true)
-	if got := cv.searchTopSimilarityScore("any concept"); got != 0 {
-		t.Errorf("searchTopSimilarityScore on disabled VectorDB = %v, want 0", got)
 	}
 }
 

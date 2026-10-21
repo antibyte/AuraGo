@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/security"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -21,6 +22,7 @@ import (
 
 // HomepageConfig holds the configuration for the homepage dev environment.
 type HomepageConfig struct {
+	ManagedProjectDir     string          // Execution working directory supplied by the managed operation boundary.
 	Context               context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
 	DockerHost            string
 	WorkspacePath         string // host path mounted as /workspace in the container
@@ -728,7 +730,13 @@ func HomepageExec(cfg HomepageConfig, command string, env []string, logger *slog
 	if err := validateHomepageExecCommand(command); err != nil {
 		return errJSON("%v", err)
 	}
-	logger.Info("[Homepage] Exec", "cmd", command)
+	if cfg.ManagedProjectDir != "" {
+		if err := sanitizeProjectDir(cfg.ManagedProjectDir); err != nil {
+			return ErrorJSON(err.Error())
+		}
+		command = "cd " + shellQuote("/workspace/"+cfg.ManagedProjectDir) + " && (" + command + ")"
+	}
+	logger.Info("[Homepage] Exec", "cmd", security.RedactSensitiveInfo(command))
 	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
 		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
 	}

@@ -76,7 +76,7 @@ type flowLLM struct {
 func newFlowLLM(s *Server) *flowLLM {
 	return &flowLLM{s: s,
 		newClient: func(cfg *config.Config, p config.ProviderEntry) llm.ChatClient {
-			return llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID))
+			return llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID, p.GatewayID))
 		},
 		// The budget is global: once the day's limit is reached, enforcement "full" blocks
 		// every category and "partial" every category except "chat", flows included.

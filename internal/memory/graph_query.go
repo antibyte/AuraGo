@@ -219,6 +219,7 @@ func (kg *KnowledgeGraph) SearchResultWithOptions(query string, options Knowledg
 	defer tx.Rollback()
 
 	var searchErr error
+	var ftsQueryErr error
 	seenNodes := make(map[string]struct{})
 	addNodes := func(nodes []Node) {
 		for _, node := range nodes {
@@ -234,6 +235,7 @@ func (kg *KnowledgeGraph) SearchResultWithOptions(query string, options Knowledg
 	}
 	ftsNodes, err := kg.searchNodesFTS(tx, query)
 	if err != nil {
+		ftsQueryErr = errors.Join(ftsQueryErr, err)
 		searchErr = errors.Join(searchErr, fmt.Errorf("kg search nodes via kg_nodes_fts: %w", err))
 	}
 	addNodes(ftsNodes)
@@ -262,6 +264,7 @@ func (kg *KnowledgeGraph) SearchResultWithOptions(query string, options Knowledg
 	}
 	ftsEdges, err := kg.searchEdgesFTS(tx, query)
 	if err != nil {
+		ftsQueryErr = errors.Join(ftsQueryErr, err)
 		searchErr = errors.Join(searchErr, fmt.Errorf("kg search edges via kg_edges_fts: %w", err))
 	}
 	addEdges(ftsEdges)
@@ -274,6 +277,7 @@ func (kg *KnowledgeGraph) SearchResultWithOptions(query string, options Knowledg
 	if err := tx.Commit(); err != nil {
 		searchErr = errors.Join(searchErr, fmt.Errorf("kg search: commit read transaction: %w", err))
 	}
+	kg.repairKGFTSAfterQueryFailure(ftsQueryErr)
 	if searchErr != nil && kg.logger != nil {
 		kg.logger.Warn("Search: knowledge graph search incomplete", "error", searchErr)
 	}
@@ -304,6 +308,10 @@ func lexicalLikeScore(query string, columns ...string) (string, []interface{}) {
 	var args []interface{}
 	seen := make(map[string]bool)
 	for _, term := range terms {
+		term = strings.TrimSpace(term)
+		if term == "" {
+			continue
+		}
 		if seen[term] {
 			continue
 		}
@@ -437,117 +445,121 @@ func (kg *KnowledgeGraph) getNeighborsWithQueryer(q knowledgeGraphQueryer, nodeI
 	if limit <= 0 {
 		limit = 20
 	}
-
-	var allEdges []Edge
-	rows, err := q.Query(`
-		SELECT source, target, relation, properties FROM kg_edges
-		WHERE `+activeKGEdgePredicate("")+`
-		  AND (source = ? OR target = ?)
-		ORDER BY updated_at DESC
-	`, nodeID, nodeID)
+	visibleFilter := ""
+	policy := kg.qualityPolicy()
+	hideLowConfidence := !options.IncludeLowConfidence && policy.HideLowConfidenceByDefault
+	if hideLowConfidence {
+		visibleFilter = ` AND NOT (
+			` + sqliteTrimSpace(`e.relation`) + `='co_mentioned_with'
+			AND COALESCE(CASE WHEN json_valid(e.properties) THEN ` + sqliteTrimSpace(`CAST(json_extract(e.properties,'$.source') AS TEXT)`) + ` ELSE '' END,'') != 'manual'
+			AND (
+				COALESCE(CASE WHEN json_valid(e.properties) THEN ` + sqliteTrimSpace(`CAST(json_extract(e.properties,'$.source') AS TEXT)`) + ` ELSE '' END,'') IN ('pending','')
+				OR ` + sqliteAtoiOrZero(`CASE WHEN json_valid(e.properties) THEN CASE WHEN json_type(e.properties,'$.weight')='text' THEN json_extract(e.properties,'$.weight') ELSE '' END ELSE '' END`) + ` < ?
+			)
+		)`
+	}
+	visibleEdges := `
+		SELECT e.source,e.target,e.relation,e.properties,e.updated_at,e.id,
+			CASE WHEN e.source=? THEN e.target ELSE e.source END AS neighbor_id
+		FROM kg_edges e
+		WHERE ` + activeKGEdgePredicate("e") + ` AND (e.source=? OR e.target=?)` + visibleFilter
+	baseArgs := []interface{}{nodeID, nodeID, nodeID}
+	if hideLowConfidence {
+		baseArgs = append(baseArgs, policy.LowConfidenceCoMentionMinWeight)
+	}
+	neighborCTE := `WITH visible_edges AS (` + visibleEdges + `), selected_neighbors AS (
+		SELECT neighbor_id,MAX(COALESCE(updated_at,'')) AS latest
+		FROM visible_edges
+		GROUP BY neighbor_id
+		ORDER BY latest DESC,neighbor_id ASC
+		LIMIT ?
+	)`
+	neighborArgs := append(append([]interface{}{}, baseArgs...), limit)
+	rows, err := q.Query(neighborCTE+`
+		SELECT n.id,n.label,n.properties,n.protected
+		FROM selected_neighbors s JOIN kg_nodes n ON n.id=s.neighbor_id
+		ORDER BY s.latest DESC,s.neighbor_id ASC
+	`, neighborArgs...)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, fmt.Errorf("query selected KG neighbors: %w", err)
 	}
-	defer rows.Close()
-
-	type neighborCandidate struct {
-		id string
-	}
-	neighborOrder := make([]neighborCandidate, 0)
-	seenNeighbors := make(map[string]struct{})
+	var nodes []Node
 	for rows.Next() {
+		var n Node
+		var propsJSON string
+		var protected int
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			rows.Close()
+			return nil, nil, nil, fmt.Errorf("scan neighbor node: %w", err)
+		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNeighbors", n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		nodes = append(nodes, n)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, nil, nil, fmt.Errorf("iterate neighbor nodes: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, nil, nil, fmt.Errorf("close neighbor nodes: %w", err)
+	}
+	if len(nodes) == 0 {
+		return nil, nil, []knowledgeGraphAccessHit{{nodeID: nodeID}}, nil
+	}
+
+	edgeArgs := append(append([]interface{}{}, baseArgs...), limit)
+	edgeRows, err := q.Query(neighborCTE+`
+		SELECT v.source,v.target,v.relation,v.properties
+		FROM visible_edges v JOIN selected_neighbors s ON s.neighbor_id=v.neighbor_id
+		ORDER BY v.updated_at DESC,v.id DESC,v.source,v.target,v.relation
+	`, edgeArgs...)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("query selected KG neighbor edges: %w", err)
+	}
+	defer edgeRows.Close()
+	var edges []Edge
+	accessHits := []knowledgeGraphAccessHit{{nodeID: nodeID}}
+	for edgeRows.Next() {
 		var e Edge
 		var propsJSON string
-		if err := rows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err != nil {
+		if err := edgeRows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err != nil {
 			return nil, nil, nil, fmt.Errorf("scan neighbor edge: %w", err)
 		}
-		if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
+		if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil && kg.logger != nil {
 			kg.logger.Warn("GetNeighbors: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "error", err)
 		}
 		if e.Properties == nil {
 			e.Properties = make(map[string]string)
 		}
-		if kg.hideLowConfidenceEdge(e, options) {
-			continue
-		}
-		allEdges = append(allEdges, e)
+		edges = append(edges, e)
+		accessHits = append(accessHits, knowledgeGraphAccessHit{source: e.Source, target: e.Target, relation: e.Relation})
 	}
-	if err := rows.Err(); err != nil {
+	if err := edgeRows.Err(); err != nil {
 		return nil, nil, nil, fmt.Errorf("iterate neighbor edges: %w", err)
 	}
-
-	for _, e := range allEdges {
-		neighborID := e.Target
-		if neighborID == nodeID {
-			neighborID = e.Source
-		}
-		if _, exists := seenNeighbors[neighborID]; exists {
-			continue
-		}
-		seenNeighbors[neighborID] = struct{}{}
-		neighborOrder = append(neighborOrder, neighborCandidate{id: neighborID})
-		if len(neighborOrder) >= limit {
-			break
-		}
-	}
-
-	selectedNeighbors := make(map[string]struct{}, len(neighborOrder))
-	for _, candidate := range neighborOrder {
-		selectedNeighbors[candidate.id] = struct{}{}
-	}
-
-	var edges []Edge
-	accessHits := []knowledgeGraphAccessHit{{nodeID: nodeID}}
-	for _, e := range allEdges {
-		otherID := e.Target
-		if otherID == nodeID {
-			otherID = e.Source
-		}
-		if _, ok := selectedNeighbors[otherID]; ok {
-			edges = append(edges, e)
-			accessHits = append(accessHits, knowledgeGraphAccessHit{source: e.Source, target: e.Target, relation: e.Relation})
-		}
-	}
-
-	var nodes []Node
-	if len(selectedNeighbors) > 0 {
-		var ids []interface{}
-		var placeholders []string
-		for _, candidate := range neighborOrder {
-			ids = append(ids, candidate.id)
-			placeholders = append(placeholders, "?")
-		}
-
-		query := "SELECT id, label, properties, protected FROM kg_nodes WHERE id IN (" + strings.Join(placeholders, ",") + ")"
-		rows, err := q.Query(query, ids...)
-		if err == nil {
-			defer rows.Close()
-			nodeByID := make(map[string]Node, len(neighborOrder))
-			for rows.Next() {
-				var n Node
-				var propsJSON string
-				var protected int
-				if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
-					return nil, nil, nil, fmt.Errorf("scan neighbor node: %w", err)
-				}
-				n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNeighbors", n.ID, propsJSON, protected)
-				n.Protected = protected != 0
-				nodeByID[n.ID] = n
-			}
-			if err := rows.Err(); err != nil {
-				return nil, nil, nil, fmt.Errorf("iterate neighbor nodes: %w", err)
-			}
-			for _, candidate := range neighborOrder {
-				if n, ok := nodeByID[candidate.id]; ok {
-					nodes = append(nodes, n)
-				}
-			}
-		} else {
-			return nil, nil, nil, fmt.Errorf("query neighbor nodes: %w", err)
-		}
-	}
-
 	return nodes, edges, accessHits, nil
+}
+
+// sqliteAtoiOrZero mirrors the strconv.Atoi behavior used by kgquality for
+// persisted string weights. SQLite's CAST accepts numeric prefixes such as
+// "2x" and saturates overflow, so validate the entire trimmed integer first.
+func sqliteAtoiOrZero(valueExpr string) string {
+	trimmed := sqliteTrimSpace(`CAST(` + valueExpr + ` AS TEXT)`)
+	sign := `substr(` + trimmed + `,1,1)`
+	digits := `(CASE WHEN ` + sign + ` IN ('+','-') THEN substr(` + trimmed + `,2) ELSE ` + trimmed + ` END)`
+	magnitude := `(ltrim(` + digits + `,'0'))`
+	valid := digits + `<>'' AND ` + digits + ` NOT GLOB '*[^0-9]*' AND (
+		length(` + magnitude + `)<19 OR length(` + magnitude + `)=0 OR
+		(length(` + magnitude + `)=19 AND ` + magnitude + ` COLLATE BINARY <=
+			CASE WHEN ` + sign + `='-' THEN '9223372036854775808' ELSE '9223372036854775807' END COLLATE BINARY))`
+	return `(CASE WHEN ` + valid + ` THEN CAST(` + trimmed + ` AS INTEGER) ELSE 0 END)`
+}
+
+// sqliteTrimSpace mirrors strings.TrimSpace for the Unicode White Space set.
+// SQLite's default trim set is ASCII space only, so pass the exact rune set
+// explicitly anywhere SQL must agree with the Go KG quality policy.
+func sqliteTrimSpace(valueExpr string) string {
+	return `trim(` + valueExpr + `,char(9,10,11,12,13,32,133,160,5760,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,8232,8233,8239,8287,12288))`
 }
 
 func (kg *KnowledgeGraph) hideLowConfidenceEdge(edge Edge, options KnowledgeGraphQueryOptions) bool {
@@ -1381,6 +1393,9 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 		}
 		nodesDeleted += int(count)
 	}
+	if err := cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
+		return 0, fmt.Errorf("cleanup orphan KG evidence after optimization: %w", err)
+	}
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
@@ -1649,6 +1664,11 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 		}
 		if _, execErr := tx.Exec("DELETE FROM kg_nodes WHERE id = ?", id); execErr != nil {
 			return 0, 0, fmt.Errorf("delete stale node %s: %w", id, execErr)
+		}
+	}
+	if len(staleEdges) > 0 || len(toRemove) > 0 {
+		if err := cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
+			return 0, 0, fmt.Errorf("cleanup orphan KG evidence after stale graph cleanup: %w", err)
 		}
 	}
 

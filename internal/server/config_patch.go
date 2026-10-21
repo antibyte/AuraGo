@@ -29,6 +29,9 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if s.Cfg == nil {
 		return nil, fmt.Errorf("applyConfigPatch: server has no config")
 	}
+	if err := config.ValidatePersonalityLegacyPatch(patch); err != nil {
+		return nil, err
+	}
 	configPath := s.Cfg.ConfigPath
 	if configPath == "" {
 		return nil, fmt.Errorf("applyConfigPatch: config path not set")
@@ -51,13 +54,9 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	// values it changes (validateCYDCreatorSave).
 	previousCYDCreator := cydCreatorSectionFromRaw(rawCfg)
 
-	// Move any sensitive credentials into the vault before merging.
-	if s.Vault != nil {
-		if err := extractSecretsToVault(patch, s.Vault, s.Logger); err != nil {
-			if s.Logger != nil {
-				s.Logger.Warn("[Config] Some credentials could not be saved to vault", "error", err)
-			}
-		}
+	providerMutations, err := prepareSetupProviders(s, patch)
+	if err != nil {
+		return nil, err
 	}
 
 	// Deep merge the patch into existing config.
@@ -75,6 +74,14 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	}
 	if err := yaml.Unmarshal(out, &validateCfg); err != nil {
 		return nil, fmt.Errorf("validate config: %w", err)
+	}
+	if _, providersChanged := patch["providers"]; providersChanged {
+		if err := validateProviderEntries(s.Cfg, &validateCfg); err != nil {
+			return nil, err
+		}
+	}
+	if err := validateNewProviderReferences(s.Cfg, &validateCfg); err != nil {
+		return nil, err
 	}
 	// config.Load rejects invalid detection settings, so AuraGo would not start.
 	if err := validateGo2RTCDetectionSettings(validateCfg.Go2RTC); err != nil {
@@ -115,18 +122,23 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 		return nil, cfErr
 	}
 	defer cfFinish(false)
-	if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
-		return nil, fmt.Errorf("write config: %w", err)
-	}
-
-	// Reload from disk and resolve vault secrets.
-	reloaded, err := config.Load(configPath)
+	secretMutations, err := prepareConfigSecrets(patch, s.Logger)
 	if err != nil {
-		return nil, fmt.Errorf("reload config: %w", err)
+		return nil, err
 	}
-	reloaded.ConfigPath = configPath
-	reloaded.ApplyVaultSecrets(s.Vault)
-	reloaded.ResolveProviders()
+	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
+		return nil, err
+	}
+	deepMerge(rawCfg, patch, "")
+	out, err = yaml.Marshal(normalizeConfigYAMLMap(rawCfg))
+	if err != nil {
+		return nil, fmt.Errorf("marshal config: %w", err)
+	}
+	mutations := append(providerMutations, secretMutations...)
+	reloaded, err := saveProviderConfig(s, configPath, data, out, mutations)
+	if err != nil {
+		return nil, err
+	}
 	cfFinish(true)
 	return reloaded, nil
 }

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -70,9 +71,12 @@ func dockerComposeLifecycleModel(effective tools.DockerComposeModel, preflight *
 	return model
 }
 
-// dockerComposeMasterKey is the master key the policy protects: the run
-// config's value, or AuraGo's process environment.
+// dockerComposeMasterKey is the trusted startup key the policy protects.
+// Standalone embedders may still supply it through their config/environment.
 func dockerComposeMasterKey(cfg *config.Config) string {
+	if key := strings.TrimSpace(security.ProcessMasterKey()); key != "" {
+		return key
+	}
 	if cfg != nil {
 		if key := strings.TrimSpace(cfg.Server.MasterKey); key != "" {
 			return key

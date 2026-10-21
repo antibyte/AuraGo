@@ -105,13 +105,13 @@ func TestMaintenanceBaselineSkipsMemoryArchivedDuringCuration(t *testing.T) {
 	if err := stm.SetMemoryMetaLastAccessed("stale", time.Now().UTC().Add(-60*24*time.Hour)); err != nil {
 		t.Fatal(err)
 	}
-	ltm := &baselineConflictVectorDB{}
+	ltm := &baselineConflictVectorDB{documents: map[string]string{"stale": "old source fact"}}
 	if err := runNightlyMemoryBaselineWithContext(context.Background(), enabledMemoryTestConfig(), logger, stm, ltm); err != nil {
 		t.Fatal(err)
 	}
 	meta, err := stm.GetMemoryMeta("stale")
-	if err != nil || !memory.IsMemoryArchived(meta) || len(ltm.readIDs) != 0 {
-		t.Fatalf("archived=%t, reads=%v, error=%v", memory.IsMemoryArchived(meta), ltm.readIDs, err)
+	if err != nil || !memory.IsMemoryArchived(meta) || ltm.searches != 0 {
+		t.Fatalf("archived=%t, conflict searches=%d, error=%v", memory.IsMemoryArchived(meta), ltm.searches, err)
 	}
 }
 

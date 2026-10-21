@@ -119,6 +119,9 @@ func Load() (*Snapshot, error) {
 			return
 		}
 		loaded, loadErr = LoadFromBytes(modelsData, providersData, metadataData)
+		if loadErr == nil {
+			loaded.addCloudflareRESTModels()
+		}
 	})
 	return loaded, loadErr
 }
@@ -186,6 +189,9 @@ func (s *Snapshot) Validate() error {
 		}
 		p.AuraProviderType = NormalizeProviderID(firstNonEmpty(p.AuraProviderType, p.ID))
 		p.CatalogOnly = p.CatalogOnly || !IsRuntimeProviderType(p.AuraProviderType)
+		if p.AuraProviderType == "cerebras" || p.AuraProviderType == "perplexity" {
+			p.CatalogOnly = false
+		}
 		p.Source = firstNonEmpty(p.Source, SourceOhMyPi)
 		normalizeOAuthSetup(p.OAuthSetup)
 	}
@@ -375,32 +381,35 @@ func firstNonEmpty(values ...string) string {
 }
 
 var runtimeProviderTypes = map[string]bool{
-	"openai":      true,
-	"openrouter":  true,
-	"ollama":      true,
-	"anthropic":   true,
-	"google":      true,
-	"workers-ai":  true,
-	"custom":      true,
-	"stability":   true,
-	"ideogram":    true,
-	"vision":      true,
-	"minimax":     true,
-	"agnes":       true,
-	"glm":         true,
-	"yepapi":      true,
-	"huggingface": true,
-	"manifest":    true,
-	"omniroute":   true,
-	"deepseek":    true,
-	"groq":        true,
-	"mistral":     true,
-	"xai":         true,
-	"moonshot":    true,
-	"qwen":        true,
-	"zai":         true,
-	"llamacpp":    true,
-	"lmstudio":    true,
-	"copilot":     true,
-	"opencode-go": true,
+	"openai":          true,
+	"openrouter":      true,
+	"ollama":          true,
+	"anthropic":       true,
+	"google":          true,
+	"workers-ai":      true,
+	"custom":          true,
+	"stability":       true,
+	"ideogram":        true,
+	"vision":          true,
+	"minimax":         true,
+	"agnes":           true,
+	"glm":             true,
+	"yepapi":          true,
+	"huggingface":     true,
+	"manifest":        true,
+	"omniroute":       true,
+	"deepseek":        true,
+	"groq":            true,
+	"mistral":         true,
+	"xai":             true,
+	"moonshot":        true,
+	"qwen":            true,
+	"zai":             true,
+	"llamacpp":        true,
+	"lmstudio":        true,
+	"copilot":         true,
+	"opencode-go":     true,
+	"cloudflare-rest": true,
+	"cerebras":        true,
+	"perplexity":      true,
 }

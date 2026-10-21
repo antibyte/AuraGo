@@ -1,26 +1,33 @@
 package tools
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"time"
+
+	"aurago/internal/security"
 )
 
 // Daemon IPC message types sent by skills (stdout → host).
 const (
-	DaemonMsgWakeAgent = "wake_agent"
-	DaemonMsgLog       = "log"
-	DaemonMsgHeartbeat = "heartbeat"
-	DaemonMsgError     = "error"
-	DaemonMsgShutdown  = "shutdown"
-	DaemonMsgMetric    = "metric"
+	DaemonMsgWakeAgent   = "wake_agent"
+	DaemonMsgLog         = "log"
+	DaemonMsgHeartbeat   = "heartbeat"
+	DaemonMsgError       = "error"
+	DaemonMsgShutdown    = "shutdown"
+	DaemonMsgMetric      = "metric"
+	DaemonMsgToolRequest = "tool_request"
 )
 
 // Daemon IPC command types sent by host (host → stdin).
 const (
 	DaemonCmdStop         = "stop"
 	DaemonCmdConfigUpdate = "config_update"
+	DaemonCmdToolResult   = "tool_result"
 )
 
 // DaemonMessage represents a JSON message from a daemon skill's stdout.
@@ -41,6 +48,118 @@ type DaemonCommand struct {
 	Reason         string            `json:"reason,omitempty"`
 	TimeoutSeconds int               `json:"timeout_seconds,omitempty"`
 	Env            map[string]string `json:"env,omitempty"` // for config_update
+	Data           json.RawMessage   `json:"data,omitempty"`
+}
+
+// DaemonBridgeRun is created by the trusted server for one process generation.
+// Its callback and credentials never cross the worker's stdin/stdout boundary.
+type DaemonBridgeRun struct {
+	Owner   context.Context
+	Call    func(context.Context, DaemonToolRequest) DaemonToolResponse
+	Release func()
+}
+
+type DaemonBridgeRunFactory func(context.Context, string, []string) (*DaemonBridgeRun, error)
+
+type DaemonToolRequest struct {
+	ID         uint64                 `json:"id"`
+	Tool       string                 `json:"tool"`
+	Parameters map[string]interface{} `json:"parameters"`
+	Timeout    int                    `json:"timeout"`
+}
+
+type DaemonToolResponse struct {
+	ID     uint64 `json:"id"`
+	Status string `json:"status"`
+	Result string `json:"result"`
+}
+
+// One writer and one request reader belong to this exact process generation.
+// Closing stdin on cancellation also interrupts a worker that stops reading.
+type daemonRunIPC struct {
+	ctx      context.Context
+	bridge   *DaemonBridgeRun
+	commands chan DaemonCommand
+	sequence uint64
+}
+
+func newDaemonRunIPC(ctx context.Context, pipe io.WriteCloser, bridge *DaemonBridgeRun) *daemonRunIPC {
+	run := &daemonRunIPC{ctx: ctx, bridge: bridge, commands: make(chan DaemonCommand, 4)}
+	stop := context.AfterFunc(ctx, func() { _ = pipe.Close() })
+	go func() {
+		defer stop()
+		defer pipe.Close()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case cmd := <-run.commands:
+				if ctx.Err() != nil {
+					return
+				}
+				data, err := EncodeDaemonCommand(cmd)
+				if err != nil || len(data) > 1<<20 {
+					return
+				}
+				if _, err := pipe.Write(append(data, '\n')); err != nil {
+					return
+				}
+			}
+		}
+	}()
+	return run
+}
+
+func (run *daemonRunIPC) send(cmd DaemonCommand) bool {
+	if run == nil || run.ctx.Err() != nil {
+		return false
+	}
+	select {
+	case <-run.ctx.Done():
+		return false
+	case run.commands <- cmd:
+		return true
+	default:
+		return false
+	}
+}
+
+func (run *daemonRunIPC) toolRequest(data json.RawMessage) {
+	if run == nil || run.ctx.Err() != nil || len(data) > 64<<10 {
+		return
+	}
+	var request DaemonToolRequest
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&request) != nil || decoder.Decode(new(any)) != io.EOF || request.ID == 0 || request.ID != run.sequence+1 {
+		return
+	}
+	run.sequence = request.ID
+	response := DaemonToolResponse{ID: request.ID, Status: "error", Result: "Daemon tool bridge is unavailable"}
+	if run.bridge != nil && run.bridge.Call != nil {
+		timeout := min(60, max(1, request.Timeout))
+		ctx, cancel := context.WithTimeout(run.ctx, time.Duration(timeout)*time.Second)
+		response = func() (result DaemonToolResponse) {
+			result = response
+			defer func() {
+				if recover() != nil {
+					result = DaemonToolResponse{ID: request.ID, Status: "error", Result: "Tool outcome unknown; verify effects before another action"}
+				}
+			}()
+			return run.bridge.Call(ctx, request)
+		}()
+		cancel()
+	}
+	if run.ctx.Err() != nil {
+		return
+	}
+	response.ID = request.ID
+	response.Result = security.Scrub(response.Result)
+	encoded, err := json.Marshal(response)
+	if err != nil || len(encoded) > (1<<20)-128 {
+		encoded, _ = json.Marshal(DaemonToolResponse{ID: request.ID, Status: "error", Result: "Tool response exceeds the daemon IPC limit"})
+	}
+	run.send(DaemonCommand{Type: DaemonCmdToolResult, Data: encoded})
 }
 
 // DaemonStatus represents the lifecycle state of a daemon.
@@ -88,7 +207,7 @@ func ParseDaemonMessage(line string) (DaemonMessage, error) {
 	}
 
 	switch msg.Type {
-	case DaemonMsgWakeAgent, DaemonMsgLog, DaemonMsgHeartbeat, DaemonMsgError, DaemonMsgShutdown, DaemonMsgMetric:
+	case DaemonMsgWakeAgent, DaemonMsgLog, DaemonMsgHeartbeat, DaemonMsgError, DaemonMsgShutdown, DaemonMsgMetric, DaemonMsgToolRequest:
 		// known types
 	default:
 		return DaemonMessage{}, fmt.Errorf("unknown daemon message type: %q", msg.Type)

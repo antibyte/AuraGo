@@ -1114,5 +1114,11 @@
   "dashboard.memory_privacy_updated": "更新时间：{{date}}",
   "dashboard.memory_privacy_reconcile_pending": "需要重新检查联系人状态",
   "dashboard.memory_privacy_reconcile_retry": "检查联系人状态",
-  "dashboard.memory_privacy_reconcile_queued": "联系人状态检查已加入队列。任务更新后请查看其状态。"
+  "dashboard.memory_privacy_reconcile_queued": "联系人状态检查已加入队列。任务更新后请查看其状态。",
+  "dashboard.memory_corpus_documents": "语料库文档数",
+  "dashboard.memory_corpus_dimensions": "向量维度",
+  "dashboard.memory_corpus_storage": "语料库存储空间（含 WAL）",
+  "dashboard.memory_corpus_vector_estimate": "向量数据估算大小（不含额外内存开销）",
+  "dashboard.memory_exhausted_writes": "已用尽重试次数的写入任务",
+  "dashboard.memory_terminal_consolidations": "最终失败的整合任务"
 }

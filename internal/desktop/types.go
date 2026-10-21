@@ -246,7 +246,7 @@ type SettingDefinition struct {
 }
 
 func desktopWallpaperValues() []string {
-	return []string{"groupshoot", "aurora", "midnight", "slate", "ember", "forest", "alpine_dawn", "city_rain", "ocean_cliff", "aurora_glass", "nebula_flow", "paper_waves", "silk_flow", "firefly_dusk", "neon_overdrive", "fractal_trip"}
+	return []string{"groupshoot", "aurora", "midnight", "slate", "ember", "forest", "alpine_dawn", "city_rain", "ocean_cliff", "aurora_glass", "nebula_flow", "paper_waves", "silk_flow", "firefly_dusk", "neon_overdrive", "fractal_trip", "electronic_dreams", "windows_xp", "green_slime", "voxel_world"}
 }
 
 func desktopWallpaperValueSet() map[string]struct{} {
@@ -265,15 +265,16 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "appearance.wallpaper", Default: "groupshoot", Values: desktopWallpaperValues()},
 		{Key: "appearance.wallpaper_by_space", Default: "{}"},
 		{Key: "appearance.theme", Default: DefaultDesktopTheme, Values: DesktopThemeIDs()},
+		{Key: "appearance.theme_cursors", Default: "true", Values: []string{"true", "false"}},
 		{Key: "appearance.accent", Default: "teal", Values: []string{"teal", "orange", "blue", "violet", "green"}},
 		{Key: "appearance.density", Default: "comfortable", Values: []string{"comfortable", "compact"}},
-		{Key: "appearance.icon_theme", Default: "papirus", Values: []string{"papirus", "whitesur"}},
+		{Key: "appearance.icon_theme", Default: "papirus", Values: []string{"papirus", "whitesur", "windows_xp"}},
 		{Key: "appearance.fruity_mode", Default: "light", Values: []string{"light", "dark"}},
 		{Key: "desktop.icon_size", Default: "medium", Values: []string{"small", "medium", "large"}},
 		{Key: "desktop.show_widgets", Default: "true", Values: []string{"true", "false"}},
 		{Key: "windows.animations", Default: "true", Values: []string{"true", "false"}},
 		{Key: "sound.enabled", Default: "false", Values: []string{"true", "false"}},
-		{Key: "sound.theme", Default: "crystal", Values: []string{"crystal", "wood", "analog", "workshop", "water"}},
+		{Key: "sound.theme", Default: "desktop", Values: []string{"desktop", "crystal", "wood", "analog", "workshop", "water", "amiga", "cyberpunk", "black_gloss", "crazy", "lollipop", "organic", "electronic_dreams", "windows_xp", "green_slime", "voxel_world"}},
 		{Key: "sound.volume", Default: "0.6"},
 		{Key: "sound.windows", Default: "true", Values: []string{"true", "false"}},
 		{Key: "sound.notifications", Default: "true", Values: []string{"true", "false"}},

@@ -1114,5 +1114,11 @@
   "dashboard.memory_privacy_updated": "Uppdaterad: {{date}}",
   "dashboard.memory_privacy_reconcile_pending": "Kontaktens status måste kontrolleras igen",
   "dashboard.memory_privacy_reconcile_retry": "Kontrollera kontaktens status",
-  "dashboard.memory_privacy_reconcile_queued": "Kontroll av kontaktens status har lagts i kö. Granska jobbets status när det har uppdaterats."
+  "dashboard.memory_privacy_reconcile_queued": "Kontroll av kontaktens status har lagts i kö. Granska jobbets status när det har uppdaterats.",
+  "dashboard.memory_corpus_documents": "Dokument i korpusen",
+  "dashboard.memory_corpus_dimensions": "Vektordimensioner",
+  "dashboard.memory_corpus_storage": "Korpuslagring inklusive WAL",
+  "dashboard.memory_corpus_vector_estimate": "Uppskattade vektordata utan extra minnesåtgång",
+  "dashboard.memory_exhausted_writes": "Skrivjobb utan fler försök",
+  "dashboard.memory_terminal_consolidations": "Permanent misslyckade konsolideringar"
 }

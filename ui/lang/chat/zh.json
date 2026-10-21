@@ -3,6 +3,7 @@
   "chat.sessions_delete_memories": "同时删除相关记忆",
   "chat.sessions_delete_backups": "在计划清理之前，备份中可能仍保留已删除的数据。",
   "chat.sessions_delete_failed": "未能完全删除聊天。请刷新视图后重试。",
+  "chat.sessions_delete_scope_conflict": "此聊天已选择了不同的记忆删除范围。请刷新页面并检查状态后再试。",
   "chat.sessions_delete_report": "已删除：{deleted}。因来源共享、受保护或未知而保留：{retained}。",
   "chat.speech_lab_auth_required": "打开 Speech Lab 需要登录 AuraGo。",
   "chat.speech_lab_browser_url_missing": "请在媒体 → Speech Lab 中配置 Speech Lab 浏览器 URL。",

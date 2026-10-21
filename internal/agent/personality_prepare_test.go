@@ -36,7 +36,7 @@ func TestCurrentTurnEmotionReachesPromptBeforeReply(t *testing.T) {
 	cfg.Personality.Engine, cfg.Personality.EngineV2, cfg.Personality.EmotionSynthesizer.Enabled = true, true, true
 	cfg.Personality.CorePersonality = "punk"
 	flags := &prompts.ContextFlags{CorePersonality: "punk", Tier: "full", TokenBudget: 12000}
-	run := RunConfig{Config: cfg, ShortTermMem: stm, SessionID: "default"}
+	run := RunConfig{Config: cfg, ShortTermMem: stm, SessionID: "default", HumanInput: memory.NewHumanInput("Please brainstorm a creative idea.", "default")}
 	prepareTurnEmotion(context.Background(), run, *flags, "Please brainstorm a creative idea.", memory.DefaultPersonalityMeta(), slog.Default())
 	flags.PersonalityLine = stm.GetPersonalityLineWithMeta(true, memory.DefaultPersonalityMeta())
 	prompt, _ := prompts.BuildSystemPrompt(t.TempDir(), flags, "", slog.Default())
@@ -52,7 +52,7 @@ func TestCurrentTurnEmotionRetainsPositiveAffect(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Personality.Engine, cfg.Personality.EmotionSynthesizer.Enabled = true, true
 	emitAffectFromTrigger(stm, cfg, slog.Default(), memory.EmotionTriggerPositiveFeedback, "", "chat")
-	prepareTurnEmotion(context.Background(), RunConfig{Config: cfg, ShortTermMem: stm, SessionID: "default"}, prompts.ContextFlags{}, "Danke, das ist super!", memory.DefaultPersonalityMeta(), slog.Default())
+	prepareTurnEmotion(context.Background(), RunConfig{Config: cfg, ShortTermMem: stm, SessionID: "default", HumanInput: memory.NewHumanInput("Danke, das ist super!", "default")}, prompts.ContextFlags{}, "Danke, das ist super!", memory.DefaultPersonalityMeta(), slog.Default())
 	if got := stm.GetCurrentMood(); got != memory.MoodRelaxed {
 		t.Fatalf("generic heuristic overwrote positive feedback: %s", got)
 	}
@@ -66,6 +66,7 @@ func TestCurrentTurnEmotionSkipsAutonomousAndDelegatedRuns(t *testing.T) {
 			cfg.Personality.Engine = true
 			cfg.Personality.EmotionSynthesizer.Enabled = true
 			run := RunConfig{Config: cfg, ShortTermMem: stm, SessionID: "default", IsMission: kind == "mission", IsCoAgent: kind == "coagent", IsMaintenance: kind == "maintenance"}
+			run.HumanInput = memory.NewHumanInput("Please brainstorm a creative idea.", "default")
 			run.SuppressTurnSideEffects = kind == "suppressed"
 			if kind == "cron" {
 				run.MessageSource = "cron"
@@ -117,6 +118,7 @@ func TestPersonalityReachesActualChatRequestAcrossToolRounds(t *testing.T) {
 	run, _, cleanup := newPromptPipelineTestRunConfig(t, "personality-request", "web_chat")
 	defer cleanup()
 	run.Config.Personality.Engine, run.Config.Personality.EngineV2 = true, true
+	run.HumanInput = memory.NewHumanInput("Please show the current process list.", run.SessionID)
 	run.Config.Personality.CorePersonality = "punk"
 	run.Config.Personality.EmotionSynthesizer.Enabled = true
 	es := memory.NewEmotionSynthesizer(nil, run.Config.LLM.Model, 60, 100, "English", run.Logger)
@@ -255,7 +257,7 @@ func TestPersonalityRuntimeMainFallbackIsVisibleBoundedAndSingle(t *testing.T) {
 		return openai.ChatCompletionResponse{}, errors.New("synthetic provider unavailable")
 	}}
 	synth := memory.NewEmotionSynthesizer(nil, "", 60, 100, "English", logger)
-	launchAsyncPersonalityV2Analysis("fallback-session", cfg, logger, client, RunConfig{BudgetTracker: tracker, SideEffects: group}, stm, synth, nil, "hello", memory.EmotionTriggerConversation, "", 0, "assistant", "hello", memory.DefaultPersonalityMeta(), false, 0, 0, 0, false, false)
+	launchAsyncPersonalityV2Analysis("fallback-session", cfg, logger, client, RunConfig{BudgetTracker: tracker, SideEffects: group, HumanInput: memory.NewHumanInput("hello", "fallback-session")}, stm, synth, nil, "hello", memory.EmotionTriggerConversation, "", 0, "assistant", "hello", memory.DefaultPersonalityMeta(), false, 0, 0, 0, false, false)
 	select {
 	case duration := <-called:
 		if duration <= 0 || duration > 20*time.Second {

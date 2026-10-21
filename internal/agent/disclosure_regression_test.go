@@ -42,6 +42,9 @@ func TestDisclosureIntegrationStatusSurvivesDispatchAndFinalization(t *testing.T
 		t.Fatal("handler-owned isolation was stripped without Guardian")
 	}
 	// Reuse the caller context: a later failure must not inherit success.
+	// Enable the browser capability so the call reaches its unavailable runtime
+	// instead of failing the independent capability gate.
+	cfg.VirtualComputers.Enabled, cfg.Tools.VirtualComputers.Enabled, cfg.VirtualComputers.AgentControl.Enabled = true, true, true
 	call = ToolCall{Action: "virtual_browser", Operation: "status", Params: map[string]interface{}{"operation": "status"}}
 	result = DispatchToolCallResult(context.Background(), &call, dc, "browser status")
 	if result.Status != ToolResultFailed || call.DispatchStatus != ToolResultFailed {

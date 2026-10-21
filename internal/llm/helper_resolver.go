@@ -14,6 +14,7 @@ type HelperLLMConfig struct {
 	BaseURL      string
 	APIKey       string
 	AccountID    string
+	GatewayID    string
 	Model        string
 }
 
@@ -31,6 +32,7 @@ func ResolveHelperLLM(cfg *config.Config) HelperLLMConfig {
 		BaseURL:      strings.TrimSpace(cfg.LLM.HelperBaseURL),
 		APIKey:       strings.TrimSpace(cfg.LLM.HelperAPIKey),
 		AccountID:    strings.TrimSpace(cfg.LLM.HelperAccountID),
+		GatewayID:    strings.TrimSpace(cfg.LLM.HelperGatewayID),
 		Model:        strings.TrimSpace(cfg.LLM.HelperResolvedModel),
 	}
 
@@ -53,7 +55,7 @@ func IsHelperLLMAvailable(cfg *config.Config) bool {
 func ResolveHelperBackedClient(cfg *config.Config, fallbackClient ChatClient, fallbackModel string) (ChatClient, string) {
 	helperCfg := ResolveHelperLLM(cfg)
 	if IsHelperLLMAvailable(cfg) {
-		client := NewClientFromProviderWithConfig(cfg, helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey, helperCfg.AccountID)
+		client := NewClientFromProviderWithConfig(cfg, helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey, helperCfg.AccountID, helperCfg.GatewayID)
 		if client != nil {
 			return WrapOpenAIClient(client), helperCfg.Model
 		}

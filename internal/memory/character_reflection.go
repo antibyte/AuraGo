@@ -122,7 +122,7 @@ func ProposeCharacterNotesDeterministic(input CharacterReflectionInput) []Charac
 		case "Empathic Communicator":
 			add(CharacterNoteCategorySignature, "I acknowledge strain first, then offer a practical next step.", CharacterNoteSourceMilestone, 0.7)
 		case "Crisis of Confidence":
-			add(CharacterNoteCategoryCommitment, "After recent misses I slow down and confirm destructive steps.", CharacterNoteSourceMilestone, 0.68)
+			add(CharacterNoteCategoryCommitment, "After recent misses my voice becomes measured and deliberate.", CharacterNoteSourceMilestone, 0.68)
 		}
 	}
 
@@ -141,7 +141,11 @@ func ProposeCharacterNotesDeterministic(input CharacterReflectionInput) []Charac
 }
 
 // ApplyCharacterNoteProposals persists up to the daily cap of valid proposals.
-func (s *SQLiteMemory) ApplyCharacterNoteProposals(corePersonality string, proposals []CharacterNoteProposal, now time.Time) (int, error) {
+func (s *SQLiteMemory) ApplyCharacterNoteProposals(corePersonality string, proposals []CharacterNoteProposal, now time.Time, sources ...string) (int, error) {
+	source := CharacterNoteSourceCode
+	if len(sources) > 0 && sources[0] == CharacterNoteSourceStateReflection {
+		source = sources[0]
+	}
 	if now.IsZero() {
 		now = time.Now()
 	}
@@ -163,7 +167,7 @@ func (s *SQLiteMemory) ApplyCharacterNoteProposals(corePersonality string, propo
 			Category:   proposal.Category,
 			Text:       proposal.Text,
 			Confidence: proposal.Confidence,
-			Source:     proposal.Source,
+			Source:     source,
 		})
 		stored, err := s.InsertCharacterNote(note)
 		if err != nil {
@@ -215,14 +219,11 @@ func (s *SQLiteMemory) BuildCharacterReflectionInput(corePersonality string) Cha
 			input.Milestones = append(input.Milestones, entry.Label)
 		}
 	}
-	if voices, err := s.GetRecentInnerVoices(3); err == nil {
-		for _, voice := range voices {
-			input.InnerVoices = append(input.InnerVoices, voice.InnerThought)
-		}
-	}
 	if notes, err := s.ListCharacterNotes(); err == nil {
 		for _, note := range notes {
-			input.ExistingNotes = append(input.ExistingNotes, note.Text)
+			if note.Source == CharacterNoteSourceCode || note.Source == CharacterNoteSourceStateReflection {
+				input.ExistingNotes = append(input.ExistingNotes, note.Text)
+			}
 		}
 	}
 	return input

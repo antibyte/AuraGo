@@ -6,6 +6,7 @@ import (
 )
 
 const (
+	OllamaOwner = "ollama"
 	// LocalLLMOwner is the canonical owner value for AuraGo-Qwen resources.
 	LocalLLMOwner = "local-llm"
 
@@ -52,6 +53,16 @@ const (
 	// image (config.DefaultCYDCreatorBuilderImage without its tag).
 	CYDCreatorImageRepository = "ghcr.io/antibyte/aurago-cyd-builder"
 )
+
+// IsOllamaContainerName protects both current names, including unlabeled legacy containers.
+func IsOllamaContainerName(name string) bool {
+	name = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/")
+	return name == "aurago_ollama_managed" || name == "aurago_ollama_embeddings"
+}
+
+func IsOllamaVolumeName(name string) bool {
+	return name == "aurago_ollama_managed_models" || name == "aurago_ollama_embeddings_models"
+}
 
 // ManagedBy recognizes both the canonical AuraGo label and the legacy labels
 // used by early AuraGo-Qwen integration builds.

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -297,7 +296,7 @@ func optimizerCompletion(ctx context.Context, manager *llm.FailoverManager, requ
 	if tracker != nil && tracker.IsBlocked(category) {
 		return openai.ChatCompletionResponse{}, fmt.Errorf("optimizer budget exhausted")
 	}
-	provider, model := manager.ActiveProviderAndModel()
+	_, model := manager.ActiveProviderAndModel()
 	request.Model = model
 	inputTokens := 32
 	for _, message := range request.Messages {
@@ -308,12 +307,5 @@ func optimizerCompletion(ctx context.Context, manager *llm.FailoverManager, requ
 		return openai.ChatCompletionResponse{}, limitErr
 	}
 	request.MaxTokens = outputTokens
-	if errors.Is(openai.NewReasoningValidator().Validate(request), openai.ErrReasoningModelMaxTokensDeprecated) {
-		request.MaxCompletionTokens = request.MaxTokens
-		request.MaxTokens = 0
-	}
-	callCtx, capture := llm.CaptureUsage(ctx)
-	response, err := manager.CreateChatCompletion(callCtx, request)
-	tracker.RecordResponseUsage(category, provider, model, capture, response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens > 0)
-	return response, err
+	return budget.CompleteChat(ctx, manager, request, manager.ActiveRoute(), category, outputTokens, prompts.CountTokensForModelContext)
 }

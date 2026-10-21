@@ -1,0 +1,18 @@
+/* Locally packaged theme artwork also remains selectable independently of the skin. */
+.desktop-body[data-wallpaper="electronic_dreams"] {
+    background: #0e2520 url('/img/wallpapers/themes/electronic_dreams.png') center / cover no-repeat fixed;
+}
+.desktop-body[data-wallpaper="windows_xp"] {
+    background: #5c9ee9 url('/img/wallpapers/themes/windows_xp.png') center / cover no-repeat fixed;
+}
+.desktop-body[data-wallpaper="green_slime"] {
+    background: #233815 url('/img/wallpapers/themes/green_slime.png') center / cover no-repeat fixed;
+}
+.desktop-body[data-wallpaper="voxel_world"] {
+    background: #9bc8db url('/img/wallpapers/themes/voxel_world.png') center / cover no-repeat fixed;
+}
+.desktop-body:is([data-wallpaper="electronic_dreams"], [data-wallpaper="windows_xp"], [data-wallpaper="green_slime"], [data-wallpaper="voxel_world"]) .vd-icon-label {
+    color: #fff;
+    background: rgba(16, 25, 19, .66);
+    text-shadow: 0 1px 2px #142018;
+}

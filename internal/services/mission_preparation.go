@@ -192,7 +192,8 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 	}
 
 	s.cfgMu.RLock()
-	prepCfg := s.cfg.MissionPreparation
+	cfgSnapshot := *s.cfg
+	prepCfg := cfgSnapshot.MissionPreparation
 	s.cfgMu.RUnlock()
 
 	if !prepCfg.Enabled {
@@ -238,10 +239,13 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 	}
 
 	baseURL := strings.TrimRight(prepCfg.BaseURL, "/")
-	if baseURL != "" && !strings.Contains(baseURL, "/v1") {
-		baseURL += "/v1"
+	accountID := cfgSnapshot.LLM.AccountID
+	gatewayID := cfgSnapshot.LLM.GatewayID
+	if provider := cfgSnapshot.FindProvider(prepCfg.Provider); provider != nil {
+		accountID = provider.AccountID
+		gatewayID = provider.GatewayID
 	}
-	client := llm.NewClientFromProviderWithConfig(nil, prepCfg.ProviderType, baseURL, apiKey, "")
+	client := llm.NewClientFromProviderWithConfig(&cfgSnapshot, prepCfg.ProviderType, baseURL, apiKey, accountID, gatewayID)
 
 	llmCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

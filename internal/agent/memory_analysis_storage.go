@@ -18,7 +18,7 @@ func storeMemoryAnalysisDocument(logger *slog.Logger, stm *memory.SQLiteMemory, 
 	stored, err := memory.StoreAutomaticMemoryDocumentWithContext(ctx, stm, ltm, concept, content, details)
 	ids := append(append(append([]string(nil), stored.CreatedIDs...), stored.ReusedIDs...), stored.UnknownIDs...)
 	if err != nil {
-		return nil, errors.Join(err, rollbackPendingMemoryWriteCreatedIDs(logger, stm, ltm, stored.Writes))
+		return nil, errors.Join(err, rollbackPendingMemoryWriteCreatedIDs(logger, stm, ltm, stored.Writes, ctx))
 	}
 	return ids, nil
 }

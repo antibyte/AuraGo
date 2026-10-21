@@ -1036,6 +1036,8 @@ var ErrDockerOwnershipUnverified = errors.New("docker container ownership could 
 func dockerOwnerMatches(owner, name string, labels map[string]string) bool {
 	trimmed := strings.TrimSpace(owner)
 	switch {
+	case strings.EqualFold(trimmed, dockerutil.OllamaOwner) && dockerutil.IsOllamaContainerName(name):
+		return true
 	case owner == acestep.Owner && acestep.IsResourceName(name):
 		return true
 	case strings.EqualFold(trimmed, dockerutil.LocalLLMOwner) && dockerutil.IsLocalLLMContainerName(name):
@@ -1200,6 +1202,9 @@ func dockerManagedResourceExcluded(labels map[string]string, names []string, vol
 			return true
 		}
 		for _, name := range names {
+			if owner == dockerutil.OllamaOwner && (volume && dockerutil.IsOllamaVolumeName(name) || !volume && dockerutil.IsOllamaContainerName(name)) {
+				return true
+			}
 			if owner == acestep.Owner && acestep.IsResourceName(name) {
 				return true
 			}
@@ -1733,6 +1738,9 @@ func DockerRemoveImage(cfg DockerConfig, image string, force bool) string {
 
 // DockerRenameContainer renames a container.
 func DockerRenameContainer(cfg DockerConfig, containerID, newName string) string {
+	if dockerutil.IsOllamaContainerName(newName) {
+		return errJSON("reserved AuraGo managed Ollama container name")
+	}
 	if err := validateDockerName(containerID); err != nil {
 		return errJSON("%v", err)
 	}

@@ -534,7 +534,7 @@ func (r *VoiceActionRunner) buildTelephoneBackendSnapshot(ctx context.Context, s
 	runtimeConfig.MemoryAnalysis.ResolvedModel = ""
 	runtimeSnapshot := &sipAgentRuntimeSnapshot{
 		config:      runtimeConfig,
-		llmClient:   llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&runtimeConfig, agentProvider.Type, agentProvider.BaseURL, agentProvider.APIKey, agentProvider.AccountID)),
+		llmClient:   llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&runtimeConfig, agentProvider.Type, agentProvider.BaseURL, agentProvider.APIKey, agentProvider.AccountID, agentProvider.GatewayID)),
 		toolSchemas: toolSchemas,
 	}
 	frozenRunner := &snapshottedVoiceActionRunner{runner: r, snapshot: runtimeSnapshot}

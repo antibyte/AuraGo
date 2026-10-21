@@ -187,10 +187,12 @@ func analyzeImageReferenceWithPromptContext(ctx context.Context, imageReference,
 		return "", 0, 0, fmt.Errorf("vision base URL is not configured")
 	}
 	accountID := strings.TrimSpace(cfg.LLM.AccountID)
+	gatewayID := cfg.LLM.GatewayID
 	if provider := cfg.FindProvider(cfg.Vision.Provider); provider != nil {
 		accountID = strings.TrimSpace(provider.AccountID)
+		gatewayID = provider.GatewayID
 	}
-	client := llm.NewClientFromProviderWithConfig(cfg, providerType, baseURL, apiKey, accountID)
+	client := llm.NewClientFromProviderWithConfig(cfg, providerType, baseURL, apiKey, accountID, gatewayID)
 	resp, err := budget.CompleteChat(ctx, llm.WrapOpenAIClient(client), openai.ChatCompletionRequest{
 		Model: model,
 		Messages: []openai.ChatCompletionMessage{{

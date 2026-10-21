@@ -4126,7 +4126,14 @@ window.SessionDrawer = (function () {
         if (choice === null) return;
         try {
             const response = await fetch('/api/chat/sessions/' + encodeURIComponent(id) + '?delete_memories=' + choice, { method: 'DELETE', credentials: 'same-origin' });
-            if (!response.ok) throw new Error(t('chat.sessions_delete_failed'));
+            if (!response.ok) {
+                const failure = await response.json().catch(() => ({}));
+                if (failure.code === 'deletion_scope_conflict') {
+                    if (typeof showAlert === 'function') await showAlert(t('chat.sessions_delete'), t('chat.sessions_delete_scope_conflict'));
+                    return;
+                }
+                throw new Error(t('chat.sessions_delete_failed'));
+            }
             const data = await response.json();
             if ((choice || data.status === 'partial') && typeof showAlert === 'function') {
                 const report = data.deletion || {};
@@ -4716,6 +4723,15 @@ document.querySelectorAll('.mood-btn').forEach(btn => {
         autoResize();
 
         // Send personality feedback to backend
+        let feedbackStatus = document.getElementById('personality-feedback-status');
+        if (!feedbackStatus) {
+            feedbackStatus = document.createElement('span');
+            feedbackStatus.id = 'personality-feedback-status';
+            feedbackStatus.setAttribute('role', 'status');
+            btn.parentElement.after(feedbackStatus);
+        }
+        feedbackStatus.textContent = '';
+        btn.classList.remove('flash-error');
         btn.disabled = true;
         const eventID = window.crypto && typeof window.crypto.randomUUID === 'function'
             ? window.crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
@@ -4723,14 +4739,21 @@ document.querySelectorAll('.mood-btn').forEach(btn => {
             const res = await fetch('/api/personality/feedback', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: feedbackType, event_id: eventID })
+                body: JSON.stringify({ type: feedbackType, event_id: eventID, occurred_at: new Date().toISOString() })
             });
             if (res.ok) {
+                feedbackStatus.textContent = t('personality_legacy.done');
                 btn.classList.add('flash-ok');
                 setTimeout(() => btn.classList.remove('flash-ok'), 500);
+            } else {
+                btn.title = t('personality_legacy.failed');
+                feedbackStatus.textContent = t('personality_legacy.failed');
+                btn.classList.add('flash-error');
             }
         } catch (e) {
-            console.error('Feedback error:', e);
+            btn.title = t('personality_legacy.failed');
+            feedbackStatus.textContent = t('personality_legacy.failed');
+            btn.classList.add('flash-error');
         } finally {
             btn.disabled = false;
         }

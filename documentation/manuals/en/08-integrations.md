@@ -1402,14 +1402,14 @@ Route supported AI traffic through Cloudflare AI Gateway without spending a toke
 #### Web UI Setup
 1. Open **Config → Integrations → AI Gateway**.
 2. Enable the integration and enter your **Account ID** and **Gateway ID**.
-3. Choose a routing mode. `auto` uses Cloudflare provider-native routes where safe and skips unsupported providers instead of falling back to `/openai`.
-4. Choose a logging mode. `metadata_only` is the privacy-safe default; `full` enables payload logging; `off` disables collection headers.
-5. Optionally add request timeout, retry, backoff, and non-secret metadata headers.
-6. Save, then use **Test Gateway**. Workers AI uses Cloudflare's local models-search endpoint, OpenAI-compatible native routes use `/models`, and routes without a safe probe endpoint are reported as configured with `live_status: skipped`.
+3. Routing uses safe provider-native routes and preserves custom endpoints. There is no generic `/openai` fallback.
+4. Choose a logging mode. `metadata_only` respects Cloudflare's logging switch and suppresses payloads; `full` explicitly stores prompts and responses; `off` suppresses logs entirely.
+5. Optionally set a response-start timeout and up to five non-secret metadata pairs. AuraGo owns retries and always requests one gateway attempt.
+6. Save and select a provider. **Test Gateway** checks metadata without generation. **Test model (billable)** makes one bounded, budgeted generation request. Configured, skipped, connection-checked and model-tested states are distinct.
 
 Workers AI is routed through the Cloudflare REST endpoint (`https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1`) with `cf-aig-gateway-id`. Provider-native gateway routes use `cf-aig-authorization` for the optional authenticated-gateway token. Keep secrets out of metadata.
 
-Google AI Gateway provider-native routing is intentionally not enabled yet. Cloudflare's Google provider route expects Gemini-native request shapes, while AuraGo currently sends Google traffic through OpenAI-compatible provider clients.
+For Google models through Cloudflare, add a separate `cloudflare-rest` provider. Cerebras and Perplexity have native routes. Modern Hugging Face chat uses a manually configured Cloudflare Custom Provider. See [AI Gateway setup and provider reference](../../ai-gateway.md) for tokens, billing, exact paths, timeout limits and compatibility.
 
 #### YAML Reference
 ```yaml
@@ -1417,13 +1417,10 @@ ai_gateway:
     enabled: true
     account_id: "YOUR_ACCOUNT_ID"
     gateway_id: "YOUR_GATEWAY_ID"
-    mode: auto                 # auto, openai_compatible, provider_native
+    huggingface_provider_slug: ""
     log_mode: metadata_only    # metadata_only, off, full
     metadata: {}
     request_timeout_ms: 0
-    max_attempts: 0
-    retry_delay_ms: 0
-    backoff: ""                # "", constant, linear, exponential
 ```
 
 ### Fallback LLM Integration
@@ -2360,7 +2357,7 @@ shell_sandbox:
 
 ### Python Tool Bridge
 
-Allows **Python skills** to call selected native AuraGo tools over an internal HTTP bridge (`POST /api/internal/tool-bridge/`). Disabled by default for security.
+Allows **Python skills** to call selected native AuraGo tools through a run-bound bridge. Isolated foreground workers and daemon skills use their supervisor's broker; they receive no bridge token or URL. Disabled by default. See [isolated code execution](../../isolated-executor.md#tool-bridge) for transport, lifetime and policy limits.
 
 #### Web UI Setup
 1. Open **Config → Tools → Python Tool Bridge**.
@@ -2381,7 +2378,7 @@ tools:
 Skills declare bridge usage in their manifest via `internal_tools`. The agent does not call the bridge directly — skills invoke it at runtime.
 
 > [!WARNING]
-> **Security:** Only whitelist tools a skill truly needs. Never add `get_secret`, `execute_shell`, or vault tools unless you fully trust the skill code.
+> **Security:** Only whitelist tools a skill truly needs; keep secret and Vault tools out of the list. Shell, Python, skill execution and `invoke_tool` reentry are blocked even when allowlisted. Background actions requiring authorization need matching action rules.
 
 ### Skill Manager Integration
 
@@ -2555,14 +2552,14 @@ virtual_desktop:
 
 **RuView** integrates Wi-Fi sensing ([RuView v3122](https://github.com/ruvnet/RuView)) including its dashboard, observatory, pose fusion, calibration, recording and training views. AuraGo's management speaks all 16 languages; upstream views keep their original language. Wi-Fi sensing is experimental — connectivity proves nothing about measurement, presence or pose accuracy.
 
-**Web UI:** **Config → RuView** — enable the integration, pick a runtime and source, save. Start and agent access are disabled by default; read-only starts enabled. **Open RuView** installs/starts a managed runtime, **Set up board** flashes ESP32 firmware over USB (Web Serial) and provisions Wi-Fi.
+**Web UI:** **Config → RuView** — enable the integration, pick a runtime and source, save. Start and agent access are disabled by default; read-only starts enabled. **Open RuView** opens the desktop app, where **Install runtime** and **Start** manage a managed runtime; **Configure board** flashes ESP32 firmware over USB (Web Serial) and provisions Wi-Fi. Walkthrough: [Chapter 30](30-ruview.md).
 
 **Runtimes:**
 
 | Runtime | Intended use |
 |---------|--------------|
 | Managed Docker | Linux sensing server for ESP32 CSI or an explicit demo; AuraGo creates and stops its own labelled container |
-| Native host | Verified Windows amd64 or macOS package; hosts need a working Wi-Fi adapter for RSSI |
+| Native host | Verified Windows amd64 package (no other native package ships in this release); hosts need a working Wi-Fi adapter for RSSI |
 | External | Existing RuView service at the saved HTTP(S) origin; private/loopback access requires `allow_private` |
 
 **Important:**
@@ -3117,3 +3114,8 @@ Now that your integrations are set up:
 ---
 **Previous Chapter:** [Chapter 7: Configuration](./07-configuration.md)
 **Next Chapter:** [Chapter 9: Memory & Knowledge](./09-memory.md)
+
+
+### Managed website history
+
+Homepage mutations require reason and automatically record changes and outcomes. Use homepage_registry overview/get_site/list_events for identity, locations and reasons. Discover_workspace/adopt recover unregistered projects. See [Managed websites](../../homepage-ledger.md).

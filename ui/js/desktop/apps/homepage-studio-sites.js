@@ -172,6 +172,12 @@
         function renderDetail(site) {
             if (!site) return '';
             const parts = ['<div class="vd-hp-site-detail">'];
+            const originKey = site.origin === 'agent_created' ? 'agent' : site.origin === 'adopted' ? 'adopted' : 'unknown';
+            parts.push('<p class="vd-hp-site-detail-msg">' + esc(t('homepage_studio.sites_origin_' + originKey)) + '</p>');
+            if (site.local_root) parts.push('<p class="vd-hp-site-detail-msg">' + esc(t('homepage_studio.sites_local')) + ': <code class="vd-hp-site-path">' + esc(site.local_root) + '</code></p>');
+            if (site.container_path) parts.push('<p class="vd-hp-site-detail-msg">' + esc(t('homepage_studio.sites_container')) + ': <code class="vd-hp-site-path">' + esc(site.container_path) + '</code></p>');
+            if (site.last_reconciled_at) parts.push('<p class="vd-hp-site-detail-msg">' + esc(t('homepage_studio.sites_checked')) + ': ' + esc(formatTime(site.last_reconciled_at)) + '</p>');
+
             if (site.drift_message) {
                 parts.push(`<p class="vd-hp-site-detail-msg">${esc(site.drift_message)}</p>`);
             }
@@ -179,7 +185,7 @@
             if (targets.length) {
                 parts.push(`<span class="vd-hp-site-section-label">${esc(t('homepage_studio.sites_targets'))}</span><div class="vd-hp-site-rows">`);
                 targets.forEach(target => {
-                    parts.push(renderRow(target.provider, target.url || target.remote_path, formatTime(target.last_seen_at || target.updated_at)));
+                    parts.push(renderRow((target.provider || '') + ' · ' + t('homepage_studio.sites_target_' + (target.status === 'active' ? 'active' : target.status === 'inactive' ? 'inactive' : 'unknown')), target.url || target.remote_path, formatTime(target.last_seen_at || target.updated_at), target.status));
                 });
                 parts.push('</div>');
             }
@@ -201,6 +207,22 @@
                     parts.push(renderRow(obs.provider, obs.url, formatTime(obs.observed_at), obs.status));
                 });
                 parts.push('</div>');
+            }
+
+            const events = Array.isArray(site.events) ? site.events : [];
+            if (events.length) {
+                const seen = new Set();
+                parts.push('<span class="vd-hp-site-section-label">' + esc(t('homepage_studio.sites_changes')) + '</span>');
+                events.forEach(event => {
+                    const key = event.operation_id || String(event.id);
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    const reason = event.reason && event.reason !== 'unknown' ? event.reason : t('homepage_studio.sites_reason_unknown');
+                    const details = event.details || {};
+                    const files = Array.isArray(details.files_changed) ? details.files_changed : [];
+                    const outcome = ['succeeded', 'failed', 'pending', 'partial', 'unknown'].includes(event.outcome) ? event.outcome : 'unknown';
+                    parts.push('<details class="vd-hp-site-event"><summary>' + esc(reason) + ' · ' + esc(t('homepage_studio.sites_outcome_' + outcome)) + '</summary><time>' + esc(formatTime(event.created_at)) + '</time>' + (files.length ? '<ul>' + files.map(file => '<li><code>' + esc(file.path || '') + '</code></li>').join('') + '</ul>' : '') + '</details>');
+                });
             }
             if (!deps.readonly) {
                 parts.push(`
@@ -252,11 +274,11 @@
             container.querySelectorAll('.vd-hp-site').forEach(card => {
                 const id = Number(card.getAttribute('data-site-id'));
                 card.addEventListener('click', event => {
-                    if (event.target.closest('a,button')) return;
+                    if (event.target.closest('a,button,details')) return;
                     select(id);
                 });
                 card.addEventListener('keydown', event => {
-                    if (event.target.closest('a,button')) return;
+                    if (event.target.closest('a,button,details')) return;
                     if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
                         select(id);

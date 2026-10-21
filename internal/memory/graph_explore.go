@@ -4,7 +4,9 @@ import (
 	"aurago/internal/dbutil"
 	"aurago/internal/memory/kgquery"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -21,6 +23,7 @@ func (kg *KnowledgeGraph) Explore(query string) string {
 	seenEdges := make(map[string]struct{})
 	var matchedNodeIDs []string
 	var accessHits []knowledgeGraphAccessHit
+	var ftsErr, likeErr error
 
 	if kg.semanticIndex() != nil {
 		results := kg.semanticSearchNodesWithQueryer(tx, query, 0.4, 5)
@@ -30,11 +33,23 @@ func (kg *KnowledgeGraph) Explore(query string) string {
 		}
 	}
 	if len(matchedNodeIDs) == 0 {
-		results, err := kg.exploreFTS(tx, query, 5)
-		if err != nil {
-			kg.logger.Warn("Explore: fallback query failed", "error", err)
+		ftsNodes, queryErr := kg.exploreFTS(tx, query, 5)
+		if queryErr != nil {
+			ftsErr = fmt.Errorf("kg explore via FTS: %w", queryErr)
 		}
-		for _, n := range results {
+		likeNodes, queryErr := kg.exploreLike(tx, query, 5)
+		if queryErr != nil {
+			likeErr = fmt.Errorf("kg explore via LIKE: %w", queryErr)
+		}
+		seen := make(map[string]struct{}, 10)
+		for _, n := range append(ftsNodes, likeNodes...) {
+			if len(matchedNodeIDs) >= 5 {
+				break
+			}
+			if _, exists := seen[n.ID]; exists {
+				continue
+			}
+			seen[n.ID] = struct{}{}
 			nodesMap[n.ID] = n
 			matchedNodeIDs = append(matchedNodeIDs, n.ID)
 		}
@@ -43,7 +58,9 @@ func (kg *KnowledgeGraph) Explore(query string) string {
 	for _, id := range matchedNodeIDs {
 		nbs, es, hits, err := kg.getNeighborsWithQueryer(tx, id, 10, KnowledgeGraphQueryOptions{})
 		if err != nil {
-			kg.logger.Warn("Explore: neighbor query failed", "node_id", id, "error", err)
+			if kg.logger != nil {
+				kg.logger.Warn("Explore: neighbor query failed", "node_id", id, "error", err)
+			}
 			continue
 		}
 		accessHits = append(accessHits, hits...)
@@ -64,15 +81,27 @@ func (kg *KnowledgeGraph) Explore(query string) string {
 	if err := tx.Commit(); err != nil {
 		return kg.jsonError("Explore", fmt.Errorf("commit read transaction: %w", err))
 	}
+	kg.repairKGFTSAfterQueryFailure(ftsErr)
 
 	var finalList []Node
 	for _, n := range nodesMap {
 		finalList = append(finalList, n)
 	}
+	sort.Slice(finalList, func(i, j int) bool { return finalList[i].ID < finalList[j].ID })
 
 	result := map[string]interface{}{
 		"nodes": finalList,
 		"edges": edges,
+	}
+	searchErr := errors.Join(ftsErr, likeErr)
+	if searchErr != nil {
+		result["errors"] = []string{searchErr.Error()}
+		if len(finalList) == 0 {
+			result["error"] = searchErr.Error()
+		}
+		if kg.logger != nil {
+			kg.logger.Warn("Explore: lexical search incomplete", "error", searchErr)
+		}
 	}
 	data, err := json.Marshal(result)
 	if err != nil {
@@ -89,17 +118,13 @@ func (kg *KnowledgeGraph) exploreFTS(q knowledgeGraphQueryer, query string, limi
 		limit = 5
 	}
 	ftsQuery := kgquery.EscapeFTS5(query)
-	likePattern := "%" + dbutil.EscapeLike(strings.ToLower(query)) + "%"
 	rows, err := q.Query(`
 		SELECT id, label, properties, protected
 		FROM kg_nodes
 		WHERE rowid IN (SELECT rowid FROM kg_nodes_fts WHERE kg_nodes_fts MATCH ?)
-		UNION
-		SELECT id, label, properties, protected
-		FROM kg_nodes
-		WHERE LOWER(id) LIKE ? ESCAPE '\' OR LOWER(label) LIKE ? ESCAPE '\' OR LOWER(properties) LIKE ? ESCAPE '\'
+		ORDER BY id
 		LIMIT ?
-	`, ftsQuery, likePattern, likePattern, likePattern, limit)
+	`, ftsQuery, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -119,6 +144,43 @@ func (kg *KnowledgeGraph) exploreFTS(q knowledgeGraphQueryer, query string, limi
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate explore fallback nodes: %w", err)
+	}
+	return nodes, nil
+}
+
+func (kg *KnowledgeGraph) exploreLike(q knowledgeGraphQueryer, query string, limit int) ([]Node, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+	query = strings.ToLower(strings.TrimSpace(query))
+	if query == "" {
+		return nil, nil
+	}
+	likePattern := "%" + dbutil.EscapeLike(query) + "%"
+	rows, err := q.Query(`
+		SELECT id,label,properties,protected FROM kg_nodes
+		WHERE LOWER(id) LIKE ? ESCAPE '\' OR LOWER(label) LIKE ? ESCAPE '\' OR LOWER(properties) LIKE ? ESCAPE '\'
+		ORDER BY id
+		LIMIT ?
+	`, likePattern, likePattern, likePattern, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	nodes := make([]Node, 0, limit)
+	for rows.Next() {
+		var node Node
+		var propsJSON string
+		var protected int
+		if err := rows.Scan(&node.ID, &node.Label, &propsJSON, &protected); err != nil {
+			return nil, fmt.Errorf("scan explore LIKE node: %w", err)
+		}
+		node.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "Explore", node.ID, propsJSON, protected)
+		node.Protected = protected != 0
+		nodes = append(nodes, node)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate explore LIKE nodes: %w", err)
 	}
 	return nodes, nil
 }

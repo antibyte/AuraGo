@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -52,46 +53,90 @@ func (s *SQLiteMemory) deleteMessagesInTx(tx *sql.Tx, sessionID, extraWhere stri
 	return rows, nil
 }
 
-// EnforceSTMPRetentionForSession archives and deletes STM messages older than the newest keepN rows.
+// EnforceSTMPRetentionForSession archives and deletes up to 1000 eligible STM messages older than the newest keepN rows.
 func (s *SQLiteMemory) EnforceSTMPRetentionForSession(sessionID string, keepN int) error {
-	return s.DeleteOldMessages(sessionID, keepN)
+	ctx, cancel := maintenanceCompatibilityContext()
+	defer cancel()
+	return s.EnforceSTMPRetentionForSessionContext(ctx, sessionID, keepN, 1000)
 }
 
-// EnforceSTMPRetention applies per-session retention across every session that has STM rows.
-// Returns the number of sessions for which retention ran without error (including no-op runs).
+// EnforceSTMPRetention advances the bounded global retention cursor by at most 5000 STM rows.
+// It returns the number of distinct sessions processed in committed pages.
 func (s *SQLiteMemory) EnforceSTMPRetention(keepN int) (int, error) {
-	if keepN <= 0 {
-		return 0, fmt.Errorf("keepN must be positive, got %d", keepN)
-	}
-	rows, err := s.db.Query(`SELECT DISTINCT session_id FROM messages`)
-	if err != nil {
-		return 0, fmt.Errorf("list stm sessions: %w", err)
-	}
-	defer rows.Close()
+	ctx, cancel := maintenanceCompatibilityContext()
+	defer cancel()
+	return s.EnforceSTMPRetentionContext(ctx, keepN, 5000)
+}
 
-	var sessionIDs []string
+// CleanOldArchivedMessagesContext deletes one bounded page of terminal archive
+// rows. The archive-delete trigger removes any source-bound checkpoints in the
+// same transaction; interrupted cleanup is resumed by the next maintenance run.
+func (s *SQLiteMemory) CleanOldArchivedMessagesContext(ctx context.Context, days, limit int) (int64, error) {
+	if s == nil || s.db == nil {
+		return 0, fmt.Errorf("memory archive store is unavailable")
+	}
+	if days <= 0 {
+		return 0, fmt.Errorf("archive retention days must be positive")
+	}
+	ctx = maintenanceContext(ctx)
+	if limit <= 0 || limit > 1000 {
+		limit = 250
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin archived memory cleanup: %w", err)
+	}
+	defer tx.Rollback()
+	rows, err := tx.QueryContext(ctx, `
+		SELECT id FROM archived_messages
+		WHERE consolidated=1 AND consolidation_status IN ('done','excluded')
+		  AND archived_at < datetime('now', ?)
+		ORDER BY id LIMIT ?`, fmt.Sprintf("-%d days", days), limit)
+	if err != nil {
+		return 0, fmt.Errorf("select terminal archived messages for cleanup: %w", err)
+	}
+	ids := make([]int64, 0, limit)
 	for rows.Next() {
-		var sessionID string
-		if err := rows.Scan(&sessionID); err != nil {
-			return 0, fmt.Errorf("scan stm session id: %w", err)
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("scan terminal archived message for cleanup: %w", err)
 		}
-		sessionIDs = append(sessionIDs, sessionID)
+		ids = append(ids, id)
 	}
 	if err := rows.Err(); err != nil {
-		return 0, err
+		rows.Close()
+		return 0, fmt.Errorf("iterate terminal archived messages for cleanup: %w", err)
 	}
-
-	pruned := 0
-	var errs []string
-	for _, sessionID := range sessionIDs {
-		if err := s.DeleteOldMessages(sessionID, keepN); err != nil {
-			errs = append(errs, fmt.Sprintf("%s: %v", sessionID, err))
-			continue
+	if err := rows.Close(); err != nil {
+		return 0, fmt.Errorf("close terminal archived messages for cleanup: %w", err)
+	}
+	if len(ids) == 0 {
+		if err := tx.Commit(); err != nil {
+			return 0, fmt.Errorf("commit empty archived memory cleanup: %w", err)
 		}
-		pruned++
+		return 0, nil
 	}
-	if len(errs) > 0 {
-		return pruned, fmt.Errorf("stm retention failures: %s", strings.Join(errs, "; "))
+	placeholders := make([]string, len(ids))
+	args := make([]any, 0, len(ids)+2)
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args = append(args, id)
 	}
-	return pruned, nil
+	args = append(args, days)
+	query := `DELETE FROM archived_messages WHERE id IN (` + strings.Join(placeholders, ",") + `)
+		AND consolidated=1 AND consolidation_status IN ('done','excluded')
+		AND archived_at < datetime('now', '-' || ? || ' days')`
+	res, err := tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, fmt.Errorf("delete terminal archived messages: %w", err)
+	}
+	deleted, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("count deleted archived messages: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit terminal archived message cleanup: %w", err)
+	}
+	return deleted, nil
 }

@@ -77,5 +77,66 @@
             if (root.isConnected) root.textContent = label('unavailable');
         }
     }
-    window.AuraPersonalityDynamics = {render, load};
+    async function loadLegacy(root, after = 0) {
+        if (!root) return;
+        const copy = (key) => t('personality_legacy.' + key);
+        root.replaceChildren(node('h3', copy('title')), node('p', copy('hint')));
+        const status = node('p', copy('loading'));
+        status.setAttribute('role', 'status');
+        const list = node('div', '', 'personality-legacy-list');
+        const reload = node('button', copy('reload'), 'btn btn-secondary');
+        reload.type = 'button';
+        reload.dataset.action = 'reload';
+        reload.addEventListener('click', () => loadLegacy(root));
+        root.append(status, list, reload);
+        try {
+            const response = await fetch('/api/personality/legacy?limit=20&after=' + after, {credentials: 'same-origin', cache: 'no-store'});
+            if (!response.ok) throw new Error('legacy unavailable');
+            const data = await response.json();
+            if (!root.isConnected || !root.contains(list)) return;
+            status.textContent = data.entries.length ? '' : copy('empty');
+            for (const entry of data.entries) {
+                const item = node('article', '', 'personality-legacy-entry');
+                item.dataset.entryId = String(entry.id);
+                const kind = ['profile','character','emotion','mood'].includes(entry.kind) ? copy('kind_' + entry.kind) : entry.kind;
+                item.append(node('strong', '#' + entry.id + ' · ' + kind));
+                item.append(node('pre', JSON.stringify(entry.payload, null, 2)));
+                const actions = node('div', '', 'personality-legacy-actions');
+                const protectedNote = !!(entry.payload && entry.payload.protected);
+                for (const action of ['discard', 'adopt']) {
+                    if (action === 'adopt' && !['profile', 'character'].includes(entry.kind)) continue;
+                    const button = node('button', action === 'discard' ? t('common.btn_delete') : copy('adopt'), 'btn btn-secondary');
+                    button.type = 'button'; button.dataset.action = action;
+                    button.disabled = action === 'discard' && protectedNote;
+                    if (button.disabled) button.title = copy('protected');
+                    button.addEventListener('click', async () => {
+                        const buttons = [...root.querySelectorAll('button')];
+                        const disabled = buttons.map(b => b.disabled);
+                        buttons.forEach(b => { b.disabled = true; });
+                        status.textContent = copy('loading');
+                        try {
+                            const result = await fetch('/api/personality/legacy/review', {
+                                method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({id: entry.id, fingerprint: entry.fingerprint, action})
+                            });
+                            if (!root.isConnected || !root.contains(item)) return;
+                            if (!result.ok) { status.textContent = copy(result.status === 409 ? 'stale' : 'failed'); return; }
+                            item.remove(); status.textContent = copy('done');
+                        } catch (_) {
+                            if (root.contains(status)) status.textContent = copy('failed');
+                        } finally { buttons.forEach((b, i) => { b.disabled = disabled[i]; }); }
+                    });
+                    actions.append(button);
+                }
+                if (protectedNote) item.append(node('p', copy('protected')));
+                item.append(actions); list.append(item);
+            }
+            if (data.has_more) {
+                const next = node('button', copy('next'), 'btn btn-secondary');
+                next.type = 'button'; next.addEventListener('click', () => loadLegacy(root, data.next_after)); root.append(next);
+                next.dataset.action = 'next-page';
+            }
+        } catch (_) { if (root.contains(status)) status.textContent = copy('failed'); }
+    }
+    window.AuraPersonalityDynamics = {render, load, loadLegacy};
 })();

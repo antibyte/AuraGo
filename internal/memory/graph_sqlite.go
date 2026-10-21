@@ -85,6 +85,7 @@ type KnowledgeGraph struct {
 	doneChan                 chan struct{}
 	closeOnce                sync.Once
 	wg                       sync.WaitGroup
+	ftsMu                    sync.Mutex
 	semantic                 *kgsemantic.Index
 	semanticMu               sync.RWMutex
 	droppedHits              atomic.Int64 // count of access-queue hits dropped due to full channel
@@ -180,24 +181,42 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 		semanticReindexInterval: 5 * time.Minute,
 	}
 	kg.minSemanticSimilarity.Store(math.Float32bits(0.60))
-	kg.wg.Add(1)
-	go kg.accessCountWorker()
+	if err := kg.checkKGSchemaVersion(); err != nil {
+		if closeErr := db.Close(); closeErr != nil && logger != nil {
+			logger.Warn("KG db close failed after version guard error", "error", closeErr)
+		}
+		return nil, fmt.Errorf("check knowledge graph schema version: %w", err)
+	}
+	if err := kg.backupBeforeKGMigration(); err != nil {
+		if closeErr := db.Close(); closeErr != nil && logger != nil {
+			logger.Warn("KG db close failed after migration backup error", "error", closeErr)
+		}
+		return nil, fmt.Errorf("back up knowledge graph before migration: %w", err)
+	}
 	if err := kg.initTables(); err != nil {
-		close(kg.doneChan)
-		kg.drainAccessQueue()
-		if closeErr := db.Close(); closeErr != nil {
+		if closeErr := db.Close(); closeErr != nil && logger != nil {
 			logger.Warn("KG db close failed after init error", "error", closeErr)
 		}
 		return nil, fmt.Errorf("init knowledge graph tables: %w", err)
 	}
 
 	if err := kg.initCorrectionHistory(); err != nil {
-		_ = kg.Close()
+		if closeErr := db.Close(); closeErr != nil && logger != nil {
+			logger.Warn("KG db close failed after correction history init error", "error", closeErr)
+		}
 		return nil, fmt.Errorf("initialize graph correction history: %w", err)
+	}
+	if err := kg.migrateKGTimestamps(); err != nil {
+		if closeErr := db.Close(); closeErr != nil && logger != nil {
+			logger.Warn("KG db close failed after timestamp migration error", "error", closeErr)
+		}
+		return nil, fmt.Errorf("normalize knowledge graph timestamps: %w", err)
 	}
 	if jsonMigratePath != "" {
 		kg.migrateFromJSON(jsonMigratePath)
 	}
+	kg.wg.Add(1)
+	go kg.accessCountWorker()
 
 	return kg, nil
 }
@@ -446,17 +465,32 @@ func (kg *KnowledgeGraph) ResetSemanticIndex() error {
 		return fmt.Errorf("knowledge graph not initialized")
 	}
 
-	result, err := kg.db.Exec("UPDATE kg_nodes SET semantic_indexed_at = NULL WHERE semantic_indexed_at IS NOT NULL")
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin semantic index reset: %w", err)
+	}
+	defer tx.Rollback()
+
+	nodeResult, err := tx.Exec("UPDATE kg_nodes SET semantic_indexed_at = NULL WHERE semantic_indexed_at IS NOT NULL")
 	if err != nil {
 		return fmt.Errorf("reset kg node semantic_indexed_at: %w", err)
 	}
-	nodesReset, _ := result.RowsAffected()
+	nodesReset, err := nodeResult.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("count reset kg nodes: %w", err)
+	}
 
-	result, err = kg.db.Exec("UPDATE kg_edges SET semantic_indexed_at = NULL WHERE semantic_indexed_at IS NOT NULL")
+	edgeResult, err := tx.Exec("UPDATE kg_edges SET semantic_indexed_at = NULL WHERE semantic_indexed_at IS NOT NULL")
 	if err != nil {
 		return fmt.Errorf("reset kg edge semantic_indexed_at: %w", err)
 	}
-	edgesReset, _ := result.RowsAffected()
+	edgesReset, err := edgeResult.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("count reset kg edges: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit semantic index reset: %w", err)
+	}
 
 	if kg.logger != nil && (nodesReset > 0 || edgesReset > 0) {
 		kg.logger.Info("KG semantic index reset — will be rebuilt with new model",

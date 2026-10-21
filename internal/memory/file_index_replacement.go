@@ -387,34 +387,324 @@ func (cv *ChromemVectorDB) indexedDocumentVisible(ctx context.Context, id string
 }
 
 func (cv *ChromemVectorDB) queryVisibleCollection(ctx context.Context, col *chromem.Collection, embedding []float32, topK int) ([]chromem.Result, error) {
+	return cv.queryVisibleCollectionWithBackfillHook(ctx, col, embedding, topK, nil)
+}
+
+// queryVisibleCollectionWithBackfillHook keeps the test seam narrow: callers
+// normally leave afterBackfill nil, while focused tests can change metadata
+// between candidate discovery and the final grouped eligibility validation.
+func (cv *ChromemVectorDB) queryVisibleCollectionWithBackfillHook(ctx context.Context, col *chromem.Collection, embedding []float32, topK int, afterBackfill func(k int)) ([]chromem.Result, error) {
 	count := col.Count()
 	if topK <= 0 || count == 0 {
 		return nil, nil
 	}
+	type checkedResult struct {
+		content  string
+		metadata string
+		active   bool
+	}
+	checked := make(map[string]checkedResult)
 	k := min(topK, count)
 	for {
 		results, err := col.QueryEmbedding(ctx, embedding, k, nil, nil)
 		if err != nil {
 			return nil, err
 		}
-		visible := make([]chromem.Result, 0, len(results))
+		newResults := make([]chromem.Result, 0, len(results))
+		newIndexes := make([]int, 0, len(results))
+		metadataJSON := make([]string, len(results))
+		for i, result := range results {
+			encoded, _ := json.Marshal(result.Metadata)
+			metadataJSON[i] = string(encoded)
+			previous, ok := checked[result.ID]
+			if ok && previous.content == result.Content && previous.metadata == metadataJSON[i] {
+				continue
+			}
+			newResults = append(newResults, result)
+			newIndexes = append(newIndexes, i)
+		}
 		var visibilityErr error
-		for _, r := range results {
-			active, err := cv.indexedDocumentVisible(ctx, r.ID, r.Metadata)
-			if active && err == nil && col.Name == "aurago_memories" {
-				active, err = cv.memoryRetrievalEligible(ctx, r.ID)
+		if len(newResults) > 0 {
+			newEligibility, err := cv.visibleCandidates(ctx, col.Name, newResults)
+			visibilityErr = err
+			for i, result := range newResults {
+				index := newIndexes[i]
+				checked[result.ID] = checkedResult{content: result.Content, metadata: metadataJSON[index], active: newEligibility[i]}
 			}
-			if active && err == nil && cv.corpus != nil {
-				active, err = cv.corpusIndexEligible(ctx, col.Name, r)
-			}
-			visibilityErr = errors.Join(visibilityErr, err)
-			if active && err == nil {
-				visible = append(visible, r)
+		}
+		if afterBackfill != nil {
+			afterBackfill(k)
+		}
+		visible := make([]chromem.Result, 0, len(results))
+		for _, result := range results {
+			if checked[result.ID].active {
+				visible = append(visible, result)
 			}
 		}
 		if visibilityErr != nil || len(visible) >= topK || k == count {
-			return visible[:min(topK, len(visible))], visibilityErr
+			// Eligibility may change while the bounded backfill loop is running.
+			// Recheck the candidate pool as one grouped operation before returning;
+			// this keeps archive, generation, and pending-source state authoritative
+			// without restoring per-result SQL lookups on every expansion round.
+			finalEligibility, finalErr := cv.visibleCandidates(ctx, col.Name, visible)
+			finalVisible := make([]chromem.Result, 0, len(visible))
+			for i, result := range visible {
+				if finalEligibility[i] {
+					finalVisible = append(finalVisible, result)
+				}
+				if state, ok := checked[result.ID]; ok {
+					state.active = finalEligibility[i]
+					checked[result.ID] = state
+				}
+			}
+			if finalErr != nil || visibilityErr != nil {
+				return finalVisible[:min(topK, len(finalVisible))], errors.Join(visibilityErr, finalErr)
+			}
+			if len(finalVisible) >= topK || k == count {
+				return finalVisible[:min(topK, len(finalVisible))], nil
+			}
 		}
 		k = min(count, k*2)
 	}
+}
+
+// visibleCandidates checks current generation, archive, and corpus state in
+// bounded batches. It keeps the same candidate order and error boundary as the
+// former per-result lookups.
+func (cv *ChromemVectorDB) visibleCandidates(ctx context.Context, collection string, results []chromem.Result) ([]bool, error) {
+	type candidateState struct {
+		active bool
+		err    error
+	}
+	states := make([]candidateState, len(results))
+	for i := range states {
+		states[i].active = true
+	}
+	var allErr error
+
+	stm := cv.fileIndexMemory.Load()
+	type generationKey struct{ path, collection, id string }
+	generationCandidates := make([]int, 0, len(results))
+	keys := make([]generationKey, len(results))
+	for i, result := range results {
+		if result.Metadata["index_generation"] == "" {
+			continue
+		}
+		if stm == nil {
+			states[i].active = false
+			states[i].err = fmt.Errorf("file index metadata unavailable")
+			allErr = errors.Join(allErr, states[i].err)
+			continue
+		}
+		path := result.Metadata["source_path"]
+		if path == "" {
+			path = result.Metadata["path"]
+		}
+		keys[i] = generationKey{path: filepath.Clean(path), collection: result.Metadata["collection"], id: result.ID}
+		generationCandidates = append(generationCandidates, i)
+	}
+	for start := 0; start < len(generationCandidates); start += 200 {
+		end := min(start+200, len(generationCandidates))
+		chunk := generationCandidates[start:end]
+		query := `SELECT file_path,collection,doc_id FROM file_embedding_docs WHERE `
+		args := make([]any, 0, len(chunk)*3)
+		for j, index := range chunk {
+			if j > 0 {
+				query += ` OR `
+			}
+			query += `(file_path=? AND collection=? AND doc_id=?)`
+			key := keys[index]
+			args = append(args, key.path, key.collection, key.id)
+		}
+		rows, err := stm.db.QueryContext(ctx, query, args...)
+		if err != nil {
+			wrapped := fmt.Errorf("check current file generations: %w", err)
+			for _, index := range chunk {
+				states[index].active = false
+				states[index].err = wrapped
+				allErr = errors.Join(allErr, wrapped)
+			}
+			continue
+		}
+		found := make(map[generationKey]struct{}, len(chunk))
+		for rows.Next() {
+			var key generationKey
+			if err := rows.Scan(&key.path, &key.collection, &key.id); err != nil {
+				wrapped := fmt.Errorf("read current file generations: %w", err)
+				allErr = errors.Join(allErr, wrapped)
+				for _, index := range chunk {
+					states[index].active = false
+					states[index].err = wrapped
+				}
+				break
+			}
+			found[key] = struct{}{}
+		}
+		rowsErr := rows.Err()
+		closeErr := rows.Close()
+		if err := errors.Join(rowsErr, closeErr); err != nil {
+			wrapped := fmt.Errorf("finish current file generation lookup: %w", err)
+			allErr = errors.Join(allErr, wrapped)
+			for _, index := range chunk {
+				states[index].active = false
+				states[index].err = wrapped
+			}
+			continue
+		}
+		for _, index := range chunk {
+			if _, ok := found[keys[index]]; !ok {
+				states[index].active = false
+			}
+		}
+	}
+
+	if collection == "aurago_memories" {
+		archiveCandidates := make([]int, 0, len(results))
+		for i := range results {
+			if states[i].active {
+				archiveCandidates = append(archiveCandidates, i)
+			}
+		}
+		if stm == nil {
+			if cv.corpus != nil {
+				for _, index := range archiveCandidates {
+					states[index].active = false
+					states[index].err = fmt.Errorf("memory metadata is unavailable")
+					allErr = errors.Join(allErr, states[index].err)
+				}
+			}
+		} else {
+			for start := 0; start < len(archiveCandidates); start += corpusSQLChunkSize {
+				end := min(start+corpusSQLChunkSize, len(archiveCandidates))
+				chunk := archiveCandidates[start:end]
+				args := make([]any, 0, len(chunk))
+				for _, index := range chunk {
+					args = append(args, results[index].ID)
+				}
+				rows, err := stm.db.QueryContext(ctx, `SELECT doc_id FROM memory_meta WHERE doc_id IN (`+corpusPlaceholders(len(chunk))+`) AND (verification_status='archived' OR COALESCE(archived_at,'')<>'')`, args...)
+				if err != nil {
+					wrapped := fmt.Errorf("check archived memory candidates: %w", err)
+					for _, index := range chunk {
+						states[index].active = false
+						states[index].err = wrapped
+						allErr = errors.Join(allErr, wrapped)
+					}
+					continue
+				}
+				archived := make(map[string]struct{}, len(chunk))
+				for rows.Next() {
+					var id string
+					if err := rows.Scan(&id); err != nil {
+						wrapped := fmt.Errorf("read archived memory candidates: %w", err)
+						allErr = errors.Join(allErr, wrapped)
+						for _, index := range chunk {
+							states[index].active = false
+							states[index].err = wrapped
+						}
+						break
+					}
+					archived[id] = struct{}{}
+				}
+				rowsErr := rows.Err()
+				closeErr := rows.Close()
+				if err := errors.Join(rowsErr, closeErr); err != nil {
+					wrapped := fmt.Errorf("finish archived memory lookup: %w", err)
+					allErr = errors.Join(allErr, wrapped)
+					for _, index := range chunk {
+						states[index].active = false
+						states[index].err = wrapped
+					}
+					continue
+				}
+				for _, index := range chunk {
+					if _, ok := archived[results[index].ID]; ok {
+						states[index].active = false
+					}
+				}
+			}
+		}
+	}
+
+	if cv.corpus != nil {
+		corpusCandidates := make([]int, 0, len(results))
+		metadataJSON := make([]string, len(results))
+		for i, result := range results {
+			if !states[i].active {
+				continue
+			}
+			encoded, err := json.Marshal(result.Metadata)
+			if err != nil {
+				states[i].active = false
+				states[i].err = err
+				allErr = errors.Join(allErr, err)
+				continue
+			}
+			metadataJSON[i] = string(encoded)
+			corpusCandidates = append(corpusCandidates, i)
+		}
+		fingerprint := cv.EmbeddingFingerprint()
+		for start := 0; start < len(corpusCandidates); start += corpusSQLChunkSize {
+			end := min(start+corpusSQLChunkSize, len(corpusCandidates))
+			chunk := corpusCandidates[start:end]
+			args := make([]any, 0, len(chunk)+1)
+			args = append(args, collection)
+			for _, index := range chunk {
+				args = append(args, results[index].ID)
+			}
+			rows, err := cv.corpus.db.QueryContext(ctx, `SELECT id,pending,content,metadata,fingerprint FROM documents WHERE collection=? AND id IN (`+corpusPlaceholders(len(chunk))+`)`, args...)
+			if err != nil {
+				wrapped := fmt.Errorf("check corpus index candidates: %w", err)
+				for _, index := range chunk {
+					states[index].active = false
+					states[index].err = wrapped
+					allErr = errors.Join(allErr, wrapped)
+				}
+				continue
+			}
+			type corpusSnapshot struct {
+				pending     int
+				content     string
+				metadata    string
+				fingerprint string
+			}
+			stored := make(map[string]corpusSnapshot, len(chunk))
+			for rows.Next() {
+				var id string
+				var snapshot corpusSnapshot
+				if err := rows.Scan(&id, &snapshot.pending, &snapshot.content, &snapshot.metadata, &snapshot.fingerprint); err != nil {
+					wrapped := fmt.Errorf("read corpus index candidates: %w", err)
+					allErr = errors.Join(allErr, wrapped)
+					for _, index := range chunk {
+						states[index].active = false
+						states[index].err = wrapped
+					}
+					break
+				}
+				stored[id] = snapshot
+			}
+			rowsErr := rows.Err()
+			closeErr := rows.Close()
+			if err := errors.Join(rowsErr, closeErr); err != nil {
+				wrapped := fmt.Errorf("finish corpus candidate lookup: %w", err)
+				allErr = errors.Join(allErr, wrapped)
+				for _, index := range chunk {
+					states[index].active = false
+					states[index].err = wrapped
+				}
+				continue
+			}
+			for _, index := range chunk {
+				snapshot, ok := stored[results[index].ID]
+				if !ok || snapshot.pending != 0 || snapshot.content != results[index].Content || snapshot.metadata != metadataJSON[index] || snapshot.fingerprint != fingerprint {
+					states[index].active = false
+				}
+			}
+		}
+	}
+
+	eligible := make([]bool, len(states))
+	for i, state := range states {
+		eligible[i] = state.active && state.err == nil
+	}
+	return eligible, allErr
 }

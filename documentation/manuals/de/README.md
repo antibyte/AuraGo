@@ -121,9 +121,14 @@ Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Re
 22. [Interne Tools](22-internal-tools.md) — Der vollständige Werkzeugkatalog
 23. [Interna](23-internals.md) — Module, Datenflüsse, Architektur
 
-### Teil 6 — Studio-Apps
+### Teil 6 — Studio- und Desktop-Apps
 24. [EasyDrag](24-easydrag.md) — Automationen per Drag & Drop (erweitert Mission Control aus Kapitel 11)
 25. [CYD Creator](25-cyd-creator.md) — Apps für das Cheap Yellow Display (gehört zur Integrations-Familie aus Kapitel 8)
+26. [Video Studio](26-video-studio.md) — Mehrspur-Videoeditor mit Keyframes, LUTs, Masken und FFmpeg-Export (standardmäßig aus)
+27. [Bookshelf](27-bookshelf.md) — Bibliothek und E-Book-Reader für EPUB, MOBI, FB2, CBZ, TXT und PDF
+28. [Mailer](28-mailer.md) — Mail-Client für IMAP-, POP3- und SMTP-Konten, Google über gog und AgentMail
+29. [Infra](29-infra.md) — Der gemeinsame Homelab-Atlas: Atlas-, Topologie- und Inventar-Ansicht mit Live-Stromwerten
+30. [RuView](30-ruview.md) — Experimentelles Wi-Fi-Sensing mit ESP32-Boards (erweitert Kapitel 8)
 
 [FAQ](faq.md) · [Handbuch-Start](../README.md) · [Release Notes](../../release-notes-2026-10-audit-remediation.md)
 
@@ -168,4 +173,4 @@ Die UI spricht **16 Sprachen**. Pick your company in **Config → Personality**.
 
 [![Flaggen der 16 UI-Sprachen](../../../assets/readme/language-flags.webp)](../../../assets/readme/language-flags.webp)
 
-*Stand: 15. Oktober 2026. Die englische Fassung ist [hier](../en/README.md).*
+*Stand: 19. Oktober 2026. Die englische Fassung ist [hier](../en/README.md).*

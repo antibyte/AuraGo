@@ -9,16 +9,30 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/config"
+
 	"github.com/sashabaranov/go-openai"
 )
 
-func probePrimaryHealth(ctx context.Context, client *openai.Client, providerType, baseURL, apiKey string) error {
+func primaryProbeTransport(cfg *config.Config) (string, *http.Client) {
+	cc := buildOpenAIClientConfig(cfg, resolvedProvider{ProviderType: cfg.LLM.ProviderType, BaseURL: cfg.LLM.BaseURL, APIKey: cfg.LLM.APIKey, AccountID: cfg.LLM.AccountID, GatewayID: cfg.LLM.GatewayID})
+	client, _ := cc.HTTPClient.(*http.Client)
+	return cc.BaseURL, client
+}
+
+func probePrimaryHealth(ctx context.Context, client *openai.Client, providerType, baseURL, apiKey string, probeClients ...*http.Client) error {
+	var probeClient *http.Client
+	if len(probeClients) > 0 {
+		probeClient = probeClients[0]
+	}
 	pt := strings.ToLower(strings.TrimSpace(providerType))
 	switch pt {
 	case "ollama":
 		return probeOllamaTags(ctx, baseURL)
 	case "anthropic":
-		return probeModelsEndpoints(ctx, baseURL, apiKey, pt)
+		return probeModelsEndpointsWithClient(ctx, probeClient, baseURL, apiKey, pt)
+	case "workers-ai", "cloudflare-rest":
+		return probeModelsEndpointsWithClient(ctx, probeClient, baseURL, apiKey, pt)
 	default:
 		if client != nil {
 			if _, err := client.ListModels(ctx); err == nil {
@@ -27,7 +41,7 @@ func probePrimaryHealth(ctx context.Context, client *openai.Client, providerType
 				return err
 			}
 		}
-		return probeModelsEndpoints(ctx, baseURL, apiKey)
+		return probeModelsEndpointsWithClient(ctx, probeClient, baseURL, apiKey, pt)
 	}
 }
 
@@ -60,10 +74,30 @@ func probeOllamaTags(ctx context.Context, baseURL string) error {
 }
 
 func probeModelsEndpoints(ctx context.Context, baseURL, apiKey string, providerTypes ...string) error {
-	client := newProbeHTTPClient(10 * time.Second)
-	client.Transport = &rateLimitAwareTransport{base: client.Transport}
-	anthropic := len(providerTypes) > 0 && strings.EqualFold(providerTypes[0], "anthropic")
-	for _, modelsURL := range modelsProbeCandidates(baseURL) {
+	provider := ""
+	if len(providerTypes) > 0 {
+		provider = providerTypes[0]
+	}
+	return probeModelsEndpointsWithClient(ctx, nil, baseURL, apiKey, provider)
+}
+
+func probeModelsEndpointsWithClient(ctx context.Context, client *http.Client, baseURL, apiKey, provider string) error {
+	if client == nil {
+		client = newProbeHTTPClient(10 * time.Second)
+		client.Transport = &rateLimitAwareTransport{base: client.Transport}
+	}
+	anthropic := strings.EqualFold(provider, "anthropic")
+	candidates := modelsProbeCandidates(baseURL)
+	if isAIGatewayRoutedBaseURL(provider, baseURL) {
+		candidates = []string{strings.TrimRight(baseURL, "/") + "/models"}
+		if anthropic {
+			candidates = []string{strings.TrimRight(baseURL, "/") + "/v1/models"}
+		}
+		if provider == "workers-ai" || provider == "cloudflare-rest" {
+			candidates = []string{strings.TrimSuffix(strings.TrimRight(baseURL, "/"), "/ai/v1") + "/ai/models/search?per_page=1"}
+		}
+	}
+	for _, modelsURL := range candidates {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, modelsURL, nil)
 		if err != nil {
 			continue

@@ -121,19 +121,21 @@ func (c ProviderCapabilities) AutoEnabled() bool {
 // ProviderEntry defines a named LLM provider connection that can be referenced
 // by multiple config slots (LLM, Fallback, Vision, Whisper, Embeddings, etc.).
 type ProviderEntry struct {
-	ID              string               `yaml:"id"       json:"id"`                                             // unique slug, e.g. "main", "vision", "local-ollama"
-	Name            string               `yaml:"name"     json:"name"`                                           // human-readable label shown in UI
-	Usage           string               `yaml:"usage,omitempty" json:"usage,omitempty"`                         // "general" (default/legacy) or "decisions"
-	Type            string               `yaml:"type"     json:"type"`                                           // openai, openrouter, ollama, anthropic, google, custom
-	BaseURL         string               `yaml:"base_url" json:"base_url"`                                       // API base URL
-	APIKey          string               `yaml:"-" vault:"api_key" json:"-"`                                     // API key (vault-only)
-	Model           string               `yaml:"model"    json:"model"`                                          // default model name
-	ContextWindow   int                  `yaml:"context_window,omitempty" json:"context_window,omitempty"`       // optional model-context override; 0 = automatic
-	MaxOutputTokens int                  `yaml:"max_output_tokens,omitempty" json:"max_output_tokens,omitempty"` // optional output-limit override; 0 = automatic
-	Capabilities    ProviderCapabilities `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
+	RuntimeOAuthToken string               `yaml:"-" json:"-"`                                                     // runtime-only access token; never a stored API key
+	ID                string               `yaml:"id"       json:"id"`                                             // unique slug, e.g. "main", "vision", "local-ollama"
+	Name              string               `yaml:"name"     json:"name"`                                           // human-readable label shown in UI
+	Usage             string               `yaml:"usage,omitempty" json:"usage,omitempty"`                         // "general" (default/legacy) or "decisions"
+	Type              string               `yaml:"type"     json:"type"`                                           // openai, openrouter, ollama, anthropic, google, custom
+	BaseURL           string               `yaml:"base_url" json:"base_url"`                                       // API base URL
+	APIKey            string               `yaml:"-" vault:"api_key" json:"-"`                                     // API key (vault-only)
+	Model             string               `yaml:"model"    json:"model"`                                          // default model name
+	ContextWindow     int                  `yaml:"context_window,omitempty" json:"context_window,omitempty"`       // optional model-context override; 0 = automatic
+	MaxOutputTokens   int                  `yaml:"max_output_tokens,omitempty" json:"max_output_tokens,omitempty"` // optional output-limit override; 0 = automatic
+	Capabilities      ProviderCapabilities `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
 
-	// Cloudflare Workers AI — required when Type is "workers-ai"
-	AccountID string `yaml:"account_id,omitempty" json:"account_id"` // Cloudflare account ID
+	// Cloudflare account identity, required for Workers AI and Cloudflare REST.
+	AccountID string `yaml:"account_id,omitempty" json:"account_id"`           // Cloudflare account ID
+	GatewayID string `yaml:"gateway_id,omitempty" json:"gateway_id,omitempty"` // explicit Cloudflare REST gateway
 
 	// OAuth2 Authorization Code flow (optional, alternative to static API key)
 	AuthType          string `yaml:"auth_type,omitempty"           json:"auth_type"`       // "api_key" (default) or "oauth2"
@@ -1141,6 +1143,7 @@ type Config struct {
 		APIKey                       string   `yaml:"-"       json:"-"`   // resolved from provider entry
 		Model                        string   `yaml:"-"       json:"-"`   // resolved from provider entry
 		AccountID                    string   `yaml:"-"       json:"-"`   // resolved from provider entry (workers-ai)
+		GatewayID                    string   `yaml:"-" json:"-"`         // resolved Cloudflare REST gateway
 		LegacyURL                    string   `yaml:"base_url" json:"-"`  // legacy/compat: inline base URL from old config format
 		LegacyAPIKey                 string   `yaml:"api_key"  json:"-"`  // legacy/compat: inline API key from old config format
 		LegacyModel                  string   `yaml:"model"    json:"-"`  // legacy/compat: inline model from old config format
@@ -1150,6 +1153,7 @@ type Config struct {
 		HelperBaseURL                string   `yaml:"-"         json:"-"` // resolved helper base URL
 		HelperAPIKey                 string   `yaml:"-"         json:"-"` // resolved helper API key
 		HelperAccountID              string   `yaml:"-"         json:"-"` // resolved helper account ID (workers-ai)
+		HelperGatewayID              string   `yaml:"-" json:"-"`         // resolved helper Cloudflare REST gateway
 		HelperModel                  string   `yaml:"helper_model"`       // optional helper model override (empty = provider default)
 		HelperResolvedModel          string   `yaml:"-"         json:"-"` // resolved helper model
 		UseNativeFunctions           bool     `yaml:"use_native_functions"`
@@ -1410,7 +1414,6 @@ type Config struct {
 			MaxPerSession   int  `yaml:"max_per_session"`    // max inner voice generations per session (default: 20)
 			DecayTurns      int  `yaml:"decay_turns"`        // turns after which inner voice fades from prompt (default: 3)
 			DecayMaxAgeSecs int  `yaml:"decay_max_age_secs"` // max seconds before inner voice expires regardless of turns (default: 300 = 5min)
-			ErrorStreakMin  int  `yaml:"error_streak_min"`   // consecutive errors before triggering inner voice (default: 2)
 		} `yaml:"inner_voice"`
 	} `yaml:"personality"`
 	CircuitBreaker struct {
@@ -1457,6 +1460,7 @@ type Config struct {
 		APIKey               string `yaml:"-"       json:"-"`  // resolved
 		Model                string `yaml:"-"       json:"-"`  // resolved
 		AccountID            string `yaml:"-"       json:"-"`  // resolved from provider entry (workers-ai)
+		GatewayID            string `yaml:"-" json:"-"`        // resolved Cloudflare REST gateway
 		LegacyURL            string `yaml:"base_url" json:"-"` // legacy/compat
 		LegacyAPIKey         string `yaml:"api_key"  json:"-"` // legacy/compat
 		LegacyModel          string `yaml:"model"    json:"-"` // legacy/compat
@@ -2473,17 +2477,18 @@ type Config struct {
 		} `yaml:"allowed_paths"` // additional paths beyond defaults
 	} `yaml:"shell_sandbox"`
 	AIGateway struct {
-		Enabled          bool              `yaml:"enabled" json:"enabled"`
-		AccountID        string            `yaml:"account_id" json:"account_id"`                 // Cloudflare account ID
-		GatewayID        string            `yaml:"gateway_id" json:"gateway_id"`                 // AI Gateway name/slug
-		Mode             string            `yaml:"mode" json:"mode"`                             // "auto" (default), "openai_compatible", or "provider_native"
-		LogMode          string            `yaml:"log_mode" json:"log_mode"`                     // "metadata_only" (default), "off", or "full"
-		Metadata         map[string]string `yaml:"metadata" json:"metadata"`                     // up to five custom metadata tags for cf-aig-metadata
-		RequestTimeoutMS int               `yaml:"request_timeout_ms" json:"request_timeout_ms"` // cf-aig-request-timeout in milliseconds
-		MaxAttempts      int               `yaml:"max_attempts" json:"max_attempts"`             // cf-aig-max-attempts, max 5
-		RetryDelayMS     int               `yaml:"retry_delay_ms" json:"retry_delay_ms"`         // cf-aig-retry-delay in milliseconds, max 5000
-		Backoff          string            `yaml:"backoff" json:"backoff"`                       // "constant", "linear", or "exponential"
-		Token            string            `yaml:"-" vault:"token" json:"-"`                     // optional Cloudflare AI Gateway token (vault-only)
+		Enabled                 bool              `yaml:"enabled" json:"enabled"`
+		AccountID               string            `yaml:"account_id" json:"account_id"`                               // Cloudflare account ID
+		GatewayID               string            `yaml:"gateway_id" json:"gateway_id"`                               // AI Gateway name/slug
+		HuggingFaceProviderSlug string            `yaml:"huggingface_provider_slug" json:"huggingface_provider_slug"` // preconfigured Cloudflare custom provider
+		Mode                    string            `yaml:"mode" json:"mode"`                                           // "auto" (default), "openai_compatible", or "provider_native"
+		LogMode                 string            `yaml:"log_mode" json:"log_mode"`                                   // "metadata_only" (default), "off", or "full"
+		Metadata                map[string]string `yaml:"metadata" json:"metadata"`                                   // up to five custom metadata tags for cf-aig-metadata
+		RequestTimeoutMS        int               `yaml:"request_timeout_ms" json:"request_timeout_ms"`               // cf-aig-request-timeout in milliseconds
+		MaxAttempts             int               `yaml:"max_attempts" json:"max_attempts"`                           // cf-aig-max-attempts, max 5
+		RetryDelayMS            int               `yaml:"retry_delay_ms" json:"retry_delay_ms"`                       // cf-aig-retry-delay in milliseconds, max 5000
+		Backoff                 string            `yaml:"backoff" json:"backoff"`                                     // "constant", "linear", or "exponential"
+		Token                   string            `yaml:"-" vault:"token" json:"-"`                                   // optional Cloudflare AI Gateway token (vault-only)
 	} `yaml:"ai_gateway"`
 	Composio    ComposioConfig    `yaml:"composio" json:"composio"`
 	Manus       ManusConfig       `yaml:"manus" json:"manus"`
@@ -2868,9 +2873,11 @@ type CloudflareIngressRule struct {
 
 // ModelCost defines per-model token pricing.
 type ModelCost struct {
-	Name             string  `yaml:"name"`
-	InputPerMillion  float64 `yaml:"input_per_million"`
-	OutputPerMillion float64 `yaml:"output_per_million"`
+	Name             string  `yaml:"name" json:"name"`
+	InputPerMillion  float64 `yaml:"input_per_million" json:"input_per_million"`
+	OutputPerMillion float64 `yaml:"output_per_million" json:"output_per_million"`
+	Source           string  `yaml:"source,omitempty" json:"source,omitempty"`
+	Estimated        bool    `yaml:"estimated,omitempty" json:"estimated,omitempty"`
 }
 
 // ModelCostRates defines fallback pricing for unlisted models.

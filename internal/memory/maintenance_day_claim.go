@@ -10,6 +10,33 @@ import (
 // the local calendar day claimed by the automatic scheduler. It is deliberately
 // kept in memory_maintenance_meta so the claim survives process restarts.
 const MaintenanceAutomaticDayKey = "maintenance.automatic_day"
+const maintenanceAutomaticDayOwnerKey = "maintenance.automatic_day_owner"
+
+func maintenanceDayClaimOwner(startedAt time.Time) string {
+	return startedAt.UTC().Format(time.RFC3339Nano)
+}
+
+func persistMaintenanceDayClaim(tx *sql.Tx, day, owner string) error {
+	if _, err := tx.Exec(`
+		INSERT INTO memory_maintenance_meta (key, value) VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value
+	`, MaintenanceAutomaticDayKey, day); err != nil {
+		return fmt.Errorf("persist maintenance day: %w", err)
+	}
+	if owner == "" {
+		if _, err := tx.Exec(`DELETE FROM memory_maintenance_meta WHERE key=?`, maintenanceAutomaticDayOwnerKey); err != nil {
+			return fmt.Errorf("clear maintenance day owner: %w", err)
+		}
+		return nil
+	}
+	if _, err := tx.Exec(`
+		INSERT INTO memory_maintenance_meta (key, value) VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value
+	`, maintenanceAutomaticDayOwnerKey, owner); err != nil {
+		return fmt.Errorf("persist maintenance day owner: %w", err)
+	}
+	return nil
+}
 
 // IsMaintenanceDayClaimed reports whether the local calendar day already has
 // a durable claim or a completed run. It does not create or change state and
@@ -104,10 +131,7 @@ func (s *SQLiteMemory) ClaimMaintenanceDay(startedAt time.Time) (bool, error) {
 			return false, fmt.Errorf("parse latest maintenance start %q: %w", latestStartedAt, parseErr)
 		}
 		if latest.In(startedAt.Location()).Format("2006-01-02") == day {
-			if _, err := tx.Exec(`
-				INSERT INTO memory_maintenance_meta (key, value) VALUES (?, ?)
-				ON CONFLICT(key) DO UPDATE SET value = excluded.value
-			`, MaintenanceAutomaticDayKey, day); err != nil {
+			if err := persistMaintenanceDayClaim(tx, day, ""); err != nil {
 				return false, fmt.Errorf("seed maintenance day claim: %w", err)
 			}
 			if err := tx.Commit(); err != nil {
@@ -123,14 +147,91 @@ func (s *SQLiteMemory) ClaimMaintenanceDay(startedAt time.Time) (bool, error) {
 		}
 		return false, nil
 	}
-	if _, err := tx.Exec(`
-		INSERT INTO memory_maintenance_meta (key, value) VALUES (?, ?)
-		ON CONFLICT(key) DO UPDATE SET value = excluded.value
-	`, MaintenanceAutomaticDayKey, day); err != nil {
+	if err := persistMaintenanceDayClaim(tx, day, maintenanceDayClaimOwner(startedAt)); err != nil {
 		return false, fmt.Errorf("persist maintenance day claim: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return false, fmt.Errorf("commit maintenance day claim: %w", err)
 	}
 	return true, nil
+}
+
+// ReleaseMaintenanceDayClaim conditionally releases a scheduler claim when a
+// run was canceled before its durable maintenance_runs row was written. It
+// never releases a day already represented by a persisted run.
+func (s *SQLiteMemory) ReleaseMaintenanceDayClaim(startedAt time.Time) (bool, error) {
+	if s == nil || s.db == nil {
+		return false, fmt.Errorf("memory maintenance day claim store is unavailable")
+	}
+	if startedAt.IsZero() {
+		return false, fmt.Errorf("maintenance day claim start time is required")
+	}
+	if err := s.InitMaintenanceRunsTable(); err != nil {
+		return false, fmt.Errorf("initialize maintenance day claim ledger: %w", err)
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return false, fmt.Errorf("begin maintenance day claim release: %w", err)
+	}
+	defer tx.Rollback()
+	day := startedAt.Format("2006-01-02")
+	var stored string
+	err = tx.QueryRow(`SELECT value FROM memory_maintenance_meta WHERE key=?`, MaintenanceAutomaticDayKey).Scan(&stored)
+	if err != nil && err != sql.ErrNoRows {
+		return false, fmt.Errorf("read maintenance day claim before release: %w", err)
+	}
+	if stored != day {
+		if err := tx.Commit(); err != nil {
+			return false, fmt.Errorf("commit unchanged maintenance day claim: %w", err)
+		}
+		return false, nil
+	}
+	var owner string
+	err = tx.QueryRow(`SELECT value FROM memory_maintenance_meta WHERE key=?`, maintenanceAutomaticDayOwnerKey).Scan(&owner)
+	if err == sql.ErrNoRows {
+		// A day-only claim predates owner tokens. Keep it fail-closed because
+		// this caller cannot prove that it owns the legacy claim.
+		if err := tx.Commit(); err != nil {
+			return false, fmt.Errorf("commit retained legacy maintenance day claim: %w", err)
+		}
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read maintenance day owner before release: %w", err)
+	}
+	if owner != maintenanceDayClaimOwner(startedAt) {
+		if err := tx.Commit(); err != nil {
+			return false, fmt.Errorf("commit unchanged maintenance day owner: %w", err)
+		}
+		return false, nil
+	}
+	var completed bool
+	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM maintenance_runs WHERE started_at=?)`, startedAt.UTC().Format(time.RFC3339)).Scan(&completed); err != nil {
+		return false, fmt.Errorf("check persisted maintenance run before release: %w", err)
+	}
+	if completed {
+		if err := tx.Commit(); err != nil {
+			return false, fmt.Errorf("commit retained maintenance day claim: %w", err)
+		}
+		return false, nil
+	}
+	res, err := tx.Exec(`DELETE FROM memory_maintenance_meta WHERE key=? AND value=? AND EXISTS (
+		SELECT 1 FROM memory_maintenance_meta WHERE key=? AND value=?
+	)`, MaintenanceAutomaticDayKey, day, maintenanceAutomaticDayOwnerKey, owner)
+	if err != nil {
+		return false, fmt.Errorf("release maintenance day claim: %w", err)
+	}
+	changed, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("confirm maintenance day claim release: %w", err)
+	}
+	if changed > 0 {
+		if _, err := tx.Exec(`DELETE FROM memory_maintenance_meta WHERE key=? AND value=?`, maintenanceAutomaticDayOwnerKey, owner); err != nil {
+			return false, fmt.Errorf("release maintenance day owner: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("commit maintenance day claim release: %w", err)
+	}
+	return changed > 0, nil
 }

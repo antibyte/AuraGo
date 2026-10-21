@@ -54,6 +54,16 @@ func openPrivacyJobsStore(t *testing.T, path string) *SQLiteMemory {
 	return store
 }
 
+func openPrivacyJobsGraph(t *testing.T) *KnowledgeGraph {
+	t.Helper()
+	kg, err := NewKnowledgeGraph(filepath.Join(t.TempDir(), "knowledge.db"), "", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+	return kg
+}
+
 func addPrivacyJobTranscript(t *testing.T, store *SQLiteMemory, sessionID string) {
 	t.Helper()
 	if _, err := store.db.Exec(`INSERT INTO chat_sessions(id) VALUES(?)`, sessionID); err != nil {
@@ -181,6 +191,9 @@ func TestPrivacyDeletionQueueMigrationBacksUpLegacyTranscript(t *testing.T) {
 	if _, err := store.db.Exec(`DROP TABLE privacy_deletion_targets; DROP TABLE privacy_deletion_jobs;`); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := store.db.Exec(`PRAGMA user_version=11`); err != nil {
+		t.Fatal(err)
+	}
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -215,13 +228,14 @@ func TestPrivacyDeletionQueueMigrationBacksUpLegacyTranscript(t *testing.T) {
 func TestChatPrivacyDeletionReopensAndAppliesOnlyJournaledTargets(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "memory.db")
 	store := openPrivacyJobsStore(t, path)
+	kg := openPrivacyJobsGraph(t)
 	addPrivacyJobTranscript(t, store, "chat-resume")
 	addPrivacyJobOwnedMemory(t, store, "authorized-fact", "chat-resume")
 	vectors := &privacyJobsVectors{documents: map[string]string{
 		"authorized-fact": "private transcript-derived fact",
 		"unrelated-fact":  "unrelated data",
 	}}
-	job, err := store.PrepareChatPrivacyDeletion(context.Background(), "chat-resume", vectors, nil, true)
+	job, err := store.PrepareChatPrivacyDeletion(context.Background(), "chat-resume", vectors, kg, true)
 	if err != nil || job.DeletionStatus != PrivacyDeletionPending {
 		t.Fatalf("prepare job=%+v err=%v", job, err)
 	}
@@ -241,7 +255,7 @@ func TestChatPrivacyDeletionReopensAndAppliesOnlyJournaledTargets(t *testing.T) 
 	}
 
 	store = openPrivacyJobsStore(t, path)
-	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, nil, time.Now().UTC().Add(time.Minute), 10); err != nil {
+	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, kg, time.Now().UTC().Add(time.Minute), 10); err != nil {
 		t.Fatal(err)
 	}
 	if len(vectors.deleted) != 1 || vectors.deleted[0] != "authorized-fact" {
@@ -258,6 +272,7 @@ func TestChatPrivacyDeletionReopensAndAppliesOnlyJournaledTargets(t *testing.T) 
 
 func TestChatPrivacyDeletionRetainsProtectedAndNewlySharedTargets(t *testing.T) {
 	store := openPrivacyJobsStore(t, filepath.Join(t.TempDir(), "memory.db"))
+	kg := openPrivacyJobsGraph(t)
 	addPrivacyJobTranscript(t, store, "chat-protection")
 	for _, id := range []string{"allowed-fact", "protected-fact", "became-shared"} {
 		addPrivacyJobOwnedMemory(t, store, id, "chat-protection")
@@ -268,14 +283,14 @@ func TestChatPrivacyDeletionRetainsProtectedAndNewlySharedTargets(t *testing.T) 
 	vectors := &privacyJobsVectors{documents: map[string]string{
 		"allowed-fact": "allowed content", "protected-fact": "protected content", "became-shared": "shared content",
 	}}
-	job, err := store.PrepareChatPrivacyDeletion(context.Background(), "chat-protection", vectors, nil, true)
+	job, err := store.PrepareChatPrivacyDeletion(context.Background(), "chat-protection", vectors, kg, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := store.RecordMemoryExtractionSource("became-shared", "memory_analysis", "other-chat"); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, nil, time.Now().UTC().Add(time.Minute), 10); err != nil {
+	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, kg, time.Now().UTC().Add(time.Minute), 10); err != nil {
 		t.Fatal(err)
 	}
 	if len(vectors.deleted) != 1 || vectors.deleted[0] != "allowed-fact" {
@@ -322,15 +337,16 @@ func TestChatPrivacyDeletionMissingGraphTargetCompletes(t *testing.T) {
 
 func TestChatPrivacyDeletionMissingVectorTargetCompletes(t *testing.T) {
 	store := openPrivacyJobsStore(t, filepath.Join(t.TempDir(), "memory.db"))
+	kg := openPrivacyJobsGraph(t)
 	addPrivacyJobTranscript(t, store, "chat-missing-vector-target")
 	addPrivacyJobOwnedMemory(t, store, "missing-vector", "chat-missing-vector-target")
 	vectors := &privacyJobsVectors{documents: map[string]string{"missing-vector": "removed before resume"}}
-	job, err := store.PrepareChatPrivacyDeletion(context.Background(), "chat-missing-vector-target", vectors, nil, true)
+	job, err := store.PrepareChatPrivacyDeletion(context.Background(), "chat-missing-vector-target", vectors, kg, true)
 	if err != nil || job.DeletionStatus != PrivacyDeletionPending {
 		t.Fatalf("prepare job=%+v err=%v", job, err)
 	}
 	delete(vectors.documents, "missing-vector")
-	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, nil, time.Now().UTC().Add(time.Minute), 10); err != nil {
+	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, kg, time.Now().UTC().Add(time.Minute), 10); err != nil {
 		t.Fatal(err)
 	}
 	job, err = store.GetPrivacyDeletionJob(context.Background(), job.DeletionJobID)
@@ -351,15 +367,16 @@ func TestChatPrivacyDeletionMissingVectorTargetCompletes(t *testing.T) {
 
 func TestChatPrivacyDeletionFailureBackoffAndManualRetry(t *testing.T) {
 	store := openPrivacyJobsStore(t, filepath.Join(t.TempDir(), "memory.db"))
+	kg := openPrivacyJobsGraph(t)
 	addPrivacyJobTranscript(t, store, "chat-retry")
 	addPrivacyJobOwnedMemory(t, store, "retry-fact", "chat-retry")
 	vectors := &privacyJobsVectors{documents: map[string]string{"retry-fact": "retryable content"}, deleteErr: errors.New("injected vector delete failure")}
-	job, err := store.PrepareChatPrivacyDeletion(context.Background(), "chat-retry", vectors, nil, true)
+	job, err := store.PrepareChatPrivacyDeletion(context.Background(), "chat-retry", vectors, kg, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now().UTC().Add(time.Minute).Truncate(time.Second)
-	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, nil, now, 10); err == nil {
+	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, kg, now, 10); err == nil {
 		t.Fatal("expected target failure")
 	}
 	job, err = store.GetPrivacyDeletionJob(context.Background(), job.DeletionJobID)
@@ -370,10 +387,10 @@ func TestChatPrivacyDeletionFailureBackoffAndManualRetry(t *testing.T) {
 	if err != nil || firstRetry.Sub(now) != privacyDeletionRetryInitial {
 		t.Fatalf("first backoff=%s err=%v", job.NextRetryAt, err)
 	}
-	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, nil, now.Add(4*time.Minute), 10); err != nil {
+	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, kg, now.Add(4*time.Minute), 10); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, nil, firstRetry, 10); err == nil {
+	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, kg, firstRetry, 10); err == nil {
 		t.Fatal("expected second target failure after backoff")
 	}
 	job, err = store.GetPrivacyDeletionJob(context.Background(), job.DeletionJobID)
@@ -390,12 +407,66 @@ func TestChatPrivacyDeletionFailureBackoffAndManualRetry(t *testing.T) {
 		t.Fatalf("manual retry job=%+v err=%v", job, err)
 	}
 	vectors.deleteErr = nil
-	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, nil, manualAt, 10); err != nil {
+	if err := store.ProcessDuePrivacyDeletionJobs(context.Background(), vectors, kg, manualAt, 10); err != nil {
 		t.Fatal(err)
 	}
 	job, err = store.GetPrivacyDeletionJob(context.Background(), job.DeletionJobID)
 	if err != nil || job.DeletionStatus != PrivacyDeletionCompleted || job.AttemptCount != 2 {
 		t.Fatalf("manual retry result=%+v err=%v", job, err)
+	}
+}
+
+func TestPrivacyDeletionWaitsForCorrectionLockWithCallerContext(t *testing.T) {
+	store := newTestSTM(t)
+	store.correctionMu.Lock()
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Millisecond)
+	_, err := store.PrepareChatPrivacyDeletion(ctx, "privacy-lock-prepare", nil, nil, false)
+	cancel()
+	store.correctionMu.Unlock()
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("prepare waiting on correction lock = %v, want caller deadline", err)
+	}
+
+	job, err := store.PrepareChatPrivacyDeletion(t.Context(), "privacy-lock-process", nil, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.correctionMu.Lock()
+	ctx, cancel = context.WithTimeout(t.Context(), 30*time.Millisecond)
+	err = store.ProcessDuePrivacyDeletionJobs(ctx, nil, nil, time.Now().UTC().Add(time.Minute), 10)
+	cancel()
+	store.correctionMu.Unlock()
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("worker waiting on correction lock = %v, want caller deadline", err)
+	}
+	job, err = store.GetPrivacyDeletionJob(t.Context(), job.DeletionJobID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.AttemptCount != 0 || job.DeletionStatus != PrivacyDeletionPending {
+		t.Fatalf("caller cancellation consumed a retry or changed durable job state: %+v", job)
+	}
+}
+
+func TestPrivacyDeletionFinalizationContextIsDetachedAndBounded(t *testing.T) {
+	type contextKey struct{}
+	ctx, cancel := context.WithCancel(context.WithValue(t.Context(), contextKey{}, "kept"))
+	cancel()
+	finalizeCtx, finalizeCancel := boundedPrivacyDeletionFinalizationContext(ctx)
+	defer finalizeCancel()
+	if err := finalizeCtx.Err(); err != nil {
+		t.Fatalf("detached finalization context inherited cancellation: %v", err)
+	}
+	if got := finalizeCtx.Value(contextKey{}); got != "kept" {
+		t.Fatalf("finalization context lost caller values: %v", got)
+	}
+	deadline, ok := finalizeCtx.Deadline()
+	if !ok {
+		t.Fatal("finalization context has no deadline")
+	}
+	remaining := time.Until(deadline)
+	if remaining <= 0 || remaining > privacyDeletionFinalizeTimeout {
+		t.Fatalf("finalization deadline is not bounded: %v remaining", remaining)
 	}
 }
 

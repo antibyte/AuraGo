@@ -36,7 +36,7 @@ func dispatchOllama(cfg *config.Config, req ollamaArgs, logger *slog.Logger, con
 		return "Tool Output: " + tools.OllamaShowModel(olCfg, modelName)
 	case "pull", "download":
 		logger.Info("LLM requested Ollama pull model", "model", modelName)
-		return "Tool Output: " + tools.OllamaPullModel(olCfg, modelName)
+		return "Tool Output: " + tools.StartOllamaToolPull(olCfg, modelName)
 	case "delete", "remove":
 		logger.Info("LLM requested Ollama delete model", "model", modelName)
 		return "Tool Output: " + tools.OllamaDeleteModel(olCfg, modelName)

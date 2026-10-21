@@ -8,7 +8,7 @@ requirements, quality limits, release gate, and reserved provider contract.
 
 > **Authoritative defaults:** When this document and your running `config.yaml` disagree, treat **`config_template.yaml`** in the repository root as the source of truth for default values and available keys.
 
-> **Minimal required:** At least one `providers` entry with `api_key`, and `llm.provider` referencing it — everything else has sensible defaults.
+> **Minimal required:** A configured provider and `llm.provider` referencing it. Enter credentials through Setup or Config → Providers so they stay in the encrypted Vault; local providers may need no key. See [Provider management](provider-management.md) for saved tests, diagnostics and the versioned API.
 
 ---
 
@@ -68,7 +68,7 @@ providers:
 | `capabilities.structured_outputs` | `false` | Enables strict structured output schemas for this provider/model when effective. |
 | `capabilities.multimodal` | `false` | Enables image/file input promotion for the main chat path when effective. |
 | `capabilities.detected_model` | `""` | Model ID the stored detected values belong to. Used to refresh stale auto values after model changes. |
-| `capabilities.source` | `""` | Detection source: `manual`, `openrouter`, `models.dev`, `heuristic`, or `legacy_fallback`. |
+| `capabilities.source` | `""` | Detection source, such as `manual`, `openrouter`, `models.dev`, `model_only_fallback`, `heuristic`, or `legacy_fallback`. |
 
 Detection order is manual provider overrides first, then live OpenRouter metadata when available, the generated `models.dev` registry, conservative local heuristics, and finally the deprecated global `llm` fallback fields for unknown models.
 
@@ -86,7 +86,7 @@ Used for long-term memory (RAG) vector indexing.
 | `local.batch_size` | `2048` | Batch and micro-batch size for the local runtime. |
 | `external_url` | `"http://localhost:11434/v1"` | URL of the external embeddings API (e.g. Ollama). Only used when `provider = "external"`. |
 | `external_model` | `"nomic-embed-text"` | Model name for external embeddings. |
-| `api_key` | `""` | API key for external embeddings provider. Falls back to `EMBEDDINGS_API_KEY` env var, then to `llm.api_key`. Leave empty or `dummy_key` for Ollama (no auth required). |
+| `api_key` | `""` | Legacy external-mode key; `EMBEDDINGS_API_KEY` remains supported. A selected provider ID uses only that provider's Vault credential, including OAuth. Empty parent selections inherit; selecting a different provider never inherits the main key. Keyless local providers can stay empty. |
 
 On Linux, AuraGo only considers native Vulkan available when the service can
 open a `/dev/dri/renderD*` device for reading and writing. The supplied

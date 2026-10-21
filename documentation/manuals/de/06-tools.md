@@ -694,3 +694,8 @@ Erstellte Tools werden in `agent_workspace/tools/` gespeichert und sind sofort v
 
 **Vorheriges Kapitel:** [Kapitel 5: Chat-Grundlagen](./05-chat-basics.md)
 **Nächstes Kapitel:** [Kapitel 7: Konfiguration](./07-configuration.md)
+
+
+### Verwaltete Websites und Änderungshistorie
+
+Homepage-Änderungen benötigen einen Zweck in reason und werden automatisch erfasst. Mit homepage_registry overview/get_site/list_events findest Du Identität, lokale und entfernte Orte sowie Änderungsgründe. Discover_workspace/adopt übernehmen bisher nicht erfasste Projekte. Details: [Verwaltete Websites](../../homepage-ledger.md).

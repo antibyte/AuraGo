@@ -1,10 +1,20 @@
 package llm
 
 import (
+	"sort"
 	"strings"
 
 	"aurago/internal/llm/catalog"
 )
+
+func sortedRegistryKeys() []string {
+	keys := make([]string, 0, len(KnownModelRegistry))
+	for key := range KnownModelRegistry {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
 
 // GetModelInfo looks up a model in the known registry by provider and model ID.
 // The key format is "provider/model_id" (e.g. "openai/gpt-4o").
@@ -22,17 +32,21 @@ func GetModelInfo(provider, modelID string) (ModelRegistryEntry, bool) {
 }
 
 // GetModelInfoByID searches the registry for a model by its ID only,
-// ignoring the provider. Returns the first match (or any match, since
-// model IDs are typically unique across providers).
+// ignoring the provider. Remaining registry candidates use a stable key order;
+// the result always records its model-only provenance.
 func GetModelInfoByID(modelID string) (ModelRegistryEntry, bool) {
 	if snapshot, err := catalog.Load(); err == nil {
 		if model, ok := snapshot.FindModelByID(modelID); ok {
-			return catalogModelToRegistryEntry(model), true
+			entry := catalogModelToRegistryEntry(model)
+			entry.MetadataSource = "model_only_fallback"
+			return entry, true
 		}
 	}
 	lower := strings.ToLower(modelID)
-	for key, entry := range KnownModelRegistry {
+	for _, key := range sortedRegistryKeys() {
+		entry := KnownModelRegistry[key]
 		if strings.HasSuffix(strings.ToLower(key), "/"+lower) {
+			entry.MetadataSource = "model_only_fallback"
 			return entry, true
 		}
 	}
@@ -49,8 +63,10 @@ func getModelsDevInfo(provider, modelID string) (ModelRegistryEntry, bool) {
 
 func getModelsDevInfoByID(modelID string) (ModelRegistryEntry, bool) {
 	lower := strings.ToLower(modelID)
-	for key, entry := range KnownModelRegistry {
+	for _, key := range sortedRegistryKeys() {
+		entry := KnownModelRegistry[key]
 		if strings.HasSuffix(strings.ToLower(key), "/"+lower) {
+			entry.MetadataSource = "model_only_fallback"
 			return entry, true
 		}
 	}
@@ -69,11 +85,18 @@ func GetModelsForProvider(provider string) []ModelRegistryEntry {
 			seen[strings.ToLower(entry.ID)] = true
 		}
 	}
-	for key, entry := range KnownModelRegistry {
+	for _, key := range sortedRegistryKeys() {
+		entry := KnownModelRegistry[key]
 		if strings.HasPrefix(key, prefix) && !seen[strings.ToLower(entry.ID)] {
 			result = append(result, entry)
 		}
 	}
+	sort.Slice(result, func(i, j int) bool {
+		if len(result[i].ID) != len(result[j].ID) {
+			return len(result[i].ID) > len(result[j].ID)
+		}
+		return result[i].ID < result[j].ID
+	})
 	return result
 }
 
@@ -105,6 +128,9 @@ func DetectContextWindowFromRegistry(provider, modelID string) (int, bool) {
 // GetPricingFromRegistry returns pricing information from the static registry.
 func GetPricingFromRegistry(provider, modelID string) (ModelPricing, bool) {
 	entry, ok := GetModelInfo(provider, modelID)
+	if !ok && strings.EqualFold(provider, "cloudflare-rest") {
+		return ModelPricing{}, false
+	}
 	if !ok {
 		// Try provider-agnostic match
 		entry, ok = GetModelInfoByID(modelID)
@@ -114,6 +140,8 @@ func GetPricingFromRegistry(provider, modelID string) (ModelPricing, bool) {
 	}
 
 	return ModelPricing{
+		Source:           entry.MetadataSource,
+		Estimated:        !strings.EqualFold(provider, entry.Provider),
 		ModelID:          entry.ID,
 		InputPerMillion:  entry.InputPricePer1M,
 		OutputPerMillion: entry.OutputPricePer1M,

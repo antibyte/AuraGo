@@ -75,24 +75,29 @@ func (es *EmotionSynthesizer) ApplyObservation(stm *SQLiteMemory, observation Pe
 	}
 	es.mu.Lock()
 	defer es.mu.Unlock()
+	applied := false
+	observation.applied = &applied
+	observation.requestHash = observationFingerprint(observation)
 	if !es.lastCall.IsZero() && time.Since(es.lastCall) < es.minInterval {
 		observation.Emotion = nil
 	}
 	if observation.Emotion != nil {
 		copy := *observation.Emotion
 		if err := validateEmotionState(&copy); err != nil {
-			return PersonalitySnapshot{}, false, err
+			observation.Emotion = nil
+			observation.InnerThought = ""
+		} else {
+			observation.Emotion = &copy
 		}
-		observation.Emotion = &copy
 	}
 	snapshot, err := stm.ApplyPersonalityObservation(observation)
 	if err != nil {
 		return PersonalitySnapshot{}, false, err
 	}
-	if observation.Emotion != nil {
+	if applied && observation.Emotion != nil {
 		state := *observation.Emotion
 		state.Basis, state.ObservationID = nil, ""
 		es.lastCall, es.lastState = time.Now(), &state
 	}
-	return snapshot, observation.Emotion != nil, nil
+	return snapshot, applied && observation.Emotion != nil, nil
 }

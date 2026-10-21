@@ -106,7 +106,14 @@ window.SessionDrawer = (function () {
         if (choice === null) return;
         try {
             const response = await fetch('/api/chat/sessions/' + encodeURIComponent(id) + '?delete_memories=' + choice, { method: 'DELETE', credentials: 'same-origin' });
-            if (!response.ok) throw new Error(t('chat.sessions_delete_failed'));
+            if (!response.ok) {
+                const failure = await response.json().catch(() => ({}));
+                if (failure.code === 'deletion_scope_conflict') {
+                    if (typeof showAlert === 'function') await showAlert(t('chat.sessions_delete'), t('chat.sessions_delete_scope_conflict'));
+                    return;
+                }
+                throw new Error(t('chat.sessions_delete_failed'));
+            }
             const data = await response.json();
             if ((choice || data.status === 'partial') && typeof showAlert === 'function') {
                 const report = data.deletion || {};

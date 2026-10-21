@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>AuraGo architecture</title>
+  <style>
+    /* Diagram Design: fit preset, nine components, README palette, system fonts. */
+    :root {
+      --paper: #101827;
+      --surface: #192439;
+      --ink: #f6f0df;
+      --muted: #cbd3e4;
+      --soft: #b5c1d6;
+      --rule: #657590;
+      --accent: #5de4ce;
+      --accent-tint: #163731;
+      --sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+      --serif: 'Instrument Serif', Georgia, serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); }
+    main { width: min(1200px, 100%); min-width: 0; margin: 0 auto; }
+    h1 { margin: 28px 24px 0; font: 400 40px var(--serif); }
+    .intro { max-width: 76ch; margin: 12px 24px 24px; color: var(--muted); line-height: 1.6; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+    svg { width: 100%; min-width: 1200px; display: block; }
+    svg text { font-family: var(--sans); fill: var(--ink); }
+    .figure-title { font-family: var(--serif); font-size: 40px; font-weight: 400; }
+    .figure-subtitle { font-size: 20px; fill: var(--muted); }
+    .node-name { font-size: 24px; font-weight: 600; }
+    .node-copy { font-size: 20px; fill: var(--muted); }
+    .technical { font-family: var(--mono); font-size: 18px; fill: var(--muted); }
+    .tag { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; fill: var(--soft); }
+    .node { fill: var(--surface); stroke: var(--rule); stroke-width: 1.5; }
+    .focal { fill: var(--accent-tint); stroke: var(--accent); stroke-width: 1.5; }
+    .focal-name { fill: var(--accent); }
+    .zone { fill: none; stroke: var(--soft); stroke-width: 1.2; stroke-dasharray: 6 6; }
+    .wire { fill: none; stroke: var(--muted); stroke-width: 2; marker-end: url(#arrow); }
+    .optional-wire { stroke-dasharray: 6 6; }
+    .arrow-label { font-family: var(--mono); font-size: 12px; letter-spacing: .5px; fill: var(--soft); text-anchor: middle; }
+    .legend { font-size: 16px; fill: var(--muted); }
+    .notes { margin: 20px 24px 40px; max-width: 80ch; color: var(--muted); font-size: 16px; line-height: 1.6; }
+    .notes strong { color: var(--ink); }
+    @media print {
+      body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+      h1, .intro, .notes { display: none; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>AuraGo architecture</h1>
+  <p class="intro">One Go backend connects chat and automation to models, local memory and permitted actions. This is the editable source of the diagram shared by the README and manuals. On a narrow screen, scroll the figure horizontally.</p>
+  <div class="diagram-container">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 896" width="1200" height="896" role="img" aria-labelledby="architecture-title architecture-desc">
+      <title id="architecture-title">AuraGo architecture</title>
+      <desc id="architecture-desc">Web and AgoDesk clients use the HTTP server, messages and scheduled jobs enter the agent runtime, and the Go backend connects local or hosted models, local storage, gated tools, optional execution runtimes and home-lab or cloud integrations.</desc>
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#cbd3e4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+      <rect x="0" y="0" width="1200" height="896" fill="#101827"/>
+      <text x="56" y="72" class="figure-title">One gopher. Connected systems.</text>
+      <text x="56" y="108" class="figure-subtitle">A local core, your choice of models, and tools with explicit permissions.</text>
+
+      <!-- This boundary names a process, not a shared authorization scope. -->
+      <rect x="40" y="332" width="1120" height="224" rx="8" class="zone"/>
+      <text x="840" y="356" class="tag">AURAGO BACKEND / ONE GO PROCESS</text>
+
+      <!-- Primary request and dependency paths; responses return along these paths. -->
+      <path class="wire" d="M 216 284 V 384"/>
+      <path class="wire" d="M 600 284 V 384"/>
+      <path class="wire" d="M 680 384 V 324 Q 680 316 688 316 H 976 Q 984 316 984 308 V 284"/>
+      <path class="wire" d="M 376 456 H 440"/>
+      <path class="wire" d="M 760 456 H 824"/>
+      <path class="wire" d="M 520 528 V 600 Q 520 608 512 608 H 224 Q 216 608 216 616 V 664"/>
+      <path class="wire optional-wire" d="M 904 528 V 620 Q 904 628 896 628 H 608 Q 600 628 600 636 V 664"/>
+      <path class="wire" d="M 1064 528 V 664"/>
+
+      <!-- Label masks have a visible gap from their connector and clear every node. -->
+      <rect x="92" y="300" width="112" height="24" rx="2" fill="#101827"/>
+      <text x="148" y="316" class="arrow-label">HTTP + SSE</text>
+      <rect x="612" y="300" width="64" height="24" rx="2" fill="#101827"/>
+      <text x="644" y="316" class="arrow-label">INPUT</text>
+      <rect x="792" y="284" width="80" height="24" rx="2" fill="#101827"/>
+      <text x="832" y="300" class="arrow-label">LLM API</text>
+      <rect x="532" y="568" width="64" height="24" rx="2" fill="#101827"/>
+      <text x="564" y="584" class="arrow-label">DATA</text>
+      <rect x="916" y="580" width="112" height="24" rx="2" fill="#101827"/>
+      <text x="972" y="596" class="arrow-label">IF ENABLED</text>
+
+      <g data-node-id="clients">
+        <rect x="56" y="156" width="320" height="128" rx="6" class="node"/>
+        <text x="72" y="180" class="tag">CLIENTS</text>
+        <text x="72" y="212" class="node-name">Web UI + AgoDesk</text>
+        <text x="72" y="242" class="node-copy">Chat · dashboard · desktop</text>
+        <text x="72" y="268" class="node-copy">Browser or native client</text>
+      </g>
+      <g data-node-id="inputs">
+        <rect x="440" y="156" width="320" height="128" rx="6" class="node"/>
+        <text x="456" y="180" class="tag">ENTRY POINTS</text>
+        <text x="456" y="212" class="node-name">Messages + jobs</text>
+        <text x="456" y="242" class="node-copy">Messengers · voice · radio</text>
+        <text x="456" y="268" class="node-copy">Missions · cron · webhooks</text>
+      </g>
+      <g data-node-id="models">
+        <rect x="824" y="156" width="320" height="128" rx="6" class="node"/>
+        <text x="840" y="180" class="tag">MODEL ENDPOINTS</text>
+        <text x="840" y="212" class="node-name">Local or hosted LLMs</text>
+        <text x="840" y="242" class="node-copy">Selected provider + model</text>
+        <text x="840" y="268" class="node-copy">Replies + native tool calls</text>
+      </g>
+      <g data-node-id="server">
+        <rect x="56" y="384" width="320" height="144" rx="6" class="node"/>
+        <text x="72" y="408" class="tag">HTTP / API</text>
+        <text x="72" y="440" class="node-name">HTTP server</text>
+        <text x="72" y="472" class="node-copy">REST · SSE · WebSockets</text>
+        <text x="72" y="504" class="node-copy">Auth · verified web assets</text>
+      </g>
+      <g data-node-id="agent">
+        <rect x="440" y="384" width="320" height="144" rx="6" class="focal"/>
+        <text x="456" y="408" class="tag">ORCHESTRATION</text>
+        <text x="456" y="440" class="node-name focal-name">Agent runtime</text>
+        <text x="456" y="472" class="node-copy">Context · memory · co-agents</text>
+        <text x="456" y="504" class="node-copy">Model + tool loop · budgets</text>
+      </g>
+      <g data-node-id="tools">
+        <rect x="824" y="384" width="320" height="144" rx="6" class="focal"/>
+        <text x="840" y="408" class="tag">EXECUTION</text>
+        <text x="840" y="440" class="node-name focal-name">Tools + services</text>
+        <text x="840" y="472" class="node-copy">Permission gates · Guardian</text>
+        <text x="840" y="504" class="node-copy">Service clients use the vault</text>
+      </g>
+      <g data-node-id="data">
+        <rect x="56" y="664" width="320" height="128" rx="6" class="node"/>
+        <text x="72" y="688" class="tag">LOCAL PERSISTENCE</text>
+        <text x="72" y="720" class="node-name">Memory + app data</text>
+        <text x="72" y="750" class="technical">SQLite · chromem-go</text>
+        <text x="72" y="776" class="node-copy">History · graph · files</text>
+      </g>
+      <g data-node-id="runtimes">
+        <rect x="440" y="664" width="320" height="128" rx="6" class="node"/>
+        <text x="456" y="688" class="tag">LOCAL OR MANAGED</text>
+        <text x="456" y="720" class="node-name">Optional runtimes</text>
+        <text x="456" y="750" class="node-copy">Containers · browser VMs</text>
+        <text x="456" y="776" class="node-copy">Speech · FFmpeg</text>
+      </g>
+      <g data-node-id="integrations">
+        <rect x="824" y="664" width="320" height="128" rx="6" class="node"/>
+        <text x="840" y="688" class="tag">ENABLED INTEGRATIONS</text>
+        <text x="840" y="720" class="node-name">Home lab + cloud</text>
+        <text x="840" y="750" class="node-copy">Docker · Proxmox · SSH · HA</text>
+        <text x="840" y="776" class="node-copy">MQTT · mail · external APIs</text>
+      </g>
+
+      <line x1="56" y1="836" x2="1144" y2="836" stroke="#657590"/>
+      <path d="M 56 864 H 88" class="wire"/>
+      <text x="104" y="870" class="legend">Calls / data</text>
+      <path d="M 300 864 H 332" class="wire optional-wire"/>
+      <text x="348" y="870" class="legend">Optional runtime</text>
+      <rect x="612" y="852" width="32" height="24" rx="4" class="zone"/>
+      <text x="660" y="870" class="legend">Go process</text>
+      <text x="1144" y="870" text-anchor="end" class="legend">Simplified component map</text>
+    </svg>
+  </div>
+  <div class="notes">
+    <p><strong>Reading the map.</strong> Arrows show primary calls and dependencies; results return along the same paths. The inputs group names entry points, not a shared trust level. Channel adapters and job scheduling run in the backend. Local data is shown separately as persisted files; server-side apps and services also use it.</p>
+    <p><strong>Permissions stay local.</strong> The process boundary is not a permission grant. Channels, tools, integrations and workers retain their own scopes. Personality changes tone. Service clients retrieve credentials from the encrypted vault; the vault is not a source of model context.</p>
+    <p><strong>Resources and runtimes.</strong> The full Web UI is a verified, version-bound local resource set. Only recovery/login stays embedded. Optional integrations, native media tools, local models and managed services may need additional downloads, hardware or runtimes.</p>
+    <p><strong>Source.</strong> Startup composition in <code>cmd/aurago/main.go</code>, the agent loop and tool dispatch in <code>internal/agent/</code>, API and channel setup in <code>internal/server/</code>, and the resource contract in <code>internal/webassets/AGENTS.md</code>. System fonts keep this HTML and its exported SVG usable offline.</p>
+  </div>
+</main>
+</body>
+</html>

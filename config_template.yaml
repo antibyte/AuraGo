@@ -1637,34 +1637,34 @@ three_d_printers:
 ollama:
     enabled: false
     readonly: false
-    url: ""
+    url: ""                           # external API root; derived automatically while managed_instance is enabled
     managed_instance:
         enabled: false                 # auto-manage a local Ollama Docker container
-        container_port: 11434          # host port for the managed container
+        container_port: 11434          # native host port; Docker bridges use internal 11434 without host publication
         use_host_gpu: false            # pass GPU devices into the container (Linux only)
         gpu_backend: "auto"            # "auto", "nvidia", "amd", "intel", "vulkan" — use "vulkan" for older iGPUs/APUs without ROCm support
         default_models: []             # models to auto-pull after start, e.g. ["llama3", "mistral"]
         memory_limit: ""               # Docker memory limit, e.g. "8g" (empty = unlimited)
         volume_path: ""                # host path for /root/.ollama; empty uses named volume aurago_ollama_managed_models
 personality:
-    core_personality: friend           # active personality profile, e.g. 'neutral', 'punk', 'zen'
-    engine: true                       # enable personality engine (mood, micro-traits)
-    engine_v2: true                    # enable advanced V2 engine with async LLM mood analysis
+    core_personality: neutral          # active personality profile, e.g. 'neutral', 'punk', 'friend'
+    engine: false                      # enable personality engine (mood, micro-traits)
+    engine_v2: false                   # enable advanced V2 engine with async LLM mood analysis
     v2_provider: ""                    # deprecated compatibility field; personality V2 now uses llm.helper_*
     user_profiling: false              # auto-detect user preferences from conversation
-    user_profiling_threshold: 2        # confirmations needed before injecting a trait into prompt
+    user_profiling_threshold: 3        # confirmations needed before injecting a trait into prompt
     emotion_synthesizer:
         enabled: false                 # enable emotion synthesis
         min_interval_seconds: 60       # minimum seconds between emotion synthesis runs
         max_history_entries: 100       # max emotion history entries to keep
-        trigger_on_mood_change: true   # synthesize when V2 detects a mood change (default: true)
+        trigger_on_mood_change: true   # narrate when the Go mood changes (default: true)
         trigger_always: false          # synthesize on every message (default: false)
     inner_voice:
         enabled: false                 # enable inner voice / subconscious nudge engine (requires emotion_synthesizer + engine_v2)
         min_interval_secs: 60          # minimum seconds between inner voice generations
         max_per_session: 20            # maximum inner voice thoughts per session
         decay_turns: 3                 # inner voice thought expires after N turns
-        error_streak_min: 2            # minimum consecutive errors before error-streak trigger fires
+        decay_max_age_secs: 300        # absolute age limit, even if no new turn arrives
 rocketchat:
     enabled: false
     url: ""
@@ -2038,16 +2038,14 @@ shell_sandbox:
     max_file_size_mb: 100
     allowed_paths: []
 ai_gateway:
-    enabled: false
+    enabled: false             # rewrite supported existing providers; explicit cloudflare-rest providers are independent
     account_id: ""
     gateway_id: ""
-    mode: auto                 # auto, openai_compatible, provider_native
+    huggingface_provider_slug: "" # Cloudflare custom provider with upstream https://router.huggingface.co
     log_mode: metadata_only    # metadata_only, off, full
     metadata: {}               # sent as cf-aig-metadata; do not store secrets here
-    request_timeout_ms: 0      # 0 = Cloudflare default
-    max_attempts: 0            # 0 = disabled/default
-    retry_delay_ms: 0          # 0 = Cloudflare default
-    backoff: ""                # "", constant, linear, exponential
+    request_timeout_ms: 0      # response-start limit; 0 = existing client limits; caller deadlines still win
+    # AuraGo owns retries: cf-aig-max-attempts is always 1.
 mcp_server:
     enabled: false
     allowed_tools: []                              # explicit server-side tool allowlist; empty = no exposed tools

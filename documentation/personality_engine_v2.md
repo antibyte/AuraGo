@@ -1,3 +1,7 @@
+# Historical design proposal (superseded)
+
+This document records an early concept, not the current runtime contract or defaults. See [Personality dynamics](personality-dynamics.md). Personality controls expression; permissions, confirmations and tool limits follow the task and security policy.
+
 # Konzept zur massiven Verbesserung der AuraGo Personality Engine (v2)
 
 Die aktuelle *Personality Engine (Phase D)* in `internal/memory/personality.go` ist ein hervorragender Start. Sie nutzt einen ressourcenschonenden, rein heuristischen Ansatz (Keywords, Emoji-Matching, Textlänge), um 5 Traits (Curiosity, Thoroughness, Creativity, Empathy, Confidence) und 6 Moods (Curious, Focused, Creative, Analytical, Cautious, Playful) zu steuern.

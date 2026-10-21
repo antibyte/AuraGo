@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -25,7 +26,7 @@ func TestHandleAIGatewayCustomEndpointSkipsLiveProbe(t *testing.T) {
 	s.Cfg.AIGateway.AccountID = "fixture-account"
 	s.Cfg.AIGateway.GatewayID = "fixture-gateway"
 	w := httptest.NewRecorder()
-	writeAIGatewayProbeResult(w, s, true)
+	writeAIGatewayProbeResult(w, s, context.Background(), true, "metadata", "")
 	var body map[string]interface{}
 	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
@@ -262,10 +263,11 @@ func TestHandleAIGatewayTestSkipsUnsafeProviderNativeProbe(t *testing.T) {
 	s.Cfg.AIGateway.AccountID = "acct"
 	s.Cfg.AIGateway.GatewayID = "gw"
 	s.Cfg.AIGateway.Token = "gateway-token"
+	s.Cfg.AIGateway.HuggingFaceProviderSlug = "hf-chat"
 	s.Cfg.Providers = []config.ProviderEntry{{
 		ID:      "claude",
-		Type:    "anthropic",
-		BaseURL: "https://api.anthropic.com/v1",
+		Type:    "huggingface",
+		BaseURL: "https://router.huggingface.co/v1",
 	}}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/ai-gateway/test", strings.NewReader(`{"provider_id":"claude"}`))

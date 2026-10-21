@@ -3,6 +3,7 @@
   "chat.sessions_delete_memories": "Διαγραφή και των σχετικών αναμνήσεων",
   "chat.sessions_delete_backups": "Τα αντίγραφα ασφαλείας μπορεί να διατηρούν διαγραμμένα δεδομένα μέχρι τον προγραμματισμένο καθαρισμό.",
   "chat.sessions_delete_failed": "Η συνομιλία δεν διαγράφηκε πλήρως. Ανανέωσε την προβολή πριν δοκιμάσεις ξανά.",
+  "chat.sessions_delete_scope_conflict": "Για αυτήν τη συνομιλία έχει ήδη επιλεγεί διαφορετική ρύθμιση διαγραφής μνημών. Ανανεώστε τη σελίδα και ελέγξτε την κατάσταση πριν δοκιμάσετε ξανά.",
   "chat.sessions_delete_report": "Διαγράφηκαν: {deleted}. Διατηρήθηκαν λόγω κοινής, προστατευμένης ή άγνωστης προέλευσης: {retained}.",
   "chat.speech_lab_auth_required": "Απαιτείται σύνδεση στο AuraGo για το Speech Lab.",
   "chat.speech_lab_browser_url_missing": "Ρυθμίστε το URL του Speech Lab για το πρόγραμμα περιήγησης στο Πολυμέσα → Speech Lab.",

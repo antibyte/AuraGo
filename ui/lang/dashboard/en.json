@@ -1114,5 +1114,11 @@
   "dashboard.memory_privacy_updated": "Updated: {{date}}",
   "dashboard.memory_privacy_reconcile_pending": "Contact status needs checking",
   "dashboard.memory_privacy_reconcile_retry": "Check contact status",
-  "dashboard.memory_privacy_reconcile_queued": "Contact status check queued. Review the job state after it updates."
+  "dashboard.memory_privacy_reconcile_queued": "Contact status check queued. Review the job state after it updates.",
+  "dashboard.memory_corpus_documents": "Corpus documents",
+  "dashboard.memory_corpus_dimensions": "Vector dimensions",
+  "dashboard.memory_corpus_storage": "Corpus storage, including WAL",
+  "dashboard.memory_corpus_vector_estimate": "Estimated vector payload, excluding overhead",
+  "dashboard.memory_exhausted_writes": "Exhausted write jobs",
+  "dashboard.memory_terminal_consolidations": "Permanently failed consolidations"
 }

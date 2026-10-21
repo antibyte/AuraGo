@@ -62,9 +62,7 @@ func TestMeshCoreDiscoveryAndDispatch(t *testing.T) {
 		t.Fatalf("disabled integration must stay unavailable: %+v", discovery)
 	}
 	out := dispatchInner(context.Background(), ToolCall{Action: "meshcore", Operation: "status"}, &DispatchContext{Cfg: cfg, Logger: logger, SessionID: "meshcore-disabled"})
-	if !strings.Contains(out, "meshcore_unavailable") {
-		t.Fatalf("direct dispatch bypassed disabled integration: %s", out)
-	}
+	assertCanonicalToolDenial(t, out, "tool_disabled")
 }
 
 func TestMeshCoreContactsAndSendErrorsStayNarrow(t *testing.T) {

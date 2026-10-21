@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
-	"strings"
 	"time"
 
 	"aurago/internal/memory"
@@ -30,33 +29,12 @@ func rerankWithRecency(memories []string, docIDs []string, stm *memory.SQLiteMem
 	return ranked
 }
 
-// moodTrigger returns the last real human message from the conversation,
-// skipping auto-injected nudge messages inserted by the agent loop.
-func getMoodTrigger(messages []openai.ChatCompletionMessage, lastUserMsg string) string {
-	for i := len(messages) - 1; i >= 0; i-- {
-		msg := messages[i]
-		if msg.Role != openai.ChatMessageRoleUser {
-			continue
-		}
-		// Skip internal injected nudge messages
-		if strings.HasPrefix(msg.Content, "Tool manuals loaded for:") ||
-			strings.HasPrefix(msg.Content, "[INTERNAL]") ||
-			strings.HasPrefix(msg.Content, "[Tool Output]") ||
-			strings.HasPrefix(msg.Content, "Tool Output:") {
-			continue
-		}
-		// Truncate very long messages — use rune-safe slicing to avoid splitting multi-byte UTF-8 characters.
-		runes := []rune(msg.Content)
-		if len(runes) > 120 {
-			return string(runes[:120]) + "…"
-		}
-		return msg.Content
-	}
-	return lastUserMsg // fallback
-}
-
 // processBehavioralEvents handles V2 mood milestone checks and loneliness calculations
-func processBehavioralEvents(stm *memory.SQLiteMemory, messages *[]openai.ChatCompletionMessage, sessionID string, meta memory.PersonalityMeta, logger *slog.Logger) {
+func processBehavioralEvents(stm *memory.SQLiteMemory, messages *[]openai.ChatCompletionMessage, sessionID string, meta memory.PersonalityMeta, logger *slog.Logger, inputs ...*memory.HumanInput) {
+	if len(inputs) == 0 || !inputs[0].Valid() {
+		return
+	}
+	input := inputs[0]
 	// Loneliness Trait based on time elapsed since the previous user message.
 	// Incremental update: nudge toward the time-based target instead of hard-setting
 	// the absolute value, so that other dynamics (e.g. positive interactions) are preserved.
@@ -79,7 +57,7 @@ func processBehavioralEvents(stm *memory.SQLiteMemory, messages *[]openai.ChatCo
 		}
 		delta := (target - current) * convergenceRate
 		if delta != 0 {
-			_ = stm.UpdateTrait(memory.TraitLoneliness, delta)
+			_, _ = stm.ApplyPersonalityObservation(memory.PersonalityObservation{ID: "inactivity:" + input.TurnID, Input: input, Source: "inactivity", LonelinessDelta: delta})
 		}
 		logger.Debug("[Behavioral Event] Evaluated loneliness", "hours_since_last_msg", hours, "target", target, "current", current, "delta", delta, "convergence_rate", convergenceRate)
 	}

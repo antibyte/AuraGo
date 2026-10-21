@@ -1,9 +1,11 @@
 package memory
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 )
 
 type MemoryConflict struct {
@@ -308,10 +310,20 @@ func getMemoryConflictByIDTx(tx *sql.Tx, id int64) (MemoryConflict, error) {
 }
 
 func (s *SQLiteMemory) SetMemoryMetaProtection(docID string, protected bool, keepForever bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return s.SetMemoryMetaProtectionContext(ctx, docID, protected, keepForever)
+}
+
+func (s *SQLiteMemory) SetMemoryMetaProtectionContext(ctx context.Context, docID string, protected bool, keepForever bool) error {
 	if strings.TrimSpace(docID) == "" {
 		return nil
 	}
-	_, err := s.db.Exec(`
+	if err := lockMemoryMutex(ctx, &s.automaticMemoryMu); err != nil {
+		return err
+	}
+	defer s.automaticMemoryMu.Unlock()
+	_, err := s.db.ExecContext(ctx, `
 		UPDATE memory_meta
 		SET protected = ?, keep_forever = ?, last_event_at = CURRENT_TIMESTAMP
 		WHERE doc_id = ?

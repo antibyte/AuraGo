@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"math"
 	"net/http"
@@ -63,6 +62,9 @@ func detectFormat(providerType, baseURL string) string {
 // EmbedFile reads a file (image or audio), base64-encodes it, and calls the
 // multimodal embedding API. Returns the embedding vector.
 func (me *MultimodalEmbedder) EmbedFile(ctx context.Context, filePath string) ([]float32, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	const maxFileBytes = 15 * 1024 * 1024 // 15 MB
 	info, err := os.Stat(filePath)
 	if err != nil {
@@ -207,17 +209,16 @@ func (me *MultimodalEmbedder) doHTTPEmbeddingWithRetry(ctx context.Context, buil
 func (me *MultimodalEmbedder) doRequest(req *http.Request) ([]float32, error) {
 	resp, err := me.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("embedding request failed: %w", err)
+		return nil, fmt.Errorf("embedding request failed: %w", &embeddingTransportError{cause: err})
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("embedding API error %d: %s", resp.StatusCode, truncateResponse(respBody))
+		return nil, &embeddingHTTPStatusError{statusCode: resp.StatusCode}
+	}
+	respBody, err := readEmbeddingResponseBody(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read embedding response: %w", &embeddingTransportError{cause: err})
 	}
 
 	var result struct {
@@ -239,17 +240,16 @@ func (me *MultimodalEmbedder) doRequest(req *http.Request) ([]float32, error) {
 func (me *MultimodalEmbedder) doVertexRequest(req *http.Request) ([]float32, error) {
 	resp, err := me.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("embedding request failed: %w", err)
+		return nil, fmt.Errorf("embedding request failed: %w", &embeddingTransportError{cause: err})
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("embedding API error %d: %s", resp.StatusCode, truncateResponse(respBody))
+		return nil, &embeddingHTTPStatusError{statusCode: resp.StatusCode}
+	}
+	respBody, err := readEmbeddingResponseBody(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read embedding response: %w", &embeddingTransportError{cause: err})
 	}
 
 	var result struct {

@@ -131,6 +131,7 @@ llm:
 	server.Cfg.ResolveProviders()
 
 	_, err := upsertAgodeskProvider(server, agodesk.ConfigProviderUpsertPayload{
+		Revision:  server.providerETag(),
 		SessionID: "agodesk:dev-1",
 		Mode:      "update",
 		Provider: agodesk.ConfigProviderEntryPayload{
@@ -153,6 +154,7 @@ llm:
 	}
 
 	_, err = upsertAgodeskProvider(server, agodesk.ConfigProviderUpsertPayload{
+		Revision:  server.providerETag(),
 		SessionID: "agodesk:dev-1",
 		Mode:      "update",
 		Provider: agodesk.ConfigProviderEntryPayload{
@@ -175,6 +177,7 @@ llm:
 	}
 
 	_, err = upsertAgodeskProvider(server, agodesk.ConfigProviderUpsertPayload{
+		Revision:  server.providerETag(),
 		SessionID: "agodesk:dev-1",
 		Mode:      "update",
 		Provider: agodesk.ConfigProviderEntryPayload{
@@ -302,6 +305,7 @@ func TestAgodeskProviderUpsertInfersOAuthAuthTypeFromOAuthFields(t *testing.T) {
 	server, vault := newProviderTestServer(t, `providers: []`)
 	server.Vault = vault
 	_, err := upsertAgodeskProvider(server, agodesk.ConfigProviderUpsertPayload{
+		Revision:  server.providerETag(),
 		SessionID: "agodesk:dev-1",
 		Mode:      "create",
 		Provider: agodesk.ConfigProviderEntryPayload{
@@ -351,6 +355,7 @@ func TestAgodeskProviderUpsertAcceptsOAuthAuthTypeAlias(t *testing.T) {
 	server, vault := newProviderTestServer(t, `providers: []`)
 	server.Vault = vault
 	saved, err := upsertAgodeskProvider(server, agodesk.ConfigProviderUpsertPayload{
+		Revision:  server.providerETag(),
 		SessionID: "agodesk:dev-1",
 		Mode:      "create",
 		Provider: agodesk.ConfigProviderEntryPayload{
@@ -473,6 +478,7 @@ llm:
 	}
 
 	payload, err := deleteAgodeskProvider(server, agodesk.ConfigProviderDeletePayload{
+		Revision:   server.providerETag(),
 		SessionID:  "agodesk:dev-1",
 		ProviderID: "spare",
 	})

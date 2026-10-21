@@ -56,11 +56,14 @@ func DockerCreateContainerWithOptions(cfg DockerConfig, name, image string, env 
 	}
 	if dockerutil.IsBoringGarageContainerName(name) || dockerutil.IsHomepageContainerName(name) || dockerutil.IsAuraGoAppContainerName(name) ||
 		dockerutil.IsSecurityProxyContainerName(name) || dockerutil.IsCYDCreatorBuilderContainerName(name) ||
-		dockerutil.IsDecisionsContainerName(name) {
+		dockerutil.IsDecisionsContainerName(name) || dockerutil.IsOllamaContainerName(name) {
 		return errJSON("reserved AuraGo managed container name")
 	}
 
 	for _, bind := range volumes {
+		if DockerBindUsesOllamaVolume(bind) {
+			return errJSON("managed Ollama model volume is reserved")
+		}
 		if err := validateDockerBindMount(cfg, bind); err != nil {
 			return errJSON("%v", err)
 		}
@@ -643,6 +646,9 @@ func DockerDisconnectNetwork(cfg DockerConfig, containerID, network string) stri
 
 // DockerCreateVolume creates a volume.
 func DockerCreateVolume(cfg DockerConfig, name, driver string) string {
+	if dockerutil.IsOllamaVolumeName(name) {
+		return errJSON("managed Ollama model volume is reserved")
+	}
 	if name == "" {
 		return errJSON("volume name required")
 	}
@@ -668,6 +674,9 @@ func DockerCreateVolume(cfg DockerConfig, name, driver string) string {
 
 // DockerRemoveVolume removes a volume.
 func DockerRemoveVolume(cfg DockerConfig, name string, force bool) string {
+	if dockerutil.IsOllamaVolumeName(name) {
+		return errJSON("managed Ollama model volume is reserved")
+	}
 	if name == "" {
 		return errJSON("volume name required")
 	}

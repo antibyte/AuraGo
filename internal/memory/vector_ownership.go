@@ -3,7 +3,9 @@ package memory
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -187,7 +189,12 @@ func normalizeMemoryDocumentPart(text string) string {
 // check and delete share cv.mu, so a concurrent Chromem mutation cannot pass
 // the check and replace the document before deletion.
 func (cv *ChromemVectorDB) DeleteDocumentIfContentMatches(id, expectedSHA256 string) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return cv.DeleteDocumentIfContentMatchesContext(ctx, id, expectedSHA256)
+}
 
+func (cv *ChromemVectorDB) DeleteDocumentIfContentMatchesContext(ctx context.Context, id, expectedSHA256 string) (bool, error) {
 	expectedSHA256 = strings.TrimSpace(expectedSHA256)
 	if id == "" || expectedSHA256 == "" {
 		return false, fmt.Errorf("document ID and expected content hash are required")
@@ -201,10 +208,17 @@ func (cv *ChromemVectorDB) DeleteDocumentIfContentMatches(id, expectedSHA256 str
 		return false, err
 	}
 
-	cv.mu.Lock()
+	for !cv.mu.TryLock() {
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
 	defer cv.mu.Unlock()
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
 	var doc chromem.Document
 	var readErr error
 	if cv.corpus != nil {
@@ -215,6 +229,16 @@ func (cv *ChromemVectorDB) DeleteDocumentIfContentMatches(id, expectedSHA256 str
 		readErr = fmt.Errorf("document collection is unavailable")
 	}
 	err = readErr
+	if errors.Is(err, sql.ErrNoRows) && cv.corpus != nil {
+		// The canonical source is already gone. Under cv.mu no newer source
+		// can be published while we remove any stale derived index entry.
+		if cv.collection != nil {
+			if err := cv.collection.Delete(ctx, nil, nil, id); err != nil {
+				return false, fmt.Errorf("delete orphan derived document %s: %w", id, err)
+			}
+		}
+		return true, nil
+	}
 	if err != nil {
 		return false, fmt.Errorf("read document %s before conditional delete: %w", id, err)
 	}

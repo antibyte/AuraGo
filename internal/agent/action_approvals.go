@@ -20,7 +20,22 @@ var ErrActionApprovalUnavailable = errors.New("action approval is unavailable, e
 
 type approvedActionKey struct{}
 type actionPreviewKey struct{}
-type approvedActionGrant struct{ SessionID, ArgumentsHash string }
+type approvedActionGrant struct {
+	SessionID, ArgumentsHash string
+	ExpiresAt                time.Time
+	now                      func() time.Time
+}
+
+func (g approvedActionGrant) expired() bool {
+	if g.ExpiresAt.IsZero() {
+		return false
+	}
+	now := time.Now
+	if g.now != nil {
+		now = g.now
+	}
+	return !now().Before(g.ExpiresAt)
+}
 
 // ActionApproval never exposes the executable payload. Preview text is scrubbed;
 // exact call data exists only in bounded process memory until decision/expiry.
@@ -183,6 +198,9 @@ func DecideActionApproval(ctx context.Context, sessionID, id, decision string) (
 		return ToolDispatchResult{}, fmt.Errorf("decision must be approve or reject")
 	}
 	m := actionApprovals
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	m.mu.Lock()
@@ -201,25 +219,45 @@ func DecideActionApproval(ctx context.Context, sessionID, id, decision string) (
 	item.view.State, item.cancel = "running", cancel
 	m.mu.Unlock()
 	defer func() { m.mu.Lock(); delete(m.entries, id); m.mu.Unlock() }()
+	// Expiry bounds waiting for the turn gate only. Stop and deletion retain
+	// the same registered context after the timer is stopped at admission.
+	expired := make(chan struct{})
+	gateTimer := time.AfterFunc(item.view.ExpiresAt.Sub(m.now()), func() { cancel(); close(expired) })
+	defer gateTimer.Stop()
+	cancelBeforeStart := func(err error) (ToolDispatchResult, error) {
+		_, _ = item.ledger.transition(item.event, AgentActionStateCancelled, "Approval cancelled before execution", "", "", ToolCall{}, 0)
+		if !m.now().Before(item.view.ExpiresAt) {
+			err = ErrActionApprovalUnavailable
+		}
+		return ToolDispatchResult{}, err
+	}
 	if item.dc.ShortTermMem != nil {
 		registered, release, err := item.dc.ShortTermMem.BeginSessionTurn(runCtx, sessionID)
 		if err != nil {
-			return ToolDispatchResult{}, err
+			return cancelBeforeStart(err)
 		}
 		defer release()
 		runCtx = registered
+	}
+	if !gateTimer.Stop() {
+		<-expired // A racing expiry always wins; do not detach cancellation.
+		return cancelBeforeStart(ErrActionApprovalUnavailable)
+	}
+	if !m.now().Before(item.view.ExpiresAt) {
+		return cancelBeforeStart(ErrActionApprovalUnavailable)
+	}
+	if err := runCtx.Err(); err != nil {
+		return cancelBeforeStart(err)
 	}
 	accepted, err := item.ledger.Accept(item.event, "Administrator approved the exact stored action")
 	if err != nil {
 		return ToolDispatchResult{}, err
 	}
-	started, err := item.ledger.Start(accepted)
-	if err != nil {
-		return ToolDispatchResult{}, err
-	}
-	grant := approvedActionGrant{SessionID: sessionID, ArgumentsHash: item.view.Action.ArgumentsHash}
+	local := item.dc
+	local.actionLedger, local.actionEvent = item.ledger, &accepted
+	grant := approvedActionGrant{SessionID: sessionID, ArgumentsHash: item.view.Action.ArgumentsHash, ExpiresAt: item.view.ExpiresAt, now: m.now}
 	runCtx = context.WithValue(runCtx, approvedActionKey{}, grant)
-	result := DispatchToolCallResult(runCtx, &item.call, &item.dc, item.dc.UserContext)
+	result := DispatchToolCallResult(runCtx, &item.call, &local, local.UserContext)
 	state := AgentActionStateSucceeded
 	if runCtx.Err() != nil {
 		state = AgentActionStateCancelled
@@ -228,7 +266,7 @@ func DecideActionApproval(ctx context.Context, sessionID, id, decision string) (
 	} else if result.IsError {
 		state = AgentActionStateBlocked
 	}
-	_, _ = item.ledger.transition(started, state, "Approved action finished", "", "", ToolCall{}, item.dc.ExecutionTimeMs)
+	_, _ = item.ledger.transition(accepted, state, "Approved action finished", "", "", ToolCall{}, local.ExecutionTimeMs)
 	return result, nil
 }
 
