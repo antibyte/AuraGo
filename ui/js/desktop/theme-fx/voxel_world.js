@@ -89,6 +89,7 @@
         const damageWindows = new Map();
         const assemblingWindows = new Map();
         let graphics = null;
+        let diorama = null;
         let collisionCount = 0;
         let physicsCollisionCount = 0;
         let transitionUntil = 0;
@@ -155,6 +156,18 @@
             desktopRects = desktop.slice(0, 1024);
             graphics.invalidateFallback();
             if (!graphics.rendererReady || graphics.contextLost) graphics.paintFallback();
+        }
+
+        // Share of the viewport the largest visible window covers; a window that hides the diorama slows it down.
+        function coverageFraction() {
+            let largest = 0;
+            for (const item of windowRects) {
+                const rect = item.rect;
+                const w = Math.min(rect.x + rect.width, width) - Math.max(rect.x, 0);
+                const h = Math.min(rect.y + rect.height, height) - Math.max(rect.y, 0);
+                if (w > 0 && h > 0) largest = Math.max(largest, w * h);
+            }
+            return largest / Math.max(1, width * height);
         }
 
         function nodeAffectsMasks(node) {
@@ -321,6 +334,7 @@
             height = Math.max(1, layer.clientHeight || window.innerHeight || 1);
             graphics.invalidateFallback();
             graphics.paintFallback();
+            if (diorama) diorama.resize();
             if (graphics.rendererReady) graphics.resizeRenderer();
             if (physicsReady) resizePhysicsFloor();
             snapshot(true);
@@ -611,6 +625,7 @@
         }
 
         function onPointerMove(event) {
+            if (motion && diorama) diorama.setPointer(clamp(event.clientX / width * 2 - 1, -1, 1), clamp(event.clientY / height * 2 - 1, -1, 1), true);
             if (!motion || !physicsReady || event.pointerType === 'touch') return;
             const now = performance.now();
             const dt = pointerAt ? Math.max(.008, (now - pointerAt) / 1000) : .016;
@@ -623,9 +638,6 @@
             pointerAt = now;
             pointerActiveUntil = now + 150;
             pointerInside = true;
-            const parallaxX = (pointerX / Math.max(1, width) - .5) * .16;
-            const parallaxY = (pointerY / Math.max(1, height) - .5) * .08;
-            graphics.setBackdropPosition(parallaxX, parallaxY);
             if (!pointerBody.isEnabled()) pointerBody.setEnabled(true);
             pointerBody.setNextKinematicTranslation({
                 x: toWorldX(pointerX, width),
@@ -652,6 +664,7 @@
         }
 
         function onPointerLeave() {
+            if (diorama) diorama.setPointer(0, 0, false);
             pointerInside = false;
             pointerActiveUntil = 0;
             if (pointerBody && pointerBody.isEnabled()) pointerBody.setEnabled(false);
@@ -761,7 +774,6 @@
                     slowFrames = 0;
                     dynamicLimit = qualityLevel >= 4 ? 64 : qualityLevel >= 3 ? 128 : MAX_FRAGMENTS;
                     graphics.resizeRenderer();
-                    graphics.setSceneryVisible(qualityLevel < 3);
                 }
             } else {
                 slowFrames = Math.max(0, slowFrames - 1);
@@ -772,7 +784,6 @@
                         dynamicLimit = qualityLevel >= 4 ? 64 : qualityLevel >= 3 ? 128 : MAX_FRAGMENTS;
                         fastSince = now;
                         graphics.resizeRenderer();
-                        graphics.setSceneryVisible(qualityLevel < 3);
                     }
                 } else fastSince = 0;
             }
@@ -861,12 +872,14 @@
             raf = 0;
             lastFrame = 0;
             accumulator = 0;
+            if (diorama) diorama.pause();
             if (pointerBody && pointerBody.isEnabled()) pointerBody.setEnabled(false);
         }
 
         function resume() {
             if (stopped) return;
             paused = false;
+            if (diorama) diorama.resume();
             snapshot(true);
             refreshMaskRects();
             requestRender();
@@ -916,14 +929,26 @@
                 lastRenderCostMs: Math.round(lastRenderCost * 10) / 10,
                 frameVoxelCount: graphicsState.frameVoxelCount,
                 maxFrameVoxels: graphicsState.maxFrameVoxels,
-                backdropVoxelCount: graphicsState.backdropVoxelCount,
+                backdropVoxelCount: diorama ? diorama.voxelCount : 0,
                 collisionCount,
                 physicsCollisionCount,
                 windowCount: records.size,
                 windowOccluderCount: windowRects.length,
                 wallpaper: graphicsState.wallpaper,
+                scene: diorama ? diorama.inspect() : null,
                 error: lastError
             };
+        }
+
+        // Test and debug hooks (AuraDesktopThemeFx.command): the diorama's hour, frozen clock and quality lock.
+        function command(name, payload) {
+            if (diorama) {
+                const number = key => (payload && payload[key] != null && Number.isFinite(Number(payload[key])) ? Number(payload[key]) : null);
+                if (name === 'voxel.time') diorama.setHourOverride(number('hour'));
+                else if (name === 'voxel.freeze') diorama.setFreeze(number('t'));
+                else if (name === 'voxel.quality') diorama.setQuality(number('level'));
+            }
+            return diorama ? diorama.inspect() : null;
         }
 
         function stop() {
@@ -933,6 +958,8 @@
             raf = 0;
             if (resizeObserver) resizeObserver.disconnect();
             if (desktopObserver) desktopObserver.disconnect();
+            if (diorama) diorama.dispose();
+            diorama = null;
             if (physicsWorld) {
                 for (const slot of fragments) slot.body.setEnabled(false);
                 for (const entry of windowBodies.values()) physicsWorld.removeRigidBody(entry.body);
@@ -965,6 +992,19 @@
                 if (!lastError) noteError('scene initialization', 'WebGL scene could not be created');
                 graphics.paintFallback();
                 return;
+            }
+            if (fullWallpaper && window.AuraVoxelScene) {
+                try {
+                    diorama = window.AuraVoxelScene.create({
+                        THREE: vendor.THREE, motion,
+                        readState: () => ({ width, height, coverage: coverageFraction() }),
+                        noteError
+                    });
+                    if (paused) diorama.pause();
+                } catch (error) {
+                    diorama = null;
+                    noteError('diorama scene', error);
+                }
             }
             if (motion) initPhysics();
             snapshot(true);
@@ -1010,7 +1050,7 @@
             noteError('vendor import', error);
             graphics.paintFallback();
         });
-        return { pause, resume, stop, inspect };
+        return { pause, resume, stop, inspect, command };
     }
 
     window.AuraDesktopThemeFx.register('voxel_world', { start });

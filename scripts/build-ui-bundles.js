@@ -157,6 +157,8 @@ const jsBundles = [
       'ui/js/desktop/theme-fx/voxel-sky.js',
       'ui/js/desktop/theme-fx/voxel-island.js',
       'ui/js/desktop/theme-fx/voxel-mesher.js',
+      'ui/js/desktop/theme-fx/voxel-blocks.js',
+      'ui/js/desktop/theme-fx/voxel-scene.js',
       'ui/js/desktop/theme-fx/voxel-graphics.js',
       'ui/js/desktop/theme-fx/voxel_world.js'
     ]

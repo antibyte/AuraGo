@@ -128,6 +128,14 @@ func TestDesktopExperienceMaterialsBrowser(t *testing.T) {
 			if id == "voxel_world" {
 				s.waitFor(t, "real WebGL and Rapier", 30*time.Second, `()=>{const f=AuraDesktopThemeFx.inspect();return f.rendererReady && f.physicsReady;}`)
 				t.Log("real rendering:", s.eval(t, `()=>AuraDesktopThemeFx.inspect()`).Value.String())
+				// The diorama behind the shell is a second WebGL context; on software WebGL it keeps to the
+				// poster wallpaper on purpose and only reports that.
+				s.waitFor(t, "diorama scene", 30*time.Second, `()=>{const s=AuraDesktopThemeFx.inspect().scene;return !!s && ((s.ready && s.frames>0) || s.backend==='software');}`)
+				if s.eval(t, `()=>AuraDesktopThemeFx.inspect().scene.backend`).Value.Str() == "software" {
+					t.Logf("diorama scene stays on the poster wallpaper (software WebGL): %s", s.eval(t, `()=>JSON.stringify(AuraDesktopThemeFx.inspect().scene)`).Value.Str())
+				} else if got := s.eval(t, `()=>({voxels:AuraDesktopThemeFx.inspect().backdropVoxelCount,hosts:document.querySelectorAll('.vd-fx-voxel-scene').length})`).Value; got.Get("voxels").Int() <= 10000 || got.Get("hosts").Int() != 1 {
+					t.Fatalf("diorama scene voxels or host wrong: %s", got.String())
+				}
 			}
 			s.settle(t)
 			s.screenshot(t, filepath.Join(dir, id+".png"))
@@ -233,8 +241,34 @@ func TestDesktopExperienceStaticAndFallbackBrowser(t *testing.T) {
 		}
 	}
 	s.settle(t)
-	if got := s.eval(t, `()=>({layers:document.querySelectorAll('.vd-theme-fx-layer').length,active:AuraDesktopThemeFx.activeId(),errors:fixtureErrors})`).Value; got.Get("layers").Int() != 0 || got.Get("active").Str() != "" || got.Get("errors").String() != "[]" {
+	if got := s.eval(t, `()=>({layers:document.querySelectorAll('.vd-theme-fx-layer').length,scenes:document.querySelectorAll('.vd-fx-voxel-scene').length,active:AuraDesktopThemeFx.activeId(),errors:fixtureErrors})`).Value; got.Get("layers").Int() != 0 || got.Get("scenes").Int() != 0 || got.Get("active").Str() != "" || got.Get("errors").String() != "[]" {
 		t.Fatalf("effects leaked after switching: %s", got.String())
+	}
+}
+
+// With reduced motion the diorama draws once and again only on demand: no animation loop of its own.
+func TestDesktopExperienceVoxelSceneStaticBrowser(t *testing.T) {
+	s := newThemeSweepSessionWithBrowser(t, "reduce", func(l *launcher.Launcher) { l.Delete("disable-gpu").Set("enable-unsafe-swiftshader") })
+	s.page.MustSetViewport(1920, 1080, 1, false)
+	s.store.set(map[string]string{"appearance.theme": "voxel_world", "appearance.wallpaper": "voxel_world", "windows.animations": "true"})
+	s.pushSettings(t)
+	s.waitFor(t, "static diorama", 60*time.Second, `()=>{const f=AuraDesktopThemeFx.inspect(),s=f.scene;return f.activeId==='voxel_world' && !f.motion && !!s && ((s.ready && s.frames>0) || s.backend==='software');}`)
+	if backend := s.eval(t, `()=>AuraDesktopThemeFx.inspect().scene.backend`).Value.Str(); backend == "software" {
+		t.Skip("software WebGL: the diorama stays on the poster wallpaper")
+	}
+	if got := s.eval(t, `async()=>{const before=AuraDesktopThemeFx.inspect().scene.frames;await new Promise(r=>setTimeout(r,600));return AuraDesktopThemeFx.inspect().scene.frames-before;}`).Value.Int(); got != 0 {
+		t.Fatalf("the static diorama rendered %d frames in 600 ms", got)
+	}
+	// An explicit change (here the hour) re-renders once.
+	before := s.eval(t, `()=>AuraDesktopThemeFx.inspect().scene.frames`).Value.Int()
+	if got := s.eval(t, `()=>AuraDesktopThemeFx.command('voxel.time',{hour:20.5}).phase`).Value.Str(); got != "dusk" {
+		t.Fatalf("hour 20.5 should be dusk, got %q", got)
+	}
+	if after := s.eval(t, `()=>AuraDesktopThemeFx.inspect().scene.frames`).Value.Int(); after != before+1 {
+		t.Fatalf("setting the hour should draw one frame: %d -> %d", before, after)
+	}
+	if got := s.eval(t, `()=>fixtureErrors`).Value.String(); got != "[]" {
+		t.Fatal(got)
 	}
 }
 
@@ -298,7 +332,7 @@ func TestDesktopExperienceVoxelPhysicsBrowser(t *testing.T) {
 	s.eval(t, `()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));}`)
 	s.store.set(map[string]string{"appearance.wallpaper": "midnight"})
 	s.pushSettings(t)
-	s.waitFor(t, "custom wallpaper without terrain", 10*time.Second, `()=>{const f=AuraDesktopThemeFx.inspect();return f.wallpaper==='custom' && f.rendererReady && f.backdropVoxelCount===0;}`)
+	s.waitFor(t, "custom wallpaper without terrain", 10*time.Second, `()=>{const f=AuraDesktopThemeFx.inspect();return f.wallpaper==='custom' && f.rendererReady && f.backdropVoxelCount===0 && document.querySelectorAll('.vd-fx-voxel-scene').length===0;}`)
 	if got := s.eval(t, `()=>fixtureErrors`).Value.String(); got != "[]" {
 		t.Fatal(got)
 	}
