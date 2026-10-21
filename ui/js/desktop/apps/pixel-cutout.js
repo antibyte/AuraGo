@@ -25,12 +25,12 @@
             { value: 'standard', labelKey: 'pixel.cutout_engine_standard', fallback: 'AI standard' },
             { value: 'precise', labelKey: 'pixel.cutout_engine_precise', fallback: 'AI precise' },
             { value: 'classic', labelKey: 'pixel.cutout_engine_classic', fallback: 'Classic (on device)' },
-            { value: 'key', labelKey: 'pixel.cutout_engine_key', fallback: 'Colour key' }
+            { value: 'key', labelKey: 'pixel.cutout_engine_key', fallback: 'Color key' }
         ] }
     ];
     const KEY_SCHEMA = [
         { key: 'keyAuto', type: 'bool', labelKey: 'pixel.cutout_key_auto', fallback: 'Detect from the edges', default: true },
-        { key: 'keyColor', type: 'color', labelKey: 'pixel.cutout_key_color', fallback: 'Key colour', default: '#00c820', showIf: v => !v.keyAuto },
+        { key: 'keyColor', type: 'color', labelKey: 'pixel.cutout_key_color', fallback: 'Key color', default: '#00c820', showIf: v => !v.keyAuto },
         { key: 'tolerance', type: 'range', labelKey: 'pixel.cutout_key_tolerance', fallback: 'Tolerance', min: 0, max: 100, step: 1, default: 40 },
         { key: 'softness', type: 'range', labelKey: 'pixel.cutout_key_softness', fallback: 'Softness', min: 0, max: 100, step: 1, default: 20 }
     ];
@@ -41,7 +41,7 @@
         { key: 'shift', type: 'range', labelKey: 'pixel.cutout_shift', fallback: 'Edge shift', min: -10, max: 10, step: 1, unit: 'px', default: 0 },
         { key: 'feather', type: 'range', labelKey: 'pixel.cutout_feather', fallback: 'Feather', min: 0, max: 20, step: 1, unit: 'px', default: 0 },
         { key: 'smooth', type: 'range', labelKey: 'pixel.cutout_smooth', fallback: 'Smooth', min: 0, max: 10, step: 1, default: 0 },
-        { key: 'decontaminate', type: 'bool', labelKey: 'pixel.cutout_decontaminate', fallback: 'Remove colour fringe', default: true },
+        { key: 'decontaminate', type: 'bool', labelKey: 'pixel.cutout_decontaminate', fallback: 'Remove color fringe', default: true },
         { key: 'decontaminateRadius', type: 'range', labelKey: 'pixel.cutout_decontaminate_radius', fallback: 'Fringe radius', min: 1, max: 20, step: 1, unit: 'px', default: 6, showIf: v => !!v.decontaminate },
         { key: 'view', type: 'select', labelKey: 'pixel.cutout_view', fallback: 'View', default: 'normal', options: [
             { value: 'normal', labelKey: 'pixel.cutout_view_normal', fallback: 'Normal' },
@@ -67,13 +67,13 @@
     function replaceSchema() {
         const generators = backgroundGenerators();
         const modes = [
-            { value: 'colour', labelKey: 'pixel.cutout_replace_colour', fallback: 'Solid colour' },
+            { value: 'solid', labelKey: 'pixel.cutout_replace_solid', fallback: 'Solid color' },
             { value: 'transparent', labelKey: 'pixel.cutout_replace_transparent', fallback: 'Transparent' }
         ];
         if (generators.length) modes.push({ value: 'generated', labelKey: 'pixel.cutout_replace_generated', fallback: 'Generated' });
         const schema = [
-            { key: 'replaceMode', type: 'select', labelKey: 'pixel.cutout_replace_mode', fallback: 'Replace with', default: 'colour', options: modes },
-            { key: 'replaceColor', type: 'color', labelKey: 'pixel.cutout_replace_color', fallback: 'Colour', default: '#ffffff', showIf: v => v.replaceMode === 'colour' }
+            { key: 'replaceMode', type: 'select', labelKey: 'pixel.cutout_replace_mode', fallback: 'Replace with', default: 'solid', options: modes },
+            { key: 'replaceColor', type: 'color', labelKey: 'pixel.cutout_replace_color', fallback: 'Color', default: '#ffffff', showIf: v => v.replaceMode === 'solid' }
         ];
         if (generators.length) {
             schema.push({ key: 'replaceGenerator', type: 'select', labelKey: 'pixel.cutout_replace_generator', fallback: 'Background', default: generators[0].id, showIf: v => v.replaceMode === 'generated',
@@ -1363,7 +1363,7 @@
             cutoutToLayer: Pixel.bindRuntime(r, function cutoutToLayer() { return cutOutToLayer(this); }),
             cutoutBlurBackground: Pixel.bindRuntime(r, function cutoutBlurBackground() { return blurBackground(this); }),
             cutoutApplyMask: Pixel.bindRuntime(r, function cutoutApplyMask() { return applyMask(this); }),
-            // options: { mode: 'colour' | 'transparent' | 'generated', color: '#rrggbb', generator: id } (defaults: the panel's values)
+            // options: { mode: 'solid' | 'transparent' | 'generated', color: '#rrggbb', generator: id } (defaults: the panel's values)
             cutoutReplaceBackground: Pixel.bindRuntime(r, function cutoutReplaceBackground(options) {
                 const o = options || {};
                 if (o.mode) st.replaceValues.replaceMode = o.mode;
