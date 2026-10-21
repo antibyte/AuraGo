@@ -113,6 +113,10 @@ attestation, request validation, candidate-logit normalization, and status.
   may reach status. Progress updates are fenced by the active operation ID.
   Installation success means installed, not ready; only attested Start grants
   readiness. The UI keeps accepted operations pending until status resolves.
+- Each native/Docker score has a two-minute context through the full response
+  read. Its own expiry is `runtime_score_timeout` (HTTP 504), terminal for that
+  evaluation only: no retry, device switch or generation retirement. Preserve
+  caller cancellation causes and keep the cancel endpoint active while reading.
 
 ## Verification
 

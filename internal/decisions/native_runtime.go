@@ -289,7 +289,21 @@ func sameRuntimeHardware(left, right runtimeHardware) bool {
 		leftDevice.Type == rightDevice.Type && deviceBoolEqual(leftDevice.Integrated, rightDevice.Integrated) && left.Offload == right.Offload
 }
 
-func (session *nativeRuntimeSession) score(ctx context.Context, score runtimeScoreRequest) (runtimeScoreResult, error) {
+const runtimeScoreTimeout = 2 * time.Minute
+
+func (session *nativeRuntimeSession) score(ctx context.Context, score runtimeScoreRequest) (result runtimeScoreResult, scoreErr error) {
+	parent := ctx
+	ctx, cancel := context.WithTimeout(ctx, runtimeScoreTimeout)
+	defer cancel()
+	defer func() {
+		if parent.Err() != nil {
+			result = runtimeScoreResult{}
+			scoreErr = NewError(CodeCancelled, cancellationCause(parent))
+		} else if ctx.Err() == context.DeadlineExceeded {
+			result = runtimeScoreResult{}
+			scoreErr = NewError(CodeRuntimeScoreTimeout, context.DeadlineExceeded)
+		}
+	}()
 	requestID, err := newRuntimeRequestID()
 	if err != nil {
 		return runtimeScoreResult{}, NewError(CodeInferenceFailed, err)
@@ -312,8 +326,14 @@ func (session *nativeRuntimeSession) score(ctx context.Context, score runtimeSco
 	request.Header.Set("Authorization", "Bearer "+session.tokenValue())
 	request.Header.Set("Content-Type", "application/json")
 	stopCancel := context.AfterFunc(ctx, func() { session.cancelRequest(requestID) })
-	response, err := session.client.Do(request)
-	stopCancel()
+	defer func() {
+		if ctx.Err() == nil {
+			stopCancel()
+		}
+	}()
+	client := *session.client
+	client.Timeout = 0
+	response, err := client.Do(request)
 	if err != nil {
 		if ctx.Err() != nil {
 			return runtimeScoreResult{}, NewError(CodeCancelled, ctx.Err())
@@ -326,7 +346,14 @@ func (session *nativeRuntimeSession) score(ctx context.Context, score runtimeSco
 		return runtimeScoreResult{}, decodeRuntimeError(data, response.StatusCode)
 	}
 	var decoded runtimeScoreWireResponse
-	if err := json.NewDecoder(io.LimitReader(response.Body, 32<<20)).Decode(&decoded); err != nil {
+	data, err := io.ReadAll(io.LimitReader(response.Body, (32<<20)+1))
+	if err != nil {
+		return runtimeScoreResult{}, NewError(CodeInvalidRuntimeResponse, err)
+	}
+	if len(data) > 32<<20 {
+		return runtimeScoreResult{}, NewError(CodeInvalidRuntimeResponse, fmt.Errorf("runtime response exceeds byte limit"))
+	}
+	if err := json.Unmarshal(data, &decoded); err != nil {
 		return runtimeScoreResult{}, NewError(CodeInvalidRuntimeResponse, err)
 	}
 	if decoded.RequestID != requestID || decoded.Protocol != runtimeProtocol || decoded.Model != session.cached.Model || decoded.Projector != session.cached.Projector ||

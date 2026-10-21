@@ -15,3 +15,11 @@ func TestDecisionsDockerAPIFailureIsConflict(t *testing.T) {
 		t.Fatalf("unsupported Docker API response: %d %s", w.Code, w.Body.String())
 	}
 }
+
+func TestDecisionsScoreTimeoutIsGatewayTimeout(t *testing.T) {
+	w := httptest.NewRecorder()
+	writeDecisionsFailure(w, decisions.NewError(decisions.CodeRuntimeScoreTimeout, nil))
+	if w.Code != http.StatusGatewayTimeout {
+		t.Fatalf("score timeout: HTTP %d", w.Code)
+	}
+}
