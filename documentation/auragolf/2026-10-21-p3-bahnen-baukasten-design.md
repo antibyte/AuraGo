@@ -64,7 +64,7 @@ Laufweg = Länge der Hauptroute (Mittellinie) vom Abschlag zum Loch. „Abkürzu
 | 8 | temple-08 | Rollender Stein / Rolling Stone | 3 | ≈ 19 m | Gabelung (Umweg links, Senke rechts), Gerade, Kurve | Rollstein quer durch die Senke | Stufentor über dem Abschlag | Timing durch die Senke statt Umweg |
 | 9 | temple-09 | Steinkopf / Stone Head | 4 | ≈ 24 m | Gabelung, Tunnel, Kurve | Steintor im Tunnel | Steinkopf mit Tunnelmaul | Tunnel durchs Maul hinter dem Tor |
 | 10 | temple-10 | Pendelstämme / Swinging Logs | 4 | ≈ 26 m | Gabelung mit zwei Brücken über den Kanal, Steilkurve, Hügel | 2 Baumstamm-Pendel (auf der Hauptbrücke) | Wasserfall | Zweite Brücke ohne Bande und ohne Pendel |
-| 11 | temple-11 | Heiliger Brunnen / Sacred Well | 4 | ≈ 26 m | Stufen, Kurve, Trichter | 2 Götzen-Portale (Teleporter) | Brunnen mit Totems | Portal über den Teich |
+| 11 | temple-11 | Heiliger Brunnen / Sacred Well | 4 | ≈ 27 m | Stufen, Platz mit Teich, Kehrkurve (180°), Trichter | 2 Götzen-Portale (Teleporter) | Brunnen mit Totems | Portal auf dem schmalen Steg im Teich |
 | 12 | temple-12 | Goldener Thron / Golden Throne | 5 | ≈ 34 m | Rampe hinauf, Steilkurve, Hügel, Stufen, Grün | 2 Tore im Wechseltakt, Rollstein | Steinkopf als Thron | Sprung von der oberen Terrasse |
 
 ### 3.3 Mondstation (`moon`, Schwerkraft 4,0)
