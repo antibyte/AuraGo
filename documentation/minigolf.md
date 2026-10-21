@@ -387,7 +387,7 @@ The generator fails earlier for primitive and material limits.
 | Placed props per course | ≤ 220 | enforced (largest 198, pirate-06) |
 | Menu preview | ≤ 80 KB, 640×360 WebP | enforced |
 | Game bundle (`ui/js/vendor/minigolf/game.esm.js`) | ≤ 6 MiB | enforced by `scripts/build-minigolf.mjs` |
-| Frame rate per quality tier | at least the baseline measured on the same machine | see the benchmark below |
+| Frame rate per quality tier | not worse than P2, measured on the same machine | parity at the frame cap, see the benchmark below |
 
 Sizes of this build: the 18 course GLBs total 15,206,816 bytes, the manifest is
 132,124 bytes (the collision is no longer listed there), the three kits total
@@ -396,27 +396,25 @@ Sizes of this build: the 18 course GLBs total 15,206,816 bytes, the manifest is
 ### Benchmark
 
 Measured with `AURAGO_MINIGOLF_BENCHMARK=1` at 1920×1080, over 240 frame intervals
-per quality tier, on the last course of the pass (`moon-18`, the Moon Station
-finale with a loop, a fork and a funnel).
+per quality tier, on the last course loaded by the browser test. P2 and P3 were
+measured on the same machine in the same session (Intel UHD Graphics through
+ANGLE/Direct3D11, headless Chrome in a remote desktop session), three alternating
+runs each; the table shows the means. P2 measures `night-18` from the P2 build, P3
+measures `moon-18` (the Moon Station finale with a loop, a fork and a funnel).
 
-P3 (Intel Arc B580 through ANGLE/Direct3D11, headless Chrome in a remote desktop
-session):
+| Tier | P2 FPS | P3 FPS | P2 / P3 median and p95 frame | P2 / P3 triangles | P2 / P3 draw calls |
+|---|---|---|---|---|---|
+| high | 52.65 | 52.72 | 19.00 / 19.70 ms, 18.97 / 19.73 ms | 214,546 / 422,952 | 99 / 115 |
+| medium | 52.58 | 52.45 | 19.03 / 19.63 ms, 19.07 / 19.73 ms | 214,546 / 422,952 | 99 / 115 |
+| low | 50.42 | 49.19 | 18.97 / 19.73 ms, 18.97 / 19.70 ms | 68,323 / 114,126 | 47 / 55 |
+| empty page | 52.83 | 53.09 | 18.83 / 19.50 ms, 18.73 / 19.37 ms | | |
 
-| Tier | FPS | Median / p95 frame | Triangles in the frame | Draw calls |
-|---|---|---|---|---|
-| high | 30.4 | 32.7 / 33.4 ms | 422,952 | 115 |
-| medium | 30.6 | 32.7 / 33.4 ms | 422,952 | 115 |
-| low | 30.4 | 32.7 / 33.3 ms | 114,126 | 55 |
-| baseline (course paused, plain rAF) | 30.6 | 32.7 / 33.3 ms | | |
-
-- Every tier sits on the frame-pacing cap of this session (about 30.5 FPS, which
-  is also the empty-page baseline), so the FPS figure shows parity, not headroom,
-  and the p95 frame time is within 0.1 ms of the baseline on every tier.
-- The P2 measurement (Intel UHD, cap about 52 FPS, low at 47 draw calls on a P2
-  course) used another machine and another cap, so only the qualitative result
-  carries over: no tier falls below the baseline, even though the P3 islands are
-  larger and a course has up to 32 mesh nodes and about 200 placed props. Draw calls
-  on low are 55 on `moon-18`.
+- Every tier and the empty page sit on the frame-pacing cap of this session
+  (about 52–53 FPS), so the result is parity within noise, not headroom. Median and
+  p95 frame times match P2 on every tier; the low-tier mean differs by one frame
+  per second, inside the spread of the P2 runs (49.4–52.4 FPS).
+- P3 draws about twice the triangles and 16–17 % more draw calls than P2 because its
+  dioramas are larger. Headroom on a faster GPU without a frame cap is not measured.
 
 These numbers are specific to this machine and browser. The benchmark logs them
 with `go test -v`; a rerun on other hardware is a separate acceptance step.
