@@ -35,8 +35,8 @@ nodes; kit at most 3 MiB and 60,000 triangles; prop at most 15,000 triangles,
 hero 20,000; runtime package at most 32 MiB), the P1 collider and physics
 fingerprints, numbered-name-free GLBs, props inside the island rim, a
 lane corridor free of props, embedded local resources, valid GLBs,
-geometry/collider agreement, named obstacle nodes, and open cup collision
-geometry. Regenerated sizes can vary with edits; the test is the authoritative
+geometry/collider agreement, an upward-facing tee ring and cup patch, named
+obstacle nodes, and open cup collision geometry. Regenerated sizes can vary with edits; the test is the authoritative
 budget check.
 
 All art is original and generated locally from this source. The generator has

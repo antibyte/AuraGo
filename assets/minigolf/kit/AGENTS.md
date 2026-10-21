@@ -134,7 +134,11 @@ probes in this folder do not touch `ui/`; `generate.py` writes `ui/3d/minigolf/`
   shaft 0 to 0.82 m, bevelled head), flag (`cloth`, double sided), hole digits
   (`emissive`, bevel 8 mm), tee ring, cup rim (made 2 cm thick below its unchanged top, bevel 8 mm)
   and lining, a felt-coloured `cup-patch` that hides
-  the dark ground in the stepped lane cut-out. `export.join_scenery` joins every
+  the dark ground in the stepped lane cut-out. The legacy `ring` winds its faces
+  downwards and the kit materials are single sided, so `restyle` flips `tee-ring`
+  and `cup-patch` face up (the asset test finds both by shape in the scenery nodes
+  and requires +Y normals); the cup rim is a closed solid after its thickening.
+  `export.join_scenery` joins every
   other mesh per material into `scenery-<material>` nodes (`FUNCTIONAL_NAMES` /
   `FUNCTIONAL_PREFIXES` stay single nodes) and strips builder properties.
 - Previews (`previews.py`, `generate.py --only previews`, about a minute): builds the

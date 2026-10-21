@@ -132,9 +132,13 @@ function parseGLB(bytes) {
     const meshes = json.meshes[node.mesh].primitives.map(primitive => {
       const positions = readAccessor(primitive.attributes.POSITION).map(point => worldPoint(index, point));
       const indices = primitive.indices === undefined ? positions.map((_, i) => i) : readAccessor(primitive.indices).map(value => value[0]);
-      const triangles = [];
-      if ((primitive.mode ?? 4) === 4) for (let i = 0; i + 2 < indices.length; i += 3) triangles.push(triangleKey([positions[indices[i]], positions[indices[i + 1]], positions[indices[i + 2]]]));
-      return { positions, triangles };
+      const triangles = [], faces = [];
+      if ((primitive.mode ?? 4) === 4) for (let i = 0; i + 2 < indices.length; i += 3) {
+        const face = [positions[indices[i]], positions[indices[i + 1]], positions[indices[i + 2]]];
+        faces.push(face);
+        triangles.push(triangleKey(face));
+      }
+      return { positions, triangles, faces };
     });
     geometryByNode.set(node.name, meshes);
   }
@@ -145,6 +149,20 @@ function parseGLB(bytes) {
   }, 0);
   return { json, nodeByName, parents, geometryByNode, triangleCount };
 }
+
+// The flat tee ring and cup patch are joined into the scenery nodes, so they are found by shape: all three
+// vertices on the inner or outer circle, at the ring's height. Their materials are single sided, hence the
+// faces must point up (+Y), or the runtime culls them seen from above.
+const RING_TOLERANCE = 0.002;
+function flatRingFaces(glb, centre, inner, outer, y) {
+  const onCircle = point => {
+    const radius = Math.hypot(point[0] - centre[0], point[2] - centre[2]);
+    return Math.abs(radius - inner) < RING_TOLERANCE || Math.abs(radius - outer) < RING_TOLERANCE;
+  };
+  return [...glb.geometryByNode].filter(([name]) => name.startsWith('scenery-')).flatMap(([, meshes]) => meshes)
+    .flatMap(mesh => mesh.faces).filter(face => face.every(point => onCircle(point) && Math.abs(point[1] - y) < RING_TOLERANCE));
+}
+const faceNormalY = ([a, b, c]) => (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]);
 
 function colliderTriangles(collider) {
   const vertices = Array.from({ length: collider.vertices.length / 3 }, (_, i) => collider.vertices.slice(i * 3, i * 3 + 3));
@@ -213,6 +231,15 @@ for (const course of manifest.courses) {
   for (const [markerName, marker, heightOffset] of [['tee', course.tee, manifest.ballRadius], ['cup', course.cup, 0]]) {
     const surfaceY = sampleCenterlineHeight(laneVertices, marker, course.id, markerName);
     assert.ok(Math.abs(marker[1] - heightOffset - surfaceY) < 0.0002, `${course.id}: ${markerName} height must match exported fairway + ${heightOffset} m`);
+  }
+  // Tee ring (12 segments) and cup patch (32 segments): flat annuli of two triangles per segment, all facing up.
+  for (const [label, centre, inner, outer, y, segments] of [
+    ['tee ring', course.tee, 0.10, 0.18, course.tee[1] - manifest.ballRadius + 0.012, 12],
+    ['cup patch', course.cup, course.cupRadius + 0.06, course.cupRadius + 0.4, course.cup[1] - 0.006, 32]
+  ]) {
+    const faces = flatRingFaces(glb, centre, inner, outer, y);
+    assert.equal(faces.length, segments * 2, `${course.id}: ${label} triangles`);
+    assert.ok(faces.every(face => faceNormalY(face) > 0), `${course.id}: ${label} must face up (single-sided material)`);
   }
   assert.ok(course.bounds.min.every((v, i) => Number.isFinite(v) && v < course.bounds.max[i]), `${course.id}: bounds`);
   assert.ok(course.water.length > 0, `${course.id}: water volume`);

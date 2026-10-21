@@ -7,7 +7,8 @@ materials and paints the world colours. Obstacle boxes only get a bevel (the ass
 test compares their exact extents), the ball stays exactly on r = 0.16 m and the
 putter keeps its 0 to 0.82 m shaft. The hole digit segments get a small bevel and
 the flat cup rim a 2 cm thickness (top unchanged) with the same bevel; neither is
-a collider input.
+a collider input. The flat tee ring and cup patch are turned face up (the legacy
+``ring`` winds downwards and the kit materials are single sided).
 """
 
 import bpy
@@ -64,12 +65,19 @@ def _obstacles(look, pal, objs):
     return out
 
 
+def _face_up(obj):
+    """Turn a flat legacy ring face up: ``courses_v1.ring`` winds its faces downwards, and the kit materials
+    are single sided, so the runtime would cull the ring when seen from above."""
+    obj.data.flip_normals()
+
+
 def _cup_patch(look, pal, model, rim):
     """Felt-coloured collar around the cup that covers the dark ground in the stepped lane cut-out."""
     pts = [v.co for v in rim.data.vertices]
     cx, cy = sum(p.x for p in pts) / len(pts), sum(p.y for p in pts) / len(pts)
     z = pts[0].z - 0.001
     patch = ring(None, model, "cup-patch", (cx, cy), CUP_RADIUS + 0.06, CUP_RADIUS + 0.4, z, None, segments=32)
+    _face_up(patch)
     lo, hi = pal.grad("felt")
     _paint(patch, mix(lo, hi, 0.62), "matte", 0.3)
     return patch
@@ -146,6 +154,7 @@ def restyle(look, model):
             _paint(obj, gold, "emissive", 0.0, strength=1.0)
             passthrough.append(obj)
         elif base == "tee-ring":
+            _face_up(obj)
             _paint(obj, gold, "satin", 0.4)
             bake.append(obj)
         elif base == "cup-rim":
