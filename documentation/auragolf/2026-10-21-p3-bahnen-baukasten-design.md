@@ -54,7 +54,7 @@ Laufweg = Länge der Hauptroute (Mittellinie) vom Abschlag zum Loch. „Abkürzu
 | 3 | pirate-03 | Plankensteg / Plank Walk | 3 | ≈ 22 m | Gabelung (links Sandbunker, rechts Rampe, Brücke ohne Bande, Rampe), Kurve, Grün; Lagune als freier Teich | – | Steg über der Lagune mit Bojen, Leuchtturm und Anlegesteg | Planke ohne Bande quer über die Lagune |
 | 4 | pirate-04 | Kanonenbucht / Cannon Cove | 4 | ≈ 27 m | Kanonendeck (Platz), Rampe auf den Steg, Hügel, zwei Kurven (U um die Lagune, Steg auf Pfählen), Stufen, Grün | Kanone | Schiff und Kanonenstellung | Präziser Schuss in die Kanone, die über die Lagune aufs Grün feuert |
 | 5 | pirate-05 | Schmugglerhöhle / Smuggler's Cave | 4 | ≈ 27 m | Sandplatz mit Luke und Teich, Tunnel durch den Totenkopffelsen, Steilkurve (Sand), Platz mit Fass, Kurve, Grün | Ankerpendel, Teleporter (Luke → Fass) | Totenkopffelsen | Luke kurz hinter dem Abschlag |
-| 6 | pirate-06 | Krakenstrudel / Kraken's Whirlpool | 5 | ≈ 34 m | Rampe mit Sprung, Brücke, Platz, Trichter | Zugbrücke (Tor), 2 Bumper | Schiff und Strudel | Sprung über die Lagune |
+| 6 | pirate-06 | Krakenstrudel / Kraken's Whirlpool | 5 | ≈ 33 m | Gabelung über die Meerenge (links Rampe, Brücke, Rampe; rechts Rampe mit Sprung, Lücke, Rampe), Kurve, Platz, Kurve, Trichter | Zugbrücke (Tor), 2 Bumper | Schiff und Strudel | Sprung über die Meerenge |
 
 ### 3.2 Dschungeltempel (`temple`, Schwerkraft 9,81)
 
