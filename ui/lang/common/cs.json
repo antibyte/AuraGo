@@ -1,4 +1,9 @@
 {
+  "common.llm_router.decisions_busy": "Decisions je zaneprázdněn",
+  "common.llm_router.helper_cooldown": "Čekací doba pomocníka",
+  "common.llm_router.decisions_cooldown": "Čekací doba Decisions",
+  "common.llm_router.cooldown_wait": "Čekací doba modelů: zbývá {seconds} s",
+  "common.llm_router.helper_limited": "Dosažen limit kvóty nebo souběžných požadavků pomocníka",
   "common.alert_title": "Oznámení",
   "common.btn_cancel": "Zrušit",
   "common.btn_close": "Zavřít",
@@ -108,7 +113,7 @@
   "common.llm_router.decisions_uncertain": "Nejistý výsledek Decisions",
   "common.llm_router.decisions_invalid": "Neplatný výsledek Decisions",
   "common.llm_router.decisions_changed": "Nastavení Decisions se změnilo",
-  "common.llm_router.decisions_limited": "Dosažen limit volání nebo čekací interval",
+  "common.llm_router.decisions_limited": "Dosažen limit kvóty nebo souběžných klasifikací",
   "common.llm_router.classification_budget": "Rozpočet klasifikace je vyčerpán",
   "common.llm_router.source_decisions": "Decisions",
   "common.llm_router.decisions_not_ready": "Místní služba Decisions není připravena. Otevři nastavení Decisions.",

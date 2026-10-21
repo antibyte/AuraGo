@@ -1,4 +1,9 @@
 {
+  "common.llm_router.decisions_busy": "Decisions ist ausgelastet",
+  "common.llm_router.helper_cooldown": "Wartefrist für den Helfer",
+  "common.llm_router.decisions_cooldown": "Wartefrist für Decisions",
+  "common.llm_router.cooldown_wait": "Wartefrist für Modelle: noch {seconds} s",
+  "common.llm_router.helper_limited": "Kontingent oder Parallelitätsgrenze des Helfers erreicht",
   "common.btn_cancel": "Abbrechen",
   "common.btn_close": "Schließen",
   "common.btn_delete": "Löschen",
@@ -108,7 +113,7 @@
   "common.llm_router.decisions_uncertain": "Decisions-Ergebnis unsicher",
   "common.llm_router.decisions_invalid": "Ungültiges Decisions-Ergebnis",
   "common.llm_router.decisions_changed": "Decisions-Einstellungen geändert",
-  "common.llm_router.decisions_limited": "Aufrufkontingent oder Wartefrist erreicht",
+  "common.llm_router.decisions_limited": "Kontingent oder Parallelitätsgrenze der Klassifikation erreicht",
   "common.llm_router.classification_budget": "Klassifikationsbudget aufgebraucht",
   "common.llm_router.source_decisions": "Decisions",
   "common.llm_router.decisions_not_ready": "Der lokale Decisions-Dienst ist nicht bereit. Öffne die Decisions-Einstellungen.",

@@ -16,18 +16,19 @@ import (
 )
 
 type TaskRoutingDecision struct {
-	TurnID          string `json:"turn_id"`
-	Area            string `json:"area"`
-	Source          string `json:"source"`
-	Reason          string `json:"reason"`
-	Provider        string `json:"provider"`
-	Model           string `json:"model"`
-	ActualProvider  string `json:"actual_provider"`
-	ActualModel     string `json:"actual_model"`
-	ElapsedMS       int64  `json:"elapsed_ms"`
-	HelperUseful    bool   `json:"helper_useful"`
-	DecisionsUseful bool   `json:"decisions_useful"`
-	SessionID       string `json:"session_id,omitempty"`
+	TurnID            string `json:"turn_id"`
+	Area              string `json:"area"`
+	Source            string `json:"source"`
+	Reason            string `json:"reason"`
+	Provider          string `json:"provider"`
+	Model             string `json:"model"`
+	ActualProvider    string `json:"actual_provider"`
+	ActualModel       string `json:"actual_model"`
+	ElapsedMS         int64  `json:"elapsed_ms"`
+	HelperUseful      bool   `json:"helper_useful"`
+	DecisionsUseful   bool   `json:"decisions_useful"`
+	SessionID         string `json:"session_id,omitempty"`
+	RetryAfterSeconds int    `json:"retry_after_seconds,omitempty"`
 }
 
 var taskRoutingSequence atomic.Uint64
@@ -215,7 +216,7 @@ func taskRoutingRemember(key, sessionKey [32]byte, c llm.TaskClassification, fro
 	}
 }
 
-func reserveTaskRoutingHelper(key [32]byte, session string, quota int) (func(), bool) {
+func reserveTaskRoutingHelper(key [32]byte, session string, quota int) (func(), string, int) {
 	taskRouterState.Lock()
 	defer taskRouterState.Unlock()
 	now := time.Now()
@@ -224,8 +225,14 @@ func reserveTaskRoutingHelper(key [32]byte, session string, quota int) (func(), 
 			delete(taskRouterState.cooldown, k)
 		}
 	}
-	if quota <= 0 || taskRouterState.inflight[key] || now.Before(taskRouterState.cooldown[session]) || len(taskRouterState.cooldown) >= 256 {
-		return nil, false
+	if quota <= 0 {
+		return nil, "limited", 0
+	}
+	if wait := taskRoutingCooldownSeconds(taskRouterState.cooldown[session], now); wait > 0 {
+		return nil, "cooldown", wait
+	}
+	if taskRouterState.inflight[key] || len(taskRouterState.cooldown) >= 256 {
+		return nil, "limited", 0
 	}
 	if taskRouterState.refilled.IsZero() {
 		taskRouterState.refilled = now
@@ -233,12 +240,16 @@ func reserveTaskRoutingHelper(key [32]byte, session string, quota int) (func(), 
 	taskRouterState.tokens = min(2, taskRouterState.tokens+now.Sub(taskRouterState.refilled).Hours()*float64(quota))
 	taskRouterState.refilled = now
 	if taskRouterState.tokens < 1 {
-		return nil, false
+		return nil, "limited", 0
 	}
 	taskRouterState.tokens--
 	taskRouterState.cooldown[session] = now.Add(time.Minute)
 	taskRouterState.inflight[key] = true
-	return func() { taskRouterState.Lock(); delete(taskRouterState.inflight, key); taskRouterState.Unlock() }, true
+	return func() { taskRouterState.Lock(); delete(taskRouterState.inflight, key); taskRouterState.Unlock() }, "", 0
+}
+
+func taskRoutingCooldownSeconds(until, now time.Time) int {
+	return max(0, int((until.Sub(now)+time.Second-1)/time.Second))
 }
 
 // PrepareTaskRouting is shared by HTTP preflight and the loop. It never mutates
@@ -256,6 +267,11 @@ func PrepareTaskRouting(ctx context.Context, req *openai.ChatCompletionRequest, 
 	run.TaskRouting = d
 	defer func() {
 		d.ElapsedMS = time.Since(start).Milliseconds()
+		if run.TaskRoutingPreview {
+			taskRouterState.Lock()
+			d.RetryAfterSeconds = taskRoutingCooldownSeconds(taskRouterState.cooldown[run.SessionID], time.Now())
+			taskRouterState.Unlock()
+		}
 		d.ActualProvider, d.ActualModel = d.Provider, d.Model
 		if !run.TaskRoutingPreview {
 			taskRouterState.Lock()
@@ -297,7 +313,7 @@ func PrepareTaskRouting(ctx context.Context, req *openai.ChatCompletionRequest, 
 		useDecisions := d.DecisionsUseful && run.TaskRoutingClassifier != "local" && run.TaskRoutingClassifier != "helper"
 		useHelper := !useDecisions && d.HelperUseful && cfg.LLMRouter.HelperFallback && llm.IsHelperLLMAvailable(cfg) && run.TaskRoutingClassifier != "local" && run.TaskRoutingClassifier != "decisions"
 		if (useDecisions || useHelper) && !run.BudgetTracker.IsBlocked("routing") {
-			if release, ok := reserveTaskRoutingHelper(key, run.SessionID, cfg.LLMRouter.HelperMaxCallsPerHour); ok {
+			if release, limit, wait := reserveTaskRoutingHelper(key, run.SessionID, cfg.LLMRouter.HelperMaxCallsPerHour); limit == "" {
 				defer release()
 				if useDecisions {
 					var reason string
@@ -315,9 +331,9 @@ func PrepareTaskRouting(ctx context.Context, req *openai.ChatCompletionRequest, 
 					d.Reason = "helper_unavailable"
 				}
 			} else {
-				d.Reason = "helper_limited"
+				d.Reason, d.RetryAfterSeconds = "helper_"+limit, wait
 				if useDecisions {
-					d.Reason = "decisions_limited"
+					d.Reason = "decisions_" + limit
 				}
 			}
 		} else if useDecisions || useHelper {

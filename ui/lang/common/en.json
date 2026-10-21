@@ -1,4 +1,9 @@
 {
+  "common.llm_router.decisions_busy": "Decisions is busy",
+  "common.llm_router.helper_cooldown": "Helper cooldown",
+  "common.llm_router.decisions_cooldown": "Decisions cooldown",
+  "common.llm_router.cooldown_wait": "Model cooldown: {seconds} s remaining",
+  "common.llm_router.helper_limited": "Helper quota or concurrency limit reached",
   "common.btn_cancel": "Cancel",
   "common.btn_close": "Close",
   "common.btn_delete": "Delete",
@@ -108,7 +113,7 @@
   "common.llm_router.decisions_uncertain": "Uncertain Decisions result",
   "common.llm_router.decisions_invalid": "Invalid Decisions result",
   "common.llm_router.decisions_changed": "Decisions settings changed",
-  "common.llm_router.decisions_limited": "Classification quota or cooldown reached",
+  "common.llm_router.decisions_limited": "Classification quota or concurrency limit reached",
   "common.llm_router.classification_budget": "Classification budget exhausted",
   "common.llm_router.source_decisions": "Decisions",
   "common.llm_router.decisions_not_ready": "The local Decisions service is not ready. Open Decisions settings.",

@@ -1,4 +1,6 @@
 {
+  "config.decisions.docker_api_too_old": "名前付きボリュームのサブディレクトリには Docker Engine 26（API 1.45）以降が必要です。Docker を更新するか、適切なホストフォルダーのバインドマウントを使用してください。",
+  "config.decisions.runtime_score_timeout": "評価が2分の制限に達しました。サービスは次の評価でも利用できます。",
   "config.decisions.local_setup": "ローカルモデルの設定",
   "config.decisions.local_server_help": "モデルはAuraGoがインストールされたコンピューターで動作します。対応するグラフィックカードを優先します。",
   "config.decisions.advanced": "実行方式とCPUの許可",

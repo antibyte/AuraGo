@@ -282,7 +282,8 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Chess 3D board and Blender piece kit | `ui/js/desktop/apps/AGENTS.md`, `ui/3d/chess/AGENTS.md`, `assets/chess-3d/AGENTS.md` |
 | Managed Local Model Contract | `internal/localllm/AGENTS.md` |
 | Decisions service and CPU permission | `internal/decisions/AGENTS.md` |
-| Decisions native scoring runtime | `decisions_runtime/AGENTS.md` |
+| EasyDrag flows and Decisions media authorization | `internal/flows/AGENTS.md` |
+| Decisions native scoring runtime and HTTP errors (`runtime_busy`) | `decisions_runtime/AGENTS.md` |
 | Local Wikipedia Contract | `internal/localwiki/AGENTS.md` |
 | Bookshelf library, sources, reader isolation and conversion | `internal/bookshelf/AGENTS.md` |
 | ONNX Runtime binding, asset cache and person detection worker | `internal/onnxrt/AGENTS.md`, `internal/persondetect/AGENTS.md` |

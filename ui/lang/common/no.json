@@ -1,4 +1,9 @@
 {
+  "common.llm_router.decisions_busy": "Decisions er opptatt",
+  "common.llm_router.helper_cooldown": "Ventetid for hjelperen",
+  "common.llm_router.decisions_cooldown": "Ventetid for Decisions",
+  "common.llm_router.cooldown_wait": "Modellenes ventetid: {seconds} s igjen",
+  "common.llm_router.helper_limited": "Hjelperens kvote eller grense for samtidige kall er nådd",
   "common.alert_title": "Varsel",
   "common.btn_cancel": "Avbryt",
   "common.btn_close": "Lukk",
@@ -108,7 +113,7 @@
   "common.llm_router.decisions_uncertain": "Usikkert Decisions-resultat",
   "common.llm_router.decisions_invalid": "Ugyldig Decisions-resultat",
   "common.llm_router.decisions_changed": "Decisions-innstillingene ble endret",
-  "common.llm_router.decisions_limited": "Grensen for kall eller ventetiden er nådd",
+  "common.llm_router.decisions_limited": "Kvoten eller grensen for samtidige klassifiseringer er nådd",
   "common.llm_router.classification_budget": "Klassifiseringsbudsjettet er brukt opp",
   "common.llm_router.source_decisions": "Decisions",
   "common.llm_router.decisions_not_ready": "Den lokale Decisions-tjenesten er ikke klar. Åpne Decisions-innstillingene.",

@@ -1,4 +1,9 @@
 {
+  "common.llm_router.decisions_busy": "Decisions व्यस्त है",
+  "common.llm_router.helper_cooldown": "सहायक का प्रतीक्षा समय",
+  "common.llm_router.decisions_cooldown": "Decisions का प्रतीक्षा समय",
+  "common.llm_router.cooldown_wait": "मॉडल का प्रतीक्षा समय: {seconds} सेकंड शेष",
+  "common.llm_router.helper_limited": "सहायक का कोटा या एक साथ कॉल की सीमा पूरी हो गई",
   "common.alert_title": "सूचना",
   "common.btn_cancel": "रद्द करना",
   "common.btn_close": "बंद करना",
@@ -108,7 +113,7 @@
   "common.llm_router.decisions_uncertain": "Decisions का परिणाम अनिश्चित",
   "common.llm_router.decisions_invalid": "Decisions का परिणाम अमान्य",
   "common.llm_router.decisions_changed": "Decisions की सेटिंग बदली",
-  "common.llm_router.decisions_limited": "कॉल सीमा या प्रतीक्षा अवधि लागू है",
+  "common.llm_router.decisions_limited": "वर्गीकरण का कोटा या एक साथ अनुरोधों की सीमा पूरी हो गई",
   "common.llm_router.classification_budget": "वर्गीकरण का बजट समाप्त",
   "common.llm_router.source_decisions": "Decisions",
   "common.llm_router.decisions_not_ready": "स्थानीय Decisions सेवा तैयार नहीं है। Decisions सेटिंग खोलो।",

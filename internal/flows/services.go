@@ -52,16 +52,17 @@ type LLMStepper interface {
 	Step(ctx context.Context, req LLMRequest) (LLMResponse, error)
 }
 
-// DecisionEvaluator evaluates typed questions against state and registered media
-// references. The server resolves Images before passing bytes to the managed
-// Decisions runtime; the flow core never receives or trusts raw media bytes.
+// DecisionEvaluator evaluates typed questions against state and media references
+// or server-authorized outgoing attachment paths. The server resolves Images
+// before passing bytes to Decisions; the flow core never trusts raw media bytes.
 type DecisionEvaluator interface {
 	Evaluate(ctx context.Context, req DecisionRequest) (decisions.Response, error)
 }
 
 // DecisionRequest is the flow-safe input to the optional Decisions service.
-// State is read-only and may alias run data. Images contains registered media
-// references resolved and authorized by the server; the flow core never opens files.
+// State is read-only and may alias run data. Images contains media references or
+// outgoing attachment paths resolved and authorized by the server; the flow core
+// never opens files.
 type DecisionRequest struct {
 	State     any
 	Questions []decisions.Question

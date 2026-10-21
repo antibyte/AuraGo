@@ -1,4 +1,9 @@
 {
+  "common.llm_router.decisions_busy": "Decisions は処理中です",
+  "common.llm_router.helper_cooldown": "補助モデルの待機時間",
+  "common.llm_router.decisions_cooldown": "Decisions の待機時間",
+  "common.llm_router.cooldown_wait": "モデルの待機時間：残り {seconds} 秒",
+  "common.llm_router.helper_limited": "補助モデルの利用枠または同時呼び出し数の上限に達しました",
   "common.alert_title": "通知",
   "common.btn_cancel": "キャンセル",
   "common.btn_close": "閉じる",
@@ -108,7 +113,7 @@
   "common.llm_router.decisions_uncertain": "Decisionsの結果が不確実です",
   "common.llm_router.decisions_invalid": "Decisionsの結果が無効です",
   "common.llm_router.decisions_changed": "Decisionsの設定が変更されました",
-  "common.llm_router.decisions_limited": "呼び出し上限または待機期間に達しました",
+  "common.llm_router.decisions_limited": "分類の利用枠または同時実行数の上限に達しました",
   "common.llm_router.classification_budget": "分類の予算を使い切りました",
   "common.llm_router.source_decisions": "Decisions",
   "common.llm_router.decisions_not_ready": "ローカルの Decisions サービスは準備できていません。Decisions の設定を開いてください。",

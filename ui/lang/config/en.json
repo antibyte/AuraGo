@@ -1,4 +1,6 @@
 {
+  "config.decisions.docker_api_too_old": "Named-volume subdirectories require Docker Engine 26 (API 1.45) or newer. Upgrade Docker or use a suitable bind mount.",
+  "config.decisions.runtime_score_timeout": "The score reached its two-minute limit. The service remains available for the next score.",
   "config.decisions.local_setup": "Set up the local model",
   "config.decisions.local_server_help": "The model runs on the computer hosting AuraGo. A compatible graphics card is preferred.",
   "config.decisions.advanced": "Run mode and CPU permission",

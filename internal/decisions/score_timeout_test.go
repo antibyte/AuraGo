@@ -85,6 +85,9 @@ func TestScoreTimeoutAndCancellationKeepGenerationReusable(t *testing.T) {
 				if ErrorCode(err) != wantCode || !errors.Is(err, wantCause) {
 					t.Fatalf("score: %v (cause %v)", err, errors.Unwrap(err))
 				}
+				if wantCode == CodeRuntimeScoreTimeout && !IsNonRetryable(err) {
+					t.Fatal("internal score expiry became retryable")
+				}
 				synctest.Wait()
 				if cancellations != 1 || calls != 1 || !manager.Status().Ready || manager.CacheGeneration() != generation {
 					t.Fatalf("timeout retired/retried generation or missed cancellation: scores=%d cancel=%d status=%+v", calls, cancellations, manager.Status())

@@ -1,4 +1,6 @@
 {
+  "config.decisions.docker_api_too_old": "Οι υποκατάλογοι ονομαστικών τόμων απαιτούν Docker Engine 26 (API 1.45) ή νεότερο. Ενημέρωσε το Docker ή χρησιμοποίησε κατάλληλη προσάρτηση καταλόγου του συστήματος.",
+  "config.decisions.runtime_score_timeout": "Η αξιολόγηση έφτασε στο όριο των δύο λεπτών. Η υπηρεσία παραμένει διαθέσιμη για την επόμενη αξιολόγηση.",
   "config.decisions.local_setup": "Ρύθμιση τοπικού μοντέλου",
   "config.decisions.local_server_help": "Το μοντέλο εκτελείται στον υπολογιστή που φιλοξενεί το AuraGo. Προτιμάται συμβατή κάρτα γραφικών.",
   "config.decisions.advanced": "Τρόπος εκτέλεσης και άδεια CPU",

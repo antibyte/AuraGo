@@ -1,4 +1,9 @@
 {
+  "common.llm_router.decisions_busy": "Decisions is bezig",
+  "common.llm_router.helper_cooldown": "Wachttijd voor de helper",
+  "common.llm_router.decisions_cooldown": "Wachttijd voor Decisions",
+  "common.llm_router.cooldown_wait": "Wachttijd voor modellen: nog {seconds} s",
+  "common.llm_router.helper_limited": "Quotum of limiet voor gelijktijdige helperaanroepen bereikt",
   "common.alert_title": "Melding",
   "common.btn_cancel": "Annuleren",
   "common.btn_close": "Sluiten",
@@ -108,7 +113,7 @@
   "common.llm_router.decisions_uncertain": "Onzeker Decisions-resultaat",
   "common.llm_router.decisions_invalid": "Ongeldig Decisions-resultaat",
   "common.llm_router.decisions_changed": "Decisions-instellingen gewijzigd",
-  "common.llm_router.decisions_limited": "De oproeplimiet of wachttijd is bereikt",
+  "common.llm_router.decisions_limited": "Quotum of limiet voor gelijktijdige classificaties bereikt",
   "common.llm_router.classification_budget": "Het classificatiebudget is opgebruikt",
   "common.llm_router.source_decisions": "Decisions",
   "common.llm_router.decisions_not_ready": "De lokale Decisions-service is niet gereed. Open de Decisions-instellingen.",

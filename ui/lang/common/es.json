@@ -1,4 +1,9 @@
 {
+  "common.llm_router.decisions_busy": "Decisions está ocupado",
+  "common.llm_router.helper_cooldown": "Espera del asistente",
+  "common.llm_router.decisions_cooldown": "Espera de Decisions",
+  "common.llm_router.cooldown_wait": "Espera de los modelos: quedan {seconds} s",
+  "common.llm_router.helper_limited": "Se alcanzó la cuota o el límite de llamadas simultáneas del asistente",
   "common.alert_title": "Aviso",
   "common.btn_cancel": "Cancelar",
   "common.btn_close": "Cerrar",
@@ -108,7 +113,7 @@
   "common.llm_router.decisions_uncertain": "Resultado de Decisions incierto",
   "common.llm_router.decisions_invalid": "Resultado de Decisions inválido",
   "common.llm_router.decisions_changed": "Cambió la configuración de Decisions",
-  "common.llm_router.decisions_limited": "Se alcanzó la cuota de llamadas o el intervalo de espera",
+  "common.llm_router.decisions_limited": "Se alcanzó la cuota o el límite de clasificaciones simultáneas",
   "common.llm_router.classification_budget": "Se agotó el presupuesto de clasificación",
   "common.llm_router.source_decisions": "Decisions",
   "common.llm_router.decisions_not_ready": "El servicio local de Decisions no está listo. Abre los ajustes de Decisions.",

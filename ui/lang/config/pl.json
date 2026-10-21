@@ -1,4 +1,6 @@
 {
+  "config.decisions.docker_api_too_old": "Podkatalogi nazwanych woluminów wymagają Docker Engine 26 (API 1.45) lub nowszego. Zaktualizuj Docker lub użyj odpowiedniego montowania katalogu hosta.",
+  "config.decisions.runtime_score_timeout": "Ocena osiągnęła limit dwóch minut. Usługa pozostaje dostępna do następnej oceny.",
   "config.decisions.local_setup": "Skonfiguruj model lokalny",
   "config.decisions.local_server_help": "Model działa na komputerze, na którym zainstalowano AuraGo. Preferowana jest zgodna karta graficzna.",
   "config.decisions.advanced": "Tryb działania i zgoda na CPU",

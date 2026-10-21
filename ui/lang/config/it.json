@@ -1,4 +1,6 @@
 {
+  "config.decisions.docker_api_too_old": "Le sottocartelle dei volumi con nome richiedono Docker Engine 26 (API 1.45) o successivo. Aggiorna Docker o usa un montaggio adatto di una cartella host.",
+  "config.decisions.runtime_score_timeout": "La valutazione ha raggiunto il limite di due minuti. Il servizio rimane disponibile per la prossima valutazione.",
   "config.decisions.local_setup": "Configura il modello locale",
   "config.decisions.local_server_help": "Il modello viene eseguito sul computer che ospita AuraGo. Una scheda grafica compatibile ha la priorità.",
   "config.decisions.advanced": "Modalità di esecuzione e permesso CPU",

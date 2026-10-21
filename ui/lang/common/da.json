@@ -1,4 +1,9 @@
 {
+  "common.llm_router.decisions_busy": "Decisions er optaget",
+  "common.llm_router.helper_cooldown": "Hjælperens ventetid",
+  "common.llm_router.decisions_cooldown": "Ventetid for Decisions",
+  "common.llm_router.cooldown_wait": "Modellernes ventetid: {seconds} s tilbage",
+  "common.llm_router.helper_limited": "Hjælperens kvote eller grænse for samtidige kald er nået",
   "common.alert_title": "Bemærkning",
   "common.btn_cancel": "Annuller",
   "common.btn_close": "Luk",
@@ -108,7 +113,7 @@
   "common.llm_router.decisions_uncertain": "Usikkert Decisions-resultat",
   "common.llm_router.decisions_invalid": "Ugyldigt Decisions-resultat",
   "common.llm_router.decisions_changed": "Decisions-indstillingerne blev ændret",
-  "common.llm_router.decisions_limited": "Grænsen for kald eller ventetid er nået",
+  "common.llm_router.decisions_limited": "Kvoten eller grænsen for samtidige klassifikationer er nået",
   "common.llm_router.classification_budget": "Klassifikationsbudgettet er opbrugt",
   "common.llm_router.source_decisions": "Decisions",
   "common.llm_router.decisions_not_ready": "Den lokale Decisions-tjeneste er ikke klar. Åbn Decisions-indstillingerne.",

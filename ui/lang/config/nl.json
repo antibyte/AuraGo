@@ -1,4 +1,6 @@
 {
+  "config.decisions.docker_api_too_old": "Submappen in benoemde volumes vereisen Docker Engine 26 (API 1.45) of nieuwer. Werk Docker bij of gebruik een geschikte koppeling van een hostmap.",
+  "config.decisions.runtime_score_timeout": "De beoordeling bereikte de limiet van twee minuten. De dienst blijft beschikbaar voor de volgende beoordeling.",
   "config.decisions.local_setup": "Lokaal model instellen",
   "config.decisions.local_server_help": "Het model draait op de computer waarop AuraGo is geïnstalleerd. Een geschikte grafische kaart krijgt voorrang.",
   "config.decisions.advanced": "Uitvoeringswijze en CPU-toestemming",

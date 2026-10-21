@@ -1,4 +1,9 @@
 {
+  "common.llm_router.decisions_busy": "Decisions 正忙",
+  "common.llm_router.helper_cooldown": "辅助模型等待时间",
+  "common.llm_router.decisions_cooldown": "Decisions 等待时间",
+  "common.llm_router.cooldown_wait": "模型等待时间：剩余 {seconds} 秒",
+  "common.llm_router.helper_limited": "已达到辅助模型的配额或并发调用上限",
   "common.alert_title": "通知",
   "common.btn_cancel": "取消",
   "common.btn_close": "关闭",
@@ -108,7 +113,7 @@
   "common.llm_router.decisions_uncertain": "Decisions 结果不确定",
   "common.llm_router.decisions_invalid": "Decisions 结果无效",
   "common.llm_router.decisions_changed": "Decisions 设置已更改",
-  "common.llm_router.decisions_limited": "已达到调用配额或等待间隔",
+  "common.llm_router.decisions_limited": "已达到分类配额或并发上限",
   "common.llm_router.classification_budget": "分类预算已用尽",
   "common.llm_router.source_decisions": "Decisions",
   "common.llm_router.decisions_not_ready": "本地 Decisions 服务尚未就绪。请打开 Decisions 设置。",

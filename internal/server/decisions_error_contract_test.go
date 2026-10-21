@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -18,8 +19,9 @@ func TestDecisionsDockerAPIFailureIsConflict(t *testing.T) {
 
 func TestDecisionsScoreTimeoutIsGatewayTimeout(t *testing.T) {
 	w := httptest.NewRecorder()
-	writeDecisionsFailure(w, decisions.NewError(decisions.CodeRuntimeScoreTimeout, nil))
-	if w.Code != http.StatusGatewayTimeout {
+	err := decisions.NewError(decisions.CodeRuntimeScoreTimeout, context.DeadlineExceeded)
+	writeDecisionsFailure(w, err)
+	if w.Code != http.StatusGatewayTimeout || decisionsFailureCode(err) != decisions.CodeRuntimeScoreTimeout {
 		t.Fatalf("score timeout: HTTP %d", w.Code)
 	}
 }

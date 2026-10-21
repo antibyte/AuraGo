@@ -1,4 +1,9 @@
 {
+  "common.llm_router.decisions_busy": "Decisions est occupé",
+  "common.llm_router.helper_cooldown": "Délai du modèle auxiliaire",
+  "common.llm_router.decisions_cooldown": "Délai de Decisions",
+  "common.llm_router.cooldown_wait": "Délai des modèles : encore {seconds} s",
+  "common.llm_router.helper_limited": "Quota ou limite des appels simultanés du modèle auxiliaire atteint",
   "common.alert_title": "Notification",
   "common.btn_cancel": "Annuler",
   "common.btn_close": "Fermer",
@@ -108,7 +113,7 @@
   "common.llm_router.decisions_uncertain": "Résultat Decisions incertain",
   "common.llm_router.decisions_invalid": "Résultat Decisions invalide",
   "common.llm_router.decisions_changed": "Paramètres Decisions modifiés",
-  "common.llm_router.decisions_limited": "Quota d’appels ou délai d’attente atteint",
+  "common.llm_router.decisions_limited": "Quota ou limite des classifications simultanées atteint",
   "common.llm_router.classification_budget": "Budget de classification épuisé",
   "common.llm_router.source_decisions": "Decisions",
   "common.llm_router.decisions_not_ready": "Le service Decisions local n’est pas prêt. Ouvre les paramètres Decisions.",

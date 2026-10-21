@@ -1065,7 +1065,7 @@ func (manager *Manager) setState(state, code string, progress Progress) {
 
 func (manager *Manager) setInstallError(err error) {
 	manager.mu.Lock()
-	if !manager.cfg.Enabled || manager.closed || manager.operationCancel == nil || ErrorCode(err) == CodeCancelled {
+	if !manager.cfg.Enabled || manager.closed || manager.operationCancel == nil || ErrorCode(err) == CodeCancelled || ErrorCode(err) == CodeLifecycleBusy || len(manager.pendingSessions) > 0 || manager.cleanupTask != nil {
 		manager.mu.Unlock()
 		return
 	}
@@ -1079,7 +1079,7 @@ func (manager *Manager) setInstallError(err error) {
 
 func (manager *Manager) setRuntimeError(err error) {
 	manager.mu.Lock()
-	if !manager.cfg.Enabled || manager.closed || manager.operationCancel == nil || ErrorCode(err) == CodeCancelled {
+	if !manager.cfg.Enabled || manager.closed || manager.operationCancel == nil || ErrorCode(err) == CodeCancelled || ErrorCode(err) == CodeLifecycleBusy || len(manager.pendingSessions) > 0 || manager.cleanupTask != nil {
 		manager.mu.Unlock()
 		return
 	}
@@ -1117,7 +1117,7 @@ func (manager *Manager) beginOperation(parent context.Context) (context.Context,
 		manager.mu.Unlock()
 		cancel()
 		stopParent()
-		return nil, nil, 0, nil, NewError(CodeCancelled, context.Canceled)
+		return nil, nil, 0, nil, NewError(CodeLifecycleBusy, nil)
 	}
 	manager.operationID++
 	operationID := manager.operationID

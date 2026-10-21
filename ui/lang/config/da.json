@@ -1,4 +1,6 @@
 {
+  "config.decisions.docker_api_too_old": "Undermapper i navngivne volumener kræver Docker Engine 26 (API 1.45) eller nyere. Opdater Docker, eller brug en passende tilknytning af en værtsmappe.",
+  "config.decisions.runtime_score_timeout": "Vurderingen nåede grænsen på to minutter. Tjenesten er fortsat tilgængelig til næste vurdering.",
   "config.decisions.local_setup": "Konfigurer den lokale model",
   "config.decisions.local_server_help": "Modellen kører på den computer, hvor AuraGo er installeret. Et kompatibelt grafikkort foretrækkes.",
   "config.decisions.advanced": "Driftsform og CPU-tilladelse",

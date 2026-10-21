@@ -411,12 +411,6 @@ func startDockerRuntime(ctx context.Context, device runtimeDevice, paths modelPa
 		_ = os.Remove(tokenFile)
 		return nil, NewError(CodeRuntimeStartFailed, err)
 	}
-	if err := docker.startContainer(ctx, container.ID); err != nil {
-		docker.removeContainerBounded(container.ID)
-		cleanup(context.Background())
-		_ = os.Remove(tokenFile)
-		return nil, NewError(CodeRuntimeStartFailed, err)
-	}
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 	if access.IsDocker {
 		baseURL = fmt.Sprintf("http://%s:%d", name, decisionsDockerPort)
@@ -425,10 +419,21 @@ func startDockerRuntime(ctx context.Context, device runtimeDevice, paths modelPa
 		baseURL: baseURL, token: tokenFile, client: &http.Client{Timeout: 2 * time.Minute, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 		device: device, deployment: config.DecisionsDeploymentDocker, cpuAllowed: cfg.CPUFallbackAllowed,
 	}, docker: docker, containerID: container.ID, cleanup: cleanup, imageID: image.ID, tokenValue: strings.TrimSpace(string(token))}
+	if err := docker.startContainer(ctx, container.ID); err != nil {
+		failure := NewError(CodeRuntimeStartFailed, err)
+		if closeErr := session.Close(context.Background()); closeErr != nil {
+			return session, failure
+		}
+		return nil, failure
+	}
+
 	var running dockerContainerMetadata
 	if _, inspectErr := docker.client.DoJSON(ctx, http.MethodGet, "containers/"+url.PathEscape(container.ID)+"/json", nil, &running); inspectErr != nil || !dockerContainerImageMatches(image.ID, running.Image) {
-		_ = session.Close(context.Background())
-		return nil, NewError(CodeRuntimeAttestationFailed, fmt.Errorf("running container image differs from inspected image"))
+		failure := NewError(CodeRuntimeAttestationFailed, fmt.Errorf("running container image differs from inspected image"))
+		if closeErr := session.Close(context.Background()); closeErr != nil {
+			return session, failure
+		}
+		return nil, failure
 	}
 	if err := docker.waitRuntimeReady(ctx, session, progress); err != nil {
 		if closeErr := session.Close(context.Background()); closeErr != nil {
@@ -645,7 +650,10 @@ func (session *dockerRuntimeSession) Close(ctx context.Context) error {
 		}
 		status, inspectErr := session.docker.client.DoJSON(cleanupCtx, http.MethodGet, "containers/"+url.PathEscape(session.containerID)+"/json", nil, nil)
 		if status != http.StatusNotFound {
-			return fmt.Errorf("decisions container removal unconfirmed (HTTP %d): %w", status, inspectErr)
+			if inspectErr != nil {
+				return fmt.Errorf("confirm decisions container removal: %w", inspectErr)
+			}
+			return fmt.Errorf("decisions container still exists after removal (HTTP %d)", status)
 		}
 		session.containerID = ""
 		if session.cleanup != nil {

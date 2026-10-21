@@ -118,6 +118,12 @@ func classifyTaskWithDecisions(ctx context.Context, run RunConfig, snapshot Task
 	}
 	taskRouterState.Unlock()
 	reason := "decisions_unavailable"
+	switch decisions.ErrorCode(err) {
+	case decisions.CodeQueueFull, decisions.CodeRuntimeBusy:
+		reason = "decisions_busy"
+	case decisions.CodeRuntimeScoreTimeout:
+		reason = "decisions_timeout"
+	}
 	if ctx.Err() != nil {
 		err, reason = ctx.Err(), "decisions_timeout"
 	}

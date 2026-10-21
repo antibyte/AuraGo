@@ -1,4 +1,9 @@
 {
+  "common.llm_router.decisions_busy": "Το Decisions είναι απασχολημένο",
+  "common.llm_router.helper_cooldown": "Χρόνος αναμονής βοηθού",
+  "common.llm_router.decisions_cooldown": "Χρόνος αναμονής Decisions",
+  "common.llm_router.cooldown_wait": "Χρόνος αναμονής μοντέλων: απομένουν {seconds} δευτ.",
+  "common.llm_router.helper_limited": "Συμπληρώθηκε το όριο χρήσης ή ταυτόχρονων κλήσεων του βοηθού",
   "common.alert_title": "Ειδοποίηση",
   "common.btn_cancel": "Ματαίωση",
   "common.btn_close": "Κλείσιμο",
@@ -108,7 +113,7 @@
   "common.llm_router.decisions_uncertain": "Αβέβαιο αποτέλεσμα Decisions",
   "common.llm_router.decisions_invalid": "Μη έγκυρο αποτέλεσμα Decisions",
   "common.llm_router.decisions_changed": "Οι ρυθμίσεις Decisions άλλαξαν",
-  "common.llm_router.decisions_limited": "Συμπληρώθηκε το όριο κλήσεων ή ο χρόνος αναμονής",
+  "common.llm_router.decisions_limited": "Συμπληρώθηκε το όριο χρήσης ή ταυτόχρονων ταξινομήσεων",
   "common.llm_router.classification_budget": "Εξαντλήθηκε ο προϋπολογισμός ταξινόμησης",
   "common.llm_router.source_decisions": "Decisions",
   "common.llm_router.decisions_not_ready": "Η τοπική υπηρεσία Decisions δεν είναι έτοιμη. Άνοιξε τις ρυθμίσεις Decisions.",

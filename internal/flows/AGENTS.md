@@ -62,7 +62,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - `ParseToolOutput` limits: nesting deeper than about 10000 levels falls back to text, and the engine fails
   a node whose output is nested beyond its own depth limit.
 - `ai.decision` calls only `Services.Decisions` (`DecisionEvaluator`); its `DecisionRequest.Images` are
-  registered-media references, never paths or bytes. The server owns rooted media resolution and only then
+  registered-media references or server-authorized outgoing attachment paths,
+  never arbitrary filesystem access or bytes. The server owns rooted media resolution and only then
   passes `decisions.Image` bytes to the selected local runtime or external provider.
   Do not import `internal/server` or put image bytes
   into flow params, outputs, events or logs. Validate the service response before routing; a missing,

@@ -1,4 +1,9 @@
 {
+  "common.llm_router.decisions_busy": "Decisions är upptaget",
+  "common.llm_router.helper_cooldown": "Väntetid för hjälparen",
+  "common.llm_router.decisions_cooldown": "Väntetid för Decisions",
+  "common.llm_router.cooldown_wait": "Modellernas väntetid: {seconds} s kvar",
+  "common.llm_router.helper_limited": "Hjälparens kvot eller gräns för samtidiga anrop har nåtts",
   "common.alert_title": "Obs",
   "common.btn_cancel": "Avbryt",
   "common.btn_close": "Stäng",
@@ -108,7 +113,7 @@
   "common.llm_router.decisions_uncertain": "Osäkert Decisions-resultat",
   "common.llm_router.decisions_invalid": "Ogiltigt Decisions-resultat",
   "common.llm_router.decisions_changed": "Decisions-inställningarna ändrades",
-  "common.llm_router.decisions_limited": "Anropsgränsen eller väntetiden har nåtts",
+  "common.llm_router.decisions_limited": "Kvoten eller gränsen för samtidiga klassificeringar har nåtts",
   "common.llm_router.classification_budget": "Klassificeringsbudgeten är förbrukad",
   "common.llm_router.source_decisions": "Decisions",
   "common.llm_router.decisions_not_ready": "Den lokala Decisions-tjänsten är inte redo. Öppna Decisions-inställningarna.",

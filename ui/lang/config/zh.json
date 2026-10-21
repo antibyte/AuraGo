@@ -1,4 +1,6 @@
 {
+  "config.decisions.docker_api_too_old": "命名卷的子目录需要 Docker Engine 26（API 1.45）或更新版本。请升级 Docker，或使用合适的主机目录绑定挂载。",
+  "config.decisions.runtime_score_timeout": "评估已达到两分钟时限。服务仍可用于下一次评估。",
   "config.decisions.local_setup": "设置本地模型",
   "config.decisions.local_server_help": "模型在安装 AuraGo 的计算机上运行，优先使用兼容的显卡。",
   "config.decisions.advanced": "运行方式与 CPU 授权",

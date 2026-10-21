@@ -100,6 +100,10 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   Chat entry points set `RunConfig.TaskRoutingText` before media enrichment;
   explicit empty text must never fall back to attachment content or history.
   Cache/results bind to the service generation; previews bypass production caches.
+  Preview and live classification retain the shared quota and 60-second session
+  cooldown. Report cooldown separately from quota/concurrency limits, with additive
+  `retry_after_seconds`; editing preview text never resets the session cooldown.
+  Map queue/runtime overload to `decisions_busy` and score expiry to `decisions_timeout`.
   Never start/install a runtime from routing. Tool output cannot choose a model. Helper classification
   uses the existing explicitly enabled helper, one physical attempt, a cancellable deadline,
   nonblocking concurrency, quota/cooldown and strict labels. Never fall back to

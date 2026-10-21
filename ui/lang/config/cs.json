@@ -1,4 +1,6 @@
 {
+  "config.decisions.docker_api_too_old": "Podadresáře pojmenovaných svazků vyžadují Docker Engine 26 (API 1.45) nebo novější. Aktualizuj Docker nebo použij vhodné připojení adresáře hostitele.",
+  "config.decisions.runtime_score_timeout": "Hodnocení dosáhlo dvouminutového limitu. Služba zůstává dostupná pro další hodnocení.",
   "config.decisions.local_setup": "Nastavit místní model",
   "config.decisions.local_server_help": "Model běží na počítači, kde je nainstalováno AuraGo. Přednost má vhodná grafická karta.",
   "config.decisions.advanced": "Způsob spuštění a povolení CPU",

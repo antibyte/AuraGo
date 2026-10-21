@@ -350,7 +350,7 @@ function renderDecisionsSection(section) {
             service_disabled: 'disabled', cpu_consent_required: 'cpu_required',
             hardware_unavailable: 'hardware_unavailable', model_not_installed: 'not_installed',
             runtime_unavailable: 'runtime_missing', runtime_artifact_missing: 'runtime_missing', service_not_ready: 'not_ready',
-            docker_unavailable: 'docker_unavailable', deployment_denied: 'docker_unavailable',
+            docker_api_too_old: 'docker_api_too_old', runtime_score_timeout: 'runtime_score_timeout', docker_unavailable: 'docker_unavailable', deployment_denied: 'docker_unavailable',
             model_integrity_failed: 'integrity_failed', runtime_attestation_failed: 'attestation_failed',
             lifecycle_busy: 'lifecycle_busy', runtime_start_timeout: 'runtime_start_timeout', runtime_invalid_configuration: 'runtime_invalid_configuration',
             runtime_release_unavailable: 'release_unavailable', runtime_download_failed: 'runtime_download_failed', model_download_failed: 'runtime_download_failed',
@@ -361,7 +361,7 @@ function renderDecisionsSection(section) {
     };
     const errorText = code => {
         const keys = {
-            provider_not_configured: 'provider_not_configured', provider_key_missing: 'provider_key_missing',
+            docker_api_too_old: 'docker_api_too_old', runtime_score_timeout: 'runtime_score_timeout', provider_not_configured: 'provider_not_configured', provider_key_missing: 'provider_key_missing',
             provider_auth_failed: 'provider_auth_failed', provider_credit_exhausted: 'provider_credit_exhausted',
             provider_rate_limited: 'provider_rate_limited',
             provider_lifecycle_unavailable: 'provider_lifecycle_unavailable', configuration_changed: 'configuration_changed',

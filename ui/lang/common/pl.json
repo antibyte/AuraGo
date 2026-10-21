@@ -1,4 +1,9 @@
 {
+  "common.llm_router.decisions_busy": "Decisions jest zajęty",
+  "common.llm_router.helper_cooldown": "Czas oczekiwania pomocnika",
+  "common.llm_router.decisions_cooldown": "Czas oczekiwania Decisions",
+  "common.llm_router.cooldown_wait": "Czas oczekiwania modeli: pozostało {seconds} s",
+  "common.llm_router.helper_limited": "Osiągnięto limit użycia lub równoległych wywołań pomocnika",
   "common.alert_title": "Powiadomienie",
   "common.btn_cancel": "Anuluj",
   "common.btn_close": "Zamknij",
@@ -108,7 +113,7 @@
   "common.llm_router.decisions_uncertain": "Niepewny wynik Decisions",
   "common.llm_router.decisions_invalid": "Nieprawidłowy wynik Decisions",
   "common.llm_router.decisions_changed": "Zmieniono ustawienia Decisions",
-  "common.llm_router.decisions_limited": "Osiągnięto limit wywołań lub okres oczekiwania",
+  "common.llm_router.decisions_limited": "Osiągnięto limit użycia lub równoległych klasyfikacji",
   "common.llm_router.classification_budget": "Wyczerpano budżet klasyfikacji",
   "common.llm_router.source_decisions": "Decisions",
   "common.llm_router.decisions_not_ready": "Lokalna usługa Decisions nie jest gotowa. Otwórz ustawienia Decisions.",

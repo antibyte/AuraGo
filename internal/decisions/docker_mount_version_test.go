@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -31,6 +32,10 @@ func TestDockerMountPreflightRequiresVolumeSubpathCapability(t *testing.T) {
 					t.Errorf("preflight mutated Docker: %s", r.URL)
 				}
 				switch {
+				case strings.Contains(r.URL.Path, "/images/"):
+					json.NewEncoder(w).Encode(map[string]any{"Id": "sha256:" + strings.Repeat("a", 64), "Os": "linux", "Architecture": runtime.GOARCH, "Config": map[string]any{"Labels": map[string]string{
+						"org.aurago.decisions.protocol": "v1", "org.aurago.decisions.backend": "cuda", "org.aurago.decisions.llama_cpp_patch_sha256": llamaCPPPatchSHA256, "org.opencontainers.image.source": "https://github.com/antibyte/AuraGo", "org.opencontainers.image.revision": llamaCPPCommit,
+					}}})
 				case r.URL.Path == "/version":
 					json.NewEncoder(w).Encode(map[string]string{"ApiVersion": tc.version, "MinAPIVersion": "1.25"})
 				case strings.HasSuffix(r.URL.Path, "/containers/self/json"):
@@ -66,6 +71,9 @@ func TestDockerMountPreflightRequiresVolumeSubpathCapability(t *testing.T) {
 				defer docker.client.CloseIdleConnections()
 				if _, err := docker.runDiscover(t.Context(), "vulkan", "sha256:fixture", modelPaths{Model: filepath.Join(data, "decisions", "models", "model.gguf")}, access, resolveSelf); ErrorCode(err) != tc.want {
 					t.Fatalf("discovery mount failure: %v", err)
+				}
+				if devices, err := discoverDockerDevices(t.Context(), access, modelPaths{Model: filepath.Join(data, "decisions", "models", "model.gguf")}, resolveSelf); ErrorCode(err) != tc.want || len(devices) > 0 {
+					t.Fatalf("terminal discovery failure was swallowed: %v %+v", err, devices)
 				}
 			}
 			if _, err := os.Stat(data); !os.IsNotExist(err) {

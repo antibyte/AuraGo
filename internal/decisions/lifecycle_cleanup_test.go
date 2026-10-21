@@ -108,3 +108,24 @@ func TestFailedCleanupRetainsSessionUntilRepeatedStop(t *testing.T) {
 		t.Fatalf("retry calls=%d", session.calls)
 	}
 }
+
+func TestBusyCannotOverwriteCleanupStatus(t *testing.T) {
+	manager := readyManagerForTest(t, validTestSession())
+	manager.operationCancel = func() {}
+	manager.status.State, manager.status.Code = "stopped_with_error", CodeRuntimeUnavailable
+	manager.pendingSessions = []runtimeSession{manager.session}
+	manager.session = nil
+	manager.clearActiveRuntimeLocked()
+	manager.setRuntimeError(NewError(CodeRuntimeAttestationFailed, nil))
+	manager.setInstallError(NewError(CodeLifecycleBusy, nil))
+	manager.publishLifecycleTransitionFailure(NewError(CodeLifecycleBusy, nil))
+	if status := manager.Status(); status.State != "stopped_with_error" || status.Code != CodeRuntimeUnavailable {
+		t.Fatalf("cleanup status overwritten: %+v", status)
+	}
+	manager.pendingSessions = nil
+	manager.setRuntimeError(NewError(CodeLifecycleBusy, nil))
+	manager.setInstallError(NewError(CodeLifecycleBusy, nil))
+	if status := manager.Status(); status.State != "stopped_with_error" || status.Code != CodeRuntimeUnavailable {
+		t.Fatalf("busy published an error: %+v", status)
+	}
+}

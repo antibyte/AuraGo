@@ -1,4 +1,9 @@
 {
+  "common.llm_router.decisions_busy": "Decisions è occupato",
+  "common.llm_router.helper_cooldown": "Attesa del modello ausiliario",
+  "common.llm_router.decisions_cooldown": "Attesa di Decisions",
+  "common.llm_router.cooldown_wait": "Attesa dei modelli: {seconds} s rimanenti",
+  "common.llm_router.helper_limited": "Raggiunta la quota o il limite di chiamate simultanee del modello ausiliario",
   "common.alert_title": "Avviso",
   "common.btn_cancel": "Annulla",
   "common.btn_close": "Chiudi",
@@ -108,7 +113,7 @@
   "common.llm_router.decisions_uncertain": "Risultato Decisions incerto",
   "common.llm_router.decisions_invalid": "Risultato Decisions non valido",
   "common.llm_router.decisions_changed": "Impostazioni Decisions modificate",
-  "common.llm_router.decisions_limited": "Raggiunta la quota di chiamate o l’intervallo di attesa",
+  "common.llm_router.decisions_limited": "Raggiunta la quota o il limite di classificazioni simultanee",
   "common.llm_router.classification_budget": "Budget di classificazione esaurito",
   "common.llm_router.source_decisions": "Decisions",
   "common.llm_router.decisions_not_ready": "Il servizio locale Decisions non è pronto. Apri le impostazioni di Decisions.",

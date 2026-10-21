@@ -45,3 +45,18 @@ func TestDockerCloseConfirmsRemovalAndRetainsFailedSession(t *testing.T) {
 		}
 	}
 }
+
+func TestDockerCloseRejectsUnconfirmedRemoval(t *testing.T) {
+	docker := newDecisionsDocker("")
+	docker.client.HTTPClient().Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		status := http.StatusOK
+		if r.Method == http.MethodDelete {
+			status = http.StatusNoContent
+		}
+		return &http.Response{StatusCode: status, Body: io.NopCloser(strings.NewReader(`{"State":{"Running":true}}`)), Header: make(http.Header)}, nil
+	})
+	session := &dockerRuntimeSession{nativeRuntimeSession: &nativeRuntimeSession{}, docker: docker, containerID: "still-running"}
+	if err := session.Close(t.Context()); err == nil || session.containerID == "" {
+		t.Fatal("removal response was trusted without confirming container absence")
+	}
+}

@@ -1,4 +1,6 @@
 {
+  "config.decisions.docker_api_too_old": "Unterverzeichnisse benannter Volumes erfordern Docker Engine 26 (API 1.45) oder neuer. Aktualisiere Docker oder verwende einen passenden Bind-Mount.",
+  "config.decisions.runtime_score_timeout": "Die Bewertung hat das Zwei-Minuten-Limit erreicht. Der Dienst bleibt für die nächste Bewertung verfügbar.",
   "config.decisions.local_setup": "Lokales Modell einrichten",
   "config.decisions.local_server_help": "Das Modell läuft auf dem Rechner, auf dem AuraGo installiert ist. Eine passende Grafikkarte wird bevorzugt.",
   "config.decisions.advanced": "Betriebsart und CPU-Freigabe",
