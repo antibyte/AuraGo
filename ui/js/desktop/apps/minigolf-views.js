@@ -23,7 +23,8 @@ const ICONS = {
     touch: '<path d="M9 11V5a2 2 0 0 1 4 0v6M13 10a2 2 0 0 1 4 0v4a6 6 0 0 1-6 6h-1a5 5 0 0 1-4-2l-3-4a1.6 1.6 0 0 1 2.4-2L9 15"/>',
     trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/>',
     sound: '<path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/>',
-    display: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>'
+    display: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>',
+    home: '<path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/>'
 };
 export const icon = name => `<svg class="mg-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[name] || ICONS.star}</svg>`;
 
@@ -35,7 +36,7 @@ export function createView(host, tr, { assetURL = path => path, onFocusLost } = 
     root.innerHTML = `<header class="mg-topbar">
             <div class="mg-brand"><img src="${esc(host.dataset.golfIcon)}" alt="" width="32" height="32"><strong class="mg-brand-name">AuraGolf</strong></div>
             <div class="mg-progress"><span class="mg-progress-label" data-progress-label>${esc(tr('subtitle'))}</span><ol class="mg-progress-track" data-progress-track aria-hidden="true"></ol></div>
-            <nav class="mg-topbar-actions">${topButton('scorecard', 'scorecard', 'scorecard')}${topButton('settings', 'settings', 'settings')}${topButton('help', 'help', 'help_short')}${topButton('pause', 'pause', 'pause')}</nav>
+            <nav class="mg-topbar-actions">${topButton('menu', 'home', 'menu')}${topButton('scorecard', 'scorecard', 'scorecard')}${topButton('settings', 'settings', 'settings')}${topButton('help', 'help', 'help_short')}${topButton('pause', 'pause', 'pause')}</nav>
         </header>
         <div class="mg-stage">
             <div class="mg-canvas"></div><div class="mg-hud" data-hud></div><div class="mg-coach" data-coach hidden></div>
@@ -74,7 +75,7 @@ export function createView(host, tr, { assetURL = path => path, onFocusLost } = 
     }
     function topbar(kind, hasRound) {
         const locked = kind === 'loading' || kind === 'error', idle = locked || kind === 'menu' || !hasRound;
-        for (const [action, off] of [['scorecard', idle], ['pause', idle], ['settings', locked], ['help', locked]]) $(`.mg-topbar [data-action="${action}"]`).disabled = off;
+        for (const [action, off] of [['menu', idle], ['scorecard', idle], ['pause', idle], ['settings', locked], ['help', locked]]) $(`.mg-topbar [data-action="${action}"]`).disabled = off;
     }
     // Tab stays on the open panel and the top bar.
     function trap(event) {
