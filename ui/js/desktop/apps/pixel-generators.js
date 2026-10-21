@@ -257,10 +257,13 @@
         st.previewTimer = setTimeout(() => runPreview(r, st), delay == null ? 160 : delay);
     }
 
+    // Nothing is rendered while another panel is in front; onShow brings the preview back.
+    const panelVisible = r => !!(r.activePanels && r.activePanels.inspector === 'generate');
+
     function runPreview(r, st) {
         const def = Pixel.generatorById(st.id);
         const canvas = q(st, '[data-gen-preview]');
-        if (!def || !canvas || !st.values) return;
+        if (!def || !canvas || !st.values || !panelVisible(r)) return;
         const ref = referenceSize(r, st), token = ++st.previewToken;
         const k = PREVIEW_EDGE / Math.max(ref.w, ref.h);
         const w = Math.max(8, Math.round(ref.w * k)), h = Math.max(8, Math.round(ref.h * k));

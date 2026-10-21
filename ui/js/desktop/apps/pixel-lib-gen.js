@@ -411,7 +411,16 @@
         'hex': 'Hexagonal', 'square': 'Square', 'perlin': 'Perlin', 'simplex': 'Simplex', 'value': 'Value'
     };
 
+    // English labels that the camelCase splitter gets wrong.
+    const LABEL_FIX = {
+        offsetX: 'Offset X', offsetY: 'Offset Y', centerX: 'Center X', centerY: 'Center Y', color1: 'Color 1', color2: 'Color 2', color3: 'Color 3',
+        color4: 'Color 4', color5: 'Color 5', dot2: 'Second dot', cRe: 'c (real)', cIm: 'c (imaginary)', n1: 'n1', n2: 'n2', n3: 'n3', a: 'a', b: 'b', m: 'm',
+        'tv-static': 'TV static', 'line-moire': 'Line moiré', 'ring-moire': 'Ring moiré', 'multibrot-3': 'Multibrot (power 3)', log: 'Logarithmic',
+        'f2-f1': 'F2 − F1', fbm: 'fBm'
+    };
+
     function words(text) {
+        if (LABEL_FIX[text]) return LABEL_FIX[text];
         const spaced = String(text).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[-_]+/g, ' ').trim().toLowerCase();
         return spaced.charAt(0).toUpperCase() + spaced.slice(1);
     }
