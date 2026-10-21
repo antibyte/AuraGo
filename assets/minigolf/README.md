@@ -115,20 +115,22 @@ To check it, run `--only kits` twice and compare the `sha256` values of the kits
 `ui/3d/minigolf/manifest.json`. For the courses, run the full build twice and
 compare the SHA-256 of every course GLB and of the manifest between the two runs.
 
-## Sizes of the last full build (P2 courses; refreshed when the P3 courses are built into `ui/3d/minigolf`)
+## Sizes of the last full build (the P3 courses in `ui/3d/minigolf`)
 
 | Item | Size |
 |---|---|
-| 18 course GLBs | 10,065,848 bytes (largest 754,904; 336,816 triangles in all, largest 21,149) |
-| `manifest.json` | 3,312,219 bytes |
+| 18 course GLBs | 15,190,960 bytes (largest moon-18 1,187,592; 494,248 triangles in all, most temple-12 with 33,877) |
+| `manifest.json` | 132,124 bytes (version 2, no collider arrays) |
 | Three prop kits | 5,029,080 bytes (pirate 1,771,100, temple 1,768,908, moon 1,489,072) |
-| Whole `ui/3d/minigolf/` package, including audio and previews | 21,320,234 bytes |
+| Three previews | 90,356 bytes (pirate-06 24,396, temple-09 32,320, moon-18 33,640) |
+| Whole `ui/3d/minigolf/` package, including audio and previews | 23,302,639 bytes |
 
 The asset test enforces the budgets (course at most 1.25 MiB, 36,000 triangles and
 32 mesh nodes; manifest at most 256 KB; kit at most 3 MiB and 60,000 triangles;
 prop at most 15,000 triangles, hero 20,000; preview at most 80 KB; package at most
 32 MiB). Regenerated sizes can vary with edits; the test is the authoritative
-budget check.
+budget check. Two full `--only kits,courses` runs of this build gave identical SHA-256
+for all 22 files (18 courses, three kits, manifest).
 
 ## What the asset test checks
 

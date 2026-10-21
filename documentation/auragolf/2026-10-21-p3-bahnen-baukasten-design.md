@@ -1,7 +1,7 @@
 # AuraGolf P3 – Bahnen-Baukasten & 18 Bahnen (Design)
 
 - **Datum:** 2026-10-21
-- **Status:** Entwurf, Grundlage der Umsetzung
+- **Status:** umgesetzt (2026-10-21)
 - **Bezug:** [Fahrplan](2026-10-18-overhaul-roadmap-design.md), Abschnitte 3, 4.4, 5, 6 und 7; [P2-Design](2026-10-19-p2-look-welt-requisiten-design.md), Abschnitt 9
 - **Umsetzungsplan:** [P3-Plan](2026-10-21-p3-bahnen-baukasten-plan.md)
 

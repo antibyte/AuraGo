@@ -75,7 +75,7 @@
   `tr`, `esc` and `icon` as arguments. Register each new `tr` module in
   `desktopLocalI18nHelpers` (`ui/i18n_lint_test.go`).
 - P2 renderer modules: `minigolf-looks.js` (pure data: `LOOKS`, `TIERS`,
-  `lookOf()` mapping the legacy `coast|garden|night` ids, `placementMatrix()`),
+  `lookOf()` reading the manifest `world`, `placementMatrix()`),
   `minigolf-camera.js` (pure intro-flight maths), `minigolf-sky.js` (per-look sky
   dome, moon stars and Earth, `createEnvironment()` PMREM), `minigolf-water.js`
   (open disc and the `water-shore` material), `minigolf-props.js` (kit materials
@@ -111,8 +111,8 @@
   `fogScale = min(1, 21.56 / distance)` multiplies the look's `FogExp2` density in `applyLook`, so
   the fog over the lane at the overview distance equals the P2 value (4.5 % pirate, 8.7 % temple).
   The scene follows the pose (orbit `maxDistance`, camera `far`, sun target at
-  the island centre). `scene.load(course)` reads colliders from the GLB when `course.collision`
-  exists (v1: `course.colliders`; an unreadable GLB throws `course_collision`) and resolves to
+  the island centre). `scene.load(course)` always reads the colliders from the GLB (manifest v2 has no
+  `course.colliders`; an unreadable GLB or one without a `grass` collision throws `course_collision`) and resolves to
   `{ colliders }`; the game passes `{ ...course, colliders }` to physics and the lane map. Nodes with
   the extra `aurago_spin: { axis, speed }` turn about their local axis unless motion is reduced.
   `boost`, `teleport`, `cannon` and `bumper` events only play sound and effects (`spark` bursts,
@@ -147,12 +147,14 @@
   the course plays without props. The kit owns the geometry; `buildProps()` makes one
   `InstancedMesh` per prop primitive with cloned, patched materials. A course switch
   disposes the props, sky, water and course tree; `dispose()` also releases the
-  PMREM targets, pending kit trees and effects. Manifest use: `look` selects the
-  look (legacy `world` falls back through `lookOf()`), `path` drives the intro flight
+  PMREM targets, pending kit trees and effects. Manifest use: `world` is the look
+  (`lookOf()`: `pirate|temple|moon`, anything else falls back to `pirate`; the manifest has no `look`
+  field), `path` drives the intro flight
   (no path, no flight), `props` are `[name, x, y, z, yaw, scale]` placements, and
   `worlds[].preview` feeds the menu cards. The game does not read `kits`; the scene
-  reads `island` for framing. The game accepts manifest `version` 1 or 2 (v2 courses
-  also need a string `collision.digest`) until the P3 switch makes it 2 only.
+  reads `island` for framing. The game accepts only manifest `version` 2 with 18
+  courses, `course-NN.glb` models and a string `collision.digest` per course; there is no v1 branch and no
+  legacy world id (`garden|coast|night`) anywhere: `LEGACY_LOOK`, `WORLD_ALIAS` and the old icons and accents are gone.
 - Node contract: `aurago_hidden` on `rail-left`/`rail-right` hides them at load (the
   collision stays in physics). `rail-trim-*` are plain decor. `water-shore` takes the
   shore material (`TEXCOORD_0.x` is the distance to the shore; animated foam).
@@ -196,9 +198,9 @@
   settings fields, and `saveSettings()` keeps unknown stored fields. The v1 round
   and best keys are removed without migration, with a one-time notice when no v2
   progress exists.
-- World accents and symbols exist for `garden`, `coast`, `night`, `pirate`,
-  `temple` and `moon`; the manifest ids stay `garden|coast|night` until P3, and the
-  looks are `temple|pirate|moon`. Optional card previews come from manifest
+- World ids are `pirate` (holes 1-6), `temple` (7-12) and `moon` (13-18); `WORLD_ICONS`, the accent
+  tables in `css/desktop-app-minigolf.css` and the locale keys `minigolf.<worldId>` cover exactly these three
+  (the P1/P2 keys `minigolf.garden|coast|night` are removed from all 16 locales). Optional card previews come from manifest
   `worlds: [{ id, preview }]`; the game accepts only relative image paths (webp,
   png, jpg, avif) without `..`.
 - Styling uses `--mg-*` tokens aliased to Desktop `--vd-*` theme tokens, with no
@@ -230,9 +232,9 @@
   manifest ≤ 128 KB) and stray files. Never hand-edit `manifest.json`; change the
   recipe and rebuild. `REQUIRED_GROUPS` must equal the manifest SFX groups.
 - `pause()` suspends the context and freezes `position`. `setMusic('menu'|world)`
-  and `setAmbient(world)` apply `WORLD_ALIAS` until the new worlds land. `cup`,
+  and `setAmbient(world)` take the world id as is (unknown ids select the menu track or no ambience). `cup`,
   `cannon` and `win` duck the music. `effect('cannon'|'boost'|'teleport')` exists
-  is played by the game from the matching physics events.
+  and is played by the game from the matching physics events.
 - The browser test's zero-tolerance underrun assertion can flake under heavy
   machine load; rerun once before suspecting a regression.
 - Validate `npm run test:minigolf` (model, `scripts/test-minigolf-look.mjs`, UI,
@@ -243,7 +245,10 @@
 - `TestDesktopMinigolfBrowser` needs `AURAGO_RUN_BROWSER_SMOKE=1`. This machine's
   headless Chrome reports `prefers-reduced-motion: reduce`, so the smoke emulates
   `no-preference` only for its first intro check, resets it, and then requires that
-  later loads under reduced motion start no flight. `AURAGO_MINIGOLF_BENCHMARK=1`
+  later loads under reduced motion start no flight. It loads the finale of each world of manifest v2
+  (`pirate-06`, `temple-12`, `moon-18`; `AURAGO_MINIGOLF_ALL_COURSES=1` loads all 18) through the menus
+  (`graphics.look` equals the world id, props and environment present) and checks that the ball rests on its tee
+  floor, which proves that the collision came from the GLB; the world cards are `full,pirate,temple,moon,practice`. `AURAGO_MINIGOLF_BENCHMARK=1`
   logs 240-frame 1920×1080 measurements per tier (run with `go test -v`).
   Browser/GPU measurements and human listening remain separate acceptance steps.
   Keep `minigolf.*` in all sixteen Desktop locales, including the

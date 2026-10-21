@@ -397,6 +397,22 @@ Blender: `mech_util`, `mechanic_parts` (bumper, boost), `mechanic_portals` (tele
   event before the cup does): raise `start.at` z instead. A funnel of radius 2.6 m needs a depth of 0.26 to 0.38 m at g = 9.81:
   shallower, balls rest next to the hole, deeper, every ball that enters is caught, so a teleporter exit right in front of it
   makes aces; sand on the bends and a teleporter exit in the middle of the last bend keep the search from a one-shot route.
+- Moon courses (`course_data_moon`, g = 4.0): a shot rolls as far as on Earth but a jump flies 2.5 times as long.
+  - A gap needs a lip ramp. The range of a ball that leaves a 20 degree lip at speed `v` is `v^2 sin(40 deg) / g` = `0.16 v^2`
+    m, so a gap of `G` metres wants `v` of about `sqrt(G / 0.16)` m/s (4.44 m: 5.3 m/s, a putt of strength 0.35 to 0.4).
+    Verify the window with fixed test shots (strengths that fall short, rest on the join pad, fly over) and record it in the
+    commit message.
+  - Half-pipes stay at most about 0.55 m deep (`depth`, lip rails 0.45 m on top, so the lip span is about 1.4 m). A
+    deeper pipe lets the island ground rise through its floor and walls as grey patches; if a pipe must be deeper, raise
+    `detail.island_quads` (moon-18 uses 4000 with a 0.5 m pipe).
+  - Hand-placed props (`props`) and the hero must stand at least 2.2 m outside a gap strip: `placement.check` fails the
+    build with "it stands in a pond or a trench" when the footprint reaches into it, and the strip is wide because the
+    trench gives way 2.4 to 3.2 m from the lane.
+  - A fork with a straight jump branch beside a two-bend detour: for two arcs of radius `R` and angle `a` around a
+    straight `s` the lateral offset is `L = 2 R (1 - cos a) + s sin a` (the spacing of the branch ends, an even number of
+    rows: 16 rows = 2.293 m on moon-17, `R` 3 m, `a` 16 degrees, `s` 7.48 m) and the forward extent is
+    `2 R sin a + s cos a` (8.84 m there). Solve `s` from the spacing, then give the jump branch (lip ramp, gap, landing
+    ramp) exactly that forward extent, so both ends meet within 1 mm.
 
 ### Look
 
