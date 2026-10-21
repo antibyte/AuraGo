@@ -105,7 +105,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 
 	// Home: one card per round kind, in a fixed order.
 	page.MustWait(`()=>golfFixture.inspect().menuStep==='home'`)
-	if rounds := page.MustEval(`()=>[...document.querySelectorAll('[data-round]')].map(e=>e.dataset.round).join(',')`).Str(); rounds != "full,garden,coast,night,practice" {
+	if rounds := page.MustEval(`()=>[...document.querySelectorAll('[data-round]')].map(e=>e.dataset.round).join(',')`).Str(); rounds != "full,pirate,temple,moon,practice" {
 		t.Fatalf("home cards are %q", rounds)
 	}
 	layoutOK("home 1280")
@@ -144,7 +144,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	page.MustWait(`()=>{const s=golfFixture.inspect();return s.panel==='menu'&&s.menuStep==='players'}`)
 
 	page.MustElement(`[data-action="start"]`).MustClick()
-	page.MustWait(`()=>{const s=golfFixture.inspect();return !s.loading&&s.panel===''&&s.tutorial==='aim'&&s.course==='garden-01'&&s.graphics?.geometries>0&&s.graphics?.triangles>0}`)
+	page.MustWait(`()=>{const s=golfFixture.inspect();return !s.loading&&s.panel===''&&s.tutorial==='aim'&&s.course==='pirate-01'&&s.graphics?.geometries>0&&s.graphics?.triangles>0}`)
 	skipIntro()
 	if !page.MustEval(`()=>golfFixture.inspect().audio.unlocked && golfFixture.inspect().round.players.length===2`).Bool() {
 		t.Fatal("first gesture did not unlock audio or two-player mode was not applied")
@@ -464,9 +464,10 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	}
 	var courseManifest struct {
 		Courses []struct {
-			ID     string `json:"id"`
-			World  string `json:"world"`
-			Number int    `json:"number"`
+			ID     string     `json:"id"`
+			World  string     `json:"world"`
+			Number int        `json:"number"`
+			Tee    [3]float64 `json:"tee"`
 		} `json:"courses"`
 	}
 	if err := json.Unmarshal(manifest, &courseManifest); err != nil {
@@ -494,12 +495,23 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		page.MustWait(`()=>golfFixture.inspect().menuStep==='players'`)
 	}
 	worldCaptured := map[string]bool{}
-	// The three legacy worlds wear one dressed look each.
-	lookOf := map[string]string{"garden": "temple", "coast": "pirate", "night": "moon"}
+	// Manifest version 2: the world id is the look, and every course reads its collision from its own GLB. One course per
+	// world is enough for the smoke (the finale of each world: the biggest island, fork, mechanics and obstacles);
+	// AURAGO_MINIGOLF_ALL_COURSES=1 loads all 18 through the menus, which takes a good deal longer.
 	introChecked := false
-	for index, course := range courseManifest.Courses {
+	worldsSeen := map[string]bool{}
+	finale := map[string]int{}
+	for _, course := range courseManifest.Courses {
+		if course.Number > finale[course.World] {
+			finale[course.World] = course.Number
+		}
+	}
+	for _, course := range courseManifest.Courses {
+		if os.Getenv("AURAGO_MINIGOLF_ALL_COURSES") != "1" && course.Number != finale[course.World] {
+			continue
+		}
 		openHoles()
-		if index == 0 {
+		if !introChecked {
 			layoutOK("holes 1280")
 			shot("holes-1280")
 		}
@@ -515,7 +527,8 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		}
 		page.MustElement(`[data-action="start"]`).MustClick()
 		page.Timeout(30*time.Second).MustWait(`id=>{const s=golfFixture.inspect();return !s.loading&&s.course===id&&s.graphics?.geometries>0&&s.graphics?.triangles>0}`, course.ID)
-		page.Timeout(15*time.Second).MustWait(`look=>{const g=golfFixture.inspect().graphics;return g.look===look&&g.props>0&&g.env===true}`, lookOf[course.World])
+		page.Timeout(15*time.Second).MustWait(`look=>{const g=golfFixture.inspect().graphics;return g.look===look&&g.props>0&&g.env===true}`, course.World)
+		worldsSeen[course.World] = true
 		if !introChecked {
 			if !page.MustEval(`()=>golfFixture.inspect().graphics.intro===true`).Bool() {
 				t.Fatalf("%s: loading a course did not start the intro flight", course.ID)
@@ -533,6 +546,12 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 			// Without a reduced-motion preference every load flies; end it so later checks see a settled camera.
 			skipIntro()
 		}
+		// The collision meshes come from the course GLB: with them the ball keeps resting on the floor at the tee (without
+		// the floor it would fall out of bounds within a second), in the world's gravity.
+		page.MustEval(`()=>new Promise(resolve=>{let n=0;const tick=()=>++n>40?resolve(true):requestAnimationFrame(tick);tick()})`)
+		if !page.MustEval(`tee=>{const p=golfFixture.inspect().physics;return !!p&&p.moving===false&&p.position.every(Number.isFinite)&&Math.abs(p.position[1]-tee[1])<0.05&&Math.hypot(p.position[0]-tee[0],p.position[2]-tee[2])<0.05}`, course.Tee[:]).Bool() {
+			t.Fatalf("%s: the ball does not rest on the tee floor (no collision from the GLB?): %s", course.ID, page.MustEval(`()=>JSON.stringify(golfFixture.inspect().physics)`).Str())
+		}
 		if artifactDir != "" && !worldCaptured[course.World] {
 			if benchmark {
 				page.MustElement(`[data-action="settings"]`).MustClick()
@@ -547,9 +566,9 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 			}
 			worldCaptured[course.World] = true
 		}
-		if course.Number == len(courseManifest.Courses) {
-			break
-		}
+	}
+	if len(worldsSeen) != 3 || !worldsSeen["pirate"] || !worldsSeen["temple"] || !worldsSeen["moon"] {
+		t.Fatalf("the courses cover the worlds %v, want pirate, temple and moon", worldsSeen)
 	}
 	if artifactDir != "" && len(worldCaptured) != 3 {
 		t.Fatalf("captured only %d world screenshots", len(worldCaptured))
@@ -637,7 +656,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		page.MustWait(`()=>golfFixture.inspect().menuStep==='holes'&&document.querySelectorAll('[data-hole-id]').length===18`)
 		layoutOK("holes " + label)
 		shot("holes-" + label)
-		pickHole("garden-01")
+		pickHole("pirate-01")
 		layoutOK("players " + label)
 		shot("players-" + label)
 		if width < 600 {
@@ -663,11 +682,11 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	// Measure the live WebAudio output while normal gameplay is actively
 	// triggering strike/rolling effects through the enabled Shoot control.
 	openMenu()
-	page.MustElement(`[data-round="garden"]`).MustClick()
+	page.MustElement(`[data-round="temple"]`).MustClick()
 	page.MustWait(`()=>golfFixture.inspect().menuStep==='players'`)
 	page.MustEval(`()=>{const radio=document.querySelector('[data-player-count][value="1"]');radio.checked=true;radio.dispatchEvent(new Event('change',{bubbles:true}))}`)
 	page.MustElement(`[data-action="start"]`).MustClick()
-	page.Timeout(30 * time.Second).MustWait(`()=>!golfFixture.inspect().loading&&golfFixture.inspect().panel===''&&golfFixture.inspect().course==='garden-01'&&golfFixture.inspect().audio.playing`)
+	page.Timeout(30 * time.Second).MustWait(`()=>!golfFixture.inspect().loading&&golfFixture.inspect().panel===''&&golfFixture.inspect().course==='temple-07'&&golfFixture.inspect().audio.playing`)
 	activePlayJSON := page.Timeout(60 * time.Second).MustEval(`async()=>JSON.stringify(await golfFixture.measureActivePlayAudioStats(15000))`).Str()
 	var activePlay struct {
 		DurationMs    float64 `json:"durationMs"`
@@ -717,11 +736,11 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		}
 	}
 
-	// A decided round on a fresh profile: the last Garden hole is seeded with both players
+	// A decided round on a fresh profile: the last Temple hole is seeded with both players
 	// finished, so Resume opens the scorecard and Next hole the podium. The save and the
 	// reopen share one task, so no running shot can overwrite the seed in between.
 	page.MustEval(`()=>{document.body.dataset.animations='false';localStorage.removeItem('aurago.desktop.minigolf.settings.v1')}`)
-	page.MustEval(`async()=>{await golfFixture.seedFinalHole('garden');golfFixture.reopen()}`)
+	page.MustEval(`async()=>{await golfFixture.seedFinalHole('temple');golfFixture.reopen()}`)
 	page.MustWait(`()=>!golfFixture.inspect().loading&&golfFixture.inspect().panel==='menu'&&!!document.querySelector('[data-action="resume"]')`)
 	page.MustElement(`[data-action="resume"]`).MustClick()
 	page.Timeout(30 * time.Second).MustWait(`()=>golfFixture.inspect().panel==='scorecard'&&!!document.querySelector('[data-action="next-hole"]')`)
@@ -748,7 +767,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	page.MustSetViewport(1280, 760, 1, false)
 	settle()
 	page.MustElement(`[data-action="again"]`).MustClick()
-	page.Timeout(30 * time.Second).MustWait(`()=>{const s=golfFixture.inspect();return !s.loading&&s.panel===''&&s.course==='garden-01'&&s.round.holeIndex===0}`)
+	page.Timeout(30 * time.Second).MustWait(`()=>{const s=golfFixture.inspect();return !s.loading&&s.panel===''&&s.course==='temple-07'&&s.round.holeIndex===0}`)
 	if got := page.MustEval(`()=>golfFixture.inspect().round.players.map(p=>p.name+':'+p.color).join(',')`).Str(); got != "Ada:teal,Lin:gold" {
 		t.Fatalf("Play again changed the players: %s", got)
 	}
@@ -768,7 +787,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	// A failed real course request keeps an actionable, translated retry.
 	page.MustEval(`()=>golfFixture.setCourseFailure(true)`)
 	openHoles()
-	pickHole("garden-01")
+	pickHole("pirate-01")
 	page.MustElement(`[data-action="start"]`).MustClick()
 	page.MustWait(`()=>golfFixture.inspect().panel==='error'`)
 	if !page.MustEval(`()=>{const b=document.querySelector('[data-action="retry"]');return !!b&&b.textContent===I18N['minigolf.retry']&&document.querySelector('.mg-panel h2').textContent===I18N['minigolf.load_error']}`).Bool() {

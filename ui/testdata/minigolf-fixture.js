@@ -253,7 +253,7 @@ function layoutIssues() {
 }
 
 // A round.v2 save on the last hole of a world with both players finished.
-async function seedFinalHole(mode = 'garden') {
+async function seedFinalHole(mode = 'temple') {
     const manifest = await (await originalFetch(assetURL('/3d/minigolf/manifest.json'))).json();
     const courses = manifest.courses.filter(course => course.world === mode), last = courses.at(-1);
     const player = (name, color, score) => ({ name, color, scores: Array(courses.length - 1).fill(score), position: last.cup.slice(), shots: score, strokes: score, penalties: 0, done: true });
