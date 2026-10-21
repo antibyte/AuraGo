@@ -33,19 +33,8 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
 	page := browser.MustPage(configRefreshFixtureOrigin(t, "de", false) + "/config#overview")
 	defer page.MustClose()
 	waitForJSBool(t, page, `()=>!!document.querySelector('.pw-overview-card')`)
-	// The config fixture supplies its own translation/runtime globals. Load the
-	// production router helpers without redeclaring those unrelated shared globals.
-	shared := normalizeAssetText(mustReadUIFile(t, "shared.js"))
-	start := strings.Index(shared, "// Content-free router metadata")
-	if start < 0 {
-		t.Fatal("router helpers missing")
-	}
-	end := strings.Index(shared[start:], "if (!window._auragoSharedInitialized)")
-	if end < 0 {
-		t.Fatal("shared initialization boundary missing")
-	}
-	if err := page.AddScriptTag("", shared[start:start+end]); err != nil {
-		t.Fatal(err)
+	if !page.MustEval(`()=>typeof window.AuraLLMRouteLabel==='function' && typeof window.AuraLLMRouteBadge==='function'`).Bool() {
+		t.Fatal("routing helpers missing from the shared script loaded by config.html")
 	}
 	page.MustEval(`async()=>{
         window.routerCalls=[];
@@ -128,6 +117,9 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
 	page.MustEval(`async()=>{await selectSection('llm_router',{scrollBehavior:'auto'});}`)
 	page.MustEval(`()=>{const input=document.querySelector('[data-router-settings] textarea');input.value='Mach das passend';input.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-router-settings] .cfg-actions button').click();}`)
 	waitForJSBool(t, page, `()=>routerCalls.length===1 && !document.querySelectorAll('[data-router-settings] .cfg-actions button')[1].disabled`)
+	if !page.MustEval(`()=>document.querySelector('[data-router-settings] [role="status"]').textContent.includes(t('common.llm_router.default'))`).Bool() {
+		t.Fatal("local preview did not render the routing result")
+	}
 	if page.MustEval(`()=>routerCalls[0].helper`).Bool() {
 		t.Fatal("local preview called helper")
 	}

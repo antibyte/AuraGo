@@ -157,7 +157,10 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   requires a clean draft and uses saved settings, with a separate explicit
   helper action and cancellation on disposal. `common.llm_router.*` covers all
   sixteen locales. Chat/Desktop `llm_route` badges use text-only, turn-scoped
-  metadata; Dashboard counters never imply unreported usage is free. Verify
+  metadata. Their `AuraLLMRouteLabel`/`AuraLLMRouteBadge` helpers live in the
+  production `js/shared/shared-core.js`; browser tests must use the page's
+  loaded helpers without injecting them from legacy `shared.js`.
+  Dashboard counters never imply unreported usage is free. Verify
   `TestLLMRouterConfigBrowser`, `TestTaskRouter*` and canonical UI bundles.
   Offer Agnes chat providers and their configured models, including models newer
   than the catalog; exclude Agnes image/video generation choices.
