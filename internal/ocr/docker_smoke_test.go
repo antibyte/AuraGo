@@ -136,7 +136,14 @@ func TestOCRDockerSmoke(t *testing.T) {
 					want = 2
 				}
 				if len(result.Pages) != want || !strings.Contains(result.Pages[0].Text, "12345") {
-					t.Fatalf("OCR result: %+v", result)
+					var texts []string
+					for _, page := range result.Pages {
+						texts = append(texts, page.Text)
+					}
+					t.Fatalf("OCR %s: state=%s pages=%d text=%q error=%s", name, result.State, len(result.Pages), texts, result.Error)
+				}
+				if name == "scan.png" && !strings.Contains(result.Pages[0].Text, "Grüße") {
+					t.Fatalf("German glyph recognition failed: %q", result.Pages[0].Text)
 				}
 			})
 		}

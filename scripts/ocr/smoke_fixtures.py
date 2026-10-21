@@ -5,14 +5,19 @@ from PIL import Image, ImageDraw, ImageFont
 
 root = Path(sys.argv[1])
 root.mkdir(parents=True, exist_ok=True)
-font = ImageFont.load_default(size=40)
+font_path = Path(sys.argv[2]) if len(sys.argv) > 2 else Path(__file__).resolve().parents[2] / "ui/fonts/RobotoCondensed-Variable.ttf"
+font = ImageFont.truetype(str(font_path), size=40)
 pages = []
 for text in ("Deutscher Test: Grüße aus AuraGo. Rechnung 12345.", "Zweite Seite 67890. Lokale Texterkennung."):
     page = Image.new("RGB", (1400, 240), "white")
     ImageDraw.Draw(page).text((40, 70), text, font=font, fill="black")
     pages.append(page)
 pages[0].save(root / "scan.png")
-pages[0].rotate(90, expand=True).save(root / "rotated.png")
+turned = Image.new("RGB", (1000, 1400), "white")
+for index in range(16):
+    ImageDraw.Draw(turned).text((40, 60 + index * 78),
+        f"Rechnung 12345. Position {index + 1}: Grüße aus AuraGo.", font=font, fill="black")
+turned.rotate(90, expand=True).save(root / "rotated.png")
 pages[0].save(root / "pages.tiff", save_all=True, append_images=pages[1:])
 pdf = bytearray(b"%PDF-1.4\n")
 stream = b"BT /F1 18 Tf 50 750 Td (AuraGo digital document 24680) Tj ET"

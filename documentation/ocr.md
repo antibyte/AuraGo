@@ -38,6 +38,8 @@ Disabled/unavailable OCR keeps existing extraction fallbacks.
 Auto mode uses native text and recognizes scanned content in mixed PDFs.
 Force OCR ignores text layers. Recognition can be wrong, particularly handwriting
 and complex tables; page warnings and incomplete results remain visible.
+Automatic orientation can also fail on narrow cropped text strips; rotate such
+inputs upright before recognition when their result is unreadable.
 No searchable PDF output, GPU, native installation or permanent history is provided.
 
 - 20 files per batch, 32 MiB and 100 pages per file; stricter ingress limits apply.
@@ -94,6 +96,8 @@ image is published, new installations cannot pull it. Exact OCI imports work
 locally through the pinned platform config IDs.
 
 Generate synthetic fixtures with `scripts/ocr/smoke_fixtures.py` inside the image.
+Mount the bundled `ui/fonts/RobotoCondensed-Variable.ttf` and pass its path as
+the second argument so German glyphs render correctly; `smoke.sh` does this.
 Set `AURAGO_OCR_SMOKE_IMAGE` to the immutable local image ID and
 `AURAGO_OCR_SMOKE_DIR` to that fixture directory, then run
 `go test ./internal/ocr -run TestOCRDockerSmoke -v`.

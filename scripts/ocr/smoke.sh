@@ -8,8 +8,9 @@ docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-
   --tmpfs /tmp:size=67108864 "$AURAGO_OCR_SMOKE_IMAGE" python -I /app/service.py --verify
 docker run --rm --network none --read-only --cap-drop ALL \
   --mount "type=bind,source=$PWD/scripts/ocr,target=/scripts,readonly" \
+  --mount "type=bind,source=$PWD/ui/fonts,target=/fonts,readonly" \
   --mount "type=bind,source=$smoke_dir,target=/fixtures" \
-  "$AURAGO_OCR_SMOKE_IMAGE" python /scripts/smoke_fixtures.py /fixtures
+  "$AURAGO_OCR_SMOKE_IMAGE" python /scripts/smoke_fixtures.py /fixtures /fonts/RobotoCondensed-Variable.ttf
 export AURAGO_OCR_SMOKE_DIR="$smoke_dir"
 go test ./internal/ocr -run TestOCRDockerSmoke -count=1 -v
 CGO_ENABLED=0 go test -c ./internal/ocr -o "$smoke_dir/ocr.test"
