@@ -3,8 +3,14 @@
 
     const Pixel = window.AuraPixelApp = window.AuraPixelApp || {};
 
-    const MAX_HISTORY = 30;
-    const MAX_LAYERS = 20;
+    const MAX_HISTORY = 60;
+    const MAX_LAYERS = 64;
+    // Approximate memory cap for unique history snapshots (width * height * 4 bytes each).
+    const HISTORY_BYTE_BUDGET = 768 * 1024 * 1024;
+    const BLEND_MODES = [
+        'normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn',
+        'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'
+    ];
     const canvasPool = [];
     const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif'];
     const PRESET_COLORS = [
@@ -28,6 +34,10 @@
         const ctx = canvas.getContext('2d');
         if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (canvasPool.length < 4) canvasPool.push(canvas);
+    }
+
+    function blendOp(mode) {
+        return mode === 'normal' || !BLEND_MODES.includes(mode) ? 'source-over' : mode;
     }
 
     function clamp255(v) { return Math.max(0, Math.min(255, Math.round(v))); }
@@ -107,6 +117,9 @@
     Object.assign(Pixel, {
         MAX_HISTORY,
         MAX_LAYERS,
+        HISTORY_BYTE_BUDGET,
+        BLEND_MODES,
+        blendOp,
         IMAGE_EXTS,
         PRESET_COLORS,
         FONT_FAMILIES,

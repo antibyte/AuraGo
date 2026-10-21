@@ -20,6 +20,20 @@
                 const m = Math.max(Math.abs(dx), Math.abs(dy));
                 return { x: x0 + m * (dx < 0 ? -1 : 1), y: y0 + m * (dy < 0 ? -1 : 1) };
             }),
+            // Brush, pencil and eraser parameters. In mask-edit mode strokes paint alpha: opaque white reveals, the eraser hides.
+            brushStrokeSpec: Pixel.bindRuntime(runtime, function brushStrokeSpec() {
+                const tool = this.activeTool;
+                const layer = this.activeLayer();
+                const inMask = !!(this.editMaskMode && layer && layer.maskCanvas);
+                let op = tool === 'eraser' ? 'destination-out' : 'source-over';
+                if (op === 'source-over' && !inMask && layer && layer.lockAlpha) op = 'source-atop';
+                return {
+                    op,
+                    size: tool === 'pencil' ? 1 : this.brushSize,
+                    opacity: tool === 'pencil' ? 100 : this.brushOpacity,
+                    color: tool === 'eraser' ? '#000000' : (inMask ? '#ffffff' : this.primaryColor)
+                };
+            }),
             drawBrushCursor: Pixel.bindRuntime(runtime, function drawBrushCursor(x, y) {
                 this.clearOverlay();
                 const size = this.activeTool === 'pencil' ? 2 : this.brushSize;
@@ -43,16 +57,18 @@
                 else if (this.activeTool === 'blur-brush') this.blurAt(x, y);
             }),
             onCanvasMouseDown: Pixel.bindRuntime(runtime, function onCanvasMouseDown(e) {
-                if (![null, 'move', 'eyedropper', 'select-rect', 'select-ellipse', 'magic-wand', 'lasso'].includes(this.activeTool) && !this.requireRasterLayer()) return;
+                if (![null, 'move', 'eyedropper', 'select-rect', 'select-ellipse', 'magic-wand', 'lasso'].includes(this.activeTool) && !this.canPaintActiveLayer(this.activeTool)) return;
                 if (!this.canvas.width || e.button === 1) return;
                 const isDrawingTool = this.activeTool && STROKE_TOOLS.includes(this.activeTool);
                 const isPointTool = this.activeTool && POINT_TOOLS.includes(this.activeTool);
                 const isShapeTool = this.activeTool && SHAPE_TOOLS.includes(this.activeTool);
                 const isSelectionTool = this.activeTool && SELECTION_TOOLS.includes(this.activeTool);
                 const coords = this.canvasCoords(e);
+                // The pixels these tools read must be the ones on screen, so a pending adjust/filter preview is baked in first.
+                if (isDrawingTool || isPointTool || isShapeTool || this.activeTool === 'fill') this.commitPendingPreviews();
 
                 if (this.activeTool === 'eyedropper') {
-                    const pixel = this.cctx.getImageData(coords.x, coords.y, 1, 1).data;
+                    const pixel = this.sampleComposite(coords.x, coords.y);
                     const hex = this.rgbToHex(pixel[0], pixel[1], pixel[2]);
                     this.setPrimaryColor(hex);
                     this.addRecentColor(hex);
@@ -68,7 +84,6 @@
                 if (this.activeTool === 'fill') {
                     this.floodFill(coords.x, coords.y, this.primaryColor);
                     this.addRecentColor(this.primaryColor);
-                    this.pushHistory('fill');
                     return;
                 }
 
@@ -118,15 +133,12 @@
                             this.cloneStrokeOffX = coords.x - this.cloneSourceX;
                             this.cloneStrokeOffY = coords.y - this.cloneSourceY;
                             this.cloneSampleCanvas = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
-                            this.cloneSampleCanvas.getContext('2d').drawImage(this.canvas, 0, 0);
+                            this.cloneSampleCanvas.getContext('2d').drawImage(this.getActiveReadCtx().canvas, 0, 0);
                         }
                     } else {
                         const actx = this.getActiveCtx();
-                        const op = this.activeTool === 'eraser' ? 'destination-out' : 'source-over';
-                        const size = this.activeTool === 'pencil' ? 1 : this.brushSize;
-                        const opacity = this.activeTool === 'pencil' ? 100 : this.brushOpacity;
-                        const color = this.activeTool === 'eraser' ? '#000000' : this.primaryColor;
-                        this.drawBrushStroke(actx, coords.x, coords.y, coords.x, coords.y, size, opacity, color, op, this.brushHardness);
+                        const spec = this.brushStrokeSpec();
+                        this.drawBrushStroke(actx, coords.x, coords.y, coords.x, coords.y, spec.size, spec.opacity, spec.color, spec.op, this.brushHardness);
                     }
                     this.compositeLayers();
                     return;
@@ -172,7 +184,7 @@
                     this.statusCursor.textContent = `${coords.x}, ${coords.y}`;
                 }
                 if (this.statusColorSwatch && this.imgWidth && coords.x >= 0 && coords.x < this.imgWidth && coords.y >= 0 && coords.y < this.imgHeight) {
-                    const pixel = this.cctx.getImageData(Math.min(coords.x, this.imgWidth - 1), Math.min(coords.y, this.imgHeight - 1), 1, 1).data;
+                    const pixel = this.sampleComposite(Math.min(coords.x, this.imgWidth - 1), Math.min(coords.y, this.imgHeight - 1));
                     const hex = this.rgbToHex(pixel[0], pixel[1], pixel[2]);
                     if (this.statusColorSwatch) this.statusColorSwatch.style.background = hex;
                     if (this.statusColorHex) this.statusColorHex.textContent = hex;
@@ -202,12 +214,8 @@
                     if (this.activeTool === 'clone-stamp') {
                         this.cloneStampAt(coords.x, coords.y);
                     } else {
-                        const op = this.activeTool === 'eraser' ? 'destination-out' : 'source-over';
-                        const size = this.activeTool === 'pencil' ? 1 : this.brushSize;
-                        const opacity = this.activeTool === 'pencil' ? 100 : this.brushOpacity;
-                        const color = this.activeTool === 'eraser' ? '#000000' : (this.editMaskMode ? '#ffffff' : this.primaryColor);
-                        const maskErase = this.editMaskMode && this.activeTool === 'eraser';
-                        this.drawBrushStroke(actx, this.lastDrawX, this.lastDrawY, coords.x, coords.y, size, opacity, maskErase ? '#000000' : color, maskErase ? 'source-over' : op, this.brushHardness);
+                        const spec = this.brushStrokeSpec();
+                        this.drawBrushStroke(actx, this.lastDrawX, this.lastDrawY, coords.x, coords.y, spec.size, spec.opacity, spec.color, spec.op, this.brushHardness);
                     }
                     this.compositeLayers();
                     this.lastDrawX = coords.x;
@@ -261,8 +269,7 @@
                         return;
                     }
                     if (this.selection) {
-                        this.selection.x = coords.x - this.selDragOfsX;
-                        this.selection.y = coords.y - this.selDragOfsY;
+                        this.selection = Object.assign({}, this.selection, { x: coords.x - this.selDragOfsX, y: coords.y - this.selDragOfsY });
                         this.startMarchingAnts();
                     }
                     return;
@@ -322,7 +329,7 @@
                 if (this.isDrawing && isSelectionTool) {
                     this.isDrawing = false;
                     if (this.selection && this.selection.w > 2 && this.selection.h > 2) {
-                        const actx = this.getActiveCtx();
+                        const actx = this.getActiveReadCtx();
                         const sx = Math.max(0, Math.round(Math.min(this.selection.x, this.selection.x + this.selection.w)));
                         const sy = Math.max(0, Math.round(Math.min(this.selection.y, this.selection.y + this.selection.h)));
                         const sw = Math.round(Math.abs(this.selection.w));

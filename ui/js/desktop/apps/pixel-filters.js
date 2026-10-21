@@ -396,13 +396,21 @@
             selectFilter: Pixel.bindRuntime(runtime, function selectFilter(id) {
                 if (!this.requireRasterLayer()) return;
                 if (!this.canvas.width || !this.filterDef(id)) return;
+                // Filters work on layer pixels: end mask editing and bake in pending adjustments first.
+                if (this.editMaskMode) this.leaveMaskEdit();
+                const layer = this.activeLayer();
+                if (layer.lockPixels) {
+                    this.notify({ type: 'info', message: this.t('pixel.layer_locked', 'This layer is locked.') });
+                    return;
+                }
+                if (this.filterPreview && this.filterPreview.layer !== layer) this.resetFilterPreview();
+                if (!this.filterPreview && this.adjustPreview && this.hasPendingAdjustments()) this.applyAdjustments();
                 this.activeFilterId = id;
                 this.host.querySelectorAll('[data-filter-id]').forEach(c => c.classList.toggle('active', c.dataset.filterId === id));
                 if (!this.filterPreview) {
-                    const target = this.getActiveCtx();
                     const snap = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
-                    snap.getContext('2d').drawImage(target.canvas, 0, 0);
-                    this.filterPreview = { snap, filtered: null };
+                    snap.getContext('2d').drawImage(this.getActiveReadCtx().canvas, 0, 0);
+                    this.filterPreview = { layer, snap, filtered: null, blend: this.makeCanvas(this.canvas.width, this.canvas.height) };
                 }
                 if (this.filterPreview.filtered) this.releaseTempCanvas(this.filterPreview.filtered);
                 this.filterPreview.filtered = this.renderFiltered(this.filterPreview.snap, this.canvas.width, this.canvas.height, id, 100);
@@ -418,50 +426,57 @@
             }),
             previewFilterBlend: Pixel.bindRuntime(runtime, function previewFilterBlend() {
                 if (!this.filterPreview || !this.activeFilterId || !this.canvas.width) return;
-                const target = this.getActiveCtx();
+                this.paintFilterBlend(this.filterPreview, this.filterCompareMode);
+                this.setLayerPreview(this.filterPreview.layer, this.filterPreview.blend);
+            }),
+            // Draws the previewed layer (snapshot + filtered blend) into the preview canvas; split keeps the left half unfiltered.
+            paintFilterBlend: Pixel.bindRuntime(runtime, function paintFilterBlend(preview, split) {
                 const w = this.canvas.width, h = this.canvas.height;
+                const target = preview.blend.getContext('2d');
                 target.clearRect(0, 0, w, h);
-                if (this.filterCompareMode && this.filterPreview.filtered) {
-                    const split = Math.round(w * 0.5);
-                    target.drawImage(this.filterPreview.snap, 0, 0, split, h, 0, 0, split, h);
+                if (split && preview.filtered) {
+                    const half = Math.round(w * 0.5);
+                    target.drawImage(preview.snap, 0, 0, half, h, 0, 0, half, h);
                     const blend = this.acquireTempCanvas(w, h);
                     const bctx = blend.getContext('2d');
-                    bctx.drawImage(this.filterPreview.snap, 0, 0);
+                    bctx.drawImage(preview.snap, 0, 0);
                     bctx.globalAlpha = Math.max(0, Math.min(1, this.filterStrength / 100));
-                    bctx.drawImage(this.filterPreview.filtered, 0, 0);
+                    bctx.drawImage(preview.filtered, 0, 0);
                     bctx.globalAlpha = 1;
-                    target.drawImage(blend, split, 0, w - split, h, split, 0, w - split, h);
+                    target.drawImage(blend, half, 0, w - half, h, half, 0, w - half, h);
                     this.releaseTempCanvas(blend);
                 } else {
-                    target.drawImage(this.filterPreview.snap, 0, 0);
-                    if (this.filterPreview.filtered) {
+                    target.drawImage(preview.snap, 0, 0);
+                    if (preview.filtered) {
                         target.globalAlpha = Math.max(0, Math.min(1, this.filterStrength / 100));
-                        target.drawImage(this.filterPreview.filtered, 0, 0);
+                        target.drawImage(preview.filtered, 0, 0);
                         target.globalAlpha = 1;
                     }
                 }
-                this.compositeLayers();
             }),
             applyFilter: Pixel.bindRuntime(runtime, function applyFilter() {
                 if (!this.filterPreview) return;
-                this.releaseTempCanvas(this.filterPreview.snap);
-                if (this.filterPreview.filtered) this.releaseTempCanvas(this.filterPreview.filtered);
+                const preview = this.filterPreview;
+                // The before/after split is a viewing aid and never ends up in the layer.
+                this.paintFilterBlend(preview, false);
+                this.commitLayerPixels(preview.layer, preview.blend, { label: 'filter:' + this.activeFilterId });
+                this.setLayerPreview(preview.layer, null);
+                this.releaseTempCanvas(preview.snap);
+                if (preview.filtered) this.releaseTempCanvas(preview.filtered);
                 this.filterPreview = null;
-                this.pushHistory('filter:' + this.activeFilterId);
                 this.activeFilterId = null;
                 this.host.querySelectorAll('[data-filter-id]').forEach(c => c.classList.remove('active'));
                 this.filterThumbKey = '';
             }),
             resetFilterPreview: Pixel.bindRuntime(runtime, function resetFilterPreview() {
                 if (!this.filterPreview) return;
-                const target = this.getActiveCtx();
-                target.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                target.drawImage(this.filterPreview.snap, 0, 0);
-                this.compositeLayers();
-                this.releaseTempCanvas(this.filterPreview.snap);
-                if (this.filterPreview.filtered) this.releaseTempCanvas(this.filterPreview.filtered);
+                const preview = this.filterPreview;
                 this.filterPreview = null;
                 this.activeFilterId = null;
+                if (this._filterPreviewRAF) { cancelAnimationFrame(this._filterPreviewRAF); this._filterPreviewRAF = null; }
+                if (preview.layer.preview === preview.blend) this.setLayerPreview(preview.layer, null);
+                this.releaseTempCanvas(preview.snap);
+                if (preview.filtered) this.releaseTempCanvas(preview.filtered);
                 this.host.querySelectorAll('[data-filter-id]').forEach(c => c.classList.remove('active'));
             }),
             applyFilterPreview: Pixel.bindRuntime(runtime, function applyFilterPreview(name) {
@@ -481,7 +496,9 @@
                 const tw = Math.max(1, Math.round(this.canvas.width * scale));
                 const th = Math.max(1, Math.round(this.canvas.height * scale));
                 const base = this.acquireTempCanvas(tw, th);
-                base.getContext('2d').drawImage(this.canvas, 0, 0, tw, th);
+                const flat = this.flattenDocument(this.acquireTempCanvas(this.canvas.width, this.canvas.height));
+                base.getContext('2d').drawImage(flat, 0, 0, tw, th);
+                this.releaseTempCanvas(flat);
                 const thumbs = Array.from(gallery.querySelectorAll('[data-filter-thumb]'));
                 const renderNext = () => {
                     const el = thumbs.shift();

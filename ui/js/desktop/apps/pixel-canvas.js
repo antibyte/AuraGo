@@ -22,107 +22,13 @@
                                     y: Math.round((e.clientY - rect.top) * (this.canvas.height / rect.height))
                                 };
             }),
-            getActiveCtx: Pixel.bindRuntime(runtime, function getActiveCtx() {
-                                if (this.editMaskMode && this.layers[this.activeLayerIdx] && this.layers[this.activeLayerIdx].maskCanvas) {
-                                    return this.layers[this.activeLayerIdx].maskCanvas.getContext('2d');
-                                }
-                                if (!this.layers[this.activeLayerIdx].canvas) return this.cctx;
-                                return this.layers[this.activeLayerIdx].canvas.getContext('2d');
-            }),
-            ensureBackgroundMigrated: Pixel.bindRuntime(runtime, function ensureBackgroundMigrated() {
-                                if (!this.canvas.width || !this.canvas.height) return;
-                                if (this.layers[0].canvas) return;
-                                const bgCanvas = this.acquireTempCanvas(this.imgWidth || this.canvas.width, this.imgHeight || this.canvas.height);
-                                bgCanvas.getContext('2d').drawImage(this.canvas, 0, 0);
-                                this.layers[0].canvas = bgCanvas;
-            }),
-            compositeLayers: Pixel.bindRuntime(runtime, function compositeLayers() {
-                                this.renderComposition(this.cctx);
-                                if (this.refreshStickerControls) this.refreshStickerControls();
-            }),
-            renderComposition: Pixel.bindRuntime(runtime, function renderComposition(ctx, layers = this.layers) {
-                                if (layers === this.layers) this.ensureBackgroundMigrated();
-                                ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                                for (let i = 0; i < layers.length; i++) {
-                                    const layer = layers[i];
-                                    if (!layer.visible) continue;
-                                    ctx.globalAlpha = layer.opacity;
-                                    if (layer.canvas) {
-                                        if (layer.maskCanvas) {
-                                            const masked = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
-                                            const mctx = masked.getContext('2d');
-                                            mctx.drawImage(layer.canvas, 0, 0);
-                                            mctx.globalCompositeOperation = 'destination-in';
-                                            mctx.drawImage(layer.maskCanvas, 0, 0);
-                                            ctx.drawImage(masked, 0, 0);
-                                            this.releaseTempCanvas(masked);
-                                        } else {
-                                            ctx.drawImage(layer.canvas, 0, 0);
-                                        }
-                                    }
-                                }
-                                ctx.globalAlpha = 1;
-            }),
-            pushHistory: Pixel.bindRuntime(runtime, function pushHistory(label) {
-                                if (!this.canvas.width || !this.canvas.height) return;
-                                const layerStates = this.layers.map(l => {
-                                    if (l.sticker) return null;
-                                    const src = l.canvas || (this.layers.length > 1 ? null : this.canvas);
-                                    if (!src) return null;
-                                    const tmp = this.acquireTempCanvas(src.width || this.canvas.width, src.height || this.canvas.height);
-                                    tmp.getContext('2d').drawImage(src, 0, 0);
-                                    return tmp;
-                                });
-                                const maskStates = this.layers.map(l => {
-                                    if (!l.maskCanvas) return null;
-                                    const tmp = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
-                                    tmp.getContext('2d').drawImage(l.maskCanvas, 0, 0);
-                                    return tmp;
-                                });
-                                if (this.historyIdx < this.history.length - 1) this.history = this.history.slice(0, this.historyIdx + 1);
-                                this.history.push({ layerStates, maskStates, width: this.canvas.width, height: this.canvas.height, activeLayerIdx: this.activeLayerIdx, label: label || '', layerMeta: this.layers.map(l => ({ name: l.name, visible: l.visible, opacity: l.opacity, hasMask: !!l.maskCanvas,
-                                    ...(l.sticker ? { sticker: { id: l.sticker.id, matrix: l.sticker.matrix.slice() }, stickerImage: l.stickerImage } : {}) })) });
-                                if (this.history.length > this.MAX_HISTORY) {
-                                    const removed = this.history.shift();
-                                    removed.layerStates.forEach(s => { if (s) this.releaseTempCanvas(s); });
-                                    if (removed.maskStates) removed.maskStates.forEach(s => { if (s) this.releaseTempCanvas(s); });
-                                }
-                                this.historyIdx = this.history.length - 1;
-                                this.isDirty = true;
-                                this.updateStatus();
-                                if (this.refreshHistoryPanel) this.refreshHistoryPanel();
-            }),
-            restoreHistory: Pixel.bindRuntime(runtime, function restoreHistory(entry) {
-                                this.cancelStickerGesture();
-                                this.resetFilterPreview();
-                                this.resetAdjustmentControls();
-                                this.canvas.width = entry.width;
-                                this.canvas.height = entry.height;
-                                this.imgWidth = entry.width;
-                                this.imgHeight = entry.height;
-                                this.overlayCanvas.width = entry.width;
-                                this.overlayCanvas.height = entry.height;
-                                this.layers = entry.layerMeta.map((meta, i) => ({
-                                    canvas: meta.sticker ? document.createElement('canvas') : entry.layerStates[i] ? (() => { const tc = this.acquireTempCanvas(entry.width, entry.height); tc.getContext('2d').drawImage(entry.layerStates[i], 0, 0); return tc; })() : null,
-                                    maskCanvas: (entry.maskStates && entry.maskStates[i]) ? (() => { const mc = this.acquireTempCanvas(entry.width, entry.height); mc.getContext('2d').drawImage(entry.maskStates[i], 0, 0); return mc; })() : (meta.hasMask ? (() => { const mc = document.createElement('canvas'); mc.width = entry.width; mc.height = entry.height; const mx = mc.getContext('2d'); mx.fillStyle = '#fff'; mx.fillRect(0, 0, entry.width, entry.height); return mc; })() : null),
-                                    name: meta.name,
-                                    visible: meta.visible,
-                                    opacity: meta.opacity,
-                                    ...(meta.sticker ? { sticker: { id: meta.sticker.id, matrix: meta.sticker.matrix.slice() }, stickerImage: meta.stickerImage } : {})
-                                }));
-                                this.layers.forEach(layer => this.repaintSticker(layer));
-                                this.activeLayerIdx = Math.min(entry.activeLayerIdx || 0, this.layers.length - 1);
-                                this.captureAdjustmentSource();
-                                this.compositeLayers();
-                                this.refreshLayerPanel();
-                                this.applyZoom();
-            }),
             undo: Pixel.bindRuntime(runtime, function undo() {
                                 if (this.historyIdx <= 0) return;
                                 this.historyIdx--;
                                 this.restoreHistory(this.history[this.historyIdx]);
                                 this.updateStatus();
                                 if (this.refreshHistoryPanel) this.refreshHistoryPanel();
+                                this.emit('history-changed');
             }),
             redo: Pixel.bindRuntime(runtime, function redo() {
                                 if (this.historyIdx >= this.history.length - 1) return;
@@ -130,6 +36,7 @@
                                 this.restoreHistory(this.history[this.historyIdx]);
                                 this.updateStatus();
                                 if (this.refreshHistoryPanel) this.refreshHistoryPanel();
+                                this.emit('history-changed');
             }),
             applyZoom: Pixel.bindRuntime(runtime, function applyZoom() {
                                 const w = this.imgWidth * this.zoom;
@@ -168,50 +75,76 @@
                                 const revision = this.state.documentRevision;
                                 const img = await this.loadImage(src);
                                 if (this.state.disposed || revision !== this.state.documentRevision || (current && !current())) return false;
-                                this.originalImage = img;
+                                this.beginDocumentReplace();
                                 this.canvas.width = img.naturalWidth;
                                 this.canvas.height = img.naturalHeight;
                                 this.overlayCanvas.width = img.naturalWidth;
                                 this.overlayCanvas.height = img.naturalHeight;
-                                this.cctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                                this.cctx.drawImage(img, 0, 0);
                                 this.imgWidth = img.naturalWidth;
                                 this.imgHeight = img.naturalHeight;
-                                this.layers = [{ canvas: null, name: this.t('pixel.layer_background'), visible: true, opacity: 1 }];
+                                this.layers = [this.createLayer({ name: this.t('pixel.layer_background'), source: img })];
                                 this.activeLayerIdx = 0;
                                 this.history = [];
                                 this.historyIdx = -1;
+                                this.selection = null;
                                 this.pushHistory('open');
                                 this.canvasWrap.hidden = false;
                                 this.emptyState.hidden = true;
-                                this.selection = null;
                                 this.clearOverlay();
+                                this.captureAdjustmentSource();
+                                this.compositeLayers();
                                 this.zoomFit();
                                 this.updateStatus();
+                                this.refreshLayerPanel();
+                                this.syncActiveLayer();
+                                this.notifyLayersChanged();
+                                this.emit('document-changed', { width: this.imgWidth, height: this.imgHeight, reason: 'open' });
                                 return true;
             }),
             newBlankCanvas: Pixel.bindRuntime(runtime, function newBlankCanvas(w, h) {
                                 this.resetStickerDocument();
-                                this.originalImage = null;
+                                this.beginDocumentReplace();
                                 this.canvas.width = w;
                                 this.canvas.height = h;
                                 this.overlayCanvas.width = w;
                                 this.overlayCanvas.height = h;
-                                this.cctx.fillStyle = '#ffffff';
-                                this.cctx.fillRect(0, 0, w, h);
                                 this.imgWidth = w;
                                 this.imgHeight = h;
-                                this.layers = [{ canvas: null, name: this.t('pixel.layer_background'), visible: true, opacity: 1 }];
+                                const background = this.createLayer({ name: this.t('pixel.layer_background') });
+                                const bgCtx = background.canvas.getContext('2d');
+                                bgCtx.fillStyle = '#ffffff';
+                                bgCtx.fillRect(0, 0, w, h);
+                                this.layers = [background];
                                 this.activeLayerIdx = 0;
                                 this.history = [];
                                 this.historyIdx = -1;
+                                this.selection = null;
                                 this.pushHistory('new');
                                 this.canvasWrap.hidden = false;
                                 this.emptyState.hidden = true;
-                                this.selection = null;
                                 this.clearOverlay();
+                                this.captureAdjustmentSource();
+                                this.compositeLayers();
                                 this.zoomFit();
                                 this.updateStatus();
+                                this.refreshLayerPanel();
+                                this.syncActiveLayer();
+                                this.notifyLayersChanged();
+                                this.emit('document-changed', { width: w, height: h, reason: 'new' });
+            }),
+            // Drops everything that belongs to the old document before its layers are replaced.
+            beginDocumentReplace: Pixel.bindRuntime(runtime, function beginDocumentReplace() {
+                                this.resetFilterPreview();
+                                if (this.compareMode) this.exitCompareMode({ preservePreview: false });
+                                this.resetAdjustmentControls();
+                                this.adjustPreview = null;
+                                this.originalImage = null;
+                                this.adjustSourceKey = '';
+                                this.editMaskMode = false;
+                                this.selImageData = null;
+                                this.moveSelFloating = false;
+                                this.stopMarchingAnts();
+                                this.invalidateCompositeCaches();
             }),
             buildFilterString: Pixel.bindRuntime(runtime, function buildFilterString() {
                                 const parts = [];
@@ -226,32 +159,72 @@
                                 if (this.adjustments.sharpness > 0) parts.push(`contrast(${1 + this.adjustments.sharpness / 200})`);
                                 return parts.join(' ') || 'none';
             }),
+            // Copy of the active layer (or mask) that the adjust sliders always start from. Skipped while the layer is unchanged.
             captureAdjustmentSource: Pixel.bindRuntime(runtime, function captureAdjustmentSource() {
-                if (!this.imgWidth || this.isStickerLayer()) { this.originalImage = null; return; }
+                const layer = this.activeLayer();
+                if (!this.imgWidth || !layer || this.isStickerLayer()) { this.originalImage = null; this.adjustSourceKey = ''; return; }
+                const inMask = !!(this.editMaskMode && layer.maskCanvas);
+                const key = layer.id + (inMask ? 'm' : 'p') + ':' + (inMask ? layer.maskRev : layer.rev) + ':' + this.imgWidth + 'x' + this.imgHeight;
+                if (this.originalImage && this.adjustSourceKey === key) return;
                 const source = document.createElement('canvas'); source.width = this.imgWidth; source.height = this.imgHeight;
-                source.getContext('2d', { willReadFrequently: true }).drawImage(this.getActiveCtx().canvas, 0, 0);
+                source.getContext('2d', { willReadFrequently: true }).drawImage(this.getActiveReadCtx().canvas, 0, 0);
                 this.originalImage = source;
+                this.adjustSourceKey = key;
+            }),
+            hasPendingAdjustments: Pixel.bindRuntime(runtime, function hasPendingAdjustments() {
+                                return Object.keys(this.adjustments).some(k => Number(this.adjustments[k]) !== 0);
+            }),
+            // Removes the adjust preview from its layer; the layer pixels were never touched.
+            dropAdjustPreview: Pixel.bindRuntime(runtime, function dropAdjustPreview() {
+                                const preview = this.adjustPreview;
+                                this.adjustPreview = null;
+                                if (preview && preview.layer.preview === preview.canvas) this.setLayerPreview(preview.layer, null);
+            }),
+            // Bakes a pending adjust or filter preview into the layer so the next edit starts from what is on screen.
+            commitPendingPreviews: Pixel.bindRuntime(runtime, function commitPendingPreviews() {
+                                if (this.compareMode) this.exitCompareMode({ preservePreview: true });
+                                if (this.filterPreview) { this.applyFilter(); return true; }
+                                if (this.adjustPreview && this.hasPendingAdjustments()) { this.applyAdjustments(); return true; }
+                                return false;
+            }),
+            // Pending adjust/filter changes are thrown away (layer about to disappear or be replaced).
+            discardPendingPreviews: Pixel.bindRuntime(runtime, function discardPendingPreviews() {
+                                this.resetFilterPreview();
+                                if (this.compareMode) this.exitCompareMode({ preservePreview: false });
+                                this.dropAdjustPreview();
+                                this.resetAdjustmentControls();
+            }),
+            // Adjustments and filters work on layer pixels, so mask-edit mode ends when they start.
+            leaveMaskEdit: Pixel.bindRuntime(runtime, function leaveMaskEdit() {
+                                if (!this.editMaskMode) return;
+                                this.editMaskMode = false;
+                                this.refreshLayerPanel();
+                                this.notify({ type: 'info', message: this.t('pixel.mask_edit_off') });
             }),
             applyAdjustmentsPreview: Pixel.bindRuntime(runtime, function applyAdjustmentsPreview() {
                                 if (!this.requireRasterLayer()) return;
-                                if (!this.originalImage || !this.canvas.width) return;
-                                const isMultiLayer = !!this.layers[this.activeLayerIdx].canvas;
-                                if (isMultiLayer) this.ensureBackgroundMigrated();
+                                if (!this.canvas.width) return;
+                                const layer = this.activeLayer();
+                                if (this.editMaskMode) this.leaveMaskEdit();
+                                if (this.adjustPreview && this.adjustPreview.layer !== layer) this.dropAdjustPreview();
+                                this.captureAdjustmentSource();
+                                if (!this.originalImage) return;
+                                if (!this.hasPendingAdjustments()) { this.dropAdjustPreview(); return; }
                                 const tmpCanvas = this.acquireTempCanvas(this.imgWidth, this.imgHeight);
                                 const tmpCtx = tmpCanvas.getContext('2d');
                                 tmpCtx.filter = this.buildFilterString();
                                 tmpCtx.drawImage(this.originalImage, 0, 0, this.imgWidth, this.imgHeight);
                                 this.applyCustomAdjustments(tmpCtx);
-                                if (isMultiLayer) {
-                                    const actx = this.getActiveCtx();
-                                    actx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                                    actx.drawImage(tmpCanvas, 0, 0);
-                                    this.compositeLayers();
-                                } else {
-                                    this.cctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                                    this.cctx.drawImage(tmpCanvas, 0, 0);
+                                let preview = this.adjustPreview;
+                                if (!preview || preview.layer !== layer || preview.canvas.width !== this.imgWidth || preview.canvas.height !== this.imgHeight) {
+                                    this.dropAdjustPreview();
+                                    preview = this.adjustPreview = { layer, canvas: this.makeCanvas(this.imgWidth, this.imgHeight) };
                                 }
+                                const pctx = preview.canvas.getContext('2d');
+                                pctx.clearRect(0, 0, preview.canvas.width, preview.canvas.height);
+                                pctx.drawImage(tmpCanvas, 0, 0);
                                 this.releaseTempCanvas(tmpCanvas);
+                                this.setLayerPreview(layer, preview.canvas);
             }),
             applyCustomAdjustments: Pixel.bindRuntime(runtime, function applyCustomAdjustments(ctx) {
                                 if (this.adjustments.temperature === 0 && this.adjustments.shadows === 0 && this.adjustments.highlights === 0) return;
@@ -274,8 +247,13 @@
                                 if (!this.originalImage) return;
                                 if (this.compareMode) this.exitCompareMode({ preservePreview: true });
                                 else this.applyAdjustmentsPreview();
+                                const layer = this.activeLayer();
+                                const preview = this.adjustPreview;
+                                if (preview && preview.layer === layer && layer.preview === preview.canvas) {
+                                    this.commitLayerPixels(layer, preview.canvas, { label: 'adjust' });
+                                }
+                                this.dropAdjustPreview();
                                 this.captureAdjustmentSource();
-                                this.pushHistory('adjust');
                                 this.resetAdjustmentControls();
             }),
             resetAdjustmentControls: Pixel.bindRuntime(runtime, function resetAdjustmentControls() {
@@ -287,12 +265,7 @@
                                 if (!this.requireRasterLayer()) return;
                                 if (this.compareMode) this.exitCompareMode({ preservePreview: false });
                                 this.resetAdjustmentControls();
-                                if (this.originalImage && this.canvas.width) {
-                                    const actx = this.getActiveCtx();
-                                    actx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                                    actx.drawImage(this.originalImage, 0, 0);
-                                    this.compositeLayers();
-                                }
+                                this.dropAdjustPreview();
             }),
             toggleCompare: Pixel.bindRuntime(runtime, function toggleCompare() {
                                 if (!this.requireRasterLayer()) return;
@@ -302,7 +275,7 @@
                                 } else {
                                     this.compareMode = true;
                                     this.comparePos = 0.5;
-                                    this.compareOrigData = this.cctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                                    this.compareOrigData = this.flattenDocument();
                                     this.applyAdjustmentsPreview();
                                     this.renderCompare();
                                     this.compareDivider.hidden = false;
@@ -315,28 +288,24 @@
                                 this.compareOrigData = null;
                                 if (this.compareDivider) this.compareDivider.hidden = true;
                                 this.clearOverlay();
-                                const hasAdjustments = Object.keys(this.adjustments).some(k => Number(this.adjustments[k]) !== 0);
-                                if (preservePreview && hasAdjustments) {
+                                if (preservePreview && this.hasPendingAdjustments()) {
                                     this.applyAdjustmentsPreview();
                                     return;
                                 }
-                                if (this.originalImage && this.canvas.width) {
-                                    const actx = this.getActiveCtx();
-                                    actx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                                    actx.drawImage(this.originalImage, 0, 0);
-                                    this.compositeLayers();
-                                }
+                                this.dropAdjustPreview();
+                                this.compositeLayers();
             }),
             renderCompare: Pixel.bindRuntime(runtime, function renderCompare() {
                                 if (!this.compareMode || !this.compareOrigData) return;
                                 const splitX = Math.round(this.canvas.width * this.comparePos);
-                                const current = this.cctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                                this.cctx.putImageData(this.compareOrigData, 0, 0);
+                                // Right of the divider shows the composite with the preview, left of it the untouched document.
+                                this.compositeLayers();
                                 this.cctx.save();
                                 this.cctx.beginPath();
-                                this.cctx.rect(splitX, 0, this.canvas.width - splitX, this.canvas.height);
+                                this.cctx.rect(0, 0, splitX, this.canvas.height);
                                 this.cctx.clip();
-                                this.cctx.putImageData(current, 0, 0);
+                                this.cctx.clearRect(0, 0, splitX, this.canvas.height);
+                                this.cctx.drawImage(this.compareOrigData, 0, 0);
                                 this.cctx.restore();
                                 this.olCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
                                 this.olCtx.strokeStyle = '#ffffff';
@@ -354,20 +323,30 @@
             }),
             transformDocument: Pixel.bindRuntime(runtime, function transformDocument(matrix, width, height) {
                 this.cancelStickerGesture();
-                this.ensureBackgroundMigrated();
-                const transform = canvas => {
+                this.commitPendingPreviews();
+                // Masks keep revealing the area a canvas expansion adds, hence the white underlay for them.
+                const transform = (canvas, underlay) => {
                     if (!canvas) return;
                     const next = this.acquireTempCanvas(width, height), ctx = next.getContext('2d');
+                    if (underlay) { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); }
                     ctx.imageSmoothingQuality = 'high'; ctx.setTransform(...matrix); ctx.drawImage(canvas, 0, 0);
                     canvas.width = width; canvas.height = height;
                     canvas.getContext('2d').drawImage(next, 0, 0); this.releaseTempCanvas(next);
                 };
-                this.layers.forEach(layer => { if (!layer.sticker) transform(layer.canvas); transform(layer.maskCanvas); });
+                this.layers.forEach(layer => {
+                    if (!layer.sticker) transform(layer.canvas, false);
+                    if (layer.maskCanvas) { transform(layer.maskCanvas, true); layer.maskRev = this.nextRev(); }
+                    layer.rev = this.nextRev();
+                    layer.preview = null;
+                });
                 this.canvas.width = this.overlayCanvas.width = this.imgWidth = width;
                 this.canvas.height = this.overlayCanvas.height = this.imgHeight = height;
+                this.invalidateCompositeCaches();
                 this.transformStickerLayers(matrix);
                 this.deselect(); this.compositeLayers();
                 this.captureAdjustmentSource();
+                this.notifyLayersChanged();
+                this.emit('document-changed', { width, height, reason: 'transform' });
             }),
             rotateCanvas: Pixel.bindRuntime(runtime, function rotateCanvas(deg) {
                 if (!this.imgWidth || ![90, -90, 180].includes(deg)) return;

@@ -13,13 +13,13 @@
         const active = () => r.layers[r.activeLayerIdx];
         function paint(layer) {
             if (!layer || !layer.sticker || !layer.stickerImage) return;
-            if (!layer.canvas) layer.canvas = document.createElement('canvas');
             layer.canvas.width = r.imgWidth; layer.canvas.height = r.imgHeight;
             const ctx = layer.canvas.getContext('2d', { willReadFrequently: true });
             ctx.save(); ctx.imageSmoothingQuality = 'high';
             ctx.setTransform(...layer.sticker.matrix);
             ctx.drawImage(layer.stickerImage, 0, 0);
             ctx.restore();
+            r.markLayerDirty(layer);
         }
         function cancel() {
             if (!gesture) return;
@@ -75,7 +75,10 @@
         Object.assign(r, {
             isStickerLayer: () => !!(active() && active().sticker),
             requireRasterLayer(layer) {
-                if (!(layer || active())?.sticker) return true;
+                const target = layer || active();
+                if (!target?.sticker) return true;
+                // Masks may be painted on sticker layers; only the sticker pixels are protected.
+                if (r.editMaskMode && target.maskCanvas && target === active()) return true;
                 r.notify({ type: 'info', message: tr('rasterizeHint') });
                 r.showPanel('stickers'); refresh(); return false;
             },
@@ -99,10 +102,10 @@
                     const image = await window.AuraStickerLibrary.image(id, controller.signal);
                     if (r.state.disposed || revision !== r.state.documentRevision || layers !== r.layers || w !== r.imgWidth || h !== r.imgHeight) return;
                     if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.max_layers') }); return; }
-                    r.resetFilterPreview(); r.exitCompareMode({ preservePreview: true }); r.deselect(); r.editMaskMode = false; r.ensureBackgroundMigrated();
+                    r.resetFilterPreview(); r.commitPendingPreviews(); r.deselect(); r.editMaskMode = false;
                     const side = .24 * Math.min(w, h);
-                    const layer = { name: tr('name.' + id), visible: true, opacity: 1, stickerImage: image,
-                        sticker: { id, matrix: normalized([side / 1024, 0, 0, side / 1024, (w - side) / 2, (h - side) / 2]) } };
+                    const layer = r.createLayer({ name: tr('name.' + id), stickerImage: image,
+                        sticker: { id, matrix: normalized([side / 1024, 0, 0, side / 1024, (w - side) / 2, (h - side) / 2]) } });
                     paint(layer); r.layers.push(layer); r.activeLayerIdx = r.layers.length - 1;
                     if (r.activeTool !== 'move') r.setActiveTool('move');
                     r.compositeLayers(); r.refreshLayerPanel(); r.pushHistory(tr('add'));
@@ -111,6 +114,8 @@
             rasterizeSticker() {
                 const layer = active(); if (!layer?.sticker) return;
                 cancel(); paint(layer); delete layer.sticker; delete layer.stickerImage;
+                // The canvas now holds raster pixels; bump the rev so the history snapshots them instead of sharing.
+                r.markLayerDirty(layer);
                 r.captureAdjustmentSource();
                 r.pushHistory(tr('rasterize')); r.refreshLayerPanel(); refresh();
             },
@@ -170,7 +175,7 @@
                             const candidate = r.layers[i];
                             if (!candidate.visible || candidate.opacity <= 0 || !candidate.canvas) continue;
                             if (!candidate.canvas.getContext('2d').getImageData(start.x, start.y, 1, 1).data[3]) continue;
-                            if (candidate.maskCanvas && !candidate.maskCanvas.getContext('2d').getImageData(start.x, start.y, 1, 1).data[3]) continue;
+                            if (candidate.maskCanvas && candidate.maskEnabled && !candidate.maskCanvas.getContext('2d').getImageData(start.x, start.y, 1, 1).data[3]) continue;
                             index = i; break;
                         }
                     }
@@ -178,7 +183,7 @@
                     if (!layer?.sticker) return;
                     event.preventDefault(); event.stopPropagation(); cancel();
                     if (index !== r.activeLayerIdx) {
-                        r.resetFilterPreview(); r.activeLayerIdx = index;
+                        r.resetFilterPreview(); r.commitPendingPreviews(); r.activeLayerIdx = index;
                         if (r.editMaskMode) { r.editMaskMode = false; r.notify({ type: 'info', message: r.t('pixel.mask_edit_off') }); }
                         r.captureAdjustmentSource(); r.refreshLayerPanel(); refresh();
                     }
@@ -204,6 +209,11 @@
                 window.addEventListener('blur', cancel, { signal: abort.signal });
                 window.addEventListener('keydown', event => { if (event.key === 'Escape' && gesture) { event.preventDefault(); event.stopPropagation(); cancel(); } }, { capture: true, signal: abort.signal });
                 window.addEventListener('resize', refresh, { signal: abort.signal });
+                // Handles and fields follow the layers; refreshing on every composite rebuilt DOM on each mouse move.
+                const syncControls = () => { const layer = active(); if ((layer && layer.sticker) || !controls.hidden) refresh(); };
+                r.on('layers-changed', syncControls);
+                r.on('active-layer-changed', refresh);
+                r.on('document-changed', refresh);
             },
             disposeStickers() { r.resetStickerDocument(); abort.abort(); picker?.dispose(); frame?.remove(); controls?.remove(); }
         });

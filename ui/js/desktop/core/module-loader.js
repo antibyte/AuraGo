@@ -293,6 +293,7 @@
                 '/js/desktop/shared/sticker-catalog.js',
                 '/js/desktop/shared/sticker-library.js',
                 '/js/desktop/apps/pixel-state.js',
+                '/js/desktop/apps/pixel-core.js',
                 '/js/desktop/apps/pixel-view.js',
                 '/js/desktop/apps/pixel-canvas.js',
                 '/js/desktop/apps/pixel-tools.js',

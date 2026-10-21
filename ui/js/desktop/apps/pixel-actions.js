@@ -109,13 +109,9 @@
                                 this.state.saveBusy = true;
                                 this.setStatus(this.t('pixel.status_saving'));
                                 try {
-                                    const tmpC = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
-                                    const tmpX = tmpC.getContext('2d');
-                                    this.renderComposition(tmpX);
                                     const ext = (path.split('.').pop() || 'png').toLowerCase();
                                     const isJPEG = ext === 'jpg' || ext === 'jpeg';
-                                    const dataURL = isJPEG ? tmpC.toDataURL('image/jpeg', 0.92) : tmpC.toDataURL('image/png');
-                                    this.releaseTempCanvas(tmpC);
+                                    const dataURL = isJPEG ? this.flattenToDataURL('image/jpeg', 0.92) : this.flattenToDataURL('image/png');
                                     const saved = await this.api('/api/pixel/save', {
                                         method: 'POST',
                                         headers: Object.assign({ 'Content-Type': 'application/json' }, version ? { 'If-Match': version } : { 'If-None-Match': '*' }),
@@ -186,36 +182,36 @@
                                 dlg.addEventListener('click', e => { if (e.target === dlg) dlg.remove(); });
             }),
             exportWithFormat: Pixel.bindRuntime(runtime, function exportWithFormat(format, quality) {
-                                const tmpC = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
-                                const tmpX = tmpC.getContext('2d');
-                                    this.renderComposition(tmpX);
                                 const mime = format === 'jpeg' ? 'image/jpeg' : (format === 'webp' ? 'image/webp' : 'image/png');
                                 const ext = format === 'jpeg' ? 'jpg' : format;
                                 const link = document.createElement('a');
                                 link.download = (this.fileName || 'image').replace(/\.[^.]+$/, '') + '.' + ext;
-                                link.href = tmpC.toDataURL(mime, quality || 0.92);
+                                link.href = this.flattenToDataURL(mime, quality || 0.92);
                                 link.click();
-                                this.releaseTempCanvas(tmpC);
+            }),
+            // PNG/JPEG/WebP data URL of the visible layers merged, without any adjust or filter preview.
+            flattenToDataURL: Pixel.bindRuntime(runtime, function flattenToDataURL(mime, quality) {
+                                const flat = this.flattenDocument(this.acquireTempCanvas(this.canvas.width, this.canvas.height));
+                                const url = flat.toDataURL(mime || 'image/png', quality);
+                                this.releaseTempCanvas(flat);
+                                return url;
             }),
             applyAIResult: Pixel.bindRuntime(runtime, async function applyAIResult(resp) {
                                 if (!resp || !resp.url) return;
                                 const mode = (this.host.querySelector('[data-ai-result-mode]') || {}).value || 'layer';
                                 if (mode === 'layer' && this.layers.length < this.MAX_LAYERS) {
-                                    this.ensureBackgroundMigrated();
                                     const img = await this.loadImage(resp.url);
                                     const nw = img.naturalWidth;
                                     const nh = img.naturalHeight;
                                     if (nw > this.canvas.width || nh > this.canvas.height) {
                                         this.expandCanvasToFit(nw, nh);
                                     }
-                                    const c = document.createElement('canvas');
-                                    c.width = nw;
-                                    c.height = nh;
-                                    c.getContext('2d').drawImage(img, 0, 0);
-                                    this.layers.push({ canvas: c, name: this.t('pixel.ai_layer'), visible: true, opacity: 1 });
+                                    this.commitPendingPreviews();
+                                    // Layers are document-sized, so the result is drawn at the origin after the document has grown.
+                                    this.layers.push(this.createLayer({ name: this.t('pixel.ai_layer'), source: img }));
                                     this.activeLayerIdx = this.layers.length - 1;
-                                    this.compositeLayers();
-                                    this.refreshLayerPanel();
+                                    this.editMaskMode = false;
+                                    this.layersStructureChanged();
                                     this.pushHistory('ai');
                                 } else {
                                     await this.loadImageToCanvas(resp.url);
@@ -258,7 +254,7 @@
                                 const statusEl = this.host.querySelector('[data-ai-status]');
                                 if (statusEl) statusEl.textContent = this.t('pixel.generating');
                                 try {
-                                    const dataURL = this.canvas.toDataURL('image/png');
+                                    const dataURL = this.flattenToDataURL('image/png');
                                     this.abortCtrl = new AbortController();
                                     const resp = await this.api('/api/pixel/enhance', {
                                         method: 'POST',
@@ -283,7 +279,7 @@
                                 const statusEl = this.host.querySelector('[data-ai-status]');
                                 if (statusEl) statusEl.textContent = this.t('pixel.generating');
                                 try {
-                                    const dataURL = this.canvas.toDataURL('image/png');
+                                    const dataURL = this.flattenToDataURL('image/png');
                                     this.abortCtrl = new AbortController();
                                     const resp = await this.api('/api/pixel/remove-bg', {
                                         method: 'POST',
@@ -304,7 +300,7 @@
                                 const statusEl = this.host.querySelector('[data-ai-status]');
                                 if (statusEl) statusEl.textContent = this.t('pixel.generating');
                                 try {
-                                    const dataURL = this.canvas.toDataURL('image/png');
+                                    const dataURL = this.flattenToDataURL('image/png');
                                     this.abortCtrl = new AbortController();
                                     const resp = await this.api('/api/pixel/upscale', {
                                         method: 'POST',

@@ -148,7 +148,7 @@
             drawStartY: { get: () => drawStartY, set: value => { drawStartY = value; }, enumerable: true },
             lastDrawX: { get: () => lastDrawX, set: value => { lastDrawX = value; }, enumerable: true },
             lastDrawY: { get: () => lastDrawY, set: value => { lastDrawY = value; }, enumerable: true },
-            selection: { get: () => selection, set: value => { selection = value; }, enumerable: true },
+            selection: { get: () => selection, set: value => { selection = value; runtime.selectionRev++; runtime.emit('selection-changed', { selection: value }); }, enumerable: true },
             selImageData: { get: () => selImageData, set: value => { selImageData = value; }, enumerable: true },
             isMovingSel: { get: () => isMovingSel, set: value => { isMovingSel = value; }, enumerable: true },
             selDragOfsX: { get: () => selDragOfsX, set: value => { selDragOfsX = value; }, enumerable: true },
@@ -162,7 +162,7 @@
             panStartSL: { get: () => panStartSL, set: value => { panStartSL = value; }, enumerable: true },
             panStartST: { get: () => panStartST, set: value => { panStartST = value; }, enumerable: true },
             layers: { get: () => layers, set: value => { layers = value; }, enumerable: true },
-            activeLayerIdx: { get: () => activeLayerIdx, set: value => { activeLayerIdx = value; }, enumerable: true },
+            activeLayerIdx: { get: () => activeLayerIdx, set: value => { const changed = value !== activeLayerIdx; activeLayerIdx = value; if (changed) runtime.syncActiveLayer(); }, enumerable: true },
             compareMode: { get: () => compareMode, set: value => { compareMode = value; }, enumerable: true },
             comparePos: { get: () => comparePos, set: value => { comparePos = value; }, enumerable: true },
             compareOrigData: { get: () => compareOrigData, set: value => { compareOrigData = value; }, enumerable: true },
@@ -209,6 +209,8 @@
             strengthSlider: { get: () => strengthSlider, set: value => { strengthSlider = value; }, enumerable: true },
             MAX_HISTORY: { get: () => Pixel.MAX_HISTORY, enumerable: true },
             MAX_LAYERS: { get: () => Pixel.MAX_LAYERS, enumerable: true },
+            HISTORY_BYTE_BUDGET: { get: () => Pixel.HISTORY_BYTE_BUDGET, enumerable: true },
+            BLEND_MODES: { get: () => Pixel.BLEND_MODES, enumerable: true },
             IMAGE_EXTS: { get: () => Pixel.IMAGE_EXTS, enumerable: true },
             PRESET_COLORS: { get: () => Pixel.PRESET_COLORS, enumerable: true },
             FONT_FAMILIES: { get: () => Pixel.FONT_FAMILIES, enumerable: true },
@@ -220,6 +222,7 @@
             rgbToHex: { get: () => Pixel.rgbToHex, enumerable: true },
             colorDist: { get: () => Pixel.colorDist, enumerable: true }
         });
+        Pixel.installCore(runtime);
         Pixel.installView(runtime);
         Pixel.installCanvas(runtime);
         Pixel.installTools(runtime);
@@ -428,7 +431,7 @@
         cropOverlay = host.querySelector('[data-crop-overlay]');
         const compareDivider = host.querySelector('[data-compare-divider]');
 
-        layers = [{ canvas: null, name: t('pixel.layer_background'), visible: true, opacity: 1 }];
+        layers = [runtime.createLayer({ name: t('pixel.layer_background') })];
         activeLayerIdx = 0;
 
         function wireClick(selector, handler) {
@@ -585,7 +588,7 @@
             const visBtn = e.target.closest('[data-layer-vis]');
             if (visBtn) {
                 const idx = parseInt(visBtn.dataset.layerVis);
-                if (layers[idx]) { layers[idx].visible = !layers[idx].visible; compositeLayers(); refreshLayerPanel(); }
+                if (layers[idx]) { layers[idx].visible = !layers[idx].visible; compositeLayers(); refreshLayerPanel(); runtime.notifyLayersChanged(); }
             }
         });
 
@@ -594,8 +597,8 @@
             if (nameEl) {
                 const idx = parseInt(nameEl.dataset.layerName);
                 resetFilterPreview();
-                if (compareMode) exitCompareMode({ preservePreview: true });
-                activeLayerIdx = idx;
+                runtime.commitPendingPreviews();
+                runtime.activeLayerIdx = idx;
                 runtime.cancelStickerGesture();
                 if (layers[idx]?.sticker && activeTool !== 'move') setActiveTool('move');
                 if (editMaskMode) {
@@ -611,7 +614,7 @@
             const opSlider = e.target.closest('[data-layer-opacity]');
             if (opSlider) {
                 const idx = parseInt(opSlider.dataset.layerOpacity);
-                if (layers[idx]) { layers[idx].opacity = Number(opSlider.value) / 100; compositeLayers(); }
+                if (layers[idx]) { layers[idx].opacity = Number(opSlider.value) / 100; compositeLayers(); runtime.notifyLayersChanged(); }
             }
         });
 
@@ -796,6 +799,7 @@
 
         state.dispose = function () {
             runtime.disposeStickers();
+            runtime.disposeCore();
             if (runtime._filterPreviewRAF) cancelAnimationFrame(runtime._filterPreviewRAF);
             state.disposed = true;
             state.imageRead?.abort();
