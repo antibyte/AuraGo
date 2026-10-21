@@ -5,38 +5,80 @@
     const MAX_FRAME_BOXES = 4096;
     const MAX_WINDOWS = 256;
     const MAX_MASKS = 1024;
+    const MAX_FRAGMENT_SLOTS = 256;
+    const MAX_DUST = 96;
     const FRAME_TILE_BUDGET = 144;
     const WINDOW_Z_BASE = .16;
     const WINDOW_Z_STEP = .75;
     const WINDOW_FRAME_Z_OFFSET = .34;
+    // Overlapping tiles are separated by far less than a pixel in depth, so their shared 1 px seams never z-fight.
+    const CORNER_Z_LIFT = .008;
+    const ODD_TILE_Z_LIFT = .004;
+    const FRAME_BRIGHTNESS_JITTER = .08;
+    const FRAGMENT_BRIGHTNESS_JITTER = .12;
+    // Sequenced assembly: tile k of n starts at k/n * ASSEMBLY_SPAN of the assembly and needs ASSEMBLY_SPAN of it.
+    const ASSEMBLY_SPAN = .5;
+    const ASSEMBLY_DROP_PX = 40;
+    const ASSEMBLY_START_SCALE = .6;
+    const FLIGHT_Z_GAP = .02;
+    const DUST_COLOR = 0xefe6d0;
+    const DUST_LIFE = .45;
+    const DUST_OPACITY = .7;
+    const DUST_GROWTH = .6;
+    // Dust sits just in front of the frame tiles and behind the next window plane.
+    const DUST_Z_LIFT = .05;
+    const DUST_DEFAULT_Z = .12;
     const MATERIALS = {
-        wood: ['#9c6840', '#b17b4e', '#d1a36b', '#765034'],
-        stone: ['#75857b', '#8d9a8c', '#a8ad99', '#596b63'],
-        earth: ['#75563c', '#977047', '#b08a56', '#5d4837']
+        wood: ['#c39a5d', '#ad854e', '#d9b67a', '#8a6539'],
+        stone: ['#9e9e9e', '#8a8a8a', '#b9b9b9', '#5e5e5e'],
+        earth: ['#8f6342', '#7a5236', '#5f3e27', '#7cbd4a']
     };
+    const blocks = window.AuraVoxelBlocks;
 
     function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
-    function rectFor(record) {
-        const measured = record && record.element && typeof record.element.getBoundingClientRect === 'function'
-            ? record.element.getBoundingClientRect()
-            : record && record.rect;
-        if (!measured) return null;
-        const x = Number(measured.x ?? measured.left);
-        const y = Number(measured.y ?? measured.top);
-        const width = Number(measured.width);
-        const height = Number(measured.height);
-        return Number.isFinite(x) && Number.isFinite(y) && width > 0 && height > 0 ? { x, y, width, height } : null;
+    function easeOutBack(t) { return 1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2); }
+    function hashString(text) {
+        let hash = 0;
+        for (let i = 0; i < text.length; i++) hash = (hash * 31 + text.charCodeAt(i)) | 0;
+        return hash;
+    }
+    function hash01(n) {
+        const v = Math.sin(n * 12.9898) * 43758.5453;
+        return v - Math.floor(v);
     }
     function materialForRecord(record) {
         const explicit = String(record && record.material || '').toLowerCase();
         if (MATERIALS[explicit]) return explicit;
         const source = String(record && (record.appId || record.id) || 'desktop-window');
-        let hash = 0;
-        for (let i = 0; i < source.length; i++) hash = (hash * 31 + source.charCodeAt(i)) | 0;
-        return ['wood', 'stone', 'earth'][Math.abs(hash) % 3];
+        return ['wood', 'stone', 'earth'][Math.abs(hashString(source)) % 3];
     }
     function frameStep(rect) {
         return clamp(Math.ceil((rect.width * 2 + rect.height * 2) / FRAME_TILE_BUDGET), 14, 34);
+    }
+
+    // The frame of one window as block tiles: four corners plus the edge strips. visit(side, index, order, total,
+    // cx, cy, bw, bh, pattern, tileSize) gets every tile; order runs clockwise around the perimeter from the
+    // top-left corner. The edge geometry is pinned by the occlusion browser test (left tile at x - tileSize * .48).
+    function layoutTiles(rect, kind, visit) {
+        const step = frameStep(rect);
+        const tileSize = Math.max(15, step * 1.06);
+        const columns = Math.max(1, Math.ceil(rect.width / step));
+        const rows = Math.max(1, Math.ceil(rect.height / step));
+        const total = 4 + 2 * columns + 2 * rows;
+        const patterns = blocks.FRAME_PATTERNS[kind];
+        const topCorner = kind === 'earth' ? patterns.top : patterns.corner;
+        const inset = tileSize * .48;
+        const left = rect.x - inset, right = rect.x + rect.width + inset;
+        const top = rect.y - inset, bottom = rect.y + rect.height + inset;
+        const pitchX = rect.width / columns, pitchY = rect.height / rows;
+        visit('corner', 0, 0, total, left, top, tileSize, tileSize, topCorner, tileSize);
+        for (let i = 0; i < columns; i++) visit('top', i, 1 + i, total, rect.x + (i + .5) * pitchX, top, pitchX + 1, tileSize, patterns.top, tileSize);
+        visit('corner', 1, 1 + columns, total, right, top, tileSize, tileSize, topCorner, tileSize);
+        for (let i = 0; i < rows; i++) visit('right', i, 2 + columns + i, total, right, rect.y + (i + .5) * pitchY, tileSize, pitchY + 1, patterns.edge, tileSize);
+        visit('corner', 2, 2 + columns + rows, total, right, bottom, tileSize, tileSize, patterns.corner, tileSize);
+        for (let i = 0; i < columns; i++) visit('bottom', i, 3 + columns + rows + columns - 1 - i, total, rect.x + (i + .5) * pitchX, bottom, pitchX + 1, tileSize, patterns.edge, tileSize);
+        visit('corner', 3, 3 + 2 * columns + rows, total, left, bottom, tileSize, tileSize, patterns.corner, tileSize);
+        for (let i = 0; i < rows; i++) visit('left', i, 4 + 2 * columns + rows + rows - 1 - i, total, left, rect.y + (i + .5) * pitchY, tileSize, pitchY + 1, patterns.edge, tileSize);
     }
 
     function create(options) {
@@ -46,18 +88,26 @@
         let renderer = null;
         let scene = null;
         let camera = null;
+        let atlas = null;
         let frameMesh = null;
+        let framePattern = null;
         let frameShadowMesh = null;
         let windowDepthMesh = null;
         let fragmentMesh = null;
         let fragmentOpacity = null;
+        let fragmentPattern = null;
+        let dustMesh = null;
+        let dustOpacity = null;
         let maskMesh = null;
         let workObject = null;
+        let tint = null;
         let ready = false;
         let contextLost = false;
         let backend = 'loading';
         let fallbackDirty = true;
         let frameVoxelCount = 0;
+        const dust = [];
+        const patternCanvases = new Map();
 
         function state() { return read(); }
         function noteError(stage, error) { options.noteError(stage, error); }
@@ -74,6 +124,19 @@
             }
         }
 
+        // One 8x8 canvas per pattern for the 2D fallback; the bevel is already part of the pixels.
+        function patternCanvas(name) {
+            let canvas = patternCanvases.get(name);
+            if (canvas) return canvas;
+            canvas = document.createElement('canvas');
+            canvas.width = 8;
+            canvas.height = 8;
+            const context = canvas.getContext('2d');
+            if (context) context.putImageData(new ImageData(new Uint8ClampedArray(blocks.tilePixels(name)), 8, 8), 0, 0);
+            patternCanvases.set(name, canvas);
+            return canvas;
+        }
+
         function paintFallback() {
             const s = state();
             if (!fallbackContext || !fallbackDirty || s.stopped) return;
@@ -85,28 +148,17 @@
             fallback.height = Math.max(1, Math.round(height * dpr));
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             ctx.clearRect(0, 0, width, height);
-            ctx.lineJoin = 'miter';
+            ctx.imageSmoothingEnabled = false;
             for (let windowIndex = 0; windowIndex < windowRects.length; windowIndex++) {
                 const item = windowRects[windowIndex];
                 const rect = item.rect;
                 ctx.save();
                 clipOutsideRects(ctx, [rect, ...maskRects, ...windowRects.slice(windowIndex + 1).map(higher => higher.rect)], width, height);
-                const step = frameStep(rect);
-                const colors = MATERIALS[materialForRecord(item.record)];
                 ctx.shadowColor = 'rgba(59,39,25,.3)';
                 ctx.shadowBlur = 4;
-                for (let x = rect.x; x <= rect.x + rect.width; x += step) {
-                    ctx.fillStyle = colors[Math.abs(Math.floor(x / step)) % colors.length];
-                    ctx.fillRect(x, rect.y - step * .5, step + 1, step);
-                    ctx.fillStyle = colors[(Math.abs(Math.floor(x / step)) + 2) % colors.length];
-                    ctx.fillRect(x, rect.y + rect.height - step * .5, step + 1, step);
-                }
-                for (let y = rect.y + step; y < rect.y + rect.height - step; y += step) {
-                    ctx.fillStyle = colors[(Math.abs(Math.floor(y / step)) + 1) % colors.length];
-                    ctx.fillRect(rect.x - step * .5, y, step, step + 1);
-                    ctx.fillStyle = colors[(Math.abs(Math.floor(y / step)) + 3) % colors.length];
-                    ctx.fillRect(rect.x + rect.width - step * .5, y, step, step + 1);
-                }
+                layoutTiles(rect, materialForRecord(item.record), (side, index, order, total, cx, cy, bw, bh, pattern) => {
+                    ctx.drawImage(patternCanvas(pattern), cx - bw / 2, cy - bh / 2, bw, bh);
+                });
                 ctx.shadowBlur = 0;
                 ctx.restore();
             }
@@ -122,6 +174,26 @@
             material.stencilFail = THREE.KeepStencilOp;
             material.stencilZFail = THREE.KeepStencilOp;
             material.stencilZPass = masked ? THREE.ReplaceStencilOp : THREE.KeepStencilOp;
+        }
+
+        // Per-instance fade: the geometry carries an instanceOpacity attribute, the fragment shader scales alpha by it.
+        function patchInstanceOpacity(material, cacheKey) {
+            const previous = material.onBeforeCompile;
+            material.onBeforeCompile = (shader, rendererRef) => {
+                if (previous) previous.call(material, shader, rendererRef);
+                shader.vertexShader = 'attribute float instanceOpacity; varying float vInstanceOpacity;\n' + shader.vertexShader;
+                shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vInstanceOpacity = instanceOpacity;');
+                shader.fragmentShader = 'varying float vInstanceOpacity;\n' + shader.fragmentShader;
+                shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.a *= vInstanceOpacity;');
+            };
+            material.customProgramCacheKey = () => cacheKey;
+            material.needsUpdate = true;
+        }
+
+        function instancedAttribute(count, fill, dynamic) {
+            const attribute = new THREE.InstancedBufferAttribute(new Float32Array(count).fill(fill), 1);
+            if (dynamic) attribute.setUsage(THREE.DynamicDrawUsage);
+            return attribute;
         }
 
         function resizeRenderer() {
@@ -176,36 +248,42 @@
             }, { signal });
             renderer.setClearColor(0x000000, 0);
             renderer.outputColorSpace = THREE.SRGBColorSpace;
-            renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.02;
+            // The pixel-art palettes are meant to be seen as drawn, so the overlay is not tone mapped.
+            renderer.toneMapping = THREE.NoToneMapping;
             scene = new THREE.Scene();
             camera = new THREE.OrthographicCamera(-1, 1, 1, -1, .1, 100);
             camera.position.set(0, 0, 32);
             camera.lookAt(0, 0, 0);
             workObject = new THREE.Object3D();
+            tint = new THREE.Color();
+            atlas = blocks.buildAtlas(THREE);
 
-            const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
-            const boxMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0, roughness: .9,
-                transparent: true, depthWrite: false });
-            setStencil(boxMaterial, false, 0, 1, 0);
-            boxGeometry.setAttribute('instanceOpacity', new THREE.InstancedBufferAttribute(new Float32Array(256).fill(1), 1));
-            boxMaterial.onBeforeCompile = shader => {
-                shader.vertexShader = 'attribute float instanceOpacity; varying float vInstanceOpacity;\n' + shader.vertexShader;
-                shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vInstanceOpacity = instanceOpacity;');
-                shader.fragmentShader = 'varying float vInstanceOpacity;\n' + shader.fragmentShader;
-                shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.a *= vInstanceOpacity;');
-            };
-            fragmentOpacity = boxGeometry.getAttribute('instanceOpacity');
-            fragmentMesh = new THREE.InstancedMesh(boxGeometry, boxMaterial, 256);
+            // Fragments: the atlas pattern of the window material on all six faces of the cube, faded per instance.
+            const fragmentGeometry = new THREE.BoxGeometry(1, 1, 1);
+            const fragmentMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, depthWrite: false });
+            fragmentMaterial.toneMapped = false;
+            setStencil(fragmentMaterial, false, 0, 1, 0);
+            blocks.patchAtlasMaterial(THREE, fragmentMaterial, atlas);
+            patchInstanceOpacity(fragmentMaterial, 'voxel-fragment-' + atlas.count);
+            fragmentOpacity = instancedAttribute(MAX_FRAGMENT_SLOTS, 1, false);
+            fragmentPattern = instancedAttribute(MAX_FRAGMENT_SLOTS, 0, true);
+            fragmentGeometry.setAttribute('instanceOpacity', fragmentOpacity);
+            fragmentGeometry.setAttribute('aPattern', fragmentPattern);
+            fragmentMesh = new THREE.InstancedMesh(fragmentGeometry, fragmentMaterial, MAX_FRAGMENT_SLOTS);
             fragmentMesh.count = 0;
             fragmentMesh.frustumCulled = false;
             fragmentMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
             fragmentMesh.renderOrder = 4;
             scene.add(fragmentMesh);
 
-            const frameMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0, roughness: .84 });
+            const frameGeometry = new THREE.BoxGeometry(1, 1, 1);
+            const frameMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            frameMaterial.toneMapped = false;
             setStencil(frameMaterial, false, 0, 1, 0);
-            frameMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), frameMaterial, MAX_FRAME_BOXES);
+            blocks.patchAtlasMaterial(THREE, frameMaterial, atlas);
+            framePattern = instancedAttribute(MAX_FRAME_BOXES, 0, true);
+            frameGeometry.setAttribute('aPattern', framePattern);
+            frameMesh = new THREE.InstancedMesh(frameGeometry, frameMaterial, MAX_FRAME_BOXES);
             frameMesh.count = 0;
             frameMesh.frustumCulled = false;
             frameMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -237,10 +315,26 @@
             maskMesh.renderOrder = -100;
             scene.add(maskMesh);
 
-            const ambient = new THREE.AmbientLight(0xffedcf, 2.05);
-            const key = new THREE.DirectionalLight(0xffd28c, 2.8);
+            // Dust puffs: flat squares that fade out, drawn under the same stencil as the frames.
+            const dustGeometry = new THREE.BoxGeometry(1, 1, 1);
+            const dustMaterial = new THREE.MeshBasicMaterial({ color: DUST_COLOR, transparent: true, depthWrite: false });
+            dustMaterial.toneMapped = false;
+            setStencil(dustMaterial, false, 0, 1, 0);
+            patchInstanceOpacity(dustMaterial, 'voxel-dust');
+            dustOpacity = instancedAttribute(MAX_DUST, 0, true);
+            dustGeometry.setAttribute('instanceOpacity', dustOpacity);
+            dustMesh = new THREE.InstancedMesh(dustGeometry, dustMaterial, MAX_DUST);
+            dustMesh.count = 0;
+            dustMesh.frustumCulled = false;
+            dustMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            dustMesh.renderOrder = 5;
+            scene.add(dustMesh);
+
+            // Front faces catch about the palette colour; the tumbling fragments get visibly lit and shaded sides.
+            const ambient = new THREE.AmbientLight(0xfff6e8, 1.85);
+            const key = new THREE.DirectionalLight(0xfff0d6, 1.7);
             key.position.set(-4, 6, 7);
-            const rim = new THREE.DirectionalLight(0x95bd72, 1.25);
+            const rim = new THREE.DirectionalLight(0xd9e6ff, .9);
             rim.position.set(4, -2, -4);
             scene.add(ambient, key, rim);
             layer.appendChild(canvas);
@@ -274,54 +368,50 @@
                 const damage = damageWindows.get(key);
                 if (damage && !damage.dragging && now >= damage.repairAt) damageWindows.delete(key);
                 const liveDamage = damage && (damage.dragging || now < damage.repairAt) ? damage : null;
-                const colors = MATERIALS[materialForRecord(record)];
-                const step = frameStep(rect);
-                const tileSize = Math.max(15, step * 1.06);
                 const assembly = assemblingWindows.get(key);
                 const progress = assembly ? clamp((now - assembly.at) / assembly.duration, 0, 1) : 1;
-                const settle = 1 - Math.pow(1 - progress, 3);
-                if (assembly && progress >= 1) assemblingWindows.delete(key);
-                const tile = (side, index, cx, cy, bw, bh, color) => {
+                const seed = hashString(key);
+                layoutTiles(rect, materialForRecord(record), (side, index, order, total, cx, cy, bw, bh, pattern, tileSize) => {
                     if (frameIndex >= MAX_FRAME_BOXES || (liveDamage && liveDamage.holes.has(side + ':' + index))) return;
-                    let px = cx, py = cy, pz = planeZ + WINDOW_FRAME_Z_OFFSET;
-                    if (assembly && progress < 1) {
-                        const seed = (index + 1) * 12.9898 + side.charCodeAt(0) * 78.233;
-                        px += Math.sin(seed) * step * 2.1 * (1 - settle);
-                        py -= (24 + Math.abs(Math.cos(seed * 1.37)) * 44) * (1 - settle);
-                        pz += .32 * (1 - settle);
+                    let py = cy, scale = 1;
+                    let pz = planeZ + WINDOW_FRAME_Z_OFFSET + (side === 'corner' ? CORNER_Z_LIFT : (index & 1) * ODD_TILE_Z_LIFT);
+                    if (assembly) {
+                        const p = clamp((progress - order / total * ASSEMBLY_SPAN) / ASSEMBLY_SPAN, 0, 1);
+                        if (p <= 0) return;
+                        if (p >= 1 && side === 'corner' && !(assembly.landed & (1 << index))) {
+                            assembly.landed = (assembly.landed | (1 << index));
+                            spawnDust(cx, cy, 3, pz + tileSize / (2 * PIXELS_PER_METER) + DUST_Z_LIFT, index === 0 || index === 3 ? -1 : 1);
+                        }
+                        if (p < 1) {
+                            const eased = easeOutBack(p);
+                            py -= ASSEMBLY_DROP_PX * (1 - eased);
+                            scale = ASSEMBLY_START_SCALE + (1 - ASSEMBLY_START_SCALE) * eased;
+                            // A falling tile stays just behind its own window, so it never covers the window contents.
+                            pz = planeZ - tileSize * scale / (2 * PIXELS_PER_METER) - FLIGHT_Z_GAP;
+                        }
                     }
-                    workObject.position.set(pixelX(px, width), pixelY(py, height), pz);
+                    workObject.position.set(pixelX(cx, width), pixelY(py, height), pz);
                     workObject.rotation.set(0, 0, 0);
-                    workObject.scale.set(bw / PIXELS_PER_METER, bh / PIXELS_PER_METER, tileSize / PIXELS_PER_METER);
+                    workObject.scale.set(bw * scale / PIXELS_PER_METER, bh * scale / PIXELS_PER_METER, tileSize * scale / PIXELS_PER_METER);
                     workObject.updateMatrix();
                     frameMesh.setMatrixAt(frameIndex, workObject.matrix);
-                    frameMesh.setColorAt(frameIndex, new THREE.Color(color));
-                    workObject.position.set(pixelX(px + 2.5, width), pixelY(py + 4, height), pz - .30);
-                    workObject.scale.set((bw + 5) / PIXELS_PER_METER, (bh + 5) / PIXELS_PER_METER, tileSize * .62 / PIXELS_PER_METER);
+                    const shade = 1 + (hash01(seed + order * 7.31) - .5) * FRAME_BRIGHTNESS_JITTER;
+                    frameMesh.setColorAt(frameIndex, tint.setRGB(shade, shade, shade));
+                    framePattern.array[frameIndex] = atlas.index[pattern];
+                    workObject.position.set(pixelX(cx + 2.5, width), pixelY(py + 4, height), pz - .30);
+                    workObject.scale.set((bw + 5) * scale / PIXELS_PER_METER, (bh + 5) * scale / PIXELS_PER_METER, tileSize * .62 * scale / PIXELS_PER_METER);
                     workObject.updateMatrix();
                     frameShadowMesh.setMatrixAt(frameIndex, workObject.matrix);
                     frameIndex++;
-                };
-                const horizontalCount = Math.max(1, Math.ceil(rect.width / step));
-                const verticalCount = Math.max(1, Math.ceil(rect.height / step));
-                for (let i = 0; i < horizontalCount; i++) {
-                    const cx = rect.x + (i + .5) * rect.width / horizontalCount;
-                    const widthForTile = rect.width / horizontalCount + 1;
-                    tile('top', i, cx, rect.y - tileSize * .48, widthForTile, tileSize, colors[i % colors.length]);
-                    tile('bottom', i, cx, rect.y + rect.height + tileSize * .48, widthForTile, tileSize, colors[(i + 2) % colors.length]);
-                }
-                for (let i = 0; i < verticalCount; i++) {
-                    const cy = rect.y + (i + .5) * rect.height / verticalCount;
-                    const heightForTile = rect.height / verticalCount + 1;
-                    tile('left', i, rect.x - tileSize * .48, cy, tileSize, heightForTile, colors[(i + 1) % colors.length]);
-                    tile('right', i, rect.x + rect.width + tileSize * .48, cy, tileSize, heightForTile, colors[(i + 3) % colors.length]);
-                }
+                });
+                if (assembly && progress >= 1) assemblingWindows.delete(key);
             }
             frameMesh.count = frameIndex;
             frameShadowMesh.count = frameIndex;
             frameVoxelCount = frameIndex;
             frameMesh.instanceMatrix.needsUpdate = true;
             frameShadowMesh.instanceMatrix.needsUpdate = true;
+            framePattern.needsUpdate = true;
             if (frameMesh.instanceColor) frameMesh.instanceColor.needsUpdate = true;
             windowDepthMesh.instanceMatrix.needsUpdate = true;
 
@@ -339,19 +429,64 @@
             invalidateFallback();
         }
 
-        function setFragmentSlot(index, color) {
+        // Dust: x/y in screen px, vx/vy in px/s (up is negative), z in scene metres. dirX is the outward side
+        // (-1 left, 1 right, 0 either).
+        function spawnDust(x, y, count, z, dirX) {
+            if (!dustMesh) return;
+            for (let i = 0; i < count && dust.length < MAX_DUST; i++) {
+                const speed = 30 + Math.random() * 30;
+                const side = dirX || (Math.random() < .5 ? -1 : 1);
+                dust.push({ x: x + (Math.random() - .5) * 6, y: y + (Math.random() - .5) * 6, z: z == null ? DUST_DEFAULT_Z : z,
+                    vx: side * speed * (.3 + Math.random() * .5), vy: -speed * (.6 + Math.random() * .4), size: 4 + Math.random() * 3, age: 0 });
+            }
+            writeDust();
+        }
+        function writeDust() {
+            if (!dustMesh) return;
+            const { width, height } = state();
+            for (let i = 0; i < dust.length; i++) {
+                const puff = dust[i];
+                const life = puff.age / DUST_LIFE;
+                const size = puff.size * (1 + DUST_GROWTH * life) / PIXELS_PER_METER;
+                workObject.position.set(pixelX(puff.x, width), pixelY(puff.y, height), puff.z);
+                workObject.rotation.set(0, 0, 0);
+                workObject.scale.set(size, size, size);
+                workObject.updateMatrix();
+                dustMesh.setMatrixAt(i, workObject.matrix);
+                dustOpacity.array[i] = DUST_OPACITY * (1 - life);
+            }
+            dustMesh.count = dust.length;
+            dustMesh.instanceMatrix.needsUpdate = true;
+            dustOpacity.needsUpdate = true;
+        }
+        function updateDust(dt) {
+            for (let i = dust.length - 1; i >= 0; i--) {
+                const puff = dust[i];
+                puff.age += dt;
+                if (puff.age >= DUST_LIFE) { dust.splice(i, 1); continue; }
+                puff.x += puff.vx * dt;
+                puff.y += puff.vy * dt;
+            }
+            writeDust();
+        }
+
+        function setFragmentSlot(index) {
             if (!fragmentMesh || !workObject) return;
             workObject.position.set(0, 0, -100);
             workObject.rotation.set(0, 0, 0);
             workObject.scale.set(0, 0, 0);
             workObject.updateMatrix();
             fragmentMesh.setMatrixAt(index, workObject.matrix);
-            fragmentMesh.setColorAt(index, new THREE.Color(color));
+            fragmentMesh.setColorAt(index, tint.setRGB(1, 1, 1));
             fragmentOpacity.array[index] = 0;
         }
-        function setFragmentColor(index, color, opacity) {
+        // A fragment shows the edge pattern of its window material on every face, with a little brightness jitter.
+        function setFragmentLook(index, material, opacity) {
             if (!fragmentMesh || !fragmentOpacity) return;
-            fragmentMesh.setColorAt(index, new THREE.Color(color));
+            const patterns = blocks.FRAME_PATTERNS[material] || blocks.FRAME_PATTERNS.stone;
+            const shade = 1 + (Math.random() - .5) * FRAGMENT_BRIGHTNESS_JITTER;
+            fragmentPattern.array[index] = atlas.index[patterns.edge];
+            fragmentMesh.setColorAt(index, tint.setRGB(shade, shade, shade));
             fragmentOpacity.array[index] = opacity;
         }
         function setFragmentOpacity(index, opacity) {
@@ -359,7 +494,7 @@
         }
         function setFragmentMatrix(slot, index) {
             if (!fragmentMesh || !slot.active) {
-                if (fragmentMesh) setFragmentSlot(index, '#75857b');
+                if (fragmentMesh) setFragmentSlot(index);
                 return;
             }
             const translation = slot.body.translation();
@@ -379,6 +514,7 @@
             if (count != null) fragmentMesh.count = count;
             fragmentMesh.instanceMatrix.needsUpdate = true;
             fragmentOpacity.needsUpdate = true;
+            fragmentPattern.needsUpdate = true;
             if (fragmentMesh.instanceColor) fragmentMesh.instanceColor.needsUpdate = true;
         }
         function invalidateFallback() { fallbackDirty = true; }
@@ -397,9 +533,11 @@
                 renderer.forceContextLoss();
                 renderer.domElement.remove();
             }
-            for (const mesh of [frameMesh, frameShadowMesh, windowDepthMesh, fragmentMesh, maskMesh]) {
+            for (const mesh of [frameMesh, frameShadowMesh, windowDepthMesh, fragmentMesh, dustMesh, maskMesh]) {
                 if (mesh) { mesh.geometry.dispose(); mesh.material.dispose(); }
             }
+            if (atlas) atlas.texture.dispose();
+            dust.length = 0;
             renderer = null;
             scene = null;
             camera = null;
@@ -410,9 +548,10 @@
                 backdropVoxelCount: 0, wallpaper: fullWallpaper ? 'voxel_world' : 'custom' };
         }
         return {
-            paintFallback, createScene, resizeRenderer, updateSceneInstances, setFragmentSlot, setFragmentColor,
-            setFragmentOpacity, setFragmentMatrix, commitFragments,
+            paintFallback, createScene, resizeRenderer, updateSceneInstances, setFragmentSlot, setFragmentLook,
+            setFragmentOpacity, setFragmentMatrix, commitFragments, spawnDust, updateDust,
             invalidateFallback, render, dispose, inspect, materialForRecord, frameStep,
+            dustActive() { return dust.length > 0; },
             setBackend(value) { backend = value; },
             get ready() { return ready; },
             get rendererReady() { return !!renderer; },

@@ -6,6 +6,7 @@
     // windows and sparkling water. Every number that decides how the terrain looks lives in this block.
     const BEVEL_LIGHT = 1.12;      // atlas pixel bevel: row 0 and column 0 brightened ...
     const BEVEL_DARK = .85;        // ... row 7 and column 7 darkened
+    const UV_INSET = .002;         // u range kept away from the atlas tile borders (a fraction of a tile)
     const TEXEL_WATER = .08;       // texel noise of the water (the terrain uses uniforms.uTexel)
     const AO_FLOOR = .42;          // brightness of a fully occluded corner
     const AO_POWER = 1.15;
@@ -76,26 +77,37 @@
     function srgbToLinear(c) { return c <= .04045 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4); }
     function hexLinear(hex) { return hexBytes(hex).map(c => srgbToLinear(c / 255)); }
 
+    // The 8x8 RGBA pixels of one pattern, top row first, with the pixel bevel baked in. The atlas and the
+    // 2D fallback frames both draw from it.
+    function tilePixels(name) {
+        const pattern = PATTERNS[name];
+        const out = new Uint8Array(8 * 8 * 4);
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const rgb = hexBytes(pattern.palette[pattern.rows[r][c]] || '#ff00ff');
+                let factor = 1;
+                if (r === 0 || c === 0) factor *= BEVEL_LIGHT;
+                if (r === 7 || c === 7) factor *= BEVEL_DARK;
+                const at = (r * 8 + c) * 4;
+                out[at] = Math.min(255, Math.round(rgb[0] * factor));
+                out[at + 1] = Math.min(255, Math.round(rgb[1] * factor));
+                out[at + 2] = Math.min(255, Math.round(rgb[2] * factor));
+                out[at + 3] = 255;
+            }
+        }
+        return out;
+    }
+
     // One RGBA strip (8*N x 8) holding every pattern next to each other, with a pixel bevel on each tile.
     function buildAtlas(THREE) {
         const names = Object.keys(PATTERNS);
         const width = names.length * 8;
         const data = new Uint8Array(width * 8 * 4);
         names.forEach((name, tile) => {
-            const pattern = PATTERNS[name];
+            const pixels = tilePixels(name);
             for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
-                    const rgb = hexBytes(pattern.palette[pattern.rows[r][c]] || '#ff00ff');
-                    let factor = 1;
-                    if (r === 0 || c === 0) factor *= BEVEL_LIGHT;
-                    if (r === 7 || c === 7) factor *= BEVEL_DARK;
-                    // Texture row 0 is the bottom (v = 0), the patterns are written top-down.
-                    const at = ((7 - r) * width + tile * 8 + c) * 4;
-                    data[at] = Math.min(255, Math.round(rgb[0] * factor));
-                    data[at + 1] = Math.min(255, Math.round(rgb[1] * factor));
-                    data[at + 2] = Math.min(255, Math.round(rgb[2] * factor));
-                    data[at + 3] = 255;
-                }
+                // Texture row 0 is the bottom (v = 0), the patterns are written top-down.
+                data.set(pixels.subarray(r * 32, r * 32 + 32), ((7 - r) * width + tile * 8) * 4);
             }
         });
         const texture = new THREE.DataTexture(data, width, 8, THREE.RGBAFormat);
@@ -109,12 +121,13 @@
         return { texture, index, count: names.length };
     }
 
-    // The material samples tile aPattern (an InstancedBufferAttribute on the geometry) of the atlas.
+    // The material samples tile aPattern (an InstancedBufferAttribute on the geometry) of the atlas. The u
+    // coordinate is pulled in by UV_INSET so a tumbling cube never samples the neighbouring pattern at its rim.
     function patchAtlasMaterial(THREE, material, atlas) {
         material.map = atlas.texture;
         material.onBeforeCompile = shader => {
             shader.vertexShader = 'attribute float aPattern;\n' + shader.vertexShader.replace('#include <uv_vertex>',
-                '#include <uv_vertex>\n\tvMapUv = vec2((uv.x + aPattern) / ' + atlas.count + '.0, uv.y);');
+                '#include <uv_vertex>\n\tvMapUv = vec2((uv.x * ' + glsl(1 - 2 * UV_INSET) + ' + ' + glsl(UV_INSET) + ' + aPattern) / ' + atlas.count + '.0, uv.y);');
         };
         material.customProgramCacheKey = () => 'voxel-atlas-' + atlas.count;
         material.needsUpdate = true;
@@ -263,5 +276,5 @@ totalEmissiveRadiance += vxGlintColor * vxGlint * ${glsl(SPARKLE_GAIN)} * mix(uS
         return material;
     }
 
-    window.AuraVoxelBlocks = Object.freeze({ PATTERNS, buildAtlas, patchAtlasMaterial, patchTerrainMaterial, FRAME_PATTERNS });
+    window.AuraVoxelBlocks = Object.freeze({ PATTERNS, buildAtlas, patchAtlasMaterial, patchTerrainMaterial, FRAME_PATTERNS, tilePixels });
 })();

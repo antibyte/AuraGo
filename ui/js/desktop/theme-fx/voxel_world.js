@@ -6,6 +6,10 @@
     const FIXED_STEP = 1 / 60;
     const MAX_FRAGMENTS = 256;
     const MASK_SELECTORS = '.vd-icon, .vd-widget, .vd-taskbar, .vd-dock, .vd-start-menu, .vd-context-menu, .vd-modal-backdrop, .vd-toast-container, .vd-global-menu, .vd-radial-menu';
+    // A click on the bare desktop (.vd-workspace) bursts into earth fragments, unless it lands on any of these.
+    const BURST_BLOCKERS = '.vd-window, .vd-icon, .vd-widget, .vd-taskbar, .vd-dock, .vd-start-menu, .vd-context-menu, .vd-modal-backdrop, .vd-toast-container, .vd-global-menu, .vd-radial-menu, .vd-sip-phone-gadget, button, a, input, textarea, select, [contenteditable]';
+    const BURST_INTERVAL_MS = 350;
+    const ASSEMBLY_MS = 620;
     const MATERIALS = window.AuraVoxelGraphics.materials;
 
     function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -60,6 +64,7 @@
         let lastSnapshotAt = 0;
         let lastSoundAt = 0;
         let lastPointerShearAt = 0;
+        let lastBurstAt = 0;
         let pointerInside = false;
         let pointerX = -1000;
         let pointerY = -1000;
@@ -475,7 +480,7 @@
             slot.body.setEnabled(true);
             slot.material = MATERIALS[material] ? material : 'stone';
             slot.color = color || MATERIALS[slot.material][Math.floor(Math.random() * MATERIALS[slot.material].length)];
-            graphics.setFragmentColor(index, slot.color, 1);
+            graphics.setFragmentLook(index, slot.material, 1);
             activeFragmentCount++;
             graphics.commitFragments();
             requestRender();
@@ -585,6 +590,10 @@
                         if (pendingFractures.length >= 8) pendingFractures.shift();
                         pendingFractures.push({ record, rect, velocity: record.velocity || {}, queuedAt: performance.now() });
                     }
+                    for (let i = 0; i < 8; i++) {
+                        const dustX = rect.x + (i + Math.random()) / 8 * rect.width;
+                        graphics.spawnDust(dustX, rect.y + rect.height, 1, null, dustX < rect.x + rect.width / 2 ? -1 : 1);
+                    }
                 }
                 removeWindowBody(id);
                 damageWindows.delete(id);
@@ -600,7 +609,7 @@
                 }
                 if (record.phase === 'open') {
                     damageWindows.delete(id);
-                    if (!record.silent && rect) assemblingWindows.set(id, { at: performance.now(), duration: .54 });
+                    if (motion && !record.silent && rect) assemblingWindows.set(id, { at: performance.now(), duration: ASSEMBLY_MS, landed: 0 });
                 }
                 if ((record.phase === 'drag' || record.phase === 'resize') && !record.silent && rect) {
                     const velocity = record.velocity || {};
@@ -660,6 +669,24 @@
                     break;
                 }
             }
+            requestRender();
+        }
+
+        function onPointerDown(event) {
+            const target = event.target;
+            if (!motion || !physicsReady || paused || event.button !== 0 || !(target instanceof Element)) return;
+            if (target.closest(BURST_BLOCKERS) || !target.closest('.vd-workspace')) return;
+            const now = performance.now();
+            if (now - lastBurstAt < BURST_INTERVAL_MS) return;
+            lastBurstAt = now;
+            // The cursor's own collider would trap the fragments, so it rests until the next pointer move.
+            if (pointerBody && pointerBody.isEnabled()) pointerBody.setEnabled(false);
+            for (let i = 0; i < 7; i++) {
+                spawnFragment(event.clientX + randomBetween(-5, 5), event.clientY + randomBetween(-4, 4), randomBetween(6, 11),
+                    randomBetween(-1.4, 1.4), randomBetween(2.2, 3.6), randomBetween(-.3, .3), null, 'earth');
+            }
+            graphics.spawnDust(event.clientX, event.clientY, 4);
+            sound('window.impact', .32, event.clientX, 'earth');
             requestRender();
         }
 
@@ -819,12 +846,10 @@
                 snapshot(true);
             }
             snapshot(false);
-            let assembling = false;
-            for (const [id, assembly] of assemblingWindows) {
-                if (time - assembly.at >= assembly.duration) assemblingWindows.delete(id);
-                else assembling = true;
-            }
-            if (assembling) graphics.updateSceneInstances();
+            graphics.updateDust(dt);
+            // The update also settles the tiles and removes an assembly once it has finished.
+            if (assemblingWindows.size) graphics.updateSceneInstances();
+            const assembling = assemblingWindows.size > 0;
             const cost = graphics.render();
             frameCount++;
             const callbackCost = performance.now() - begin;
@@ -837,7 +862,7 @@
                     graphics.updateSceneInstances();
                 } else repairing = true;
             }
-            if (activeFragmentCount > 0 || repairing || assembling || performance.now() < pointerActiveUntil || performance.now() < transitionUntil) {
+            if (activeFragmentCount > 0 || repairing || assembling || graphics.dustActive() || performance.now() < pointerActiveUntil || performance.now() < transitionUntil) {
                 if (!raf) raf = requestAnimationFrame(animate);
             } else {
                 // Ignore the idle gap before the next animation burst.
@@ -848,7 +873,7 @@
 
         function requestRender() {
             if (stopped || paused) return;
-            if (!motion || (activeFragmentCount === 0 && damageWindows.size === 0 && assemblingWindows.size === 0 &&
+            if (!motion || (activeFragmentCount === 0 && damageWindows.size === 0 && assemblingWindows.size === 0 && !graphics.dustActive() &&
                 performance.now() >= pointerActiveUntil && performance.now() >= transitionUntil)) {
                 if (graphics.rendererReady) renderOnce();
                 else graphics.paintFallback();
@@ -1020,6 +1045,7 @@
         window.addEventListener('aurago:desktop-window', onWindowEvent, { signal });
         window.addEventListener('aurago:desktop-windows-refresh', onRefresh, { signal });
         document.addEventListener('pointermove', onPointerMove, { passive: true, signal });
+        document.addEventListener('pointerdown', onPointerDown, { passive: true, signal });
         document.addEventListener('pointerleave', onPointerLeave, { passive: true, signal });
         document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); else resume(); }, { signal });
         if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', stop, { once: true });

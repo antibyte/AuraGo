@@ -114,6 +114,55 @@ func TestDesktopVoxelWorldCloseUpsBrowser(t *testing.T) {
 	s.eval(t, `()=>{const w=[...auditTest.state.windows.values()].find(w=>w.appId==='calculator');void auditTest.closeWindow(w.id);}`)
 	time.Sleep(650 * time.Millisecond)
 	voxelShot(t, s, "fracture", nil)
+	idle := func() {
+		t.Helper()
+		s.waitFor(t, "fragments and dust to retire", 20*time.Second, `()=>{const f=AuraDesktopThemeFx.inspect();return f.fragmentCount===0 && !f.rafPending;}`)
+	}
+
+	// Sequenced assembly: a new window builds its frame tile by tile over 620 ms, clockwise from the top-left
+	// corner. A screenshot takes longer than that, so the open event of the settled Calculator is replayed and the
+	// page clock the frame code reads is pinned to atMs after it while the picture is taken. The first shot is the
+	// full frame, the second a 2x close-up.
+	idle()
+	s.eval(t, `()=>{auditTest.openApp('calculator');const w=[...auditTest.state.windows.values()].find(w=>w.appId==='calculator');Object.assign(w.element.style,{left:'620px',top:'300px',width:'380px',height:'480px'});dispatchEvent(new CustomEvent('aurago:desktop-windows-refresh'));}`)
+	time.Sleep(1500 * time.Millisecond) // the window's own opening animation and the assembly are over
+	assemble := func(name string, clip bool, atMs int) {
+		t.Helper()
+		s.eval(t, `(at)=>{const record=AuraDesktopWindowEffects.snapshot().find(w=>w.appId==='calculator');dispatchEvent(new CustomEvent('aurago:desktop-window',{detail:{...record,phase:'open',silent:false}}));const pinned=performance.now()+at;performance.now=()=>pinned;}`, atMs)
+		time.Sleep(200 * time.Millisecond) // a few frames at the pinned time
+		var area *proto.PageViewport
+		if clip {
+			area = voxelClipAround(810, 540, 640, 640, 2)
+		}
+		voxelShot(t, s, name, area)
+		s.eval(t, `()=>{delete performance.now;}`)
+		time.Sleep(900 * time.Millisecond)
+	}
+	assemble("assembly", false, 200)
+	assemble("assembly-closeup", true, 360)
+	s.eval(t, `()=>{const w=[...auditTest.state.windows.values()].find(w=>w.appId==='calculator');void auditTest.closeWindow(w.id);}`)
+
+	// Click burst: a real mouse press on the empty desktop throws earth fragments and dust.
+	idle()
+	t.Log("click-burst target:", s.eval(t, `()=>{const t=document.elementFromPoint(400,800);return t.className||t.tagName;}`).Value.Str())
+	if err := s.page.Mouse.MoveTo(proto.Point{X: 400, Y: 800}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.page.Mouse.Down(proto.InputMouseButtonLeft, 1); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond) // about 250 ms in with the delay of voxelShot
+	voxelShot(t, s, "click-burst", nil)
+	t.Log("click-burst fragments:", s.eval(t, `()=>AuraDesktopThemeFx.inspect().fragmentCount`).Value.Int())
+	if err := s.page.Mouse.Up(proto.InputMouseButtonLeft, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	// The third frame material: the Terminal gets cobblestone with smooth-stone corners.
+	s.openApps(t, "terminal")
+	s.eval(t, `()=>{const w=[...auditTest.state.windows.values()].find(w=>w.appId==='terminal');Object.assign(w.element.style,{left:'1000px',top:'120px',width:'520px',height:'340px'});dispatchEvent(new CustomEvent('aurago:desktop-windows-refresh'));}`)
+	time.Sleep(1500 * time.Millisecond)
+	voxelShot(t, s, "frame-stone", voxelClipAround(1000, 120, 640, 400, 2))
 
 	t.Log("scene:", s.eval(t, `()=>JSON.stringify(AuraDesktopThemeFx.inspect().scene)`).Value.Str())
 	t.Log("inspect:", s.eval(t, `()=>JSON.stringify(AuraDesktopThemeFx.inspect())`).Value.Str())
