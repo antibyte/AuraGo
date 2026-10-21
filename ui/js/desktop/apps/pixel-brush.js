@@ -239,9 +239,9 @@
         const effect = spec.mode === 'effect';
         let holder = null, bctx = null;
         if (!effect) {
-            holder = r.brushBuffer || (r.brushBuffer = { canvas: null, stale: false });
-            if (!holder.canvas || holder.canvas.width !== w || holder.canvas.height !== h) holder.canvas = newCanvas(w, h);
-            bctx = holder.canvas.getContext('2d');
+            holder = r.brushBuffer || (r.brushBuffer = { surface: null, stale: false });
+            if (!holder.surface || holder.surface.width !== w || holder.surface.height !== h) holder.surface = newCanvas(w, h);
+            bctx = holder.surface.getContext('2d');
             if (holder.stale) bctx.clearRect(0, 0, w, h);
             holder.stale = true;
             bctx.imageSmoothingEnabled = !spec.crisp;
@@ -301,11 +301,11 @@
                     ctx.globalAlpha = 1;
                     ctx.clearRect(x0, y0, rw, rh);
                     ctx.drawImage(before, x0, y0, rw, rh, x0, y0, rw, rh);
-                    let src = holder.canvas, sx = x0, sy = y0, tmp = null;
+                    let src = holder.surface, sx = x0, sy = y0, tmp = null;
                     if (S.grain || selCanvas) {
                         tmp = Pixel.acquireTempCanvas(rw, rh);
                         const t = tmp.getContext('2d');
-                        t.drawImage(holder.canvas, x0, y0, rw, rh, 0, 0, rw, rh);
+                        t.drawImage(holder.surface, x0, y0, rw, rh, 0, 0, rw, rh);
                         t.globalCompositeOperation = 'destination-in';
                         if (S.grain) { t.save(); t.translate(-x0, -y0); t.fillStyle = S.grain; t.fillRect(x0, y0, rw, rh); t.restore(); }
                         if (selCanvas) t.drawImage(selCanvas, selBox.x - x0, selBox.y - y0);
@@ -373,17 +373,18 @@
             const schema = cfg.schema.filter(f => keys.includes(f.key));
             const root = bar.querySelector('[data-param-root]');
             const handles = r.toolUiHandles || (r.toolUiHandles = {});
-            handles[cfg.id] = root ? r.wireParamControls(root, schema, s, (key, value) => toolUi.changed(r, cfg, key, value)) : null;
+            handles[cfg.id] = root ? r.wireParamControls(root, schema, s, (key, value) => toolUi.changed(r, cfg, key, value, 'bar')) : null;
             if (cfg.wireExtra) cfg.wireExtra(r, bar, s);
             return handles[cfg.id];
         },
-        // A setting changed (UI, shortcut or preset): keep the runtime brush fields, the bar and the Brush panel in step.
-        changed(r, cfg, key, value) {
+        // A setting changed (bar, panel, shortcut or preset): keep the runtime brush fields, the bar and the Brush panel in step.
+        // The control the user is dragging (source) is never rewritten, that would break the drag or the typing.
+        changed(r, cfg, key, value, source) {
             const s = toolUi.settings(r, cfg);
             if (cfg.onChange) cfg.onChange(r, key, value, s);
             const handle = (r.toolUiHandles || {})[cfg.id];
-            if (handle && handle.refresh) handle.refresh();
-            if (r.refreshBrushPanel) r.refreshBrushPanel();
+            if (source !== 'bar' && handle && handle.refresh) handle.refresh();
+            if (source !== 'panel' && r.refreshBrushPanel) r.refreshBrushPanel();
         },
         set(r, cfg, key, value) {
             toolUi.settings(r, cfg)[key] = value;
@@ -681,10 +682,14 @@
 
     // --- Brush panel: presets plus every setting of the active stroke tool ---
 
-    function renderBrushPanel(r) {
+    // force = rebuild the markup (tool changed); otherwise the existing controls are only refreshed from the settings.
+    function renderBrushPanel(r, force) {
         const el = r.brushPanelEl;
         if (!el) return;
         const cfg = Brush.registry[r.activeTool];
+        if (!force && cfg && r.brushPanelCfg === cfg && r.brushPanelHandle) { r.brushPanelHandle.refresh(); return; }
+        r.brushPanelCfg = cfg || null;
+        r.brushPanelHandle = null;
         if (!cfg || (cfg.mode === 'effect' && !cfg.panel)) {
             el.innerHTML = '<p class="pixel-draw-hint">' + r.esc(r.t('pixel.brush_panel_hint', 'Pick a brush tool to see its settings.')) + '</p>';
             return;
@@ -693,14 +698,14 @@
         const presets = cfg.presets ? '<div class="pixel-brush-presets">' + PRESETS.map(p => '<button type="button" class="pixel-chip" data-brush-preset-id="' + p.id + '">' + r.esc(r.t(p.labelKey, p.fallback)) + '</button>').join('') + '</div>' : '';
         el.innerHTML = presets + r.buildParamControls(cfg.schema, s, { idPrefix: 'pixel-' + r.windowId + '-p-' + cfg.id });
         const root = el.querySelector('[data-param-root]');
-        if (root) r.wireParamControls(root, cfg.schema, s, (key, value) => toolUi.changed(r, cfg, key, value));
+        if (root) r.brushPanelHandle = r.wireParamControls(root, cfg.schema, s, (key, value) => toolUi.changed(r, cfg, key, value, 'panel'));
         el.querySelectorAll('[data-brush-preset-id]').forEach(b => b.addEventListener('click', () => Brush.applyPreset(r, cfg, b.dataset.brushPresetId)));
     }
 
     Pixel.registerPanel({ id: 'brush', labelKey: 'pixel.panel_brush', fallback: 'Brush', order: 35, dock: 'inspector',
         build: () => '<div class="pixel-brush-panel" data-brush-panel></div>',
-        mount: (r, el) => { r.brushPanelEl = el.querySelector('[data-brush-panel]'); renderBrushPanel(r); },
-        onShow: r => renderBrushPanel(r)
+        mount: (r, el) => { r.brushPanelEl = el.querySelector('[data-brush-panel]'); renderBrushPanel(r, true); },
+        onShow: r => renderBrushPanel(r, true)
     });
 
     Pixel.registerModule('brush', function install(r) {
@@ -710,7 +715,7 @@
             // Direct access for scripts and other modules: r.brushSettingsFor('brush').size = 30
             brushSettingsFor: function brushSettingsFor(id) { const cfg = Brush.registry[id]; return cfg ? toolUi.settings(r, cfg) : null; }
         });
-        r.on('tool-changed', () => { if (r.strokeState) endStroke(r, true); renderBrushPanel(r); });
+        r.on('tool-changed', () => { if (r.strokeState) endStroke(r, true); renderBrushPanel(r, true); });
         r.on('active-layer-changed', () => { if (r.strokeState) endStroke(r, false); });
         r.on('document-changed', () => { r.brushBuffer = null; });
     });

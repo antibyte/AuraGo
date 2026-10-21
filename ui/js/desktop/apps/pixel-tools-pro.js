@@ -497,7 +497,7 @@
             if (!rect || !l) return;
             const old = S.read(rect), next = Brush.cloneImage(old), o = old.data, n = next.data;
             if (!st.base) { const c = Math.floor((rect.h / 2)) * rect.w * 4 + Math.floor(rect.w / 2) * 4; st.base = [o[c], o[c + 1], o[c + 2], o[c + 3]]; }
-            const target = l.rgbToHsl(...Object.values(Pixel.hexToRgb(st.color))), tmp = [0, 0, 0], rgb = [0, 0, 0];
+            const tc = Pixel.hexToRgb(/^#[0-9a-f]{6}$/i.test(st.color) ? st.color : '#000000'), target = l.rgbToHsl(tc.r, tc.g, tc.b), tmp = [0, 0, 0], rgb = [0, 0, 0];
             for (let py = 0; py < rect.h; py++) {
                 for (let px = 0; px < rect.w; px++) {
                     const i = (py * rect.w + px) * 4, w = wt(rect.x + px, rect.y + py, x, y, size / 2, s.hardness) * k;

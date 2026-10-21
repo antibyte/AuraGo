@@ -317,7 +317,7 @@ check('brush stroke: dabs go to the stroke buffer, history gets one entry', () =
     assert.equal(rt.strokeState, null);
     assert.equal(rt.history.length, history + 1);
     assert.equal(rt.history[rt.historyIdx].label, 'draw:brush');
-    const buffer = rt.brushBuffer.canvas.getContext('2d');
+    const buffer = rt.brushBuffer.surface.getContext('2d');
     assert.ok(buffer.log.length > 5, 'many dabs were stamped');
     const layerLog = rt.layers[0].canvas.getContext('2d').log;
     assert.ok(layerLog.some(l => l[2] === 'source-over'), 'the buffer was composited with source-over');
