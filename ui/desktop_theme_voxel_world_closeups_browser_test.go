@@ -109,6 +109,7 @@ func TestDesktopVoxelWorldCloseUpsBrowser(t *testing.T) {
 	time.Sleep(900 * time.Millisecond) // the frames finish assembling
 	voxelShot(t, s, "windows-day", nil)
 	voxelShot(t, s, "frame-closeup", voxelClipAround(620, 300, 480, 320, 2))
+	voxelShot(t, s, "frame-wood", voxelClipAround(140, 680, 480, 320, 2)) // the Files window's bottom-left corner
 
 	// Closing the calculator breaks its frame into fragments.
 	s.eval(t, `()=>{const w=[...auditTest.state.windows.values()].find(w=>w.appId==='calculator');void auditTest.closeWindow(w.id);}`)

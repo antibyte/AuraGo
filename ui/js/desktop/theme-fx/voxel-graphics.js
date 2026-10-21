@@ -21,6 +21,8 @@
     const ASSEMBLY_DROP_PX = 40;
     const ASSEMBLY_START_SCALE = .6;
     const FLIGHT_Z_GAP = .02;
+    const SHADOW_Z_GAP = .05;
+    const SHADOW_THICKNESS = .02;
     const DUST_COLOR = 0xefe6d0;
     const DUST_LIFE = .45;
     const DUST_OPACITY = .7;
@@ -74,11 +76,11 @@
         visit('corner', 0, 0, total, left, top, tileSize, tileSize, topCorner, tileSize);
         for (let i = 0; i < columns; i++) visit('top', i, 1 + i, total, rect.x + (i + .5) * pitchX, top, pitchX + 1, tileSize, patterns.top, tileSize);
         visit('corner', 1, 1 + columns, total, right, top, tileSize, tileSize, topCorner, tileSize);
-        for (let i = 0; i < rows; i++) visit('right', i, 2 + columns + i, total, right, rect.y + (i + .5) * pitchY, tileSize, pitchY + 1, patterns.edge, tileSize);
+        for (let i = 0; i < rows; i++) visit('right', i, 2 + columns + i, total, right, rect.y + (i + .5) * pitchY, tileSize, pitchY + 1, patterns.side, tileSize);
         visit('corner', 2, 2 + columns + rows, total, right, bottom, tileSize, tileSize, patterns.corner, tileSize);
         for (let i = 0; i < columns; i++) visit('bottom', i, 3 + columns + rows + columns - 1 - i, total, rect.x + (i + .5) * pitchX, bottom, pitchX + 1, tileSize, patterns.edge, tileSize);
         visit('corner', 3, 3 + 2 * columns + rows, total, left, bottom, tileSize, tileSize, patterns.corner, tileSize);
-        for (let i = 0; i < rows; i++) visit('left', i, 4 + 2 * columns + rows + rows - 1 - i, total, left, rect.y + (i + .5) * pitchY, tileSize, pitchY + 1, patterns.edge, tileSize);
+        for (let i = 0; i < rows; i++) visit('left', i, 4 + 2 * columns + rows + rows - 1 - i, total, left, rect.y + (i + .5) * pitchY, tileSize, pitchY + 1, patterns.side, tileSize);
     }
 
     function create(options) {
@@ -371,6 +373,9 @@
                 const assembly = assemblingWindows.get(key);
                 const progress = assembly ? clamp((now - assembly.at) / assembly.duration, 0, 1) : 1;
                 const seed = hashString(key);
+                // The drop shadow lies just behind the window's own plane: the plane hides it inside the window rect,
+                // and it still falls on the desktop and on lower windows (whose frames end well below this).
+                const shadowZ = planeZ - SHADOW_Z_GAP - SHADOW_THICKNESS / 2;
                 layoutTiles(rect, materialForRecord(record), (side, index, order, total, cx, cy, bw, bh, pattern, tileSize) => {
                     if (frameIndex >= MAX_FRAME_BOXES || (liveDamage && liveDamage.holes.has(side + ':' + index))) return;
                     let py = cy, scale = 1;
@@ -398,8 +403,8 @@
                     const shade = 1 + (hash01(seed + order * 7.31) - .5) * FRAME_BRIGHTNESS_JITTER;
                     frameMesh.setColorAt(frameIndex, tint.setRGB(shade, shade, shade));
                     framePattern.array[frameIndex] = atlas.index[pattern];
-                    workObject.position.set(pixelX(cx + 2.5, width), pixelY(py + 4, height), pz - .30);
-                    workObject.scale.set((bw + 5) * scale / PIXELS_PER_METER, (bh + 5) * scale / PIXELS_PER_METER, tileSize * .62 * scale / PIXELS_PER_METER);
+                    workObject.position.set(pixelX(cx + 2.5, width), pixelY(py + 4, height), shadowZ);
+                    workObject.scale.set((bw + 5) * scale / PIXELS_PER_METER, (bh + 5) * scale / PIXELS_PER_METER, SHADOW_THICKNESS);
                     workObject.updateMatrix();
                     frameShadowMesh.setMatrixAt(frameIndex, workObject.matrix);
                     frameIndex++;

@@ -64,10 +64,24 @@
             rows: ['GGgGGGgG', 'gGGgGgGG', 'GgDgGDgG', 'DLgDLDgL', 'LMDLMLDM', 'MLLMLLDM', 'LDMLMLML', 'MLLLDMLL']
         }
     };
+    // The same pattern turned a quarter turn counter-clockwise (the top row becomes the left column), so the
+    // light bevel stays on the left and the plank seams on the right. The side frames use it: boards that run
+    // along the edge like a picture frame instead of a ladder.
+    function turnedLeft(pattern) {
+        const rows = [];
+        for (let r = 0; r < 8; r++) {
+            let row = '';
+            for (let c = 0; c < 8; c++) row += pattern.rows[c][7 - r];
+            rows.push(row);
+        }
+        return { palette: pattern.palette, rows };
+    }
+    PATTERNS.oak_planks_side = turnedLeft(PATTERNS.oak_planks);
+    // side: the left and right edges. Cobble and dirt have no grain, so they keep the edge pattern.
     const FRAME_PATTERNS = {
-        wood: { edge: 'oak_planks', corner: 'oak_log_end', top: 'oak_planks' },
-        stone: { edge: 'cobble', corner: 'smooth_stone', top: 'cobble' },
-        earth: { edge: 'dirt', corner: 'dirt', top: 'grass_side' }
+        wood: { edge: 'oak_planks', corner: 'oak_log_end', top: 'oak_planks', side: 'oak_planks_side' },
+        stone: { edge: 'cobble', corner: 'smooth_stone', top: 'cobble', side: 'cobble' },
+        earth: { edge: 'dirt', corner: 'dirt', top: 'grass_side', side: 'dirt' }
     };
 
     function hexBytes(hex) {
