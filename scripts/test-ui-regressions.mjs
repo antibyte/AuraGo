@@ -4439,6 +4439,26 @@ function testGreenSlimeSimulation() {
   assert.equal(constants.MIN_GEL_RADIUS, 10);
   assert.equal(constants.STRAND_SNAP, 170);
 
+  // Sound cues: the pop is sized by the bubble's base radius, the snap by the strand's length, the strength
+  // runs 0.35..1, and everything that is not a burst or a snap is silent.
+  {
+    const cue = (event) => slime.soundCue(event);
+    for (const [base, variant] of [[0, 'small'], [3, 'small'], [5.99, 'small'], [6, 'medium'], [8.99, 'medium'], [9, 'large'], [12, 'large']]) {
+      assert.equal(cue({ type: 'burst', base }).event, 'slime.pop');
+      assert.equal(cue({ type: 'burst', base }).variant, variant, 'burst base ' + base);
+    }
+    for (const [length, variant] of [[0, 'small'], [18, 'small'], [59, 'small'], [60, 'medium'], [109, 'medium'], [110, 'large'], [170, 'large'], [400, 'large']]) {
+      assert.equal(cue({ type: 'snap', length }).event, 'slime.snap');
+      assert.equal(cue({ type: 'snap', length }).variant, variant, 'snap length ' + length);
+    }
+    for (const strength of [cue({ type: 'burst', base: 0 }).strength, cue({ type: 'burst', base: 3 }).strength, cue({ type: 'snap', length: 0 }).strength]) assert.equal(strength, .35);
+    for (const strength of [cue({ type: 'burst', base: 12 }).strength, cue({ type: 'burst', base: 40 }).strength, cue({ type: 'snap', length: 170 }).strength, cue({ type: 'snap', length: 400 }).strength]) assert.ok(Math.abs(strength - 1) < 1e-9, 'strength ' + strength);
+    assert.ok(cue({ type: 'burst', base: 6 }).strength > cue({ type: 'burst', base: 4 }).strength);
+    assert.ok(cue({ type: 'snap', length: 120 }).strength > cue({ type: 'snap', length: 40 }).strength);
+    assert.equal(cue({ type: 'drop', x: 1, y: 1 }), null);
+    assert.equal(cue(null), null);
+  }
+
   // Perimeter projection round trip, including square and uneven corners (sharp corners are ambiguous).
   const box = { x: 120, y: 80, width: 400, height: 300 };
   for (const radii of [[22, 22, 22, 22], [0, 0, 0, 0], [22, 10, 0, 30], [200, 200, 200, 200]]) {
@@ -4521,6 +4541,16 @@ function testGreenSlimeSimulation() {
     assert.equal(stats.bubbleBursts, 1);
     assert.equal(JSON.stringify(stats.bubbleStageEntries), JSON.stringify({ nucleate: 1, grow: 1, hold: 1, burst: 1, crater: 1 }));
     assert.equal(stats.activeBubbles, 0);
+    // The burst is reported once, at the dome, sized by the bubble; spray and the crater make no event.
+    const burstEvents = sim.takeEvents();
+    assert.equal(burstEvents.length, 1);
+    assert.equal(burstEvents[0].type, 'burst');
+    assert.equal(burstEvents[0].base, views.burst[0].base);
+    assert.ok(Math.abs(burstEvents[0].x - views.burst[0].x) < 1e-6 && burstEvents[0].y > 120 && burstEvents[0].y < 600);
+    assert.equal(stats.eventCount, 1);
+    const popBase = burstEvents[0].base;
+    assert.equal(slime.soundCue(burstEvents[0]).variant, popBase < 6 ? 'small' : popBase < 9 ? 'medium' : 'large');
+    assert.equal(sim.takeEvents().length, 0, 'events are handed over once');
     run(sim, wins, 5);
     assert.equal(sim.stats().rippleEnergy, 0, 'the ripple decays to rest');
   }
@@ -4557,6 +4587,11 @@ function testGreenSlimeSimulation() {
     }
     assert.ok(spawned > 6, 'bubbles were spawned: ' + spawned);
     assert.ok(maxActive <= 5 && maxPerWindow <= 2 && maxSpray <= 24, 'caps ' + [maxActive, maxPerWindow, maxSpray]);
+    // Nobody drained the events: the queue keeps the newest 12, and only bursts made events.
+    const undrained = sim.takeEvents();
+    assert.ok(undrained.length > 0 && undrained.length <= 12, 'bounded event queue: ' + undrained.length);
+    assert.ok(undrained.every(event => event.type === 'burst'));
+    assert.ok(sim.stats().eventCount > 12 && sim.stats().eventCount <= sim.stats().bubbleBursts, 'events ' + sim.stats().eventCount + ' for ' + sim.stats().bubbleBursts + ' bursts');
     for (let i = 0; i < 100; i++) sim.addDrop(20 + i, 10, 4, 0, 0, 5);
     assert.equal(sim.stats().activeDrops, 72);
     assert.ok(sim.stats().dropCount >= 100);
@@ -4592,6 +4627,13 @@ function testGreenSlimeSimulation() {
     const stats = sim.stats();
     assert.equal(stats.strandCount, 1);
     assert.equal(stats.strandSnaps, 1, 'snaps beyond 170 px');
+    // The snap is reported once, from the middle of the thread, as a large and strong slime.snap.
+    const snapEvents = sim.takeEvents().filter(event => event.type === 'snap');
+    assert.equal(snapEvents.length, 1);
+    assert.ok(snapEvents[0].length > 170 - 1e-6 && snapEvents[0].x > 300 && snapEvents[0].x < 700 && snapEvents[0].y > downAt.y, 'snap event ' + JSON.stringify(snapEvents[0]));
+    const snapCue = slime.soundCue(snapEvents[0]);
+    assert.equal(snapCue.event + ':' + snapCue.variant, 'slime.snap:large');
+    assert.ok(snapCue.strength > .95);
     assert.ok(pulledAt >= 0 && beadedAt > pulledAt, 'pulled, then beaded: ' + [pulledAt, beadedAt]);
     assert.ok(stats.dropCount - dropsBefore >= 2, 'tip drop plus satellites');
     assert.ok(sim.strand && sim.strand.state === 'recoil', 'the base recoils');
@@ -4611,6 +4653,9 @@ function testGreenSlimeSimulation() {
     assert.ok(sim.strand.state === 'pulled' && sim.strand.length < 100);
     sim.pointerUp();
     assert.equal(sim.stats().strandSnaps, 2, 'release snaps');
+    const releaseSnaps = sim.takeEvents().filter(event => event.type === 'snap');
+    assert.equal(releaseSnaps.length, 1);
+    assert.ok(releaseSnaps[0].length < 100 && slime.soundCue(releaseSnaps[0]).variant !== 'large', 'a short thread sounds smaller');
     run(sim, wins, .4);
 
     // a held thread gives way after 2.5 s
@@ -4727,6 +4772,8 @@ function testGreenSlimeSimulation() {
     assert.equal(sim.pointerDown(500, 514, 0), null);
     assert.equal(sim.poke(500, 514), null);
     assert.equal(sim.stats().dropCount, 0);
+    assert.equal(sim.stats().eventCount, 0);
+    assert.equal(sim.takeEvents().length, 0, 'the still gel makes no sound');
     assert.equal(sim.stats().surfaceNodeCount, 32);
     const [min, max] = radiusRange(sim);
     assert.ok(min >= 10 - 1e-6 && max < 40);

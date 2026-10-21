@@ -94,6 +94,8 @@
         let halted = false;
         let staticQueued = false;
         let radiiCache = new WeakMap();
+        // Sounds handed to the desktop sound system (it decides whether they are heard).
+        let soundEvents = 0;
 
         function newCanvas() {
             const element = document.createElement('canvas');
@@ -492,6 +494,26 @@
             dirty = true;
         }
 
+        // The desktop sound system alone decides whether anything is heard: sounds on and unlocked, the Green
+        // Slime sound theme, the windows category, rate limits. The effect only reports what happened, with a
+        // size variant, a strength of 0..1 and a pan from where it happened. Motion only, never while hidden.
+        function sound(eventName, variant, strength, x) {
+            if (!motion || document.hidden || !window.DesktopSounds || typeof window.DesktopSounds.play !== 'function') return;
+            const pan = clamp((x / Math.max(1, width)) * 2 - 1, -1, 1) * .8;
+            try {
+                soundEvents++;
+                const played = window.DesktopSounds.play(eventName, { variant, strength: clamp(strength, 0, 1), pan });
+                if (played && typeof played.catch === 'function') played.catch(() => {});
+            } catch (_) { /* sound support is optional */ }
+        }
+
+        function playSimSounds() {
+            for (const event of sim.takeEvents()) {
+                const cue = slime.soundCue(event);
+                if (cue) sound(cue.event, cue.variant, cue.strength, event.x);
+            }
+        }
+
         function render(time) {
             if (stopped || paused) return;
             frameCount++;
@@ -502,6 +524,7 @@
             dirty = false;
             const env = buildEnv(dt, time);
             sim.update(env);
+            playSimSounds();
             renderer.render(buildScene(env, sim.scene(env)));
         }
 
@@ -669,6 +692,7 @@
                 frameCount,
                 maskCount: cachedOverlayMasks.length,
                 maskRefreshCount,
+                soundEvents,
                 ...sim.stats()
             };
         }

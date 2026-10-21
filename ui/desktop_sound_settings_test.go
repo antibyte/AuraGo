@@ -208,19 +208,65 @@ func TestDesktopSoundThemeEvents(t *testing.T) {
 			t.Errorf("voxel-world bank missing material sound marker %q", marker)
 		}
 	}
+	slime := readDesktopAssetText(t, "js/desktop/sound/theme-green-slime.js")
+	if !strings.Contains(slime, "composeDesktopEvents") || !strings.Contains(slime, "specialFx") {
+		t.Error("green-slime bank must compose the shell events and add its FX bank")
+	}
 }
 
-func TestDesktopVoxelSoundRuntimeContract(t *testing.T) {
+func TestDesktopThemeFxSoundRuntimeContract(t *testing.T) {
 	t.Parallel()
 
+	// Voxel World and Green Slime share the theme FX plumbing: one table of families, one coalescing queue
+	// and one lazily rendered variant cache.
 	runtime := readDesktopAssetText(t, "js/desktop/core/sound-runtime.js")
 	for _, marker := range []string{
-		"'window.fracture': 'windows'", "'window.impact': 'windows'",
-		"function queueVoxelFx(", "function ensureVoxelFxBuffer(", "currentThemeId() !== 'voxel_world'",
-		"cancelVoxelFx()", "cleanVoxelFxOptions", "options.pan", "options.strength",
+		"'window.fracture': 'windows'", "'window.impact': 'windows'", "'slime.pop': 'windows'", "'slime.snap': 'windows'",
+		"theme: 'voxel_world'", "theme: 'green_slime'", "'slime.pop': { gain: 0.4, gapMs: 350 }", "'slime.snap': { gain: 0.42, gapMs: 900 }",
+		"windowMs: 2000, maxInWindow: 3", "coalesceMs: 80, expireMs: 240",
+		"function queueThemeFx(", "function ensureThemeFxBuffer(", "currentThemeId() !== fx.theme",
+		"cancelThemeFx()", "cleanThemeFxOptions", "options.pan", "options.strength", "themeFx: Object.fromEntries",
 	} {
 		if !strings.Contains(runtime, marker) {
-			t.Errorf("sound-runtime missing voxel FX contract marker %q", marker)
+			t.Errorf("sound-runtime missing theme FX contract marker %q", marker)
+		}
+	}
+	if strings.Contains(runtime, "Voxel") {
+		t.Error("sound-runtime still carries voxel-only FX plumbing")
+	}
+}
+
+func TestGreenSlimeSoundFxContract(t *testing.T) {
+	t.Parallel()
+
+	bank := readDesktopAssetText(t, "js/desktop/sound/theme-green-slime.js")
+	for _, marker := range []string{"specialFx", "'slime.pop'", "'slime.snap'", "small:", "medium:", "large:"} {
+		if !strings.Contains(bank, marker) {
+			t.Errorf("green-slime bank missing FX marker %q", marker)
+		}
+	}
+	if strings.Contains(bank, "reverb:") {
+		t.Error("green-slime FX layers must not use the shared reverb pool: its convolver is shared by all layers of a render")
+	}
+
+	// The effect only reports; the sound runtime decides whether anything is heard.
+	bridge := readDesktopAssetText(t, "js/desktop/theme-fx/green_slime.js")
+	for _, marker := range []string{
+		"function sound(eventName, variant, strength, x)", "!motion || document.hidden", "window.DesktopSounds.play(eventName",
+		"slime.soundCue(event)", "sim.takeEvents()", "soundEvents",
+	} {
+		if !strings.Contains(bridge, marker) {
+			t.Errorf("green_slime.js missing sound bridge marker %q", marker)
+		}
+	}
+	sim := readDesktopAssetText(t, "js/desktop/theme-fx/green_slime_sim.js")
+	bubbles := readDesktopAssetText(t, "js/desktop/theme-fx/green_slime_bubbles.js")
+	touch := readDesktopAssetText(t, "js/desktop/theme-fx/green_slime_touch.js")
+	for source, marker := range map[string]string{
+		sim: "function soundCue(event)", bubbles: "core.emit({ type: 'burst'", touch: "core.emit({ type: 'snap'",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Errorf("Green Slime simulation missing event marker %q", marker)
 		}
 	}
 }

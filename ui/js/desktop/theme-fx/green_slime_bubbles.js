@@ -129,6 +129,8 @@
                 counters.bubbleBursts++;
                 // Micro-droplets are flung from the retracting film, upward-biased.
                 center(surface, bubble, scratch);
+                // The burst is heard unless a higher window or an overlay hides the bubble.
+                if (!core.blockedAt(surface, scratch.x, scratch.y)) core.emit({ type: 'burst', x: scratch.x, y: scratch.y, base: bubble.base });
                 const count = bubble.base < 5 ? 3 + Math.floor(rng() * 2) : 3 + Math.floor(rng() * 5);
                 for (let i = 0; i < count; i++) {
                     const angle = rng() * TWO_PI;

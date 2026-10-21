@@ -72,7 +72,7 @@ apply. The **Preview** buttons play a short sample without enabling UI sounds.
 | Organic | Leaf silhouette with walnut and brass inlays | Wooden harmonics and soft filtered air |
 | Electronic Dreams | Teal signal traces and warm pointer lights | Relay ticks, soft analog sweeps and filtered signal noise |
 | Windows XP | Classic pointer with blue and gold details | Bright friendly chimes with short, rounded tails |
-| Green Slime | Glossy lime slime pointer | Low-pass wet plips, elastic sweeps and soft squelches |
+| Green Slime | Glossy lime slime pointer | Low-pass wet plips, elastic sweeps and soft squelches, plus quiet blub pops for bursting bubbles and a wet thwip-plop for parting strands |
 | Voxel World | Block-edged pointer in earth and green tones | Dry taps and wood, stone and earth impacts |
 
 `cursorTheme` and `soundTheme` on each registry descriptor own the pairing.
@@ -91,7 +91,38 @@ do not share one generic theme bank. In-flight synthesis is shared; mute, theme
 changes and tab hiding cancel pending playback. Audio unlock remains bound to a
 user gesture. Turning sound off releases the AudioContext immediately.
 Verify `TestDesktopThemeSensoryBrowser`, `TestDesktopSoundBrowser` (all fifteen
-sets) and `TestThemeSensorySettingsPersistIndependently`, then rebuild UI bundles.
+sets, the voxel and slime effect sounds and their rate limits) and
+`TestThemeSensorySettingsPersistIndependently`, then rebuild UI bundles.
+
+**Effect sounds.** Voxel World and Green Slime also have sounds that their desktop
+effect asks for by name, not shell events: `window.fracture` and `window.impact`
+(Voxel World; wood, stone or earth) and `slime.pop` and `slime.snap` (Green Slime;
+small, medium or large). A bank supplies them as `specialFx[event][variant]`. The
+effect only calls `DesktopSounds.play(event, { variant | material, strength, pan })`
+(`strength` 0 to 1, `pan` -1 to 1) and `core/sound-runtime.js` decides whether
+anything is heard. It plays them only when UI sounds are on and unlocked, the
+**Windows** category is on, the effective sound theme is the owning theme, the page
+is visible, no session restore runs and the call is not a preview. Calls within
+75 ms (Voxel World) or 80 ms (Green Slime) merge into the loudest one, and a call
+that is older than 240 ms by the time its sound is rendered is dropped. Each sound
+is rendered on first use and cached per theme, event and variant, so the full bank
+is never rendered for it. `inspect().themeFx` counts requests, plays, rate-limited
+and expired calls per family.
+
+- Green Slime pop: a soft sine blop with a fast upward glide (about 240 to 520 Hz for
+  a large bubble, 520 to 1100 Hz for a small one), a very short band-passed tick of
+  the film tearing and a faint low-passed tail, under 180 ms in all.
+- Green Slime snap: a band-passed noise sweep downward (25 to 40 ms), then about
+  40 ms later a soft low plop (about 180 to 120 Hz for a large strand), under 260 ms
+  in all. The plop carries a quiet octave above it so small speakers still carry it.
+- Levels: the synth peak-normalises every buffer, so the runtime sets the level. A pop
+  plays at 0.40 and a snap at 0.42 of a window sound at full strength (about 25 to
+  33 % in 20 ms loudness), and the strength curve makes the smallest ones softer
+  still. The master volume and the Windows category apply as usual.
+- Rate limits: at most one pop per 350 ms, one snap per 900 ms and three Green Slime
+  sounds per 2 s; Voxel World keeps four per second and 190 ms apart.
+- No layer of these banks uses the synth's reverb pool: its convolver is shared by all
+  layers of one render and would smear one layer into the envelope of the next.
 
 ### Architecture
 
@@ -190,7 +221,7 @@ The Green Slime effect (`ui/js/desktop/theme-fx/green_slime*.js`) draws a transl
 1. `green_slime_geometry.js` (`AuraGreenSlimeGeometry`): constants, seeded RNG, rounded-rectangle perimeter and gel profile.
 2. `green_slime_bubbles.js` (`AuraGreenSlimeBubbles`): bubble lifecycle.
 3. `green_slime_touch.js` (`AuraGreenSlimeTouch`): hover, wake, poke and strand.
-4. `green_slime_sim.js` (`AuraGreenSlimeSim`): surfaces, ripple wave, drops, splats and the scene.
+4. `green_slime_sim.js` (`AuraGreenSlimeSim`): surfaces, ripple wave, drops, splats, the scene, the bounded event queue (`takeEvents()`) and `soundCue()`.
 5. `green_slime_canvas2d.js` (`AuraGreenSlimeCanvas2D`): Canvas 2D renderer.
 6. `green_slime_gl_shaders.js` (`AuraGreenSlimeGLShaders`): GLSL sources.
 7. `green_slime_gl.js` (`AuraGreenSlimeGL`): WebGL2 renderer.
@@ -235,6 +266,7 @@ Ambient bubbles follow a Poisson process with a mean interval of about 9 s per w
 - **Taskbar splat:** a drop that reaches the taskbar's top edge lands as a splat. It spreads with a short wobble and fades over its last 1.2 s of a 2.2–4 s life. Splats that touch merge.
 - **Drag fling:** dragging a window swings its drips like pendulums. A hard stop (speed from at least 520 px/s down to below 40 %, at most once per 1.2 s per window) flings ripe drips, 2–4 droplets and 1–2 small bubbles off the leading edge.
 - **Open ooze:** a newly opened window's gel oozes out from nothing to full size in about 0.5 s, with a slight overshoot. A closing window drops five droplets from its bottom corners.
+- **Sounds:** a burst and a snap are the only events that make a sound (see *Effect sounds* above). The simulation queues `{ type: 'burst', x, y, base }` when a bubble bursts and `{ type: 'snap', x, y, length }` when a strand parts, at most 12 unread. The bridge drains them after each update, and `soundCue()` maps them to `slime.pop` (small below 6 px base radius, medium below 9 px, otherwise large) or `slime.snap` (small below 60 px length, medium below 110 px, otherwise large), with a strength of 0.35 to 1 that grows with the size. The bridge adds a pan from x (at most 0.8 either way) and calls `DesktopSounds.play`; it does nothing in static mode, while the page is hidden, or when the sound system is missing. Bursts behind a higher window or an overlay, spray, drops, splats, craters and the still bubble of static mode are silent.
 
 **Budgets.**
 
@@ -254,7 +286,7 @@ Ambient bubbles follow a Poisson process with a mean interval of about 9 s per w
 - `command('drop', { x, y, vx?, vy?, r? })` adds a falling drop and returns `true`, or `null` without numeric `x` and `y`.
 - `command('quality', { scale })` pins the render scale between 0.25 and 1, turns off the adaptive watch and returns the scale. It also works in static mode.
 
-`inspect()` returns `ready`, `renderer` (`webgl2` or `canvas2d`), `backdrop` (`texture`, `translucent` or `loading`), `backdropReason`, `qualityScale`, `contextLost` and `error`, which holds the reason for a fallback. WebGL2 timings and counters are `fade`, `gpu`, `compileMs`, `blockedMs`, `parallelCompile`, `firstRenderMs`, `lastRenderMs`, `averageRenderMs`, `drawCalls` and `quadCount`. Frame and mask counters are `frameCount`, `rafPending`, `windowCount`, `maskCount` and `maskRefreshCount`. Simulation counters are `dropCount`, `activeDrops`, `sprayCount`, `activeSpray`, `splatCount`, `activeSplats`, `absorbedDrops`, `bubbleCount`, `activeBubbles`, `bubbleBursts`, `bubbleStages` (live per stage), `bubbleStageEntries` (entries per stage since start), `strandCount`, `strandSnaps`, `activeStrands`, `pokeCount`, `rippleEnergy`, `surfaceCount`, `surfaceNodeCount` (windows × 32) and `maxDisplacement`.
+`inspect()` returns `ready`, `renderer` (`webgl2` or `canvas2d`), `backdrop` (`texture`, `translucent` or `loading`), `backdropReason`, `qualityScale`, `contextLost` and `error`, which holds the reason for a fallback. WebGL2 timings and counters are `fade`, `gpu`, `compileMs`, `blockedMs`, `parallelCompile`, `firstRenderMs`, `lastRenderMs`, `averageRenderMs`, `drawCalls` and `quadCount`. Frame and mask counters are `frameCount`, `rafPending`, `windowCount`, `maskCount` and `maskRefreshCount`; `soundEvents` counts the sounds handed to `DesktopSounds.play` (the sound system decides what is heard). Simulation counters are `dropCount`, `activeDrops`, `sprayCount`, `activeSpray`, `splatCount`, `activeSplats`, `absorbedDrops`, `bubbleCount`, `activeBubbles`, `bubbleBursts`, `bubbleStages` (live per stage), `bubbleStageEntries` (entries per stage since start), `strandCount`, `strandSnaps`, `activeStrands`, `pokeCount`, `eventCount` (bursts and snaps queued for sound), `rippleEnergy`, `surfaceCount`, `surfaceNodeCount` (windows × 32) and `maxDisplacement`.
 
 ### Add a Theme
 
@@ -288,7 +320,7 @@ go test ./ui -run TestDesktopAuditAppearanceBrowser -count=1
 - The experience tests (`TestDesktopExperience*`) verify close guards, atomic settings, real geometry/rotation/Rapier collisions, pixel occlusion, static fallbacks and cleanup. `TestDesktopLivingMaterialsIdleBrowser` runs Green Slime and Electronic Dreams: their material must keep changing at idle, and Green Slime's drips must detach without input.
 - `TestDesktopGreenSlime*` checks the slime springs, the attached membrane (WebGL2 on the green_slime wallpaper, WebGL2 translucent on another wallpaper, and Canvas 2D) and the six-window budget. Pixel checks copy the effect canvas with `drawImage` first, so they read either renderer.
 - The WebGL2 subtests of the membrane test and the interaction and close-up tests need a GPU. They skip when the browser reports SwiftShader, llvmpipe, lavapipe, softpipe or another software renderer, because the gel falls back on software GL by default. The Canvas 2D subtest always runs.
-- `TestDesktopGreenSlimeInteractionBrowser` runs one WebGL2 stage (settings and files windows at 1920×1080) with four subtests, in order: a forced bubble through all five stages (the stage counters rise, 3–7 micro-droplets per burst, at most 5 bubbles and 2 per window, all healed); a strand pulled with the real mouse (it snaps and leaves a drop, the window does not move, no marquee appears); drops that merge into a lower window and splat on the taskbar edge until the splat clears; and a forced WebGL context loss that must end on Canvas 2D with one canvas and one layer. It needs `AURAGO_RUN_BROWSER_SMOKE=1`.
+- `TestDesktopGreenSlimeInteractionBrowser` runs one WebGL2 stage (settings and files windows at 1920×1080) with five subtests, in order: a forced bubble through all five stages (the stage counters rise, 3–7 micro-droplets per burst, at most 5 bubbles and 2 per window, all healed, and every visible burst asked a stubbed `DesktopSounds.play` for one `slime.pop`); a strand pulled with the real mouse (it snaps and leaves a drop, the window does not move, no marquee appears, one `slime.snap` is requested with a pan to the left); drops that merge into a lower window and splat on the taskbar edge until the splat clears (silent); a burst heard through the real sound system, with desktop sounds on and the sound theme following Green Slime; and a forced WebGL context loss that must end on Canvas 2D with one canvas and one layer. It needs `AURAGO_RUN_BROWSER_SMOKE=1`.
 - `TestDesktopGreenSlimeCloseUpsBrowser` writes review images into the ignored `reports/desktop-experience-themes/slime/`: 1× full frames and 2× to 8× crops of the frame, corners, edges, drips and overlaps; one bubble through its stages, with contact sheets; the burst; a strand; drops; a taskbar splat; static crops; and `gl-ref-*` crops of the wallpaper's own gel beads for comparison. It needs `AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_THEME_RECORDINGS=1`, a GPU and about a minute. It asserts that every stage is reached and that the page reports no errors, not how the images look. The `TestDesktopGreenSlime` pattern in the command block also matches it; without `AURAGO_THEME_RECORDINGS=1` it skips.
 - The membrane and six-window tests write `green-slime-attached-<label>.png` (labels `webgl2`, `webgl2-translucent`, `canvas2d`), `green-slime-corner-<label>.png` and `green-slime-six-windows.png` to the ignored `reports/desktop-experience-themes/` folder. The close-ups go to the ignored `reports/desktop-experience-themes/slime/` folder. `AURAGO_THEME_RECORDINGS=1` gates the close-ups and the motion GIF test (`TestDesktopThemeMotionRecordingsBrowser`, into `reports/desktop-experience-themes/motion/`), not the membrane or six-window screenshots.
 - Add `AURAGO_THEME_RECORDINGS=1` and run `TestDesktopThemeMotionRecordingsBrowser` to capture actual pointer-driven opening, dragging and closing as four GIFs in that report directory's `motion/` subdirectory. `AURAGO_BROWSER_MUTE_AUDIO=1` mutes the browser output while preserving Web Audio assertions.

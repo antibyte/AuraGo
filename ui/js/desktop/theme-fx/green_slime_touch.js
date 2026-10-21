@@ -126,6 +126,8 @@
         function snap(surface) {
             const s = strand;
             const length = s.length;
+            // Heard from the middle of the thread, before the tip is pulled back to the stub.
+            core.emit({ type: 'snap', x: (s.ax + s.tx) / 2, y: (s.ay + s.ty) / 2, length });
             const radii = kit.strandRadii(length);
             const dirX = (s.tx - s.ax) / (length || 1), dirY = (s.ty - s.ay) / (length || 1);
             // The thread parts near its thin end: the tip becomes a drop, the middle sheds satellites.

@@ -1211,6 +1211,8 @@
                 counters.bubbleBursts++;
                 // Micro-droplets are flung from the retracting film, upward-biased.
                 center(surface, bubble, scratch);
+                // The burst is heard unless a higher window or an overlay hides the bubble.
+                if (!core.blockedAt(surface, scratch.x, scratch.y)) core.emit({ type: 'burst', x: scratch.x, y: scratch.y, base: bubble.base });
                 const count = bubble.base < 5 ? 3 + Math.floor(rng() * 2) : 3 + Math.floor(rng() * 5);
                 for (let i = 0; i < count; i++) {
                     const angle = rng() * TWO_PI;
@@ -1463,6 +1465,8 @@
         function snap(surface) {
             const s = strand;
             const length = s.length;
+            // Heard from the middle of the thread, before the tip is pulled back to the stub.
+            core.emit({ type: 'snap', x: (s.ax + s.tx) / 2, y: (s.ay + s.ty) / 2, length });
             const radii = kit.strandRadii(length);
             const dirX = (s.tx - s.ax) / (length || 1), dirY = (s.ty - s.ay) / (length || 1);
             // The thread parts near its thin end: the tip becomes a drop, the middle sheds satellites.
@@ -1571,7 +1575,7 @@
     // that to a renderer. The simulation is split over four files (bundle order): green_slime_geometry.js
     // (constants, rounded-rectangle geometry, profile), green_slime_bubbles.js, green_slime_touch.js and
     // this one, which owns the surfaces, the drops and the per-frame update and exports
-    // window.AuraGreenSlimeSim = { createSim, geometry, constants, strandRadii }.
+    // window.AuraGreenSlimeSim = { createSim, soundCue, geometry, constants, strandRadii }.
     //
     // Every window owns
     //  - 32 spring nodes (the old jelly contour: breathing, drag inertia, hover attraction),
@@ -1581,10 +1585,32 @@
     const kit = window.AuraGreenSlimeGeometry;
     const { clamp, lerp, wrap, cyclicDelta, inRect, hashString, mulberry32, geometry, surfaceTargets, buildProfile, softFloor, SURFACE_NORMALS } = kit;
     const { SURFACE_SAMPLES, TABLE_SAMPLES, MAX_DROPS, MAX_SPRAY, MAX_SPLATS, MIN_GEL_RADIUS, MAX_GEL_RADIUS, MAX_DEFORMATION,
-        SAG_TOP, SAG_BOTTOM, GRAVITY, SPRAY_GRAVITY, RIPPLE_SPEED, RIPPLE_DAMPING, RIPPLE_STIFFNESS, RIPPLE_LIMIT, TWO_PI } = kit.constants;
+        SAG_TOP, SAG_BOTTOM, GRAVITY, SPRAY_GRAVITY, RIPPLE_SPEED, RIPPLE_DAMPING, RIPPLE_STIFFNESS, RIPPLE_LIMIT, TWO_PI, STRAND_SNAP } = kit.constants;
     const { layout, pointAt, project, normalizeRadii } = geometry;
 
     const EMPTY_ENV = Object.freeze({ dt: 0, now: 0, width: 0, height: 0, dpr: 1, windows: [], masks: [], taskbar: null });
+    // Events that nobody has taken yet, at most this many: when no one drains them (static mode, tests) the oldest fall off.
+    const MAX_EVENTS = 12;
+    const NO_EVENTS = Object.freeze([]);
+
+    // The desktop sound a sim event asks for, as { event, variant, strength }: a burst is slime.pop and sized by
+    // the bubble's base radius (px), a snap is slime.snap and sized by the strand's length (px). Strength runs
+    // 0.35..1 so that even the smallest event is heard, softly. Everything else makes no sound. The bridge adds
+    // the pan from the event's x.
+    function soundCue(event) {
+        if (!event) return null;
+        if (event.type === 'burst') {
+            const base = Number(event.base) || 0;
+            return { event: 'slime.pop', variant: base < 6 ? 'small' : base < 9 ? 'medium' : 'large',
+                strength: clamp(.35 + (base - 3) / 9 * .65, .35, 1) };
+        }
+        if (event.type === 'snap') {
+            const length = Number(event.length) || 0;
+            return { event: 'slime.snap', variant: length < 60 ? 'small' : length < 110 ? 'medium' : 'large',
+                strength: clamp(.35 + length / STRAND_SNAP * .65, .35, 1) };
+        }
+        return null;
+    }
 
     function createSim(options) {
         const motion = !!(options && options.motion);
@@ -1596,8 +1622,12 @@
         const splats = [];
         const counters = {
             dropCount: 0, sprayCount: 0, bubbleCount: 0, bubbleBursts: 0, strandCount: 0, strandSnaps: 0,
-            absorbedDrops: 0, splatCount: 0, pokeCount: 0
+            absorbedDrops: 0, splatCount: 0, pokeCount: 0, eventCount: 0
         };
+        // What happened since the bridge last asked: { type: 'burst', x, y, base } when a visible bubble bursts and
+        // { type: 'snap', x, y, length } when a strand parts (screen px). Bursts hidden behind a higher window or
+        // an overlay, spray, drops, splats and the static bubble are not events.
+        const events = [];
         const stageEntries = { nucleate: 0, grow: 0, hold: 0, burst: 0, crater: 0 };
         // Shared with the parts: the clock and the geometry of the latest update.
         const state = { clock: 0, env: EMPTY_ENV };
@@ -1607,8 +1637,19 @@
 
         function jitter(low, high) { return low + rng() * (high - low); }
 
+        function emit(event) {
+            if (events.length >= MAX_EVENTS) events.shift();
+            events.push(event);
+            counters.eventCount++;
+        }
+
+        // Hands the events over (oldest first) and forgets them.
+        function takeEvents() {
+            return events.length ? events.splice(0) : NO_EVENTS;
+        }
+
         const core = { motion, rng, jitter, surfaces, state, counters, stageEntries,
-            radiusAt, blockedAt, rippleImpulse, nudgeNodes, addDrop, addSpray };
+            radiusAt, blockedAt, rippleImpulse, nudgeNodes, addDrop, addSpray, emit };
         const bubbles = window.AuraGreenSlimeBubbles.create(core);
         const touch = window.AuraGreenSlimeTouch.create(core);
 
@@ -2247,6 +2288,7 @@
                 strandSnaps: counters.strandSnaps,
                 absorbedDrops: counters.absorbedDrops,
                 splatCount: counters.splatCount,
+                eventCount: counters.eventCount,
                 activeSplats: splats.length,
                 splatSamples: splats.map(splat => ({ x: splat.x, y: splat.y, r: splat.r, age: splat.age })),
                 rippleEnergy: Math.round(energy * 1000) / 1000,
@@ -2264,13 +2306,14 @@
             drops.length = 0;
             spray.length = 0;
             splats.length = 0;
+            events.length = 0;
             touch.reset();
             state.env = EMPTY_ENV;
         }
 
         return {
             motion, surfaces, motionDrives,
-            update, scene, stats, reset,
+            update, scene, stats, reset, takeEvents,
             surfaceTargets, followSurface, detachPeriodicDrop, addDrop, sampleContour, dripShape,
             rippleImpulse, rippleStep, radiusAt, windowEvent, syncWindows, removeWindow,
             spawnBubble: bubbles.spawn,
@@ -2284,7 +2327,7 @@
     }
 
     window.AuraGreenSlimeSim = Object.freeze({
-        createSim, geometry, strandRadii: kit.strandRadii,
+        createSim, soundCue, geometry, strandRadii: kit.strandRadii,
         constants: kit.constants
     });
 })();
@@ -4365,6 +4408,8 @@ void main() {
         let halted = false;
         let staticQueued = false;
         let radiiCache = new WeakMap();
+        // Sounds handed to the desktop sound system (it decides whether they are heard).
+        let soundEvents = 0;
 
         function newCanvas() {
             const element = document.createElement('canvas');
@@ -4763,6 +4808,26 @@ void main() {
             dirty = true;
         }
 
+        // The desktop sound system alone decides whether anything is heard: sounds on and unlocked, the Green
+        // Slime sound theme, the windows category, rate limits. The effect only reports what happened, with a
+        // size variant, a strength of 0..1 and a pan from where it happened. Motion only, never while hidden.
+        function sound(eventName, variant, strength, x) {
+            if (!motion || document.hidden || !window.DesktopSounds || typeof window.DesktopSounds.play !== 'function') return;
+            const pan = clamp((x / Math.max(1, width)) * 2 - 1, -1, 1) * .8;
+            try {
+                soundEvents++;
+                const played = window.DesktopSounds.play(eventName, { variant, strength: clamp(strength, 0, 1), pan });
+                if (played && typeof played.catch === 'function') played.catch(() => {});
+            } catch (_) { /* sound support is optional */ }
+        }
+
+        function playSimSounds() {
+            for (const event of sim.takeEvents()) {
+                const cue = slime.soundCue(event);
+                if (cue) sound(cue.event, cue.variant, cue.strength, event.x);
+            }
+        }
+
         function render(time) {
             if (stopped || paused) return;
             frameCount++;
@@ -4773,6 +4838,7 @@ void main() {
             dirty = false;
             const env = buildEnv(dt, time);
             sim.update(env);
+            playSimSounds();
             renderer.render(buildScene(env, sim.scene(env)));
         }
 
@@ -4940,6 +5006,7 @@ void main() {
                 frameCount,
                 maskCount: cachedOverlayMasks.length,
                 maskRefreshCount,
+                soundEvents,
                 ...sim.stats()
             };
         }

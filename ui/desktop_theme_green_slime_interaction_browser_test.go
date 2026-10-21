@@ -43,6 +43,24 @@ func TestDesktopGreenSlimeInteractionBrowser(t *testing.T) {
 	taskbar := slimeBox{}
 	s.evalInto(t, &taskbar, `()=>{const r=document.querySelector('.vd-taskbar').getBoundingClientRect();return {X:r.left,Y:r.top,W:r.width,H:r.height,R:r.right,B:r.bottom};}`)
 	windowID := s.eval(t, `()=>[...auditTest.state.windows.values()].find(w=>w.appId==='settings').id`).Value.Str()
+	// The effect only reports sounds to the desktop sound system, which decides what is heard. A stub for
+	// DesktopSounds.play records what it was asked for (and plays nothing) for the whole stage.
+	s.eval(t, `()=>{window.slimeSounds=[];window.slimeSoundReal=DesktopSounds.play;DesktopSounds.play=function(event,options){slimeSounds.push({event,variant:options&&options.variant,strength:options&&options.strength,pan:options&&options.pan});return Promise.resolve(false);};}`)
+	type slimeSoundCall struct {
+		Event, Variant string
+		Strength, Pan  float64
+	}
+	heardCalls := func(t *testing.T, event string) (calls []slimeSoundCall) {
+		t.Helper()
+		var all []slimeSoundCall
+		s.evalInto(t, &all, `()=>slimeSounds.slice()`)
+		for _, call := range all {
+			if call.Event == event {
+				calls = append(calls, call)
+			}
+		}
+		return calls
+	}
 
 	t.Run("bubble lifecycle", func(t *testing.T) {
 		before := s.eval(t, `()=>{const f=AuraDesktopThemeFx.inspect();return {bursts:f.bubbleBursts,spray:f.sprayCount,entries:f.bubbleStageEntries};}`).Value
@@ -85,6 +103,21 @@ func TestDesktopGreenSlimeInteractionBrowser(t *testing.T) {
 			t.Fatalf("bubble caps escaped: %s", got.String())
 		}
 		s.waitFor(t, "forced bubbles to burst and heal", 20*time.Second, `()=>AuraDesktopThemeFx.inspect().activeBubbles===0`)
+		// Every visible burst asked for one soft slime.pop (a size, a strength of 0.35 to 1, a gentle pan) and
+		// nothing else made a sound: not the spray, the crater or the other stages.
+		pops := heardCalls(t, "slime.pop")
+		burstsSeen := s.eval(t, `()=>AuraDesktopThemeFx.inspect().bubbleBursts`).Value.Int() - before.Get("bursts").Int()
+		if len(pops) < 1 || len(pops) > burstsSeen {
+			t.Fatalf("%d slime.pop calls for %d bursts", len(pops), burstsSeen)
+		}
+		for _, call := range pops {
+			if (call.Variant != "small" && call.Variant != "medium" && call.Variant != "large") || call.Strength < 0.35 || call.Strength > 1 || call.Pan < -0.8001 || call.Pan > 0.8001 {
+				t.Fatalf("odd slime.pop request: %+v", call)
+			}
+		}
+		if got := s.eval(t, `()=>({calls:slimeSounds.length,events:AuraDesktopThemeFx.inspect().soundEvents,other:slimeSounds.filter(c=>c.event!=='slime.pop'&&c.event!=='slime.snap').length})`).Value; got.Get("calls").Int() != len(pops) || got.Get("events").Int() != len(pops) || got.Get("other").Int() != 0 {
+			t.Fatalf("sound bookkeeping off: %s", got.String())
+		}
 	})
 
 	t.Run("strand with the real mouse", func(t *testing.T) {
@@ -122,6 +155,14 @@ func TestDesktopGreenSlimeInteractionBrowser(t *testing.T) {
 		release()
 		s.waitFor(t, "the strand to snap", 5*time.Second, `(n)=>AuraDesktopThemeFx.inspect().strandSnaps>=n+1`, before.Get("snaps").Int())
 		s.waitFor(t, "the snapped tip to become a drop", 3*time.Second, `(n)=>AuraDesktopThemeFx.inspect().dropCount>n`, before.Get("drops").Int())
+		// The parting thread asked for one slime.snap, panned by where it happened (left of the middle here).
+		snaps := heardCalls(t, "slime.snap")
+		if len(snaps) != 1 {
+			t.Fatalf("%d slime.snap calls for one snapped strand", len(snaps))
+		}
+		if snap := snaps[0]; (snap.Variant != "small" && snap.Variant != "medium" && snap.Variant != "large") || snap.Strength < 0.35 || snap.Strength > 1 || snap.Pan >= 0 || snap.Pan < -0.8001 {
+			t.Fatalf("odd slime.snap request: %+v", snap)
+		}
 		rectAfter := slimeWindowBox(t, s, "settings")
 		if rectBefore != rectAfter {
 			t.Fatalf("pulling the gel moved the window: %+v -> %+v", rectBefore, rectAfter)
@@ -149,6 +190,34 @@ func TestDesktopGreenSlimeInteractionBrowser(t *testing.T) {
 		if errors := s.eval(t, `()=>fixtureErrors`).Value.String(); errors != "[]" {
 			t.Fatalf("errors with drops: %s", errors)
 		}
+		// Drops, splats and spray are silent: no strand was pulled, so there is still the one snap.
+		if snaps := heardCalls(t, "slime.snap"); len(snaps) != 1 {
+			t.Fatalf("%d slime.snap calls after drops and splats, want the one from the strand", len(snaps))
+		}
+	})
+
+	t.Run("bursts are heard through the real sound system", func(t *testing.T) {
+		// The real DesktopSounds.play is back, desktop sounds are on with the sound theme left on "Follow
+		// desktop theme" (Green Slime here) and a gesture has unlocked the audio context.
+		s.eval(t, `()=>{DesktopSounds.play=slimeSoundReal;}`)
+		s.store.set(map[string]string{"sound.enabled": "true"})
+		s.pushSettings(t)
+		s.eval(t, `()=>{document.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));}`)
+		s.waitFor(t, "the sound context to unlock", 5*time.Second, `()=>DesktopSounds.inspect().unlocked`)
+		if theme := s.eval(t, `()=>DesktopSounds.inspect().theme`).Value.Str(); theme != "green_slime" {
+			t.Fatalf("the followed sound theme is %q, want green_slime", theme)
+		}
+		// The first request may be too old by the time the lazy sound bundle has loaded; the next burst plays.
+		s.waitFor(t, "a burst to be played", 30*time.Second, `(id)=>{
+			if (DesktopSounds.inspect().themeFx.slime.played >= 1) return true;
+			if (AuraDesktopThemeFx.inspect().activeBubbles === 0) AuraDesktopThemeFx.command('bubble', { windowId: id, base: 9, fast: true });
+			return false;
+		}`, windowID)
+		if event := s.eval(t, `()=>DesktopSounds.inspect().lastEvent`).Value.Str(); event != "slime.pop" {
+			t.Fatalf("the last sound was %q, want slime.pop", event)
+		}
+		s.store.set(map[string]string{"sound.enabled": "false"})
+		s.pushSettings(t)
 	})
 
 	t.Run("context loss falls back to canvas2d", func(t *testing.T) {
