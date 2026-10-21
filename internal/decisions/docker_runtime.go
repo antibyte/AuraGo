@@ -355,6 +355,9 @@ func startDockerRuntime(ctx context.Context, device runtimeDevice, paths modelPa
 	if !dockerMayMutate(access) {
 		return nil, NewError(CodeDeploymentDenied, nil)
 	}
+	if (strings.EqualFold(device.Type, "CPU") || device.GPULayers > 0) && !cfg.CPUFallbackAllowed {
+		return nil, NewError(CodeCPUConsentRequired, nil)
+	}
 	docker := newDecisionsDocker(access.DockerHost)
 	image, err := docker.image(ctx, strings.ToLower(device.Backend))
 	if err != nil {
@@ -376,41 +379,7 @@ func startDockerRuntime(ctx context.Context, device runtimeDevice, paths modelPa
 		_ = os.Remove(tokenFile)
 		return nil, NewError(CodeRuntimeStartFailed, err)
 	}
-	mounts, modelPath, tokenPath, network, hostConfig, cleanup, err := prepareDockerRuntime(ctx, docker, access, paths, tokenFile, port, device.Backend, resolveSelf)
-	if err != nil {
-		_ = os.Remove(tokenFile)
-		return nil, NewError(CodeRuntimeStartFailed, err)
-	}
-	args := []string{"--model", modelPath, "--model-revision", modelRevision, "--model-sha256", DefaultManifest().Model.SHA256,
-		"--mmproj", filepath.ToSlash(filepath.Join(filepath.Dir(modelPath), DefaultManifest().Projector.Filename)), "--mmproj-revision", modelRevision,
-		"--mmproj-sha256", DefaultManifest().Projector.SHA256, "--bind", "0.0.0.0", "--port", fmt.Sprint(decisionsDockerPort), "--token-file", tokenPath}
-	if strings.EqualFold(device.Type, "CPU") {
-		if !cfg.CPUFallbackAllowed {
-			cleanup(context.Background())
-			_ = os.Remove(tokenFile)
-			return nil, NewError(CodeCPUConsentRequired, nil)
-		}
-		args = append(args, "--allow-cpu")
-	} else if device.GPULayers > 0 {
-		if !cfg.CPUFallbackAllowed {
-			cleanup(context.Background())
-			_ = os.Remove(tokenFile)
-			return nil, NewError(CodeCPUConsentRequired, nil)
-		}
-		args = append(args, "--device", device.ID, "--allow-cpu-offload", "--gpu-layers", fmt.Sprint(device.GPULayers))
-	} else {
-		args = append(args, "--device", device.ID)
-	}
 	name := "aurago-decisions-runtime-" + randomSuffix()
-	hostConfig["NetworkMode"] = network
-	// Use the immutable ID returned by image inspection; a tag can be moved
-	// between discovery and container creation.
-	container, err := docker.createContainer(ctx, name, image.ID, args, mounts, hostConfig)
-	if err != nil {
-		cleanup(context.Background())
-		_ = os.Remove(tokenFile)
-		return nil, NewError(CodeRuntimeStartFailed, err)
-	}
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 	if access.IsDocker {
 		baseURL = fmt.Sprintf("http://%s:%d", name, decisionsDockerPort)
@@ -418,71 +387,96 @@ func startDockerRuntime(ctx context.Context, device runtimeDevice, paths modelPa
 	session := &dockerRuntimeSession{nativeRuntimeSession: &nativeRuntimeSession{
 		baseURL: baseURL, token: tokenFile, client: &http.Client{Timeout: 2 * time.Minute, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 		device: device, deployment: config.DecisionsDeploymentDocker, cpuAllowed: cfg.CPUFallbackAllowed,
-	}, docker: docker, containerID: container.ID, cleanup: cleanup, imageID: image.ID, tokenValue: strings.TrimSpace(string(token))}
-	if err := docker.startContainer(ctx, container.ID); err != nil {
-		failure := NewError(CodeRuntimeStartFailed, err)
+	}, docker: docker, imageID: image.ID, tokenValue: strings.TrimSpace(string(token))}
+	failStart := func(failure error) (runtimeSession, error) {
 		if closeErr := session.Close(context.Background()); closeErr != nil {
 			return session, failure
 		}
 		return nil, failure
+	}
+	mounts, modelPath, tokenPath, network, hostConfig, cleanup, err := prepareDockerRuntime(ctx, docker, access, paths, tokenFile, port, device.Backend, resolveSelf)
+	session.cleanup = cleanup
+	if err != nil {
+		return failStart(NewError(CodeRuntimeStartFailed, err))
+	}
+	args := []string{"--model", modelPath, "--model-revision", modelRevision, "--model-sha256", DefaultManifest().Model.SHA256,
+		"--mmproj", filepath.ToSlash(filepath.Join(filepath.Dir(modelPath), DefaultManifest().Projector.Filename)), "--mmproj-revision", modelRevision,
+		"--mmproj-sha256", DefaultManifest().Projector.SHA256, "--bind", "0.0.0.0", "--port", fmt.Sprint(decisionsDockerPort), "--token-file", tokenPath}
+	if strings.EqualFold(device.Type, "CPU") {
+		args = append(args, "--allow-cpu")
+	} else if device.GPULayers > 0 {
+		args = append(args, "--device", device.ID, "--allow-cpu-offload", "--gpu-layers", fmt.Sprint(device.GPULayers))
+	} else {
+		args = append(args, "--device", device.ID)
+	}
+	hostConfig["NetworkMode"] = network
+	// Use the immutable ID returned by image inspection; a tag can be moved
+	// between discovery and container creation.
+	container, err := docker.createContainer(ctx, name, image.ID, args, mounts, hostConfig)
+	session.containerID = container.ID
+	if err != nil {
+		return failStart(NewError(CodeRuntimeStartFailed, err))
+	}
+	if err := docker.startContainer(ctx, container.ID); err != nil {
+		return failStart(NewError(CodeRuntimeStartFailed, err))
 	}
 
 	var running dockerContainerMetadata
 	if _, inspectErr := docker.client.DoJSON(ctx, http.MethodGet, "containers/"+url.PathEscape(container.ID)+"/json", nil, &running); inspectErr != nil || !dockerContainerImageMatches(image.ID, running.Image) {
-		failure := NewError(CodeRuntimeAttestationFailed, fmt.Errorf("running container image differs from inspected image"))
-		if closeErr := session.Close(context.Background()); closeErr != nil {
-			return session, failure
-		}
-		return nil, failure
+		return failStart(NewError(CodeRuntimeAttestationFailed, fmt.Errorf("running container image differs from inspected image")))
 	}
 	if err := docker.waitRuntimeReady(ctx, session, progress); err != nil {
-		if closeErr := session.Close(context.Background()); closeErr != nil {
-			return session, err
-		}
-		return nil, err
+		return failStart(err)
 	}
 	return session, nil
 }
 
-func prepareDockerRuntime(ctx context.Context, docker *decisionsDocker, access RuntimeAccess, paths modelPaths, tokenFile string, port int, backend string, resolveSelf func(context.Context, string) (string, error)) ([]map[string]any, string, string, string, map[string]any, func(context.Context), error) {
+func prepareDockerRuntime(ctx context.Context, docker *decisionsDocker, access RuntimeAccess, paths modelPaths, tokenFile string, port int, backend string, resolveSelf func(context.Context, string) (string, error)) ([]map[string]any, string, string, string, map[string]any, func(context.Context) error, error) {
 	modelDirectory := filepath.Dir(paths.Model)
 	modelMount, selfID, err := dockerResolvedModelMount(ctx, docker, access, modelDirectory, resolveSelf)
 	if err != nil {
-		return nil, "", "", "", nil, func(context.Context) {}, err
+		return nil, "", "", "", nil, nil, err
 	}
 	tokenMount, tokenTarget, _, tokenSelfID, err := dockerResolvedPathMount(ctx, docker, access, filepath.Dir(tokenFile), "/run/decisions", resolveSelf)
 	if err != nil {
-		return nil, "", "", "", nil, func(context.Context) {}, err
+		return nil, "", "", "", nil, nil, err
 	}
 	if selfID != tokenSelfID {
-		return nil, "", "", "", nil, func(context.Context) {}, NewError(CodeDeploymentDenied, fmt.Errorf("model and token mounts resolve to different AuraGo containers"))
+		return nil, "", "", "", nil, nil, NewError(CodeDeploymentDenied, fmt.Errorf("model and token mounts resolve to different AuraGo containers"))
 	}
 	networkName := "aurago-decisions-internal-" + randomSuffix()
 	var networkID string
-	cleanup := func(parent context.Context) {
+	cleanup := func(parent context.Context) error {
 		cleanupCtx, cancel := context.WithTimeout(parent, decisionsDockerCleanupTimeout)
 		defer cancel()
 		if selfID != "" && networkID != "" {
+			// Confirmed network removal also settles an uncertain disconnect.
 			_, _ = docker.client.DoJSON(cleanupCtx, http.MethodPost, "networks/"+url.PathEscape(networkID)+"/disconnect", map[string]any{"Container": selfID, "Force": true}, nil)
 		}
 		if networkID != "" {
-			_, _ = docker.client.DoJSON(cleanupCtx, http.MethodDelete, "networks/"+url.PathEscape(networkID), nil, nil)
+			status, err := docker.client.DoJSON(cleanupCtx, http.MethodDelete, "networks/"+url.PathEscape(networkID), nil, nil)
+			if err != nil && status != http.StatusNotFound {
+				return fmt.Errorf("remove private decisions network: %w", err)
+			}
+			networkID = ""
 		}
+		return nil
 	}
 	var network struct {
 		ID string `json:"Id"`
 	}
 	_, err = docker.client.DoJSON(ctx, http.MethodPost, "networks/create", map[string]any{"Name": networkName, "Internal": true, "Attachable": false, "Labels": map[string]string{"aurago.managed": "decisions", "aurago.component": "local-decisions-runtime"}}, &network)
-	if err != nil || network.ID == "" {
-		cleanup(context.Background())
-		return nil, "", "", "", nil, func(context.Context) {}, fmt.Errorf("create private decisions network")
-	}
 	networkID = network.ID
+	if err != nil {
+		return nil, "", "", "", nil, cleanup, fmt.Errorf("create private decisions network: %w", err)
+	}
+	if networkID == "" {
+		return nil, "", "", "", nil, cleanup, fmt.Errorf("Docker did not return a decisions network id")
+	}
 	if selfID != "" {
 		_, err = docker.client.DoJSON(ctx, http.MethodPost, "networks/"+url.PathEscape(networkID)+"/connect", map[string]any{"Container": selfID}, nil)
 		if err != nil {
-			cleanup(context.Background())
-			return nil, "", "", "", nil, func(context.Context) {}, fmt.Errorf("connect AuraGo to decisions network")
+			return nil, "", "", "", nil, cleanup, fmt.Errorf("connect AuraGo to decisions network: %w", err)
 		}
 	}
 	modelPath := "/models/" + filepath.Base(paths.Model)
@@ -632,13 +626,13 @@ type dockerRuntimeSession struct {
 	*nativeRuntimeSession
 	docker      *decisionsDocker
 	containerID string
-	cleanup     func(context.Context)
+	cleanup     func(context.Context) error
 	imageID     string
 	tokenValue  string
 }
 
 func (session *dockerRuntimeSession) Close(ctx context.Context) error {
-	cleanupCtx, cancel := context.WithTimeout(ctx, decisionsDockerCleanupTimeout)
+	cleanupCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	if session.containerID != "" {
 		stopCtx, stopCancel := context.WithTimeout(cleanupCtx, 3*time.Second)
@@ -656,12 +650,16 @@ func (session *dockerRuntimeSession) Close(ctx context.Context) error {
 			return fmt.Errorf("decisions container still exists after removal (HTTP %d)", status)
 		}
 		session.containerID = ""
-		if session.cleanup != nil {
-			session.cleanup(cleanupCtx)
+	}
+	// Network ownership outlives the removed container until cleanup is confirmed.
+	if session.cleanup != nil {
+		if err := session.cleanup(cleanupCtx); err != nil {
+			return err
 		}
-		if session.token != "" {
-			_ = os.Remove(session.token)
-		}
+		session.cleanup = nil
+	}
+	if session.token != "" {
+		_ = os.Remove(session.token)
 	}
 	return nil
 }

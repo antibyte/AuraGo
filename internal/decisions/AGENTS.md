@@ -79,6 +79,9 @@ attestation, request validation, candidate-logit normalization, and status.
   Revoke active device/offload attestation synchronously, retaining package pins.
   Native discovery and resident processes share descendant supervision and a
   two-second pipe drain limit. Docker teardown confirms container removal.
+  Keep private-network cleanup and its token until network removal succeeds,
+  independently of whether a container was created or is already gone. Failed
+  network cleanup retains the session and admission barrier for another Stop.
   AutoStart waits/retries bounded
   lifecycle-busy windows so a replacement cannot race old runtime teardown. Evaluation and
   Start preserve caller cancellation causes, including deadlines, while a
