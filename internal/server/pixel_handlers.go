@@ -509,9 +509,14 @@ func handlePixelSave(s *Server) http.HandlerFunc {
 			jsonError(w, "Invalid image encoding", http.StatusBadRequest)
 			return
 		}
-		format, err := pixelValidateImage(data, limit)
+		// PNG and JPEG keep the image rules; a .ora path (or format "ora") is an OpenRaster project archive.
+		format, err := pixelValidateSavePayload(data, limit, savePath, req.Format)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			status := http.StatusBadRequest
+			if errors.Is(err, errPixelORATooLarge) {
+				status = http.StatusRequestEntityTooLarge
+			}
+			jsonError(w, err.Error(), status)
 			return
 		}
 		ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(savePath)), ".")
