@@ -1,7 +1,7 @@
 """World style for the functional parts of a dressed course (MIT License, see ../LICENSE).
 
 Obstacles, ball and putter templates, flag, hole digits, tee ring and cup parts
-come from the unchanged ``courses_v1`` code with legacy colour materials. After
+come from ``basic_parts`` / ``cup_parts`` with legacy colour materials. After
 the build, ``restyle`` swaps their materials for the shared vertex-coloured kit
 materials and paints the world colours. Obstacle boxes only get a bevel (the asset
 test compares their exact extents), the ball stays exactly on r = 0.16 m and the
@@ -15,9 +15,10 @@ import bpy
 from mathutils import Matrix
 
 from . import colors, materials, palette, shapes
-from .courses_v1 import BALL_RADIUS, CUP_RADIUS, ring
+from .basic_parts import ring
 from .palette import mix
 from .prop import Prop
+from .track import BALL_RADIUS, CUP_RADIUS
 
 OBSTACLE = {"pirate": (("red_dark", "red"), ("wood_dark", "wood"), "matte"),
             "temple": (("totem_red", "fire_orange"), ("totem_teal", "totem_teal"), "matte"),
@@ -128,8 +129,12 @@ def _putter(look, model, old):
     return new
 
 
-def restyle(look, model):
-    """Restyle the legacy functional parts of ``model``; returns ``(bake, passthrough)`` object lists."""
+def restyle(look, model, cup_patch=True):
+    """Restyle the functional parts of ``model``; returns ``(bake, passthrough)`` object lists.
+
+    ``cup_patch`` adds the felt collar around the cup rim of the legacy courses; the exact cup of the track kit
+    needs none.
+    """
     pal = palette.get(look)
     bake, passthrough = [], []
     gold, black = pal.c("gold"), pal.c("black")
@@ -159,11 +164,12 @@ def restyle(look, model):
             bake.append(obj)
         elif base == "cup-rim":
             moon = look == "moon"
-            patch = _cup_patch(look, pal, model, obj)  # centre and height come from the flat ring
+            patch = _cup_patch(look, pal, model, obj) if cup_patch else None  # centre and height come from the flat ring
             _bevel_rim(obj)
             _paint(obj, pal.c("cyan") if moon else gold, "emissive" if moon else "satin", 0.0 if moon else 0.5)
             (passthrough if moon else bake).append(obj)
-            bake.append(patch)
+            if patch is not None:
+                bake.append(patch)
         elif base == "cup-bottom":
             _paint(obj, black, "matte", 0.0)
             bake.append(obj)

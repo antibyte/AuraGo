@@ -35,10 +35,13 @@ provenance and rebuild steps are in [`audio/README.md`](audio/README.md).
 | Module | Role |
 |---|---|
 | `courses_v1.py` | The 18 legacy course definitions and the lane, rail, hole and obstacle geometry, unchanged and guarded by the P1 fingerprints. `build_course` takes the `Dresser` that replaces the decor. |
-| `dress.py`, `dress_island.py`, `island.py`, `trim.py` | Dressing a course: the island terrain and strata, the shore strip, the rail trims, the bake. |
+| `dress.py`, `dress_island.py`, `island.py`, `trim.py` | Dressing a P3 course: the `Dresser`, the island strata and mesh, the shore strip, the rail trims (one node from the rail runs), the bake. |
 | `dress_specials.py`, `special_parts.py`, `dress_parts.py` | Layout specials as fixed placements or hand-built parts; the functional parts (obstacles, templates, flag, hole digits, tee ring, cup). |
-| `placement.py`, `occluders.py` | Deterministic prop placement and its rule check; the kit objects used as bake occluders. |
-| `track.py`, `pieces.py`, `pads.py`, `layout.py`, `rails.py` | The P3 track kit core (plain Python): sections and pads with shared seam points, lane pieces and raster pads, course data to `Track`, wall runs. Not wired into `generate.py` yet. |
+| `placement.py`, `occluders.py` | Deterministic prop placement (hero and fixed props of the course data, corridors of every route) and its rule check; the kit objects used as bake occluders. |
+| `track.py`, `pieces.py`, `pads.py`, `layout.py`, `rails.py` | The P3 track kit core (plain Python): sections and pads with shared seam points, lane pieces and raster pads, course data to `Track`, wall runs. |
+| `cup_hole.py`, `cup_parts.py` | The exact cup: hole polygon and zipper floor around it (plain Python), the collision cup `floor-cup`, cup rim, tee ring and flag. |
+| `courses.py`, `course_entry.py`, `course_data_pirate.py`, `course_data_temple.py`, `course_data_moon.py` | The P3 pipeline (`generate.py --set p3`): one function builds, dresses, exports and describes a course; the manifest v2 entry (bounds, water, routes); the course data of each world (plain literals). |
+| `footprint.py`, `terrain.py`, `bed_field.py` | Island outline fitted to the layout, island height (bed under grounded floors, cup hollow, ponds, trenches), the floor triangle hash behind it. |
 | `pieces_moon.py`, `pads_funnel.py`, `layout_fork.py` | Moon half-pipe and loop, the polar funnel pad, and forks (split pad, branches built by the layout, join pad). Importing the layout registers them. |
 | `build_track.py`, `floor_paint.py`, `basic_parts.py` | Blender floor and collision rail nodes of a `Track`, floor colours, shared mesh helpers (copies from `courses_v1.py`). |
 | `track_checks.py`, `track_selftest.py` | The two probe courses with their pure-Python checks, and the headless Blender selftest that exports and reads them back. |
@@ -65,6 +68,18 @@ arguments from the generator's):
 & 'D:\Blender 5.2\blender.exe' --background --factory-startup --python assets/minigolf/generate.py -- --only all
 node scripts/test-minigolf-assets.mjs
 ```
+
+The P3 courses build into a folder of their own until the switch-over (`--out` is required with `--set p3`; the
+folder `assets/minigolf/build/` is ignored by git):
+
+```powershell
+& 'D:\Blender 5.2\blender.exe' --background --factory-startup --python assets/minigolf/generate.py -- --set p3 --out assets/minigolf/build/p3 --only kits,courses
+& 'D:\Blender 5.2\blender.exe' --background --factory-startup --python assets/minigolf/generate.py -- --set p3 --out assets/minigolf/build/p3 --course 1 --save-blend
+node scripts/minigolf-route-search.mjs --dir assets/minigolf/build/p3 --course pirate-01
+```
+
+`--set p3` builds the courses of `kit/course_data_<world>.py` (manifest version 2, collision read from the GLB) and
+patches `--course N` into the manifest under `--out`. The commands above without `--set` are the frozen legacy build.
 
 - `--only` takes `kits`, `courses`, `previews` or `all` (comma-separated). The
   default is `kits,courses`; with `--course` it is `courses`.

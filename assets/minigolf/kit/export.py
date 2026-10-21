@@ -19,13 +19,13 @@ FUNCTIONAL_PREFIXES = ("surface-", "floor-", "rail-", "obstacle-", "mechanic-", 
 # Functional nodes that must keep their exact name (Blender numbers a taken name): the legacy fixed names plus
 # the track kit's prefixes and its three collision rail surfaces.
 CANONICAL_NAMES = ("surface-grass", "surface-sand", "rail-left", "rail-right", "flag", "ball-template", "putter-template",
-                   "rail-trim-left", "rail-trim-right", "water-shore", "rail-wood", "rail-stone", "rail-metal")
+                   "rail-trim-left", "rail-trim-right", "rail-trim", "water-shore", "rail-wood", "rail-stone", "rail-metal")
 CANONICAL_PREFIXES = ("floor-", "obstacle-", "mechanic-")
 COLLIDER_SURFACES = ("grass", "sand", "wood", "stone", "metal")
 
 
 def scene_bounds(objects, obstacles):
-    from .courses_v1 import q, runtime  # lazy: courses_v1 imports this module
+    from .basic_parts import q, runtime  # lazy: keeps this module importable without the helper module
     points=[]
     for obj in objects:
         if obj.type!="MESH": continue

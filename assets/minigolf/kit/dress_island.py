@@ -1,188 +1,43 @@
 """Diorama island of a dressed course (MIT License, see ../LICENSE).
 
-``Terrain`` knows the legacy lane (path samples, hill, bank, gap, cup) and
-answers ``top_height(x, y)``: base ground with a little noise, a bed 6 cm under
-the lane that follows hills and banked bends, a hollow under the cup and a
-trench across the whole island where the lane has a gap. ``build`` turns it into
-the island mesh (strata walls, closed underside) and the optional ``water-shore``
-strip; colours are written to the POINT ``palette`` / ``ao_w`` attributes so
-``bake.process`` can finish them.
+``terrain.Terrain`` answers ``top_height(x, y)`` for the track (bed under the grounded floor, cup hollow, ponds,
+trenches). ``build`` turns it into the island mesh (strata walls, closed underside) with a top grid of about
+0.35 m cells and the optional ``water-shore`` strip; colours are written to the POINT ``palette`` / ``ao_w``
+attributes so ``bake.process`` can finish them.
 """
 
 import math
-import random
 
-from mathutils import Vector
-
-from . import colors, materials, palette, shapes
+from . import colors, materials, shapes
 from .compose import fbm
-from .courses_v1 import LANE_WIDTH, lane_center_height
-from .island import Layer, Outline, build_island, smoothstep
+from .island import Layer, build_island, smoothstep
 from .palette import mix
+from .terrain import HOLLOW_OUTER, WATER_Z, Terrain, clamp01  # noqa: F401  (Terrain: re-exported)
 
-WATER_Z = -1.15
-BED_DROP = 0.06
-BED_NEAR, BED_FAR = 1.1, 2.0
-SAME_STRETCH = 10  # path samples: segments this close in index belong to the same stretch of lane
-HOLLOW_FLAT, HOLLOW_OUTER, HOLLOW_DEPTH = 0.36, 0.45, 0.34
-TRENCH_Z = {"pirate": WATER_Z - 0.3, "temple": WATER_Z - 0.3, "moon": -3.0}
-TRENCH_PAD, TRENCH_SOFT = 0.05, 0.12
 TIP = {"pirate": -2.4, "temple": -2.2, "moon": -3.2}
-GRID = (56, 60)
+CELL = 0.35               # top grid cell in metres
+MAX_TOP_QUADS = 4400      # larger islands get coarser cells to stay inside the triangle budget
 SHORE_WIDTH = 0.9
-HALF = LANE_WIDTH / 2
 HOLE_DARK = (0.012, 0.016, 0.02, 1.0)
 
 
-def clamp01(v):
-    return 0.0 if v < 0.0 else (1.0 if v > 1.0 else v)
+def strata_color(t, z):
+    top_z = -0.1
+    for layer in t.layers:
+        if z >= layer.z:
+            return mix(layer.top, layer.bottom, clamp01((top_z - z) / max(1e-6, top_z - layer.z)))
+        top_z = layer.z
+    return t.layers[-1].bottom
 
 
-class Terrain:
-    """Height and colour of the island top for one course (Blender X/Y/Z, metres)."""
-
-    def __init__(self, look, number, course, path, cup):
-        self.look = look
-        self.pal = palette.get(look)
-        self.cup = cup
-        rng = random.Random(4000 + number)
-        self.off = Vector((rng.uniform(-40, 40), rng.uniform(-40, 40), 0.0))
-        self.outline = Outline(center=(0, 0.1), half=(4.9, 5.35), power=2.6, wobble=0.05, seed=number)
-        self.samples = self._samples(course, path)
-        self.gap = self._gap(course, path)
-        self._memo = None
-        self.patches = self._patches(rng, 3)
-        self.layers = layers_for(look, self.pal)
-
-    # -- lane geometry ------------------------------------------------------
-
-    @staticmethod
-    def _samples(course, path):
-        n = len(path)
-        bank = course.get("bank", 0)
-        out = []
-        for i, p in enumerate(path):
-            prev, nxt = path[max(0, i - 1)], path[min(n - 1, i + 1)]
-            dx, dy = nxt[0] - prev[0], nxt[1] - prev[1]
-            ln = max(.0001, math.hypot(dx, dy))
-            t = i / (n - 1)
-            slope = bank * math.sin(math.pi * max(0, min(1, (t - .18) / .66))) if bank else 0.0
-            out.append((p[0], p[1], dy / ln, -dx / ln, lane_center_height(course, path, i), slope))
-        return out
-
-    @staticmethod
-    def _gap(course, path):
-        gap = course.get("gap")
-        if not gap:
-            return None
-        n = len(path)
-        skipped = [i for i in range(n - 1) if gap[0] <= (i + .5) / (n - 1) <= gap[1]]
-        if not skipped:
-            return None
-        a, b = path[skipped[0]], path[skipped[-1] + 1]
-        length = math.hypot(b[0] - a[0], b[1] - a[1])
-        return ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (b[0] - a[0]) / length, (b[1] - a[1]) / length,
-                length / 2 + TRENCH_PAD)
-
-    def _patches(self, rng, count):
-        out = []
-        for _ in range(200):
-            if len(out) >= count:
-                break
-            x, y = rng.uniform(-4.4, 4.4), rng.uniform(-4.8, 5.0)
-            if self.outline.contains_signed(x, y) < -1.0 and self.lane_distance(x, y) > 2.2:
-                out.append((x, y, rng.uniform(0.7, 1.3)))
-        return out
-
-    def _bed_of(self, hit):
-        """``(distance, bed_z)`` of one scan hit: the lane surface height 6 cm lower, level outwards from the edge."""
-        d2, k, u, px, py, x, y = hit
-        a, b = self.samples[k], self.samples[k + 1]
-        nx, ny = a[2] + (b[2] - a[2]) * u, a[3] + (b[3] - a[3]) * u
-        lateral = ((x - px) * nx + (y - py) * ny) / max(1e-9, math.hypot(nx, ny))
-        h = a[4] + (b[4] - a[4]) * u
-        slope = a[5] + (b[5] - a[5]) * u
-        return math.sqrt(d2), h + slope * max(-HALF, min(HALF, lateral)) - BED_DROP
-
-    def _scan(self, x, y):
-        """``(distance, bed_z, others)`` for the nearest lane segment; ``others`` are the (distance, bed_z)
-        of segments of a different stretch of the lane (a hairpin or loop passing close by)."""
-        memo = self._memo
-        if memo is not None and memo[0] == x and memo[1] == y:
-            return memo[2]
-        s = self.samples
-        far2 = BED_FAR * BED_FAR
-        best = None
-        found = []
-        for k in range(len(s) - 1):
-            ax, ay, bx, by = s[k][0], s[k][1], s[k + 1][0], s[k + 1][1]
-            vx, vy = bx - ax, by - ay
-            l2 = vx * vx + vy * vy
-            u = 0.0 if l2 < 1e-12 else max(0.0, min(1.0, ((x - ax) * vx + (y - ay) * vy) / l2))
-            px, py = ax + u * vx, ay + u * vy
-            d2 = (x - px) ** 2 + (y - py) ** 2
-            hit = (d2, k, u, px, py, x, y)
-            if best is None or d2 < best[0]:
-                best = hit
-            if d2 < far2:
-                found.append(hit)
-        d, zb = self._bed_of(best)
-        others = [self._bed_of(h) for h in found if abs(h[1] - best[1]) > SAME_STRETCH]
-        result = (d, zb, others)
-        self._memo = (x, y, result)
-        return result
-
-    def lane_distance(self, x, y):
-        return self._scan(x, y)[0]
-
-    def in_trench(self, x, y, soft=TRENCH_SOFT):
-        if not self.gap:
-            return False
-        mx, my, tx, ty, half = self.gap
-        return abs((x - mx) * tx + (y - my) * ty) <= half + soft
-
-    # -- height -------------------------------------------------------------
-
-    def top_height(self, x, y, edge=None):
-        if edge is None:
-            edge = -self.outline.contains_signed(x, y)
-        z0 = -0.04 + 0.03 * fbm(x, y, 0.4, self.off) * smoothstep(edge, 0.1, 1.1)
-        z0 -= 0.06 * (1.0 - smoothstep(edge, 0.0, 0.32))
-        d, zb, others = self._scan(x, y)
-        z = z0 + (zb - z0) * (1.0 - smoothstep(d, BED_NEAR, BED_FAR))
-        for d_o, zb_o in others:
-            # A second stretch of the lane close by (hairpin): never stand above its bed.
-            z = min(z, zb_o + smoothstep(d_o, BED_NEAR, BED_NEAR + 0.6))
-        cx, cy, cz = self.cup
-        r = math.hypot(x - cx, y - cy)
-        if r < HOLLOW_OUTER:
-            floor = cz - HOLLOW_DEPTH
-            z = floor + (z - floor) * smoothstep(r, HOLLOW_FLAT, HOLLOW_OUTER)
-        if self.gap:
-            mx, my, tx, ty, half = self.gap
-            k = 1.0 - smoothstep(abs((x - mx) * tx + (y - my) * ty), half, half + TRENCH_SOFT)
-            if k > 0.0:
-                z += (TRENCH_Z[self.look] - z) * k
-        return z
-
-    # -- colour -------------------------------------------------------------
-
-    def strata_color(self, z):
-        top_z = -0.1
-        for layer in self.layers:
-            if z >= layer.z:
-                return mix(layer.top, layer.bottom, clamp01((top_z - z) / max(1e-6, top_z - layer.z)))
-            top_z = layer.z
-        return self.layers[-1].bottom
-
-    def ground_color(self, x, y, z, edge):
-        c = _GROUND[self.look](self, x, y, z, edge)
-        wall = smoothstep(-z, 0.22, 0.4)
-        if wall > 0.0:
-            c = mix(c, self.strata_color(z), wall)
-        # The cup hollow shows through the lane cut-out around the cup: keep it dark like the inside of a hole.
-        hole = 1.0 - smoothstep(math.hypot(x - self.cup[0], y - self.cup[1]), HOLLOW_OUTER + 0.15, HOLLOW_OUTER + 0.35)
-        return mix(c, HOLE_DARK, 0.9 * hole) if hole > 0.0 else c
+def ground_color(t, x, y, z, edge):
+    c = _GROUND[t.look](t, x, y, z, edge)
+    wall = smoothstep(-z, 0.22, 0.4)
+    if wall > 0.0:
+        c = mix(c, strata_color(t, z), wall)
+    # The cup hollow shows through the cut-out around the cup: keep it dark like the inside of a hole.
+    hole = 1.0 - smoothstep(math.hypot(x - t.cup[0], y - t.cup[1]), HOLLOW_OUTER + 0.15, HOLLOW_OUTER + 0.35)
+    return mix(c, HOLE_DARK, 0.9 * hole) if hole > 0.0 else c
 
 
 def _ground_pirate(t, x, y, z, edge):
@@ -265,16 +120,25 @@ def layers_for(look, pal):
     ]
 
 
+def grid_for(outline):
+    """Top grid ``(nx, ny)`` of the island: cells of ``CELL`` m, coarser when the island is so large that the top
+    would exceed ``MAX_TOP_QUADS`` quads."""
+    hx, hy = outline.half
+    cell = max(CELL, math.sqrt(4.0 * hx * hy / MAX_TOP_QUADS))
+    return math.ceil(2.0 * hx / cell), math.ceil(2.0 * hy / cell)
+
+
 def build(terrain, number):
     """Build the island and return ``(island_obj, waterline)`` (waterline empty on the moon)."""
     look = terrain.look
-    nx, ny = GRID
+    terrain.layers = layers_for(look, terrain.pal)
+    nx, ny = grid_for(terrain.outline)
 
     def height(x, y, edge):
         return terrain.top_height(x, y)
 
-    obj, waterline = build_island(terrain.outline, nx, ny, height, terrain.ground_color, terrain.layers,
-                                  WATER_Z if look != "moon" else -100.0, seed=number, tip=TIP[look],
+    obj, waterline = build_island(terrain.outline, nx, ny, height, lambda x, y, z, edge: ground_color(terrain, x, y, z, edge),
+                                  terrain.layers, WATER_Z if look != "moon" else -100.0, seed=number, tip=TIP[look],
                                   clamp_down=True)
     obj.data.materials.append(materials.get("matte"))
     return obj, waterline

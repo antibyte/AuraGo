@@ -1,32 +1,34 @@
 """Deterministic prop placement of a dressed course (MIT License, see ../LICENSE).
 
-``place`` returns ``[(name, x, y, z, yaw, scale)]`` in Blender coordinates: the
-fixed special placements first, then the hero, the medium props and the scatter.
-Everything comes from ``random.Random(1000 + number)`` and a fixed candidate
-grid, so a run is byte-stable.
+``place`` returns ``[(name, x, y, z, yaw, scale)]`` in Blender coordinates: the fixed parts first (``fixed``,
+kept where they are unless they reach over the rim), then the hero at its data position, the fixed props of the
+course data, the medium props and the scatter. Everything comes from ``random.Random(1000 + number)`` and a
+fixed candidate grid, so a run is byte-stable.
 
-Rules (spec 3.4, asset test): no footprint circle (``radius`` x scale, the kit
-catalog) enters the corridor around the lane centre line except ``span`` props,
-everything lies inside the island rim with a margin (``rim_share``: how much of
-its radius a prop needs inside the rim, the rest may overhang), and the instance
-count stays below ``LIMIT``. The corridor here is a little wider than the test's
-1.0 m so the rail trims and their posts stay clear. The lane polyline is exactly
-the manifest ``path`` (every third sample plus the last), the one the test
-measures against. ``check`` applies every rule to every placement, fixed ones too.
+Rules (asset test): no footprint circle (``radius`` x scale, the kit catalog) enters the corridor around any
+route centre line (the main route, fork branches and shortcuts: ``Track.corridors``) except ``span`` props,
+everything lies inside the island rim with a margin (``rim_share``: how much of its radius a prop needs inside the
+rim, the rest may overhang), and the instance count stays below ``LIMIT``. The corridor here is a little wider
+than the test's 1.0 m so the rail trims and their posts stay clear. Wide pads (plaza, green, funnel) are covered
+too: free placements also keep ``FLOOR_GAP`` from every floor vertex. The hero stands where the course data puts it
+at scale 1.0; it shrinks in 0.05 steps down to 0.9 when the rim, a corridor or the floor demand it and the build
+fails otherwise. ``check`` applies every rule to every placement, fixed ones too.
 """
 
 import math
 import random
 
 CORRIDOR = 1.2
+HERO_CORRIDOR = 1.05      # the hero circle is mostly thin parts: it may come a little closer than free props
 EDGE = 0.3
 GRID = 0.25
-LIMIT = 160
-HERO_MIN_SCALE = 0.42
+LIMIT = 220
+HERO_SCALES = (1.0, 0.95, 0.9)
+FLOOR_GAP = 0.45          # free props keep this far from every floor vertex (the lane edge is 0.86 m from the centre line)
+HERO_FLOOR_GAP = 0.25
 FOOT_GAP = 0.04
 CANOPY = 0.5  # share of a tall prop's radius that is solid for other props (the rest is overhang)
 HERO_SOLID = 0.6  # the same for a hero (a long thin hull or a head fills little of its enclosing circle)
-HERO_MAX = {"lighthouse": 1.3}
 VIEW = (-0.58, 0.81)  # horizontal viewing direction of the game camera in Blender XY
 DEFAULT_SINK = 0.03
 TOLERANCE = 0.005  # metres: slack of the rim check for scales rounded to millimetres
@@ -70,31 +72,87 @@ PLANS = {
 
 
 class Field:
-    """Distances to the lane polyline and the island rim, cached per query point."""
+    """Distances to the route centre lines, the floor and the island rim, cached per query point.
 
-    def __init__(self, path, outline, trench=None):
-        self.path = path
+    ``corridors`` are the centre polylines of every route (``Track.corridors``, points ``(x, y, ...)``);
+    ``floor`` the plan points of all floor vertices; ``trench(x, y, margin)`` is True where a gap or a pond cuts
+    the island. Segments and floor points are hashed in cells of ``HASH`` m.
+    """
+
+    HASH = 2.0
+
+    def __init__(self, corridors, outline, trench=None, floor=()):
+        self.corridors = corridors
         self.outline = outline
-        self.trench = trench  # optional ``trench(x, y, margin)``: True where a jump gap cuts the island
+        self.trench = trench
+        self.segments = []
+        self.cells = {}
+        for line in corridors:
+            for a, b in zip(line, line[1:]):
+                if math.hypot(b[0] - a[0], b[1] - a[1]) < 1e-9:
+                    continue
+                k = len(self.segments)
+                self.segments.append((a[0], a[1], b[0], b[1]))
+                for i in range(math.floor(min(a[0], b[0]) / self.HASH), math.floor(max(a[0], b[0]) / self.HASH) + 1):
+                    for j in range(math.floor(min(a[1], b[1]) / self.HASH), math.floor(max(a[1], b[1]) / self.HASH) + 1):
+                        self.cells.setdefault((i, j), []).append(k)
+        self.floor_cells = {}
+        for x, y in floor:
+            self.floor_cells.setdefault((math.floor(x / self.HASH), math.floor(y / self.HASH)), []).append((x, y))
         self._lane = {}
+        self._floor = {}
+
+    @staticmethod
+    def _measure(x, y, segment):
+        ax, ay, bx, by = segment
+        vx, vy = bx - ax, by - ay
+        l2 = vx * vx + vy * vy
+        t = max(0.0, min(1.0, ((x - ax) * vx + (y - ay) * vy) / l2))
+        px, py = ax + t * vx, ay + t * vy
+        ln = math.sqrt(l2)
+        return (math.hypot(x - px, y - py), px, py, vx / ln, vy / ln)
 
     def lane(self, x, y):
-        """``(distance, nearest x, nearest y, unit tangent x, unit tangent y)`` of the lane centre line."""
+        """``(distance, nearest x, nearest y, unit tangent x, unit tangent y)`` of the nearest route centre line."""
         key = (round(x, 4), round(y, 4))
         hit = self._lane.get(key)
         if hit is not None:
             return hit
+        ci, cj = math.floor(x / self.HASH), math.floor(y / self.HASH)
         best = None
-        for a, b in zip(self.path, self.path[1:]):
-            vx, vy = b[0] - a[0], b[1] - a[1]
-            l2 = max(1e-9, vx * vx + vy * vy)
-            t = max(0.0, min(1.0, ((x - a[0]) * vx + (y - a[1]) * vy) / l2))
-            px, py = a[0] + t * vx, a[1] + t * vy
-            d = math.hypot(x - px, y - py)
-            if best is None or d < best[0]:
-                ln = math.sqrt(l2)
-                best = (d, px, py, vx / ln, vy / ln)
+        for reach in (1, 3):                       # a window of cells; its guaranteed exact radius is reach * HASH
+            seen = set()
+            for i in range(ci - reach, ci + reach + 1):
+                for j in range(cj - reach, cj + reach + 1):
+                    for k in self.cells.get((i, j), ()):
+                        if k not in seen:
+                            seen.add(k)
+                            m = self._measure(x, y, self.segments[k])
+                            if best is None or m[0] < best[0]:
+                                best = m
+            if best is not None and best[0] <= reach * self.HASH:
+                break
+        else:
+            for segment in self.segments:
+                m = self._measure(x, y, segment)
+                if best is None or m[0] < best[0]:
+                    best = m
         self._lane[key] = best
+        return best
+
+    def floor_distance(self, x, y):
+        """Plan distance to the nearest floor vertex (large when none is within 6 m)."""
+        key = (round(x, 4), round(y, 4))
+        hit = self._floor.get(key)
+        if hit is not None:
+            return hit
+        ci, cj = math.floor(x / self.HASH), math.floor(y / self.HASH)
+        best = 99.0
+        for i in range(ci - 3, ci + 4):
+            for j in range(cj - 3, cj + 4):
+                for px, py in self.floor_cells.get((i, j), ()):
+                    best = min(best, math.hypot(x - px, y - py))
+        self._floor[key] = best
         return best
 
     def edge(self, x, y):
@@ -102,12 +160,12 @@ class Field:
         return -self.outline.contains_signed(x, y)
 
     def dry(self, x, y, radius):
-        """False where a footprint of ``radius`` would reach into the trench of a jump gap."""
+        """False where a footprint of ``radius`` would reach into a trench or a pond."""
         return not (self.trench and self.trench(x, y, radius))
 
     def clearance(self, x, y, rim=1.0):
-        """Largest footprint radius that keeps the lane corridor free and ``rim`` times the radius inside the island rim."""
-        return min(self.lane(x, y)[0] - CORRIDOR, (self.edge(x, y) - EDGE) / rim)
+        """Largest footprint radius that keeps the corridors and the floor free and ``rim`` times the radius inside the rim."""
+        return min(self.lane(x, y)[0] - CORRIDOR, self.floor_distance(x, y) - FLOOR_GAP, (self.edge(x, y) - EDGE) / rim)
 
 
 def rim_share(name, catalog):
@@ -158,17 +216,38 @@ def _blocks_view(field, x, y, height):
     return False
 
 
-def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(), cup=(0.0, 0.0), hero=None):
+def hero_conflict(field, catalog, name, x, y, scale):
+    """Why a hero at ``(x, y)`` and ``scale`` does not fit (rim, corridor, floor, water), or None."""
+    info = catalog[name]
+    r = info["radius"] * scale
+    need = EDGE + rim_share(name, catalog) * r
+    if field.edge(x, y) < need - TOLERANCE:
+        return "it reaches %.2f m over the island rim" % (need - field.edge(x, y))
+    if field.lane(x, y)[0] - r < HERO_CORRIDOR:
+        return "it comes within %.2f m of a route centre line (needs %.2f m)" % (field.lane(x, y)[0] - r, HERO_CORRIDOR)
+    if field.floor_distance(x, y) - r < HERO_FLOOR_GAP:
+        return "it comes within %.2f m of the floor (needs %.2f m)" % (field.floor_distance(x, y) - r, HERO_FLOOR_GAP)
+    if not field.dry(x, y, 0.7 * r):
+        return "it stands in a pond or a trench"
+    return None
+
+
+def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(), cup=(0.0, 0.0), hero=None, props=()):
     """Placements ``[(name, x, y, z, yaw, scale)]``; see the module docstring.
 
-    ``fixed`` are ``(name, x, y, yaw, scale)`` special placements that are kept
-    first (moved inwards only as far as the rim rule needs); ``reserved`` are ``(x, y, radius)`` circles taken by special geometry;
-    ``plan`` holds ``medium`` and ``scatter`` lists of ``(name, count)``; ``hero``
-    overrides the plan's hero prop (None keeps it, False drops it).
+    ``fixed`` are ``(name, x, y, yaw, scale)`` parts that are kept first (moved inwards only as far as the rim
+    rule needs); ``reserved`` are ``(x, y, radius)`` circles taken by other geometry; ``hero`` is
+    ``{"name", "at": (x, y), "yaw": radians}`` or None (no hero); ``props`` are the course data's fixed props
+    ``(name, x, y, yaw, scale)``; ``plan`` holds the ``medium`` and ``scatter`` lists of ``(name, count)`` (a
+    medium prop that is a fixed part or a fixed prop is not placed again).
     """
     rng = random.Random(1000 + number)
     front = FRONT[look]
-    cells = [(x * GRID, y * GRID) for y in range(-26, 27) for x in range(-26, 27)]
+    cx, cy = field.outline.center.x, field.outline.center.y
+    hx, hy = field.outline.half
+    x0, x1 = math.floor((cx - 1.1 * hx) / GRID), math.ceil((cx + 1.1 * hx) / GRID)
+    y0, y1 = math.floor((cy - 1.1 * hy) / GRID), math.ceil((cy + 1.1 * hy) / GRID)
+    cells = [(x * GRID, y * GRID) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)]
     cells = [c for c in cells if field.edge(*c) > EDGE]
     out, occupied, bubbles = [], [(x, y, r) for x, y, r in reserved], []
 
@@ -196,9 +275,8 @@ def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(),
             out.append(("dishhead", x, y, out[-1][3], yaw, scale))
 
     def settle(name, x, y, scale):
-        """A fixed special keeps its legacy spot unless that reaches over the rim: pull it towards the island centre."""
+        """A fixed part keeps its spot unless that reaches over the rim: pull it towards the island centre."""
         need = EDGE + rim(name) * catalog[name]["radius"] * scale
-        cx, cy = field.outline.center.x, field.outline.center.y
         for _ in range(SETTLE_STEPS):
             d = math.hypot(cx - x, cy - y)
             if field.edge(x, y) >= need or d < SETTLE_STEP:
@@ -206,7 +284,9 @@ def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(),
             x, y = x + (cx - x) / d * SETTLE_STEP, y + (cy - y) / d * SETTLE_STEP
         return x, y
 
-    for name, x, y, yaw, scale in fixed:
+    def add_fixed(name, x, y, yaw, scale):
+        if name not in catalog:
+            raise ValueError("unknown prop %r in the %s kit" % (name, look))
         x, y = settle(name, x, y, scale)
         add(name, x, y, yaw, scale)
         if name in FOOTPRINT:  # a wide span prop blocks its two legs, not a circle around the lane
@@ -214,29 +294,29 @@ def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(),
             for dx, dy, r in FOOTPRINT[name]:
                 occupied.append((x + (dx * math.cos(yaw) - dy * math.sin(yaw)) * scale, y + (dx * math.sin(yaw) + dy * math.cos(yaw)) * scale, r * scale))
 
-    hero_name = plan.get("hero") if hero is None else (hero or None)
-    if hero_name:
-        info = catalog[hero_name]
-        r = info["radius"]
-        best = None
-        for x, y in cells:
-            scale = min(HERO_MAX.get(hero_name, 1.0), field.clearance(x, y, rim(hero_name)) / r)
-            if scale < HERO_MIN_SCALE or overlaps(x, y, solid(hero_name, scale), FOOT_GAP) or not field.dry(x, y, 0.7 * r * scale):
-                continue
-            score = 2.0 * scale + 0.05 * y / 5.0 - 0.004 * math.hypot(x, y)
-            if best is None or score > best[0] + 1e-9:
-                best = (score, x, y, scale)
-        if best:
-            _, x, y, scale = best
-            scale = round(scale - 0.01, 3)
-            add(hero_name, x, y, _facing(hero_name, FACING.get(hero_name, "none"), x, y, front, field, rng, cup), scale)
-            bubbles.append((x, y, r * scale * 0.95 - occupied[-1][2]))  # medium props keep clear of the whole hero circle
+    for name, x, y, yaw, scale in fixed:
+        add_fixed(name, x, y, yaw, scale)
 
     hero_front = None
-    if out and hero_name and out[-1][0] == hero_name:
-        hx, hy, hr = out[-1][1], out[-1][2], catalog[hero_name]["radius"] * out[-1][5]
-        hero_front = lambda x, y: abs(x - hx) < 0.55 * hr + 0.4 and hy - 0.9 * hr - 0.8 < y < hy
-    skip = {name for name, *_ in fixed}
+    if hero:
+        name, (x, y), yaw = hero["name"], hero["at"], hero["yaw"]
+        if name not in catalog:
+            raise ValueError("unknown hero prop %r in the %s kit" % (name, look))
+        why = None
+        for scale in HERO_SCALES:
+            why = hero_conflict(field, catalog, name, x, y, scale)
+            if why is None:
+                break
+        else:
+            raise ValueError("the hero %s at (%.2f, %.2f) does not fit even at scale %.2f: %s" % (name, x, y, HERO_SCALES[-1], why))
+        add(name, x, y, yaw, scale)
+        r = catalog[name]["radius"]
+        bubbles.append((x, y, r * scale * 0.95 - occupied[-1][2]))  # medium props keep clear of the whole hero circle
+        hero_front = lambda px, py, hx=x, hy=y, hr=r * scale: abs(px - hx) < 0.55 * hr + 0.4 and hy - 0.9 * hr - 0.8 < py < hy
+    for name, x, y, yaw, scale in props:
+        add_fixed(name, x, y, yaw, scale)
+
+    skip = {name for name, *_ in fixed} | {name for name, *_ in props}
     entries = [("dishbase" if name == "dish" else name, count) for name, count in plan["medium"]]  # the dish is two props, one transform
     for key, count in sorted(entries, key=lambda e: -catalog[e[0]]["radius"]):
         if key in skip:
@@ -278,8 +358,9 @@ def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(),
             if band and not band[0] <= field.edge(x, y) <= band[1]:
                 continue
             lane_room = field.lane(x, y)[0] - 0.97 - r * scale  # the asset test: 1.0 + radius * scale - 0.05 (margin of 0.02)
+            floor_room = field.floor_distance(x, y) - FLOOR_GAP - r * scale
             rim_room = field.edge(x, y) - EDGE - rim(name) * r * scale
-            if lane_room < 0.0 or rim_room < 0.0 or field.lane(x, y)[0] < CORRIDOR or overlaps(x, y, solid(name, scale), 0.02):
+            if lane_room < 0.0 or floor_room < 0.0 or rim_room < 0.0 or field.lane(x, y)[0] < CORRIDOR or overlaps(x, y, solid(name, scale), 0.02):
                 continue
             if not field.dry(x, y, 0.5 * r * scale):
                 continue
@@ -289,16 +370,18 @@ def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(),
 
 
 def check(placements, field, catalog):
-    """Raise when a placement breaks a rule of the asset test (instance limit, lane corridor, island rim).
+    """Raise when a placement breaks a rule of the asset test (instance limit, corridors, island rim, hero size).
 
-    Every placement is checked, the fixed special placements too: the centre keeps
-    ``EDGE`` plus its ``rim_share`` of the footprint radius inside the island rim
-    (``TOLERANCE`` covers the rounding of the scale to millimetres).
+    Every placement is checked, the fixed ones too: the footprint keeps clear of every corridor and the centre
+    keeps ``EDGE`` plus its ``rim_share`` of the footprint radius inside the island rim (``TOLERANCE`` covers the
+    rounding of the scale to millimetres); a hero is at least 0.9 times its modelled size.
     """
     if not placements or len(placements) > LIMIT:
         raise RuntimeError("%d placements (limit %d)" % (len(placements), LIMIT))
     for name, x, y, z, yaw, scale in placements:
         info = catalog[name]
+        if "hero" in info["tags"] and scale < HERO_SCALES[-1] - 1e-9:
+            raise RuntimeError("the hero %s is scaled to %.2f (minimum %.2f)" % (name, scale, HERO_SCALES[-1]))
         if "span" not in info["tags"] and field.lane(x, y)[0] < 1.0 + info["radius"] * scale - 0.05:
             raise RuntimeError("%s at (%.2f, %.2f) scale %.2f blocks the lane corridor" % (name, x, y, scale))
         need = EDGE + rim_share(name, catalog) * info["radius"] * scale

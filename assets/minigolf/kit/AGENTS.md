@@ -3,14 +3,18 @@
 ## Purpose
 
 Blender 5.2 modules behind AuraGolf's diorama look. `../generate.py` is a thin CLI
-over this package (`--only kits,courses,previews|all`, `--course N`,
-`--save-blend`). The package builds:
+over this package (`--set v1|p3`, `--out DIR`, `--only kits,courses,previews|all`,
+`--course N`, `--save-blend`). The package builds:
 
 - per-world prop kits (`props-<look>.glb`, one per `pirate`, `temple`, `moon`),
-- the 18 dressed courses (`course-NN.glb`) from the unchanged legacy geometry in
-  `courses_v1.py`,
-- the manifest entries for `look`, `path`, `props`, `island`, `kits` and `worlds`,
-- the menu previews (`--only previews`).
+- with `--set p3` the courses of `course_data_<world>.py` through the track kit and
+  `courses.py` (`course-NN.glb`, manifest version 2, see "Course pipeline (P3)"),
+- with `--set v1` (default until the switch-over, frozen) the 18 dressed courses from the
+  legacy geometry in `courses_v1.py` and the manifest version 1,
+- the menu previews (`--only previews`, v1 only).
+
+`--set p3` needs `--out DIR` (for example `assets/minigolf/build/p3`, ignored by git) until the
+switch-over makes `ui/3d/minigolf` its default. Kits are written to `--out` as well.
 
 `probe.py` and the `scene_<world>.py` files are style probes for the look; they
 do not feed the game build. The module map is in [`../README.md`](../README.md).
@@ -33,7 +37,7 @@ Nothing here writes `ui/` except `generate.py` through its runtime paths.
   trims `7000 + 2 * number + side`.
 - No time input and no unordered iteration.
 - Bakes are CPU, fixed seed and sample count, no denoise, rounded to 8 bits.
-- Each course is deleted after its export (`courses_v1.discard_scene`: objects,
+- Each course is deleted after its export (`courses.discard_scene`, legacy `courses_v1.discard_scene`: objects,
   meshes, scene, then every orphan; `generate.clear_scene` does the same before the
   first course). Blender numbers a name that is still taken, so no exported node or
   mesh name may carry a counter. `--course N` in a fresh process must write the
@@ -96,11 +100,16 @@ Nothing here writes `ui/` except `generate.py` through its runtime paths.
 - The manifest entry is `{model, bytes, sha256, triangles, props: {name: {radius,
   height, tags, triangles, spin?, clearance?}}}`.
 
-### Dressing a course
+### Dressing a legacy course (v1, frozen)
+
+The `Dresser` in `dress.py`, `dress_island.Terrain`, `trim.py` and `placement.py` now belong to the
+P3 pipeline and no longer fit `courses_v1.build_course`; `--set v1` is not expected to build until
+`courses_v1.py`, `dress_specials.py` and `special_parts.py` are deleted at the switch-over. The
+bullets of this section describe the P2 behaviour that the P3 pipeline generalises.
 
 - `courses_v1.build_course(number, course, dresser)` builds the lane, collision
   rails, obstacles, tee, cup and flag with the legacy code. The `Dresser` in
-  `dress.py` replaces only the decor around them.
+  `dress.py` replaced only the decor around them.
 - Bit-identical geometry and data:
   - `surface-grass` and `surface-sand` get a POINT colour only (no bevel,
     smoothing or shading change);
@@ -153,9 +162,9 @@ Nothing here writes `ui/` except `generate.py` through its runtime paths.
 ### Track kit core (P3)
 
 `track.py`, `pieces.py`, `pieces_moon.py`, `pads.py`, `pads_funnel.py`, `layout.py`, `layout_fork.py`, `rails.py`,
-`build_track.py`, `floor_paint.py`, `track_checks.py` and `basic_parts.py` are the base of the P3 courses.
-`generate.py` does not call them yet; `courses_v1.py` keeps building the legacy courses until the switch-over.
-Everything except `build_track.py`, `basic_parts.py` and `track_selftest.py` is plain Python (no `bpy`).
+`build_track.py`, `floor_paint.py`, `cup_hole.py`, `cup_parts.py`, `track_checks.py` and `basic_parts.py` are the base
+of the P3 courses; `courses.py` (see "Course pipeline (P3)") drives them for `generate.py --set p3`. Plain Python (no
+`bpy`): everything except `build_track.py`, `basic_parts.py`, `cup_parts.py` and `track_selftest.py`.
 
 - Coordinates are Blender X/Y/Z, `heading` in radians (0 = +X, positive turns left). A `Section` has
   `ROWS + 1` = 13 points from left to right, `SPACING` = 1.72 / 12 apart. A piece returns only its new
@@ -164,12 +173,22 @@ Everything except `build_track.py`, `basic_parts.py` and `track_selftest.py` is 
   section is made from its own raster points. Floor meshes merge vertices through a dict keyed by the exact
   tuple. `track_checks.check_seams` guards this: one tuple object per distinct point value.
 - Pad frame: origin = centre of the entry section, x forward, y left. `cup = (x, y)`, `contour` bumps and
-  `pools` polygons use it. Width is whole columns of `SPACING` with an even number beside the lane. Raster
-  cells whose centre is closer than `CUP_RADIUS + 0.13` to the cup, or whose rectangle reaches within
-  `CUP_RADIUS`, have no floor.
+  `pools` polygons use it. Width is whole columns of `SPACING` with an even number beside the lane.
+- Exact cup (`cup_hole`, `pads`, `pads_funnel`, `cup_parts`): the hole is a polygon of `CUP_SEGMENTS` (32) corners
+  on the circle of radius `CUP_RADIUS` (0.32 m), `pad.cup_ring`. A green removes the raster cells that touch the
+  circle of radius `CUP_RADIUS + SPACING` and fills the ring between their jagged boundary and the polygon with
+  triangles (`pad.tris`, the cheapest counter-clockwise triangulation by dynamic programming over both rings;
+  the boundary must be star-shaped around the cup, otherwise the build says to move the cup a few centimetres).
+  A funnel's innermost ring is that polygon (z = bowl height at `CUP_RADIUS`, which is also the pad's `cup`
+  height). `cup_parts.floor_cup` adds the collision cup: node `floor-cup` (`aurago_collider` `grass`, dark
+  vertex colour), a tube from the polygon down `CUP_DEPTH` (0.30 m) with an inward-facing wall and a bottom
+  disc; its rim corners are the polygon's tuple objects, so floor and cup weld in the runtime. The cup rule
+  of the physics is unchanged (ball centre below rim - 0.1, within the radius, at most 2.4 m/s). The island
+  hollow under the cup (`terrain.HOLLOW_*`) is wider than the top grid cell so no ground pokes into the tube.
 - Rails: a side is walled between two sections when the later one has the flag; the wall follows `wall_up`
   (default the section normal). Riser edges of `steps` have no wall. `rails.rail_runs(track)` chains strip
-  sides and pad perimeters into runs `[(point, outward, up)]` (mitred at bends); the rail trims will use them.
+  sides and pad perimeters into runs `[(point, outward, up, height)]` (mitred at bends); `height` is
+  `WALL_HEIGHT` or the section's `wall_height`. The rail trims are built from these runs.
 - `layout.PIECES` and `layout.PADS` are the registries; `pieces_moon` and `pads_funnel` add their entries when
   imported (the layout imports them). Parameter errors are `ValueError`s that `layout.build` prefixes with the
   course number and piece index (a fork branch adds `left branch,`/`right branch,` and its own piece index).
@@ -177,12 +196,15 @@ Everything except `build_track.py`, `basic_parts.py` and `track_selftest.py` is 
   arc-length steps on the U (quarter circle `radius`, flat `width`, `depth` <= `radius`; `depth == radius` ends the
   lips vertically) and blend `lerp(flat, U, smoothstep(s / blend))` over `blend` >= 1.5 m at both ends; the path is
   straight (`length`) or an arc (`radius_path`, `angle`), sections at most 0.30 m apart, lip walls with `wall_up` =
-  world up. `loop` (R 1.2-1.5, `offset` >= 2.2 m to either side, `sections` default 72, minimum 48) sweeps the
+  world up and height `lip_wall` (default 0.45 m, 0.24-1.0; it blends from the plain rail height over the
+  transitions through `Section.wall_height`). In the selftest probe (g = 4, powers 0.35 and 0.5, 34 diagonal
+  shots each) 0.45 m cut the shots that end `out` from 6 to 3 and from 13 to 11; only one shot still left over
+  the rim inside the pipe (power 0.5, 25 degrees), the others fall from the exit lane downstream. `loop` (R 1.2-1.5, `offset` >= 2.2 m to either side, `sections` default 72, minimum 48) sweeps the
   centreline formula of the plan; the first section is `prev`, the last is flat and offset; floor normal
   `n = T x across`, walls along `n`. Each loop section costs 40 collision triangles (24 floor + 16 rail).
 - Funnel (`pads_funnel`): polar mesh around the cup, `z(r) = z_cup + depth * (r / R) ** 1.5`; outer ring = the entry
   section's point objects plus evenly spaced rim points, rings joined by a zipper over their angles, first inner
-  ring 0.35 m inside the deepest entry point, innermost ring at `CUP_RADIUS + 0.13` (the cup stays open), rim wall
+  ring 0.35 m inside the deepest entry point, innermost ring exactly at `CUP_RADIUS` (32 points), rim wall
   except over the entry arc. `R` 2-4 m, rim slope at most 22 degrees (`depth <= 0.27 R`), the whole entry section
   within `[R - 0.25, R]` of the centre (the default centre puts the corners 5 cm inside). The pad's `grid` is
   `{"polar": True, "rings", "centre", "radius", "samples"}` and `faces` are point triples. On the moon (g = 4) a
@@ -207,31 +229,68 @@ Everything except `build_track.py`, `basic_parts.py` and `track_selftest.py` is 
   use, drops collapsed triangles and returns the digest: surfaces in the order grass, sand, wood, stone,
   metal; per surface the name, `0x00`, Uint32 LE vertex and index counts, Float32 LE vertices, Uint32 LE
   indices. It must agree bit for bit with `colliderDigest` in `ui/js/desktop/apps/minigolf-collision.js`.
-- `export.canonical_export_names` keeps `floor-*`, `obstacle-*`, `mechanic-*` and the three rail names
-  unnumbered; `is_functional` keeps them single nodes.
+  The collision rails are smooth shaded (they are hidden), the floors stay flat shaded; both keep their
+  welded geometry, only the GLB gets smaller.
+- `export.canonical_export_names` keeps `floor-*`, `obstacle-*`, `mechanic-*`, `rail-trim` and the three rail
+  names unnumbered; `is_functional` keeps them single nodes.
+
+### Course pipeline (P3)
+
+`generate.py --set p3 --out DIR` calls `courses.build_course(number, data, world, out, keep_scene)` for every course
+of `course_data_pirate|temple|moon.py` (plain literal lists `COURSES`; the shape is documented in `layout` and
+`course_data_pirate`; `--course N` rebuilds and patches one entry of `DIR/manifest.json`, a missing manifest is
+created, a partial course set is allowed until the switch-over). Course 1 of the pirate module is a placeholder
+with probe content. The steps:
+
+- `layout.build` makes the `Track`; `build_track.build` the floors, collision rails (+ `runs`) and `floor-cup`;
+  `cup_parts.hole_marks` the tee ring, cup rim, flag, hole number and the ball/putter templates; then the
+  `Dresser` (`dress.py`): `dress` (island, shore, trims), `place` (props), `restyle`, `bake`; then
+  `export.join_scenery`, the export, `export.glb_collision` and `course_entry.entry`.
+- Island (`footprint.py`): `island.Outline(power 3.0, wobble 0.035)` around the floor points of the layout, the hero
+  circle (scale 1.0) and the fixed props plus a 2.5 m margin: centre = middle of the bounding box, half axes keep its
+  aspect ratio and grow (1.5 % steps) until the margin samples around the convex hull lie inside the true wobbled
+  outline; a half axis above 20 m fails the build. Top grid cells are 0.35 m (`dress_island.CELL`), coarser when the
+  top would exceed `MAX_TOP_QUADS` (4400) quads.
+- Terrain (`terrain.py`, `bed_field.py`): `top_height(x, y)` = base ground pulled to a bed 6 cm under the nearest
+  grounded floor triangle (`section.grounded` and the section centre at most `GROUNDED_MAX` above the start
+  height; 1 m cell hash of the triangles; smoothed from 1.1 m to 2.0 m); a second stretch of the track (route arc
+  more than 3 m apart) within 2 m caps the ground at its bed; elevated pieces do not pull the ground up; cup hollow;
+  pond hollow (water surface 0.25 m under the pool floor, bottom 0.45 m lower; `void` pools and `gap` hazards cut
+  through the island on the moon, down below the water line elsewhere); a gap trench is a strip across the island
+  that gives way beyond 2.4-3.2 m from the lane wherever another stretch of the track passes through it.
+  `Terrain.wet` (trench or pond) keeps props out.
+- Trims (`trim.py`): one node `rail-trim` from the rail runs (thinned within 4 mm, 4 degrees and 1 cm), per run
+  the side (left of the route: cyan neon on the moon) decides the seed `7000 + 2 * number + side`. Flush with the
+  rail inner face, at most 2 cm above and 3 cm outside it, follows `up` and the wall height; posts, clamps and
+  the ground skirt only where the wall is upright.
+- Placement (`placement.py`): `Field` takes `corridors` (every route of `Track.corridors`) and the plan points of
+  all floor vertices; free props keep `CORRIDOR` (1.2 m) from every centre line and `FLOOR_GAP` (0.45 m) from the
+  floor (wide pads), the asset test needs 1.0 m. Order: fixed parts (`fixed`), the hero of the course data
+  (`{"at", "yaw"}`, scale 1.0, 0.95 or 0.9, else a `ValueError` that names the conflict), the fixed props
+  (`(name, (x, y), yaw, scale)`), medium props (biggest first, the same kind at least 2.2 m apart; a kind that was
+  placed by hand is not placed again), then scatter. `LIMIT` is 220. `placement.check` repeats the asset test's rules
+  for every placement (corridors, rim share, hero at least 0.9) and fails the build.
+- Manifest entry (`course_entry.py`, contract V2): `bounds` = island outline box + 1.5 m in x/z, y from
+  `min(water - 0.4, lowest floor - 4)` (moon: second only) to the highest floor or cannon arc + 6; `water` = sea slab
+  (pirate, temple), ponds and, outside the moon, gap volumes. `mechanics`, `obstacles` and `cycle` are passed through
+  from the data. Budgets are enforced by `courses.check_budget`: 1 MiB, 32,000 triangles, 32 mesh nodes.
+- Not built yet: supports and bridge posts under elevated pieces, tunnel portals, pond water surfaces and the
+  mechanic and obstacle parts.
 
 ### Placement (`placement.py`)
 
-- Deterministic: `random.Random(1000 + number)` and a 0.25 m candidate grid.
-- Order: fixed placements (special parts), then the hero (largest free circle,
-  scale at least 0.42, shifted towards the back), medium props (biggest first;
-  the same kind at least 2.2 m apart), then scatter (beach critters in the shore
-  band).
-- Corridor: the footprint circle (`radius` × scale) keeps `CORRIDOR` (1.2 m; the
-  asset test needs 1.0 m) from the `path` polyline, except `span` props.
+- Deterministic: `random.Random(1000 + number)` and a 0.25 m candidate grid over the island.
 - Rim: everything stays within the rim (`EDGE` 0.3 m) plus a share of its radius:
   `RIM` shares per name (fern, bush, tuft and similar), `TALL_RIM` 0.6 for tall
   props, `HERO_RIM` 0.85 for a hero. Those shares let fronds and rigging overhang,
   since the enclosing circle is mostly thin parts.
 - Solid share: `SOLID` and `CANOPY` describe how much of a prop's radius blocks
   other props. `HERO_SOLID` does the same for heroes.
-- Nothing stands in a trench. Tall props that would hide the lane from the game
+- Nothing stands in a trench or a pond. Tall props that would hide the lane from the game
   camera (`VIEW`) and everything tall in front of the hero are skipped.
-- A fixed special that reaches over the rim moves towards the island centre in 5 cm
+- A fixed part that reaches over the rim moves towards the island centre in 5 cm
   steps (`settle`). The dish is placed by the larger circle of its head.
-- Density: at most `LIMIT` (160) placements per course.
-- `placement.check` repeats the asset test's rules for every placement, fixed ones
-  too (corridor, and `EDGE` plus rim share inside the rim). It fails the build.
+- Corridors, floor gap, hero order and `LIMIT`: see "Course pipeline (P3)".
 
 ### Look
 
@@ -268,7 +327,7 @@ Everything except `build_track.py`, `basic_parts.py` and `track_selftest.py` is 
 - Kits: `blender --background --factory-startup --python assets/minigolf/generate.py -- --only kits`
   (about 15 s) prints one `kit <look>: ...` line per world. Run it twice; the kit
   `sha256` values must match.
-- Courses: `-- --only courses --course N` (about 15 s) rebuilds one course in a fresh
+- Legacy courses (`--set v1`, frozen): `-- --only courses --course N` (about 15 s) rebuilds one course in a fresh
   process for iteration. A full run (`-- --only kits,courses`, about two minutes on 16
   cores) rebuilds all three kits and 18 courses. Then run
   `node scripts/test-minigolf-assets.mjs`, `node scripts/test-minigolf-courses.mjs`
@@ -276,9 +335,15 @@ Everything except `build_track.py`, `basic_parts.py` and `track_selftest.py` is 
   identical GLB and manifest hashes.
 - Track kit: `blender --background --factory-startup --python assets/minigolf/kit/track_selftest.py -- --out <dir>`
   runs the rule checks (`track_checks.check_rules`), builds the pirate and the moon probe course, exports
-  `selftest.glb` and `selftest-moon.glb`, checks seams, geometry and the open cup, writes `<name>.json` and prints
+  `selftest.glb` and `selftest-moon.glb`, checks seams, geometry, the exact cup (hole polygon, `floor-cup` welded to
+  the floor) and the half-pipe rails, writes `<name>.json` and prints
   `selftest ok`. Run it twice: the GLB hashes and digests must match, and each digest must equal `colliderDigest`
   of the same GLB. `track_checks` also runs without Blender.
+- P3 courses: `blender --background --factory-startup --python assets/minigolf/generate.py -- --set p3 --out assets/minigolf/build/p3 --only kits,courses`
+  (course 1 of the data module; about 20 s with the kits, `--course N` about 15 s). Then
+  `node scripts/minigolf-route-search.mjs --dir assets/minigolf/build/p3 --course pirate-01` must find a verified route.
+  `--course N` run twice, and once inside a full run, must give identical GLB and manifest-entry hashes. Review
+  a course with `--course N --save-blend` (writes `assets/minigolf/build/aura-golf.blend`) and a scratch Cycles render.
 - Previews: `-- --only previews` (about a minute). They are never part of a full
   run, because Cycles output is not bit-reproducible.
 - Probes: `blender --background --factory-startup --python assets/minigolf/kit/probe.py -- --out <scratch> --world all`
