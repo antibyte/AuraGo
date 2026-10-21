@@ -5,7 +5,16 @@
     const POINT_TOOLS = ['airbrush', 'dodge-burn', 'blur-brush'];
     const SHAPE_TOOLS = ['line', 'rectangle', 'ellipse', 'arrow', 'gradient'];
     const SELECTION_TOOLS = ['select-rect', 'select-ellipse'];
-    const CURSOR_TOOLS = ['brush', 'pencil', 'airbrush', 'eraser', 'clone-stamp', 'dodge-burn', 'blur-brush'];
+
+    // Runs a registered tool's handler (onDown, onMove, ...) with the event and the pointer info; a broken tool must not break the editor.
+    function runToolHandler(runtime, def, hook, e) {
+        try {
+            return def[hook](runtime, e, runtime.pointerInfo(e));
+        } catch (err) {
+            if (window.console) console.error('pixel tool ' + def.id + '.' + hook, err);
+            return undefined;
+        }
+    }
 
     Pixel.installEvents = function installEvents(runtime) {
         Object.assign(runtime, {
@@ -34,22 +43,49 @@
                     color: tool === 'eraser' ? '#000000' : (inMask ? '#ffffff' : this.primaryColor)
                 };
             }),
+            // Ring of the built-in brush tools: remembers the pointer, the 'cursor' overlay (z 90) paints it.
             drawBrushCursor: Pixel.bindRuntime(runtime, function drawBrushCursor(x, y) {
-                this.clearOverlay();
+                this.cursorPos = { x, y };
+                this.requestOverlay();
+            }),
+            paintBrushCursor: Pixel.bindRuntime(runtime, function paintBrushCursor(ctx) {
+                const pos = this.cursorPos;
+                const def = this.activeToolDef();
+                if (!pos || !def || def.cursor !== 'none' || Pixel.toolHasHandlers(def)) return;
                 const size = this.activeTool === 'pencil' ? 2 : this.brushSize;
                 const r = Math.max(1, size / 2);
-                this.olCtx.save();
-                this.olCtx.strokeStyle = 'rgba(0,0,0,0.7)';
-                this.olCtx.lineWidth = 2;
-                this.olCtx.beginPath();
-                this.olCtx.arc(x, y, r + 1, 0, Math.PI * 2);
-                this.olCtx.stroke();
-                this.olCtx.strokeStyle = 'rgba(255,255,255,0.9)';
-                this.olCtx.lineWidth = 1;
-                this.olCtx.beginPath();
-                this.olCtx.arc(x, y, r, 0, Math.PI * 2);
-                this.olCtx.stroke();
-                this.olCtx.restore();
+                ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, r + 1, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }),
+            // Pointer position in document coordinates (floats) plus the modifier state, as handed to registered tools.
+            pointerInfo: Pixel.bindRuntime(runtime, function pointerInfo(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const sx = rect.width ? this.canvas.width / rect.width : 1;
+                const sy = rect.height ? this.canvas.height / rect.height : 1;
+                return {
+                    x: (e.clientX - rect.left) * sx,
+                    y: (e.clientY - rect.top) * sy,
+                    pressure: typeof e.pressure === 'number' ? e.pressure : 0.5,
+                    buttons: e.buttons || 0,
+                    shift: !!e.shiftKey,
+                    alt: !!e.altKey,
+                    ctrl: !!(e.ctrlKey || e.metaKey),
+                    pointerType: e.pointerType || 'mouse',
+                    pointerId: e.pointerId
+                };
+            }),
+            // The pointer left the canvas: hide the ring (a captured drag does not get here until it is released).
+            onCanvasLeave: Pixel.bindRuntime(runtime, function onCanvasLeave() {
+                this.cursorPos = null;
+                this.requestOverlay();
             }),
             applyPointTool: Pixel.bindRuntime(runtime, function applyPointTool(x, y) {
                 if (this.activeTool === 'airbrush') this.sprayAt(x, y);
@@ -57,7 +93,17 @@
                 else if (this.activeTool === 'blur-brush') this.blurAt(x, y);
             }),
             onCanvasMouseDown: Pixel.bindRuntime(runtime, function onCanvasMouseDown(e) {
-                if (![null, 'move', 'eyedropper', 'select-rect', 'select-ellipse', 'magic-wand', 'lasso'].includes(this.activeTool) && !this.canPaintActiveLayer(this.activeTool)) return;
+                const toolDef = this.activeToolDef();
+                // A registered tool with handlers owns the whole gesture (down, move, up); everything else is the legacy chain below.
+                if (Pixel.toolHasHandlers(toolDef)) {
+                    if (!this.canvas.width || e.button === 1) return;
+                    if (toolDef.raster && !this.canPaintActiveLayer(toolDef.id)) return;
+                    if (toolDef.raster) this.commitPendingPreviews();
+                    this.gesture = { def: toolDef, pointerId: e.pointerId };
+                    if (typeof toolDef.onDown === 'function') runToolHandler(this, toolDef, 'onDown', e);
+                    return;
+                }
+                if (toolDef && toolDef.raster && !this.canPaintActiveLayer(this.activeTool)) return;
                 if (!this.canvas.width || e.button === 1) return;
                 const isDrawingTool = this.activeTool && STROKE_TOOLS.includes(this.activeTool);
                 const isPointTool = this.activeTool && POINT_TOOLS.includes(this.activeTool);
@@ -199,15 +245,26 @@
                     return;
                 }
 
+                if (this.gesture) {
+                    if (typeof this.gesture.def.onMove === 'function') runToolHandler(this, this.gesture.def, 'onMove', e);
+                    return;
+                }
+                const toolDef = this.activeToolDef();
+                if (Pixel.toolHasHandlers(toolDef)) {
+                    if (typeof toolDef.onHover === 'function') runToolHandler(this, toolDef, 'onHover', e);
+                    if (typeof toolDef.overlay === 'function') this.requestOverlay();
+                    return;
+                }
+
                 const isDrawingTool = this.activeTool && STROKE_TOOLS.includes(this.activeTool);
                 const isPointTool = this.activeTool && POINT_TOOLS.includes(this.activeTool);
                 const isShapeTool = this.activeTool && SHAPE_TOOLS.includes(this.activeTool);
                 const isSelectionTool = this.activeTool && SELECTION_TOOLS.includes(this.activeTool);
 
-                if (!this.isDrawing && !this.isMovingSel && this.activeTool && CURSOR_TOOLS.includes(this.activeTool) && !this.selection && !this.cropState) {
-                    this.drawBrushCursor(coords.x, coords.y);
-                    return;
-                }
+                // The brush ring follows the pointer, also while a stroke is drawn.
+                const ringTool = !!(toolDef && toolDef.cursor === 'none' && !this.cropState);
+                if (ringTool) this.drawBrushCursor(coords.x, coords.y);
+                if (ringTool && !this.isDrawing && !this.isMovingSel) return;
 
                 if (this.isDrawing && isDrawingTool) {
                     const actx = this.getActiveCtx();
@@ -276,6 +333,12 @@
                 }
             }),
             onCanvasMouseUp: Pixel.bindRuntime(runtime, function onCanvasMouseUp(e) {
+                if (this.gesture) {
+                    const gesture = this.gesture;
+                    this.gesture = null;
+                    if (typeof gesture.def.onUp === 'function') runToolHandler(this, gesture.def, 'onUp', e);
+                    return;
+                }
                 const coords = this.canvasCoords(e);
                 const isDrawingTool = this.activeTool && STROKE_TOOLS.includes(this.activeTool);
                 const isPointTool = this.activeTool && POINT_TOOLS.includes(this.activeTool);
@@ -352,6 +415,34 @@
                     }
                     this.isMovingSel = false;
                     return;
+                }
+            }),
+            // Keyboard: Space pans, the active tool's onKey(r, e) may consume the key (return true), everything else is a
+            // command shortcut from the registry (menu items, tools, panels and registered commands).
+            handleKeydown: Pixel.bindRuntime(runtime, function handleKeydown(e) {
+                if (this.state.disposed || !this.isActiveWindow()) return;
+                const target = e.target;
+                if (target && target.closest && target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return;
+                if (e.key === ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                    e.preventDefault();
+                    this.spaceHeld = true;
+                    this.canvasArea.style.cursor = 'grab';
+                    return;
+                }
+                // The desktop shell already ran a menu shortcut (it calls preventDefault before the app sees the key).
+                if (e.defaultPrevented) return;
+                const def = this.activeToolDef();
+                if (def && typeof def.onKey === 'function') {
+                    let handled = false;
+                    try { handled = def.onKey(this, e) === true; } catch (err) { if (window.console) console.error('pixel tool ' + def.id + '.onKey', err); }
+                    if (handled) { e.preventDefault(); return; }
+                }
+                this.runShortcut(e);
+            }),
+            handleKeyup: Pixel.bindRuntime(runtime, function handleKeyup(e) {
+                if (e.key === ' ') {
+                    this.spaceHeld = false;
+                    if (!this.isPanning && this.canvasArea) this.canvasArea.style.cursor = '';
                 }
             }),
             showTextInput: Pixel.bindRuntime(runtime, function showTextInput(x, y) {
@@ -443,30 +534,18 @@
                         ['Ctrl+Wheel', this.t('pixel.scroll_zoom')],
                         ['Shift+Drag', this.t('pixel.snap_shapes')]
                     ]],
-                    [this.t('pixel.shortcuts_tools'), [
-                        ['B', this.t('pixel.brush')],
-                        ['P', this.t('pixel.pencil')],
-                        ['A', this.t('pixel.airbrush')],
-                        ['E', this.t('pixel.eraser')],
-                        ['D', this.t('pixel.dodge_burn')],
-                        ['N', this.t('pixel.blur_brush')],
-                        ['W', this.t('pixel.magic_wand')],
-                        ['U', this.t('pixel.gradient')],
-                        ['L', this.t('pixel.lasso')],
-                        ['Shift+L', this.t('pixel.line')],
-                        ['S', this.t('pixel.clone_stamp')],
-                        ['M', this.t('pixel.move')],
-                        ['Shift+V', this.t('pixel.select_ellipse')],
-                        ['Shift+A', this.t('pixel.arrow')],
-                        ['R', this.t('pixel.rectangle')],
-                        ['O', this.t('pixel.ellipse')],
-                        ['T', this.t('pixel.text')],
-                        ['G', this.t('pixel.fill')],
-                        ['I', this.t('pixel.eyedropper')],
-                        ['V', this.t('pixel.select_rect')],
-                        ['?', this.t('pixel.shortcuts')]
-                    ]]
+                    [this.t('pixel.shortcuts_tools'), Pixel.listTools()
+                        .filter(def => def.shortcut || Pixel.TOOL_SHORTCUTS[def.id])
+                        .map(def => [def.shortcut || Pixel.TOOL_SHORTCUTS[def.id], this.toolLabel(def.id)])
+                        .concat([['?', this.t('pixel.shortcuts')]])]
                 ];
+                // Shortcuts of registered commands that the lists above do not mention yet.
+                const listed = new Set();
+                shortcuts.forEach(([, items]) => items.forEach(([key]) => listed.add(Pixel.normalizeShortcut(key))));
+                const more = this.listCommands()
+                    .filter(cmd => cmd.source !== 'tool' && cmd.source !== 'panel' && cmd.shortcut && !cmd.shortcuts.every(key => listed.has(key)))
+                    .map(cmd => [cmd.shortcut, cmd.label]);
+                if (more.length) shortcuts.push([this.t('pixel.shortcuts_more', 'More'), more]);
                 const dlg = document.createElement('div');
                 dlg.className = 'vd-modal-backdrop';
                 dlg.innerHTML = `<div class="vd-modal pixel-shortcuts-modal" role="dialog">
@@ -565,5 +644,8 @@
                 }
             })
         });
+
+        // The brush ring is drawn above everything else on the overlay canvas.
+        runtime.registerOverlay('cursor', ctx => runtime.paintBrushCursor(ctx), 90);
     };
 })();

@@ -137,25 +137,24 @@
 
 .pixel-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 2px;
     min-width: 0;
-    overflow-x: auto;
-    scrollbar-width: thin;
 }
 
 .pixel-tab {
     flex: 0 0 auto;
-    padding: 4px 12px;
+    padding: 3px 9px;
     border: 1px solid transparent;
     border-radius: 5px;
     background: none;
     color: var(--pixel-muted);
     font: inherit;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     cursor: pointer;
     transition: all 120ms ease;
 
-    min-height: 30px;
+    min-height: 26px;
 }
 
 .pixel-tab:hover {
@@ -219,6 +218,7 @@
     display: block;
     pointer-events: auto;
     cursor: crosshair;
+    touch-action: none;
 }
 
 .pixel-empty-state {
@@ -379,11 +379,92 @@
     flex: 0 0 clamp(320px, 24vw, 360px);
     width: 240px;
     box-sizing: border-box;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: hidden;
     overflow-x: hidden;
     border-left: 1px solid var(--pixel-line);
     background: var(--vd-theme-panel-bg);
+}
+
+/* Docks: the inspector (top) and the bottom dock (layers, history) each have a tab bar and a scrolling body. */
+.pixel-dock {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+.pixel-dock-inspector {
+    flex: 1 1 0;
+    min-height: 140px;
+}
+
+.pixel-dock-bottom {
+    flex: 0 0 45%;
+    min-height: 120px;
+}
+
+.pixel-dock > .pixel-tabs {
+    flex: 0 0 auto;
+    padding: 5px 8px 4px;
+    border-bottom: 1px solid var(--pixel-line);
+    background: var(--vd-theme-chrome-bg);
+}
+
+.pixel-dock-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    overflow-y: auto;
     padding: 10px;
+    scrollbar-width: thin;
+}
+
+.pixel-splitter {
+    position: relative;
+    flex: 0 0 7px;
+    cursor: row-resize;
+    background: var(--vd-theme-chrome-bg);
+    border-top: 1px solid var(--pixel-line);
+    border-bottom: 1px solid var(--pixel-line);
+    touch-action: none;
+    outline: none;
+}
+
+.pixel-splitter::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 2px;
+    width: 28px;
+    height: 2px;
+    margin-left: -14px;
+    border-radius: 1px;
+    background: var(--pixel-muted);
+    opacity: 0.55;
+}
+
+.pixel-splitter:hover,
+.pixel-splitter:focus-visible,
+.pixel-splitter.dragging {
+    background: var(--pixel-hover);
+}
+
+.pixel-splitter:hover::after,
+.pixel-splitter:focus-visible::after,
+.pixel-splitter.dragging::after {
+    background: var(--pixel-accent);
+    opacity: 1;
+}
+
+/* The bottom dock body scrolls as a whole; its lists must not scroll on their own. */
+.pixel-dock-bottom .pixel-history-list,
+.pixel-dock-bottom .pixel-layer-list {
+    max-height: none;
+    overflow: visible;
 }
 
 .pixel-panel-section[hidden] {
@@ -1275,4 +1356,349 @@
     cursor: pointer;
     font-size: 12px;
     padding: 0 2px;
+}
+
+/* Parameter controls (runtime.buildParamControls): filters, generators, cutout and tool options */
+.pixel-param-list {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    min-width: 0;
+}
+
+.pixel-param {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.pixel-param[hidden] {
+    display: none;
+}
+
+.pixel-param-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.pixel-param-label {
+    font-size: 0.76rem;
+    color: var(--pixel-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pixel-param-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.pixel-param-slider {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.pixel-param-number {
+    box-sizing: border-box;
+    width: 62px;
+    flex: 0 0 auto;
+    padding: 3px 6px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 5px;
+    background: var(--pixel-surface);
+    color: inherit;
+    font: inherit;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.pixel-param-number:focus,
+.pixel-param-hex:focus {
+    outline: none;
+    border-color: var(--pixel-accent);
+}
+
+.pixel-param-seed {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+}
+
+.pixel-param-unit {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    color: var(--pixel-muted);
+}
+
+.pixel-param-segmented {
+    display: flex;
+    min-width: 0;
+    border: 1px solid var(--pixel-line);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.pixel-param-seg-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 4px 6px;
+    border: 0;
+    background: var(--pixel-surface);
+    color: var(--pixel-muted);
+    font: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pixel-param-seg-btn + .pixel-param-seg-btn {
+    border-left: 1px solid var(--pixel-line);
+}
+
+.pixel-param-seg-btn:hover {
+    background: var(--pixel-hover);
+    color: var(--vd-text, #eff7ff);
+}
+
+.pixel-param-seg-btn.active {
+    background: var(--pixel-accent);
+    color: #0e1117;
+    font-weight: 600;
+}
+
+.pixel-param-switch {
+    position: relative;
+    display: inline-block;
+    width: 34px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.pixel-param-switch input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.pixel-param-switch-track {
+    position: absolute;
+    inset: 0;
+    border: 1px solid var(--pixel-line);
+    border-radius: 999px;
+    background: var(--pixel-surface);
+    transition: background 120ms ease;
+    pointer-events: none;
+}
+
+.pixel-param-switch-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--pixel-muted);
+    transition: transform 120ms ease, background 120ms ease;
+}
+
+.pixel-param-switch input:checked + .pixel-param-switch-track {
+    background: var(--pixel-accent);
+    border-color: var(--pixel-accent);
+}
+
+.pixel-param-switch input:checked + .pixel-param-switch-track .pixel-param-switch-thumb {
+    background: #0e1117;
+    transform: translateX(16px);
+}
+
+.pixel-param-switch input:focus-visible + .pixel-param-switch-track {
+    outline: 2px solid var(--pixel-accent);
+    outline-offset: 2px;
+}
+
+.pixel-param-swatch {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid var(--pixel-line);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.pixel-param-hex {
+    box-sizing: border-box;
+    width: 78px;
+    flex: 0 0 auto;
+    padding: 3px 6px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 5px;
+    background: var(--pixel-surface);
+    color: inherit;
+    font-family: monospace;
+    font-size: 0.78rem;
+}
+
+.pixel-param-native {
+    position: absolute;
+    width: 0;
+    height: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.pixel-param-mini {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    padding: 2px 6px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 5px;
+    background: var(--pixel-surface);
+    color: inherit;
+    font: inherit;
+    font-size: 0.72rem;
+    cursor: pointer;
+}
+
+.pixel-param-mini:hover {
+    background: var(--pixel-hover);
+}
+
+.pixel-param-chip {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.pixel-param-dial {
+    position: relative;
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 50%;
+    background: var(--pixel-surface);
+    cursor: pointer;
+    touch-action: none;
+}
+
+.pixel-param-dial:focus-visible {
+    outline: 2px solid var(--pixel-accent);
+    outline-offset: 2px;
+}
+
+.pixel-param-dial-needle {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 50%;
+    height: 2px;
+    margin-top: -1px;
+    border-radius: 1px;
+    background: var(--pixel-accent);
+    transform-origin: 0 50%;
+}
+
+.pixel-param-pad {
+    position: relative;
+    flex: 0 0 auto;
+    width: 64px;
+    height: 64px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 6px;
+    background:
+        linear-gradient(var(--pixel-line), var(--pixel-line)) 50% 0 / 1px 100% no-repeat,
+        linear-gradient(var(--pixel-line), var(--pixel-line)) 0 50% / 100% 1px no-repeat,
+        var(--pixel-surface);
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.pixel-param-pad:focus-visible {
+    outline: 2px solid var(--pixel-accent);
+    outline-offset: 2px;
+}
+
+.pixel-param-pad-dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--pixel-accent);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.pixel-param-axis {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.7rem;
+    color: var(--pixel-muted);
+}
+
+.pixel-param-axis .pixel-param-number {
+    width: 54px;
+}
+
+.pixel-param-gradient {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.pixel-param-gradient-bar {
+    height: 16px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 4px;
+}
+
+.pixel-param-stops {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pixel-param-stop {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pixel-param-stop-color {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid var(--pixel-line);
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+}
+
+.pixel-param-add-stop {
+    align-self: flex-start;
+}
+
+.pixel-param-custom {
+    min-width: 0;
 }

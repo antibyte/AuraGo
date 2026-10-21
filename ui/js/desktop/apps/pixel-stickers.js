@@ -130,13 +130,10 @@
                 cancel(); loads.forEach(controller => controller.abort()); loads.clear();
                 r.state.documentRevision = (r.state.documentRevision || 0) + 1;
             },
-            mountStickers() {
-                const tab = document.createElement('button'); tab.type = 'button'; tab.className = 'pixel-tab';
-                tab.dataset.panel = 'stickers'; tab.textContent = tr('title'); r.host.querySelector('.pixel-tabs').append(tab);
-                const host = document.createElement('div'); host.className = 'pixel-panel-section'; host.dataset.section = 'stickers'; host.hidden = true;
+            // Fills the panel section created by the dock (see the registerPanel call at the end of this file).
+            mountStickers(host) {
                 const hint = document.createElement('p'); hint.dataset.stickerHint = ''; hint.textContent = tr('openImage'); host.append(hint);
                 const library = document.createElement('div'); library.dataset.pixelStickers = ''; host.append(library);
-                r.host.querySelector('[data-section="transform"]').parentElement.append(host);
                 controls = document.createElement('fieldset'); controls.className = 'pixel-sticker-controls'; controls.hidden = true;
                 const legend = document.createElement('legend'); legend.textContent = tr('transform'); controls.append(legend);
                 for (const key of ['x', 'y', 'size', 'angle']) {
@@ -218,4 +215,10 @@
             disposeStickers() { r.resetStickerDocument(); abort.abort(); picker?.dispose(); frame?.remove(); controls?.remove(); }
         });
     };
+
+    Pixel.registerPanel({ id: 'stickers', labelKey: 'stickers.title', fallback: 'Stickers', order: 90, dock: 'inspector',
+        build: () => '',
+        mount: (r, section) => r.mountStickers(section),
+        onShow: r => r.showStickers()
+    });
 })();

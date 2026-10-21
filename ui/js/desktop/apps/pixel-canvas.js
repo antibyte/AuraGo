@@ -307,19 +307,24 @@
                                 this.cctx.clearRect(0, 0, splitX, this.canvas.height);
                                 this.cctx.drawImage(this.compareOrigData, 0, 0);
                                 this.cctx.restore();
-                                this.olCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
-                                this.olCtx.strokeStyle = '#ffffff';
-                                this.olCtx.lineWidth = 2;
-                                this.olCtx.beginPath();
-                                this.olCtx.moveTo(splitX, 0);
-                                this.olCtx.lineTo(splitX, this.canvas.height);
-                                this.olCtx.stroke();
-                                this.olCtx.strokeStyle = '#000000';
-                                this.olCtx.lineWidth = 1;
-                                this.olCtx.beginPath();
-                                this.olCtx.moveTo(splitX + 1, 0);
-                                this.olCtx.lineTo(splitX + 1, this.canvas.height);
-                                this.olCtx.stroke();
+                                this.requestOverlay();
+            }),
+            // Divider line of the before/after compare (overlay z 70); drawn while compareMode is on.
+            drawCompareDivider: Pixel.bindRuntime(runtime, function drawCompareDivider(ctx) {
+                if (!this.compareMode || !this.compareOrigData) return;
+                const splitX = Math.round(this.canvas.width * this.comparePos);
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(splitX, 0);
+                ctx.lineTo(splitX, this.canvas.height);
+                ctx.stroke();
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(splitX + 1, 0);
+                ctx.lineTo(splitX + 1, this.canvas.height);
+                ctx.stroke();
             }),
             transformDocument: Pixel.bindRuntime(runtime, function transformDocument(matrix, width, height) {
                 this.cancelStickerGesture();
@@ -444,5 +449,7 @@
                                 dlg.addEventListener('click', e => { if (e.target === dlg) dlg.remove(); });
             })
         });
+
+        runtime.registerOverlay('compare', ctx => runtime.drawCompareDivider(ctx), 70);
     };
 })();

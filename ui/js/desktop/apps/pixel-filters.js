@@ -349,16 +349,14 @@
                         <span class="pixel-filter-name">${this.esc(this.t('pixel.filter_' + f.id, f.id))}</span>
                     </button>`;
                 }).join('');
-                return `<div class="pixel-panel-section pixel-panel-filters" data-section="filters" hidden>
-                    <div class="pixel-filter-chips" data-filter-chips>${chips}</div>
+                return `<div class="pixel-filter-chips" data-filter-chips>${chips}</div>
                     <div class="pixel-filter-gallery" data-filter-gallery>${cards}</div>
                     <div class="pixel-slider-row"><span class="pixel-slider-label">${this.esc(this.t('pixel.filter_strength'))}</span><input type="range" class="pixel-slider" data-filter-strength min="0" max="100" value="${this.filterStrength}"><span class="pixel-slider-value" data-filter-strength-val>${this.filterStrength}%</span></div>
                     <div class="pixel-panel-actions">
                         <button class="pixel-btn${this.filterCompareMode ? ' active' : ''}" type="button" data-filter-compare data-action="filter-compare">${this.esc(this.t('pixel.filter_compare'))}</button>
                         <button class="pixel-btn pixel-btn-primary" type="button" data-action="apply-filter">${this.esc(this.t('pixel.apply_filter'))}</button>
                         <button class="pixel-btn" type="button" data-action="reset-filter">${this.esc(this.t('pixel.reset'))}</button>
-                    </div>
-                </div>`;
+                    </div>`;
             }),
             wireFilterPanel: Pixel.bindRuntime(runtime, function wireFilterPanel() {
                 this.loadFilterFavorites();

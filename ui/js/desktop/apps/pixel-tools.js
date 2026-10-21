@@ -14,20 +14,40 @@
         return out;
     }
 
+    function runHook(owner, hook, runtime, previous) {
+        try {
+            owner[hook](runtime, previous);
+        } catch (err) {
+            if (window.console) console.error('pixel ' + (owner.id || '') + '.' + hook, err);
+        }
+    }
+
     Pixel.installTools = function installTools(runtime) {
         Object.assign(runtime, {
+            // Selected tool preview painted by the 'tool-preview' overlay: a function (ctx) set by lasso/shape tools.
+            toolPreview: null,
+            // Shows one panel in its own dock (inspector or bottom) and leaves the other dock alone. Side effects of
+            // leaving or entering a panel live in the panel's onHide / onShow (registered in pixel-view.js and by modules).
             showPanel: Pixel.bindRuntime(runtime, function showPanel(name) {
-                if (name !== 'adjust' && this.compareMode) this.exitCompareMode({ preservePreview: true });
-                if (name !== 'filters') this.resetFilterPreview();
-                if (name === 'adjust' && this.activePanel !== name) { this.commitPendingPreviews(); this.captureAdjustmentSource(); this.resetAdjustmentControls(); }
+                const def = Pixel.getPanel(name);
+                if (!def) return;
+                const dock = def.dock;
+                const previous = this.activePanels[dock] || null;
+                if (previous && previous !== name) {
+                    const old = Pixel.getPanel(previous);
+                    if (old && typeof old.onHide === 'function') runHook(old, 'onHide', this);
+                }
+                this.activePanels[dock] = name;
                 this.activePanel = name;
-                if (name === 'stickers') this.showStickers();
-                this.host.querySelectorAll('.pixel-tab').forEach(b => b.classList.toggle('active', b.dataset.panel === name));
-                this.host.querySelectorAll('[data-section]').forEach(s => { s.hidden = s.dataset.section !== name; });
-                if (name !== 'transform' && this.cropState) this.cancelCrop();
-                if (name === 'layers') this.refreshLayerPanel();
-                if (name === 'history') this.refreshHistoryPanel();
-                if (name === 'filters') this.refreshFilterThumbnails();
+                const scope = this.host.querySelector('[data-dock="' + dock + '"]') || this.host;
+                scope.querySelectorAll('.pixel-tab').forEach(b => {
+                    const on = b.dataset.panel === name;
+                    b.classList.toggle('active', on);
+                    b.setAttribute('aria-selected', on ? 'true' : 'false');
+                });
+                scope.querySelectorAll('[data-section]').forEach(s => { s.hidden = s.dataset.section !== name; });
+                if (typeof def.onShow === 'function') runHook(def, 'onShow', this, previous);
+                this.emit('panel-changed', { id: name, dock });
             }),
             refreshLayerPanel: Pixel.bindRuntime(runtime, function refreshLayerPanel() {
                 if (this.refreshStickerControls) this.refreshStickerControls();
@@ -81,7 +101,14 @@
                     this.editMaskMode = false;
                     this.refreshLayerPanel();
                 }
-                if (this.activeTool === tool) { this.activeTool = null; } else { this.activeTool = tool; }
+                const previous = this.activeTool;
+                const next = previous === tool ? null : tool;
+                const previousDef = previous ? Pixel.getTool(previous) : null;
+                if (previousDef && typeof previousDef.onDeactivate === 'function') runHook(previousDef, 'onDeactivate', this);
+                this.activeTool = next;
+                // onActivate runs before the options bar is built so options(r) can read what the tool prepared.
+                const nextDef = next ? Pixel.getTool(next) : null;
+                if (nextDef && typeof nextDef.onActivate === 'function') runHook(nextDef, 'onActivate', this);
                 this.host.querySelectorAll('[data-draw-tool]').forEach(b => b.classList.toggle('active', b.dataset.drawTool === this.activeTool));
                 this.renderOptionsBar();
                 this.updateStatus();
@@ -89,8 +116,13 @@
                 const cursor = this.getToolCursor();
                 this.canvas.style.cursor = cursor;
                 if (this.overlayCanvas) this.overlayCanvas.style.cursor = cursor;
-                this.emit('tool-changed', { tool: this.activeTool });
+                this.emit('tool-changed', { tool: this.activeTool, previous });
+                this.requestOverlay();
             }),
+            activeToolDef: Pixel.bindRuntime(runtime, function activeToolDef() {
+                return this.activeTool ? Pixel.getTool(this.activeTool) : null;
+            }),
+            // Options bar: the tool's options(r) / wireOptions(r, bar) when it has them, else the built-in markup.
             renderOptionsBar: Pixel.bindRuntime(runtime, function renderOptionsBar() {
                 if (this.refreshStickerControls) this.refreshStickerControls();
                 if (!this.optionsBar) return;
@@ -99,80 +131,97 @@
                     this.optionsBar.innerHTML = '';
                     return;
                 }
-                this.optionsBar.innerHTML = this.buildDrawOptionsHTML();
+                const def = this.activeToolDef();
+                let html = null;
+                if (def && typeof def.options === 'function') {
+                    try { html = def.options(this); } catch (err) { if (window.console) console.error('pixel ' + def.id + '.options', err); }
+                }
+                this.optionsBar.innerHTML = html != null ? html : this.buildDrawOptionsHTML();
                 this.optionsBar.hidden = false;
                 this.wireDrawOptionEvents();
+                if (def && typeof def.wireOptions === 'function') {
+                    try { def.wireOptions(this, this.optionsBar); } catch (err) { if (window.console) console.error('pixel ' + def.id + '.wireOptions', err); }
+                }
             }),
             getToolCursor: Pixel.bindRuntime(runtime, function getToolCursor() {
                 if (!this.activeTool) return 'default';
-                if (['brush', 'pencil', 'airbrush', 'eraser', 'clone-stamp', 'dodge-burn', 'blur-brush'].includes(this.activeTool)) return 'none';
-                if (this.activeTool === 'text') return 'text';
-                if (this.activeTool === 'move') return 'move';
+                const def = this.activeToolDef();
+                if (def && def.cursor) return (typeof def.cursor === 'function' ? def.cursor(this) : def.cursor) || 'crosshair';
                 return 'crosshair';
             }),
+            // Drops the current tool preview (lasso path, shape rubber band). Other overlays are not touched.
             clearOverlay: Pixel.bindRuntime(runtime, function clearOverlay() {
-                if (this.olCtx) this.olCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+                this.toolPreview = null;
+                this.requestOverlay();
             }),
-            drawMarchingAnts: Pixel.bindRuntime(runtime, function drawMarchingAnts() {
-                if (!this.selection) { this.clearOverlay(); return; }
-                this.marchingOfs = (this.marchingOfs + 0.5) % 8;
-                this.olCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
-                if (this.moveSelFloating && this.selImageData && this.selection) {
+            // Overlay draw for the selection outline. It keeps itself alive at ~20 fps while a selection exists.
+            drawMarchingAnts: Pixel.bindRuntime(runtime, function drawMarchingAnts(ctx) {
+                const sel = this.selection;
+                if (!sel || !ctx) return;
+                this.marchingOfs = ((typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000 * 30) % 8;
+                if (this.moveSelFloating && this.selImageData) {
                     const floatC = this.acquireTempCanvas(this.selImageData.width, this.selImageData.height);
                     floatC.getContext('2d').putImageData(this.selImageData, 0, 0);
-                    this.olCtx.drawImage(floatC, Math.round(this.selection.x), Math.round(this.selection.y));
+                    ctx.drawImage(floatC, Math.round(sel.x), Math.round(sel.y));
                     this.releaseTempCanvas(floatC);
                 }
-                if (this.selection.type === 'mask' && this.selection.border) {
+                if (sel.type === 'mask' && sel.border) {
                     const w = this.canvas.width;
                     const phase = Math.floor(this.marchingOfs) % 2;
                     // The contour is stored for the original position; a floating move shows it where the pixels are.
-                    const offX = this.moveSelFloating ? Math.round(this.selection.x - this.moveSelOrigX) : 0;
-                    const offY = this.moveSelFloating ? Math.round(this.selection.y - this.moveSelOrigY) : 0;
-                    for (let i = 0; i < this.selection.border.length; i++) {
-                        const p = this.selection.border[i];
+                    const offX = this.moveSelFloating ? Math.round(sel.x - this.moveSelOrigX) : 0;
+                    const offY = this.moveSelFloating ? Math.round(sel.y - this.moveSelOrigY) : 0;
+                    for (let i = 0; i < sel.border.length; i++) {
+                        const p = sel.border[i];
                         const x = p % w + offX;
                         const y = ((p / w) | 0) + offY;
-                        this.olCtx.fillStyle = ((x + y + phase) % 2 === 0) ? '#ffffff' : '#000000';
-                        this.olCtx.fillRect(x, y, 1, 1);
+                        ctx.fillStyle = ((x + y + phase) % 2 === 0) ? '#ffffff' : '#000000';
+                        ctx.fillRect(x, y, 1, 1);
                     }
-                    this.marchingRAF = requestAnimationFrame(this.drawMarchingAnts);
+                    this.scheduleMarchingAnts();
                     return;
                 }
-                this.olCtx.setLineDash([4, 4]);
-                this.olCtx.lineDashOffset = -this.marchingOfs;
-                this.olCtx.strokeStyle = '#ffffff';
-                this.olCtx.lineWidth = 1;
-                if (this.selection.type === 'rect') {
-                    this.olCtx.strokeRect(this.selection.x, this.selection.y, this.selection.w, this.selection.h);
-                } else if (this.selection.type === 'ellipse') {
-                    this.olCtx.beginPath();
-                    this.olCtx.ellipse(this.selection.x + this.selection.w / 2, this.selection.y + this.selection.h / 2, Math.abs(this.selection.w / 2), Math.abs(this.selection.h / 2), 0, 0, Math.PI * 2);
-                    this.olCtx.stroke();
-                }
-                this.olCtx.setLineDash([]);
-                this.olCtx.lineDashOffset = 0;
-                this.olCtx.strokeStyle = '#000000';
-                this.olCtx.lineWidth = 1;
-                this.olCtx.setLineDash([4, 4]);
-                this.olCtx.lineDashOffset = -this.marchingOfs + 4;
-                if (this.selection.type === 'rect') {
-                    this.olCtx.strokeRect(this.selection.x, this.selection.y, this.selection.w, this.selection.h);
-                } else if (this.selection.type === 'ellipse') {
-                    this.olCtx.beginPath();
-                    this.olCtx.ellipse(this.selection.x + this.selection.w / 2, this.selection.y + this.selection.h / 2, Math.abs(this.selection.w / 2), Math.abs(this.selection.h / 2), 0, 0, Math.PI * 2);
-                    this.olCtx.stroke();
-                }
-                this.olCtx.setLineDash([]);
-                this.marchingRAF = requestAnimationFrame(this.drawMarchingAnts);
+                const outline = () => {
+                    if (sel.type === 'rect') {
+                        ctx.strokeRect(sel.x, sel.y, sel.w, sel.h);
+                    } else if (sel.type === 'ellipse') {
+                        ctx.beginPath();
+                        ctx.ellipse(sel.x + sel.w / 2, sel.y + sel.h / 2, Math.abs(sel.w / 2), Math.abs(sel.h / 2), 0, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                };
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.lineDashOffset = -this.marchingOfs;
+                ctx.strokeStyle = '#ffffff';
+                outline();
+                ctx.lineDashOffset = -this.marchingOfs + 4;
+                ctx.strokeStyle = '#000000';
+                outline();
+                ctx.setLineDash([]);
+                ctx.lineDashOffset = 0;
+                this.scheduleMarchingAnts();
+            }),
+            // The marching ants animate by asking for the next overlay frame while a selection exists.
+            scheduleMarchingAnts: Pixel.bindRuntime(runtime, function scheduleMarchingAnts() {
+                if (this.marchingRAF || this.state.disposed) return;
+                this.marchingRAF = setTimeout(() => {
+                    this.marchingRAF = null;
+                    if (this.selection && !this.state.disposed) this.requestOverlay();
+                }, 50);
+            }),
+            drawToolPreview: Pixel.bindRuntime(runtime, function drawToolPreview(ctx) {
+                if (typeof this.toolPreview === 'function') this.toolPreview(ctx);
+                const def = this.activeToolDef();
+                if (def && typeof def.overlay === 'function') def.overlay(ctx, this);
             }),
             startMarchingAnts: Pixel.bindRuntime(runtime, function startMarchingAnts() {
                 this.stopMarchingAnts();
                 this.marchingOfs = 0;
-                this.drawMarchingAnts();
+                this.requestOverlay();
             }),
             stopMarchingAnts: Pixel.bindRuntime(runtime, function stopMarchingAnts() {
-                if (this.marchingRAF) { cancelAnimationFrame(this.marchingRAF); this.marchingRAF = null; }
+                if (this.marchingRAF) { clearTimeout(this.marchingRAF); this.marchingRAF = null; }
             }),
             selectAll: Pixel.bindRuntime(runtime, function selectAll() {
                 if (!this.canvas.width) return;
@@ -417,18 +466,21 @@
                 }
                 this.setSelectionMask(alpha, { mode: 'replace' });
             }),
+            // The lasso outline follows lassoPath through the tool-preview overlay.
             drawLassoPreview: Pixel.bindRuntime(runtime, function drawLassoPreview() {
                 if (!this.lassoPath || this.lassoPath.length < 2) return;
-                this.clearOverlay();
-                this.olCtx.save();
-                this.olCtx.strokeStyle = '#ffffff';
-                this.olCtx.lineWidth = 1;
-                this.olCtx.setLineDash([4, 4]);
-                this.olCtx.beginPath();
-                this.olCtx.moveTo(this.lassoPath[0].x, this.lassoPath[0].y);
-                for (let i = 1; i < this.lassoPath.length; i++) this.olCtx.lineTo(this.lassoPath[i].x, this.lassoPath[i].y);
-                this.olCtx.stroke();
-                this.olCtx.restore();
+                this.toolPreview = ctx => {
+                    const path = this.lassoPath;
+                    if (!path || path.length < 2) return;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(path[0].x, path[0].y);
+                    for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+                    ctx.stroke();
+                };
+                this.requestOverlay();
             }),
             commitMoveLayer: Pixel.bindRuntime(runtime, function commitMoveLayer(dx, dy) {
                 if (!dx && !dy) return;
@@ -599,56 +651,59 @@
                 ctx.stroke();
                 ctx.restore();
             }),
+            // Rubber band of line, arrow, rectangle, ellipse and the gradient handle (tool-preview overlay).
             drawShapePreview: Pixel.bindRuntime(runtime, function drawShapePreview(x0, y0, x1, y1) {
-                this.clearOverlay();
-                this.olCtx.save();
-                this.olCtx.strokeStyle = this.primaryColor;
-                this.olCtx.fillStyle = this.primaryColor;
-                this.olCtx.lineWidth = this.shapeStrokeWidth;
-                this.olCtx.lineCap = 'round';
-                this.olCtx.lineJoin = 'round';
-                this.olCtx.globalAlpha = this.brushOpacity / 100;
+                const spec = { tool: this.activeTool, color: this.primaryColor, width: this.shapeStrokeWidth, fill: this.shapeFill, opacity: this.brushOpacity / 100 };
+                this.toolPreview = ctx => this.paintShapePreview(ctx, spec, x0, y0, x1, y1);
+                this.requestOverlay();
+            }),
+            paintShapePreview: Pixel.bindRuntime(runtime, function paintShapePreview(ctx, spec, x0, y0, x1, y1) {
+                ctx.strokeStyle = spec.color;
+                ctx.fillStyle = spec.color;
+                ctx.lineWidth = spec.width;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.globalAlpha = spec.opacity;
                 const w = x1 - x0;
                 const h = y1 - y0;
-                if (this.activeTool === 'line') {
-                    this.olCtx.beginPath();
-                    this.olCtx.moveTo(x0, y0);
-                    this.olCtx.lineTo(x1, y1);
-                    this.olCtx.stroke();
-                } else if (this.activeTool === 'arrow') {
-                    this.olCtx.beginPath();
-                    this.olCtx.moveTo(x0, y0);
-                    this.olCtx.lineTo(x1, y1);
-                    this.olCtx.stroke();
+                if (spec.tool === 'line') {
+                    ctx.beginPath();
+                    ctx.moveTo(x0, y0);
+                    ctx.lineTo(x1, y1);
+                    ctx.stroke();
+                } else if (spec.tool === 'arrow') {
+                    ctx.beginPath();
+                    ctx.moveTo(x0, y0);
+                    ctx.lineTo(x1, y1);
+                    ctx.stroke();
                     const angle = Math.atan2(y1 - y0, x1 - x0);
-                    const headLen = Math.max(10, this.shapeStrokeWidth * 4);
-                    this.olCtx.beginPath();
-                    this.olCtx.moveTo(x1, y1);
-                    this.olCtx.lineTo(x1 - headLen * Math.cos(angle - Math.PI / 6), y1 - headLen * Math.sin(angle - Math.PI / 6));
-                    this.olCtx.moveTo(x1, y1);
-                    this.olCtx.lineTo(x1 - headLen * Math.cos(angle + Math.PI / 6), y1 - headLen * Math.sin(angle + Math.PI / 6));
-                    this.olCtx.stroke();
-                } else if (this.activeTool === 'rectangle') {
-                    if (this.shapeFill) this.olCtx.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(w), Math.abs(h));
-                    else this.olCtx.strokeRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(w), Math.abs(h));
-                } else if (this.activeTool === 'ellipse') {
-                    this.olCtx.beginPath();
-                    this.olCtx.ellipse(x0 + w / 2, y0 + h / 2, Math.abs(w / 2), Math.abs(h / 2), 0, 0, Math.PI * 2);
-                    if (this.shapeFill) this.olCtx.fill();
-                    else this.olCtx.stroke();
-                } else if (this.activeTool === 'gradient') {
-                    this.olCtx.beginPath();
-                    this.olCtx.moveTo(x0, y0);
-                    this.olCtx.lineTo(x1, y1);
-                    this.olCtx.stroke();
-                    this.olCtx.beginPath();
-                    this.olCtx.arc(x0, y0, 3, 0, Math.PI * 2);
-                    this.olCtx.fill();
-                    this.olCtx.beginPath();
-                    this.olCtx.arc(x1, y1, 3, 0, Math.PI * 2);
-                    this.olCtx.fill();
+                    const headLen = Math.max(10, spec.width * 4);
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x1 - headLen * Math.cos(angle - Math.PI / 6), y1 - headLen * Math.sin(angle - Math.PI / 6));
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x1 - headLen * Math.cos(angle + Math.PI / 6), y1 - headLen * Math.sin(angle + Math.PI / 6));
+                    ctx.stroke();
+                } else if (spec.tool === 'rectangle') {
+                    if (spec.fill) ctx.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(w), Math.abs(h));
+                    else ctx.strokeRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(w), Math.abs(h));
+                } else if (spec.tool === 'ellipse') {
+                    ctx.beginPath();
+                    ctx.ellipse(x0 + w / 2, y0 + h / 2, Math.abs(w / 2), Math.abs(h / 2), 0, 0, Math.PI * 2);
+                    if (spec.fill) ctx.fill();
+                    else ctx.stroke();
+                } else if (spec.tool === 'gradient') {
+                    ctx.beginPath();
+                    ctx.moveTo(x0, y0);
+                    ctx.lineTo(x1, y1);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(x0, y0, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(x1, y1, 3, 0, Math.PI * 2);
+                    ctx.fill();
                 }
-                this.olCtx.restore();
             }),
             commitShape: Pixel.bindRuntime(runtime, function commitShape(x0, y0, x1, y1) {
                 if (this.activeTool === 'gradient') { this.commitGradient(x0, y0, x1, y1); return; }
@@ -820,5 +875,9 @@
                 this.pushHistory('flatten');
             })
         });
+
+        // The selection outline and the tool preview are overlays of the compositor in pixel-core.js.
+        runtime.registerOverlay('selection', ctx => runtime.drawMarchingAnts(ctx), 50);
+        runtime.registerOverlay('tool-preview', ctx => runtime.drawToolPreview(ctx), 60);
     };
 })();
