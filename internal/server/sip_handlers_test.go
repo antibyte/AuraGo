@@ -432,7 +432,7 @@ func TestSIPAppStateReportsDisabledOutboundCalling(t *testing.T) {
 	}
 }
 
-func TestSIPAppStateAllowsEmptyProviderDestinationLists(t *testing.T) {
+func TestSIPAppStateBlocksEmptyDestinationLists(t *testing.T) {
 	var sipCfg config.SIPConfig
 	config.ApplySIPDefaults(&sipCfg)
 	sipCfg.Enabled = true
@@ -450,13 +450,14 @@ func TestSIPAppStateAllowsEmptyProviderDestinationLists(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	handleSIPAppState(&Server{SIPPhone: manager}).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/sip/app/state", nil))
 	var payload struct {
-		Blockers []string `json:"blockers"`
+		Blockers     []string        `json:"blockers"`
+		Capabilities map[string]bool `json:"capabilities"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
 		t.Fatal(err)
 	}
-	if slices.Contains(payload.Blockers, "outbound_disabled") {
-		t.Fatalf("empty provider destination lists disabled outbound calling: %+v", payload.Blockers)
+	if !slices.Contains(payload.Blockers, "outbound_disabled") || payload.Capabilities["dial"] {
+		t.Fatalf("empty destination lists did not disable outbound calling: %+v", payload)
 	}
 }
 

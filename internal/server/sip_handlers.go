@@ -723,6 +723,15 @@ func handleSIPCalls(s *Server) http.HandlerFunc {
 				if claimErr {
 					return
 				}
+				cfg := manager.Config()
+				if cfg.ReadOnly {
+					writeSIPManagerError(w, sipphone.ErrReadOnly)
+					return
+				}
+				if !cfg.Permissions.OriginateOutbound {
+					writeSIPManagerError(w, sipphone.ErrPermissionDenied)
+					return
+				}
 				mediaPeer, claimSessionErr := peer.ClaimSession(owner, clientID, body.BrowserSessionID)
 				if claimSessionErr != nil {
 					writeSIPManagerError(w, claimSessionErr)
@@ -793,6 +802,15 @@ func handleSIPCallAction(s *Server) http.HandlerFunc {
 			}
 			mediaService, unavailable := sipBrowserMedia(s, w)
 			if unavailable {
+				return
+			}
+			cfg := manager.Config()
+			if cfg.ReadOnly {
+				writeSIPManagerError(w, sipphone.ErrReadOnly)
+				return
+			}
+			if !cfg.Permissions.AnswerInbound {
+				writeSIPManagerError(w, sipphone.ErrPermissionDenied)
 				return
 			}
 			mediaPeer, claimErr := mediaService.ClaimSession(owner, clientID, body.BrowserSessionID)
@@ -892,6 +910,7 @@ func handleSIPAppState(s *Server) http.HandlerFunc {
 			s.SIPBrowserMedia != nil &&
 			s.SIPBrowserMedia.MatchesConfig(cfg)
 		networkReady := !manager.NetworkConfigurationRequired()
+		outboundReady := cfg.Permissions.OriginateOutbound && (len(cfg.Outbound.AllowedUsers) > 0 || len(cfg.Outbound.AllowedE164Prefixes) > 0)
 		blockers := make([]string, 0, 4)
 		switch {
 		case !status.Enabled:
@@ -903,7 +922,7 @@ func handleSIPAppState(s *Server) http.HandlerFunc {
 			blockers = append(blockers, "not_registered")
 		}
 		if status.Enabled && !status.ReadOnly {
-			if !cfg.Permissions.OriginateOutbound {
+			if !outboundReady {
 				blockers = append(blockers, "outbound_disabled")
 			}
 		}
@@ -925,7 +944,7 @@ func handleSIPAppState(s *Server) http.HandlerFunc {
 			"dial_domain":   cfg.Domain,
 			"inbound_route": cfg.Inbound.Route,
 			"capabilities": map[string]bool{
-				"dial":          status.Enabled && status.Registered && !status.ReadOnly && cfg.Permissions.OriginateOutbound && browserReady && networkReady,
+				"dial":          status.Enabled && status.Registered && !status.ReadOnly && outboundReady && browserReady && networkReady,
 				"answer":        status.Enabled && !status.ReadOnly && cfg.Permissions.AnswerInbound && cfg.Inbound.Route == "manual" && browserReady && networkReady,
 				"reject":        status.Enabled && !status.ReadOnly && cfg.Permissions.AnswerInbound && cfg.Inbound.Route == "manual",
 				"hangup":        status.Enabled && !status.ReadOnly && cfg.Permissions.AgentHangup,
