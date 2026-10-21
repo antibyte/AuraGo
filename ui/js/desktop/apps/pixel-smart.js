@@ -141,7 +141,7 @@
         },
         onDown: (r, e, p) => {
             if (r.smartState.busy) {
-                r.notify({ type: 'info', message: r.t('pixel.fill_busy', 'Another fill is still running.') });
+                r.notify({ type: 'info', message: r.t('pixel.caf_busy', 'Another fill is still running.') });
                 return;
             }
             r.smartState.stroke = { points: [{ x: p.x, y: p.y }], size: r.smartState.removeSize };
@@ -345,6 +345,7 @@
         function renderSwatches() {
             const host = q('[data-sc-swatches]');
             if (!host) return;
+            host.title = r.t('pixel.sc_swatch_hint', 'Click: primary color. Right-click: secondary color. Shift+click: remove.');
             const list = loadSwatches();
             host.innerHTML = list.length
                 ? list.map(c => swatchButton(r, 'data-sc-saved', c)).join('')
@@ -610,7 +611,7 @@
             const L = lib();
             const layer = r.activeLayer();
             if (!layer || !r.imgWidth || !L || typeof L.inpaintRegion !== 'function') return false;
-            if (smart.busy) { info(t('pixel.fill_busy', 'Another fill is still running.')); return false; }
+            if (smart.busy) { info(t('pixel.caf_busy', 'Another fill is still running.')); return false; }
             if (!r.canPaintActiveLayer('content-aware-fill')) return false;
             r.commitPendingPreviews();
             const W = r.imgWidth, H = r.imgHeight, box = spec.box;
@@ -635,9 +636,9 @@
                     image, mask, patch: spec.patch || 7, iterations: spec.iterations || QUALITY.balanced, margin: spec.margin, seed: 1, inPlace: true
                 }, { transfer: [image.data.buffer, mask.buffer], signal: controller.signal, key: 'pixel-inpaint', onProgress: f => progress.set(f) });
             } catch (err) {
-                if (err && err.name === 'AbortError') info(t('pixel.fill_cancelled', 'Fill cancelled.'));
-                else if (err && /no-sources/.test(err.message || '')) failure(t('pixel.fill_no_sources', 'There is nothing around the selection to copy from. Select a smaller area.'));
-                else failure(t('pixel.fill_failed', 'The fill failed.') + (err && err.message ? ' ' + err.message : ''));
+                if (err && err.name === 'AbortError') info(t('pixel.caf_cancelled', 'Fill cancelled.'));
+                else if (err && /no-sources/.test(err.message || '')) failure(t('pixel.caf_no_sources', 'There is nothing around the selection to copy from. Select a smaller area.'));
+                else failure(t('pixel.caf_failed', 'The fill failed.') + (err && err.message ? ' ' + err.message : ''));
                 return false;
             } finally {
                 progress.done();
@@ -648,7 +649,7 @@
             if (r.state.disposed) return false;
             const stale = r.layers !== stamp.layers || r.layers.indexOf(layer) < 0 || r.imgWidth !== stamp.width || r.imgHeight !== stamp.height ||
                 (inMask ? layer.maskRev : layer.rev) !== stamp.rev || r.activeLayer() !== layer;
-            if (stale) { info(t('pixel.fill_stale', 'The image changed while the fill was running, so the result was dropped.')); return false; }
+            if (stale) { info(t('pixel.caf_stale', 'The image changed while the fill was running, so the result was dropped.')); return false; }
             const out = r.copyCanvas(sourceCanvas);
             putImage(out.getContext('2d'), result.image, region.x, region.y);
             const extra = new Uint8ClampedArray(W * H);
@@ -668,7 +669,7 @@
             const L = lib();
             if (!r.imgWidth || !L) return false;
             const sel = r.getSelectionMask();
-            if (!sel) { info(t('pixel.fill_need_selection', 'Select the area to fill first.')); return false; }
+            if (!sel) { info(t('pixel.caf_need_selection', 'Select the area to fill first.')); return false; }
             const o = Object.assign({}, smart.fill, options || {});
             const grow = clampNum(Math.round(Number(o.grow) || 0), 0, 40);
             const W = r.imgWidth, H = r.imgHeight;
@@ -690,7 +691,7 @@
 
         function showContentAwareFillDialog() {
             if (!r.imgWidth) return;
-            if (!r.selection) { info(t('pixel.fill_need_selection', 'Select the area to fill first.')); return; }
+            if (!r.selection) { info(t('pixel.caf_need_selection', 'Select the area to fill first.')); return; }
             const values = Object.assign(r.defaultParams(FILL_SCHEMA), smart.fill);
             const dlg = document.createElement('div');
             dlg.className = 'vd-modal-backdrop';
@@ -789,7 +790,7 @@
             let box = null;
             r.layers.forEach(layer => { box = unionBox(box, scanCanvasBounds(layer.canvas, { mode: 'alpha', threshold: 0 })); });
             if (!box) { info(t('pixel.trim_empty', 'The image is completely transparent.')); return false; }
-            if (box.w === r.imgWidth && box.h === r.imgHeight) { info(t('pixel.fit_nothing', 'The canvas already fits the layers.')); return false; }
+            if (box.w === r.imgWidth && box.h === r.imgHeight) { info(t('pixel.fit_canvas_nothing', 'The canvas already fits the layers.')); return false; }
             cropDocument(box, 'fit-canvas');
             return true;
         }
@@ -844,7 +845,7 @@
             dlg.className = 'vd-modal-backdrop';
             const fillOption = (value, key, fallback) => `<option value="${value}">${r.esc(t(key, fallback))}</option>`;
             dlg.innerHTML = `<form class="vd-modal pixel-smart-dialog" role="dialog" aria-modal="true">
-                <div class="vd-modal-title">${r.esc(t('pixel.canvas_size', 'Canvas size'))}</div>
+                <div class="vd-modal-title">${r.esc(t('pixel.canvas_size_title', 'Canvas size'))}</div>
                 <div class="pixel-smart-form">
                     <label class="pixel-label">${r.esc(t('pixel.width', 'Width'))}</label>
                     <input class="vd-modal-input" type="number" data-cs-w value="${r.imgWidth}" min="1" max="${MAX_CANVAS_SIDE}">
@@ -1006,8 +1007,8 @@
     ], { order: 50 });
 
     Pixel.registerMenuItems('image', [
-        { id: 'trim', labelKey: 'pixel.trim', fallback: 'Trim transparent pixels', icon: 'scissors', keywords: ['crop', 'zuschneiden', 'transparent', 'rand'], action: r => r.trimTransparent(), enabled: hasImage },
-        { id: 'auto-crop', labelKey: 'pixel.auto_crop', fallback: 'Auto-crop to content', icon: 'scissors', keywords: ['crop', 'zuschneiden', 'trim', 'background', 'hintergrund'], action: r => r.autoCropToContent(), enabled: hasImage },
+        { id: 'trim', labelKey: 'pixel.trim_transparent', fallback: 'Trim transparent pixels', icon: 'scissors', keywords: ['crop', 'zuschneiden', 'transparent', 'rand'], action: r => r.trimTransparent(), enabled: hasImage },
+        { id: 'auto-crop', labelKey: 'pixel.auto_crop_content', fallback: 'Auto-crop to content', icon: 'scissors', keywords: ['crop', 'zuschneiden', 'trim', 'background', 'hintergrund'], action: r => r.autoCropToContent(), enabled: hasImage },
         { id: 'canvas-size', labelKey: 'pixel.canvas_size_item', fallback: 'Canvas size…', icon: 'maximize', shortcut: 'Ctrl+Alt+C', keywords: ['arbeitsfläche', 'leinwand', 'extend', 'erweitern'], action: r => r.showCanvasSizeDialog(), enabled: hasImage },
         { id: 'fit-canvas-layers', labelKey: 'pixel.fit_canvas_layers', fallback: 'Fit canvas to layers', icon: 'maximize', keywords: ['crop', 'trim', 'ebenen'], action: r => r.fitCanvasToLayers(), enabled: hasImage }
     ], { order: 20 });
