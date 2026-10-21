@@ -17,6 +17,9 @@ func TestDesktopPixelOpenFilterI18n(t *testing.T) {
 	if strings.Contains(source, "name: 'Images'") {
 		t.Fatal("pixel open dialog still hardcodes Images")
 	}
+	if !strings.Contains(source, "'desktop.file_dialog_ora', 'OpenRaster project (.ora)'") {
+		t.Fatal("pixel open dialog must localize the OpenRaster project type")
+	}
 
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		path := filepath.ToSlash(filepath.Join("lang", "desktop", lang+".json"))

@@ -12,7 +12,8 @@
         'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'
     ];
     const canvasPool = [];
-    const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif'];
+    // 'ora' is the layered OpenRaster project format (pixel-ora.js); loadDesktopImagePath dispatches it by extension.
+    const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif', 'ora'];
     const PRESET_COLORS = [
         '#000000', '#404040', '#808080', '#c0c0c0', '#ffffff',
         '#ff0000', '#ff6600', '#ffcc00', '#33cc33', '#0099ff',
