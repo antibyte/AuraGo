@@ -1,4 +1,9 @@
 {
+  "config.telephone_agent.catalog_unavailable": "Listy są tymczasowo niedostępne. Zapisane wybory zostają zachowane.",
+  "config.telephone_agent.tool_unavailable": "Narzędzie niedostępne",
+  "config.telephone_agent.language_auto": "Automatycznie",
+  "config.telephone_agent.blocker.outbound_destinations_empty": "Nie skonfigurowano dozwolonych numerów ani użytkowników dla połączeń wychodzących.",
+  "config.sip.telephone_profile_preserved": "Ustawienia agenta telefonicznego i opóźnienie odbierania połączeń zostają zachowane.",
   "config.decisions.docker_api_too_old": "Podkatalogi nazwanych woluminów wymagają Docker Engine 26 (API 1.45) lub nowszego. Zaktualizuj Docker lub użyj odpowiedniego montowania katalogu hosta.",
   "config.decisions.runtime_score_timeout": "Ocena osiągnęła limit dwóch minut. Usługa pozostaje dostępna do następnej oceny.",
   "config.decisions.local_setup": "Skonfiguruj model lokalny",

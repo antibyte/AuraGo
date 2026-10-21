@@ -1293,6 +1293,7 @@ function showUnsavedChangesDecision() {
 }
 
 async function navigateToConfigSection(key, options = {}) {
+    if (configSaveInFlight || document.querySelector('#content [data-config-saving]')) return false;
     const target = normalizeSectionKey(key);
     if (target === activeSection && !hasUnsavedConfigChanges()) {
         await selectSection(target, options);
@@ -1302,7 +1303,7 @@ async function navigateToConfigSection(key, options = {}) {
     if (hasUnsavedConfigChanges()) {
         const decision = await showUnsavedChangesDecision();
         if (decision === 'save') {
-            if (!await saveConfig()) return false;
+            if (!await saveConfig() || hasUnsavedConfigChanges()) return false;
         } else if (decision === 'discard') {
             if (window.AuraConfigState) configData = window.AuraConfigState.discard();
             if (typeof window.sipDiscardUnsaved === 'function') window.sipDiscardUnsaved();
@@ -3189,6 +3190,10 @@ async function saveConfig() {
     } finally {
         configSaveInFlight = false;
         setConfigSaveBusy(false);
+        if (saveSucceeded && hasUnsavedConfigChanges()) {
+            status.className = 'save-status warning';
+            status.textContent = t('config.save_bar.unsaved_changes');
+        }
     }
     return saveSucceeded;
 }

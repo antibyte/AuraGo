@@ -1,4 +1,9 @@
 {
+  "config.telephone_agent.catalog_unavailable": "Seznamy jsou dočasně nedostupné. Uložené volby zůstávají zachovány.",
+  "config.telephone_agent.tool_unavailable": "Nástroj není dostupný",
+  "config.telephone_agent.language_auto": "Automaticky",
+  "config.telephone_agent.blocker.outbound_destinations_empty": "Nejsou nastavena žádná povolená odchozí čísla ani uživatelé.",
+  "config.sip.telephone_profile_preserved": "Nastavení telefonního agenta a prodleva přijetí hovoru zůstanou zachovány.",
   "config.decisions.docker_api_too_old": "Podadresáře pojmenovaných svazků vyžadují Docker Engine 26 (API 1.45) nebo novější. Aktualizuj Docker nebo použij vhodné připojení adresáře hostitele.",
   "config.decisions.runtime_score_timeout": "Hodnocení dosáhlo dvouminutového limitu. Služba zůstává dostupná pro další hodnocení.",
   "config.decisions.local_setup": "Nastavit místní model",

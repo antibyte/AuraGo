@@ -1,4 +1,9 @@
 {
+  "config.telephone_agent.catalog_unavailable": "De lijsten zijn tijdelijk niet beschikbaar. Opgeslagen keuzes blijven behouden.",
+  "config.telephone_agent.tool_unavailable": "Hulpmiddel niet beschikbaar",
+  "config.telephone_agent.language_auto": "Automatisch",
+  "config.telephone_agent.blocker.outbound_destinations_empty": "Er zijn geen toegestane uitgaande nummers of gebruikers ingesteld.",
+  "config.sip.telephone_profile_preserved": "Je instellingen voor de telefoonagent en de antwoordvertraging blijven behouden.",
   "config.decisions.docker_api_too_old": "Submappen in benoemde volumes vereisen Docker Engine 26 (API 1.45) of nieuwer. Werk Docker bij of gebruik een geschikte koppeling van een hostmap.",
   "config.decisions.runtime_score_timeout": "De beoordeling bereikte de limiet van twee minuten. De dienst blijft beschikbaar voor de volgende beoordeling.",
   "config.decisions.local_setup": "Lokaal model instellen",

@@ -1,4 +1,9 @@
 {
+  "config.telephone_agent.catalog_unavailable": "Listerne er midlertidigt utilgængelige. Gemte valg bevares.",
+  "config.telephone_agent.tool_unavailable": "Værktøjet er ikke tilgængeligt",
+  "config.telephone_agent.language_auto": "Automatisk",
+  "config.telephone_agent.blocker.outbound_destinations_empty": "Der er ikke angivet tilladte udgående numre eller brugere.",
+  "config.sip.telephone_profile_preserved": "Dine indstillinger for telefonagenten og forsinkelsen før besvarelse bevares.",
   "config.decisions.docker_api_too_old": "Undermapper i navngivne volumener kræver Docker Engine 26 (API 1.45) eller nyere. Opdater Docker, eller brug en passende tilknytning af en værtsmappe.",
   "config.decisions.runtime_score_timeout": "Vurderingen nåede grænsen på to minutter. Tjenesten er fortsat tilgængelig til næste vurdering.",
   "config.decisions.local_setup": "Konfigurer den lokale model",

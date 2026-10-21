@@ -1,4 +1,9 @@
 {
+  "config.telephone_agent.catalog_unavailable": "列表暂时不可用，已保存的选择会保留。",
+  "config.telephone_agent.tool_unavailable": "工具不可用",
+  "config.telephone_agent.language_auto": "自动",
+  "config.telephone_agent.blocker.outbound_destinations_empty": "尚未配置允许呼出的号码或用户。",
+  "config.sip.telephone_profile_preserved": "你的电话代理设置和接听延迟会保留。",
   "config.decisions.docker_api_too_old": "命名卷的子目录需要 Docker Engine 26（API 1.45）或更新版本。请升级 Docker，或使用合适的主机目录绑定挂载。",
   "config.decisions.runtime_score_timeout": "评估已达到两分钟时限。服务仍可用于下一次评估。",
   "config.decisions.local_setup": "设置本地模型",

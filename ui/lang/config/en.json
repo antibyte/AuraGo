@@ -1,4 +1,9 @@
 {
+  "config.telephone_agent.catalog_unavailable": "Lists are temporarily unavailable. Saved selections are kept.",
+  "config.telephone_agent.tool_unavailable": "Tool unavailable",
+  "config.telephone_agent.language_auto": "Automatic",
+  "config.telephone_agent.blocker.outbound_destinations_empty": "No permitted outgoing numbers or users are configured.",
+  "config.sip.telephone_profile_preserved": "Your Telephone agent settings and answer delay are retained.",
   "config.decisions.docker_api_too_old": "Named-volume subdirectories require Docker Engine 26 (API 1.45) or newer. Upgrade Docker or use a suitable bind mount.",
   "config.decisions.runtime_score_timeout": "The score reached its two-minute limit. The service remains available for the next score.",
   "config.decisions.local_setup": "Set up the local model",
