@@ -200,21 +200,24 @@ const AMBIENCE = {
     }
   },
   moon: {
-    level: 0.15, gap: [5, 15],
+    level: 0.03, gap: [5, 15],
     bed(ctx, out) {
-      const filter = filterNode(ctx, 'lowpass', 400);
-      filter.connect(out);
-      const nodes = [filter];
-      for (const [type, hz, level] of [['sine', 55, 0.5], ['sine', 110.4, 0.25], ['triangle', 165, 0.1]]) {
+      // A quiet low drone that slowly breathes, so it never reads as a static tone.
+      const filter = filterNode(ctx, 'lowpass', 220);
+      const breath = gainOf(ctx, 0.6);
+      filter.connect(breath);
+      breath.connect(out);
+      const nodes = [filter, breath];
+      for (const [hz, level] of [[55, 0.5], [110.4, 0.15]]) {
         const osc = ctx.createOscillator();
         const amount = gainOf(ctx, level);
-        osc.type = type;
+        osc.type = 'sine';
         osc.frequency.setValueAtTime(hz, ctx.currentTime);
         osc.connect(amount);
         amount.connect(filter);
         nodes.push(osc, amount);
       }
-      return nodes;
+      return [...nodes, ...lfo(ctx, 0.06, 0.4, breath.gain)];
     },
     event(ctx, out, random) {
       const start = ctx.currentTime + 0.05;
