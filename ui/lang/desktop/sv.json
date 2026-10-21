@@ -7920,6 +7920,8 @@
   "minigolf.group_display": "Skärm",
   "minigolf.help_aim_title": "Sikta och putta",
   "minigolf.help_aim_body": "Dra bakåt från bollen som med en slangbella. Ju längre du drar, desto hårdare blir slaget; den streckade linjen visar banan. Släpp för att putta.",
+  "minigolf.help_view_title": "Vy",
+  "minigolf.help_view_body": "Dra med vänster musknapp bort från bollen för att flytta banan. Höger musknapp roterar vyn och mushjulet zoomar. ”Till bollen” hämtar tillbaka kameran.",
   "minigolf.help_keys_title": "Tangentbord",
   "minigolf.help_touch_title": "Beröring",
   "minigolf.help_touch_body": "Dra bakåt från bollen med ett finger. Två fingrar zoomar och flyttar vyn. I kameraläget tittar du dig omkring med ett finger.",

@@ -7920,6 +7920,8 @@
   "minigolf.group_display": "Ecrã",
   "minigolf.help_aim_title": "Mira e tacada",
   "minigolf.help_aim_body": "Arrasta para trás a partir da bola, como numa fisga. Quanto mais puxares, mais forte será a tacada; a linha tracejada mostra o trajeto. Solta para jogar.",
+  "minigolf.help_view_title": "Vista",
+  "minigolf.help_view_body": "Arrasta com o botão esquerdo do rato longe da bola para deslocar o campo. O botão direito do rato roda a vista e a roda faz zoom. «Para a bola» traz a câmara de volta.",
   "minigolf.help_keys_title": "Teclado",
   "minigolf.help_touch_title": "Toque",
   "minigolf.help_touch_body": "Arrasta para trás a partir da bola com um dedo. Dois dedos fazem zoom e deslocam a vista. No modo Câmara, um dedo olha à volta.",

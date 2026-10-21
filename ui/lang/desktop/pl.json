@@ -7920,6 +7920,8 @@
   "minigolf.group_display": "Wyświetlanie",
   "minigolf.help_aim_title": "Celowanie i uderzenie",
   "minigolf.help_aim_body": "Pociągnij w tył od piłki jak procę. Im dalej pociągniesz, tym mocniejsze uderzenie; linia przerywana pokazuje tor. Puść, aby uderzyć.",
+  "minigolf.help_view_title": "Widok",
+  "minigolf.help_view_body": "Przeciągnij lewym przyciskiem myszy obok piłki, aby przesunąć pole gry. Prawy przycisk myszy obraca widok, a kółko przybliża i oddala. „Do piłki” przywraca kamerę.",
   "minigolf.help_keys_title": "Klawiatura",
   "minigolf.help_touch_title": "Dotyk",
   "minigolf.help_touch_body": "Pociągnij jednym palcem w tył od piłki. Dwa palce przybliżają i przesuwają widok. W trybie Kamera jeden palec rozgląda się po scenie.",

@@ -7920,6 +7920,8 @@
   "minigolf.group_display": "显示",
   "minigolf.help_aim_title": "瞄准与推杆",
   "minigolf.help_aim_body": "像拉弹弓一样从球的位置向后拖动。拖得越远，推杆越有力；虚线表示球的路径。松开即可推杆。",
+  "minigolf.help_view_title": "视图",
+  "minigolf.help_view_body": "按住鼠标左键在球以外的位置拖动，可移动球场。鼠标右键旋转视图，滚轮缩放。点击“前往球位”可让镜头回到球上。",
   "minigolf.help_keys_title": "键盘",
   "minigolf.help_touch_title": "触控",
   "minigolf.help_touch_body": "用一根手指从球的位置向后拖动。两指可缩放和平移。在镜头模式下，一根手指可环顾四周。",

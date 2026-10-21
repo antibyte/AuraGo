@@ -7920,6 +7920,8 @@
   "minigolf.group_display": "Weergave",
   "minigolf.help_aim_title": "Richten en putten",
   "minigolf.help_aim_body": "Sleep vanaf de bal naar achteren, als met een katapult. Hoe verder je trekt, hoe harder de putt; de stippellijn laat het pad zien. Laat los om te putten.",
+  "minigolf.help_view_title": "Weergave",
+  "minigolf.help_view_body": "Sleep met de linkermuisknop naast de bal om het veld te verschuiven. Met de rechtermuisknop draai je de weergave, het muiswiel zoomt. “Naar de bal” haalt de camera terug.",
   "minigolf.help_keys_title": "Toetsenbord",
   "minigolf.help_touch_title": "Aanraking",
   "minigolf.help_touch_body": "Sleep met één vinger vanaf de bal naar achteren. Met twee vingers zoom en verschuif je. In cameramodus kijk je met één vinger rond.",

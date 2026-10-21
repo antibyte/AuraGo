@@ -7920,6 +7920,8 @@
   "minigolf.group_display": "Pantalla",
   "minigolf.help_aim_title": "Apunta y golpea",
   "minigolf.help_aim_body": "Arrastra hacia atrás desde la bola como con un tirachinas. Cuanto más tires, más fuerte será el golpe; la línea discontinua muestra la trayectoria. Suelta para golpear.",
+  "minigolf.help_view_title": "Vista",
+  "minigolf.help_view_body": "Arrastra con el botón izquierdo del ratón lejos de la bola para desplazar el campo. El botón derecho del ratón gira la vista y la rueda hace zoom. «A la bola» devuelve la cámara a su sitio.",
   "minigolf.help_keys_title": "Teclado",
   "minigolf.help_touch_title": "Táctil",
   "minigolf.help_touch_body": "Arrastra hacia atrás desde la bola con un dedo. Dos dedos hacen zoom y desplazan la vista. En modo Cámara, un dedo mira alrededor.",

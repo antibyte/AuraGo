@@ -7920,6 +7920,8 @@
   "minigolf.group_display": "Schermo",
   "minigolf.help_aim_title": "Mira e colpisci",
   "minigolf.help_aim_body": "Trascina indietro dalla pallina come con una fionda. Più tiri, più forte sarà il colpo; la linea tratteggiata mostra la traiettoria. Rilascia per colpire.",
+  "minigolf.help_view_title": "Vista",
+  "minigolf.help_view_body": "Trascina con il tasto sinistro del mouse lontano dalla pallina per spostare il campo. Il tasto destro del mouse ruota la vista e la rotellina ingrandisce. «Alla pallina» riporta indietro la camera.",
   "minigolf.help_keys_title": "Tastiera",
   "minigolf.help_touch_title": "Touch",
   "minigolf.help_touch_body": "Trascina indietro dalla pallina con un dito. Due dita ingrandiscono e spostano la vista. In modalità Camera un dito serve a guardarti intorno.",

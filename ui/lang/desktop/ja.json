@@ -7920,6 +7920,8 @@
   "minigolf.group_display": "表示",
   "minigolf.help_aim_title": "狙ってパット",
   "minigolf.help_aim_body": "ボールから後ろへ、スリングショットのようにドラッグします。引くほど強いパットになり、破線が軌道を示します。離すとパットします。",
+  "minigolf.help_view_title": "表示",
+  "minigolf.help_view_body": "ボールから離れた場所を左クリックでドラッグすると、コースを動かせます。右クリックでドラッグすると視点が回転し、マウスホイールでズームします。「ボールへ」を押すとカメラが戻ります。",
   "minigolf.help_keys_title": "キーボード",
   "minigolf.help_touch_title": "タッチ",
   "minigolf.help_touch_body": "1本の指でボールから後ろへドラッグします。2本の指でズームと移動ができます。カメラモードでは1本の指で見回せます。",

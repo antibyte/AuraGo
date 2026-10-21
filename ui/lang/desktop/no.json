@@ -7920,6 +7920,8 @@
   "minigolf.group_display": "Visning",
   "minigolf.help_aim_title": "Sikt og putt",
   "minigolf.help_aim_body": "Dra bakover fra ballen som med en sprettert. Jo lenger du drar, desto hardere blir slaget; den stiplede linjen viser banen. Slipp for å putte.",
+  "minigolf.help_view_title": "Visning",
+  "minigolf.help_view_body": "Dra med venstre museknapp bort fra ballen for å flytte banen. Høyre museknapp roterer visningen, og musehjulet zoomer. «Til ballen» henter kameraet tilbake.",
   "minigolf.help_keys_title": "Tastatur",
   "minigolf.help_touch_title": "Berøring",
   "minigolf.help_touch_body": "Dra bakover fra ballen med én finger. To fingre zoomer og flytter visningen. I kameramodus ser du deg rundt med én finger.",

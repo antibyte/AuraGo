@@ -26,8 +26,10 @@ strength, and the strength readout adds the estimated flat roll distance (full
 strength rolls 28 m on flat felt, on the moon as well). The preview applies
 bumper kicks and boost pads and ends at a teleporter or a cannon. Arrow keys adjust aim and strength while
 held (Shift gives finer steps); Space putts. A gentle aim assist snaps shots
-within four degrees toward the cup, and after a penalty the rest position gets a marker ring. Right-drag rotates the view, the wheel
-zooms, and **To the ball** restores focus. Optional settings move the camera
+within four degrees toward the cup, and after a penalty the rest position gets a marker ring. A left-drag that starts away from the ball
+pans the view along the ground (it stays within the course bounds plus a short
+margin), right-drag rotates it, the wheel zooms, and **To the ball** restores
+focus. Optional settings move the camera
 behind the ball on each turn and follow the rolling ball; reduced motion keeps
 both functional without smooth transitions. Touch users can switch between
 Camera and Aim; in Aim a one-finger drag from anywhere putts, and two fingers
@@ -55,6 +57,8 @@ skipped: a coach bubble walks through aiming, setting the power, releasing and
 watching the first putt, without blocking the stage. Skip ends it for good, and
 Help offers Restart introduction during a round.
 
+The house button at the start of the top bar returns to the **Main menu** during
+a round. The unfinished round stays saved, and the menu offers it as **Continue round**.
 Help opens from the question-mark button in the top bar, which stays at every
 width, and with the ? key (ignored while you type). Escape cancels a drag first,
 then steps back out of the current menu step, and otherwise closes the open panel

@@ -7920,6 +7920,8 @@
   "minigolf.group_display": "Display",
   "minigolf.help_aim_title": "Aim and putt",
   "minigolf.help_aim_body": "Drag back from the ball like a slingshot. The further you pull, the harder the putt; the dashed line shows the path. Let go to putt.",
+  "minigolf.help_view_title": "View",
+  "minigolf.help_view_body": "Drag with the left mouse button away from the ball to move the course. The right mouse button rotates the view and the wheel zooms. “To the ball” brings the camera back.",
   "minigolf.help_keys_title": "Keyboard",
   "minigolf.help_touch_title": "Touch",
   "minigolf.help_touch_body": "Drag back from the ball with one finger. Two fingers zoom and pan. In Camera mode one finger looks around.",

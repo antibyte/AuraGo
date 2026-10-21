@@ -7920,6 +7920,8 @@
   "minigolf.group_display": "Anzeige",
   "minigolf.help_aim_title": "Zielen und Schlagen",
   "minigolf.help_aim_body": "Zieh vom Ball nach hinten weg wie bei einer Steinschleuder. Je weiter Du ziehst, desto kräftiger wird der Schlag; die gestrichelte Linie zeigt den Weg. Lass los, um zu schlagen.",
+  "minigolf.help_view_title": "Ansicht",
+  "minigolf.help_view_body": "Zieh mit der linken Maustaste neben dem Ball, um das Spielfeld zu verschieben. Mit der rechten Maustaste drehst Du die Ansicht, das Mausrad zoomt. „Zum Ball“ holt die Kamera zurück.",
   "minigolf.help_keys_title": "Tastatur",
   "minigolf.help_touch_title": "Touch",
   "minigolf.help_touch_body": "Zieh mit einem Finger vom Ball zurück. Zwei Finger zoomen und verschieben. Im Kameramodus schaust Du Dich mit einem Finger um.",

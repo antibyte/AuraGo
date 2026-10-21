@@ -7920,6 +7920,8 @@
   "minigolf.group_display": "Affichage",
   "minigolf.help_aim_title": "Viser et putter",
   "minigolf.help_aim_body": "Tire vers l’arrière depuis la balle, comme avec un lance-pierre. Plus tu tires, plus le coup est fort ; la ligne en pointillés montre la trajectoire. Relâche pour putter.",
+  "minigolf.help_view_title": "Vue",
+  "minigolf.help_view_body": "Tire avec le bouton gauche de la souris à côté de la balle pour déplacer le terrain. Le bouton droit fait tourner la vue et la molette zoome. « Vers la balle » ramène la caméra.",
   "minigolf.help_keys_title": "Clavier",
   "minigolf.help_touch_title": "Tactile",
   "minigolf.help_touch_body": "Tire vers l’arrière depuis la balle avec un doigt. Deux doigts zooment et déplacent la vue. En mode Caméra, un doigt permet de regarder autour.",

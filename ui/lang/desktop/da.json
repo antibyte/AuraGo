@@ -7920,6 +7920,8 @@
   "minigolf.group_display": "Visning",
   "minigolf.help_aim_title": "Sigt og putt",
   "minigolf.help_aim_body": "Træk bagud fra bolden som med en slangebøsse. Jo længere du trækker, jo hårdere bliver slaget; den stiplede linje viser banen. Slip for at putte.",
+  "minigolf.help_view_title": "Visning",
+  "minigolf.help_view_body": "Træk med venstre museknap væk fra bolden for at flytte banen. Højre museknap drejer visningen, og musehjulet zoomer. »Til bolden« henter kameraet tilbage.",
   "minigolf.help_keys_title": "Tastatur",
   "minigolf.help_touch_title": "Berøring",
   "minigolf.help_touch_body": "Træk bagud fra bolden med én finger. To fingre zoomer og panorerer. I kameratilstand ser du dig omkring med én finger.",

@@ -7920,6 +7920,8 @@
   "minigolf.group_display": "Zobrazení",
   "minigolf.help_aim_title": "Míření a úder",
   "minigolf.help_aim_body": "Táhni od míčku dozadu jako u praku. Čím dál zatáhneš, tím silnější je úder; čárkovaná čára ukazuje dráhu. Pusť a udeříš.",
+  "minigolf.help_view_title": "Pohled",
+  "minigolf.help_view_body": "Táhni levým tlačítkem myši stranou od míčku a posuneš hřiště. Pravé tlačítko myši otáčí pohled, kolečko přibližuje. Tlačítko „K míčku“ vrátí kameru zpět.",
   "minigolf.help_keys_title": "Klávesnice",
   "minigolf.help_touch_title": "Dotyk",
   "minigolf.help_touch_body": "Táhni jedním prstem od míčku dozadu. Dva prsty přibližují a posouvají pohled. V režimu Kamera se jedním prstem rozhlížíš.",

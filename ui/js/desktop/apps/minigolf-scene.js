@@ -16,6 +16,8 @@ import { createFx } from './minigolf-fx.js';
 
 const [POWER_A, POWER_B, POWER_C] = POWER_STOPS.map(([, hex]) => new THREE.Color(hex));
 const powerTint = new THREE.Color();
+// How far past the course bounds (metres) a panned view may centre.
+const PAN_MARGIN = 3;
 
 function powerColor(value) {
     if (value <= .5) powerTint.copy(POWER_A).lerp(POWER_B, value * 2);
@@ -120,12 +122,28 @@ export function createScene(host, options) {
     controls.maxDistance = 38;
     controls.maxPolarAngle = Math.PI * .46;
     controls.minPolarAngle = .18;
-    controls.mouseButtons.LEFT = null;
+    // A left drag that misses the ball pans along the ground (a press on the ball aims, see down()).
+    controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
     controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
+    controls.screenSpacePanning = false;
     controls.touches.ONE = null;
     controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
     controls.addEventListener('start', () => { userOrbiting = true; camTween = null; skipIntro(); });
     controls.addEventListener('end', () => { userOrbiting = false; });
+    // Keeps a panned view over the course: the target stays within the bounds plus a margin, and the camera moves by the
+    // same amount so the view direction does not change. The intro flight is not clamped.
+    controls.addEventListener('change', () => {
+        const bounds = course?.bounds;
+        if (intro || !bounds) return;
+        const [minX, , minZ] = bounds.min || [], [maxX, , maxZ] = bounds.max || [];
+        if (![minX, minZ, maxX, maxZ].every(Number.isFinite)) return;
+        const target = controls.target;
+        const dx = THREE.MathUtils.clamp(target.x, minX - PAN_MARGIN, maxX + PAN_MARGIN) - target.x;
+        const dz = THREE.MathUtils.clamp(target.z, minZ - PAN_MARGIN, maxZ + PAN_MARGIN) - target.z;
+        if (!dx && !dz) return;
+        target.x += dx; target.z += dz;
+        camera.position.x += dx; camera.position.z += dz;
+    });
     // Ambient light comes from the per-look environment map (scene.environment), not a hemisphere light.
     const sun = new THREE.DirectionalLight(0xffe4b6, 1.8);
     sun.position.set(-9, 18, 8);
@@ -518,6 +536,9 @@ export function createScene(host, options) {
         }
         pointerId = event.pointerId; dragged = false; dragStart = { direction: aimDirection.slice(), power: aimPower };
         canvas.setPointerCapture(pointerId); event.preventDefault(); canvas.focus();
+        // This listener runs first (capture), so a mouse or pen press on the ball never reaches OrbitControls and cannot pan.
+        // A touch still does: its first finger must stay known to OrbitControls so a second finger can zoom and pan.
+        if (event.pointerType !== 'touch') event.stopImmediatePropagation();
     }
     function move(event) {
         if (pointerId !== event.pointerId) return;
@@ -544,7 +565,7 @@ export function createScene(host, options) {
     const lost = event => { event.preventDefault(); options.onError?.('webgl_error'); };
     const wheel = () => { skipIntro(); };
     canvas.addEventListener('wheel', wheel, { passive: true });
-    canvas.addEventListener('pointerdown', down); canvas.addEventListener('pointermove', move);
+    canvas.addEventListener('pointerdown', down, { capture: true }); canvas.addEventListener('pointermove', move);
     canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
     canvas.addEventListener('webglcontextlost', lost);
     const observer = new ResizeObserver(resize); observer.observe(host);
@@ -608,13 +629,13 @@ export function createScene(host, options) {
             shaderState.golfMotion.value = cfg().motion && !reduced ? 1 : 0;
             if (reduced) skipIntro();
         },
-        setCameraMode(value) { cameraMode = !!value; controls.touches.ONE = value ? THREE.TOUCH.ROTATE : null; controls.mouseButtons.LEFT = value ? THREE.MOUSE.ROTATE : null; updateAim(); },
+        setCameraMode(value) { cameraMode = !!value; controls.touches.ONE = value ? THREE.TOUCH.ROTATE : null; controls.mouseButtons.LEFT = value ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN; updateAim(); },
         stats() { const effects = fx.stats(); return { fps: governor.fps, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, particles: effects.particles, quality, tier: tier(), geometries: renderer.info.memory.geometries, preview: preview?.points?.length || 0,
             look: lookId, props: props?.instances || 0, env: !!scene.environment, intro: !!intro, trail: effects.trail,
             camera: { position: camera.position.toArray(), target: controls.target.toArray(), ball: ball.position.toArray(), projectedBall: ball.position.clone().project(camera).toArray(), distance: camera.position.distanceTo(controls.target) } }; },
         dispose() {
             if (disposed) return; disposed = true; generation++; request?.abort(); observer.disconnect(); controls.dispose();
-            canvas.removeEventListener('pointerdown', down); canvas.removeEventListener('pointermove', move); canvas.removeEventListener('pointerup', up); canvas.removeEventListener('pointercancel', up); canvas.removeEventListener('webglcontextlost', lost);
+            canvas.removeEventListener('pointerdown', down, { capture: true }); canvas.removeEventListener('pointermove', move); canvas.removeEventListener('pointerup', up); canvas.removeEventListener('pointercancel', up); canvas.removeEventListener('webglcontextlost', lost);
             // Props, sky, water and effects leave the scene first so shared kit geometry is freed exactly once below.
             props?.dispose(); sky?.dispose(); water?.dispose(); fx.dispose();
             for (const target of environments.values()) target.dispose();
