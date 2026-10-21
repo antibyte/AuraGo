@@ -401,6 +401,8 @@ Blender: `mech_util`, `mechanic_parts` (bumper, boost), `mechanic_portals` (tele
   320 m^2 (half axes 9.6 x 9.4 m); a bigger superellipse multiplies every count with area / 320 m^2 (a single prop stays single
   below a factor of 1.5), so large dioramas are not empty. Every fixed prop circle also enlarges the island (it is part of the
   footprint plus the 2.5 m margin): hand-placed props belong near the lanes, the ring is for the random dressing.
+- A `FLOATING` prop (the temple lily pad) placed at least 0.2 m inside a water pool or free pond takes the water surface
+  height (`Terrain.water_level`) instead of the pond bottom, which lies 0.7 m under the floor.
 - A fixed part that reaches over the rim moves towards the island centre in 5 cm
   steps (`settle`). The dish is placed by the larger circle of its head.
 - Corridors, floor gap, hero order and `LIMIT`: see "Course pipeline (P3)".
@@ -415,6 +417,15 @@ Blender: `mech_util`, `mechanic_parts` (bumper, boost), `mechanic_portals` (tele
   the dock (radius 3.4 about its shore end) needs 4.4 m from every lane and 3.7 m from the rim.
 - A heavy course (island above 30 m, many structures) stays inside the budgets with `"detail": {"island_quads": 3200,
   "trim_facets": 3}`; a gap trench cuts the whole island, so every other part of the track must stay beyond it.
+- Temple courses (`course_data_temple`): the head portal looks back along the lane, so run the tunnel towards the upper left
+  (start heading about 135 degrees) and keep the lane out of the 5.6 m tall head's view shadow; a `gate` span prop (3.4 m)
+  hides the ground behind it too, so it stands over the tee. A fork detour with branch ends `E` columns apart (even) needs the
+  straight `s = (L - 2 R (1 - cos a)) / sin a` between its two bends (`L` = the lateral difference) and a forward extent
+  `2 R sin a + s cos a` for the other branch. A lip ramp needs `rise` of at least 0.467 x `length` x tan(`lip`) (otherwise it dips
+  first); a deep `steps` run plus a funnel must keep the hole above about -0.85 m (the sea slab ends at -1.15 m and fires the water
+  event before the cup does): raise `start.at` z instead. A funnel of radius 2.6 m needs a depth of 0.26 to 0.38 m at g = 9.81:
+  shallower, balls rest next to the hole, deeper, every ball that enters is caught, so a teleporter exit right in front of it
+  makes aces; sand on the bends and a teleporter exit in the middle of the last bend keep the search from a one-shot route.
 
 ### Look
 
