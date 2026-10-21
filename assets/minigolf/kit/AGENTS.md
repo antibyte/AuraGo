@@ -150,6 +150,37 @@ Nothing here writes `ui/` except `generate.py` through its runtime paths.
   angles and rounded up to 1/1000. The runtime does not read `island`; the asset
   test and the placement rules do.
 
+### Track kit core (P3)
+
+`track.py`, `pieces.py`, `pads.py`, `layout.py`, `rails.py`, `build_track.py`, `floor_paint.py` and
+`basic_parts.py` are the base of the P3 courses. `generate.py` does not call them yet; `courses_v1.py`
+keeps building the legacy courses until the switch-over. The first five are plain Python (no `bpy`).
+
+- Coordinates are Blender X/Y/Z, `heading` in radians (0 = +X, positive turns left). A `Section` has
+  `ROWS + 1` = 13 points from left to right, `SPACING` = 1.72 / 12 apart. A piece returns only its new
+  sections; `layout` puts the previous section object in front, so seam points are the same tuple objects
+  and are never recomputed. A pad uses the point objects of its entry section on its back row; its exit
+  section is made from its own raster points. Floor meshes merge vertices through a dict keyed by the exact
+  tuple. `track_selftest.check_seams` guards this: one tuple object per distinct point value.
+- Pad frame: origin = centre of the entry section, x forward, y left. `cup = (x, y)`, `contour` bumps and
+  `pools` polygons use it. Width is whole columns of `SPACING` with an even number beside the lane. Raster
+  cells whose centre is closer than `CUP_RADIUS + 0.13` to the cup, or whose rectangle reaches within
+  `CUP_RADIUS`, have no floor.
+- Rails: a side is walled between two sections when the later one has the flag; the wall follows `wall_up`
+  (default the section normal). Riser edges of `steps` have no wall. `rails.rail_runs(track)` chains strip
+  sides and pad perimeters into runs `[(point, outward, up)]` (mitred at bends); the rail trims will use them.
+- `layout.PIECES` and `layout.PADS` are the registries; later modules extend them. Parameter errors are
+  `ValueError`s that `layout.build` prefixes with the course number and piece index.
+- Collision nodes (contract V1): `floor-<look>` (`floor-<look>-<surface>` if one look has both surfaces) with
+  the extra `aurago_collider` = `grass` or `sand`; `rail-wood|stone|metal` with `aurago_collider` and
+  `aurago_hidden`. Collision objects keep the identity transform (world coordinates).
+  `export.glb_collision(path)` welds the vertices of each surface by Float32 bit pattern in order of first
+  use, drops collapsed triangles and returns the digest: surfaces in the order grass, sand, wood, stone,
+  metal; per surface the name, `0x00`, Uint32 LE vertex and index counts, Float32 LE vertices, Uint32 LE
+  indices. It must agree bit for bit with `colliderDigest` in `ui/js/desktop/apps/minigolf-collision.js`.
+- `export.canonical_export_names` keeps `floor-*`, `obstacle-*`, `mechanic-*` and the three rail names
+  unnumbered; `is_functional` keeps them single nodes.
+
 ### Placement (`placement.py`)
 
 - Deterministic: `random.Random(1000 + number)` and a 0.25 m candidate grid.
@@ -214,6 +245,10 @@ Nothing here writes `ui/` except `generate.py` through its runtime paths.
   `node scripts/test-minigolf-assets.mjs`, `node scripts/test-minigolf-courses.mjs`
   and `node scripts/test-minigolf-physics.mjs`. A second full run must give
   identical GLB and manifest hashes.
+- Track kit: `blender --background --factory-startup --python assets/minigolf/kit/track_selftest.py -- --out <dir>`
+  builds the probe course, exports `selftest.glb`, checks seams and the open cup, writes `selftest.json` and
+  prints `selftest ok`. Run it twice: the GLB hash and the digest must match, and the digest must equal
+  `colliderDigest` of the same GLB.
 - Previews: `-- --only previews` (about a minute). They are never part of a full
   run, because Cycles output is not bit-reproducible.
 - Probes: `blender --background --factory-startup --python assets/minigolf/kit/probe.py -- --out <scratch> --world all`

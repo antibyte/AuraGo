@@ -1,10 +1,12 @@
 """GLB export helpers for the AuraGolf generator (MIT License, see ../LICENSE).
 
 Canonical node names, the exporter call, bounds and the read-back of fixed
-collision meshes from the exact exported triangles. Moved verbatim from the
-monolithic ``generate.py``.
+collision meshes from the exact exported triangles (``glb_fixed_colliders`` for the legacy
+courses, ``glb_collision`` for the track kit: every node with the extra ``aurago_collider``,
+welded per surface, plus the digest of contract V1).
 """
 
+import hashlib
 import json
 import struct
 
@@ -13,7 +15,13 @@ import bpy
 from mathutils import Vector
 
 FUNCTIONAL_NAMES = ("flag", "ball-template", "putter-template", "water-shore")
-FUNCTIONAL_PREFIXES = ("surface-", "rail-", "obstacle-", "windmill-sail")
+FUNCTIONAL_PREFIXES = ("surface-", "floor-", "rail-", "obstacle-", "mechanic-", "windmill-sail")
+# Functional nodes that must keep their exact name (Blender numbers a taken name): the legacy fixed names plus
+# the track kit's prefixes and its three collision rail surfaces.
+CANONICAL_NAMES = ("surface-grass", "surface-sand", "rail-left", "rail-right", "flag", "ball-template", "putter-template",
+                   "rail-trim-left", "rail-trim-right", "water-shore", "rail-wood", "rail-stone", "rail-metal")
+CANONICAL_PREFIXES = ("floor-", "obstacle-", "mechanic-")
+COLLIDER_SURFACES = ("grass", "sand", "wood", "stone", "metal")
 
 
 def scene_bounds(objects, obstacles):
@@ -33,11 +41,10 @@ def scene_bounds(objects, obstacles):
 
 
 def canonical_export_names(objects):
-    required={"surface-grass","surface-sand","rail-left","rail-right","flag","ball-template","putter-template","rail-trim-left","rail-trim-right","water-shore"}
     current=[]; targets={}
     for obj in objects:
         base=obj.name.split(".")[0]
-        target=obj.get("aurago_obstacle_node") or (base if base in required else None)
+        target=obj.get("aurago_obstacle_node") or (base if base in CANONICAL_NAMES or base.startswith(CANONICAL_PREFIXES) else None)
         if target:
             current.append((obj,obj.name,target))
             targets[target]=obj
@@ -128,6 +135,122 @@ def glb_fixed_colliders(path, layout):
             colliders.append({"type":"mesh","vertices":[float(v) for p in positions for v in p],"indices":indices,"surface":surface})
     if not colliders: raise RuntimeError("No fixed collision meshes found in GLB: "+path)
     return colliders
+
+
+def _read_glb(path):
+    with open(path, "rb") as f:
+        data = f.read()
+    if data[:4] != b"glTF":
+        raise RuntimeError("Not a GLB: " + path)
+    offset, doc, binary = 12, None, None
+    while offset < len(data):
+        size, kind = struct.unpack_from("<II", data, offset)
+        offset += 8
+        chunk = data[offset:offset + size]
+        offset += size
+        if kind == 0x4E4F534A and doc is None:
+            doc = json.loads(chunk.decode("utf-8").rstrip(" \0"))
+        elif kind == 0x004E4942 and binary is None:
+            binary = chunk
+    if doc is None or binary is None:
+        raise RuntimeError("GLB is missing embedded chunks: " + path)
+    return doc, binary
+
+
+def _accessor_rows(doc, binary, index):
+    acc = doc["accessors"][index]
+    view = doc["bufferViews"][acc["bufferView"]]
+    components = {"SCALAR": 1, "VEC3": 3}[acc["type"]]
+    fmt = {5121: "B", 5123: "H", 5125: "I", 5126: "f"}[acc["componentType"]]
+    size = struct.calcsize("<" + fmt)
+    stride = view.get("byteStride", components * size)
+    start = view.get("byteOffset", 0) + acc.get("byteOffset", 0)
+    return [struct.unpack_from("<" + fmt * components, binary, start + i * stride) for i in range(acc["count"])]
+
+
+def _apply_local(node, point):
+    """One node transform with the term order of ``glb_fixed_colliders`` and ``minigolf-collision.js`` (Float64)."""
+    if "matrix" in node:
+        m = node["matrix"]
+        return (m[0] * point[0] + m[4] * point[1] + m[8] * point[2] + m[12],
+                m[1] * point[0] + m[5] * point[1] + m[9] * point[2] + m[13],
+                m[2] * point[0] + m[6] * point[1] + m[10] * point[2] + m[14])
+    s, qv, t = node.get("scale", (1, 1, 1)), node.get("rotation", (0, 0, 0, 1)), node.get("translation", (0, 0, 0))
+    x, y, z = (point[i] * s[i] for i in range(3))
+    qx, qy, qz, qw = qv
+    tx, ty, tz = 2 * (qy * z - qz * y), 2 * (qz * x - qx * z), 2 * (qx * y - qy * x)
+    return (x + qw * tx + qy * tz - qz * ty + t[0], y + qw * ty + qz * tx - qx * tz + t[1], z + qw * tz + qx * ty - qy * tx + t[2])
+
+
+def glb_collision(path):
+    """Read the collision meshes of a track-kit GLB, weld them and compute the digest (contract V1).
+
+    Every node with the extra ``aurago_collider`` (``grass``, ``sand``, ``wood``, ``stone``, ``metal``) is read
+    with its parent chain applied. Per surface all triangles of all nodes (node order, then primitives) are
+    collected; a vertex is identified by the bit patterns of its three Float32 world coordinates and numbered
+    in order of first use; triangles with two equal indices after welding are dropped. The digest is the
+    SHA-256 over the surfaces in the order of ``COLLIDER_SURFACES`` (empty ones left out): UTF-8 name, ``0x00``,
+    Uint32 LE vertex count, Uint32 LE index count, Float32 LE vertices, Uint32 LE indices.
+
+    Returns ``{"groups": [{surface, nodes, vertices, indices}], "nodes": n, "triangles": t, "digest": hex}``;
+    ``nodes`` counts the collision nodes, ``triangles`` the welded triangles (the manifest ``collision`` entry).
+    """
+    doc, binary = _read_glb(path)
+    nodes = doc.get("nodes", [])
+    parents = {child: parent for parent, node in enumerate(nodes) for child in node.get("children", [])}
+    groups = {name: {"surface": name, "nodes": 0, "keys": {}, "vertices": [], "indices": []} for name in COLLIDER_SURFACES}
+    for node_index, node in enumerate(nodes):
+        surface = (node.get("extras") or {}).get("aurago_collider")
+        if surface is None:
+            continue
+        if surface not in groups:
+            raise RuntimeError("Unknown collider surface %r in %s" % (surface, path))
+        if "mesh" not in node:
+            continue
+        group = groups[surface]
+        group["nodes"] += 1
+        chain, current = [], node_index
+        while current is not None:
+            chain.append(nodes[current])
+            current = parents.get(current)
+        for primitive in doc["meshes"][node["mesh"]].get("primitives", []):
+            if primitive.get("mode", 4) != 4:
+                continue
+            positions = _accessor_rows(doc, binary, primitive["attributes"]["POSITION"])
+            indices = [row[0] for row in _accessor_rows(doc, binary, primitive["indices"])] if "indices" in primitive else list(range(len(positions)))
+            if len(indices) % 3:
+                raise RuntimeError("Exported collider primitive is not triangulated: " + str(node.get("name")))
+            world = []
+            for point in positions:
+                for transform in chain:
+                    point = _apply_local(transform, point)
+                packed = struct.pack("<fff", *point)
+                world.append((packed, struct.unpack("<fff", packed)))
+            welded = {}
+
+            def weld(i):
+                if i not in welded:
+                    key, values = world[i]
+                    number = group["keys"].get(key)
+                    if number is None:
+                        number = group["keys"][key] = len(group["keys"])
+                        group["vertices"].extend(values)
+                    welded[i] = number
+                return welded[i]
+            for k in range(0, len(indices), 3):
+                a, b, c = weld(indices[k]), weld(indices[k + 1]), weld(indices[k + 2])
+                if a != b and b != c and a != c:
+                    group["indices"].extend((a, b, c))
+    used = [groups[name] for name in COLLIDER_SURFACES if groups[name]["indices"]]
+    digest = hashlib.sha256()
+    for group in used:
+        digest.update(group["surface"].encode("utf-8") + b"\x00")
+        digest.update(struct.pack("<II", len(group["vertices"]) // 3, len(group["indices"])))
+        digest.update(struct.pack("<%df" % len(group["vertices"]), *group["vertices"]))
+        digest.update(struct.pack("<%dI" % len(group["indices"]), *group["indices"]))
+    return {"groups": [{k: g[k] for k in ("surface", "nodes", "vertices", "indices")} for g in used],
+            "nodes": sum(g["nodes"] for g in groups.values()), "triangles": sum(len(g["indices"]) // 3 for g in used),
+            "digest": digest.hexdigest()}
 
 
 def export_glb(path, objects):
