@@ -188,7 +188,8 @@ func startNativeRuntime(ctx context.Context, device runtimeDevice, paths modelPa
 	command.Stdout = io.Discard
 	startupStderr := &nativeStartupStderr{}
 	command.Stderr = startupStderr
-	if err := command.Start(); err != nil {
+	cleanup, err := startRuntimeCommand(command)
+	if err != nil {
 		cancel()
 		_ = os.Remove(token)
 		return nil, NewError(CodeRuntimeStartFailed, err)
@@ -199,7 +200,7 @@ func startNativeRuntime(ctx context.Context, device runtimeDevice, paths modelPa
 		command: command, cancel: cancel, wait: make(chan error, 1), device: device,
 		cpuAllowed: cfg.CPUFallbackAllowed, deployment: config.DecisionsDeploymentNative,
 	}
-	go func() { session.wait <- command.Wait(); close(session.wait) }()
+	go func() { err := command.Wait(); cleanup(); session.wait <- err; close(session.wait) }()
 	err = waitRuntimeReady(ctx, runtimeStartupTimeout, func(probeCtx context.Context) (bool, error) {
 		if phase := startupStderr.progress(); progress != nil && phase != "" {
 			progress(phase)
@@ -217,7 +218,9 @@ func startNativeRuntime(ctx context.Context, device runtimeDevice, paths modelPa
 		return false, nil
 	})
 	if err != nil {
-		_ = session.Close(context.Background())
+		if closeErr := session.Close(context.Background()); closeErr != nil {
+			return session, err
+		}
 		return nil, err
 	}
 	return session, nil
@@ -383,6 +386,8 @@ func (session *nativeRuntimeSession) tokenValue() string {
 }
 
 func (session *nativeRuntimeSession) Close(ctx context.Context) error {
+	ctx, closeCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer closeCancel()
 	if session.cancel != nil {
 		session.cancel()
 	}
@@ -391,11 +396,7 @@ func (session *nativeRuntimeSession) Close(ctx context.Context) error {
 		case <-session.wait:
 		case <-ctx.Done():
 			_ = session.command.Process.Kill()
-			select {
-			case <-session.wait:
-			case <-time.After(2 * time.Second):
-				return ctx.Err()
-			}
+			return ctx.Err()
 		}
 	}
 	if session.token != "" {

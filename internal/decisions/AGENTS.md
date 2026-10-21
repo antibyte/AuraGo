@@ -71,8 +71,15 @@ attestation, request validation, candidate-logit normalization, and status.
   `installing` before `stopLocked`, with an empty code and Ready false, even
   while `operationCancel` is still nil. A busy lock or an already-pending
   cleanup does not publish. If `stopLocked` or operation registration then
-  fails, status becomes `error` with that code unless the code is `cancelled`
-  or an operation is already registered. AutoStart waits/retries bounded
+  fails, status becomes `error` only for the current policy and absent cleanup;
+  `cancelled` and `lifecycle_busy` never replace lifecycle status.
+  Cleanup has a manager-owned ten-second budget, including context-aware lock
+  acquisition. Caller cancellation may return earlier. Retain failed sessions
+  and the admission barrier with `stopped_with_error`; Stop retries teardown.
+  Revoke active device/offload attestation synchronously, retaining package pins.
+  Native discovery and resident processes share descendant supervision and a
+  two-second pipe drain limit. Docker teardown confirms container removal.
+  AutoStart waits/retries bounded
   lifecycle-busy windows so a replacement cannot race old runtime teardown. Evaluation and
   Start preserve caller cancellation causes, including deadlines, while a
   successful Start detaches the resident process lifetime from the caller.

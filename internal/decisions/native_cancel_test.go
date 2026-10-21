@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 				_, _ = out.Write(make([]byte, 8192))
 			}
 		}
-		if mode == "tree" {
+		if mode == "tree" || mode == "orphan" {
 			executable, _ := os.Executable()
 			child := exec.Command(executable)
 			configureHiddenProcess(child)
@@ -46,7 +46,11 @@ func TestMain(m *testing.M) {
 				}
 			}
 			child.Stdout, child.Stderr = os.Stdout, os.Stderr
-			_ = child.Run()
+			if mode == "orphan" {
+				_ = child.Start()
+			} else {
+				_ = child.Run()
+			}
 			os.Exit(0)
 		}
 		if mode == "heartbeat" {

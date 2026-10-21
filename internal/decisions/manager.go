@@ -20,35 +20,38 @@ const maxEvaluationTokens = 8192
 // and configuration are passive: no files, devices, processes, or containers
 // are acquired until Install or Start is called.
 type Manager struct {
-	mu                sync.RWMutex
-	lifecycle         sync.Mutex
-	evalGate          chan struct{}
-	evalSlots         chan struct{}
-	activeEvalID      uint64
-	activeEvalCancel  context.CancelFunc
-	cfg               config.DecisionsConfig
-	dataDir           string
-	options           managerOptions
-	factory           runtimeFactory
-	resolveModelPaths func(context.Context, string, func(string, int64, int64)) (modelPaths, error)
-	installModelPaths func(context.Context, string, func(string, int64, int64)) (modelPaths, error)
-	session           runtimeSession
-	sessionStop       context.CancelFunc
-	operationCancel   context.CancelFunc
-	operationID       uint64
-	activeDeployment  string
-	activeDockerHost  string
-	activeIsDocker    bool
-	activeDevice      runtimeDevice
-	operationAccess   RuntimeAccess
-	lastAccess        RuntimeAccess
-	policyGeneration  uint64
-	generation        uint64
-	cleanupPending    int
-	stopPending       int
-	cleanupChanged    chan struct{}
-	closed            bool
-	status            Status
+	mu                        sync.RWMutex
+	lifecycle                 sync.Mutex
+	evalGate                  chan struct{}
+	evalSlots                 chan struct{}
+	activeEvalID              uint64
+	activeEvalCancel          context.CancelFunc
+	cfg                       config.DecisionsConfig
+	dataDir                   string
+	options                   managerOptions
+	factory                   runtimeFactory
+	resolveModelPaths         func(context.Context, string, func(string, int64, int64)) (modelPaths, error)
+	installModelPaths         func(context.Context, string, func(string, int64, int64)) (modelPaths, error)
+	session                   runtimeSession
+	sessionStop               context.CancelFunc
+	operationCancel           context.CancelFunc
+	operationID               uint64
+	activeDeployment          string
+	activeDockerHost          string
+	activeIsDocker            bool
+	activeDevice              runtimeDevice
+	operationAccess           RuntimeAccess
+	lastAccess                RuntimeAccess
+	policyGeneration          uint64
+	lifecyclePolicyGeneration uint64
+	generation                uint64
+	cleanupPending            int
+	stopPending               int
+	cleanupChanged            chan struct{}
+	pendingSessions           []runtimeSession
+	cleanupTask               *runtimeCleanup
+	closed                    bool
+	status                    Status
 }
 
 // NewManager creates a passive local decisions manager.
@@ -170,9 +173,10 @@ func (manager *Manager) PrepareReconfigure(cfg config.DecisionsConfig) (func(con
 		manager.operationCancel = nil
 	}
 	if revoke {
+		manager.pendingSessions = append(manager.pendingSessions, oldSession)
 		manager.session = nil
 		manager.sessionStop = nil
-		manager.status.Ready = false
+		manager.clearActiveRuntimeLocked()
 		manager.status.State = "stopping"
 		manager.status.Code = ""
 		manager.status.ErrorMessage = ""
@@ -219,56 +223,15 @@ func (manager *Manager) PrepareReconfigure(cfg config.DecisionsConfig) (func(con
 		return func(context.Context) error { return nil }, nil
 	}
 	var cleanupOnce sync.Once
-	var cleanupErr error
+	var task *runtimeCleanup
 	return func(ctx context.Context) error {
 		cleanupOnce.Do(func() {
-			if ctx == nil {
-				ctx = context.Background()
-			}
-			manager.lifecycle.Lock()
-			defer manager.lifecycle.Unlock()
-			var closeErr error
-			if oldSession != nil {
-				closeErr = oldSession.Close(ctx)
-			}
 			manager.mu.Lock()
-			// Only the last outstanding cleanup may publish a settled state.
-			// A rapid second policy update can advance generation while this
-			// cleanup waits; the current policy still owns the eventual status.
-			if manager.cleanupPending == 1 && manager.session == nil && manager.operationCancel == nil {
-				if closeErr != nil {
-					if manager.cfg.Enabled {
-						manager.status.State = "stopped_with_error"
-						manager.status.Code = CodeRuntimeUnavailable
-					} else {
-						manager.status.State = "disabled"
-						manager.status.Code = CodeServiceDisabled
-					}
-					manager.status.ErrorMessage = manager.status.Code
-				} else if manager.cfg.Enabled {
-					manager.status.State = "stopped"
-					manager.status.Code = ""
-					manager.status.ErrorMessage = ""
-				} else {
-					manager.status.State = "disabled"
-					manager.status.Code = CodeServiceDisabled
-					manager.status.ErrorMessage = ""
-				}
-				manager.status.Deployment = manager.cfg.Deployment
-				manager.status.Runtime.Deployment = manager.cfg.Deployment
-				manager.activeDeployment = ""
-				manager.activeDockerHost = ""
-				manager.activeIsDocker = false
-				manager.activeDevice = runtimeDevice{}
-			}
 			manager.cleanupPending--
-			manager.signalCleanupChangedLocked()
+			task = manager.startCleanupLocked(false)
 			manager.mu.Unlock()
-			if closeErr != nil {
-				cleanupErr = NewError(CodeRuntimeUnavailable, closeErr)
-			}
 		})
-		return cleanupErr
+		return waitRuntimeCleanup(ctx, task)
 	}, nil
 }
 
@@ -305,7 +268,9 @@ func (manager *Manager) Install(ctx context.Context) error {
 	}
 	// Publish before stopLocked. setState no-ops until beginOperation sets
 	// operationCancel, and the HTTP handler can return before that exists.
-	manager.publishLifecycleTransition("installing")
+	if err := manager.publishLifecycleTransition("installing"); err != nil {
+		return err
+	}
 	// Provisioning may replace the executable currently mapped by the native
 	// runtime (which Windows locks). Install is an explicit lifecycle action,
 	// so stop the serving generation before touching managed runtime files.
@@ -493,7 +458,9 @@ func (manager *Manager) start(ctx context.Context, setup bool) error {
 	}
 	// Publish before stopLocked. setState no-ops until beginOperation sets
 	// operationCancel, and the HTTP handler can return before that exists.
-	manager.publishLifecycleTransition("starting")
+	if err := manager.publishLifecycleTransition("starting"); err != nil {
+		return err
+	}
 	if err := manager.stopLocked(ctx); err != nil {
 		manager.publishLifecycleTransitionFailure(err)
 		return err
@@ -577,6 +544,10 @@ func (manager *Manager) start(ctx context.Context, setup bool) error {
 	var chosen runtimeDevice
 	var cpuActive bool
 	startCandidate := func(device runtimeDevice) bool {
+		if manager.cleanupIsPending() {
+			lastErr = NewError(CodeLifecycleBusy, nil)
+			return false
+		}
 		if err := ctx.Err(); err != nil {
 			lastErr = NewError(CodeCancelled, cancellationCause(callerCtx))
 			return false
@@ -587,7 +558,7 @@ func (manager *Manager) start(ctx context.Context, setup bool) error {
 		closeCandidate := func() {
 			if candidateSession != nil {
 				closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
-				_ = candidateSession.Close(closeCtx)
+				_ = manager.closeCandidateSession(closeCtx, candidateSession)
 				closeCancel()
 			}
 		}
@@ -611,8 +582,8 @@ func (manager *Manager) start(ctx context.Context, setup bool) error {
 				return true
 			}
 			startErr = NewError(CodeRuntimeAttestationFailed, metadataErr)
-			closeCandidate()
 		}
+		closeCandidate()
 		lastErr = startErr
 		return false
 	}
@@ -682,7 +653,7 @@ func (manager *Manager) start(ctx context.Context, setup bool) error {
 		cancel()
 		if err != nil {
 			closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
-			_ = session.Close(closeCtx)
+			_ = manager.closeCandidateSession(closeCtx, session)
 			closeCancel()
 			manager.setRuntimeError(err)
 			return err
@@ -692,14 +663,14 @@ func (manager *Manager) start(ctx context.Context, setup bool) error {
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		manager.mu.Unlock()
 		closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_ = session.Close(closeCtx)
+		_ = manager.closeCandidateSession(closeCtx, session)
 		closeCancel()
 		return NewError(CodeCancelled, cancellationCause(callerCtx))
 	}
 	if manager.closed || !manager.cfg.Enabled || manager.policyGeneration != startPolicyGeneration || (cpuActive && !manager.cfg.CPUFallbackAllowed) {
 		manager.mu.Unlock()
 		closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_ = session.Close(closeCtx)
+		_ = manager.closeCandidateSession(closeCtx, session)
 		closeCancel()
 		return NewError(CodeServiceDisabled, nil)
 	}
@@ -760,31 +731,23 @@ func hybridLayerAttempts(total int) []int {
 	return attempts
 }
 
-// Stop revokes the active generation before waiting for the process/container.
+// Stop revokes the active generation before waiting for manager-owned cleanup.
 func (manager *Manager) Stop(ctx context.Context) error {
 	manager.mu.Lock()
 	manager.stopPending++
-	opCancel := manager.operationCancel
+	opCancel, evalCancel := manager.operationCancel, manager.activeEvalCancel
 	manager.operationCancel = nil
-	evalCancel := manager.activeEvalCancel
 	session, cancel := manager.session, manager.sessionStop
-	manager.session = nil
-	manager.sessionStop = nil
+	if session != nil {
+		manager.pendingSessions = append(manager.pendingSessions, session)
+	}
+	manager.session, manager.sessionStop = nil, nil
 	manager.generation++
 	manager.policyGeneration++
-	manager.status.Ready = false
-	manager.status.CPUFallbackActive = false
-	if manager.cfg.Enabled {
-		manager.status.State = "stopping"
-	} else {
-		manager.status.State = "disabled"
-	}
+	manager.clearActiveRuntimeLocked()
+	manager.status.State, manager.status.Code, manager.status.ErrorMessage = "stopping", "", ""
+	task := manager.startCleanupLocked(false)
 	manager.mu.Unlock()
-	defer func() {
-		manager.mu.Lock()
-		manager.stopPending--
-		manager.mu.Unlock()
-	}()
 	if opCancel != nil {
 		opCancel()
 	}
@@ -794,123 +757,40 @@ func (manager *Manager) Stop(ctx context.Context) error {
 	if cancel != nil {
 		cancel()
 	}
-	if err := manager.waitForCleanup(ctx); err != nil {
-		return NewError(CodeCancelled, err)
-	}
-	manager.lifecycle.Lock()
-	defer manager.lifecycle.Unlock()
-	if session != nil {
-		if err := session.Close(ctx); err != nil {
-			manager.mu.Lock()
-			manager.status.State = "stopped_with_error"
-			manager.status.Code = CodeRuntimeUnavailable
-			manager.mu.Unlock()
-			return NewError(CodeRuntimeUnavailable, err)
-		}
-	}
-	manager.mu.Lock()
-	if manager.cfg.Enabled {
-		manager.status.State = "stopped"
-		manager.status.Code = ""
-	} else {
-		manager.status.State = "disabled"
-		manager.status.Code = CodeServiceDisabled
-	}
-	manager.activeDeployment = ""
-	manager.activeDockerHost = ""
-	manager.activeIsDocker = false
-	manager.activeDevice = runtimeDevice{}
-	manager.mu.Unlock()
-	return nil
+	defer func() {
+		manager.mu.Lock()
+		manager.stopPending--
+		manager.signalCleanupChangedLocked()
+		manager.mu.Unlock()
+	}()
+	return waitRuntimeCleanup(ctx, task)
 }
 
 func (manager *Manager) stopLocked(ctx context.Context) error {
 	manager.mu.Lock()
 	session, cancel := manager.session, manager.sessionStop
-	manager.session = nil
-	manager.sessionStop = nil
+	manager.session, manager.sessionStop = nil, nil
 	manager.generation++
-	manager.status.Ready = false
-	manager.status.CPUFallbackActive = false
-	if manager.cfg.Enabled {
-		manager.status.State = "stopping"
-	} else {
-		manager.status.State = "disabled"
+	manager.clearActiveRuntimeLocked()
+	if session == nil {
+		manager.mu.Unlock()
+		return nil
 	}
+	manager.pendingSessions = append(manager.pendingSessions, session)
+	task := manager.startCleanupLocked(true)
 	manager.mu.Unlock()
 	if cancel != nil {
 		cancel()
 	}
-	if session != nil {
-		if err := session.Close(ctx); err != nil {
-			manager.mu.Lock()
-			manager.status.State = "stopped_with_error"
-			manager.status.Code = CodeRuntimeUnavailable
-			manager.mu.Unlock()
-			return NewError(CodeRuntimeUnavailable, err)
-		}
-	}
-	manager.mu.Lock()
-	if manager.cfg.Enabled {
-		manager.status.State = "stopped"
-		manager.status.Code = ""
-	} else {
-		manager.status.State = "disabled"
-		manager.status.Code = CodeServiceDisabled
-	}
-	manager.activeDeployment = ""
-	manager.activeDockerHost = ""
-	manager.activeIsDocker = false
-	manager.activeDevice = runtimeDevice{}
-	manager.mu.Unlock()
-	return nil
+	return waitRuntimeCleanup(ctx, task)
 }
 
-// Shutdown prevents future lifecycle actions and stops the current generation.
+// Shutdown prevents future lifecycle actions before revoking the generation.
 func (manager *Manager) Shutdown(ctx context.Context) error {
 	manager.mu.Lock()
 	manager.closed = true
-	opCancel := manager.operationCancel
-	manager.operationCancel = nil
-	evalCancel := manager.activeEvalCancel
-	session, cancel := manager.session, manager.sessionStop
-	manager.session = nil
-	manager.sessionStop = nil
-	manager.generation++
-	manager.policyGeneration++
-	manager.status.Ready = false
-	manager.status.State = "shutdown"
 	manager.mu.Unlock()
-	if opCancel != nil {
-		opCancel()
-	}
-	if evalCancel != nil {
-		evalCancel()
-	}
-	if cancel != nil {
-		cancel()
-	}
-	if err := manager.waitForCleanup(ctx); err != nil {
-		return NewError(CodeCancelled, err)
-	}
-	manager.lifecycle.Lock()
-	defer manager.lifecycle.Unlock()
-	var err error
-	if session != nil {
-		err = session.Close(ctx)
-	}
-	manager.mu.Lock()
-	manager.status.State = "shutdown"
-	manager.status.Ready = false
-	manager.activeDeployment = ""
-	manager.activeDockerHost = ""
-	manager.activeIsDocker = false
-	manager.activeDevice = runtimeDevice{}
-	manager.mu.Unlock()
-	if err != nil {
-		return NewError(CodeRuntimeUnavailable, err)
-	}
-	return nil
+	return manager.Stop(ctx)
 }
 
 // Evaluate scores all questions against the same verified runtime generation.
@@ -1074,12 +954,13 @@ func (manager *Manager) retireUnhealthyRuntime(session runtimeSession, generatio
 	manager.status.State = "error"
 	manager.status.Code = ErrorCode(failure)
 	manager.status.ErrorMessage = manager.status.Code
-	manager.status.CPUFallbackActive = false
-	manager.status.GPUOffloadVerified = false
+	manager.clearActiveRuntimeLocked()
 	manager.activeDeployment = ""
 	manager.activeDockerHost = ""
 	manager.activeIsDocker = false
 	manager.activeDevice = runtimeDevice{}
+	manager.pendingSessions = append(manager.pendingSessions, session)
+	task := manager.startCleanupLocked(false)
 	manager.mu.Unlock()
 	if cancel != nil {
 		cancel()
@@ -1088,7 +969,7 @@ func (manager *Manager) retireUnhealthyRuntime(session runtimeSession, generatio
 		evalCancel()
 	}
 	closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	_ = session.Close(closeCtx)
+	_ = waitRuntimeCleanup(closeCtx, task)
 	closeCancel()
 	if manager.options.logger != nil {
 		manager.options.logger.Warn("Decisions runtime generation retired after evaluation failure", "code", ErrorCode(failure))
@@ -1132,29 +1013,34 @@ func (manager *Manager) updateProgress(operationID uint64, phase string, current
 
 // publishLifecycleTransition records a busy state before operationCancel exists.
 // setState returns without writing until beginOperation registers one.
-func (manager *Manager) publishLifecycleTransition(state string) {
+func (manager *Manager) publishLifecycleTransition(state string) error {
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
-	if !manager.cfg.Enabled || manager.closed || manager.operationCancel != nil {
-		return
+	if !manager.cfg.Enabled || manager.closed {
+		return NewError(CodeServiceDisabled, nil)
+	}
+	if manager.operationCancel != nil || manager.cleanupPending > 0 || manager.stopPending > 0 || manager.cleanupTask != nil || len(manager.pendingSessions) > 0 {
+		return NewError(CodeLifecycleBusy, nil)
 	}
 	manager.status.Ready = false
 	manager.status.State = state
 	manager.status.Code = ""
 	manager.status.ErrorMessage = ""
 	manager.status.Progress = Progress{}
+	manager.lifecyclePolicyGeneration = manager.policyGeneration
+	return nil
 }
 
 // publishLifecycleTransitionFailure records a failure that happened after the
 // transitional publish and before an operation was registered. A cancelled
 // call, or one that already owns operationCancel, keeps the status it has.
 func (manager *Manager) publishLifecycleTransitionFailure(err error) {
-	if err == nil || ErrorCode(err) == CodeCancelled {
+	if err == nil || ErrorCode(err) == CodeCancelled || ErrorCode(err) == CodeLifecycleBusy {
 		return
 	}
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
-	if manager.operationCancel != nil {
+	if manager.lifecyclePolicyGeneration != manager.policyGeneration || manager.operationCancel != nil || manager.cleanupTask != nil || manager.cleanupPending > 0 || manager.stopPending > 0 || len(manager.pendingSessions) > 0 || manager.closed || !manager.cfg.Enabled {
 		return
 	}
 	manager.status.Ready = false
@@ -1221,11 +1107,17 @@ func (manager *Manager) beginOperation(parent context.Context) (context.Context,
 		stopParent()
 		return nil, nil, 0, nil, NewError(CodeServiceDisabled, nil)
 	}
-	if manager.cleanupPending > 0 || manager.stopPending > 0 {
+	if manager.cleanupPending > 0 || manager.stopPending > 0 || manager.cleanupTask != nil || len(manager.pendingSessions) > 0 {
 		manager.mu.Unlock()
 		cancel()
 		stopParent()
 		return nil, nil, 0, nil, NewError(CodeLifecycleBusy, nil)
+	}
+	if manager.lifecyclePolicyGeneration != manager.policyGeneration {
+		manager.mu.Unlock()
+		cancel()
+		stopParent()
+		return nil, nil, 0, nil, NewError(CodeCancelled, context.Canceled)
 	}
 	manager.operationID++
 	operationID := manager.operationID
@@ -1237,14 +1129,14 @@ func (manager *Manager) beginOperation(parent context.Context) (context.Context,
 
 func (manager *Manager) cleanupIsPending() bool {
 	manager.mu.RLock()
-	pending := manager.cleanupPending > 0 || manager.stopPending > 0
+	pending := manager.cleanupPending > 0 || manager.stopPending > 0 || manager.cleanupTask != nil || len(manager.pendingSessions) > 0
 	manager.mu.RUnlock()
 	return pending
 }
 
 func cancellationCause(ctx context.Context) error {
 	if ctx != nil && ctx.Err() != nil {
-		return ctx.Err()
+		return context.Cause(ctx)
 	}
 	return context.Canceled
 }
@@ -1255,7 +1147,7 @@ func (manager *Manager) waitForCleanup(ctx context.Context) error {
 	}
 	for {
 		manager.mu.RLock()
-		pending := manager.cleanupPending > 0
+		pending := manager.cleanupPending > 0 || manager.cleanupTask != nil || len(manager.pendingSessions) > 0
 		changed := manager.cleanupChanged
 		manager.mu.RUnlock()
 		if !pending {
