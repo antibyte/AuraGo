@@ -1486,7 +1486,7 @@
         }
         const preview = r.makeCanvas(pw, ph);
         return {
-            kind: 'qs', pw, ph, sx: pw / w, sy: ph / h, last: null, timer: 0, dead: false,
+            kind: 'qs', pw, ph, sx: pw / w, sy: ph / h, last: null, timer: 0, dead: false, feather: o.feather,
             mode: modeFromPointer(p, o.qsMode),
             grower: kit.createGrower(data, pw, ph, { tolerance: o.qsTolerance, barrier: 4 + (100 - o.qsEdge) * 0.2 }),
             preview, pctx: preview.getContext('2d')
@@ -1552,7 +1552,7 @@
             while (!g.grower.grow(20)) await tick();
             const bin = kit.majority(g.grower.binary(), g.pw, g.ph);
             const alpha = kit.upscaleBinary(bin, g.pw, g.ph, w, h);
-            await finishMask(r, alpha, g.mode, 'select:quick', 0);
+            await finishMask(r, alpha, g.mode, 'select:quick', g.feather);
         } finally {
             const u = ui(r);
             if (u.pending === g) u.pending = null;
@@ -1575,7 +1575,8 @@
                 return modeHTML(r, 'qsMode') + sliderHTML(r, 'qsSize', 'pixel.sel_brush_size', 'Size', 3, 200, 'px') +
                     sliderHTML(r, 'qsTolerance', 'pixel.tolerance', 'Tolerance', 4, 80, '') +
                     sliderHTML(r, 'qsEdge', 'pixel.sel_edge_detection', 'Edge detection', 0, 100, '%') +
-                    checkHTML(r, 'qsSampleAll', 'pixel.sel_sample_all', 'Sample all layers') + deselectButtonHTML(r) +
+                    checkHTML(r, 'qsSampleAll', 'pixel.sel_sample_all', 'Sample all layers') +
+                    sliderHTML(r, 'feather', 'pixel.sel_feather', 'Feather', 0, 100, 'px') + deselectButtonHTML(r) +
                     hintHTML(r, 'pixel.sel_quick_hint', 'Paint over the object. Alt paints away from the selection.');
             },
             wireOptions(r, bar) { wireSelOptions(r, bar); },
@@ -2195,20 +2196,20 @@
     Pixel.registerMenuItems('select', [
         { id: 'select-all', labelKey: 'pixel.select_all', label: 'Select all', icon: 'image', shortcutHint: 'Ctrl+A', enabled: hasDocument, action: r => selectAllRecorded(r) },
         { id: 'deselect', labelKey: 'pixel.deselect', label: 'Deselect', icon: 'image', shortcutHint: 'Ctrl+D', action: r => deselectRecorded(r) },
-        { id: 'reselect', labelKey: 'pixel.sel_reselect', label: 'Reselect', icon: 'image', shortcut: 'Ctrl+Shift+D', action: r => { reselect(r); } },
-        { id: 'inverse', labelKey: 'pixel.sel_inverse', label: 'Inverse', icon: 'image', shortcut: 'Ctrl+Shift+I', action: r => invertRecorded(r) },
+        { id: 'reselect', labelKey: 'pixel.sel_reselect', label: 'Reselect', icon: 'image', keywords: ['restore selection', 'auswahl wiederherstellen'], shortcut: 'Ctrl+Shift+D', action: r => { reselect(r); } },
+        { id: 'inverse', labelKey: 'pixel.sel_inverse', label: 'Inverse', icon: 'image', keywords: ['invert selection', 'auswahl umkehren'], shortcut: 'Ctrl+Shift+I', action: r => invertRecorded(r) },
         { type: 'separator' },
-        { id: 'select-subject', labelKey: 'pixel.sel_subject', label: 'Select subject', icon: 'image', hidden: r => typeof r.computeSubjectMask !== 'function', enabled: r => hasDocument(r) && typeof r.computeSubjectMask === 'function', action: r => { enqueue(r, () => selectSubject(r)); } },
-        { id: 'color-range', labelKey: 'pixel.sel_color_range_menu', label: 'Color range…', icon: 'image', enabled: hasDocument, action: r => openColorRange(r) },
+        { id: 'select-subject', labelKey: 'pixel.sel_subject', label: 'Select subject', icon: 'image', keywords: ['motiv auswaehlen', 'person', 'object'], hidden: r => typeof r.computeSubjectMask !== 'function', enabled: r => hasDocument(r) && typeof r.computeSubjectMask === 'function', action: r => { enqueue(r, () => selectSubject(r)); } },
+        { id: 'color-range', labelKey: 'pixel.sel_color_range_menu', label: 'Color range…', icon: 'image', keywords: ['farbbereich', 'colour range', 'select by color'], enabled: hasDocument, action: r => openColorRange(r) },
         { type: 'separator' },
         {
             id: 'modify', labelKey: 'pixel.sel_modify', label: 'Modify', icon: 'image', enabled: hasSelection,
             items: [
-                { id: 'grow', labelKey: 'pixel.sel_grow', label: 'Grow…', icon: 'image', action: r => showModifyDialog(r, 'grow') },
-                { id: 'shrink', labelKey: 'pixel.sel_shrink', label: 'Shrink…', icon: 'image', action: r => showModifyDialog(r, 'shrink') },
-                { id: 'border', labelKey: 'pixel.sel_border', label: 'Border…', icon: 'image', action: r => showModifyDialog(r, 'border') },
-                { id: 'smooth', labelKey: 'pixel.sel_smooth', label: 'Smooth…', icon: 'image', action: r => showModifyDialog(r, 'smooth') },
-                { id: 'feather', labelKey: 'pixel.sel_feather_menu', label: 'Feather…', icon: 'image', shortcut: 'Shift+F6', action: r => { if (r.selection) showModifyDialog(r, 'feather'); } }
+                { id: 'grow', labelKey: 'pixel.sel_grow', label: 'Grow…', icon: 'image', keywords: ['expand', 'erweitern', 'vergroessern'], action: r => showModifyDialog(r, 'grow') },
+                { id: 'shrink', labelKey: 'pixel.sel_shrink', label: 'Shrink…', icon: 'image', keywords: ['contract', 'verkleinern', 'verengen'], action: r => showModifyDialog(r, 'shrink') },
+                { id: 'border', labelKey: 'pixel.sel_border', label: 'Border…', icon: 'image', keywords: ['rand', 'outline'], action: r => showModifyDialog(r, 'border') },
+                { id: 'smooth', labelKey: 'pixel.sel_smooth', label: 'Smooth…', icon: 'image', keywords: ['glaetten', 'round corners'], action: r => showModifyDialog(r, 'smooth') },
+                { id: 'feather', labelKey: 'pixel.sel_feather_menu', label: 'Feather…', icon: 'image', keywords: ['weiche kante', 'soft edge', 'blur selection'], shortcut: 'Shift+F6', action: r => { if (r.selection) showModifyDialog(r, 'feather'); } }
             ]
         },
         { type: 'separator' },
@@ -2220,7 +2221,7 @@
         { id: 'fill-primary', labelKey: 'pixel.sel_fill_primary', label: 'Fill with primary color', icon: 'image', shortcut: 'Alt+Backspace', enabled: hasDocument, action: r => { fillSelection(r, 'primary'); } },
         { id: 'fill-secondary', labelKey: 'pixel.sel_fill_secondary', label: 'Fill with secondary color', icon: 'image', shortcut: 'Ctrl+Backspace', enabled: hasDocument, action: r => { fillSelection(r, 'secondary'); } },
         { id: 'fill-content-aware', labelKey: 'pixel.sel_fill_content', label: 'Content-aware fill', icon: 'image', hidden: r => typeof r.contentAwareFill !== 'function', enabled: r => hasSelection(r) && typeof r.contentAwareFill === 'function', action: r => contentAwareFill(r) },
-        { id: 'stroke', labelKey: 'pixel.sel_stroke_menu', label: 'Stroke selection…', icon: 'image', enabled: hasSelection, action: r => showStrokeDialog(r) }
+        { id: 'stroke', labelKey: 'pixel.sel_stroke_menu', label: 'Stroke selection…', icon: 'image', keywords: ['kontur', 'outline', 'border line'], enabled: hasSelection, action: r => showStrokeDialog(r) }
     ], { order: 0 });
 
     // Escape keeps its built-in meaning (cancel the crop, deselect) but leaves a history step.
