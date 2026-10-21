@@ -34,8 +34,10 @@ preview generation, runtime readiness checks, and bounded FFmpeg rendering.
 - Render through `RenderWithOptions` (`Render` is the whole-timeline wrapper): `PlanVideoSegments` cuts ~10 s
   segments whose boundaries avoid transitions, `PlanAudioSegments` avoids fades, and a segment needing more than
   `MaxSegmentInputs` clips or `MaxSegmentLUTInstances` lut effects is split; an instant that needs more lut effects than
-  the cap fails with `ErrTooManyInputs` (server code `render_too_many_inputs`). Every clip gets its own `-ss`-seeked input; a clip past the decodable video
-  seeks one second before its end and `tpad` holds the last frame. Ranges that start or end inside a transition
+  the cap fails with `ErrTooManyLUTs`, which wraps `ErrTooManyInputs` (server code `render_too_many_luts`; too many
+  clips at one instant keep `ErrTooManyInputs` and `render_too_many_inputs`). Every clip gets its own `-ss`-seeked
+  input; a clip past the decodable video seeks one second before its end and `tpad` holds the last frame. Ranges that
+  start or end inside a transition
   or fade get pre-roll (`expandRange`) and are trimmed back.
 - Video segments run with `-copyts -start_at_zero`: video inputs seek about one second early and `fps` samples
   absolute source timestamps, so sources at another rate than the project keep the single pass's cadence in every
@@ -79,6 +81,7 @@ Run `go test ./internal/videostudio` for validation, real-frame/audio FFmpeg
 integration, and output metadata checks. The opt-in ten-minute local performance
 check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
 -run '^TestTenMinuteRenderPerformanceOptIn$' -count=1`.
+The 2f export benchmark `TestEffectsExportBenchmarkOptIn` is described in the 2f section.
 
 ## Speed, links, labels and derived media (phase 1b)
 
@@ -430,7 +433,8 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
     blend-transition and combined cases on `gl` (`compositingCases`).
   - `goldenframe/delta.go`: `Delta`, `DeltaFidelity`, `DeltaBlend`, `DeltaMask` and `DeltaKey`. The bounds are a changed
     share of at least 0.02, a slope of 0.9 to 1.1, and r of at least 0.98 (blend) or 0.95 (mask, key). Every 2d case
-    carries a Delta, and four 2c cases opt in with `ReportOnly`.
+    carries a Delta. Of the four 2c opt-ins, `color_temperature_tint` and `lut_keyframed_intensity` carry a normal Delta
+    since 2f, and `blur_logo_alpha` and `sharpen_static` stay `ReportOnly` (section 2f).
   - Minima and Delta triples: index §4.23.
 - Tests:
   - `go test ./internal/videostudio -run 'Blend|Mask|ChromaKey|Colorkey|Despill|Key(8|Alpha|Params)|Composit|Parity|ClipChain|SegmentGraph|Segmented|Validate|Capabilit|Registry|SendCmd|Expr' -count=1`
@@ -491,8 +495,7 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
     - the `gblur`s and an alpha layer's `premultiply`/`unpremultiply` carry `enable` for the blur_in spans; the
       `maskedmerge`s carry it only while `animMergeGated` is true (the fallback `false` gives the same pixels, with
       the merges running on every frame);
-    - alpha layers use the premultiplied two-merge recipe. Its alpha mask gives m+1 for m in 128..254 on FFmpeg 8.1.1
-      (accepted; the colour is exact); `format=gbrap` before `alphamerge` is the follow-up (index §4.25).
+    - alpha layers use the premultiplied two-merge recipe. Its alpha mask is exact since 2f (see the 2f section).
   - Every value comes from absolute frames (T baked into the expressions and `enable`), so every segmentation renders
     the same frames (`TestSegmentedRenderAnim`).
 - Capabilities: an enabled visual clip with an effective animation needs its preset's `Filters` (`anim:<preset>`, job
@@ -513,3 +516,47 @@ check runs with `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio
     `TestRenderAnimBoxFollowsReference`, `TestRenderAnimOpacityFollowsReference`, `TestRenderAnimWipeEdges`,
     `TestRenderAnimBlurMatchesCascade` and `TestSegmentedRenderAnim`.
   - `TestAnimCostRecordOptIn` records the 2e costs (`AURAGO_VIDEO_STUDIO_BENCHMARK=1`) and asserts nothing.
+
+## Scopes, performance and polish (2f)
+
+- LUT cap error (`render.go`, `plan.go`):
+  - `ErrTooManyLUTs` = `fmt.Errorf("%w: too many simultaneous LUT effects", ErrTooManyInputs)`, so `errors.Is` holds for
+    both errors.
+  - `tooManyLUTs` and `stageVideoGraph`'s refusal of more than `MaxSegmentLUTInstances` LUT files wrap it.
+  - The server's `videoStudioJobFailure` checks it before `ErrTooManyInputs` and returns the code
+    `render_too_many_luts` (UI key `videoStudio.tooManyLUTsAtOnce`).
+- blur_in alpha masks (`animMaskBranch`, `clip_anim.go`): the alpha branch converts to gbrap before `alphamerge`
+  (`[ka<n>]format=gbrap[kq<n>]`, labels `vs_an_<L>_<C>_kq<n>`), so every mask byte equals m on FFmpeg 8.1.1 and 5.1.9
+  (`TestRenderAnimBlurMatchesCascade`). The cascade's alpha tolerance is 0 on every plane. The clip chain at rest keeps
+  its tolerance 1 below FFmpeg 6 (the closing rgba step, §4.23).
+- Goldens (`goldenframe/cases_2c.go`):
+  - the native-size guards `blur_logo_alpha_native` (the logo drawn 1:1 in the four quadrants, four overlay tracks over
+    the chart, radius 0.02) and `sharpen_static_native` (detail.png drawn 1:1 in the four quadrants, four video tracks,
+    strength 0.8), built by `pcLogoTiles` and `pcDetailTiles`;
+  - both use ThresholdDetail with DeltaMask's bounds, the same project without the effect as baseline, and are never
+    report-only;
+  - F2 outcome B: `color_temperature_tint` and `lut_keyframed_intensity` carry a normal Delta; `blur_logo_alpha` and
+    `sharpen_static` stay `ReportOnly`, because their weaker preview comes from magnification (GL bilinear against
+    swscale bicubic), not from the passes (native slopes 0.9314 and 0.9654; upscaled 0.8660 and 0.8815; index §4.27);
+  - 116 registered cases, 74 with a delta check.
+- Export benchmark `TestEffectsExportBenchmarkOptIn` (`render_effects_benchmark_test.go`; helpers `effectsBenchLayers`,
+  `effectsBenchEntry`, `effectsBenchMedia`, `effectsBenchProject`). It asserts nothing.
+  - Project: four full-frame 1080p30 video layers × two effects over 1800 frames, one layer per video track.
+  - Variants: `fx`, `plain` (no effects, for the effect share) and `mixed` (blend modes on layers 2–4).
+  - Measures: the export through `RenderWithOptions` with the default encoder (best of `AURAGO_VS_BENCH_EXPORT_RUNS`,
+    default 3), and the graph's ms per frame (`segmentCost`, default threads and the export's thread limit).
+  - Report: lines `vs-export-bench v2 …`.
+  - Run: `AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./internal/videostudio -run '^TestEffectsExportBenchmarkOptIn$' -count=1
+    -v -timeout 150m`. The 5.1 container run passes `AURAGO_VS_BENCH_EXPORT_RUNS=1`. Figures: plan index §4.27.
+- No export effect resolution cap (spike S4):
+  - effects run on the source frame before scale and transform (spec §7.1);
+  - a 1280 × 720 canvas renders as slowly as 1080p, and a cap would change output pixels;
+  - the preview's effect cap (O2) lives in the UI only.
+- Tests:
+  - `go test ./internal/videostudio -run 'AnimBlur|ClipChain|LUT|TooMany|Plan|Segmented' -count=1`
+  - `go test ./internal/videostudio/goldenframe -run 'PictureCases|CompositingCases|Delta' -count=1`
+  - `go test ./internal/server -run 'VideoStudio(RenderFailureCodes|FeatureUnavailable)' -count=1`
+  - The FFmpeg 5.1 container check (plan index §6) runs the gated 2f tests: `TestRenderAnimBlurMatchesCascade` (alpha
+    masks), `TestRenderAnimBlurEnableGate`, `TestSegmentedRenderAnim`, `TestLUTTablesAreStagedOncePerProcess` and
+    `TestLUTInstancesAreBoundedPerProcess`; `golden.test` runs `TestPictureCasesCoverGroups` and
+    `TestCompositingCasesCoverGroups`.

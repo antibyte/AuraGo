@@ -1707,7 +1707,7 @@ buttons and menu popovers remain excluded from those gestures.
   `EnabledDuration`) and sends `range {start, end}`; `exportName(s, job)` adds ` (in-out)` for a range result. Node
   checks: `go test ./ui -run TestVideoStudioFolderModel`.
 - Preview engine, proxies and range check (phase 2a): `video-studio-preview.js` keeps the clock, media sync and audio
-  and paints through a painter (`kind`, `canvas`, `frame(scene)`, `read(rect)`, `release(clipId)`, `dispose()`):
+  and paints through a painter (`kind`, `canvas`, `frame(scene)`, `read(rect)`, `readScaled(width, height)` (2f), `release(clipId)`, `pending()` (2c), `dispose()`):
   `VideoStudioCompositor` (WebGL2; `video-studio-compositor.js` with `VideoStudioGL` and `VideoStudioShaders`, named
   stages `sourceTexture`, `clipPasses`, `placeClip`, `compositeClip`, `drawTransition`, `present`) or
   `VideoStudioPainter2D`. `describeFrame` builds the scene (visual tracks in paint order, items with
@@ -1963,6 +1963,81 @@ buttons and menu popovers remain excluded from those gestures.
       2a wipes as in the export, and the 20 transitions of 2e as a dissolve.
   - Node checks: `go test ./ui -run 'TestVideoStudio(Anim|Transition|Effects|EffectsLibrary|Canonical|Picture|Shaders|Painter|Preview|NavigationLoadOrder)' -count=1`.
     Browser: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '^TestDesktopVideoStudio(TransitionsGL|AnimGL|Anim)Browser$' -count=1 -timeout 30m`.
+- Scopes and polish (phase 2f), DOM-free part:
+  - `VideoStudioScopeMath` (`video-studio-scope-math.js`, directly after `-anim.js`; index §4.26.3–§4.26.4):
+    - constants `SIZE` (256 × 144), `HISTOGRAM`, `WAVEFORM`, `VECTORSCOPE`, `READ_INTERVAL_MS` (100), `KINDS` and
+      `COLORS`;
+    - functions `luma`, `chroma`, `skinAngle`, `analyse`, `histogramImage`, `waveformImage`, `vectorscopeImage`,
+      `graticule`, `due` and `prefs`;
+    - rules: BT.709 float luma, Cb/Cr scaled to ±0.5, the skin line on the NTSC I axis mapped into Cb/Cr, log
+      intensity, fixed colours, no text in the canvases.
+  - `VideoStudioPicture.EFFECT_CAP_LONG` (1280) and `effectSize(width, height, canvas, drawn, cap)` (O2, index §4.26.8).
+    The target is the smallest of the canvas size, the drawn size and the cap on the long edge, never below 1 px. With
+    `drawn` null and `cap` 0 it equals `capSize`.
+  - `VideoStudioInspector.pickerMove(lists, current, key)`: the transition picker's arrow, Home and End rules over the
+    measured columns. Disabled types are skipped and the moves never wrap.
+- Scopes and polish (phase 2f), painters and preview:
+  - Both painters have `readScaled(width, height) -> Promise<{width, height, data} | null>`: a point-sampled, top-down
+    RGBA8 copy of the last frame, 1..1024 px per side. It never paints and never changes the canvas.
+    - GL draws the composite through `scope-sample` (`VideoStudioShaders.SCOPE_SAMPLE`) into a pooled target and reads
+      it with `ctx.readAsync(target, rect)` (`video-studio-gl.js`).
+    - `readAsync` keeps one pack buffer per context generation and size, one fence per read, and one read in flight. It
+      polls on the next animation frame or a 16 ms timer, and resolves null on a context loss, after 3000 ms or while
+      another read is pending.
+    - Nothing reads the WebGL canvas, and nothing reads back synchronously (spike S1: 11–32 ms stalls on iGPUs).
+    - The 2D painter reads a reused `willReadFrequently` small canvas with smoothing off. Its own canvas is never
+      `willReadFrequently`.
+    - `pending()` still counts LUT loads only.
+  - Preview:
+    - mount option `onPaint()`: called last in every paint, inside try/catch; it must not paint;
+    - mount option `effectCap()`: copied into `scene.effectCap`, 0 without the option;
+    - instance method `readScaled(width, height)`. `capture(rect)` still paints first.
+  - O2:
+    - the stage passes `effectCap: () => P.previewEffectCap(s)` (`video-studio-core.js`: 0 at full, else
+      `EFFECT_CAP_LONG`);
+    - `clipPasses` sizes its targets with `effectSize(…, canvasSize(), drawn, cap)`. `drawn` (`passDrawn`) is placement's
+      draw rect at rest for a static crop and a static width and height, and is used only while the cap is on;
+    - PICTURE does the downscale, so `u_size` and the blur σ follow the target;
+    - full quality and the golden engine page (no option) render exactly as before.
+- Scopes and polish (phase 2f), UI part:
+  - Scopes panel (`video-studio-scopes.js`, directly after `-rangerender.js`). `P.wireScopes` runs once from
+    `appRender`, after `P.wireMaskBox`, and inserts:
+    - the toggle `[data-action="scopes"]` (`aria-expanded`, `aria-controls`) before `[data-action="range-render"]`;
+    - the dock `.vs-scopes-dock[data-stage="timeline"]` after the timeline stage, holding
+      `section.vs-scopes[data-scopes]` (`role="region"`).
+    The section holds the kind buttons `[data-scope="histogram|waveform|vectorscope"]` (`aria-pressed`; the last shown
+    kind stays pressed), the focusable tile row `.vs-scopes-tiles`, and one `figure[data-scope-tile]` per kind with a
+    `canvas[data-scope-canvas]` (`role="img"`).
+    - View state `s.scopes = {open, show, last, pending, dirty}`; preference `aurago.videoStudio.scopes`, read through
+      `prefs`.
+    - Parts: `P.syncScopes` (from `renderUI`), `P.setScopesOpen` and `P.toggleScope`; `P.handleScopeClick` (in
+      `handleClick` after `P.handleRangeClick`) and `P.handleScopeKeys` (Esc, in `handleKeys` after `P.handleRangeKeys`);
+      `P.scopesAfterPaint` (the `onPaint` hook), `P.readScopes` and `P.drawScopes`.
+  - Readback rule: a closed panel or source mode reads nothing. While playing, a paint reads at most every
+    `READ_INTERVAL_MS` (`due`); while paused, every paint reads. One read is in flight: a due paint during it sets
+    `dirty`, and one trailing read of the last frame follows; a paint that is not due is dropped. Opening the panel
+    reads at once.
+  - Every 2f call in `video-studio.js` is guarded (`if (P.wireScopes) …`), because the camera handoff browser tests
+    load shorter script lists.
+  - Transition picker keys: `P.handleTransitionPickerKeys(s, event)` (`video-studio-inspector-effects.js`) runs in
+    `handleKeys` directly after the picker's Esc line. It measures the columns (the buttons that share the first
+    button's `offsetTop`), calls `pickerMove`, focuses the result and prevents the default. Choosing a type from None
+    takes the length slider's value, whether or not the slider is disabled.
+  - Library and labels: a transition drop or double-click without a picture clip shows `effectsLibraryTransitionNeedsClip`
+    (`NEEDS_CUT` in `video-studio-effects-library.js`); effects keep `effectsLibraryNeedsClip`. Every word of a transition
+    label has at most 13 characters, except in ja and zh (`TestVideoStudioTransitionLabelsFitThePicker`).
+    `animClamped` has U+00A0 before the unit in every locale that has a space there (`\xa0` in `animClampText`'s
+    fallback).
+  - Job failures and media: `jobFailure` maps `render_too_many_luts` to `tooManyLUTsAtOnce`; `removeMediaFrom` calls
+    `removeLUTRefs` alone, and `mutate` drops the strip's effect-key selection when the stack changes.
+  - Node checks: `go test ./ui -run 'TestVideoStudio(ScopeMath|ScopesPanel|ScopesLocales|Painter2DReadScaled|PreviewEffectCap|PictureUniforms|TransitionLabels|TransitionPicker|AnimInspector|EffectsLibraryTransitions|EffectKeySelection|RangeRender|Proxy|NavigationLoadOrder)' -count=1`.
+    Browser: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopVideoStudio(ScopesBrowser|AnimBrowser|EffectsGLBrowser)' -count=1 -timeout 30m`.
+    Preview benchmark (reported, never asserted): `AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./ui -run '^TestDesktopVideoStudioPreviewBenchmarkOptIn$' -count=1 -v -timeout 60m`.
+    - Variables: `AURAGO_VS_BENCH_LAUNCHERS` (default `gpu,swiftshader`), `AURAGO_VS_BENCH_BROWSER`,
+      `AURAGO_VS_BENCH_GPU_FLAGS` (`force_low_power_gpu` for the local iGPU; Chrome's default adapter on the 2f
+      measurement machine is that UHD chip, and `force_high_performance_gpu` selects the Arc B580),
+      `AURAGO_VS_BENCH_REPS` (default 3), `AURAGO_VS_BENCH_SCENARIOS` (a comma list of scenario names; default all eight).
+    - The Renoir container recipe is in plan index §6.
 - Layout: toolbar (project popover with switch/rename/new, save chip
   `[data-action="save"]`, undo/redo, format `[data-canvas]`, tasks popover with
   `[data-jobs]`, shortcuts, export), tabbed library (media/text/stickers/effects/AI;
@@ -2017,7 +2092,8 @@ buttons and menu popovers remain excluded from those gestures.
   Project settings rescales clip edges in one undo step after a confirm; durations are clamped by the source extent
   rule with the clip's speed. The preview canvas backing store
   follows the per-viewer quality (`aurago.videoStudio.previewQuality`: auto = long edge ≤ 1920 px, full, half,
-  quarter); the transform box stays in CSS pixels.
+  quarter); the transform box stays in CSS pixels. Every quality but full caps the GL effect passes at 1280 px on the
+  long edge and sizes them to the drawn picture (`P.previewEffectCap`, 2f O2); full is the exact preview.
 - Timing and transitions use integer frames at the project rate (24/25/30/50/60, NTSC ×1000/1001). The outgoing clip owns an
   exact overlap with the next clip on its track; transitions apply on change.
   `setTransition` moves the following clip and every later clip on the track
