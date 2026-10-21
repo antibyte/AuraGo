@@ -139,7 +139,7 @@ class Dresser:
 
     def restyle(self, coll):
         """World material and colours for obstacles, templates, flag, hole and tee parts."""
-        self.bake_parts, self.pass_parts = dress_parts.restyle(self.look, coll, cup_patch=False)
+        self.bake_parts, self.pass_parts = dress_parts.restyle(self.look, coll)
 
     def runtime_props(self):
         """Placements as ``[name, x, y, z, yaw, scale]`` in runtime coordinates, rounded to millimetres."""
@@ -180,7 +180,7 @@ class Dresser:
             base = _base(obj)
             if base.startswith("floor-"):
                 bakeable.append(obj)
-            elif base in RAIL_NODES or base in ("ball-template", "putter-template") or obj.get("aurago_obstacle") or obj.get("aurago_obstacle_component"):
+            elif base in RAIL_NODES or base in ("ball-template", "putter-template"):
                 hidden.append(obj)
         copies = self.templates.instantiate(coll, self.placements)
         try:

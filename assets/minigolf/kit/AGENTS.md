@@ -3,18 +3,18 @@
 ## Purpose
 
 Blender 5.2 modules behind AuraGolf's diorama look. `../generate.py` is a thin CLI
-over this package (`--set v1|p3`, `--out DIR`, `--only kits,courses,previews|all`,
-`--course N`, `--save-blend`). The package builds:
+over this package (`--out DIR`, `--only kits,courses,previews|all`, `--course N`,
+`--worlds W`, `--save-blend`; `--set p3` is accepted for old command lines and is the only
+course set). The package builds:
 
 - per-world prop kits (`props-<look>.glb`, one per `pirate`, `temple`, `moon`),
-- with `--set p3` the courses of `course_data_<world>.py` through the track kit and
-  `courses.py` (`course-NN.glb`, manifest version 2, see "Course pipeline (P3)"),
-- with `--set v1` (default until the switch-over, frozen) the 18 dressed courses from the
-  legacy geometry in `courses_v1.py` and the manifest version 1,
-- the menu previews (`--only previews`, v1 only).
+- the courses of `course_data_<world>.py` through the track kit and `courses.py`
+  (`course-NN.glb`, manifest version 2, see "Course pipeline (P3)"),
+- the menu previews (`--only previews`): the dressed showcase course of each world, rendered with
+  Cycles (`previews.COURSES`: `pirate-06`, `temple-09`, `moon-18`, camera fitted to the playable area).
 
-`--set p3` needs `--out DIR` (for example `assets/minigolf/build/p3`, ignored by git) until the
-switch-over makes `ui/3d/minigolf` its default. Kits are written to `--out` as well.
+`--out` defaults to the runtime folder `ui/3d/minigolf`; kits and previews are written to `--out` as well.
+Build into a scratch folder under `assets/minigolf/build/` (ignored by git) while a course is tuned.
 
 `probe.py` and the `scene_<world>.py` files are style probes for the look; they
 do not feed the game build. The module map is in [`../README.md`](../README.md).
@@ -38,7 +38,7 @@ Nothing here writes `ui/` except `generate.py` through its runtime paths.
   (portals `number + tunnel index`).
 - No time input and no unordered iteration.
 - Bakes are CPU, fixed seed and sample count, no denoise, rounded to 8 bits.
-- Each course is deleted after its export (`courses.discard_scene`, legacy `courses_v1.discard_scene`: objects,
+- Each course is deleted after its export (`courses.discard_scene`: objects,
   meshes, scene, then every orphan; `generate.clear_scene` does the same before the
   first course). Blender numbers a name that is still taken, so no exported node or
   mesh name may carry a counter. `--course N` in a fresh process must write the
@@ -101,70 +101,39 @@ Nothing here writes `ui/` except `generate.py` through its runtime paths.
 - The manifest entry is `{model, bytes, sha256, triangles, props: {name: {radius,
   height, tags, triangles, spin?, clearance?}}}`.
 
-### Dressing a legacy course (v1, frozen)
+### Dressing a course (`dress.py`)
 
-The `Dresser` in `dress.py`, `dress_island.Terrain`, `trim.py` and `placement.py` now belong to the
-P3 pipeline and no longer fit `courses_v1.build_course`; `--set v1` is not expected to build until
-`courses_v1.py`, `dress_specials.py` and `special_parts.py` are deleted at the switch-over. The
-bullets of this section describe the P2 behaviour that the P3 pipeline generalises.
+`Dresser` builds the diorama around the track (see "Course pipeline (P3)" for the order); these contracts hold for
+its parts:
 
-- `courses_v1.build_course(number, course, dresser)` builds the lane, collision
-  rails, obstacles, tee, cup and flag with the legacy code. The `Dresser` in
-  `dress.py` replaced only the decor around them.
-- Bit-identical geometry and data:
-  - `surface-grass` and `surface-sand` get a POINT colour only (no bevel,
-    smoothing or shading change);
-  - `rail-left` and `rail-right` get `aurago_hidden` only, with no colour;
-  - the colliders, `tee`, `cup`, `obstacles`, `bounds`, `water` and `par` match
-    `scripts/fixtures/minigolf-p1-colliders.json` (keys `colliders` and `physics`);
-    the asset test checks them.
-  - `bounds` come from a throw-away legacy build, so the out-of-bounds test does
-    not change.
-- Island (`dress_island.Terrain`, `island.Outline`): the top height `top_height(x, y)`
-  is the base ground, a bed 6 cm under the lane (smoothed over 1.1 m to 2.0 m),
-  the cup hollow, and a trench across the island under gap courses. Three strata
-  per world plus a submerged skirt (Pirate Bay, Jungle Temple) or a floating
-  underside (Moon Station). The `water-shore` strip has `uv.x` from 0 (shore) to 1
-  (outside). No shore on the moon or across a trench.
-- Trims (`trim.py`): `rail-trim-left` and `rail-trim-right` share
-  `courses_v1.rail_edge` with the rails. The inner face is flush with the rail;
-  the top stays at most 2 cm above and the face at most 3 cm outside it. The outer
-  face reaches down at most 0.5 m, to the ground.
-- Functional parts (`dress_parts.restyle`): obstacles (bevel only, exact extents),
-  ball (icosphere on exactly r = 0.16, plain white, tinted by the game), putter
-  (steel shaft 0 to 0.82 m, bevelled head), flag (`cloth`, double sided), hole
-  digits (`emissive`, 8 mm bevel), tee ring, cup rim (2 cm thick below its
-  unchanged top, 8 mm bevel) and lining, and a felt-coloured `cup-patch` that hides
-  the dark ground under the stepped cut. The legacy `tee-ring` and `cup-patch` wind
-  their faces downwards; `restyle` flips them face up, and the asset test requires
-  +Y normals.
-- Templates and specials: `dress_specials.build` turns each layout special into
-  fixed kit placements and/or hand-built parts (`special_parts`), in the place and
-  size of the old part. Pier beams, bridge parapets, the sun wheel (blades
-  `windmill-sail-0` to `-3`), moon pads and the gate hub are hand-built.
-- Bake (`Dresser.bake`): only the island, trims, specials, cup parts and lane are
-  baked. Each placed prop is linked into the scene as an occluder (unbaked kit
-  objects of the look, built once per process by `occluders.py`) and removed before
-  the export. Templates, obstacles, rails and the shore are hidden from the
-  occluders; the shore and templates only get `Col`.
-- Export and merge (`export.join_scenery`): every mesh that is not functional is
-  joined per material into `scenery-<material>` nodes. Functional names stay
-  single nodes: `surface-*`, `rail-*` (including `rail-trim-*`), `obstacle-*`,
-  `windmill-sail*`, `flag`, `ball-template`, `putter-template`, `water-shore`.
-  Builder properties are stripped. A course has at most 24 mesh nodes.
-- The manifest `path` runs to the end of the lane, up to 1 m behind the cup (the
-  cup sits at 91 % of the lane), so the corridor also covers the end stub.
-- `island` is the rim in runtime coordinates, `{center: [x, z], half: [hx, hz],
-  power, wobble}`: a superellipse around `center` (`Dresser.runtime_island`). The
-  true wobbled outline scales its radius by at most `1 ± wobble`, measured over 720
-  angles and rounded up to 1/1000. The runtime does not read `island`; the asset
-  test and the placement rules do.
+- Island (`dress_island.Terrain`, `island.Outline`): the top height `top_height(x, y)` is the base ground, a bed 6 cm
+  under the lane (smoothed over 1.1 m to 2.0 m), the cup hollow, ponds and trenches. Three strata per world plus a
+  submerged skirt (Pirate Bay, Jungle Temple) or a floating underside (Moon Station). The `water-shore` strip has `uv.x`
+  from 0 (shore) to 1 (outside). No shore on the moon or across a trench.
+- Functional parts (`dress_parts.restyle`): ball (icosphere on exactly r = 0.16, plain white, tinted by the game), putter
+  (steel shaft 0 to 0.82 m, bevelled head), flag (`cloth`, double sided), hole digits (`emissive`, 8 mm bevel), tee ring
+  and cup rim (2 cm thick below its unchanged top, 8 mm bevel). The tee ring winds its faces downwards; `restyle` flips
+  it face up, and the asset test requires +Y normals. Obstacles and mechanic parts are coloured by `obstacle_parts` /
+  `mechanic_parts`, not by `restyle`.
+- Bake (`Dresser.bake`): the island, trims, structures and mechanic parts that go to `Dresser.extra`, the cup parts and the
+  floors are baked. Each placed prop is linked into the scene as an occluder (unbaked kit objects of the look, built once
+  per process by `occluders.py`) and removed before the export. Templates, collision rails, moving nodes and the shore
+  are hidden from the occluders; the shore and templates only get `Col`.
+- Export and merge (`export.join_scenery`): every mesh that is not functional is joined per material into
+  `scenery-<material>` nodes. Functional names stay single nodes: `floor-*`, `rail-*` (including `rail-trim`),
+  `obstacle-*`, `mechanic-*`, `flag`, `ball-template`, `putter-template`, `water-shore`. Builder properties are
+  stripped. A course has at most 32 mesh nodes.
+- The manifest `path` is the main route from the tee to the cup (the first of `corridors`).
+- `island` is the rim in runtime coordinates, `{center: [x, z], half: [hx, hz], power, wobble}`: a superellipse
+  around `center` (`Dresser.runtime_island`). The true wobbled outline scales its radius by at most `1 +/- wobble`,
+  measured over 720 angles and rounded up to 1/1000. The runtime does not read `island`; the asset test and the
+  placement rules do.
 
 ### Track kit core (P3)
 
 `track.py`, `pieces.py`, `pieces_moon.py`, `pads.py`, `pads_funnel.py`, `layout.py`, `layout_fork.py`, `layout_ponds.py`, `rails.py`,
 `build_track.py`, `floor_paint.py`, `cup_hole.py`, `cup_parts.py`, `track_checks.py` and `basic_parts.py` are the base
-of the P3 courses; `courses.py` (see "Course pipeline (P3)") drives them for `generate.py --set p3`. Plain Python (no
+of the P3 courses; `courses.py` (see "Course pipeline (P3)") drives them for `generate.py`. Plain Python (no
 `bpy`): everything except `build_track.py`, `basic_parts.py`, `cup_parts.py` and `track_selftest.py`.
 
 - Coordinates are Blender X/Y/Z, `heading` in radians (0 = +X, positive turns left). A `Section` has
@@ -241,11 +210,13 @@ of the P3 courses; `courses.py` (see "Course pipeline (P3)") drives them for `ge
 
 ### Course pipeline (P3)
 
-`generate.py --set p3 --out DIR` calls `courses.build_course(number, data, world, out, keep_scene)` for every course
+`generate.py [--out DIR]` calls `courses.build_course(number, data, world, out, keep_scene)` for every course
 of `course_data_pirate|temple|moon.py` (plain literal lists `COURSES`; the shape is documented in `layout` and
 `course_data_pirate`; `--course N` rebuilds and patches one entry of `DIR/manifest.json`, a missing manifest is
-created, a partial course set is allowed until the switch-over). The pirate module holds the six Pirate Bay
-courses (1-6); a course is built, tuned and reviewed with `--course N` (Course data tips below). The steps:
+created, a partial course set is allowed: the asset and course tests take `AURAGO_MINIGOLF_PARTIAL=1`). Each
+world module holds the six courses of its world (pirate 1-6, temple 7-12, moon 13-18); a course is built, tuned and
+reviewed with `--course N` (Course data tips below). `courses.build_scene` does the building and dressing up to the
+bake (the previews render that scene), `build_course` exports and describes it. The steps:
 
 - `layout.build` makes the `Track`; `build_track.build` the floors, collision rails (+ `runs`) and `floor-cup`;
   `cup_parts.hole_marks` the tee ring, cup rim, flag, hole number and the ball/putter templates; then the
@@ -442,10 +413,8 @@ Blender: `mech_util`, `mechanic_parts` (bumper, boost), `mechanic_portals` (tele
 
 ## Work Guidance
 
-- Keep modules small and split before they pass about 400 lines. Exceptions are the
-  legacy `courses_v1.py` (about 730 lines; its geometry is unchanged, so only the
-  hooks change) and `shapes.py` (about 490). Do not grow them; add new code to a
-  neighbouring module.
+- Keep modules small and split before they pass about 400 lines. The exception is
+  `shapes.py` (about 490). Do not grow it; add new code to a neighbouring module.
 - New props go into the world's `props_<world>.py` and `PROPS`; shared builders go
   into `shapes.py`.
 - Give repeated parts unique names (`windmill-sail-0` to `-3`). Rename a replacement
@@ -462,12 +431,10 @@ Blender: `mech_util`, `mechanic_parts` (bumper, boost), `mechanic_portals` (tele
 - Kits: `blender --background --factory-startup --python assets/minigolf/generate.py -- --only kits`
   (about 15 s) prints one `kit <look>: ...` line per world. Run it twice; the kit
   `sha256` values must match.
-- Legacy courses (`--set v1`, frozen): `-- --only courses --course N` (about 15 s) rebuilds one course in a fresh
-  process for iteration. A full run (`-- --only kits,courses`, about two minutes on 16
-  cores) rebuilds all three kits and 18 courses. Then run
-  `node scripts/test-minigolf-assets.mjs`, `node scripts/test-minigolf-courses.mjs`
-  and `node scripts/test-minigolf-physics.mjs`. A second full run must give
-  identical GLB and manifest hashes.
+- Courses: `-- --only courses --course N` (about 5-15 s) rebuilds one course in a fresh process for iteration. A full run
+  (`-- --only kits,courses`, about two minutes on 16 cores) rebuilds all three kits and every course of the data modules.
+  A second full run must give identical GLB and manifest hashes. Without `--out` the result goes to `ui/3d/minigolf`: use
+  `--out assets/minigolf/build/<name>` for scratch builds.
 - Track kit: `blender --background --factory-startup --python assets/minigolf/kit/track_selftest.py -- --out <dir>`
   runs the rule checks (`track_checks.check_rules`), builds the pirate and the moon probe course, exports
   `selftest.glb` and `selftest-moon.glb`, checks seams, geometry, the exact cup (hole polygon, `floor-cup` welded to
@@ -478,13 +445,15 @@ Blender: `mech_util`, `mechanic_parts` (bumper, boost), `mechanic_portals` (tele
   bridge look, the rejected tunnel covers, the support rules, the tunnel rules and the `detail` validation and prints
   `structure selftest ok`. Review a structure with a scratch course (bridge over a pond, ramp with supports, tunnel with
   each portal, moon chasm) and a Cycles render from the front of the portal and from the side of the bridge.
-- P3 courses: `blender --background --factory-startup --python assets/minigolf/generate.py -- --set p3 --out assets/minigolf/build/p3 --only kits,courses`
-  (every course of the data modules; `--course N` about 5-15 s). Then
-  `node scripts/minigolf-route-search.mjs --dir assets/minigolf/build/p3 --course pirate-01` must find a verified route.
-  `--course N` run twice, and once inside a full run, must give identical GLB and manifest-entry hashes. Review
-  a course with `--course N --save-blend` (writes `assets/minigolf/build/aura-golf.blend`) and a scratch Cycles render.
-- Previews: `-- --only previews` (about a minute). They are never part of a full
-  run, because Cycles output is not bit-reproducible.
+- Course checks: after a build into `<out>`, `node scripts/minigolf-route-search.mjs --dir <out> --course pirate-01` must find a
+  verified route. `--course N` run twice, and once inside a full run, must give identical GLB and manifest-entry hashes. Review
+  a course with `--course N --save-blend` (writes `assets/minigolf/build/aura-golf.blend`) and a scratch Cycles render. The asset
+  and course tests read the folder from `AURAGO_MINIGOLF_DIR` (default `ui/3d/minigolf`); `AURAGO_MINIGOLF_PARTIAL=1` accepts a
+  subset of the 18 courses: `node scripts/test-minigolf-assets.mjs`, `node scripts/test-minigolf-courses.mjs`. A route that
+  passes the search goes into `ROUTES` of the course test (`AURAGO_MINIGOLF_SEARCH=1` prints new ones).
+- Previews: `-- --only previews` (about a minute per world; `--worlds pirate,temple` limits it) builds the showcase course of
+  each world (`previews.COURSES`) and renders it. They are never part of a full run, because Cycles output is not
+  bit-reproducible. Review them as images: the playable area and the hero must fit the 640x360 frame.
 - Probes: `blender --background --factory-startup --python assets/minigolf/kit/probe.py -- --out <scratch> --world all`
   renders the three probes (about 2.5 minutes each on 16 cores at 128 samples) and
   prints per-prop and scene triangle counts, bake and render times and the

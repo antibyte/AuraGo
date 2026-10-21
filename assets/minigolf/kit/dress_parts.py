@@ -1,33 +1,26 @@
 """World style for the functional parts of a dressed course (MIT License, see ../LICENSE).
 
-Obstacles, ball and putter templates, flag, hole digits, tee ring and cup parts
-come from ``basic_parts`` / ``cup_parts`` with legacy colour materials. After
-the build, ``restyle`` swaps their materials for the shared vertex-coloured kit
-materials and paints the world colours. Obstacle boxes only get a bevel (the asset
-test compares their exact extents), the ball stays exactly on r = 0.16 m and the
-putter keeps its 0 to 0.82 m shaft. The hole digit segments get a small bevel and
-the flat cup rim a 2 cm thickness (top unchanged) with the same bevel; neither is
-a collider input. The flat tee ring and cup patch are turned face up (the legacy
-``ring`` winds downwards and the kit materials are single sided).
+Ball and putter templates, flag, hole digits, tee ring and cup rim come from ``basic_parts`` / ``cup_parts`` with
+plain colour materials. After the build, ``restyle`` swaps their materials for the shared vertex-coloured kit
+materials and paints the world colours. The ball stays exactly on r = 0.16 m and the putter keeps its 0 to 0.82 m
+shaft. The hole digit segments get a small bevel and the flat cup rim a 2 cm thickness (top unchanged) with the
+same bevel; neither is a collider input. The flat tee ring is turned face up (``basic_parts.ring`` winds its
+faces downwards and the kit materials are single sided). Obstacles and mechanic parts are painted by
+``obstacle_parts`` / ``mechanic_parts``.
 """
 
 import bpy
 from mathutils import Matrix
 
 from . import colors, materials, palette, shapes
-from .basic_parts import ring
-from .palette import mix
 from .prop import Prop
-from .track import BALL_RADIUS, CUP_RADIUS
+from .track import BALL_RADIUS
 
-OBSTACLE = {"pirate": (("red_dark", "red"), ("wood_dark", "wood"), "matte"),
-            "temple": (("totem_red", "fire_orange"), ("totem_teal", "totem_teal"), "matte"),
-            "moon": (("orange_dark", "orange"), ("panel_grey", "panel_white"), "satin")}
 FLAG = {"pirate": "red", "temple": "totem_red", "moon": "magenta"}
 PUTTER_HEAD = {"pirate": ("red_dark", "red"), "temple": ("gold_dark", "gold"), "moon": ("orange_dark", "orange")}
 SHAFT = {"pirate": ("iron", "iron_light"), "temple": ("bark", "bark_light"), "moon": ("metal_dark", "metal")}
 POLE = {"pirate": "cream", "temple": "cream", "moon": "panel_white"}
-ROUND = ("cup-bottom", "cup-lining", "flag-pole-base")
+ROUND = ("flag-pole-base",)
 SMALL_BEVEL = 0.008  # hole digit segments and cup rim
 RIM_THICKNESS = 0.02
 
@@ -37,55 +30,20 @@ def _base(obj):
 
 
 def _paint(obj, colour, kind, ao, strength=1.0):
-    """One flat colour on a legacy mesh and the shared kit material ``kind``."""
+    """One flat colour on a plain mesh and the shared kit material ``kind``."""
     obj.data.materials.clear()
     obj.data.materials.append(materials.get(kind, strength=strength))
     colors.paint_values(obj, [colour] * len(obj.data.vertices), ao=ao)
 
 
-def _gradient(obj, pal, spec, kind, ao, axis="z"):
-    lo, hi = (pal.c(spec[0]), pal.c(spec[1]))
-    obj.data.materials.clear()
-    obj.data.materials.append(materials.get(kind))
-    colors.paint(obj, lo, hi, mode=axis, ao=ao, jitter=0.0)
-
-
-def _obstacles(look, pal, objs):
-    main_grad, cross_grad, kind = OBSTACLE[look]
-    out = []
-    for obj in objs:
-        base = _base(obj)
-        if obj.get("aurago_obstacle"):
-            shapes.finish(obj, bevel=0.022, segments=2, dens=0, smooth_angle=50)
-            _gradient(obj, pal, main_grad, kind, 0.0, axis="x" if base != "obstacle-harbor-gate" else "z")
-            out.append(obj)
-        elif obj.get("aurago_obstacle_component"):
-            shapes.finish(obj, bevel=0.02, segments=2, dens=0, smooth_angle=50)
-            _gradient(obj, pal, cross_grad, kind, 0.0, axis="y")
-            out.append(obj)
-    return out
-
-
 def _face_up(obj):
-    """Turn a flat legacy ring face up: ``courses_v1.ring`` winds its faces downwards, and the kit materials
+    """Turn a flat ring face up: ``basic_parts.ring`` winds its faces downwards, and the kit materials
     are single sided, so the runtime would cull the ring when seen from above."""
     obj.data.flip_normals()
 
 
-def _cup_patch(look, pal, model, rim):
-    """Felt-coloured collar around the cup that covers the dark ground in the stepped lane cut-out."""
-    pts = [v.co for v in rim.data.vertices]
-    cx, cy = sum(p.x for p in pts) / len(pts), sum(p.y for p in pts) / len(pts)
-    z = pts[0].z - 0.001
-    patch = ring(None, model, "cup-patch", (cx, cy), CUP_RADIUS + 0.06, CUP_RADIUS + 0.4, z, None, segments=32)
-    _face_up(patch)
-    lo, hi = pal.grad("felt")
-    _paint(patch, mix(lo, hi, 0.62), "matte", 0.3)
-    return patch
-
-
 def _bevel_digit(obj):
-    """Soften a seven-segment bar (a plain box in the legacy code)."""
+    """Soften a seven-segment bar (a plain box)."""
     shapes.finish(obj, bevel=SMALL_BEVEL, segments=2, dens=0)
 
 
@@ -129,18 +87,12 @@ def _putter(look, model, old):
     return new
 
 
-def restyle(look, model, cup_patch=True):
-    """Restyle the functional parts of ``model``; returns ``(bake, passthrough)`` object lists.
-
-    ``cup_patch`` adds the felt collar around the cup rim of the legacy courses; the exact cup of the track kit
-    needs none.
-    """
+def restyle(look, model):
+    """Restyle the functional parts of ``model``; returns ``(bake, passthrough)`` object lists."""
     pal = palette.get(look)
     bake, passthrough = [], []
-    gold, black = pal.c("gold"), pal.c("black")
-    objs = list(model.objects)
-    passthrough += _obstacles(look, pal, objs)
-    for obj in objs:
+    gold = pal.c("gold")
+    for obj in list(model.objects):
         base = _base(obj)
         if base in ROUND:
             shapes.smooth_by_angle(obj.data, 40.0)
@@ -164,16 +116,7 @@ def restyle(look, model, cup_patch=True):
             bake.append(obj)
         elif base == "cup-rim":
             moon = look == "moon"
-            patch = _cup_patch(look, pal, model, obj) if cup_patch else None  # centre and height come from the flat ring
             _bevel_rim(obj)
             _paint(obj, pal.c("cyan") if moon else gold, "emissive" if moon else "satin", 0.0 if moon else 0.5)
             (passthrough if moon else bake).append(obj)
-            if patch is not None:
-                bake.append(patch)
-        elif base == "cup-bottom":
-            _paint(obj, black, "matte", 0.0)
-            bake.append(obj)
-        elif base == "cup-lining":
-            _paint(obj, pal.c("black"), "matte", 0.9)
-            bake.append(obj)
     return bake, passthrough

@@ -1,12 +1,11 @@
 """Generate AuraGo's original MIT-licensed mini golf assets with Blender 5.2.
 
 Run from the repository root:
-  blender --background --factory-startup --python assets/minigolf/generate.py -- [--set v1|p3] [--out DIR] [--only kits,courses,previews|all] [--course N] [--save-blend]
+  blender --background --factory-startup --python assets/minigolf/generate.py -- [--out DIR] [--only kits,courses,previews|all] [--course N] [--worlds W] [--save-blend]
 
-``--set p3`` builds the courses of the ``kit/course_data_<world>.py`` modules with the track kit (``kit/courses.py``)
-and writes manifest version 2; it needs ``--out`` until the switch-over makes the runtime folder the default.
-``--set v1`` is the legacy build of the 18 P2 courses (frozen: the dressing modules now belong to the P3 pipeline,
-so only ``--only kits`` is expected to keep working there).
+The courses are those of the ``kit/course_data_<world>.py`` modules, built with the track kit (``kit/courses.py``);
+the manifest is version 2. ``--out`` defaults to the runtime folder ``ui/3d/minigolf``; kits and previews are
+written there too. ``--set p3`` is accepted for old command lines (it is the only course set).
 """
 
 import argparse
@@ -25,7 +24,7 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 RUNTIME = os.path.join(ROOT, "ui", "3d", "minigolf")
 BUILD = os.path.join(HERE, "build")
 PARTS = ("kits", "courses", "previews")
-MANIFEST_ORDER = ("version", "ballRadius", "courses", "kits", "worlds")
+MANIFEST_ORDER = ("version", "courses", "kits", "worlds")
 WORLD_ORDER = ("pirate", "temple", "moon")
 COURSE_COUNT = 18
 
@@ -33,15 +32,13 @@ COURSE_COUNT = 18
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     ap = argparse.ArgumentParser()
-    ap.add_argument("--set", dest="course_set", choices=("v1", "p3"), default="v1", help="v1 = legacy P2 courses, p3 = track kit courses (default v1)")
-    ap.add_argument("--out", default=None, help="output folder for GLBs and manifest (default ui/3d/minigolf; required for --set p3)")
+    ap.add_argument("--set", dest="course_set", choices=("p3",), default="p3", help="course set (p3 is the only one)")
+    ap.add_argument("--out", default=None, help="output folder for GLBs, manifest and previews (default ui/3d/minigolf)")
     ap.add_argument("--only", default=None, help="kits, courses, previews or all (default kits,courses; with --course: courses)")
     ap.add_argument("--course", type=int, default=0, help="rebuild one course (1-18) and patch its manifest entry")
+    ap.add_argument("--worlds", default="all", help="worlds whose menu preview to render: pirate, temple, moon (comma separated) or all")
     ap.add_argument("--save-blend", action="store_true")
     args = ap.parse_args(argv)
-    if args.course_set == "p3" and args.out is None:
-        ap.error("--set p3 needs --out DIR (for example assets/minigolf/build/p3): the runtime folder ui/3d/minigolf stays on the "
-                 "legacy courses until the switch-over")
     args.out = os.path.abspath(args.out) if args.out else RUNTIME
     if args.only is None:
         args.only = "courses" if args.course else "kits,courses"
@@ -51,8 +48,6 @@ def parse_args():
     unknown = [part for part in parts if part not in PARTS]
     if unknown or not parts:
         ap.error("--only takes kits, courses, previews or all (got %s)" % args.only)
-    if args.course_set == "p3" and "previews" in parts:
-        ap.error("--only previews is not available for --set p3 yet")
     if args.course and not 1 <= args.course <= COURSE_COUNT:
         ap.error("--course takes a number from 1 to %d" % COURSE_COUNT)
     if args.course and "courses" not in parts:
@@ -60,6 +55,10 @@ def parse_args():
     if args.save_blend and "courses" in parts and not args.course:
         ap.error("--save-blend keeps the course scenes in memory: use it with --course N (a full run deletes every course "
                  "after its export, otherwise later courses would get numbered node names)")
+    worlds = [w.strip() for w in args.worlds.split(",") if w.strip()]
+    args.worlds = list(WORLD_ORDER) if "all" in worlds else worlds
+    if not args.worlds or any(world not in WORLD_ORDER for world in args.worlds):
+        ap.error("--worlds takes pirate, temple, moon or all (got %s)" % args.worlds)
     args.parts = parts
     return args
 
@@ -103,15 +102,15 @@ def build_kits(out):
     return entries
 
 
-# -- P3 courses ---------------------------------------------------------------------------------
+# -- courses ------------------------------------------------------------------------------------
 
-def world_entries_p3(courses):
+def world_entries(courses):
     """Menu worlds (``{id, preview}``) in the order pirate, temple, moon, for the worlds that have a course."""
     present = {course["world"] for course in courses}
     return [{"id": world, "preview": "previews/%s.webp" % world} for world in WORLD_ORDER if world in present]
 
 
-def build_courses_p3(out, only=0, keep_scene=False, existing=()):
+def build_courses(out, only=0, keep_scene=False, existing=()):
     """Build every course of the data modules (or only course ``only``, patched into ``existing``); returns the entries."""
     from kit import courses
     todo = courses.all_courses()
@@ -126,59 +125,28 @@ def build_courses_p3(out, only=0, keep_scene=False, existing=()):
     return [merged[n] for n in sorted(merged)]
 
 
-# -- legacy P2 courses (frozen) ---------------------------------------------------------------------
-
-def world_entries_v1(courses):
-    """Menu worlds in order of first appearance: ``{id, look, preview}`` (the preview images come from ``--only previews``)."""
-    from kit import dress
-    return [{"id": world, "look": dress.LOOK[world], "preview": "previews/%s.webp" % dress.LOOK[world]}
-            for world in dict.fromkeys(c["world"] for c in courses)]
-
-
-def build_courses_v1(only=0, manifest=None, keep_scene=False):
-    from kit import courses_v1, dress
-    clear_scene()
-    if only:
-        courses = (manifest or {}).get("courses")
-        if not courses or len(courses) != len(courses_v1.COURSES):
-            raise SystemExit("--course patches an existing manifest: run a full build first")
-        course = courses_v1.COURSES[only - 1]
-        courses[only - 1] = courses_v1.build_course(only, course, dress.Dresser(only, course), keep_scene=keep_scene)
-        return courses
-    return [courses_v1.build_course(i, c, dress.Dresser(i, c)) for i, c in enumerate(courses_v1.COURSES, 1)]
-
-
 def main():
     args = parse_args()
     out = args.out
     os.makedirs(out, exist_ok=True)
     manifest = read_manifest(out)
-    p3 = args.course_set == "p3"
-    if p3 and manifest.get("version") != 2:
+    if manifest.get("version") != 2:
         manifest = {}               # an old manifest of another version is not patched
-    manifest["version"] = 2 if p3 else 1
-    if p3:
-        manifest.pop("ballRadius", None)
-    else:
-        from kit import courses_v1
-        manifest["ballRadius"] = courses_v1.BALL_RADIUS
+    manifest["version"] = 2
     if "kits" in args.parts:
         manifest["kits"] = build_kits(out)
         write_manifest(out, manifest)
     if "courses" in args.parts:
-        if p3:
-            manifest["courses"] = build_courses_p3(out, args.course, args.save_blend, manifest.get("courses", ()))
-            manifest["worlds"] = world_entries_p3(manifest["courses"])
-        else:
-            manifest["courses"] = build_courses_v1(args.course, manifest, args.save_blend)
-            manifest["worlds"] = world_entries_v1(manifest["courses"])
+        manifest["courses"] = build_courses(out, args.course, args.save_blend, manifest.get("courses", ()))
+        manifest["worlds"] = world_entries(manifest["courses"])
         write_manifest(out, manifest)
         print("Patched course %d in %s" % (args.course, out) if args.course else "Wrote %d courses to %s" % (len(manifest["courses"]), out))
     if "previews" in args.parts:
         from kit import previews
-        for look, number in previews.COURSES.items():
-            size, quality = previews.render(look, number, os.path.join(out, "previews", look + ".webp"))
-            print(f"preview {look}: course {number}, {size} bytes, quality {quality}")
+        for world in args.worlds:
+            number = previews.COURSES[world]
+            size, quality = previews.render(world, number, os.path.join(out, "previews", world + ".webp"))
+            print(f"preview {world}: course {number}, {size} bytes, quality {quality}")
     if args.save_blend:
         os.makedirs(BUILD, exist_ok=True)
         bpy.context.preferences.filepaths.save_version = 0

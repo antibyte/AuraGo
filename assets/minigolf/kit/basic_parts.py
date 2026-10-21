@@ -1,15 +1,13 @@
 """Shared Blender helpers of the track kit (MIT License, see ../LICENSE).
 
-Copies of the helpers of the legacy ``courses_v1`` module with identical behaviour: runtime/Blender
-coordinate swizzles, the material and mesh helpers, the cup lining, the hole number and the ball and
-putter templates. ``courses_v1`` is removed when the P3 courses replace the legacy ones; this module
-is what the new pipeline builds on.
+Runtime/Blender coordinate swizzles, the material and mesh helpers, the hole number and the ball and
+putter templates that the track kit builds on.
 """
 
 import bpy
 import math
 
-from .track import BALL_RADIUS, CUP_RADIUS
+from .track import BALL_RADIUS
 
 
 def runtime(v):
@@ -108,18 +106,6 @@ def ico_sphere(scene, coll, name, center, radius, mat, role="scenery"):
 
 def cone(scene, coll, name, center, radius, height, mat, segments=7):
     return cylinder(scene,coll,name,center,radius,height,mat,segments,0.0)
-
-
-def cup_lining(scene, coll, cup, mat, bottom_z):
-    # Tapered inner wall between the turf cut and the dark cup bottom. It is
-    # scenery only: physics keeps the authored open cup with no floor.
-    cx, cy, cz = cup
-    seg = 18
-    verts = []
-    for zz, rr in ((bottom_z, CUP_RADIUS + .02), (cz + .004, CUP_RADIUS + .12)):
-        verts.extend((cx + rr * math.cos(i * math.tau / seg), cy + rr * math.sin(i * math.tau / seg), zz) for i in range(seg))
-    faces = [(i, seg + i, seg + (i + 1) % seg, (i + 1) % seg) for i in range(seg)]
-    mesh_object(scene, coll, "cup-lining", verts, faces, mat, "decoration")
 
 
 HOLE_DIGITS = {

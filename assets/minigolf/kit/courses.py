@@ -7,7 +7,8 @@
 2. a new scene gets the floors, collision rails and the collision cup (``build_track``) and the hole marks
    (``cup_parts``);
 3. the ``Dresser`` fits the island to the layout, builds terrain, trims and shore, places the hero, the fixed
-   props, the medium props and the scatter, restyles the functional parts and bakes the vertex AO;
+   props, the medium props and the scatter, restyles the functional parts and bakes the vertex AO
+   (``build_scene``, steps 1-3);
 4. ``export.join_scenery`` merges the scenery per material, the scene is exported, the collision nodes are read
    back (``export.glb_collision``) and the entry is assembled (``course_entry``).
 
@@ -73,8 +74,13 @@ def check_budget(course_id, size, triangles, mesh_nodes):
         raise RuntimeError("%s is over budget: %s" % (course_id, ", ".join(problems)))
 
 
-def build_course(number, data, world, out, keep_scene=False):
-    """Build, export and describe one course; see the module docstring."""
+def build_scene(number, data, world):
+    """Build and dress course ``number`` in a new scene, up to and including the bake (steps 1-3 of the module docstring).
+
+    Returns a dict: ``scene``, ``model`` (the ``Course Model`` collection), ``home`` (the scene that was active before),
+    ``course_id``, ``data`` (with its number), ``track``, ``dresser`` and ``mech``. ``build_course`` goes on from here;
+    ``previews`` renders the scene as it is.
+    """
     data = dict(data, number=number)
     track = layout.build(data, world)
     mech = mechanic_data.resolve(track)
@@ -98,6 +104,14 @@ def build_course(number, data, world, out, keep_scene=False):
     dresser.restyle(model)
     mechanic_parts.build_all(mech, dresser, model)
     dresser.bake(model)
+    return {"scene": scene, "model": model, "home": home, "course_id": course_id, "data": data, "track": track, "dresser": dresser, "mech": mech}
+
+
+def build_course(number, data, world, out, keep_scene=False):
+    """Build, export and describe one course; see the module docstring."""
+    built = build_scene(number, data, world)
+    scene, model, home, course_id = built["scene"], built["model"], built["home"], built["course_id"]
+    data, track, dresser = built["data"], built["track"], built["dresser"]
     export.join_scenery(model)
     bpy.context.window.scene = scene
     bpy.ops.object.select_all(action="DESELECT")
