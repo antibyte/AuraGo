@@ -121,7 +121,7 @@ func runtimeStartupError(code string) error {
 
 func terminalRuntimeStartError(err error) bool {
 	switch ErrorCode(err) {
-	case CodeCancelled, CodeRuntimeStartTimeout, CodeModelIntegrityFailed, CodeRuntimeInvalidConfiguration:
+	case CodeCancelled, CodeRuntimeStartTimeout, CodeModelIntegrityFailed, CodeRuntimeInvalidConfiguration, CodeDeploymentDenied, CodeDockerAPITooOld:
 		return true
 	}
 	return false

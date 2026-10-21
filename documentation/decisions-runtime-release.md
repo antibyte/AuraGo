@@ -71,6 +71,9 @@ symlinks, duplicate portable names, unlisted members and mismatched pins.
 Docker uses the same verified native package and immutable image digests, keeps
 the 8 GiB host-memory cap, and runs with the existing private transport and GPU
 device policy. `BUILD=0` remains supported.
+Named-volume subdirectory mounts require Docker Engine 26/API 1.45 or newer.
+Older Engines remain supported with resolvable bind mounts; Decisions rejects
+unsupported volume subpaths rather than mounting the whole AuraGo data volume.
 
 ## Verification
 

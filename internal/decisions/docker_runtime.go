@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -116,6 +117,9 @@ func discoverDockerDevices(ctx context.Context, access RuntimeAccess, paths mode
 		imagesFound = true
 		output, err := docker.runDiscover(ctx, backend, image.ID, paths, access, resolveSelf)
 		if err != nil {
+			if terminalRuntimeStartError(err) {
+				return nil, err
+			}
 			continue
 		}
 		var result struct {
@@ -491,6 +495,20 @@ func dockerResolvedModelMount(ctx context.Context, docker *decisionsDocker, acce
 	return mount, selfID, err
 }
 
+func preflightDockerMounts(ctx context.Context, access RuntimeAccess, dataDir string, resolveSelf func(context.Context, string) (string, error)) error {
+	if !dockerMayMutate(access) {
+		return NewError(CodeDeploymentDenied, nil)
+	}
+	docker := newDecisionsDocker(access.DockerHost)
+	defer docker.client.CloseIdleConnections()
+	for _, directory := range []string{filepath.Join(dataDir, "decisions", "models"), filepath.Join(dataDir, "decisions")} {
+		if _, _, _, _, err := dockerResolvedPathMount(ctx, docker, access, directory, "/decisions", resolveSelf); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func dockerResolvedPathMount(ctx context.Context, docker *decisionsDocker, access RuntimeAccess, sourceDir, target string, resolveSelf func(context.Context, string) (string, error)) (map[string]any, string, string, string, error) {
 	if !access.IsDocker {
 		if isRemoteDockerHost(docker.host) {
@@ -517,6 +535,19 @@ func dockerResolvedPathMount(ctx context.Context, docker *decisionsDocker, acces
 	hostSource, subpath, err := resolveContainerPath(sourceDir, self.Mounts)
 	if err != nil {
 		return nil, "", "", "", err
+	}
+	if !filepath.IsAbs(hostSource) && subpath != "" {
+		version, versionErr := dockerutil.NegotiatedAPIVersion(ctx, docker.host)
+		if versionErr != nil {
+			return nil, "", "", "", NewError(CodeDockerUnavailable, versionErr)
+		}
+		minor, versionErr := strconv.Atoi(strings.TrimPrefix(version, "v1."))
+		if versionErr != nil {
+			return nil, "", "", "", NewError(CodeDockerUnavailable, versionErr)
+		}
+		if minor < 45 {
+			return nil, "", "", "", NewError(CodeDockerAPITooOld, nil)
+		}
 	}
 	return dockerReadonlyMount(hostSource, target, subpath), hostSource, subpath, self.ID, nil
 }

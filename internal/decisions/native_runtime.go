@@ -35,6 +35,9 @@ func (factory *managedRuntimeFactory) install(ctx context.Context, deployment st
 		if !dockerMayMutate(access) {
 			return NewError(CodeDeploymentDenied, nil)
 		}
+		if err := preflightDockerMounts(ctx, access, dataDir, factory.options.dockerSelfContainer); err != nil {
+			return err
+		}
 		return ensureDockerRuntimeImages(ctx, access, cpuAllowed, progress)
 	}
 	return ensureNativeRuntime(ctx, runtimeBuildDirectory(factory.options), filepath.Join(dataDir, "decisions", "runtime"), cpuAllowed, progress)

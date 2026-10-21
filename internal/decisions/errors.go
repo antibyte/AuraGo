@@ -24,6 +24,7 @@ const (
 	CodeRuntimeDiscoveryOutputLimit = "runtime_discovery_output_limit"
 	CodeRuntimeInvalidConfiguration = "runtime_invalid_configuration"
 	CodeDockerUnavailable           = "docker_unavailable"
+	CodeDockerAPITooOld             = "docker_api_too_old"
 	CodeDeploymentDenied            = "deployment_denied"
 	CodeInvalidRequest              = "invalid_request"
 	CodeCandidateNotScorable        = "candidate_not_single_token"
@@ -102,7 +103,7 @@ func IsNonRetryable(err error) bool {
 		CodeModelIntegrityFailed, CodeRuntimeArtifactMissing, CodeRuntimeStartFailed, CodeRuntimeStartTimeout, CodeRuntimeInvalidConfiguration,
 		CodeRuntimeUnavailable, CodeRuntimeAttestationFailed, CodeHardwareUnavailable, CodeRuntimeDiscoveryTimeout, CodeRuntimeDiscoveryOutputLimit,
 		CodeDockerUnavailable, CodeInvalidRuntimeResponse, CodeInferenceFailed,
-		CodeDeploymentDenied, CodeInvalidRequest, CodeCandidateNotScorable,
+		CodeDeploymentDenied, CodeDockerAPITooOld, CodeInvalidRequest, CodeCandidateNotScorable,
 		CodeInputTokenBudgetExceeded, CodeExternalProviderFailed, CodeModelNotAvailable, CodeModelContextUnverified,
 		"image_limit_exceeded", "image_invalid", "image_minimum_unmet",
 		CodeExternalOutcomeUnknown, CodeProviderAuthFailed, CodeProviderCreditExhausted, CodeProviderRateLimited:

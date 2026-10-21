@@ -34,7 +34,10 @@ func (manager *Manager) CheckInstallation(ctx context.Context) InstallationCheck
 	result.Deployment = deployment
 	if err == nil {
 		if deployment == config.DecisionsDeploymentDocker {
-			err = verifyLocalDockerRuntimeImages(ctx, access, nil)
+			err = preflightDockerMounts(ctx, access, manager.dataDir, manager.options.dockerSelfContainer)
+			if err == nil {
+				err = verifyLocalDockerRuntimeImages(ctx, access, nil)
+			}
 		} else {
 			result.Target = runtimeTarget(runtime.GOOS, runtime.GOARCH)
 			_, err = availableNativeRuntimeBundles(ctx, runtimeBuildDirectory(manager.options))

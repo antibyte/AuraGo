@@ -266,7 +266,7 @@ func writeDecisionsFailure(w http.ResponseWriter, err error) {
 	if code == "budget_exceeded" {
 		status = http.StatusPaymentRequired
 	}
-	if code == "provider_lifecycle_unavailable" || code == "configuration_changed" || code == decisions.CodeLifecycleBusy {
+	if code == "provider_lifecycle_unavailable" || code == "configuration_changed" || code == decisions.CodeLifecycleBusy || code == decisions.CodeDockerAPITooOld {
 		status = http.StatusConflict
 	}
 	writeDecisionsError(w, code, status)

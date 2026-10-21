@@ -42,6 +42,13 @@ does not build them. GPU/iGPU is preferred; CPU and mixed operation require the
 separate explicitly selected, saved permission. A missing accelerator opens
 that setting and explains the choice.
 
+When AuraGo runs in Docker and its data uses a named volume, Decisions needs
+Docker Engine 26 or newer (API 1.45) to mount only its model and credential
+subdirectories. Older Engines report `docker_api_too_old` before installation
+or launch. Upgrade the Engine or explicitly configure a suitable bind mount;
+AuraGo never falls back to exposing the whole data volume. Bind-mounted data
+does not require this volume-subpath capability.
+
 After setup, **Test decision** runs another explicit text test; merely opening
 settings only reads status. **Stop** stops the process or container. Advanced
 options retain the independent check and start actions for diagnosis. Setup
