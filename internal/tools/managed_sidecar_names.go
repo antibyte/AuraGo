@@ -41,6 +41,7 @@ func ManagedSidecarContainerNames(cfg *config.Config) []string {
 	}
 	add("aurago_go2rtc", cfg.Go2RTC.ContainerName)
 	add("aurago-ruview")
+	add("aurago-ocr")
 	add(spaceAgentDefaultContainerName, cfg.SpaceAgent.ContainerName)
 	add(manifestDefaultContainerName, cfg.Manifest.ContainerName, manifestDefaultPostgresContainerName, cfg.Manifest.PostgresContainerName)
 	add(omniRouteDefaultContainerName, cfg.OmniRoute.ContainerName)

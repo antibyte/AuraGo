@@ -1,0 +1,83 @@
+name: OCR runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the verified pinned image after all native smokes pass
+        type: boolean
+        default: false
+  pull_request:
+    paths: ['internal/ocr/**', 'deploy/docker/Dockerfile.ocr', 'scripts/ocr/**', '.github/workflows/ocr-runtime.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+      - name: Verify private adapter admission and cancellation
+        run: PYTHONDONTWRITEBYTECODE=1 python3 scripts/ocr/test_service.py -v
+      - name: Assemble locked offline images
+        run: |
+          docker buildx build --platform linux/amd64,linux/arm64 --build-arg SOURCE_DATE_EPOCH=0 --provenance=false \
+            --output type=oci,dest=ocr-image.oci.tar,rewrite-timestamp=true --metadata-file ocr-image.metadata.json \
+            -t ghcr.io/antibyte/aurago-ocr:1.1.2 -f deploy/docker/Dockerfile.ocr .
+          python3 scripts/ocr/pin_image.py ocr-image.oci.tar ocr-image.metadata.json
+          # Compare without depending on gofmt indentation.
+          git diff --ignore-all-space --exit-code -- internal/ocr/release.go
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: ocr-oci
+          path: |
+            ocr-image.oci.tar
+            ocr-image.metadata.json
+          retention-days: 7
+
+  smoke:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+      - name: Build native platform artifact
+        run: |
+          docker buildx build --platform linux/${{ matrix.arch }} --build-arg SOURCE_DATE_EPOCH=0 --provenance=false \
+            --output type=docker,dest=/tmp/ocr-platform.tar,rewrite-timestamp=true -t aurago-ocr:smoke -f deploy/docker/Dockerfile.ocr .
+          docker load --input /tmp/ocr-platform.tar
+          echo "AURAGO_OCR_SMOKE_IMAGE=$(docker image inspect aurago-ocr:smoke --format '{{.Id}}')" >> "$GITHUB_ENV"
+      - name: Offline verification, recognition and cancellation in both network modes
+        run: bash scripts/ocr/smoke.sh
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    needs: [image, smoke]
+    runs-on: ubuntu-24.04
+    environment: ocr-release
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: ocr-oci
+      - name: Publish the tested OCI bytes preserving digests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y skopeo
+          printf '%s' "$GH_TOKEN" | skopeo login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
+          skopeo copy --all --preserve-digests oci-archive:ocr-image.oci.tar docker://ghcr.io/antibyte/aurago-ocr:1.1.2

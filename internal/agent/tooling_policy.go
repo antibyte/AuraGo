@@ -373,6 +373,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		RTLSDREnabled:              cfg.RTLSDR.Enabled && cfg.RTLSDR.AllowAgent && cfg.VirtualDesktop.Enabled,
 		LayerlingEnabled:           cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.Layerling.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.VirtualDesktop.Enabled && (cfg.VirtualDesktop.Layerling.AgentAccess == "read" || cfg.VirtualDesktop.Layerling.AgentAccess == "write"),
 		LocalWikipediaEnabled:      cfg.LocalWikipedia.Enabled && cfg.LocalWikipedia.AgentAccess,
+		OCREnabled:                 cfg.OCR.Enabled && cfg.OCR.AgentAccess,
 		RetroGamesEnabled:          cfg.RetroGames.Enabled && cfg.RetroGames.AgentAccess,
 		ThreeDPrinterEnabled:       cfg.ThreeDPrinters.Enabled,
 		OllamaEnabled:              cfg.Ollama.Enabled,

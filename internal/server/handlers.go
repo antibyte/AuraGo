@@ -553,6 +553,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			}
 		}
 
+		ocrMessageIndex := len(finalMessages) - 1
 		// Include first-start initialization in the prospective request without
 		// consuming the one-shot state until budget preflight has accepted it.
 		includeFirstStart := false
@@ -591,6 +592,16 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		}
 		workspaceDir := runCfg.Config.Directories.WorkspaceDir
 		finalMessages = promoteRequestImages(cfg, finalMessages, workspaceDir, s.Logger)
+		if !isInternalRequestMessage && lastUserMsg.Role == openai.ChatMessageRoleUser && ocrMessageIndex >= 0 {
+			if excerpt := ocrWebAttachments(r.Context(), cfg, sessionID, lastUserMsg.Content); excerpt != "" {
+				message := &finalMessages[ocrMessageIndex]
+				if len(message.MultiContent) > 0 {
+					message.MultiContent = append(append([]openai.ChatMessagePart(nil), message.MultiContent...), openai.ChatMessagePart{Type: openai.ChatMessagePartTypeText, Text: excerpt})
+				} else {
+					message.Content += excerpt
+				}
+			}
+		}
 
 		req.Messages = finalMessages
 		if err := agent.ValidateMinimumRequestBudget(r.Context(), req, runCfg); err != nil {

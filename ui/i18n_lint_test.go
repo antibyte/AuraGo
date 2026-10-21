@@ -1056,6 +1056,7 @@ type localI18nHelper struct {
 // static i18n checks resolve: tr('title') in gog-sources.js is desktop.gog.title.
 // Register every new prefix helper here so its keys stay verified.
 var desktopLocalI18nHelpers = map[string]localI18nHelper{
+	"js/desktop/apps/ocr.js":                     {name: "tr", prefix: "ocr."},
 	"js/desktop/apps/minigolf-game.js":           {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/minigolf-views.js":          {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/minigolf-hud.js":            {name: "tr", prefix: "minigolf."},

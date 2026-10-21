@@ -970,6 +970,8 @@ func dockerComposeOwnerDenial(owner string) string {
 		return dockerAgentError("docker_managed_cyd_creator_resource", "Docker Compose access to AuraGo's CYD Creator builder (container aurago-cyd-builder, volumes aurago-cyd-work and aurago-cyd-cache, builder image) is blocked. Use the CYD Creator app to build firmware.")
 	case dockerutil.DecisionsOwner:
 		return dockerAgentError("docker_managed_decisions_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's managed Decisions runtime is blocked. Use the administrator Decisions API.")
+	case dockerutil.OCROwner:
+		return dockerAgentError("docker_managed_ocr_resource", "Managed OCR containers are private. Use the ocr tool or administrator OCR settings.")
 	}
 	return ""
 }
@@ -999,7 +1001,7 @@ func dockerComposeCYDCreatorImageDenial(cfg *config.Config, models ...tools.Dock
 var dockerComposeReferenceOwners = []string{
 	dockerutil.OllamaOwner,
 	acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", dockerutil.LocalLLMOwner,
-	dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.DecisionsOwner,
+	dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.DecisionsOwner, dockerutil.OCROwner,
 }
 
 // dockerComposeReferenceOwnership resolves a container reference like Docker

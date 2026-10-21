@@ -97,6 +97,7 @@
         Shared: 'share'
     };
     const appIconKeys = {
+        ocr: 'ocr',
         'ha-switchboard': 'ha-switchboard',
         'ruview': 'ruview',
         analytics: 'analytics',
@@ -601,6 +602,7 @@
             'ha-switchboard': 'HASwitchboardApp',
             infra: 'InfraApp',
             'ruview': 'RuViewApp',
+            ocr: 'OCRApp',
             files: 'FileManager',
             writer: 'WriterApp',
             sheets: 'SheetsApp',

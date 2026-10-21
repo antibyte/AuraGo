@@ -58,6 +58,7 @@ func pythonToolBridgeRecommendedGroups() []pythonToolBridgeGroupDef {
 		{Key: "truenas", Icon: "💾", ToolList: []string{"truenas"}},
 		{Key: "jellyfin", Icon: "🎬", ToolList: []string{"jellyfin"}},
 		{Key: "local_wikipedia", Icon: "📚", ToolList: []string{"local_wikipedia"}},
+		{Key: "ocr", Icon: "📄", ToolList: []string{"ocr"}},
 		{Key: "media_conversion", Icon: "🎞️", ToolList: []string{"media_conversion"}},
 	}
 }

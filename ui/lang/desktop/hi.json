@@ -7990,5 +7990,6 @@
   "homepage_studio.sites_outcome_unknown": "परिणाम अज्ञात है",
   "homepage_studio.sites_target_active": "सक्रिय",
   "homepage_studio.sites_target_inactive": "बंद",
-  "homepage_studio.sites_target_unknown": "स्थिति अज्ञात है"
+  "homepage_studio.sites_target_unknown": "स्थिति अज्ञात है",
+  "desktop.app_ocr": "OCR"
 }

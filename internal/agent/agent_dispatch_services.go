@@ -689,7 +689,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			// checked: the agent keeps its access to the proxy container, and
 			// dockerRequestCreatesReservedSecurityProxyName refuses create/run.
 			owned, ownershipErr := tools.DockerContainerOwnership(dockerCfg, containerID,
-				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", "local-llm", dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner, dockerutil.DecisionsOwner, dockerutil.OllamaOwner)
+				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", "local-llm", dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner, dockerutil.DecisionsOwner, dockerutil.OCROwner, dockerutil.OllamaOwner)
+			if dockerOperationTargetsContainer(req.Operation) && owned[dockerutil.OCROwner] {
+				return dockerAgentError("docker_managed_ocr_resource", "Managed OCR containers are private. Use the ocr tool or administrator OCR settings.")
+			}
 			if dockerOperationTargetsContainer(req.Operation) && owned[dockerutil.OllamaOwner] {
 				return dockerAgentError("docker_managed_ollama_resource", "Managed Ollama containers belong to the administrator. Use the ollama tool for model operations.")
 			}
@@ -788,7 +791,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch req.Operation {
 			case "list_containers", "ps":
 				logger.Info("LLM requested Docker list_containers", "all", req.All)
-				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner, dockerutil.DecisionsOwner, dockerutil.OllamaOwner)
+				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner, dockerutil.DecisionsOwner, dockerutil.OCROwner, dockerutil.OllamaOwner)
 			case "inspect", "inspect_container":
 				logger.Info("LLM requested Docker inspect", "container_id", containerID)
 				return "Tool Output: " + tools.DockerInspectContainer(dockerCfg, containerID)

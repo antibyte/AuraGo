@@ -1,0 +1,11 @@
+AuraGo OCR adapter: AuraGo contributors, MIT; see LICENSE-AURAGO.txt.
+Indra OCR 1.1.2: Datalab, Apache-2.0; see LICENSE-CODE.txt.
+Source: https://github.com/datalab-to/indra/tree/0e96b93c6810f17cf8352acbb4487cc9e45b66d5
+
+Unmodified Datalab Indra OCR models, snapshot bd02167fdf2005a19962cc15188f8496a2c87d3b:
+https://huggingface.co/datalab-to/indra-ocr
+Separate modified OpenRAIL-M terms apply to the models and outputs, including
+attribution, share-alike, use and redistribution restrictions.
+The complete terms are in LICENSE-MODELS.txt.
+
+Python dependency licenses remain in the installed distribution license files.

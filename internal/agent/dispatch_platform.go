@@ -341,6 +341,8 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			return dispatchLayerling(ctx, tc, dc)
 		case "local_wikipedia":
 			return dispatchLocalWikipedia(ctx, tc, dc)
+		case "ocr":
+			return dispatchOCR(ctx, tc, dc)
 		case "retro_games":
 			return dispatchRetroGames(ctx, tc, dc)
 		case "co_agent", "co_agents":

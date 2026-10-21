@@ -7990,5 +7990,6 @@
   "homepage_studio.sites_outcome_unknown": "Άγνωστο αποτέλεσμα",
   "homepage_studio.sites_target_active": "Ενεργό",
   "homepage_studio.sites_target_inactive": "Σταματημένο",
-  "homepage_studio.sites_target_unknown": "Άγνωστη κατάσταση"
+  "homepage_studio.sites_target_unknown": "Άγνωστη κατάσταση",
+  "desktop.app_ocr": "OCR"
 }

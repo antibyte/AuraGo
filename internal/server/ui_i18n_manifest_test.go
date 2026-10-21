@@ -17,7 +17,7 @@ func TestUII18NSectionsManifestCoversEveryPage(t *testing.T) {
 	t.Parallel()
 
 	want := map[string][]string{
-		"config":      {"config", "chat", "help", "security", "shared", "ruview"},
+		"config":      {"config", "chat", "help", "security", "shared", "ruview", "ocr"},
 		"dashboard":   {"dashboard", "chat", "config", "knowledge", "shared"},
 		"desktop":     {"desktop"},
 		"plans":       {"plans", "chat", "config", "shared"},

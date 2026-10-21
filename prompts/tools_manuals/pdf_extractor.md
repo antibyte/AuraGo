@@ -24,6 +24,7 @@ information to extract from the document.
 - `search_query` (string, optional but **required in summary mode**): Tell the summarisation model exactly what information you are looking for in the document. Be specific — e.g. "revenue figures and growth trends" rather than just "summary".
 
 ### Notes
-- `pdf_extractor` is for PDFs only. For PNG/JPG/WebP screenshots or photos, use `analyze_image` instead.
-- Image-based PDFs (scanned documents without OCR) cannot be extracted — the tool will report that no text was found.
+- `pdf_extractor` is for PDFs only. Use `ocr` for text/layout in supported images and `analyze_image` for visual interpretation.
+- When the optional OCR service and agent access are enabled and ready, the same local service handles scanned and mixed PDFs. Otherwise the existing text-layer extractor remains available.
+- Incomplete OCR is reported explicitly. Use `ocr` for asynchronous jobs, page warnings and partial results.
 - The file must be accessible within the project tree (path traversal outside the project is blocked).

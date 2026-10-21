@@ -700,12 +700,15 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		persistedPrompt = opts.PersistedMessage
 	}
 	requestPrompt := message
+	ctx = tools.WithOCRChatSession(ctx, sessionID)
+	requestPrompt += s.ocrDesktopContext(ctx, &cfg, sessionID, chatContext)
 	var cameraDataURL string
 	if cameraPayload := strings.TrimSpace(chatContext.ImageBase64); cameraPayload != "" {
 		decoded, err := base64.StdEncoding.DecodeString(cameraPayload)
 		if err != nil {
 			return turn, fmt.Errorf("decode camera photo: %w", err)
 		}
+		requestPrompt += tools.OCRChatBytes(ctx, &cfg, "camera.jpg", decoded)
 		dataURL, err := tools.PrepareVisionDataURL(decoded, "")
 		if err != nil {
 			return turn, err

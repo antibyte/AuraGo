@@ -20,6 +20,7 @@
     }
 
     const DESKTOP_APP_ASSETS = {
+        ocr: { styles: appStyles('/css/desktop-app-ocr.css'), scripts: ['/js/vendor/purify.min.js', '/js/vendor/marked.min.js', '/js/desktop/apps/ocr.js'], modules: ['/js/vendor/pdf.min.js'] },
         'minigolf': {
             styles: appStyles('/css/desktop-app-minigolf.css'),
             scripts: ['/js/desktop/apps/minigolf.js']
@@ -600,6 +601,7 @@
     // App id → i18n section prefixes to merge into window.I18N before scripts run.
     // Shell only embeds desktop.*; apps load their own sections on demand.
     const APP_I18N_SECTIONS = {
+        ocr: ['ocr'],
         'minigolf': ['minigolf'],
         infra: [],
         'ruview': ['ruview'],

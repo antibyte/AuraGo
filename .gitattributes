@@ -51,6 +51,12 @@ bin/config-merger_linux_arm64 binary
 scripts/localwiki/fixtures/*.py  text eol=lf
 scripts/localwiki/fixtures/*.txt text eol=lf
 
+# OCR source inputs must produce the same image on Windows and Linux.
+internal/ocr/runtime/** text=auto eol=lf
+licences/texts/Indra-OCR-models.txt -text -whitespace
+internal/ocr/runtime/LICENSE-MODELS.txt -text -whitespace
+deploy/docker/Dockerfile.ocr text eol=lf
+scripts/ocr/*.py text eol=lf
 # The Decisions safety patch is verified by its exact SHA-256 during builds.
 # Blank unified-diff context lines retain their required leading space.
 decisions_runtime/patches/*.patch text eol=lf whitespace=-blank-at-eol

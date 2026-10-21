@@ -329,6 +329,7 @@
         Shared: 'share'
     };
     const appIconKeys = {
+        ocr: 'ocr',
         'ha-switchboard': 'ha-switchboard',
         'ruview': 'ruview',
         analytics: 'analytics',
@@ -833,6 +834,7 @@
             'ha-switchboard': 'HASwitchboardApp',
             infra: 'InfraApp',
             'ruview': 'RuViewApp',
+            ocr: 'OCRApp',
             files: 'FileManager',
             writer: 'WriterApp',
             sheets: 'SheetsApp',
@@ -18392,6 +18394,7 @@ function updateTaskbarSystemButtonsForMobile() {
             }));
         }
         if (appId === 'ruview' && window.RuViewApp) { return window.RuViewApp.render(contentEl(id), id, {esc,t,api}); }
+        if (appId === 'ocr' && window.OCRApp) { return window.OCRApp.render(contentEl(id), id, withDesktopFileDialogs({esc,t,api,readonly:desktopReadonly()})); }
         if (appId === 'ha-switchboard' && window.HASwitchboardApp) {
             return window.HASwitchboardApp.render(contentEl(id), id, { esc, t, api, saveSetting, settingValue, state });
         }

@@ -535,6 +535,7 @@ func Load(path string) (*Config, error) {
 	// Local Wikipedia is opt-in. Once enabled, the agent may use it and a daily
 	// catalog check runs unless the YAML switches either off.
 	cfg.LocalWikipedia.AgentAccess = true
+	cfg.OCR = DefaultOCRConfig()
 	cfg.LocalWikipedia.Variant = "nopic"
 	cfg.LocalWikipedia.UpdateCheck = true
 
@@ -3108,6 +3109,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"go2rtc", "streams"}, c.Go2RTC.Streams},
 		{[]string{"go2rtc", "detection"}, c.Go2RTC.Detection},
 		{[]string{"decisions", "enabled"}, c.Decisions.Enabled},
+		{[]string{"ocr"}, c.OCR},
 		{[]string{"decisions", "backend"}, c.Decisions.Backend},
 		{[]string{"decisions", "provider"}, c.Decisions.Provider},
 		{[]string{"decisions", "model"}, c.Decisions.Model},

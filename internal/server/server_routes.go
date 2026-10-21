@@ -677,6 +677,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	registerRuViewRoutes(mux, s)
 	registerLocalLLMRoutes(mux, s)
 	registerDecisionsRoutes(mux, s)
+	registerOCRRoutes(mux, s)
 	registerLocalWikipediaRoutes(mux, s)
 	registerLLMRouterRoutes(mux, s)
 	s.registerConfigAPIRoutes(mux, sse)

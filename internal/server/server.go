@@ -52,6 +52,7 @@ import (
 	"aurago/internal/mqtt"
 	"aurago/internal/networkshares"
 	"aurago/internal/newspaper"
+	"aurago/internal/ocr"
 	"aurago/internal/onvif"
 	"aurago/internal/personalradio"
 	"aurago/internal/persondetect"
@@ -216,6 +217,7 @@ type Server struct {
 	RuView                    *ruview.Manager
 	LocalLLM                  *localllm.Manager
 	Decisions                 decisionsService
+	OCR                       *ocr.Manager
 	routingDecisionEpoch      atomic.Uint64
 	decisionsHTTPAdmission    sync.Mutex // one HTTP install or start; not the manager lifecycle mutex
 	decisionsSetupMu          sync.Mutex
@@ -609,6 +611,14 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		s.startDesktopBookshelfAtStartup(s.integrationCtx)
 	}
 	s.reconfigureDecisions(previous, cfg)
+	if s.OCR != nil {
+		s.OCR.Configure(ocrPolicy(cfg))
+		if cfg.OCR.Enabled {
+			tools.PublishOCR(s.OCR)
+		} else {
+			tools.WithdrawOCR(s.OCR)
+		}
+	}
 	if s.RuView != nil {
 		s.RuView.Configure()
 	}
@@ -1474,6 +1484,8 @@ func Start(opts StartOptions) error {
 
 	// EasyDrag flows hook into Mission Control before it starts (flow triggers, startup trigger).
 	s.startDecisions(serverCtx)
+	s.startOCR(serverCtx)
+	defer s.shutdownOCR()
 	defer s.shutdownDecisions(context.Background())
 	s.initFlows()
 	if err := s.MissionManagerV2.StartContext(serverCtx); err != nil {
@@ -1906,6 +1918,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 	s.SpeechLabDeployer = deployer.NewManager(speechCfg, cfg.Runtime.IsDocker, cfg.Docker.Enabled, cfg.Docker.ReadOnly, cfg.Directories.DataDir, logger, deployer.WithDockerClient(dockerutil.NewClient(cfg.Docker.Host, 30*time.Second)))
 	s.initConfigSnapshot()
 	s.initDecisions(opts.InstallDir)
+	s.initOCR()
 	if opts.Vault != nil {
 		s.VaultSecretPrompter = vaultprompt.NewManager(opts.Vault, 5*time.Minute)
 	}
@@ -2100,6 +2113,7 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		// planner. Cancel and join them before any of those stop (see shutdownFlows).
 		s.shutdownFlows(ctx)
 		s.shutdownDecisions(ctx)
+		s.shutdownOCR()
 
 		// Relay runs can own network, database and tool activity. Cancel and
 		// join them before shutting down any of their dependencies.

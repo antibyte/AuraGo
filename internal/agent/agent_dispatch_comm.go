@@ -710,8 +710,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if ext := strings.ToLower(filepath.Ext(filePath)); filePath != "" && ext != "" && ext != ".pdf" {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s is not a PDF. Use analyze_image for PNG/JPG/WebP screenshots and images."}`, filePath)
 				}
-				result := tools.ExecutePDFExtract(cfg.Directories.WorkspaceDir, filePath)
-				if cfg.Tools.PDFExtractor.SummaryMode {
+				result := tools.ExecutePDFExtractContext(ctx, cfg, filePath, dc.SessionID)
+				var extraction struct{ Status string }
+				if cfg.Tools.PDFExtractor.SummaryMode && json.Unmarshal([]byte(result), &extraction) == nil && extraction.Status == "success" {
 					searchQuery, _ := args["search_query"].(string)
 					if searchQuery == "" {
 						searchQuery = "summarise the key content of this document"

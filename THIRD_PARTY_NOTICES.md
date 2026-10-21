@@ -1,5 +1,24 @@
 # Third-party notices
 
+## Optional Indra OCR service
+
+Indra OCR 1.1.2 is Apache-2.0 code by Datalab, pinned to
+[`0e96b93c6810f17cf8352acbb4487cc9e45b66d5`](https://github.com/datalab-to/indra/tree/0e96b93c6810f17cf8352acbb4487cc9e45b66d5).
+Its default models (without the optional math model) are the unmodified v1.1.0
+snapshot [`bd02167fdf2005a19962cc15188f8496a2c87d3b`](https://huggingface.co/datalab-to/indra-ocr/tree/bd02167fdf2005a19962cc15188f8496a2c87d3b).
+They carry separate **AI Pubs OpenRAIL-M License (Modified)** terms, including
+use/redistribution restrictions, attribution and share-alike provisions for
+models and outputs. The complete upstream text is retained verbatim in
+[`licences/texts/Indra-OCR-models.txt`](licences/texts/Indra-OCR-models.txt).
+
+AuraGo's adapter remains MIT. The optional image includes LICENSE-CODE.txt
+(Apache-2.0), LICENSE-MODELS.txt, LICENSE-AURAGO.txt and NOTICE.txt; Python
+distribution licenses remain with the installed packages. JSON and ZIP exports
+include the model terms and attribution; text/Markdown exports include attribution
+and the pinned license link. Model sizes/hashes and Python package hashes are in
+`internal/ocr/runtime/models.json` and `requirements.txt`; immutable image
+digests are generated in `internal/ocr/release.go`. See `documentation/ocr.md`.
+
 ## Native code graph
 
 `github.com/odvcencio/gotreesitter v0.56.0` is MIT licensed,

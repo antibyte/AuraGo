@@ -44,6 +44,7 @@ Diese Einträge binden enger als MIT.
 
 | Projekt | Lizenz | Was gilt |
 | --- | --- | --- |
+| Indra OCR 1.1.2 / Modelle v1.1.0 | Apache-2.0 (Code), AI Pubs OpenRAIL-M Modified (Modelle) | Optionales CPU-Image. Code-Commit `0e96b93c6810f17cf8352acbb4487cc9e45b66d5`; Modell-Commit `bd02167fdf2005a19962cc15188f8496a2c87d3b`. Modellbedingungen enthalten Nutzungs-, Weitergabe-, Attributions- und Share-alike-Vorgaben für Modelle und Ausgaben. Vollständiger unveränderter Text: `texts/Indra-OCR-models.txt`; englische Herkunftsangaben in `THIRD_PARTY_NOTICES.md`. |
 | Stockfish 19.0.1 | GPL-3.0 | Schach-Engine im Desktop, `ui/js/vendor/stockfish/`. Text: `texts/GPL-3.0-only.txt`. |
 | Papirus, WhiteSur | GPL-3.0 | Icon-Themes des virtuellen Desktops. Texte liegen auch in `ui/img/papirus/` und `ui/img/whitesur/`. |
 | Layerling 1.71.0 | AGPL-3.0-only | Optionale CAD-App. Lizenz und Quellarchiv (`source.zip`) liegen in `ui/js/vendor/layerling/`. |
@@ -345,3 +346,4 @@ enthält Platzhalter für Jahr und Namen. Die konkreten Zeilen ersetzen diese Pl
 | `Open-WebUI.txt` | Open WebUI |
 | `CanvasUI-Commons-Clause.txt` | CanvasUI |
 | `C64-Pro-Mono.txt` | C64 Pro Mono |
+| `Indra-OCR-models.txt` | Unveränderte Modellbedingungen für Datalab Indra OCR v1.1.0 |

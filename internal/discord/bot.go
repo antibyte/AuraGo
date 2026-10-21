@@ -527,6 +527,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	if err != nil {
 		return
 	}
+	ctx = tools.WithOCRChatSession(ctx, sessionID)
 	defer releaseRun()
 
 	// Strip the bot mention from the message text
@@ -691,6 +692,9 @@ func processDiscordAttachmentContext(ctx context.Context, att *discordgo.Message
 		defer os.Remove(imgPath)
 
 		analysis, err := telegram.AnalyzeImageContext(ctx, imgPath, cfg)
+		if imageData, readErr := os.ReadFile(imgPath); readErr == nil {
+			inputText += tools.OCRChatBytes(ctx, cfg, att.Filename, imageData)
+		}
 		if err != nil {
 			logger.Error("[Discord] Image analysis failed", "error", err)
 			if errors.Is(err, tools.ErrVisionPublicURLRequired) {
@@ -717,6 +721,7 @@ func processDiscordAttachmentContext(ctx context.Context, att *discordgo.Message
 	}
 	agentPath := "agent_workspace/workdir/attachments/" + filepath.Base(savedPath)
 	fileNote := "[FILE ATTACHED]: " + agentPath
+	fileNote += tools.OCRChatPath(ctx, cfg, agentPath)
 	if att.ContentType != "" {
 		fileNote += " (" + att.ContentType + ")"
 	}

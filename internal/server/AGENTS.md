@@ -2,6 +2,13 @@
 
 ## Purpose
 
+- OCR lifecycle and APIs are owned by `ocr.go` / `ocr_handlers.go`.
+  Status stays passive; accepted jobs use the shared server manager and an
+  authenticated Desktop/agent owner. Read permissions precede staging; app close
+  never cancels jobs. Automatic attachment OCR adds isolated request-local text
+  with one 15-second turn budget. See `internal/ocr/AGENTS.md` and
+  `documentation/ocr.md`; verify `TestOCR*` and bridge catalog gates.
+
 Server-owned HTTP and cross-component integration contracts.
 
 ## Ownership

@@ -2,6 +2,13 @@
 
 ## Purpose
 
+- Optional `ocr` is session-owned asynchronous extraction. Resolve/open input
+  through the existing rooted tool paths before staging; never pass a host path
+  to the parser. Isolate document text and filenames. The PDF compatibility
+  wrapper preserves summary/envelope behavior and explicitly rejects incomplete
+  OCR. Chat shares one 15-second wait budget and deduplicates only within owner,
+  input hash and mode. Verify `TestOCR*`.
+
 Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Ownership

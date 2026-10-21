@@ -1,0 +1,65 @@
+{
+  "revision": "bd02167fdf2005a19962cc15188f8496a2c87d3b",
+  "files": [
+    {
+      "name": "det.onnx",
+      "size": 389948,
+      "sha256": "f2bd4cba23e9c328cf7ec824634e423e191a2c6aacbbf35c62bd79dd70f62f59"
+    },
+    {
+      "name": "lm.npz",
+      "size": 15695957,
+      "sha256": "6c0fb618a363a0acdd05d4f5b0edd9e8146d2d990541b87f6130bbfe17cea58d"
+    },
+    {
+      "name": "lm_cjk.npz",
+      "size": 18955160,
+      "sha256": "6d64f13f4f90f4e529bd63340c6df76238d007feaef2abb903d8cd28d92bc2f3"
+    },
+    {
+      "name": "lm_world.npz",
+      "size": 11641215,
+      "sha256": "34df5e74a2fcbb9cf5e7f360a559375ffa2e04d2d2943a42308c177bcb444d5d"
+    },
+    {
+      "name": "meta.json",
+      "size": 211869,
+      "sha256": "4ce4c94b46f5d644033c02e718322014ff4081270f385038c571912b56696339"
+    },
+    {
+      "name": "order.onnx",
+      "size": 2973138,
+      "sha256": "a42db2e8b536ad3d84045a4b7f9b0a72667cf8be4aa02d63f7b38004719fb180"
+    },
+    {
+      "name": "orient.onnx",
+      "size": 371802,
+      "sha256": "20eaf670f55a7cf9facfe1bdd6c7b8e40be75bbf4d48a3df43f66aa3bbd874fd"
+    },
+    {
+      "name": "rec.onnx",
+      "size": 5042161,
+      "sha256": "475972a2710be4a3cbfeb2bc7f3624ffd563de07de42476fc7a290d4e1ece484"
+    },
+    {
+      "name": "rec_cjk.onnx",
+      "size": 10176018,
+      "sha256": "4a035516a17e62cdf33a4fe2d88077654cb8841cff024685cdef4e351694ef50"
+    },
+    {
+      "name": "rec_rtl.onnx",
+      "size": 4812710,
+      "sha256": "468796bd684486a8388c30c8b4ed2a26e3eeb1f8ff02831c24c2e12c79a2a834"
+    },
+    {
+      "name": "rec_world.onnx",
+      "size": 5627990,
+      "sha256": "c8d1e59f21b04966f179d2d2d8e22b230d22110b3f89855bbbf2624a58c40043"
+    },
+    {
+      "name": "script.onnx",
+      "size": 191630,
+      "sha256": "b6ce4e926e19c243faaf37bd46880398bf2cb4ae56a29e1177a3b017c1280e36"
+    }
+  ]
+}

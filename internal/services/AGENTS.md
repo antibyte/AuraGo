@@ -2,6 +2,14 @@
 
 ## Purpose
 
+- OCR indexing shares the server's optional manager. Keep the indexer's own
+  authorized directory root, extensions and file limits (not the tool workspace
+  jail). OCR supplements image/multimodal content and enters its fingerprint.
+  Incomplete extraction fails before generation publication; valid prior vectors
+  survive. Unavailable OCR may use existing fallback paths for new files, but
+  does not downgrade a valid prior OCR-dependent generation. Verify
+  `TestOCRIndexRootFingerprintAndFailedReplacement`.
+
 Background services and workspace search.
 
 ## Ownership

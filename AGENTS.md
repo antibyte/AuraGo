@@ -282,6 +282,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Chess 3D board and Blender piece kit | `ui/js/desktop/apps/AGENTS.md`, `ui/3d/chess/AGENTS.md`, `assets/chess-3d/AGENTS.md` |
 | Managed Local Model Contract | `internal/localllm/AGENTS.md` |
 | Decisions service and CPU permission | `internal/decisions/AGENTS.md` |
+| Optional Indra OCR and transient jobs | `internal/ocr/AGENTS.md` |
 | EasyDrag flows and Decisions media authorization | `internal/flows/AGENTS.md` |
 | Decisions native scoring runtime and HTTP errors (`runtime_busy`) | `decisions_runtime/AGENTS.md` |
 | Local Wikipedia Contract | `internal/localwiki/AGENTS.md` |
@@ -308,6 +309,14 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Virtual Computers Storage / Managed Garage Contract | `internal/virtualcomputers/AGENTS.md` |
 | Video Studio project, timeline and FFmpeg contract | `internal/videostudio/AGENTS.md` |
 | External browser resource contract | `internal/webassets/AGENTS.md` |
+
+Optional OCR defaults to disabled, with agent access and automatic chat/indexing
+defaulting to true behind that global gate. Persist all four fields through the
+normal config projection. Chat channels bind one OCR wait budget to the actual
+agent session, authorize attachment contents first, and add isolated excerpts
+only to the current request. Preserve file/vision fallbacks when OCR is unavailable.
+The legacy PDF summary path must not summarize an extraction error as a success.
+See `documentation/ocr.md` and the OCR child contract.
 
 ## Development Workflow
 
@@ -624,6 +633,7 @@ Current child AGENTS.md files:
 - `internal/llm/AGENTS.md` — Provider transport trust, URL logging and failover state.
 - `internal/localllm/AGENTS.md` — Local model lifecycle, routing, attestation, and qualification.
 - `internal/decisions/AGENTS.md` — Optional shared decision service, verified artifacts, device placement, CPU permission, and bounded scoring.
+- `internal/ocr/AGENTS.md` — Docker-only Indra OCR, private transport, owner-bound transient jobs and artifact/license pins.
 - `decisions_runtime/AGENTS.md` — Pinned llama.cpp/mtmd scoring process, private protocol, offload evidence, and native/Docker packaging.
 - `internal/localwiki/AGENTS.md` — Offline Wikipedia: edition download/verify/swap, search, tool and content serving (readers: `internal/zim`, `internal/zim/xapian`).
 - `internal/memory/AGENTS.md` — Memory retrieval, hygiene, indexing, and maintenance.

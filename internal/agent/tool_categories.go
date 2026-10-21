@@ -44,6 +44,9 @@ var discoverToolAliases = map[string]string{
 // (discoverToolNameAlias), so a message such as "offline wikipedia" ranks the
 // catalog exactly as before the alias existed while the tool is off.
 var discoverToolNameAliases = map[string]string{
+	"indra":             "ocr",
+	"text recognition":  "ocr",
+	"texterkennung":     "ocr",
 	"local wikipedia":   "local_wikipedia",
 	"offline wikipedia": "local_wikipedia",
 	"lokale wikipedia":  "local_wikipedia",
@@ -156,6 +159,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"smart_file_read", "Intelligently inspect large files: analyze, sample, structure, summarize"},
 		{"archive", "Create and extract tar.gz and zip archives"},
 		{"pdf_extractor", "Extract and optionally summarise text from PDF documents"},
+		{"ocr", "Extract text and layout from PDFs and images using local Indra OCR"},
 		{"pdf_operations", "Read, merge, split, extract text/images from PDFs"},
 		{"image_processing", "Resize, crop, rotate, convert, compress, watermark images"},
 		{"detect_file_type", "Identify file type by content (magic bytes)"},

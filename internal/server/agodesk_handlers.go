@@ -1244,6 +1244,7 @@ func handleAgodeskChatMessage(s *Server, r *http.Request, conn *websocket.Conn, 
 	// context. Preserve that text before adding attachment contents or defaults.
 	routingText := agodeskPersistedMessageFromContext(r.Context(), message)
 	message = buildAgodeskMessageWithAttachments(s, message, attachmentRecords)
+	message += s.ocrAgoDeskAttachments(r.Context(), conversationID, attachmentRecords)
 	chatCtx, cancel := context.WithCancel(r.Context())
 	chatCtx = contextWithAgodeskPersistedMessage(chatCtx, routingText)
 	chatCtx = contextWithAgodeskAttachmentBinding(chatCtx, s, conversationID, attachmentRecords)

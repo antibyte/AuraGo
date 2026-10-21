@@ -17,6 +17,7 @@ import (
 	"aurago/internal/chunking"
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/ocr"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 )
@@ -579,6 +580,20 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 	}
 
 	var content string
+	ocrText, ocrUsed, ocrErr := fi.extractOCR(ctx, dir, path)
+	if ocrErr != nil {
+		outcome.err = fmt.Errorf("OCR extraction failed for %s", relPath)
+		return outcome
+	}
+	if !ocrUsed && indexState.ContentHash != "" {
+		fi.cfgMu.RLock()
+		required := fi.cfg.OCR.Enabled && fi.cfg.OCR.AutomaticIndexing && ocr.Supported(path)
+		fi.cfgMu.RUnlock()
+		if required {
+			outcome.err = fmt.Errorf("OCR unavailable; retaining existing index for %s", relPath)
+			return outcome
+		}
+	}
 	var precomputedEmbedding []float32
 	if multimodal && (isImage || isAudio) {
 		embedder := fi.getMultimodalEmbedder()
@@ -601,7 +616,7 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 		}
 		content = fmt.Sprintf("%s-Datei: %s (Pfad: %s)", kind, info.Name(), relPath)
 	} else if isImage {
-		if tools.VisionRequiresPublicImageURL(fi.cfg) {
+		if tools.VisionRequiresPublicImageURL(fi.cfg) && !(ocrUsed && strings.TrimSpace(ocrText) != "") {
 			fi.logger.Debug("[Indexer] Skipping local image because the Vision provider requires a public URL", "path", relPath, "provider", "agnes")
 			if err := fi.removeTrackedFile(path, collection); err != nil {
 				outcome.err = fmt.Errorf("cleanup unsupported local image %s: %v", path, err)
@@ -635,13 +650,23 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 			}
 		}
 		if visionErr != nil {
-			fi.logger.Warn("[Indexer] Vision analysis failed", "path", path, "error", scrubIndexingError(visionErr))
-			outcome.err = fmt.Errorf("vision error %s: %v", path, visionErr)
-			return outcome
+			if ocrUsed && strings.TrimSpace(ocrText) != "" {
+				analysis = ""
+			} else {
+				fi.logger.Warn("[Indexer] Vision analysis failed", "path", path, "error", scrubIndexingError(visionErr))
+				outcome.err = fmt.Errorf("vision error %s: %v", path, visionErr)
+				return outcome
+			}
 		}
 		content = fmt.Sprintf("Bildanalyse von %s (Pfad: %s):\n%s", info.Name(), relPath, analysis)
 	} else if IsDocumentFile(ext) {
-		extracted, extractErr := ExtractText(path)
+		var extracted string
+		var extractErr error
+		if ext == ".pdf" && ocrUsed {
+			extracted = ocrText
+		} else {
+			extracted, extractErr = ExtractText(path)
+		}
 		if extractErr != nil {
 			if multimodal && ext == ".pdf" {
 				fallbackContent, vec, fallbackErr := fi.indexPDFWithMultimodalFallback(ctx, path, relPath, info.Name())
@@ -680,6 +705,9 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 		content = text
 	}
 
+	if isImage && ocrUsed && strings.TrimSpace(ocrText) != "" {
+		content += "\n\n" + ocrText
+	}
 	if strings.TrimSpace(content) == "" && precomputedEmbedding == nil {
 		if err := fi.removeTrackedFile(path, collection); err != nil {
 			fi.logger.Warn("[Indexer] Failed to remove stale embeddings for empty file", "path", path, "error", scrubIndexingError(err))
@@ -835,6 +863,11 @@ func (fi *FileIndexer) indexModeForFile(ext string, isImage, isAudio, multimodal
 
 func (fi *FileIndexer) indexFingerprintForMode(mode string) string {
 	parts := []string{fileIndexerFingerprint, "mode=" + mode}
+	if mode == fileIndexModePDF || mode == fileIndexModeVision || mode == fileIndexModeMultimodal {
+		fi.cfgMu.RLock()
+		parts = append(parts, tools.OCRFingerprint(fi.cfg))
+		fi.cfgMu.RUnlock()
+	}
 	if fp, ok := fi.vectorDB.(embeddingFingerprinter); ok {
 		if embeddingFingerprint := strings.TrimSpace(fp.EmbeddingFingerprint()); embeddingFingerprint != "" {
 			parts = append(parts, "embedding="+embeddingFingerprint)

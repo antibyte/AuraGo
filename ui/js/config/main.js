@@ -59,6 +59,7 @@ const SECTIONS = [
             { key: 'fallback_llm', icon: '🔄', label: t('config.section.fallback_llm.label'), desc: t('config.section.fallback_llm.desc') },
             { key: 'local_llm', icon: '◈', label: t('config.refresh.local_models'), desc: t('config.section.local_llm.desc') },
             { key: 'decisions', icon: '⑂', label: t('config.decisions.title'), desc: t('config.decisions.description') },
+            { key: 'ocr', icon: '▤', label: t('ocr.title'), desc: t('ocr.description') },
             { key: 'embeddings', icon: '🔗', label: t('config.section.embeddings.label'), desc: t('config.section.embeddings.desc') },
             { key: 'budget', icon: '💰', label: t('config.section.budget.label'), desc: t('config.section.budget.desc') },
             { key: 'memory_analysis', icon: '🧬', label: t('config.section.memory_analysis.label'), desc: t('config.section.memory_analysis.desc') },
@@ -670,6 +671,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     telephone_agent: 109,
     local_llm: 110,
     decisions: 124,
+	ocr: 125,
     speech_lab: 111,
     adguard: 75,
     fritzbox: 76,
@@ -707,6 +709,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
 
 const CONFIG_SIDEBAR_ICON_SYMBOL_PREFIX = 'config-sidebar-icon-';
 const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
+    ocr: '<rect x="35" y="20" width="58" height="88" rx="8" fill="#7da3c8" opacity=".16"/><path d="M29 36V22h16M83 22h16v14M99 92v14H83M45 106H29V92" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M46 47h36M46 63h36M46 79h24" fill="none" stroke="#6fca8f" stroke-width="6" stroke-linecap="round"/>',
     decisions: "<path d=\"M64 17 86 39 64 61 42 39z\" fill=\"#35c7d3\" opacity=\".25\"/><path d=\"M64 17 86 39 64 61 42 39zM64 61v14M32 94V75h64v19\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"6\" stroke-linejoin=\"round\"/><rect x=\"20\" y=\"91\" width=\"24\" height=\"22\" rx=\"5\" fill=\"#6fca8f\"/><rect x=\"84\" y=\"91\" width=\"24\" height=\"22\" rx=\"5\" fill=\"#7da3c8\"/>",
     treg: '<rect x="27" y="25" width="74" height="78" rx="10" fill="none" stroke="#35c7d3" stroke-width="6"/><path d="M43 46h42M43 64h42M43 82h26" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round"/>',
     gog: '<rect x="22" y="28" width="52" height="40" rx="8" fill="#4285f4" opacity=".2"/><rect x="40" y="46" width="52" height="40" rx="8" fill="#34a853" opacity=".25"/><path d="M22 28h52v40H22zM40 46h52v40H40z" fill="none" stroke="#4285f4" stroke-width="6" stroke-linejoin="round"/><circle cx="66" cy="66" r="7" fill="#f6cf58"/>',
@@ -3437,6 +3440,7 @@ const SECTION_MODULES = {
     ruview: { m: 'ruview', fn: 'renderRuViewSection' },
     local_llm: { m: 'local_llm', fn: 'renderLocalLLMSection' },
     decisions: { m: 'decisions', fn: 'renderDecisionsSection' },
+    ocr: { m: 'ocr', fn: 'renderOCRSection' },
     local_wikipedia: { m: 'local_wikipedia', fn: 'renderLocalWikipediaSection' },
     three_d_printers: { m: 'three_d_printers', fn: 'renderThreeDPrintersSection' },
     fritzbox: { m: 'fritzbox', fn: 'renderFritzBoxSection' },

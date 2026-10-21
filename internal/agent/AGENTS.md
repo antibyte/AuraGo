@@ -477,6 +477,12 @@ Tools are defined in `internal/tools/`:
 
 ## Verification
 
+- Optional OCR uses `OCREnabled` in the shared native/schema/bridge flags.
+  `dispatchOCR` forwards the originating session and raw structured arguments;
+  never create a global owner or grant setup/lifecycle control to the agent.
+  Keep its manual, discovery aliases, Python bridge group and external agotrain
+  operation fixtures synchronized. Verify `TestOCRSchemaDiscoveryAndGates`.
+
 - Insights use the existing post-turn analyzer and current-run evidence ledger.
   `learnings.enabled` and writable memory are required for persistence; co-agents
   cannot write. Server-resolved project scopes must survive channel, prepared

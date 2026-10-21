@@ -13,6 +13,7 @@ const (
 	// DecisionsOwner is the canonical owner of the managed Decisions runtime
 	// and discovery containers (internal/decisions).
 	DecisionsOwner = "decisions"
+	OCROwner       = "ocr"
 
 	LocalLLMContainerName   = "aurago-local-llm"
 	LocalLLMKeySeedName     = "aurago-local-llm-key-seed"

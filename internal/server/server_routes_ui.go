@@ -73,7 +73,7 @@ func chromecastMediaServerBindHost(host string) string {
 }
 
 var uiI18NSections = map[string][]string{
-	"config":    {"config", "chat", "help", "security", "shared", "ruview"},
+	"config":    {"config", "chat", "help", "security", "shared", "ruview", "ocr"},
 	"dashboard": {"dashboard", "chat", "config", "knowledge", "shared"},
 	// Desktop shell embeds only desktop.* (+ common via GetJSONForSections).
 	// App prefixes (cheater, pixel, chat, …) load on demand via /api/i18n?sections=

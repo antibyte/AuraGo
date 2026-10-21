@@ -21,7 +21,7 @@ Use the `list_skills` tool and inspect the returned skill names and parameter sc
 
 Call `execute_skill` with the discovered skill name in `skill` and the skill-specific parameters in `skill_args`. For example, a search skill would receive its query and result limit inside `skill_args`; a scraper skill would receive its URL inside `skill_args`; a document extractor would receive its file path inside `skill_args`.
 
-Use `analyze_image` instead of `pdf_extractor` for PNG/JPG/WebP screenshots or photos.
+Use `ocr` for text/layout recognition in supported images, and `analyze_image` for visual interpretation.
 
 ## Notes
 - Skills are Python scripts in `agent_workspace/skills/` with a `.json` manifest

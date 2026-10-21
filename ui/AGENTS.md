@@ -2,6 +2,15 @@
 
 ## Purpose
 
+OCR settings live in `cfg/ocr.js` and the native Desktop module in
+`js/desktop/apps/ocr.js`. Keep the `ocr` domain in the config i18n manifest
+and all sixteen locales, the lazy PDF.js/DOMPurify/marked assets, the window
+dispose mapping and Desktop file dialog context. Lifecycle buttons require saved
+settings and never run from status polling. New preferred icons need Papirus,
+WhiteSur and XP mappings plus the config sprite slot, inline symbol, SVG, CSS
+position and metadata. Verify `TestDesktopOCR*Browser`, sprite/manifest contracts,
+locale checks and `node scripts/build-ui-bundles.js --check`.
+
 This subtree owns AuraGo's externally packaged HTML, CSS, JavaScript, translations, fonts,
 images, and browser-oriented regression tests.
 

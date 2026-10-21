@@ -12,6 +12,7 @@
     "Papirus-Light"
   ],
   "icons": {
+    "ocr": "img/papirus/icons/pdf.svg",
     "ruview": "img/papirus/icons/ruview.svg",
     "layerling": "img/papirus/icons/layerling.svg",
     "ha-switchboard": "img/papirus/icons/ha-switchboard.svg",

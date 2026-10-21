@@ -206,6 +206,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 	}
 	msg := update.Message
 	sessionID, err := shortTermMem.ResolveUserSession(ctx, "default")
+	ctx = tools.WithOCRChatSession(ctx, sessionID)
 	if err != nil {
 		logger.Error("Resolve Telegram conversation", "error", err)
 		return
@@ -332,6 +333,9 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 
 				// 3. Analyze via Vision API
 				analysis, err := AnalyzeImageContext(ctx, imgPath, cfg)
+				if imageData, readErr := os.ReadFile(imgPath); readErr == nil {
+					inputText += tools.OCRChatBytes(ctx, cfg, "photo.jpg", imageData)
+				}
 				if err != nil {
 					if ctx.Err() != nil {
 						return
@@ -393,6 +397,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 					inputText = fileNote
 				}
 				logger.Info("Telegram document saved", "agent_path", agentPath)
+				inputText += tools.OCRChatPath(ctx, cfg, agentPath)
 			}
 		}
 	}

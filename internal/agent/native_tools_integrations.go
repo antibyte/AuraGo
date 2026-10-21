@@ -1082,6 +1082,9 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.LocalWikipediaEnabled {
 		tools = append(tools, localWikipediaSchema())
 	}
+	if ff.OCREnabled {
+		tools = append(tools, ocrSchema())
+	}
 	if ff.RetroGamesEnabled {
 		tools = append(tools, retroGamesSchema())
 	}

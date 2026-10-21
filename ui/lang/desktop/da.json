@@ -7990,5 +7990,6 @@
   "homepage_studio.sites_outcome_unknown": "Resultat ukendt",
   "homepage_studio.sites_target_active": "Aktiv",
   "homepage_studio.sites_target_inactive": "Stoppet",
-  "homepage_studio.sites_target_unknown": "Status ukendt"
+  "homepage_studio.sites_target_unknown": "Status ukendt",
+  "desktop.app_ocr": "OCR"
 }

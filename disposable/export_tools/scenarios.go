@@ -234,13 +234,13 @@ func makeDirectScenario(
 ) (Scenario, error) {
 	id := scenarioID("direct", choice.Tool.Name, language, sequence)
 	call := newToolCall(id, 0, choice.Tool.Name, choice.Arguments)
-	result := successResult(choice.Tool.Name, language, sequence)
+	result := successResult(choice, language, sequence)
 	messages := []Message{
 		{Role: "system", Content: trainingSystemPrompt},
 		{Role: "user", Content: naturalTask(choice, language, sequence)},
 		{Role: "assistant", ToolCalls: []ToolCall{call}},
 		{Role: "tool", ToolCallID: call.ID, Name: choice.Tool.Name, Content: result},
-		{Role: "assistant", Content: finalSuccess(choice.Tool, language, sequence)},
+		{Role: "assistant", Content: finalSuccess(choice, language, sequence)},
 	}
 	scenario := Scenario{
 		ID:            id,
@@ -298,8 +298,8 @@ func makeMultiScenario(
 			{Role: "system", Content: trainingSystemPrompt},
 			{Role: "user", Content: user},
 			{Role: "assistant", ToolCalls: []ToolCall{firstCall, secondCall}},
-			{Role: "tool", ToolCallID: firstCall.ID, Name: first.Tool.Name, Content: successResult(first.Tool.Name, language, sequence)},
-			{Role: "tool", ToolCallID: secondCall.ID, Name: second.Tool.Name, Content: successResult(second.Tool.Name, language, sequence+1)},
+			{Role: "tool", ToolCallID: firstCall.ID, Name: first.Tool.Name, Content: successResult(first, language, sequence)},
+			{Role: "tool", ToolCallID: secondCall.ID, Name: second.Tool.Name, Content: successResult(second, language, sequence+1)},
 			{Role: "assistant", Content: final},
 		},
 		Expectations: Expectations{
@@ -376,7 +376,7 @@ func makeDiscoveryScenario(
 			{Role: "assistant", ToolCalls: []ToolCall{discoverCall}},
 			{Role: "tool", ToolCallID: discoverCall.ID, Name: discover.Name, Content: string(searchResult)},
 			{Role: "assistant", ToolCalls: []ToolCall{invokeCall}},
-			{Role: "tool", ToolCallID: invokeCall.ID, Name: invoke.Name, Content: successResult(target.Tool.Name, language, sequence)},
+			{Role: "tool", ToolCallID: invokeCall.ID, Name: invoke.Name, Content: successResult(target, language, sequence)},
 			{Role: "assistant", Content: final},
 		},
 		Expectations: Expectations{
@@ -420,7 +420,7 @@ func makeErrorScenario(
 		retry := newToolCall(id, 1, choice.Tool.Name, choice.Arguments)
 		messages = append(messages,
 			Message{Role: "assistant", Content: errorText, ToolCalls: []ToolCall{retry}},
-			Message{Role: "tool", ToolCallID: retry.ID, Name: choice.Tool.Name, Content: successResult(choice.Tool.Name, language, sequence)},
+			Message{Role: "tool", ToolCallID: retry.ID, Name: choice.Tool.Name, Content: successResult(choice, language, sequence)},
 		)
 		expected = append(expected, ExpectedCall{Name: choice.Tool.Name, Arguments: cloneMap(choice.Arguments)})
 		outcome = "recovered"
@@ -910,7 +910,25 @@ func argumentSummaryExcluding(arguments map[string]interface{}, excluded ...stri
 	return strings.Join(parts, ", ")
 }
 
-func successResult(tool, language string, sequence int) string {
+func successResult(choice fixtureChoice, language string, sequence int) string {
+	tool := choice.Tool.Name
+	if tool == "ocr" {
+		jobID := "example-ocr-job"
+		if value, ok := choice.Arguments["job_id"].(string); ok && value != "" {
+			jobID = value
+		}
+		result := map[string]interface{}{"id": jobID, "state": "completed", "files": []interface{}{map[string]interface{}{"id": "example-ocr-file", "state": "completed", "page_count": 1}}}
+		switch choice.Arguments["operation"] {
+		case "extract":
+			result["state"] = "queued"
+		case "cancel":
+			result = map[string]interface{}{"job_id": jobID, "state": "cancelled"}
+		case "result":
+			result = map[string]interface{}{"job_id": jobID, "state": "completed", "content": "<external_data>\nSynthetic recognized document text.\n</external_data>"}
+		}
+		raw, _ := json.Marshal(map[string]interface{}{"status": "success", "result": result})
+		return string(raw)
+	}
 	summariesDE := []string{"Aktion abgeschlossen", "Anfrage erfolgreich verarbeitet", "Ergebnis verfügbar"}
 	summariesEN := []string{"Action completed", "Request processed successfully", "Result available"}
 	summary := summariesDE[sequence%len(summariesDE)]
@@ -925,7 +943,13 @@ func successResult(tool, language string, sequence int) string {
 	return string(raw)
 }
 
-func finalSuccess(tool ToolExport, language string, sequence int) string {
+func finalSuccess(choice fixtureChoice, language string, sequence int) string {
+	if choice.Tool.Name == "ocr" && choice.Arguments["operation"] == "extract" {
+		if language == "de" {
+			return "Der OCR-Auftrag wurde angenommen (example-ocr-job). Die Erkennung läuft im Hintergrund; das Ergebnis ist noch offen."
+		}
+		return "OCR job accepted (example-ocr-job). Recognition continues in the background; its result is still pending."
+	}
 	de := []string{
 		"Die angeforderte Aktion wurde erfolgreich abgeschlossen.",
 		"Erledigt; das Tool-Ergebnis bestätigt den Erfolg.",
@@ -939,7 +963,6 @@ func finalSuccess(tool ToolExport, language string, sequence int) string {
 	if language == "en" {
 		return en[sequence%len(en)]
 	}
-	_ = tool
 	return de[sequence%len(de)]
 }
 

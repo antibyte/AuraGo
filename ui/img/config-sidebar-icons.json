@@ -1005,6 +1005,14 @@
       "row": 11,
       "source_type": "custom",
       "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "ocr",
+      "slot": 125,
+      "column": 4,
+      "row": 11,
+      "source_type": "original_vector",
+      "source": "AuraGo original scan-document SVG artwork"
     }
   ]
 }

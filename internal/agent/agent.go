@@ -513,6 +513,7 @@ type ToolCall struct {
 	StartTime    string          `json:"start_time"`
 	EndTime      string          `json:"end_time"`
 	FileID       string          `json:"file_id"`
+	OCRJobID     string          `json:"job_id"`
 	Range        string          `json:"range"`
 	Values       [][]interface{} `json:"values"`
 	// Vision / STT fields

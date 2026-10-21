@@ -3,6 +3,13 @@
 #  This file is used for fresh installations. On first start, the
 #  Setup Wizard will guide you through the initial configuration.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Optional Indra OCR. Managed CPU Docker service; models stay on this machine.
+ocr:
+  enabled: false
+  agent_access: true
+  automatic_chat: true
+  automatic_indexing: true
 auth:
     enabled: true                 # login protection active by default
     allow_unauthenticated_remote: false # unsafe: required when auth is off and any remote ingress is configured

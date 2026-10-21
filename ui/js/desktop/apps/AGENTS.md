@@ -1,5 +1,16 @@
 # Desktop App Modules - Child DOX Contract
 
+## OCR
+
+- `ocr.js` uses the shared server queue; disposal aborts only window requests,
+  timers and PDF.js tasks. Reopen lists the same authenticated owner's jobs.
+- Reuse Desktop file dialogs, exports, theme tokens, PDF.js, DOMPurify and the
+  `ocr` i18n domain in all sixteen locales. Container queries keep narrow windows
+  usable. Render raw text/JSON with textContent and sanitize Markdown.
+- Save through normal Desktop write gates and retain export attribution/model
+  notices. Test batch/background/reopen/cancel/preview/export, XSS, readonly,
+  narrow windows and light/dark themes with `TestDesktopOCRBrowser`.
+
 ## Camera
 
 - A photo or video handoff reuses the desktop upload. The request sends `unique=1` and `If-None-Match: *`, then keeps the returned `Pictures/` or `Videos/` path. The same capture is not uploaded again. A closed window drops a late result.

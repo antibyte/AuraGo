@@ -2,6 +2,13 @@
 
 Inventory of external libraries, runtimes, fonts, icons, and other third-party assets used by **AuraGo**.
 
+Optional Indra OCR 1.1.2 runs in the isolated CPU image described in
+[`documentation/ocr.md`](documentation/ocr.md). Its code is Apache-2.0;
+the unmodified model snapshot v1.1.0 has separate modified OpenRAIL-M terms.
+The exact source/model revisions, Python package hashes and image digests are
+recorded with the integration. See [the English notices](THIRD_PARTY_NOTICES.md#optional-indra-ocr-service)
+and [the complete model license](licences/texts/Indra-OCR-models.txt).
+
 The German compact listing and the license texts that must travel with a redistribution are in [`licences/UEBERSICHT.md`](licences/UEBERSICHT.md).
 
 Layerling 1.71.0 (commit `8704d5c99adfeb981be31bb5eddc9c17f75ab281`) is an optional

@@ -2012,6 +2012,7 @@ type Config struct {
 	RTLSDR         RTLSDRConfig         `yaml:"rtl_sdr" json:"rtl_sdr"`
 	LocalLLM       LocalLLMConfig       `yaml:"local_llm" json:"local_llm"`
 	Decisions      DecisionsConfig      `yaml:"decisions" json:"decisions"`
+	OCR            OCRConfig            `yaml:"ocr" json:"ocr"`
 	LocalWikipedia LocalWikipediaConfig `yaml:"local_wikipedia" json:"local_wikipedia"`
 	RetroGames     RetroGamesConfig     `yaml:"retro_games" json:"retro_games"`
 	ThreeDPrinters ThreeDPrintersConfig `yaml:"three_d_printers"`
