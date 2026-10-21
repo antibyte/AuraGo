@@ -74,5 +74,47 @@ close(look, target, 'ends on the overview target');
     assert.ok(wide.shadowHalf >= 17.5 && wide.waterRadius === 80);
     assert.ok(Math.hypot(...overviewFor({ island: { center: [0, 0], half: [20, 20] }, tee, cup }).position.map((v, i) => v - [0, .08, 0][i])) <= 60 + 1e-9, 'distance is capped at 60 m');
 }
+// A large island is framed by its playable area (path and every corridor plus 2.5 m), not by the whole island.
+{
+    const distanceOf = pose => Math.hypot(...pose.position.map((value, i) => value - pose.target[i]));
+    const island = { center: [10, 4], half: [17, 14.7], power: 3, wobble: .015 };
+    const main = [[0, .16, 0], [12, .16, 0], [22, -.4, 12]], branch = [[12, .16, 0], [14, .16, 12], [22, -.4, 12]];
+    const wide = overviewFor({ island, tee: main[0], cup: main[2], path: main, corridors: [main, branch] });
+    // Box x 0..22, z 0..12 -> centre (11, 6), half extent 11 + 2.5.
+    close(wide.target, [11, -.12, 6], 'target is the centre of the playable box at the mean tee/cup height');
+    assert.ok(Math.abs(distanceOf(wide) - 13.5 * 3.4) < 1e-9, `framed by the playable box: ${distanceOf(wide)}`);
+    close(wide.position.map((value, i) => value - wide.target[i]).map(value => value / distanceOf(wide)), [10, 13, 14].map(value => value / Math.hypot(10, 13, 14)), 'playable framing keeps the view direction');
+    const whole = overviewFor({ island, tee: main[0], cup: main[2] });
+    assert.ok(distanceOf(wide) < distanceOf(whole), 'the playable box is closer than the whole island');
+    // Shadow camera and water still cover the island.
+    assert.equal(wide.shadowHalf, whole.shadowHalf);
+    assert.equal(wide.waterRadius, whole.waterRadius);
+    assert.ok(wide.shadowHalf >= 17 + 1.5 && wide.waterRadius === 85);
+    // A branch outside the main route widens the box.
+    const longBranch = overviewFor({ island, tee: main[0], cup: main[2], path: main, corridors: [main, [[12, .16, 0], [12, .16, 25], [22, -.4, 12]]] });
+    assert.ok(Math.abs(distanceOf(longBranch) - (12.5 + 2.5) * 3.4) < 1e-9, 'a corridor counts like the main route');
+    // A tiny playable box never gets closer than the P2 distance; routes without usable points fall back to the island.
+    const small = overviewFor({ island, tee: [0, 0, 0], cup: [3, 0, 0], path: [[0, 0, 0], [3, 0, 0]] });
+    assert.ok(Math.abs(distanceOf(small) - 21.6) < 1e-9, 'minimum distance is 21.6 m (the P2 view distance)');
+    close(overviewFor({ island, tee: main[0], cup: main[2], path: [[NaN, 0, NaN]] }).target, whole.target, 'unusable routes fall back to the island framing');
+    // Small islands keep the P2 pose even with routes.
+    const legacy = overviewFor({ island: { center: [0, -.1], half: [4.9, 5.35] }, tee: [0, .16, 4.45], cup: [0, 0, -3.86], path: [[0, .16, 4.45], [0, 0, -3.86]] });
+    close(legacy.position, [10, .08 + 13, .295 + 14], 'small island keeps the P2 pose with a path');
+}
+// The fog thins out with the view distance of large courses and stays untouched for the P2 pose.
+{
+    const tee = [0, .16, 4.45], cup = [0, 0, -3.86];
+    assert.equal(overviewFor({ island: { center: [0, 0], half: [4.9, 5.35] }, tee, cup }).fogScale, 1);
+    assert.equal(overviewFor({ tee, cup }).fogScale, 1);
+    const island = { center: [0, 0], half: [17, 15] }, route = [[0, .16, 0], [24, .16, 12]];
+    const pose = overviewFor({ island, tee: route[0], cup: route[1], path: route });
+    const distance = Math.hypot(...pose.position.map((value, i) => value - pose.target[i]));
+    assert.ok(pose.fogScale < 1 && Math.abs(pose.fogScale * distance - Math.hypot(10, 13, 14)) < 1e-9, 'density x distance stays at the P2 value');
+    for (const id of ['pirate', 'temple']) {
+        const fogAtLane = scale => 1 - Math.exp(-((LOOKS[id].fog.density * scale * distance) ** 2));
+        assert.ok(fogAtLane(pose.fogScale) <= fogAtLane(1) / 2, `${id}: fog over the lane at ${distance.toFixed(0)} m`);
+        assert.ok(Math.abs(fogAtLane(pose.fogScale) - (1 - Math.exp(-((LOOKS[id].fog.density * Math.hypot(10, 13, 14)) ** 2)))) < 1e-9, `${id}: lane fog equals the P2 overview`);
+    }
+}
 
 console.log('AuraGolf look tests: ok');

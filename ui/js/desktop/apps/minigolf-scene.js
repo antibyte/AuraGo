@@ -368,7 +368,8 @@ export function createScene(host, options) {
     }
     function applyLook() {
         scene.background = new THREE.Color(look.background);
-        scene.fog = look.fog ? new THREE.FogExp2(look.fog.color, look.fog.density) : null;
+        // The fog thins out with the overview distance of large courses (overviewFor), so the lane stays as clear as in P2.
+        scene.fog = look.fog ? new THREE.FogExp2(look.fog.color, look.fog.density * (overview?.fogScale ?? 1)) : null;
         renderer.toneMappingExposure = look.exposure;
         sun.color.set(look.sun.color); sun.intensity = look.sun.intensity;
         frameLight();

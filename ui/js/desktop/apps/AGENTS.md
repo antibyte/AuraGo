@@ -102,10 +102,15 @@
   `scripts/test-minigolf-collision.mjs` and the mechanics, loop prototype and seam cases in
   `scripts/test-minigolf-physics.mjs`.
 - P3 scene and game: `overviewFor(course)` (`minigolf-camera.js`, pure) returns the overview
-  pose, `shadowHalf` and `waterRadius` from `course.island`. A half-axis up to 5.5 m keeps the
-  fixed (10, 13, 14) view of the tee/cup midpoint (shadow ±9, water 60); larger islands look at the
-  island centre from `clamp(3.4 · span, 21.6, 60)` m with shadow ±max(9, span + 1.5) and water
-  radius max(60, 5 · span). The scene follows it (orbit `maxDistance`, camera `far`, sun target at
+  pose, `shadowHalf`, `waterRadius` and `fogScale`. An island half-axis up to 5.5 m keeps the
+  fixed (10, 13, 14) view of the tee/cup midpoint (shadow ±9, water 60, fog scale 1). A larger
+  course is framed by its playable area, the plan box of `path` and every `corridors` line plus
+  2.5 m on each side: the camera looks at the box centre from `clamp(3.4 · half extent, 21.6, 60)`
+  m (a course without routes falls back to the island centre and half-axis). Shadow ±max(9, island
+  half-axis + 1.5) and water radius max(60, 5 · island half-axis) still cover the whole island.
+  `fogScale = min(1, 21.56 / distance)` multiplies the look's `FogExp2` density in `applyLook`, so
+  the fog over the lane at the overview distance equals the P2 value (4.5 % pirate, 8.7 % temple).
+  The scene follows the pose (orbit `maxDistance`, camera `far`, sun target at
   the island centre). `scene.load(course)` reads colliders from the GLB when `course.collision`
   exists (v1: `course.colliders`; an unreadable GLB throws `course_collision`) and resolves to
   `{ colliders }`; the game passes `{ ...course, colliders }` to physics and the lane map. Nodes with

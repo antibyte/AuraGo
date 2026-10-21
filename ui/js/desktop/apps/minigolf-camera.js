@@ -11,24 +11,46 @@ export function pathLength(path) {
 
 export const introDuration = path => Math.min(4.5, Math.max(2.5, .35 * pathLength(path)));
 
-// Overview pose that frames the whole island. Islands up to 5.5 m keep the fixed P2 view
-// (midpoint of tee and cup, offset (10, 13, 14)); larger ones look at the island centre from
-// farther away. shadowHalf is the half-width of the sun shadow camera, waterRadius the open water disc.
-const VIEW = [10, 13, 14], VIEW_LENGTH = Math.hypot(...VIEW);
+// Overview pose. Small islands (half axis up to 5.5 m, the P2 courses) keep the fixed view of the tee/cup midpoint
+// at offset (10, 13, 14). A larger course is framed by its playable area: the bounding box of `path` and every
+// corridor plus MARGIN on each side, looked at from `clamp(3.4 * half extent, 21.6, 60)` m (a course without routes
+// falls back to its island). The island only sizes the shadow camera (`shadowHalf`, half-width of the sun shadow
+// camera) and the open water disc (`waterRadius`), because both have to cover everything that is drawn.
+// `fogScale` (at most 1) shrinks the fog density in step with the view distance beyond the fixed P2 distance, so
+// the playable area is as clear as before.
+const VIEW = [10, 13, 14], VIEW_LENGTH = Math.hypot(...VIEW), MARGIN = 2.5;
+const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
+
+// Plan-view bounding box of every route of the course, or null without usable points.
+function playableBox(course) {
+    const lines = [course.path, ...(Array.isArray(course.corridors) ? course.corridors : [])];
+    const box = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
+    for (const line of lines) {
+        if (!Array.isArray(line)) continue;
+        for (const point of line) {
+            if (!Array.isArray(point) || !Number.isFinite(point[0]) || !Number.isFinite(point[2])) continue;
+            box.minX = Math.min(box.minX, point[0]); box.maxX = Math.max(box.maxX, point[0]);
+            box.minZ = Math.min(box.minZ, point[2]); box.maxZ = Math.max(box.maxZ, point[2]);
+        }
+    }
+    return Number.isFinite(box.minX) ? box : null;
+}
+
 export function overviewFor(course) {
     const { tee, cup } = course, island = course.island;
     const half = Array.isArray(island?.half) ? island.half : null;
-    const span = half ? Math.max(Number(half[0]) || 0, Number(half[1]) || 0) : 0;
-    if (span <= 5.5) {
+    const islandSpan = half ? Math.max(Number(half[0]) || 0, Number(half[1]) || 0) : 0;
+    if (islandSpan <= 5.5) {
         const target = [0, 1, 2].map(a => (tee[a] + cup[a]) / 2);
-        return { position: target.map((value, a) => value + VIEW[a]), target, shadowHalf: 9, waterRadius: 60 };
+        return { position: target.map((value, a) => value + VIEW[a]), target, shadowHalf: 9, waterRadius: 60, fogScale: 1 };
     }
-    const center = Array.isArray(island.center) ? island.center : [0, 0];
-    const target = [center[0], (tee[1] + cup[1]) / 2, center[1]];
-    const distance = Math.max(21.6, Math.min(60, span * 3.4));
+    const box = playableBox(course), centre = Array.isArray(island.center) ? island.center : [0, 0], height = (tee[1] + cup[1]) / 2;
+    const target = box ? [(box.minX + box.maxX) / 2, height, (box.minZ + box.maxZ) / 2] : [centre[0], height, centre[1]];
+    const span = box ? Math.max(box.maxX - box.minX, box.maxZ - box.minZ) / 2 + MARGIN : islandSpan;
+    const distance = clamp(span * 3.4, 21.6, 60);
     return {
         position: target.map((value, a) => value + VIEW[a] / VIEW_LENGTH * distance), target,
-        shadowHalf: Math.max(9, span + 1.5), waterRadius: Math.max(60, span * 5)
+        shadowHalf: Math.max(9, islandSpan + 1.5), waterRadius: Math.max(60, islandSpan * 5), fogScale: Math.min(1, VIEW_LENGTH / distance)
     };
 }
 
