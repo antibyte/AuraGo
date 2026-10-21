@@ -270,7 +270,7 @@ Kollisionsteile `colliders[]`: `{ shape: 'box', position, halfExtents, rotation?
 | Größe | Grenze |
 |---|---|
 | Laufzeit-Assets gesamt | ≤ 32 MiB (bis 40 MiB nur mit Begründung im README, wenn sonst die Qualität leidet) |
-| Bahn-GLB | ≤ 1 MiB, ≤ 32 000 Dreiecke, ≤ 32 Mesh-Knoten |
+| Bahn-GLB | ≤ 1,25 MiB, ≤ 36 000 Dreiecke, ≤ 32 Mesh-Knoten (angehoben für Looping- und Halfpipe-Bahnen; die Gesamtgrenze bleibt) |
 | Manifest | ≤ 256 KB |
 | Instanzen je Bahn | ≤ 220 |
 | Kit-GLB, Requisit, Vorschaubild | wie P2 |

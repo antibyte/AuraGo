@@ -273,7 +273,7 @@ with probe content. The steps:
 - Manifest entry (`course_entry.py`, contract V2): `bounds` = island outline box + 1.5 m in x/z, y from
   `min(water - 0.4, lowest floor - 4)` (moon: second only) to the highest floor or cannon arc + 6; `water` = sea slab
   (pirate, temple), ponds and, outside the moon, gap volumes. `mechanics`, `obstacles` and `cycle` are passed through
-  from the data. Budgets are enforced by `courses.check_budget`: 1 MiB, 32,000 triangles, 32 mesh nodes.
+  from the data. Budgets are enforced by `courses.check_budget`: 1.25 MiB, 36,000 triangles, 32 mesh nodes.
 - Not built yet: supports and bridge posts under elevated pieces, tunnel portals, pond water surfaces and the
   mechanic and obstacle parts.
 

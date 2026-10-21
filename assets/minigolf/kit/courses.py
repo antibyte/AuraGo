@@ -25,7 +25,7 @@ from .course_entry import entry as manifest_entry
 from .dress import Dresser
 
 WORLD_DATA = {"pirate": course_data_pirate, "temple": course_data_temple, "moon": course_data_moon}
-MAX_BYTES, MAX_TRIANGLES, MAX_MESH_NODES = 1024 * 1024, 32000, 32
+MAX_BYTES, MAX_TRIANGLES, MAX_MESH_NODES = 1280 * 1024, 36000, 32
 
 
 def all_courses():
@@ -60,7 +60,7 @@ def discard_scene(scene, model, home):
 
 
 def check_budget(course_id, size, triangles, mesh_nodes):
-    """Raise when the GLB exceeds a runtime budget (1 MiB, 32,000 triangles, 32 mesh nodes)."""
+    """Raise when the GLB exceeds a runtime budget (1.25 MiB, 36,000 triangles, 32 mesh nodes)."""
     problems = []
     if size > MAX_BYTES:
         problems.append("%d bytes (limit %d)" % (size, MAX_BYTES))
