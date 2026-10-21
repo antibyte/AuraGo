@@ -7,13 +7,20 @@ import { loadPixelLibs } from './pixel-test-util.mjs';
 const { AuraPixelLib: Lib } = loadPixelLibs(['pixel-lib-core.js', 'pixel-lib-cutout.js']);
 const C = Lib.cutout;
 const results = [];
+const pending = [];
+// Checks may be synchronous or async; the printed order is the call order only for the awaited ones, so everything is
+// collected before the summary.
 function check(name, fn) {
-    try {
-        fn();
-        results.push('ok   ' + name);
-    } catch (err) {
-        results.push('FAIL ' + name + ': ' + (err && err.stack || err));
-    }
+    const run = (async () => {
+        try {
+            await fn();
+            results.push('ok   ' + name);
+        } catch (err) {
+            results.push('FAIL ' + name + ': ' + (err && err.stack || err));
+        }
+    })();
+    pending.push(run);
+    return run;
 }
 
 // --- synthetic pictures ---
@@ -333,6 +340,312 @@ check('ops run through handleMessage with progress and a transfer list', () => {
     assert.match(cancelled.error || '', /cancel/);
 });
 
+
+// ---------------------------------------------------------------------------------------------------------------
+// The cutout module against the fake DOM of test-pixel-core (canvases there hold no pixels, so these checks follow the
+// flows: busy state, history labels, layer order, engine choice, refine contexts; the maths is covered above).
+// ---------------------------------------------------------------------------------------------------------------
+
+async function moduleChecks() {
+    const { installFakeDom, makeEl, loadPixelApp } = await import('./pixel-test-dom.mjs');
+    installFakeDom();
+    const Pixel = loadPixelApp();
+    const runtimes = [];
+    Pixel.registerModule('test-capture', r => { runtimes.push(r); });
+    const notes = [];
+    const calls = [];
+    const scenario = { status: { available: false, runtime_ready: false, busy: false, models: [] }, cutout: null, failure: null };
+    const api = async (url, options) => {
+        calls.push({ url, method: options && options.method, body: options && options.body });
+        if (url === '/api/pixel/cutout/status') return JSON.parse(JSON.stringify(scenario.status));
+        if (url === '/api/pixel/cutout') {
+            if (scenario.failure) throw scenario.failure;
+            return scenario.cutout;
+        }
+        return {};
+    };
+    const host = makeEl('div');
+    window.PixelApp.render(host, 'w-cutout', {
+        esc: v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'),
+        t: (k, f) => f || k, api, iconMarkup: () => '', notify: n => notes.push(n), setWindowMenus: () => {}, readonly: false
+    });
+    const rt = runtimes[runtimes.length - 1];
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    // undo moves the index, not the length: positions and labels are read from historyIdx
+    const last = () => rt.history[rt.historyIdx].label;
+    const cutoutCalls = () => calls.filter(c => c.url === '/api/pixel/cutout');
+
+    check('module: panel, tool, menu items, commands and runtime methods are registered', () => {
+        assert.ok(Pixel.listModules().some(m => m.id === 'cutout'));
+        assert.equal(Pixel.getPanel('cutout').dock, 'inspector');
+        assert.ok(Pixel.getPanel('cutout').order > Pixel.getPanel('transform').order && Pixel.getPanel('cutout').order < Pixel.getPanel('ai').order);
+        const tool = Pixel.getTool('cutout-brush');
+        assert.ok(tool && typeof tool.onDown === 'function' && typeof tool.onUp === 'function' && typeof tool.overlay === 'function');
+        assert.equal(tool.raster, false, 'the brush paints the mask, so a pixel lock must not block it');
+        ['computeSubjectMask', 'removeBackground', 'cutoutSelectSubject', 'cutoutToLayer', 'cutoutBlurBackground', 'cutoutApplyMask', 'cutoutSetRefine']
+            .forEach(name => assert.equal(typeof rt[name], 'function', name));
+        const ids = rt.listCommands().map(c => c.id);
+        ['menu:ai:cutout-remove-bg', 'menu:ai:cutout-to-layer', 'menu:ai:cutout-blur-bg', 'panel:cutout', 'tool:cutout-brush'].forEach(id => assert.ok(ids.includes(id), id));
+        assert.ok(host.innerHTML.includes('data-section="cutout"') && host.innerHTML.includes('data-cutout-action="remove"'));
+        assert.ok(!host.innerHTML.includes('class="cc-'), 'no cookie-blocker prone class names');
+    });
+
+    rt.newBlankCanvas(40, 30);
+
+    await check('module: no image, no job', async () => {
+        const blank = renderBlank();
+        await assert.rejects(blank.computeSubjectMask({}), /document/);
+        assert.equal(await blank.removeBackground(), false);
+    });
+
+    await check('module: computeSubjectMask is document-sized and starts without any download', async () => {
+        const res = await rt.computeSubjectMask({ engine: 'classic' });
+        assert.deepEqual([res.width, res.height, res.alpha.length, res.engine], [40, 30, 1200, 'classic']);
+        const auto = await rt.computeSubjectMask({});
+        assert.equal(auto.engine, 'classic', 'no ready model: automatic means classic');
+        assert.ok(calls.some(c => c.url === '/api/pixel/cutout/status'));
+        assert.ok(!calls.some(c => c.url === '/api/pixel/cutout/prepare'), 'models are only downloaded on a click');
+        assert.equal(cutoutCalls().length, 0);
+        assert.equal(rt.cutoutState.busy, null, 'the busy state is released');
+    });
+
+    await check('module: remove background = one history step, a mask and a refine context', async () => {
+        const before = rt.historyIdx;
+        assert.equal(await rt.removeBackground(), true);
+        const layer = rt.activeLayer();
+        assert.ok(layer.maskCanvas && layer.maskEnabled);
+        assert.equal(rt.historyIdx, before + 1);
+        assert.equal(last(), 'cutout:remove-bg');
+        assert.ok(rt.cutoutState.remembered.get(layer.id).get(layer.maskRev), 'context under the current mask revision');
+        rt.undo();
+        assert.equal(rt.activeLayer().maskCanvas, null, 'undo drops the mask');
+        rt.redo();
+        assert.ok(rt.activeLayer().maskCanvas);
+        const again = rt.activeLayer();
+        assert.ok(rt.cutoutState.remembered.get(again.id).get(again.maskRev), 'the context is found again after redo');
+    });
+
+    await check('module: a second job is refused while one runs, cancel aborts it', async () => {
+        const running = rt.removeBackground();
+        await wait(0);
+        notes.length = 0;
+        assert.equal(await rt.removeBackground(), false);
+        assert.ok(notes.some(n => /already running/.test(n.message)));
+        assert.ok(rt.cutoutState.busy);
+        rt.cutoutState.busy.ac.abort();
+        assert.equal(await running, false);
+        assert.equal(rt.cutoutState.busy, null);
+    });
+
+    await check('module: select subject takes the mask of a cut-out layer, blur and cut-out add layers in the right order', async () => {
+        assert.equal(await rt.cutoutSelectSubject(), true);
+        const subject = rt.activeLayer();
+        const count = rt.layers.length;
+        assert.equal(await rt.cutoutBlurBackground(), true);
+        assert.equal(rt.layers.length, count + 1);
+        assert.equal(rt.activeLayer(), subject, 'the subject stays active');
+        assert.ok(rt.layers.indexOf(subject) === 1 && rt.layers[0] !== subject, 'the blurred copy sits below');
+        assert.equal(last(), 'cutout:blur-bg');
+        assert.equal(await rt.cutoutToLayer(), true);
+        assert.equal(rt.layers.length, count + 2);
+        assert.equal(subject.visible, false, 'the source is hidden');
+        assert.equal(rt.activeLayerIdx, rt.layers.indexOf(subject) + 1, 'the cut-out layer is active, above the source');
+        assert.equal(last(), 'cutout:to-layer');
+        rt.undo();
+        rt.undo();
+        assert.equal(rt.layers.length, count, 'undo takes both layers away');
+        assert.equal(rt.activeLayer().id, subject.id);
+        assert.equal(rt.activeLayer().visible, true);
+    });
+
+    await check('module: refine values settle into one history step and follow undo', async () => {
+        const layer = rt.activeLayer();
+        const before = rt.historyIdx;
+        assert.equal(rt.cutoutSetRefine('shift', 3), true);
+        rt.cutoutSetRefine('feather', 4);
+        assert.equal(rt.historyIdx, before, 'moving a slider alone does not fill the history');
+        await wait(900);
+        assert.equal(rt.historyIdx, before + 1);
+        assert.equal(last(), 'cutout:refine');
+        const cx = rt.cutoutState.remembered.get(layer.id).get(layer.maskRev);
+        assert.equal(cx.params.shift, 3);
+        assert.equal(cx.params.feather, 4);
+        assert.equal(rt.cutoutSetRefine('nonsense', 1), false);
+        rt.undo();
+        await wait(60);
+        const restored = rt.activeLayer();
+        const back = rt.cutoutState.remembered.get(restored.id).get(restored.maskRev);
+        assert.equal(back.params.shift, 0, 'undo finds the context of the earlier step');
+        assert.equal(rt.cutoutState.refineValues.shift, 0, 'and the sliders follow');
+    });
+
+    await check('module: fringe settings change no mask, so they add no history step', async () => {
+        const before = rt.historyIdx;
+        rt.cutoutSetRefine('decontaminate', false);
+        await wait(900);
+        assert.equal(rt.historyIdx, before);
+        rt.cutoutSetRefine('decontaminate', true);
+        await wait(900);
+    });
+
+    await check('module: view modes register their overlay only while one is chosen', async () => {
+        assert.ok(!rt.listOverlays().includes('cutout-view'));
+        rt.cutoutSetRefine('view', 'black');
+        assert.ok(rt.listOverlays().includes('cutout-view'));
+        assert.ok(rt.listOverlays().indexOf('cutout-view') < rt.listOverlays().indexOf('selection'), 'below the selection outline');
+        rt.cutoutSetRefine('view', 'normal');
+        assert.ok(!rt.listOverlays().includes('cutout-view'));
+    });
+
+    await check('module: the brush records its strokes in the context and keeps them across a refine', async () => {
+        const layer = rt.activeLayer();
+        rt.setActiveTool('cutout-brush');
+        const before = rt.historyIdx;
+        const e = { button: 0, clientX: 10, clientY: 10, pointerId: 1, buttons: 1, altKey: false };
+        rt.onCanvasMouseDown(e);
+        rt.onCanvasMouseMove(Object.assign({}, e, { clientX: 20, clientY: 12 }));
+        rt.onCanvasMouseUp(e);
+        assert.equal(rt.historyIdx, before + 1);
+        assert.equal(last(), 'cutout:brush');
+        const cx = rt.cutoutState.remembered.get(layer.id).get(layer.maskRev);
+        assert.equal(cx.strokes.length, 1);
+        assert.equal(cx.strokes[0].mode, 'keep');
+        assert.ok(cx.strokes[0].pts.length >= 2);
+        // Alt flips the mode for that stroke
+        rt.onCanvasMouseDown(Object.assign({}, e, { altKey: true }));
+        rt.onCanvasMouseUp(e);
+        const second = rt.cutoutState.remembered.get(layer.id).get(layer.maskRev);
+        assert.equal(second.strokes.length, 2);
+        assert.equal(second.strokes[1].mode, 'remove');
+        rt.cutoutSetRefine('smooth', 2);
+        await wait(900);
+        const refined = rt.cutoutState.remembered.get(layer.id).get(layer.maskRev);
+        assert.equal(refined.strokes.length, 2, 'strokes survive a recomputation');
+        rt.setActiveTool('cutout-brush');
+    });
+
+    await check('module: the first brush stroke on a layer without a mask starts one', () => {
+        rt.addLayer();
+        const layer = rt.activeLayer();
+        assert.equal(layer.maskCanvas, null);
+        rt.setActiveTool('cutout-brush');
+        const e = { button: 0, clientX: 5, clientY: 5, pointerId: 1, buttons: 1 };
+        rt.onCanvasMouseDown(e);
+        rt.onCanvasMouseUp(e);
+        assert.ok(layer.maskCanvas);
+        assert.equal(last(), 'cutout:brush');
+        assert.equal(rt.cutoutState.remembered.get(layer.id), undefined, 'a hand-made mask has no refine context');
+        rt.setActiveTool('cutout-brush');
+        rt.undo();
+        rt.undo();
+    });
+
+    await check('module: apply mask bakes it into the pixels through commitLayerPixels', async () => {
+        const layer = rt.activeLayer();
+        assert.ok(layer.maskCanvas);
+        layer.lockPixels = true;
+        assert.equal(await rt.cutoutApplyMask(), false, 'a pixel-locked layer refuses');
+        assert.ok(layer.maskCanvas);
+        layer.lockPixels = false;
+        assert.equal(await rt.cutoutApplyMask(), true);
+        assert.equal(layer.maskCanvas, null);
+        assert.equal(last(), 'cutout:apply-mask');
+        rt.undo();
+        assert.ok(rt.activeLayer().maskCanvas, 'undo brings the mask back');
+    });
+
+    await check('module: a ready AI model is used by "auto", with the image as PNG and the model id', async () => {
+        scenario.status = { available: true, runtime_ready: true, busy: false, models: [
+            { id: 'standard', name: 'ISNet general-use', license: 'Apache-2.0', size_bytes: 178648008, ready: true, downloading: false, progress: 1, error: '' },
+            { id: 'precise', name: 'BiRefNet general lite', license: 'MIT', size_bytes: 224005088, ready: false, downloading: false, progress: 0, error: '' }
+        ] };
+        scenario.cutout = { status: 'ok', mask: 'data:image/png;base64,AAAA', width: 40, height: 30, ms: 12 };
+        rt.cutoutState.statusLoaded = false;
+        calls.length = 0;
+        const res = await rt.computeSubjectMask({});
+        assert.equal(res.engine, 'standard');
+        assert.equal(res.alpha.length, 1200);
+        const sent = cutoutCalls();
+        assert.equal(sent.length, 1);
+        assert.equal(sent[0].method, 'POST');
+        const body = JSON.parse(sent[0].body);
+        assert.equal(body.model, 'standard');
+        assert.match(body.source_data, /^data:image\/png;base64,/);
+        assert.ok(!calls.some(c => c.url === '/api/pixel/cutout/prepare'));
+    });
+
+    await check('module: an AI failure falls back to the classic engine with a note', async () => {
+        const failure = new Error('busy');
+        failure.status = 429;
+        failure.body = { status: 'busy' };
+        scenario.failure = failure;
+        notes.length = 0;
+        const res = await rt.computeSubjectMask({});
+        scenario.failure = null;
+        assert.equal(res.engine, 'classic');
+        assert.ok(notes.some(n => n.type === 'info' && /classic engine/.test(n.message) && /another cutout/.test(n.message)), JSON.stringify(notes));
+    });
+
+    await check('module: an explicit AI model that is not downloaded is not requested', async () => {
+        notes.length = 0;
+        calls.length = 0;
+        rt.cutoutState.engineValues.engine = 'precise';
+        const res = await rt.computeSubjectMask({ engine: 'precise' });
+        rt.cutoutState.engineValues.engine = 'auto';
+        assert.equal(res.engine, 'classic');
+        assert.equal(cutoutCalls().length, 0);
+        assert.ok(notes.some(n => /not downloaded/.test(n.message)));
+        assert.ok(!calls.some(c => c.url === '/api/pixel/cutout/prepare'));
+    });
+
+    await check('module: the colour key engine runs cutout.chroma and keeps its own matte size', async () => {
+        const res = await rt.computeSubjectMask({ engine: 'key' });
+        assert.equal(res.engine, 'key');
+        assert.equal(res.alpha.length, 1200);
+    });
+
+    await check('module: smart brush mode re-runs the classic engine with the strokes as hints', async () => {
+        scenario.status = { available: false, models: [] };
+        rt.cutoutState.statusLoaded = false;
+        const layer = rt.activeLayer();
+        rt.cutoutState.brushValues.smart = true;
+        rt.setActiveTool('cutout-brush');
+        const before = rt.historyIdx;
+        const e = { button: 0, clientX: 8, clientY: 8, pointerId: 1, buttons: 1, altKey: false };
+        rt.onCanvasMouseDown(e);
+        rt.onCanvasMouseMove(Object.assign({}, e, { clientX: 14, clientY: 9 }));
+        rt.onCanvasMouseUp(e);
+        await wait(300);
+        rt.cutoutState.brushValues.smart = false;
+        rt.setActiveTool('cutout-brush');
+        const labels = rt.history.slice(before + 1, rt.historyIdx + 1).map(entry => entry.label);
+        assert.deepEqual(labels, ['cutout:brush', 'cutout:smart']);
+        const cx = rt.cutoutState.remembered.get(layer.id).get(layer.maskRev);
+        assert.equal(cx.engine, 'classic');
+        assert.deepEqual(cx.strokes, [], 'the strokes went into the engine run');
+    });
+
+    check('module: disposing the window stops its timers', () => {
+        window.PixelApp.dispose('w-cutout');
+        assert.ok(rt.state.disposed);
+    });
+
+    function renderBlank() {
+        const blankHost = makeEl('div');
+        window.PixelApp.render(blankHost, 'w-blank', {
+            esc: v => String(v), t: (k, f) => f || k, api, iconMarkup: () => '', notify: () => {}, setWindowMenus: () => {}, readonly: false
+        });
+        return runtimes[runtimes.length - 1];
+    }
+}
+
+try {
+    await moduleChecks();
+} catch (err) {
+    results.push('FAIL module checks could not run (does every Pixel script load?): ' + (err && err.stack || err));
+}
+
+await Promise.all(pending);
 console.log(results.join('\n'));
 if (results.some(line => line.startsWith('FAIL'))) process.exit(1);
 console.log('test-pixel-cutout: ' + results.length + ' checks passed');
