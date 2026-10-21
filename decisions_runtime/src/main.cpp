@@ -62,6 +62,7 @@ constexpr uint64_t kModelSize = 1274396448ULL;
 constexpr uint64_t kProjectorSize = 671372608ULL;
 constexpr size_t kContextTokens = 8192;
 constexpr size_t kMaxRequestBytes = 40 * 1024 * 1024;
+constexpr size_t kMaxCancelBytes = 4096;
 constexpr size_t kMaxImageBytes = 12 * 1024 * 1024;
 constexpr size_t kMaxTotalImageBytes = 24 * 1024 * 1024;
 constexpr size_t kMaxImages = 8;
@@ -358,6 +359,19 @@ bool bearer_authorized(const httplib::Request & req, std::string_view expected) 
         constant_time_equal(std::string_view(header).substr(prefix.size()), expected);
 }
 
+json parse_request_json(const std::string & input) {
+    try {
+        return json::parse(input, [](int depth, json::parse_event_t event, json &) {
+            if ((event == json::parse_event_t::object_start || event == json::parse_event_t::array_start) && depth >= 32) {
+                throw std::invalid_argument("invalid_request");
+            }
+            return true;
+        });
+    } catch (const json::exception &) {
+        throw std::invalid_argument("invalid_request");
+    }
+}
+
 struct ValidatedScoreRequest {
     std::string request_id;
     std::string prompt;
@@ -463,6 +477,7 @@ struct Runtime {
     Placement projector_ops;
     Offload offload;
     bool ready = false;
+    bool backend_initialized = false;
     std::string marker;
     std::mutex inference_mutex;
     mutable std::mutex metadata_mutex;
@@ -470,12 +485,12 @@ struct Runtime {
     std::unordered_map<std::string, std::shared_ptr<RequestCancellation>> active_requests;
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> pre_cancelled_requests;
 
-    explicit Runtime(Config c) : config(std::move(c)) { initialize(); }
+    explicit Runtime(Config c) : config(std::move(c)) {}
     ~Runtime() {
         mtmd_free(mtmd);
         llama_free(context);
         llama_model_free(model);
-        llama_backend_free();
+        if (backend_initialized) llama_backend_free();
     }
 
     void validate_artifacts() {
@@ -507,6 +522,7 @@ struct Runtime {
         llama_log_set(quiet_llama, nullptr);
         mtmd_helper_log_set(quiet_mtmd, nullptr);
         llama_backend_init();
+        backend_initialized = true;
 
         device = config.allow_cpu ? ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU) : ggml_backend_dev_by_name(config.device_id.c_str());
         if (!device) throw std::runtime_error("selected_device_not_found");
@@ -732,8 +748,7 @@ struct Runtime {
         return valid_request_id_value(id);
     }
 
-    void cancel(const httplib::Request & req, httplib::Response & res) {
-        const auto body = json::parse(req.body, nullptr, false);
+    void cancel(const json & body, httplib::Response & res) {
         if (body.is_discarded() || !body.is_object() || !body.contains("request_id") || !body["request_id"].is_string()) {
             throw std::invalid_argument("invalid_request");
         }
@@ -771,27 +786,36 @@ struct Runtime {
         server.set_payload_max_length(kMaxRequestBytes);
         server.set_read_timeout(15, 0);
         server.set_write_timeout(15, 0);
-        auto auth = [this](const httplib::Request & req, httplib::Response & res) {
-            if (!authorized(req)) { error(res, 401, "unauthorized"); return false; }
-            return true;
-        };
-        server.Get("/healthz", [this, auth](const httplib::Request & req, httplib::Response & res) {
-            if (!auth(req, res)) return;
-            res.set_content(metadata().dump(), "application/json");
-        });
-        server.Get("/capabilities", [this, auth](const httplib::Request & req, httplib::Response & res) {
-            if (!auth(req, res)) return;
-            res.set_content(metadata().dump(), "application/json");
-        });
-        server.Post("/score", [this, auth](const httplib::Request & req, httplib::Response & res) {
-            if (!auth(req, res)) return;
-            std::string request_id;
-            const auto parsed = json::parse(req.body, nullptr, false);
-            if (!parsed.is_discarded() && parsed.is_object() && parsed.contains("request_id") && parsed["request_id"].is_string()) {
-                const auto candidate = parsed["request_id"].get<std::string>();
-                if (valid_request_id(candidate)) request_id = candidate;
+        server.set_pre_routing_handler([this](const httplib::Request & req, httplib::Response & res) {
+            if (!authorized(req)) {
+                error(res, 401, "unauthorized");
+                res.set_header("Connection", "close");
+                return httplib::Server::HandlerResponse::Handled;
             }
-            try { score(req, res); }
+            const size_t limit = req.path == "/cancel" ? kMaxCancelBytes : kMaxRequestBytes;
+            if (req.method == "POST" && req.get_header_value_u64("Content-Length") > limit) {
+                error(res, 413, "invalid_request");
+                res.set_header("Connection", "close");
+                return httplib::Server::HandlerResponse::Handled;
+            }
+            return httplib::Server::HandlerResponse::Unhandled;
+        });
+        server.Get("/healthz", [this](const httplib::Request &, httplib::Response & res) {
+            res.set_content(metadata().dump(), "application/json");
+        });
+        server.Get("/capabilities", [this](const httplib::Request &, httplib::Response & res) {
+            res.set_content(metadata().dump(), "application/json");
+        });
+        server.Post("/score", [this](const httplib::Request & req, httplib::Response & res) {
+            std::string request_id;
+            try {
+                const auto body = parse_request_json(req.body);
+                if (body.is_object() && body.contains("request_id") && body["request_id"].is_string()) {
+                    const auto candidate = body["request_id"].get<std::string>();
+                    if (valid_request_id(candidate)) request_id = candidate;
+                }
+                score(req, res, body);
+            }
             catch (const std::invalid_argument &) { error(res, 400, "invalid_request", &request_id); }
             catch (const std::length_error &) { error(res, 413, "input_token_budget_exceeded", &request_id); }
             catch (const CandidateTokenError &) { error(res, 422, "candidate_not_single_token", &request_id); }
@@ -805,9 +829,19 @@ struct Runtime {
             }
             catch (...) { error(res, 500, "inference_failed", &request_id); }
         });
-        server.Post("/cancel", [this, auth](const httplib::Request & req, httplib::Response & res) {
-            if (!auth(req, res)) return;
-            try { cancel(req, res); }
+        server.Post("/cancel", [this](const httplib::Request &, httplib::Response & res, const httplib::ContentReader & reader) {
+            std::string body;
+            bool too_large = false;
+            if (!reader([&](const char * data, size_t size) {
+                if (size > kMaxCancelBytes - body.size()) { too_large = true; return false; }
+                body.append(data, size);
+                return true;
+            })) {
+                error(res, too_large ? 413 : 400, "invalid_request");
+                res.set_header("Connection", "close");
+                return;
+            }
+            try { cancel(parse_request_json(body), res); }
             catch (const std::invalid_argument &) { error(res, 400, "invalid_request"); }
         });
     }
@@ -888,13 +922,9 @@ struct Runtime {
         return candidates;
     }
 
-    void score(const httplib::Request & req, httplib::Response & res) {
-        if (req.body.size() > kMaxRequestBytes) throw std::invalid_argument("invalid_request");
-        json body = json::parse(req.body, nullptr, false);
-        if (body.is_discarded()) throw std::invalid_argument("invalid_request");
+    void score(const httplib::Request & req, httplib::Response & res, const json & body) {
         const auto validated = validate_score_request(body);
         const std::string & request_id = validated.request_id;
-        { std::lock_guard<std::mutex> guard(metadata_mutex); if (!ready) throw std::runtime_error("runtime_not_ready"); }
         const std::string & prompt = validated.prompt;
         const int64_t budget = validated.budget;
 
@@ -929,6 +959,7 @@ struct Runtime {
             throw RuntimeBusyError();
         }
         if (cancellation_requested(cancellation.get())) throw RequestCancelledError();
+        { std::lock_guard<std::mutex> guard(metadata_mutex); if (!ready) throw std::runtime_error("runtime_not_ready"); }
         model_ops.cancellation = cancellation.get();
         projector_ops.cancellation = cancellation.get();
         model_ops.preflight_rejected = false;
@@ -1030,41 +1061,12 @@ Config parse_args(int argc, char ** argv) {
 }
 
 int self_test_protocol() {
-    // Exercise the same auth and request validation helpers over real loopback HTTP.
     std::string configured = "0123456789abcdef0123456789abcdef";
+    Runtime runtime(Config{});
+    runtime.bearer = configured;
     httplib::Server server;
-    server.new_task_queue = [] {
-        return new httplib::ThreadPool(kHttpWorkers, kHttpWorkers, kHttpQueuedRequests);
-    };
-    server.set_payload_max_length(kMaxRequestBytes);
-    server.Get("/healthz", [configured](const httplib::Request & req, httplib::Response & res) {
-        if (!bearer_authorized(req, configured)) {
-            Runtime::error(res, 401, "unauthorized"); return;
-        }
-        res.set_content(json{{"protocol", kProtocol}, {"ready", false}}.dump(), "application/json");
-    });
-    server.Post("/score", [configured](const httplib::Request & req, httplib::Response & res) {
-        if (!bearer_authorized(req, configured)) { Runtime::error(res, 401, "unauthorized"); return; }
-        json body = json::parse(req.body, nullptr, false);
-        std::string id;
-        try {
-            if (body.is_discarded()) throw std::invalid_argument("invalid_request");
-            id = validate_score_request(body).request_id;
-            Runtime::error(res, 503, "runtime_not_ready", &id);
-        } catch (const std::invalid_argument &) {
-            Runtime::error(res, 400, "invalid_request", &id);
-        }
-    });
-    server.Post("/cancel", [configured](const httplib::Request & req, httplib::Response & res) {
-        if (!bearer_authorized(req, configured)) { Runtime::error(res, 401, "unauthorized"); return; }
-        const auto body = json::parse(req.body, nullptr, false);
-        if (body.is_discarded() || !body.is_object() || !body.contains("request_id") || !body["request_id"].is_string() ||
-            !valid_request_id_value(body["request_id"].get<std::string>())) {
-            Runtime::error(res, 400, "invalid_request"); return;
-        }
-        res.status = 200;
-        res.set_content(json{{"request_id", body["request_id"]}, {"cancelled", true}, {"error", nullptr}}.dump(), "application/json");
-    });
+    server.new_task_queue = [] { return new httplib::ThreadPool(kHttpWorkers, kHttpWorkers, kHttpQueuedRequests); };
+    runtime.attach_routes(server);
     const int port = server.bind_to_any_port("127.0.0.1");
     if (port <= 0) throw std::runtime_error("protocol_self_test_failed");
     std::thread worker([&server] { server.listen_after_bind(); });
@@ -1088,6 +1090,78 @@ int self_test_protocol() {
         if (!cancel_denied || cancel_denied->status != 401) throw std::runtime_error("protocol_self_test_failed");
         auto cancel = client.Post("/cancel", good, R"({"request_id":"0123456789abcdef"})", "application/json");
         if (!cancel || cancel->status != 200 || json::parse(cancel->body)["cancelled"] != true) throw std::runtime_error("protocol_self_test_failed");
+        auto caps = client.Get("/capabilities", good);
+        if (!caps || caps->status != 200 || json::parse(caps->body)["limits"]["max_request_bytes"] != kMaxRequestBytes) throw std::runtime_error("capabilities_self_test_failed");
+        auto pre_cancel = client.Post("/score", good, R"({"request_id":"0123456789abcdef","prompt":"Decision","max_input_tokens":64})", "application/json");
+        if (!pre_cancel || pre_cancel->status != 409 || json::parse(pre_cancel->body)["error"]["code"] != "request_cancelled") throw std::runtime_error("pre_cancel_self_test_failed");
+        auto active = std::make_shared<RequestCancellation>();
+        {
+            std::lock_guard<std::mutex> guard(runtime.requests_mutex);
+            runtime.active_requests["active-cancel-0123456789"] = active;
+        }
+        auto active_cancel = client.Post("/cancel", good, R"({"request_id":"active-cancel-0123456789"})", "application/json");
+        if (!active_cancel || active_cancel->status != 200 || !active->cancelled.load()) throw std::runtime_error("active_cancel_self_test_failed");
+        for (const auto & malformed_body : {std::string("{"), std::string("null"), std::string(33, '[') + "0" + std::string(33, ']')}) {
+            for (const auto & route : {"/score", "/cancel"}) {
+                auto invalid = client.Post(route, good, malformed_body, "application/json");
+                if (!invalid || invalid->status != 400) throw std::runtime_error("json_self_test_failed");
+            }
+        }
+        std::string score_body = R"({"request_id":"0123456789abcdef","prompt":"Decision","max_input_tokens":64,"nested":)";
+        auto depth32 = client.Post("/score", good, score_body + std::string(31,'[') + "0" + std::string(31,']') + "}", "application/json");
+        auto depth33 = client.Post("/score", good, score_body + std::string(32,'[') + "0" + std::string(32,']') + "}", "application/json");
+        if (!depth32 || depth32->status != 503 || !depth33 || depth33->status != 400) throw std::runtime_error("depth_self_test_failed");
+        score_body = R"({"request_id":"0123456789abcdef","prompt":"Decision","max_input_tokens":64})";
+        score_body.resize(kMaxRequestBytes, ' ');
+        auto score_limit = client.Post("/score", good, score_body, "application/json");
+        if (!score_limit || score_limit->status != 503) throw std::runtime_error("score_limit_self_test_failed");
+        std::string cancel_body = R"({"request_id":"cancel-limit-0123456789"})";
+        cancel_body.resize(kMaxCancelBytes, ' ');
+        auto cancel_limit = client.Post("/cancel", good, cancel_body, "application/json");
+        auto cancel_over = client.Post("/cancel", good, cancel_body + " ", "application/json");
+        if (!cancel_limit || cancel_limit->status != 200 || !cancel_over || cancel_over->status != 413) throw std::runtime_error("cancel_limit_self_test_failed");
+
+        auto raw_status = [port](const std::string & request) {
+            struct SocketOwner {
+                decltype(::socket(AF_INET, SOCK_STREAM, 0)) value;
+                ~SocketOwner() {
+#if defined(_WIN32)
+                    ::closesocket(value);
+#else
+                    ::close(value);
+#endif
+                }
+            } socket{::socket(AF_INET, SOCK_STREAM, 0)};
+            sockaddr_in address{};
+            address.sin_family = AF_INET;
+            address.sin_port = htons(static_cast<uint16_t>(port));
+            address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+            if (::connect(socket.value, reinterpret_cast<const sockaddr *>(&address), sizeof(address)) != 0) throw std::runtime_error("raw_connect_self_test_failed");
+            size_t sent = 0;
+            while (sent < request.size()) {
+                const auto n = ::send(socket.value, request.data()+sent, static_cast<int>(request.size()-sent), 0);
+                if (n <= 0) throw std::runtime_error("raw_send_self_test_failed");
+                sent += static_cast<size_t>(n);
+            }
+            fd_set readable;
+            FD_ZERO(&readable);
+            FD_SET(socket.value, &readable);
+            timeval timeout{2,0};
+            if (::select(static_cast<int>(socket.value)+1, &readable, nullptr, nullptr, &timeout) <= 0) throw std::runtime_error("body_wait_self_test_failed");
+            char buffer[1024];
+            const auto n = ::recv(socket.value, buffer, sizeof(buffer), 0);
+            return n > 0 ? std::string(buffer, static_cast<size_t>(n)) : std::string();
+        };
+        auto require_status = [&raw_status](const std::string & request, const char * status) {
+            if (raw_status(request).find(std::string("HTTP/1.1 ")+status) != 0) throw std::runtime_error("early_http_self_test_failed");
+        };
+        const std::string headers = "POST /score HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n";
+        require_status(headers + "Content-Length: 41943040\r\n\r\n", "401");
+        require_status(headers + "Content-Length: 41943040\r\nExpect: 100-continue\r\n\r\n", "401");
+        require_status(headers + "Authorization: Bearer " + configured + "\r\nContent-Length: 41943041\r\n\r\n", "413");
+        const std::string chunk_headers = "POST /cancel HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\nAuthorization: Bearer " + configured + "\r\nTransfer-Encoding: chunked\r\n\r\n";
+        require_status(chunk_headers + "1000\r\n" + cancel_body + "\r\n0\r\n\r\n", "200");
+        require_status(chunk_headers + "1001\r\n" + cancel_body + " \r\n0\r\n\r\n", "413");
         passed = true;
     } catch (...) {
         server.stop();
@@ -1099,7 +1173,7 @@ int self_test_protocol() {
     if (!passed) throw std::runtime_error("protocol_self_test_failed");
     std::cout << json{{"self_test", "native-runtime-v1"}, {"http_loopback", true},
         {"scheduler_preflight", {{"denial_precedes_compute", true}, {"allow_path_computes", true}}},
-        {"checks", {"auth", "health", "invalid-score", "request-id-echo", "cancel-route"}}}.dump() << std::endl;
+        {"checks", {"auth-before-body", "health", "capabilities", "invalid-score", "request-id-echo", "cancel-route", "active-cancel", "pre-cancel", "json-depth", "score-limit", "cancel-limit-chunked"}}}.dump() << std::endl;
     return 0;
 }
 
@@ -1197,6 +1271,7 @@ int main(int argc, char ** argv) {
         return self_test_protocol();
     }
         Runtime runtime(std::move(config));
+        runtime.initialize();
         runtime.serve();
         return 0;
     } catch (const CandidateTokenError &) {
