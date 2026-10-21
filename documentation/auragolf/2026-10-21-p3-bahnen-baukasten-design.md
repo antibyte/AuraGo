@@ -76,7 +76,7 @@ Laufweg = Länge der Hauptroute (Mittellinie) vom Abschlag zum Loch. „Abkürzu
 | 15 | moon-15 | Kraterrinne / Crater Pipe | 3 | ≈ 24 m | Gabelung (links S-förmige Halfpipe, der erste Bogen im Regolith; rechts Rampe mit Sprung über die Schlucht), Gerade, Kurve, Grün | – | Kraterwand und Rover | Sprung über die Schlucht (Schlag 0,3 bis 0,35 geradeaus aus der Gabelung) |
 | 16 | moon-16 | Beam-Station / Beam Station | 4 | ≈ 25 m | Platz, Kurve, Brücke über eine Spalte, Kurve, Grün | 2 Teleporter, drehender Radararm | Funkturm | Teleporter direkt aufs Grün (der Radararm verlangt Timing) |
 | 17 | moon-17 | Schwerelos / Zero-G Leap | 4 | ≈ 33 m | Gabelung (links Umweg mit Schotttor, rechts Rampe mit weitem Sprung über die Schlucht), Kurve, Platz, Kurve, Grün | Schotttore (Umweg und Platzausgang), 2 Bumper | Habitat und Solarfeld | Langer Sprung über die Schlucht (Schlag 0,35 bis 0,4 geradeaus) |
-| 18 | moon-18 | Orbit-Looping / Orbit Loop | 5 | ≈ 35 m | Boost, Looping, Gabelung, Trichter | Boost-Feld, Schotttor | Habitat, Rover, Erde | Halfpipe-Abkürzung statt Gabelung |
+| 18 | moon-18 | Orbit-Looping / Orbit Loop | 5 | ≈ 35 m | Boost, Looping, Gabelung (links Umweg mit Schotttor, rechts Halfpipe), Kurve, Trichter | Boost-Feld, Schotttor | Habitat, Rover | Halfpipe statt Umweg und Tor (Schlag 0,3 bis 0,5, kein Timing) |
 
 Jedes Bahnstück aus Abschnitt 4.3 kommt mindestens einmal vor, jede Mechanik aus Abschnitt 5.3 ebenfalls. Die genaue Stückfolge, Maße und Takte legen die Datenmodule fest; der Plan beschreibt das Abstimmen. Par und Laufweg dürfen beim Abstimmen innerhalb der Fahrplan-Grenzen (Laufweg 10–35 m, Par 2–5) abweichen; die Tabelle wird dann nachgezogen.
 
