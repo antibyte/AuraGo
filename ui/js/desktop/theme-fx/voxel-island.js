@@ -46,6 +46,17 @@
     const CX = 32;
     const CZ = 28;
     const WATER_LEVEL = 3;
+    // The mountain: a gaussian of this amplitude and sigma (cells) around MOUNTAIN.x/z, plus a +-2 slope noise.
+    // Tops are stone from STONE_FROM, snow from SNOW_FROM and, where the noise is positive, from SNOW_PATCH_FROM;
+    // moss patches grow between MOSS_FROM and MOSS_TO. The peak reaches about world y 26.
+    const MOUNTAIN = Object.freeze({ x: 21, z: 17, amplitude: 21, sigma: 6, stoneFrom: 12, snowFrom: 22, snowPatchFrom: 19, mossFrom: 8, mossTo: 13 });
+    const PINES = Object.freeze({ count: 9, minH: 6, maxH: 12 });
+    const UNDERSIDE_SOLID = -3;           // underside cells above this world y use the top's own rock (stone) instead of dirt
+    const LANTERN_POST = 2;               // oak log cells below a lantern
+    const LANTERN_DECO = Object.freeze({ size: .5, color: '#ffd27a' });
+    const ISLET_B_RADIUS = 4.2;
+    // Island-relative offsets (world units); chosen so neither islet overlaps the island on screen at 1920x1080.
+    const ISLET_OFFSETS = Object.freeze([Object.freeze([-34, 6, 22]), Object.freeze([29, -2, -24])]);
     const LAKE = Object.freeze({ x: 44, z: 34, r: 4.5 });
     const PLATEAU = Object.freeze({ x0: 29, z0: 23, x1: 41, z1: 33, top: 4 });
     const HOUSES = [
@@ -185,7 +196,7 @@
             features: {
                 center: [CX, CZ], waterLevel: WATER_LEVEL, lake: { x: LAKE.x, z: LAKE.z, r: LAKE.r },
                 waterfall: null, chimneys: [], windmill: null, lanterns: [], windows: [], crystals: [],
-                dock: null, boat: { x: 46, y: 3.2, z: 35, heading: .4 }, meadow: null, trees: []
+                dock: null, boat: { x: 46, y: WATER_LEVEL + 1, z: 35, heading: .4 }, meadow: null, trees: []
             },
             decorations: [],
             pathCells: []
@@ -208,8 +219,8 @@
                 const r = dist / R;
                 inside[i] = 1;
                 rr[i] = r;
-                const gm = Math.exp(-((x - 21) ** 2 + (z - 17) ** 2) / (2 * 6.5 * 6.5));
-                const mt = 16 * gm + (gm > .002 ? 2 * noise(x * .3 + 40, z * .3 + 40) * clamp(4 * gm * (1 - gm), 0, 1) : 0);
+                const gm = Math.exp(-((x - MOUNTAIN.x) ** 2 + (z - MOUNTAIN.z) ** 2) / (2 * MOUNTAIN.sigma * MOUNTAIN.sigma));
+                const mt = MOUNTAIN.amplitude * gm + (gm > .002 ? 2 * noise(x * .3 + 40, z * .3 + 40) * clamp(4 * gm * (1 - gm), 0, 1) : 0);
                 const hill = 4 * Math.exp(-((x - 43) ** 2 + (z - 16) ** 2) / (2 * 3.5 * 3.5));
                 mountain[i] = mt;
                 let h = Math.round(3 + Math.round(1.6 * fbm(x * .09, z * .09)) + mt + hill);
@@ -352,13 +363,17 @@
                 const hh = H[i];
                 let top = topSet[i];
                 if (!top) {
-                    if (hh >= 16) top = M.SNOW;
-                    else if (hh >= 12 || drop(x, z, hh) >= 3) top = hh >= 8 && hh < 12 && rng() < .3 ? M.MOSS : M.STONE;
-                    else top = M.GRASS;
+                    const mossy = hh >= MOUNTAIN.mossFrom && hh < MOUNTAIN.mossTo && noise(x * .45 + 50, z * .45 + 50) > .1;
+                    if (hh >= MOUNTAIN.snowFrom) top = M.SNOW;
+                    else if (hh >= MOUNTAIN.stoneFrom) {
+                        top = hh >= MOUNTAIN.snowPatchFrom && noise(x * .4 + 80, z * .4 + 80) > 0 ? M.SNOW : mossy ? M.MOSS : M.STONE;
+                    } else if (drop(x, z, hh) >= 3) top = mossy || (hh >= MOUNTAIN.mossFrom && rng() < .15) ? M.MOSS : M.STONE;
+                    else top = mossy ? M.MOSS : M.GRASS;
                 }
                 if ((flags[i] & F_FIELD) && top === M.GRASS) top = M.WHEAT;
                 topMat[i] = top;
-                const subsoil = top === M.STONE || top === M.SNOW || top === M.MOSS ? M.STONE : M.DIRT;
+                const rocky = top === M.STONE || top === M.SNOW || top === M.MOSS;
+                const subsoil = rocky ? M.STONE : M.DIRT;
                 vox[idx(i, hh)] = top;
                 for (let y = hh - 1; y >= 0; y--) vox[idx(i, y)] = hh - y <= 3 ? subsoil : M.STONE;
                 if (water[i]) for (let y = hh + 1; y <= WATER_LEVEL; y++) vox[idx(i, y)] = M.WATER;
@@ -367,7 +382,7 @@
                 underDepth[i] = u;
                 let low = -u;
                 for (let y = -1; y >= -u; y--) {
-                    let m = y > -3 ? M.DIRT : y > -.55 * u ? M.STONE : M.DEEP_STONE;
+                    let m = y > UNDERSIDE_SOLID ? (rocky ? M.STONE : M.DIRT) : y > -.55 * u ? M.STONE : M.DEEP_STONE;
                     if (m !== M.DIRT && rng() < .02) m = M.GOLD_ORE;
                     vox[idx(i, y)] = m;
                 }
@@ -512,9 +527,10 @@
         }
     }
 
-    // Step 14: six lanterns, a cobble post beside the path with a lantern on top.
+    // Step 14: six lanterns, an oak post beside the path with a glowing lantern decoration on top. features.lanterns
+    // holds the lantern centres (x/z cell indices, y world), the decoration is rendered by the scene with the glow treatment.
     function buildLanterns(s) {
-        const { g, w, d, features, flags, H, topMat, inside } = s;
+        const { g, w, d, features, flags, H, topMat, inside, decorations } = s;
         const cells = s.pathCells;
         if (!cells.length) return;
         for (let n = 0; n < 6; n++) {
@@ -530,10 +546,11 @@
                     if (!inside[i] || (flags[i] & (F_PATH | F_LAKE | F_RIVER | F_SHORE | F_BUILD | F_FIELD | F_POST))) continue;
                     if (topMat[i] !== M.GRASS || H[i] >= 12) continue;
                     if (features.lanterns.some(l => Math.abs(l[0] - x) < 3 && Math.abs(l[2] - z) < 3)) continue;
-                    g.put(x, H[i] + 1, z, M.COBBLE);
-                    g.put(x, H[i] + 2, z, M.LANTERN);
+                    for (let k = 1; k <= LANTERN_POST; k++) g.put(x, H[i] + k, z, M.OAK_LOG);
+                    const base = H[i] + LANTERN_POST + 1;
+                    decorations.push({ x, y: base, z, size: LANTERN_DECO.size, height: LANTERN_DECO.size, color: LANTERN_DECO.color, glow: 1, sway: 0 });
                     flags[i] |= F_POST;
-                    features.lanterns.push([x, H[i] + 2, z]);
+                    features.lanterns.push([x, base + LANTERN_DECO.size / 2, z]);
                     placed = true;
                     break;
                 }
@@ -586,7 +603,7 @@
             }
         };
         const rootable = i => topMat[i] === M.GRASS || topMat[i] === M.MOSS;
-        plant('pine', 12, (i) => rootable(i) && H[i] >= 6 && H[i] <= 13 && mountain[i] >= 1, (x, z, h) => {
+        plant('pine', PINES.count, (i) => rootable(i) && H[i] >= PINES.minH && H[i] <= PINES.maxH && mountain[i] >= 1, (x, z, h) => {
             const top = h + 4 + Math.floor(rng() * 3);
             for (let y = h + 1; y <= top; y++) g.put(x, y, z, M.OAK_LOG);
             const radii = [2, 2, 1, 1, 0];
@@ -680,29 +697,32 @@
         for (let y = 1; y <= 3; y++) a.put(5, y, 5, M.OAK_LOG);
         sphere(a, rng, 5, 4, 5, 1.6, .2, M.OAK_LEAVES);
 
-        // B: stone disc with a crystal cluster and a small cobble gate.
-        const b = makeGrid(9, 9, 12, 6);
-        for (let z = 0; z < 9; z++) {
-            for (let x = 0; x < 9; x++) {
-                const dist = Math.hypot(x - 4, z - 4);
-                if (dist > 3.2) continue;
-                b.put(x, 0, z, M.STONE);
-                const depth = clamp(Math.round(5 * (1 - dist / 3.6)), 1, 5);
-                for (let k = 1; k <= depth; k++) b.put(x, -k, z, k >= depth - 1 && depth >= 3 ? M.DEEP_STONE : M.STONE);
+        // B: grass disc with a crystal cluster in the middle and a small ruin (a broken cobble gate) beside it.
+        const b = makeGrid(11, 11, 14, 8);
+        for (let z = 0; z < 11; z++) {
+            for (let x = 0; x < 11; x++) {
+                const dist = Math.hypot(x - 5, z - 5);
+                if (dist > ISLET_B_RADIUS) continue;
+                b.put(x, 0, z, M.GRASS);
+                const depth = clamp(Math.round(6 * (1 - dist / (ISLET_B_RADIUS + .4))), 1, 6);
+                for (let k = 1; k <= depth; k++) b.put(x, -k, z, k <= 2 ? M.DIRT : k >= depth - 1 && depth >= 4 ? M.DEEP_STONE : M.STONE);
             }
         }
-        const cluster = [[4, 1, 4], [4, 2, 4], [3, 1, 4], [5, 1, 4]];
+        const cluster = [[5, 1, 5], [5, 2, 5], [4, 1, 5], [6, 1, 5]];
         for (const [x, y, z] of cluster) b.put(x, y, z, M.CRYSTAL);
-        for (let y = 1; y <= 3; y++) { b.put(2, y, 6, M.COBBLE); b.put(6, y, 6, M.COBBLE); }
-        for (let x = 2; x <= 6; x++) b.put(x, 4, 6, M.COBBLE);
+        for (let y = 1; y <= 3; y++) b.put(3, y, 7, M.COBBLE);
+        for (let y = 1; y <= 2; y++) b.put(7, y, 7, M.COBBLE);
+        b.put(3, 4, 7, M.COBBLE);
+        b.put(4, 4, 7, M.COBBLE);
+        b.put(6, 1, 8, M.COBBLE);
 
         const finish = (grid, offset, phase, trees, extra) => Object.assign({
             w: grid.w, d: grid.d, h: grid.h, yBase: grid.yBase, voxels: grid.voxels,
             solidCount: countSolid(grid.voxels), offset, phase, trees
         }, extra);
         return [
-            finish(a, [-30, 8, -14], 0, 1),
-            finish(b, [27, -6, 18], 2.1, 0, { crystals: cluster.map(c => c.slice()) })
+            finish(a, ISLET_OFFSETS[0], 0, 1),
+            finish(b, ISLET_OFFSETS[1], 2.1, 0, { crystals: cluster.map(c => c.slice()) })
         ];
     }
 

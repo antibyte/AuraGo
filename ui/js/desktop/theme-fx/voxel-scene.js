@@ -25,19 +25,34 @@
     const SHADOW = { extent: 40, near: 1, far: 260, bias: -.0004, normalBias: .04, radius: 2, distance: 120, refreshMs: 4000 };
     // Extra light on top of the sky model so dusk, night and the underside never go black: the cloud sea
     // bounces light up onto the underside (ground colour = ground mixed towards the cloud tint, times gain),
-    // the sky light gains fill as the key light weakens, and moonlight is stronger.
-    const LIGHT = { groundBounce: .7, groundGain: 2.2, fill: 2, nightKey: 1.8 };
-    // Added to the ray height before the sky gradient. The camera looks 26 degrees down, so without it the whole picture
-    // would be below the horizon. At .64 the horizon colour sits just below the bottom edge and the top of the picture
-    // is part way to the zenith colour (no horizon line crosses the view).
-    const SKY_LIFT = .64;
+    // the sky light gains fill as the key light weakens, and moonlight is stronger. dayKey and dayHemi scale the key and the
+    // sky/fill light by day (more contrast; they fade out towards night). rim is a second directional light without shadows from
+    // behind the island (relative to the camera: away from it, a little to the right, above) that outlines the silhouette.
+    const LIGHT = {
+        groundBounce: .7, groundGain: 2.2, fill: 2, nightKey: 3.2, nightHemi: 1.4, dayKey: 1.15, dayHemi: .85,
+        rim: { day: .35, night: .55, nightColor: '#8fa8ff', side: .45, up: .55 }
+    };
     const KEY_TAU = 1.2;                  // seconds the key light needs to swing to a new direction
-    const FOG = { near: .95, far: 2.3 };  // multiples of the camera distance
-    const TILT = { focusY: .47, band: .16, feather: .28, maxBlur: 3.2, vignette: .16 };
-    const SKY_RADIUS = 400;
-    const SKY_SUN = { size: .045, core: [4, 3.6, 2.7] };
-    const SKY_MOON = { size: .035, color: '#e8ecff', gain: 1.8, cut: [.45, .2] };
-    const SKY_STARS = { cells: 220, threshold: .9965 };
+    // The cloud sea fades into the sky through the fog; the fog colour is the sky gradient at this screen row (share of the height
+    // from the top), so the far edge of the sea disappears into the sky behind it.
+    const FOG = { near: .95, far: 2.3, skyRow: .3 };   // near and far in camera distances
+    // The tilt-shift target is drawn at min(dpr, 1) with 2 MSAA samples (a 4x half-float target costs about 56 bytes per pixel) and
+    // only when the picture is small enough: width x height x min(dpr, 1)^2 <= maxPixels.
+    const TILT = { focusY: .47, band: .16, feather: .28, maxBlur: 3.2, vignette: .16, saturation: 1.08, samples: 2, maxPixels: 2.4e6 };
+    // Screen-space sky. Positions are fractions of the screen (x from the left, y from the top), sizes fractions of its height.
+    // The sun crosses from x .88 to x .12 between the rise and set hours; the moon from x .85 to x .15 between set and rise.
+    // halos are [size multiple, alpha] of stepped square halos around the sun; craters are [x, y, half size] in moon sizes.
+    const SKY = {
+        horizonAt: .62,
+        sun: { size: .06, x: .88, dx: .76, y: .46, dy: .36, rise: 6.5, set: 19.5, gain: 2.2, tint: [1, .94, .72], halos: [[2.4, .15], [1.6, .35]], glow: .22, glowReach: 3.2 },
+        // moon: a pixel-art disc `cells` blocks across minus a disc of `cutRadius` blocks offset by `cut` (to the upper right), with
+        // one-block craters at the listed block centres.
+        moon: {
+            size: .044, x: .85, dx: .7, y: .42, dy: .3, color: '#e8ecff', gain: 1.8, cells: 10, cut: [2.3, -1.5], cutRadius: 4,
+            craters: [[-3.5, .5], [-2.5, 3.5], [-4.5, -1.5]], crater: .22, halo: 1.9, haloAlpha: .045, haloColor: '#8fa8ff', haloGain: 1.4
+        },
+        stars: { cell: 12, small: .04, bright: .006, fadeFrom: .35, fadeTo: .9, gain: 1.5, parallax: 6 }   // cell in px at 1080 high; parallax in px per degree of camera yaw
+    };
     const OPACITY_FADE_MS = 700;
 
     // ---- Performance tunables -----------------------------------------------------------------
@@ -52,7 +67,15 @@
     const FRAME_SLACK = 3;                // ms; requestAnimationFrame ticks are quantised
     const THROTTLE = { coverage: .96, interval: 500 };   // a window that hides the scene slows it down
     const STATIC_REFRESH_MS = 60000;
-    const ADAPT = { window: 30, downCost: 12, upCost: 5, upAfterMs: 25000, gapFactor: 2.2, gapFrames: 45, warmup: 4 };
+    // The quality ladder follows the achieved cadence. Steps down: the 30-frame mean of the gaps between rendered frames exceeds
+    // downGap x the expected gap, or a single gap exceeds stallMs, or the mean CPU cost of renderer.render() exceeds downCost.
+    // Steps up (never above the initial level, never while locked): mean gap under upGap x the expected gap and mean cost under
+    // upCost for upAfterMs. The expected gap is the frame interval rounded up to whole display refreshes. Gaps across pause/resume,
+    // hidden pages, throttling and the first frame after a quality change are ignored.
+    const ADAPT = { window: 30, downCost: 12, upCost: 5, upAfterMs: 25000, downGap: 1.45, upGap: 1.1, stallMs: 250, warmup: 4 };
+    // Q3 renders one timed frame (including GPU time) every PROBE_MS; upAfterMs worth of probes under upCost step up to Q2.
+    const PROBE = { level: 3, everyMs: 5000 };
+    const RESIZE_DEBOUNCE_MS = 150;       // static redraw after a resize, and the stable-size wait before the tilt-shift target is recreated
     const INITIAL_PIXELS = 4.2e6;
     const SOFTWARE_GPU = /swiftshader|llvmpipe|lavapipe|softpipe|software|basic render/i;
 
@@ -83,102 +106,6 @@
         ];
     }
 
-    const SKY_VERTEX = `
-varying vec3 vDir;
-void main() {
-    vDir = position;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}`;
-
-    const SKY_FRAGMENT = `
-uniform vec3 uTop;
-uniform vec3 uHorizon;
-uniform vec3 uBottom;
-uniform vec3 uKey;
-uniform vec3 uSunDir;
-uniform vec3 uMoonDir;
-uniform float uSunVisible;
-uniform float uMoonVisible;
-uniform float uStars;
-uniform float uTime;
-varying vec3 vDir;
-float skyHash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
-void main() {
-    vec3 v = normalize(vDir);
-    float lifted = v.y + SKY_LIFT;
-    vec3 col = lifted > 0.0 ? mix(uHorizon, uTop, pow(min(lifted, 1.0), 0.55)) : mix(uHorizon, uBottom, pow(min(-lifted, 1.0), 0.4));
-    vec3 up = vec3(0.0, 1.0, 0.0);
-    float sd = dot(v, uSunDir);
-    vec3 sr = normalize(cross(uSunDir, up));
-    vec3 su = cross(sr, uSunDir);
-    vec2 p = vec2(dot(v, sr), dot(v, su)) / SUN_SIZE;
-    if (sd > 0.0 && max(abs(p.x), abs(p.y)) < 1.0) col = mix(col, SUN_CORE, uSunVisible);
-    col += uKey * (pow(max(sd, 0.0), 64.0) * 0.55 + pow(max(sd, 0.0), 8.0) * 0.12) * uSunVisible;
-    float md = dot(v, uMoonDir);
-    vec3 mr = normalize(cross(uMoonDir, up));
-    vec3 mu = cross(mr, uMoonDir);
-    vec2 q = vec2(dot(v, mr), dot(v, mu)) / MOON_SIZE;
-    vec2 cutQ = q - MOON_CUT;
-    if (md > 0.0 && max(abs(q.x), abs(q.y)) < 1.0 && max(abs(cutQ.x), abs(cutQ.y)) >= 1.0) col = mix(col, MOON_COLOR, uMoonVisible);
-    vec3 g = floor(v * STAR_CELLS);
-    float h = skyHash(g);
-    float star = step(STAR_THRESHOLD, h) * (0.55 + 0.45 * sin(uTime * (1.0 + h * 3.0) + h * 40.0)) * uStars * smoothstep(0.02, 0.2, v.y);
-    col += vec3(star);
-    gl_FragColor = vec4(col, 1.0);
-    #include <tonemapping_fragment>
-    #include <colorspace_fragment>
-}`;
-
-    const POST_VERTEX = `
-varying vec2 vUv;
-void main() {
-    vUv = uv;
-    gl_Position = vec4(position.xy, 0.0, 1.0);
-}`;
-
-    // Tilt-shift: a 12-tap golden-angle disc blur that grows towards the top and bottom of the picture, plus a
-    // light vignette. It runs in linear light and ends with the renderer's tone mapping and colour conversion.
-    const POST_FRAGMENT = `
-uniform sampler2D tDiffuse;
-uniform vec2 uPx;
-uniform float uMaxBlur;
-uniform float uBand;
-uniform float uFeather;
-uniform float uFocusY;
-uniform float uVignette;
-varying vec2 vUv;
-void main() {
-    float amount = smoothstep(uBand, uBand + uFeather, abs(vUv.y - uFocusY));
-    float radius = uMaxBlur * amount;
-    vec3 color = texture2D(tDiffuse, vUv).rgb;
-    if (radius > 0.25) {
-        vec3 sum = color;
-        for (int i = 0; i < 12; i++) {
-            float fi = float(i) + 0.5;
-            float r = sqrt(fi / 12.0) * radius;
-            float a = fi * 2.39996323;
-            sum += texture2D(tDiffuse, vUv + vec2(cos(a), sin(a)) * r * uPx).rgb;
-        }
-        color = sum / 13.0;
-    }
-    color *= 1.0 - uVignette * pow(length((vUv - 0.5) * vec2(1.1, 1.0)) * 1.25, 2.2);
-    gl_FragColor = vec4(color, 1.0);
-    #include <tonemapping_fragment>
-    #include <colorspace_fragment>
-}`;
-
-    function glslFloat(value) { return Number.isInteger(value) ? value.toFixed(1) : String(value); }
-    function glslVec3(rgb) { return 'vec3(' + rgb.map(glslFloat).join(', ') + ')'; }
-
-    function skyFragmentSource() {
-        const moon = hexRGB(SKY_MOON.color).map(c => srgbToLinear(c) * SKY_MOON.gain);
-        return SKY_FRAGMENT
-            .replace(/SKY_LIFT/g, glslFloat(SKY_LIFT)).replace(/SUN_SIZE/g, glslFloat(SKY_SUN.size)).replace(/SUN_CORE/g, glslVec3(SKY_SUN.core))
-            .replace(/MOON_SIZE/g, glslFloat(SKY_MOON.size)).replace(/MOON_COLOR/g, glslVec3(moon))
-            .replace(/MOON_CUT/g, 'vec2(' + SKY_MOON.cut.map(glslFloat).join(', ') + ')')
-            .replace(/STAR_CELLS/g, glslFloat(SKY_STARS.cells)).replace(/STAR_THRESHOLD/g, glslFloat(SKY_STARS.threshold));
-    }
-
     function create(options) {
         const THREE = options.THREE;
         const motion = !!options.motion;
@@ -188,6 +115,7 @@ void main() {
         const Mesher = window.AuraVoxelMesher;
         const SkyModel = window.AuraVoxelSky;
         const Blocks = window.AuraVoxelBlocks;
+        const Shaders = window.AuraVoxelShaders;
 
         const host = document.createElement('div');
         host.className = 'vd-fx-voxel-scene';
@@ -204,6 +132,7 @@ void main() {
         let camera = null;
         let hemi = null;
         let key = null;
+        let rim = null;
         let skyMesh = null;
         let postScene = null;
         let postCamera = null;
@@ -248,13 +177,20 @@ void main() {
         let lifeFailed = false;
         let anchors = {};
         let cameraDistance = 215;
-        let fogSrgb = [.8, .9, 1];
+        let fogLinear = [.8, .9, 1];
+        let resizeTimer = 0;                  // static mode: coalesced redraw after a resize
+        let targetTimer = 0;                  // debounced re-creation of the tilt-shift target
+        let skipGap = true;                   // the next rendered frame's gap is not a cadence sample
+        let lastTick = 0;
+        let refresh = 34;                     // display refresh period: the shortest gap between animation frames seen (ms)
         const stamps = [];
         const costs = [];
+        const gaps = [];
+        const probeCosts = [];
         let warm = ADAPT.warmup;
-        let slowGaps = 0;
         let fastSince = 0;
         let parallax = { yaw: 0, pitch: 0, goalYaw: 0, goalPitch: 0 };
+        const sunTint = setSrgb(new THREE.Color(), SKY.sun.tint);   // pushes the sun towards yellow (white-yellow at noon, deep orange at golden hour)
         const keyCurrent = new THREE.Vector3(0, 1, 0);
         const keyGoal = new THREE.Vector3(0, 1, 0);
         const shadowDir = new THREE.Vector3(0, 1, 0);
@@ -270,16 +206,19 @@ void main() {
             uCloudOffset: { value: new THREE.Vector2(0, 0) },
             uCloudShadow: { value: 0 },
             uSun: { value: 1 },
-            uTexel: { value: TEXEL }
+            uTexel: { value: TEXEL },
+            uSkyHorizon: { value: new THREE.Color() }   // the water mixes towards it
         };
         const skyUniforms = {
             uTop: { value: new THREE.Color() }, uHorizon: { value: new THREE.Color() }, uBottom: { value: new THREE.Color() },
-            uKey: { value: new THREE.Color() }, uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uMoonDir: { value: new THREE.Vector3(0, 1, 0) },
-            uSunVisible: { value: 1 }, uMoonVisible: { value: 0 }, uStars: { value: 0 }, uTime: uniforms.uTime
+            uKey: { value: new THREE.Color() }, uSunColor: { value: new THREE.Color() },
+            uSunPos: { value: new THREE.Vector2(.5, .3) }, uMoonPos: { value: new THREE.Vector2(.5, .3) }, uResolution: { value: new THREE.Vector2(1, 1) },
+            uSunVisible: { value: 1 }, uMoonVisible: { value: 0 }, uStars: { value: 0 }, uTime: uniforms.uTime, uYaw: { value: 0 }
         };
         const postUniforms = {
             tDiffuse: { value: null }, uPx: { value: new THREE.Vector2(1, 1) }, uMaxBlur: { value: TILT.maxBlur },
-            uBand: { value: TILT.band }, uFeather: { value: TILT.feather }, uFocusY: { value: TILT.focusY }, uVignette: { value: TILT.vignette }
+            uBand: { value: TILT.band }, uFeather: { value: TILT.feather }, uFocusY: { value: TILT.focusY }, uVignette: { value: TILT.vignette },
+            uSaturation: { value: TILT.saturation }
         };
 
         function track(item) { disposables.push(item); return item; }
@@ -378,17 +317,18 @@ void main() {
             }
         }
 
-        function addDecorations(parent, list) {
+        // Flowers and tufts are taller than wide; a decoration with its own height (lanterns) keeps it.
+        function addDecorations(parent, list, material) {
             if (!list.length) return;
             const geometry = track(new THREE.BoxGeometry(1, 1, 1));
-            const mesh = new THREE.InstancedMesh(geometry, materials.deco, list.length);
+            const mesh = new THREE.InstancedMesh(geometry, material, list.length);
             const matrix = new THREE.Matrix4();
             const position = new THREE.Vector3();
             const scale = new THREE.Vector3();
             const quaternion = new THREE.Quaternion();
             const color = new THREE.Color();
             list.forEach((item, i) => {
-                const tall = item.size * DECO_TALL;
+                const tall = item.height || item.size * DECO_TALL;
                 position.set(item.x + .5 - island.w / 2, item.y + tall / 2, item.z + .5 - island.d / 2);
                 scale.set(item.size, tall, item.size);
                 matrix.compose(position, quaternion, scale);
@@ -412,11 +352,13 @@ void main() {
             materials.glow = patch(new THREE.MeshLambertMaterial({ vertexColors: true }), 'glow');
             materials.water = patch(new THREE.MeshStandardMaterial({ vertexColors: true, transparent: true, opacity: .84, roughness: .18, metalness: 0 }), 'water');
             materials.deco = patch(new THREE.MeshLambertMaterial({ color: 0xffffff }), 'deco');
+            materials.glowDeco = patch(new THREE.MeshLambertMaterial({ color: 0xffffff }), 'glowdeco');
             island = Island.generate();
             const world = new THREE.Group();
             scene.add(world);
             addGrid(island, world);
-            addDecorations(world, island.decorations);
+            addDecorations(world, island.decorations.filter(item => !item.glow), materials.deco);
+            addDecorations(world, island.decorations.filter(item => item.glow), materials.glowDeco);
             voxels = island.solidCount;
             for (const islet of island.islets) {
                 const group = new THREE.Group();
@@ -452,15 +394,18 @@ void main() {
             key.shadow.normalBias = SHADOW.normalBias;
             key.shadow.radius = SHADOW.radius;
             key.target.position.set(TARGET[0], TARGET[1], TARGET[2]);
-            scene.add(hemi, key, key.target);
+            rim = new THREE.DirectionalLight(0xffffff, 0);
+            rim.castShadow = false;
+            rim.target.position.set(TARGET[0], TARGET[1], TARGET[2]);
+            scene.add(hemi, key, key.target, rim, rim.target);
         }
 
         function buildSky() {
             const material = track(new THREE.ShaderMaterial({
-                uniforms: skyUniforms, vertexShader: SKY_VERTEX, fragmentShader: skyFragmentSource(),
-                side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false
+                uniforms: skyUniforms, vertexShader: Shaders.SKY_VERTEX, fragmentShader: Shaders.skyFragment(SKY),
+                side: THREE.DoubleSide, depthWrite: false, depthTest: false, fog: false
             }));
-            skyMesh = new THREE.Mesh(track(new THREE.SphereGeometry(SKY_RADIUS, 32, 16)), material);
+            skyMesh = new THREE.Mesh(track(new THREE.PlaneGeometry(2, 2)), material);
             skyMesh.frustumCulled = false;
             skyMesh.renderOrder = -1000;
             scene.add(skyMesh);
@@ -468,7 +413,7 @@ void main() {
 
         function buildPost() {
             postMaterial = track(new THREE.ShaderMaterial({
-                uniforms: postUniforms, vertexShader: POST_VERTEX, fragmentShader: POST_FRAGMENT,
+                uniforms: postUniforms, vertexShader: Shaders.POST_VERTEX, fragmentShader: Shaders.POST_FRAGMENT,
                 toneMapped: true, depthTest: false, depthWrite: false
             }));
             const quad = new THREE.Mesh(track(new THREE.PlaneGeometry(2, 2)), postMaterial);
@@ -495,31 +440,57 @@ void main() {
         // ---- Sky, light, camera --------------------------------------------------------------
         function applyFog() {
             if (!scene || !scene.fog) return;
-            const linear = fogSrgb.map(srgbToLinear);
             // Drawn straight to the canvas the fog is mixed in after tone mapping; the tilt-shift pass tone-maps it later.
-            const rgb = tiltOn ? linear : acesFilmic(linear);
+            const rgb = tiltOn ? fogLinear : acesFilmic(fogLinear);
             scene.fog.color.setRGB(rgb[0], rgb[1], rgb[2], THREE.LinearSRGBColorSpace);
+        }
+
+        // The sky gradient (linear colours, the same smoothsteps as the shader) at a screen row from the top (0..1).
+        function skyGradientAt(row) {
+            const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+            const toHorizon = smooth(0, SKY.horizonAt, row);
+            const toBottom = smooth(SKY.horizonAt, 1, row);
+            const top = skyUniforms.uTop.value;
+            const horizon = skyUniforms.uHorizon.value;
+            const bottom = skyUniforms.uBottom.value;
+            return ['r', 'g', 'b'].map(c => (top[c] + (horizon[c] - top[c]) * toHorizon) * (1 - toBottom) + bottom[c] * toBottom);
+        }
+
+        // Sun and moon paths in screen fractions: the sun from the rise hour to the set hour, the moon from the set hour to the rise hour.
+        function updateSkyPaths(hour) {
+            const sun = SKY.sun;
+            const moon = SKY.moon;
+            const dayT = clamp((hour - sun.rise) / (sun.set - sun.rise), 0, 1);
+            const nightT = clamp(((hour - sun.set + 24) % 24) / (24 - (sun.set - sun.rise)), 0, 1);
+            skyUniforms.uSunPos.value.set(sun.x - sun.dx * dayT, sun.y - sun.dy * Math.sin(Math.PI * dayT));
+            skyUniforms.uMoonPos.value.set(moon.x - moon.dx * nightT, moon.y - moon.dy * Math.sin(Math.PI * nightT));
         }
 
         function updateSky(snap, now) {
             const hour = hourOverride !== null ? hourOverride : SkyModel.hourFromDate();
             sky = SkyModel.at(hour);
             lastSkyAt = now;
+            const day = 1 - sky.night;
             setSrgb(hemi.color, sky.hemiSky);
             setSrgb(hemi.groundColor, sky.hemiGround.map((c, i) => c + (sky.cloudTint[i] - c) * LIGHT.groundBounce)).multiplyScalar(LIGHT.groundGain);
-            hemi.intensity = sky.hemiIntensity * (1 + LIGHT.fill * (1 - clamp(sky.keyIntensity / 3, 0, 1)));
+            hemi.intensity = sky.hemiIntensity * (1 + LIGHT.fill * (1 - clamp(sky.keyIntensity / 3, 0, 1))) * (1 + (LIGHT.dayHemi - 1) * day) * (1 + (LIGHT.nightHemi - 1) * sky.night);
             setSrgb(key.color, sky.keyColor);
-            key.intensity = sky.keyIntensity * (1 + (LIGHT.nightKey - 1) * sky.night);
+            key.intensity = sky.keyIntensity * (1 + (LIGHT.nightKey - 1) * sky.night) * (1 + (LIGHT.dayKey - 1) * day);
+            const rimNight = hexRGB(LIGHT.rim.nightColor);
+            setSrgb(rim.color, sky.skyHorizon.map((c, i) => c + (rimNight[i] - c) * sky.night));
+            rim.intensity = LIGHT.rim.day + (LIGHT.rim.night - LIGHT.rim.day) * sky.night;
             keyGoal.fromArray(sky.keyDir).normalize();
             if (snap) keyCurrent.copy(keyGoal);
-            fogSrgb = sky.fogColor;
-            applyFog();
             setSrgb(skyUniforms.uTop.value, sky.skyTop);
             setSrgb(skyUniforms.uHorizon.value, sky.skyHorizon);
             setSrgb(skyUniforms.uBottom.value, sky.skyBottom);
             setSrgb(skyUniforms.uKey.value, sky.keyColor);
-            skyUniforms.uSunDir.value.fromArray(sky.sunDir);
-            skyUniforms.uMoonDir.value.fromArray(sky.moonDir);
+            setSrgb(skyUniforms.uSunColor.value, sky.keyColor);
+            skyUniforms.uSunColor.value.multiply(sunTint).multiplyScalar(SKY.sun.gain);
+            setSrgb(uniforms.uSkyHorizon.value, sky.skyHorizon);
+            updateSkyPaths(sky.hour);
+            fogLinear = skyGradientAt(FOG.skyRow);
+            applyFog();
             skyUniforms.uSunVisible.value = sky.sunVisible;
             skyUniforms.uMoonVisible.value = sky.moonVisible;
             skyUniforms.uStars.value = sky.stars;
@@ -551,9 +522,16 @@ void main() {
             );
             camera.lookAt(TARGET[0], TARGET[1], TARGET[2]);
             camera.updateMatrixWorld();
-            skyMesh.position.copy(camera.position);
             scene.fog.near = cameraDistance * FOG.near;
             scene.fog.far = cameraDistance * FOG.far;
+            skyUniforms.uYaw.value = yaw - BASE_YAW;
+            // Rim light: from behind the island (away from the camera), a little to the right of the view, and above.
+            const sy = Math.sin(yaw * rad);
+            const cy = Math.cos(yaw * rad);
+            const rx = -sy + cy * LIGHT.rim.side;
+            const rz = -cy - sy * LIGHT.rim.side;
+            const rl = Math.hypot(rx, LIGHT.rim.up, rz) || 1;
+            rim.position.set(TARGET[0] + rx / rl * SHADOW.distance, TARGET[1] + LIGHT.rim.up / rl * SHADOW.distance, TARGET[2] + rz / rl * SHADOW.distance);
         }
 
         function applyViewOffset() {
@@ -572,33 +550,90 @@ void main() {
         }
 
         // ---- Quality, size -------------------------------------------------------------------
-        function ensureTarget(w, h) {
-            if (target && target.width === w && target.height === h) return;
-            if (target) target.dispose();
-            target = new THREE.WebGLRenderTarget(w, h, { samples: 4, type: THREE.HalfFloatType, depthBuffer: true, stencilBuffer: false });
-            postUniforms.tDiffuse.value = target.texture;
-        }
-
-        function resize() {
-            if (!renderer || !camera) return;
+        function readSize() {
             const s = state();
             width = Math.max(1, Math.round(Number(s.width) || window.innerWidth || 1));
             height = Math.max(1, Math.round(Number(s.height) || window.innerHeight || 1));
-            const spec = QUALITY[quality];
-            dpr = Math.min(window.devicePixelRatio || 1, spec.dpr);
+            dpr = Math.min(window.devicePixelRatio || 1, QUALITY[quality].dpr);
+        }
+
+        // The tilt-shift target is drawn at min(dpr, 1); the post pass scales it to the canvas.
+        function targetSize() {
+            const r = Math.min(dpr, 1);
+            return [Math.max(1, Math.round(width * r)), Math.max(1, Math.round(height * r))];
+        }
+
+        function tiltWanted() {
+            const r = Math.min(dpr, 1);
+            return !!QUALITY[quality].tilt && tiltCapable && width * height * r * r <= TILT.maxPixels;
+        }
+
+        function ensureTarget(w, h) {
+            if (!target || target.width !== w || target.height !== h) {
+                if (target) target.dispose();
+                target = new THREE.WebGLRenderTarget(w, h, { samples: TILT.samples, type: THREE.HalfFloatType, depthBuffer: true, stencilBuffer: false });
+                postUniforms.tDiffuse.value = target.texture;
+            }
+            postUniforms.uPx.value.set(1 / w, 1 / h);
+            postUniforms.uMaxBlur.value = TILT.maxBlur * w / Math.max(1, width);
+        }
+
+        function clearTargetTimer() {
+            if (targetTimer) clearTimeout(targetTimer);
+            targetTimer = 0;
+        }
+
+        // Switches the tilt-shift pass on or off and keeps its target at the picture size. A changed size only re-creates the target
+        // once it has been stable for RESIZE_DEBOUNCE_MS (the old target keeps being used, scaled by the post pass, meanwhile) unless
+        // there is no target yet or `immediate` is set.
+        function updateTilt(immediate) {
+            const want = tiltWanted();
+            if (want !== tiltOn) {
+                tiltOn = want;
+                applyFog();
+                if (!want) {
+                    clearTargetTimer();
+                    if (target) { target.dispose(); target = null; postUniforms.tDiffuse.value = null; }
+                    return;
+                }
+            }
+            if (!tiltOn) return;
+            const size = targetSize();
+            if (target && target.width === size[0] && target.height === size[1]) { clearTargetTimer(); return; }
+            if (!target || immediate) { clearTargetTimer(); ensureTarget(size[0], size[1]); return; }
+            clearTargetTimer();
+            targetTimer = setTimeout(() => {
+                targetTimer = 0;
+                if (!tiltOn || disposed || !renderer) return;
+                const next = targetSize();
+                ensureTarget(next[0], next[1]);
+            }, RESIZE_DEBOUNCE_MS);
+        }
+
+        function applySize(immediate) {
+            if (resizeTimer) { clearTimeout(resizeTimer); resizeTimer = 0; }
+            if (!renderer || !camera || disposed) return;
+            readSize();
             renderer.setPixelRatio(dpr);
             renderer.setSize(width, height, false);
             camera.aspect = width / height;
             applyViewOffset();
             camera.updateProjectionMatrix();
-            if (tiltOn) {
-                const w = Math.max(1, Math.round(width * dpr));
-                const h = Math.max(1, Math.round(height * dpr));
-                ensureTarget(w, h);
-                postUniforms.uPx.value.set(1 / w, 1 / h);
-                postUniforms.uMaxBlur.value = TILT.maxBlur * dpr;
+            updateTilt(immediate);
+            if (!built || contextLost) return;
+            if (raf) { lastRender = 0; skipGap = true; }   // draw on the next frame: resizing cleared the canvas
+            else renderStatic();
+        }
+
+        // Without a frame loop (reduced motion, Q3) a resize is redrawn once, 150 ms after the last resize event.
+        function resize() {
+            if (!renderer || !camera || disposed) return;
+            if (built && !raf) {
+                if (resizeTimer) clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => applySize(true), RESIZE_DEBOUNCE_MS);
+                return;
             }
-            if (built && (!raf && !contextLost)) renderStatic();
+            applySize(false);
         }
 
         function applyQuality(level) {
@@ -607,22 +642,21 @@ void main() {
             const changed = next !== quality;
             quality = next;
             const wantShadow = spec.shadow > 0;
-            const wantTilt = spec.tilt && tiltCapable;
             const shadowToggled = wantShadow !== shadowOn;
-            const tiltToggled = wantTilt !== tiltOn;
             shadowOn = wantShadow;
-            tiltOn = wantTilt;
             renderer.shadowMap.enabled = wantShadow;
             key.castShadow = wantShadow;
-            if (wantShadow && spec.shadow !== shadowSize) {
+            if (!wantShadow) {
+                // The shadow map is released while the shadows are off (2048 x 2048 depth is 16 MB or more).
+                if (key.shadow.map) { key.shadow.map.dispose(); key.shadow.map = null; }
+                shadowSize = 0;
+            } else if (spec.shadow !== shadowSize) {
                 shadowSize = spec.shadow;
                 key.shadow.mapSize.set(shadowSize, shadowSize);
                 if (key.shadow.map) { key.shadow.map.dispose(); key.shadow.map = null; }
             }
             shadowDirty = true;
             if (shadowToggled) for (const name of Object.keys(materials)) materials[name].needsUpdate = true;
-            if (!tiltOn && target) { target.dispose(); target = null; postUniforms.tDiffuse.value = null; }
-            if (tiltToggled) applyFog();
             if (spec.hidden) hideHost();
             else if (host.style.display === 'none' && backend === 'three-webgl') showHost();
             if (life && typeof life.setQuality === 'function') {
@@ -630,9 +664,12 @@ void main() {
             }
             warm = ADAPT.warmup;
             costs.length = 0;
-            slowGaps = 0;
+            gaps.length = 0;
+            probeCosts.length = 0;
             fastSince = 0;
-            if (changed || !built) resize();
+            skipGap = true;
+            if (changed || !built) applySize(true);
+            else updateTilt(true);
             if (changed) startLoops();
         }
 
@@ -641,19 +678,68 @@ void main() {
             applyQuality(level);
         }
 
+        // ---- Adaptive quality ----------------------------------------------------------------
+        function mean(list) { return list.reduce((a, b) => a + b, 0) / list.length; }
+
+        // The display refresh period is the shortest gap between animation frames seen (a slow scene cannot raise it).
+        function trackRefresh(now) {
+            if (lastTick) {
+                const delta = now - lastTick;
+                if (delta >= 4 && delta < refresh) refresh = delta;
+            }
+            lastTick = now;
+        }
+
+        // The gap between rendered frames the display can deliver for an interval: whole refresh periods.
+        function expectedGap(interval) {
+            return Math.max(interval, Math.ceil((interval - FRAME_SLACK) / refresh) * refresh);
+        }
+
+        // cost: CPU ms of the frame; gap: ms since the previous rendered frame, or null when it is not a cadence sample.
         function adapt(cost, gap, interval, now) {
+            if (throttled) { fastSince = 0; return; }
             if (warm > 0) { warm--; return; }
             costs.push(cost);
             if (costs.length > ADAPT.window) costs.shift();
-            slowGaps = gap > interval * ADAPT.gapFactor ? slowGaps + 1 : Math.max(0, slowGaps - 1);
-            if (qualityLock !== null || throttled) { fastSince = 0; return; }
-            const mean = costs.reduce((a, b) => a + b, 0) / costs.length;
-            if (quality < QUALITY.length - 1 && ((costs.length >= ADAPT.window && mean > ADAPT.downCost) || slowGaps >= ADAPT.gapFrames)) {
+            if (gap !== null) {
+                gaps.push(gap);
+                if (gaps.length > ADAPT.window) gaps.shift();
+            }
+            if (qualityLock !== null) { fastSince = 0; return; }
+            const expected = expectedGap(interval);
+            const full = costs.length >= ADAPT.window && gaps.length >= ADAPT.window;
+            const meanCost = mean(costs);
+            const meanGap = gaps.length ? mean(gaps) : 0;
+            const stalled = gap !== null && gap > ADAPT.stallMs;
+            if (quality < QUALITY.length - 1 && (stalled || (full && (meanCost > ADAPT.downCost || meanGap > expected * ADAPT.downGap)))) {
                 applyQuality(quality + 1);
-            } else if (quality > initialQuality && costs.length >= ADAPT.window && mean < ADAPT.upCost) {
+            } else if (quality > initialQuality && full && meanCost < ADAPT.upCost && meanGap < expected * ADAPT.upGap) {
                 if (!fastSince) fastSince = now;
                 else if (now - fastSince >= ADAPT.upAfterMs) applyQuality(quality - 1);
             } else fastSince = 0;
+        }
+
+        // Q3 has no frame loop: one timed render (CPU and GPU, gl.finish) every PROBE.everyMs; probes worth ADAPT.upAfterMs under
+        // ADAPT.upCost step back up to Q2.
+        function probeTick() {
+            if (!built || disposed || paused || contextLost || !renderer || quality !== PROBE.level) return;
+            const begin = performance.now();
+            if (frozen === null) lifeTime += PROBE.everyMs / 1000;
+            drawFrame(0, begin);
+            try { renderer.getContext().finish(); } catch (_) { /* the probe then measures the CPU only */ }
+            lastCost = performance.now() - begin;
+            probeCosts.push(lastCost);
+            const needed = Math.ceil(ADAPT.upAfterMs / PROBE.everyMs);
+            while (probeCosts.length > needed) probeCosts.shift();
+            if (qualityLock === null && quality > initialQuality && probeCosts.length >= needed && mean(probeCosts) < ADAPT.upCost) applyQuality(quality - 1);
+        }
+
+        function onVisibility() {
+            // Frames stop while the page is hidden: the first gap after it says nothing about the cadence.
+            skipGap = true;
+            lastTick = 0;
+            gaps.length = 0;
+            fastSince = 0;
         }
 
         // ---- Frames --------------------------------------------------------------------------
@@ -668,6 +754,9 @@ void main() {
             }
             key.position.set(TARGET[0] + keyCurrent.x * SHADOW.distance, TARGET[1] + keyCurrent.y * SHADOW.distance, TARGET[2] + keyCurrent.z * SHADOW.distance);
             updateCamera(dt, t);
+            // The sky works in pixels of the surface it is drawn to: the tilt-shift target or the canvas.
+            if (tiltOn && target) skyUniforms.uResolution.value.set(target.width, target.height);
+            else skyUniforms.uResolution.value.set(Math.round(width * dpr), Math.round(height * dpr));
             if (life && !lifeFailed) {
                 try { life.update(dt, t, sky, motion); } catch (error) { lifeFailed = true; noteError('scene life', error); }
             }
@@ -678,7 +767,7 @@ void main() {
                 shadowDirty = false;
             }
             try {
-                if (tiltOn) {
+                if (tiltOn && target) {
                     renderer.setRenderTarget(target);
                     renderer.render(scene, camera);
                     renderer.setRenderTarget(null);
@@ -713,16 +802,21 @@ void main() {
             raf = 0;
             if (disposed || paused || !renderer || contextLost) return;
             raf = requestAnimationFrame(tick);
+            trackRefresh(now);
             const s = state();
+            const wasThrottled = throttled;
             throttled = (Number(s.coverage) || 0) >= THROTTLE.coverage;
+            if (throttled !== wasThrottled) { skipGap = true; gaps.length = 0; fastSince = 0; }
             const interval = throttled ? THROTTLE.interval : QUALITY[quality].interval;
             if (lastRender && now - lastRender < interval - FRAME_SLACK) return;
+            const sample = !!lastRender && !skipGap && !document.hidden;
             const gap = lastRender ? now - lastRender : interval;
             const dt = lastRender ? Math.min(gap / 1000, .1) : 1 / 30;
+            skipGap = false;
             lastRender = now;
             if (frozen === null) lifeTime += dt;
             drawFrame(dt, now);
-            adapt(lastCost, gap, interval, now);
+            adapt(lastCost, sample ? gap : null, interval, now);
         }
 
         function stopLoops() {
@@ -738,9 +832,15 @@ void main() {
             const spec = QUALITY[quality];
             if (spec.hidden) return;
             lastRender = 0;
-            if (!motion || !spec.interval) {
+            skipGap = true;
+            gaps.length = 0;
+            fastSince = 0;
+            if (!motion) {
                 renderStatic();
                 staticTimer = setInterval(renderStatic, STATIC_REFRESH_MS);
+            } else if (!spec.interval) {
+                renderStatic();
+                staticTimer = setInterval(probeTick, PROBE.everyMs);
             } else {
                 raf = requestAnimationFrame(tick);
             }
@@ -777,11 +877,12 @@ void main() {
             }
             buildMs = Math.round(performance.now() - started);
             built = true;
-            resize();
+            applySize(true);
             startLoops();
         }
 
         buildTimer = setTimeout(build, 0);
+        document.addEventListener('visibilitychange', onVisibility);
 
         // ---- Public surface ------------------------------------------------------------------
         function setPointer(nx, ny, inside) {
@@ -830,7 +931,8 @@ void main() {
                 ready, backend, gpu, quality, qualityLocked: qualityLock !== null, fps: Math.round(stamps.length / 2 * 10) / 10, frames, buildMs,
                 hour: sky ? Math.round(sky.hour * 100) / 100 : null, phase: sky ? sky.phase : '', night: sky ? Math.round(sky.night * 100) / 100 : 0,
                 triangles: Math.round(triangles), voxels, shadows: shadowOn, tiltShift: tiltOn, throttled,
-                lastCostMs: Math.round(lastCost * 10) / 10, anchors, life: lifeState
+                lastCostMs: Math.round(lastCost * 10) / 10, gapMs: gaps.length ? Math.round(mean(gaps) * 10) / 10 : 0, refreshMs: Math.round(refresh * 10) / 10,
+                anchors, life: lifeState
             };
         }
 
@@ -839,6 +941,10 @@ void main() {
             disposed = true;
             if (buildTimer) clearTimeout(buildTimer);
             buildTimer = 0;
+            if (resizeTimer) clearTimeout(resizeTimer);
+            resizeTimer = 0;
+            clearTargetTimer();
+            document.removeEventListener('visibilitychange', onVisibility);
             stopLoops();
             if (life && typeof life.dispose === 'function') { try { life.dispose(); } catch (_) { /* best effort */ } }
             life = null;
