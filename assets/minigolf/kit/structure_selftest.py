@@ -5,7 +5,7 @@ blender --background --factory-startup --python assets/minigolf/kit/structure_se
 Builds track layouts (no Blender objects) and checks the rules of ``support_plan``, ``tunnel_plan``, ``layout`` and
 ``detail``: the bridge floor look per world, the rejected tunnel covers, the support rules (posts only where the floor
 is higher than ``MIN_DROP`` above the ground, none through another stretch or its rails), the tunnel opening and the
-straight-run and roof-crossing errors, the free ponds of the course data and the ``detail`` validation. Prints ``structure selftest ok``.
+straight-run and roof-crossing errors, the free ponds of the course data, a cannon flight over a tunnel and the ``detail`` validation. Prints ``structure selftest ok``.
 """
 
 import os
@@ -14,7 +14,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from kit import detail, layout, rails, support_plan, tunnel_plan  # noqa: E402
+from kit import detail, layout, mechanic_data, rails, support_plan, tunnel_plan  # noqa: E402
 
 
 def build(data, world):
@@ -88,6 +88,19 @@ def check_tunnel():
     expect_error("straight and level", lambda: tunnel_plan.plan(bent))
 
 
+def check_cannon_over_tunnel():
+    """A cannon flight keeps 0.5 m from the roof and the portal of a tunnel: a low arc is rejected, a high one passes."""
+    limits = {"min": [-30.0, -30.0, -30.0], "max": [30.0, 30.0, 30.0]}
+    pieces = tee_green(("straight", {"length": 1.0}), ("straight", {"length": 2.0}), ("straight", {"length": 4.0, "cover": "tunnel"}),
+                       ("straight", {"length": 3.0}))
+
+    def fly(seconds):
+        data = course("pirate", pieces) | {"mechanics": [{"id": "gun", "kind": "cannon", "at": (1.2, 0.0), "target": (9.8, 0.0), "flight": seconds}]}
+        mechanic_data.resolve(build(data, "pirate")).check(limits)
+    expect_error("tunnel", lambda: fly(1.1))
+    fly(2.1)
+
+
 def check_detail():
     assert detail.resolve({})["island_quads"] == detail.DEFAULTS["island_quads"]
     assert detail.resolve({"detail": {"trim_facets": 2}})["trim_facets"] == 2
@@ -121,6 +134,7 @@ def main():
     check_tunnel()
     check_detail()
     check_ponds()
+    check_cannon_over_tunnel()
     print("structure selftest ok")
 
 

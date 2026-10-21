@@ -12,8 +12,9 @@ Errors are ``ValueError`` with the course number and the piece index.
 loop) and ``pads_funnel`` (funnel), which this module imports; the layout dispatches on them by name. A
 ``fork`` is handled by ``layout_fork``: it builds both branches with the functions below.
 
-Rules checked here besides the piece parameters: a loop needs a boost pad (any ``boost`` mechanic of the
-course) or a flat straight run-up of 8 m; the route is 10-35 m long; parts of the route further apart than
+Rules checked here besides the piece parameters: a loop needs a ``boost`` mechanic in the course or a flat straight
+run-up of 8 m (``mechanic_data.resolve`` then requires the pad within 1.5 m of route arc before the entry unless the
+run-up is there); the route is 10-35 m long; parts of the route further apart than
 4 m along it keep their distance (clearance), except the turns of one loop; sibling branches of a fork are
 always checked against each other.
 """
@@ -34,6 +35,7 @@ NO_COVER = ("loop", "halfpipe")                                       # a ball c
 CLEARANCE = 0.5
 SEPARATE_ARC = 4.0       # parts of the route further apart than this must keep their distance
 LOOP_RUN_UP = 8.0
+LOOP_BOOST_REACH = 1.5   # a boost pad this far before the loop entry (route arc) carries the ball through (measured, design 4.4)
 
 
 def _point(value):
@@ -121,6 +123,8 @@ def _lane_piece(track, state, cursor, name, params):
         params["sections"] = shared["loop_sections"]
     if name == "loop" and state["run"] < LOOP_RUN_UP - 1e-9 and not shared["boost"]:
         raise ValueError("a loop needs a boost pad before it or a flat straight run-up of %g m (got %.1f m)" % (LOOP_RUN_UP, state["run"]))
+    if name == "loop":
+        track.loops.append({"arc": prev.arc, "run": state["run"]})   # mechanic_data.resolve checks where the boost pad lies
     length = params.get("length", 0.0) if name == "straight" else 0.0
     sections, cursor, extras = PIECES[name](prev, cursor, **params)
     group = None
@@ -145,6 +149,8 @@ def _piece(track, state, cursor, name, params):
     if state["done"]:
         raise ValueError("nothing may follow the green")
     if name == "anchor":
+        if params["name"] in track.anchors:
+            raise ValueError("anchor %r is already defined (anchor names are unique over the course, branches included)" % params["name"])
         track.anchors[params["name"]] = (cursor.x, cursor.y, cursor.z, cursor.heading)
         return cursor
     if name == "fork":

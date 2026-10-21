@@ -70,12 +70,13 @@ def _segment_distance(p, a, b):
     return math.dist(p, [a[i] + t * ab[i] for i in range(3)])
 
 
-def problems(sol, gravity, flight, target, floor, rail_tops, spheres, cylinders, limits):
+def problems(sol, gravity, flight, target, floor, rail_tops, spheres, cylinders, limits, boxes=()):
     """Messages for every sample of the flight that is too close to the course or outside ``limits`` (runtime ``min``/``max``).
 
     ``floor`` is a ``FloorField``; ``rail_tops`` a list of Blender polylines (the top edge of every rail run);
     ``spheres`` are ``(name, x, y, z, radius)`` and ``cylinders`` ``(name, x, y, foot_z, radius, height)`` obstructions
-    in Blender metres; ``target`` is the Blender landing point of the ball centre.
+    in Blender metres; ``boxes`` are ``tunnel_plan.cover_boxes`` (roofs and portals); ``target`` is the Blender landing
+    point of the ball centre.
     """
     out = []
     for px, py, pz, t in samples(sol["muzzle_rt"], sol["velocity"], gravity, flight):
@@ -102,4 +103,11 @@ def problems(sol, gravity, flight, target, floor, rail_tops, spheres, cylinders,
         for name, cx, cy, foot, radius, height in cylinders:
             if math.hypot(b[0] - cx, b[1] - cy) < radius + CLEARANCE and foot - CLEARANCE < b[2] < foot + height + CLEARANCE:
                 out.append("%s passes through the space of %s" % (where, name))
+        for box in boxes:
+            rx, ry = b[0] - box["origin"][0], b[1] - box["origin"][1]
+            along = rx * box["forward"][0] + ry * box["forward"][1]
+            lateral = rx * box["across"][0] + ry * box["across"][1]
+            if (-CLEARANCE < along < box["length"] + CLEARANCE and abs(lateral) < box["half"] + CLEARANCE
+                    and box["foot"] - CLEARANCE < b[2] < box["foot"] + box["height"] + CLEARANCE):
+                out.append("%s passes through the space of %s" % (where, box["name"]))
     return out

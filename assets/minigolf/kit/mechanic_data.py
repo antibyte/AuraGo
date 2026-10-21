@@ -26,7 +26,8 @@ import math
 import re
 
 from . import cannon_flight, obstacle_data
-from .mechanic_floor import FloorField, blender, locate, rounded, runtime
+from .layout import LOOP_BOOST_REACH, LOOP_RUN_UP
+from .mechanic_floor import FloorField, blender, locate, rounded, route_arc, runtime
 from .rails import rail_runs
 from .track import BALL_RADIUS
 
@@ -201,9 +202,11 @@ class Resolved:
         for run in rail_runs(self.track):
             tops.append([(p[0] + u[0] * h, p[1] + u[1] * h, p[2] + u[2] * h) for p, _, u, h in run])
         spheres, cylinders = self.obstructions()
+        from . import tunnel_plan      # needs Blender (part_utils); only a course with a cannon gets here
+        boxes = tunnel_plan.cover_boxes(tunnel_plan.plan(self.track))
         for build, spec in self.flights:
             found = cannon_flight.problems(build["solution"], self.track.gravity, build["flight"], build["target"], self.floor, tops, spheres,
-                                           cylinders, limits)
+                                           cylinders, limits, boxes)
             if found:
                 raise ValueError("cannon '%s': the flight is not clear: %s" % (spec["id"], "; ".join(found[:4])))
 
@@ -217,6 +220,19 @@ class Resolved:
                     b = blender((px, py, pz))
                     if math.hypot(b[0] - x, b[1] - y) < solid + cannon_flight.CLEARANCE and b[2] < z + info["height"] * scale + cannon_flight.CLEARANCE:
                         raise ValueError("cannon '%s': the flight at %.2f s passes within 0.5 m of the %s at (%.1f, %.1f)" % (spec["id"], t, name, x, y))
+
+
+def check_loops(track, res):
+    """Every loop without the 8 m flat straight run-up needs a boost pad 0 to 1.5 m of route arc before its entry (design 4.4)."""
+    boosts = [(b["x"], b["y"], b["z"]) for b in res.mechanic_items if b["kind"] == "boost"]
+    for number, loop in enumerate(track.loops, 1):
+        if loop["run"] >= LOOP_RUN_UP - 1e-9:
+            continue
+        arcs = [route_arc(track, *boost)[0] for boost in boosts]
+        if not any(loop["arc"] - LOOP_BOOST_REACH - 1e-6 <= arc <= loop["arc"] + 1e-6 for arc in arcs):
+            where = "course %d: loop %d (entry at route arc %.1f m)" % (track.number, number, loop["arc"])
+            raise ValueError("%s needs a boost pad 0 to %g m of route before its entry (boost pads at %s) or a flat straight run-up of %g m "
+                             "(has %.1f m)" % (where, LOOP_BOOST_REACH, ", ".join("%.1f m" % a for a in arcs) or "none", LOOP_RUN_UP, loop["run"]))
 
 
 def resolve(track):
@@ -234,6 +250,7 @@ def resolve(track):
                 raise ValueError("%s: the id is used twice" % where)
             seen.add(ident)
             add(item, where)
+    check_loops(track, res)
     track.mechanics, track.obstacles = res.mechanics, res.obstacles
     validate_runtime(res.mechanics, res.obstacles, track.cycle, track.gravity)
     return res

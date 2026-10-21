@@ -29,6 +29,9 @@ PORTAL_RADIUS = {"pirate": 2.5, "temple": 3.5, "moon": 1.9}
 STRAIGHT_TOL = (0.04, 0.04)  # lateral and vertical deviation allowed inside the portal depth
 RESERVE_STEP, RESERVE_RADIUS = 1.2, 1.95
 ROOF_TOP = CROWN + ROOF + 0.1   # height of the roof above the floor, for the crossing check
+PORTAL_HEIGHT = {"pirate": 2.8, "temple": 3.6, "moon": 1.9}   # top of the portal body over the floor (the skull rock is 2.75 m high)
+PORTAL_HALF = {"pirate": 2.1, "temple": 3.0, "moon": HALF + FOOT}     # half width of the portal body (the skull rock is 2.05 m)
+COVER_STEP = 0.8             # length of one roof box of ``cover_boxes``
 
 
 class Chain:
@@ -130,6 +133,31 @@ def footprint_points(track):
         r = PORTAL_RADIUS[world]
         points.extend((cx + r * math.cos(math.tau * k / 16), cy + r * math.sin(math.tau * k / 16)) for k in range(16))
     return points
+
+
+def cover_boxes(tunnels):
+    """Boxes (Blender metres) around the portal and the roof of every tunnel, for the cannon flight check.
+
+    Each box is ``{name, origin, forward, across, length, half, foot, height}``: ``origin`` (x, y) and ``foot`` (z) at its
+    start, the unit vectors ``forward`` and ``across`` in plan, ``length`` along the route, ``half`` width to each side and
+    ``height`` over ``foot``. The roof and the portals have no collision for the ball, but a shot must not fly through the
+    rock: the first box is the entrance body (``PORTAL_HALF`` wide, ``depth`` long, level and straight), the roof follows
+    in ``COVER_STEP`` pieces (the opening plus the outer mound, ``ROOF_TOP`` high, taller where the lane climbs).
+    """
+    out = []
+    for number, tunnel in enumerate(tunnels, 1):
+        chain, depth, world = tunnel["chain"], tunnel["depth"], tunnel["world"]
+        origin, forward, across, _ = chain.frame(0.0)
+        out.append({"name": "the portal of tunnel %d" % number, "origin": origin[:2], "forward": forward[:2], "across": across[:2],
+                    "length": depth, "half": PORTAL_HALF[world], "foot": origin[2], "height": PORTAL_HEIGHT[world]})
+        s = depth
+        while s < chain.length - 1e-9:
+            end = min(s + COVER_STEP, chain.length)
+            (o0, f0, a0, _), (o1, _, _, _) = chain.frame(s), chain.frame(end)
+            out.append({"name": "the roof of tunnel %d" % number, "origin": o0[:2], "forward": f0[:2], "across": a0[:2], "length": end - s,
+                        "half": HALF + FOOT, "foot": min(o0[2], o1[2]), "height": ROOF_TOP + abs(o1[2] - o0[2])})
+            s = end
+    return out
 
 
 def reserved_circles(tunnels):

@@ -218,11 +218,15 @@ of the P3 courses; `courses.py` (see "Course pipeline (P3)") drives them for `ge
   degrees (heading) and 1 mm (height, forward coordinate) and be an even multiple of `SPACING` apart. `main` is
   `Track.path`; the other branch is an extra polyline in `Track.corridors` from the section before the fork to the
   join exit.
-- Layout rules: a loop needs a `boost` mechanic anywhere in the course data or an 8 m flat straight run-up; clearance
+- Layout rules: a loop needs a `boost` mechanic in the course data or an 8 m flat straight run-up (`layout`); where the
+  mechanics are resolved (`mechanic_data.check_loops`, `Track.loops` holds each loop's entry arc and run-up) a loop without
+  the run-up needs a boost pad whose route arc lies 0 to 1.5 m before the loop entry (design 4.4, measured). Anchor names
+  are unique over the course, fork branches included (a repeated name is a `ValueError`). Clearance
   (0.5 m) is checked between route parts more than 4 m apart along the route, never within one loop, always between
   the two branches of a fork.
 - Jump: `ramp` with `lip` (degrees), then `gap` (hazard `water`/`void`, `landing` section stored in
-  `track.hazards`), then a flat piece; the pirate probe course covers it.
+  `track.hazards`), then a flat piece; the pirate probe course covers it. The last section of a lip ramp ends at the lip
+  angle and is not `flat` (any profile whose end slope exceeds 0.1 %), so a loop, half-pipe, funnel or pad cannot follow it.
 - Collision nodes (contract V1): `floor-<look>` (`floor-<look>-<surface>` if one look has both surfaces) with
   the extra `aurago_collider` = `grass` or `sand`; `rail-wood|stone|metal` with `aurago_collider` and
   `aurago_hidden`. Collision objects keep the identity transform (world coordinates).
@@ -373,7 +377,8 @@ Blender: `mech_util`, `mechanic_parts` (bumper, boost), `mechanic_portals` (tele
   carrying the node extra `aurago_spin` `{axis: [0, 1, 0], speed}`. The boost pad is a decal draped 5 mm over the floor.
 - Cannon (`cannon_flight`): `velocity = (target - muzzle - g T^2 / 2) / T` in runtime coordinates, the muzzle sits `barrel`
   m from the breech point along the launch direction (fixed point iteration, elevation 18-72 degrees). Twenty samples of the
-  flight must stay inside `bounds` and 0.5 m from floor, rails, obstacles, bumpers and props (the landing spot within 1 m is
+  flight must stay inside `bounds` and 0.5 m from floor, rails, obstacles, bumpers, props and the roofs and portals of tunnels
+  (`tunnel_plan.cover_boxes`: portal body and roof pieces, checked in `cannon_flight.problems`; the landing spot within 1 m is
   exempt from floor and rails). `bounds` takes the apex. In the Rapier probes (1/120 s steps) the first touchdown was within 1 mm of
   `target`, also uphill onto a floor 0.35 m higher.
 - Budgets seen on scratch courses with everything of a world: bumper 0.7-0.9k triangles, hatch 0.9k, cannon 3.1k, pendulum with

@@ -23,6 +23,7 @@ MAX_LIP = 30.0
 MAX_STEP_DROP = 0.35
 MIN_TREAD = 0.5
 MAX_GAP = 8.0
+END_SLOPE_STEP, END_SLOPE_FLAT = 1e-4, 1e-3     # a profile ends level when its slope over the last 0.1 mm is below 0.1 %
 
 
 def _positive(value, name):
@@ -88,7 +89,11 @@ def bank(prev, cursor, radius, angle, bank, **style):
 
 
 def _profile_sections(cursor, length, z_of, rise, st):
-    """Straight with a height profile ``z_of(x)``; the last section gets exactly ``cursor.z + rise``."""
+    """Straight with a height profile ``z_of(x)``; the last section gets exactly ``cursor.z + rise``.
+
+    The last section is ``flat`` (a loop, half-pipe or pad may start on it) only when the profile ends level: the tail
+    of a lip ramp ends at the lip angle.
+    """
     n = max(2, math.ceil(length / MAX_STEP - 1e-9))
     fx, fy = cursor.forward()
     sections = []
@@ -96,6 +101,8 @@ def _profile_sections(cursor, length, z_of, rise, st):
         x = length * k / n
         z = cursor.z + (rise if k == n else z_of(x))
         sections.append(make_section((cursor.x + fx * x, cursor.y + fy * x, z), cursor.heading, style=st))
+    if abs(z_of(length) - z_of(length - END_SLOPE_STEP)) / END_SLOPE_STEP > END_SLOPE_FLAT:
+        sections[-1].flat = False
     return sections
 
 

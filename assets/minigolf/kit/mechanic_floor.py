@@ -77,6 +77,38 @@ class FloorField:
         return min(zs), max(zs)
 
 
+def route_arc(track, x, y, z):
+    """``(arc, distance)``: the route arc at the point of the track's centre lines nearest to ``(x, y, z)`` (3D distance).
+
+    The centre lines are the section centres of the strips and the middle raster row of the pads (a funnel has none);
+    the arc is interpolated between the sections' ``arc``. ``(None, inf)`` for a track without such a line.
+    """
+    best = (None, math.inf)
+
+    def consider(a, b, arc_a, arc_b):
+        nonlocal best
+        v = [b[i] - a[i] for i in range(3)]
+        length2 = sum(c * c for c in v)
+        if length2 < 1e-12:
+            return
+        t = max(0.0, min(1.0, sum((p - q) * c for p, q, c in zip((x, y, z), a, v)) / length2))
+        d = math.dist((x, y, z), [a[i] + t * v[i] for i in range(3)])
+        if d < best[1]:
+            best = (arc_a + t * (arc_b - arc_a), d)
+
+    for strip in track.strips:
+        for s0, s1 in zip(strip.sections, strip.sections[1:]):
+            consider(s0.center, s1.center, s0.arc, s1.arc)
+    for pad in track.pads:
+        grid = pad.grid
+        if grid.get("polar"):
+            continue
+        row = [grid["points"][i][grid["ny"] // 2] for i in range(grid["nx"] + 1)]
+        for i in range(grid["nx"]):
+            consider(row[i], row[i + 1], pad.arc0 + grid["xs"][i], pad.arc0 + grid["xs"][i + 1])
+    return best
+
+
 def route_heading(track, x, y):
     """Direction (radians) of the route centre line segment nearest to ``(x, y)``."""
     best = None

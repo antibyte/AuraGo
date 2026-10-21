@@ -112,13 +112,14 @@ class Track:
     """Everything of one course that the Blender build and the manifest need."""
 
     __slots__ = ("world", "number", "par", "strips", "pads", "tee", "cup", "path", "corridors", "hazards", "anchors",
-                 "length", "mechanics", "obstacles", "cycle", "gravity")
+                 "length", "mechanics", "obstacles", "cycle", "gravity", "loops")
 
     def __init__(self, world, number=0, par=0):
         self.world, self.number, self.par = world, number, par
         self.strips, self.pads, self.hazards = [], [], []
         self.tee = self.cup = None
         self.path, self.corridors, self.anchors = [], [], {}
+        self.loops = []         # one ``{"arc", "run"}`` per loop: route arc of its entry and the flat straight run-up before it
         self.length = 0.0
         self.mechanics, self.obstacles, self.cycle = [], [], None
         self.gravity = GRAVITY[world]

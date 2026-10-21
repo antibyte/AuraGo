@@ -258,6 +258,7 @@ def check_rules():
     """Parameter errors of the new pieces and the options of the half-pipe, loop and fork (no Blender needed)."""
     base = [("tee", {"length": 1.0}), ("straight", {"length": 8.0})]
     green = ("green", {"length": 3.0, "width": 3.44, "cup": (1.8, 0.4)})
+    lip = base + [("ramp", {"length": 2.0, "rise": 0.35, "lip": 20})]      # ends at the lip angle, not level
     fork = {"length": 2.0, "spread": 16 * SPACING, "left": [("straight", {"length": 2.0})], "right": [("straight", {"length": 2.0})]}
     rejected = (
         ("radius must be between", base + [("loop", {"radius": 1.6, "offset": 2.2})]),
@@ -273,6 +274,10 @@ def check_rules():
         ("left branch, piece 0 (curve)", base + [("fork", dict(fork, left=[("curve", {"radius": 1.0, "angle": 30})])), green]),
         ("different heights", base + [("fork", dict(fork, right=[("ramp", {"length": 2.0, "rise": 0.005})])), green]),
         ("hole must not be inside a fork branch", base + [("fork", dict(fork, left=[green])), green]),
+        ("needs a flat section before it", lip + [("halfpipe", {"length": 5.0})]),
+        ("needs a flat entry", lip + [green]),
+        ("is already defined", base + [("anchor", {"name": "a"}), ("anchor", {"name": "a"}), green]),
+        ("is already defined", base + [("anchor", {"name": "a"}), ("fork", dict(fork, left=[("anchor", {"name": "a"})])), green]),
     )
     for match, pieces in rejected:
         if not _fails(match, lambda pieces=pieces: layout.build(_course(pieces), "moon", check_length=False)):
@@ -303,6 +308,32 @@ def check_rules():
         raise AssertionError("exit_offset 2 must move the join exit two columns to the right")
     check_seams(left)
     check_seams(right)
+    boost = [{"kind": "boost", "id": "b"}]
+    if not _fails("needs a flat section before it", lambda: layout.build(_course(lip + [("loop", {"radius": 1.3, "offset": 2.2}), green], boost), "moon", check_length=False)):
+        raise AssertionError("a loop after a lip ramp must be rejected")
+    # a plain ramp ends level, so a loop may follow it (a lip ramp is rejected above); the boost pad stands before the loop
+    level = layout.build(_course(base + [("ramp", {"length": 3.0, "rise": 0.3}), ("loop", {"radius": 1.3, "offset": 2.2}), green],
+                                 boost), "moon", check_length=False)
+    if not level.strips[1].sections[-1].flat:
+        raise AssertionError("a ramp without a lip ends level")
+    check_loop_boost()
+
+
+def check_loop_boost():
+    """A loop needs a boost pad 0 to 1.5 m of route before its entry, or an 8 m flat run-up (``mechanic_data.resolve``)."""
+    from . import mechanic_data
+    short = [("tee", {"length": 1.0}), ("straight", {"length": 3.0}), ("anchor", {"name": "a"}), ("straight", {"length": 3.0}),
+             ("loop", {"radius": 1.3, "offset": 2.2}), ("straight", {"length": 2.0}), ("green", {"length": 3.0, "width": 3.44, "cup": (1.8, 0.4)})]
+    boost = lambda forward: [{"kind": "boost", "id": "b", "anchor": "a", "offset": (forward, 0.0)}]
+    resolve = lambda pieces, mechanics: mechanic_data.resolve(layout.build(_course(pieces, mechanics), "moon", check_length=False))
+    if not _fails("needs a boost pad 0 to 1.5 m", lambda: resolve(short, boost(0.0))):          # 3.0 m before the loop
+        raise AssertionError("a boost pad 3 m before the loop must be rejected")
+    resolve(short, boost(2.0))                                                                   # 1.0 m before the loop
+    resolve(short, boost(3.0))                                                                   # right at the entry
+    runup = [("tee", {"length": 1.0}), ("straight", {"length": 8.0}), ("anchor", {"name": "a"})] + short[3:]
+    resolve(runup, boost(-4.0))                                                                  # far away, but the run-up is flat and 9 m long
+    if not _fails("needs a boost pad", lambda: resolve(short[:2] + short[3:], [{"kind": "boost", "id": "b", "at": (1.5, 0.0)}])):
+        raise AssertionError("a boost pad on the first straight must be rejected")
 
 
 def _distance_to_triangle(p, a, b, c):
