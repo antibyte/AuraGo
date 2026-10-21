@@ -2,7 +2,7 @@
 //
 // gen.render { id, params, width, height, refWidth?, refHeight? } -> { image, width, height, data } (the same typed array
 // twice, so callers can use either shape). Output is deterministic for a given id, params and size: every random choice
-// is derived from params.seed with integer hashes, never from Math.random.
+// is derived from params.seed with integer hashes (no unseeded randomness anywhere).
 //
 // Coordinates: the short side of the reference size (refWidth x refHeight, default = the render size) is one unit, so the
 // long side runs to ax = max(1, ref aspect). Every length-like parameter is relative to that unit (or to an explicit count of
@@ -1528,7 +1528,7 @@
 
     define('bricks', 'pattern', 'Bricks and herringbone', [
         P.seed(), P.seg('layout', ['running', 'stack', 'herringbone', 'basket'], 'running'), P.range('rows', 10, 2, 60, 0.5),
-        P.range('ratio', 2.4, 1.2, 5, 0.05, { showIf: v => v.layout === 'running' || v.layout === 'stack' }), P.range('mortar', 8, 0.5, 40, 0.1, { unit: '%' }),
+        P.range('ratio', 2.4, 1, 5, 0.05, { showIf: v => v.layout === 'running' || v.layout === 'stack' }), P.range('mortar', 8, 0.5, 40, 0.1, { unit: '%' }),
         P.range('variation', 0.7, 0, 1, 0.01), P.range('bevel', 0.5, 0, 1, 0.01), P.angle('angle', 0), P.color('mortarColor', '#cfc8b8'),
         P.gradient('gradient', BRICK)
     ], [
@@ -2103,7 +2103,7 @@
     });
 
     define('phyllotaxis', 'math', 'Phyllotaxis', [
-        P.int('count', 1800, 50, 12000, { step: 10 }), P.range('angle', 137.508, 100, 180, 0.001, { unit: '°' }), P.range('dotSize', 0.8, 0.1, 1.6, 0.01),
+        P.int('count', 1800, 50, 12000, { step: 10 }), P.range('angle', 137.508, 60, 180, 0.001, { unit: '°' }), P.range('dotSize', 0.8, 0.1, 1.6, 0.01),
         P.seg('sizing', ['constant', 'grow', 'shrink'], 'grow'), P.range('cycles', 1, 0.25, 6, 0.05), P.seg('colorBy', ['index', 'radius'], 'index'),
         P.color('background', '#0b0d14'), P.gradient('gradient', 'sunset')
     ], [
