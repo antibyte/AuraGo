@@ -221,7 +221,7 @@ sip:
         advertised_ip: ""                                   # optional concrete host-candidate IP; no STUN/TURN
     inbound:
         route: agent                                        # agent, manual, reject
-        auto_answer_delay_ms: 1000
+        auto_answer_delay_ms: 1000                           # 0-60000 ms; 0 answers immediately
         ring_timeout_seconds: 90                            # unanswered manual calls: 15-300 seconds
         number_region: ""                                  # optional ISO region (e.g. DE) for national 0... caller normalization
         trusted_peer_cidrs: []                              # PBX/proxy source IPs or CIDRs
@@ -230,7 +230,7 @@ sip:
     outbound:
         allowed_domains: []                                 # empty uses sip.domain; entries define the exact allowed domains
         denied_domains: []                                  # negative list; overrides allowed_domains
-        allowed_users: []                                   # when this and allowed_e164_prefixes are empty, every user is allowed
+        allowed_users: []                                   # empty users AND allowed_e164_prefixes deny all destinations
         denied_users: []                                    # negative list; overrides allowed_users
         allowed_e164_prefixes: []                           # entries restrict numbers; denylists always take precedence
         denied_e164_prefixes: []                            # blocked prefixes; overrides positive lists
@@ -242,11 +242,11 @@ sip:
     voice:
         backend: classic                                    # classic or gemini_live
         realtime_profile_id: ""
-        agent_provider_id: ""                               # empty inherits llm.provider until first Telefonagent save
+        agent_provider_id: ""                               # empty inherits llm.provider until first Telephone agent save
         classic:
             asr_provider_id: ""                             # empty inherits whisper.provider until first save
-            asr_mode: ""                                    # whisper, multimodal, local; empty inherits whisper.mode
-            tts_provider: ""                                # central TTS profile: google, elevenlabs, minimax, mistral, piper, supertonic
+            asr_mode: ""                                    # whisper, multimodal, local, speech_lab; empty inherits whisper.mode
+            tts_provider: ""                                # google, elevenlabs, minimax, mistral, piper, supertonic, sanotts, speech_lab
         behavior:
             greeting_enabled: true
             greeting: ""                                    # empty uses a safe pipeline-native AuraGo greeting

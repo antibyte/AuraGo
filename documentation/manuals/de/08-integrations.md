@@ -271,11 +271,11 @@ AuraGo enthält einen SIP-User-Agent im Go-Prozess, ein Vault-geschütztes Konto
 
 #### Einrichtung
 
-1. Öffne **Config → SIP Phone** und wähle ein geführtes Provider-Preset oder die Experteneinstellungen.
+1. Öffne **Config → SIP-Telefon** und wähle ein geführtes Provider-Preset oder die Experteneinstellungen.
 2. Speichere das Digest-Passwort über die UI. Es liegt ausschließlich unter dem Vault-Schlüssel `sip_endpoint_password`.
 3. Konfiguriere Signaling-Bind-Adresse, Transport, vertrauenswürdige Peer-CIDRs, Caller-Allowlist, Zielrichtlinie und RTP-Bereich.
 4. Setze in Docker vor aktiven Gesprächen `advertised_signaling_host` und `media.advertised_host` auf vom PBX erreichbare Adressen.
-5. Öffne die Virtual-Desktop-App **SIP Phone** für das authentifizierte Browser-Telefon. Der Kontakte-Tab nutzt das AuraGo-Kontaktregister; das optionale schwebende Telefon-Gadget ist ein weiterer Einstieg in dieselbe App.
+5. Öffne die Virtual-Desktop-App **SIP-Telefon** für das authentifizierte Browser-Telefon. Der Kontakte-Tab nutzt das AuraGo-Kontaktregister; das optionale schwebende Telefon-Gadget ist ein weiterer Einstieg in dieselbe App.
 
 ```yaml
 sip:
@@ -295,13 +295,34 @@ V1 unterstützt G.711 PCMA/PCMU und bietet kein STUN, ICE, keine automatische Ro
 
 #### Vertrauen, Agent-Routing und Datenschutz
 
-- Eingehende Anrufe benötigen sowohl eine vertrauenswürdige Quell-IP bzw. ein CIDR als auch einen exakten normalisierten Caller-Allowlist-Treffer. Leere Caller- oder Ziellisten verweigern alles.
+- Eingehende Anrufe benötigen sowohl eine vertrauenswürdige Quell-IP bzw. ein CIDR als auch einen passenden Eintrag für den normalisierten Anrufer in der Caller-Allowlist. Die Muster unterstützen `*` und `?`. Leere Caller- oder Ziellisten verweigern alles.
 - Ausgehende Anrufe benötigen eine kanonische `sip:`-URI, eine exakt erlaubte Domain und entweder einen exakten Benutzer oder ein erlaubtes E.164-Präfix. FRITZ!Box-Ziele wie `**610` sind exakte Benutzer.
-- Das separate Profil **Telephone agent** gilt nur für agentengeführte Anrufe. Es übernimmt Provider, Tools, Verhalten, Dauer, Sprache und Transcript-Regeln vor Answer oder INVITE als unveränderlichen Snapshot; Speichern wirkt nur auf zukünftige Gespräche.
+- Das separate Profil **Telefonagent** gilt nur für agentengeführte Anrufe. Es übernimmt Provider, Tools, Verhalten, Dauer, Sprache und Transcript-Regeln vor Answer oder INVITE als unveränderlichen Snapshot; Speichern wirkt nur auf zukünftige Gespräche.
+- Geführte Kontoänderungen und das Löschen des Kontos erhalten dieses Profil und die Annahmeverzögerung. Löschen oder das Deaktivieren eingehender Anrufe setzt das Routing auf `reject`. Bei aktivierten eingehenden Anrufen erhält die Einrichtung vorhandenes Agent-Routing; neue Konten verwenden die manuelle Annahme.
 - `classic` verwendet die ausgewählten ASR-, Agent-LLM- und zentralen TTS-Provider. `gemini_live` nutzt eine serverseitige Gemini-Live-Verbindung und gibt deren Zugangsdaten nie an den Browser. Beide verwenden explizite Tool-Allowlisten; eine leere Liste erlaubt keine nativen Tools.
 - RTP/Audio, vollständige SIP-Header, Authentifizierungsdaten und rohe Transcripts werden weder geloggt noch gespeichert. Transcripts sind standardmäßig flüchtig; Telefon-Sessions erzeugen keine Aufnahmen und keine abgeleiteten Memory-Artefakte.
 - `readonly: true` erlaubt weiterhin Registrierung, Status, Historie und Verbindungstests, blockiert aber Answer und ausgehende Anrufe.
 - Die Sicherheitsprüfung warnt mit `sip_auto_answer_all_interfaces`, wenn `inbound.route: agent` auf einer Wildcard-`bind_host` (`0.0.0.0` oder `::`) automatisch annimmt. Mit `sip_wildcard_callers_cidr_peers` warnt sie, wenn `allowed_callers` ein Muster enthält, das jeden Anrufer erfasst (etwa `*` oder `*@*`), und `trusted_peer_cidrs` ein ganzes Subnetz nennt; Einträge mit `/32` oder `/128` gelten als exakte Peers.
+
+#### Grenzen des Telefonagenten
+
+Alle Feldnamen beziehen sich auf `sip`.
+
+| Feld | Standard | Erlaubter Bereich |
+| --- | --- | --- |
+| `inbound.auto_answer_delay_ms` | 1000 | 0–60000 ms; 0 nimmt sofort an |
+| `voice.max_call_duration_seconds` | 3600 | 30–86400 s |
+| `voice.idle_timeout_seconds` | 120 | 15–3600 s |
+| `voice.turn_timeout_seconds` | 60 | 15–300 s |
+| `voice.max_response_chars` | 1200 | 200–5000 Zeichen |
+| `voice.max_outbound_calls_per_day` | 10 | 1–1000 Versuche |
+
+Das Tageslimit zählt agentengeführte ausgehende Versuche, sobald die Historie
+sie vor INVITE zulässt, auch bei späteren Fehlern oder Abbrüchen. Ungültige Ziele,
+Richtlinienablehnungen und fehlgeschlagene Provider-Vorprüfungen vor dieser
+Zulassung zählen nicht; eingehende und manuelle Browser-Anrufe ebenfalls nicht.
+Der Zähler wird um Mitternacht in der lokalen Zeitzone des Servers zurückgesetzt.
+Im Telefonagenten siehst Du Verbrauch und Rücksetzzeit.
 
 Siehe [Native SIP-Telefonie](../../sip_telephony.md) für Netzwerkregeln, Fehlercodes, Provider-Einrichtung und die vollständige API-Liste.
 

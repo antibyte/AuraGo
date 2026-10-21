@@ -300,13 +300,33 @@ V1 supports G.711 PCMA/PCMU and does not provide STUN, ICE, automatic router con
 
 #### Trust, Agent Routing, and Privacy
 
-- Incoming calls require both a trusted source IP/CIDR and an exact normalized caller allowlist match. Empty caller or destination lists deny all.
+- Incoming calls require both a trusted source IP/CIDR and a matching normalized caller allowlist entry. Caller patterns support `*` and `?`. Empty caller or destination lists deny all.
 - Outgoing calls require a canonical `sip:` URI, an exact allowed domain, and an exact user or allowed E.164 prefix. FRITZ!Box destinations such as `**610` are exact users.
 - The separate **Telephone agent** profile applies only to agent-led calls. It snapshots provider, tools, behavior, duration, language, and transcript policy before answer or INVITE; saving the profile affects future calls only.
+- Guided account changes and account deletion preserve that profile and its auto-answer delay. Deleting the account or disabling incoming calls sets routing to `reject`. Guided setup retains existing agent routing when incoming calls are enabled; new accounts use manual answering.
 - `classic` uses the selected ASR, agent LLM, and central TTS. `gemini_live` uses a server-side Gemini Live connection and never exposes its provider credential to the browser. Both use explicit tool allowlists; an empty list means no native tools.
 - RTP/audio, complete SIP headers, authentication data, and raw transcripts are not logged or stored. Transcripts are transient by default and telephone sessions do not create recordings or derived memory artifacts.
 - `readonly: true` still permits registration, status, history, and connection tests, but blocks answering and originating calls.
 - The security check warns with `sip_auto_answer_all_interfaces` when `inbound.route: agent` auto-answers on a wildcard `bind_host` (`0.0.0.0` or `::`). It warns with `sip_wildcard_callers_cidr_peers` when `allowed_callers` contains a pattern that matches every caller (such as `*` or `*@*`) and `trusted_peer_cidrs` lists a subnet; `/32` and `/128` entries count as exact peers.
+
+#### Telephone Agent Limits
+
+All field names are relative to `sip`.
+
+| Field | Default | Accepted range |
+| --- | --- | --- |
+| `inbound.auto_answer_delay_ms` | 1000 | 0–60000 ms; 0 answers immediately |
+| `voice.max_call_duration_seconds` | 3600 | 30–86400 s |
+| `voice.idle_timeout_seconds` | 120 | 15–3600 s |
+| `voice.turn_timeout_seconds` | 60 | 15–300 s |
+| `voice.max_response_chars` | 1200 | 200–5000 characters |
+| `voice.max_outbound_calls_per_day` | 10 | 1–1000 attempts |
+
+The daily limit counts agent-led outgoing attempts admitted to call history
+before INVITE, including later failures or cancellations. Invalid targets,
+policy denials, and failed provider preflights before admission do not count;
+incoming and manual browser calls do not count. It resets at midnight in the
+server's local time zone. The Telephone agent page shows usage and reset time.
 
 See [Native SIP telephony](../../sip_telephony.md) for network policies, failure codes, provider setup, and the complete API list.
 
