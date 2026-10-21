@@ -18,6 +18,8 @@ fails otherwise. ``check`` applies every rule to every placement, fixed ones too
 import math
 import random
 
+from . import placement_plan
+
 CORRIDOR = 1.2
 HERO_CORRIDOR = 1.05      # the hero circle is mostly thin parts: it may come a little closer than free props
 EDGE = 0.3
@@ -30,6 +32,7 @@ FOOT_GAP = 0.04
 CANOPY = 0.5  # share of a tall prop's radius that is solid for other props (the rest is overhang)
 HERO_SOLID = 0.6  # the same for a hero (a long thin hull or a head fills little of its enclosing circle)
 VIEW = (-0.58, 0.81)  # horizontal viewing direction of the game camera in Blender XY
+SHADOW = 1.35  # 1 / tan(37 degrees): ground covered behind a prop per metre of its height
 DEFAULT_SINK = 0.03
 TOLERANCE = 0.005  # metres: slack of the rim check for scales rounded to millimetres
 SETTLE_STEP, SETTLE_STEPS = 0.05, 40  # a fixed special that reaches over the rim moves inwards in these steps (metres)
@@ -207,11 +210,15 @@ def _ground(name, info, x, y, scale, top_height):
     return min(samples) - DEFAULT_SINK - EXTRA_SINK.get(name, 0.0) * scale
 
 
-def _blocks_view(field, x, y, height):
-    """True when the prop would hide the lane from the game camera (its shadow along the view direction reaches the lane)."""
-    reach = 1.2 * height
-    for k in (0.35, 0.7, 1.0):
-        if field.lane(x + VIEW[0] * reach * k, y + VIEW[1] * reach * k)[0] < 0.75:
+def _blocks_view(field, x, y, height, radius):
+    """True when the prop would hide the lane from the game camera.
+
+    The camera looks down at 37 degrees, so a prop of ``height`` covers the ground behind it (along ``VIEW``) for
+    ``SHADOW`` x height, and its crown, ``radius`` wide, reaches half a radius further and as far to each side.
+    """
+    reach = SHADOW * height + 0.5 * radius
+    for k in (0.2, 0.4, 0.6, 0.8, 1.0):
+        if field.lane(x + VIEW[0] * reach * k, y + VIEW[1] * reach * k)[0] < 0.4 + 0.6 * radius:
             return True
     return False
 
@@ -242,6 +249,7 @@ def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(),
     medium prop that is a fixed part or a fixed prop is not placed again).
     """
     rng = random.Random(1000 + number)
+    plan = placement_plan.scaled(plan, field.outline.half)
     front = FRONT[look]
     cx, cy = field.outline.center.x, field.outline.center.y
     hx, hy = field.outline.half
@@ -339,7 +347,7 @@ def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(),
                 continue
             if any(o[0] == key and math.hypot(o[1] - x, o[2] - y) < SPREAD for o in out):
                 continue
-            if tall and info["height"] * scale > 0.9 and _blocks_view(field, x, y, info["height"] * scale):
+            if tall and info["height"] * scale > 0.9 and _blocks_view(field, x, y, info["height"] * scale, r * scale):
                 continue
             add(key, x, y, _facing(key, FACING.get(key, "none"), x, y, front, field, rng, cup), scale)
             placed += 1
