@@ -81,7 +81,19 @@ assert.deepEqual(P.effectSize(1920, 1080, hd, null, 1280), {width: 1280, height:
 assert.deepEqual(P.effectSize(1920, 1080, hd, null, 0), {width: 1920, height: 1080}, 'cap 0 is capSize');
 assert.deepEqual(P.effectSize(1920, 1080, {width: 1280, height: 720}, null, 1280), P.capSize(1920, 1080, {width: 1280, height: 720}), 'a canvas at the cap: capSize');
 assert.deepEqual(P.effectSize(1920, 1080, hd, pip, 0), {width: 864, height: 486}, 'the drawn picture-in-picture size');
-assert.deepEqual(P.effectSize(1920, 1080, hd, pip, 1280), {width: 576, height: 324}, 'drawn and capped');
+assert.deepEqual(P.effectSize(1920, 1080, hd, pip, 1280), {width: 864, height: 486}, 'the cap bounds the long edge and never shrinks a clip below its drawn size (no second reduction)');
+assert.deepEqual(P.effectSize(1080, 1920, hd, null, 1280), {width: 720, height: 1280}, 'the cap bounds the long edge of a portrait texture');
+for (const [w, h] of [[1920, 1080], [3840, 2160], [1280, 720], [960, 540], [7680, 4320]]) {
+  const t = P.effectSize(w, h, hd, pip, 1280);
+  assert(t.width <= pip.w && t.height <= pip.h, 'a ' + w + 'x' + h + ' texture drawn at ' + pip.w + 'x' + pip.h + ' gets a target of ' + t.width + 'x' + t.height + ', never above the drawn size');
+  assert.deepEqual(t, P.effectSize(w, h, hd, pip, 0), 'a clip drawn below the cap: the cap changes nothing (' + w + 'x' + h + ')');
+}
+for (const [w, h] of [[1920, 1080], [3840, 2160], [1080, 1920], [4000, 3000], [1281, 719]]) {
+  for (const drawn of [null, pip, {x: 0, y: 0, w: 1920, h: 1080}]) {
+    const t = P.effectSize(w, h, hd, drawn, 1280);
+    assert(Math.max(t.width, t.height) <= 1280, 'the cap bounds the long edge: ' + w + 'x' + h + ' gives ' + t.width + 'x' + t.height);
+  }
+}
 assert.deepEqual(P.effectSize(3840, 2160, hd, null, 1280), {width: 1280, height: 720}, 'a 4K source on the Auto backing');
 assert.deepEqual(P.effectSize(960, 540, hd, {x: 0, y: 0, w: 1920, h: 1080}, 1280), {width: 960, height: 540}, 'a 540p proxy is never upscaled');
 assert.deepEqual(P.effectSize(1920, 1080, hd, {x: 0, y: 0, w: 0, h: 0}, 0), {width: 1920, height: 1080}, 'an empty drawn rect is ignored');

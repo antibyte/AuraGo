@@ -181,6 +181,18 @@ func TestDesktopVideoStudioEffectsGLBrowser(t *testing.T) {
 		out.pipWant = bytes(P.applyColor(E.clipState(pip, 0, project).effects[0].values, rgb));
 		painter.frame(capped(pip, flat, 0)); out.pipExact = [px(32, 18), px(4, 4)];
 		painter.frame(capped(pip, flat, 64)); out.pipDrawn = [px(32, 18), px(4, 4)];
+		// The cap bounds the target's long edge and never shrinks a clip below its drawn size (review I-1): the 32x18 box
+		// is drawn at 32 px, so cap 32 runs its passes at 32x18 as cap 64 (the canvas's long edge, which does not act)
+		// does. Multiplying the cap into the drawn scale would run them at 16x9 and soften the marker's edges. Full (cap 0)
+		// passes at the 64x36 capSize target, which PLACE averages to the same 32x18 on this marker with 2 px-aligned edges.
+		const pipMarker = clipOf({ x: 0.25, y: 0.25, width: 0.5, height: 0.5, effects: [effect('color', { exposure: 0.2 })] });
+		painter.frame(capped(pipMarker, marker, 64)); const pipMarkerDrawn = Array.from(painter.read().data);
+		painter.frame(capped(pipMarker, marker, 32)); const pipMarkerCap = Array.from(painter.read().data);
+		painter.frame(capped(pipMarker, marker, 16)); const pipMarkerSmall = Array.from(painter.read().data);
+		painter.frame(capped(pipMarker, marker, 0)); const pipMarkerFull = Array.from(painter.read().data);
+		out.pipCapDiff = diffMax(pipMarkerDrawn, pipMarkerCap);
+		out.pipSmallCapDiff = diffMax(pipMarkerDrawn, pipMarkerSmall);
+		out.pipFullDiff = diffMax(pipMarkerDrawn, pipMarkerFull);
 		out.cropFailures = failures.slice();
 		painter.dispose();
 
@@ -266,6 +278,16 @@ func TestDesktopVideoStudioEffectsGLBrowser(t *testing.T) {
 		if got := jsonRGBA(pixels[1]); !rgbaNear(got, black, 0) {
 			t.Errorf("%s outside the box = %v, want opaque black", name, got)
 		}
+	}
+	t.Logf("picture-in-picture marker, drawn-size passes against cap 32 / cap 16 / Full: %d / %d / %d /255", checks["pipCapDiff"].Int(), checks["pipSmallCapDiff"].Int(), checks["pipFullDiff"].Int())
+	if diff := checks["pipCapDiff"].Int(); diff != 0 {
+		t.Errorf("a picture-in-picture clip drawn at 32 px under cap 32 differs from the uncapped drawn-size passes by %d/255, want 0 (the cap must not shrink the target below the drawn size)", diff)
+	}
+	if diff := checks["pipFullDiff"].Int(); diff > 3 {
+		t.Errorf("a picture-in-picture clip's drawn-size passes differ from Full by %d/255, want at most 3 (same effect target, measured 0)", diff)
+	}
+	if diff := checks["pipSmallCapDiff"].Int(); diff <= 20 {
+		t.Errorf("cap 16 on a 32 px box changed the marker by %d/255, want more than 20 (the cap bounds the long edge)", diff)
 	}
 	if !checks["animated"].Bool() {
 		t.Error("VideoStudioEffects.cropAnimated must report the crop.l keys")

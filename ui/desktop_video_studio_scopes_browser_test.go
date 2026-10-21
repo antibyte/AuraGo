@@ -248,7 +248,10 @@ func videoStudioReadScaledPart(t *testing.T) {
 //   - source mode hides the dock;
 //   - at 1280x900, 900x900 and 390x844: the centre column does not scroll sideways, the toggle stays in the transport
 //     row, and the panel is 132 px high (96 px on the phone);
-//   - the screenshots for review (wide, narrow, phone, 2D), with no script errors.
+//   - with the panel open at those sizes the centre column fits its grid row (scrollHeight - clientHeight at most 1 px),
+//     the transport ends inside the workspace and the timeline panel stays whole below it (review I-2); on the phone the
+//     open panel collapses the library row (the stage keeps 150 px or more), source mode and closing bring it back;
+//   - the screenshots for review (wide, narrow, phone open and closed, 2D), with no script errors.
 func videoStudioScopesPanelPart(t *testing.T) {
 	page := openVideoStudioKeyframes(t, newWebGLSmokeBrowser(t), newVideoStudioKeyframesServer(t, videoStudioKeyframesProject()))
 	shots := videoStudioKeyframesShotDir(t)
@@ -366,21 +369,47 @@ func videoStudioScopesPanelPart(t *testing.T) {
 	waitForJSBool(t, page, `() => !document.querySelector('.vs-scopes-dock').hidden && !document.querySelector('`+section+`').hidden`)
 
 	// Layouts: no sideways scrolling of the centre column, the toggle in the transport row, the panel height.
+	// Review I-2: with the panel open the centre column must also fit its grid row and the timeline must stay whole.
+	// - The centre column may not scroll vertically (scrollHeight - clientHeight at most 1 px), and its last row, the
+	//   transport, ends inside .vs-workspace (which clips what overflows it).
+	// - The timeline panel is not part of the workspace: it sits below it. Its bottom stays inside the app and its top
+	//   below the workspace bottom, so neither covers the other.
 	type layout struct {
-		Overflow int  `json:"overflow"`
-		Panel    int  `json:"panel"`
-		Stage    int  `json:"stage"`
-		InRow    bool `json:"inRow"`
+		Overflow  int     `json:"overflow"`
+		OverflowY int     `json:"overflowY"`
+		Panel     int     `json:"panel"`
+		Stage     int     `json:"stage"`
+		Transport float64 `json:"transport"`
+		Workspace float64 `json:"workspace"`
+		TimeTop   float64 `json:"timeTop"`
+		TimeEnd   float64 `json:"timeEnd"`
+		AppEnd    float64 `json:"appEnd"`
+		Library   int     `json:"library"`
+		InRow     bool    `json:"inRow"`
+	}
+	measure := func(name string) layout {
+		t.Helper()
+		var got layout
+		raw := text(`() => { const center = document.querySelector('.vs-center'), transport = document.querySelector('.vs-transport').getBoundingClientRect(), button = document.querySelector('[data-action="scopes"]').getBoundingClientRect(), panel = document.querySelector('.vs-scopes'), time = document.querySelector('.vs-timeline-panel').getBoundingClientRect(); return JSON.stringify({overflow: center.scrollWidth - center.clientWidth, overflowY: center.scrollHeight - center.clientHeight, panel: panel.hidden ? 0 : panel.offsetHeight, stage: document.querySelector('.vs-preview-stage').offsetHeight, transport: transport.bottom, workspace: document.querySelector('.vs-workspace').getBoundingClientRect().bottom, timeTop: time.top, timeEnd: time.bottom, appEnd: document.querySelector('.vs-app').getBoundingClientRect().bottom, library: document.querySelector('.vs-library').offsetHeight, inRow: button.width > 0 && button.left >= transport.left - 1 && button.right <= transport.right + 1 && button.top >= transport.top - 1 && button.bottom <= transport.bottom + 1}); }`)
+		if err := json.Unmarshal([]byte(raw), &got); err != nil {
+			t.Fatalf("%s layout: %v (%s)", name, err, raw)
+		}
+		if got.OverflowY > 1 {
+			t.Errorf("%s: the centre column overflows its row by %d px (scrollHeight - clientHeight)", name, got.OverflowY)
+		}
+		if got.Transport > got.Workspace+1 {
+			t.Errorf("%s: the transport ends at y %.1f, below the workspace bottom %.1f", name, got.Transport, got.Workspace)
+		}
+		if got.TimeEnd > got.AppEnd+1 || got.TimeTop < got.Workspace-1 {
+			t.Errorf("%s: the timeline panel spans y %.1f..%.1f, want inside the app (bottom %.1f) and below the workspace (bottom %.1f)", name, got.TimeTop, got.TimeEnd, got.AppEnd, got.Workspace)
+		}
+		return got
 	}
 	for _, size := range []struct{ width, height, panel int }{{1280, 900, 132}, {900, 900, 132}, {390, 844, 96}} {
 		name := fmt.Sprintf("%dx%d", size.width, size.height)
 		page.MustSetViewport(size.width, size.height, 1, false)
 		time.Sleep(300 * time.Millisecond)
-		var got layout
-		raw := text(`() => { const center = document.querySelector('.vs-center'), transport = document.querySelector('.vs-transport').getBoundingClientRect(), button = document.querySelector('[data-action="scopes"]').getBoundingClientRect(); return JSON.stringify({overflow: center.scrollWidth - center.clientWidth, panel: document.querySelector('.vs-scopes').offsetHeight, stage: document.querySelector('.vs-preview-stage').offsetHeight, inRow: button.width > 0 && button.left >= transport.left - 1 && button.right <= transport.right + 1 && button.top >= transport.top - 1 && button.bottom <= transport.bottom + 1}); }`)
-		if err := json.Unmarshal([]byte(raw), &got); err != nil {
-			t.Fatalf("%s layout: %v (%s)", name, err, raw)
-		}
+		got := measure(name)
 		if got.Overflow > 1 {
 			t.Errorf("%s: the centre column scrolls sideways by %d px", name, got.Overflow)
 		}
@@ -390,8 +419,32 @@ func videoStudioScopesPanelPart(t *testing.T) {
 		if got.Panel != size.panel {
 			t.Errorf("%s: the panel is %d px high, want %d", name, got.Panel, size.panel)
 		}
-		t.Logf("%s: panel %d px, stage %d px", name, got.Panel, got.Stage)
+		t.Logf("%s open: panel %d px, stage %d px, library %d px, centre overflow %d px, transport bottom %.1f, workspace bottom %.1f, timeline %.1f..%.1f", name, got.Panel, got.Stage, got.Library, got.OverflowY, got.Transport, got.Workspace, got.TimeTop, got.TimeEnd)
 		page.MustScreenshot(filepath.Join(shots, "scopes-"+name+".png"))
+		if size.width == 390 {
+			// Source mode hides the dock, so the library row comes back with it; the timeline brings the dock back.
+			page.MustEval(`() => window.VideoStudioParts.openSource(` + app + `, 'art1')`)
+			waitForJSBool(t, page, `() => document.querySelector('.vs-scopes-dock').hidden`)
+			if library := page.MustEval(`() => document.querySelector('.vs-library').offsetHeight`).Int(); library < 100 {
+				t.Errorf("%s: source mode left the library %d px high, want it back (100 px or more)", name, library)
+			}
+			page.MustEval(`() => window.VideoStudioParts.setStageMode(` + app + `, 'timeline')`)
+			waitForJSBool(t, page, `() => !document.querySelector('.vs-scopes-dock').hidden && !document.querySelector('`+section+`').hidden`)
+			// The closed phone layout is the reference the open one must not break: same checks, screenshot for review.
+			click(toggle)
+			waitForJSBool(t, page, `() => document.querySelector('`+section+`').hidden`)
+			time.Sleep(300 * time.Millisecond)
+			closed := measure(name + " closed")
+			t.Logf("%s closed: stage %d px, library %d px, centre overflow %d px, transport bottom %.1f, workspace bottom %.1f, timeline %.1f..%.1f", name, closed.Stage, closed.Library, closed.OverflowY, closed.Transport, closed.Workspace, closed.TimeTop, closed.TimeEnd)
+			// The open panel takes the library row (review I-2): the stage keeps 150 px or more instead of its 90 px floor,
+			// and closing the panel brings the library back.
+			if got.Library != 0 || got.Stage < 150 || closed.Library < 100 {
+				t.Errorf("%s: library %d px and stage %d px with the panel open, library %d px closed; want the library collapsed, a stage of 150 px or more, and the library back (100 px or more) after closing", name, got.Library, got.Stage, closed.Library)
+			}
+			page.MustScreenshot(filepath.Join(shots, "scopes-"+name+"-closed.png"))
+			click(toggle)
+			waitForJSBool(t, page, `() => !document.querySelector('`+section+`').hidden`)
+		}
 	}
 	page.MustSetViewport(1280, 900, 1, false)
 	if errs := text(`() => JSON.stringify(window.kfErrors)`); errs != "[]" {

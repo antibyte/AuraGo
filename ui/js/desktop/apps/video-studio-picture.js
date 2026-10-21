@@ -300,15 +300,17 @@
     // px. Each factor is a scale k applied to that texture:
     // - kc is capSize's canvas rule;
     // - kd is the drawn picture's scale (drawn: VideoStudioEffects.placement's draw rect in canvas px, or null);
-    // - c = min(1, cap / the canvas's long edge) when cap > 0, else 1.
-    // k = min(1, c·min(kc, kd)). drawn null and cap 0 give capSize exactly. Never upscaled, at least 1 px.
+    // - kl = cap / max(width, height) when cap > 0, else no limit: the cap bounds the target's long edge.
+    // k = min(1, kc, kd, kl). The factors are not multiplied: a clip drawn smaller than the cap keeps its drawn size
+    // (the cap never shrinks it further, so the final placement does not magnify the passes). drawn null and cap 0 give
+    // capSize exactly. Never upscaled, at least 1 px.
     const EFFECT_CAP_LONG = 1280;
     function effectSize(width, height, canvas, drawn, cap) {
         const w = Math.max(1, Number(width) || 1), h = Math.max(1, Number(height) || 1);
         const cw = Math.max(1, Number(canvas && canvas.width) || w), ch = Math.max(1, Number(canvas && canvas.height) || h);
-        const dw = Number(drawn && drawn.w), dh = Number(drawn && drawn.h), limit = Number(cap) > 0 ? Math.min(1, Number(cap) / Math.max(cw, ch)) : 1;
+        const dw = Number(drawn && drawn.w), dh = Number(drawn && drawn.h), limit = Number(cap) > 0 ? Number(cap) / Math.max(w, h) : Infinity;
         const kd = dw > 0 && dh > 0 ? Math.max(dw / w, dh / h) : Infinity;
-        const k = Math.min(1, limit * Math.min(Math.max(cw / w, ch / h), kd));
+        const k = Math.min(1, Math.max(cw / w, ch / h), kd, limit);
         return { width: Math.max(1, Math.round(w * k)), height: Math.max(1, Math.round(h * k)) };
     }
 

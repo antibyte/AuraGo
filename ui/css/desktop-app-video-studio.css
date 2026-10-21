@@ -407,6 +407,14 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
     .vs-center { --vs-scopes-h: 96px; }
     .vs-scopes { gap: 6px; padding: 4px 6px; }
     .vs-scopes-bar button { min-height: 22px; padding: 1px 8px; font-size: 11px; }
+    /* An open dock (review I-2): the centre column needs about 94 px for the monitor switch and the transport, the 96 px
+       dock and a stage of at least 90 px, which the 46 % / 224 px library row leaves it only when the phone is tall
+       enough. The row below the column would otherwise cut the transport off, and the stage sat at its 90 px floor.
+       The library row therefore gives way while the dock shows (not without a project, where the library is the page,
+       and not in source mode, which hides the dock): the column takes the whole workspace height. Closing the panel
+       brings the library back. */
+    .vs-app:not(.vs-without-project):has(> .vs-workspace > .vs-center > .vs-scopes-dock:not([hidden]) > .vs-scopes:not([hidden])) .vs-workspace { grid-template-rows: minmax(120px, 1fr); }
+    .vs-app:not(.vs-without-project):has(> .vs-workspace > .vs-center > .vs-scopes-dock:not([hidden]) > .vs-scopes:not([hidden])) .vs-library { display: none; }
 }
 
 /* Empty project */
