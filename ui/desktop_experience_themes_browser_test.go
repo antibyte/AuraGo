@@ -120,6 +120,11 @@ func TestDesktopExperienceMaterialsBrowser(t *testing.T) {
 			if id != "windows_xp" {
 				s.waitFor(t, "theme material host", 30*time.Second, `(id)=>window.AuraDesktopThemeFx?.activeId()===id`, id)
 			}
+			if id == "green_slime" {
+				// The WebGL2 gel builds its programs on the driver's threads and loads the wallpaper texture.
+				s.waitFor(t, "slime gel renderer", 60*time.Second, `()=>{const f=AuraDesktopThemeFx.inspect();return f.ready && f.backdrop!=='loading';}`)
+				t.Log("slime renderer:", s.eval(t, `()=>{const f=AuraDesktopThemeFx.inspect();return f.renderer+' backdrop='+f.backdrop+' compileMs='+f.compileMs;}`).Value.String())
+			}
 			if id == "voxel_world" {
 				s.waitFor(t, "real WebGL and Rapier", 30*time.Second, `()=>{const f=AuraDesktopThemeFx.inspect();return f.rendererReady && f.physicsReady;}`)
 				t.Log("real rendering:", s.eval(t, `()=>AuraDesktopThemeFx.inspect()`).Value.String())

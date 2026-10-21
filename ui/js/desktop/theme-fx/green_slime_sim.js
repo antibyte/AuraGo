@@ -330,7 +330,11 @@
         function dripShape(surface, drip, growth) {
             const point = sampleContour(surface.nodes, drip.node + .5);
             const idle = motion ? Math.sin(state.clock * 1.8 + drip.offset) * 3 * growth + surface.nodes[drip.node].vx * .018 : 0;
-            return { x: point.x - point.nx * 6, y: point.y - 4,
+            // The root sits just inside the outline of the radius table (the gel is thicker than the old
+            // contour at the bottom), so a neck grows out of the gel itself instead of hiding in it.
+            const hit = project(surface.layout, point.x, point.y, scratch);
+            const lift = radiusAt(surface, hit.s) - 3 - hit.dist;
+            return { x: point.x + hit.nx * lift, y: point.y + hit.ny * lift - 1,
                 length: 6 + (32 + (drip.node % 3) * 8) * growth * growth,
                 // The pendulum carries the drip against the window's motion (sloshing).
                 sway: idle + drip.sw * (.25 + .75 * growth) };

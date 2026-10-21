@@ -3,11 +3,43 @@ package ui
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
+	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
+
+// newSlimeSession opens the fixture desktop for one Green Slime renderer. "webgl2" runs on software WebGL
+// (SwiftShader) and expects the WebGL2 gel; "canvas2d" keeps the default browser and hides WebGL from the
+// page, so the effect has to take the Canvas 2D fallback.
+func newSlimeSession(t *testing.T, renderer string) *themeSweepSession {
+	t.Helper()
+	if renderer == "webgl2" {
+		s := newThemeSweepSessionWithBrowser(t, "no-preference", func(l *launcher.Launcher) { l.Delete("disable-gpu").Set("enable-unsafe-swiftshader") })
+		// Software WebGL (SwiftShader without a GPU behind it) draws the gel at about one frame per second, so
+		// the effect leaves it to the Canvas 2D fallback; the WebGL2 contract needs a real GPU.
+		gpu := s.eval(t, `()=>{const g=document.createElement('canvas').getContext('webgl2');if(!g)return 'none';const e=g.getExtension('WEBGL_debug_renderer_info');return String(g.getParameter(e?e.UNMASKED_RENDERER_WEBGL:g.RENDERER));}`).Value.Str()
+		if regexp.MustCompile(`(?i)swiftshader|llvmpipe|lavapipe|softpipe|software|basic render|^none$`).MatchString(gpu) {
+			t.Skipf("the WebGL2 gel needs a GPU; this browser only has %q", gpu)
+		}
+		t.Logf("WebGL2 on %s", gpu)
+		return s
+	}
+	s := newThemeSweepSession(t, "no-preference")
+	s.eval(t, `()=>{const original=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){if(type==='webgl'||type==='webgl2'||type==='experimental-webgl')return null;return original.call(this,type,...args);};}`)
+	return s
+}
+
+// waitSlimeRenderer waits until the effect runs on the wanted renderer; the WebGL2 gel additionally waits
+// until its backdrop (the wallpaper texture) is no longer loading.
+func waitSlimeRenderer(t *testing.T, s *themeSweepSession, renderer string) {
+	t.Helper()
+	s.waitFor(t, "slime renderer "+renderer, 60*time.Second, `(want)=>{const f=AuraDesktopThemeFx?.inspect();return !!f && f.ready && f.renderer===want && (want!=='webgl2'||f.backdrop!=='loading');}`, renderer)
+	// The contract tests measure the gel at full resolution, not at whatever the adaptive quality picked.
+	s.eval(t, `()=>AuraDesktopThemeFx.command('quality',{scale:1})`)
+}
 
 // slimeSamplerJS installs window.slimeRegion(x, y, w, h) in CSS pixels. It copies a region of the effect
 // canvas into a scratch 2D canvas and reads that, which works for any renderer behind the canvas (a WebGL
@@ -39,13 +71,14 @@ const slimeSamplerJS = `() => {
 }`
 
 func TestDesktopGreenSlimeSpringSurfaceBrowser(t *testing.T) {
-	s := newThemeSweepSession(t, "no-preference")
+	s := newSlimeSession(t, "webgl2")
 	s.store.set(map[string]string{
 		"appearance.theme":   "green_slime",
 		"windows.animations": "true",
 	})
 	s.pushSettings(t)
 	s.waitFor(t, "Green Slime effect and motion", 10*time.Second, `()=>AuraDesktopThemeFx?.activeId()==='green_slime' && AuraDesktopThemeFx.inspect().motion`)
+	waitSlimeRenderer(t, s, "webgl2")
 
 	s.eval(t, `()=>{
 		const record={
@@ -104,12 +137,26 @@ func TestDesktopGreenSlimeSpringSurfaceBrowser(t *testing.T) {
 // the next frame can conceal a one-frame gap. Real pointer input exercises the
 // manager's scheduling and fast reversals, unlike synthetic geometry snapshots.
 func TestDesktopGreenSlimeAttachedMembraneBrowser(t *testing.T) {
-	s := newThemeSweepSession(t, "no-preference")
+	// The wallpaper decides the WebGL2 material: the green_slime image is refracted (texture backdrop),
+	// any other desktop leaves the gel translucent over the DOM; both must keep the same coverage contract.
+	for _, c := range []struct{ name, renderer, wallpaper string }{
+		{"webgl2", "webgl2", "green_slime"},
+		{"webgl2-translucent", "webgl2", "forest"},
+		{"canvas2d", "canvas2d", "green_slime"},
+	} {
+		t.Run(c.name, func(t *testing.T) { checkSlimeAttachedMembrane(t, c.name, c.renderer, c.wallpaper) })
+	}
+}
+
+func checkSlimeAttachedMembrane(t *testing.T, label, renderer, wallpaper string) {
+	t.Helper()
+	s := newSlimeSession(t, renderer)
 	s.page.MustSetViewport(1920, 1080, 1, false)
-	s.store.set(map[string]string{"appearance.theme": "green_slime", "appearance.wallpaper": "green_slime", "windows.animations": "true"})
+	s.store.set(map[string]string{"appearance.theme": "green_slime", "appearance.wallpaper": wallpaper, "windows.animations": "true"})
 	s.pushSettings(t)
 	s.openApps(t, "settings")
 	s.waitFor(t, "slime material", 10*time.Second, `()=>AuraDesktopThemeFx?.inspect().surfaceCount===1`)
+	waitSlimeRenderer(t, s, renderer)
 	s.eval(t, slimeSamplerJS)
 	s.eval(t, `()=>{
 		const win=[...auditTest.state.windows.values()][0];
@@ -176,7 +223,7 @@ func TestDesktopGreenSlimeAttachedMembraneBrowser(t *testing.T) {
 	if err := s.page.Mouse.Up(proto.InputMouseButtonLeft, 1); err != nil {
 		t.Fatal(err)
 	}
-	s.screenshot(t, filepath.Join("..", "reports", "desktop-experience-themes", "green-slime-attached.png"))
+	s.screenshot(t, filepath.Join("..", "reports", "desktop-experience-themes", "green-slime-attached-"+label+".png"))
 	// Native browser crop for inspecting the reported corner at full pixel detail.
 	s.evalInto(t, &start, `()=>{const r=slimeDragWindow.element.getBoundingClientRect();return {X:r.left-35,Y:r.top-35};}`)
 	corner, err := s.page.Screenshot(false, &proto.PageCaptureScreenshot{
@@ -186,7 +233,7 @@ func TestDesktopGreenSlimeAttachedMembraneBrowser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join("..", "reports", "desktop-experience-themes", "green-slime-corner.png"), corner, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join("..", "reports", "desktop-experience-themes", "green-slime-corner-"+label+".png"), corner, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if got := s.eval(t, `()=>slimeCoverage`).Value; got.Get("samples").Int() < 10 || len(got.Get("missing").Arr()) != 0 || len(got.Get("interior").Arr()) != 0 {
@@ -198,7 +245,7 @@ func TestDesktopGreenSlimeAttachedMembraneBrowser(t *testing.T) {
 	// Switch to the still material and verify both geometry and a quiet renderer.
 	s.store.set(map[string]string{"windows.animations": "false"})
 	s.pushSettings(t)
-	s.waitFor(t, "static membrane", 5*time.Second, `()=>!AuraDesktopThemeFx.inspect().motion && AuraDesktopThemeFx.inspect().surfaceCount===1`)
+	s.waitFor(t, "static membrane", 30*time.Second, `()=>{const f=AuraDesktopThemeFx.inspect();return !f.motion && f.surfaceCount===1 && f.ready && f.backdrop!=='loading';}`)
 	s.eval(t, `()=>{slimeCoverage.missing=[];slimeCoverage.interior=[];sampleSlimeCoverage();}`)
 	if got := s.eval(t, `()=>({missing:slimeCoverage.missing,interior:slimeCoverage.interior,raf:AuraDesktopThemeFx.inspect().rafPending,errors:fixtureErrors})`).Value; got.Get("missing").String() != "[]" || got.Get("interior").String() != "[]" || got.Get("raf").Bool() || got.Get("errors").String() != "[]" {
 		t.Fatalf("static rounded membrane failed: %s", got.String())
@@ -206,11 +253,12 @@ func TestDesktopGreenSlimeAttachedMembraneBrowser(t *testing.T) {
 }
 
 func TestDesktopGreenSlimeSixWindowsBrowser(t *testing.T) {
-	s := newThemeSweepSession(t, "no-preference")
+	s := newSlimeSession(t, "webgl2")
 	s.page.MustSetViewport(1920, 1080, 1, false)
 	s.store.set(map[string]string{"appearance.theme": "green_slime", "appearance.wallpaper": "green_slime", "windows.animations": "true"})
 	s.pushSettings(t)
 	s.openApps(t, "files", "calculator", "settings", "calendar", "notes", "editor")
+	waitSlimeRenderer(t, s, "webgl2")
 	s.eval(t, `()=>{let i=0;for(const w of auditTest.state.windows.values()){
 		Object.assign(w.element.style,{left:(110+(i%3)*530)+'px',top:(90+Math.floor(i/3)*400)+'px',width:'490px',height:'350px'});i++;
 	}dispatchEvent(new CustomEvent('aurago:desktop-windows-refresh'));}`)
@@ -221,7 +269,7 @@ func TestDesktopGreenSlimeSixWindowsBrowser(t *testing.T) {
 		for(let i=0;i<90;i++){await new Promise(requestAnimationFrame);const now=performance.now();times.push(now-last);last=now;}
 		times.sort((a,b)=>a-b);
 		const fx=AuraDesktopThemeFx.inspect();
-		return {median:times[45],p95:times[85],activeDrops:fx.activeDrops,nodes:fx.surfaceNodeCount};
+		return {median:times[45],p95:times[85],activeDrops:fx.activeDrops,nodes:fx.surfaceNodeCount,renderer:fx.renderer,compileMs:fx.compileMs,renderMs:fx.averageRenderMs,quality:fx.qualityScale,draws:fx.drawCalls,quads:fx.quadCount};
 	}`).Value
 	t.Logf("six windows at 1920x1080: %s", got.String())
 	if got.Get("activeDrops").Int() > 72 || got.Get("nodes").Int() != 192 {

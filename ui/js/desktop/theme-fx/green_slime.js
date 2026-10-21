@@ -4,14 +4,23 @@
     // DOM bridge of the Green Slime effect. The green_slime_sim.js family owns all state and physics;
     // this file reads window geometry, masks and pointer input, hands them to the simulation, completes
     // the scene (occluders, backdrop) and gives it to the active renderer. A renderer is { kind,
-    // render(scene), resize(cssWidth, cssHeight, dpr), dispose() }; green_slime_canvas2d.js provides the
-    // Canvas 2D one, which is the only renderer for now.
+    // render(scene), resize(cssWidth, cssHeight, dpr, scale), dispose() }: green_slime_gl.js (WebGL2, the
+    // gel material with refraction of the real wallpaper) is tried first, green_slime_canvas2d.js is the
+    // fallback (no WebGL2, failed build, lost context). There is only ever one canvas: the fallback
+    // replaces the GL canvas with a fresh one, because a canvas never gives up its WebGL context.
 
     const MASK_SELECTORS = '.vd-icon, .vd-widget, .vd-taskbar, .vd-dock, .vd-start-menu, .vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover, .vd-modal-backdrop, .vd-modal, .vd-dialog, [role="dialog"], dialog[open], .vd-toast-container, .vd-global-menu, .vd-radial-menu';
     // A press that lands in a window, icon, widget, taskbar, menu or dialog belongs to the user, not to the gel.
     const POKE_BLOCKERS = MASK_SELECTORS + ', .vd-window';
     const OCCLUDER_LIMIT = 24;
     const UNDER_LIMIT = 16;
+    const BACKDROP_MAX_SIZE = 2048;
+    // Adaptive quality: when the average frame takes longer than this over a window, render at a lower scale.
+    const SLOW_FRAME_MS = 22;
+    const GIVE_UP_FRAME_MS = 45;
+    const STALL_MS = 1500;
+    const QUALITY_WINDOW_MS = 2000;
+    const LOW_QUALITY_SCALE = .75;
 
     function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
@@ -53,14 +62,71 @@
     function start({ layer, signal, options }) {
         const motion = !!(options && options.motion);
         const slime = window.AuraGreenSlimeSim;
-        const canvas = document.createElement('canvas');
-        canvas.className = 'vd-fx-slime-canvas';
-        canvas.setAttribute('aria-hidden', 'true');
-        canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;';
-        layer.appendChild(canvas);
-        const renderer = slime ? window.AuraGreenSlimeCanvas2D.create(canvas) : null;
-        if (!renderer) return { stop() { canvas.remove(); } };
-        const sim = slime.createSim({ motion, seed: Date.now() >>> 0 });
+        if (!slime) return { stop() {} };
+        let canvas = null;
+        let renderer = null;
+        let rendererError = '';
+        let contextLost = false;
+        // The backdrop the gel refracts: 'loading' until the wallpaper image is decoded, 'texture' with a
+        // bitmap, otherwise 'translucent' (live wallpaper, overlay effect, gradient layers, upload failure).
+        let backdrop = { state: 'translucent', reason: 'pending', image: null, naturalWidth: 0, naturalHeight: 0 };
+        let backdropKey = '';
+        let backdropToken = 0;
+        let backdropTimer = 0;
+        const settleTimers = new Set();
+        let qualityScale = 1;
+        let qualityLocked = false;
+        let qualitySum = 0;
+        let qualityCount = 0;
+        let qualityStart = 0;
+        let slowWindows = 0;
+        let lastRafTime = 0;
+
+        function newCanvas() {
+            const element = document.createElement('canvas');
+            element.className = 'vd-fx-slime-canvas';
+            element.setAttribute('aria-hidden', 'true');
+            element.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;';
+            layer.appendChild(element);
+            return element;
+        }
+
+        // WebGL2 first. A canvas that handed out a WebGL context cannot give it up, so whenever the GL
+        // attempt does not end in a working renderer the fallback gets a fresh canvas.
+        function chooseRenderer() {
+            canvas = newCanvas();
+            const gl = window.AuraGreenSlimeGL
+                ? window.AuraGreenSlimeGL.create(canvas, {
+                    motion, signal,
+                    onContextLost: () => switchToFallback('context-lost'),
+                    onFailure: reason => switchToFallback(reason),
+                    // The programs build on the driver's own threads; the gel appears when they are done.
+                    onReady: () => { dirty = true; requestFrame(); }
+                })
+                : null;
+            if (gl) { renderer = gl; return; }
+            rendererError = window.AuraGreenSlimeGL ? window.AuraGreenSlimeGL.lastError : 'green_slime_gl.js missing';
+            canvas.remove();
+            canvas = newCanvas();
+            renderer = window.AuraGreenSlimeCanvas2D.create(canvas)
+                || { kind: 'none', render() {}, resize() {}, dispose() { canvas.remove(); } };
+        }
+
+        function switchToFallback(reason) {
+            if (stopped || !renderer || renderer.kind !== 'webgl2') return;
+            contextLost = reason === 'context-lost';
+            rendererError = reason;
+            backdropToken++;
+            backdrop = { state: 'translucent', reason, image: null, naturalWidth: 0, naturalHeight: 0 };
+            try { renderer.dispose(); } catch (_) { /* the context is gone anyway */ }
+            canvas = newCanvas();
+            renderer = window.AuraGreenSlimeCanvas2D.create(canvas)
+                || { kind: 'none', render() {}, resize() {}, dispose() { canvas.remove(); } };
+            renderer.resize(width, height, dpr, 1);
+            qualityScale = 1;
+            dirty = true;
+            requestFrame();
+        }
 
         let width = 0;
         let height = 0;
@@ -79,6 +145,7 @@
         let maskRectsDirty = true;
         let cachedOverlayMasks = [];
         let maskRefreshCount = 0;
+        const sim = slime.createSim({ motion, seed: Date.now() >>> 0 });
 
         function invalidateMasks() {
             maskRectsDirty = true;
@@ -90,10 +157,96 @@
             width = Math.max(1, layer.clientWidth || window.innerWidth || 1);
             height = Math.max(1, layer.clientHeight || window.innerHeight || 1);
             dpr = Math.min(window.devicePixelRatio || 1, motion ? 1.5 : 1.25);
-            renderer.resize(width, height, dpr);
+            renderer.resize(width, height, dpr, qualityScale);
             maskRectsDirty = true;
             dirty = true;
             requestFrame();
+        }
+
+        // ---- Backdrop -----------------------------------------------------------------------------
+        // The gel refracts the wallpaper itself. That is only possible when the page paints exactly one
+        // image as "center / cover no-repeat fixed" (the green_slime wallpaper) and nothing animated
+        // sits between it and the effect layer; every other desktop gets the translucent material.
+        function discoverBackdrop() {
+            const body = document.body;
+            if (!body || typeof window.getComputedStyle !== 'function') return { reason: 'no document' };
+            const live = document.getElementById('vd-wallpaper-live');
+            if (live && !live.hidden && window.getComputedStyle(live).display !== 'none') return { reason: 'live wallpaper' };
+            const overlay = document.querySelector('.vd-wallpaper-fx');
+            if (overlay && window.getComputedStyle(overlay).display !== 'none') return { reason: 'wallpaper overlay' };
+            const style = window.getComputedStyle(body);
+            const layers = String(style.backgroundImage || '').trim();
+            const single = /^url\(\s*(["']?)(.*?)\1\s*\)$/.exec(layers);
+            if (!single || /\)\s*,/.test(layers)) return { reason: 'not a single image' };
+            if (style.backgroundSize !== 'cover' || style.backgroundAttachment !== 'fixed' || style.backgroundRepeat !== 'no-repeat'
+                || !/^(50% 50%|center center|center)$/.test(String(style.backgroundPosition).trim())) {
+                return { reason: 'unsupported background layout: ' + [style.backgroundSize, style.backgroundPosition, style.backgroundAttachment, style.backgroundRepeat].join(' | ') };
+            }
+            return { url: single[2] };
+        }
+
+        // Where the cover-fitted wallpaper is drawn on the viewport (CSS px), like the CSS background.
+        function coverRect() {
+            const iw = backdrop.naturalWidth, ih = backdrop.naturalHeight;
+            if (!backdrop.image || !iw || !ih) return { x: 0, y: 0, w: width, h: height };
+            const scale = Math.max(width / iw, height / ih);
+            return { x: (width - iw * scale) / 2, y: (height - ih * scale) / 2, w: iw * scale, h: ih * scale };
+        }
+
+        function settleBackdrop(state, reason, image, naturalWidth, naturalHeight) {
+            backdrop = { state, reason, image: image || null, naturalWidth: naturalWidth || 0, naturalHeight: naturalHeight || 0 };
+            dirty = true;
+            requestFrame();
+        }
+
+        function refreshBackdrop() {
+            backdropTimer = 0;
+            if (stopped || !renderer) return;
+            const found = discoverBackdrop();
+            const key = (renderer.kind === 'webgl2' ? 'gl:' : 'flat:') + (found.url || found.reason);
+            if (key === backdropKey) return;
+            backdropKey = key;
+            const token = ++backdropToken;
+            if (!found.url || renderer.kind !== 'webgl2') {
+                settleBackdrop('translucent', found.reason || 'renderer without textures');
+                return;
+            }
+            backdrop = { state: 'loading', reason: '', image: null, naturalWidth: 0, naturalHeight: 0 };
+            const image = new Image();
+            image.decoding = 'async';
+            image.src = found.url;
+            const ready = typeof image.decode === 'function' ? image.decode() : new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
+            ready.then(() => {
+                if (token !== backdropToken || stopped) return null;
+                const limit = Math.min(BACKDROP_MAX_SIZE, renderer.maxTextureSize || BACKDROP_MAX_SIZE);
+                const shrink = Math.min(1, limit / Math.max(image.naturalWidth, image.naturalHeight));
+                const target = shrink < 1
+                    ? { resizeWidth: Math.round(image.naturalWidth * shrink), resizeHeight: Math.round(image.naturalHeight * shrink), resizeQuality: 'high' }
+                    : undefined;
+                return createImageBitmap(image, target);
+            }).then(bitmap => {
+                if (!bitmap) return;
+                if (token !== backdropToken || stopped || renderer.kind !== 'webgl2') { if (bitmap.close) bitmap.close(); return; }
+                renderer.setBackdrop(bitmap);
+                if (renderer.inspect().backdropReady) settleBackdrop('texture', '', bitmap, image.naturalWidth, image.naturalHeight);
+                else settleBackdrop('translucent', 'texture upload failed');
+            }).catch(() => {
+                if (token === backdropToken && !stopped) settleBackdrop('translucent', 'image unavailable');
+            });
+        }
+
+        function scheduleBackdropCheck(delay) {
+            if (backdropTimer || stopped) return;
+            backdropTimer = window.setTimeout(refreshBackdrop, typeof delay === 'number' ? delay : 60);
+        }
+
+        // Stylesheets and wallpaper settings land a moment after the effect starts, and a changed computed
+        // style raises no DOM mutation: look again a few times while the page settles.
+        function verifyBackdropLater() {
+            for (const delay of [350, 1200, 3500]) {
+                const timer = window.setTimeout(() => { settleTimers.delete(timer); scheduleBackdropCheck(0); }, delay);
+                settleTimers.add(timer);
+            }
         }
 
         function snapshot() {
@@ -191,6 +344,8 @@
             const root = document.documentElement || document.body;
             if (!root) return;
             mutationObserver = new MutationObserver(mutations => {
+                if (mutations.some(mutation => mutation.type === 'attributes' && (mutation.target === document.body || mutation.target === document.documentElement
+                    || (mutation.target.id === 'vd-wallpaper-live' || (mutation.target.classList && mutation.target.classList.contains('vd-wallpaper-fx')))))) scheduleBackdropCheck();
                 const relevant = mutations.some(mutation => {
                     const target = mutation.target;
                     if (target === canvas || (canvas.contains && canvas.contains(target))) return false;
@@ -204,7 +359,7 @@
                 subtree: true,
                 childList: true,
                 attributes: true,
-                attributeFilter: ['class', 'style', 'hidden', 'open', 'aria-hidden']
+                attributeFilter: ['class', 'style', 'hidden', 'open', 'aria-hidden', 'data-wallpaper']
             });
         }
 
@@ -236,8 +391,37 @@
                 win.under = capList(frames.filter(other => other.z < win.z).map(other => ({ x: other.x, y: other.y, width: other.width, height: other.height })).concat(desktop), UNDER_LIMIT, win.rect);
             });
             scene.dropOccluders = frames.concat(env.masks.map(mask => ({ x: mask.x, y: mask.y, width: mask.width, height: mask.height, radius: 0, taskbar: mask.taskbar })));
-            scene.backdrop = { mode: 'translucent', image: null, rect: { x: 0, y: 0, w: env.width, h: env.height } };
+            const textured = backdrop.state === 'texture' && !!backdrop.image;
+            scene.backdrop = { mode: textured ? 'texture' : 'translucent', image: textured ? backdrop.image : null, rect: coverRect() };
             return scene;
+        }
+
+        // Frame-time watch (motion only, real animation frames only): when the average frame of a 2 s window
+        // exceeds SLOW_FRAME_MS the gel renders at a lower scale for the rest of the session, and when even
+        // that stays above GIVE_UP_FRAME_MS the Canvas 2D fallback takes over. Pauses reset the watch and
+        // gaps beyond STALL_MS say nothing about the renderer.
+        function watchFrameTime(time) {
+            const interval = lastRafTime ? time - lastRafTime : 0;
+            lastRafTime = time;
+            if (qualityLocked || !renderer || renderer.kind !== 'webgl2' || interval <= 0 || interval > STALL_MS) return;
+            if (!qualityStart) qualityStart = time;
+            qualitySum += interval;
+            qualityCount++;
+            if (time - qualityStart < QUALITY_WINDOW_MS) return;
+            const average = qualitySum / qualityCount;
+            qualitySum = 0; qualityCount = 0; qualityStart = 0;
+            // One slow window can be the desktop busy elsewhere (opening apps, layout); two in a row are not.
+            slowWindows = average > (qualityScale === 1 ? SLOW_FRAME_MS : GIVE_UP_FRAME_MS) ? slowWindows + 1 : 0;
+            if (slowWindows < 2) return;
+            slowWindows = 0;
+            if (qualityScale === 1) setQuality(LOW_QUALITY_SCALE);
+            else switchToFallback('renderer too slow');
+        }
+
+        function setQuality(scale) {
+            qualityScale = scale;
+            renderer.resize(width, height, dpr, qualityScale);
+            dirty = true;
         }
 
         function render(time) {
@@ -260,6 +444,7 @@
             }
             raf = requestAnimationFrame(time => {
                 raf = 0;
+                watchFrameTime(time);
                 render(time);
                 if (motion) requestFrame();
             });
@@ -287,6 +472,8 @@
             if (raf) cancelAnimationFrame(raf);
             raf = 0;
             lastTime = 0;
+            lastRafTime = 0;
+            qualitySum = 0; qualityCount = 0; qualityStart = 0; slowWindows = 0;
             sim.pointerUp();
             for (const animation of springs) {
                 animation.onfinish = animation.oncancel = null;
@@ -317,13 +504,29 @@
             springAt.clear();
             records.clear();
             sim.reset();
+            backdropToken++;
+            if (backdropTimer) window.clearTimeout(backdropTimer);
+            backdropTimer = 0;
+            for (const timer of settleTimers) window.clearTimeout(timer);
+            settleTimers.clear();
             renderer.dispose();
+            if (backdrop.image && backdrop.image.close) backdrop.image.close();
+            backdrop = { state: 'translucent', reason: 'stopped', image: null, naturalWidth: 0, naturalHeight: 0 };
         }
 
-        // Test/debug hook: force a bubble, a poke or a drop. Motion-only.
+        // Test/debug hook: force a bubble, a poke or a drop (motion only), or pin the render scale.
         function command(name, payload) {
-            if (!motion || stopped || paused) return null;
+            if (stopped) return null;
             const data = payload || {};
+            if (name === 'quality') {
+                // Pins the render scale and ends the adaptive watch (close-up screenshots need full resolution).
+                const scale = clamp(Number(data.scale) || 1, .25, 1);
+                qualityLocked = true;
+                if (scale !== qualityScale) setQuality(scale);
+                requestFrame();
+                return qualityScale;
+            }
+            if (!motion || paused) return null;
             if (name === 'bubble') return sim.spawnBubble({ windowId: data.windowId, at: data.at, base: data.base, fast: data.fast });
             if (name === 'poke') {
                 const hit = sim.poke(Number(data.x), Number(data.y));
@@ -339,13 +542,24 @@
         }
 
         function inspect() {
+            const gl = renderer.kind === 'webgl2' ? renderer.inspect() : null;
             return {
-                ready: !!renderer,
+                ready: !!renderer && renderer.ready !== false,
                 renderer: renderer.kind,
-                backdrop: 'translucent',
-                qualityScale: 1,
-                contextLost: false,
-                error: '',
+                backdrop: backdrop.state,
+                backdropReason: backdrop.reason,
+                qualityScale,
+                contextLost,
+                error: rendererError,
+                gpu: gl ? gl.gpu : '',
+                compileMs: gl ? gl.compileMs : 0,
+                blockedMs: gl ? gl.blockedMs : 0,
+                parallelCompile: gl ? gl.parallelCompile : false,
+                lastRenderMs: gl ? gl.lastRenderMs : 0,
+                averageRenderMs: gl ? gl.averageRenderMs : 0,
+                firstRenderMs: gl ? gl.firstRenderMs : 0,
+                drawCalls: gl ? gl.drawCalls : 0,
+                quadCount: gl ? gl.quadCount : 0,
                 motion,
                 paused,
                 rafPending: !!raf,
@@ -357,6 +571,7 @@
             };
         }
 
+        chooseRenderer();
         resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(resize) : null;
         if (resizeObserver) resizeObserver.observe(layer);
         observeMaskChanges();
@@ -375,6 +590,8 @@
         window.addEventListener('aurago:desktop-windows-refresh', () => { snapshot(); requestFrame(); }, { signal });
         if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', stop, { once: true });
         resize();
+        refreshBackdrop();
+        verifyBackdropLater();
         snapshot();
         requestFrame();
         return { pause, resume, stop, inspect, command };

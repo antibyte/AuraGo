@@ -41,10 +41,11 @@ func TestGreenSlimeEffectHasBoundedSpringSurfaceAndDetachedDrops(t *testing.T) {
 	t.Parallel()
 
 	// The effect is split: the green_slime_sim.js family (geometry, bubbles, touch, sim) owns the DOM-free
-	// state and physics, green_slime_canvas2d.js draws the scene and green_slime.js is the DOM bridge with
-	// the renderer slot. The contract markers may live in any of them.
+	// state and physics, green_slime_gl.js (with its shader sources) and green_slime_canvas2d.js draw the
+	// scene and green_slime.js is the DOM bridge with the renderer slot. The contract markers may live in
+	// any of them.
 	source := readDesktopAssetText(t, "js/desktop/theme-fx/green_slime.js")
-	for _, part := range []string{"geometry", "bubbles", "touch", "sim", "canvas2d"} {
+	for _, part := range []string{"geometry", "bubbles", "touch", "sim", "canvas2d", "gl_shaders", "gl"} {
 		source += "\n" + readDesktopAssetText(t, "js/desktop/theme-fx/green_slime_"+part+".js")
 	}
 	for _, marker := range []string{
@@ -55,6 +56,8 @@ func TestGreenSlimeEffectHasBoundedSpringSurfaceAndDetachedDrops(t *testing.T) {
 		"observeMaskChanges()", "maskRectsDirty", "maskRefreshCount",
 		"ready: !!renderer", "motion,", "paused,", "rafPending: !!raf", "windowCount: records.size",
 		"MAX_SPRAY = 24", "MIN_GEL_RADIUS = 10", "STRAND_SNAP = 170", "window.AuraGreenSlimeSim",
+		"preserveDrawingBuffer: true", "webglcontextlost", "window.AuraGreenSlimeGL", "function discoverBackdrop()", "function coverRect()",
+		"function switchToFallback(reason)",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Errorf("Green Slime effect is missing its bounded spring-surface contract marker %q", marker)

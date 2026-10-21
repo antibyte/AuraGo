@@ -1895,7 +1895,11 @@
         function dripShape(surface, drip, growth) {
             const point = sampleContour(surface.nodes, drip.node + .5);
             const idle = motion ? Math.sin(state.clock * 1.8 + drip.offset) * 3 * growth + surface.nodes[drip.node].vx * .018 : 0;
-            return { x: point.x - point.nx * 6, y: point.y - 4,
+            // The root sits just inside the outline of the radius table (the gel is thicker than the old
+            // contour at the bottom), so a neck grows out of the gel itself instead of hiding in it.
+            const hit = project(surface.layout, point.x, point.y, scratch);
+            const lift = radiusAt(surface, hit.s) - 3 - hit.dist;
+            return { x: point.x + hit.nx * lift, y: point.y + hit.ny * lift - 1,
                 length: 6 + (32 + (drip.node % 3) * 8) * growth * growth,
                 // The pendulum carries the drip against the window's motion (sloshing).
                 sway: idle + drip.sw * (.25 + .75 * growth) };
@@ -2842,6 +2846,1323 @@
 })();
 
 ;
+/* ui/js/desktop/theme-fx/green_slime_gl_shaders.js */
+(function () {
+    'use strict';
+
+    // GLSL ES 3.00 sources of the Green Slime WebGL2 renderer (green_slime_gl.js). Three programs:
+    //  - gel: the slime around one window, drawn as strip quads (field -> height -> normal -> material),
+    //  - drop: free drops, bubble spray and taskbar splats as instanced quads with the same material,
+    //  - mask: instanced rounded rectangles that fill the stencil (drops never paint over windows).
+    // Units: CSS pixels, y points down, output is premultiplied. The arclength walk of projectRR() mirrors
+    // green_slime_geometry.js (layout): top edge, top-right arc, right edge, bottom-right arc, bottom edge,
+    // bottom-left arc, left edge, top-left arc, clockwise from the end of the top-left arc.
+
+    const PREAMBLE = [
+        '#version 300 es',
+        'precision highp float;',
+        'precision highp int;',
+        'precision highp sampler2D;',
+        ''
+    ].join('\n');
+
+    // ---------------------------------------------------------------------------------------------
+    // Shared by the gel and the drop program: noise, backdrop, environment and the slime material.
+
+    const COMMON = `
+uniform vec4 uView;
+uniform vec2 uSize;
+uniform vec4 uFrame;
+uniform vec4 uBack;
+uniform sampler2D uBackdrop;
+
+const vec3 SIGMA = vec3(0.020, 0.014, 0.042);
+const vec3 LIGHT = vec3(-0.4198, -0.6996, 0.5784);
+const vec3 HALFV = vec3(-0.2363, -0.3938, 0.8884);
+const vec2 FOCUS = vec2(0.5145, 0.8575);
+
+float hash21(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), f.x),
+               mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+
+vec2 cssPos() {
+    return vec2(gl_FragCoord.x * uView.x, (uView.z - gl_FragCoord.y) * uView.y);
+}
+
+vec3 backdropAt(vec2 q, float lod) {
+    return textureLod(uBackdrop, (q - uBack.xy) / uBack.zw, lod).rgb;
+}
+
+float boxMask(vec2 r, vec2 centre, vec2 hs, float angle, float soft) {
+    vec2 a = r - centre;
+    float c = cos(angle), s = sin(angle);
+    vec2 b = vec2(c * a.x + s * a.y, -s * a.x + c * a.y);
+    vec2 q = abs(b) - hs;
+    float sd = min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - 0.05;
+    return 1.0 - smoothstep(-soft * 0.4, soft, sd);
+}
+
+// The soft box seen in the gel: a bright window up-left (wide for the top edges, tall for the left ones).
+float softBox(vec2 r, float fill) {
+    float wide = boxMask(r, vec2(-0.30, -0.50), vec2(0.34, 0.12), -0.52, 0.16);
+    float tall = boxMask(r, vec2(-0.60, 0.04), vec2(0.075, 0.27), 0.12, 0.13) * 0.75;
+    // A dimmer fill card lower right gives the flat bottom and right flanks of the gel their own streak
+    // of light (fill = 0 leaves it out: round bodies like drops and domes show the key light only).
+    float fillA = boxMask(r, vec2(0.30, 0.54), vec2(0.36, 0.10), 0.45, 0.16) * 0.55;
+    float fillB = boxMask(r, vec2(0.56, 0.02), vec2(0.09, 0.34), -0.15, 0.14) * 0.45;
+    return max(max(wide, tall), max(fillA, fillB) * fill);
+}
+
+vec3 environment(vec3 r, float fill) {
+    vec3 sky = mix(vec3(0.15, 0.23, 0.07), vec3(0.74, 0.88, 0.52), smoothstep(-0.25, 0.65, -r.y));
+    return sky + vec3(1.0, 1.0, 0.92) * softBox(r.xy, fill) * 1.35;
+}
+
+// The slime material. q: where the backdrop is looked up (the refracted position), h: path thickness in px,
+// n: surface normal, texW: how much of the real backdrop is refracted (1) versus left to the DOM below
+// (0, translucent), aMin: opacity floor of the translucent part, rimK: strength of the dark refracted rim.
+vec4 shadeSlime(vec2 q, float h, vec3 n, float texW, float aMin, float rimK, float gloss) {
+    float ndv = clamp(n.z, 0.0, 1.0);
+    float F = 0.025 + 0.975 * pow(1.0 - ndv, 5.0);
+    float path = h / max(ndv, 0.35);
+    vec3 Tr = exp(-SIGMA * path);
+    float wrapL = clamp(dot(n, LIGHT) * 0.5 + 0.5, 0.0, 1.0);
+    vec3 scatter = vec3(0.62, 0.82, 0.22) * (1.0 - exp(-0.05 * h)) * (0.35 + 0.65 * wrapL) * 0.26;
+    vec2 nd = normalize(n.xy + vec2(1e-5));
+    float caust = pow(clamp(dot(nd, FOCUS), 0.0, 1.0), 3.0) * smoothstep(0.04, 0.5, 1.0 - ndv) * smoothstep(1.0, 6.0, h);
+    vec3 S = scatter + vec3(0.80, 0.98, 0.36) * caust * 0.32 * gloss;
+    float aT = clamp(1.0 - dot(Tr, vec3(0.3333)) + 0.12, aMin, 1.0);
+    // Without the real backdrop (translucent mode) a typical wallpaper tone stands in for it, so the gel
+    // keeps its body colour near the frame and turns see-through only where it is thin.
+    vec4 col = vec4((vec3(0.50, 0.62, 0.26) * Tr + S) * aT, aT);
+    if (texW > 0.0) {
+        vec3 bg = backdropAt(q, 0.5 + 0.08 * h);
+        col = mix(col, vec4(bg * Tr + S, 1.0), texW);
+    }
+    col = mix(col, vec4(0.10, 0.20, 0.03, 1.0), pow(1.0 - ndv, 2.5) * rimK);
+    vec3 Rr = reflect(vec3(0.0, 0.0, -1.0), n);
+    float fill = gloss > 1.01 ? 0.0 : 1.0;
+    col = mix(col, vec4(environment(Rr, fill), 1.0), F);
+    float nh = max(dot(n, HALFV), 0.0);
+    // The soft box is far brighter than the sky: a gloss term keeps its reflection visible at low Fresnel.
+    vec3 spec = vec3(1.0, 0.99, 0.9) * (pow(nh, 240.0) * 2.0 + pow(nh, 32.0) * 0.22 + softBox(Rr.xy * (1.0 / gloss), fill) * (0.22 + 0.6 * F) * gloss);
+    // Rim light: the steep flank toward the light throws a thin bright line, the opposite flank a dim one.
+    float steep = pow(1.0 - ndv, 3.0);
+    float toLight = dot(nd, vec2(-0.5145, -0.8575));
+    spec += vec3(1.0, 1.0, 0.9) * steep * (max(toLight, 0.0) * 1.0 + max(-toLight, 0.0) * 0.30) * gloss;
+    col.rgb += spec;
+    col.a = min(1.0, col.a + max(spec.r, max(spec.g, spec.b)));
+    return col;
+}
+`;
+
+    // ---------------------------------------------------------------------------------------------
+    // Gel program.
+
+    const GEL_VERTEX = PREAMBLE + `
+uniform vec2 uSize;
+in vec2 aPos;
+void main() {
+    gl_Position = vec4(aPos.x / uSize.x * 2.0 - 1.0, 1.0 - aPos.y / uSize.y * 2.0, 0.0, 1.0);
+}
+`;
+
+    const GEL_FIELD = `
+uniform vec4 uRect;
+uniform vec4 uRadii;
+uniform vec4 uLenA;
+uniform vec4 uLenB;
+uniform vec4 uWin;
+uniform vec4 uCounts;
+uniform vec4 uDrip[12];
+uniform vec4 uBub[12];
+uniform vec4 uStrand[3];
+uniform vec4 uOcc[24];
+uniform vec4 uOccR[6];
+uniform vec4 uUnder[16];
+uniform vec4 uBand;
+uniform float uPass;
+uniform sampler2D uRadius;
+
+const float PI = 3.14159265;
+
+struct Gel {
+    float d;
+    float rl;
+    float s;
+    float dw;
+    vec2 nrm;
+};
+
+// Arclength s, distance outside the rounded rectangle and the outward normal of the nearest perimeter point.
+vec4 projectRR(vec2 p) {
+    vec2 hs = uRect.zw * 0.5;
+    vec2 q = p - (uRect.xy + hs);
+    float r = q.y < 0.0 ? (q.x < 0.0 ? uRadii.x : uRadii.y) : (q.x < 0.0 ? uRadii.w : uRadii.z);
+    vec2 a = abs(q) - (hs - r);
+    float dist = min(max(a.x, a.y), 0.0) + length(max(a, 0.0)) - r;
+    float st1 = uLenA.x;
+    float st2 = st1 + uLenA.y;
+    float st3 = st2 + uLenA.z;
+    float st4 = st3 + uLenA.w;
+    float st5 = st4 + uLenB.x;
+    float st6 = st5 + uLenB.y;
+    float st7 = st6 + uLenB.z;
+    float s;
+    vec2 nrm;
+    if (a.x > 0.0 && a.y > 0.0) {
+        vec2 c;
+        float t;
+        if (q.y < 0.0) {
+            if (q.x >= 0.0) {
+                c = vec2(uRect.x + uRect.z - uRadii.y, uRect.y + uRadii.y);
+                vec2 v = p - c;
+                t = clamp((atan(v.y, v.x) + PI * 0.5) / (PI * 0.5), 0.0, 1.0);
+                s = st1 + t * uLenA.y;
+                nrm = v;
+            } else {
+                c = vec2(uRect.x + uRadii.x, uRect.y + uRadii.x);
+                vec2 v = p - c;
+                t = clamp((atan(v.y, v.x) + PI) / (PI * 0.5), 0.0, 1.0);
+                s = st7 + t * uLenB.w;
+                nrm = v;
+            }
+        } else {
+            if (q.x >= 0.0) {
+                c = vec2(uRect.x + uRect.z - uRadii.z, uRect.y + uRect.w - uRadii.z);
+                vec2 v = p - c;
+                t = clamp(atan(v.y, v.x) / (PI * 0.5), 0.0, 1.0);
+                s = st3 + t * uLenA.w;
+                nrm = v;
+            } else {
+                c = vec2(uRect.x + uRadii.w, uRect.y + uRect.w - uRadii.w);
+                vec2 v = p - c;
+                t = clamp((atan(v.y, v.x) - PI * 0.5) / (PI * 0.5), 0.0, 1.0);
+                s = st5 + t * uLenB.y;
+                nrm = v;
+            }
+        }
+        float nl = length(nrm);
+        nrm = nl > 1e-4 ? nrm / nl : vec2(0.0, -1.0);
+    } else if (a.x > a.y) {
+        if (q.x > 0.0) {
+            s = st2 + clamp(p.y - (uRect.y + uRadii.y), 0.0, uLenA.z);
+            nrm = vec2(1.0, 0.0);
+        } else {
+            s = st6 + clamp((uRect.y + uRect.w - uRadii.w) - p.y, 0.0, uLenB.z);
+            nrm = vec2(-1.0, 0.0);
+        }
+    } else {
+        if (q.y > 0.0) {
+            s = st4 + clamp((uRect.x + uRect.z - uRadii.z) - p.x, 0.0, uLenB.x);
+            nrm = vec2(0.0, 1.0);
+        } else {
+            s = clamp(p.x - (uRect.x + uRadii.x), 0.0, uLenA.x);
+            nrm = vec2(0.0, -1.0);
+        }
+    }
+    return vec4(s, dist, nrm);
+}
+
+float radiusTexel(int k, int row) {
+    return texelFetch(uRadius, ivec2(k & 127, row), 0).r;
+}
+
+// Catmull-Rom over the 128 samples of the window's radius table (periodic).
+float tableRadius(float s) {
+    float f = s / uWin.z * 128.0 - 0.5;
+    float fl = floor(f);
+    float t = f - fl;
+    int k = int(fl);
+    int row = int(uWin.x + 0.5);
+    float p0 = radiusTexel(k - 1, row);
+    float p1 = radiusTexel(k, row);
+    float p2 = radiusTexel(k + 1, row);
+    float p3 = radiusTexel(k + 2, row);
+    return 0.5 * (2.0 * p1 + (p2 - p0) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t + (3.0 * p1 - p0 - 3.0 * p2 + p3) * t * t * t);
+}
+
+vec2 sminR(vec2 a, vec2 b, float k) {
+    float h = clamp(0.5 + 0.5 * (b.x - a.x) / k, 0.0, 1.0);
+    return vec2(mix(b.x, a.x, h) - k * h * (1.0 - h), mix(b.y, a.y, h));
+}
+
+vec2 capsuleR(vec2 p, vec2 a, vec2 b, float ra, float rb) {
+    vec2 pa = p - a;
+    vec2 ba = b - a;
+    float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-4), 0.0, 1.0);
+    float r = mix(ra, rb, h);
+    return vec2(length(pa - ba * h) - r, r);
+}
+
+vec2 dripField(vec2 p, int i) {
+    vec4 a = uDrip[2 * i];
+    vec4 b = uDrip[2 * i + 1];
+    if (p.y < a.y - 14.0 || p.y > a.y + a.z + b.z + 22.0 || abs(p.x - a.x) > 48.0) return vec2(1000.0, 6.0);
+    vec2 tip = vec2(a.x + a.w, a.y + a.z);
+    vec2 body = capsuleR(p, a.xy, tip - vec2(0.0, b.z * 0.5), b.x, b.y);
+    vec2 bulb = vec2(length(p - tip) - b.z, b.z);
+    return sminR(body, bulb, 5.0);
+}
+
+vec2 bezier2(vec2 a, vec2 c, vec2 b, float u) {
+    float m = 1.0 - u;
+    return m * m * a + 2.0 * m * u * c + u * u * b;
+}
+
+vec2 strandField(vec2 p) {
+    vec4 s0 = uStrand[0];
+    vec4 s1 = uStrand[1];
+    vec4 s2 = uStrand[2];
+    if (p.x < s2.x || p.x > s2.z || p.y < s2.y || p.y > s2.w) return vec2(1000.0, 3.0);
+    vec2 A = s0.xy;
+    vec2 B = s0.zw;
+    vec2 C = (A + B) * 0.5 + vec2(0.0, min(16.0, distance(A, B) * 0.09));
+    vec2 P1 = bezier2(A, C, B, 0.3333);
+    vec2 P2 = bezier2(A, C, B, 0.6667);
+    float best = 1000.0;
+    float bu = 0.0;
+    for (int i = 0; i < 3; i++) {
+        vec2 a = i == 0 ? A : (i == 1 ? P1 : P2);
+        vec2 b = i == 0 ? P1 : (i == 1 ? P2 : B);
+        vec2 pa = p - a;
+        vec2 ba = b - a;
+        float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-4), 0.0, 1.0);
+        float d = length(pa - ba * h);
+        if (d < best) { best = d; bu = (float(i) + h) / 3.0; }
+    }
+    float r = s1.y + (s1.x - s1.y) * pow(1.0 - bu, 3.0) + (s1.z - s1.y) * pow(bu, 5.0);
+    if (s1.w > 0.5) {
+        float bead = 0.0;
+        int beads = int(s1.w + 0.5);
+        for (int j = 0; j < beads; j++) {
+            float centre = (float(j) + 1.0) / (s1.w + 1.0) + 0.012 * sin(uFrame.x * 2.1 + float(j) * 1.7);
+            float x = (bu - centre) / 0.05;
+            bead += exp(-x * x);
+        }
+        r *= 1.0 + (-0.38 + 1.9 * min(1.0, bead)) * smoothstep(0.05, 0.2, bu) * (1.0 - smoothstep(0.85, 0.97, bu));
+    }
+    vec2 cap = vec2(best - r, r);
+    vec2 tipS = vec2(distance(p, B) - s1.z * 1.15, s1.z * 1.15);
+    return sminR(cap, tipS, 4.0);
+}
+
+// The gel field at a point: smooth union of the window's band, its drips and the strand.
+Gel gelAt(vec2 p) {
+    Gel g;
+    vec4 pr = projectRR(p);
+    float R = tableRadius(pr.x);
+    g.s = pr.x;
+    g.dw = pr.y;
+    g.nrm = pr.zw;
+    vec2 f = vec2(pr.y - R, max(R, 4.0));
+    int nd = int(uCounts.x + 0.5);
+    for (int i = 0; i < nd; i++) f = sminR(f, dripField(p, i), 9.0);
+    if (uWin.w > 0.5) f = sminR(f, strandField(p), 11.0);
+    g.d = f.x;
+    g.rl = f.y;
+    return g;
+}
+
+// Crater of a burst bubble (damped ring, central rebound) and the meniscus ring around a dome's base.
+float bubbleHeight(vec2 p) {
+    float h = 0.0;
+    int nb = int(uCounts.y + 0.5);
+    for (int i = 0; i < nb; i++) {
+        vec4 b0 = uBub[4 * i];
+        vec4 b1 = uBub[4 * i + 1];
+        vec4 b3 = uBub[4 * i + 3];
+        float a = b0.w;
+        float rho = distance(p, b0.xy);
+        if (rho > a * 3.4 + 8.0) continue;
+        int st = int(b1.y + 0.5);
+        if (st == 4) {
+            float bowl = 1.0 - smoothstep(0.0, 1.1 * a, rho);
+            float lipX = (rho - 1.15 * a) / (0.3 * a + 0.6);
+            float waveX = rho - a * (1.0 + 2.2 * b1.z);
+            h += a * (-0.5 * b3.x * bowl + 0.2 * b3.x * exp(-lipX * lipX));
+            h += 0.10 * a * (1.0 - b1.z) * exp(-waveX * waveX / (0.12 * a * a + 1.5));
+            float reX = rho / (0.30 * a + 0.8);
+            h += b3.y * a * 0.55 * exp(-reX * reX);
+        } else if (st >= 1) {
+            float ringX = (rho - a - 0.4) / 1.5;
+            h += min(b1.x, 1.0) * 1.3 * exp(-ringX * ringX);
+        }
+    }
+    return h;
+}
+
+// Thickness of the gel in px: circular profile from the outline, wetting dip at the frame, a slow
+// flow undulation and a fine relief that breaks up the sharp highlight.
+float gelHeight(vec2 p, Gel g) {
+    float rl = max(g.rl, 3.0);
+    float h = 0.95 * sqrt(max(0.0, -g.d * (2.0 * rl + g.d)));
+    h *= 0.86 + 0.14 * smoothstep(0.0, 2.5, g.dw);
+    // Band coordinates (arclength as whole periods, distance from the frame): the waves run along the
+    // gel and drift downward on the sides, along the band elsewhere.
+    float u = g.s / uWin.z * 6.2831853;
+    float ph = uWin.y * 6.2831853;
+    float flow = (1.0 - 2.0 * smoothstep(0.35, 0.8, -g.nrm.x)) * uFrame.x;
+    float und = 0.70 * sin(u * 13.0 + g.dw * 0.06 - flow * 0.45 + ph)
+              + 0.45 * sin(u * 31.0 - g.dw * 0.10 - flow * 0.35 + ph * 2.3)
+              + 0.25 * sin(u * 57.0 + g.dw * 0.16 - flow * 0.70 + ph * 3.7);
+    float micro = (vnoise(p * 0.30 + 7.3) - 0.5) * 0.10;
+    h += (und + micro) * smoothstep(0.0, 4.0, -g.d);
+    h += bubbleHeight(p) * smoothstep(0.0, 3.0, -g.d);
+    return max(h, 0.0);
+}
+
+bool blockedAt(vec2 p) {
+    int n = int(uCounts.z + 0.5);
+    for (int i = 0; i < n; i++) {
+        vec4 o = uOcc[i];
+        float r = uOccR[i >> 2][i & 3];
+        vec2 c = (o.xy + o.zw) * 0.5;
+        vec2 hs = (o.zw - o.xy) * 0.5;
+        vec2 q = abs(p - c) - (hs - r);
+        float sd = min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+        if (sd < 0.0) return true;
+    }
+    return false;
+}
+
+bool underAt(vec2 p) {
+    int n = int(uCounts.w + 0.5);
+    for (int i = 0; i < n; i++) {
+        vec4 o = uUnder[i];
+        if (p.x >= o.x && p.x <= o.z && p.y >= o.y && p.y <= o.w) return true;
+    }
+    return false;
+}
+`;
+
+    // Trapped air bubbles and sparse particles inside the gel, in band coordinates (arclength, distance
+    // from the frame) so they drift with the flow; deterministic per window.
+    const GEL_DETAIL = `
+vec4 suspended(Gel g) {
+    float total = uWin.z;
+    float cells = max(floor(total / 24.0), 4.0);
+    float cs = total / cells;
+    float u = g.s - uFrame.x * 1.4;
+    float uc = u / cs;
+    float ci = mod(floor(uc), cells);
+    float fu = fract(uc);
+    float rowH = 12.0;
+    float rv = floor(g.dw / rowH);
+    float fv = fract(g.dw / rowH);
+    vec2 cell = vec2(ci, rv) + uWin.y * 97.0;
+    vec4 out4 = vec4(0.0);
+    float present = hash21(cell + 3.1);
+    float cx = 0.32 + 0.36 * hash21(cell + 11.7);
+    float cy = 0.32 + 0.36 * hash21(cell + 23.9);
+    vec2 d = vec2((fu - cx) * cs, (fv - cy) * rowH);
+    float centreDw = (rv + cy) * rowH;
+    if (present < 0.11 && centreDw > 5.0 && centreDw < g.rl - 5.0) {
+        float rad = 1.1 + 1.5 * hash21(cell + 41.3);
+        float rho = length(d) / rad;
+        if (rho < 1.15) {
+            float cover = 1.0 - smoothstep(0.9, 1.1, rho);
+            float ring = smoothstep(0.55, 0.95, rho);
+            vec4 lens = vec4(0.88, 0.98, 0.62, 0.22) * (1.0 - rho * rho);
+            lens = mix(lens, vec4(0.04, 0.11, 0.02, 0.40), ring);
+            vec2 hl = d / rad - vec2(-0.38, -0.42);
+            float spot = exp(-dot(hl, hl) / 0.05);
+            lens = mix(lens, vec4(1.0, 1.0, 0.94, 1.0), spot * 0.85);
+            out4 = vec4(lens.rgb * lens.a, lens.a) * cover;
+        }
+    } else if (present > 0.9 && centreDw > 4.0 && centreDw < g.rl - 4.0) {
+        float rho = length(d) / (0.5 + 0.5 * hash21(cell + 5.5));
+        float cover = exp(-rho * rho);
+        float bright = hash21(cell + 71.0);
+        out4 = bright > 0.5 ? vec4(vec3(0.9, 1.0, 0.7) * 0.35, 0.35) * cover : vec4(0.0, 0.0, 0.0, 0.3) * cover;
+    }
+    return out4;
+}
+
+// Gas pocket inside the gel (nucleate): the chord through the gel is gone, so the centre is clearer;
+// the rim is dark (total reflection), a thin arc of focused light sits lower right, a pin highlight up left.
+vec4 pocketLayer(vec4 col, vec2 p, vec4 b0) {
+    vec2 d = p - b0.xy;
+    float r = max(b0.w, 0.8);
+    float rho = length(d) / r;
+    if (rho > 1.12) return col;
+    float cover = 1.0 - smoothstep(0.95, 1.1, rho);
+    float chord = sqrt(max(1.0 - rho * rho, 0.0));
+    vec4 res = col;
+    res.rgb = mix(col.rgb, min(col.rgb * exp(SIGMA * chord * 7.0), vec3(1.2)) + vec3(0.05, 0.07, 0.02) * chord, 0.85);
+    res.a = col.a * (1.0 - 0.3 * chord);
+    float ring = smoothstep(0.58, 0.9, rho) * (1.0 - smoothstep(0.96, 1.1, rho));
+    res = mix(res, vec4(0.04, 0.10, 0.015, 1.0), ring * 0.62);
+    vec2 dn = d / (length(d) + 1e-4);
+    float arc = smoothstep(0.62, 0.92, rho) * (1.0 - smoothstep(0.94, 1.08, rho)) * pow(max(dot(dn, FOCUS), 0.0), 2.0);
+    res.rgb += vec3(0.78, 1.0, 0.42) * arc * 0.34;
+    vec2 hl = d / r - vec2(-0.36, -0.40);
+    float spot = exp(-dot(hl, hl) / 0.035);
+    res.rgb += vec3(1.0, 1.0, 0.94) * spot * 0.9;
+    res.a = min(1.0, res.a + spot * 0.5);
+    return mix(col, res, cover * clamp(b0.w / 1.6, 0.25, 1.0));
+}
+
+// Dome of thin film over the gel (grow, hold, burst). The colour seen through the film is the gel's own
+// shading times the film transmittance (long path at the silhouette: a darker green ring), on top come the
+// curved soft-box reflection, the sharp highlight and the lime caustic; in hold a faint interference tint.
+vec4 domeLayer(vec4 col, vec2 p, vec4 b0, vec4 b1, vec4 b2, vec4 b3, int stage) {
+    vec2 d = p - b0.xy;
+    float a = b0.w;
+    float rho = length(d);
+    float cover = 1.0 - smoothstep(a - 1.0, a, rho);
+    if (cover <= 0.0) return col;
+    float H = min(b1.x, 1.0) * a;
+    if (H < 0.4) return col;
+    float Rs = (a * a + H * H) / (2.0 * H);
+    float zs = sqrt(max(Rs * Rs - rho * rho, 0.0));
+    vec3 n = vec3(d, zs) / Rs;
+    float film = b1.w;
+    float thick = mix(0.9 + 2.2 * film, 2.2 + 1.6 * film, smoothstep(0.15, 1.0, rho / a));
+    float path = thick / max(n.z, 0.12);
+    vec3 T = exp(-SIGMA * 2.4 * path);
+    vec4 res = vec4(col.rgb * T, 1.0 - (1.0 - col.a) * dot(T, vec3(0.3333)));
+    // The air under the film lifts the gel a little: no wetting dip, clearer than the gel around it.
+    res.rgb = res.rgb * 1.12 + vec3(0.05, 0.06, 0.025) * (1.0 - rho / a);
+    vec2 dn = d / (rho + 1e-4);
+    float cau = pow(clamp(dot(dn, FOCUS), 0.0, 1.0), 3.0) * (1.0 - n.z);
+    float crescent = smoothstep(0.50, 0.92, rho / a) * (1.0 - smoothstep(0.95, 1.03, rho / a)) * pow(max(dot(dn, FOCUS), 0.0), 2.0);
+    res.rgb += vec3(0.80, 1.0, 0.40) * (cau * 0.40 + crescent * 0.50);
+    float F = 0.04 + 0.96 * pow(1.0 - n.z, 5.0);
+    vec3 Rr = reflect(vec3(0.0, 0.0, -1.0), n);
+    float box = softBox(Rr.xy * 0.62, 0.0);
+    res = mix(res, vec4(environment(Rr, 0.0), 1.0), clamp(F * 0.9, 0.0, 1.0));
+    res.rgb += vec3(1.0, 1.0, 0.92) * box * (0.30 + 0.6 * F);
+    float nh = max(dot(n, HALFV), 0.0);
+    res.rgb += vec3(1.0, 0.99, 0.9) * (pow(nh, 150.0) * 1.7 + pow(nh, 22.0) * 0.14);
+    if (stage == 2 && b3.z > 0.01) {
+        float ph = (1.0 - rho / a) * 3.4 + uFrame.x * 0.3;
+        vec3 tint = 0.5 + 0.5 * cos(6.2831 * (vec3(0.0, 0.33, 0.67) + ph));
+        res.rgb = mix(res.rgb, res.rgb * 0.8 + tint * 0.24, b3.z * smoothstep(0.55, 0.0, rho / a) * 0.55);
+    }
+    float edge = smoothstep(a - 1.7, a - 0.5, rho) * (1.0 - smoothstep(a - 0.5, a, rho));
+    res = mix(res, vec4(0.04, 0.10, 0.012, 1.0), edge * 0.42);
+    res.a = min(1.0, res.a);
+    float keep = cover;
+    vec3 rimRGB = vec3(0.0);
+    float rimA = 0.0;
+    if (stage == 3) {
+        float hd = distance(p, b2.xy);
+        float holeR = b2.z;
+        float rim = max(b2.w, 0.6);
+        keep *= smoothstep(holeR - 0.6, holeR + 0.6, hd);
+        float td = (hd - holeR) / rim;
+        if (holeR > 0.4 && abs(td) < 1.15) {
+            vec2 rad = (p - b2.xy) / max(hd, 1e-3);
+            float tube = sqrt(max(1.0 - td * td, 0.0));
+            vec3 nt = normalize(vec3(rad * td, tube + 0.12));
+            float lit = clamp(dot(nt, LIGHT) * 0.5 + 0.5, 0.0, 1.0);
+            vec3 rc = mix(vec3(0.20, 0.38, 0.07), vec3(0.88, 1.0, 0.52), lit);
+            float nhr = max(dot(nt, HALFV), 0.0);
+            rc += vec3(1.0, 1.0, 0.92) * pow(nhr, 40.0) * 1.1;
+            rimRGB = rc;
+            rimA = (1.0 - smoothstep(0.85, 1.1, abs(td))) * cover;
+        }
+    }
+    vec4 domed = mix(col, res, keep);
+    return mix(domed, vec4(rimRGB, 1.0), rimA);
+}
+`;
+
+    const GEL_FRAGMENT = PREAMBLE + COMMON + GEL_FIELD + GEL_DETAIL + `
+out vec4 outColor;
+
+// gs: the field at the pixel shifted against the light (5, 9) px, g0: the field at the pixel.
+vec4 castShadow(Gel gs, Gel g0) {
+    float shadow = 0.30 * (1.0 - smoothstep(0.0, 14.0, gs.d));
+    float facing = max(dot(g0.nrm, FOCUS), 0.0);
+    float fringe = exp(-max(g0.d, 0.0) / 2.4) * 0.18 * facing;
+    vec3 shadowRGB = vec3(0.018, 0.06, 0.008) * shadow;
+    vec3 fringeRGB = vec3(0.78, 0.98, 0.40) * fringe;
+    return vec4(shadowRGB * (1.0 - fringe) + fringeRGB, shadow * (1.0 - fringe) + fringe);
+}
+
+void main() {
+    vec2 p = cssPos();
+    if (uPass > 0.5 && p.x > uBand.x && p.x < uBand.z && p.y > uBand.y && p.y < uBand.w) discard;
+    // One loop body evaluates the field at the pixel (0), at the point shifted against the light for the
+    // cast shadow (1) and at two neighbours for the normal (2, 3): a single copy of the field code keeps
+    // the shader small, which is most of its compile time.
+    float e = 0.75;
+    Gel g0;
+    Gel gs;
+    vec4 hs = vec4(0.0);
+    bool under = false;
+    bool outside = false;
+    bool edge = false;
+    int stop = 1;
+    for (int k = 0; k < 4; k++) {
+        if (k >= stop) break;
+        if (k == 1 && !(outside || edge)) continue;
+        vec2 pk = p;
+        if (k == 1) pk -= vec2(5.0, 9.0);
+        else if (k == 2) pk.x += e;
+        else if (k == 3) pk.y += e;
+        Gel g = gelAt(pk);
+        if (k == 0) {
+            g0 = g;
+            if (g.dw < -0.5 || g.d > 28.0) discard;
+            if (blockedAt(p)) discard;
+            under = underAt(p);
+            outside = g.d > 0.0;
+            if (outside && under) discard;
+            edge = !outside && -g.d < 1.25 && !under;
+            stop = outside ? 2 : 4;
+            if (!outside) hs.x = gelHeight(p, g);
+        } else if (k == 1) {
+            gs = g;
+        } else {
+            hs[k] = gelHeight(pk, g);
+        }
+    }
+    float D = g0.d;
+    if (outside) {
+        vec4 sh = castShadow(gs, g0);
+        if (sh.a <= 0.002) discard;
+        outColor = vec4(min(sh.rgb, vec3(sh.a)), sh.a);
+        return;
+    }
+    float h0 = hs.x;
+    vec3 n = normalize(vec3(-(hs.z - h0) / e, -(hs.w - h0) / e, 1.0));
+    bool tex = uFrame.z > 0.5 && !under;
+    float texW = tex ? smoothstep(0.0, 2.5, -D) : 0.0;
+    float aMin = 0.9 * (1.0 - smoothstep(8.5, 13.0, g0.dw));
+    vec2 look = p - n.xy * (0.55 * h0 + 2.0);
+    vec4 col = shadeSlime(look, h0, n, texW, aMin, 0.6, 1.0);
+    vec4 ov = suspended(g0);
+    col = vec4(col.rgb * (1.0 - ov.a) + ov.rgb, min(1.0, col.a + ov.a * (1.0 - col.a)));
+    int nb = int(uCounts.y + 0.5);
+    for (int i = 0; i < nb; i++) {
+        vec4 b0 = uBub[4 * i];
+        if (distance(p, b0.xy) > b0.w * 1.5 + 4.0) continue;
+        vec4 b1 = uBub[4 * i + 1];
+        int st = int(b1.y + 0.5);
+        if (st == 0) col = pocketLayer(col, p, b0);
+        else if (st <= 3) col = domeLayer(col, p, b0, b1, uBub[4 * i + 2], uBub[4 * i + 3], st);
+    }
+    float contact = 1.0 - smoothstep(0.0, 1.8, g0.dw);
+    col = mix(col, vec4(0.03, 0.07, 0.01, 1.0), contact * 0.55);
+    float glintX = (g0.dw - 2.7) / 0.9;
+    float face = clamp(dot(g0.nrm, LIGHT.xy / 0.8167) * 0.5 + 0.5, 0.0, 1.0);
+    col.rgb += vec3(0.92, 1.0, 0.72) * exp(-glintX * glintX) * (0.12 + 0.4 * face);
+    col.a = min(1.0, col.a + 0.2 * exp(-glintX * glintX));
+    float edgeA = smoothstep(0.0, 1.25, -D) * smoothstep(-0.5, 0.5, g0.dw);
+    col *= edgeA;
+    if (edge) {
+        vec4 sh = castShadow(gs, g0);
+        col = vec4(col.rgb + sh.rgb * (1.0 - col.a), col.a + sh.a * (1.0 - col.a));
+    }
+    outColor = vec4(min(col.rgb, vec3(col.a)), col.a);
+}
+`;
+
+    // ---------------------------------------------------------------------------------------------
+    // Drop program: one instanced quad per drop, spray droplet or taskbar splat.
+
+    const DROP_VERTEX = PREAMBLE + `
+uniform vec2 uSize;
+in vec4 aA;
+in vec4 aB;
+flat out vec4 vA;
+flat out vec4 vB;
+out vec2 vPos;
+void main() {
+    vec2 corner = vec2(float(gl_VertexID & 1), float((gl_VertexID >> 1) & 1)) * 2.0 - 1.0;
+    float r = aA.z;
+    vec2 centre = aA.xy;
+    vec2 hs;
+    if (aA.w > 1.5) {
+        float w = r * (0.9 + 1.5 * aB.z) + 8.0;
+        float hh = r * 1.3 + 8.0;
+        hs = vec2(w, hh * 0.5 + 2.0);
+        centre.y -= hh * 0.5 - 2.0;
+    } else {
+        float stretch = 1.0 + min(0.6, abs(aB.y) / 420.0);
+        hs = vec2(r * (1.0 - aB.z * 0.55), r * stretch * (1.0 + aB.z)) + vec2(10.0);
+        hs.x += 4.0;
+        centre.y += 3.0;
+    }
+    vPos = centre + corner * hs;
+    vA = aA;
+    vB = aB;
+    gl_Position = vec4(vPos.x / uSize.x * 2.0 - 1.0, 1.0 - vPos.y / uSize.y * 2.0, 0.0, 1.0);
+}
+`;
+
+    const DROP_FRAGMENT = PREAMBLE + COMMON + `
+flat in vec4 vA;
+flat in vec4 vB;
+in vec2 vPos;
+out vec4 outColor;
+
+// Egg-shaped drop: semi-axes (ax, ay) with a tail on top while it falls fast. Returns the signed
+// distance (px) and writes the normalised position inside the shape.
+float dropShape(vec2 l, float ax, float ay, float tail, out vec2 nl) {
+    float t = smoothstep(-1.0, 0.7, l.y / ay);
+    float axl = ax * mix(1.0, 0.30 + 0.70 * t, tail);
+    nl = vec2(l.x / axl, l.y / ay);
+    return (length(nl) - 1.0) * min(axl, ay);
+}
+
+void main() {
+    float r = vA.z;
+    float kind = vA.w;
+    float alpha = vB.w;
+    if (kind > 1.5) {
+        // Splat: a sessile blob resting on the taskbar edge (the baseline is y = vA.y).
+        float spread = vB.z;
+        float w = r * (0.9 + 1.5 * spread);
+        float hh = r * clamp(1.25 - 0.6 * spread, 0.38, 1.3);
+        vec2 l = vPos - vA.xy;
+        float skirt = 3.0 * (1.0 - smoothstep(0.0, 0.35 * hh, -l.y));
+        vec2 nl = vec2(l.x / (w + skirt), l.y / hh);
+        float rho = length(nl);
+        float sd = (rho - 1.0) * min(w, hh);
+        if (l.y > 1.0) discard;
+        float cover = clamp(0.5 - sd, 0.0, 1.0) * clamp(1.0 - l.y, 0.0, 1.0);
+        float shadowD = length(vec2((l.x - 4.0) / (w + skirt + 2.0), (l.y - 3.0) / (hh + 2.0))) - 1.0;
+        float shadow = 0.22 * (1.0 - smoothstep(0.0, 0.5, shadowD)) * clamp(1.0 - l.y, 0.0, 1.0);
+        float z = sqrt(max(1.0 - rho * rho, 0.0));
+        vec3 n = normalize(vec3(nl.x * hh / (w + skirt) * 0.9, nl.y * 0.9, z + 0.08));
+        float hgt = hh * 0.9 * z;
+        vec4 col = shadeSlime(vPos - n.xy * (0.55 * hgt + 2.0), hgt, n, 1.0, 0.0, 0.8, 1.7) * cover;
+        vec4 sh = vec4(vec3(0.018, 0.06, 0.008) * shadow, shadow);
+        col = col + sh * (1.0 - col.a);
+        col *= alpha;
+        if (col.a <= 0.002) discard;
+        outColor = vec4(min(col.rgb, vec3(col.a)), col.a);
+        return;
+    }
+    float wobble = kind > 0.5 ? 0.0 : vB.z;
+    float stretch = 1.0 + min(0.6, abs(vB.y) / 420.0);
+    float ax = max(r * (1.0 - wobble * 0.55), 0.6);
+    float ay = max(r * stretch * (1.0 + wobble), 0.6);
+    float tail = kind > 0.5 ? 0.0 : clamp(abs(vB.y) / 600.0, 0.0, 0.5);
+    vec2 l = vPos - vA.xy;
+    vec2 nl;
+    float sd = dropShape(l, ax, ay, tail, nl);
+    vec2 nls;
+    float sds = dropShape(l - vec2(3.0, 5.0), ax, ay, tail, nls);
+    float cover = clamp(0.5 - sd, 0.0, 1.0);
+    float shadow = 0.22 * (1.0 - smoothstep(0.0, 4.5, sds)) * min(1.0, r / 2.0);
+    float rho = length(nl);
+    float z = sqrt(max(1.0 - rho * rho, 0.0));
+    float hm = min(ax, ay) * 0.95;
+    vec3 n = normalize(vec3(nl.x * hm / ax, nl.y * hm / ay, z + 0.02));
+    // A drop is a lens: the backdrop shows up inverted, the path is the whole chord.
+    vec4 col = shadeSlime(vA.xy - l * 0.8, 1.3 * hm * z, n, 1.0, 0.0, 1.0, 1.9) * cover;
+    vec4 sh = vec4(vec3(0.018, 0.06, 0.008) * shadow, shadow);
+    col = col + sh * (1.0 - col.a);
+    col *= alpha;
+    if (col.a <= 0.002) discard;
+    outColor = vec4(min(col.rgb, vec3(col.a)), col.a);
+}
+`;
+
+    // ---------------------------------------------------------------------------------------------
+    // Mask program: rounded rectangles into the stencil buffer (no colour).
+
+    const MASK_VERTEX = PREAMBLE + `
+uniform vec2 uSize;
+in vec4 aRect;
+in float aRad;
+flat out vec4 vRect;
+flat out float vRad;
+out vec2 vPos;
+void main() {
+    vec2 corner = vec2(float(gl_VertexID & 1), float((gl_VertexID >> 1) & 1));
+    vPos = mix(aRect.xy - 1.0, aRect.zw + 1.0, corner);
+    vRect = aRect;
+    vRad = aRad;
+    gl_Position = vec4(vPos.x / uSize.x * 2.0 - 1.0, 1.0 - vPos.y / uSize.y * 2.0, 0.0, 1.0);
+}
+`;
+
+    const MASK_FRAGMENT = PREAMBLE + `
+flat in vec4 vRect;
+flat in float vRad;
+in vec2 vPos;
+out vec4 outColor;
+void main() {
+    vec2 c = (vRect.xy + vRect.zw) * 0.5;
+    vec2 hs = (vRect.zw - vRect.xy) * 0.5;
+    vec2 q = abs(vPos - c) - (hs - vRad);
+    float sd = min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - vRad;
+    if (sd >= 0.0) discard;
+    outColor = vec4(0.0);
+}
+`;
+
+    window.AuraGreenSlimeGLShaders = Object.freeze({
+        gelVertex: GEL_VERTEX, gelFragment: GEL_FRAGMENT,
+        dropVertex: DROP_VERTEX, dropFragment: DROP_FRAGMENT,
+        maskVertex: MASK_VERTEX, maskFragment: MASK_FRAGMENT
+    });
+})();
+
+;
+/* ui/js/desktop/theme-fx/green_slime_gl.js */
+(function () {
+    'use strict';
+
+    // WebGL2 renderer of the Green Slime effect (see green_slime_gl_shaders.js for the material). It draws
+    // the scene contract of green_slime_sim.js: per window up to five strip quads (top, bottom with the drip
+    // zone, left, right, strand box; never a full-window quad), the window occluders and the radius table as
+    // uniforms/R32F texture, then free drops, spray and taskbar splats as one instanced draw behind a stencil
+    // of all drop occluders. A renderer is { kind, render(scene), resize(cssWidth, cssHeight, dpr, scale),
+    // setBackdrop(source), inspect(), dispose() }; create() returns null when WebGL2 is unavailable or the
+    // programs do not build, the caller then continues with a fresh Canvas 2D canvas.
+
+    const shaders = window.AuraGreenSlimeGLShaders;
+    const kit = window.AuraGreenSlimeGeometry;
+    const geometry = kit.geometry;
+    const TABLE = kit.constants.TABLE_SAMPLES;
+
+    const MAX_WINDOWS = 16;
+    const MAX_DRIPS = 6;
+    const MAX_BUBBLES = 3;
+    const MAX_OCCLUDERS = 24;
+    const MAX_UNDER = 16;
+    const MAX_DROPS = 108;
+    const MAX_MASKS = 1024;
+    const MIN_UNIFORM_VECTORS = 120;
+    const COMPILE_TIMEOUT_MS = 30000;
+    const SOFTWARE_GPU = /swiftshader|llvmpipe|lavapipe|softpipe|software|basic render/i;
+    const STAGE = { nucleate: 0, grow: 1, hold: 2, burst: 3, crater: 4 };
+    const CONTEXT_ATTRIBUTES = { alpha: true, premultipliedAlpha: true, antialias: false, preserveDrawingBuffer: true,
+        desynchronized: false, stencil: true, depth: false, powerPreference: 'low-power' };
+
+    let lastError = '';
+
+    function now() { return typeof performance !== 'undefined' ? performance.now() : Date.now(); }
+
+    // A program build is two steps: begin() hands the sources to the driver and links (with
+    // KHR_parallel_shader_compile this returns at once and the driver works on its own threads),
+    // finish() reads the verdict once the driver is done.
+    function begin(gl, vertexSource, fragmentSource, label, attributes) {
+        const program = gl.createProgram();
+        const shaderList = [];
+        for (const [type, source, kind] of [[gl.VERTEX_SHADER, vertexSource, 'vertex'], [gl.FRAGMENT_SHADER, fragmentSource, 'fragment']]) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            gl.attachShader(program, shader);
+            shaderList.push([shader, kind]);
+        }
+        attributes.forEach((name, index) => gl.bindAttribLocation(program, index, name));
+        gl.linkProgram(program);
+        return { program, shaderList, label };
+    }
+
+    function finish(gl, job) {
+        let failure = '';
+        for (const [shader, kind] of job.shaderList) {
+            if (!failure && !gl.getShaderParameter(shader, gl.COMPILE_STATUS)) failure = job.label + ' ' + kind + ' shader: ' + String(gl.getShaderInfoLog(shader) || '').slice(0, 600);
+            gl.detachShader(job.program, shader);
+            gl.deleteShader(shader);
+        }
+        if (!failure && !gl.getProgramParameter(job.program, gl.LINK_STATUS)) failure = job.label + ' program: ' + String(gl.getProgramInfoLog(job.program) || '').slice(0, 600);
+        if (failure) throw new Error(failure);
+        return job.program;
+    }
+
+    function locations(gl, program, names) {
+        const map = {};
+        for (const name of names) map[name] = gl.getUniformLocation(program, name);
+        return map;
+    }
+
+    function create(canvas, options) {
+        const opts = options || {};
+        lastError = '';
+        let gl = null;
+        try { gl = canvas.getContext('webgl2', CONTEXT_ATTRIBUTES); } catch (_) { gl = null; }
+        if (!gl) { lastError = 'webgl2 unavailable'; return null; }
+        const created = [];
+        const track = (kind, handle) => { created.push([kind, handle]); return handle; };
+        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        const gpu = String(gl.getParameter(debugInfo ? debugInfo.UNMASKED_RENDERER_WEBGL : gl.RENDERER) || '');
+        let lost = false;
+        let disposed = false;
+        let ready = false;
+        let compileMs = 0;
+        let blockedMs = 0;
+        let pollTimer = 0;
+        let firstRenderMs = 0;
+        let frames = 0;
+        let lastRenderMs = 0;
+        let averageMs = 0;
+        let drawCalls = 0;
+        let quadCount = 0;
+        let backdropSource = null;
+        let backdropReady = false;
+        let view = { sx: 1, sy: 1, bufferHeight: 1, width: 1, height: 1, scale: 1 };
+
+        function fail(error) {
+            lastError = String(error && error.message ? error.message : error);
+            disposed = true;
+            try { gl.getExtension('WEBGL_lose_context')?.loseContext(); } catch (_) { /* nothing to release */ }
+            return null;
+        }
+
+        const onLost = event => {
+            event.preventDefault();
+            lost = true;
+            if (!disposed && typeof opts.onContextLost === 'function') opts.onContextLost();
+        };
+        canvas.addEventListener('webglcontextlost', onLost, { signal: opts.signal });
+
+        // Software WebGL (SwiftShader, llvmpipe, a VM without a GPU) draws the gel at about one frame per
+        // second, far slower than the Canvas 2D fallback: leave it to the fallback. The test hook
+        // window.__auraSlimeSoftwareGL lets a browser test run the real gel on software anyway.
+        if (SOFTWARE_GPU.test(gpu) && !opts.allowSoftware && window.__auraSlimeSoftwareGL !== true) return fail(new Error('software WebGL (' + gpu + ')'));
+
+        let gelProgram, dropProgram, maskProgram, gelU, dropU, maskU;
+        const started = now();
+        const parallel = gl.getExtension('KHR_parallel_shader_compile');
+        const jobs = [];
+        try {
+            if (gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS) < MIN_UNIFORM_VECTORS) throw new Error('too few uniform vectors');
+            jobs.push(begin(gl, shaders.gelVertex, shaders.gelFragment, 'gel', ['aPos']));
+            jobs.push(begin(gl, shaders.dropVertex, shaders.dropFragment, 'drop', ['aA', 'aB']));
+            jobs.push(begin(gl, shaders.maskVertex, shaders.maskFragment, 'mask', ['aRect', 'aRad']));
+            for (const job of jobs) track('program', job.program);
+        } catch (error) { return fail(error); }
+        blockedMs = now() - started;
+
+        // ---- Resources ----------------------------------------------------------------------------
+        const quadBuffer = track('buffer', gl.createBuffer());
+        const gelVao = track('vao', gl.createVertexArray());
+        gl.bindVertexArray(gelVao);
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+        gl.enableVertexAttribArray(0);
+        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+        const dropBuffer = track('buffer', gl.createBuffer());
+        const dropData = new Float32Array(MAX_DROPS * 8);
+        gl.bindBuffer(gl.ARRAY_BUFFER, dropBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, dropData.byteLength, gl.DYNAMIC_DRAW);
+        function dropVao(firstInstance) {
+            const vao = track('vao', gl.createVertexArray());
+            gl.bindVertexArray(vao);
+            gl.bindBuffer(gl.ARRAY_BUFFER, dropBuffer);
+            for (const [index, offset] of [[0, 0], [1, 16]]) {
+                gl.enableVertexAttribArray(index);
+                gl.vertexAttribPointer(index, 4, gl.FLOAT, false, 32, firstInstance * 32 + offset);
+                gl.vertexAttribDivisor(index, 1);
+            }
+            return vao;
+        }
+        const dropsVao = dropVao(0);
+        const splatsVao = dropVao(0);
+
+        const maskBuffer = track('buffer', gl.createBuffer());
+        const maskData = new Float32Array(MAX_MASKS * 5);
+        const maskVao = track('vao', gl.createVertexArray());
+        gl.bindVertexArray(maskVao);
+        gl.bindBuffer(gl.ARRAY_BUFFER, maskBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, maskData.byteLength, gl.DYNAMIC_DRAW);
+        gl.enableVertexAttribArray(0);
+        gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 20, 0);
+        gl.vertexAttribDivisor(0, 1);
+        gl.enableVertexAttribArray(1);
+        gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 20, 16);
+        gl.vertexAttribDivisor(1, 1);
+        gl.bindVertexArray(null);
+
+        // The radius table: one row of 128 samples per window. R32F is not filterable, so NEAREST and
+        // the shader interpolates itself.
+        const radiusTexture = track('texture', gl.createTexture());
+        const radiusData = new Float32Array(TABLE * MAX_WINDOWS);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, radiusTexture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, TABLE, MAX_WINDOWS, 0, gl.RED, gl.FLOAT, radiusData);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        const backdropTexture = track('texture', gl.createTexture());
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, backdropTexture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([40, 60, 20, 255]));
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        gl.disable(gl.DEPTH_TEST);
+        gl.disable(gl.CULL_FACE);
+        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+        const quadData = new Float32Array(MAX_WINDOWS * 5 * 12);
+        const uDrip = new Float32Array(MAX_DRIPS * 8);
+        const uBub = new Float32Array(MAX_BUBBLES * 16);
+        const uStrand = new Float32Array(12);
+        const uOcc = new Float32Array(MAX_OCCLUDERS * 4);
+        const uOccR = new Float32Array(MAX_OCCLUDERS);
+        const uUnder = new Float32Array(MAX_UNDER * 4);
+
+        function setBackdrop(source) {
+            if (lost || disposed) return;
+            backdropSource = source || null;
+            if (!source) { backdropReady = false; return; }
+            try {
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, backdropTexture);
+                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+                gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, source);
+                gl.generateMipmap(gl.TEXTURE_2D);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+                backdropReady = true;
+            } catch (error) {
+                backdropReady = false;
+                lastError = 'backdrop upload: ' + (error && error.message ? error.message : error);
+            }
+        }
+
+        function resize(cssWidth, cssHeight, dpr, scale) {
+            const factor = (dpr || 1) * (scale || 1);
+            canvas.width = Math.max(1, Math.round(cssWidth * factor));
+            canvas.height = Math.max(1, Math.round(cssHeight * factor));
+            view = { sx: cssWidth / canvas.width, sy: cssHeight / canvas.height, bufferHeight: canvas.height, width: cssWidth, height: cssHeight, scale: scale || 1 };
+            if (!lost) gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+
+        // ---- Per-window packing ---------------------------------------------------------------------
+        function pushQuad(offset, x0, y0, x1, y1) {
+            x0 = Math.max(0, x0); y0 = Math.max(0, y0);
+            x1 = Math.min(view.width, x1); y1 = Math.min(view.height, y1);
+            if (x1 - x0 < .5 || y1 - y0 < .5) return offset;
+            quadData.set([x0, y0, x1, y0, x0, y1, x1, y0, x1, y1, x0, y1], offset);
+            return offset + 12;
+        }
+
+        function windowBox(win, rmax) {
+            const rect = win.rect;
+            let x0 = rect.x - rmax - 12, x1 = rect.x + rect.width + rmax + 24;
+            let y0 = rect.y - rmax - 8, y1 = rect.y + rect.height + rmax + 28;
+            for (const drip of win.drips.slice(0, MAX_DRIPS)) {
+                const reach = Math.max(drip.root, drip.bulb) + 12;
+                x0 = Math.min(x0, drip.x + Math.min(0, drip.sway) - reach);
+                x1 = Math.max(x1, drip.x + Math.max(0, drip.sway) + reach + 24);
+                y1 = Math.max(y1, drip.y + drip.length + drip.bulb + 40);
+            }
+            return { x0, y0, x1, y1 };
+        }
+
+        function packWindow(win, row, strand) {
+            const lay = geometry.layout(win.rect, win.radii);
+            const segs = lay.segs;
+            gl.uniform4f(gelU.uRect, lay.x, lay.y, lay.w, lay.h);
+            gl.uniform4f(gelU.uRadii, lay.radii[0], lay.radii[1], lay.radii[2], lay.radii[3]);
+            gl.uniform4f(gelU.uLenA, segs[0].len, segs[1].len, segs[2].len, segs[3].len);
+            gl.uniform4f(gelU.uLenB, segs[4].len, segs[5].len, segs[6].len, segs[7].len);
+            const seed = (kit.hashString(String(win.id)) % 997) / 997;
+            gl.uniform4f(gelU.uWin, row, seed, Math.max(lay.length, 1), strand ? 1 : 0);
+            const drips = win.drips.slice(0, MAX_DRIPS);
+            uDrip.fill(0);
+            drips.forEach((drip, i) => uDrip.set([drip.x, drip.y, drip.length, drip.sway, drip.root, drip.neck, drip.bulb, 0], i * 8));
+            gl.uniform4fv(gelU.uDrip, uDrip);
+            const bubbles = win.bubbles.slice(0, MAX_BUBBLES);
+            uBub.fill(0);
+            bubbles.forEach((b, i) => uBub.set([b.x, b.y, b.base, b.r, b.dome, STAGE[b.stage] || 0, b.t, b.film,
+                b.hx, b.hy, b.holeR, b.rim, b.crater, b.rebound, b.interference, 0], i * 16));
+            gl.uniform4fv(gelU.uBub, uBub);
+            uStrand.fill(0);
+            if (strand) {
+                const margin = Math.max(strand.root, strand.mid, strand.tip * 1.15) + 24;
+                const droop = Math.min(16, Math.hypot(strand.bx - strand.ax, strand.by - strand.ay) * .09);
+                uStrand.set([strand.ax, strand.ay, strand.bx, strand.by, strand.root, strand.mid, strand.tip, strand.beads,
+                    Math.min(strand.ax, strand.bx) - margin, Math.min(strand.ay, strand.by) - margin,
+                    Math.max(strand.ax, strand.bx) + margin + 20, Math.max(strand.ay, strand.by) + droop + margin + 26]);
+            }
+            gl.uniform4fv(gelU.uStrand, uStrand);
+            const occluders = win.occluders.slice(0, MAX_OCCLUDERS);
+            uOcc.fill(0);
+            uOccR.fill(0);
+            occluders.forEach((o, i) => { uOcc.set([o.x, o.y, o.x + o.width, o.y + o.height], i * 4); uOccR[i] = o.radius || 0; });
+            gl.uniform4fv(gelU.uOcc, uOcc);
+            gl.uniform4fv(gelU.uOccR, uOccR);
+            const under = win.under.slice(0, MAX_UNDER);
+            uUnder.fill(0);
+            under.forEach((o, i) => uUnder.set([o.x, o.y, o.x + o.width, o.y + o.height], i * 4));
+            gl.uniform4fv(gelU.uUnder, uUnder);
+            gl.uniform4f(gelU.uCounts, drips.length, bubbles.length, occluders.length, under.length);
+            return lay;
+        }
+
+        function renderWindows(scene, windows) {
+            gl.bindVertexArray(gelVao);
+            gl.useProgram(gelProgram);
+            gl.uniform4f(gelU.uView, view.sx, view.sy, view.bufferHeight, 0);
+            gl.uniform2f(gelU.uSize, view.width, view.height);
+            const textured = scene.backdrop && scene.backdrop.mode === 'texture' && backdropReady;
+            gl.uniform4f(gelU.uFrame, scene.time || 0, scene.motion ? 1 : 0, textured ? 1 : 0, 0);
+            const rect = scene.backdrop && scene.backdrop.rect ? scene.backdrop.rect : { x: 0, y: 0, w: view.width, h: view.height };
+            gl.uniform4f(gelU.uBack, rect.x, rect.y, Math.max(rect.w, 1), Math.max(rect.h, 1));
+            // Quads first (one upload), then one or two draws per window.
+            const plan = [];
+            let offset = 0;
+            windows.forEach((win, row) => {
+                radiusData.set(win.radius.length === TABLE ? win.radius : win.radius.subarray(0, TABLE), row * TABLE);
+                let rmax = 0;
+                for (let k = 0; k < TABLE; k++) if (win.radius[k] > rmax) rmax = win.radius[k];
+                const box = windowBox(win, rmax);
+                const rect2 = win.rect;
+                const rc = Math.max(0, Math.min(Math.max(...win.radii), rect2.height / 2, rect2.width / 2));
+                const first = offset;
+                offset = pushQuad(offset, box.x0, box.y0, box.x1, rect2.y + rc);
+                offset = pushQuad(offset, box.x0, rect2.y + rect2.height - rc, box.x1, box.y1);
+                offset = pushQuad(offset, box.x0, rect2.y + rc, rect2.x + rc, rect2.y + rect2.height - rc);
+                offset = pushQuad(offset, rect2.x + rect2.width - rc, rect2.y + rc, box.x1, rect2.y + rect2.height - rc);
+                const strand = win.strands && win.strands.length ? win.strands[0] : null;
+                const strandFirst = offset;
+                if (strand) {
+                    const margin = Math.max(strand.root, strand.mid, strand.tip * 1.15) + 24;
+                    const droop = Math.min(16, Math.hypot(strand.bx - strand.ax, strand.by - strand.ay) * .09);
+                    offset = pushQuad(offset, Math.min(strand.ax, strand.bx) - margin, Math.min(strand.ay, strand.by) - margin,
+                        Math.max(strand.ax, strand.bx) + margin + 20, Math.max(strand.ay, strand.by) + droop + margin + 26);
+                }
+                plan.push({ win, row, strand, box, first: first / 2, count: (strandFirst - first) / 2, strandFirst: strandFirst / 2, strandCount: (offset - strandFirst) / 2 });
+            });
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, radiusTexture);
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, TABLE, Math.max(1, windows.length), gl.RED, gl.FLOAT, radiusData);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, backdropTexture);
+            gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, quadData.subarray(0, Math.max(offset, 12)), gl.DYNAMIC_DRAW);
+            gl.enable(gl.BLEND);
+            for (const item of plan) {
+                packWindow(item.win, item.row, item.strand);
+                gl.uniform4f(gelU.uBand, item.box.x0, item.box.y0, item.box.x1, item.box.y1);
+                if (item.count > 0) {
+                    gl.uniform1f(gelU.uPass, 0);
+                    gl.drawArrays(gl.TRIANGLES, item.first, item.count);
+                    drawCalls++;
+                }
+                if (item.strandCount > 0) {
+                    gl.uniform1f(gelU.uPass, 1);
+                    gl.drawArrays(gl.TRIANGLES, item.strandFirst, item.strandCount);
+                    drawCalls++;
+                }
+                quadCount += (item.count + item.strandCount) / 6;
+            }
+        }
+
+        function renderDrops(scene) {
+            const list = [];
+            for (const drop of scene.drops || []) list.push(drop);
+            const drops = list.slice(0, MAX_DROPS);
+            const splats = (scene.splats || []).slice(0, Math.max(0, MAX_DROPS - drops.length));
+            if (!drops.length && !splats.length) return;
+            let index = 0;
+            for (const drop of drops) {
+                dropData.set([drop.x, drop.y, drop.r, drop.spray ? 1 : 0, drop.vx, drop.vy, drop.wobble, drop.alpha], index * 8);
+                index++;
+            }
+            const splatFirst = index;
+            for (const splat of splats) {
+                dropData.set([splat.x, splat.y, splat.r, 2, 0, 0, splat.spread, splat.alpha], index * 8);
+                index++;
+            }
+            const occluders = scene.dropOccluders || [];
+            let masks = 0;
+            const writeMasks = taskbar => {
+                let written = 0;
+                for (const item of occluders) {
+                    if (!!item.taskbar !== taskbar || masks >= MAX_MASKS) continue;
+                    maskData.set([item.x, item.y, item.x + item.width, item.y + item.height, item.radius || 0], masks * 5);
+                    masks++;
+                    written++;
+                }
+                return written;
+            };
+            const plain = writeMasks(false);
+            const bars = writeMasks(true);
+            gl.disable(gl.BLEND);
+            if (masks) {
+                gl.useProgram(maskProgram);
+                gl.uniform2f(maskU.uSize, view.width, view.height);
+                gl.bindVertexArray(maskVao);
+                gl.bindBuffer(gl.ARRAY_BUFFER, maskBuffer);
+                gl.bufferSubData(gl.ARRAY_BUFFER, 0, maskData.subarray(0, masks * 5));
+                gl.enable(gl.STENCIL_TEST);
+                gl.colorMask(false, false, false, false);
+                gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+                if (plain) {
+                    gl.stencilMask(3);
+                    gl.stencilFunc(gl.ALWAYS, 3, 255);
+                    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, plain);
+                    drawCalls++;
+                }
+                if (bars) {
+                    gl.stencilMask(1);
+                    gl.stencilFunc(gl.ALWAYS, 1, 255);
+                    gl.bindBuffer(gl.ARRAY_BUFFER, maskBuffer);
+                    gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 20, plain * 20);
+                    gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 20, plain * 20 + 16);
+                    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, bars);
+                    gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 20, 0);
+                    gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 20, 16);
+                    drawCalls++;
+                }
+                gl.colorMask(true, true, true, true);
+                gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+                gl.stencilMask(255);
+            }
+            gl.useProgram(dropProgram);
+            gl.uniform4f(dropU.uView, view.sx, view.sy, view.bufferHeight, 0);
+            gl.uniform2f(dropU.uSize, view.width, view.height);
+            const textured = scene.backdrop && scene.backdrop.mode === 'texture' && backdropReady;
+            gl.uniform4f(dropU.uFrame, scene.time || 0, scene.motion ? 1 : 0, textured ? 1 : 0, 0);
+            const rect = scene.backdrop && scene.backdrop.rect ? scene.backdrop.rect : { x: 0, y: 0, w: view.width, h: view.height };
+            gl.uniform4f(dropU.uBack, rect.x, rect.y, Math.max(rect.w, 1), Math.max(rect.h, 1));
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, backdropTexture);
+            gl.bindBuffer(gl.ARRAY_BUFFER, dropBuffer);
+            gl.bufferSubData(gl.ARRAY_BUFFER, 0, dropData.subarray(0, index * 8));
+            gl.enable(gl.BLEND);
+            if (drops.length) {
+                gl.bindVertexArray(dropsVao);
+                if (masks) { gl.stencilFunc(gl.EQUAL, 0, 1); }
+                gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, drops.length);
+                drawCalls++;
+            }
+            if (splats.length) {
+                gl.bindVertexArray(splatsVao);
+                gl.bindBuffer(gl.ARRAY_BUFFER, dropBuffer);
+                for (const [slot, offset] of [[0, 0], [1, 16]]) gl.vertexAttribPointer(slot, 4, gl.FLOAT, false, 32, splatFirst * 32 + offset);
+                if (masks) { gl.stencilFunc(gl.EQUAL, 0, 2); }
+                gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, splats.length);
+                drawCalls++;
+            }
+            gl.disable(gl.STENCIL_TEST);
+        }
+
+        function render(scene) {
+            if (lost || disposed || !ready) return;
+            const begun = now();
+            drawCalls = 0;
+            quadCount = 0;
+            if (scene.backdrop && scene.backdrop.image !== backdropSource) setBackdrop(scene.backdrop.image);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.disable(gl.STENCIL_TEST);
+            gl.stencilMask(255);
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+            const windows = scene.windows.length > MAX_WINDOWS
+                ? scene.windows.slice().sort((a, b) => b.z - a.z).slice(0, MAX_WINDOWS).sort((a, b) => a.z - b.z)
+                : scene.windows;
+            if (windows.length) renderWindows(scene, windows);
+            renderDrops(scene);
+            gl.bindVertexArray(null);
+            lastRenderMs = now() - begun;
+            frames++;
+            averageMs += (lastRenderMs - averageMs) * Math.max(.05, 1 / frames);
+            if (!firstRenderMs) firstRenderMs = lastRenderMs;
+        }
+
+        function inspect() {
+            return {
+                kind: 'webgl2', gpu, ready, compileMs: Math.round(compileMs * 10) / 10, blockedMs: Math.round(blockedMs * 10) / 10,
+                parallelCompile: !!parallel, firstRenderMs: Math.round(firstRenderMs * 10) / 10,
+                lastRenderMs: Math.round(lastRenderMs * 100) / 100, averageRenderMs: Math.round(averageMs * 100) / 100,
+                drawCalls, quadCount, contextLost: lost, backdropReady, bufferWidth: canvas.width, bufferHeight: canvas.height,
+                maxTextureSize: gl && !lost ? gl.getParameter(gl.MAX_TEXTURE_SIZE) : 0,
+                uniformVectors: gl && !lost ? gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS) : 0
+            };
+        }
+
+        function dispose() {
+            if (disposed) return;
+            disposed = true;
+            if (pollTimer) clearTimeout(pollTimer);
+            pollTimer = 0;
+            canvas.removeEventListener('webglcontextlost', onLost);
+            if (!lost) {
+                try {
+                    gl.bindVertexArray(null);
+                    for (const [kind, handle] of created) {
+                        if (kind === 'program') gl.deleteProgram(handle);
+                        else if (kind === 'buffer') gl.deleteBuffer(handle);
+                        else if (kind === 'texture') gl.deleteTexture(handle);
+                        else if (kind === 'vao') gl.deleteVertexArray(handle);
+                    }
+                    gl.getExtension('WEBGL_lose_context')?.loseContext();
+                } catch (_) { /* the context may already be gone */ }
+            }
+            canvas.remove();
+        }
+
+        // ---- Build completion -----------------------------------------------------------------------
+        function failAsync(error) {
+            lastError = String(error && error.message ? error.message : error);
+            if (!disposed && typeof opts.onFailure === 'function') opts.onFailure(lastError);
+        }
+
+        function complete() {
+            const mark = now();
+            try {
+                [gelProgram, dropProgram, maskProgram] = jobs.map(job => finish(gl, job));
+                gelU = locations(gl, gelProgram, ['uView', 'uSize', 'uFrame', 'uBack', 'uBackdrop', 'uRadius', 'uRect', 'uRadii', 'uLenA', 'uLenB',
+                    'uWin', 'uCounts', 'uDrip', 'uBub', 'uStrand', 'uOcc', 'uOccR', 'uUnder', 'uBand', 'uPass']);
+                dropU = locations(gl, dropProgram, ['uView', 'uSize', 'uFrame', 'uBack', 'uBackdrop']);
+                maskU = locations(gl, maskProgram, ['uSize']);
+                gl.useProgram(gelProgram);
+                gl.uniform1i(gelU.uBackdrop, 0);
+                gl.uniform1i(gelU.uRadius, 1);
+                gl.useProgram(dropProgram);
+                gl.uniform1i(dropU.uBackdrop, 0);
+            } catch (error) { failAsync(error); return; }
+            ready = true;
+            blockedMs += now() - mark;
+            compileMs = now() - started;
+            if (typeof opts.onReady === 'function') opts.onReady();
+        }
+
+        function poll() {
+            pollTimer = 0;
+            if (disposed || lost) return;
+            const mark = now();
+            const done = jobs.every(job => gl.getProgramParameter(job.program, parallel.COMPLETION_STATUS_KHR));
+            blockedMs += now() - mark;
+            if (done) { complete(); return; }
+            if (now() - started > COMPILE_TIMEOUT_MS) { failAsync(new Error('shader build timed out')); return; }
+            pollTimer = setTimeout(poll, 8);
+        }
+
+        // Without the extension the link verdict is a blocking call, so there is nothing to wait for.
+        if (parallel) pollTimer = setTimeout(poll, 0);
+        else complete();
+        if (!parallel && !ready) { dispose(); return null; }
+
+        return { kind: 'webgl2', render, resize, setBackdrop, inspect, dispose,
+            get ready() { return ready; },
+            get maxTextureSize() { return lost ? 0 : gl.getParameter(gl.MAX_TEXTURE_SIZE); } };
+    }
+
+    window.AuraGreenSlimeGL = Object.freeze({ create, get lastError() { return lastError; } });
+})();
+
+;
 /* ui/js/desktop/theme-fx/green_slime.js */
 (function () {
     'use strict';
@@ -2849,14 +4170,23 @@
     // DOM bridge of the Green Slime effect. The green_slime_sim.js family owns all state and physics;
     // this file reads window geometry, masks and pointer input, hands them to the simulation, completes
     // the scene (occluders, backdrop) and gives it to the active renderer. A renderer is { kind,
-    // render(scene), resize(cssWidth, cssHeight, dpr), dispose() }; green_slime_canvas2d.js provides the
-    // Canvas 2D one, which is the only renderer for now.
+    // render(scene), resize(cssWidth, cssHeight, dpr, scale), dispose() }: green_slime_gl.js (WebGL2, the
+    // gel material with refraction of the real wallpaper) is tried first, green_slime_canvas2d.js is the
+    // fallback (no WebGL2, failed build, lost context). There is only ever one canvas: the fallback
+    // replaces the GL canvas with a fresh one, because a canvas never gives up its WebGL context.
 
     const MASK_SELECTORS = '.vd-icon, .vd-widget, .vd-taskbar, .vd-dock, .vd-start-menu, .vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover, .vd-modal-backdrop, .vd-modal, .vd-dialog, [role="dialog"], dialog[open], .vd-toast-container, .vd-global-menu, .vd-radial-menu';
     // A press that lands in a window, icon, widget, taskbar, menu or dialog belongs to the user, not to the gel.
     const POKE_BLOCKERS = MASK_SELECTORS + ', .vd-window';
     const OCCLUDER_LIMIT = 24;
     const UNDER_LIMIT = 16;
+    const BACKDROP_MAX_SIZE = 2048;
+    // Adaptive quality: when the average frame takes longer than this over a window, render at a lower scale.
+    const SLOW_FRAME_MS = 22;
+    const GIVE_UP_FRAME_MS = 45;
+    const STALL_MS = 1500;
+    const QUALITY_WINDOW_MS = 2000;
+    const LOW_QUALITY_SCALE = .75;
 
     function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
@@ -2898,14 +4228,71 @@
     function start({ layer, signal, options }) {
         const motion = !!(options && options.motion);
         const slime = window.AuraGreenSlimeSim;
-        const canvas = document.createElement('canvas');
-        canvas.className = 'vd-fx-slime-canvas';
-        canvas.setAttribute('aria-hidden', 'true');
-        canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;';
-        layer.appendChild(canvas);
-        const renderer = slime ? window.AuraGreenSlimeCanvas2D.create(canvas) : null;
-        if (!renderer) return { stop() { canvas.remove(); } };
-        const sim = slime.createSim({ motion, seed: Date.now() >>> 0 });
+        if (!slime) return { stop() {} };
+        let canvas = null;
+        let renderer = null;
+        let rendererError = '';
+        let contextLost = false;
+        // The backdrop the gel refracts: 'loading' until the wallpaper image is decoded, 'texture' with a
+        // bitmap, otherwise 'translucent' (live wallpaper, overlay effect, gradient layers, upload failure).
+        let backdrop = { state: 'translucent', reason: 'pending', image: null, naturalWidth: 0, naturalHeight: 0 };
+        let backdropKey = '';
+        let backdropToken = 0;
+        let backdropTimer = 0;
+        const settleTimers = new Set();
+        let qualityScale = 1;
+        let qualityLocked = false;
+        let qualitySum = 0;
+        let qualityCount = 0;
+        let qualityStart = 0;
+        let slowWindows = 0;
+        let lastRafTime = 0;
+
+        function newCanvas() {
+            const element = document.createElement('canvas');
+            element.className = 'vd-fx-slime-canvas';
+            element.setAttribute('aria-hidden', 'true');
+            element.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;';
+            layer.appendChild(element);
+            return element;
+        }
+
+        // WebGL2 first. A canvas that handed out a WebGL context cannot give it up, so whenever the GL
+        // attempt does not end in a working renderer the fallback gets a fresh canvas.
+        function chooseRenderer() {
+            canvas = newCanvas();
+            const gl = window.AuraGreenSlimeGL
+                ? window.AuraGreenSlimeGL.create(canvas, {
+                    motion, signal,
+                    onContextLost: () => switchToFallback('context-lost'),
+                    onFailure: reason => switchToFallback(reason),
+                    // The programs build on the driver's own threads; the gel appears when they are done.
+                    onReady: () => { dirty = true; requestFrame(); }
+                })
+                : null;
+            if (gl) { renderer = gl; return; }
+            rendererError = window.AuraGreenSlimeGL ? window.AuraGreenSlimeGL.lastError : 'green_slime_gl.js missing';
+            canvas.remove();
+            canvas = newCanvas();
+            renderer = window.AuraGreenSlimeCanvas2D.create(canvas)
+                || { kind: 'none', render() {}, resize() {}, dispose() { canvas.remove(); } };
+        }
+
+        function switchToFallback(reason) {
+            if (stopped || !renderer || renderer.kind !== 'webgl2') return;
+            contextLost = reason === 'context-lost';
+            rendererError = reason;
+            backdropToken++;
+            backdrop = { state: 'translucent', reason, image: null, naturalWidth: 0, naturalHeight: 0 };
+            try { renderer.dispose(); } catch (_) { /* the context is gone anyway */ }
+            canvas = newCanvas();
+            renderer = window.AuraGreenSlimeCanvas2D.create(canvas)
+                || { kind: 'none', render() {}, resize() {}, dispose() { canvas.remove(); } };
+            renderer.resize(width, height, dpr, 1);
+            qualityScale = 1;
+            dirty = true;
+            requestFrame();
+        }
 
         let width = 0;
         let height = 0;
@@ -2924,6 +4311,7 @@
         let maskRectsDirty = true;
         let cachedOverlayMasks = [];
         let maskRefreshCount = 0;
+        const sim = slime.createSim({ motion, seed: Date.now() >>> 0 });
 
         function invalidateMasks() {
             maskRectsDirty = true;
@@ -2935,10 +4323,96 @@
             width = Math.max(1, layer.clientWidth || window.innerWidth || 1);
             height = Math.max(1, layer.clientHeight || window.innerHeight || 1);
             dpr = Math.min(window.devicePixelRatio || 1, motion ? 1.5 : 1.25);
-            renderer.resize(width, height, dpr);
+            renderer.resize(width, height, dpr, qualityScale);
             maskRectsDirty = true;
             dirty = true;
             requestFrame();
+        }
+
+        // ---- Backdrop -----------------------------------------------------------------------------
+        // The gel refracts the wallpaper itself. That is only possible when the page paints exactly one
+        // image as "center / cover no-repeat fixed" (the green_slime wallpaper) and nothing animated
+        // sits between it and the effect layer; every other desktop gets the translucent material.
+        function discoverBackdrop() {
+            const body = document.body;
+            if (!body || typeof window.getComputedStyle !== 'function') return { reason: 'no document' };
+            const live = document.getElementById('vd-wallpaper-live');
+            if (live && !live.hidden && window.getComputedStyle(live).display !== 'none') return { reason: 'live wallpaper' };
+            const overlay = document.querySelector('.vd-wallpaper-fx');
+            if (overlay && window.getComputedStyle(overlay).display !== 'none') return { reason: 'wallpaper overlay' };
+            const style = window.getComputedStyle(body);
+            const layers = String(style.backgroundImage || '').trim();
+            const single = /^url\(\s*(["']?)(.*?)\1\s*\)$/.exec(layers);
+            if (!single || /\)\s*,/.test(layers)) return { reason: 'not a single image' };
+            if (style.backgroundSize !== 'cover' || style.backgroundAttachment !== 'fixed' || style.backgroundRepeat !== 'no-repeat'
+                || !/^(50% 50%|center center|center)$/.test(String(style.backgroundPosition).trim())) {
+                return { reason: 'unsupported background layout: ' + [style.backgroundSize, style.backgroundPosition, style.backgroundAttachment, style.backgroundRepeat].join(' | ') };
+            }
+            return { url: single[2] };
+        }
+
+        // Where the cover-fitted wallpaper is drawn on the viewport (CSS px), like the CSS background.
+        function coverRect() {
+            const iw = backdrop.naturalWidth, ih = backdrop.naturalHeight;
+            if (!backdrop.image || !iw || !ih) return { x: 0, y: 0, w: width, h: height };
+            const scale = Math.max(width / iw, height / ih);
+            return { x: (width - iw * scale) / 2, y: (height - ih * scale) / 2, w: iw * scale, h: ih * scale };
+        }
+
+        function settleBackdrop(state, reason, image, naturalWidth, naturalHeight) {
+            backdrop = { state, reason, image: image || null, naturalWidth: naturalWidth || 0, naturalHeight: naturalHeight || 0 };
+            dirty = true;
+            requestFrame();
+        }
+
+        function refreshBackdrop() {
+            backdropTimer = 0;
+            if (stopped || !renderer) return;
+            const found = discoverBackdrop();
+            const key = (renderer.kind === 'webgl2' ? 'gl:' : 'flat:') + (found.url || found.reason);
+            if (key === backdropKey) return;
+            backdropKey = key;
+            const token = ++backdropToken;
+            if (!found.url || renderer.kind !== 'webgl2') {
+                settleBackdrop('translucent', found.reason || 'renderer without textures');
+                return;
+            }
+            backdrop = { state: 'loading', reason: '', image: null, naturalWidth: 0, naturalHeight: 0 };
+            const image = new Image();
+            image.decoding = 'async';
+            image.src = found.url;
+            const ready = typeof image.decode === 'function' ? image.decode() : new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
+            ready.then(() => {
+                if (token !== backdropToken || stopped) return null;
+                const limit = Math.min(BACKDROP_MAX_SIZE, renderer.maxTextureSize || BACKDROP_MAX_SIZE);
+                const shrink = Math.min(1, limit / Math.max(image.naturalWidth, image.naturalHeight));
+                const target = shrink < 1
+                    ? { resizeWidth: Math.round(image.naturalWidth * shrink), resizeHeight: Math.round(image.naturalHeight * shrink), resizeQuality: 'high' }
+                    : undefined;
+                return createImageBitmap(image, target);
+            }).then(bitmap => {
+                if (!bitmap) return;
+                if (token !== backdropToken || stopped || renderer.kind !== 'webgl2') { if (bitmap.close) bitmap.close(); return; }
+                renderer.setBackdrop(bitmap);
+                if (renderer.inspect().backdropReady) settleBackdrop('texture', '', bitmap, image.naturalWidth, image.naturalHeight);
+                else settleBackdrop('translucent', 'texture upload failed');
+            }).catch(() => {
+                if (token === backdropToken && !stopped) settleBackdrop('translucent', 'image unavailable');
+            });
+        }
+
+        function scheduleBackdropCheck(delay) {
+            if (backdropTimer || stopped) return;
+            backdropTimer = window.setTimeout(refreshBackdrop, typeof delay === 'number' ? delay : 60);
+        }
+
+        // Stylesheets and wallpaper settings land a moment after the effect starts, and a changed computed
+        // style raises no DOM mutation: look again a few times while the page settles.
+        function verifyBackdropLater() {
+            for (const delay of [350, 1200, 3500]) {
+                const timer = window.setTimeout(() => { settleTimers.delete(timer); scheduleBackdropCheck(0); }, delay);
+                settleTimers.add(timer);
+            }
         }
 
         function snapshot() {
@@ -3036,6 +4510,8 @@
             const root = document.documentElement || document.body;
             if (!root) return;
             mutationObserver = new MutationObserver(mutations => {
+                if (mutations.some(mutation => mutation.type === 'attributes' && (mutation.target === document.body || mutation.target === document.documentElement
+                    || (mutation.target.id === 'vd-wallpaper-live' || (mutation.target.classList && mutation.target.classList.contains('vd-wallpaper-fx')))))) scheduleBackdropCheck();
                 const relevant = mutations.some(mutation => {
                     const target = mutation.target;
                     if (target === canvas || (canvas.contains && canvas.contains(target))) return false;
@@ -3049,7 +4525,7 @@
                 subtree: true,
                 childList: true,
                 attributes: true,
-                attributeFilter: ['class', 'style', 'hidden', 'open', 'aria-hidden']
+                attributeFilter: ['class', 'style', 'hidden', 'open', 'aria-hidden', 'data-wallpaper']
             });
         }
 
@@ -3081,8 +4557,37 @@
                 win.under = capList(frames.filter(other => other.z < win.z).map(other => ({ x: other.x, y: other.y, width: other.width, height: other.height })).concat(desktop), UNDER_LIMIT, win.rect);
             });
             scene.dropOccluders = frames.concat(env.masks.map(mask => ({ x: mask.x, y: mask.y, width: mask.width, height: mask.height, radius: 0, taskbar: mask.taskbar })));
-            scene.backdrop = { mode: 'translucent', image: null, rect: { x: 0, y: 0, w: env.width, h: env.height } };
+            const textured = backdrop.state === 'texture' && !!backdrop.image;
+            scene.backdrop = { mode: textured ? 'texture' : 'translucent', image: textured ? backdrop.image : null, rect: coverRect() };
             return scene;
+        }
+
+        // Frame-time watch (motion only, real animation frames only): when the average frame of a 2 s window
+        // exceeds SLOW_FRAME_MS the gel renders at a lower scale for the rest of the session, and when even
+        // that stays above GIVE_UP_FRAME_MS the Canvas 2D fallback takes over. Pauses reset the watch and
+        // gaps beyond STALL_MS say nothing about the renderer.
+        function watchFrameTime(time) {
+            const interval = lastRafTime ? time - lastRafTime : 0;
+            lastRafTime = time;
+            if (qualityLocked || !renderer || renderer.kind !== 'webgl2' || interval <= 0 || interval > STALL_MS) return;
+            if (!qualityStart) qualityStart = time;
+            qualitySum += interval;
+            qualityCount++;
+            if (time - qualityStart < QUALITY_WINDOW_MS) return;
+            const average = qualitySum / qualityCount;
+            qualitySum = 0; qualityCount = 0; qualityStart = 0;
+            // One slow window can be the desktop busy elsewhere (opening apps, layout); two in a row are not.
+            slowWindows = average > (qualityScale === 1 ? SLOW_FRAME_MS : GIVE_UP_FRAME_MS) ? slowWindows + 1 : 0;
+            if (slowWindows < 2) return;
+            slowWindows = 0;
+            if (qualityScale === 1) setQuality(LOW_QUALITY_SCALE);
+            else switchToFallback('renderer too slow');
+        }
+
+        function setQuality(scale) {
+            qualityScale = scale;
+            renderer.resize(width, height, dpr, qualityScale);
+            dirty = true;
         }
 
         function render(time) {
@@ -3105,6 +4610,7 @@
             }
             raf = requestAnimationFrame(time => {
                 raf = 0;
+                watchFrameTime(time);
                 render(time);
                 if (motion) requestFrame();
             });
@@ -3132,6 +4638,8 @@
             if (raf) cancelAnimationFrame(raf);
             raf = 0;
             lastTime = 0;
+            lastRafTime = 0;
+            qualitySum = 0; qualityCount = 0; qualityStart = 0; slowWindows = 0;
             sim.pointerUp();
             for (const animation of springs) {
                 animation.onfinish = animation.oncancel = null;
@@ -3162,13 +4670,29 @@
             springAt.clear();
             records.clear();
             sim.reset();
+            backdropToken++;
+            if (backdropTimer) window.clearTimeout(backdropTimer);
+            backdropTimer = 0;
+            for (const timer of settleTimers) window.clearTimeout(timer);
+            settleTimers.clear();
             renderer.dispose();
+            if (backdrop.image && backdrop.image.close) backdrop.image.close();
+            backdrop = { state: 'translucent', reason: 'stopped', image: null, naturalWidth: 0, naturalHeight: 0 };
         }
 
-        // Test/debug hook: force a bubble, a poke or a drop. Motion-only.
+        // Test/debug hook: force a bubble, a poke or a drop (motion only), or pin the render scale.
         function command(name, payload) {
-            if (!motion || stopped || paused) return null;
+            if (stopped) return null;
             const data = payload || {};
+            if (name === 'quality') {
+                // Pins the render scale and ends the adaptive watch (close-up screenshots need full resolution).
+                const scale = clamp(Number(data.scale) || 1, .25, 1);
+                qualityLocked = true;
+                if (scale !== qualityScale) setQuality(scale);
+                requestFrame();
+                return qualityScale;
+            }
+            if (!motion || paused) return null;
             if (name === 'bubble') return sim.spawnBubble({ windowId: data.windowId, at: data.at, base: data.base, fast: data.fast });
             if (name === 'poke') {
                 const hit = sim.poke(Number(data.x), Number(data.y));
@@ -3184,13 +4708,24 @@
         }
 
         function inspect() {
+            const gl = renderer.kind === 'webgl2' ? renderer.inspect() : null;
             return {
-                ready: !!renderer,
+                ready: !!renderer && renderer.ready !== false,
                 renderer: renderer.kind,
-                backdrop: 'translucent',
-                qualityScale: 1,
-                contextLost: false,
-                error: '',
+                backdrop: backdrop.state,
+                backdropReason: backdrop.reason,
+                qualityScale,
+                contextLost,
+                error: rendererError,
+                gpu: gl ? gl.gpu : '',
+                compileMs: gl ? gl.compileMs : 0,
+                blockedMs: gl ? gl.blockedMs : 0,
+                parallelCompile: gl ? gl.parallelCompile : false,
+                lastRenderMs: gl ? gl.lastRenderMs : 0,
+                averageRenderMs: gl ? gl.averageRenderMs : 0,
+                firstRenderMs: gl ? gl.firstRenderMs : 0,
+                drawCalls: gl ? gl.drawCalls : 0,
+                quadCount: gl ? gl.quadCount : 0,
                 motion,
                 paused,
                 rafPending: !!raf,
@@ -3202,6 +4737,7 @@
             };
         }
 
+        chooseRenderer();
         resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(resize) : null;
         if (resizeObserver) resizeObserver.observe(layer);
         observeMaskChanges();
@@ -3220,6 +4756,8 @@
         window.addEventListener('aurago:desktop-windows-refresh', () => { snapshot(); requestFrame(); }, { signal });
         if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', stop, { once: true });
         resize();
+        refreshBackdrop();
+        verifyBackdropLater();
         snapshot();
         requestFrame();
         return { pause, resume, stop, inspect, command };
