@@ -53,7 +53,7 @@ provenance and rebuild steps are in [`audio/README.md`](audio/README.md).
 | `kits.py` | Builds each world's prop kit and its manifest entry. |
 | `props_pirate.py`, `props_temple.py`, `props_moon.py` | The props of each world (`PROPS`, `PROP_META`). Helpers: `props_pirate_*.py`, `ship_pirate.py`, `props_temple_*.py`, `head_temple*.py`, `props_moon_*.py`. |
 | `materials.py`, `palette.py`, `colors.py`, `shapes.py`, `prop.py`, `bake.py` | Shared materials, palettes, vertex colours, shape builders, prop composition and the ambient-occlusion bake. |
-| `previews.py` | Menu preview renders (Cycles, `--only previews`): the dressed showcase course of each world (`COURSES`: `pirate-06`, `temple-09`, `moon-18`), framed on its playable area. |
+| `previews.py` | Menu preview renders (Cycles, `--only previews`): the dressed showcase course of each world (`COURSES`: `pirate-04`, `temple-09`, `moon-18`), framed on its playable area. |
 | `probe.py`, `scene_<world>.py`, `stage.py`, `lane.py`, `compose.py` | Style probes and their stage helpers (not used by the build). |
 
 The contracts for these modules are in [`kit/AGENTS.md`](kit/AGENTS.md).
@@ -122,7 +122,7 @@ compare the SHA-256 of every course GLB and of the manifest between the two runs
 | 18 course GLBs | 15,190,960 bytes (largest moon-18 1,187,592; 494,248 triangles in all, most temple-12 with 33,877) |
 | `manifest.json` | 132,124 bytes (version 2, no collider arrays) |
 | Three prop kits | 5,029,080 bytes (pirate 1,771,100, temple 1,768,908, moon 1,489,072) |
-| Three previews | 90,356 bytes (pirate-06 24,396, temple-09 32,320, moon-18 33,640) |
+| Three previews | 89,892 bytes (pirate-04 23,932, temple-09 32,320, moon-18 33,640) |
 | Whole `ui/3d/minigolf/` package, including audio and previews | 23,302,639 bytes |
 
 The asset test enforces the budgets (course at most 1.25 MiB, 36,000 triangles and

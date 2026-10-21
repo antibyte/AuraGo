@@ -23,7 +23,7 @@ from .palette import mix
 
 # Pirate: Kraken's Whirlpool (ship, fork over the strait); Temple: Stone Head (the head over its tunnel);
 # Moon: Orbit Loop (habitat, rover and the loop)
-COURSES = {"pirate": 6, "temple": 9, "moon": 18}
+COURSES = {"pirate": 4, "temple": 9, "moon": 18}
 SIZE = (640, 360)
 SAMPLES = 96
 MAX_BYTES = 80 * 1024

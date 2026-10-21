@@ -332,8 +332,8 @@ The aim preview re-simulates the shot in a cloned physics world with the same
 rolling code. Each course sets its own gravity (`gravity`, 9.81 or 4.0 m/s²); launch speed and
 rolling resistance are unchanged, and metal rails bounce with restitution 0.80.
 
-Menu previews are 640×360 Cycles renders, at most 80 KB each (this build 24,396 to
-33,640 bytes), rendered from the showcase holes `pirate-06`, `temple-09` and `moon-18`
+Menu previews are 640×360 Cycles renders, at most 80 KB each (this build 23,932 to
+33,640 bytes), rendered from the showcase holes `pirate-04`, `temple-09` and `moon-18`
 and framed on the playable area. They are not bit-reproducible, so they are built
 separately from the course and kit build (`--only previews`).
 

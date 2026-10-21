@@ -11,7 +11,7 @@ course set). The package builds:
 - the courses of `course_data_<world>.py` through the track kit and `courses.py`
   (`course-NN.glb`, manifest version 2, see "Course pipeline (P3)"),
 - the menu previews (`--only previews`): the dressed showcase course of each world, rendered with
-  Cycles (`previews.COURSES`: `pirate-06`, `temple-09`, `moon-18`, camera fitted to the playable area).
+  Cycles (`previews.COURSES`: `pirate-04`, `temple-09`, `moon-18`, camera fitted to the playable area).
 
 `--out` defaults to the runtime folder `ui/3d/minigolf`; kits and previews are written to `--out` as well.
 Build into a scratch folder under `assets/minigolf/build/` (ignored by git) while a course is tuned.
