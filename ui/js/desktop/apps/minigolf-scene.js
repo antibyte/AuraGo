@@ -392,6 +392,8 @@ export function createScene(host, options) {
         // v2 courses carry their physics meshes in the GLB; v1 manifests still list colliders.
         let colliders;
         try { colliders = next.collision ? readColliders(bytes) : next.colliders; } catch (_) { throw Error('course_collision'); }
+        // A course without floor collision would load but drop the ball through the world.
+        if (next.collision && !colliders.some(group => group.surface === 'grass')) throw Error('course_collision');
         const [gltf, kit] = await Promise.all([new GLTFLoader().parseAsync(bytes, ''), kitPromise]);
         if (disposed || generation !== version) { disposeTree(gltf.scene); return false; }
         if (courseRoot) { scene.remove(courseRoot); disposeTree(courseRoot); }

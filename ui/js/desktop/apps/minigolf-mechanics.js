@@ -129,7 +129,9 @@ function validPart(part) {
 export function validateObstacle(spec) {
     const axis = spec?.axis || [0, 1, 0], parts = spec?.colliders;
     const ok = spec && typeof spec.id === 'string' && ID.test(spec.id) && vec(spec.position) && OBSTACLE_KINDS.includes(spec.kind)
-        && vec(axis) && Math.hypot(...axis) > 1e-6 && Number.isFinite(spec.amplitude) && Number.isFinite(spec.speed) && Number.isFinite(spec.phase || 0)
+        && vec(axis) && Math.hypot(...axis) > 1e-6 && Number.isFinite(spec.speed) && Number.isFinite(spec.phase || 0)
+        // A spin turns at a constant rate, so it needs no amplitude.
+        && (spec.kind === 'spin' ? spec.amplitude === undefined || Number.isFinite(spec.amplitude) : Number.isFinite(spec.amplitude))
         && (spec.rotation === undefined || vec(spec.rotation, 4))
         && (spec.sharp === undefined || (spec.sharp >= 1 && spec.sharp <= 4))
         && (spec.kind !== 'boulder' || (positive(spec.radius) && Math.abs(axis[1]) < 1e-6 * Math.hypot(...axis)))

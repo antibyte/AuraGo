@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createPhysics, MAX_ROLL, launchSpeedFor, rollDistance, strengthToPower } from '../ui/js/desktop/apps/minigolf-physics.js';
-import { multiply, obstaclePose } from '../ui/js/desktop/apps/minigolf-mechanics.js';
+import { multiply, obstaclePose, validateObstacle } from '../ui/js/desktop/apps/minigolf-mechanics.js';
 import { readColliders } from '../ui/js/desktop/apps/minigolf-collision.js';
 import { buildColliderGlb } from './lib/minigolf-glb.mjs';
 
@@ -444,6 +444,9 @@ assert.deepEqual(await cannonRun(), cannonFirst, 'two cannon runs rest on bit-id
     const spin = { id: 'spin-a', kind: 'spin', position: [1, 2, 3], axis: [0, 1, 0], speed: 2, phase: 0.5, amplitude: 0 };
     nearly(obstaclePose(spin, 0.7).rotation, q([0, 1, 0], 0.7 * 2 + 0.5), 'spin angle = speed * t + phase');
     assert.deepEqual(obstaclePose(spin, 0.7).position, [1, 2, 3]);
+    const { amplitude: _unused, ...steadySpin } = spin;
+    assert.doesNotThrow(() => validateObstacle({ ...steadySpin, halfExtents: [1, 0.2, 0.2] }), 'a spin needs no amplitude');
+    assert.throws(() => validateObstacle({ ...steadySpin, kind: 'slide', halfExtents: [1, 0.2, 0.2] }), TypeError, 'other kinds still need an amplitude');
     const gate = { id: 'gate-a', kind: 'gate', position: [1, 0, 0], axis: [1, 0, 0], amplitude: 1, speed: 1, phase: 0, sharp: 3 };
     const sineAt = value => Math.asin(value);
     close(obstaclePose(gate, sineAt(0.2)).position[0], 1 + 0.6, 1e-12, 'gate moves with sharp * sin below the plateau');
