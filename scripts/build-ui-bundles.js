@@ -154,6 +154,9 @@ const jsBundles = [
       'ui/js/desktop/theme-fx/green_slime_gl_shaders.js',
       'ui/js/desktop/theme-fx/green_slime_gl.js',
       'ui/js/desktop/theme-fx/green_slime.js',
+      'ui/js/desktop/theme-fx/voxel-sky.js',
+      'ui/js/desktop/theme-fx/voxel-island.js',
+      'ui/js/desktop/theme-fx/voxel-mesher.js',
       'ui/js/desktop/theme-fx/voxel-graphics.js',
       'ui/js/desktop/theme-fx/voxel_world.js'
     ]

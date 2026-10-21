@@ -4780,6 +4780,79 @@ function testGreenSlimeSimulation() {
   }
 }
 
+// The Voxel World sky model, island generator and mesher are DOM-free and run in plain Node.
+function testVoxelWorldIsland() {
+  const context = { window: {} };
+  vm.createContext(context);
+  // Pure parts in bundle order (scripts/build-ui-bundles.js).
+  for (const part of ['voxel-sky', 'voxel-island', 'voxel-mesher']) vm.runInContext(read('ui/js/desktop/theme-fx/' + part + '.js'), context);
+  const { AuraVoxelSky: sky, AuraVoxelIsland: island, AuraVoxelMesher: mesher } = context.window;
+
+  assert.equal(sky.at(12).phase, 'day');
+  assert.equal(sky.at(0).phase, 'night');
+  assert.equal(sky.at(6.2).phase, 'dawn');
+  assert.equal(sky.at(19.6).phase, 'dusk');
+  assert.ok(sky.at(12).sunDir[1] > .8, 'noon sun is high');
+  assert.ok(sky.at(0).sunDir[1] < 0, 'midnight sun is below the horizon');
+  assert.equal(sky.at(0).night, 1);
+  assert.equal(sky.at(12).night, 0);
+  for (const key of ['skyTop', 'skyHorizon', 'fogColor', 'keyColor', 'hemiSky']) {
+    let prev = sky.at(0)[key];
+    for (let h = .05; h <= 24.0001; h += .05) {
+      const next = sky.at(h)[key];
+      for (let c = 0; c < 3; c++) assert.ok(Math.abs(next[c] - prev[c]) < .06, key + ' jumps at ' + h.toFixed(2));
+      prev = next;
+    }
+  }
+  assert.deepEqual(Array.from(sky.at(24).skyTop), Array.from(sky.at(0).skyTop));
+
+  const a = island.generate();
+  const b = island.generate();
+  assert.equal(a.voxels.length, a.w * a.d * a.h);
+  let same = a.voxels.length === b.voxels.length;
+  for (let i = 0; same && i < a.voxels.length; i++) same = a.voxels[i] === b.voxels[i];
+  assert.ok(same, 'island generation must be deterministic');
+  assert.ok(a.solidCount > 14000 && a.solidCount < 45000, 'solid ' + a.solidCount);
+  const M = island.MATERIAL;
+  const at = (x, y, z) => a.voxels[x + z * a.w + y * a.w * a.d];
+  let water = 0;
+  for (let i = 0; i < a.voxels.length; i++) if (a.voxels[i] === M.WATER) water++;
+  assert.ok(water >= 40, 'water ' + water);
+  const fall = a.features.waterfall;
+  for (let y = fall.y + a.yBase; y >= 0; y--) assert.equal(at(fall.x, y, fall.z), M.AIR, 'waterfall column open at grid y ' + y);
+  assert.ok(a.features.chimneys.length >= 1, 'chimney');
+  assert.ok(a.features.lanterns.length >= 4, 'lanterns');
+  assert.ok(a.features.windows.length >= 6, 'windows');
+  assert.ok(a.features.crystals.length >= 8, 'crystals');
+  assert.ok(Array.isArray(a.features.windmill.hub), 'windmill hub');
+  assert.equal(a.islets.length, 2);
+
+  const grid = () => ({ w: 3, d: 3, h: 3, yBase: 0, voxels: new Uint8Array(27) });
+  const one = grid();
+  one.voxels[1 + 3 + 9] = M.STONE;
+  const m1 = mesher.mesh(one, island.MATERIAL_INFO);
+  assert.equal(m1.faceCount, 6);
+  assert.ok(Array.from(m1.groups.solid.ao).every(v => v === 1), 'a lone cube is unoccluded');
+  const two = grid();
+  two.voxels[0 + 3 + 9] = M.STONE;
+  two.voxels[1 + 3 + 9] = M.STONE;
+  assert.equal(mesher.mesh(two, island.MATERIAL_INFO).faceCount, 10);
+  const step = grid();
+  step.voxels[0 + 3 * 1 + 9 * 0] = M.STONE; // floor cube at x0 z1 y0
+  step.voxels[1 + 3 * 1 + 9 * 0] = M.STONE; // floor cube at x1 z1 y0
+  step.voxels[0 + 3 * 1 + 9 * 1] = M.STONE; // wall cube on top of x0
+  assert.ok(Array.from(mesher.mesh(step, island.MATERIAL_INFO).groups.solid.ao).some(v => v < 1), 'inner corner is occluded');
+  const big = mesher.mesh(a, island.MATERIAL_INFO);
+  assert.ok(big.faceCount > 8000 && big.faceCount < 70000, 'faces ' + big.faceCount);
+  for (const g of Object.values(big.groups)) {
+    const vertices = g.positions.length / 3;
+    for (let i = 0; i < g.indices.length; i++) assert.ok(g.indices[i] < vertices, 'index in range');
+    assert.equal(g.ao.length, vertices);
+    assert.equal(g.uvs.length, vertices * 2);
+  }
+  assert.equal(big.groups.glow.emissive.length, big.groups.glow.positions.length);
+}
+
 const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
@@ -4859,7 +4932,8 @@ const tests = [
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting],
   ['Invasion nest form sends export_nest_secret', testInvasionNestFormSendsExportNestSecret],
   ['Invasion nest secret field hides only without effect', testInvasionNestSecretFieldHidesOnlyWithoutEffect],
-  ['Green Slime simulation: geometry, bubbles, strands, pools and splats', testGreenSlimeSimulation]
+  ['Green Slime simulation: geometry, bubbles, strands, pools and splats', testGreenSlimeSimulation],
+  ['Voxel World: sky model, island generator and mesher', testVoxelWorldIsland]
 ];
 
 let failures = 0;
