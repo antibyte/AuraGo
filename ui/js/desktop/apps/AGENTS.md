@@ -62,10 +62,11 @@
 - Scene, fixed-step Rapier physics, round model, views and audio have separate
   modules. Visible obstacles use physics poses. Keep one active ball, transparent
   non-colliding opponents, true cup openings and collision geometry from the
-  exported Blender scene. Authoring sources live in `assets/minigolf/`;
-  regeneration (`blender --background --python assets/minigolf/generate.py`) is
-  deterministic — on Windows rerun it until it reports `Wrote 18 courses` after
-  transient export locks, then validate with `node scripts/test-minigolf-assets.mjs`.
+  exported Blender scene. Authoring sources live in `assets/minigolf/` (README and
+  `kit/AGENTS.md`); regeneration is deterministic: `generate.py -- --only kits,courses`
+  (plus `--course N` or `--only previews`) under Blender 5.2.2. On Windows rerun a
+  courses build that hits a transient export lock until it reports `Wrote 18 courses`,
+  then validate with `node scripts/test-minigolf-assets.mjs`.
 - UI modules: `minigolf-shared.js` is DOM- and three-free (palette,
   `MAX_NAME_LENGTH` = 24 code points, `POWER_STOPS`, `FLOOR_SURFACES` for physics
   and the map, `createQualityGovernor`). `minigolf-views.js` builds the shell,
@@ -73,6 +74,17 @@
   scorecard functions into its view; `-hud` imports `-minimap`. UI factories receive
   `tr`, `esc` and `icon` as arguments. Register each new `tr` module in
   `desktopLocalI18nHelpers` (`ui/i18n_lint_test.go`).
+- P2 renderer modules: `minigolf-looks.js` (pure data: `LOOKS`, `TIERS`,
+  `lookOf()` mapping the legacy `coast|garden|night` ids, `placementMatrix()`),
+  `minigolf-camera.js` (pure intro-flight maths), `minigolf-sky.js` (per-look sky
+  dome, moon stars and Earth, `createEnvironment()` PMREM), `minigolf-water.js`
+  (open disc and the `water-shore` material), `minigolf-props.js` (kit materials
+  from glTF extras, `buildProps()` instancing, the shared shader clock) and
+  `minigolf-fx.js` (fixed particle pools, ball trail, rings, fireworks).
+  `minigolf-scene.js` stays the owner: it fetches and caches kits and environments,
+  loads courses, runs the composer and exposes the public API. New modules import
+  only `three`, `minigolf-shared.js` and each other; the pure parts are covered by
+  `scripts/test-minigolf-look.mjs`.
 - `settings(values, track, focus)`, `audioSettings(settings, track)` and
   `credits(tracks)` in `minigolf-menus.js` are the stable entry points for the
   settings, sound and credits panels.
@@ -82,11 +94,61 @@
   (Shift keeps fine steps), a one-finger Aim drag putts from anywhere, and
   optional persisted settings add a four-degree aim assist, per-turn camera
   framing behind the ball and roll following — all still usable under reduced
-  motion. Visuals add a gradient sky dome with night stars and moon, a
-  blob-shadow fallback on the low tier, water foam rings, a dashed aim line with
-  a color-graded power ring, penalty rest markers, name tags on ghost balls, a
-  lane map with a persisted toggle, and the animated scorecard with grade
-  badges.
+  motion. Visuals add a dashed aim line with a color-graded power ring, penalty
+  rest markers, name tags on ghost balls, a lane map with a persisted toggle, and
+  the animated scorecard with grade badges, on top of the P2 look below.
+- P2 look: `LOOKS` (exposure, sky, fog, sun, rim, environment intensity, bloom,
+  water mode, FX palette) drives each world. The renderer uses
+  `THREE.NeutralToneMapping` with per-look exposure, no hemisphere light, and
+  `scene.environment` from the look's PMREM (kept per look for the scene's
+  lifetime). The sun shadow camera covers ±9 m around the island. `TIERS` (read
+  through `tierConfig(tier())`) sets pixel ratio, shadows, bloom, clouds, twinkle,
+  water motion and glints, scatter, motion, particle caps and the trail; the
+  governor still chooses `auto`. Low has no shadow maps and no composer: a blob
+  shadow sits under the ball instead.
+- Kits and course data: `props-<look>.glb` is fetched once per look per scene
+  (`kitFor`, in parallel with the course fetch). A failed fetch resolves to null and
+  the course plays without props. The kit owns the geometry; `buildProps()` makes one
+  `InstancedMesh` per prop primitive with cloned, patched materials. A course switch
+  disposes the props, sky, water and course tree; `dispose()` also releases the
+  PMREM targets, pending kit trees and effects. Manifest use: `look` selects the
+  look (legacy `world` falls back through `lookOf()`), `path` drives the intro flight
+  (no path, no flight), `props` are `[name, x, y, z, yaw, scale]` placements, and
+  `worlds[].preview` feeds the menu cards. The game does not read `kits` or `island`.
+  P2 adds fields only; manifest `version` stays 1.
+- Node contract: `aurago_hidden` on `rail-left`/`rail-right` hides them at load (the
+  collision stays in physics). `rail-trim-*` are plain decor. `water-shore` takes the
+  shore material (`TEXCOORD_0.x` is the distance to the shore; animated foam).
+  `windmill-sail*` nodes are gathered under one pivot that turns about Z unless
+  reduced motion is on. `flag` waves on every tier unless reduced.
+- Material extras (`patchMaterial`): `aurago_kind` picks the response. `foliage` and
+  `cloth` with `aurago_sway` bend with height, scaled by the `golfMotion` switch;
+  `emissive` and `glow` multiply their emission by `COLOR_0` and take
+  `aurago_flicker`; `glass` loses its transmission (transparent at 0.55 opacity).
+  `aurago_strength` is not read at runtime; the exported emission is used.
+- Effects: `burst(type, position, speed, info)` types are `strike`, `impact`, `water`,
+  `cup` and `win`; `info.surface` (`sand`) selects the sand cloud on a strike. The
+  rolling sand plume follows `update(dt, snapshot)` and its optional
+  `snapshot.surface`. The pools are fixed buffers capped by `TIERS.particles`
+  (confetti: half); nothing allocates per frame. The ball trail is 28 points, on
+  medium and high only, and shows once the ball moves faster than 0.6 m/s.
+- Intro flight: `createIntro()` follows the path at 2.2 m behind and 3.2 m above,
+  looking 2.5 m ahead, for 0.35 s per metre clamped to 2.5–4.5 s, and then settles
+  on the overview pose. `scene.skipIntro()` ends it (returns true when one was
+  running): pointer down on the canvas, wheel, orbit start, a strike burst and
+  `setReducedMotion(true)` call it. `focusBall()` ends a running flight as well, and
+  `minigolf-game.js` calls `skipIntro` on any keydown without consuming the key. A
+  `frameTurn` queued during the flight runs after it.
+- Reduced motion (OS/Desktop preference, `data-animations="false"` or the checkbox)
+  skips the flight, stops particles, fireworks, sway, flicker, spin, flags, the
+  windmill and water and sky animation, and keeps the gold ring static. The ball
+  trail stays. Low tier also drops scatter props, sway, flicker and spin, the
+  composer (bloom) and the trail, and freezes the water.
+- `stats()` also reports `look`, `props` (placed instances), `env` (environment
+  set), `intro` (flight running) and `trail` (visible trail points). `triangles` and
+  `calls` count the whole frame: `renderer.info.autoReset` is false and the counters
+  reset once per frame. Before P2 they covered only the last composer pass, so only
+  frame rates compare with older runs.
 - Saves contain settled shots only. Pause, minimization and hidden tabs stop
   simulation/audio; closing releases GPU, WASM, audio, observers and listeners.
   Respect reduced motion while retaining gameplay obstacle movement.
@@ -98,7 +160,8 @@
   and best keys are removed without migration, with a one-time notice when no v2
   progress exists.
 - World accents and symbols exist for `garden`, `coast`, `night`, `pirate`,
-  `temple` and `moon`. Optional card previews come from manifest
+  `temple` and `moon`; the manifest ids stay `garden|coast|night` until P3, and the
+  looks are `temple|pirate|moon`. Optional card previews come from manifest
   `worlds: [{ id, preview }]`; the game accepts only relative image paths (webp,
   png, jpg, avif) without `..`.
 - Styling uses `--mg-*` tokens aliased to Desktop `--vd-*` theme tokens, with no
@@ -111,8 +174,9 @@
   the podium renders two steps centred as a pair (`data-count="2"`).
 - `inspect()` is additive: `hud` (`meter`, `bannerCount`, `banner`, `toasts`,
   `map`), `tutorial` (current step) and `menuStep` (menu panel only).
-- Scene helpers `frameTurn`, `setFollow`, `setAimCamera`, `setRestMark`, `panAt`,
-  `screenPosition()`, `cancelDrag()` and `stats().tier` are optional-callable.
+- Scene helpers `frameTurn`, `skipIntro()`, `setFollow`, `setAimCamera`, `setRestMark`,
+  `panAt`, `screenPosition()`, `cancelDrag()`, the optional `info` argument of
+  `burst()` and `stats().tier` are optional-callable (the game calls them with `?.`).
   `cancelDrag()` restores a changed aim from before the press and reports `onAim` with
   `phase: 'cancel'`.
 - Audio is the `minigolf-audio.js` facade over `minigolf-audio-engine.js` (context,
@@ -120,7 +184,10 @@
   ducking) and `minigolf-audio-synth.js` (UI blips, ambience, impulse responses).
   AuraGolf must not load Synth Studio. Create no `AudioContext` and make no `fetch`
   before a user gesture (`unlock()`). Persisted zero volumes stay zero.
-- Assets come only from `ui/3d/minigolf/audio/`, generated from
+- Scene files are `ui/3d/minigolf/course-NN.glb`, `props-<look>.glb`,
+  `previews/<look>.webp` and `manifest.json` (contracts in `assets/minigolf/README.md`
+  and `kit/AGENTS.md`). A missing preview falls back to the drawn placeholder.
+- Audio comes only from `ui/3d/minigolf/audio/`, generated from
   `assets/minigolf/audio/sources.json` by `scripts/build-minigolf-audio.mjs`.
   `--check` verifies SHA-256, CC0, the budgets (SFX ≤ 2 MiB, music ≤ 6 MiB,
   manifest ≤ 128 KB) and stray files. Never hand-edit `manifest.json`; change the
@@ -131,10 +198,16 @@
   for P3; the game does not call it yet.
 - The browser test's zero-tolerance underrun assertion can flake under heavy
   machine load; rerun once before suspecting a regression.
-- Validate `npm run test:minigolf` (includes `scripts/test-minigolf-ui.mjs`),
-  `npm run test:synth-studio`, `node scripts/build-minigolf-audio.mjs --check`,
-  `TestDesktopMinigolf*`, `TestFrontend_StaticI18nKeysExistInEnglishBundle`, the
-  minigolf bundle check (`node scripts/build-minigolf.mjs --check`) and desktop bundle checks.
+- Validate `npm run test:minigolf` (model, `scripts/test-minigolf-look.mjs`, UI,
+  physics, asset, course and audio checks), `npm run test:synth-studio`,
+  `node scripts/build-minigolf-audio.mjs --check`, `node scripts/build-minigolf.mjs --check`
+  (6 MiB cap, pinned Three.js 0.186.1 and Rapier 0.21.0), `TestDesktopMinigolf*`,
+  `TestFrontend_StaticI18nKeysExistInEnglishBundle` and the desktop bundle checks.
+- `TestDesktopMinigolfBrowser` needs `AURAGO_RUN_BROWSER_SMOKE=1`. This machine's
+  headless Chrome reports `prefers-reduced-motion: reduce`, so the smoke emulates
+  `no-preference` only for its first intro check, resets it, and then requires that
+  later loads under reduced motion start no flight. `AURAGO_MINIGOLF_BENCHMARK=1`
+  logs 240-frame 1920×1080 measurements per tier (run with `go test -v`).
   Browser/GPU measurements and human listening remain separate acceptance steps.
   Keep `minigolf.*` in all sixteen Desktop locales, including the
   `follow_ball`/`aim_camera`/`magnet`/`hole_map` and score-grade keys; settings

@@ -1,7 +1,7 @@
 # AuraGolf P2 – Look & Welt-Requisiten (Design)
 
 - **Datum:** 2026-10-19
-- **Status:** Stil freigegeben (Stilproben am 2026-10-19 vom Nutzer freigegeben); Design zur Umsetzung
+- **Status:** umgesetzt (2026-10-21); Stil am 2026-10-19 vom Nutzer freigegeben
 - **Bezug:** [Fahrplan](2026-10-18-overhaul-roadmap-design.md), Abschnitte 3, 4.3, 5, 6 und 7
 - **Umsetzungsplan:** [P2-Plan](2026-10-19-p2-look-welt-requisiten-plan.md)
 - **Stilproben:** [Piratenbucht](img/p2-stilprobe-pirate.webp), [Dschungeltempel](img/p2-stilprobe-temple.webp), [Mondstation](img/p2-stilprobe-moon.webp)
@@ -86,7 +86,7 @@ Keine Datei wächst über etwa 400 Zeilen; größere Welten teilen ihre Requisit
 3. **Manifest:** schreiben, `.blend` speichern.
 4. **Vorschaubilder:** nur mit `--only previews`, getrennt, weil Cycles-Renders nicht bitgleich sind.
 
-Laufzeit des Generators etwa 10–15 Minuten auf 16 Kernen. Ein Export-Abbruch durch Windows-Dateisperren wird wie bisher durch erneutes Ausführen behoben.
+Laufzeit des Generators etwa 2 Minuten auf 16 Kernen (gemessen 80–110 s). Ein Export-Abbruch durch Windows-Dateisperren wird wie bisher durch erneutes Ausführen behoben.
 
 ### 3.3 Requisiten-Vertrag
 
@@ -116,7 +116,7 @@ Laufzeit des Generators etwa 10–15 Minuten auf 16 Kernen. Ein Export-Abbruch d
 - Hindernis-Ausdehnungen,
 - Abschlag, Loch, Wasservolumen, `bounds` und `colliders`.
 
-Spur und Banden bekommen nur ein neues Material und Vertexfarben im Punktbereich (POINT). Die Flächen bleiben flach schattiert, damit der Exporter die Vertices genau wie heute trennt. Der Asset-Test prüft das über einen Kollider-Fingerabdruck (Abschnitt 7).
+Die Spur bekommt nur ein neues Material und Vertexfarben im Punktbereich (POINT). Die Banden behalten ihre Geometrie ohne Vertexfarben, weil die Laufzeit sie ausblendet (`aurago_hidden`); das spart je Bahn etwa 30 KB. Die Flächen bleiben flach schattiert, damit der Exporter die Vertices genau wie heute trennt. Der Asset-Test prüft das über einen Kollider-Fingerabdruck (Abschnitt 7).
 
 **Neu:**
 
@@ -218,10 +218,10 @@ Alle neuen Module importieren nur `three` und `minigolf-shared.js`. Reine Funkti
   - Das Hemisphärenlicht entfällt.
 - **Sonne:**
   - Richtung, Farbe und Stärke je Look; Piraten hoch und warmweiß, Tempel tief und orange, Mond seitlich und kaltweiß.
-  - Die Schattenkamera wird auf die Insel begrenzt (±8 m statt ±18 m), das gibt schärfere Schatten bei gleicher Kartengröße.
+  - Die Schattenkamera wird auf die Insel begrenzt (±9 m statt ±18 m), das gibt schärfere Schatten bei gleicher Kartengröße.
 - **Mond:** zusätzlich ein schwaches Gegenlicht ohne Schatten für Kanten.
 - **Materialien aus dem Kit:**
-  - `emissive`/`glow`: Emission = Vertexfarbe × `aurago_strength`.
+  - `emissive`/`glow`: Emission = Vertexfarbe × exportierte Stärke (`emissiveFactor` bzw. `KHR_materials_emissive_strength`, entspricht `aurago_strength`).
   - `metal` und `glass`: nutzen die Umgebung für Reflexe.
 
 ### 5.3 Himmel
@@ -324,7 +324,7 @@ Die Stufe folgt `tier()` (P4-Governor bei „auto“).
 | Schatten | aus (Blob) | 1024, PCF | 2048, PCF weich |
 | Bloom | aus | halbe Auflösung | halbe Auflösung |
 | Umgebung (PMREM) | an | an | an |
-| Himmel | Verlauf, Sonne, Erde; ohne Wolken und Funkeln | Wolken/Dunst | + Sternfunkeln |
+| Himmel | Verlauf, Sonne, Dunst, Silhouette, Erde; ohne Wolken und Funkeln | + Wolken | + Sternfunkeln |
 | Wasser | Verlauf und Uferschaum statisch | animiert | + Glanzlichter |
 | Requisiten | ohne `scatter` | alle | alle |
 | Wiegen/Flackern/Drehen | aus | an | an |
@@ -353,17 +353,19 @@ Die Stufe folgt `tier()` (P4-Governor bei „auto“).
 
 ## 6. Budgets
 
-| Größe | Grenze | Heute |
-|---|---|---|
-| Laufzeit-Assets gesamt (alles unter `ui/3d/minigolf/`) | ≤ 32 MiB | 9,3 MB |
-| Bahn-GLB | ≤ 768 KiB und ≤ 24 000 Dreiecke (Export kostet etwa 33 B je Dreieck) | ≤ 458 KB, ≤ 5 609 Dreiecke |
-| Knoten mit Mesh je Bahn-GLB | ≤ 24 | 135 |
-| Kit-GLB je Welt | ≤ 3 MiB und ≤ 60 000 Dreiecke | – |
-| Einzelnes Requisit | ≤ 15 000 Dreiecke (`hero` ≤ 20 000; der Tempelkopf braucht 16 444 für lesbare Gesichtszüge) | – |
-| Instanzen je Bahn | ≤ 160 | – |
-| Vorschaubild | ≤ 80 KB, 640×360 WebP | – |
-| Spiel-Bundle | ≤ 6 MiB (seit P4) | ca. 5,1 MB |
-| Bildrate je Stufe | ≥ Ausgangsmessung (Benchmark 1920×1080, gleiche Maschine) | Messung vor Umbau |
+| Größe | Grenze | Vor P2 | Ergebnis P2 (2026-10-21) |
+|---|---|---|---|
+| Laufzeit-Assets gesamt (alles unter `ui/3d/minigolf/`) | ≤ 32 MiB | 9,3 MB | 21,3 MB |
+| Bahn-GLB | ≤ 768 KiB und ≤ 24 000 Dreiecke (Export kostet etwa 33 B je Dreieck) | ≤ 458 KB, ≤ 5 609 Dreiecke | ≤ 755 KB, ≤ 21 149 Dreiecke |
+| Knoten mit Mesh je Bahn-GLB | ≤ 24 | 135 | ≤ 18 |
+| Kit-GLB je Welt | ≤ 3 MiB und ≤ 60 000 Dreiecke | – | ≤ 1,77 MB, ≤ 57 226 Dreiecke |
+| Einzelnes Requisit | ≤ 15 000 Dreiecke (`hero` ≤ 20 000; der Tempelkopf braucht 16 444 für lesbare Gesichtszüge) | – | Hero ≤ 16 444 |
+| Instanzen je Bahn | ≤ 160 | – | ≤ 91 |
+| Vorschaubild | ≤ 80 KB, 640×360 WebP | – | ≤ 19,2 KB |
+| Spiel-Bundle | ≤ 6 MiB (seit P4) | ca. 5,1 MB | 5 131 500 B |
+| Bildrate je Stufe | ≥ Ausgangsmessung (Benchmark 1920×1080, gleiche Maschine) | Bildtakt-Grenze aller Stufen | gleiche Grenze, p95 je Stufe innerhalb 1 ms; Draw Calls auf „niedrig“ 149 → 47 |
+
+Angehobene Budgets (Nutzerregel vom 2026-10-20, „hebe das Größenbudget etwas an, wenn sonst die Qualität leidet“): Primitive je `hero`-Requisit 3 → 4 (Metallbeschläge am Piratenschiff) und Dreiecke je `hero` 16 000 → 20 000 (Gesicht des Tempelkopfs). Alle übrigen Grenzen blieben unverändert.
 
 ## 7. Tests (schlank)
 
