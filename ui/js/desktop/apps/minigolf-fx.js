@@ -230,6 +230,11 @@ export function createFx(parent, initialLook) {
             if (fx.wall === 'dust') return spray(soft, count, x, y, z, fx.stone, { up: [.1, .5], out: [.3, .8], size: [.1, .18], life: [.5, .9], gravity: -.15, drag: 3, grow: 1, opacity: .55 });
             return spray(soft, count, x, y, z, fx.wood, { up: [.8, 1.8], out: [.6, 1.6], size: [.035, .06], life: [.4, .7], gravity: 7, drag: .6 });
         }
+        if (type === 'spark') {
+            // Mechanic flash (boost, teleporter, cannon): 18 glow particles in the look's palette; speed scales the throw.
+            const k = Math.max(.5, Math.min(2, speed));
+            return spray(glow, 18, x, y + .05, z, [fx.gold, fx.ambientColor, 0xffffff], { up: [.8, 2.6 * k], out: [.5 * k, 1.8 * k], size: [.04, .08], life: [.35, .7], gravity: 3, drag: 1 });
+        }
         if (type === 'water') {
             if (space) return spray(soft, 26, x, y, z, fx.splash, { up: [-.2, .4], out: [.3, 1], size: [.16, .3], life: [.8, 1.4], gravity: 0, drag: 1.5, grow: 1.5, opacity: .5 });
             ripple.play(x, look.water.level + .02, z, 0xffffff, false, .9, .6);
@@ -262,6 +267,8 @@ export function createFx(parent, initialLook) {
     }
     return {
         burst,
+        // Ends the glow trail, for example when the ball jumps through a teleporter.
+        resetTrail: () => trail.reset(),
         get flagBoost() { return flagBoost; },
         setLook(next) { look = next; clear(); },
         setTier,

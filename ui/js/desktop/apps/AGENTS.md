@@ -101,6 +101,17 @@
   only report, and `predict()` returns `zone: 'teleport'|'cannon'|null`. Verify with
   `scripts/test-minigolf-collision.mjs` and the mechanics, loop prototype and seam cases in
   `scripts/test-minigolf-physics.mjs`.
+- P3 scene and game: `overviewFor(course)` (`minigolf-camera.js`, pure) returns the overview
+  pose, `shadowHalf` and `waterRadius` from `course.island`. A half-axis up to 5.5 m keeps the
+  fixed (10, 13, 14) view of the tee/cup midpoint (shadow ±9, water 60); larger islands look at the
+  island centre from `clamp(3.4 · span, 21.6, 60)` m with shadow ±max(9, span + 1.5) and water
+  radius max(60, 5 · span). The scene follows it (orbit `maxDistance`, camera `far`, sun target at
+  the island centre). `scene.load(course)` reads colliders from the GLB when `course.collision`
+  exists (v1: `course.colliders`; an unreadable GLB throws `course_collision`) and resolves to
+  `{ colliders }`; the game passes `{ ...course, colliders }` to physics and the lane map. Nodes with
+  the extra `aurago_spin: { axis, speed }` turn about their local axis unless motion is reduced.
+  `boost`, `teleport`, `cannon` and `bumper` events only play sound and effects (`spark` bursts,
+  `scene.resetTrail?.()` on teleport, an extra `impact` burst on a bumper kick) and never end `busy`.
 - `settings(values, track, focus)`, `audioSettings(settings, track)` and
   `credits(tracks)` in `minigolf-menus.js` are the stable entry points for the
   settings, sound and credits panels.
@@ -117,7 +128,8 @@
   water mode, FX palette) drives each world. The renderer uses
   `THREE.NeutralToneMapping` with per-look exposure, no hemisphere light, and
   `scene.environment` from the look's PMREM (kept per look for the scene's
-  lifetime). The sun shadow camera covers ±9 m around the island. `TIERS` (read
+  lifetime). The sun shadow camera covers ±9 m around the island (wider for large P3
+  islands, see `overviewFor` below). `TIERS` (read
   through `tierConfig(tier())`) sets pixel ratio, shadows, bloom, clouds, twinkle,
   water motion and glints, scatter, motion, particle caps and the trail; the
   governor still chooses `auto`. Low has no shadow maps and no composer: a blob
@@ -130,8 +142,9 @@
   PMREM targets, pending kit trees and effects. Manifest use: `look` selects the
   look (legacy `world` falls back through `lookOf()`), `path` drives the intro flight
   (no path, no flight), `props` are `[name, x, y, z, yaw, scale]` placements, and
-  `worlds[].preview` feeds the menu cards. The game does not read `kits` or `island`.
-  P2 adds fields only; manifest `version` stays 1.
+  `worlds[].preview` feeds the menu cards. The game does not read `kits`; the scene
+  reads `island` for framing. The game accepts manifest `version` 1 or 2 (v2 courses
+  also need a string `collision.digest`) until the P3 switch makes it 2 only.
 - Node contract: `aurago_hidden` on `rail-left`/`rail-right` hides them at load (the
   collision stays in physics). `rail-trim-*` are plain decor. `water-shore` takes the
   shore material (`TEXCOORD_0.x` is the distance to the shore; animated foam).
@@ -143,7 +156,7 @@
   `aurago_flicker`; `glass` loses its transmission (transparent at 0.55 opacity).
   `aurago_strength` is not read at runtime; the exported emission is used.
 - Effects: `burst(type, position, speed, info)` types are `strike`, `impact`, `water`,
-  `cup` and `win`; `info.surface` (`sand`) selects the sand cloud on a strike. The
+  `cup`, `win` and `spark` (18 glow particles in the look's palette, the P3 mechanic flash); `info.surface` (`sand`) selects the sand cloud on a strike. The
   rolling sand plume follows `update(dt, snapshot)` and its optional
   `snapshot.surface`. The pools are fixed buffers capped by `TIERS.particles`
   (confetti: half); nothing allocates per frame. The ball trail is 28 points, on
@@ -211,7 +224,7 @@
 - `pause()` suspends the context and freezes `position`. `setMusic('menu'|world)`
   and `setAmbient(world)` apply `WORLD_ALIAS` until the new worlds land. `cup`,
   `cannon` and `win` duck the music. `effect('cannon'|'boost'|'teleport')` exists
-  for P3; the game does not call it yet.
+  is played by the game from the matching physics events.
 - The browser test's zero-tolerance underrun assertion can flake under heavy
   machine load; rerun once before suspecting a regression.
 - Validate `npm run test:minigolf` (model, `scripts/test-minigolf-look.mjs`, UI,

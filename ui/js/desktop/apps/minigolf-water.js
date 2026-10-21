@@ -52,21 +52,23 @@ void main() {
     #include <fog_fragment>
 }`;
 
-// Open water disc plus the course's shore strip; the moon look has no water.
-export function createWater(look, cfg, state) {
+// Open water disc plus the course's shore strip; the moon look has no water. radius is the disc radius in
+// metres (60 for the small P2 islands); the shallow-to-deep gradient scales with it.
+export function createWater(look, cfg, state, radius = 60) {
+    const reach = Math.max(1, radius / 60);
     const group = new THREE.Group();
     group.name = 'aurago-water';
     const water = look.water;
     if (!water || water.mode === 'void') return { group, attachShore() {}, setTier() {}, dispose() { group.removeFromParent(); } };
     const uniforms = THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
         shallow: { value: new THREE.Color(water.shallow) }, deep: { value: new THREE.Color(water.deep) }, foam: { value: new THREE.Color(water.foam) },
-        skyColor: { value: new THREE.Color(look.sky.horizon) }, inner: { value: 4.8 }, outer: { value: 24 }, glints: { value: cfg.glints ? 1 : 0 },
+        skyColor: { value: new THREE.Color(look.sky.horizon) }, inner: { value: 4.8 * reach }, outer: { value: 24 * reach }, glints: { value: cfg.glints ? 1 : 0 },
         golfWaterMotion: { value: cfg.waterMotion ? 1 : 0 }
     }]);
     uniforms.golfTime = state.golfTime;
     uniforms.golfMotion = state.golfMotion;
     const material = new THREE.ShaderMaterial({ uniforms, vertexShader: OPEN_VERT, fragmentShader: OPEN_FRAG, fog: true });
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(60, 72).rotateX(-Math.PI / 2), material);
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(radius, 72).rotateX(-Math.PI / 2), material);
     disc.name = 'water-open'; disc.position.y = water.level; disc.renderOrder = -1;
     group.add(disc);
     const shores = [];

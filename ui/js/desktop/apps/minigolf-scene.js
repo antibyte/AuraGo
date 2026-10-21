@@ -7,7 +7,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { colorValue, createQualityGovernor, MAX_NAME_LENGTH, POWER_STOPS } from './minigolf-shared.js';
 import { LOOKS, lookOf, tierConfig } from './minigolf-looks.js';
-import { createIntro } from './minigolf-camera.js';
+import { createIntro, overviewFor } from './minigolf-camera.js';
+import { readColliders } from './minigolf-collision.js';
 import { createSky, createEnvironment } from './minigolf-sky.js';
 import { createWater } from './minigolf-water.js';
 import { buildProps, createShaderState, patchMaterial } from './minigolf-props.js';
@@ -164,7 +165,9 @@ export function createScene(host, options) {
     let quality = options.quality || 'auto', reduced = !!options.reducedMotion, cameraMode = false, canAim = false;
     let followEnabled = true, aimCamEnabled = false, camTween = null, userOrbiting = false;
     let aimDirection = [0, -1], aimPower = .35, pointerId = null, dragged = false, dragStart = null;
-    let obstacleNodes = new Map(), flagNodes = [], windmill = null, putter = null, swing = 0, elapsed = 0;
+    let obstacleNodes = new Map(), flagNodes = [], spinNodes = [], windmill = null, putter = null, swing = 0, elapsed = 0;
+    // Framing of the loaded island (overviewFor): overview pose, shadow camera size and open water radius.
+    let overview = null;
     const governor = createQualityGovernor(), screenPoint = new THREE.Vector3();
     // Chosen quality and effective tier stay separate; auto follows the governor.
     const tier = () => quality === 'auto' ? governor.tier : quality;
@@ -278,7 +281,7 @@ export function createScene(host, options) {
         aimDirection = direction; aimPower = power; canAim = enabled;
         updateAim();
     }
-    function focusBall(overview = false) {
+    function focusBall(overviewPlan = false) {
         if (intro) {
             // Ends the flight in the end pose; a turn framing queued meanwhile runs afterwards.
             const turn = pendingTurn;
@@ -291,9 +294,10 @@ export function createScene(host, options) {
         camTween = null;
         const damping = controls.enableDamping;
         controls.enableDamping = false; controls.update();
-        const offset = overview ? new THREE.Vector3(10, 13, 14)
+        const pose = overviewPlan && course ? overviewPose() : null;
+        const offset = pose ? new THREE.Vector3(...pose.position).sub(new THREE.Vector3(...pose.target)) : overviewPlan ? new THREE.Vector3(10, 13, 14)
             : camera.position.clone().sub(controls.target).clampLength(controls.minDistance, 8);
-        const target = overview && course ? new THREE.Vector3(...course.cup).add(new THREE.Vector3(...course.tee)).multiplyScalar(.5) : ball.position.clone();
+        const target = pose ? new THREE.Vector3(...pose.target) : ball.position.clone();
         controls.target.copy(target);
         camera.position.copy(target).add(offset);
         controls.update();
@@ -354,12 +358,20 @@ export function createScene(host, options) {
             ghosts.add(tag);
         });
     }
+    // Sun and shadow camera cover the loaded island: ±9 m around its centre for the small P2 islands, wider for large ones.
+    function frameLight() {
+        const half = overview?.shadowHalf ?? 9, centre = course?.island?.center, distance = 22 + (half - 9) * 1.5, shadowCamera = sun.shadow.camera;
+        sun.target.position.set(Number(centre?.[0]) || 0, 0, Number(centre?.[1]) || 0);
+        sun.position.fromArray(look.sun.direction).normalize().multiplyScalar(distance).add(sun.target.position);
+        Object.assign(shadowCamera, { left: -half, right: half, top: half, bottom: -half, far: Math.max(60, distance + half * 2 + 12) });
+        shadowCamera.updateProjectionMatrix();
+    }
     function applyLook() {
         scene.background = new THREE.Color(look.background);
         scene.fog = look.fog ? new THREE.FogExp2(look.fog.color, look.fog.density) : null;
         renderer.toneMappingExposure = look.exposure;
         sun.color.set(look.sun.color); sun.intensity = look.sun.intensity;
-        sun.position.fromArray(look.sun.direction).normalize().multiplyScalar(22); sun.target.position.set(0, 0, 0);
+        frameLight();
         rim.intensity = look.rim?.intensity ?? 0;
         if (look.rim) { rim.color.set(look.rim.color); rim.position.fromArray(look.rim.direction).normalize().multiplyScalar(20); }
         if (!environments.has(lookId)) environments.set(lookId, createEnvironment(renderer, look));
@@ -377,6 +389,9 @@ export function createScene(host, options) {
         if (!response.ok) throw Error('course_load');
         const bytes = await response.arrayBuffer();
         if (disposed || generation !== version) return false;
+        // v2 courses carry their physics meshes in the GLB; v1 manifests still list colliders.
+        let colliders;
+        try { colliders = next.collision ? readColliders(bytes) : next.colliders; } catch (_) { throw Error('course_collision'); }
         const [gltf, kit] = await Promise.all([new GLTFLoader().parseAsync(bytes, ''), kitPromise]);
         if (disposed || generation !== version) { disposeTree(gltf.scene); return false; }
         if (courseRoot) { scene.remove(courseRoot); disposeTree(courseRoot); }
@@ -385,14 +400,24 @@ export function createScene(host, options) {
         props?.dispose(); props = null; sky?.dispose(); water?.dispose();
         course = next; courseRoot = gltf.scene; scene.add(courseRoot);
         restMark.visible = false;
-        obstacleNodes = new Map(); flagNodes = []; windmill = null;
+        obstacleNodes = new Map(); flagNodes = []; spinNodes = []; windmill = null;
         lookId = nextLook; look = LOOKS[lookId];
+        overview = overviewFor(next);
         applyLook();
         sky = createSky(look, cfg(), shaderState); scene.add(sky.group);
-        water = createWater(look, cfg(), shaderState); scene.add(water.group);
+        water = createWater(look, cfg(), shaderState, overview.waterRadius); scene.add(water.group);
+        // Large islands are viewed from up to 60 m: widen the orbit limit and the far plane to match.
+        const viewDistance = Math.hypot(...overview.position.map((value, a) => value - overview.target[a]));
+        controls.maxDistance = Math.max(38, viewDistance * 1.15);
+        camera.far = Math.max(180, 150 + viewDistance * 1.3); camera.updateProjectionMatrix();
         courseRoot.traverse(node => {
             if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; node.material = patchMaterial(node.material, shaderState); }
             if (node.userData?.aurago_hidden) node.visible = false;
+            const spin = node.userData?.aurago_spin;
+            if (spin && Array.isArray(spin.axis) && spin.axis.length === 3 && spin.axis.every(Number.isFinite) && Number.isFinite(spin.speed)) {
+                const axis = new THREE.Vector3(...spin.axis);
+                if (axis.lengthSq() > 1e-12) spinNodes.push({ node, axis: axis.normalize(), speed: spin.speed });
+            }
             if (node.name === 'water-shore' && node.isMesh) water.attachShore(node);
             if (node.name === 'flag' || node.name.startsWith('flag-cloth')) flagNodes.push({ node, z: node.rotation.z });
         });
@@ -424,12 +449,9 @@ export function createScene(host, options) {
         intro = null; pendingTurn = null;
         setBall(next.tee); focusBall(true); resize();
         startIntro();
-        return true;
+        return { colliders };
     }
-    function overviewPose() {
-        const target = new THREE.Vector3(...course.cup).add(new THREE.Vector3(...course.tee)).multiplyScalar(.5);
-        return { position: target.clone().add(new THREE.Vector3(10, 13, 14)).toArray(), target: target.toArray() };
-    }
+    const overviewPose = () => overview;
     // The intro flight follows the course path from tee to cup and settles on the overview pose.
     function startIntro() {
         intro = null; introTime = 0; pendingTurn = null;
@@ -548,6 +570,7 @@ export function createScene(host, options) {
         if (motion) shaderState.golfTime.value += dt;
         if (!reduced) {
             if (windmill) windmill.rotation.z += dt * .35;
+            for (const spin of spinNodes) spin.node.rotateOnAxis(spin.axis, spin.speed * dt);
             for (const flag of flagNodes) flag.node.rotation.z = flag.z + Math.sin(elapsed * (2.2 + fx.flagBoost * 3)) * (.045 + fx.flagBoost * .12);
         }
         if (motion) props?.update(elapsed);
@@ -584,7 +607,7 @@ export function createScene(host, options) {
         if (change && quality === 'auto') { applyTier(); if (change === 'down') options.onQuality?.('low'); }
     }
     return {
-        canvas, load, update, setBall, setGhosts, setAim, focusBall, burst, setQuality, frameTurn, setRestMark, panAt, setPreview, cancelDrag, screenPosition, skipIntro,
+        canvas, load, update, setBall, setGhosts, setAim, focusBall, burst, resetTrail: () => fx.resetTrail(), setQuality, frameTurn, setRestMark, panAt, setPreview, cancelDrag, screenPosition, skipIntro,
         setFollow(value) { followEnabled = !!value; },
         setAimCamera(value) { aimCamEnabled = !!value; if (!value) camTween = null; },
         setReducedMotion(value) {

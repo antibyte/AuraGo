@@ -11,6 +11,27 @@ export function pathLength(path) {
 
 export const introDuration = path => Math.min(4.5, Math.max(2.5, .35 * pathLength(path)));
 
+// Overview pose that frames the whole island. Islands up to 5.5 m keep the fixed P2 view
+// (midpoint of tee and cup, offset (10, 13, 14)); larger ones look at the island centre from
+// farther away. shadowHalf is the half-width of the sun shadow camera, waterRadius the open water disc.
+const VIEW = [10, 13, 14], VIEW_LENGTH = Math.hypot(...VIEW);
+export function overviewFor(course) {
+    const { tee, cup } = course, island = course.island;
+    const half = Array.isArray(island?.half) ? island.half : null;
+    const span = half ? Math.max(Number(half[0]) || 0, Number(half[1]) || 0) : 0;
+    if (span <= 5.5) {
+        const target = [0, 1, 2].map(a => (tee[a] + cup[a]) / 2);
+        return { position: target.map((value, a) => value + VIEW[a]), target, shadowHalf: 9, waterRadius: 60 };
+    }
+    const center = Array.isArray(island.center) ? island.center : [0, 0];
+    const target = [center[0], (tee[1] + cup[1]) / 2, center[1]];
+    const distance = Math.max(21.6, Math.min(60, span * 3.4));
+    return {
+        position: target.map((value, a) => value + VIEW[a] / VIEW_LENGTH * distance), target,
+        shadowHalf: Math.max(9, span + 1.5), waterRadius: Math.max(60, span * 5)
+    };
+}
+
 export function createIntro(path, endPosition, endTarget) {
     if (!Array.isArray(path) || path.length < 2) return null;
     const cumulative = [0];
