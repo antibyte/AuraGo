@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 )
 
 type HomepageSiteEvent struct {
@@ -198,6 +199,14 @@ func DiscoverHomepageWorkspace(cfg HomepageConfig, db *sql.DB) ([]HomepageDiscov
 }
 
 func DispatchHomepageInventory(cfg HomepageConfig, db *sql.DB, operation string, id int64, projectDir, query string, limit, offset int, reason string, logger *slog.Logger) (string, bool) {
+	if (operation == "relocate" || operation == "adopt") && !HomepageOperationInProgress(cfg) {
+		lock, _ := homepageOperationLocks.LoadOrStore(filepath.Clean(cfg.WorkspacePath), &sync.Mutex{})
+		mu := lock.(*sync.Mutex)
+		if err := lockToolHTTPContext(nativeHTTPContext(cfg.Context), mu); err != nil {
+			return ErrorJSON(err.Error()), true
+		}
+		defer mu.Unlock()
+	}
 	output := map[string]interface{}{"status": "success"}
 	switch operation {
 	case "overview":

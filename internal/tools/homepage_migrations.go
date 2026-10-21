@@ -2,6 +2,7 @@ package tools
 
 import (
 	"aurago/internal/dbutil"
+	"aurago/internal/fileutil"
 	"crypto/rand"
 	"database/sql"
 	"fmt"
@@ -26,14 +27,31 @@ func prepareHomepageRegistryMigration(db *sql.DB, path string) error {
 	if err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='homepage_projects'").Scan(&existing); err != nil {
 		return err
 	}
-	if existing == 0 || path == ":memory:" {
+	if existing == 0 {
 		return nil
 	}
-	backup := fmt.Sprintf("%s.homepage-v%d-%s.bak", path, homepageSchemaVersion, rand.Text())
+	var databaseFile string
+	if err := db.QueryRow("SELECT file FROM pragma_database_list WHERE name='main'").Scan(&databaseFile); err != nil {
+		return err
+	}
+	if databaseFile == "" {
+		return nil
+	}
+	backup := fmt.Sprintf("%s.homepage-v%d-%s.bak", databaseFile, homepageSchemaVersion, rand.Text())
+	reserved, err := os.OpenFile(backup, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		return fmt.Errorf("reserve protected homepage migration backup: %w", err)
+	}
+	if err := reserved.Close(); err != nil {
+		return err
+	}
+	if err := fileutil.RestrictToOwner(backup); err != nil {
+		return fmt.Errorf("protect homepage migration backup before copying: %w", err)
+	}
 	if _, err := db.Exec("VACUUM main INTO ?", backup); err != nil {
 		return fmt.Errorf("back up homepage registry: %w", err)
 	}
-	if err := os.Chmod(backup, 0600); err != nil {
+	if err := fileutil.RestrictToOwner(backup); err != nil {
 		return fmt.Errorf("protect homepage migration backup: %w", err)
 	}
 	return nil

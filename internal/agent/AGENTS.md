@@ -506,3 +506,4 @@ None.
 - Keep active identity, locations, unknown outcomes and reasons visible. The registry overview/get_site/list_events operations expose the complete paginated read model.
 - Verify rendered-inventory and focused dispatch regression tests.
 - Existing inventory follows database availability even while the Homepage runtime is disabled; explicit tool scopes still gate exposure.
+- Bound the required inventory preview after external-data escaping; retain stable IDs, total counts and full lookup routes. Verbose reasons or metadata must not exhaust the system prompt budget.

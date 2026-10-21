@@ -23,7 +23,8 @@ The homepage_registry tool provides:
 The internal numeric ID remains stable. Project paths are workspace-relative;
 the workspace root is pinned when the project is first managed. Configuration
 changes cannot silently reinterpret an existing project in a different folder.
-The longest registered directory boundary wins for nested paths.
+The longest registered directory boundary wins for nested paths. Metadata updates
+cannot move a bound project; use relocate, serialized with workspace mutations.
 Provider site_id/project_id fields are distinct from managed_site_id.
 The workspace root itself is intentionally not a new project.
 
@@ -57,6 +58,10 @@ The agent inventory is a required request-local prompt addendum independent of
 reuse hints, including stable/prepared prompts and minimal loops with the
 relevant scope. It refreshes for every physical model request. Active-session
 projects take priority in the compact context; paginated tools expose the rest.
+The required preview is bounded after external-data escaping. Names, paths and
+reasons may be shortened in the preview; get_site/list_events retain full values.
+Preexisting scaffold files are snapshotted with unknown original provenance
+before initialization; they never become newly agent-created history.
 
 ## Deployment and observation
 
@@ -96,9 +101,14 @@ Restore validates the desired state before writing, preserves unknown external
 files and records a new revision. Complete temporary preimages protect affected
 files; a partial failure returns the recovery backup path. Rooted atomic file
 replacement keeps individual writes complete. Empty and binary files use bytes.
+Permissions-only changes are revisioned and restored too. Restore preflights
+nonlocal paths, symlinks and file/directory conflicts before changing any file,
+and honors cancellation between writes and at atomic replacement. Legacy
+sensitive content is neither copied into new revisions nor written by restore.
 
-Schema upgrades create a protected pre-migration SQLite backup, preserve
-deployment foreign keys and advance PRAGMA user_version transactionally.
+Schema upgrades create a pre-migration backup of the underlying SQLite file
+(including URI-backed paths), with private permissions set before copying.
+They preserve deployment foreign keys and advance PRAGMA user_version transactionally.
 Backups can contain legacy sensitive material and require restricted handling.
 There is no automatic pruning of delta revisions: retention needs verified
 checkpoints before old deltas can be removed.

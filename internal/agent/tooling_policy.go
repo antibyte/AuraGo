@@ -8,6 +8,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/prompts"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -745,27 +746,31 @@ func buildManagedSitesPromptContext(runCfg RunConfig) string {
 	if limit > 8 {
 		limit = 8
 	}
+	shown := 0
 	for i := 0; i < limit; i++ {
 		site := sites[i]
 		if detailed, detailErr := tools.GetHomepageManagedSite(runCfg.HomepageRegistryDB, site.ID); detailErr == nil {
 			site = detailed
 		}
-		line := fmt.Sprintf("- id=%d %s (`%s`): origin=%s, drift=%s", site.ID, site.Name, site.ProjectDir, site.Origin, site.DriftStatus)
+		line := fmt.Sprintf("- id=%d %s (`%s`): origin=%s, drift=%s", site.ID, Truncate(site.Name, 64), Truncate(site.ProjectDir, 160), site.Origin, site.DriftStatus)
 		line += ", local_status=" + site.LocalStatus
 		if site.LastEditReason != "" {
-			line += ", reason=" + site.LastEditReason
+			line += ", reason=" + Truncate(site.LastEditReason, 160)
 		}
 		if len(site.Events) > 0 {
-			line += ", latest=" + site.Events[0].EventType + "/" + site.Events[0].Outcome + ", why=" + site.Events[0].Reason
+			line += ", latest=" + site.Events[0].EventType + "/" + site.Events[0].Outcome
+			if site.Events[0].Reason != "" && site.Events[0].Reason != site.LastEditReason {
+				line += ", why=" + Truncate(site.Events[0].Reason, 160)
+			}
 		}
 		if site.LocalRoot != "" {
-			line += fmt.Sprintf(", local=%s", site.LocalRoot)
+			line += fmt.Sprintf(", local=%s", Truncate(site.LocalRoot, 240))
 		}
 		if site.CurrentRevisionID > 0 {
 			line += fmt.Sprintf(", revision=%d", site.CurrentRevisionID)
 		}
 		if site.LastDeployURL != "" {
-			line += fmt.Sprintf(", last_deploy=%s", site.LastDeployURL)
+			line += fmt.Sprintf(", last_deploy=%s", Truncate(site.LastDeployURL, 240))
 		}
 		if site.GitSHA != "" {
 			short := site.GitSHA
@@ -775,11 +780,15 @@ func buildManagedSitesPromptContext(runCfg RunConfig) string {
 			line += fmt.Sprintf(", git=%s", short)
 		}
 		if site.DriftMessage != "" {
-			line += fmt.Sprintf(", note=%s", site.DriftMessage)
+			line += fmt.Sprintf(", note=%s", Truncate(site.DriftMessage, 160))
 		}
 		if len(site.DeployTargets) > 0 {
 			var targets []string
-			for _, target := range site.DeployTargets {
+			for targetIndex, target := range site.DeployTargets {
+				if targetIndex >= 2 {
+					targets = append(targets, fmt.Sprintf("+%d targets", len(site.DeployTargets)-targetIndex))
+					break
+				}
 				value := target.URL
 				if value == "" {
 					value = target.RemotePath
@@ -788,7 +797,7 @@ func buildManagedSitesPromptContext(runCfg RunConfig) string {
 					value = target.ProviderTargetID
 				}
 				if value != "" {
-					targets = append(targets, fmt.Sprintf("%s=%s", target.Provider, value))
+					targets = append(targets, fmt.Sprintf("%s=%s[%s/%s]", target.Provider, Truncate(value, 240), target.Status, target.Environment))
 				} else {
 					targets = append(targets, target.Provider)
 				}
@@ -802,13 +811,21 @@ func buildManagedSitesPromptContext(runCfg RunConfig) string {
 				line += fmt.Sprintf("@%s", obs.ObservedAt)
 			}
 		}
+		// Keep a bounded required index; detailed history remains available through get_site/list_events.
+		if len(security.IsolateExternalData(b.String()+line)) > 3500 {
+			line = fmt.Sprintf("- id=%d %s (`%s`): use get_site for locations and history", site.ID, Truncate(site.Name, 64), Truncate(site.ProjectDir, 160))
+			if len(security.IsolateExternalData(b.String()+line)) > 3500 {
+				break
+			}
+		}
 		b.WriteString(line)
 		b.WriteByte('\n')
+		shown++
 	}
-	if len(sites) > limit {
-		b.WriteString(fmt.Sprintf("- ...and %d more managed website(s)\n", len(sites)-limit))
+	if len(sites) > shown {
+		b.WriteString(fmt.Sprintf("- ...and %d more managed website(s)\n", len(sites)-shown))
 	}
-	b.WriteString("Before editing a managed website, use the listed project_dir and keep its ledger current through homepage tools.\n")
+	b.WriteString("Values may be shortened. Use get_site for full paths/URLs and list_events for reasons before editing.\n")
 	return strings.TrimSpace(b.String())
 }
 

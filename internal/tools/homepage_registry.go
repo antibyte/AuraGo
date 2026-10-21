@@ -500,6 +500,19 @@ func UpdateProject(db *sql.DB, id int64, fields map[string]interface{}) error {
 			if err != nil {
 				return err
 			}
+			var previous, workspace string
+			var tracked bool
+			if err := db.QueryRow(`SELECT p.project_dir,p.workspace_root,
+                EXISTS(SELECT 1 FROM homepage_revisions r WHERE r.project_id=p.id OR (r.project_id IS NULL AND r.project_dir=p.project_dir))
+                OR EXISTS(SELECT 1 FROM homepage_project_state s WHERE s.project_id=p.id AND s.local_root!='')
+                OR EXISTS(SELECT 1 FROM homepage_deploy_targets t WHERE t.project_id=p.id)
+                OR EXISTS(SELECT 1 FROM homepage_site_events e WHERE e.project_id=p.id)
+                FROM homepage_projects p WHERE p.id=?`, id).Scan(&previous, &workspace, &tracked); err != nil {
+				return err
+			}
+			if normalized != previous && (workspace != "" || tracked) {
+				return fmt.Errorf("use homepage_registry relocate to change a managed project_dir while preserving its history")
+			}
 			v = normalized
 		}
 		setClauses = append(setClauses, k+" = ?")

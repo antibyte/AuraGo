@@ -176,9 +176,11 @@ func ExecuteHomepageOperation(cfg HomepageConfig, db *sql.DB, op HomepageOperati
 	cfg.ManagedProjectDir = op.ProjectDir
 	cfg.Context = context.WithValue(nativeHTTPContext(cfg.Context), homepageOperationKey{}, op)
 	// Capture pre-existing external edits with unknown provenance, before attributing our work.
-	if op.Name != "init_project" && proj.ProjectDir != "" {
+	projectWasPresent := false
+	if proj.ProjectDir != "" {
 		if _, err := os.Stat(homepageLocalRoot(cfg, proj.ProjectDir)); err == nil {
-			before := SaveHomepageRevisionAndState(cfg, db, proj.ProjectDir, "Observed project state before "+op.Name, "External or legacy changes; original reason unknown", "external_observation", map[string]interface{}{"actor": "external", "reason_known": false, "operation_id": op.ID}, logger)
+			projectWasPresent = true
+			before := SaveHomepageRevisionAndState(cfg, db, proj.ProjectDir, "Observed project state before "+op.Name, "External or legacy changes; original reason unknown", "external_observation", map[string]interface{}{"actor": "external", "reason": "Original reason unknown", "reason_known": false, "operation_id": op.ID}, logger)
 			if len(before.Warnings) > 0 {
 				recordHomepageOperationEvent(db, proj.ID, op, "operation_finished", "failed", map[string]interface{}{"error": "preflight snapshot failed"})
 				return ErrorJSON(strings.Join(before.Warnings, "; "))
@@ -309,7 +311,7 @@ func ExecuteHomepageOperation(cfg HomepageConfig, db *sql.DB, op HomepageOperati
 		result["status"] = "partial_success"
 		result["retry_safe"] = false
 	}
-	if op.Name == "init_project" && outcome == "succeeded" {
+	if (op.FilesMayChange || op.Name == "init_project") && proj.ProjectDir != "" && !projectWasPresent && outcome == "succeeded" && revisionID > 0 {
 		_, err := db.Exec("UPDATE homepage_projects SET origin='agent_created',creation_run_id=? WHERE id=? AND origin='unknown'", op.RunID, proj.ID)
 		if err != nil {
 			ledgerErr = err

@@ -283,3 +283,5 @@ None.
 - Record intent before side effects and preserve partial/unknown results with retry_safe:false. Serialize workspace mutations. Never silently rebind a pinned workspace or infer a moved site's identity.
 - Revision contents exclude credentials and generated manifests, remain bounded and restore only complete hash-verified states with rooted atomic replacement. Preserve unknown external files and retain complete recovery preimages on partial restore.
 - Schema v1 backs up v0 before DDL and preserves target links. Never prune delta revisions without verified checkpoints. See documentation/homepage-ledger.md and Homepage regression tests.
+- Bound project_dir changes use relocate under the workspace mutation lock; metadata updates must not split locations from revision history. Snapshot existing scaffold files before overwriting and retain their unknown provenance.
+- Restore validates every path and filesystem shape before writes, propagates request cancellation, tracks permission-only changes and rejects legacy sensitive contents. Migration backups are private before VACUUM copies any data.

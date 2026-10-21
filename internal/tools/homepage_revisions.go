@@ -3,6 +3,7 @@ package tools
 import (
 	"aurago/internal/fileutil"
 	"aurago/internal/security"
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -116,7 +117,7 @@ func enumerateProjectFiles(basePath string, logger *slog.Logger) ([]fileEntry, e
 			return fmt.Errorf("project exceeds the 10000-file revision inventory limit")
 		}
 		binary := isBinaryContent(prefix)
-		if contentBytes > 64*1024*1024 || len(prefix) > maxRevisionFileSize || security.RedactSensitiveInfo(string(prefix)) != string(prefix) {
+		if contentBytes > 64*1024*1024 || len(prefix) > maxRevisionFileSize || security.Scrub(security.RedactSensitiveInfo(string(prefix))) != string(prefix) {
 			data = nil
 		}
 		entries = append(entries, fileEntry{Path: rel, Data: data, Size: info.Size(), Hash: hex.EncodeToString(h.Sum(nil)), IsBinary: binary, ModTime: info.ModTime(), Mode: info.Mode().Perm()})
@@ -150,7 +151,7 @@ func computeDelta(baseline map[string]fileEntry, current []fileEntry) revisionDe
 	}
 	for _, f := range current {
 		if base, exists := baseline[f.Path]; exists {
-			if base.Hash != f.Hash {
+			if base.Hash != f.Hash || base.Mode != 0 && base.Mode.Perm() != f.Mode.Perm() {
 				delta.Modified = append(delta.Modified, f)
 			}
 		} else {
@@ -229,36 +230,86 @@ func reconstructProjectState(db *sql.DB, projectDir string, baseRevID int64, log
 }
 
 func RestoreRevisionFiles(projectDir string, files []HomepageRevisionFile, logger *slog.Logger) (restored []string, warnings []string) {
+	return restoreHomepageRevisionFiles(context.Background(), projectDir, files, logger)
+}
+
+func validateHomepageRestoreFiles(root *os.Root, files []HomepageRevisionFile) error {
+	removed := map[string]bool{}
+	for _, f := range files {
+		path := filepath.FromSlash(f.Path)
+		if shouldExcludePath(f.Path) || !filepath.IsLocal(path) {
+			return fmt.Errorf("unsafe or sensitive restore path")
+		}
+		if f.ChangeType != "deleted" && (int64(len(f.ContentAfter)) != f.SizeAfter || hashContent([]byte(f.ContentAfter)) != f.ContentHashAfter) {
+			return fmt.Errorf("incomplete or corrupted revision content for %s", f.Path)
+		}
+		if f.ChangeType != "deleted" && security.Scrub(security.RedactSensitiveInfo(f.ContentAfter)) != f.ContentAfter {
+			return fmt.Errorf("revision content for %s contains sensitive data; no files changed", f.Path)
+		}
+		var parents []string
+		for parent := filepath.Dir(path); parent != "."; parent = filepath.Dir(parent) {
+			parents = append(parents, parent)
+		}
+		recreated := false
+		for i := len(parents) - 1; i >= 0; i-- {
+			parent := parents[i]
+			if removed[parent] {
+				recreated = true
+				break
+			}
+			info, err := root.Lstat(parent)
+			if os.IsNotExist(err) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			if info.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("restore path traverses a symbolic link")
+			}
+			if !info.IsDir() {
+				return fmt.Errorf("restore parent %s is a file; no files changed", parent)
+			}
+		}
+		if !recreated {
+			info, err := root.Lstat(path)
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
+			if err == nil && (!info.Mode().IsRegular()) {
+				return fmt.Errorf("restore path %s is a directory or symbolic link; no files changed", f.Path)
+			}
+		}
+		if f.ChangeType == "deleted" {
+			removed[path] = true
+		}
+	}
+	return nil
+}
+
+func restoreHomepageRevisionFiles(ctx context.Context, projectDir string, files []HomepageRevisionFile, logger *slog.Logger) (restored []string, warnings []string) {
+	if err := ctx.Err(); err != nil {
+		return nil, []string{err.Error()}
+	}
 	root, err := os.OpenRoot(projectDir)
 	if err != nil {
 		return nil, []string{err.Error()}
 	}
 	defer root.Close()
-	for _, f := range files {
-		parent := filepath.Dir(filepath.FromSlash(f.Path))
-		for parent != "." {
-			if info, err := root.Lstat(parent); err == nil && info.Mode()&os.ModeSymlink != 0 {
-				return nil, []string{"restore path traverses a symbolic link"}
-			}
-			parent = filepath.Dir(parent)
-		}
+	if err := validateHomepageRestoreFiles(root, files); err != nil {
+		return nil, []string{err.Error()}
 	}
 	for _, f := range files {
-		if shouldExcludePath(f.Path) || !filepath.IsLocal(filepath.FromSlash(f.Path)) {
-			return nil, []string{"unsafe or sensitive restore path"}
+		if err := ctx.Err(); err != nil {
+			return restored, []string{err.Error()}
 		}
-		if f.ChangeType != "deleted" && (int64(len(f.ContentAfter)) != f.SizeAfter || hashContent([]byte(f.ContentAfter)) != f.ContentHashAfter) {
-			return nil, []string{fmt.Sprintf("incomplete or corrupted revision content for %s", f.Path)}
-		}
-	}
-	for _, f := range files {
 		if f.ChangeType == "deleted" {
 			err = root.Remove(filepath.FromSlash(f.Path))
 			if os.IsNotExist(err) {
 				err = nil
 			}
 		} else {
-			err = writeHomepageRevisionFile(context.Background(), root, f.Path, []byte(f.ContentAfter), os.FileMode(f.FileMode))
+			err = writeHomepageRevisionFile(ctx, root, f.Path, []byte(f.ContentAfter), os.FileMode(f.FileMode))
 		}
 		if err != nil {
 			return restored, []string{fmt.Sprintf("restore %s: %v", f.Path, err)}
@@ -282,13 +333,26 @@ func writeHomepageRevisionFile(ctx context.Context, root *os.Root, path string, 
 			mode = info.Mode().Perm()
 		}
 	}
+	if info, err := root.Stat(path); err == nil && info.Mode().Perm() != mode.Perm() && info.Size() == int64(len(data)) {
+		current, err := root.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if bytes.Equal(current, data) {
+			// A permission-only restore must also work on a read-only Windows destination.
+			return fileutil.PublishContext(ctx, func() error { return root.Chmod(path, mode) })
+		}
+	}
 	temp := filepath.Join(filepath.Dir(path), ".aurago-restore-"+rand.Text())
 	f, err := root.OpenFile(temp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, mode)
 	if err != nil {
 		return err
 	}
-	defer root.Remove(temp)
+	defer func() { _ = root.Chmod(temp, 0600); _ = root.Remove(temp) }()
 	if _, err = f.Write(data); err == nil {
+		err = f.Chmod(mode)
+	}
+	if err == nil {
 		err = f.Sync()
 	}
 	closeErr := f.Close()
@@ -351,7 +415,7 @@ func HomepageSaveRevision(cfg HomepageConfig, db *sql.DB, projectDir, message, r
 	}
 	defer tx.Rollback()
 	res, err := tx.Exec(`INSERT INTO homepage_revisions (project_id,project_dir,message,reason,author,file_count,restorable,metadata_json)
-        VALUES (?,?,?,?,?,?,?,?)`, projectID, projectDir, security.RedactSensitiveInfo(message), security.RedactSensitiveInfo(reason), func() string {
+        VALUES (?,?,?,?,?,?,?,?)`, projectID, projectDir, security.Scrub(security.RedactSensitiveInfo(message)), security.Scrub(security.RedactSensitiveInfo(reason)), func() string {
 		op := homepageCurrentOperation(cfg)
 		if op.Actor != "" {
 			return op.Actor
@@ -375,6 +439,9 @@ func HomepageSaveRevision(cfg HomepageConfig, db *sql.DB, projectDir, message, r
 			if group.kind == "deleted" {
 				before = f
 				after = fileEntry{}
+			}
+			if security.Scrub(security.RedactSensitiveInfo(string(before.Data))) != string(before.Data) {
+				before.Data = nil
 			}
 			if _, err := tx.Exec(`INSERT INTO homepage_revision_files
                 (revision_id,path,change_type,content_before,content_after,content_hash_before,content_hash_after,size_before,size_after,file_mode)
@@ -495,7 +562,7 @@ func HomepageDiffRevision(db *sql.DB, revisionID int64, path string, logger *slo
 	diffs := make([]map[string]interface{}, 0, len(files))
 	for _, f := range files {
 		isBinary := isBinaryContent([]byte(f.ContentBefore)) || isBinaryContent([]byte(f.ContentAfter))
-		beforeText, afterText := computeDiffText(security.RedactSensitiveInfo(f.ContentBefore), security.RedactSensitiveInfo(f.ContentAfter), isBinary)
+		beforeText, afterText := computeDiffText(security.Scrub(security.RedactSensitiveInfo(f.ContentBefore)), security.Scrub(security.RedactSensitiveInfo(f.ContentAfter)), isBinary)
 		diffs = append(diffs, map[string]interface{}{
 			"path":           f.Path,
 			"change_type":    f.ChangeType,
@@ -516,6 +583,10 @@ func HomepageDiffRevision(db *sql.DB, revisionID int64, path string, logger *slo
 }
 
 func HomepageRestoreRevision(cfg HomepageConfig, db *sql.DB, revisionID int64, path string, logger *slog.Logger) string {
+	ctx := nativeHTTPContext(cfg.Context)
+	if err := ctx.Err(); err != nil {
+		return ErrorJSON(err.Error())
+	}
 	if db == nil {
 		return ErrorJSON("homepage registry DB not initialized")
 	}
@@ -540,7 +611,7 @@ func HomepageRestoreRevision(cfg HomepageConfig, db *sql.DB, revisionID int64, p
 		if path != "" && name != path {
 			continue
 		}
-		if now, ok := present[name]; ok && now.Hash == f.Hash {
+		if now, ok := present[name]; ok && now.Hash == f.Hash && (f.Mode == 0 || now.Mode.Perm() == f.Mode.Perm()) {
 			continue
 		}
 		if int64(len(f.Data)) != f.Size || hashContent(f.Data) != f.Hash {
@@ -581,9 +652,24 @@ func HomepageRestoreRevision(cfg HomepageConfig, db *sql.DB, revisionID int64, p
 		}
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
+	root, err := os.OpenRoot(homepageLocalRoot(cfg, rev.ProjectDir))
+	if err != nil {
+		return ErrorJSON(err.Error())
+	}
+	defer root.Close()
+	if err := validateHomepageRestoreFiles(root, files); err != nil {
+		return ErrorJSON(err.Error())
+	}
+	if err := ctx.Err(); err != nil {
+		return ErrorJSON(err.Error())
+	}
 	// Keep a complete preimage even for assets too large for database revisions.
 	backup, err := os.MkdirTemp("", "aurago-homepage-restore-")
 	if err != nil {
+		return ErrorJSON(err.Error())
+	}
+	if err := fileutil.RestrictToOwner(backup); err != nil {
+		_ = os.Remove(backup)
 		return ErrorJSON(err.Error())
 	}
 	failed := false
@@ -592,12 +678,10 @@ func HomepageRestoreRevision(cfg HomepageConfig, db *sql.DB, revisionID int64, p
 			os.RemoveAll(backup)
 		}
 	}()
-	root, err := os.OpenRoot(homepageLocalRoot(cfg, rev.ProjectDir))
-	if err != nil {
-		return ErrorJSON(err.Error())
-	}
-	defer root.Close()
 	for _, f := range files {
+		if err := ctx.Err(); err != nil {
+			return ErrorJSON(err.Error())
+		}
 		if _, ok := present[f.Path]; !ok {
 			continue
 		}
@@ -626,7 +710,13 @@ func HomepageRestoreRevision(cfg HomepageConfig, db *sql.DB, revisionID int64, p
 			return ErrorJSON(syncErr.Error())
 		}
 	}
-	restored, warnings := RestoreRevisionFiles(homepageLocalRoot(cfg, rev.ProjectDir), files, logger)
+	if err := ctx.Err(); err != nil {
+		return ErrorJSON(err.Error())
+	}
+	restored, warnings := restoreHomepageRevisionFiles(ctx, homepageLocalRoot(cfg, rev.ProjectDir), files, logger)
+	if len(restored) == 0 && ctx.Err() != nil {
+		return ErrorJSON(ctx.Err().Error())
+	}
 	failed = len(warnings) > 0
 	outcome := "ok"
 	if failed {
