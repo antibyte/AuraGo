@@ -1,1 +1,193 @@
-/* Pixel: WP8a cutout panel. Empty until its work package fills it; loaded after pixel.css. Prefix every class with pixel-. */
+/* Pixel: WP8a cutout panel (background removal, AI model cards, refine section) and the cutout brush options. Loaded after
+   pixel.css; every class carries the pixel- prefix. */
+
+.pixel-cutout {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.pixel-cutout-hint {
+    padding: 0;
+    text-align: left;
+}
+
+.pixel-cutout-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 8px;
+}
+
+.pixel-cutout-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--pixel-muted);
+}
+
+.pixel-cutout-models {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pixel-cutout-model {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+    padding: 7px 8px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 8px;
+    background: var(--pixel-surface);
+}
+
+.pixel-cutout-model-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.pixel-cutout-state {
+    flex: 0 0 auto;
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: var(--pixel-muted);
+}
+
+.pixel-cutout-state.is-ready {
+    color: var(--pixel-accent);
+}
+
+.pixel-cutout-note {
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: var(--pixel-muted);
+    overflow-wrap: anywhere;
+}
+
+.pixel-cutout-note.is-error {
+    color: #ff8a8a;
+}
+
+.pixel-cutout-bar {
+    position: relative;
+    height: 5px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: var(--pixel-line);
+}
+
+.pixel-cutout-bar > span {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: var(--pixel-accent);
+    transition: width 160ms ease;
+}
+
+.pixel-cutout-bar.is-indeterminate > span {
+    width: 35%;
+    animation: pixel-cutout-slide 1.1s ease-in-out infinite;
+}
+
+@keyframes pixel-cutout-slide {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(290%); }
+}
+
+.pixel-cutout-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.pixel-cutout-actions .pixel-btn {
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
+}
+
+.pixel-cutout-actions .pixel-cutout-wide {
+    grid-column: 1 / -1;
+}
+
+.pixel-cutout-busy {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border: 1px solid var(--pixel-accent);
+    border-radius: 8px;
+    font-size: 0.78rem;
+}
+
+.pixel-cutout-busy[hidden] {
+    display: none;
+}
+
+.pixel-cutout-busy .pixel-cutout-bar {
+    flex: 1 1 auto;
+    min-width: 40px;
+}
+
+.pixel-cutout-busy [data-cutout-busy-label] {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pixel-cutout-refine-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pixel-cutout-refine.is-disabled .pixel-cutout-refine-body {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.pixel-cutout .pixel-btn[disabled] {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.pixel-cutout .pixel-btn.active {
+    border-color: var(--pixel-accent);
+    color: var(--pixel-accent);
+}
+
+.pixel-cutout .pixel-btn svg {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+}
+
+.pixel-options-bar .pixel-param-segmented {
+    flex: 0 0 auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pixel-cutout-bar.is-indeterminate > span {
+        width: 100%;
+        animation: none;
+        opacity: 0.55;
+    }
+
+    .pixel-cutout-bar > span {
+        transition: none;
+    }
+}
