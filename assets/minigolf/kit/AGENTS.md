@@ -244,8 +244,8 @@ of the P3 courses; `courses.py` (see "Course pipeline (P3)") drives them for `ge
 `generate.py --set p3 --out DIR` calls `courses.build_course(number, data, world, out, keep_scene)` for every course
 of `course_data_pirate|temple|moon.py` (plain literal lists `COURSES`; the shape is documented in `layout` and
 `course_data_pirate`; `--course N` rebuilds and patches one entry of `DIR/manifest.json`, a missing manifest is
-created, a partial course set is allowed until the switch-over). Course 1 of the pirate module is a placeholder
-with probe content. The steps:
+created, a partial course set is allowed until the switch-over). The pirate module holds the six Pirate Bay
+courses (1-6); a course is built, tuned and reviewed with `--course N` (Course data tips below). The steps:
 
 - `layout.build` makes the `Track`; `build_track.build` the floors, collision rails (+ `runs`) and `floor-cup`;
   `cup_parts.hole_marks` the tee ring, cup rim, flag, hole number and the ball/putter templates; then the
@@ -405,6 +405,17 @@ Blender: `mech_util`, `mechanic_parts` (bumper, boost), `mechanic_portals` (tele
   steps (`settle`). The dish is placed by the larger circle of its head.
 - Corridors, floor gap, hero order and `LIMIT`: see "Course pipeline (P3)".
 
+### Course data tips (P3)
+
+- Run `node scripts/minigolf-route-search.mjs --dir <out> --course <id>` after every build: a verified route needs at most par + 1
+  shots, and a par 3+ course must not have a one-shot route (a full-power shot rides the walls: sand strips of 5 m or more,
+  an off-axis plaza exit or a bend with bumpers break such aces).
+- Fixed props (`props`, `hero`) are part of the island footprint with their full radius plus the 2.5 m margin: they enlarge the
+  island. Keep tall props (palm, flagpole, lighthouse, ship) on the far (upper left) side of the lanes and low ones near them;
+  the dock (radius 3.4 about its shore end) needs 4.4 m from every lane and 3.7 m from the rim.
+- A heavy course (island above 30 m, many structures) stays inside the budgets with `"detail": {"island_quads": 3200,
+  "trim_facets": 3}`; a gap trench cuts the whole island, so every other part of the track must stay beyond it.
+
 ### Look
 
 - Khronos PBR Neutral view transform (look None, exposure 0, gamma 1), matching
@@ -457,7 +468,7 @@ Blender: `mech_util`, `mechanic_parts` (bumper, boost), `mechanic_portals` (tele
   `structure selftest ok`. Review a structure with a scratch course (bridge over a pond, ramp with supports, tunnel with
   each portal, moon chasm) and a Cycles render from the front of the portal and from the side of the bridge.
 - P3 courses: `blender --background --factory-startup --python assets/minigolf/generate.py -- --set p3 --out assets/minigolf/build/p3 --only kits,courses`
-  (course 1 of the data module; about 20 s with the kits, `--course N` about 15 s). Then
+  (every course of the data modules; `--course N` about 5-15 s). Then
   `node scripts/minigolf-route-search.mjs --dir assets/minigolf/build/p3 --course pirate-01` must find a verified route.
   `--course N` run twice, and once inside a full run, must give identical GLB and manifest-entry hashes. Review
   a course with `--course N --save-blend` (writes `assets/minigolf/build/aura-golf.blend`) and a scratch Cycles render.
