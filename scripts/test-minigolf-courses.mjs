@@ -46,7 +46,12 @@ const ROUTES = {
     'temple-10': [{"angle":1.832595714594046,"power":1},{"angle":-2.596476703040247,"power":0.15}],
     'temple-11': [{"angle":1.2109371888779847,"power":0.85},{"angle":1.1050123847470181,"power":0.15}],
     'temple-12': [{"angle":1.6929693744344996,"power":1},{"angle":2.4251973732384804,"power":0.15}],
-    // moon routes: recorded in the switch
+    'moon-13': [{"angle":1.5707963267948966,"power":0.45}],
+    'moon-14': [{"angle":1.3089969389957472,"power":1},{"angle":0.0774711556497309,"power":0.25}],
+    'moon-15': [{"angle":1.7957476935963579,"power":0.65},{"angle":3.46623861525252,"power":0.25}],
+    'moon-16': [{"angle":1.8910303584447268,"power":0.45},{"angle":2.6849503186969588,"power":1}],
+    'moon-17': [{"angle":1.3608005039387798,"power":1},{"angle":2.0760866852859885,"power":0.85},{"angle":-1.5593871692981225,"power":0.15}],
+    'moon-18': [{"angle":1.312723602389293,"power":1},{"angle":2.071097003039387,"power":0.45}],
 };
 
 const { manifest, courses: all } = await loadCourses(dir);
