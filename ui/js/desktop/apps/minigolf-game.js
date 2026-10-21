@@ -499,8 +499,8 @@ export function mountGame(host, context = {}) {
             if (!response.ok) throw Error('manifest');
             const data = await response.json();
             if (disposed) return;
-            // Version 1 lists colliders in the manifest; version 2 reads them from the GLB (the asset test checks the digest).
-            if (![1, 2].includes(data.version) || !Array.isArray(data.courses) || data.courses.length !== 18 || data.courses.some(c => !/^course-\d{2}\.glb$/.test(c.model) || (data.version === 2 && typeof c.collision?.digest !== 'string'))) throw Error('manifest');
+            // Manifest version 2: the collision meshes come from the GLB (the asset test checks the digest in the manifest).
+            if (data.version !== 2 || !Array.isArray(data.courses) || data.courses.length !== 18 || data.courses.some(c => !/^course-\d{2}\.glb$/.test(c.model) || typeof c.collision?.digest !== 'string')) throw Error('manifest');
             manifest = data;
             const legacyReset = migrateLegacy();
             worlds = worldIds(manifest.courses);

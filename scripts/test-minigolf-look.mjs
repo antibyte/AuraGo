@@ -16,12 +16,11 @@ for (const id of LOOK_IDS) {
 assert.equal(LOOKS.moon.water.mode, 'void');
 assert.equal(LOOKS.moon.fog, null);
 
-// Legacy worlds map onto the new looks until P3 renames them.
-assert.equal(lookOf({ world: 'coast' }), 'pirate');
-assert.equal(lookOf({ world: 'garden' }), 'temple');
-assert.equal(lookOf({ world: 'night' }), 'moon');
-assert.equal(lookOf({ world: 'coast', look: 'moon' }), 'moon');
-assert.equal(lookOf({ world: 'pirate' }), 'pirate');
+// The world id of a manifest v2 course is its look; anything else, the P1/P2 world ids included, falls back to pirate.
+for (const id of LOOK_IDS) assert.equal(lookOf({ world: id }), id, `${id} is its own look`);
+assert.equal(lookOf({ world: 'coast' }), 'pirate', 'a legacy world id is no longer mapped');
+assert.equal(lookOf({ world: 'garden', look: 'moon' }), 'pirate', 'a look field is not read');
+assert.equal(lookOf({}), 'pirate');
 assert.equal(lookOf(null), 'pirate');
 
 // Quality tiers.

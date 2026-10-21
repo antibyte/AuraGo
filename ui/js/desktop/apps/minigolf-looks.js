@@ -6,12 +6,10 @@ const deepFreeze = value => {
 };
 
 export const LOOK_IDS = Object.freeze(['pirate', 'temple', 'moon']);
-const LEGACY_LOOK = Object.freeze({ coast: 'pirate', garden: 'temple', night: 'moon' });
 
+// The world id of a manifest v2 course is its look.
 export function lookOf(course) {
-    if (course && LOOK_IDS.includes(course.look)) return course.look;
-    if (course && LOOK_IDS.includes(course.world)) return course.world;
-    return LEGACY_LOOK[course?.world] || 'pirate';
+    return LOOK_IDS.includes(course?.world) ? course.world : 'pirate';
 }
 
 export const LOOKS = deepFreeze({

@@ -26,7 +26,7 @@ assert.equal(Array.from(cleanName(String.fromCodePoint(0x1f600).repeat(30))).len
 assert.equal(cleanName('Ada' + ' '.repeat(21) + 'Lovelace'), 'Ada', 'trims again after cutting');
 assert.deepEqual(uniqueNames(['Ada 2', 'Ada', 'ada']), ['Ada 2', 'Ada', 'ada 3']);
 assert.deepEqual(uniqueNames(['y'.repeat(24), 'y'.repeat(24)]), ['y'.repeat(24), 'y'.repeat(22) + ' 2'], 'suffix stays within 24 code points');
-assert.deepEqual(worldIds([{ world: 'garden' }, { world: 'coast' }, { world: 'garden' }, { world: 'Bad' }]), ['garden', 'coast']);
+assert.deepEqual(worldIds([{ world: 'temple' }, { world: 'pirate' }, { world: 'temple' }, { world: 'Bad' }]), ['temple', 'pirate']);
 assert.ok(FLOOR_SURFACES.has('grass') && FLOOR_SURFACES.has('sand') && !FLOOR_SURFACES.has('wood'));
 assert.equal(formatToPar(0, 'Par'), 'Par');
 assert.equal(formatToPar(-2, 'Par'), String.fromCharCode(0x2212) + '2');

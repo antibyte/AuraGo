@@ -390,11 +390,11 @@ export function createScene(host, options) {
         if (!response.ok) throw Error('course_load');
         const bytes = await response.arrayBuffer();
         if (disposed || generation !== version) return false;
-        // v2 courses carry their physics meshes in the GLB; v1 manifests still list colliders.
+        // The physics meshes are nodes of the course GLB; the manifest only carries their digest.
         let colliders;
-        try { colliders = next.collision ? readColliders(bytes) : next.colliders; } catch (_) { throw Error('course_collision'); }
+        try { colliders = readColliders(bytes); } catch (_) { throw Error('course_collision'); }
         // A course without floor collision would load but drop the ball through the world.
-        if (next.collision && !colliders.some(group => group.surface === 'grass')) throw Error('course_collision');
+        if (!colliders.some(group => group.surface === 'grass')) throw Error('course_collision');
         const [gltf, kit] = await Promise.all([new GLTFLoader().parseAsync(bytes, ''), kitPromise]);
         if (disposed || generation !== version) { disposeTree(gltf.scene); return false; }
         if (courseRoot) { scene.remove(courseRoot); disposeTree(courseRoot); }

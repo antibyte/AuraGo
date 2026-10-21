@@ -1,6 +1,6 @@
 import { PALETTE, colorValue, fillText } from './minigolf-shared.js';
 
-export const WORLD_ICONS = { garden: 'flower', coast: 'wave', night: 'lantern', pirate: 'ship', temple: 'temple', moon: 'moon' };
+export const WORLD_ICONS = { pirate: 'ship', temple: 'temple', moon: 'moon' };
 
 export function roundLabel(mode, holeId, courses, tr) {
     if (mode === 'full') return tr('full');

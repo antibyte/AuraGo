@@ -3,7 +3,6 @@ import { createMusic } from './minigolf-audio-music.js';
 import { REVERB_PRESETS, createAmbience, createImpulse, playUi } from './minigolf-audio-synth.js';
 
 export const AUDIO_MANIFEST_PATH = '/3d/minigolf/audio/manifest.json';
-export const WORLD_ALIAS = { garden: 'temple', coast: 'pirate', night: 'moon' };
 export const REQUIRED_GROUPS = [
   'strike', 'impact.wood.light', 'impact.wood.medium', 'impact.wood.heavy', 'impact.stone',
   'impact.metal.light', 'impact.metal.medium', 'impact.metal.heavy', 'impact.soft.light', 'impact.soft.heavy',
@@ -168,16 +167,14 @@ export function createAudio({ assetURL = value => value, onTrack, onError, rando
   }
 
   function setMusic(context) {
-    const key = WORLD_ALIAS[context] || context;
-    musicContext = REVERB_PRESETS[key] ? key : 'menu';
+    musicContext = REVERB_PRESETS[context] ? context : 'menu';
     if (musicContext !== 'menu') worldContext = musicContext;
     if (unlocked && !disposed) applyMusic();
     return musicContext;
   }
 
   function setAmbient(world) {
-    const key = WORLD_ALIAS[world] || world;
-    const next = key === 'pirate' || key === 'temple' || key === 'moon' ? key : null;
+    const next = world === 'pirate' || world === 'temple' || world === 'moon' ? world : null;
     if (next === ambientWorld) return ambientWorld;
     ambientWorld = next;
     stopAmbience();

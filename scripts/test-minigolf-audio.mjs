@@ -17,10 +17,9 @@ const manifest = JSON.parse(fs.readFileSync(path.join(audioDir, 'manifest.json')
 const sampleCount = Object.values(manifest.sfx).flat().length;
 const fileBySha = new Map(manifest.files.map(file => [file.sha256, file]));
 
-const { AUDIO_CREDITS, AUDIO_MANIFEST_PATH, REQUIRED_GROUPS, WORLD_ALIAS, createAudio } = await load('minigolf-audio.js');
+const { AUDIO_CREDITS, AUDIO_MANIFEST_PATH, REQUIRED_GROUPS, createAudio } = await load('minigolf-audio.js');
 const { REVERB_PRESETS, createImpulse, mulberry32 } = await load('minigolf-audio-synth.js');
 assert.equal(AUDIO_MANIFEST_PATH, '/3d/minigolf/audio/manifest.json');
-assert.deepEqual(WORLD_ALIAS, { garden: 'temple', coast: 'pirate', night: 'moon' });
 assert.deepEqual([...REQUIRED_GROUPS].sort(), Object.keys(manifest.sfx).sort(), 'REQUIRED_GROUPS are exactly the manifest groups');
 for (const group of REQUIRED_GROUPS) assert.ok(manifest.sfx[group].length > 0, `${group} has samples`);
 assert.deepEqual(manifest.music.map(track => track.id), ['menu', 'pirate', 'temple', 'moon']);
@@ -193,9 +192,9 @@ await until(() => audio.getState().samples.loaded + audio.getState().samples.fai
 assert.deepEqual(audio.getState().samples, { loaded: sampleCount, failed: 0 });
 assert.equal(main.errors.length, 1, 'only the refused unlock was reported');
 
-// Music crossfade, aliases and manual override
+// Music crossfade and manual override
 ctx.currentTime = 10;
-audio.setMusic('coast');
+audio.setMusic('pirate');
 await until(() => musicSources().length === 2, 'pirate crossfade');
 const [menuSource, pirateSource] = musicSources();
 assert.equal(pirateSource.buffer.path, 'music/pirate.ogg');
@@ -205,7 +204,7 @@ assert.ok(fadeIn[1] === 1 && Math.abs(fadeIn[2] - 11.8) < 1e-9, 'new track fades
 assert.equal(main.tracks.at(-1).title, 'Pirate Adventure');
 assert.equal(ctx.nodes.filter(node => node.kind === 'convolver').length, 2, 'reverb swaps to a new convolver');
 assert.equal(ctx.nodes.filter(node => node.kind === 'convolver')[1].buffer.getChannelData(0).length, Math.round(REVERB_PRESETS.pirate.seconds * 44100));
-audio.setMusic('coast');
+audio.setMusic('pirate');
 await settle();
 assert.equal(musicSources().length, 2, 'the same context does not restart music');
 ctx.currentTime = 15;
@@ -214,15 +213,17 @@ assert.ok(Math.abs(audio.getState().position - 5) < 1e-9);
 assert.equal(audio.nextTrack(), true);
 await until(() => musicSources().length === 3, 'next track');
 assert.equal(musicSources()[2].buffer.path, 'music/temple.ogg');
-audio.setMusic('coast');
+audio.setMusic('pirate');
 await settle();
 assert.equal(musicSources().length, 3, 'a repeated context keeps the manual choice');
-audio.setMusic('night');
+audio.setMusic('moon');
 await until(() => musicSources().length === 4, 'moon');
 assert.equal(musicSources()[3].buffer.path, 'music/moon.ogg');
 audio.setMusic('nowhere');
 assert.equal(audio.getState().music, 'menu', 'unknown contexts select the menu');
-audio.setMusic('night');
+audio.setMusic('coast');
+assert.equal(audio.getState().music, 'menu', 'a P1/P2 world id is no longer an alias');
+audio.setMusic('moon');
 await settle();
 assert.equal(musicSources().length, 4, 'returning to the playing track cancels the pending switch');
 
@@ -305,7 +306,7 @@ assert.equal(audio.rolling(6, 'sand'), true);
 assert.equal(rollLoops('soft').length, 2, 'rolling restarts with fresh loops');
 
 // Ambience, UI sounds, win jingle
-audio.setAmbient('night');
+audio.setAmbient('moon');
 assert.equal(audio.getState().ambient, 'moon');
 assert.equal(oscillators(55).length, 1);
 assert.equal(oscillators(55)[0].starts.length, 1);
@@ -418,12 +419,12 @@ let outAtDisconnect;
 const realDisconnect = firstVerb.disconnect.bind(firstVerb);
 firstVerb.disconnect = () => { outAtDisconnect = firstOut.gain.last('target'); realDisconnect(); };
 rapidContext.currentTime = 10;
-rapid.audio.setMusic('coast');
+rapid.audio.setMusic('pirate');
 await until(() => rapidMusic().length === 2, 'rapid pirate');
 await until(() => outAtDisconnect, 'old reverb disconnect');
 assert.deepEqual(outAtDisconnect, ['target', 0, 10, 0.05], 'the old reverb output is faded to silence before it is disconnected');
 assert.ok(firstOut.disconnects > 0);
-for (const [i, world] of ['garden', 'night'].entries()) {
+for (const [i, world] of ['temple', 'moon'].entries()) {
   rapidContext.currentTime = 10.5 + i * 0.5;
   rapid.audio.setMusic(world);
   await until(() => rapidMusic().length === i + 3, `rapid ${world}`);

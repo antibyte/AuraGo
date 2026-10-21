@@ -1,9 +1,6 @@
 /* 1 Tokens: shell theme tokens first, base tokens second, matching warm fallbacks last. */
 .mg-app{--mg-bg:var(--vd-theme-app-bg,var(--vd-bg,#c9e2d6));--mg-surface:var(--vd-theme-panel-bg,var(--vd-surface,#fff9ec));--mg-surface-strong:var(--vd-theme-panel-bg-strong,var(--vd-surface-strong,#fff9ecf2));--mg-chrome:var(--vd-theme-chrome-bg,var(--vd-surface,#fff9ecf2));--mg-text:var(--vd-text,#244c40);--mg-muted:var(--vd-theme-muted,var(--vd-muted,#55695f));--mg-border:var(--vd-theme-border,var(--vd-border,#285b4833));--mg-control:var(--vd-theme-control-bg,#fff9ec);--mg-control-hover:var(--vd-theme-control-hover,#f8e9ce);--mg-overlay:var(--vd-theme-overlay-bg,#203a3233);--mg-radius:var(--vd-theme-radius-panel,12px);--mg-radius-lg:var(--vd-theme-radius-modal,18px);--mg-shadow:var(--vd-theme-shadow-modal,0 18px 48px #1a392a2e);--mg-focus:var(--vd-accent,#d98a3d);--mg-font:var(--vd-font-ui,'Geist',system-ui,sans-serif)}
 .mg-app,.mg-app [data-world=full],.mg-app [data-world=neutral]{--mg-accent:#df914f;--mg-accent-2:#f2c46b;--mg-accent-ink:#2b1503}
-.mg-app[data-world=garden],.mg-app [data-world=garden]{--mg-accent:#6fb35a;--mg-accent-2:#c9e39a;--mg-accent-ink:#0f2a0c}
-.mg-app[data-world=coast],.mg-app [data-world=coast]{--mg-accent:#2fa3b5;--mg-accent-2:#9fdde4;--mg-accent-ink:#04232a}
-.mg-app[data-world=night],.mg-app [data-world=night]{--mg-accent:#8a83e0;--mg-accent-2:#f2cf6b;--mg-accent-ink:#120e2e}
 .mg-app[data-world=pirate],.mg-app [data-world=pirate]{--mg-accent:#12b3ad;--mg-accent-2:#f0d08a;--mg-accent-ink:#032321}
 .mg-app[data-world=temple],.mg-app [data-world=temple]{--mg-accent:#d6a03c;--mg-accent-2:#4f9a54;--mg-accent-ink:#2a1a03}
 .mg-app[data-world=moon],.mg-app [data-world=moon]{--mg-accent:#a66bff;--mg-accent-2:#46dcff;--mg-accent-ink:#150530}
