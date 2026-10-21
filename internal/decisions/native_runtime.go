@@ -65,28 +65,17 @@ func discoverNativeDevices(ctx context.Context, managedRoot, sourceRoot, modelPa
 	devices := make([]runtimeDevice, 0)
 	checked := false
 	executed := false
-	managedTarget := filepath.Join(managedRoot, runtimeTarget(runtime.GOOS, runtime.GOARCH))
-	_, managedErr := os.Stat(managedTarget)
-	searchManaged := managedErr == nil
+	var integrityErr error
 	for _, backend := range runtimeBackends(runtime.GOOS) {
-		if err := ctx.Err(); err != nil {
-			return nil, NewError(CodeCancelled, err)
+		candidates, err := nativeRuntimeCandidates(ctx, sourceRoot, managedRoot, backend)
+		if ErrorCode(err) == CodeCancelled {
+			return nil, err
 		}
-		candidates := []string{filepath.Join(sourceRoot, "bin", "decisions-runtime", runtimeTarget(runtime.GOOS, runtime.GOARCH), backend)}
-		if searchManaged {
-			candidates = []string{filepath.Join(managedTarget, backend)}
+		if ErrorCode(err) == CodeRuntimeAttestationFailed {
+			integrityErr = err
 		}
-		if entry, ok := releaseRuntimeCatalog.native(runtime.GOOS, runtime.GOARCH, backend); ok {
-			candidates = append([]string{onnxrt.RuntimeDir(filepath.Join(managedRoot, "packages"), entry.asset())}, candidates...)
-		}
-		for _, directory := range candidates {
-			if err := validateDownloadedRuntime(ctx, directory, backend); err != nil {
-				continue
-			}
-			binary, digest, err := validateRuntimeManifest(ctx, directory, backend, runtime.GOOS, runtime.GOARCH)
-			if err != nil {
-				continue
-			}
+		for _, bundle := range candidates {
+			directory, binary, digest := bundle.directory, bundle.binary, bundle.digest
 			checked = true
 			args := []string{"--discover"}
 			if modelPath != "" {
@@ -140,6 +129,9 @@ func discoverNativeDevices(ctx context.Context, managedRoot, sourceRoot, modelPa
 		return nil, NewError(CodeCancelled, err)
 	}
 	if len(devices) == 0 && !checked {
+		if integrityErr != nil {
+			return nil, integrityErr
+		}
 		return nil, NewError(CodeRuntimeArtifactMissing, fmt.Errorf("no verified native runtime bundles are installed"))
 	}
 	if checked && !executed {

@@ -2,6 +2,7 @@ package decisions
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -81,18 +82,38 @@ func runtimeInstallBackends(cpuAllowed bool) []string {
 }
 
 func ensureNativeRuntime(ctx context.Context, sourceRoot, managedRoot string, cpuAllowed bool, progress func(string, int64, int64)) error {
-	if _, err := availableNativeRuntimeBundles(ctx, sourceRoot); err == nil {
-		return provisionNativeRuntime(ctx, sourceRoot, managedRoot)
-	} else if ErrorCode(err) != CodeRuntimeArtifactMissing {
-		return err
+	var integrityErr error
+	available := make(map[string]bool)
+	for _, backend := range runtimeBackends(runtime.GOOS) {
+		bundles, err := nativeRuntimeCandidates(ctx, sourceRoot, managedRoot, backend)
+		if ErrorCode(err) == CodeCancelled {
+			return err
+		}
+		if ErrorCode(err) == CodeRuntimeAttestationFailed {
+			integrityErr = err
+		}
+		if len(bundles) == 0 {
+			continue
+		}
+		bundle := bundles[0]
+		source := filepath.Join(sourceRoot, "bin", "decisions-runtime", runtimeTarget(runtime.GOOS, runtime.GOARCH), backend)
+		if bundle.directory == source {
+			if err := copyVerifiedRuntimeBundle(ctx, source, filepath.Join(managedRoot, runtimeTarget(runtime.GOOS, runtime.GOARCH), backend)); err != nil {
+				return err
+			}
+		}
+		available[backend] = true
 	}
 	cache := onnxrt.NewAssetCache(filepath.Join(managedRoot, "packages"), "AuraGo-Decisions", func(status onnxrt.DownloadStatus) {
 		if progress != nil {
 			progress("downloading_runtime", status.Downloaded, status.Total)
 		}
 	})
-	found := false
+	found := len(available) > 0
 	for _, backend := range runtimeInstallBackends(cpuAllowed) {
+		if available[backend] {
+			continue
+		}
 		entry, ok := releaseRuntimeCatalog.native(runtime.GOOS, runtime.GOARCH, backend)
 		if !ok {
 			continue
@@ -121,6 +142,9 @@ func ensureNativeRuntime(ctx context.Context, sourceRoot, managedRoot string, cp
 			return NewError(CodeCancelled, ctx.Err())
 		}
 		if err != nil {
+			if integrityErr != nil {
+				return NewError(CodeRuntimeAttestationFailed, errors.Join(integrityErr, err))
+			}
 			return NewError("runtime_download_failed", err)
 		}
 		if err := validateDownloadedRuntime(ctx, directory, backend); err != nil {
@@ -131,15 +155,8 @@ func ensureNativeRuntime(ctx context.Context, sourceRoot, managedRoot string, cp
 		}
 	}
 	if !found {
-		// Preserve already provisioned developer packages after the build tree is removed.
-		for _, backend := range runtimeBackends(runtime.GOOS) {
-			directory := filepath.Join(managedRoot, runtimeTarget(runtime.GOOS, runtime.GOARCH), backend)
-			if _, _, err := validateRuntimeManifest(ctx, directory, backend, runtime.GOOS, runtime.GOARCH); err == nil {
-				return nil
-			}
-		}
-		if ctx.Err() != nil {
-			return NewError(CodeCancelled, ctx.Err())
+		if integrityErr != nil {
+			return integrityErr
 		}
 		return NewError("runtime_release_unavailable", nil)
 	}

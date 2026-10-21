@@ -2,12 +2,10 @@ package decisions
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"runtime"
 
 	"aurago/internal/config"
-	"aurago/internal/onnxrt"
 )
 
 // InstallationCheck describes package prerequisites, not hardware readiness.
@@ -40,32 +38,22 @@ func (manager *Manager) CheckInstallation(ctx context.Context) InstallationCheck
 			}
 		} else {
 			result.Target = runtimeTarget(runtime.GOOS, runtime.GOARCH)
-			_, err = availableNativeRuntimeBundles(ctx, runtimeBuildDirectory(manager.options))
-			if ErrorCode(err) == CodeRuntimeArtifactMissing {
-				root := filepath.Join(manager.dataDir, "decisions", "runtime")
-				for _, backend := range runtimeBackends(runtime.GOOS) {
-					paths := []string{filepath.Join(root, result.Target, backend)}
-					if entry, ok := releaseRuntimeCatalog.native(runtime.GOOS, runtime.GOARCH, backend); ok {
-						paths = append(paths, onnxrt.RuntimeDir(filepath.Join(root, "packages"), entry.asset()))
-					}
-					for _, directory := range paths {
-						if _, statErr := os.Stat(directory); os.IsNotExist(statErr) {
-							continue
-						}
-						if verifyErr := validateDownloadedRuntime(ctx, directory, backend); verifyErr != nil {
-							err = verifyErr
-							continue
-						}
-						if _, _, verifyErr := validateRuntimeManifest(ctx, directory, backend, runtime.GOOS, runtime.GOARCH); verifyErr == nil {
-							result.RuntimeAvailable = true
-						} else {
-							err = NewError(CodeRuntimeAttestationFailed, verifyErr)
-						}
-					}
+			err = NewError(CodeRuntimeArtifactMissing, nil)
+			for _, backend := range runtimeBackends(runtime.GOOS) {
+				bundles, verifyErr := nativeRuntimeCandidates(ctx, runtimeBuildDirectory(manager.options), filepath.Join(manager.dataDir, "decisions", "runtime"), backend)
+				if ErrorCode(verifyErr) == CodeCancelled {
+					err = verifyErr
+					break
 				}
-				if result.RuntimeAvailable {
-					err = nil
+				if len(bundles) > 0 {
+					result.RuntimeAvailable = true
 				}
+				if ErrorCode(verifyErr) == CodeRuntimeAttestationFailed {
+					err = verifyErr
+				}
+			}
+			if result.RuntimeAvailable && ctx.Err() == nil {
+				err = nil
 			}
 		}
 	}
