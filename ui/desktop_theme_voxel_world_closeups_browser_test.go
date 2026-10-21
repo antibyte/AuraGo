@@ -94,7 +94,7 @@ func TestDesktopVoxelWorldCloseUpsBrowser(t *testing.T) {
 	for _, shot := range []struct {
 		name, anchor string
 		hour         float64
-	}{{"closeup-waterfall", "waterfall", 11}, {"closeup-village", "village", 11}, {"closeup-windmill", "windmill", 11}, {"closeup-village-night", "village", 22.5}} {
+	}{{"closeup-waterfall", "waterfall", 11}, {"closeup-waterfall-rainbow", "waterfall", 17}, {"closeup-village", "village", 11}, {"closeup-windmill", "windmill", 11}, {"closeup-village-night", "village", 22.5}} {
 		setTime(shot.hour, 12)
 		x, y := anchor(shot.anchor)
 		voxelShot(t, s, shot.name, voxelClipAround(x, y, 640, 360, 2))

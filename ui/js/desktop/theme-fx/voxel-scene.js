@@ -33,9 +33,9 @@
         rim: { day: .35, night: .55, nightColor: '#8fa8ff', side: .45, up: .55 }
     };
     const KEY_TAU = 1.2;                  // seconds the key light needs to swing to a new direction
-    // The cloud sea fades into the sky through the fog; the fog colour is the sky gradient at this screen row (share of the height
-    // from the top), so the far edge of the sea disappears into the sky behind it.
-    const FOG = { near: .95, far: 2.3, skyRow: .3 };   // near and far in camera distances
+    // The fog colour and the cloud sea's haze (uniforms.uHaze) are the sky gradient at this screen row (share of the height from the
+    // top), where the sea meets the sky: the far edge of the sea disappears into the sky behind it.
+    const FOG = { near: .95, far: 2.3, skyRow: .5 };   // near and far in camera distances
     // The tilt-shift target is drawn at min(dpr, 1) with 2 MSAA samples (a 4x half-float target costs about 56 bytes per pixel) and
     // only when the picture is small enough: width x height x min(dpr, 1)^2 <= maxPixels.
     const TILT = { focusY: .47, band: .16, feather: .28, maxBlur: 3.2, vignette: .16, saturation: 1.08, samples: 2, maxPixels: 2.4e6 };
@@ -49,7 +49,7 @@
         // one-block craters at the listed block centres.
         moon: {
             size: .044, x: .85, dx: .7, y: .42, dy: .3, color: '#e8ecff', gain: 1.8, cells: 10, cut: [2.3, -1.5], cutRadius: 4,
-            craters: [[-3.5, .5], [-2.5, 3.5], [-4.5, -1.5]], crater: .22, halo: 1.9, haloAlpha: .045, haloColor: '#8fa8ff', haloGain: 1.4
+            craters: [[-3.5, .5], [-2.5, 3.5], [-4.5, -1.5]], crater: .22, halo: 1.9, haloAlpha: .03, haloColor: '#8fa8ff', haloGain: 1.4
         },
         stars: { cell: 12, small: .04, bright: .006, fadeFrom: .35, fadeTo: .9, gain: 1.5, parallax: 6 }   // cell in px at 1080 high; parallax in px per degree of camera yaw
     };
@@ -207,7 +207,8 @@
             uCloudShadow: { value: 0 },
             uSun: { value: 1 },
             uTexel: { value: TEXEL },
-            uSkyHorizon: { value: new THREE.Color() }   // the water mixes towards it
+            uSkyHorizon: { value: new THREE.Color() },   // the water mixes towards it
+            uHaze: { value: new THREE.Color() }          // the sky colour at the horizon row (the cloud sea blends into it)
         };
         const skyUniforms = {
             uTop: { value: new THREE.Color() }, uHorizon: { value: new THREE.Color() }, uBottom: { value: new THREE.Color() },
@@ -490,6 +491,7 @@
             setSrgb(uniforms.uSkyHorizon.value, sky.skyHorizon);
             updateSkyPaths(sky.hour);
             fogLinear = skyGradientAt(FOG.skyRow);
+            uniforms.uHaze.value.setRGB(fogLinear[0], fogLinear[1], fogLinear[2], THREE.LinearSRGBColorSpace);
             applyFog();
             skyUniforms.uSunVisible.value = sky.sunVisible;
             skyUniforms.uMoonVisible.value = sky.moonVisible;
