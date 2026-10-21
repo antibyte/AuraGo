@@ -132,7 +132,7 @@ class Dresser:
         cup = self.track.cup
         try:
             self.placements = placement.place(self.look, self.number, field, self.terrain.top_height, self.catalog, plan, fixed=fixed,
-                                              reserved=tuple(reserved) + tuple(self.reserved), cup=(cup[0], cup[1]), hero=self.hero, props=self.props)
+                                              reserved=tuple(reserved) + tuple(self.reserved), cup=(cup[0], cup[1]), hero=self.hero, props=self.props, water=self.terrain.water_level)
             placement.check(self.placements, field, self.catalog)
         except (ValueError, RuntimeError) as exc:
             raise type(exc)(self.where + str(exc)) from None

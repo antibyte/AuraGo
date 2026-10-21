@@ -56,6 +56,7 @@ HERO_RIM = 0.85  # a hero's rigging or brow may overhang the rim a little
 TALL_RIM = 0.6  # fronds and tops overhang, the foot stays on the island
 RIM = {"fern": 0.5, "bush": 0.5, "tuft": 0.5, "seaweed": 0.4, "shell": 0.6, "crab": 0.6, "starfish": 0.6}
 EXTRA_SINK = {"boulder": 0.1, "rock": 0.05, "crystal": 0.03, "islet": 0.1}
+FLOATING = ("lilypad",)  # props that ride the water surface of a pond (``water`` of ``place``) instead of standing on its bottom
 
 FOOTPRINT = {"gate": ((-1.9, 0.0, 1.1), (1.9, 0.0, 1.1))}  # (x, y, radius) circles in prop space
 
@@ -200,8 +201,13 @@ def _facing(name, mode, x, y, front, field, rng, cup):
     return yaw + rng.uniform(-1.0, 1.0) * YAW_NOISE.get(name, 0.2)
 
 
-def _ground(name, info, x, y, scale, top_height):
-    """Base height: flat props ride the highest ground under them, upright props sink a little into the lowest."""
+def _ground(name, info, x, y, scale, top_height, water=None):
+    """Base height: flat props ride the highest ground under them, upright props sink a little into the lowest.
+
+    A ``FLOATING`` prop on a pond (``water(x, y)`` gives the surface height there) rides the water surface.
+    """
+    if name in FLOATING and water is not None and water(x, y) is not None:
+        return water(x, y)
     flat = "flat" in info["tags"]
     reach = min(0.3, 0.25 * info["radius"]) * scale
     samples = [top_height(x, y)] + [top_height(x + math.cos(a) * reach, y + math.sin(a) * reach) for a in (0.0, 1.57, 3.14, 4.71)]
@@ -239,14 +245,15 @@ def hero_conflict(field, catalog, name, x, y, scale):
     return None
 
 
-def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(), cup=(0.0, 0.0), hero=None, props=()):
+def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(), cup=(0.0, 0.0), hero=None, props=(), water=None):
     """Placements ``[(name, x, y, z, yaw, scale)]``; see the module docstring.
 
     ``fixed`` are ``(name, x, y, yaw, scale)`` parts that are kept first (moved inwards only as far as the rim
     rule needs); ``reserved`` are ``(x, y, radius)`` circles taken by other geometry; ``hero`` is
     ``{"name", "at": (x, y), "yaw": radians}`` or None (no hero); ``props`` are the course data's fixed props
     ``(name, x, y, yaw, scale)``; ``plan`` holds the ``medium`` and ``scatter`` lists of ``(name, count)`` (a
-    medium prop that is a fixed part or a fixed prop is not placed again).
+    medium prop that is a fixed part or a fixed prop is not placed again); ``water(x, y)`` is the surface height of a
+    pond at a point or None (see ``FLOATING``).
     """
     rng = random.Random(1000 + number)
     plan = placement_plan.scaled(plan, field.outline.half)
@@ -277,7 +284,7 @@ def place(look, number, field, top_height, catalog, plan, fixed=(), reserved=(),
 
     def add(name, x, y, yaw, scale):
         info = catalog[name]
-        out.append((name, x, y, _ground(name, info, x, y, scale, top_height), yaw, scale))
+        out.append((name, x, y, _ground(name, info, x, y, scale, top_height, water), yaw, scale))
         occupied.append((x, y, solid(name, scale)))
         if name == "dishbase":  # the head turns on its own: same transform, no second footprint
             out.append(("dishhead", x, y, out[-1][3], yaw, scale))

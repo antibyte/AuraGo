@@ -87,8 +87,9 @@ class Terrain:
     def _pool(self, hazard):
         polygon = [tuple(p) for p in hazard["polygon"]]
         floor = TRENCH_Z[self.look] if hazard["kind"] == "void" else hazard["z"] - POND_DROP - POND_DEPTH
-        return {"polygon": polygon, "floor": floor, "box": (hazard["min"][0] - 1.0, hazard["min"][1] - 1.0, hazard["max"][0] + 1.0,
-                                                           hazard["max"][1] + 1.0)}
+        surface = None if hazard["kind"] == "void" else hazard["z"] - POND_DROP
+        return {"polygon": polygon, "floor": floor, "surface": surface,
+                "box": (hazard["min"][0] - 1.0, hazard["min"][1] - 1.0, hazard["max"][0] + 1.0, hazard["max"][1] + 1.0)}
 
     def _patches(self, rng):
         """Grass patches away from the track: a few per 9 m^2 of island, seeded."""
@@ -152,6 +153,14 @@ class Terrain:
             if x0 - margin <= x <= x1 + margin and y0 - margin <= y <= y1 + margin and polygon_distance(pool["polygon"], x, y) <= margin + POOL_OUT:
                 return True
         return False
+
+    def water_level(self, x, y):
+        """Height of the water surface where ``(x, y)`` lies at least 0.2 m inside a water pool (floating props), else None."""
+        for pool in self.pools:
+            x0, y0, x1, y1 = pool["box"]
+            if pool["surface"] is not None and x0 <= x <= x1 and y0 <= y <= y1 and polygon_distance(pool["polygon"], x, y) <= -0.2:
+                return pool["surface"]
+        return None
 
     def top_height(self, x, y, edge=None):
         if edge is None:
