@@ -239,6 +239,7 @@ Agent filesystem, external service and Docker tool safety boundaries.
   removal. Rooted wrappers and parent deletion/moves must preserve this boundary.
   Verify `TestRegisteredKeyPath*`, `TestSupervisorRuntime*` and
   `TestSupervisorPythonIgnoresCWDAndPythonPathHooks` without Docker.
+- Explicit supervisor provisioning probes pip even when the private Python already exists. Repair a missing pip with that interpreter's bundled `ensurepip` before installing the pinned package; never adopt the agent venv or fetch a bootstrap script. Verify `TestSupervisorRuntimeRepairsPythonWithoutPip` offline.
 - Python skill quality maintenance only compiles and parses source using a
   trusted system interpreter outside the configured agent jail. Reuse the
   isolated `-I`, filtered-environment supervisor command for syntax and AST

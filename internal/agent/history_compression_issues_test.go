@@ -10,12 +10,12 @@ func TestHistoryCompressionIssueRequiresRepeatAndResolves(t *testing.T) {
 	db := newPlannerTestDB(t)
 	t.Cleanup(func() { _ = db.Close() })
 	runCfg := RunConfig{PlannerDB: db, SessionID: "summary-test"}
-	recordHistoryCompressionFailure(runCfg)
+	recordHistoryCompressionFailure(runCfg, "request_failed")
 	page, err := planner.ListOperationalIssues(db, planner.OperationalIssueListFilter{Status: "active", Source: "llm"})
 	if err != nil || page.Total != 0 {
 		t.Fatalf("first failure page=%#v err=%v", page, err)
 	}
-	recordHistoryCompressionFailure(runCfg)
+	recordHistoryCompressionFailure(runCfg, "incomplete_response")
 	page, err = planner.ListOperationalIssues(db, planner.OperationalIssueListFilter{Status: "active", Source: "llm"})
 	if err != nil || page.Total != 1 {
 		t.Fatalf("repeated failure page=%#v err=%v", page, err)

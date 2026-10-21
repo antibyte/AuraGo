@@ -144,7 +144,7 @@ func TestPersistentCompressionCancellationRecordsNoFailure(t *testing.T) {
 		}
 	}
 	historyCompressionFailures.Lock()
-	failures := historyCompressionFailures.counts[t.Name()]
+	failures := historyCompressionFailures.states[t.Name()].count
 	historyCompressionFailures.Unlock()
 	if failures != 0 {
 		t.Fatalf("cancelled compression recorded %d failures, want 0", failures)

@@ -78,6 +78,12 @@ type OperationalIssueNoticeRef struct {
 	Revision    int
 }
 
+// OperationalIssueFingerprint returns the identity used by the recorder, including
+// legacy derived fingerprints, so callers can resolve a recovered issue exactly.
+func OperationalIssueFingerprint(issue OperationalIssue) string {
+	return normalizeOperationalIssue(issue).Fingerprint
+}
+
 // RecordOperationalIssue creates or updates a deduplicated internal record for
 // a background problem. Repeated occurrences update the same record instead of
 // flooding the user's visible planner todos.
