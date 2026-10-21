@@ -168,6 +168,8 @@ func handleSIPSetup(s *Server) http.HandlerFunc {
 			writeSIPSetupError(w, err.Error(), sipSetupErrorField(err.Error()), http.StatusBadRequest)
 			return
 		}
+		next.Voice = old.Voice
+		next.Inbound.AutoAnswerDelayMS = old.Inbound.AutoAnswerDelayMS
 		var runtimeCfg *config.Config
 		if s != nil {
 			runtimeCfg = s.ConfigSnapshot()
@@ -190,6 +192,9 @@ func handleSIPSetup(s *Server) http.HandlerFunc {
 				jsonError(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+		}
+		if next.Permissions.AnswerInbound && sipConfigHasAccount(old) && old.Inbound.Route == "agent" {
+			next.Inbound.Route = "agent"
 		}
 		next.Password = old.Password
 		mutations := make([]vaultMutation, 0, 1)
@@ -238,7 +243,7 @@ func handleSIPSetup(s *Server) http.HandlerFunc {
 			if s != nil && s.Logger != nil {
 				s.Logger.Error("Failed to apply SIP provider preset", "error", err)
 			}
-			jsonError(w, err.Error(), http.StatusInternalServerError)
+			jsonError(w, "Failed to apply SIP provider preset", http.StatusInternalServerError)
 			return
 		}
 		runtimePending := false
@@ -342,6 +347,8 @@ func handleDeleteSIPConfig(s *Server, w http.ResponseWriter, r *http.Request) {
 	defer releaseReconfigure()
 	var next config.SIPConfig
 	config.ApplySIPDefaults(&next)
+	next.Voice = old.Voice
+	next.Inbound.AutoAnswerDelayMS = old.Inbound.AutoAnswerDelayMS
 	next.Enabled = false
 	next.Inbound.Route = "reject"
 	next.Password = ""
@@ -470,7 +477,7 @@ func handlePutSIPConfig(s *Server, w http.ResponseWriter, r *http.Request) {
 		if s != nil && s.Logger != nil {
 			s.Logger.Error("Failed to update SIP configuration", "error", err)
 		}
-		jsonError(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, "Failed to update SIP configuration", http.StatusInternalServerError)
 		return
 	}
 	if s.SIPPhone != nil {
@@ -567,8 +574,7 @@ func persistSIPConfig(s *Server, next config.SIPConfig, mutations []vaultMutatio
 	}
 	vaultSnapshots, err := applyVaultMutations(s.Vault, mutations)
 	if err != nil {
-		_ = config.WriteFileAtomic(configPath, original, 0o600)
-		return fmt.Errorf("update SIP secret: %w", err)
+		return errors.Join(fmt.Errorf("update SIP secret: %w", err), rollbackSIPConfig(configPath, original, nil, nil))
 	}
 	newConfig, err := config.Load(configPath)
 	if err == nil {
@@ -577,9 +583,7 @@ func persistSIPConfig(s *Server, next config.SIPConfig, mutations []vaultMutatio
 		err = config.ValidateSIPRuntimeConfig(newConfig.SIP)
 	}
 	if err != nil {
-		_ = config.WriteFileAtomic(configPath, original, 0o600)
-		_ = restoreVaultSecrets(s.Vault, vaultSnapshots)
-		return fmt.Errorf("reload SIP config: %w", err)
+		return errors.Join(fmt.Errorf("reload SIP config: %w", err), rollbackSIPConfig(configPath, original, s.Vault, vaultSnapshots))
 	}
 	newConfig.ResolveProviders()
 	newConfig.ApplyOAuthTokens(s.Vault)
@@ -587,6 +591,17 @@ func persistSIPConfig(s *Server, next config.SIPConfig, mutations []vaultMutatio
 	s.replaceConfigSnapshot(newConfig)
 	s.CfgMu.Unlock()
 	return nil
+}
+
+func rollbackSIPConfig(path string, original []byte, vault providerVaultStore, snapshots map[string]vaultSnapshot) error {
+	var failures []error
+	if err := config.WriteFileAtomic(path, original, 0o600); err != nil {
+		failures = append(failures, fmt.Errorf("restore SIP config: %w", err))
+	}
+	if err := restoreVaultSecrets(vault, snapshots); err != nil {
+		failures = append(failures, fmt.Errorf("restore SIP credentials: %w", err))
+	}
+	return errors.Join(failures...)
 }
 
 func handleSIPTest(s *Server) http.HandlerFunc {

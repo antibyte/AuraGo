@@ -95,6 +95,9 @@ func handleSIPAgent(s *Server) http.HandlerFunc {
 				return
 			}
 			if err := persistSIPConfig(s, next, nil); err != nil {
+				if s.Logger != nil {
+					s.Logger.Error("Failed to save telephone agent configuration", "error", err)
+				}
 				jsonError(w, "Failed to save telephone agent configuration", http.StatusInternalServerError)
 				return
 			}

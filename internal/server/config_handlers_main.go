@@ -479,6 +479,13 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 		delete(patch, "_effective_tool_policy")
 		delete(patch, "_config_migrations")
+		if _, present := patch["sip"]; present {
+			writeSIPJSONStatus(w, http.StatusBadRequest, map[string]string{
+				"status": "error", "code": "sip_use_dedicated_api",
+				"message": "Change SIP settings through /api/sip/config and /api/sip/agent",
+			})
+			return
+		}
 		if err := config.ValidatePersonalityLegacyPatch(patch); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return

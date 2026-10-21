@@ -299,6 +299,9 @@ func NormalizeSIPConfig(cfg *SIPConfig) {
 
 // ValidateSIPConfig checks invariants that can be decided without network access.
 func ValidateSIPConfig(cfg SIPConfig) error {
+	if cfg.Inbound.AutoAnswerDelayMS < 0 || cfg.Inbound.AutoAnswerDelayMS > 60000 {
+		return fmt.Errorf("sip.inbound.auto_answer_delay_ms must be between 0 and 60000")
+	}
 	// Programmatic tests and partial config writers may construct Config without
 	// running Load. An entirely absent, disabled SIP block is valid and receives
 	// defaults the next time the configuration is loaded.
