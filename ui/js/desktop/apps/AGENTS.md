@@ -4662,6 +4662,7 @@ registration lives in `internal/desktop/types.go`.
 - The notes.meta.json sidecar keeps version/pinned/sort/last_note. Full-text search is
   server-side, shared with desktop_notes; no browser 500-file index. Relative attachments
   and link destinations survive moves; user trash preserves original folder paths.
+  Attachment uploads use `If-None-Match: *` even with unique filenames.
   A missing sidecar returns 404 through the real Notes handler so first use can
   create it conditionally; wrapped filesystem errors must retain that status.
 - Agent Notes access is list/search/read/create only in native APIs, including

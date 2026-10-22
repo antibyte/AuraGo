@@ -17,6 +17,27 @@ async () => {
     check(moved.includes('example: "[literal](image.png)"')&&moved.includes('\u0060[code](image.png)\u0060')&&moved.includes('~~~md\n[code](image.png)\n~~~'),'Move rewrote literal source');
 
     await app.session.save();
+    const png=Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a4mcAAAAASUVORK5CYII='),char=>char.charCodeAt(0));
+    for(const [name,paste,image] of [['pasted.png',true,true],['inserted.png',false,true],['attachment.txt',false,false]]){
+        const transfer=new DataTransfer();
+        transfer.items.add(new File([image?png:'Attachment content'],name,{type:image?'image/png':'text/plain'}));
+        if(paste)app.editor.view.dom.dispatchEvent(new ClipboardEvent('paste',{clipboardData:transfer,bubbles:true,cancelable:true}));
+        else{
+            const input=document.querySelector('[data-upload]');input.files=transfer.files;
+            input.dispatchEvent(new Event('change',{bubbles:true}));
+        }
+        const deadline=performance.now()+5000;
+        while(!app.editor.content().includes(name)&&document.querySelector('[data-notice]').hidden&&performance.now()<deadline)await new Promise(resolve=>setTimeout(resolve,20));
+        check(app.editor.content().includes(name),name+' upload failed: '+document.querySelector('[data-notice-text]').textContent);
+        check(document.querySelector('[data-notice]').hidden,'Upload showed a false conflict');
+        if(image){
+            const img=[...app.editor.view.dom.querySelectorAll('img')].find(img=>img.src.includes(name));
+            check(img,'Uploaded image was not inserted');await img.decode();
+        }
+        await app.session.save();
+        const saved=await(await fetchOriginal('/api/desktop/notes?path='+encodeURIComponent(app.path))).json();
+        check(saved.content.includes('.attachments/')&&saved.content.includes(name)&&!app.session.dirty,'Attachment link was not saved');
+    }
     let release, started;
     const began=new Promise(resolve=>started=resolve);
     let first=true,active=0,maxActive=0;
@@ -114,5 +135,5 @@ async () => {
     await bigEditor.destroy();bigHost.remove();
 
     check(errors.length===0,'Browser errors: '+errors.join('\n'));
-    return {serialSaves:true,conflictCopy:true,recovery:true,readonly:true,aiRevision:true,linkPreservation:true,largeNoteChars:big.length};
+    return {imagePaste:true,imageUpload:true,attachmentUpload:true,serialSaves:true,conflictCopy:true,recovery:true,readonly:true,aiRevision:true,linkPreservation:true,largeNoteChars:big.length};
 }

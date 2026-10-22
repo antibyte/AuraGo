@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -28,6 +29,49 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 	files := map[string]string{"Documents/Notes/aurora.md": content, "Documents/Notes/ideen.md": "# Ideen\n\nEine neue Perspektive.", "Documents/Notes/einkauf.md": "# Für die Werkstatt\n\n- [ ] Kaffee\n- [ ] Pflanzen"}
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(".")))
+	mux.HandleFunc("/api/desktop/upload", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Header.Get("If-None-Match") != "*" {
+			w.WriteHeader(http.StatusPreconditionRequired)
+			fmt.Fprint(w, `{"error":"file_precondition_required"}`)
+			return
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		defer r.MultipartForm.RemoveAll()
+		if r.FormValue("path") != "Documents/Notes/.attachments" || r.FormValue("unique") != "1" {
+			http.Error(w, "Invalid attachment destination", http.StatusBadRequest)
+			return
+		}
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+		data, err := io.ReadAll(file)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		path := r.FormValue("path") + "/" + header.Filename
+		mu.Lock()
+		files[path] = string(data)
+		mu.Unlock()
+		json.NewEncoder(w).Encode(map[string]string{"path": path})
+	})
+	mux.HandleFunc("/api/desktop/download", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		data, exists := files[r.URL.Query().Get("path")]
+		if !exists {
+			http.NotFound(w, r)
+			return
+		}
+		w.Write([]byte(data))
+	})
 	mux.HandleFunc("/api/desktop/notes", func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		defer mu.Unlock()
@@ -83,7 +127,7 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	launch := launcher.New().Bin(bin).Headless(true).NoSandbox(true)
+	launch := launcher.New().Bin(bin).Headless(true).NoSandbox(true).Leakless(false)
 	browser := rod.New().ControlURL(launch.MustLaunch()).MustConnect()
 	defer launch.Cleanup()
 	defer browser.Close()

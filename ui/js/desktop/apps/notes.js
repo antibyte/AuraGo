@@ -237,7 +237,7 @@
             if(file.size>20*1024*1024)throw Error(tr('attachment_too_large'));
             if(imageOnly&&!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type))throw Error(tr('image_type'));
             const form=new FormData();form.append('path',DIR+'/.attachments');form.append('unique','1');form.append('file',file,crypto.randomUUID().slice(0,8)+'-'+file.name);
-            const result=await request('/api/desktop/upload',{method:'POST',body:form,signal:docLife.signal});
+            const result=await request('/api/desktop/upload',{method:'POST',headers:{'If-None-Match':'*'},body:form,signal:docLife.signal});
             return relativePath(current.path,result.path);
         }
         function popup(items,anchor){
