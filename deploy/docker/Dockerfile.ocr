@@ -3,12 +3,12 @@ ARG TARGETARCH
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 HF_HUB_OFFLINE=1
 ENV OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 OPENCV_FOR_THREADS_NUM=1
 WORKDIR /app
-COPY internal/ocr/runtime/requirements.txt internal/ocr/runtime/install_packages.py /app/
+COPY --chmod=0644 internal/ocr/runtime/requirements.txt internal/ocr/runtime/install_packages.py /app/
 RUN python install_packages.py "$TARGETARCH"
-COPY internal/ocr/runtime/models.json internal/ocr/runtime/download_models.py /app/
+COPY --chmod=0644 internal/ocr/runtime/models.json internal/ocr/runtime/download_models.py /app/
 RUN python download_models.py
-COPY LICENSE /licenses/LICENSE-AURAGO.txt
-COPY licences/texts/Apache-2.0.txt /licenses/LICENSE-CODE.txt
+COPY --chmod=0644 LICENSE /licenses/LICENSE-AURAGO.txt
+COPY --chmod=0644 licences/texts/Apache-2.0.txt /licenses/LICENSE-CODE.txt
 RUN python -c "from pathlib import Path; [p.write_bytes(p.read_bytes().replace(b'\r\n',b'\n')) for p in Path('/licenses').iterdir()]"
 
 FROM python:3.12-slim@sha256:cb33f7f771ecec2ef1225cf39b159591a040391bd73e4c01f00fdfc4c47611d2
@@ -17,8 +17,9 @@ ENV OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREA
 WORKDIR /app
 COPY --from=dependencies /packages/ /usr/local/lib/python3.12/site-packages/
 COPY --from=dependencies /models/ /models/
-COPY internal/ocr/runtime/ /app/
-COPY licences/texts/Indra-OCR-models.txt /app/LICENSE-MODELS.txt
+# Windows and Linux checkouts must produce identical file modes and digests.
+COPY --chmod=0644 internal/ocr/runtime/* /app/
+COPY --chmod=0644 licences/texts/Indra-OCR-models.txt /app/LICENSE-MODELS.txt
 COPY --from=dependencies /licenses/ /app/
 LABEL org.opencontainers.image.source="https://github.com/antibyte/AuraGo" aurago.ocr.version="1.1.2" aurago.ocr.model_revision="bd02167fdf2005a19962cc15188f8496a2c87d3b"
 USER 1001:1001

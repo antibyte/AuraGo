@@ -98,6 +98,8 @@ docker load --input ocr-image.oci.tar
 ```
 
 Review the generated real index/platform config digests before committing.
+The Dockerfile fixes copied file modes so Windows and Linux builds agree;
+retain the timestamp options above when regenerating the pins.
 The release workflow builds and tests first. Publish by pushing the dedicated
 `ocr-v1.1.2` component tag, or by manually dispatching with `publish=true` after
 the workflow has been registered. Both native architecture smokes gate publication;
