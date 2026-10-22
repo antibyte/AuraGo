@@ -35,6 +35,10 @@ This package owns actual provider target trust and mutable client state.
 - The retry owner tags attempt contexts with their parent: an attempt deadline counts toward failover, initiating caller cancellation stays neutral. Permanent 4xx errors do not retry; 429 respects Retry-After through a cancellable wait. Returned streams are never replayed.
 - Recovery requires one finite generation confirmation after metadata succeeds or is unsupported. Auth, rate limits and server failures do not trigger additional generation calls. Probes are shutdown-cancellable, limited to thirty seconds, honor Retry-After and retain generation fencing. Wire `SetProbeUsageRecorder` to book every physical probe response.
 - Exact provider/model registry prices precede family fallbacks. Provider usage partitions retain cache reads/writes; `EstimateMeasuredCost` returns nil for incomplete measurements or unsupported service tiers. Shared budget booking consumes each request-local capture once, with fallback estimates explicitly counted.
+- Observed MiniMax streams request `stream_options.include_usage` even when the
+  endpoint has no known tariff. M3/M3.1 tool continuations retain the original
+  `reasoning_content`; the legacy `reasoning_details` conversion stays on older
+  models. Verify `TestMiniMaxM3StreamPreservesToolReasoningAndReportsUsage`.
 
 ## Work Guidance
 

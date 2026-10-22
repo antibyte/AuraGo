@@ -130,6 +130,11 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ### Tool System
 
+- MiniMax M3/M3.1 routes, including `minimax/` model IDs, retain native tool
+  schemas when the provider supports tools. Do not apply the legacy MiniMax
+  text-tool fallback; strict schemas remain disabled. Verify
+  `TestMiniMaxM3PreparedToolsReachAgentRequest` with the Game Maker planning tools.
+
 - Email and AgentMail content reaches the model only after enabled checks allow
   it completely. A quarantined result contains a safe local notice instead of
   the original payload. Preserve the actual operation status, especially for

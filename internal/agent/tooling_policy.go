@@ -28,7 +28,7 @@ type ModelCapabilities struct {
 	AutoEnableNativeFunctions bool
 	SupportsStructuredOutputs bool
 	SupportsParallelToolCalls bool
-	// DisableNativeFunctionCalling is true for models (e.g. GLM/Zhipu, MiniMax) that do not
+	// DisableNativeFunctionCalling is true for models (e.g. GLM/Zhipu, legacy MiniMax) that do not
 	// reliably produce OpenAI-compatible API-level tool_calls. These models often emit tool
 	// invocations as text content using proprietary XML/JSON markers. Forcing JSON text mode
 	// gives the system a consistent, parseable output format.
@@ -124,16 +124,15 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 		strings.HasPrefix(lowerModel, "qwq") ||
 		strings.HasPrefix(lowerModel, "ernie")
 
-	// GLM (Zhipu) and MiniMax models emit tool calls as proprietary XML/JSON text
-	// content rather than proper OpenAI-compatible API tool_calls. Force JSON text
-	// mode for these so the prompt-based JSON extraction path is used instead.
-	// Note: MiniMax M2.7+ supports native function calling — only disable for
-	// older MiniMax models (abab prefix) and the legacy minimax-text series.
+	// Keep the legacy text-tool fallback without disabling native MiniMax M2.7/M3 calls.
 	isGLMFamily := strings.HasPrefix(lowerModel, "glm-") ||
 		strings.Contains(lowerModel, "/glm-") ||
 		strings.Contains(lowerModel, "zhipuai/") ||
 		strings.HasPrefix(lowerModel, "abab") ||
-		(strings.HasPrefix(lowerModel, "minimax") && !strings.Contains(lowerModel, "m2.7") && !strings.Contains(lowerModel, "minimax-m1") && !strings.Contains(lowerModel, "/text-"))
+		(strings.HasPrefix(lowerModel, "minimax") &&
+			!strings.Contains(lowerModel, "m2.7") &&
+			!strings.HasPrefix(strings.TrimPrefix(lowerModel, "minimax/"), "minimax-m3") &&
+			!strings.Contains(lowerModel, "minimax-m1") && !strings.Contains(lowerModel, "/text-"))
 
 	return ModelCapabilities{
 		ProviderType:                 providerType,
@@ -178,7 +177,7 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 
 	useNativeFunctions := caps.ProviderToolCalling
 	// Force JSON text mode for models known to emit tool calls in text content rather
-	// than proper API tool_calls (e.g. GLM/Zhipu, MiniMax). This ensures the prompt-based
+	// than proper API tool_calls (e.g. GLM/Zhipu, legacy MiniMax). This ensures the prompt-based
 	// JSON extraction path is used regardless of what the config says.
 	if caps.DisableNativeFunctionCalling {
 		useNativeFunctions = false

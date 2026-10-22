@@ -77,9 +77,9 @@ func (t *usageObservationTransport) RoundTrip(req *http.Request) (*http.Response
 			decodeErr := json.NewDecoder(body).Decode(&request)
 			_ = body.Close()
 			_ = json.Unmarshal(request["model"], &model)
-			// OpenAI streams report usage only when explicitly requested. Keep
-			// this opt-in limited to observed calls on the documented API route.
-			if decodeErr == nil && capture != nil && (t.provider == "openai" && t.pricedRoute || t.provider == "cloudflare-rest") && string(request["stream"]) == "true" {
+			// Compatible streams report usage only when explicitly requested;
+			// collecting measurements does not establish a known pricing route.
+			if decodeErr == nil && capture != nil && (t.provider == "openai" && t.pricedRoute || t.provider == "cloudflare-rest" || t.provider == "minimax") && string(request["stream"]) == "true" {
 				var options map[string]json.RawMessage
 				_ = json.Unmarshal(request["stream_options"], &options)
 				if options == nil {

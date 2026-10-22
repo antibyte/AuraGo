@@ -980,7 +980,11 @@ func miniMaxPrepareRequestBody(body []byte) ([]byte, bool) {
 	}
 
 	stream, _ := payload["stream"].(bool)
-	miniMaxMapReasoningContentToDetailsPayload(payload)
+	model, _ := payload["model"].(string)
+	// M3 tool continuations require the original OpenAI reasoning_content field.
+	if !strings.HasPrefix(strings.TrimPrefix(strings.ToLower(model), "minimax/"), "minimax-m3") {
+		miniMaxMapReasoningContentToDetailsPayload(payload)
+	}
 	miniMaxConvertSystemMessagesPayload(payload)
 	payload["reasoning_split"] = true
 
