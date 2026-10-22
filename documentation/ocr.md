@@ -15,6 +15,10 @@ Desktop file permissions. Accepted jobs continue after closing the app. Reopen t
 see your still-available jobs. Cancel preserves already finished pages/files.
 Inputs and results expire 24 hours after completion. Restart discards them; this
 is not a permanent history. Unsubmitted uploads expire after an hour.
+Retained completed jobs do not consume queue slots. Automatic extraction reuses
+pending or complete results for the same owner/input; incomplete results allow
+a new attempt. Text and Markdown exports, including their ZIP entries, preserve
+incomplete status, failure codes and page warnings.
 
 ## Configuration and boundaries
 
@@ -34,6 +38,9 @@ only into the current request. Indexing keeps existing directory/type/permission
 rules; OCR supplements image analysis and multimodal input. Its version/model/
 mode enter the index fingerprint. Incomplete OCR cannot replace a valid index.
 Disabled/unavailable OCR keeps existing extraction fallbacks.
+Fallback generations record their actual extraction path and are revisited when
+OCR becomes ready. Disabled OCR and unsupported file types preserve the previous
+index fingerprint instead of causing an unnecessary full reindex on upgrade.
 
 Auto mode uses native text and recognizes scanned content in mixed PDFs.
 Force OCR ignores text layers. Recognition can be wrong, particularly handwriting
@@ -44,6 +51,7 @@ No searchable PDF output, GPU, native installation or permanent history is provi
 
 - 20 files per batch, 32 MiB and 100 pages per file; stricter ingress limits apply.
 - One worker, 300 seconds/file, at most four CPU threads, 2 GiB container RAM.
+- Up to 100 queued jobs; retained results count against storage, not queue slots.
 - 1 GiB temporary budget: 960 MiB host inputs/results plus 64 MiB parser tmpfs.
   At most 16 MiB result data per file; excessive output fails explicitly.
 - Token-protected private HTTP, non-root/read-only image, dropped capabilities,

@@ -33,6 +33,9 @@ tools, chat and indexer share this manager. Python runs only inside the image.
   orphan uploads after 1h. Restart deletes only owned flat UUID files, no durable
   history. Partial output remains explicitly incomplete and never replaces a
   valid index generation.
+- Queue capacity excludes retained terminal jobs. Automatic reuse accepts only
+  queued, running or completed jobs; incomplete jobs permit a fresh attempt.
+  Retained results still obey the shared storage budget and expiry.
 - Model license copies stay byte-identical. Model/Python artifacts are locked by
   SHA-256. Rebuild the OCI export and run scripts/ocr/pin_image.py to change image
   pins; publication and server deployment are separate authorized release steps.
@@ -40,6 +43,8 @@ tools, chat and indexer share this manager. Python runs only inside the image.
 ## Verification
 
 Run focused OCR tests in this package, tools, agent, server, config and services.
+Keep `TestOCRRetainedResultsDoNotConsumeQueueCapacity`,
+`TestOCRAutomaticRetriesPartialAfterServiceRestart` and the full-queue reuse check.
 Use TestOCRDockerSmoke with an immutable local image and generated synthetic
 fixtures for real recognition, cancellation and both network variants. Native
 arm64 runner smoke is required before publishing an arm64 release.

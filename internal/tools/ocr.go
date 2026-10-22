@@ -179,7 +179,7 @@ func WaitOCRText(ctx context.Context, m *ocr.Manager, owner, key string) (string
 // OCRFingerprint invalidates only OCR-dependent indexing generations.
 func OCRFingerprint(cfg *config.Config) string {
 	if cfg == nil || !cfg.OCR.Enabled || !cfg.OCR.AutomaticIndexing {
-		return "ocr=off"
+		return ""
 	}
 	digest := sha256.Sum256([]byte(ocr.Version + "|" + ocr.ModelRevision + "|" + ocr.ReleaseImage + "|auto|200"))
 	return "ocr=" + hex.EncodeToString(digest[:])

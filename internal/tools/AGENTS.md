@@ -7,7 +7,8 @@
   to the parser. Isolate document text and filenames. The PDF compatibility
   wrapper preserves summary/envelope behavior and explicitly rejects incomplete
   OCR. Chat shares one 15-second wait budget and deduplicates only within owner,
-  input hash and mode. Verify `TestOCR*`.
+  input hash and mode for queued, running or completed jobs. Incomplete results
+  permit another extraction attempt. Verify `TestOCR*`.
 
 Agent filesystem, external service and Docker tool safety boundaries.
 

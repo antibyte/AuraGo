@@ -298,7 +298,13 @@ func handleDesktopOCR(s *Server) http.HandlerFunc {
 
 func ocrFileText(file ocr.File, format string) string {
 	var text strings.Builder
+	if file.State != "completed" {
+		fmt.Fprintf(&text, "[OCR incomplete: state=%s; error=%s; returned_pages=%d]\n\n", file.State, file.Error, len(file.Pages))
+	}
 	for _, page := range file.Pages {
+		if page.Source == "error" || page.Note != "" {
+			fmt.Fprintf(&text, "[OCR warning: page=%d; source=%s; note=%s]\n\n", page.Index+1, page.Source, page.Note)
+		}
 		if format == "md" {
 			text.WriteString(page.Markdown)
 		} else {

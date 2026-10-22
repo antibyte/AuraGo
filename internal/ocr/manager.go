@@ -300,9 +300,6 @@ func (m *Manager) submit(owner string, ids []string, mode string, automatic bool
 	if !m.status.Ready {
 		return Job{}, ErrNotReady
 	}
-	if len(m.jobs) >= 100 || len(m.queue) == cap(m.queue) {
-		return Job{}, ErrBusy
-	}
 	files := make([]File, 0, len(ids))
 	seen := map[string]bool{}
 	for _, key := range ids {
@@ -318,13 +315,17 @@ func (m *Manager) submit(owner string, ids []string, mode string, automatic bool
 	if automatic {
 		for _, previous := range m.jobs {
 			if previous.owner == owner && previous.Mode == "auto" && len(previous.Files) == 1 &&
-				previous.Files[0].digest == files[0].digest && previous.State != "error" && previous.State != "cancelled" {
+				previous.Files[0].digest == files[0].digest &&
+				(previous.State == "queued" || previous.State == "running" || previous.State == "completed") {
 				_ = os.Remove(files[0].path)
 				m.storage -= files[0].Size
 				delete(m.uploads, files[0].ID)
 				return snapshot(previous), nil
 			}
 		}
+	}
+	if len(m.queue) == cap(m.queue) {
+		return Job{}, ErrBusy
 	}
 	j := &Job{ID: id(), State: "queued", Mode: mode, CreatedAt: m.now(), Files: files, owner: owner, cancel: func() {}}
 	// The worker acquires its own context so cancellation is observable before dequeue.

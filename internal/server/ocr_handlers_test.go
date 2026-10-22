@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -20,12 +21,108 @@ import (
 	"time"
 )
 
-type serverOCRRuntime struct{ starts atomic.Int32 }
+type serverOCRRuntime struct {
+	starts atomic.Int32
+	fail   bool
+}
 
 func (r *serverOCRRuntime) Start(context.Context, bool) error { r.starts.Add(1); return nil }
 func (*serverOCRRuntime) Stop(context.Context) error          { return nil }
-func (*serverOCRRuntime) Convert(_ context.Context, _ string, _ string, _ string, emit func(ocr.Page) error) error {
-	return emit(ocr.Page{Index: 0, Text: "Hello <script>external</script>", Source: "ocr"})
+func (r *serverOCRRuntime) Convert(_ context.Context, _ string, _ string, _ string, emit func(ocr.Page) error) error {
+	if err := emit(ocr.Page{Index: 0, Text: "Hello <script>external</script>", Markdown: "**Hello**", Source: "ocr", Note: "Recognition warning"}); err != nil {
+		return err
+	}
+	if r.fail {
+		return errors.New("second page failed")
+	}
+	return nil
+}
+
+func TestOCRPartialExportsPreserveWarnings(t *testing.T) {
+	m, err := ocr.New(filepath.Join(t.TempDir(), "jobs"), ocr.Policy{Enabled: true}, &serverOCRRuntime{fail: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Close(context.Background())
+	if err = m.Start(context.Background(), false); err != nil {
+		t.Fatal(err)
+	}
+	file, err := m.Stage("owner", "scan.pdf", bytes.NewBufferString("%PDF-1.7\nfixture"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := m.Submit("owner", []string{file.ID}, "auto")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if _, err = tools.WaitOCRText(ctx, m, "owner", job.ID); err == nil || ctx.Err() != nil {
+		t.Fatal("expected a completed partial job", err)
+	}
+	check := func(name, text string) {
+		t.Helper()
+		for _, want := range []string{"OCR incomplete", "state=partial", "ocr_runtime_failed", "returned_pages=1", "page=1", "Recognition warning", "Hello"} {
+			if !strings.Contains(text, want) {
+				t.Errorf("%s export omitted %q: %s", name, want, text)
+			}
+		}
+	}
+	for _, format := range []string{"text", "md", "zip"} {
+		t.Run(format, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/export?format="+format, nil)
+			exportOCR(w, r, m, "owner", job.ID, file.ID)
+			if w.Code != http.StatusOK {
+				t.Fatal(w.Code, w.Body.String())
+			}
+			if format != "zip" {
+				check(format, w.Body.String())
+				return
+			}
+			archive, err := zip.NewReader(bytes.NewReader(w.Body.Bytes()), int64(w.Body.Len()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			checked := 0
+			for _, entry := range archive.File {
+				if !strings.HasSuffix(entry.Name, ".txt") && !strings.HasSuffix(entry.Name, ".md") || entry.Name == "NOTICE.txt" || entry.Name == "LICENSE-MODELS.txt" {
+					continue
+				}
+				source, err := entry.Open()
+				if err != nil {
+					t.Fatal(err)
+				}
+				data, err := io.ReadAll(source)
+				source.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
+				check(entry.Name, string(data))
+				checked++
+			}
+			if checked != 2 {
+				t.Fatal("missing text/Markdown ZIP entries", checked)
+			}
+		})
+	}
+}
+
+func TestOCRTextExportKeepsFailureAndPageNotes(t *testing.T) {
+	for _, state := range []string{"error", "cancelled", "partial"} {
+		file := ocr.File{State: state, Error: "ocr_timeout"}
+		if got := ocrFileText(file, "text"); !strings.Contains(got, "state="+state) || !strings.Contains(got, "ocr_timeout") {
+			t.Fatal("empty incomplete export lost its status", got)
+		}
+	}
+	file := ocr.File{State: "completed", Pages: []ocr.Page{{Index: 1, Source: "error"}}}
+	if got := ocrFileText(file, "md"); !strings.Contains(got, "page=2; source=error") {
+		t.Fatal("failed page omitted without a note", got)
+	}
+	file = ocr.File{State: "completed", Pages: []ocr.Page{{Index: 0, Text: "complete", Markdown: "**complete**"}}}
+	if got := ocrFileText(file, "text"); got != "complete\n\n" {
+		t.Fatal("complete export changed", got)
+	}
 }
 func TestOCRDesktopHTTPAuthorityExportAndPassiveStatus(t *testing.T) {
 	cfg := &config.Config{OCR: config.DefaultOCRConfig()}

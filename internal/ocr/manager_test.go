@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -309,5 +310,97 @@ func TestOCRRestartCleanupPreservesUnownedFiles(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "user.pdf")); err != nil {
 		t.Fatal("unowned file removed")
+	}
+}
+
+func TestOCRRetainedResultsDoNotConsumeQueueCapacity(t *testing.T) {
+	m := fixture(t, &fakeRuntime{})
+	for i := 0; i <= cap(m.queue); i++ {
+		owner := "indexer:document-" + strconv.Itoa(i)
+		file := stage(t, m, owner)
+		job, err := m.SubmitAutomatic(owner, file.ID)
+		if err != nil {
+			t.Fatalf("file %d rejected with %d retained jobs and %d queued: %v", i+1, len(m.jobs), m.Status().Queued, err)
+		}
+		if job = finish(t, m, owner, job.ID); job.State != "completed" {
+			t.Fatal(job.State)
+		}
+	}
+	if len(m.List("indexer:document-0")) != 1 {
+		t.Fatal("new work evicted a retained result")
+	}
+}
+
+func TestOCRAutomaticRetriesPartialAfterServiceRestart(t *testing.T) {
+	rt := &fakeRuntime{convert: func(_ context.Context, emit func(Page) error) error {
+		if err := emit(Page{Index: 0, Source: "ocr", Text: "first page"}); err != nil {
+			return err
+		}
+		return errors.New("temporary page failure")
+	}}
+	m := fixture(t, rt)
+	file := stage(t, m, "indexer:file")
+	job, err := m.SubmitAutomatic("indexer:file", file.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job = finish(t, m, "indexer:file", job.ID); job.State != "partial" {
+		t.Fatal(job.State)
+	}
+	if err = m.Stop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	rt.convert = nil
+	if err = m.Start(context.Background(), false); err != nil {
+		t.Fatal(err)
+	}
+	file = stage(t, m, "indexer:file")
+	retry, err := m.SubmitAutomatic("indexer:file", file.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if retry = finish(t, m, "indexer:file", retry.ID); retry.State != "completed" || retry.ID == job.ID || rt.calls.Load() != 2 {
+		t.Fatal("partial result prevented retry", retry.State, rt.calls.Load())
+	}
+	previous, err := m.Result("indexer:file", job.ID, job.Files[0].ID)
+	if err != nil || previous.State != "partial" || len(previous.Pages) != 1 {
+		t.Fatal("retry removed earlier partial output", previous, err)
+	}
+}
+
+func TestOCRFullQueueStillReusesCompletedAutomaticResult(t *testing.T) {
+	started := make(chan struct{})
+	rt := &fakeRuntime{}
+	m := fixture(t, rt)
+	file := stage(t, m, "cached")
+	cached, err := m.SubmitAutomatic("cached", file.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	finish(t, m, "cached", cached.ID)
+	rt.convert = func(ctx context.Context, _ func(Page) error) error {
+		close(started)
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	file = stage(t, m, "running")
+	if _, err = m.Submit("running", []string{file.ID}, "auto"); err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	for i := 0; i < cap(m.queue); i++ {
+		file = stage(t, m, "queued")
+		if _, err = m.Submit("queued", []string{file.ID}, "auto"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	file = stage(t, m, "queued")
+	if _, err = m.Submit("queued", []string{file.ID}, "auto"); !errors.Is(err, ErrBusy) {
+		t.Fatal("queue limit ignored", err)
+	}
+	file = stage(t, m, "cached")
+	same, err := m.SubmitAutomatic("cached", file.ID)
+	if err != nil || same.ID != cached.ID {
+		t.Fatal("full queue blocked cached result", err)
 	}
 }

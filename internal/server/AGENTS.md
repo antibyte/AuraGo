@@ -8,6 +8,9 @@
   never cancels jobs. Automatic attachment OCR adds isolated request-local text
   with one 15-second turn budget. See `internal/ocr/AGENTS.md` and
   `documentation/ocr.md`; verify `TestOCR*` and bridge catalog gates.
+- OCR text/Markdown exports, including ZIP entries, retain incomplete file
+  status, failure codes and page warnings. Verify
+  `TestOCRPartialExportsPreserveWarnings` and `TestOCRTextExportKeepsFailureAndPageNotes`.
 
 Server-owned HTTP and cross-component integration contracts.
 

@@ -559,7 +559,7 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 		outcome.err = fmt.Errorf("hash error %s: %v", path, hashErr)
 		return outcome
 	}
-	indexFingerprint := fi.indexFingerprintForMode(indexMode)
+	indexFingerprint := fi.indexFingerprintForMode(indexMode, ocr.Supported(path))
 	indexState, stateErr := fi.stm.GetFileIndexState(path, collection)
 	if stateErr != nil {
 		outcome.err = fmt.Errorf("get file index %s: %v", path, stateErr)
@@ -584,6 +584,9 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 	if ocrErr != nil {
 		outcome.err = fmt.Errorf("OCR extraction failed for %s", relPath)
 		return outcome
+	}
+	if !ocrUsed {
+		indexFingerprint = fi.indexFingerprintForMode(indexMode, false)
 	}
 	if !ocrUsed && indexState.ContentHash != "" {
 		fi.cfgMu.RLock()
@@ -861,11 +864,13 @@ func (fi *FileIndexer) indexModeForFile(ext string, isImage, isAudio, multimodal
 	}
 }
 
-func (fi *FileIndexer) indexFingerprintForMode(mode string) string {
+func (fi *FileIndexer) indexFingerprintForMode(mode string, includeOCR bool) string {
 	parts := []string{fileIndexerFingerprint, "mode=" + mode}
-	if mode == fileIndexModePDF || mode == fileIndexModeVision || mode == fileIndexModeMultimodal {
+	if includeOCR {
 		fi.cfgMu.RLock()
-		parts = append(parts, tools.OCRFingerprint(fi.cfg))
+		if fingerprint := tools.OCRFingerprint(fi.cfg); fingerprint != "" {
+			parts = append(parts, fingerprint)
+		}
 		fi.cfgMu.RUnlock()
 	}
 	if fp, ok := fi.vectorDB.(embeddingFingerprinter); ok {

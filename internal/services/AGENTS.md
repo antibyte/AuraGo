@@ -9,6 +9,11 @@
   survive. Unavailable OCR may use existing fallback paths for new files, but
   does not downgrade a valid prior OCR-dependent generation. Verify
   `TestOCRIndexRootFingerprintAndFailedReplacement`.
+- Persist the extraction actually used. Fallback generations omit OCR so a ready
+  service revisits them. Disabled OCR and unsupported inputs keep the legacy
+  fingerprint; they must not trigger paid vision/embedding calls on upgrade.
+  Verify `TestOCRIndexFingerprintPreservesLegacyWhenDisabled` and
+  `TestOCRIndexRevisitsFallbackWhenServiceStarts`.
 
 Background services and workspace search.
 

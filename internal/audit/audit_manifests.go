@@ -211,6 +211,7 @@ type NetworkClientUse struct {
 func NetworkClientInventory() []NetworkClientUse {
 	return []NetworkClientUse{
 		{Path: "internal/decisions/", Classification: "pinned-model-downloads-and-authenticated-private-scoring-runtime", AllowsLocalNet: true, Credentialed: true},
+		{Path: "internal/ocr/", Classification: "digest-pinned-managed-docker-runtime-token-authenticated-private-http-no-redirects", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/gog/", Classification: "fixed-google-oauth-same-origin-and-checksummed-release-download", RequiresSSRF: true, Credentialed: true},
 		{Path: "internal/mailer/gmail_adapter.go", Classification: "fixed-google-gmail-api-same-origin-redirects", Credentialed: true},
 		{Path: "internal/tools/treg.go", Classification: "fixed-treg-api-public-only-no-redirects-no-replay", RequiresSSRF: true, Credentialed: true},

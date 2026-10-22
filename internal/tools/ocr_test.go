@@ -107,8 +107,8 @@ func TestOCRChatBudgetDeduplicationAndPartialPDF(t *testing.T) {
 	if got := ExecutePDFExtractContext(ctx, cfg, path, "chat"); !strings.Contains(got, "incomplete") {
 		t.Fatal(got)
 	}
-	if rt.calls.Load() != 1 {
-		t.Fatal("failed cached job duplicated")
+	if rt.calls.Load() != 2 {
+		t.Fatal("incomplete job prevented a new extraction attempt")
 	}
 	cfg.OCR.AutomaticChat = false
 	if got := OCRChatPath(ctx, cfg, path); got != "" {
