@@ -4861,6 +4861,72 @@ function testVoxelWorldIsland() {
   assert.equal(big.groups.glow.emissive.length, big.groups.glow.positions.length);
 }
 
+// The Orbit choreography and the particle system are DOM-free and run in plain Node.
+async function testOrbitChoreoAndParticles() {
+  const context = { window: {} };
+  vm.createContext(context);
+  for (const part of ['orbit-choreo', 'orbit-particles']) vm.runInContext(read('ui/js/desktop/theme-fx/' + part + '.js'), context);
+  const { AuraOrbitChoreo: C, AuraOrbitParticles: P } = context.window;
+  assert.ok(C && P, 'orbit modules attach their globals');
+
+  const a = C.createRng(42), b = C.createRng(42);
+  for (let i = 0; i < 5; i++) assert.equal(a(), b(), 'rng is deterministic');
+
+  const wide = C.composition(1920, 1080), tall = C.composition(1080, 1920);
+  assert.ok(wide.planet.x > 0.65 && wide.planet.y > 0.65, 'planet sits lower right on wide screens');
+  assert.ok(wide.station.x < 0.35 && wide.station.y < 0.4, 'station sits upper left');
+  assert.ok(tall.planet.radius < wide.planet.radius, 'portrait planet is smaller');
+
+  assert.equal(C.shuttleState(10).phase, 'docked');
+  assert.equal(C.shuttleState(50).phase, 'cruise');
+  assert.equal(C.shuttleState(96 + 10).cycle, 1);
+  const docked = C.shuttleOffset(C.shuttleState(5));
+  assert.deepEqual([docked.x, docked.y, docked.z], [0, 0, 0]);
+  const loopStart = C.shuttleOffset({ phase: 'cruise', progress: 0, cycle: 0 });
+  const loopEnd = C.shuttleOffset({ phase: 'cruise', progress: 1, cycle: 0 });
+  assert.ok(Math.hypot(loopStart.x - loopEnd.x, loopStart.y - loopEnd.y, loopStart.z - loopEnd.z) < 1e-6, 'cruise loop is closed');
+
+  const e1 = C.eventsBetween(7, 'comet', 0, 600), e2 = C.eventsBetween(7, 'comet', 0, 600);
+  assert.deepEqual(JSON.parse(JSON.stringify(e1)), JSON.parse(JSON.stringify(e2)), 'events are deterministic');
+  assert.ok(e1.length >= 8 && e1.length <= 30, 'about one comet per 38 s');
+  const split = C.eventsBetween(7, 'comet', 0, 300).concat(C.eventsBetween(7, 'comet', 300, 600));
+  assert.equal(split.length, e1.length, 'queries are window independent');
+
+  let s = { value: 0, velocity: 0 };
+  for (let i = 0; i < 120; i++) s = C.spring(s, 1, 1 / 60);
+  assert.ok(Math.abs(s.value - 1) < 0.01, 'spring settles within 2 s');
+  s = { value: 0, velocity: 0 };
+  s = C.spring(s, 1, 0.5);
+  assert.ok(Number.isFinite(s.value) && Math.abs(s.value) < 2, 'large dt stays stable');
+  const tilt = C.tiltFromVelocity(5000, 0);
+  assert.ok(tilt.y > 8.5 && tilt.y <= 9 && Math.abs(tilt.x) < 1e-9, 'tilt saturates at maxDeg');
+
+  const sys = P.createSystem({ capacity: 300, seed: 3 });
+  const rect = { x: 100, y: 80, width: 400, height: 300 };
+  sys.emitMaterialize(rect, { count: 120, duration: 0.5 });
+  assert.equal(sys.stats().live, 120);
+  for (let t = 0; t < 0.44; t += 1 / 60) sys.update(1 / 60);
+  let near = 0, total = 0;
+  sys.forEach(p => {
+    total++;
+    const dx = Math.max(rect.x - p.x, 0, p.x - (rect.x + rect.width));
+    const dy = Math.max(rect.y - p.y, 0, p.y - (rect.y + rect.height));
+    const inside = dx === 0 && dy === 0;
+    const edge = inside ? Math.min(p.x - rect.x, rect.x + rect.width - p.x, p.y - rect.y, rect.y + rect.height - p.y) : Math.hypot(dx, dy);
+    if (edge < 6) near++;
+  });
+  assert.ok(total > 0 && near / total > 0.9, 'materialize converges onto the frame');
+  sys.emitDissolve(rect, { count: 260, duration: 0.95 });
+  assert.ok(sys.stats().live <= 300, 'pool capacity holds');
+  for (let t = 0; t < 1.2; t += 1 / 30) sys.update(1 / 30);
+  assert.equal(sys.stats().live, 0, 'everything expires');
+  sys.emitPing({ x: 10, y: 10 });
+  assert.equal(sys.rings().length, 1);
+  sys.update(0.5);
+  assert.ok(sys.rings()[0].radius > 20, 'ring grows (dt clamped to 0.05 per call)');
+  P.drawCanvas2D({}, sys, 1);
+}
+
 const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
@@ -4941,7 +5007,8 @@ const tests = [
   ['Invasion nest form sends export_nest_secret', testInvasionNestFormSendsExportNestSecret],
   ['Invasion nest secret field hides only without effect', testInvasionNestSecretFieldHidesOnlyWithoutEffect],
   ['Green Slime simulation: geometry, bubbles, strands, pools and splats', testGreenSlimeSimulation],
-  ['Voxel World: sky model, island generator and mesher', testVoxelWorldIsland]
+  ['Voxel World: sky model, island generator and mesher', testVoxelWorldIsland],
+  ['Orbit: choreography, schedules and particle system', testOrbitChoreoAndParticles]
 ];
 
 let failures = 0;
