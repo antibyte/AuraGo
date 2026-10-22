@@ -215,7 +215,7 @@
 
     function isPixelImageFile(file) {
         const ext = fileExtension((file && (file.name || file.path)) || '');
-        return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif'].includes(ext);
+        return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif', 'ora'].includes(ext);
     }
 
     function entryLooksPlayableMedia(entry) {

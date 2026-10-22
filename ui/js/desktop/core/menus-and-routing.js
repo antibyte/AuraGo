@@ -105,6 +105,9 @@
         const isBookshelfFile = /\.(epub|pdf|mobi|azw|azw3|fb2(?:\.zip)?|cbz|txt(?:\.gz)?|html?|cbr|rtf|docx|odt|djvu|lit|pdb|lrf)$/i.test(String(name || ''));
         if (isText) {
             apps.push({ label: t('desktop.app_editor'), appId: 'editor' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (/\.ora$/i.test(name)) {
+            // OpenRaster projects are Pixel documents: Gallery and Viewer cannot draw them.
+            apps.push({ label: t('desktop.app_pixel'), appId: 'pixel' });
         } else if (isImage) {
             apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
         } else if (isMedia) {
