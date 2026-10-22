@@ -1,6 +1,8 @@
 name: OCR runtime
 
 on:
+  push:
+    tags: ['ocr-v*']
   workflow_dispatch:
     inputs:
       publish:
@@ -23,6 +25,7 @@ jobs:
         run: PYTHONDONTWRITEBYTECODE=1 python3 scripts/ocr/test_service.py -v
       - name: Assemble locked offline images
         run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then test "$GITHUB_REF_NAME" = ocr-v1.1.2; fi
           docker buildx build --platform linux/amd64,linux/arm64 --build-arg SOURCE_DATE_EPOCH=0 --provenance=false \
             --output type=oci,dest=ocr-image.oci.tar,rewrite-timestamp=true --metadata-file ocr-image.metadata.json \
             -t ghcr.io/antibyte/aurago-ocr:1.1.2 -f deploy/docker/Dockerfile.ocr .
@@ -62,7 +65,7 @@ jobs:
         run: bash scripts/ocr/smoke.sh
 
   publish:
-    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    if: (github.event_name == 'workflow_dispatch' && inputs.publish) || startsWith(github.ref, 'refs/tags/ocr-v')
     needs: [image, smoke]
     runs-on: ubuntu-24.04
     environment: ocr-release

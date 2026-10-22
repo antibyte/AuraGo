@@ -39,6 +39,8 @@ tools, chat and indexer share this manager. Python runs only inside the image.
 - Model license copies stay byte-identical. Model/Python artifacts are locked by
   SHA-256. Rebuild the OCI export and run scripts/ocr/pin_image.py to change image
   pins; publication and server deployment are separate authorized release steps.
+  Publish with the matching `ocr-v*` component tag or explicit workflow dispatch;
+  both native architecture smokes must pass before the registry write.
 
 ## Verification
 

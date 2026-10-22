@@ -98,8 +98,10 @@ docker load --input ocr-image.oci.tar
 ```
 
 Review the generated real index/platform config digests before committing.
-The release workflow builds and tests first. Publishing is an explicit separate
-workflow action; server rollout/restart is another delivery boundary. Until that
+The release workflow builds and tests first. Publish by pushing the dedicated
+`ocr-v1.1.2` component tag, or by manually dispatching with `publish=true` after
+the workflow has been registered. Both native architecture smokes gate publication;
+server rollout/restart is another delivery boundary. Until that
 image is published, new installations cannot pull it. Exact OCI imports work
 locally through the pinned platform config IDs.
 
