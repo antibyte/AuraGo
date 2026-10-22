@@ -3,17 +3,22 @@
 Status: planned; no authentication behavior has been changed.
 Source baseline: `1a6646906` on `main`, inspected on 2026-10-22.
 
-## Goal and recommended scope
+## Goal and selected scope
 
 Add an optional WebAuthn login to AuraGo's existing owner account. Support platform authenticators such as Windows Hello, Touch ID, Face ID and Android screen unlock, and external FIDO2 security keys through the browser's native credential dialog. Actual availability depends on the browser, operating system and authenticator.
 
-Recommended first version: a verified WebAuthn assertion is a complete alternative login. The existing password login continues to require TOTP whenever TOTP is enabled. Enabling WebAuthn explicitly explains this alternative; it does not disable TOTP or silently change the password route. Keep the owner password configured for recovery and native clients. WebAuthn defaults off.
+Support both login variants through a dropdown backed by `auth.webauthn.login_mode`. WebAuthn defaults off; enabling it requires an explicit mode selection and at least one registered credential. Keep the owner password configured. Both modes use the same credential registry, verifier and session lifecycle.
 
-The login-policy preference was requested during planning. This document uses the recommended passwordless alternative unless the operator selects password plus WebAuthn or configurable modes before implementation. Do not implement multiple modes speculatively.
+| Mode | Successful browser login | Existing password/TOTP route |
+| --- | --- | --- |
+| `passkey` - Passkey sign-in | A WebAuthn assertion with required local user verification; no password or TOTP on this path. | Password plus active TOTP remains the fallback; password alone is allowed only when TOTP is not enabled. |
+| `second_factor` - Password plus WebAuthn | Verify the password first, then require a WebAuthn assertion before issuing a session. | Password plus TOTP remains an alternative second-factor path when TOTP is enrolled. Without TOTP, password alone must never issue a session. |
+
+TOTP and WebAuthn are alternative second-factor methods in `second_factor` mode; do not require a third TOTP step after successful password plus WebAuthn. A browser cancellation, unsupported authenticator or service error must never downgrade the chosen policy. Switching modes requires a valid owner session plus credential step-up, cancels pending ceremonies and explains the changed login/recovery behavior. No third mode or additional fallback toggle is needed; the existing TOTP setting determines TOTP availability.
 
 Biometric recognition happens locally. AuraGo receives a signed authentication result, never fingerprints, face images or an authenticator PIN. Require local user verification, while allowing the operating system to choose biometrics or PIN; do not promise to enforce biometrics exclusively. See the [WebAuthn specification](https://www.w3.org/TR/webauthn-3/#sctn-biometric-privacy).
 
-Use one WebAuthn implementation for both platform and external authenticators. The first version targets FIDO2 keys with user verification. Older touch-only U2F keys cannot provide the required verification for this passwordless policy; supporting them requires the separate password-plus-key policy, not a weaker passwordless assertion.
+Use one WebAuthn implementation for both platform and external authenticators. The first version targets FIDO2 keys with local user verification in both modes. Keep older touch-only U2F keys outside this version; selecting `second_factor` does not silently lower the required verification or change credential eligibility.
 
 ## Existing integration points
 
@@ -28,21 +33,21 @@ Use one WebAuthn implementation for both platform and external authenticators. T
 | Browser login | `ui/login.html`, `ui/js/login/main.js`, `ui/css/login.css`; retain the session-confirmation wait and redirect validation. |
 | Owner settings | `ui/cfg/auth.js`; the config search catalog must resolve the actual `auth` paths. |
 | Durable state | Existing encrypted Vault, including batch writes and atomic file replacement. Generic Vault routes already reserve `auth_` keys. |
-| Native clients | The Rust TUI posts password/TOTP to `/auth/login`. Preserve this contract. |
-| Missing full UI resources | The embedded recovery login already accepts password/TOTP. Preserve this route and asset repair without adding another WebAuthn implementation there. |
+| Native clients | The Rust TUI posts password/TOTP to `/auth/login`. Preserve its request shape while enforcing the selected policy server-side. Without TOTP in `second_factor` mode, return a clear browser-login-required result; do not mint a session from password alone. |
+| Missing full UI resources | The embedded recovery login currently accepts password/TOTP. It must also support the minimal password-plus-WebAuthn flow when that is the only permitted login, using the same small, tested client helper and backend routes. Asset repair must not require weakening the selected policy. |
 
-Graph analysis found the shared step-up dependency chain through password change, TOTP enrollment/replacement and TOTP removal, plus their tests. GitNexus reported 11 affected symbols as a lower bound, with unknown index freshness and no complete process coverage. This is a scope aid, not security clearance; actual source and focused tests decide.
+Graph analysis found the shared step-up dependency chain through password change, TOTP enrollment/replacement and TOTP removal, plus their tests. GitNexus reported 11 affected symbols for that path and 13 for `handleAuthLogin`, both as lower bounds with unknown index freshness and no complete process coverage. Login callers include the normal UI and embedded recovery mounts, so both must enforce the same mode. This is a scope aid, not security clearance; actual source and focused tests decide.
 
 ## Trust, configuration and deployment prerequisites
 
-- Add `auth.webauthn.enabled` (default `false`), `auth.webauthn.rp_id`, and an explicit list of complete `auth.webauthn.origins`. Validate them on save and load. No public request, forwarded host or model input may select the relying-party identity.
+- Add `auth.webauthn.enabled` (default `false`), `auth.webauthn.login_mode` (enum `passkey` or `second_factor`), `auth.webauthn.rp_id`, and an explicit list of complete `auth.webauthn.origins`. Require a valid mode whenever enabled; reject missing/unknown modes rather than guessing a weaker policy. No public request, forwarded host or model input may select the mode or relying-party identity.
 - Recommend a stable DNS name and a trusted HTTPS certificate, including for LAN access. Reuse AuraGo's proxy trust policy. A self-signed certificate warning that a user clicked through is not proof of a usable secure context.
 - The RP ID contains the domain only; origins include scheme, host and effective port. Only explicitly listed origins valid for that RP ID are admitted. No wildcard origins, paths, userinfo or request-derived additions. Use one origin per ceremony and bind it to that ceremony.
 - LAN IP access, a LAN hostname and an unrelated Tailscale hostname do not automatically share credentials. The settings page shows the configured login URL. A stable RP ID can support multiple valid, explicitly allowed origins, including different ports. See [RP ID and origin rules](https://www.w3.org/TR/webauthn-3/#rp-id).
 - An explicit `http://localhost` development configuration is permitted where the browser supports it. Do not create an insecure remote development bypass or promise WebAuthn over arbitrary IP addresses.
-- Require configured owner authentication, a readable Vault and valid relying-party settings before enrollment. Login requires at least one registered credential as well. Invalid WebAuthn configuration must never open the owner setup or disable existing authentication.
-- RP changes never silently rewrite stored credentials. Require step-up and an explicit reset/re-enrollment flow with a working password fallback; origin-only changes retain credentials only when valid for the unchanged RP ID. Cancel pending ceremonies on any policy change.
-- Enable/disable and RP/origin changes use dedicated session-and-step-up-protected auth settings handlers. Generic config writes, config import and bearer-only requests must not bypass this policy. Preserve legitimate offline operator configuration and the existing authenticated backup import boundary.
+- Require configured owner authentication, a readable Vault and valid relying-party settings before enrollment. Permit enrollment while WebAuthn is off, so the first credential can be registered and verified before activation. Enabling WebAuthn requires at least one validated credential. Invalid WebAuthn configuration must never open owner setup, disable authentication or allow a password-only login that the selected mode would reject.
+- RP changes never silently rewrite stored credentials. Require step-up and an explicit reset/re-enrollment flow with a tested fallback permitted by the selected mode. In `second_factor` mode without TOTP, first enroll TOTP or explicitly disable WebAuthn through the protected settings handler before changing the RP ID; do not create an automatic password-only fallback. Origin-only changes retain credentials only when valid for the unchanged RP ID. Cancel pending ceremonies on any policy change.
+- Enable/disable, mode and RP/origin changes use dedicated session-and-step-up-protected auth settings handlers. Generic config writes, config import and bearer-only requests must not bypass this policy. Preserve legitimate offline operator configuration and the existing authenticated backup import boundary.
 
 ## Implementation design
 
@@ -66,7 +71,7 @@ Keep a small, versioned credential registry under the reserved Vault key `auth_w
 
 ### Challenges and request boundaries
 
-Add a bounded, server-owned in-memory ceremony store on the server lifecycle. Store library session data, a random transaction ID, the originating browser binding, operation, RP/origin and configuration generation. Registration additionally binds the current owner session and its successful credential step-up.
+Add a bounded, server-owned in-memory ceremony store on the server lifecycle. Store library session data, a random transaction ID, the originating browser binding, operation, mode, RP/origin and authentication-configuration generation. Registration additionally binds the current owner session and its successful credential step-up. In `second_factor` mode, login begin verifies the password through the shared password/backoff path before creating a pending ceremony. Store only the successful first-factor proof bound to this ceremony, never the supplied password; this proof is not a login session or bearer token. Password, TOTP and mode changes invalidate it.
 
 - Generate challenges with server-side cryptographic randomness. Use a two-minute lifetime and small per-browser/global limits, with expiry cleanup and shutdown cancellation.
 - Bind unauthenticated login ceremonies to a separate opaque, HttpOnly, SameSite=Strict browser cookie; use Secure on trusted HTTPS. Authenticated registration also binds its originating session. A transaction ID alone grants nothing.
@@ -79,35 +84,37 @@ Add a bounded, server-owned in-memory ceremony store on the server lifecycle. St
 
 | Method and route | Protection and result |
 | --- | --- |
-| `POST /auth/webauthn/login/begin` | Exact public exemption; origin, availability and rate checks; returns options and a browser-bound transaction. |
-| `POST /auth/webauthn/login/finish` | Exact public exemption; single-use transaction and full verification; persists state and issues the existing AuraGo session cookie. |
+| `POST /auth/webauthn/login/begin` | Exact public exemption; origin, availability and rate checks; additionally verifies the password in `second_factor` mode; returns options and a browser-bound transaction. |
+| `POST /auth/webauthn/login/finish` | Exact public exemption; single-use transaction, mode-matched first-factor proof when required, and full WebAuthn verification; persists state and only then issues the existing AuraGo session cookie. |
 | `GET /api/auth/webauthn/credentials` | Browser owner session; returns labels and administrative metadata, not raw Vault contents. |
 | `POST /api/auth/webauthn/register/begin` | Browser owner session plus current password and active TOTP; returns enrollment options. |
 | `POST /api/auth/webauthn/register/finish` | Same valid owner session and the step-up-bound enrollment transaction; publishes only a validated credential. |
 | `PATCH /api/auth/webauthn/credentials/{id}` | Same-origin browser owner session plus step-up; rename a registered credential. |
 | `DELETE /api/auth/webauthn/credentials/{id}` | Same-origin browser owner session plus step-up; prevents future authentication using that credential and cancels pending transactions. |
-| `PUT /api/auth/webauthn/settings` | Same-origin browser owner session plus step-up; validates and serializes the feature policy. |
+| `PUT /api/auth/webauthn/settings` | Same-origin browser owner session plus step-up; validates and serializes enablement, mode and relying-party policy. |
 
-Only the two public login routes join `authBypassExactPaths`. They must remain blocked during the missing-password bootstrap lockdown, and must not enter `noPasswordExactPaths`. No prefix-wide `/auth/webauthn` exemption. Add only a minimal availability flag to public auth status; never expose labels or credential counts there.
+Only the two public login routes join `authBypassExactPaths`. They must remain blocked during the missing-password bootstrap lockdown, and must not enter `noPasswordExactPaths`. No prefix-wide `/auth/webauthn` exemption. Public auth status exposes only availability, the effective mode and whether password/TOTP fallback is usable; never labels or credential counts. The mode is descriptive, not client-controlled authority.
 
-Passkey login reuses `SetSessionCookie`, `sanitizeRedirectTarget`, the authenticated-session wait in the browser and existing logout/activity behavior. Keep password/TOTP step-up unchanged for password, TOTP and passkey administration in the first version. A stolen unlocked browser session therefore cannot enroll a replacement key by itself.
+Both modes reuse `SetSessionCookie`, `sanitizeRedirectTarget`, the authenticated-session wait in the browser and existing logout/activity behavior. Enforce the mode before every login cookie issuance, including `/auth/login`, the TUI's legacy request and embedded recovery; sharing cookie helpers alone does not enforce two factors. Keep password/TOTP step-up unchanged for password, TOTP and passkey administration in the first version. A stolen unlocked browser session therefore cannot enroll a replacement key by itself.
 
-Credential removal revokes subsequent uses of that key, not sessions that have already been issued. Existing sessions retain the current logout/revocation/expiry behavior. State this in the removal dialog; do not claim that credential removal signs a stolen browser out. Global or credential-linked session revocation is a separate change if required.
+For missing full UI resources, include only the minimal shared WebAuthn adapter/interaction in the embedded recovery page, within its existing size budget. Serve its ceremony routes in recovery mode as well. Do not embed the full UI, depend on the missing external bundle or create an emergency password-only bypass. Native clients without WebAuthn can use password/TOTP when enrolled; otherwise they direct the owner to browser login. No new native biometric integration is required.
+
+Credential removal revokes subsequent uses of that key, not sessions that have already been issued. Existing sessions retain the current logout/revocation/expiry behavior. State this in the removal dialog; do not claim that credential removal signs a stolen browser out. In `second_factor` mode without TOTP, reject removal of the final credential until another key or TOTP is verified, or WebAuthn is explicitly disabled through step-up. Similarly reject TOTP removal if it would eliminate the last usable second-factor method. Global or credential-linked session revocation is a separate change if required.
 
 ## Browser experience
 
-- Add one primary action, "Sign in with a passkey or security key", beside the existing password path. The browser handles the authenticator chooser and any supported phone-assisted flow.
-- Check `window.isSecureContext`, `PublicKeyCredential` and `navigator.credentials` before offering the action. Platform-biometric availability must not hide external-key support. Unsupported contexts show a clear reason and retain password/TOTP.
+- In `passkey` mode, show "Sign in with a passkey or security key" beside the existing password path. In `second_factor` mode, collect the password, then show "Continue with a passkey or security key"; offer password/TOTP as the alternative only when TOTP is enrolled. The browser handles the authenticator chooser and any supported phone-assisted flow.
+- Check `window.isSecureContext`, `PublicKeyCredential` and `navigator.credentials` before offering the action. Platform-biometric availability must not hide external-key support. Unsupported contexts show a clear reason and only the fallback methods permitted by the selected mode.
 - Use native browser APIs with a small, tested base64url/ArrayBuffer adapter; feature-detect newer JSON conversion APIs. Keep current asset packaging, entry-page layout, theme behavior and content security policy.
 - Show a pending state and allow cancellation. Handle cancellation, timeout, missing credential, unsupported authenticator, server rejection and lost network responses distinctly without automatically starting another ceremony. Prevent concurrent button submissions and cancel/ignore work on navigation.
-- Under existing security settings, add explicit enablement, RP/origin validation, a list of named credentials with last-use information, add/rename/remove actions, and a local capability diagnostic. Enrollment success is the connection test; do not prompt for biometric access during passive status reads.
+- Under existing security settings, add explicit enablement, a two-option login-mode dropdown, RP/origin validation, a list of named credentials with last-use information, add/rename/remove actions, and a local capability diagnostic. Explain TOTP fallback and native-client limitations for the selected mode. Enrollment success is the connection test; do not prompt for biometric access during passive status reads.
 - Preserve the normal config draft until the protected settings save succeeds. Use existing modals and accessible focus/status handling. Translate login, settings, help and errors in all 16 locales. Keep config search mapped to the actual new auth paths.
-- Recommend registering a second authenticator and keeping password/TOTP recovery material before relying on the new login. The password cannot be removed in this version. No new unauthenticated reset endpoint or SMS recovery is introduced.
+- Recommend registering a second authenticator and optionally enrolling TOTP for recovery/native clients before relying on `second_factor` mode. After protected activation or a mode change, test a complete login in a second browser tab while keeping the original owner session available for a step-up-protected correction. Do not enable public login ceremonies while the feature is off just to perform this check. The password cannot be removed in this version. No new unauthenticated reset endpoint or SMS recovery is introduced.
 
 ## Execution sequence and acceptance
 
 1. **Configuration, trust and library**
-   - [ ] Validate the selected login policy and document its TOTP semantics before implementation.
+   - [ ] Implement both configured modes and the password/WebAuthn/TOTP acceptance table above, including missing/invalid mode handling.
    - [ ] Add the pinned dependency, config defaults/template/validation and protected settings handling.
    - [ ] Test HTTPS/origin/RP validation, trusted versus forged proxy headers and rejection of generic auth-policy bypasses.
 2. **Registry and ceremony lifecycle**
@@ -115,18 +122,19 @@ Credential removal revokes subsequent uses of that key, not sessions that have a
    - [ ] Test restart/backup stability, duplicate/limit handling, corrupt records, Vault errors, concurrent registration/login/removal, stale generations and single-use expiry.
 3. **Enrollment and login endpoints**
    - [ ] Wire the routes in the normal server, exact auth exemption table and relevant asset-recovery boundaries.
-   - [ ] Test successful registration/assertion, required UV, wrong signatures/RP/origin/user/credential, cross-browser replay, disabled/removed keys, throttling and locked Vault/bootstrap behavior.
-   - [ ] Preserve existing password/TOTP, sensitive-change step-up, logout, activity renewal, redirects and native TUI request contracts.
+   - [ ] Test successful registration/assertion in both modes, required UV, wrong signatures/RP/origin/user/credential, cross-browser replay, disabled/removed keys, throttling and locked Vault/bootstrap behavior.
+   - [ ] Test missing/wrong passwords, a finish without a verified first factor, mode spoofing, mid-flow password/mode changes, no cookie after the first factor alone, and every password/TOTP fallback combination. Exercise `/auth/login`, recovery and the TUI request directly to prove that the UI cannot bypass the mode.
+   - [ ] Preserve sensitive-change step-up, logout, activity renewal and redirects; test last-factor removal guards and explicit browser-required results for unsupported native login.
 4. **Login and settings UI**
    - [ ] Implement the native credential flow and small encoding helper, credential management and all locales.
-   - [ ] Add browser regression coverage using a virtual WebAuthn authenticator with and without UV, plus cancellation, missing API, insecure context and failed persistence paths.
+   - [ ] Add browser regression coverage for both login modes and the settings dropdown, using a virtual WebAuthn authenticator with and without UV, plus cancellation, missing API, insecure context and failed persistence paths.
    - [ ] Verify session confirmation, focus/keyboard behavior, responsive layout and config save failures.
 5. **Documentation, packaging and real devices**
    - [ ] Update owning server/UI/security contracts, operator security/HTTPS documentation and resource-packaging guidance as needed.
    - [ ] Run focused tests first, then appropriate package checks and the UI bundle integrity check. Build the version-bound asset set and matching binary for deployment validation; a package archive alone does not activate the new login.
    - [ ] Manually verify Windows Hello with Edge/Chrome, Apple platform authentication with Safari, Android with Chrome and a UV-capable USB/NFC FIDO2 key on supported clients.
-   - [ ] Exercise direct trusted HTTPS, a configured trusted reverse proxy, allowed localhost development, wrong hostname/untrusted certificate and missing-resource recovery.
-   - [ ] Register two authenticators, log out, authenticate with each, remove one and confirm its next assertion fails while password/TOTP still works.
+   - [ ] Exercise both modes over direct trusted HTTPS, a configured trusted reverse proxy and allowed localhost development; test wrong hostname/untrusted certificate and missing-resource recovery with and without TOTP.
+   - [ ] Register two authenticators, log out, authenticate with each in both modes, remove one and confirm its next assertion fails while the permitted fallback still works. Verify that disabling TOTP cannot introduce password-only access in `second_factor` mode.
 
 Representative checks after implementation, using the repository cache wrapper if ignored scratch files are present:
 
@@ -140,4 +148,4 @@ Use focused `WebAuthn|AuthStepUp|AuthSession|AuthBypass|AuthLockdown|ExternalAss
 
 ## Deliberate limits
 
-No multi-user redesign, separate biometric database, browser framework, identity-provider sidecar, mandatory cloud account, automatic attestation service, passkey-only recovery scheme, U2F compatibility mode or native TUI biometric flow. These are not needed for the recommended first version. Password/TOTP remains a usable alternative, so the deployment as a whole retains that alternative's phishing exposure even though the WebAuthn ceremony is origin-bound.
+No multi-user redesign, separate biometric database, browser framework, identity-provider sidecar, mandatory cloud account, automatic attestation service, passkey-only recovery scheme, U2F compatibility mode or native TUI biometric flow. These are not needed for the selected scope. Where password/TOTP remains an allowed fallback, the deployment as a whole retains that alternative's phishing exposure even though the WebAuthn ceremony is origin-bound. Without TOTP in `second_factor` mode, possession of the password alone grants no access, including through legacy clients and recovery.
