@@ -32,6 +32,8 @@ AuraGo links the listed Go modules or retrieves the listed optional model/runtim
 | DirectX Shader Compiler `dxcompiler.dll` 1.9.0.1 and `dxil.dll` 1.8.2502.11 (inside the Windows WebGPU wheel) | Shader compilation of the WebGPU provider on Windows (Direct3D 12) | University of Illinois/NCSA Open Source License (upstream project); Microsoft-signed binaries, see "Person detection models and runtime" |
 | D-FINE-N, ONNX export `AnnotateIt/dfine-nano-coco-onnx` of `ustc-community/dfine-nano-coco` (revision 571d3971bfb4) | Person detector, "standard" model | Apache License 2.0 |
 | D-FINE-S, ONNX conversion `onnx-community/dfine_s_coco-ONNX` (revision a3cf03147a9b) of `ustc-community/dfine-small-coco` | Person detector, "accurate" model | Apache License 2.0 (the original weights; the conversion repository itself declares no license) |
+| ISNet general-use (DIS), ONNX file `isnet-general-use.onnx` from the rembg release `v0.0.0` (178,648,008 bytes) | Pixel background removal, "AI standard" engine; downloaded only when a user clicks "Download model" | Apache License 2.0 (upstream project: DIS, https://github.com/xuebinqin/DIS) |
+| BiRefNet general lite (Swin-tiny backbone), ONNX file `BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx` from the rembg release `v0.0.0` (224,005,088 bytes) | Pixel background removal, "AI precise" engine; downloaded only when a user clicks "Download model" | MIT License (upstream project: BiRefNet, https://github.com/ZhengPeng7/BiRefNet) |
 | "Pedestrians using crosswalk (Unsplash)" by Peter Miranda | Embedded self-test photo of the person detector (`internal/persondetect/selftest_reference.jpg`) | CC0 1.0 Universal |
 | llama.cpp b9994 | GGUF embedding server and published Docker sidecars | MIT License |
 | Ebitengine PureGo | CGO-free dynamic calls from Go into ONNX Runtime | Apache License 2.0 |
@@ -55,6 +57,9 @@ The upstream projects and their complete license texts remain authoritative:
 - https://huggingface.co/onnx-community/dfine_s_coco-ONNX
 - https://huggingface.co/ustc-community/dfine-small-coco
 - https://arxiv.org/abs/2410.13842
+- https://github.com/danielgatis/rembg/releases/tag/v0.0.0
+- https://github.com/xuebinqin/DIS
+- https://github.com/ZhengPeng7/BiRefNet
 - https://commons.wikimedia.org/wiki/File:Pedestrians_using_crosswalk_(Unsplash).jpg
 - https://github.com/ggml-org/llama.cpp
 - https://github.com/emiago/diago
@@ -247,3 +252,23 @@ verified by exact size and SHA-256 before use.
   AuraGo embeds a 1280 px thumbnail resized to 800 px wide (LANCZOS, JPEG quality
   85) to check every detector start. Attribution is not required by CC0 and is given
   here for provenance.
+
+## Pixel AI background removal models
+
+The Pixel image editor (`internal/pixelmatte`, Cutout panel) can remove backgrounds with two ONNX
+matting models. AuraGo does not ship them. They are downloaded only after a user clicks
+**Download model**, from the HTTPS URLs pinned in `internal/pixelmatte/model.go`. Those URLs point
+to the `v0.0.0` release of the rembg project on GitHub
+(https://github.com/danielgatis/rembg/releases/tag/v0.0.0). Each download is checked by its exact
+size and SHA-256 before it is used. AuraGo loads the files unmodified and does not redistribute them.
+
+- **ISNet general-use.** File `isnet-general-use.onnx`, 178,648,008 bytes, SHA-256
+  `60920e99c45464f2ba57bee2ad08c919a52bbf852739e96947fbb4358c0d964a`. The upstream project is
+  DIS (dichotomous image segmentation), https://github.com/xuebinqin/DIS, licensed under the
+  Apache License 2.0. It is the "AI standard" engine.
+- **BiRefNet general lite.** File `BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx`, 224,005,088
+  bytes, SHA-256 `5600024376f572a557870a5eb0afb1e5961636bef4e1e22132025467d0f03333`. The upstream
+  project is BiRefNet, https://github.com/ZhengPeng7/BiRefNet, licensed under the MIT License. It
+  is the "AI precise" engine.
+- Both models run in an isolated worker process on the CPU ONNX Runtime listed above. Images go
+  to the AuraGo server only; no external service receives them.
