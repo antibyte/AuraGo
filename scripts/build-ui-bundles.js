@@ -137,7 +137,8 @@ const jsBundles = [
       'ui/js/desktop/sound/theme-electronic-dreams.js',
       'ui/js/desktop/sound/theme-windows-xp.js',
       'ui/js/desktop/sound/theme-green-slime.js',
-      'ui/js/desktop/sound/theme-voxel-world.js'
+      'ui/js/desktop/sound/theme-voxel-world.js',
+      'ui/js/desktop/sound/theme-orbit.js'
     ]
   },
   {

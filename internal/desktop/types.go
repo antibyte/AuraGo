@@ -276,7 +276,7 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "desktop.open_fullscreen", Default: "false", Values: []string{"true", "false"}},
 		{Key: "windows.animations", Default: "true", Values: []string{"true", "false"}},
 		{Key: "sound.enabled", Default: "false", Values: []string{"true", "false"}},
-		{Key: "sound.theme", Default: "desktop", Values: []string{"desktop", "crystal", "wood", "analog", "workshop", "water", "amiga", "cyberpunk", "black_gloss", "crazy", "lollipop", "organic", "electronic_dreams", "windows_xp", "green_slime", "voxel_world"}},
+		{Key: "sound.theme", Default: "desktop", Values: []string{"desktop", "crystal", "wood", "analog", "workshop", "water", "amiga", "cyberpunk", "black_gloss", "crazy", "lollipop", "organic", "electronic_dreams", "windows_xp", "green_slime", "voxel_world", "orbit"}},
 		{Key: "sound.volume", Default: "0.6"},
 		{Key: "sound.windows", Default: "true", Values: []string{"true", "false"}},
 		{Key: "sound.notifications", Default: "true", Values: []string{"true", "false"}},

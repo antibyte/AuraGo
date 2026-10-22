@@ -12,7 +12,7 @@ func TestNewDesktopThemeCursorsAreNativeAndComplete(t *testing.T) {
 	t.Parallel()
 
 	roles := []string{"default", "pointer", "text", "grab", "grabbing", "move", "ew-resize", "ns-resize", "nesw-resize", "nwse-resize", "not-allowed", "wait"}
-	themes := []string{"electronic_dreams", "windows_xp", "green_slime", "voxel_world"}
+	themes := []string{"electronic_dreams", "windows_xp", "green_slime", "voxel_world", "orbit"}
 	for _, theme := range themes {
 		for _, role := range roles {
 			asset := readDesktopAssetText(t, "img/cursors/"+theme+"/"+role+".svg")

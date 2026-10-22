@@ -15,7 +15,8 @@ const palettes = {
   electronic_dreams: { ink: '#08232d', edge: '#e4fff8', top: '#a5eadc', bottom: '#277d8d', accent: '#ffca82', bg: '#071c25' },
   windows_xp: { ink: '#102c62', edge: '#ffffff', top: '#f9fcff', bottom: '#70a9ed', accent: '#ffcf4c', bg: '#164a91' },
   green_slime: { ink: '#103d1e', edge: '#f3ffd3', top: '#c7ff52', bottom: '#4f9d20', accent: '#fff179', bg: '#15361d' },
-  voxel_world: { ink: '#30221a', edge: '#fff1cb', top: '#e7b86a', bottom: '#9a5b35', accent: '#79c85a', bg: '#29251f', pixel: true }
+  voxel_world: { ink: '#30221a', edge: '#fff1cb', top: '#e7b86a', bottom: '#9a5b35', accent: '#79c85a', bg: '#29251f', pixel: true },
+  orbit: { ink: '#06102a', edge: '#c9f4ff', top: '#5ce1ff', bottom: '#7a5cff', accent: '#ffb547', bg: '#070b1a' }
 };
 const arrows = {
   amiga: 'M4 3H7V6H10V9H13V12H16V15H19V18H13V21H16V27H12V23H9V19H7V23H4Z',
@@ -27,7 +28,8 @@ const arrows = {
   electronic_dreams: 'M4 3L27 19L18 21L13 31L4 3Z',
   windows_xp: 'M4 3L27 19L18 21L14 31L4 3Z',
   green_slime: 'M4 3Q10 7 15 12L27 21L18 22L12 31L9 22L4 3Z',
-  voxel_world: 'M4 3H10V9H16V15H22V21H29V27H18V22H13V16H8V10H4Z'
+  voxel_world: 'M4 3H10V9H16V15H22V21H29V27H18V22H13V16H8V10H4Z',
+  orbit: 'M4 3L4 32L11.5 25L16.5 36L21 34L16 23.5H26.5Z'
 };
 const shapes = {
   pointer: 'M16 4C16 1 21 1 21 4V13C22 10 26 11 26 14C28 12 31 14 31 17C34 16 36 18 35 22L32 31Q30 35 25 35H20Q17 35 15 32L8 22C6 19 9 16 12 19L16 23Z',
@@ -67,7 +69,9 @@ function artwork(id, role, suffix = '') {
       electronic_dreams: '<path d="M8 9H12V6H16V13H20V10H25M9 17H13V21H17V17H22" fill="none" stroke-width="1.8"/>',
       windows_xp: '<path d="M7 8L18 16L13 17L11 23Z" fill="none"/><path d="M19 25H27M23 21V29" stroke-width="1.7"/>',
       green_slime: '<path d="M10 12Q13 8 17 12Q21 16 24 12M13 22Q17 26 22 22" fill="none" stroke-width="2"/><circle cx="25" cy="10" r="2" stroke="none"/>',
-      voxel_world: '<path d="M8 10H13V15H8ZM15 15H20V20H15ZM21 21H26V26H21Z" stroke="none"/>'
+      voxel_world: '<path d="M8 10H13V15H8ZM15 15H20V20H15ZM21 21H26V26H21Z" stroke="none"/>',
+      // A small tilted orbit ring across the upper body, with an amber satellite on it.
+      orbit: '<ellipse cx="10.4" cy="19" rx="5.3" ry="2.1" transform="rotate(-28 10.4 19)" fill="none" stroke-width="1.4"/><circle cx="13" cy="15.9" r="1.6" stroke="none"/>'
     };
     detail = `<g fill="${p.accent}" stroke="${p.accent}" stroke-width="1.5" stroke-linecap="round">${details[id]}</g>`;
   } else if (role === 'pointer' || role === 'grab' || role === 'grabbing') {
@@ -91,7 +95,9 @@ function soundArtwork(id) {
     electronic_dreams: '<path d="M18 47H27V34H36V51H45V39H54V29H63M18 59H27V54H36V62H45V56H54V48H63"/><circle cx="65" cy="27" r="3"/>',
     windows_xp: '<rect x="23" y="24" width="34" height="34" rx="4"/><path d="M40 24V58M23 41H57M40 18L47 25M40 18L33 25"/>',
     green_slime: '<path d="M40 14C34 25 23 36 23 47A17 17 0 0 0 57 47C57 36 46 25 40 14Z"/><path d="M33 49Q38 56 47 49M34 39Q38 35 42 39"/>',
-    voxel_world: '<path d="M20 25H38V43H20ZM42 23H60V41H42ZM31 46H49V64H31ZM52 45H67V60H52Z"/><path d="M24 29H34V39H24ZM46 27H56V37H46ZM35 50H45V60H35Z"/>'
+    voxel_world: '<path d="M20 25H38V43H20ZM42 23H60V41H42ZM31 46H49V64H31ZM52 45H67V60H52Z"/><path d="M24 29H34V39H24ZM46 27H56V37H46ZM35 50H45V60H35Z"/>',
+    // Ringed planet: the back of the ring, the planet (filled with the cover colour to hide it), the front of the ring and a moon.
+    orbit: `<g transform="rotate(-22 40 42)"><path d="M9 42A31 9 0 0 1 71 42"/><circle cx="40" cy="42" r="15" fill="${p.bg}"/><path d="M26 36Q40 41 54 36" opacity=".55"/><path d="M9 42A31 9 0 0 0 71 42"/></g><circle cx="66" cy="21" r="3.4"/>`
   };
   const waveform = Array.from({length:29},(_,i)=>{
     const height = 4 + 31 * Math.pow(Math.sin((i+1)*0.61),2) * Math.sin(Math.PI*(i+1)/30);

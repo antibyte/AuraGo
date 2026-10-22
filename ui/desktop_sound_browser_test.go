@@ -149,8 +149,8 @@ window.WebSocket=class extends EventTarget { close(){} };
 	if err := json.Unmarshal([]byte(qualityJSON), &quality); err != nil {
 		t.Fatalf("parse render quality: %v\n%s", err, qualityJSON)
 	}
-	if len(quality.Themes) != 15 {
-		t.Fatalf("expected 15 rendered themes, got %d", len(quality.Themes))
+	if len(quality.Themes) != 16 {
+		t.Fatalf("expected 16 rendered themes, got %d", len(quality.Themes))
 	}
 	const rmsMin = 0.0005
 	const peakMax = 0.891 // -1 dBFS
@@ -413,6 +413,137 @@ window.WebSocket=class extends EventTarget { close(){} };
 			t.Errorf("%s is audible for %.0f ms (render length %.0f ms), want 30 ms to %.0f ms and no truncation", name, item.Audible*1000, bank.Seconds*1000, maxAudible*1000)
 		}
 	}
+
+	// The Orbit sonar ping shares the theme FX gate: it plays only for the Orbit sound theme (here the slime
+	// theme is still active), never as a preview and under the Navigation category, one per 350 ms at the most.
+	beforeOrbit := slimePlays()
+	if page.MustEval(`async()=>await DesktopSounds.play('orbit.ping',{variant:'medium',strength:.8,pan:.2})`).Bool() || slimePlays() != beforeOrbit {
+		t.Fatal("orbit ping must be ignored while another effective sound theme is selected")
+	}
+	page.MustEval(`()=>{
+        soundTest.state.bootstrap.settings['sound.theme']='orbit';
+        applySoundSettingsChange('sound.theme','orbit');
+    }`)
+	var orbitRejected map[string]interface{}
+	orbitRejectedJSON := page.MustEval(`async()=>{
+        const out={}, wait=ms=>new Promise(r=>setTimeout(r,ms));
+        const start={requested:DesktopSounds.inspect().themeFx.orbit.requested,plays:DesktopSounds.inspect().plays};
+        out.preview=await DesktopSounds.play('orbit.ping',{preview:true,theme:'orbit',strength:1});
+        out.silent=await DesktopSounds.play('orbit.ping',{silent:true,strength:1});
+        out.mute=await DesktopSounds.play('orbit.ping',{strength:0});
+        soundTest.state.bootstrap.settings['sound.navigation']='false';
+        applySoundSettingsChange('sound.navigation','false');
+        out.category=await DesktopSounds.play('orbit.ping',{strength:1});
+        soundTest.state.bootstrap.settings['sound.navigation']='true';
+        applySoundSettingsChange('sound.navigation','true');
+        await wait(300);
+        const now=DesktopSounds.inspect();
+        out.requested=now.themeFx.orbit.requested-start.requested;
+        out.plays=now.plays-start.plays;
+        return JSON.stringify(out);
+    }`).Str()
+	if err := json.Unmarshal([]byte(orbitRejectedJSON), &orbitRejected); err != nil {
+		t.Fatalf("parse orbit ping rejections: %v\n%s", err, orbitRejectedJSON)
+	}
+	for _, key := range []string{"preview", "silent", "mute", "category"} {
+		if orbitRejected[key] != false {
+			t.Errorf("orbit ping must be ignored (%s), got %v", key, orbitRejected[key])
+		}
+	}
+	if orbitRejected["requested"] != float64(0) || orbitRejected["plays"] != float64(0) {
+		t.Fatalf("ignored orbit pings still queued or played: %s", orbitRejectedJSON)
+	}
+	beforeOrbit = slimePlays()
+	if !page.MustEval(`async()=>await DesktopSounds.play('orbit.ping',{variant:'large',strength:.8,pan:-.3})`).Bool() {
+		t.Fatal("orbit.ping was not accepted for the Orbit sound theme")
+	}
+	page.MustWait(`before=>soundTest.inspect().plays>before`, beforeOrbit)
+	if event := page.MustEval(`()=>soundTest.inspect().lastEvent`).Str(); event != "orbit.ping" {
+		t.Fatalf("orbit ping lastEvent = %q, want orbit.ping", event)
+	}
+	if rendered := page.MustEval(`()=>soundTest.inspect().themeFx.orbit.rendered`).Int(); rendered != 1 {
+		t.Fatalf("orbit ping rendered %d variants for one ping, want 1", rendered)
+	}
+	// Eight quick pings merge into one and a stream of 14 over 1.7 s plays two or three (350 ms gap, three per 2 s).
+	var orbitLimits struct{ Burst, Stream, Limited int }
+	orbitLimitsJSON := page.MustEval(`async()=>{
+        const wait=ms=>new Promise(r=>setTimeout(r,ms)), played=()=>DesktopSounds.inspect().plays;
+        await wait(2200);
+        let before=played();
+        for(let i=0;i<8;i++){DesktopSounds.play('orbit.ping',{variant:'small',strength:.7});await wait(25);}
+        await wait(400);
+        const burst=played()-before;
+        await wait(2200);
+        before=played();
+        for(let i=0;i<14;i++){DesktopSounds.play('orbit.ping',{variant:'medium',strength:.7});await wait(120);}
+        await wait(400);
+        const stream=played()-before;
+        return JSON.stringify({burst,stream,limited:DesktopSounds.inspect().themeFx.orbit.limited});
+    }`).Str()
+	if err := json.Unmarshal([]byte(orbitLimitsJSON), &orbitLimits); err != nil {
+		t.Fatalf("parse orbit ping rate limits: %v\n%s", err, orbitLimitsJSON)
+	}
+	t.Logf("orbit ping plays: %s", orbitLimitsJSON)
+	if orbitLimits.Burst != 1 || orbitLimits.Stream < 2 || orbitLimits.Stream > 3 || orbitLimits.Limited < 1 {
+		t.Fatalf("orbit ping rate limits off (burst of 8 quick pings %d, want 1; 14 pings over 1.7 s %d, want 2-3; limited %d): %s",
+			orbitLimits.Burst, orbitLimits.Stream, orbitLimits.Limited, orbitLimitsJSON)
+	}
+	// Every variant renders cleanly at about 38 % of a window sound's peak, rings for 0.35 to 0.85 s and is not
+	// cut off by the one-second render.
+	var orbitBank struct {
+		Open    struct{ Peak, Loud float64 } `json:"open"`
+		Seconds float64                      `json:"seconds"`
+		Gain    float64                      `json:"gain"`
+		Items   []struct {
+			Variant    string
+			Finite     bool
+			Peak, Loud float64
+			Audible    float64
+		} `json:"items"`
+	}
+	orbitBankJSON := page.MustEval(`async()=>{
+        const synth=DesktopSoundSynth, bank=DesktopSoundThemes.orbit, fx=DesktopSounds.inspect().themeFx.orbit;
+        const measure=buffer=>{
+            const channels=[];for(let c=0;c<buffer.numberOfChannels;c++)channels.push(buffer.getChannelData(c));
+            let peak=0,finite=true;
+            for(const d of channels)for(let i=0;i<d.length;i++){if(!Number.isFinite(d[i]))finite=false;peak=Math.max(peak,Math.abs(d[i]));}
+            const ch=channels[0],rate=buffer.sampleRate;
+            let last=0;for(let i=0;i<ch.length;i++)if(Math.abs(ch[i])>peak*0.001)last=i;
+            const win=Math.round(rate*0.02);let run=0,loud=0;
+            for(let i=0;i<ch.length;i++){run+=ch[i]*ch[i];if(i>=win)run-=ch[i-win]*ch[i-win];if(i>=win-1)loud=Math.max(loud,run/win);}
+            return {finite,peak,loud:Math.sqrt(loud),audible:(last+1)/rate};
+        };
+        const open=measure((await synth.renderLayers(bank.events['window.open'],synth.MAX_SECONDS)).buffer);
+        const out={open,seconds:fx.seconds,gain:fx.gains['orbit.ping'],items:[]};
+        for(const variant of ['small','medium','large']){
+            out.items.push(Object.assign({variant},measure((await synth.renderLayers(bank.specialFx['orbit.ping'][variant],fx.seconds)).buffer)));
+        }
+        return JSON.stringify(out);
+    }`).Str()
+	if err := json.Unmarshal([]byte(orbitBankJSON), &orbitBank); err != nil {
+		t.Fatalf("parse orbit ping bank: %v\n%s", err, orbitBankJSON)
+	}
+	if len(orbitBank.Items) != 3 || orbitBank.Open.Peak <= 0 || orbitBank.Open.Loud <= 0 {
+		t.Fatalf("orbit ping bank should render three variants: %s", orbitBankJSON)
+	}
+	for _, item := range orbitBank.Items {
+		if !item.Finite || item.Peak <= 0 {
+			t.Errorf("orbit.ping/%s renders NaN or silence", item.Variant)
+		}
+		if peak := item.Peak * orbitBank.Gain / orbitBank.Open.Peak; peak < 0.3 || peak > 0.5 {
+			t.Errorf("orbit.ping/%s plays at %.2f of a window sound's peak, want about 0.4", item.Variant, peak)
+		}
+		if loud := item.Loud * orbitBank.Gain / orbitBank.Open.Loud; loud < 0.1 || loud > 0.5 {
+			t.Errorf("orbit.ping/%s plays at %.2f of a window sound's loudness, want 0.1 to 0.5", item.Variant, loud)
+		}
+		if item.Audible < 0.35 || item.Audible > 0.85 || item.Audible > orbitBank.Seconds-0.03 {
+			t.Errorf("orbit.ping/%s rings for %.0f ms (render length %.0f ms), want 350 to 850 ms and no truncation", item.Variant, item.Audible*1000, orbitBank.Seconds*1000)
+		}
+	}
+	page.MustEval(`()=>{
+        soundTest.state.bootstrap.settings['sound.theme']='green_slime';
+        applySoundSettingsChange('sound.theme','green_slime');
+    }`)
 
 	// Sounds off: the context closes and slime FX are ignored until the next gesture unlocks it again.
 	if page.MustEval(`async()=>{

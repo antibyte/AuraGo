@@ -9,7 +9,7 @@ func TestThemeSensorySettingsPersistIndependently(t *testing.T) {
 	t.Parallel()
 	svc := testService(t)
 	ctx := context.Background()
-	for _, sound := range []string{"desktop", "amiga", "cyberpunk", "black_gloss", "crazy", "lollipop", "organic", "electronic_dreams", "windows_xp", "green_slime", "voxel_world", "water"} {
+	for _, sound := range []string{"desktop", "amiga", "cyberpunk", "black_gloss", "crazy", "lollipop", "organic", "electronic_dreams", "windows_xp", "green_slime", "voxel_world", "orbit", "water"} {
 		if err := svc.SetSetting(ctx, "sound.theme", sound, SourceUser); err != nil {
 			t.Fatalf("save sound %s: %v", sound, err)
 		}

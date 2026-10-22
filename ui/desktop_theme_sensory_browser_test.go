@@ -21,7 +21,7 @@ func TestDesktopThemeSensoryBrowser(t *testing.T) {
 		t.Fatal("sound must remain off, locked and unloaded at boot")
 	}
 	s.openApps(t, "settings")
-	for _, id := range []string{"amiga", "cyberpunk", "black_gloss", "crazy", "lollipop", "organic"} {
+	for _, id := range []string{"amiga", "cyberpunk", "black_gloss", "crazy", "lollipop", "organic", "orbit"} {
 		t.Run(id, func(t *testing.T) {
 			s.store.set(map[string]string{"appearance.theme": id, "appearance.theme_cursors": "true", "sound.theme": "desktop"})
 			s.pushSettings(t)
@@ -125,7 +125,7 @@ func TestDesktopThemeSensoryBrowser(t *testing.T) {
 	s.eval(t, `()=>{
         const sheet=document.createElement('div'); sheet.id='sensory-artwork-sheet';
         sheet.style.cssText='position:fixed;inset:0;z-index:2147483647;background:#101827;color:#edf2fa;padding:32px;overflow:auto;font:16px system-ui;display:grid;grid-template-columns:repeat(3,1fr);gap:24px';
-        for(const id of ['amiga','cyberpunk','black_gloss','crazy','lollipop','organic']){
+        for(const id of ['amiga','cyberpunk','black_gloss','crazy','lollipop','organic','orbit']){
             const card=document.createElement('section'); card.innerHTML='<h2>'+id.replace('_',' ')+'</h2><img src="/img/cursors/'+id+'/preview.svg" width="288" height="88">';
             for(const bg of ['#f3f4f6','#121a26']){
                 const row=document.createElement('div'); row.style.cssText='background:'+bg+';border-radius:8px;padding:12px;margin-top:12px;display:flex;gap:14px';

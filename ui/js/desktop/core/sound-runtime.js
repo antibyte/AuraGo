@@ -5,15 +5,15 @@
         'window.open': 'windows', 'window.close': 'windows', 'window.minimize': 'windows',
         'window.restore': 'windows', 'window.maximize': 'windows', 'window.snap': 'windows', 'window.deny': 'windows',
         'window.fracture': 'windows', 'window.impact': 'windows',
-        'slime.pop': 'windows', 'slime.snap': 'windows',
+        'slime.pop': 'windows', 'slime.snap': 'windows', 'orbit.ping': 'navigation',
         'notify.info': 'notifications', 'notify.message': 'notifications', 'notify.error': 'notifications',
         'menu.open': 'navigation', 'menu.close': 'navigation', 'space.switch': 'navigation',
         'dialog.open': 'files', 'dialog.confirm': 'files', 'dialog.cancel': 'files',
         'file.trash': 'files', 'file.delete': 'files', 'file.drop': 'files'
     };
 
-    const THEME_IDS = ['crystal', 'wood', 'analog', 'workshop', 'water', 'amiga', 'cyberpunk', 'black_gloss', 'crazy', 'lollipop', 'organic', 'electronic_dreams', 'windows_xp', 'green_slime', 'voxel_world'];
-    // Theme FX are sounds that a theme effect asks for by name (a block landing, a bubble bursting), not shell
+    const THEME_IDS = ['crystal', 'wood', 'analog', 'workshop', 'water', 'amiga', 'cyberpunk', 'black_gloss', 'crazy', 'lollipop', 'organic', 'electronic_dreams', 'windows_xp', 'green_slime', 'voxel_world', 'orbit'];
+    // Theme FX are sounds that a theme effect asks for by name (a block landing, a bubble bursting, a sonar ping), not shell
     // events. Every family belongs to one sound theme and plays only while that theme is effective. Its sounds
     // are theme.specialFx[event][variant], rendered lazily one at a time, so a first use never renders the
     // whole bank. Calls within coalesceMs merge into the loudest; a coalesced call older than expireMs is
@@ -29,6 +29,11 @@
             theme: 'green_slime', option: 'variant', variants: ['small', 'medium', 'large'], fallback: 'medium',
             events: { 'slime.pop': { gain: 0.4, gapMs: 350 }, 'slime.snap': { gain: 0.42, gapMs: 900 } },
             coalesceMs: 80, expireMs: 240, gapMs: 0, windowMs: 2000, maxInWindow: 3, curve: 0.85, seconds: 0.3
+        },
+        orbit: {
+            theme: 'orbit', option: 'variant', variants: ['small', 'medium', 'large'], fallback: 'medium',
+            events: { 'orbit.ping': { gain: 0.38, gapMs: 350 } },
+            coalesceMs: 80, expireMs: 240, gapMs: 0, windowMs: 2000, maxInWindow: 3, curve: 0.85, seconds: 1.0
         }
     };
     const THEME_FX_OF = {};

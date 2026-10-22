@@ -36,6 +36,8 @@ var desktopSoundLocaleKeys = []string{
 	"desktop.settings_sound_theme_green_slime_desc",
 	"desktop.settings_sound_theme_voxel_world",
 	"desktop.settings_sound_theme_voxel_world_desc",
+	"desktop.settings_sound_theme_orbit",
+	"desktop.settings_sound_theme_orbit_desc",
 	"desktop.settings_category_sound",
 	"desktop.settings_category_sound_desc",
 	"desktop.settings_sound_enabled",
@@ -114,6 +116,7 @@ func TestDesktopSoundRuntimeMarkers(t *testing.T) {
 		"DesktopSoundThemes.windows_xp",
 		"DesktopSoundThemes.green_slime",
 		"DesktopSoundThemes.voxel_world",
+		"DesktopSoundThemes.orbit",
 	} {
 		if !strings.Contains(bundle, marker) {
 			t.Fatalf("desktop-sounds bundle missing marker %q", marker)
@@ -212,6 +215,25 @@ func TestDesktopSoundThemeEvents(t *testing.T) {
 	if !strings.Contains(slime, "composeDesktopEvents") || !strings.Contains(slime, "specialFx") {
 		t.Error("green-slime bank must compose the shell events and add its FX bank")
 	}
+	// Orbit authors all 19 shell events itself (whooshes, HUD blips, airlock puffs) and adds the sonar ping.
+	orbit := readDesktopAssetText(t, "js/desktop/sound/theme-orbit.js")
+	orbitEvents := map[string]bool{}
+	for _, match := range eventRe.FindAllStringSubmatch(orbit, -1) {
+		orbitEvents[match[1]] = true
+	}
+	for _, event := range desktopSoundEvents {
+		if !orbitEvents[event] {
+			t.Errorf("orbit bank missing event %q", event)
+		}
+	}
+	for _, marker := range []string{"specialFx", "'orbit.ping'", "small:", "medium:", "large:", "window.DesktopSoundThemes.orbit"} {
+		if !strings.Contains(orbit, marker) {
+			t.Errorf("orbit bank missing marker %q", marker)
+		}
+	}
+	if strings.Contains(orbit, "reverb:") {
+		t.Error("orbit layers must not use the shared reverb pool: its convolver is shared by all layers of a render")
+	}
 }
 
 func TestDesktopThemeFxSoundRuntimeContract(t *testing.T) {
@@ -223,6 +245,7 @@ func TestDesktopThemeFxSoundRuntimeContract(t *testing.T) {
 	for _, marker := range []string{
 		"'window.fracture': 'windows'", "'window.impact': 'windows'", "'slime.pop': 'windows'", "'slime.snap': 'windows'",
 		"theme: 'voxel_world'", "theme: 'green_slime'", "'slime.pop': { gain: 0.4, gapMs: 350 }", "'slime.snap': { gain: 0.42, gapMs: 900 }",
+		"'orbit.ping': 'navigation'", "theme: 'orbit'", "'orbit.ping': { gain: 0.38, gapMs: 350 }",
 		"windowMs: 2000, maxInWindow: 3", "coalesceMs: 80, expireMs: 240",
 		"function queueThemeFx(", "function ensureThemeFxBuffer(", "currentThemeId() !== fx.theme",
 		"cancelThemeFx()", "cleanThemeFxOptions", "options.pan", "options.strength", "themeFx: Object.fromEntries",
