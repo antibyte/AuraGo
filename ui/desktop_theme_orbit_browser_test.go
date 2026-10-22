@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"bytes"
 	"encoding/base64"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -262,6 +264,13 @@ func TestDesktopOrbitSoftwareFallbackBrowser(t *testing.T) {
 	if got := s.eval(t, `()=>{const h=document.querySelector('.vd-fx-orbit-scene');return h?getComputedStyle(h).display:'gone';}`).Value.Str(); got != "none" && got != "gone" {
 		t.Errorf("the scene host is %q, want hidden", got)
 	}
+	// The poster shows instead: the wallpaper rule points at it and the file is the 1920x1080 render.
+	if got := s.eval(t, `async()=>({bg:getComputedStyle(document.body).backgroundImage,width:await new Promise(r=>{const i=new Image();i.onload=()=>r(i.naturalWidth+'x'+i.naturalHeight);i.onerror=()=>r('missing');i.src='/img/wallpapers/themes/orbit.png';})})`).Value; !strings.Contains(got.Get("bg").Str(), "/img/wallpapers/themes/orbit.png") || got.Get("width").Str() != "1920x1080" {
+		t.Errorf("the poster wallpaper is not in place: %s", got.String())
+	}
+	if os.Getenv("AURAGO_THEME_RECORDINGS") == "1" {
+		s.screenshot(t, filepath.Join(orbitCloseUpDir(), "poster-fallback.png"))
+	}
 	if got := s.eval(t, `()=>fixtureErrors`).Value.String(); got != "[]" {
 		t.Errorf("page errors: %s", got)
 	}
@@ -393,5 +402,59 @@ func TestDesktopOrbitCloseUpsBrowser(t *testing.T) {
 	}
 	if errors := s.eval(t, `()=>fixtureErrors`).Value.String(); errors != "[]" {
 		t.Fatalf("errors while shooting close-ups: %s", errors)
+	}
+}
+
+// TestDesktopOrbitPosterBrowser renders the poster wallpaper: the still scene exactly as the reduced-motion desktop draws
+// it (neutral camera, a moment of the cycle with the shuttle out and no comet, shooting star or flash, no film grain so
+// that the PNG stays small), without the shell and the particle layer. It writes ui/img/wallpapers/themes/orbit.png and
+// only runs on request:
+//
+//	AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_ORBIT_POSTER=1 go test ./ui -run '^TestDesktopOrbitPosterBrowser$' -count=1 -timeout 15m
+func TestDesktopOrbitPosterBrowser(t *testing.T) {
+	if os.Getenv("AURAGO_RUN_BROWSER_SMOKE") != "1" || os.Getenv("AURAGO_ORBIT_POSTER") != "1" {
+		t.Skip("set AURAGO_RUN_BROWSER_SMOKE=1 and AURAGO_ORBIT_POSTER=1 to render the Orbit poster")
+	}
+	s := newOrbitSession(t, "reduce", true)
+	startOrbit(t, s, true, 0)
+	if backend := s.eval(t, `()=>AuraDesktopThemeFx.inspect().scene.backend`).Value.Str(); backend != "three-webgl" {
+		t.Fatalf("the poster needs the live scene; its backend here is %q: %s", backend, orbitSceneJSON(t, s))
+	}
+	s.waitFor(t, "the scene with all models", 60*time.Second, `()=>{const f=AuraDesktopThemeFx.inspect(),s=f.scene;return f.motion===false && s.ready && Object.values(s.models).every(m=>m==='ok');}`)
+	s.eval(t, `()=>AuraDesktopThemeFx.command('orbit.time',{t:44})`)
+	url := s.eval(t, `()=>AuraDesktopThemeFx.command('orbit.capture',{width:1920,height:1080,grain:0})`).Value.Str()
+	raw, ok := strings.CutPrefix(url, "data:image/png;base64,")
+	if !ok {
+		t.Fatalf("orbit.capture returned %.40q", url)
+	}
+	data, err := base64.StdEncoding.DecodeString(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("captured %d bytes", len(data))
+	if len(data) > 2_500_000 {
+		img, err := png.Decode(bytes.NewReader(data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out bytes.Buffer
+		if err := (&png.Encoder{CompressionLevel: png.BestCompression}).Encode(&out, img); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("re-encoded with the best compression: %d bytes", out.Len())
+		if out.Len() < len(data) {
+			data = out.Bytes()
+		}
+	}
+	if len(data) > 2_800_000 {
+		t.Errorf("the poster is %d bytes; the other theme wallpapers stay below 2.8 MB", len(data))
+	}
+	path := filepath.Join("img", "wallpapers", "themes", "orbit.png")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("wrote %s (%d bytes)", path, len(data))
+	if errs := orbitConsoleErrors(s); len(errs) > 0 {
+		t.Errorf("console errors: %q", errs)
 	}
 }

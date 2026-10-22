@@ -23,9 +23,10 @@
     border-radius: 0;
     text-shadow: 1px 1px 0 #000;
 }
-/* Orbit: deep space until the live scene (or its poster) paints over it; cool labels on a dark glass plate. */
+/* Orbit: the poster (a render of the still scene) shows while the live scene loads and wherever WebGL is unavailable; the
+   scene host fades in over it. Cool labels on a dark glass plate. */
 .desktop-body[data-wallpaper="orbit"] {
-    background: #03040c radial-gradient(120% 90% at 72% 70%, #1b2550 0%, #0a0f26 38%, #03040c 100%) fixed;
+    background: #03040c url('/img/wallpapers/themes/orbit.png') center / cover no-repeat fixed;
 }
 .desktop-body[data-wallpaper="orbit"] .vd-icon-label {
     color: #eaf6ff;
