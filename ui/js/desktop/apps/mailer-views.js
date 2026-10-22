@@ -15,9 +15,35 @@
 (function () {
     'use strict';
 
+    // displayName resolves a raw mail address or "Name <address>" header into
+    // a readable name. Participants arrive as raw header values, so quoting and
+    // angle brackets are removed before the name is used for display.
+    function displayName(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        const parsed = parseSender(raw);
+        const name = String(parsed.name || '').trim().replace(/^["'`]+|["'`]+$/g, '').trim();
+        if (name && name !== '?') return name;
+        return raw.replace(/^["'`]+|["'`]+$/g, '').trim();
+    }
+
+    // initials derives up to two letters from one sender label. Mail headers
+    // carry quotes, angle brackets and stray punctuation ("Andreas Jakob"
+    // <a@b.de>), so only real letters and digits may reach the avatar.
+    // The label has to describe a single person: a thread participant list
+    // would otherwise lend its letters to an unrelated address.
     function initials(value) {
-        const text = String(value || '').replace(/<[^>]+>/g, '').trim();
-        return (text.split(/\s+/).slice(0, 2).map(part => part[0] || '').join('') || '?').toUpperCase();
+        const source = displayName(value);
+        const base = source.includes('@') ? source.split('@')[0] : source;
+        const words = base.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+        if (!words.length) return '?';
+        const first = [...words[0]][0] || '';
+        if (words.length === 1) return first.toUpperCase();
+        // A single leading letter is an initial ("J. R. R. Tolkien"), so the
+        // family name carries the second letter; a spelled-out first name
+        // pairs with the word right after it ("GitHub Actions").
+        const second = words[0].length === 1 ? words[words.length - 1] : words[1];
+        return (first + ([...second][0] || '')).toUpperCase();
     }
 
     function parseSender(value) {
@@ -143,6 +169,7 @@
 
     window.MailerViews = {
         avatar,
+        displayName,
         emptyState,
         formatBytes,
         formatDate,

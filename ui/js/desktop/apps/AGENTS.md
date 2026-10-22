@@ -3342,6 +3342,17 @@ registration lives in `internal/desktop/types.go`.
   styled thin scrollbars, 140 ms hover feedback, `prefers-reduced-motion`
   fallbacks, sender avatars with a stable tone per name, and an unread marker on
   the avatar instead of an extra grid child.
+- A thread row shows one person. `threadIdentity` picks the sender of the
+  latest message and, in a sent folder, its recipient. The `participants` list
+  of a thread mixes recipients and the sender, so it must never reach
+  `initials` or the avatar: the letters of one address only. The reader header
+  shows the roster as `mailer.participants_count` chip.
+- The reader actions are grouped, never one flat pile: response actions
+  (`reply`, `reply_all`, `forward`) keep their label, utility and file actions
+  (`print`, `eml`, `archive`, `trash`, `delete`) collapse into icon buttons
+  with `title` and `aria-label`, and every action carries its `vd-mailer-icon`.
+  `readerActionButton` is the only builder for them. The back button belongs
+  to the overlay reader below 719 px and stays hidden in the three-pane layout.
 - Video Studio imports originals through the existing project media importer before
   adding a four-second overlay at the playhead, at 24% of the shorter canvas edge.
   Recheck project identity/epoch after asynchronous work and keep busy/locked overlay

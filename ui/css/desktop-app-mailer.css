@@ -411,6 +411,14 @@
 .vd-mailer-thread-line { display: flex; align-items: baseline; gap: 8px; color: var(--mail-muted); font-size: 11.5px; }
 .vd-mailer-thread-line b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mail-text); font-weight: 620; }
 .vd-mailer-thread-account { max-width: 32%; overflow: hidden; color: var(--mail-muted); text-overflow: ellipsis; white-space: nowrap; }
+.vd-mailer-participant-chip {
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--mail-surface-hover);
+    color: var(--mail-muted);
+    font-size: 10.5px;
+    font-weight: 620;
+}
 .vd-mailer-thread-line time { margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .vd-mailer-thread-copy strong {
     display: block;
@@ -471,7 +479,7 @@
     border-bottom: 1px solid var(--mail-border);
     background: var(--mail-bg);
 }
-.vd-mailer-reader-subject { min-width: 120px; }
+.vd-mailer-reader-subject { flex: 1 1 140px; min-width: 0; }
 .vd-mailer-reader-subject h2 { margin: 0; font-size: 20px; font-weight: 680; letter-spacing: -.015em; line-height: 1.25; overflow-wrap: anywhere; }
 .vd-mailer-reader-subject p { display: flex; flex-wrap: wrap; gap: 6px; margin: 9px 0 0; }
 .vd-mailer-label-chip {
@@ -482,9 +490,16 @@
     font-size: 10.5px;
     font-weight: 620;
 }
-.vd-mailer-reader-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.vd-mailer-reader-actions { display: flex; align-items: center; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .vd-mailer-reader-actions button { min-height: 30px; padding: 4px 10px; font-size: 11.5px; }
-.vd-mailer-reader-back { display: none; }
+.vd-mailer-reader-action-group { display: inline-flex; align-items: center; gap: 4px; }
+.vd-mailer-reader-action-group + .vd-mailer-reader-action-group { padding-left: 8px; border-left: 1px solid var(--mail-border); }
+.vd-mailer-reader-action--icon { width: 30px; min-width: 30px; padding: 0; }
+.vd-mailer-reader-action .vd-mailer-icon { width: 15px; height: 15px; flex-basis: 15px; }
+.vd-mailer-reader-action--icon .vd-mailer-icon { width: 16px; height: 16px; flex-basis: 16px; }
+.vd-mailer-reader-back { gap: 6px; }
+.vd-mailer-reader-actions .vd-mailer-reader-back { display: none; }
+.vd-mailer-reader-back .vd-mailer-icon { width: 15px; height: 15px; flex-basis: 15px; }
 .vd-mailer-message {
     padding: 18px 0;
     border-bottom: 1px solid var(--mail-border);
@@ -1012,8 +1027,9 @@
     .vd-mailer.has-active-reader .vd-mailer-folders, .vd-mailer.has-active-reader .vd-mailer-list-panel { display: none; }
     .vd-mailer.has-active-reader .vd-mailer-reader { display: block; }
     .vd-mailer-reader-head { flex-direction: column; gap: 10px; padding: 12px 0; }
+    .vd-mailer-reader-subject { flex: 0 1 auto; }
     .vd-mailer-reader-actions { width: 100%; justify-content: flex-start; }
-    .vd-mailer-reader-back { display: inline-block; }
+    .vd-mailer-reader-actions .vd-mailer-reader-back { display: inline-flex; }
     .vd-mailer-thread { grid-template-columns: 18px 22px 30px minmax(0, 1fr); gap: 8px; padding: 10px; }
     .vd-mailer-avatar--row { width: 30px; height: 30px; flex-basis: 30px; font-size: 11px; }
     .vd-mailer-avatar--message { width: 32px; height: 32px; flex-basis: 32px; font-size: 11.5px; }

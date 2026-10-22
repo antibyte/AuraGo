@@ -195,6 +195,7 @@
   "mailer.outbox_sent": "Sent",
   "mailer.outbox_unknown": "Delivery status unknown",
   "mailer.partial_action": "Some messages changed. The list has been refreshed; review the remaining messages before trying again.",
+  "mailer.participants_count": "{count} participants",
   "mailer.password": "Password",
   "mailer.preview_rule": "Preview affected messages",
   "mailer.print": "Print",

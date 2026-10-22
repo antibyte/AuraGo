@@ -4,7 +4,7 @@
     const PAGE_SIZE = 40;
     // Pure rendering helpers live in mailer-views.js (loaded before this file).
     const safeMailHTML = (...args) => window.MailerViews.safeMailHTML(...args);
-    const initials = value => window.MailerViews.initials(value);
+    const displayName = value => window.MailerViews.displayName(value);
     const parseSender = value => window.MailerViews.parseSender(value);
     const formatDate = (value, timezone) => window.MailerViews.formatDate(value, timezone);
     const formatBytes = size => window.MailerViews.formatBytes(size);
@@ -34,7 +34,13 @@
             outbox: '<path d="M4 15h12V6H4zM8 9l2-2 2 2M10 7v6"/>',
             drafts: '<path d="M4 3h8l4 4v10H4zM12 3v4h4M7 11h6M7 14h4"/>',
             star: '<path d="m10 2 2.3 5 5.4.7-4 3.8 1 5.5-4.7-2.7-4.7 2.7 1-5.5-4-3.8L7.7 7z"/>',
-            label: '<path d="M3 4h8l6 6-7 7-7-6zM7 8h.01"/>'
+            label: '<path d="M3 4h8l6 6-7 7-7-6zM7 8h.01"/>',
+            reply: '<path d="M8 5 3 9l5 4M3 9h9a5 5 0 0 1 5 5v1"/>',
+            replyAll: '<path d="M6 4 1 8l5 4M1 8h8a4 4 0 0 1 4 4v2M11 4l4 4-4 4"/>',
+            forward: '<path d="m12 5 5 4-5 4M17 9H8a5 5 0 0 0-5 5v1"/>',
+            print: '<path d="M6 8V3h8v5M6 8h8a2 2 0 0 1 2 2v4h-3M6 14H4v-4a2 2 0 0 1 2-2M7 12h6v5H7z"/>',
+            download: '<path d="M10 3v9M6 9l4 4 4-4M4 16h12"/>',
+            back: '<path d="M12 4 6 10l6 6M6 10h11"/>'
         };
         return `<svg class="vd-mailer-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${shapes[name] || shapes.folder}</svg>`;
     }
@@ -418,12 +424,12 @@
         root.innerHTML = items.length ? items.map(item => {
             const account = accountForThread(inst, item);
             const accountName = !inst.accountId && account ? (account.name || account.address) : '';
-            const senderName = (item.participants || []).slice(0, 2).join(', ') || item.from || t(inst.ctx, 'unknown_sender');
-            return `<article class="vd-mailer-thread ${(item.unread_count || item.unread) ? 'is-unread' : ''} ${item.id === inst.activeThread ? 'is-selected' : ''}" data-thread-id="${esc(item.id)}" tabindex="0" role="button" aria-label="${esc(t(inst.ctx, 'open_message_label', { subject: item.subject || t(inst.ctx, 'no_subject'), from: (item.participants || [item.from]).filter(Boolean).join(', ') }))}" aria-current="${item.id === inst.activeThread ? 'true' : 'false'}">
+            const senderName = threadIdentity(inst, item) || t(inst.ctx, 'unknown_sender');
+            return `<article class="vd-mailer-thread ${(item.unread_count || item.unread) ? 'is-unread' : ''} ${item.id === inst.activeThread ? 'is-selected' : ''}" data-thread-id="${esc(item.id)}" tabindex="0" role="button" aria-label="${esc(t(inst.ctx, 'open_message_label', { subject: item.subject || t(inst.ctx, 'no_subject'), from: senderName }))}" aria-current="${item.id === inst.activeThread ? 'true' : 'false'}">
             <label class="vd-mailer-thread-check" aria-label="${esc(t(inst.ctx, 'select_message'))}"><input type="checkbox" data-select-thread value="${esc(item.id)}" ${inst.selected.has(item.id) ? 'checked' : ''}></label>
             <button type="button" class="vd-mailer-star" data-star-thread="${esc(item.id)}" aria-label="${esc(item.starred ? t(inst.ctx, 'unstar') : t(inst.ctx, 'star'))}" aria-pressed="${item.starred ? 'true' : 'false'}" ${!canThreadCapability(inst, item, 'star') ? 'disabled' : ''}>${iconSVG('star')}</button>
             ${avatar(senderName, 'vd-mailer-avatar--row')}
-            <div class="vd-mailer-thread-copy"><div class="vd-mailer-thread-line"><b>${esc(senderName)}</b>${accountName ? `<small class="vd-mailer-thread-account">${esc(accountName)}</small>` : ''}<time>${esc(formatDate(item.last_message_at || item.date, inst.state.timezone))}</time></div><strong>${esc(item.subject || t(inst.ctx, 'no_subject'))}</strong><p>${esc(item.preview || item.snippet || '')}</p>${item.attachment_count ? `<span class="vd-mailer-attachment-count">📎 ${Number(item.attachment_count)}</span>` : ''}</div>
+            <div class="vd-mailer-thread-copy"><div class="vd-mailer-thread-line"><b title="${esc(senderName)}">${esc(senderName)}</b>${accountName ? `<small class="vd-mailer-thread-account">${esc(accountName)}</small>` : ''}<time>${esc(formatDate(item.last_message_at || item.date, inst.state.timezone))}</time></div><strong>${esc(item.subject || t(inst.ctx, 'no_subject'))}</strong><p>${esc(item.preview || item.snippet || '')}</p>${item.attachment_count ? `<span class="vd-mailer-attachment-count">📎 ${Number(item.attachment_count)}</span>` : ''}</div>
             </article>`;
         }).join('') : emptyState({ icon: inst.view === 'inbox' ? '✉' : '⌕', title: t(inst.ctx, 'empty_title'), hint: t(inst.ctx, 'empty_view_' + inst.view) });
         inst.host.querySelector('[data-list-count]').textContent = t(inst.ctx, 'messages_count', { count: items.length });
@@ -490,6 +496,20 @@
         }
     }
 
+    // readerActionButton renders one action of the reader toolbar. Response
+    // actions keep their label, utility and file actions collapse into an
+    // icon with a tooltip, so the reader header never becomes a wall of
+    // full-text buttons.
+    function readerActionButton(inst, action, labelKey, glyph, iconOnly, primary, danger) {
+        const label = t(inst.ctx, labelKey);
+        const classes = ['vd-mailer-reader-action'];
+        if (iconOnly) classes.push('vd-mailer-reader-action--icon');
+        if (primary) classes.push('vd-mailer-primary');
+        if (danger) classes.push('vd-mailer-danger');
+        const attributes = iconOnly ? ` title="${esc(label)}" aria-label="${esc(label)}"` : '';
+        return `<button type="button" class="${classes.join(' ')}" data-reader-action="${action}"${attributes}>${glyph}${iconOnly ? '' : `<span>${esc(label)}</span>`}</button>`;
+    }
+
     function paintReader(inst) {
         const thread = inst.activeThreadData;
         const root = inst.host.querySelector('[data-reader]');
@@ -503,17 +523,41 @@
         const canTrash = canThreadCapability(inst, thread, 'trash');
         const canRestore = canThreadCapability(inst, thread, 'restore');
         const canLabel = canThreadCapability(inst, thread, 'labels_write');
-        const folderAction = trashView ? canRestore ? `<button type="button" data-reader-action="restore">${esc(t(inst.ctx, 'restore'))}</button>` : '' : canArchive ? `<button type="button" data-reader-action="archive">${esc(t(inst.ctx, 'archive'))}</button>` : '';
-        const toolbar = `<div class="vd-mailer-reader-actions"><button type="button" class="vd-mailer-reader-back" data-reader-back>${esc(t(inst.ctx, 'back_to_list'))}</button>${canSend ? `<button type="button" data-reader-action="reply">${esc(t(inst.ctx, 'reply'))}</button><button type="button" data-reader-action="reply_all">${esc(t(inst.ctx, 'reply_all'))}</button><button type="button" data-reader-action="forward">${esc(t(inst.ctx, 'forward'))}</button>` : ''}<button type="button" data-reader-action="print">${esc(t(inst.ctx, 'print'))}</button><button type="button" data-reader-action="eml">${esc(t(inst.ctx, 'download_eml'))}</button>${folderAction}${canTrash ? `<button type="button" data-reader-action="trash">${esc(t(inst.ctx, 'trash'))}</button>` : ''}${canDeleteThread(inst, thread) ? `<button type="button" data-reader-action="delete">${esc(t(inst.ctx, 'delete'))}</button>` : ''}</div>`;
+        const folderAction = trashView
+            ? (canRestore ? readerActionButton(inst, 'restore', 'restore', iconSVG('restore'), true) : '')
+            : (canArchive ? readerActionButton(inst, 'archive', 'archive', iconSVG('archive'), true) : '');
+        const responseGroup = canSend
+            ? `<span class="vd-mailer-reader-action-group">${readerActionButton(inst, 'reply', 'reply', iconSVG('reply'), false, true)}${readerActionButton(inst, 'reply_all', 'reply_all', iconSVG('replyAll'), false)}${readerActionButton(inst, 'forward', 'forward', iconSVG('forward'), false)}</span>`
+            : '';
+        const utilityGroup = `<span class="vd-mailer-reader-action-group">${readerActionButton(inst, 'print', 'print', iconSVG('print'), true)}${readerActionButton(inst, 'eml', 'download_eml', iconSVG('download'), true)}</span>`;
+        const fileGroup = folderAction || canTrash || canDeleteThread(inst, thread)
+            ? `<span class="vd-mailer-reader-action-group vd-mailer-reader-action-group--files">${folderAction}${canTrash ? readerActionButton(inst, 'trash', 'trash', iconSVG('trash'), true) : ''}${canDeleteThread(inst, thread) ? readerActionButton(inst, 'delete', 'delete', iconSVG('delete'), true, false, true) : ''}</span>`
+            : '';
+        const toolbar = `<div class="vd-mailer-reader-actions"><button type="button" class="vd-mailer-reader-back" data-reader-back>${iconSVG('back')}<span>${esc(t(inst.ctx, 'back_to_list'))}</span></button>${responseGroup}${utilityGroup}${fileGroup}</div>`;
         const threadLabels = thread.labels || current.labels || [];
         const knownLabelIDs = new Set((inst.state.labels || []).map(label => String(label.id)));
         const visibleLabels = threadLabels.filter(label => knownLabelIDs.has(String(typeof label === 'string' ? label : label.id)));
-        root.innerHTML = `<header class="vd-mailer-reader-head"><div class="vd-mailer-reader-subject"><h2>${esc(thread.subject || t(inst.ctx, 'no_subject'))}</h2><p>${visibleLabels.map(label => { const id = typeof label === 'string' ? label : label.id; const known = inst.state.labels.find(item => String(item.id) === String(id)); return `<span class="vd-mailer-label-chip">${esc(known?.name || id)}${canLabel ? `<button type="button" data-remove-label="${esc(id)}" aria-label="${esc(t(inst.ctx, 'remove_label'))}">×</button>` : ''}</span>`; }).join('')}</p></div>${toolbar}</header>
+        // The reader has room for the thread roster, the list row does not.
+        const participantCount = (thread.participants || []).filter(Boolean).length;
+        const participantChip = participantCount > 2 ? `<span class="vd-mailer-participant-chip">${esc(t(inst.ctx, 'participants_count', { count: participantCount }))}</span>` : '';
+        root.innerHTML = `<header class="vd-mailer-reader-head"><div class="vd-mailer-reader-subject"><h2>${esc(thread.subject || t(inst.ctx, 'no_subject'))}</h2><p>${participantChip}${visibleLabels.map(label => { const id = typeof label === 'string' ? label : label.id; const known = inst.state.labels.find(item => String(item.id) === String(id)); return `<span class="vd-mailer-label-chip">${esc(known?.name || id)}${canLabel ? `<button type="button" data-remove-label="${esc(id)}" aria-label="${esc(t(inst.ctx, 'remove_label'))}">×</button>` : ''}</span>`; }).join('')}</p></div>${toolbar}</header>
             <div class="vd-mailer-message-stack">${messages.map((message, index) => renderMessage(inst, message, index, messages.length)).join('')}</div>`;
         paintMessageFrames(inst);
     }
 
     function accountForThread(inst, thread) { return (inst.state.accounts || []).find(account => account.id === thread.account_id); }
+    // threadIdentity resolves the person a list row belongs to. Received
+    // mail shows the sender, sent mail the recipient, so the avatar letters
+    // and the row label always name the other party. The participant list
+    // of a thread mixes recipients and the sender and therefore never
+    // describes one person.
+    function threadIdentity(inst, item) {
+        const folder = (inst.folders || []).find(entry => entry.id === item.folder_id);
+        const recipients = (item.to || []).filter(Boolean);
+        if (folder && folder.kind === 'sent' && recipients.length) return displayName(recipients[0]);
+        const participants = (item.participants || []).filter(Boolean);
+        return displayName(item.from || participants[participants.length - 1] || '');
+    }
     function threadReadOnly(inst, thread) { return !!accountForThread(inst, thread)?.read_only; }
     function canThreadCapability(inst, thread, capability) {
         const account = accountForThread(inst, thread);
@@ -544,7 +588,7 @@
             <div class="vd-mailer-message-body">${body}</div>
             ${attachments.length ? `<ul class="vd-mailer-message-attachments" aria-label="${esc(t(inst.ctx, 'attachments'))}">${attachments.map(item => `<li><a href="${esc(inst.api.attachmentURL(message.id, item.id))}" download="${esc(item.filename)}">📎 ${esc(item.filename)} <small>${formatBytes(item.size)}</small></a></li>`).join('')}</ul>` : ''}
             <div class="vd-mailer-rule-runs" data-rule-runs-for="${esc(message.id)}"></div>
-            <footer><button type="button" data-eml="${esc(message.id)}">${esc(t(inst.ctx, 'download_message_eml'))}</button>${index + 1 < total ? `<span>${esc(t(inst.ctx, 'quoted_message'))}</span>` : ''}</footer></article>`;
+            <footer><button type="button" data-eml="${esc(message.id)}">${iconSVG('download')}<span>${esc(t(inst.ctx, 'download_message_eml'))}</span></button>${index + 1 < total ? `<span>${esc(t(inst.ctx, 'quoted_message'))}</span>` : ''}</footer></article>`;
     }
 
     function paintRuleRunsForMessage(inst, messageId) {

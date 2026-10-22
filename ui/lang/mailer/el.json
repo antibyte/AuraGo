@@ -183,6 +183,7 @@
   "mailer.outbox_sent": "Στάλθηκε",
   "mailer.outbox_unknown": "Άγνωστη κατάσταση παράδοσης",
   "mailer.partial_action": "Κάποια μηνύματα άλλαξαν. Η λίστα ανανεώθηκε· έλεγξε τα υπόλοιπα πριν ξαναδοκιμάσεις.",
+  "mailer.participants_count": "{count} συμμετέχοντες",
   "mailer.password": "Κωδικός πρόσβασης",
   "mailer.preview_rule": "Προεπισκόπηση κανόνα",
   "mailer.print": "Εκτύπωση",

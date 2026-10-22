@@ -183,6 +183,7 @@
   "mailer.outbox_sent": "Wysłano",
   "mailer.outbox_unknown": "Nieznany stan dostarczenia",
   "mailer.partial_action": "Niektóre wiadomości uległy zmianie. Odświeżono listę; sprawdź pozostałe przed ponowieniem próby.",
+  "mailer.participants_count": "{count} uczestników",
   "mailer.password": "Hasło",
   "mailer.preview_rule": "Podgląd wiadomości objętych regułą",
   "mailer.print": "Drukuj",

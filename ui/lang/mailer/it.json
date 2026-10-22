@@ -183,6 +183,7 @@
   "mailer.outbox_sent": "Inviato",
   "mailer.outbox_unknown": "Stato di consegna sconosciuto",
   "mailer.partial_action": "Alcuni messaggi sono cambiati. L’elenco è stato aggiornato; controlla quelli restanti prima di riprovare.",
+  "mailer.participants_count": "{count} partecipanti",
   "mailer.password": "Password",
   "mailer.preview_rule": "Anteprima dei messaggi interessati",
   "mailer.print": "Stampa",

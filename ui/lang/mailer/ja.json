@@ -183,6 +183,7 @@
   "mailer.outbox_sent": "送信済み",
   "mailer.outbox_unknown": "配信状況が不明です",
   "mailer.partial_action": "一部のメッセージが変更されました。一覧を更新しました。再試行する前に残りを確認してください。",
+  "mailer.participants_count": "参加者 {count} 人",
   "mailer.password": "パスワード",
   "mailer.preview_rule": "ルールをプレビュー",
   "mailer.print": "印刷",

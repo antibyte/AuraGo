@@ -43,6 +43,10 @@ func TestDesktopMailerResponsiveAndReaderContracts(t *testing.T) {
 	if settingsIndex < 0 || appIndex <= settingsIndex {
 		t.Fatal("desktop Mailer settings module must load before its app entry point")
 	}
+	viewsIndex := strings.Index(loader, "'/js/desktop/apps/mailer-views.js'")
+	if viewsIndex < 0 || appIndex <= viewsIndex {
+		t.Fatal("desktop Mailer views module must load before its app entry point")
+	}
 	if !strings.Contains(loader, "'mailer': ['mailer', 'stickers']") {
 		t.Fatal("desktop Mailer must load its lazy translation section before app scripts")
 	}
@@ -73,6 +77,11 @@ func TestDesktopMailerResponsiveAndReaderContracts(t *testing.T) {
 		"result?.next_cursor",
 		"more.hidden = !inst.nextCursor",
 		"vd-mailer-thread-account",
+		"threadIdentity(inst, item)",
+		"readerActionButton(inst, 'reply', 'reply', iconSVG('reply'), false, true)",
+		"vd-mailer-reader-action-group",
+		"vd-mailer-participant-chip",
+		"participants_count",
 		"params.remote = 'true'",
 		"inst.remoteSearch = !inst.remoteSearch",
 		"message.html_skipped",
@@ -97,6 +106,9 @@ func TestDesktopMailerResponsiveAndReaderContracts(t *testing.T) {
 	}
 	if strings.Contains(app, "vd-mailer-unread-dot") {
 		t.Fatal("unread indicator must not become an auto-placed grid child")
+	}
+	if strings.Contains(app, "(item.participants || []).slice(0, 2).join") {
+		t.Fatal("the message list must not derive the sender from the participant list")
 	}
 	compose := readDesktopAssetText(t, "js/desktop/apps/mailer-compose.js")
 	for _, marker := range []string{
@@ -130,6 +142,9 @@ func TestDesktopMailerResponsiveAndReaderContracts(t *testing.T) {
 		"container-name: mailer-compose;",
 		"@container mailer-compose (max-width: 719px)",
 		".vd-mailer, .vd-mailer-compose {",
+		".vd-mailer-reader-action-group + .vd-mailer-reader-action-group {",
+		".vd-mailer-reader-action--icon {",
+		".vd-mailer-participant-chip {",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("desktop Mailer styles are missing responsive/theme marker %q", marker)

@@ -183,6 +183,7 @@
   "mailer.outbox_sent": "Skickat",
   "mailer.outbox_unknown": "Leveransstatus okänd",
   "mailer.partial_action": "Några meddelanden ändrades. Listan har uppdaterats. Granska de återstående innan du försöker igen.",
+  "mailer.participants_count": "{count} deltagare",
   "mailer.password": "Lösenord",
   "mailer.preview_rule": "Förhandsgranska regel",
   "mailer.print": "Skriv ut",

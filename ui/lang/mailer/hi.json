@@ -183,6 +183,7 @@
   "mailer.outbox_sent": "भेजा गया",
   "mailer.outbox_unknown": "डिलीवरी की स्थिति अज्ञात है",
   "mailer.partial_action": "कुछ संदेश बदल गए हैं। सूची फिर से लोड हुई है; दोबारा कोशिश करने से पहले बाकी संदेश देखें।",
+  "mailer.participants_count": "{count} प्रतिभागी",
   "mailer.password": "पासवर्ड",
   "mailer.preview_rule": "नियम का पूर्वावलोकन",
   "mailer.print": "प्रिंट करें",
