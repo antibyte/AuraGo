@@ -12,6 +12,7 @@
         'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'
     ];
     const canvasPool = [];
+    const MAX_POOLED_PIXELS = 4000000;
     // 'ora' is the layered OpenRaster project format (pixel-ora.js); loadDesktopImagePath dispatches it by extension.
     const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif', 'ora'];
     const PRESET_COLORS = [
@@ -32,6 +33,8 @@
 
     function releaseTempCanvas(canvas) {
         if (!canvas) return;
+        // Big canvases are not worth pooling: shrinking to 0 x 0 frees the bitmap now instead of holding it forever.
+        if (canvas.width * canvas.height > MAX_POOLED_PIXELS) { canvas.width = canvas.height = 0; return; }
         const ctx = canvas.getContext('2d');
         if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (canvasPool.length < 4) canvasPool.push(canvas);

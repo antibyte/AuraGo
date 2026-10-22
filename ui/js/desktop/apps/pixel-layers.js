@@ -285,7 +285,7 @@
                 return null;
             }
             r.editMaskMode = false;
-            if (cut && !r.canPaintActiveLayer()) return null;
+            if (cut && !r.canPaintActiveLayer('erase')) return null;
             hook('commitPendingPreviews');
             const { w, h } = docSize();
             const out = r.makeCanvas(w, h);

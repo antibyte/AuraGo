@@ -180,6 +180,8 @@
         const layer = r.activeLayer();
         if (!layer || layer.sticker) return null;
         if (layer.lockPosition) { lockedNote(r); return null; }
+        // The move tool is not a raster tool, so the event layer does not bake a pending filter/adjust preview for it.
+        r.commitPendingPreviews();
         const inMask = !!(r.editMaskMode && layer.maskCanvas), w = r.imgWidth, h = r.imgHeight;
         const mv = { layer, inMask, start: { x: p.x, y: p.y }, dx: 0, dy: 0, w, h, copy: false, guides: null };
         if (r.selection) {
@@ -402,7 +404,8 @@
         if (mode === 'outline') { if (!r.selection || !r.getSelectionMask()) return false; }
         else {
             if (!r.requireRasterLayer(layer)) return false;
-            if (layer.lockPixels) { lockedNote(r); return false; }
+            // Resampling moves and blends alpha, which an alpha-locked layer must keep.
+            if (layer.lockPixels || layer.lockAlpha) { lockedNote(r); return false; }
             if (r.editMaskMode) r.leaveMaskEdit();
             r.commitPendingPreviews();
         }

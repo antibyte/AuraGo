@@ -19,6 +19,9 @@
         return copy;
     }
 
+    // Tools that remove or relocate pixels (canPaintActiveLayer); an alpha-locked layer keeps its alpha channel.
+    const ALPHA_CHANGING_TOOLS = ['eraser', 'erase', 'move'];
+
     function isDrawable(canvas) {
         return !!(canvas && canvas.width > 0 && canvas.height > 0);
     }
@@ -1041,7 +1044,7 @@
                 const layer = this.activeLayer();
                 if (!layer || !this.requireRasterLayer(layer)) return false;
                 const inMask = !!(this.editMaskMode && layer.maskCanvas);
-                if (!inMask && (layer.lockPixels || (layer.lockAlpha && tool === 'eraser'))) {
+                if (!inMask && (layer.lockPixels || (layer.lockAlpha && ALPHA_CHANGING_TOOLS.includes(tool)))) {
                     this.notify({ type: 'info', message: this.t('pixel.layer_locked') });
                     return false;
                 }
@@ -1328,7 +1331,8 @@
         });
 
         // Resizing the overlay canvas clears it, and the outline of a selection changes with it: repaint.
-        runtime.on('document-changed', () => runtime.requestOverlay());
+        // A new size or a restored history state makes the three full-size composite caches obsolete; release them now.
+        runtime.on('document-changed', () => { runtime.invalidateCompositeCaches(); runtime.requestOverlay(); });
         runtime.on('selection-changed', () => runtime.requestOverlay());
         // Menu items may depend on the selection, history or layers (enabled/checked); rebuild only when one does.
         const menuEvents = ['selection-changed', 'history-changed', 'active-layer-changed', 'document-changed'];

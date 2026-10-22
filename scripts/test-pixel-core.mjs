@@ -1088,6 +1088,112 @@ check('two windows: only the active one reacts and dispose is clean', () => {
     assert.equal(other.state.disposed, true);
 });
 
+// ---------------------------------------------------------------------------------------------------------------
+// Review fixes: move tool bakes previews, alpha lock, text overlay, merge down, memory
+// ---------------------------------------------------------------------------------------------------------------
+
+check('move tool: dragging or nudging bakes a pending filter/adjust preview first', () => {
+    rt.newBlankCanvas(100, 80);
+    rt.setActiveTool('move');
+    const def = rt.activeToolDef();
+    const real = rt.commitPendingPreviews;
+    let commits = 0;
+    rt.commitPendingPreviews = () => { commits++; return false; };
+    try {
+        def.onDown(rt, { button: 0 }, { x: 10, y: 10, ctrl: false, alt: false });
+        def.onUp(rt);
+        assert.equal(commits, 1, 'drag');
+        assert.equal(def.onKey(rt, keyEvent({ key: 'ArrowRight' })), true);
+        assert.equal(commits, 2, 'nudge');
+    } finally { rt.commitPendingPreviews = real; }
+    rt.setActiveTool(null);
+});
+
+check('alpha lock: delete, cut, selection move and layer transforms are refused', () => {
+    rt.newBlankCanvas(100, 80);
+    const layer = rt.activeLayer();
+    layer.lockAlpha = true;
+    rt.selection = { type: 'rect', x: 5, y: 5, w: 10, h: 10 };
+    const pushes = rt.history.length;
+    notes.length = 0;
+    rt.deleteSelection();
+    rt.cutSelection();
+    assert.equal(rt.history.length, pushes, 'no history entry');
+    assert.equal(notes.length, 2);
+    assert.ok(notes.every(n => n.message === 'This layer is locked.'));
+    assert.equal(rt.canPaintActiveLayer('move'), false);
+    assert.equal(rt.canPaintActiveLayer('brush'), true, 'painting keeps its own alpha handling');
+    rt.deselect();
+    rt.startFreeTransform();
+    assert.equal(rt.ft, null, 'free transform / flip / rotate layer');
+    rt.setActiveTool(null);
+    layer.lockAlpha = false;
+    rt.selection = { type: 'rect', x: 5, y: 5, w: 10, h: 10 };
+    rt.deleteSelection();
+    assert.equal(rt.history.length, pushes + 1, 'without the lock the delete goes through');
+    rt.deselect();
+});
+
+check('text overlay: Enter commits once, Escape cancels, blur commits once', () => {
+    rt.newBlankCanvas(100, 80);
+    const handlers = {}, area = makeEl('textarea');
+    area.value = 'Hi';
+    area.addEventListener = (type, fn) => { handlers[type] = fn; };
+    const realCreate = document.createElement, realCommit = rt.commitTextToCanvas;
+    let commits = 0;
+    rt.commitTextToCanvas = () => { commits++; };
+    // Chromium fires blur when the focused textarea is removed from the document.
+    document.createElement = tag => {
+        const el = realCreate(tag);
+        if (tag === 'div') { el.querySelector = () => area; el.remove = () => { if (handlers.blur) handlers.blur(); }; }
+        return el;
+    };
+    const key = (k, extra) => handlers.keydown(Object.assign({ key: k, shiftKey: false, preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {} }, extra));
+    try {
+        rt.showTextInput(10, 10);
+        key('Enter');
+        assert.equal(commits, 1, 'Enter');
+        rt.showTextInput(10, 10);
+        key('Escape');
+        assert.equal(commits, 1, 'Escape does not commit');
+        rt.showTextInput(10, 10);
+        handlers.blur();
+        handlers.blur();
+        assert.equal(commits, 2, 'blur commits once');
+    } finally { document.createElement = realCreate; rt.commitTextToCanvas = realCommit; }
+});
+
+check('merge down refuses a hidden layer', () => {
+    rt.newBlankCanvas(100, 80);
+    rt.addLayer(); rt.addLayer();
+    const count = rt.layers.length;
+    notes.length = 0;
+    rt.layers[1].visible = false;
+    rt.mergeDown();
+    rt.layers[1].visible = true; rt.layers[2].visible = false;
+    rt.mergeDown();
+    assert.equal(rt.layers.length, count);
+    assert.equal(notes.length, 2);
+    assert.ok(notes.every(n => n.message === 'Show both layers to merge them.'));
+    rt.layers[2].visible = true;
+    rt.mergeDown();
+    assert.equal(rt.layers.length, count - 1);
+});
+
+check('big temp canvases are freed instead of pooled; a document change drops the composite caches', () => {
+    const big = Pixel.acquireTempCanvas(2500, 2000);
+    Pixel.releaseTempCanvas(big);
+    assert.equal(big.width * big.height, 0);
+    const small = Pixel.acquireTempCanvas(64, 64);
+    Pixel.releaseTempCanvas(small);
+    assert.equal(Pixel.acquireTempCanvas(8, 8), small, 'small canvases are still pooled');
+    const real = rt.invalidateCompositeCaches;
+    let dropped = 0;
+    rt.invalidateCompositeCaches = () => { dropped++; return real.call(rt); };
+    try { rt.emit('document-changed', { width: 100, height: 80, reason: 'test' }); } finally { rt.invalidateCompositeCaches = real; }
+    assert.ok(dropped >= 1);
+});
+
 await Promise.all(pending);
 await new Promise(r => setTimeout(r, 30));
 

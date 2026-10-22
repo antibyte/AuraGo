@@ -461,18 +461,26 @@
                     ev.stopPropagation();
                     ev.stopImmediatePropagation();
                 };
+                // Removing the focused textarea fires blur; closed keeps that blur (and any later one) from committing again.
+                let closed = false;
                 textarea.addEventListener('keydown', ev => {
                     stopTextShortcutPropagation(ev);
+                    if (closed) return;
                     if (ev.key === 'Enter' && !ev.shiftKey) {
                         ev.preventDefault();
+                        closed = true;
                         this.commitTextToCanvas(textarea.value, x, y);
                         inputWrap.remove();
+                    } else if (ev.key === 'Escape') {
+                        closed = true;
+                        inputWrap.remove();
                     }
-                    if (ev.key === 'Escape') { inputWrap.remove(); }
                 });
                 textarea.addEventListener('keyup', stopTextShortcutPropagation);
                 textarea.addEventListener('keypress', stopTextShortcutPropagation);
                 textarea.addEventListener('blur', () => {
+                    if (closed) return;
+                    closed = true;
                     if (textarea.value) this.commitTextToCanvas(textarea.value, x, y);
                     inputWrap.remove();
                 });

@@ -110,7 +110,7 @@ func TestPixelLayersOperationsGoThroughTheCore(t *testing.T) {
 	ops := source[start:end]
 	for _, want := range []string{
 		"r.createLayer(", "r.markLayerDirty(", "r.pushHistory(", "r.commitLayerPixels(", "r.setSelectionMask(", "r.getSelectionMask(",
-		"r.layersStructureChanged()", "r.renderComposition(", "r.flattenDocument()", "r.MAX_LAYERS", "r.canPaintActiveLayer()",
+		"r.layersStructureChanged()", "r.renderComposition(", "r.flattenDocument()", "r.MAX_LAYERS", "r.canPaintActiveLayer(",
 	} {
 		if !strings.Contains(ops, want) {
 			t.Fatalf("layer operations should use %s", want)

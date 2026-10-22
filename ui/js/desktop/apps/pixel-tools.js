@@ -292,7 +292,7 @@
                 this.notify({ type: 'success', message: this.t('pixel.copied') });
             }),
             cutSelection: Pixel.bindRuntime(runtime, function cutSelection() {
-                if (!this.canPaintActiveLayer()) return;
+                if (!this.canPaintActiveLayer('erase')) return;
                 if (!this.selection || !this.canvas.width) return;
                 this.copySelection();
                 if (this.eraseSelection()) this.pushHistory('cut');
@@ -327,7 +327,7 @@
                 } catch (_) {}
             }),
             deleteSelection: Pixel.bindRuntime(runtime, function deleteSelection() {
-                if (!this.canPaintActiveLayer()) return;
+                if (!this.canPaintActiveLayer('erase')) return;
                 if (!this.selection || !this.canvas.width) return;
                 if (this.eraseSelection()) this.pushHistory('delete');
             }),
@@ -369,7 +369,7 @@
                 return true;
             }),
             beginMoveSelection: Pixel.bindRuntime(runtime, function beginMoveSelection() {
-                if (!this.canPaintActiveLayer()) return false;
+                if (!this.canPaintActiveLayer('erase')) return false;
                 if (!this.selection || !this.canvas.width || this.moveSelFloating) return false;
                 // Always lift the current pixels; a copy taken when the selection was drawn may predate later edits.
                 this.selImageData = null;
@@ -862,9 +862,11 @@
             }),
             mergeDown: Pixel.bindRuntime(runtime, function mergeDown() {
                 if (this.activeLayerIdx <= 0 || this.layers.length < 2) return;
-                this.commitPendingPreviews();
                 const upper = this.layers[this.activeLayerIdx];
                 const lower = this.layers[this.activeLayerIdx - 1];
+                // A hidden layer would pop into view in the merged result; the layers dock refuses the same way.
+                if (!upper.visible || !lower.visible) { this.notify({ type: 'info', message: this.t('pixel.layer_merge_hidden') }); return; }
+                this.commitPendingPreviews();
                 // The lower layer's own blend and clip stay on the result; its mask and opacity are baked in.
                 const base = Object.assign({}, lower, { blend: 'normal', clip: false, visible: true });
                 const merged = this.makeCanvas(this.imgWidth, this.imgHeight);
