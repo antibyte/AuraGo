@@ -27,6 +27,7 @@ require (
 	github.com/evanw/esbuild v0.28.2
 	github.com/go-ldap/ldap/v3 v3.4.15
 	github.com/go-rod/rod v0.116.2
+	github.com/go-webauthn/webauthn v0.18.2
 	github.com/go-sql-driver/mysql v1.10.1
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/gocolly/colly/v2 v2.3.0
@@ -128,6 +129,8 @@ require (
 	github.com/go-krb5/x v0.3.3 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-shiori/dom v0.0.0-20230515143342-73569d674e1c // indirect
+	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
+	github.com/go-webauthn/x v0.3.1 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
@@ -139,6 +142,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/h2non/filetype v1.1.3 // indirect
 	github.com/hdevalence/ed25519consensus v0.2.0 // indirect
 	github.com/hhrutter/tiff v1.0.7 // indirect

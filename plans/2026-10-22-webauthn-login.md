@@ -114,24 +114,24 @@ Credential removal revokes subsequent uses of that key, not sessions that have a
 ## Execution sequence and acceptance
 
 1. **Configuration, trust and library**
-   - [ ] Implement both configured modes and the password/WebAuthn/TOTP acceptance table above, including missing/invalid mode handling.
-   - [ ] Add the pinned dependency, config defaults/template/validation and protected settings handling.
-   - [ ] Test HTTPS/origin/RP validation, trusted versus forged proxy headers and rejection of generic auth-policy bypasses.
+   - [x] Implement both configured modes and the password/WebAuthn/TOTP acceptance table above, including missing/invalid mode handling.
+   - [x] Add the pinned dependency, config defaults/template/validation and protected settings handling.
+   - [x] Test HTTPS/origin/RP validation, trusted versus forged proxy headers and rejection of generic auth-policy bypasses.
 2. **Registry and ceremony lifecycle**
-   - [ ] Implement focused server-owned registry and ceremony files; reuse Vault primitives.
-   - [ ] Test restart/backup stability, duplicate/limit handling, corrupt records, Vault errors, concurrent registration/login/removal, stale generations and single-use expiry.
+   - [x] Implement focused server-owned registry and ceremony files; reuse Vault primitives.
+   - [x] Test restart/backup stability, duplicate/limit handling, corrupt records, Vault errors, competing pending ceremonies and registry mutation/removal, stale generations and single-use expiry.
 3. **Enrollment and login endpoints**
-   - [ ] Wire the routes in the normal server, exact auth exemption table and relevant asset-recovery boundaries.
-   - [ ] Test successful registration/assertion in both modes, required UV, wrong signatures/RP/origin/user/credential, cross-browser replay, disabled/removed keys, throttling and locked Vault/bootstrap behavior.
-   - [ ] Test missing/wrong passwords, a finish without a verified first factor, mode spoofing, mid-flow password/mode changes, no cookie after the first factor alone, and every password/TOTP fallback combination. Exercise `/auth/login`, recovery and the TUI request directly to prove that the UI cannot bypass the mode.
-   - [ ] Preserve sensitive-change step-up, logout, activity renewal and redirects; test last-factor removal guards and explicit browser-required results for unsupported native login.
+   - [x] Wire the routes in the normal server, exact auth exemption table and relevant asset-recovery boundaries.
+   - [x] Test successful registration/assertion in both modes, required UV, wrong signatures/RP/origin/user/credential, cross-browser replay, disabled/removed keys, throttling and locked Vault/bootstrap behavior.
+   - [x] Test missing/wrong passwords, a finish without a verified first factor, unknown request fields/mode spoofing, mid-flow password/mode changes, no cookie after the first factor alone, and password/TOTP fallback combinations. Exercise the legacy `/auth/login` request used by TUI and recovery directly to prove that the UI cannot bypass the mode.
+   - [x] Preserve sensitive-change step-up, logout, activity renewal and redirects; test last-factor removal guards and explicit browser-required results for unsupported native login.
 4. **Login and settings UI**
-   - [ ] Implement the native credential flow and small encoding helper, credential management and all locales.
-   - [ ] Add browser regression coverage for both login modes and the settings dropdown, using a virtual WebAuthn authenticator with and without UV, plus cancellation, missing API, insecure context and failed persistence paths.
-   - [ ] Verify session confirmation, focus/keyboard behavior, responsive layout and config save failures.
+   - [x] Implement the native credential flow and small encoding helper, credential management and all locales.
+   - [x] Add virtual-CTAP2 browser regression coverage for both login modes, settings, recovery, cancellation and missing API. Backend tests reject absent UV and failed persistence; client tests cover insecure contexts and uncertain network outcomes.
+   - [x] Verify session confirmation, native controls/focus handling, a 390×780 login layout and protected config failures.
 5. **Documentation, packaging and real devices**
-   - [ ] Update owning server/UI/security contracts, operator security/HTTPS documentation and resource-packaging guidance as needed.
-   - [ ] Run focused tests first, then appropriate package checks and the UI bundle integrity check. Build the version-bound asset set and matching binary for deployment validation; a package archive alone does not activate the new login.
+   - [x] Update owning server/UI/security contracts, operator security/HTTPS documentation and resource-packaging guidance as needed.
+   - [x] Run focused tests first, then appropriate package checks and the UI bundle integrity check. Build the version-bound asset set and matching CGO-free binary; verify it with `--check-assets`. The existing Windows binary-size gate and Go advisory remain release limitations below.
    - [ ] Manually verify Windows Hello with Edge/Chrome, Apple platform authentication with Safari, Android with Chrome and a UV-capable USB/NFC FIDO2 key on supported clients.
    - [ ] Exercise both modes over direct trusted HTTPS, a configured trusted reverse proxy and allowed localhost development; test wrong hostname/untrusted certificate and missing-resource recovery with and without TOTP.
    - [ ] Register two authenticators, log out, authenticate with each in both modes, remove one and confirm its next assertion fails while the permitted fallback still works. Verify that disabling TOTP cannot introduce password-only access in `second_factor` mode.
@@ -145,6 +145,23 @@ git diff --check
 ```
 
 Use focused `WebAuthn|AuthStepUp|AuthSession|AuthBypass|AuthLockdown|ExternalAssetsRecovery` test selections while iterating. Run dependency vulnerability checks and the CGO-free build with the pinned production compiler. Passing virtual-authenticator tests is not evidence that a physical key, platform biometrics or a deployed proxy works; record those acceptance results separately.
+
+## Implementation validation (2026-10-22)
+
+Focused auth/bootstrap/backup regressions, all config/security/vaultprompt/UI/
+webassets/assetpack package tests, virtual-authenticator browser tests, client
+adapter tests, locale parity and UI bundle checks pass. Loopback-dependent tests
+require execution outside the restricted Windows network sandbox. No production
+service or authentication policy was activated. Physical-device and deployed
+HTTPS/proxy checks above remain operator acceptance work.
+
+`govulncheck` reports the existing Go 1.27.2 `crypto/x509` advisory
+[GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809), fixed in Go 1.27.3.
+No vulnerable imported dependency packages were found; its additional module-only
+OpenPGP finding is outside the imported package graph. Update the repository's
+compiler pins before release. The stripped Windows binary also exceeds the
+existing 130 MB budget: clean pre-implementation HEAD is 150.73 MB, the WebAuthn
+build approximately 152.82 MB. Recovery/first-party embed budgets still pass.
 
 ## Deliberate limits
 

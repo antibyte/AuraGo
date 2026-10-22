@@ -31,6 +31,11 @@ integration and versioned HTTP serving. See `documentation/web-assets.md`.
 - `internal/webassets/AGENTS.md` owns verified immutable resource sets and installation.
 - `assets/web-assets.json` is the production manifest; `cmd/assetpack` emits the shared archive, installed set and exact binary ldflags. Full UI, CAD, pets and Game Maker runtime/art must not be embedded.
 - Only the tiny recovery/login page remains in the server binary. Keep installer, updater, Docker, source builds, offline repair and size gates synchronized with `documentation/web-assets.md`.
+- Recovery also embeds the small shared WebAuthn client and generated locale
+  subset; the full Config/login UI remains external. Preserve both configured
+  login modes when resources are absent. Check generated locale parity with
+  `node scripts/build-webauthn-locales.mjs --check` and recovery with server
+  `TestWebAuthnBrowserLoginAndRecovery` plus `TestExternalAssetsRecoveryAuthAndCSRF`.
 - Set BuildVersion to the resource digest. Keep configured auth/TOTP and CSRF intact in recovery; activate installations only after restart. Preserve user-edited workspace apps and rollback sets.
 
 ## Child DOX Index

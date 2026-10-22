@@ -716,11 +716,16 @@ func ClientIP(r *http.Request, behindProxy bool) string {
 // The setup wizard (/setup) calls this endpoint but auth is auto-disabled when no
 // password is configured, so the setup flow still works without a bypass here.
 var authBypassExactPaths = map[string]bool{
+	"/auth/login":                        true,
+	"/auth/logout":                       true,
 	"/api/health":                        true,
 	"/api/ready":                         true,
 	"/api/i18n":                          true,
 	"/api/auth/status":                   true,
 	"/api/auth/logout":                   true,
+	"/auth/webauthn/client.js":           true,
+	"/auth/webauthn/login/begin":         true,
+	"/auth/webauthn/login/finish":        true,
 	"/api/security/status":               true,
 	"/api/setup":                         true,
 	"/api/openrouter/models":             true,
@@ -755,7 +760,6 @@ var authBypassExactPaths = map[string]bool{
 // Static media files (audio, images, documents) are NOT exempt: they are served
 // as sub-resources of authenticated pages and may expose user-generated content.
 var authBypassSubtrees = []string{
-	"/auth/",
 	"/api/setup/",
 	"/api/agodesk/tts/",              // agodesk TTS assets — limited to cached TTS audio filenames
 	"/api/agodesk/media/",            // agodesk media assets — limited to explicit media buckets by the handler
@@ -833,6 +837,8 @@ func (s *Server) isTelnyxWebhookIngress(path string) bool {
 // is hard-blocked, so the server is never openly accessible while auth is
 // "enabled" but the vault is missing or the password was lost.
 var noPasswordExactPaths = map[string]bool{
+	"/auth/login":            true,
+	"/auth/logout":           true,
 	"/api/auth/status":       true,
 	"/api/auth/logout":       true,
 	"/api/auth/password":     true, // allows setting the initial password
@@ -853,7 +859,6 @@ var noPasswordExactPaths = map[string]bool{
 }
 
 var noPasswordSubtrees = []string{
-	"/auth/",
 	"/api/setup/",
 	"/css/",
 	"/fonts/",

@@ -168,6 +168,7 @@ type Server struct {
 	httpRequests         sync.WaitGroup
 	httpHijacked         map[*drainHTTPConn]struct{}
 	lockdownLogOnce      sync.Once
+	webAuthn             webAuthnRuntime
 	previewGrants        previewGrantRegistry
 	toolBridgeGrants     toolBridgeGrantRegistry
 	SIPConfigMu          sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication

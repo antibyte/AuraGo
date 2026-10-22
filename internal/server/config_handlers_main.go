@@ -525,6 +525,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		// rolling back stream sources committed by another request.
 		s.CfgSaveMu.Lock()
 		defer s.CfgSaveMu.Unlock()
+		if rejectWebAuthnConfigPatch(s.ConfigSnapshot(), patch) {
+			webAuthnError(w, "webauthn_use_settings_api", http.StatusForbidden)
+			return
+		}
 		go2RTCSourceTxn, txnErr := captureGo2RTCSourceVaultState(patch, s.Vault)
 		if txnErr != nil {
 			s.Logger.Error("[Config] Could not stage go2rtc stream sources", "error", txnErr)

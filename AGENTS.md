@@ -265,6 +265,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Docker Engine transport and version negotiation | `internal/dockerutil/AGENTS.md` |
 | Desktop rooted files and archives | `internal/desktop/AGENTS.md` |
 | Security primitives, Vault import grants and Cast tickets | `internal/security/AGENTS.md` |
+| WebAuthn/passkey owner login, protected auth policy, recovery and credential registry | `internal/server/AGENTS.md`, `internal/security/AGENTS.md`, `ui/AGENTS.md`, `internal/webassets/AGENTS.md` |
 | Invasion worker protocol and deployment | `internal/invasion/AGENTS.md` |
 | Remote enrollment and connection lifecycle | `internal/remote/AGENTS.md` |
 | Retro-Net Terminal dialing (server, Desktop setting, Terminal app) | `internal/retronet/AGENTS.md` |

@@ -29,6 +29,9 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if s.Cfg == nil {
 		return nil, fmt.Errorf("applyConfigPatch: server has no config")
 	}
+	if rejectWebAuthnConfigPatch(s.ConfigSnapshot(), patch) {
+		return nil, fmt.Errorf("change WebAuthn policy through /api/auth/webauthn/settings")
+	}
 	if err := config.ValidatePersonalityLegacyPatch(patch); err != nil {
 		return nil, err
 	}

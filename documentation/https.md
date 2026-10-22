@@ -49,6 +49,11 @@ and key files. All TLS listeners and preflight probes honor `server.host`.
 
 ## Setup, HTTP opt-out and restart
 
+[Passkeys and FIDO2 security keys](webauthn.md) require a secure browser context
+and explicitly configured RP ID/origins. Prefer stable DNS and trusted HTTPS;
+remote HTTP or an accepted certificate warning is insufficient. Keep a working
+login route while changing hostname, TLS or proxy settings.
+
 The Setup Wizard displays HTTPS status and checks `window.isSecureContext`.
 Browser support and device permissions are separate requirements. Many Desktop
 features, especially voice chat and microphone access, can fail over remote

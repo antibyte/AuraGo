@@ -9,6 +9,11 @@ auth:
     session_timeout_hours: 24
     require_origin_header: false  # stricter CSRF mode: require Origin on authenticated writes
     totp_enabled: false
+    webauthn:
+        enabled: false
+        login_mode: "" # Choose passkey or second_factor before enabling.
+        rp_id: "" # Stable DNS name, without scheme or port.
+        origins: [] # Exact trusted HTTPS origins; http://localhost is development only.
     max_login_attempts: 5
     lockout_minutes: 15
 agent:

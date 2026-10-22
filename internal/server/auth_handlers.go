@@ -34,6 +34,7 @@ func handleAuthStatus(s *Server) http.HandlerFunc {
 		passwordSet := s.Cfg.Auth.PasswordHash != ""
 		totpEnabled := s.Cfg.Auth.TOTPEnabled && s.Cfg.Auth.TOTPSecret != ""
 		secret := s.Cfg.Auth.SessionSecret
+		webAuthn := s.Cfg.Auth.WebAuthn
 		s.CfgMu.RUnlock()
 		var expiry time.Time
 		if enabled && secret != "" {
@@ -45,11 +46,15 @@ func handleAuthStatus(s *Server) http.HandlerFunc {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"enabled":            enabled,
-			"password_set":       passwordSet,
-			"totp_enabled":       totpEnabled,
-			"authenticated":      !expiry.IsZero(),
-			"expires_in_seconds": max(0, int(time.Until(expiry).Seconds())),
+			"enabled":                  enabled,
+			"password_set":             passwordSet,
+			"totp_enabled":             totpEnabled,
+			"webauthn_enabled":         webAuthn.Enabled,
+			"webauthn_mode":            webAuthn.LoginMode,
+			"webauthn_available":       webAuthn.Enabled && enabled && passwordSet && s.Vault != nil && config.ValidateWebAuthnConfig(webAuthn) == nil,
+			"password_login_available": !webAuthn.Enabled || webAuthn.LoginMode == "passkey" || webAuthn.LoginMode == "second_factor" && totpEnabled,
+			"authenticated":            !expiry.IsZero(),
+			"expires_in_seconds":       max(0, int(time.Until(expiry).Seconds())),
 		})
 	}
 }
@@ -243,6 +248,18 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 		}
 
 		// Success — set session cookie
+		// Recheck the live policy under the config-save lock before issuing a cookie.
+		s.CfgSaveMu.Lock()
+		defer s.CfgSaveMu.Unlock()
+		current, _ := s.webAuthnAuthSnapshot()
+		if current.PasswordHash != hash || current.TOTPEnabled != totpEnabled || current.TOTPSecret != totpSecret || current.SessionSecret != secret {
+			webAuthnError(w, "webauthn_invalid_ceremony", http.StatusConflict)
+			return
+		}
+		if !webAuthnPasswordLoginAllowed(current) {
+			webAuthnError(w, "webauthn_required", http.StatusForbidden)
+			return
+		}
 		ClearLoginRecords(ipKey, accountKey)
 		timeout := time.Duration(timeoutHours) * time.Hour
 		SetSessionCookie(w, r, secret, timeout)
@@ -558,6 +575,15 @@ func handleAuthTOTPDelete(s *Server) http.HandlerFunc {
 		}
 
 		s.CfgSaveMu.Lock()
+		current, _ := s.webAuthnAuthSnapshot()
+		if current.Config.Enabled && current.Config.LoginMode == "second_factor" {
+			state, err := s.loadWebAuthnState()
+			if err != nil || state.RPID != current.Config.RPID || len(state.Credentials) == 0 {
+				s.CfgSaveMu.Unlock()
+				webAuthnError(w, "webauthn_last_factor", http.StatusConflict)
+				return
+			}
+		}
 		patchErr := patchAuthConfig(s, map[string]interface{}{
 			"totp_secret":  "",
 			"totp_enabled": false,
@@ -599,6 +625,7 @@ func requireSession(s *Server, w http.ResponseWriter, r *http.Request) bool {
 // vaultAuthKeys maps auth config field names to their vault key names.
 // These fields carry yaml:"-" and must be stored in the vault, not config.yaml.
 var vaultAuthKeys = map[string]string{
+	"webauthn_state": "auth_webauthn_state",
 	"password_hash":  "auth_password_hash",
 	"session_secret": "auth_session_secret",
 	"totp_secret":    "auth_totp_secret",

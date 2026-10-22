@@ -2694,6 +2694,9 @@ func Load(path string) (*Config, error) {
 	if err := ValidateActionPolicy(cfg.Agent.ActionPolicy); err != nil {
 		return nil, fmt.Errorf("validate agent action policy: %w", err)
 	}
+	if err := ValidateWebAuthnConfig(cfg.Auth.WebAuthn); err != nil {
+		return nil, fmt.Errorf("validate authentication: %w", err)
+	}
 	return &cfg, nil
 }
 

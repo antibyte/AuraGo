@@ -1950,16 +1950,17 @@ type Config struct {
 		} `yaml:"pushover"`
 	} `yaml:"notifications"`
 	Auth struct {
-		Enabled                    bool   `yaml:"enabled"`                      // enable login page protection
-		AllowUnauthenticatedRemote bool   `yaml:"allow_unauthenticated_remote"` // explicit unsafe remote exposure without login
-		PasswordHash               string `yaml:"-" vault:"password_hash"`      // bcrypt hash (vault-only)
-		SessionSecret              string `yaml:"-" vault:"session_secret"`     // HMAC key for session cookies (vault-only)
-		SessionTimeoutHours        int    `yaml:"session_timeout_hours"`        // how long a session stays valid (default 24h)
-		RequireOriginHeader        bool   `yaml:"require_origin_header"`        // require Origin on authenticated state-changing requests
-		TOTPSecret                 string `yaml:"-" vault:"totp_secret"`        // base32 TOTP secret for 2FA (vault-only)
-		TOTPEnabled                bool   `yaml:"totp_enabled"`                 // whether TOTP 2FA is active
-		MaxLoginAttempts           int    `yaml:"max_login_attempts"`           // failed attempts before lockout (default 5)
-		LockoutMinutes             int    `yaml:"lockout_minutes"`              // lockout duration in minutes (default 15)
+		Enabled                    bool           `yaml:"enabled"`                      // enable login page protection
+		AllowUnauthenticatedRemote bool           `yaml:"allow_unauthenticated_remote"` // explicit unsafe remote exposure without login
+		PasswordHash               string         `yaml:"-" vault:"password_hash"`      // bcrypt hash (vault-only)
+		SessionSecret              string         `yaml:"-" vault:"session_secret"`     // HMAC key for session cookies (vault-only)
+		SessionTimeoutHours        int            `yaml:"session_timeout_hours"`        // how long a session stays valid (default 24h)
+		RequireOriginHeader        bool           `yaml:"require_origin_header"`        // require Origin on authenticated state-changing requests
+		TOTPSecret                 string         `yaml:"-" vault:"totp_secret"`        // base32 TOTP secret for 2FA (vault-only)
+		TOTPEnabled                bool           `yaml:"totp_enabled"`                 // whether TOTP 2FA is active
+		WebAuthn                   WebAuthnConfig `yaml:"webauthn"`
+		MaxLoginAttempts           int            `yaml:"max_login_attempts"` // failed attempts before lockout (default 5)
+		LockoutMinutes             int            `yaml:"lockout_minutes"`    // lockout duration in minutes (default 15)
 	} `yaml:"auth"`
 	WebConfig struct {
 		Enabled bool `yaml:"enabled"` // false = /config endpoint disabled for security

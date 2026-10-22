@@ -13,6 +13,10 @@ without configuration or resources opens recovery at `http://127.0.0.1:8088`.
 It does not initialize integrations, create a vault, or start recording.
 `--recovery-address` changes this initial listener. Existing configurations
 continue through normal startup and authentication, including password and TOTP.
+The embedded login also supports both configured [WebAuthn modes](webauthn.md),
+using a small shared client and generated translations. Missing full resources
+never introduce a password-only bypass for the second-factor mode. Rebuild the
+matching backend and resource set when changing this login contract.
 
 ## Build and install
 

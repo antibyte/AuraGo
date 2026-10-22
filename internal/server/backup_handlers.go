@@ -1170,6 +1170,10 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			}
 		}
 
+		// Publish restored files and Vault state atomically with respect to auth/config writes.
+		s.CfgSaveMu.Lock()
+		defer s.CfgSaveMu.Unlock()
+		s.clearWebAuthnTransactions()
 		for _, entry := range importEntries {
 			if entry.isDir {
 				if err := os.MkdirAll(entry.dest, 0o755); err != nil {

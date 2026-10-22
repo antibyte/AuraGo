@@ -18,6 +18,12 @@ the consuming library or reintroduces a vulnerability.
 
 ## Compatibility bounds
 
+Owner WebAuthn verification pins `github.com/go-webauthn/webauthn` v0.18.2
+(BSD-3-Clause). It supports the pinned Go compiler and CGO-free builds; protocol
+verification stays in that library. Its server/client contract and focused
+checks are documented in [webauthn.md](webauthn.md). Recheck advisories when
+updating the library and retain complete credential records across upgrades.
+
 Newspaper PDF download and Telegram share Noto Sans SC 2.004 regular/bold
 fallback fonts in the verified external resource set (SIL OFL 1.1). They remain
 outside the executable's embed budget. See

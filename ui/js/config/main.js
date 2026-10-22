@@ -1437,6 +1437,7 @@ function focusConfigField(path) {
     if (!path) return;
     requestAnimationFrame(() => {
         const field = document.querySelector('[data-path="' + CSS.escape(path) + '"]')
+            || document.querySelector('[data-search-path="' + CSS.escape(path) + '"]')
             || (path.startsWith('sip.') ? document.querySelector('[data-sip="' + CSS.escape(path.slice(4)) + '"]') : null);
         if (!field) return;
         let disclosure = field.closest('details');
@@ -3013,6 +3014,7 @@ function setConfigSaveBusy(busy) {
 function attachChangeListeners() {
     // Include data-path controls even when modules omit field-* classes (e.g. indexing selects).
     document.querySelectorAll('.field-input, .field-select, .field-textarea, .cfg-input, [data-path]').forEach(el => {
+        if (el.closest('#auth-webauthn')) return;
         if (el.dataset.cfgDirtyBound === 'true') return;
         el.dataset.cfgDirtyBound = 'true';
         el.addEventListener('input', markDirty);

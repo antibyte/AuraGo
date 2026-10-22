@@ -959,6 +959,25 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   `TestDecisionsConfigBrowser` and `TestDecisionsLocaleKeys`. The backend and
   hardware acceptance contract lives in `../internal/decisions/AGENTS.md`.
 
+## Passkey and FIDO2 login
+
+- `cfg/auth_webauthn.js` owns protected settings and named credential management;
+  its own save must preserve unrelated `AuraConfigState` drafts. Use
+  `data-search-path` for Config search, never ordinary `data-path` persistence.
+  Enrollment requires saved RP/origin settings. Keep step-up, inline outcomes,
+  cancellation and disposal guards; never start biometric prompts on status reads.
+- Full login and embedded recovery share `internal/server/auth_webauthn_client.js`.
+  Require secure context/API capability while preserving external security-key
+  support. In second-factor mode without TOTP, unsupported clients must never
+  reveal a password-only alternative. Native JSON conversion has a tested legacy
+  ArrayBuffer adapter. Do not automatically retry writes or finished assertions;
+  distinguish an uncertain network outcome from cancelled authenticator selection.
+- Translate `webauthn.*` in all 16 `lang/common/` files and regenerate the small
+  recovery subset with `node scripts/build-webauthn-locales.mjs`. Verify its
+  `--check`, `node scripts/webauthn-client.test.mjs`, server `TestWebAuthn*` and
+  the UI bundle check. Device/proxy acceptance remains separate from virtual
+  authenticator browser tests. See `../documentation/webauthn.md`.
+
 ## Child DOX Index
 
 - `3d/screensaver/AGENTS.md` — Compact Tiefsee screensaver creature GLBs and their shader-facing UV contract.

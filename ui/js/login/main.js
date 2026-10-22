@@ -828,6 +828,8 @@
         }
         
         async function submitLogin() {
+            if (_loginPending) return;
+            if (_webAuthnLoginStatus?.webauthn_enabled && !_webAuthnLoginStatus.password_login_available) return submitPasskeyLogin();
             clearError();
             const password = document.getElementById('password').value;
             const totpCode = document.getElementById('totpCode').value;
@@ -839,7 +841,7 @@
             }
             
             const btn = document.getElementById('btnLogin');
-            btn.disabled = true;
+            setLoginPending(true);
             document.getElementById('btnText').innerHTML = '<div class="spinner-sm"></div>';
             
             try {
@@ -865,7 +867,7 @@
                         window.location.replace(data.redirect);
                         return;
                     }
-                    showError(data.error || t('login.error_failed'));
+                    showError(data.code?.startsWith('webauthn_') && globalThis.AuraWebAuthn ? t(AuraWebAuthn.errorKey({ code: data.code })) : (data.error || t('login.error_failed')));
                     document.getElementById('password').classList.add('error-field');
                     if (TOTP_ENABLED && data.error && data.error.toLowerCase().includes('authenticator')) {
                         document.getElementById('totpCode').classList.add('error-field');
@@ -877,7 +879,63 @@
             } catch (err) {
                 showError(t('login.error_network'));
             } finally {
-                btn.disabled = false;
+                setLoginPending(false);
                 document.getElementById('btnText').textContent = t('login.btn_submit');
             }
         }
+
+        let _webAuthnLoginStatus = null;
+        let _passkeyLoginController = null;
+        let _loginPending = false;
+
+        function setLoginPending(pending) {
+            _loginPending = pending;
+            document.getElementById('btnLogin').disabled = pending || _webAuthnLoginStatus?.password_login_available === false;
+            document.getElementById('btnPasskey').disabled = pending || !globalThis.AuraWebAuthn?.available();
+            document.getElementById('btnPasskey').textContent = t(pending ? 'common.loading' : _webAuthnLoginStatus?.webauthn_mode === 'second_factor' ? 'webauthn.login_second_factor' : 'webauthn.login_passkey');
+            document.getElementById('btnPasskeyCancel').classList.toggle('is-hidden', !pending || !_passkeyLoginController);
+        }
+
+        function renderWebAuthnLogin() {
+            const status = _webAuthnLoginStatus;
+            if (!status) return;
+            const enabled = status.webauthn_enabled === true;
+            const supported = !!globalThis.AuraWebAuthn?.available();
+            document.getElementById('webauthnLogin').classList.toggle('is-hidden', !enabled);
+            document.getElementById('btnPasskey').textContent = t(status.webauthn_mode === 'second_factor' ? 'webauthn.login_second_factor' : 'webauthn.login_passkey');
+            document.getElementById('btnPasskeyCancel').textContent = t('common.btn_cancel');
+            document.getElementById('webauthnHint').textContent = t(!supported ? 'webauthn.unsupported' : status.webauthn_mode === 'second_factor' ? 'webauthn.second_factor_hint' : 'webauthn.passkey_hint');
+            document.getElementById('btnLogin').classList.toggle('is-hidden', status.password_login_available === false);
+            setLoginPending(_loginPending);
+        }
+
+        async function submitPasskeyLogin() {
+            if (_loginPending) return;
+            clearError();
+            if (!globalThis.AuraWebAuthn?.available()) { showError(t('webauthn.unsupported')); return; }
+            const password = document.getElementById('password').value;
+            if (_webAuthnLoginStatus?.webauthn_mode === 'second_factor' && !password) { document.getElementById('password').focus(); return; }
+            _passkeyLoginController = new AbortController();
+            setLoginPending(true);
+            try {
+                const data = await AuraWebAuthn.login(password, REDIRECT_URL || '/', _passkeyLoginController.signal);
+                if (!await waitForAuthenticatedSession()) throw new Error('Session confirmation failed');
+                const redirect = data.redirect || '/';
+                const allowed = redirect === '/' || (/^\/[a-zA-Z0-9._~!$&'()*+,;=:@-]*$/).test(redirect);
+                window.location.replace(allowed ? redirect : '/');
+            } catch (error) {
+                showError(t(AuraWebAuthn.errorKey(error)));
+            } finally {
+                _passkeyLoginController = null;
+                setLoginPending(false);
+                document.getElementById('btnPasskey').focus();
+            }
+        }
+
+        function cancelPasskeyLogin() { _passkeyLoginController?.abort(); }
+        window.addEventListener('pagehide', cancelPasskeyLogin);
+        window.addEventListener('aurago:language-changed', renderWebAuthnLogin);
+        fetch('/api/auth/status', { credentials: 'same-origin', cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(status => {
+            _webAuthnLoginStatus = status;
+            renderWebAuthnLogin();
+        }).catch(() => {});

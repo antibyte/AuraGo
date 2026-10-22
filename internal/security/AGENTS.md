@@ -36,6 +36,14 @@ Register secrets for scrubbing; never print credentials in diagnostics or fixtur
 
 ## Verification
 
+The reserved `auth_webauthn_state` Vault value grants owner login authority.
+Keep `auth_` keys inaccessible to agent reads, Python export and generic secret
+prompts (`vaultprompt.NormalizeVaultKey`), including after encrypted backup
+import. Preserve its stable handle/RP and full library credential metadata;
+never expose registry contents through config or public status. Server-owned
+WebAuthn transaction and policy rules live in `../server/AGENTS.md`; verify
+`TestWebAuthnVaultRestartAndBackup` and the secret-prompt reservation tests.
+
 `go test ./internal/security ./internal/fileutil` and server backup/logout/Cast tests.
 
 ## Child DOX Index
