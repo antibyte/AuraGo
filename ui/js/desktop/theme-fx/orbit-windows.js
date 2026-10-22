@@ -16,6 +16,11 @@
 
     function finite(value, fallback) { const n = Number(value); return Number.isFinite(n) ? n : fallback; }
 
+    function cssEscape(value) {
+        if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
+        return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+    }
+
     function rectOf(detail) {
         const r = detail && detail.rect;
         if (!r) return null;
@@ -27,6 +32,8 @@
         const particles = options.particles;
         const choreo = options.choreo;
         const tracked = new Map();            // element -> { element, springs: [x, y, lift], targets: [x, y, lift], written: [..], releasing }
+        let disposed = false;
+        let lastStreamTarget = null;          // where the latest minimize stream was aimed (inspect() serves the browser test)
 
         function entryFor(element) {
             let entry = tracked.get(element);
@@ -44,13 +51,43 @@
             for (const name of PROPERTIES) entry.element.style.removeProperty(name);
         }
 
+        // The centre of the window's taskbar button (or of its app's dock icon), like windowMinimizeTargetDelta in the shell.
+        function taskbarCenter(detail) {
+            const host = document.getElementById('vd-taskbar-apps');
+            if (!host || !detail.id) return null;
+            const dock = !!document.body && document.body.dataset.shell === 'dock';
+            const selector = dock ? '.vd-dock-button[data-app-id="' + cssEscape(detail.appId) + '"]' : '[data-window-id="' + cssEscape(detail.id) + '"]';
+            const button = host.querySelector(selector);
+            const box = button && button.getBoundingClientRect();
+            if (!box || !(box.width > 0) || !(box.height > 0)) return null;
+            return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+        }
+
+        // Where the minimized window travels to: the delta the shell wrote on the element, else the taskbar button, else the
+        // bottom edge below the window.
         function minimizeTarget(detail, rect) {
             const style = detail.element && detail.element.style;
             const dx = style ? parseFloat(style.getPropertyValue('--vd-minimize-dx')) : NaN;
             const dy = style ? parseFloat(style.getPropertyValue('--vd-minimize-dy')) : NaN;
             const cx = rect.x + rect.width / 2, cy = rect.y + rect.height / 2;
             if (Number.isFinite(dx) && Number.isFinite(dy)) return { x: cx + dx, y: cy + dy };
+            const button = taskbarCenter(detail);
+            if (button) return button;
             return { x: cx, y: Math.max(cy, (window.innerHeight || 0) - 24) };
+        }
+
+        // The shell emits 'minimize' before it writes --vd-minimize-dx/-dy, and the event is synchronous: the rest of its
+        // minimize code has run by the time the microtask does, so the stream aims at the right button on the first minimize too.
+        function streamAfterShell(detail, rect) {
+            const run = () => {
+                if (disposed) return;
+                const target = minimizeTarget(detail, rect);
+                if (!Number.isFinite(target.x + target.y)) return;
+                lastStreamTarget = { x: Math.round(target.x * 10) / 10, y: Math.round(target.y * 10) / 10 };
+                particles.emitStream(rect, target);
+            };
+            if (typeof queueMicrotask === 'function') queueMicrotask(run);
+            else Promise.resolve().then(run);
         }
 
         function thruster(detail, rect) {
@@ -75,7 +112,7 @@
                     if (detail.element && tracked.has(detail.element)) release(tracked.get(detail.element));
                     break;
                 case 'minimize':
-                    if (rect) particles.emitStream(rect, minimizeTarget(detail, rect));
+                    if (rect) streamAfterShell(detail, rect);
                     break;
                 case 'drag-start':
                     if (detail.element && !detail.silent) { const entry = entryFor(detail.element); entry.releasing = false; }
@@ -118,6 +155,7 @@
         }
 
         function dispose() {
+            disposed = true;
             for (const entry of Array.from(tracked.values())) release(entry);
             tracked.clear();
         }
@@ -125,7 +163,7 @@
         function inspect() {
             let tilting = 0;
             for (const entry of tracked.values()) if (entry.springs.some(s => Math.abs(s.value) >= SETTLE)) tilting++;
-            return { tracked: tracked.size, tilting };
+            return { tracked: tracked.size, tilting, lastStreamTarget: lastStreamTarget ? { x: lastStreamTarget.x, y: lastStreamTarget.y } : null };
         }
 
         return { handle, update, dispose, inspect };

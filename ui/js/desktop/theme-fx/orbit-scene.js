@@ -183,7 +183,8 @@
             });
             canvas.addEventListener('webglcontextrestored', () => {
                 if (disposed) return;
-                try { bakeAll(); } catch (error) { noteError('re-bake', error); return; }
+                // the baked plates and the filtered environment live in GPU memory only: build both again
+                try { bakeAll(); buildEnvironment(); } catch (error) { noteError('re-bake', error); return; }
                 contextLost = false;
                 backend = 'three-webgl';
                 if (!QUALITY[quality].hidden) showHost();
@@ -479,6 +480,7 @@
             generator.dispose();
             mesh.geometry.dispose();
             envMaterial.dispose();
+            if (objects.envTarget) { try { objects.envTarget.dispose(); } catch (_) { /* best effort */ } }
             objects.envTarget = target;
             scene.environment = target.texture;
             scene.environmentIntensity = 0.7;

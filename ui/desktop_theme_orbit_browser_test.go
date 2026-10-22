@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"image/png"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -103,10 +104,32 @@ func TestDesktopOrbitBrowser(t *testing.T) {
 
 	// 3. Dragging a window by its title bar tilts it, and the tilt goes away after the release.
 	s.openApps(t, "calculator")
+	// far from its taskbar button, so that a stream aimed at the window's own column cannot pass for one aimed at the button
+	s.eval(t, `()=>{const w=[...auditTest.state.windows.values()].find(w=>w.appId==='calculator');w.element.style.left=Math.max(0,innerWidth-250-w.element.offsetWidth/2)+'px';w.element.style.top='80px';dispatchEvent(new CustomEvent('aurago:desktop-windows-refresh'));}`)
+	time.Sleep(900 * time.Millisecond) // the opening animation is over
+	from := s.eval(t, `()=>{const w=[...auditTest.state.windows.values()].find(w=>w.appId==='calculator');const r=w.element.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2,dx:w.element.style.getPropertyValue('--vd-minimize-dx')};}`).Value
+	t.Logf("minimizing the calculator from (%.0f, %.0f), --vd-minimize-dx %q", from.Get("x").Num(), from.Get("y").Num(), from.Get("dx").Str())
 	before = emitted()
 	s.eval(t, `()=>{const w=[...auditTest.state.windows.values()].find(w=>w.appId==='calculator');auditTest.minimizeWindow(w.id);}`)
 	s.waitFor(t, "the minimize stream", 5*time.Second, `(n)=>AuraDesktopThemeFx.inspect().particles.emitted>=n+60`, before)
 	s.waitFor(t, "the minimized window to hide", 5*time.Second, `()=>document.querySelector('.vd-window[data-app-id="calculator"]').style.display==='none'`)
+	// The stream is aimed at the window's taskbar button, also on the very first minimize (the shell writes its delta after the event).
+	aim := s.eval(t, `()=>{
+		const w=[...auditTest.state.windows.values()].find(w=>w.appId==='calculator');
+		const button=document.querySelector('#vd-taskbar-apps [data-window-id="'+CSS.escape(w.id)+'"]');
+		const target=AuraDesktopThemeFx.inspect().windows.lastStreamTarget;
+		if(!button||!target)return {button:!!button,target:!!target};
+		const r=button.getBoundingClientRect();
+		return {button:true,target:true,dx:target.x-(r.left+r.width/2),dy:target.y-(r.top+r.height/2),bx:r.left+r.width/2,by:r.top+r.height/2,tx:target.x,ty:target.y};
+	}`).Value
+	if !aim.Get("button").Bool() || !aim.Get("target").Bool() {
+		t.Errorf("minimize stream aim: taskbar button found %v, stream target recorded %v", aim.Get("button").Bool(), aim.Get("target").Bool())
+	} else {
+		t.Logf("minimize stream aims at (%.0f, %.0f), the taskbar button is centred at (%.0f, %.0f)", aim.Get("tx").Num(), aim.Get("ty").Num(), aim.Get("bx").Num(), aim.Get("by").Num())
+		if math.Abs(aim.Get("dx").Num()) > 24 || math.Abs(aim.Get("dy").Num()) > 24 {
+			t.Errorf("the minimize stream misses the taskbar button by (%.0f, %.0f) px; want within 24 px", aim.Get("dx").Num(), aim.Get("dy").Num())
+		}
+	}
 	s.eval(t, `()=>{const w=[...auditTest.state.windows.values()].find(w=>w.appId==='calculator');auditTest.focusWindow(w.id);}`)
 	s.waitFor(t, "the restored window", 5*time.Second, `()=>AuraDesktopWindowEffects.snapshot().some(w=>w.appId==='calculator' && w.visible!==false && !w.minimized)`)
 	if got := s.eval(t, `()=>{const w=[...auditTest.state.windows.values()].find(w=>w.appId==='calculator');return [AuraDesktopThemeFx.command('orbit.burst',{kind:'dissolve',windowId:w.id}),AuraDesktopThemeFx.command('orbit.burst',{kind:'materialize',windowId:'no-such-window'})];}`).Value; !got.Get("0").Bool() || !got.Get("1").Nil() {
