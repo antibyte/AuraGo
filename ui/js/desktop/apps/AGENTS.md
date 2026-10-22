@@ -2424,7 +2424,7 @@ buttons and menu popovers remain excluded from those gestures.
   Viewer, Looper, Cheater, People, Launchpad, Zipper, Pixel, Log Viewer,
   System Info, Pet Picker, Radio, Camera, Code Studio, Network Cameras,
   Noisemaker, Live Speech, Homepage Studio, Game Maker, OpenSCAD, the Webamp
-  launcher, Chess chrome, and Nasscad read `--vd-theme-*` for chrome,
+  launcher, Chess chrome, Nasscad and Mailer read `--vd-theme-*` for chrome,
   panels, controls, borders, and shadows.
 - Fixed accents: an app that paints text on the raw accent exposes a root
   token that a fixed-accent skin overrides in an App tokens rule of its
@@ -3317,6 +3317,31 @@ registration lives in `internal/desktop/types.go`.
   the existing explicit conversion; read-only and queued drafts disable insertion.
   Verify `scripts/test-mailer-stickers.mjs`, `scripts/test-mailer-browser.mjs`, and
   `TestStickerDraftAndMIMERoundTrip` / `TestAgentMailStickerWireFormat`.
+- The Mailer surface is theme-native. `desktop-app-mailer.css` resolves local
+  `--mail-*` aliases from the `--vd-theme-*` bridge (`--vd-theme-app-bg`,
+  `--vd-theme-panel-bg`, `--vd-theme-chrome-bg`, `--vd-theme-control-bg`,
+  `--vd-theme-border`, `--vd-theme-muted`, `--vd-theme-radius-*`,
+  `--vd-theme-shadow-*`) plus `--vd-text` and `--vd-accent`; the legacy chat
+  tokens (`--surface-color`, `--accent-color`, `--text-color`, `--text-muted`)
+  are gone. Accent tints are mixed from `--mail-accent` with `color-mix()`, never
+  from the fixed `--vd-accent-r/g/b` fallback. Mail HTML bodies keep their light
+  paper surface; only the surrounding chrome follows the theme.
+- The Mailer is split into `mailer.js` (window shell, list, reader, lifecycle),
+  `mailer-views.js` (pure rendering helpers: `safeMailHTML`, `initials`,
+  `parseSender`, `formatDate`, `formatBytes`, avatar, empty state, skeleton),
+  `mailer-compose.js`, `mailer-settings.js`, `mailer-stickers.js` and
+  `mailer-api.js`. The loader order is `mailer-api` → `mailer-views` →
+  `mailer-stickers` → `mailer-compose` → `mailer-settings` → `mailer`; the views
+  module must load before the shell because the shell delegates to it.
+  `window.MailerApp` keeps `{ render, dispose, safeMailHTML }`.
+- Mailer layout stays container driven: `container-name: mailer` with the
+  1099 px and 719 px app-width breakpoints and `container-name: mailer-compose`
+  for the composer. Viewport media queries are forbidden. The reader is an
+  overlay pane below 719 px, and the list panel stays the flex child.
+- Mailer surfaces use the shared desktop app conventions: focus-visible rings,
+  styled thin scrollbars, 140 ms hover feedback, `prefers-reduced-motion`
+  fallbacks, sender avatars with a stable tone per name, and an unread marker on
+  the avatar instead of an extra grid child.
 - Video Studio imports originals through the existing project media importer before
   adding a four-second overlay at the playhead, at 24% of the shorter canvas edge.
   Recheck project identity/epoch after asynchronous work and keep busy/locked overlay
@@ -4276,6 +4301,17 @@ registration lives in `internal/desktop/types.go`.
   EventSource to `/api/desktop/logs/stream`, readonly-gated download.
   Exposes `window.LogViewerFilters` then `window.LogViewerApp`. No child
   DOX file needed.
+- `mailer-views.js` / `mailer.js` / `mailer-compose.js` / `mailer-settings.js` /
+  `mailer-stickers.js` / `mailer-api.js` - Mailer: theme-native three-pane
+  mail client (folder rail | message list | reader). `mailer-views.js` owns the
+  pure rendering helpers (mail HTML sandbox, sender parsing, avatar tones,
+  empty state, skeleton) and loads before the shell; `mailer.js` owns the
+  window lifecycle, list, reader and `window.MailerApp`
+  (`{ render, dispose, safeMailHTML }`). Styles live in
+  `css/desktop-app-mailer.css` and resolve `--mail-*` from the `--vd-theme-*`
+  bridge; the reader is an overlay pane below 719 px and the layout stays
+  container driven. Sticker drafts keep their `cid:` contract. No child DOX
+  file needed.
 - `noisemaker-menus.js` - Noisemaker window/context menu builders. Exposes
   `window.NoisemakerMenus`; pure builders over `{ t, tFull, readonly, s,
   actions }`. Loads before `noisemaker.js`. No child DOX file needed.

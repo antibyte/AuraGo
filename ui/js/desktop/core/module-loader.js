@@ -489,7 +489,7 @@
         },
         'mailer': {
             styles: appStyles('/css/desktop-app-mailer.css', '/css/desktop-stickers.css'),
-            scripts: ['/js/vendor/marked.min.js', '/js/vendor/purify.min.js', '/js/desktop/shared/sticker-catalog.js', '/js/desktop/shared/sticker-library.js', '/js/desktop/apps/mailer-api.js', '/js/desktop/apps/mailer-stickers.js', '/js/desktop/apps/mailer-compose.js', '/js/desktop/apps/mailer-settings.js', '/js/desktop/apps/mailer.js']
+            scripts: ['/js/vendor/marked.min.js', '/js/vendor/purify.min.js', '/js/desktop/shared/sticker-catalog.js', '/js/desktop/shared/sticker-library.js', '/js/desktop/apps/mailer-api.js', '/js/desktop/apps/mailer-views.js', '/js/desktop/apps/mailer-stickers.js', '/js/desktop/apps/mailer-compose.js', '/js/desktop/apps/mailer-settings.js', '/js/desktop/apps/mailer.js']
         },
         'local-wikipedia': {
             styles: appStyles('/css/desktop-app-local-wikipedia.css'),
