@@ -808,3 +808,9 @@ fill `playable` per case by watching the games, independently of model prose. Ru
 both commits with the same configured provider/model and settings. This
 provider-dependent comparison is separate from the deterministic browser suite;
 do not claim a model quality improvement without those measurements.
+
+Source writes to `src/main.ts` return advisory `lint` findings (at most five):
+missing `setup()` or `this.player`, declared stages without `configureLevels`
+or `levels:`, external URLs and planned roles that never appear in the source.
+Lint is a hint for the model; it never blocks a write and never changes
+validation or publication.

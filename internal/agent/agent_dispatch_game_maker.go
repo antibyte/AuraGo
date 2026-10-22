@@ -606,7 +606,11 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			if err != nil {
 				return gameMakerToolError(err), true
 			}
-			return gameMakerToolJSON(map[string]any{"status": "ok", "result": result}), true
+			answer := map[string]any{"status": "ok", "result": result}
+			if findings := service.LintJobSource(ctx, jobID); len(findings) > 0 {
+				answer["lint"] = findings
+			}
+			return gameMakerToolJSON(answer), true
 		}
 		if operation == "read" {
 			start, end := 0, 0
@@ -658,7 +662,12 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 		if err != nil {
 			return gameMakerToolError(err), true
 		}
-		return gameMakerToolJSON(map[string]any{"status": "ok", "operation": operation, "path": path, "written": result.Written, "sha256": result.SHA256, "build": result.Build, "next_action": "If build.ok is false, repair the reported source location. A saved file is not a validated game."}), true
+		answer := map[string]any{"status": "ok", "operation": operation, "path": path, "written": result.Written, "sha256": result.SHA256, "build": result.Build, "next_action": "If build.ok is false, repair the reported source location. A saved file is not a validated game."}
+		// Advisory structural lint; it never blocks the write or validation.
+		if findings := service.LintJobSource(ctx, jobID); len(findings) > 0 {
+			answer["lint"] = findings
+		}
+		return gameMakerToolJSON(answer), true
 
 	case "game_maker_validate":
 		checkIDs, checkErr := gameMakerCheckIDsFromParams(tc.Params)
