@@ -29,7 +29,7 @@
     "test:terminal-retronet": "node scripts/test-terminal-modem.mjs && node scripts/test-terminal-geometry.mjs && node scripts/test-terminal-retronet-directory.mjs && node scripts/test-terminal-retronet-session.mjs && node scripts/test-terminal-retronet-entries.mjs",
     "build:ui": "node scripts/build-ui-bundles.js",
     "build:desktop-themes": "node scripts/build-desktop-cursors.mjs && node scripts/build-desktop-windows-xp-icons.mjs && node scripts/build-desktop-theme-vendor.mjs && node scripts/build-ui-bundles.js",
-    "check:desktop-themes": "node scripts/build-desktop-cursors.mjs --check && node scripts/build-desktop-windows-xp-icons.mjs --check && node scripts/build-desktop-theme-vendor.mjs --check && node scripts/build-ui-bundles.js --check",
+    "check:desktop-themes": "node scripts/build-desktop-cursors.mjs --check && node scripts/build-desktop-windows-xp-icons.mjs --check && node scripts/build-desktop-theme-vendor.mjs --check && node scripts/build-ui-bundles.js --check && node scripts/test-desktop-theme-orbit-assets.mjs",
     "build:game-maker-3d": "node scripts/build-game-maker-3d.js",
     "test:game-maker-glbs": "node scripts/validate-game-maker-glbs.mjs",
     "check:ui": "node scripts/build-ui-bundles.js --check",
