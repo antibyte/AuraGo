@@ -465,3 +465,102 @@ func TestPixelCutoutMutationsDenyReadonlyBeforeWork(t *testing.T) {
 		t.Error("nothing may start in a read-only desktop")
 	}
 }
+
+// pixelCutoutDataURL wraps PNG bytes the way the editor sends them.
+func pixelCutoutDataURL(data []byte) string {
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(data)
+}
+
+// The server only reads the header of a cutout source; the worker subprocess decodes the pixels in its own process.
+// Decision: a PNG with a sound header whose data does not inflate is handed to the worker, which rejects it there.
+func TestPixelCutoutChecksTheHeaderOnlyAndLeavesDecodingToTheWorker(t *testing.T) {
+	notInflatable := oraTestPNGWithIDAT(3, 2, bytes.Repeat([]byte{0xAB}, 64))
+	if _, err := pixelValidateImage(notInflatable, pixelmatte.MaxImageBytes); err == nil {
+		t.Fatal("fixture decodes in full; the test would prove nothing")
+	}
+	if cfg, format, err := pixelValidateImageHeader(notInflatable, pixelmatte.MaxImageBytes); err != nil || format != "png" || cfg.Width != 3 || cfg.Height != 2 {
+		t.Fatalf("header check = %+v %q %v", cfg, format, err)
+	}
+
+	runner := &pixelCutoutRunner{}
+	s := newPixelCutoutServer(t, newPixelCutoutInstaller(true), runner, nil)
+	recorder := pixelCutoutRequest(handlePixelCutout(s), http.MethodPost, "/api/pixel/cutout",
+		map[string]string{"model": "standard", "source_data": pixelCutoutDataURL(notInflatable)})
+	if recorder.Code != http.StatusOK || runner.calls != 1 || !bytes.Equal(runner.last.Image, notInflatable) {
+		t.Fatalf("status %d, worker calls %d: %s", recorder.Code, runner.calls, recorder.Body.String())
+	}
+}
+
+func TestPixelCutoutHeaderCheckRefusesWhatTheFullCheckRefuses(t *testing.T) {
+	hugeHeader := oraTestPNGWithIDAT(40000, 40000, []byte("x")) // 1.6 Gpx claimed by a few bytes
+	var gif bytes.Buffer
+	gif.WriteString("GIF89a\x01\x00\x01\x00\x00\x00\x00;")
+	cases := map[string][]byte{
+		"dimensions over the cap": hugeHeader,
+		"gif":                     gif.Bytes(),
+		"garbage":                 []byte("hello"),
+		"empty":                   nil,
+	}
+	for name, data := range cases {
+		if _, _, err := pixelValidateImageHeader(data, pixelmatte.MaxImageBytes); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	if _, _, err := pixelValidateImageHeader(oraTestConstantPNG(t, 8192, 4096), pixelmatte.MaxImageBytes); err != nil {
+		t.Errorf("image exactly at the pixel cap rejected: %v", err)
+	}
+	small := oraTestPNG(t, 4, 4)
+	if _, _, err := pixelValidateImageHeader(small, int64(len(small))-1); err == nil {
+		t.Error("image above the byte limit accepted")
+	}
+
+	runner := &pixelCutoutRunner{}
+	s := newPixelCutoutServer(t, newPixelCutoutInstaller(true), runner, nil)
+	recorder := pixelCutoutRequest(handlePixelCutout(s), http.MethodPost, "/api/pixel/cutout",
+		map[string]string{"model": "standard", "source_data": pixelCutoutDataURL(hugeHeader)})
+	if recorder.Code != http.StatusBadRequest || !strings.Contains(recorder.Body.String(), "dimensions exceed") || runner.calls != 0 {
+		t.Fatalf("huge header: %d (worker calls %d) %s", recorder.Code, runner.calls, recorder.Body.String())
+	}
+}
+
+// A request that finds the worker slot taken is turned away before its body is even read or decoded: a request whose
+// image could not be decoded at all still gets 429, not 400, and the worker is not started a second time.
+func TestPixelCutoutAnswersBusyBeforeReadingTheImage(t *testing.T) {
+	runner := &pixelCutoutRunner{started: make(chan struct{}, 1), release: make(chan struct{})}
+	s := newPixelCutoutServer(t, newPixelCutoutInstaller(true), runner, nil)
+	cutout := handlePixelCutout(s)
+
+	done := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		done <- pixelCutoutRequest(cutout, http.MethodPost, "/api/pixel/cutout",
+			map[string]string{"model": "standard", "source_data": pixelCutoutSource(t, 4, 4)})
+	}()
+	<-runner.started
+
+	for name, body := range map[string]any{
+		"undecodable image": map[string]string{"model": "standard", "source_data": "data:image/png;base64,@@@"},
+		"huge claimed size": map[string]string{"model": "standard", "source_data": pixelCutoutDataURL(oraTestPNGWithIDAT(40000, 40000, []byte("x")))},
+		"not json":          "nope",
+	} {
+		recorder := pixelCutoutRequest(cutout, http.MethodPost, "/api/pixel/cutout", body)
+		if recorder.Code != http.StatusTooManyRequests || pixelCutoutDecode(t, recorder)["status"] != "busy" {
+			t.Errorf("%s while busy: %d %s", name, recorder.Code, recorder.Body.String())
+		}
+	}
+	runner.mu.Lock()
+	calls := runner.calls
+	runner.mu.Unlock()
+	if calls != 1 {
+		t.Errorf("worker started %d times", calls)
+	}
+	close(runner.release)
+	if first := <-done; first.Code != http.StatusOK {
+		t.Fatalf("first cutout = %d %s", first.Code, first.Body.String())
+	}
+
+	// Once the slot is free the same bad input is a plain 400 again.
+	recorder := pixelCutoutRequest(cutout, http.MethodPost, "/api/pixel/cutout", map[string]string{"model": "standard", "source_data": "data:image/png;base64,@@@"})
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("bad input on an idle server = %d", recorder.Code)
+	}
+}

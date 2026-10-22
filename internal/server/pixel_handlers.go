@@ -510,11 +510,14 @@ func handlePixelSave(s *Server) http.HandlerFunc {
 			return
 		}
 		// PNG and JPEG keep the image rules; a .ora path (or format "ora") is an OpenRaster project archive.
-		format, err := pixelValidateSavePayload(data, limit, savePath, req.Format)
+		format, err := pixelValidateSavePayload(r.Context(), data, limit, savePath, req.Format)
 		if err != nil {
 			status := http.StatusBadRequest
-			if errors.Is(err, errPixelORATooLarge) {
+			switch {
+			case errors.Is(err, errPixelORATooLarge):
 				status = http.StatusRequestEntityTooLarge
+			case errors.Is(err, errPixelORABusy):
+				status = http.StatusServiceUnavailable
 			}
 			jsonError(w, err.Error(), status)
 			return

@@ -176,6 +176,15 @@ func (m *Manager) onProgress(status onnxrt.DownloadStatus) {
 // Available reports whether the feature can run on this platform.
 func (m *Manager) Available() bool { return m.available }
 
+// Busy reports whether a cutout holds the worker slot right now. It is a cheap
+// hint for callers that want to refuse a request before doing any work for it;
+// Cutout still decides authoritatively (ErrBusy) when it takes the slot.
+func (m *Manager) Busy() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.running
+}
+
 // Status reports the platform, the runtime, the worker slot and every model.
 // It never touches the network and hashes no files.
 func (m *Manager) Status() Status {

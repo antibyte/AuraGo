@@ -134,6 +134,13 @@ func handlePixelCutout(s *Server) http.HandlerFunc {
 			pixelCutoutMethod(w, http.MethodPost)
 			return
 		}
+		// The single worker slot is checked before anything is read or decoded for this request, so a queue of
+		// requests behind a running cutout costs nothing. Manager.Cutout stays the authority when it takes the slot.
+		manager := pixelCutoutManager(s)
+		if manager.Busy() {
+			pixelCutoutFail(w, http.StatusTooManyRequests, "busy", "Another cutout is running")
+			return
+		}
 		var req struct {
 			Model      string `json:"model"`
 			SourceData string `json:"source_data"`
@@ -160,17 +167,15 @@ func handlePixelCutout(s *Server) http.HandlerFunc {
 			pixelCutoutFail(w, http.StatusBadRequest, "error", "Invalid image encoding")
 			return
 		}
-		if _, err := pixelValidateImage(data, pixelmatte.MaxImageBytes); err != nil {
+		// Header only: the worker subprocess decodes the pixels in its own process, so the server never holds the
+		// decoded bitmap (up to 128 MB) of a request that may still be turned away.
+		source, _, err := pixelValidateImageHeader(data, pixelmatte.MaxImageBytes)
+		if err != nil {
 			pixelCutoutFail(w, http.StatusBadRequest, "error", err.Error())
 			return
 		}
-		source, _, err := image.DecodeConfig(bytes.NewReader(data))
-		if err != nil {
-			pixelCutoutFail(w, http.StatusBadRequest, "error", "invalid image data")
-			return
-		}
 
-		result, err := pixelCutoutManager(s).Cutout(r.Context(), pixelmatte.Kind(req.Model), data)
+		result, err := manager.Cutout(r.Context(), pixelmatte.Kind(req.Model), data)
 		switch {
 		case err == nil:
 		case errors.Is(err, pixelmatte.ErrNotReady):

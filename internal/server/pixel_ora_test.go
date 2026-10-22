@@ -114,37 +114,37 @@ const oraTestLimit = 32 << 20
 
 func TestPixelORAAcceptsValidArchive(t *testing.T) {
 	data := oraTestArchive(t, oraTestEntries(t))
-	if err := pixelValidateORA(data, oraTestLimit); err != nil {
+	if err := pixelValidateORA(context.Background(), data, oraTestLimit); err != nil {
 		t.Fatalf("valid archive rejected: %v", err)
 	}
-	format, err := pixelValidateSavePayload(data, oraTestLimit, "Pictures/project.ora", "ora")
+	format, err := pixelValidateSavePayload(context.Background(), data, oraTestLimit, "Pictures/project.ora", "ora")
 	if err != nil || format != "ora" {
 		t.Fatalf("payload format = %q, %v", format, err)
 	}
-	format, err = pixelValidateSavePayload(data, oraTestLimit, "Pictures/PROJECT.ORA", "")
+	format, err = pixelValidateSavePayload(context.Background(), data, oraTestLimit, "Pictures/PROJECT.ORA", "")
 	if err != nil || format != "ora" {
 		t.Fatalf("upper-case extension: %q, %v", format, err)
 	}
 
 	// Foreign writers add explicit directory entries; the file set stays within the allow-list.
 	withDirs := append([]oraTestEntry{{name: "mimetype", data: []byte("image/openraster"), method: zip.Store}, {name: "data/", method: zip.Store}}, oraTestEntries(t)[1:]...)
-	if err := pixelValidateORA(oraTestArchive(t, withDirs), oraTestLimit); err != nil {
+	if err := pixelValidateORA(context.Background(), oraTestArchive(t, withDirs), oraTestLimit); err != nil {
 		t.Fatalf("archive with a data/ directory entry rejected: %v", err)
 	}
 }
 
 func TestPixelORAKeepsPlainImageRules(t *testing.T) {
-	if format, err := pixelValidateSavePayload(oraTestPNG(t, 3, 3), oraTestLimit, "Pictures/a.png", "png"); err != nil || format != "png" {
+	if format, err := pixelValidateSavePayload(context.Background(), oraTestPNG(t, 3, 3), oraTestLimit, "Pictures/a.png", "png"); err != nil || format != "png" {
 		t.Fatalf("png: %q, %v", format, err)
 	}
 	var jpg bytes.Buffer
 	if err := jpeg.Encode(&jpg, image.NewRGBA(image.Rect(0, 0, 3, 3)), nil); err != nil {
 		t.Fatal(err)
 	}
-	if format, err := pixelValidateSavePayload(jpg.Bytes(), oraTestLimit, "Pictures/a.jpg", "jpeg"); err != nil || format != "jpeg" {
+	if format, err := pixelValidateSavePayload(context.Background(), jpg.Bytes(), oraTestLimit, "Pictures/a.jpg", "jpeg"); err != nil || format != "jpeg" {
 		t.Fatalf("jpeg: %q, %v", format, err)
 	}
-	if _, err := pixelValidateSavePayload(oraTestPNG(t, 3, 3), oraTestLimit, "Pictures/a.ora", "ora"); err == nil {
+	if _, err := pixelValidateSavePayload(context.Background(), oraTestPNG(t, 3, 3), oraTestLimit, "Pictures/a.ora", "ora"); err == nil {
 		t.Fatal("a PNG was accepted as an OpenRaster project")
 	}
 }
@@ -215,17 +215,17 @@ func TestPixelORARejectsBrokenArchives(t *testing.T) {
 	}
 	for name, data := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := pixelValidateORA(data, oraTestLimit)
+			err := pixelValidateORA(context.Background(), data, oraTestLimit)
 			if err == nil {
 				t.Fatal("archive was accepted")
 			}
 			t.Logf("rejected: %v", err)
 		})
 	}
-	if err := pixelValidateORA(validBytes, int64(len(validBytes))-1); !errors.Is(err, errPixelORATooLarge) {
+	if err := pixelValidateORA(context.Background(), validBytes, int64(len(validBytes))-1); !errors.Is(err, errPixelORATooLarge) {
 		t.Fatalf("oversize archive: %v", err)
 	}
-	if err := pixelValidateORA(validBytes, int64(len(validBytes))); err != nil {
+	if err := pixelValidateORA(context.Background(), validBytes, int64(len(validBytes))); err != nil {
 		t.Fatalf("archive exactly at the limit rejected: %v", err)
 	}
 }
@@ -272,7 +272,7 @@ func TestPixelORARejectsZipBombs(t *testing.T) {
 	valid := oraTestEntries(t)
 
 	t.Run("sanity: raw writer round trip", func(t *testing.T) {
-		if err := pixelValidateORA(oraTestRaw(t, valid, nil), oraTestLimit); err != nil {
+		if err := pixelValidateORA(context.Background(), oraTestRaw(t, valid, nil), oraTestLimit); err != nil {
 			t.Fatalf("raw archive rejected: %v", err)
 		}
 	})
@@ -284,7 +284,7 @@ func TestPixelORARejectsZipBombs(t *testing.T) {
 		if len(data) > 1<<20 {
 			t.Fatalf("test archive is not small: %d bytes", len(data))
 		}
-		if err := pixelValidateORA(data, oraTestLimit); err == nil || !strings.Contains(err.Error(), "entry") {
+		if err := pixelValidateORA(context.Background(), data, oraTestLimit); err == nil || !strings.Contains(err.Error(), "entry") {
 			t.Fatalf("bomb not stopped by the entry size guard: %v", err)
 		}
 	})
@@ -292,14 +292,14 @@ func TestPixelORARejectsZipBombs(t *testing.T) {
 	t.Run("stack declared small, actual large", func(t *testing.T) {
 		bomb := []oraTestEntry{valid[0], {name: "stack.xml", data: bytes.Repeat([]byte(" "), 3<<20), method: zip.Deflate}}
 		data := oraTestRaw(t, bomb, map[string]uint64{"stack.xml": 64})
-		if err := pixelValidateORA(data, oraTestLimit); err == nil || !strings.Contains(err.Error(), "entry") {
+		if err := pixelValidateORA(context.Background(), data, oraTestLimit); err == nil || !strings.Contains(err.Error(), "entry") {
 			t.Fatalf("bomb not stopped by the entry size guard: %v", err)
 		}
 	})
 
 	t.Run("stack declared above its limit", func(t *testing.T) {
 		bomb := []oraTestEntry{valid[0], {name: "stack.xml", data: bytes.Repeat([]byte(" "), pixelORAMaxXMLBytes+1), method: zip.Deflate}}
-		if err := pixelValidateORA(oraTestRaw(t, bomb, nil), oraTestLimit); err == nil {
+		if err := pixelValidateORA(context.Background(), oraTestRaw(t, bomb, nil), oraTestLimit); err == nil {
 			t.Fatal("oversized stack.xml accepted")
 		}
 	})
@@ -312,7 +312,7 @@ func TestPixelORARejectsZipBombs(t *testing.T) {
 			entries = append(entries, oraTestEntry{name: name, data: []byte("x"), method: zip.Store})
 			lies[name] = 60 << 20
 		}
-		err := pixelValidateORA(oraTestRaw(t, entries, lies), 64<<20)
+		err := pixelValidateORA(context.Background(), oraTestRaw(t, entries, lies), 64<<20)
 		if !errors.Is(err, errPixelORATooLarge) {
 			t.Fatalf("total size cap not enforced: %v", err)
 		}
@@ -320,7 +320,7 @@ func TestPixelORARejectsZipBombs(t *testing.T) {
 
 	t.Run("single png above the byte limit", func(t *testing.T) {
 		entries := []oraTestEntry{valid[0], valid[1], {name: "data/layer-1.png", data: []byte("x"), method: zip.Store}}
-		err := pixelValidateORA(oraTestRaw(t, entries, map[string]uint64{"data/layer-1.png": oraTestLimit + 1}), oraTestLimit)
+		err := pixelValidateORA(context.Background(), oraTestRaw(t, entries, map[string]uint64{"data/layer-1.png": oraTestLimit + 1}), oraTestLimit)
 		if !errors.Is(err, errPixelORATooLarge) {
 			t.Fatalf("per-entry cap not enforced: %v", err)
 		}
@@ -334,7 +334,7 @@ func TestPixelORARejectsZipBombs(t *testing.T) {
 			t.Fatal("no IDAT in test archive")
 		}
 		data[index+6] ^= 0xFF
-		if err := pixelValidateORA(data, oraTestLimit); err == nil {
+		if err := pixelValidateORA(context.Background(), data, oraTestLimit); err == nil {
 			t.Fatal("corrupt archive accepted")
 		}
 	})

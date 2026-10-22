@@ -3,10 +3,12 @@ package server
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"image"
 	"io"
 	"math"
@@ -26,7 +28,8 @@ const (
 	pixelORAMaxEntries     = 128
 	pixelORAMaxXMLBytes    = 1 << 20
 	pixelORAMaxTotalBytes  = 512 << 20
-	pixelORAMaxTotalPixels = 1 << 30
+	pixelORAMaxTotalPixels = 1 << 30 // sum of the pixel counts the PNG headers declare, nothing is decoded
+	pixelORAMaxConcurrent  = 2       // archives inflated and checked at once, process-wide
 	pixelORAMaxSide        = 16384
 	pixelORAMaxNameLength  = 200
 	pixelORAMaxXMLDepth    = 32
@@ -36,19 +39,40 @@ const (
 
 	pixelZIPEndSignature   = 0x06054b50
 	pixelZIPEndRecordBytes = 22
+
+	pixelPNGSignature = "\x89PNG\r\n\x1a\n"
 )
 
 var (
 	errPixelORAInvalid  = errors.New("the project file is not a valid OpenRaster archive")
 	errPixelORATooLarge = errors.New("the project file exceeds the size limit")
+	errPixelORABusy     = errors.New("the server is checking other project files right now, try again shortly")
 )
+
+// pixelORASlots bounds how many project archives are inflated and checked at the same moment in the whole process,
+// whatever the number of concurrent save requests: each check can read up to pixelORAMaxTotalBytes of inflated data
+// (one entry at a time). Further saves wait here, as long as their request lives.
+var pixelORASlots = make(chan struct{}, pixelORAMaxConcurrent)
+
+// pixelORAAcquire takes a validation slot, waiting for one while ctx is alive. The returned func gives it back.
+func pixelORAAcquire(ctx context.Context) (func(), error) {
+	if ctx.Err() != nil {
+		return nil, errPixelORABusy
+	}
+	select {
+	case pixelORASlots <- struct{}{}:
+		return func() { <-pixelORASlots }, nil
+	case <-ctx.Done():
+		return nil, errPixelORABusy
+	}
+}
 
 // pixelValidateSavePayload validates the bytes of a /api/pixel/save request and returns their format name: "png",
 // "jpeg" or "ora". A .ora path or an explicit "ora" format selects the OpenRaster rules, everything else the plain
-// image rules of pixelValidateImage.
-func pixelValidateSavePayload(data []byte, limit int64, savePath, requestedFormat string) (string, error) {
+// image rules of pixelValidateImage. ctx only limits the wait for an OpenRaster validation slot.
+func pixelValidateSavePayload(ctx context.Context, data []byte, limit int64, savePath, requestedFormat string) (string, error) {
 	if strings.EqualFold(path.Ext(savePath), ".ora") || strings.EqualFold(strings.TrimSpace(requestedFormat), "ora") {
-		if err := pixelValidateORA(data, limit); err != nil {
+		if err := pixelValidateORA(ctx, data, limit); err != nil {
 			return "", err
 		}
 		return "ora", nil
@@ -57,19 +81,86 @@ func pixelValidateSavePayload(data []byte, limit int64, savePath, requestedForma
 }
 
 // pixelValidateORA checks an OpenRaster archive: size, ZIP structure, entry names and kinds, declared and actual
-// sizes (zip bomb), stack.xml, and every PNG it contains.
-func pixelValidateORA(data []byte, limit int64) error {
+// sizes (zip bomb), stack.xml, and every PNG it contains. The cheap checks (size, end record) run first; the rest
+// runs inside one of pixelORAMaxConcurrent process-wide slots, waiting for it while ctx is alive (errPixelORABusy
+// when ctx ends first).
+func pixelValidateORA(ctx context.Context, data []byte, limit int64) error {
 	if int64(len(data)) > limit {
 		return errPixelORATooLarge
 	}
 	if err := pixelORACheckDirectory(data); err != nil {
 		return err
 	}
+	release, err := pixelORAAcquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil && !errors.Is(err, zip.ErrInsecurePath) {
 		return errPixelORAInvalid
 	}
 	return pixelORAValidateArchive(reader, limit)
+}
+
+// pixelORACheckPNG decides whether an archive entry may be stored as a PNG layer WITHOUT decoding its pixels. A
+// full decode costs width*height*4 bytes of heap per layer (a 4 MB archive of constant-colour 8192x4096 layers would
+// need gigabytes), and the server only stores the file: the zip CRC and size checks already prove the bytes are the
+// ones the editor sent, and the client decodes them itself. So the check is structural: the PNG header (format and
+// dimensions, read by image.DecodeConfig) and the chunk stream (signature, IHDR first, every chunk length and CRC,
+// at least one IDAT, IEND reached), which catches truncated or mangled files in time proportional to their bytes.
+// Deliberate consequence: IDAT contents that do not inflate to valid pixels are not detected here.
+func pixelORACheckPNG(content []byte) (image.Config, error) {
+	cfg, format, err := image.DecodeConfig(bytes.NewReader(content))
+	if err != nil || format != "png" || cfg.Width <= 0 || cfg.Height <= 0 {
+		return image.Config{}, errors.New("not a valid PNG image")
+	}
+	if int64(cfg.Width)*int64(cfg.Height) > pixelMaxPixels {
+		return image.Config{}, errors.New("image dimensions exceed the limit")
+	}
+	if err := pixelORACheckPNGChunks(content); err != nil {
+		return image.Config{}, err
+	}
+	return cfg, nil
+}
+
+// pixelORACheckPNGChunks walks the chunk stream of a PNG: it never inflates anything. Bytes after IEND are ignored,
+// like the standard decoder does.
+func pixelORACheckPNGChunks(data []byte) error {
+	const signatureLen, chunkOverhead = 8, 12 // length + type + CRC around the chunk data
+	if len(data) < signatureLen || string(data[:signatureLen]) != pixelPNGSignature {
+		return errors.New("not a valid PNG image")
+	}
+	bad := errors.New("not a valid PNG image")
+	pos := signatureLen
+	sawIDAT := false
+	for first := true; ; first = false {
+		if len(data)-pos < chunkOverhead {
+			return bad
+		}
+		length := uint64(binary.BigEndian.Uint32(data[pos : pos+4]))
+		if length > uint64(len(data)-pos-chunkOverhead) {
+			return bad
+		}
+		kind := string(data[pos+4 : pos+8])
+		bodyEnd := pos + 8 + int(length)
+		if crc32.ChecksumIEEE(data[pos+4:bodyEnd]) != binary.BigEndian.Uint32(data[bodyEnd:bodyEnd+4]) {
+			return bad
+		}
+		if first && (kind != "IHDR" || length != 13) {
+			return bad
+		}
+		switch kind {
+		case "IDAT":
+			sawIDAT = true
+		case "IEND":
+			if !sawIDAT || length != 0 {
+				return bad
+			}
+			return nil
+		}
+		pos = bodyEnd + 4
+	}
 }
 
 // pixelORACheckDirectory inspects the end-of-central-directory record before archive/zip parses the directory, so a
@@ -247,16 +338,15 @@ func pixelORAValidateArchive(reader *zip.Reader, limit int64) error {
 			}
 			stack = parsed
 		case "png":
-			cfg, format, err := image.DecodeConfig(bytes.NewReader(content))
-			if err != nil || format != "png" || cfg.Width <= 0 || cfg.Height <= 0 {
-				return fmt.Errorf("%s is not a valid PNG image", f.Name)
+			// Header and chunk structure only, see pixelORACheckPNG: nothing here may allocate in proportion to the
+			// pixel count, however many layers the archive claims.
+			cfg, err := pixelORACheckPNG(content)
+			if err != nil {
+				return fmt.Errorf("%s: %w", f.Name, err)
 			}
 			totalPixels += int64(cfg.Width) * int64(cfg.Height)
 			if totalPixels > pixelORAMaxTotalPixels {
 				return fmt.Errorf("the project images are too large")
-			}
-			if _, err := pixelValidateImage(content, limit); err != nil {
-				return fmt.Errorf("%s: %w", f.Name, err)
 			}
 			pngs[f.Name] = [2]int{cfg.Width, cfg.Height}
 		}

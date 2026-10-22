@@ -376,14 +376,17 @@ func TestCutoutNeedsDownloadedModelAndRuntime(t *testing.T) {
 func TestCutoutAllowsOneRunAtATime(t *testing.T) {
 	runner := &fakeRunner{result: []byte("m"), started: make(chan struct{}, 1), release: make(chan struct{})}
 	m := newTestManager(readyInstaller(), runner)
+	if m.Busy() {
+		t.Fatal("Busy must be false before any run")
+	}
 	done := make(chan error, 1)
 	go func() {
 		_, err := m.Cutout(context.Background(), KindStandard, []byte("a"))
 		done <- err
 	}()
 	<-runner.started
-	if !m.Status().Busy {
-		t.Fatal("status must report busy while a cutout runs")
+	if !m.Status().Busy || !m.Busy() {
+		t.Fatal("status and Busy must report busy while a cutout runs")
 	}
 	if _, err := m.Cutout(context.Background(), KindStandard, []byte("b")); !errors.Is(err, ErrBusy) {
 		t.Fatalf("second cutout error = %v, want ErrBusy", err)
@@ -392,7 +395,7 @@ func TestCutoutAllowsOneRunAtATime(t *testing.T) {
 	if err := <-done; err != nil {
 		t.Fatal(err)
 	}
-	if m.Status().Busy {
+	if m.Status().Busy || m.Busy() {
 		t.Fatal("busy must clear after the run")
 	}
 	if _, err := m.Cutout(context.Background(), KindStandard, []byte("c")); err != nil {
