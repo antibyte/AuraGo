@@ -539,6 +539,6 @@ window.RFB=class extends EventTarget{constructor(_el,url){super();this.url=url;t
 	if err := page.AddScriptTag("", normalizeAssetText([]byte(launchpad))); err != nil {
 		t.Fatalf("load Quick Connect shell source: %v; browser errors: %s", err, page.MustEval(`()=>window.__shellErrors`).JSON("", ""))
 	}
-	page.MustEval(`()=>{serialShell.app=window.__renderQuickConnect('qc');}`)
+	page.MustEval(`()=>{state.windows=new Map();serialShell.app=window.__renderQuickConnect('qc');}`)
 	return page
 }

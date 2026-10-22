@@ -228,7 +228,7 @@
                     api('/api/desktop/integrations/credentials')
                 ]);
                 if (disposed || generation !== loadGeneration) return;
-                cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.id === targetDeviceId || d.protocol === 'ssh' || d.protocol === 'vnc' || d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type));
+                cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.id === targetDeviceId || d.protocol === 'ssh' || d.protocol === 'vnc'));
                 cachedCredentials = credBody || [];
                 if (!cachedDevices.length) {
                     deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.qc_no_devices'))}</div>`;
