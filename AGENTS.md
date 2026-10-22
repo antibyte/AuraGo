@@ -286,7 +286,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Decisions native scoring runtime and HTTP errors (`runtime_busy`) | `decisions_runtime/AGENTS.md` |
 | Local Wikipedia Contract | `internal/localwiki/AGENTS.md` |
 | Bookshelf library, sources, reader isolation and conversion | `internal/bookshelf/AGENTS.md` |
-| ONNX Runtime binding, asset cache and person detection worker | `internal/onnxrt/AGENTS.md`, `internal/persondetect/AGENTS.md` |
+| ONNX Runtime binding, asset cache, person detection worker and Pixel AI background matting | `internal/onnxrt/AGENTS.md`, `internal/persondetect/AGENTS.md`, `internal/pixelmatte/AGENTS.md` |
 | Memory System | `internal/memory/AGENTS.md` |
 | Newspaper publication, scheduling and delivery | `internal/newspaper/AGENTS.md` |
 | MeshCentral control client, power gate and test route | `internal/meshcentral/AGENTS.md` |
@@ -636,6 +636,7 @@ Current child AGENTS.md files:
 - `internal/onnxrt/AGENTS.md` — Purego ONNX Runtime binding, verified pinned asset cache and native worker process helpers shared by embeddings and person detection.
 - `internal/personalradio/AGENTS.md` — Personal stations, durable audio library, rotation, news, provider quotas and desktop playback contracts.
 - `internal/persondetect/AGENTS.md` — D-FINE person detector: pinned models, WebGPU model patcher, `--person-detect-worker` protocol, backend selection and worker supervision.
+- `internal/pixelmatte/AGENTS.md` — Pixel AI background matting: pinned ISNet and BiRefNet models, pre- and post-processing, the `--pixel-matte-worker` process and the `/api/pixel/cutout*` manager.
 - `internal/planner/AGENTS.md` — Issue lifecycle, notification, and background retry policy.
 - `internal/proxy/AGENTS.md` — Managed Caddy security proxy: Vault Basic Auth, rate-limit image, Docker placement and reload.
 - `internal/rtlsdr/AGENTS.md` — Optional receive-only RTL-SDR runtime, schedules, leases, recordings and ASR.

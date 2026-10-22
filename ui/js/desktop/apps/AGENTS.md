@@ -8,6 +8,101 @@
 - While Video Studio loads, the window record retains one transient offer outside its session context; rendering consumes it once.
 - Verify `TestDesktopCameraHandoffBrowser`, `TestDesktopVideoStudioCameraImportBrowser`, `TestDesktopCameraHandoffIntegrationBrowser` and `TestDesktopVideoStudioStartMenuBrowser` with `AURAGO_RUN_BROWSER_SMOKE=1`.
 
+## Pixel
+
+Pixel is the image editor (`window.AuraPixelApp` is its namespace, `window.PixelApp = { render, dispose }` its entry point).
+`module-loader.js` key `pixel` loads the styles `pixel.css`, `desktop-stickers.css`, `pixel-stickers.css`, `pixel-layers.css`,
+`pixel-filters.css`, `pixel-generators.css`, `pixel-cutout.css`, `pixel-selection.css`, `pixel-tools-pro.css` and
+`pixel-smart.css`, and the scripts in the order given in the table below. Older notes in this file that say "layers (max
+20)", describe a canvas-only history, or give the old 17-tool, 21-filter or 29-filter counts are obsolete. The current
+limits are 64 layers and 60 history steps, and the catalogue holds 80 filters and 43 generators.
+
+### Module structure
+
+The loader starts with `shared/sticker-catalog.js` and `shared/sticker-library.js`, then:
+
+| Layer | Files | Role |
+|---|---|---|
+| State and constants | `pixel-state.js` | `MAX_HISTORY` 60, `MAX_LAYERS` 64, `BLEND_MODES`, `IMAGE_EXTS` (includes `ora`), tool SVGs, tool groups, default tool shortcuts, the shortcut normaliser (`normalizeShortcut`, `shortcutFromEvent`) |
+| Core | `pixel-core.js` | Registries (`registerModule`, `registerPanel`, `registerTool`, `registerMenuItems`, `registerCommand`), layers and masks, composition with blend modes and clipping, history with shared snapshots, selection masks, `commitLayerPixels`, `runJob`, overlays, events |
+| Libraries (DOM-free) | `pixel-lib-core.js` (`AuraPixelLib` helpers, core ops), `pixel-lib-fx.js` (filters, histogram, auto tone, fade), `pixel-lib-gen.js` (`GENERATORS` catalog and renderers), `pixel-lib-cutout.js` (classic matting, colour key, refine, decontaminate, blur), `pixel-lib-inpaint.js` (PatchMatch fill) | Pure functions on `{ width, height, data }` images. They load in a window, in the worker and in a node `vm` |
+| Worker | `pixel-worker.js` | Classic Worker, created lazily by `runJob`; NOT listed in the loader. It `importScripts` every `pixel-lib-*.js` (`TestPixelWorkerImportsEveryLib` keeps the list complete). Protocol `{ id, op, args }` → `{ id, progress }` / `{ id, result }` / `{ id, error }` |
+| Shell | `pixel.js` (windows, instances, wiring, dispose), `pixel-view.js` (markup, the parameter-controls kit `defaultParams` / `buildParamControls` / `wireParamControls`, built-in panels, tools and menus), `pixel-events.js` (pointer and key dispatch, shortcuts modal, context menu) | The shell. Built-in tools, panels and menus are registered in `pixel-view.js`, and the brush tools in `pixel-brush.js` |
+| Legacy paths | `pixel-canvas.js`, `pixel-tools.js`, `pixel-actions.js` | Pre-core composition, file I/O, the provider AI calls (`/api/pixel/generate`, `enhance`, `remove-bg`, `upscale`). Newer modules override parts of them; do not add features there |
+| Feature modules | `pixel-brush.js` (stroke engine, `toolUi`, Brush tab), `pixel-tools-pro.js` (shapes, gradient, bucket, retouch, hand, zoom, grids), `pixel-transform.js` (move, free transform, crop), `pixel-selection.js` (selection tools, Select menu, `selectionKit`), `pixel-layers.js` (Layers dock, Layer menu), `pixel-filters.js` (Filters and Adjust tabs, Filter menu), `pixel-generators.js` (Generate tab and menu), `pixel-cutout.js` (Cutout tab, AI, classic and colour-key engines, cutout brush), `pixel-smart.js` (content-aware fill, remove-object tool, Colors tab, trim, auto-crop, canvas size), `pixel-commands.js` (command palette, fuzzy matcher, synonyms), `pixel-ora.js` (OpenRaster write and read, Save and Open glue), `pixel-stickers.js` (sticker layers) | Feature modules call `Pixel.installX`/`registerModule` and register panels, tools, menu items and commands. They do not edit the shell. A module whose installer throws is logged and skipped, so a test must catch it |
+
+Pixel scripts are classic scripts in the `window.AuraPixelApp` namespace (`Pixel`). Module installers run once per window,
+after the built-in installers and before the markup exists. DOM work belongs in a panel `mount` or in `r.on('ready', …)`.
+
+### Contracts
+
+- **Layers.** `layer = { id, name, canvas, visible, opacity, blend, lockPixels, lockAlpha, lockPosition, maskCanvas,
+  maskEnabled, clip, rev, maskRev, sticker?, stickerImage? }`. Every layer owns a document-sized canvas. Create layers with
+  `createLayer`, mark them with `markLayerDirty(layer, { mask })`, read through `getActiveReadCtx()` and write through
+  `getActiveCtx()`. Do not reintroduce a null background canvas.
+- **Pixel changes.** Route every pixel change through `commitLayerPixels(layer, source, { label, respectSelection, mask,
+  history })`. It applies the feathered selection, refuses `lockPixels`, keeps the alpha under `lockAlpha` and writes
+  history. The exception is an incremental stroke tool, which draws into the stroke buffer (`brush.js` `openSession`) and
+  calls `pushHistory` on release.
+- **History.** `pushHistory(label)` stores `{ label, width, height, activeLayerId, layers: [{ meta, snap, maskSnap }],
+  selection }`. A `snap = { rev, canvas }` is shared with the previous entry while the layer's `rev` is unchanged.
+  `restoreHistory` copies snapshots back into fresh canvases. Undo, redo and jump go through it. `HISTORY_BYTE_BUDGET` caps
+  the unique snapshot memory at 768 MiB.
+- **Selection.** `r.selection` is a descriptor (`rect`, `ellipse` or `mask`). Assign a new object instead of mutating one.
+  `getSelectionMask()` returns `{ alpha, x, y, w, h }` (cached). `setSelectionMask(alpha, { mode })` takes `replace`, `add`,
+  `subtract` or `intersect`.
+- **Long work.** Anything per pixel × radius, iterative, or a preview goes through `r.runJob(op, args, { key, signal,
+  onProgress })`. A second job with the same `key` replaces the first, which rejects with `AbortError`. The pool has two
+  workers; `Worker` missing means a synchronous fallback. Ops are registered with `AuraPixelLib.registerOp(name, fn)`.
+- **Registries.** `Pixel.registerPanel({ id, labelKey, fallback, order, dock, build, mount, onShow, onHide })`,
+  `Pixel.registerTool({ id, group, svg, shortcut, labelKey, fallback, raster, options, wireOptions, onDown, onMove, onUp,
+  onHover, onKey, onActivate, onDeactivate, overlay })`, `Pixel.registerMenuItems(menuId, items, { order })` for the menus
+  `file`, `edit`, `image`, `layer`, `select`, `filter`, `generate`, `view` and `ai`, and `Pixel.registerCommand({ id,
+  labelKey, fallback, keywords, group, shortcut, run, enabled })`. Re-registering an id replaces the definition.
+- **Shortcuts.** A shortcut is a property of a menu item (`shortcut` or `shortcuts`), a tool (`shortcut`) or a command.
+  Ctrl and Meta are the same modifier, letters are case-folded, and the newest enabled command wins. Shortcuts are ignored
+  inside inputs, after `defaultPrevented`, and in windows that are not the active Pixel window.
+- **Strings.** `t('pixel.key', 'English fallback')` (or `tx(r, key, fallback)` in the modules). Every key must exist in all 16
+  `ui/lang/desktop/*.json` files (`TestDesktopUsedI18nKeysExistInAllLanguages`).
+- **Parameter schemas.** `r.defaultParams`, `r.buildParamControls` and `r.wireParamControls` take fields `{ key, type,
+  labelKey, fallback, default, min, max, step, unit, options, showIf }`. Types are `range`, `int`, `select`, `segmented`,
+  `bool`, `color`, `angle`, `seed`, `point`, `gradient` and `custom`.
+- **OpenRaster.** `Pixel.ora.write(layers, w, h)` and `Pixel.ora.read(buffer, { maxLayers })` in `pixel-ora.js`. The server
+  (`internal/server/pixel_ora.go`) validates every archive again. Keep its limits and the client's in step: 32 MiB per file,
+  128 entries, 512 MiB uncompressed, and 64 layers when opening.
+
+### Server and AI models
+
+- Routes are in `internal/server/server_routes.go` (`/api/pixel/config`, `generate`, `enhance`, `remove-bg`, `upscale`,
+  `save`, `cutout/status`, `cutout/prepare`, `cutout`). Handlers are in `pixel_handlers.go`, `pixel_cutout.go`,
+  `pixel_ora.go` and `pixel_files.go`.
+- The Cutout tab is the only path that downloads AI models, and only after the user clicks **Download model**. The matting
+  package is `internal/pixelmatte` (`internal/pixelmatte/AGENTS.md`). The classic engine and colour key run in the worker.
+
+### File ownership
+
+- Shared (change with care, run the full Pixel suite): `pixel.js`, `pixel-state.js`, `pixel-core.js`, `pixel-view.js`,
+  `pixel-events.js`, `pixel-lib-core.js`, `pixel-worker.js`, `ui/js/desktop/core/module-loader.js` (key `pixel`).
+- Feature areas own their files: layers → `pixel-layers.js`; filters → `pixel-filters.js`, `pixel-lib-fx.js`; generators →
+  `pixel-generators.js`, `pixel-lib-gen.js`; cutout → `pixel-cutout.js`, `pixel-lib-cutout.js`; selection →
+  `pixel-selection.js`; brush and retouch → `pixel-brush.js`, `pixel-tools-pro.js`; transform → `pixel-transform.js`;
+  intelligence → `pixel-smart.js`, `pixel-commands.js`, `pixel-lib-inpaint.js`; project files → `pixel-ora.js`; stickers →
+  `pixel-stickers.js`. Styles are `ui/css/pixel*.css`, one per feature area.
+- Files that other apps read: `menus-and-routing.js` (`desktopIsImageFile`, bundled into
+  `ui/js/desktop/bundles/main.bundle.js`) and `editor-filemenu.js` (`isPixelImageFile`). After editing either, run
+  `npm run build:ui` and `npm run check:ui`.
+
+### Tests
+
+- `npm run test:pixel` runs `node scripts/test-pixel-all.mjs`, which runs every `scripts/test-pixel-*.mjs` and reports
+  all failures at the end. `test-pixel-core.mjs` is a fake-DOM harness that loads every script and runs `render()`, so it
+  catches module install errors. Run a single area with `node scripts/test-pixel-<area>.mjs` (areas: `core`, `lib`,
+  `tools`, `layers`, `selection`, `fx`, `gen`, `cutout`, `inpaint`, `ora`). Syntax-check edited files with `node --check`.
+- `go test ./ui -run '(TestPixel|TestDesktopPixel)' -count=1` runs the Go source-contract tests in `ui/desktop_pixel_*_test.go`
+  (wiring, loader order, registrations, strings, CSS rules). Both name prefixes are used.
+- `go test ./internal/server -run TestPixel -count=1` and `go test ./internal/pixelmatte -count=1` cover the server.
+- Do not run the full `./ui` suite for Pixel changes. The browser smoke is manual.
+
 ## Infra
 
 - Load `infra-model.js`, then `infra-views.js`, then `infra.js`. The model owns
@@ -1434,7 +1529,9 @@ buttons and menu popovers remain excluded from those gestures.
   `desktop.file_dialog_images`. Pixel save-dialog filters use
   `desktop.file_dialog_png` and `desktop.file_dialog_jpeg` (the server validates
   the actual PNG/JPEG data). WebP remains an export format. Do not hardcode `Images`,
-  `PNG Image`, `JPEG Image`, or `WebP Image` there.
+  `PNG Image`, `JPEG Image`, or `WebP Image` there. The OpenRaster filter of the
+  open and save dialogs uses `desktop.file_dialog_ora`; the Pixel save dialog lists
+  it first only when the document has several layers or masks.
   Pixel `t` stays key-only. Leave File Manager and
   OpenSCAD byte formatters unchanged.
 - Quick Connect SFTP status uses `desktop.qc_sftp_items`. SFTP sizes
@@ -2643,22 +2740,8 @@ buttons and menu popovers remain excluded from those gestures.
   filter. The app can also run
   windowless as a floating desktop gadget (see `sip-phone-gadget-runtime.js`
   in the Child DOX Index).
-- `pixel*.js` implements Pixel, a canvas image editor: left tool rail (20
-  tools in 5 groups, incl. magic wand, lasso, move, clone stamp, mask
-  selections, gradient, airbrush, dodge/burn and blur brush), contextual
-  options bar, adjustments, a 29-filter gallery in 4 categories with
-  favorites and before/after compare, plus colors, transform, layers (max
-  20), editable stickers, click-to-jump history and AI generate/enhance/remove-bg/upscale
-  panels. Split across `pixel-state.js` (constants, tool SVGs/groups,
-  canvas pool, MAX_LAYERS), `pixel-view.js` (rail/panel markup),
-  `pixel-canvas.js` (canvas, history stack, zoom, adjustments,
-  crop/resize/rotate, expandCanvasToFit for oversized AI layers), `pixel-tools.js`
-  (tools, selections, floating move, clone-stamp stroke snapshot, layers, history
-  panel), `pixel-actions.js` (file I/O, AI calls, photos), `pixel-filters.js`
-  (filter catalog, gallery, non-destructive preview), `pixel-events.js`
-  (mouse handlers, shortcuts modal, context menu, option wiring), `pixel-stickers.js`
-  (shared picker, original-backed affine objects, transform controls and rasterization) and
-  `pixel.js` (shell, runtime, event wiring).
+- `pixel*.js` implements the Pixel image editor. Its module structure, contracts, file ownership and test commands are in
+  `## Pixel` at the top of this file. The sticker contracts below still apply to Pixel sticker layers.
 
 ## Ownership
 
@@ -3208,24 +3291,14 @@ registration lives in `internal/desktop/types.go`.
   without focusing its text field, so touch dialing does not summon the OS
   keyboard. Direct field editing remains available. Verify
   `TestDesktopSIPPhoneKeypadFocusBrowser`.
-- Pixel loads `shared/sticker-catalog.js` and `shared/sticker-library.js` first,
-  followed by state, view, canvas, tools, actions, filters, events, stickers,
-  and pixel.js. Load `desktop-stickers.css` and `pixel-stickers.css` with `pixel.css`. Modules attach via
-  `Pixel.install<Domain>(runtime)` with `bindRuntime` (no eval); shared state
-  lives in the getter/setter runtime object created by `pixel.js`.
-- Pixel exposes `window.PixelApp = { render, dispose }`; every window
-  instance owns its history stack, layers, filter preview state, marching-ants
-  RAF, and document-level key handlers (all removed on dispose).
-- Pixel layout contract: toolbar + panel tabs on top, contextual options bar
-  (`data-options-bar`) below it, tool rail (`data-tool-rail`) left, canvas
-  center, panel right. Panel tabs: adjust, filters, colors, transform,
-  layers, history, ai, stickers. Tool options render into the options bar via
-  `renderOptionsBar()`; there is no draw panel tab.
-- Pixel filters live in the `Pixel.FILTERS` catalog (`pixel-filters.js`) with
-  css/pixel/canvas implementations across the categories color/light/style/
-  detail; legacy filter IDs stay valid. Selecting a filter previews
-  non-destructively (layer snapshot + strength blend); Apply commits to
-  history, leaving the filters tab resets the preview.
+- Pixel's load order, module structure and registries are described in `## Pixel` at the top of this file. The loader
+  (`module-loader.js`, key `pixel`) loads the sticker catalog and library first, then the Pixel scripts and styles. Modules
+  attach through the registries and `bindRuntime` (no eval); shared state lives on the runtime object created by `pixel.js`.
+- Pixel exposes `window.PixelApp = { render, dispose }`. Every window instance owns its layers, history, selection overlay,
+  worker jobs and document-level key handlers, all removed on dispose.
+- Pixel filters live in the `Pixel.FILTERS` catalog (`pixel-filters.js`, with the pixel work in `pixel-lib-fx.js`). Selecting a
+  filter shows a live preview on a layer preview (`setLayerPreview`). Apply commits through `commitLayerPixels`, and leaving the
+  Filters tab resets the preview. Legacy filter ids stay valid.
 - Pixel visible UI strings use `pixel.*` and shared `stickers.*` keys in all 16
   `ui/lang/desktop/*.json` files.
 - The shared sticker catalog contains 100 stable IDs, ten categories and ten styles.
@@ -4287,17 +4360,13 @@ registration lives in `internal/desktop/types.go`.
   queued job; old terminal/preview events cannot finish a newer job. Project-only
   revision events stay valid. Verify `scripts/test-ui-regressions.mjs`.
   No child DOX file needed.
-- `pixel-state.js`, `pixel-view.js`, `pixel-canvas.js`, `pixel-tools.js`,
-  `pixel-actions.js`, `pixel-filters.js`, `pixel-events.js`, `pixel-stickers.js`, `pixel.js` -
-  Pixel image editor: tool rail + options bar layout, 17 tools (magic wand
-  with mask selections, gradient, airbrush, dodge/burn, blur brush plus the
-  classic set), 21-filter catalog gallery with live thumbnails and strength
-  slider, layers, click-to-jump history panel, AI generate/enhance. The
-  open-dialog filter uses `desktop.file_dialog_images`. Save-dialog
-  filters use `desktop.file_dialog_png`, `desktop.file_dialog_jpeg`,
-  and `desktop.file_dialog_webp`. Image-decode failures throw
-  `pixel.error_load`. Exposes `window.PixelApp`. No child DOX file
-  needed.
+- `pixel*.js`, `pixel-lib-*.js` (incl. `pixel-worker.js`) - Pixel image editor, structure in `## Pixel`:
+  shell and core, the DOM-free libraries (filters, generators, cutout, inpaint), the worker, and the feature
+  modules for layers, selections, brush and retouch, transform, filters, generators, cutout, intelligence
+  (command palette, content-aware fill, colour panel) and OpenRaster projects. The open-dialog filter uses
+  `desktop.file_dialog_images`. Save-dialog filters use `desktop.file_dialog_png`, `desktop.file_dialog_jpeg`
+  and `desktop.file_dialog_ora`. Image-decode failures throw `pixel.error_load`. Exposes `window.PixelApp`.
+  No child DOX file needed.
 - `terminal.js` - Standalone workspace terminal and Retro-Net dialer. Exactly
   one live socket per window: the shell (`/api/code-studio/terminal`) **or** a
   Retro-Net session (`/api/desktop/retronet/connect?entry=<id>&cols&rows`, in
