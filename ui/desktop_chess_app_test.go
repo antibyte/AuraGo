@@ -201,6 +201,15 @@ func TestDesktopChessBoardLayoutKeepsStatusVisible(t *testing.T) {
 		"prefers-reduced-motion",
 		/* cm-chessboard context must not own the wood-rim padding */
 		"cm-chessboard sizes its SVG to context.clientWidth",
+		/* the app sizes the frame through a variable, the 3D scene fills the area */
+		".vd-chess-board-frame.is-sized",
+		".vd-chess.is-3d .vd-chess-board-frame",
+		/* the sidebar folds its settings away and scrolls instead of clipping */
+		".vd-chess-settings",
+		".vd-chess-settings-grid",
+		"overflow-y: auto;",
+		/* panels carry their own display rule and need the hidden reset */
+		".vd-chess-moves[hidden]",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop chess layout CSS missing marker %q", want)
@@ -217,6 +226,20 @@ func TestDesktopChessBoardLayoutKeepsStatusVisible(t *testing.T) {
 	app := readEmbeddedText(t, "js/desktop/apps/chess.js")
 	if !strings.Contains(app, "boardFrame:") || !strings.Contains(app, "handleResize") {
 		t.Fatal("chess app must size the frame and reflow the board view")
+	}
+	if !strings.Contains(app, "state.refitBoard") || !strings.Contains(app, "--chess-frame-size") {
+		t.Fatal("chess app must let the 3D view refit the board frame")
+	}
+	view3d := readEmbeddedText(t, "js/desktop/apps/chess-3d.js")
+	for _, want := range []string{
+		/* the camera fits the projected board, not its circumscribed sphere */
+		"fitCorners",
+		"applyDefaultAngle",
+		"classList.toggle('is-3d'",
+	} {
+		if !strings.Contains(view3d, want) {
+			t.Fatalf("desktop chess 3D board missing marker %q", want)
+		}
 	}
 }
 

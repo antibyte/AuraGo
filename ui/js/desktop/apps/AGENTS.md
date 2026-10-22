@@ -2607,14 +2607,18 @@ buttons and menu popovers remain excluded from those gestures.
   `go test ./ui/ -run TestDesktopChess` and `node scripts/test-chess-assets.mjs`.
 - Chess layout is one centered board column: the view switch and material score
   share the pane head row, the board sits in a single square box, and the status
-  ribbon closes the column below it. All three are capped by `--chess-column`.
-  The board box fits the pane height (`container-type: size` on the shell plus
-  `100cqh` in the frame width), so a tall window gets a bigger board and a short
-  one never clips it; the 2D context and the 3D canvas share that box. The right
-  sidebar widens with the window (`clamp(340px, 22vw, 420px)`) and pairs its
-  fields in two columns above 380px container width, so the controls stop
-  growing taller than the window. Never let a compact row stretch across the
-  full pane and never size the board from the browser viewport (`vh`).
+  ribbon closes the column below it. The head and the ribbon are capped by
+  `--chess-column`. The board box fits the pane height (`container-type: size` on
+  the shell plus `100cqh` in the frame width), so a tall window gets a bigger
+  board and a short one never clips it. The 2D board is that square box; the 3D
+  board is a perspective scene and takes the whole board area
+  (`.vd-chess.is-3d`), so a wide pane lets it spread into the free width. The
+  right sidebar widens with the window (`clamp(340px, 22vw, 420px)`), folds its
+  settings away into a disclosure, pairs the open fields in two columns and
+  scrolls instead of clipping when the window gets short. The panels carry their
+  own display rule, so the tab switch needs the explicit `[hidden]` reset.
+  Never let a compact row stretch across the full pane and never size the board
+  from the browser viewport (`vh`).
 - `writer.js` owns Autor's native DOCX document, menus and lifecycle;
   `writer-session.js` owns revision-bound autosave and IndexedDB recovery;
   `writer-panels.js` owns formatting, search, review, AI and snapshot printing.

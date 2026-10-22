@@ -270,6 +270,8 @@
     function attachBoardResizeObserver(state) {
         const resize = () => fitBoardToShell(state);
         state.resizeHandler = resize;
+        /* The 3D module switches the view and needs the frame to follow. */
+        state.refitBoard = resize;
         if (window.ResizeObserver && state.refs.boardShell) {
             state.resizeObserver = new ResizeObserver(resize);
             state.resizeObserver.observe(state.refs.boardShell);
@@ -290,11 +292,10 @@
         const width = Math.max(0, (shell.clientWidth || shell.getBoundingClientRect().width || 0) - padX);
         const height = Math.max(0, (shell.clientHeight || shell.getBoundingClientRect().height || 0) - padY);
         /* leave a few px so the wood rim/shadow is never clipped by the shell */
-        const size = Math.floor(Math.min(width, height, 620) - 8);
+        const size = Math.floor(Math.min(width, height, 900) - 8);
         if (!Number.isFinite(size) || size < 180) return;
-        const px = size + 'px';
-        if (frame.style.width !== px) frame.style.width = px;
-        if (frame.style.height !== px) frame.style.height = px;
+        frame.style.setProperty('--chess-frame-size', size + 'px');
+        frame.classList.add('is-sized');
         // Inner board fills the frame content box; never put padding on the
         // cm-chessboard context (library sizes SVG to context.clientWidth).
         board.style.width = '100%';

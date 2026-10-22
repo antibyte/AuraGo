@@ -28,6 +28,8 @@
   const MOVE_MS = 300;
   const FLIP_MS = 420;
   const PIECE_LIFT = 0.0016;
+  const PIECE_TOP = 0.1;
+  const FIT_MARGIN = 1.12;
 
   const SKINS = {
     green: { light: 0xe0ddcc, dark: 0x4c946a, frame: 0x5a3f28, frameHi: 0x7a5636, floor: 0x111a15 },
@@ -90,6 +92,20 @@
     const THREE = window.THREE;
     const t = typeof options.t === 'function' ? options.t : (key) => key;
     const reduced = prefersReducedMotion();
+
+    /* Board silhouette in world space: the four board corners with and
+       without the tallest piece on top. */
+    const fitCorners = (() => {
+      const half = (BOARD_SIZE + FRAME_WIDTH) / 2;
+      const corners = [];
+      for (const x of [-half, half]) {
+        for (const z of [-half, half]) {
+          corners.push(new THREE.Vector3(x, 0, z));
+          corners.push(new THREE.Vector3(x, PIECE_TOP, z));
+        }
+      }
+      return corners;
+    })();
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0d1017);
@@ -211,6 +227,8 @@
       controls.maxPolarAngle = 1.32;
       controls.target.set(0, 0.02, 0);
       controls.update();
+      /* A player who orbits the board keeps their own angle. */
+      controls.addEventListener('start', () => { state.userMoved = true; });
     }
 
     const state = {
@@ -229,7 +247,8 @@
       failed: false,
       disposed: false,
       frame: 0,
-      ready: false
+      ready: false,
+      userMoved: false
     };
 
     function squarePosition(name) {
@@ -589,19 +608,57 @@
       state.failed = true;
     });
 
+    /* Fit the board's projected silhouette instead of its circumscribed
+       sphere: a flat board seen at an angle fills the viewport far better
+       than the sphere ever could, and a wide pane may spread the board into
+       the free width. The corners carry the tallest piece so the kings stay
+       inside the frame. */
     function fitCamera() {
       const target = controls ? controls.target : new THREE.Vector3(0, 0.02, 0);
       const half = Math.tan((camera.fov * Math.PI) / 360);
-      const radius = (BOARD_SIZE / 2 + FRAME_WIDTH) * 1.26;
-      const distance = Math.max(radius / half, radius / (half * Math.max(camera.aspect, 0.25)));
+      const halfWidth = half * Math.max(camera.aspect, 0.25);
       const direction = camera.position.clone().sub(target);
       if (direction.lengthSq() < 1e-8) direction.set(0, 0.62, -0.72);
       direction.normalize();
+      let distance = 1;
+      for (let step = 0; step < 4; step += 1) {
+        camera.position.copy(target).addScaledVector(direction, distance);
+        camera.lookAt(target);
+        camera.updateMatrixWorld(true);
+        let need = 0;
+        for (let index = 0; index < fitCorners.length; index += 1) {
+          const point = fitCorners[index].clone().applyMatrix4(camera.matrixWorldInverse);
+          const depth = Math.max(-point.z, 0.05);
+          need = Math.max(need, Math.abs(point.x) / depth / halfWidth, Math.abs(point.y) / depth / half);
+        }
+        const next = distance * need * FIT_MARGIN;
+        if (Math.abs(next - distance) < 0.002) { distance = next; break; }
+        distance = next;
+      }
       camera.position.copy(target).addScaledVector(direction, distance);
+      camera.lookAt(target);
       if (controls) {
-        controls.minDistance = distance * 0.6;
-        controls.maxDistance = distance * 2.1;
+        controls.minDistance = distance * 0.55;
+        controls.maxDistance = distance * 2.2;
         controls.update();
+      }
+    }
+
+    /* The default framing follows the pane shape: a wide pane gets a flatter
+       board so it spreads sideways, a square pane keeps the classic angle.
+       Once the player orbits the board, their angle wins. */
+    function defaultTilt(aspect) {
+      if (aspect >= 2.1) return 0.34;
+      if (aspect >= 1.6) return 0.46;
+      return 0.62;
+    }
+
+    function applyDefaultAngle() {
+      if (!state.userMoved) {
+        const target = controls ? controls.target : new THREE.Vector3(0, 0.02, 0);
+        const tilt = defaultTilt(camera.aspect);
+        camera.position.set(0, tilt, -0.72).normalize().multiplyScalar(0.95);
+        camera.lookAt(target);
       }
     }
 
@@ -611,6 +668,7 @@
       renderer.setSize(width, height);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+      applyDefaultAngle();
       fitCamera();
     }
 
@@ -676,6 +734,10 @@
     }
     if (refs.board) refs.board.hidden = mode === '3d';
     if (refs.board3d) refs.board3d.hidden = mode !== '3d';
+    if (refs.root) refs.root.classList.toggle('is-3d', mode === '3d');
+    /* The 3D view owns the whole board area, so the frame has to grow before
+       the canvas is created. */
+    if (typeof state.refitBoard === 'function') state.refitBoard();
     if (mode === '3d') {
       if (!views.has(state)) {
         const view = createChess3D({

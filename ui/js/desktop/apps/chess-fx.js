@@ -298,6 +298,11 @@
             '<div class="vd-chess-clock" data-clock="black"><span class="vd-chess-clock-side">' + king + '</span>' +
             '<span class="vd-chess-clock-time" data-black-time>--:--</span></div></div>' +
             '<div class="vd-chess-controls">' +
+            '<details class="vd-chess-settings" data-settings>' +
+            '<summary class="vd-chess-settings-summary">' + icon('settings', '⚙', 'vd-chess-settings-icon') +
+            '<span>' + esc(t('desktop.app_settings')) + '</span>' +
+            icon('chevron-down', '▾', 'vd-chess-settings-chevron') + '</summary>' +
+            '<div class="vd-chess-settings-grid">' +
             '<div class="vd-chess-field"><label for="chess-mode">' + esc(t('desktop.chess_mode')) + '</label>' +
             '<select id="chess-mode" data-mode>' +
             '<option value="computer">' + esc(t('desktop.chess_mode_computer')) + '</option>' +
@@ -321,6 +326,7 @@
             '<div class="vd-chess-segment" data-color-group>' +
             '<button type="button" data-color="white" class="active">' + esc(t('desktop.chess_color_white')) + '</button>' +
             '<button type="button" data-color="black">' + esc(t('desktop.chess_color_black')) + '</button></div></div>' +
+            '</div></details>' +
             '<div class="vd-chess-actions">' +
             '<button type="button" class="vd-chess-primary" data-new-game>' + icon('refresh', 'N') + '<span>' + esc(t('desktop.chess_new_game')) + '</span></button>' +
             '<button type="button" data-undo>' + icon('undo', 'U') + '<span>' + esc(t('desktop.chess_undo')) + '</span></button>' +
