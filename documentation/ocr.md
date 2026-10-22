@@ -103,9 +103,11 @@ retain the timestamp options above when regenerating the pins.
 The release workflow builds and tests first. Publish by pushing the dedicated
 `ocr-v1.1.2` component tag, or by manually dispatching with `publish=true` after
 the workflow has been registered. Both native architecture smokes gate publication;
-server rollout/restart is another delivery boundary. Until that
-image is published, new installations cannot pull it. Exact OCI imports work
-locally through the pinned platform config IDs.
+server rollout/restart is another delivery boundary. The published
+[`ghcr.io/antibyte/aurago-ocr:1.1.2`](https://github.com/antibyte/AuraGo/pkgs/container/aurago-ocr)
+image is public for Linux amd64 and arm64. Verify anonymous pulls against the
+generated `ReleaseImage` index digest and both platform config IDs. Exact OCI
+imports also work locally through those pinned platform config IDs.
 
 Generate synthetic fixtures with `scripts/ocr/smoke_fixtures.py` inside the image.
 Mount the bundled `ui/fonts/RobotoCondensed-Variable.ttf` and pass its path as
