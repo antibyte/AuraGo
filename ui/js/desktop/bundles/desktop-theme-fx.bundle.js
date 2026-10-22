@@ -10385,11 +10385,308 @@ void main() {
 (function () {
     'use strict';
 
-    // Orbit choreography (global AuraOrbitChoreo). DOM-free logic for the live space scene: a seeded random generator,
-    // composition anchors for the planet, station and sun per screen aspect, shuttle and comet schedules, the slow camera
-    // drift and a damped spring shared by the scene and the window bridge. It touches neither the DOM nor WebGL, so the
-    // Node regression suite can drive it. This file is the scaffold; the logic arrives with the scene work.
-    window.AuraOrbitChoreo = Object.freeze({});
+    // Orbit choreography (global AuraOrbitChoreo). DOM-free, WebGL-free and free of Math.random and clocks, so the Node
+    // regression suite drives it and the scene, the window bridge and the particle layer all agree on the same sky:
+    //  - createRng: the mulberry32 generator behind every schedule,
+    //  - composition: where the planet, the station and the sun sit on screen per aspect ratio (0..1 from the top-left),
+    //  - cameraPose: the slow drift, the breathing roll and the pointer parallax of the camera,
+    //  - shuttleState / shuttleOffset: the 96 s docking cycle of the shuttle and its position relative to DockPort
+    //    (station units; the model's nose points along +Z, so `yaw` is the three.js rotation.y of the heading and is
+    //    returned wrapped to -PI..PI: 0 faces +Z, PI/2 faces +X),
+    //  - eventsBetween: comets, shooting stars and lightning as deterministic Poisson-like schedules, queried by time
+    //    window (an event belongs to the window that contains its `start`; events are frozen and shared between calls),
+    //  - spring / tiltFromVelocity: the damped spring and the drag-velocity to window-tilt mapping of the bridge.
+    // window.AuraOrbitChoreo = { createRng, composition, cameraPose, shuttleState, shuttleOffset, eventsBetween,
+    //     spring, tiltFromVelocity, constants }.
+
+    const TWO_PI = Math.PI * 2;
+    const HALF_PI = Math.PI / 2;
+
+    // Shuttle cycle: phase boundaries in seconds within one 96 s cycle.
+    const SHUTTLE_CYCLE = 96;
+    const SHUTTLE_PHASES = Object.freeze([
+        Object.freeze({ name: 'docked', start: 0, end: 30 }),
+        Object.freeze({ name: 'undock', start: 30, end: 38 }),
+        Object.freeze({ name: 'cruise', start: 38, end: 78 }),
+        Object.freeze({ name: 'approach', start: 78, end: 90 }),
+        Object.freeze({ name: 'dock', start: 90, end: 96 })
+    ]);
+    // Station units. The shuttle backs out of DockPort straight along -Y to the clearance point, flies the loop from
+    // there and comes back to the same point.
+    const DOCK_CLEARANCE = 0.6;
+    const LOOP_RX = 2.2;
+    const LOOP_RZ = 1.4;
+    const LOOP_DIP = 0.3;
+    const LOOP_WAVE = 0.25;
+
+    // Events are generated per 60 s bucket so that any time window sees the same sky.
+    const EVENT_BUCKET = 60;
+    const MAX_EVENT_BUCKETS = 4000;
+    const SKY_RADIUS = 2400;
+    // Comets start inside a cone around -Z (the way the scene camera looks); the scene may rotate the sky.
+    const COMET_CONE = 0.95;
+
+    const LANDSCAPE = Object.freeze({
+        planet: Object.freeze({ x: 0.70, y: 0.72, radius: 0.46 }),
+        station: Object.freeze({ x: 0.24, y: 0.30 }),
+        sun: Object.freeze({ x: 0.06, y: 0.10 })
+    });
+    const PORTRAIT = Object.freeze({
+        planet: Object.freeze({ x: 0.60, y: 0.78, radius: 0.40 }),
+        station: Object.freeze({ x: 0.30, y: 0.26 }),
+        sun: Object.freeze({ x: 0.10, y: 0.06 })
+    });
+
+    function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function finite(value, fallback) { const n = Number(value); return Number.isFinite(n) ? n : fallback; }
+    function smooth(t) { const k = clamp(t, 0, 1); return k * k * (3 - 2 * k); }
+    function smoothstep(a, b, x) { return smooth((x - a) / (b - a)); }
+    // The wrapped angle in -PI..PI.
+    function wrapAngle(angle) { return Math.atan2(Math.sin(angle), Math.cos(angle)); }
+
+    // -------------------------------------------------------------------------------------------------
+    // Random numbers
+
+    function createRng(seed) {
+        let a = finite(seed, 0) >>> 0;
+        return function () {
+            a = (a + 0x6D2B79F5) >>> 0;
+            let t = a;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    // -------------------------------------------------------------------------------------------------
+    // Composition and camera
+
+    // Landscape from aspect 1.2, portrait up to 0.8, a linear blend in between; the anchors never extrapolate.
+    function composition(width, height) {
+        const w = finite(width, 0), h = finite(height, 0);
+        const aspect = w > 0 && h > 0 ? w / h : 16 / 9;
+        const k = clamp((aspect - 0.8) / 0.4, 0, 1);
+        return {
+            aspect,
+            planet: {
+                x: lerp(PORTRAIT.planet.x, LANDSCAPE.planet.x, k),
+                y: lerp(PORTRAIT.planet.y, LANDSCAPE.planet.y, k),
+                radius: lerp(PORTRAIT.planet.radius, LANDSCAPE.planet.radius, k)
+            },
+            station: { x: lerp(PORTRAIT.station.x, LANDSCAPE.station.x, k), y: lerp(PORTRAIT.station.y, LANDSCAPE.station.y, k) },
+            sun: { x: lerp(PORTRAIT.sun.x, LANDSCAPE.sun.x, k), y: lerp(PORTRAIT.sun.y, LANDSCAPE.sun.y, k) }
+        };
+    }
+
+    // Slow drift (180 s yaw, 240 s pitch), a breathing roll (11 s) and the pointer parallax (pointer in -1..1).
+    // Without motion the pose is the one at t = 0 with the pointer centred, so a still frame never depends on the clock.
+    function cameraPose(t, pointer, motion) {
+        const live = motion !== false;
+        const time = live ? finite(t, 0) : 0;
+        const px = live && pointer ? clamp(finite(pointer.x, 0), -1, 1) : 0;
+        const py = live && pointer ? clamp(finite(pointer.y, 0), -1, 1) : 0;
+        return {
+            yaw: 0.06 * Math.sin(TWO_PI * time / 180) + 0.035 * px,
+            pitch: 0.025 * Math.sin(TWO_PI * time / 240 + 1.3) + 0.022 * py,
+            roll: 0.006 * Math.sin(TWO_PI * time / 11)
+        };
+    }
+
+    // -------------------------------------------------------------------------------------------------
+    // Shuttle
+
+    // docked 0-30 s, undock 30-38, cruise 38-78, approach 78-90, dock 90-96; progress runs 0..1 inside the phase.
+    function shuttleState(t) {
+        const time = finite(t, 0);
+        const cycle = Math.floor(time / SHUTTLE_CYCLE);
+        const local = time - cycle * SHUTTLE_CYCLE;
+        let phase = SHUTTLE_PHASES[SHUTTLE_PHASES.length - 1];
+        for (let i = 0; i < SHUTTLE_PHASES.length; i++) {
+            if (local < SHUTTLE_PHASES[i].end) { phase = SHUTTLE_PHASES[i]; break; }
+        }
+        return { phase: phase.name, progress: clamp((local - phase.start) / (phase.end - phase.start), 0, 1), cycle };
+    }
+
+    // The closed loop: an ellipse of 2.2 x 1.4 through the clearance point, dipping to about y = -0.9 with a gentle
+    // vertical wave. Its parameter is eased so the shuttle leaves and returns at rest, like the undock and dock moves.
+    function cruiseOffset(progress) {
+        const q = smooth(progress);
+        const theta = TWO_PI * q;
+        const dip = Math.sin(Math.PI * q);
+        return {
+            x: LOOP_RX * Math.sin(theta),
+            y: -DOCK_CLEARANCE - LOOP_DIP * dip + LOOP_WAVE * Math.sin(2 * theta) * dip,
+            z: LOOP_RZ * (1 - Math.cos(theta)),
+            yaw: wrapAngle(Math.atan2(LOOP_RX * Math.cos(theta), LOOP_RZ * Math.sin(theta)))
+        };
+    }
+
+    // The offset of the shuttle from DockPort. Docked it is exactly (0, 0, 0). Undock backs out along -Y and turns the
+    // nose to the start of the loop in its second half; dock is the same move in reverse (and approach turns the nose
+    // back while it station-keeps at the clearance point with a small settling sway that dies out at both ends).
+    function shuttleOffset(state) {
+        const phase = state && state.phase;
+        const p = clamp(finite(state && state.progress, 0), 0, 1);
+        if (phase === 'undock') {
+            return { x: 0, y: 0 - DOCK_CLEARANCE * smooth(p), z: 0, yaw: HALF_PI * smoothstep(0.4, 1, p) };
+        }
+        if (phase === 'cruise') return cruiseOffset(p);
+        if (phase === 'approach') {
+            const settle = Math.sin(Math.PI * p);
+            return {
+                x: 0.2 * Math.sin(TWO_PI * p) * settle * settle,
+                y: -DOCK_CLEARANCE,
+                z: 0.1 * settle * settle,
+                yaw: HALF_PI * (1 - smoothstep(0, 0.7, p))
+            };
+        }
+        if (phase === 'dock') return { x: 0, y: DOCK_CLEARANCE * smooth(p) - DOCK_CLEARANCE, z: 0, yaw: 0 };
+        return { x: 0, y: 0, z: 0, yaw: 0 };
+    }
+
+    // -------------------------------------------------------------------------------------------------
+    // Event schedules
+
+    // Hash of (seed, kind, bucket) into one 32-bit seed.
+    function bucketSeed(seed, kindId, bucket) {
+        let h = Math.imul(finite(seed, 0) | 0, 0x9E3779B1) ^ Math.imul(kindId, 0x85EBCA6B);
+        h = Math.imul(h ^ (h >>> 16), 0x7FEB352D) ^ Math.imul(bucket | 0, 0xC2B2AE35);
+        h = Math.imul(h ^ (h >>> 15), 0x846CA68B);
+        return (h ^ (h >>> 16)) >>> 0;
+    }
+
+    // A random direction inside the cone around -Z.
+    function coneDirection(rng) {
+        const cosMax = Math.cos(COMET_CONE);
+        const z = -lerp(cosMax, 1, rng());
+        const s = Math.sqrt(Math.max(0, 1 - z * z));
+        const phi = TWO_PI * rng();
+        return [s * Math.cos(phi), s * Math.sin(phi), z];
+    }
+
+    // A comet crosses the far sky on a great-circle arc of 20-43 degrees in a random direction.
+    function makeComet(rng, start) {
+        const a = coneDirection(rng);
+        // A second random direction supplies the heading: the part of it that is perpendicular to the start.
+        const b = coneDirection(rng);
+        const dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        let px = b[0] - a[0] * dot, py = b[1] - a[1] * dot, pz = b[2] - a[2] * dot;
+        let length = Math.hypot(px, py, pz);
+        if (length < 1e-6) { px = -a[1]; py = a[0]; pz = 0; length = Math.hypot(px, py) || 1; }
+        px /= length; py /= length; pz /= length;
+        const arc = 0.35 + 0.4 * rng();
+        const c = Math.cos(arc), s = Math.sin(arc);
+        const duration = 6 + 4 * rng();
+        return Object.freeze({
+            start, duration,
+            from: Object.freeze({ x: a[0] * SKY_RADIUS, y: a[1] * SKY_RADIUS, z: a[2] * SKY_RADIUS }),
+            to: Object.freeze({
+                x: (a[0] * c + px * s) * SKY_RADIUS,
+                y: (a[1] * c + py * s) * SKY_RADIUS,
+                z: (a[2] * c + pz * s) * SKY_RADIUS
+            })
+        });
+    }
+
+    // A shooting star in screen space: x0, y0 are 0..1 from the top-left, angle is the heading in radians (y points
+    // down, so it always falls), length is a fraction of min(width, height).
+    function makeMeteor(rng, start) {
+        const duration = 0.6 + 0.5 * rng();
+        const x0 = 0.08 + 0.9 * rng();
+        const y0 = 0.02 + 0.4 * rng();
+        const fall = 0.35 + 0.6 * rng();
+        const angle = rng() < 0.5 ? fall : Math.PI - fall;
+        return Object.freeze({ start, duration, x0, y0, angle, length: 0.18 + 0.27 * rng() });
+    }
+
+    // A flash in the clouds of the planet: latitude and longitude on the sphere and a strength.
+    function makeLightning(rng, start) {
+        return Object.freeze({ start, lat: -0.6 + 1.2 * rng(), lon: TWO_PI * rng(), strength: 0.4 + 0.6 * rng() });
+    }
+
+    const EVENT_KINDS = Object.freeze({
+        comet: Object.freeze({ id: 1, mean: 38, make: makeComet }),
+        meteor: Object.freeze({ id: 2, mean: 9, make: makeMeteor }),
+        lightning: Object.freeze({ id: 3, mean: 2.6, make: makeLightning })
+    });
+
+    // A frame-by-frame query hits the same bucket over and over, so the last few buckets are kept.
+    const bucketCache = new Map();
+    const BUCKET_CACHE_SIZE = 24;
+
+    // The events with `start` inside one bucket. The walk starts one random interval before the bucket and keeps the
+    // events that land in it; the interval is mean * (0.3 + 0.7 * Exp(1)), which has the requested mean but never
+    // bunches two events closer than 30 % of it.
+    function bucketEvents(seed, kind, bucket) {
+        const key = kind.id + ':' + finite(seed, 0) + ':' + bucket;
+        let list = bucketCache.get(key);
+        if (list) return list;
+        const rng = createRng(bucketSeed(seed, kind.id, bucket));
+        const lo = bucket * EVENT_BUCKET, hi = lo + EVENT_BUCKET;
+        list = [];
+        let at = lo - rng() * kind.mean;
+        for (;;) {
+            at += kind.mean * (0.3 + 0.7 * -Math.log(1 - rng()));
+            if (at >= hi) break;
+            if (at >= lo) list.push(kind.make(rng, at));
+        }
+        if (bucketCache.size >= BUCKET_CACHE_SIZE) bucketCache.delete(bucketCache.keys().next().value);
+        bucketCache.set(key, list);
+        return list;
+    }
+
+    // Deterministic events of one kind ('comet', 'meteor' or 'lightning') whose start lies in [t0, t1), in order.
+    function eventsBetween(seed, kind, t0, t1) {
+        const spec = EVENT_KINDS[kind];
+        const from = finite(t0, 0), to = finite(t1, 0);
+        const result = [];
+        if (!spec || !(to > from)) return result;
+        const first = Math.floor(from / EVENT_BUCKET);
+        const last = Math.min(Math.floor(to / EVENT_BUCKET), first + MAX_EVENT_BUCKETS);
+        for (let bucket = first; bucket <= last; bucket++) {
+            const list = bucketEvents(seed, spec, bucket);
+            for (let i = 0; i < list.length; i++) {
+                if (list[i].start >= from && list[i].start < to) result.push(list[i]);
+            }
+        }
+        return result;
+    }
+
+    // -------------------------------------------------------------------------------------------------
+    // Spring and drag tilt
+
+    // Advances a damped spring by dt seconds (semi-implicit Euler in substeps of at most 1/120 s, at most one second of
+    // simulated time per call, so a long frame stays stable) and returns the new { value, velocity }.
+    function spring(state, target, dt, stiffness = 170, damping = 18) {
+        let value = finite(state && state.value, 0), velocity = finite(state && state.velocity, 0);
+        const goal = finite(target, 0);
+        const time = clamp(finite(dt, 0), 0, 1);
+        if (time <= 0) return { value, velocity };
+        const steps = Math.max(1, Math.ceil(time * 120 - 1e-9));
+        const h = time / steps;
+        for (let i = 0; i < steps; i++) {
+            velocity += (stiffness * (goal - value) - damping * velocity) * h;
+            value += velocity * h;
+        }
+        return { value, velocity };
+    }
+
+    // Window tilt from the drag velocity (px/s): rotateY leans the leading edge away, rotateX follows the vertical
+    // motion, both saturate at maxDeg degrees, and the window lifts up to 18 px with speed.
+    function tiltFromVelocity(vx, vy, maxDeg = 9) {
+        const x = finite(vx, 0), y = finite(vy, 0);
+        return {
+            x: -maxDeg * Math.tanh(y / 1400),
+            y: maxDeg * Math.tanh(x / 1400),
+            lift: 18 * Math.tanh(Math.hypot(x, y) / 1800)
+        };
+    }
+
+    window.AuraOrbitChoreo = Object.freeze({
+        createRng, composition, cameraPose, shuttleState, shuttleOffset, eventsBetween, spring, tiltFromVelocity,
+        constants: Object.freeze({ SHUTTLE_CYCLE, SHUTTLE_PHASES, EVENT_BUCKET, SKY_RADIUS })
+    });
 }());
 
 ;
@@ -10397,11 +10694,376 @@ void main() {
 (function () {
     'use strict';
 
-    // Orbit particles (global AuraOrbitParticles). A DOM-free particle pool with the emitters of the theme (materialize,
-    // dissolve, stream, thruster, ping and stardust) plus a Canvas 2D additive renderer that draws into the effect layer
-    // only while particles are alive. The pool is bounded, so a burst of window events never grows memory. This file is
-    // the scaffold; the pool, the emitters and the renderer arrive with the choreography work.
-    window.AuraOrbitParticles = Object.freeze({});
+    // Orbit particles (global AuraOrbitParticles). A DOM-free, bounded particle pool with the emitters of the theme and
+    // a Canvas 2D additive renderer, so a burst of window events never grows memory and the Node regression suite can
+    // drive the simulation. The pool is struct-of-arrays (Float32Array per field) with a ring write index: when it is
+    // full the oldest slot is overwritten. Rings (the sonar ping) live in a separate list of at most four. No Math.random,
+    // no clock: every emitter draws from the seeded generator of its system, and update(dt) is the only thing that
+    // moves time.
+    //  - createSystem({ capacity = 900, seed = 7 }) -> { emitMaterialize, emitDissolve, emitStream, emitThruster, emitPing,
+    //    emitStardust, update, forEach, rings, stats, clear },
+    //  - drawCanvas2D(ctx, system, dpr) clears the 2D context and paints the system with additive blending; it only
+    //    touches the context it is given (sprite canvases come from the context's own canvas/document) and returns at
+    //    once when the context cannot do radial gradients.
+    // Coordinates are CSS px, sizes are the px diameter of the bright core. The sprite of a particle spans 3.2x its size.
+    // window.AuraOrbitParticles = { createSystem, drawCanvas2D, KINDS }.
+
+    const TWO_PI = Math.PI * 2;
+    const KINDS = Object.freeze(['materialize', 'dissolve', 'stream', 'thruster', 'spark', 'stardust']);
+    const MATERIALIZE = 0, DISSOLVE = 1, STREAM = 2, THRUSTER = 3, SPARK = 4, STARDUST = 5;
+    const MAX_DT = 0.05;
+    const FADE_IN = 0.15;
+    const FADE_OUT = 0.35;
+    const MAX_RINGS = 4;
+    const RING_SPEED = 520;
+    const RING_LIFE = 1.1;
+    const PING_SPARKS = 24;
+    const SPREAD = 20 * Math.PI / 180;
+    // Core colours of the three hues (0 cyan, 1 violet, 2 amber) and the share of each.
+    const HUE_COLORS = Object.freeze([[92, 225, 255], [138, 107, 255], [255, 181, 71]]);
+    const HUE_CUT_VIOLET = 0.6;
+    const HUE_CUT_AMBER = 0.88;
+    const SPRITE_CSS = 32;
+    const SPRITE_SCALE = 1.6;
+
+    function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+    function finite(value, fallback) { const n = Number(value); return Number.isFinite(n) ? n : fallback; }
+
+    function createRng(seed) {
+        let a = finite(seed, 0) >>> 0;
+        return function () {
+            a = (a + 0x6D2B79F5) >>> 0;
+            let t = a;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    // -------------------------------------------------------------------------------------------------
+    // The pool
+
+    function createSystem(options) {
+        const opts = options || {};
+        const capacity = Math.max(1, Math.floor(finite(opts.capacity, 900)));
+        const rng = createRng(finite(opts.seed, 7));
+        const x = new Float32Array(capacity), y = new Float32Array(capacity);
+        const vx = new Float32Array(capacity), vy = new Float32Array(capacity);
+        // life counts down to 0 (a slot is alive while it is > 0). A particle that waits for its staggered start has
+        // life above maxLife, so age = maxLife - life is negative until it starts.
+        const life = new Float32Array(capacity), maxLife = new Float32Array(capacity);
+        const size = new Float32Array(capacity), hue = new Float32Array(capacity), kind = new Float32Array(capacity);
+        // Start (sx, sy) and target (tx, ty) of the particles that follow a path; a stream keeps its Bezier control
+        // point in (vx, vy).
+        const tx = new Float32Array(capacity), ty = new Float32Array(capacity);
+        const sx = new Float32Array(capacity), sy = new Float32Array(capacity);
+        const ringList = [];
+        const view = { x: 0, y: 0, size: 0, alpha: 0, hue: 0, kind: '' };
+        let head = 0, live = 0, emitted = 0;
+
+        function between(low, high) { return low + (high - low) * rng(); }
+        function pickHue() { const r = rng(); return r < HUE_CUT_VIOLET ? 0 : r < HUE_CUT_AMBER ? 1 : 2; }
+        function count(value, fallback) { return clamp(Math.floor(finite(value, fallback)), 0, capacity); }
+        function seconds(value, fallback) { const n = finite(value, fallback); return n > 0.02 ? n : fallback; }
+
+        // Takes the next slot of the ring; the caller fills the fields and must leave life above 0.
+        function spawn(k) {
+            const i = head;
+            head = (head + 1) % capacity;
+            if (!(life[i] > 0)) live++;
+            emitted++;
+            kind[i] = k;
+            hue[i] = pickHue();
+            return i;
+        }
+
+        // Window opens: the particles gather from outside onto the frame, evenly spread along its perimeter.
+        function emitMaterialize(rect, o) {
+            if (!rect || !Number.isFinite(rect.x + rect.y + rect.width + rect.height)) return;
+            const n = count(o && o.count, 160), duration = seconds(o && o.duration, 0.52);
+            const w = Math.max(0, rect.width), h = Math.max(0, rect.height), perimeter = 2 * (w + h);
+            for (let k = 0; k < n; k++) {
+                const s = k / n * perimeter;
+                let px, py, nx, ny;
+                if (s < w) { px = rect.x + s; py = rect.y; nx = 0; ny = -1; }
+                else if (s < w + h) { px = rect.x + w; py = rect.y + (s - w); nx = 1; ny = 0; }
+                else if (s < 2 * w + h) { px = rect.x + w - (s - w - h); py = rect.y + h; nx = 0; ny = 1; }
+                else { px = rect.x; py = rect.y + h - (s - 2 * w - h); nx = -1; ny = 0; }
+                const out = between(40, 140), slide = between(-30, 30);
+                const i = spawn(MATERIALIZE);
+                sx[i] = px + nx * out - ny * slide;
+                sy[i] = py + ny * out + nx * slide;
+                tx[i] = px; ty[i] = py;
+                x[i] = sx[i]; y[i] = sy[i];
+                vx[i] = 0; vy[i] = 0;
+                size[i] = between(1.5, 3.5);
+                maxLife[i] = life[i] = duration * between(0.9, 1.1);
+            }
+        }
+
+        // Window closes: the pixels of the frame come loose from a jittered grid and drift outward, shrinking away.
+        function emitDissolve(rect, o) {
+            if (!rect || !Number.isFinite(rect.x + rect.y + rect.width + rect.height)) return;
+            const n = count(o && o.count, 260), duration = seconds(o && o.duration, 0.95);
+            const w = Math.max(0, rect.width), h = Math.max(0, rect.height);
+            const cols = Math.max(1, Math.round(Math.sqrt(n * w / Math.max(h, 1)))), rows = Math.max(1, Math.ceil(n / cols));
+            const cx = rect.x + w / 2, cy = rect.y + h / 2, shortest = Math.min(0.55, duration);
+            for (let k = 0; k < n; k++) {
+                const cell = Math.floor(k * cols * rows / n);
+                const px = rect.x + ((cell % cols) + rng()) / cols * w;
+                const py = rect.y + (Math.floor(cell / cols) + rng()) / rows * h;
+                let dx = px - cx, dy = py - cy, length = Math.hypot(dx, dy);
+                if (length < 1e-3) { const angle = rng() * TWO_PI; dx = Math.cos(angle); dy = Math.sin(angle); length = 1; }
+                const speed = between(60, 220);
+                const i = spawn(DISSOLVE);
+                x[i] = px; y[i] = py;
+                vx[i] = dx / length * speed;
+                vy[i] = dy / length * speed - 30;
+                size[i] = between(1.5, 4);
+                maxLife[i] = life[i] = between(shortest, duration);
+            }
+        }
+
+        // Window minimizes: the particles leave random points of the frame on a curve that bows upward and gather at
+        // `to` (the taskbar slot); the start times are staggered over the first 30 % of the duration.
+        function emitStream(rect, to, o) {
+            if (!rect || !to || !Number.isFinite(rect.x + rect.y + rect.width + rect.height + to.x + to.y)) return;
+            const n = count(o && o.count, 80), duration = seconds(o && o.duration, 0.5);
+            for (let k = 0; k < n; k++) {
+                const px = rect.x + rng() * Math.max(0, rect.width), py = rect.y + rng() * Math.max(0, rect.height);
+                const distance = Math.hypot(to.x - px, to.y - py);
+                const i = spawn(STREAM);
+                sx[i] = px; sy[i] = py;
+                tx[i] = to.x; ty[i] = to.y;
+                vx[i] = (px + to.x) / 2;
+                vy[i] = (py + to.y) / 2 - distance * 0.25;
+                x[i] = px; y[i] = py;
+                size[i] = between(1.5, 3.5);
+                maxLife[i] = duration;
+                life[i] = duration + rng() * 0.3 * duration;
+            }
+        }
+
+        // Window drag: up to three exhaust particles per call, scaled by intensity (0..1), thrown along `dir`.
+        function emitThruster(point, dir, intensity) {
+            if (!point || !dir || !Number.isFinite(point.x + point.y + dir.x + dir.y)) return;
+            const n = Math.min(3, Math.round(3 * clamp(finite(intensity, 0), 0, 1)));
+            const base = Math.hypot(dir.x, dir.y) > 1e-6 ? Math.atan2(dir.y, dir.x) : -Math.PI / 2;
+            for (let k = 0; k < n; k++) {
+                const angle = base + between(-SPREAD, SPREAD), speed = between(120, 260);
+                const i = spawn(THRUSTER);
+                x[i] = point.x; y[i] = point.y;
+                vx[i] = Math.cos(angle) * speed;
+                vy[i] = Math.sin(angle) * speed;
+                size[i] = between(1.5, 3);
+                maxLife[i] = life[i] = between(0.25, 0.45);
+            }
+        }
+
+        // Click on the empty desktop: an expanding ring (the oldest of four is replaced) and a burst of sparks.
+        function emitPing(point) {
+            if (!point || !Number.isFinite(point.x + point.y)) return;
+            const ring = ringList.length >= MAX_RINGS ? ringList.shift() : {};
+            ring.x = point.x; ring.y = point.y; ring.radius = 0; ring.alpha = 1;
+            ring.speed = RING_SPEED; ring.life = RING_LIFE; ring.maxLife = RING_LIFE;
+            ringList.push(ring);
+            for (let k = 0; k < PING_SPARKS; k++) {
+                const angle = (k + rng()) / PING_SPARKS * TWO_PI, speed = between(160, 320);
+                const i = spawn(SPARK);
+                x[i] = point.x; y[i] = point.y;
+                vx[i] = Math.cos(angle) * speed;
+                vy[i] = Math.sin(angle) * speed;
+                size[i] = between(1.5, 3);
+                maxLife[i] = life[i] = between(0.4, 0.7);
+            }
+        }
+
+        // Pointer trail on the empty desktop: one slow mote that keeps a little of the pointer's velocity.
+        function emitStardust(point, velocity) {
+            if (!point || !Number.isFinite(point.x + point.y)) return;
+            const i = spawn(STARDUST);
+            x[i] = point.x; y[i] = point.y;
+            vx[i] = finite(velocity && velocity.x, 0) * 0.05;
+            vy[i] = finite(velocity && velocity.y, 0) * 0.05;
+            size[i] = between(1, 2);
+            maxLife[i] = life[i] = between(0.8, 1.4);
+        }
+
+        // Advances time by dt (clamped to 0.05 s) and frees what expired.
+        function update(dt) {
+            const h = clamp(finite(dt, 0), 0, MAX_DT);
+            if (h <= 0) return;
+            for (let i = 0; i < capacity; i++) {
+                if (!(life[i] > 0)) continue;
+                const remaining = life[i] - h;
+                if (remaining <= 0) { life[i] = 0; live--; continue; }
+                life[i] = remaining;
+                const age = maxLife[i] - remaining;
+                if (age < 0) continue;
+                const k = kind[i];
+                if (k === MATERIALIZE) {
+                    const rest = 1 - age / maxLife[i], gain = 1 - rest * rest * rest;
+                    x[i] = sx[i] + (tx[i] - sx[i]) * gain;
+                    y[i] = sy[i] + (ty[i] - sy[i]) * gain;
+                } else if (k === STREAM) {
+                    const u = age / maxLife[i], t = u * u * (3 - 2 * u), a = (1 - t) * (1 - t), b = 2 * (1 - t) * t, c = t * t;
+                    x[i] = a * sx[i] + b * vx[i] + c * tx[i];
+                    y[i] = a * sy[i] + b * vy[i] + c * ty[i];
+                } else {
+                    x[i] += vx[i] * h;
+                    y[i] += vy[i] * h;
+                }
+            }
+            let kept = 0;
+            for (let r = 0; r < ringList.length; r++) {
+                const ring = ringList[r];
+                ring.life -= h;
+                if (ring.life <= 0) continue;
+                const rest = ring.life / ring.maxLife;
+                ring.radius += ring.speed * h;
+                ring.alpha = rest * rest;
+                ringList[kept++] = ring;
+            }
+            ringList.length = kept;
+        }
+
+        // Calls fn(p) for every visible particle with the one reused object { x, y, size, alpha, hue, kind } (copy what
+        // you keep). Alpha follows the life envelope (15 % fade in, 35 % fade out); a dissolving particle shrinks to 0.
+        function forEach(fn) {
+            for (let i = 0; i < capacity; i++) {
+                const remaining = life[i];
+                if (!(remaining > 0)) continue;
+                const age = maxLife[i] - remaining;
+                if (age < 0) continue;
+                const u = age / maxLife[i];
+                let alpha = 1;
+                if (u < FADE_IN) alpha = u / FADE_IN;
+                if (u > 1 - FADE_OUT) alpha = Math.min(alpha, (1 - u) / FADE_OUT);
+                view.x = x[i]; view.y = y[i];
+                view.size = kind[i] === DISSOLVE ? size[i] * (1 - u) : size[i];
+                view.alpha = clamp(alpha, 0, 1);
+                view.hue = hue[i];
+                view.kind = KINDS[kind[i]];
+                fn(view);
+            }
+        }
+
+        // The live rings, oldest first: { x, y, radius, alpha, speed, life, maxLife }. The array is the system's own.
+        function rings() { return ringList; }
+
+        // `emitted` counts every particle since creation, `live` the ones in the pool (waiting streamers included).
+        function stats() { return { live, emitted, capacity, rings: ringList.length }; }
+
+        function clear() {
+            life.fill(0);
+            live = 0;
+            head = 0;
+            ringList.length = 0;
+        }
+
+        return Object.freeze({ emitMaterialize, emitDissolve, emitStream, emitThruster, emitPing, emitStardust,
+            update, forEach, rings, stats, clear });
+    }
+
+    // -------------------------------------------------------------------------------------------------
+    // Canvas 2D additive renderer
+
+    // Per device pixel ratio: one canvas per hue with a radial glow (bright core, soft falloff), created once.
+    const spriteCache = new Map();
+    const paint = { ctx: null, sprites: null };
+
+    function makeSpriteCanvas(ctx, pixels) {
+        let canvas = null;
+        if (typeof OffscreenCanvas === 'function') canvas = new OffscreenCanvas(pixels, pixels);
+        else if (ctx.canvas && ctx.canvas.ownerDocument) canvas = ctx.canvas.ownerDocument.createElement('canvas');
+        if (!canvas) return null;
+        canvas.width = pixels;
+        canvas.height = pixels;
+        return canvas;
+    }
+
+    function buildSprites(ctx, ratio) {
+        const pixels = Math.max(16, Math.round(SPRITE_CSS * ratio)), half = pixels / 2;
+        const sprites = [];
+        for (let h = 0; h < HUE_COLORS.length; h++) {
+            const canvas = makeSpriteCanvas(ctx, pixels);
+            const g = canvas && canvas.getContext && canvas.getContext('2d');
+            if (!g) return null;
+            const [r, gr, b] = HUE_COLORS[h], core = 'rgba(' + [r, gr, b].map(v => Math.round(v + (255 - v) * 0.6)).join(',') + ',1)';
+            const tint = 'rgba(' + r + ',' + gr + ',' + b + ',';
+            const glow = g.createRadialGradient(half, half, 0, half, half, half);
+            glow.addColorStop(0, core);
+            glow.addColorStop(0.2, tint + '0.85)');
+            glow.addColorStop(0.55, tint + '0.22)');
+            glow.addColorStop(1, tint + '0)');
+            g.fillStyle = glow;
+            g.fillRect(0, 0, pixels, pixels);
+            sprites.push(canvas);
+        }
+        return sprites;
+    }
+
+    function spritesFor(ctx, ratio) {
+        const key = Math.round(ratio * 100);
+        if (spriteCache.has(key)) return spriteCache.get(key);
+        // A context that cannot make sprite canvases is remembered as null: the rings still draw, particles are skipped.
+        const sprites = buildSprites(ctx, ratio);
+        if (spriteCache.size >= 4) spriteCache.delete(spriteCache.keys().next().value);
+        spriteCache.set(key, sprites);
+        return sprites;
+    }
+
+    // forEach callback: one sprite per particle, no allocation.
+    function drawParticle(p) {
+        const r = p.size * SPRITE_SCALE;
+        if (p.alpha <= 0.004 || r <= 0.05) return;
+        paint.ctx.globalAlpha = p.alpha;
+        paint.ctx.drawImage(paint.sprites[p.hue | 0], p.x - r, p.y - r, r * 2, r * 2);
+    }
+
+    function drawRing(ctx, ring) {
+        if (ring.radius < 0.5 || ring.alpha <= 0.004) return;
+        ctx.beginPath();
+        ctx.arc(ring.x, ring.y, ring.radius, 0, TWO_PI);
+        ctx.globalAlpha = ring.alpha * 0.28;
+        ctx.lineWidth = 6;
+        ctx.stroke();
+        ctx.globalAlpha = ring.alpha;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    }
+
+    // Clears the context and paints the system in CSS px (the context is scaled by dpr). Does nothing on a context
+    // without radial gradients, which is how the Node suite calls it.
+    function drawCanvas2D(ctx, system, dpr) {
+        if (!ctx || !system || typeof ctx.createRadialGradient !== 'function') return;
+        const ratio = clamp(finite(dpr, 1), 0.5, 4);
+        const canvas = ctx.canvas;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.clearRect(0, 0, canvas ? canvas.width : 16384, canvas ? canvas.height : 16384);
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        ctx.globalCompositeOperation = 'lighter';
+        const sprites = spritesFor(ctx, ratio);
+        if (sprites) {
+            paint.ctx = ctx;
+            paint.sprites = sprites;
+            system.forEach(drawParticle);
+            paint.ctx = null;
+            paint.sprites = null;
+        }
+        const rings = system.rings();
+        if (rings.length) {
+            ctx.strokeStyle = 'rgb(92, 225, 255)';
+            for (let i = 0; i < rings.length; i++) drawRing(ctx, rings[i]);
+        }
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
+    window.AuraOrbitParticles = Object.freeze({ createSystem, drawCanvas2D, KINDS });
 }());
 
 ;
@@ -10409,11 +11071,1307 @@ void main() {
 (function () {
     'use strict';
 
-    // Orbit shaders (global AuraOrbitShaders). The GLSL sources of the space scene as plain strings: the nebula skydome,
-    // the star layers, the gas giant with its atmosphere rim, the ring system, the sun with its flare and the final grade
-    // pass (vignette, aberration, grain). The scene module compiles them; this file holds no WebGL calls. This file is the
-    // scaffold; the sources arrive with the scene work.
-    window.AuraOrbitShaders = Object.freeze({});
+    // Orbit shaders (global AuraOrbitShaders). The GLSL sources of the space scene as plain strings; this file holds no
+    // WebGL calls and no JavaScript logic, orbit-scene.js compiles them. Colours leave the shaders linear: the baked
+    // textures live in sRGB render targets, everything else lands in the half-float HDR buffer of the post chain.
+    //  - NOISE: integer-hash gradient noise (pcg3d) and fbm, shared by every procedural shader,
+    //  - bake: the gas giant surface (bands, eddies, storms, night lights) and the nebula plate, drawn once into textures,
+    //  - planet / atmosphere / ring / dust / moon: the lit bodies, with the planet and ring shadowing each other,
+    //  - sky / stars / sun / flare / comet / exhaust: the backdrop, the sun and the short-lived things,
+    //  - grade: vignette, chromatic aberration, film grain, shooting stars and the scanner pulse.
+    // window.AuraOrbitShaders = { NOISE, ...<name>Vertex / <name>Fragment pairs }.
+
+    const NOISE = `
+const mat3 ROT3 = mat3(0.00, 0.80, 0.60, -0.80, 0.36, -0.48, -0.60, -0.48, 0.64);
+// Noise comes from one 256x256 RGBA texture of random numbers (r: value, g: r shifted by (37, 17), b and a: more
+// random numbers): a lattice value is r at (x + 37 z, y + 17 z), so one bilinear fetch yields two z layers. This keeps
+// the shaders small; Direct3D compiled the same noise written as integer hashes in many seconds.
+uniform sampler2D uNoise;
+vec3 hash3(vec3 p) { return texelFetch(uNoise, ivec2(mod(p.xy + vec2(37.0, 17.0) * p.z, 256.0)), 0).rba; }
+float hash13(vec3 p) { return hash3(p).y; }
+vec3 hash33(vec3 p) { return hash3(p) * 2.0 - 1.0; }
+float gnoise(vec3 x) {
+    vec3 p = floor(x);
+    vec3 f = x - p;
+    f = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+    vec2 rg = texture2D(uNoise, (p.xy + vec2(37.0, 17.0) * p.z + f.xy + 0.5) / 256.0).rg;
+    return mix(rg.x, rg.y, f.z) * 2.0 - 1.0;
+}
+float fbm(vec3 p, int octaves) {
+    float sum = 0.0;
+    float amp = 0.5;
+    for (int i = 0; i < 8; i++) {
+        if (i >= octaves) break;
+        sum += amp * gnoise(p);
+        p = ROT3 * p * 2.03 + vec3(11.3, 7.1, 3.7);
+        amp *= 0.5;
+    }
+    return sum * 1.5;
+}
+const float PI = 3.14159265359;
+const float TAU = 6.28318530718;
+vec3 srgb(float r, float g, float b) { return pow(vec3(r, g, b) / 255.0, vec3(2.2)); }
+vec2 raySphere(vec3 ro, vec3 rd, float r) {
+    float b = dot(ro, rd);
+    float h = b * b - (dot(ro, ro) - r * r);
+    if (h < 0.0) return vec2(-1.0);
+    h = sqrt(h);
+    return vec2(-b - h, -b + h);
+}
+// The differential part of the cloud rotation in rad/s at a latitude. The scene swings it back and forth (uShear) so the
+// shear between latitudes stays bounded, and mirrors this function to place the storms.
+float zonalVar(float lat) { return 0.0014 * sin(lat * 5.0 + 0.4) + 0.0007 * sin(lat * 13.0 + 1.9); }
+`;
+
+    const FULLSCREEN_VERTEX = `
+varying vec2 vUv;
+void main() {
+    vUv = uv;
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+}`;
+
+    // ---------------------------------------------------------------------------------------------
+    // Gas giant surface, baked once as an equirectangular plate (u: longitude, v: latitude). rgb is the linear albedo,
+    // alpha the mask of the night-side lights.
+
+    const PLANET_BAKE_FRAGMENT = `
+precision highp float;
+varying vec2 vUv;
+uniform vec2 uStorm;
+uniform vec2 uOval;
+uniform vec2 uSpot;
+uniform vec2 uSpot2;
+${NOISE}
+float wrapPi(float a) { return a - TAU * floor((a + PI) / TAU); }
+// Rotates the sample point around a storm centre; returns the displacement, core is 1 at the centre.
+vec2 vortex(vec2 q, vec2 radii, float amount, out float core) {
+    vec2 s = q / radii;
+    float r2 = dot(s, s);
+    core = exp(-r2);
+    float a = amount * exp(-r2 * 0.55);
+    float c = cos(a);
+    float sn = sin(a);
+    return vec2(c * q.x - sn * q.y, sn * q.x + c * q.y) - q;
+}
+float zonal(float l) {
+    float z = 0.0;
+    z += 0.50 * sin(l * 11.0 + 0.8);
+    z += 0.30 * sin(l * 23.0 + 2.1);
+    z += 0.20 * sin(l * 41.0 + 4.0);
+    z += 0.12 * sin(l * 79.0 + 1.0);
+    return z / 1.12;
+}
+void main() {
+    float phi = vUv.x * TAU;
+    float lat = (vUv.y - 0.5) * PI;
+    float coreA;
+    float coreB;
+    float coreC;
+    float coreD;
+    vec2 qA = vec2(wrapPi(phi - uStorm.x * TAU) * cos(uStorm.y), lat - uStorm.y);
+    vec2 qB = vec2(wrapPi(phi - uOval.x * TAU) * cos(uOval.y), lat - uOval.y);
+    vec2 qC = vec2(wrapPi(phi - uSpot.x * TAU) * cos(uSpot.y), lat - uSpot.y);
+    vec2 qD = vec2(wrapPi(phi - uSpot2.x * TAU) * cos(uSpot2.y), lat - uSpot2.y);
+    vec2 off = vortex(qA, vec2(0.46, 0.17), 3.8, coreA) + vortex(qB, vec2(0.12, 0.06), 3.2, coreB) + vortex(qC, vec2(0.22, 0.09), 3.0, coreC) + vortex(qD, vec2(0.30, 0.11), 3.2, coreD);
+    float lat2 = clamp(lat + off.y, -1.55, 1.55);
+    float phi2 = phi + off.x / max(cos(lat), 0.2);
+    vec3 d = vec3(-cos(phi2) * cos(lat2), sin(lat2), sin(phi2) * cos(lat2));
+
+    float warpA = fbm(d * vec3(2.2, 3.4, 2.2) + vec3(3.1, 1.7, 9.2), 4);
+    float warpB = fbm(d * 6.0 + vec3(8.3, 2.8, 5.5), 4);
+    float latW = lat2 + 0.085 * warpA + 0.034 * warpB;
+    float z = zonal(latW);
+    float zc = sign(z) * pow(abs(z), 0.72);
+    float streak = fbm(vec3(d.x * 4.4, d.y * 42.0, d.z * 4.4) + vec3(warpB, warpA * 0.5, warpB), 6);
+    float edge = 1.0 - abs(zc);
+    float eddy = fbm(d * vec3(11.0, 26.0, 11.0) + vec3(5.2, 1.3, 8.7) + vec3(warpA, 0.0, warpB) * 0.8, 5);
+    float puffs = fbm(d * 58.0 + vec3(2.0, 6.0, 1.0), 4);
+    float v = 0.5 + 0.42 * zc + 0.34 * streak + 0.44 * eddy * (0.4 + 0.6 * edge) + 0.05 * puffs;
+
+    vec3 cream = srgb(233.0, 216.0, 181.0);
+    vec3 rust = srgb(188.0, 98.0, 52.0);
+    vec3 umber = srgb(64.0, 34.0, 22.0);
+    vec3 slate = srgb(75.0, 93.0, 143.0);
+    vec3 deep = srgb(26.0, 33.0, 64.0);
+    vec3 salmon = srgb(212.0, 148.0, 108.0);
+    vec3 col = mix(rust, cream, smoothstep(0.36, 0.86, v));
+    col = mix(umber * 1.3, col, smoothstep(0.02, 0.38, v));
+    col = mix(col, salmon, 0.30 * smoothstep(0.42, 0.58, v) * (1.0 - smoothstep(0.58, 0.78, v)));
+    float blueBelt = smoothstep(0.05, 0.62, fbm(vec3(d.x, lat2 * 3.2, d.z) + 4.0, 3) + 0.28 * sin(lat * 9.0 + 2.0));
+    col = mix(col, slate * 1.05 + cream * 0.10, blueBelt * 0.30 * (1.0 - smoothstep(0.18, 0.72, v)));
+    float polar = smoothstep(0.62, 1.35, abs(lat2));
+    col = mix(col, mix(slate, deep, 0.45) * (0.65 + 0.7 * v), polar * 0.88);
+
+    // The large oval storm: a rust-salmon eye with a pale rim, the eye twists the bands around it.
+    float eye = smoothstep(0.30, 0.62, coreA);
+    float rim = smoothstep(0.08, 0.26, coreA) * (1.0 - smoothstep(0.26, 0.44, coreA));
+    vec3 stormCol = mix(srgb(170.0, 70.0, 42.0), srgb(222.0, 142.0, 98.0), 0.5 + 0.5 * streak);
+    col = mix(col, stormCol, eye * 0.82);
+    col += cream * rim * 0.20;
+    float ovalMask = smoothstep(0.35, 0.65, coreB);
+    col = mix(col, srgb(246.0, 238.0, 222.0), ovalMask * 0.75);
+    col = mix(col, srgb(238.0, 204.0, 170.0), smoothstep(0.35, 0.65, coreC) * 0.7);
+    col = mix(col, srgb(196.0, 96.0, 62.0), smoothstep(0.40, 0.70, coreD) * 0.55);
+    col = clamp(col, 0.0, 0.92);
+
+    // Zones of floating cloud cities (alpha): the lights themselves are drawn as round dots by the planet shader.
+    float zone = smoothstep(0.42, 0.70, fbm(d * 4.0 + 9.0, 4) + 0.20 * cos(lat * 3.0)) * (1.0 - polar);
+    gl_FragColor = vec4(col, clamp(zone * smoothstep(-0.25, 0.45, zc) * 1.4, 0.0, 1.0));
+}`;
+
+    // ---------------------------------------------------------------------------------------------
+    // Nebula plate: a window of the sky (longitude and latitude half extents in uExtent), forward = -Z.
+
+    const SKY_BAKE_FRAGMENT = `
+precision highp float;
+varying vec2 vUv;
+uniform vec2 uExtent;
+uniform vec3 uBand;
+${NOISE}
+vec3 lin(float r, float g, float b) { return pow(vec3(r, g, b) / 255.0, vec3(2.2)); }
+void main() {
+    float lon = mix(-uExtent.x, uExtent.x, vUv.x);
+    float lat = mix(-uExtent.y, uExtent.y, vUv.y);
+    vec3 d = vec3(sin(lon) * cos(lat), sin(lat), -cos(lon) * cos(lat));
+    vec3 p = d * 2.6;
+    vec3 w = vec3(fbm(p + vec3(0.0, 0.0, 1.0), 4), fbm(p + vec3(5.2, 1.3, 2.0), 4), fbm(p + vec3(9.1, 4.7, 3.0), 4));
+    float cloud = fbm(p * 1.5 + w * 1.9, 6) * 0.5 + 0.5;
+    float fine = fbm(p * 4.6 + w * 2.6, 5) * 0.5 + 0.5;
+    float b = dot(d, normalize(uBand));
+    float band = exp(-b * b / 0.065);
+    float lanes = smoothstep(0.22, 0.62, fbm(p * 2.8 + w * 2.2 + 7.0, 5) * 0.5 + 0.5);
+    float dens = band * smoothstep(0.30, 0.86, cloud) * mix(0.10, 1.0, lanes);
+    float dust = band * smoothstep(0.5, 0.9, fine) * mix(0.0, 1.0, lanes);
+    vec3 violet = lin(59.0, 29.0, 110.0);
+    vec3 cyan = lin(15.0, 95.0, 122.0);
+    vec3 amber = lin(106.0, 58.0, 18.0);
+    float mixA = smoothstep(0.25, 0.80, fbm(p * 1.1 + 13.0, 4) * 0.5 + 0.5);
+    float mixB = smoothstep(0.45, 0.85, fbm(p * 0.9 + 21.0, 4) * 0.5 + 0.5);
+    vec3 col = mix(violet, cyan, mixA) * dens + amber * mixB * dust * 0.9 + cyan * dust * 0.25;
+    col *= 0.95;
+    col += (violet * 0.045 + cyan * 0.026) * (0.5 + 0.5 * cloud);
+    // dither before the sRGB store: the plate is dark and smooth
+    col += (hash13(vec3(gl_FragCoord.xy, 5.0)) - 0.5) * 0.0006;
+    gl_FragColor = vec4(max(col, 0.0), 1.0);
+}`;
+
+    const SKY_VERTEX = `
+varying vec3 vLocal;
+void main() {
+    vLocal = position;
+    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+}`;
+
+    const SKY_FRAGMENT = `
+precision highp float;
+varying vec3 vLocal;
+uniform sampler2D uPlate;
+uniform vec2 uExtent;
+uniform float uGain;
+void main() {
+    vec3 d = normalize(vLocal);
+    float lon = atan(d.x, -d.z);
+    float lat = asin(clamp(d.y, -1.0, 1.0));
+    vec2 uv = vec2(lon / uExtent.x, lat / uExtent.y) * 0.5 + 0.5;
+    vec3 col = texture2D(uPlate, uv).rgb * uGain;
+    gl_FragColor = vec4(col, 1.0);
+}`;
+
+    // ---------------------------------------------------------------------------------------------
+    // Planet
+
+    const PLANET_VERTEX = `
+varying vec2 vUv;
+varying vec3 vWorld;
+varying vec3 vNormalW;
+void main() {
+    vUv = uv;
+    vec4 w = modelMatrix * vec4(position, 1.0);
+    vWorld = w.xyz;
+    vNormalW = normalize(mat3(modelMatrix) * normal);
+    gl_Position = projectionMatrix * viewMatrix * w;
+}`;
+
+    const PLANET_FRAGMENT = `
+precision highp float;
+varying vec2 vUv;
+varying vec3 vWorld;
+varying vec3 vNormalW;
+uniform sampler2D uAlbedo;
+uniform sampler2D uRingTex;
+uniform vec3 uSunDir;
+uniform vec3 uSunColor;
+uniform vec3 uRingN;
+uniform vec3 uRimColor;
+uniform vec4 uRingRange;
+uniform vec4 uBolt[4];
+uniform float uSpin;
+uniform float uShear;
+uniform float uTime;
+uniform float uDetail;
+uniform float uGain;
+${NOISE}
+void main() {
+    vec3 N = normalize(vNormalW);
+    vec3 V = normalize(cameraPosition - vWorld);
+    float lat = (vUv.y - 0.5) * PI;
+    float shift = uSpin + zonalVar(lat) * uShear;
+    vec2 uv = vec2(vUv.x + shift, vUv.y);
+    vec4 tex = texture2D(uAlbedo, uv);
+    vec3 albedo = tex.rgb;
+    if (uDetail > 0.5) {
+        float fine = gnoise(vec3(uv * vec2(420.0, 210.0), 3.0)) * 0.5 + gnoise(vec3(uv * vec2(900.0, 450.0), 8.0)) * 0.5;
+        albedo *= 1.0 + 0.10 * fine;
+    }
+
+    float ndl = dot(N, uSunDir);
+    float day = smoothstep(-0.16, 0.42, ndl);
+    float diff = pow(clamp((ndl + 0.05) / 1.05, 0.0, 1.0), 1.35);
+    float tq = (ndl - 0.01) / 0.10;
+    float twilight = exp(-tq * tq);
+
+    // shadow of the rings: follow the ray to the sun through the ring plane
+    float shadow = 1.0;
+    float s = -1.0;
+    float denom = dot(uSunDir, uRingN);
+    if (abs(denom) > 0.02) {
+        float tt = -dot(vWorld, uRingN) / denom;
+        if (tt > 0.0) {
+            float r = length(vWorld + uSunDir * tt);
+            s = (r - uRingRange.x) / (uRingRange.y - uRingRange.x);
+        }
+    }
+    // sampled outside any branch: the derivatives stay defined
+    float ringDens = texture2D(uRingTex, vec2(clamp(s, 0.0, 1.0), 0.5)).r * step(0.0, s) * step(s, 1.0);
+    shadow = 1.0 - 0.88 * ringDens;
+
+    vec3 col = albedo * uSunColor * diff * shadow * uGain;
+    // the sky of the terminator turns the clouds red
+    col += albedo * vec3(0.95, 0.38, 0.18) * twilight * 0.38 * uGain;
+    // earthshine: the night side is never black
+    col += albedo * vec3(0.50, 0.62, 1.0) * 0.008 * (1.0 - day);
+    // soft blue haze toward the day-side limb
+    float fres = pow(1.0 - max(dot(N, V), 0.0), 3.2);
+    col += uRimColor * fres * day * 0.22;
+
+    // night: lights of cloud cities. Small round dots on a grid in uv space, sparse and clustered along the cloud bands
+    // (tex.a), only where the surface is genuinely dark and never at the rim.
+    float dark = 1.0 - smoothstep(-0.24, -0.06, ndl);
+    float inside = smoothstep(0.12, 0.42, dot(N, V));
+    vec2 grid = uv * vec2(1000.0, 500.0);
+    vec3 hc = hash3(vec3(floor(grid), 4.0));
+    float dd = length(fract(grid) - (0.25 + 0.5 * hc.xy));
+    float dotMask = (1.0 - smoothstep(0.0, 0.22, dd)) * step(hc.z, tex.a * 0.16);
+    float tw = 0.8 + 0.2 * sin(uTime * (1.2 + 2.0 * hc.x) + hc.y * 40.0);
+    col += vec3(1.0, 0.72, 0.32) * dotMask * dark * inside * tw * 3.2;
+
+    // lightning: a bright core and a soft flash that lights the cloud tops under it
+    vec3 radial = normalize(vWorld);
+    float cloudLuma = dot(albedo, vec3(0.3, 0.5, 0.2));
+    for (int i = 0; i < 4; i++) {
+        float k = uBolt[i].w;
+        if (k <= 0.001) continue;
+        float a = 1.0 - max(dot(radial, uBolt[i].xyz), 0.0);
+        float core = exp(-a * 2600.0);
+        float halo = exp(-a * 140.0) * (0.35 + 0.9 * cloudLuma);
+        col += vec3(0.62, 0.78, 1.0) * (core * 3.2 + halo * 0.9) * k * (1.0 - 0.8 * day);
+    }
+    gl_FragColor = vec4(col, 1.0);
+}`;
+
+    const ATMOSPHERE_FRAGMENT = `
+precision highp float;
+varying vec3 vWorld;
+uniform vec3 uSunDir;
+uniform vec3 uAxis;
+uniform vec3 uDay;
+uniform vec3 uDusk;
+uniform float uPlanetR;
+uniform float uShellR;
+uniform float uIntensity;
+uniform float uAurora;
+uniform float uTime;
+uniform int uSteps;
+${NOISE}
+void main() {
+    vec3 ro = cameraPosition;
+    vec3 rd = normalize(vWorld - cameraPosition);
+    vec2 sh = raySphere(ro, rd, uShellR);
+    if (sh.y < 0.0) discard;
+    float t0 = max(sh.x, 0.0);
+    float t1 = sh.y;
+    vec2 pl = raySphere(ro, rd, uPlanetR);
+    if (pl.x > 0.0) t1 = min(t1, pl.x);
+    float len = t1 - t0;
+    if (len <= 0.0) discard;
+    float dt = len / float(uSteps);
+    float thick = uShellR - uPlanetR;
+    vec3 acc = vec3(0.0);
+    vec3 aur = vec3(0.0);
+    for (int i = 0; i < 16; i++) {
+        if (i >= uSteps) break;
+        vec3 p = ro + rd * (t0 + (float(i) + 0.5) * dt);
+        float rr = length(p);
+        vec3 np = p / rr;
+        float h = clamp((rr - uPlanetR) / thick, 0.0, 1.0);
+        float ndl = dot(np, uSunDir);
+        float lit = smoothstep(-0.20, 0.45, ndl);
+        vec3 tint = mix(uDusk, uDay, smoothstep(-0.05, 0.55, ndl));
+        acc += tint * exp(-h * 3.0) * lit * dt;
+        float la = asin(clamp(abs(dot(np, uAxis)), 0.0, 1.0));
+        float zq = (la - 1.20) / 0.085;
+        float zone = exp(-zq * zq);
+        float dark = 1.0 - smoothstep(-0.10, 0.14, ndl);
+        if (zone * dark > 0.01) {
+            float curtain = gnoise(np * 7.0 + vec3(0.0, 0.0, uTime * 0.12)) * 0.5 + 0.5;
+            float rays = gnoise(np * 46.0 + vec3(0.0, uTime * 0.35, 0.0)) * 0.5 + 0.5;
+            float alt = smoothstep(0.0, 0.16, h) * (1.0 - smoothstep(0.16, 0.8, h));
+            vec3 ac = mix(vec3(0.12, 1.0, 0.55), vec3(0.50, 0.28, 1.0), smoothstep(0.12, 0.55, h));
+            aur += ac * zone * dark * pow(curtain, 1.4) * (0.35 + 1.0 * rays) * alt * dt;
+        }
+    }
+    vec3 col = acc * (uIntensity / thick) + aur * (uAurora / thick);
+    col = col / (1.0 + col * 0.30);
+    gl_FragColor = vec4(col, 1.0);
+}`;
+
+    // ---------------------------------------------------------------------------------------------
+    // Rings: a 1D profile texture (r density, g tone, b sparkle) over the radius.
+
+    const RING_VERTEX = `
+varying vec3 vLocal;
+varying vec3 vWorld;
+void main() {
+    vLocal = position;
+    vec4 w = modelMatrix * vec4(position, 1.0);
+    vWorld = w.xyz;
+    gl_Position = projectionMatrix * viewMatrix * w;
+}`;
+
+    const RING_FRAGMENT = `
+precision highp float;
+varying vec3 vLocal;
+varying vec3 vWorld;
+uniform sampler2D uProfile;
+uniform vec3 uSunDir;
+uniform vec3 uSunColor;
+uniform vec3 uNormal;
+uniform vec4 uRange;
+uniform float uPlanetR;
+uniform float uTime;
+void main() {
+    float r = length(vLocal.xy);
+    float s = (r - uRange.x) / (uRange.y - uRange.x);
+    vec4 pr = texture2D(uProfile, vec2(s, 0.5));
+    float dens = pr.r;
+    vec3 inner = vec3(0.70, 0.58, 0.40);
+    vec3 outer = vec3(0.28, 0.23, 0.18);
+    vec3 col = mix(outer, inner, pr.g) * (0.80 + 0.45 * pr.b);
+
+    vec3 V = normalize(cameraPosition - vWorld);
+    vec3 L = uSunDir;
+    float side = dot(uNormal, V) * dot(uNormal, L);
+    float facing = smoothstep(-0.08, 0.08, side);
+    float flux = 0.45 + 0.55 * sqrt(abs(dot(uNormal, L)));
+    float lit = mix(0.14, 1.0, facing) * flux;
+    // light scattered forward by the dust when the camera looks toward the sun
+    float fwd = pow(max(dot(-V, L), 0.0), 5.0);
+    lit += fwd * 1.1 * (1.0 - facing * 0.6);
+
+    // the shadow of the planet
+    float b = dot(vWorld, L);
+    float shadow = 1.0;
+    if (b < 0.0) {
+        float d = sqrt(max(dot(vWorld, vWorld) - b * b, 0.0));
+        shadow = smoothstep(uPlanetR * 0.965, uPlanetR * 1.035, d);
+    }
+    float edge = smoothstep(0.0, 0.014, s) * (1.0 - smoothstep(0.986, 1.0, s));
+    gl_FragColor = vec4(col * uSunColor * lit * mix(0.04, 1.0, shadow), dens * edge * 0.94);
+}`;
+
+    const DUST_VERTEX = `
+attribute vec4 aOrbit;
+uniform sampler2D uProfile;
+uniform vec4 uRange;
+uniform vec3 uSunDir;
+uniform float uTime;
+uniform float uPx;
+uniform float uPlanetR;
+uniform float uRef;
+varying float vAlpha;
+void main() {
+    float r = aOrbit.x;
+    float ang = aOrbit.y + uTime * 0.035 * pow(uRange.x / r, 1.5);
+    vec3 local = vec3(r * cos(ang), r * sin(ang), aOrbit.z);
+    vec4 w = modelMatrix * vec4(local, 1.0);
+    vec4 mv = viewMatrix * w;
+    gl_Position = projectionMatrix * mv;
+    float s = (r - uRange.x) / (uRange.y - uRange.x);
+    float dens = texture2D(uProfile, vec2(s, 0.5)).r;
+    float b = dot(w.xyz, uSunDir);
+    float shadow = 1.0;
+    if (b < 0.0) {
+        float d = sqrt(max(dot(w.xyz, w.xyz) - b * b, 0.0));
+        shadow = smoothstep(uPlanetR * 0.965, uPlanetR * 1.035, d);
+    }
+    vAlpha = (0.12 + 0.88 * dens) * mix(0.05, 1.0, shadow) * (0.45 + 0.55 * aOrbit.w);
+    gl_PointSize = max(1.0, uPx * (0.9 + 1.6 * aOrbit.w) * uRef / max(-mv.z, 1.0));
+}`;
+
+    const DUST_FRAGMENT = `
+precision highp float;
+varying float vAlpha;
+void main() {
+    vec2 c = gl_PointCoord - 0.5;
+    float f = exp(-dot(c, c) * 14.0);
+    gl_FragColor = vec4(vec3(0.95, 0.86, 0.70) * f * vAlpha * 0.9, 1.0);
+}`;
+
+    // ---------------------------------------------------------------------------------------------
+    // Moon: cratered grey sphere with the same sun.
+
+    const MOON_VERTEX = `
+varying vec3 vObj;
+varying vec3 vWorld;
+varying vec3 vNormalW;
+void main() {
+    vObj = position;
+    vec4 w = modelMatrix * vec4(position, 1.0);
+    vWorld = w.xyz;
+    vNormalW = normalize(mat3(modelMatrix) * normal);
+    gl_Position = projectionMatrix * viewMatrix * w;
+}`;
+
+    const MOON_FRAGMENT = `
+precision highp float;
+varying vec3 vObj;
+varying vec3 vWorld;
+varying vec3 vNormalW;
+uniform vec3 uSunDir;
+uniform vec3 uSunColor;
+uniform vec3 uPlanetShine;
+uniform vec3 uPlanetPos;
+uniform float uPlanetR;
+${NOISE}
+// Distance to the nearest feature point of a jittered 3D grid.
+float worley(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = p - i;
+    float best = 8.0;
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            for (int z = -1; z <= 1; z++) {
+                vec3 g = vec3(float(x), float(y), float(z));
+                vec3 o = hash33(i + g) * 0.5 + 0.5;
+                best = min(best, length(g + o - f));
+            }
+        }
+    }
+    return best;
+}
+float crater(float f) {
+    float bowl = 1.0 - smoothstep(0.14, 0.30, f);
+    float rim = smoothstep(0.20, 0.30, f) * (1.0 - smoothstep(0.30, 0.44, f));
+    return rim * 0.55 - bowl * 0.45;
+}
+void main() {
+    vec3 N = normalize(vNormalW);
+    vec3 p = normalize(vObj);
+    float mare = smoothstep(0.02, 0.30, fbm(p * 1.9 + 3.0, 4));
+    float c = crater(worley(p * 6.0)) + 0.7 * crater(worley(p * 14.0 + 5.0)) + 0.5 * crater(worley(p * 33.0 + 9.0));
+    float grain = fbm(p * 22.0, 3);
+    vec3 albedo = mix(vec3(0.36, 0.34, 0.31), vec3(0.17, 0.17, 0.19), mare) * (1.0 + 0.55 * c + 0.18 * grain);
+    float ndl = dot(N, uSunDir);
+    float diff = smoothstep(-0.05, 0.9, ndl);
+    vec3 col = albedo * uSunColor * diff * 1.1;
+    // the glow of the giant lights the night side of the moon
+    float toPlanet = max(dot(N, normalize(uPlanetPos - vWorld)), 0.0);
+    col += albedo * uPlanetShine * toPlanet * 0.30;
+    col += albedo * 0.006;
+    gl_FragColor = vec4(col, 1.0);
+}`;
+
+    // ---------------------------------------------------------------------------------------------
+    // Stars: three point layers; the size, brightness, colour temperature and twinkle phase are per star.
+
+    const STAR_VERTEX = `
+attribute float aSize;
+attribute float aBright;
+attribute float aTemp;
+attribute float aPhase;
+uniform float uPx;
+uniform float uTime;
+uniform float uTwinkle;
+varying vec3 vColor;
+void main() {
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    float rate = 1.3 + 2.7 * fract(aPhase * 7.31);
+    float tw = 1.0 + uTwinkle * (0.22 * sin(uTime * rate + aPhase * 6.283) + 0.10 * sin(uTime * 4.1 + aPhase * 91.0));
+    vec3 cool = vec3(1.0, 0.76, 0.52);
+    vec3 white = vec3(1.0, 0.96, 0.90);
+    vec3 hot = vec3(0.60, 0.74, 1.0);
+    vec3 c = aTemp < 0.5 ? mix(cool, white, aTemp * 2.0) : mix(white, hot, (aTemp - 0.5) * 2.0);
+    vColor = c * aBright * tw;
+    gl_PointSize = max(1.0, aSize * uPx);
+}`;
+
+    const STAR_FRAGMENT = `
+precision highp float;
+varying vec3 vColor;
+void main() {
+    vec2 c = gl_PointCoord - 0.5;
+    float d2 = dot(c, c) * 4.0;
+    float f = exp(-d2 * 3.2) + 0.35 * exp(-d2 * 14.0);
+    gl_FragColor = vec4(vColor * f, 1.0);
+}`;
+
+    // ---------------------------------------------------------------------------------------------
+    // Sun and lens flare
+
+    const BILLBOARD_VERTEX = `
+varying vec2 vUv;
+uniform float uSize;
+void main() {
+    vUv = uv * 2.0 - 1.0;
+    vec4 mv = viewMatrix * modelMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+    mv.xy += position.xy * uSize;
+    gl_Position = projectionMatrix * mv;
+}`;
+
+    const SUN_FRAGMENT = `
+precision highp float;
+varying vec2 vUv;
+uniform vec3 uColor;
+uniform float uGain;
+void main() {
+    float d = length(vUv);
+    float ang = atan(vUv.y, vUv.x);
+    float core = exp(-d * d * 1500.0) * 14.0;
+    float glow = exp(-d * 8.5) * 0.85;
+    float halo = 0.30 / (1.0 + d * d * 220.0);
+    float rays = pow(abs(cos(ang * 3.0 + 0.3)), 18.0) * exp(-d * 5.0) * 0.30;
+    float fade = 1.0 - smoothstep(0.82, 1.0, d);
+    gl_FragColor = vec4(uColor * (core + glow + halo + rays) * fade * uGain, 1.0);
+}`;
+
+    const FLARE_VERTEX = `
+varying vec2 vUv;
+void main() {
+    vUv = uv * 2.0 - 1.0;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}`;
+
+    const FLARE_FRAGMENT = `
+precision highp float;
+varying vec2 vUv;
+uniform vec3 uColor;
+uniform float uAlpha;
+uniform float uShape;
+void main() {
+    float d = length(vUv);
+    float f = 0.0;
+    if (uShape < 0.5) {
+        f = (1.0 - smoothstep(0.86, 1.0, d)) * (0.30 + 0.70 * smoothstep(0.25, 1.0, d));
+    } else if (uShape < 1.5) {
+        vec2 q = abs(vUv);
+        float hex = max(q.x * 0.866 + q.y * 0.5, q.y);
+        f = (1.0 - smoothstep(0.84, 0.96, hex)) * (0.4 + 0.6 * smoothstep(0.2, 0.95, hex));
+    } else if (uShape < 2.5) {
+        float rq = (d - 0.78) / 0.09;
+        f = exp(-rq * rq);
+    } else {
+        f = exp(-abs(vUv.y) * 70.0) * exp(-abs(vUv.x) * 2.2);
+    }
+    gl_FragColor = vec4(uColor * f * uAlpha, 1.0);
+}`;
+
+    // ---------------------------------------------------------------------------------------------
+    // Comet and the exhaust trail of the shuttle (additive point sprites)
+
+    const COMET_VERTEX = `
+attribute float aT;
+uniform vec3 uHead;
+uniform vec3 uTail;
+uniform float uLen;
+uniform float uPx;
+uniform float uAlpha;
+varying float vFade;
+varying float vK;
+void main() {
+    vec3 pos = uHead + uTail * (aT * uLen);
+    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(pos, 1.0);
+    vK = aT;
+    vFade = uAlpha * (aT < 0.001 ? 1.0 : pow(1.0 - aT, 2.2) * 0.55);
+    gl_PointSize = uPx * (aT < 0.001 ? 34.0 : mix(22.0, 5.0, aT));
+}`;
+
+    const COMET_FRAGMENT = `
+precision highp float;
+varying float vFade;
+varying float vK;
+void main() {
+    vec2 c = gl_PointCoord - 0.5;
+    float d2 = dot(c, c) * 4.0;
+    float f = exp(-d2 * 4.0) + (vK < 0.001 ? 2.4 * exp(-d2 * 40.0) : 0.0);
+    vec3 col = mix(vec3(0.85, 0.96, 1.0), vec3(0.45, 0.62, 1.0), clamp(vK * 1.6, 0.0, 1.0));
+    gl_FragColor = vec4(col * f * vFade * (vK < 0.001 ? 3.0 : 0.9), 1.0);
+}`;
+
+    const EXHAUST_VERTEX = `
+attribute float aAge;
+uniform float uLife;
+uniform float uPx;
+uniform float uRef;
+varying float vFade;
+varying float vK;
+void main() {
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mv;
+    float k = clamp(aAge / uLife, 0.0, 1.0);
+    vK = k;
+    vFade = (1.0 - k) * (1.0 - k) * (aAge < 0.0 || aAge > uLife ? 0.0 : 1.0);
+    gl_PointSize = max(1.0, uPx * (1.0 - 0.45 * k) * 7.0 * uRef / max(-mv.z, 1.0));
+}`;
+
+    const EXHAUST_FRAGMENT = `
+precision highp float;
+varying float vFade;
+varying float vK;
+void main() {
+    vec2 c = gl_PointCoord - 0.5;
+    float f = exp(-dot(c, c) * 4.0 * 3.4);
+    vec3 col = mix(vec3(0.36, 0.90, 1.0), vec3(0.54, 0.42, 1.0), vK);
+    gl_FragColor = vec4(col * f * vFade * 2.6, 1.0);
+}`;
+
+    // ---------------------------------------------------------------------------------------------
+    // Grade: the last pass before tone mapping.
+
+    const GRADE_FRAGMENT = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D tDiffuse;
+uniform vec2 uRes;
+uniform float uAspect;
+uniform float uTime;
+uniform float uVignette;
+uniform float uAberration;
+uniform float uGrain;
+uniform vec2 uPulseCenter;
+uniform float uPulseTime;
+uniform vec4 uMeteorA[3];
+uniform vec4 uMeteorB[3];
+float hash12(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+float segment(vec2 p, vec2 a, vec2 b, out float along) {
+    vec2 pa = p - a;
+    vec2 ba = b - a;
+    along = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0);
+    return length(pa - ba * along);
+}
+void main() {
+    vec2 uv = vUv;
+    vec2 asp = vec2(uAspect, 1.0);
+    vec3 glow = vec3(0.0);
+
+    // scanner pulse: a thin bright ring that expands over the screen and bends the picture inside its edge
+    if (uPulseTime >= 0.0 && uPulseTime < 1.35) {
+        vec2 delta = (uv - uPulseCenter) * asp;
+        float dist = length(delta);
+        float radius = 0.9 * uPulseTime;
+        float fade = 1.0 - smoothstep(0.55, 1.35, uPulseTime);
+        float w = 0.0065;
+        float rq = (dist - radius) / w;
+        float ring = exp(-rq * rq);
+        float bq = (dist - radius) / (w * 4.5);
+        float bump = exp(-bq * bq);
+        uv -= normalize(delta + 1e-5) / asp * bump * 0.0055 * fade;
+        glow += vec3(0.36, 0.88, 1.0) * ring * 1.7 * fade + vec3(0.16, 0.35, 0.8) * bump * 0.10 * fade;
+    }
+
+    vec2 c = vUv - 0.5;
+    vec2 off = c * uAberration * (dot(c * asp, c * asp) * 2.0);
+    vec3 col;
+    col.r = texture2D(tDiffuse, uv + off).r;
+    col.g = texture2D(tDiffuse, uv).g;
+    col.b = texture2D(tDiffuse, uv - off).b;
+
+    // shooting stars in screen space (y down, height-normalised)
+    vec2 q = vec2(vUv.x * uAspect, 1.0 - vUv.y);
+    for (int i = 0; i < 3; i++) {
+        float vis = uMeteorB[i].y;
+        if (vis <= 0.001) continue;
+        float lenM = uMeteorA[i].w * min(uAspect, 1.0);
+        vec2 dir = vec2(cos(uMeteorA[i].z), sin(uMeteorA[i].z));
+        vec2 start = vec2(uMeteorA[i].x * uAspect, uMeteorA[i].y);
+        float p = uMeteorB[i].x;
+        vec2 head = start + dir * lenM * (0.1 + 2.0 * p);
+        vec2 tail = head - dir * lenM * (0.30 + 0.35 * sin(3.14159 * p));
+        float along;
+        float dd = segment(q, tail, head, along);
+        float line = exp(-pow(dd / 0.0011, 2.0)) * along * along;
+        float soft = exp(-pow(dd / 0.0065, 2.0)) * along * along * 0.30;
+        glow += vec3(0.86, 0.95, 1.0) * (line * 3.2 + soft) * vis;
+    }
+    col += glow;
+
+    // vignette
+    float vr = length(c * asp * vec2(1.0, 1.15));
+    col *= 1.0 - uVignette * smoothstep(0.32, 1.22, vr);
+
+    // film grain: multiplicative, a little stronger in the shadows, plus a small dither against banding
+    float n1 = hash12(vUv * uRes + fract(uTime * 7.31) * 113.0);
+    float n2 = hash12(vUv * uRes * 1.37 + fract(uTime * 3.17) * 71.0);
+    float luma = dot(col, vec3(0.299, 0.587, 0.114));
+    col *= 1.0 + (n1 - 0.5) * uGrain * 1.6 * (1.0 - 0.5 * smoothstep(0.0, 1.5, luma));
+    col += (n2 - 0.5) * 0.0011 * (0.4 + sqrt(luma));
+    gl_FragColor = vec4(max(col, 0.0), 1.0);
+}`;
+
+    window.AuraOrbitShaders = Object.freeze({
+        NOISE,
+        fullscreenVertex: FULLSCREEN_VERTEX,
+        planetBakeFragment: PLANET_BAKE_FRAGMENT,
+        skyBakeFragment: SKY_BAKE_FRAGMENT,
+        skyVertex: SKY_VERTEX,
+        skyFragment: SKY_FRAGMENT,
+        planetVertex: PLANET_VERTEX,
+        planetFragment: PLANET_FRAGMENT,
+        atmosphereVertex: PLANET_VERTEX,
+        atmosphereFragment: ATMOSPHERE_FRAGMENT,
+        ringVertex: RING_VERTEX,
+        ringFragment: RING_FRAGMENT,
+        dustVertex: DUST_VERTEX,
+        dustFragment: DUST_FRAGMENT,
+        moonVertex: MOON_VERTEX,
+        moonFragment: MOON_FRAGMENT,
+        starVertex: STAR_VERTEX,
+        starFragment: STAR_FRAGMENT,
+        billboardVertex: BILLBOARD_VERTEX,
+        sunFragment: SUN_FRAGMENT,
+        flareVertex: FLARE_VERTEX,
+        flareFragment: FLARE_FRAGMENT,
+        cometVertex: COMET_VERTEX,
+        cometFragment: COMET_FRAGMENT,
+        exhaustVertex: EXHAUST_VERTEX,
+        exhaustFragment: EXHAUST_FRAGMENT,
+        gradeVertex: FULLSCREEN_VERTEX,
+        gradeFragment: GRADE_FRAGMENT
+    });
+}());
+
+;
+/* ui/js/desktop/theme-fx/orbit-textures.js */
+(function () {
+    'use strict';
+
+    // Orbit textures (global AuraOrbitTextures). The two small data textures the scene computes on the CPU:
+    //  - noise(THREE, rng): 256 x 256 random numbers behind the shader noise (see NOISE in orbit-shaders.js). Channel g is
+    //    channel r shifted by (37, 17), which lets one bilinear fetch return two z layers of a value noise; b and a are
+    //    independent numbers for hashes.
+    //  - ringProfile(THREE, choreo, anisotropy): the radial profile of the rings, 2048 x 1: r density, g tone, b sparkle,
+    //    with the C, B and A rings, the Cassini and Encke gaps, a thin outer ring and fine ringlets.
+    // window.AuraOrbitTextures = { noise, ringProfile }.
+
+    function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+    function smoothstep(a, b, x) { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
+
+    function noise(THREE, rng) {
+        const size = 256;
+        const base = new Uint8Array(size * size);
+        for (let i = 0; i < base.length; i++) base[i] = Math.floor(rng() * 256);
+        const data = new Uint8Array(size * size * 4);
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const i = (y * size + x) * 4;
+                data[i] = base[y * size + x];
+                data[i + 1] = base[((y + 17) % size) * size + (x + 37) % size];
+                data[i + 2] = Math.floor(rng() * 256);
+                data[i + 3] = Math.floor(rng() * 256);
+            }
+        }
+        const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.generateMipmaps = false;
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    function ringProfile(THREE, choreo, anisotropy) {
+        const size = 2048;
+        const data = new Uint8Array(size * 4);
+        const seeded = choreo.createRng(99);
+        const table = new Float32Array(4096);
+        for (let i = 0; i < table.length; i++) table[i] = seeded();
+        const lattice = (i, seed) => table[(((i | 0) * 31 + seed * 977) % table.length + table.length) % table.length];
+        const vnoise = (x, seed) => {
+            const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f);
+            return lattice(i, seed) * (1 - u) + lattice(i + 1, seed) * u;
+        };
+        const band = (s, a, b, soft) => smoothstep(a - soft, a + soft, s) * (1 - smoothstep(b - soft, b + soft, s));
+        for (let p = 0; p < size; p++) {
+            const s = (p + 0.5) / size;
+            let dens = Math.max(band(s, 0.0, 0.13, 0.02) * 0.26, band(s, 0.13, 0.56, 0.015) * 0.92, band(s, 0.63, 0.93, 0.012) * 0.70);
+            dens = Math.max(dens, band(s, 0.56, 0.63, 0.01) * 0.035, Math.exp(-Math.pow((s - 0.972) / 0.0035, 2)) * 0.55);
+            dens *= 1 - 0.88 * Math.exp(-Math.pow((s - 0.845) / 0.006, 2));
+            dens *= 1 - 0.55 * Math.exp(-Math.pow((s - 0.715) / 0.004, 2));
+            const n = (0.55 * vnoise(s * 55, 1) + 0.30 * vnoise(s * 150, 2) + 0.25 * vnoise(s * 420, 3) + 0.18 * vnoise(s * 1100, 4)) / 1.28 - 0.5;
+            dens = clamp(dens * (0.78 + 0.95 * n), 0, 1);
+            const tone = clamp(0.86 - 0.55 * s + 0.65 * n, 0, 1);
+            const sparkle = clamp(vnoise(s * 300, 5) * 1.2, 0, 1);
+            data[p * 4] = Math.round(dens * 255);
+            data[p * 4 + 1] = Math.round(tone * 255);
+            data[p * 4 + 2] = Math.round(sparkle * 255);
+            data[p * 4 + 3] = 255;
+        }
+        const texture = new THREE.DataTexture(data, size, 1, THREE.RGBAFormat);
+        texture.generateMipmaps = true;
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.anisotropy = anisotropy || 1;
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    window.AuraOrbitTextures = Object.freeze({ noise, ringProfile });
+}());
+
+;
+/* ui/js/desktop/theme-fx/orbit-models.js */
+(function () {
+    'use strict';
+
+    // Orbit models (global AuraOrbitModels). Loads the four Blender models of the theme (station, shuttle, satellite,
+    // asteroids; GLB files under assetsBase) and animates them: the habitat ring turns, the beacons blink, a few window
+    // panes flicker, the shuttle undocks, cruises and docks again (choreo.shuttleOffset), its engine glows and leaves an
+    // exhaust trail, the satellite crosses the foreground and turns its dish toward the planet, and the asteroids tumble
+    // as instanced meshes. Every model is optional: a file that fails to load is reported as 'error' and the rest of the
+    // scene keeps working. The scene hands in the placement rules through layout(); nothing here touches the renderer.
+    // window.AuraOrbitModels = { create }.
+
+    const FILES = ['station', 'shuttle', 'satellite', 'asteroids'];
+    const STATION_RING_DIAMETER = 22;     // scene units
+    const STATION_DISTANCE = 150;         // from the camera
+    const STATION_TILT = 30;              // degrees: the spine leans toward the camera
+    const STATION_LEAN = -13;             // degrees: and to the side on screen
+    const STATION_RING_SPEED = 0.09;      // rad/s
+    const SHUTTLE_SCALE = 1.9;            // the shuttle is drawn larger than true scale so that it reads
+    const SHUTTLE_HALF = 0.0875;          // half the model length in metres (the origin is the nose tip)
+    const SATELLITE_SPAN = 8;             // wing span in scene units
+    const SATELLITE_CYCLE = 70;
+    const SATELLITE_TRAVEL = 46;
+    const SATELLITE_DISTANCE = 92;
+    const ROCK_VARIANTS = 5;
+    const ROCK_TOTAL = 140;
+    const EXHAUST_POINTS = 48;
+    const EXHAUST_LIFE = 0.8;
+    const EXHAUST_RATE = 60;
+    const BEACON_PERIOD = 1;
+    const BEACON_ON = 0.12;
+    // The station, the satellite and the foreground rocks follow this share of the camera's orbit around the planet, so
+    // the drift and the pointer parallax of the camera never carry them out of their place on screen (the rest is parallax).
+    const FOLLOW = 0.7;
+
+    function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+    function smooth(a, b, x) { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
+
+    function create(options) {
+        const THREE = options.THREE;
+        const choreo = options.choreo;
+        const scene = options.scene;
+        const assetsBase = String(options.assetsBase || '/3d/desktop-theme-orbit/v1/');
+        const exhaustShader = options.shaders;
+        const windowTime = { value: 0 };
+        const status = { station: 'pending', shuttle: 'pending', satellite: 'pending', asteroids: 'pending' };
+        const disposables = [];
+
+        let station = null;          // { root, model, ring, dock, beacons: [{ material, phase }], scale }
+        let shuttle = null;          // { holder, engine, exhaust }
+        let satellite = null;        // { root, dish }
+        let rocks = null;            // { meshes: [InstancedMesh], records: [] }
+        let trail = null;            // { points, positions, ages, head, carry, last }
+        let ctx = null;
+        const follow = new THREE.Quaternion();
+        let rockQuota = ROCK_TOTAL;
+        let shuttleState = 'docked';
+        let engineLevel = 0;
+        let disposed = false;
+        const tmp = { a: new THREE.Vector3(), b: new THREE.Vector3(), q: new THREE.Quaternion(), m: new THREE.Matrix4(), s: new THREE.Vector3(), c: new THREE.Color(), e: new THREE.Euler() };
+
+        function track(item) { disposables.push(item); return item; }
+
+        // ---- Loading ------------------------------------------------------------------------------
+        function disposeObject(root) {
+            root.traverse(node => {
+                if (node.geometry) node.geometry.dispose();
+                const materials = Array.isArray(node.material) ? node.material : node.material ? [node.material] : [];
+                for (const material of materials) {
+                    for (const key of Object.keys(material)) if (material[key] && material[key].isTexture) material[key].dispose();
+                    material.dispose();
+                }
+            });
+        }
+
+        function load() {
+            const loader = new options.GLTFLoader();
+            const jobs = FILES.map(name => loader.loadAsync(assetsBase + name + '.glb').then(gltf => {
+                if (disposed) { disposeObject(gltf.scene); return; }
+                try {
+                    ({ station: setupStation, shuttle: setupShuttle, satellite: setupSatellite, asteroids: setupAsteroids })[name](gltf.scene);
+                    status[name] = 'ok';
+                } catch (error) {
+                    status[name] = 'error';
+                    disposeObject(gltf.scene);
+                    if (options.noteError) options.noteError('model ' + name, error);
+                }
+            }, error => {
+                status[name] = 'error';
+                if (options.noteError) options.noteError('model ' + name, error);
+            }));
+            // the shuttle rides on the station, so they are wired together once both exist
+            return Promise.all(jobs).then(() => { attachShuttle(); relayout(); });
+        }
+
+        // ---- Station ------------------------------------------------------------------------------
+        function patchWindows(material) {
+            material.onBeforeCompile = shader => {
+                shader.uniforms.uWinTime = windowTime;
+                shader.vertexShader = shader.vertexShader
+                    .replace('#include <common>', '#include <common>\nvarying vec3 vWinPos;')
+                    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWinPos = position;');
+                shader.fragmentShader = shader.fragmentShader
+                    .replace('#include <common>', '#include <common>\nvarying vec3 vWinPos;\nuniform float uWinTime;\nfloat winHash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }')
+                    .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' +
+                        'float winCell = winHash(floor(vWinPos * 24.0));\n' +
+                        'float winOn = step(0.11, winCell) * (0.86 + 0.14 * sin(uWinTime * (0.35 + winCell * 1.7) + winCell * 61.0));\n' +
+                        'totalEmissiveRadiance *= winOn;');
+            };
+            material.customProgramCacheKey = () => 'orbit-windows';
+            material.needsUpdate = true;
+        }
+
+        function setupStation(model) {
+            const ring = model.getObjectByName('RingRotor');
+            const dock = model.getObjectByName('DockPort');
+            const box = new THREE.Box3().setFromObject(ring || model);
+            const size = box.getSize(new THREE.Vector3());
+            const scale = STATION_RING_DIAMETER / Math.max(size.x, size.z, 0.01);
+            const root = new THREE.Group();
+            root.name = 'OrbitStation';
+            model.scale.setScalar(scale);
+            root.add(model);
+            const beacons = [];
+            model.traverse(node => {
+                if (!node.isMesh) return;
+                const materials = Array.isArray(node.material) ? node.material : [node.material];
+                for (const material of materials) {
+                    const name = String(material.name || '');
+                    if (/emissive/i.test(name)) {
+                        material.userData.baseIntensity = material.emissiveIntensity || 1;
+                        if (/window/i.test(name)) { material.emissiveIntensity = 3.0; patchWindows(material); }
+                        else if (/beacon/i.test(name)) beacons.push({ material, phase: /green/i.test(name) ? 0.5 : 0 });
+                        else material.emissiveIntensity = 2.6;
+                    }
+                }
+            });
+            scene.add(root);
+            station = { root, model, ring, dock, beacons, scale, base: { position: new THREE.Vector3(), quaternion: new THREE.Quaternion() } };
+            track(() => { scene.remove(root); disposeObject(root); });
+        }
+
+        // ---- Shuttle ------------------------------------------------------------------------------
+        function setupShuttle(model) {
+            const holder = new THREE.Group();
+            holder.name = 'OrbitShuttle';
+            model.scale.setScalar(SHUTTLE_SCALE);
+            model.position.z = SHUTTLE_HALF * SHUTTLE_SCALE;   // the holder's origin is the middle of the body
+            holder.add(model);
+            const glow = model.getObjectByName('EngineGlow');
+            const engine = glow && glow.material ? glow.material : null;
+            if (engine) engine.emissiveIntensity = 0;
+            for (const name of ['NavLightPort', 'NavLightStarboard', 'NoseLights']) {
+                const node = model.getObjectByName(name);
+                if (node && node.material) node.material.emissiveIntensity = 3;
+            }
+            shuttle = { holder, model, engine, exhaust: model.getObjectByName('Exhaust') || null };
+            track(() => { holder.removeFromParent(); disposeObject(holder); });
+        }
+
+        function attachShuttle() {
+            if (!shuttle || shuttle.attached) return;
+            // Without the station the shuttle has no dock: drop it.
+            if (!station) { shuttle.holder.removeFromParent(); disposeObject(shuttle.holder); shuttle = null; status.shuttle = 'error'; return; }
+            station.model.add(shuttle.holder);
+            shuttle.attached = true;
+            if (!trail) buildTrail();
+        }
+
+        function buildTrail() {
+            const positions = new Float32Array(EXHAUST_POINTS * 3);
+            const ages = new Float32Array(EXHAUST_POINTS).fill(99);
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('aAge', new THREE.BufferAttribute(ages, 1));
+            const material = new THREE.ShaderMaterial({
+                uniforms: { uLife: { value: EXHAUST_LIFE }, uPx: { value: options.pixelRatio ? options.pixelRatio() : 1 }, uRef: { value: 150 } },
+                vertexShader: exhaustShader.exhaustVertex, fragmentShader: exhaustShader.exhaustFragment,
+                transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+            });
+            const points = new THREE.Points(geometry, material);
+            points.frustumCulled = false;
+            points.renderOrder = 9;
+            scene.add(points);
+            trail = { points, positions, ages, head: 0, carry: 0, last: new THREE.Vector3(), has: false, material };
+            track(() => { scene.remove(points); geometry.dispose(); material.dispose(); });
+        }
+
+        // ---- Satellite ----------------------------------------------------------------------------
+        function setupSatellite(model) {
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const scale = SATELLITE_SPAN / Math.max(size.x, size.z, 0.01);
+            const root = new THREE.Group();
+            root.name = 'OrbitSatellite';
+            model.scale.setScalar(scale);
+            root.add(model);
+            root.visible = false;
+            scene.add(root);
+            satellite = { root, dish: model.getObjectByName('Dish') || null };
+            track(() => { scene.remove(root); disposeObject(root); });
+        }
+
+        // ---- Asteroids ----------------------------------------------------------------------------
+        function setupAsteroids(model) {
+            const meshes = [];
+            for (let i = 0; i < ROCK_VARIANTS; i++) {
+                const source = model.getObjectByName('Rock' + i);
+                if (!source || !source.isMesh) continue;
+                const material = source.material.clone();
+                material.roughness = Math.max(material.roughness, 0.85);
+                const mesh = new THREE.InstancedMesh(source.geometry, material, ROCK_TOTAL);
+                mesh.frustumCulled = false;
+                mesh.count = 0;
+                mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(ROCK_TOTAL * 3).fill(1), 3);
+                scene.add(mesh);
+                meshes.push(mesh);
+                track(() => { scene.remove(mesh); mesh.dispose(); material.dispose(); });
+            }
+            if (!meshes.length) throw new Error('no Rock0..Rock4 nodes');
+            rocks = { meshes, records: [] };
+            track(() => { model.traverse(node => { if (node.geometry) node.geometry.dispose(); }); });
+        }
+
+        function buildRocks() {
+            if (!rocks || !ctx) return;
+            const rng = choreo.createRng(2718);
+            const basis = ctx.basis;
+            const records = [];
+            for (let i = 0; i < ROCK_TOTAL; i++) {
+                const near = rng() < 0.58;
+                const position = new THREE.Vector3();
+                let scale;
+                if (near) {
+                    // a sparse arc sweeping around the lower left corner, in front of everything
+                    const u = rng();
+                    const spread = (rng() - 0.5) * 0.30;
+                    const x = -1.12 + 0.95 * u + spread * 0.5;
+                    const y = -0.30 - 0.85 * Math.sin(u * Math.PI * 0.5) + spread;
+                    ctx.rayPoint((x + 1) / 2, (1 - y) / 2, 105 + 150 * rng() * rng(), position);
+                    scale = 0.45 + 3.2 * Math.pow(rng(), 2.4);
+                } else {
+                    // the far side of the giant: loose rocks on the ring plane behind it
+                    const angle = rng() * Math.PI * 2;
+                    const radius = 285 + 150 * rng();
+                    position.copy(ctx.ringE1).multiplyScalar(Math.cos(angle) * radius).addScaledVector(ctx.ringE2, Math.sin(angle) * radius).addScaledVector(ctx.ringN, (rng() - 0.5) * 36);
+                    if (position.dot(basis.back) > radius * 0.15) position.negate();
+                    scale = 0.8 + 2.4 * Math.pow(rng(), 1.8);
+                }
+                const axis = new THREE.Vector3(rng() - 0.5, rng() - 0.5, rng() - 0.5).normalize();
+                records.push({
+                    variant: i % ROCK_VARIANTS, near, position, scale, axis, speed: (0.04 + 0.16 * rng()) * (rng() < 0.5 ? -1 : 1), phase: rng() * Math.PI * 2,
+                    tone: 0.30 + 0.32 * rng(), warm: rng()
+                });
+            }
+            rocks.records = records;
+        }
+
+        // ---- Layout -------------------------------------------------------------------------------
+        // The scene calls this whenever the framing changes: { rayPoint(sx, sy, distance, out), basis: { right, up, back },
+        // composition, ringN, ringE1, ringE2 } with the world-space vectors of the neutral camera.
+        function layout(next) {
+            ctx = next;
+            relayout();
+        }
+
+        function relayout() {
+            if (!ctx) return;
+            if (station) {
+                const { basis, composition } = ctx;
+                ctx.rayPoint(composition.station.x, composition.station.y, STATION_DISTANCE, tmp.a);
+                station.base.position.copy(tmp.a);
+                // a narrow window gives the station less width to work with
+                station.root.scale.setScalar(clamp(composition.aspect / 1.3, 0.62, 1));
+                const tilt = STATION_TILT * Math.PI / 180;
+                const spine = tmp.b.copy(basis.up).multiplyScalar(Math.cos(tilt)).addScaledVector(basis.back, Math.sin(tilt));
+                spine.applyAxisAngle(basis.back, STATION_LEAN * Math.PI / 180).normalize();
+                const q1 = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), spine);
+                // spin about the spine until the solar panel axis lies across the picture
+                const panel = new THREE.Vector3(1, 0, 0).applyQuaternion(q1);
+                const target = basis.right.clone().addScaledVector(spine, -basis.right.dot(spine)).normalize();
+                const angle = Math.atan2(new THREE.Vector3().crossVectors(panel, target).dot(spine), panel.dot(target)) + 0.30;
+                station.base.quaternion.copy(new THREE.Quaternion().setFromAxisAngle(spine, angle).multiply(q1));
+                placeStation();
+            }
+            buildRocks();
+        }
+
+        // ---- Animation ----------------------------------------------------------------------------
+        function placeStation() {
+            station.root.position.copy(station.base.position).applyQuaternion(follow);
+            station.root.quaternion.copy(follow).multiply(station.base.quaternion);
+        }
+
+        function updateStation(t) {
+            if (!station) return;
+            placeStation();
+            if (station.ring) station.ring.rotation.y = t * STATION_RING_SPEED;
+            for (const beacon of station.beacons) {
+                const phase = ((t / BEACON_PERIOD + beacon.phase) % 1 + 1) % 1;
+                beacon.material.emissiveIntensity = phase < BEACON_ON / BEACON_PERIOD ? 5 : 0.35;
+            }
+        }
+
+        function updateShuttle(t, dt) {
+            if (!shuttle || !shuttle.attached || !station) return;
+            const state = choreo.shuttleState(t);
+            const off = choreo.shuttleOffset(state);
+            shuttleState = state.phase;
+            const p = state.progress;
+            let nose = 1;
+            if (state.phase === 'undock') nose = 1 - smooth(0.35, 1, p);
+            else if (state.phase === 'cruise') nose = 0;
+            else if (state.phase === 'approach') nose = smooth(0.2, 0.95, p);
+            let level = 0;
+            if (state.phase === 'undock') level = 0.15 + 0.85 * smooth(0, 0.55, p);
+            else if (state.phase === 'cruise') level = 0.85 + 0.15 * Math.sin(p * Math.PI * 14);
+            else if (state.phase === 'approach') level = 0.45 * (1 - smooth(0.6, 1, p)) + 0.1;
+            else if (state.phase === 'dock') level = 0.30 * (1 - smooth(0.2, 1, p));
+            engineLevel = level;
+            const holder = shuttle.holder;
+            const dock = station.dock ? station.dock.position : tmp.s.set(0, -0.85, 0);
+            holder.position.set(dock.x + off.x, dock.y - SHUTTLE_HALF * SHUTTLE_SCALE + off.y, dock.z + off.z);
+            holder.quaternion.setFromEuler(tmp.e.set(-nose * Math.PI / 2, off.yaw, 0, 'YXZ'));
+            if (shuttle.engine) shuttle.engine.emissiveIntensity = level > 0.01 ? 0.5 + 6 * level : 0;
+            updateTrail(dt, level);
+        }
+
+        function updateTrail(dt, level) {
+            if (!trail) return;
+            const ages = trail.ages;
+            for (let i = 0; i < EXHAUST_POINTS; i++) ages[i] += dt;
+            if (level > 0.2 && shuttle && shuttle.exhaust) {
+                shuttle.exhaust.getWorldPosition(tmp.a);
+                if (!trail.has) { trail.last.copy(tmp.a); trail.has = true; }
+                trail.carry += dt * EXHAUST_RATE;
+                const count = Math.min(Math.floor(trail.carry), 4);
+                trail.carry -= Math.floor(trail.carry);
+                for (let k = 1; k <= count; k++) {
+                    const i = trail.head;
+                    trail.head = (trail.head + 1) % EXHAUST_POINTS;
+                    tmp.b.lerpVectors(trail.last, tmp.a, k / count);
+                    trail.positions[i * 3] = tmp.b.x;
+                    trail.positions[i * 3 + 1] = tmp.b.y;
+                    trail.positions[i * 3 + 2] = tmp.b.z;
+                    ages[i] = (count - k) / EXHAUST_RATE;
+                }
+                trail.last.copy(tmp.a);
+            } else {
+                trail.has = false;
+            }
+            trail.points.geometry.attributes.position.needsUpdate = true;
+            trail.points.geometry.attributes.aAge.needsUpdate = true;
+        }
+
+        function updateSatellite(t) {
+            if (!satellite || !ctx) return;
+            const local = ((t % SATELLITE_CYCLE) + SATELLITE_CYCLE) % SATELLITE_CYCLE;
+            if (local > SATELLITE_TRAVEL) { satellite.root.visible = false; return; }
+            const k = local / SATELLITE_TRAVEL;
+            const sx = -0.12 + 1.24 * k;
+            const sy = ctx.composition.station.y + 0.12 + 0.05 * Math.sin(k * Math.PI);
+            ctx.rayPoint(sx, sy, SATELLITE_DISTANCE, tmp.a);
+            satellite.root.position.copy(tmp.a).applyQuaternion(follow);
+            satellite.root.visible = true;
+            satellite.root.rotation.set(0.35 + t * 0.05, t * 0.11, 0.2 + Math.sin(t * 0.07) * 0.2);
+            if (satellite.dish) {
+                satellite.root.updateMatrixWorld(true);
+                satellite.dish.lookAt(0, 0, 0);
+            }
+        }
+
+        function updateRocks(t) {
+            if (!rocks || !rocks.records.length) return;
+            const counters = new Array(rocks.meshes.length).fill(0);
+            const records = rocks.records;
+            const n = Math.min(rockQuota, records.length);
+            for (let i = 0; i < n; i++) {
+                const r = records[i];
+                const mesh = rocks.meshes[r.variant % rocks.meshes.length];
+                const slot = counters[r.variant % rocks.meshes.length]++;
+                tmp.q.setFromAxisAngle(r.axis, r.phase + t * r.speed);
+                tmp.s.setScalar(r.scale);
+                tmp.m.compose(r.near ? tmp.b.copy(r.position).applyQuaternion(follow) : r.position, tmp.q, tmp.s);
+                mesh.setMatrixAt(slot, tmp.m);
+                tmp.c.setHSL(0.06 + 0.04 * r.warm, 0.10 + 0.14 * r.warm, r.tone);
+                mesh.setColorAt(slot, tmp.c);
+            }
+            for (let v = 0; v < rocks.meshes.length; v++) {
+                const mesh = rocks.meshes[v];
+                mesh.count = counters[v];
+                mesh.instanceMatrix.needsUpdate = true;
+                if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+            }
+        }
+
+        function update(t, dt, lowRate, rig) {
+            windowTime.value = t % 6000;
+            if (rig) follow.identity().slerp(rig, FOLLOW);
+            updateStation(t);
+            updateShuttle(t, dt);
+            updateSatellite(t);
+            if (!lowRate || Math.floor(t * 30) % 2 === 0) updateRocks(t);
+        }
+
+        function setQuality(rockCount, pixelRatio) {
+            rockQuota = clamp(Math.round(rockCount), 0, ROCK_TOTAL);
+            if (trail) trail.material.uniforms.uPx.value = pixelRatio || 1;
+        }
+
+        function inspect() {
+            return {
+                status: { ...status }, shuttle: shuttleState, engine: Math.round(engineLevel * 100) / 100,
+                rocks: rocks ? Math.min(rockQuota, rocks.records.length) : 0, satellite: !!(satellite && satellite.root.visible)
+            };
+        }
+
+        function dispose() {
+            disposed = true;
+            for (const item of disposables.splice(0)) { try { item(); } catch (_) { /* best effort */ } }
+            station = shuttle = satellite = rocks = trail = null;
+        }
+
+        return { load, layout, update, setQuality, inspect, dispose, status };
+    }
+
+    window.AuraOrbitModels = Object.freeze({ create });
 }());
 
 ;
@@ -10421,12 +12379,1066 @@ void main() {
 (function () {
     'use strict';
 
-    // Orbit scene (global AuraOrbitScene). Builds the live WebGL scene behind the shell on the canvas .vd-fx-orbit-scene:
-    // renderer, camera, post-processing composer, loading of the station, shuttle, satellite and asteroid models, the
-    // gas giant, its rings and the sun, the quality ladder that steps down when frames get slow, and the disposal of every
-    // GPU resource. Three.js comes from the lazily loaded vendor bundle. This file is the scaffold; the scene arrives with
-    // the WebGL work.
-    window.AuraOrbitScene = Object.freeze({});
+    // Orbit scene (global AuraOrbitScene). The live WebGL space scene on its own canvas behind the shell (z-index -1): a
+    // gas giant with banded clouds, storms, night lights, lightning, atmosphere and auroras, a shadowed ring system with
+    // dust, a moon, a nebula sky, three star layers, the sun with a lens flare, comets and shooting stars, the Blender
+    // models (orbit-models.js), and a post chain (bloom, grade with chromatic aberration, grain, meteors and the scanner
+    // pulse, tone mapping). The surface of the giant and the nebula are baked once into textures; frames only sample them.
+    // The quality ladder, the cadence and the pause/dispose rules mirror the Voxel World scene (voxel-scene.js).
+    //
+    // World: the planet sits at the origin with radius R = 100. The camera looks at it from a fixed direction at a
+    // distance that is solved from the screen composition (choreo.composition); a lens shift moves the planet to its
+    // place on screen. The ring plane, the planet axis and the sun are fixed in the frame of that neutral camera.
+    // window.AuraOrbitScene = { create }.
+
+    const R = 100;
+    const FOV = 36;
+    const CAMERA = { azimuth: 28, elevation: 12 };                 // degrees, the neutral camera direction
+    const RING = { inner: 1.35, outer: 2.35, elevation: 23, roll: -13 };   // the ring plane is seen from 23 degrees above, major axis rising to the left
+    const LIGHT = { screenAngle: 150, phase: 74, color: [1.14, 1.06, 0.95] };   // sun direction on screen and phase angle
+    const SHELL = 1.045;
+    const SEED = 11;
+    const STATIC_TIME = 44;               // a moment of the cycle with the shuttle out and no comet, shooting star or flash
+    const START_TIME = 34;
+    const SKY_EXTENT = [1.75, 0.96];                               // half extents in rad of the baked nebula plate
+    const BAKE_SIZE = [2048, 1024];
+    // The vortices of the cloud decks as longitude offsets (in turns) from the meridian that faces the camera at STATIC_TIME. The big
+    // storm and the oval face the camera there; the two spots sit about 110 degrees to either side, so a vortex is never far from the middle of the disc.
+    const STORM = { lat: 0.20, offsetU: 0.045, ovalLat: 0.70, ovalOffsetU: -0.03, spotLat: -0.32, spotOffsetU: 0.30, spot2Lat: 0.10, spot2OffsetU: -0.30 };
+    const MOON = { radius: 9, orbit: 260, period: 300, inclination: 6, phase: 1.476 };
+    const SUN_DISTANCE = 2500;
+    const POINTER_TAU = 0.35;
+    const OPACITY_FADE_MS = 900;
+    const COMET_SLOTS = 2;
+    const COMET_POINTS = 64;
+    const PULSE_SECONDS = 1.4;
+
+    // dpr: pixel ratio cap; samples: MSAA of the HDR target; bloom: 1 full / 0.5 half / 0 off; steps: atmosphere samples; dust and
+    // stars: point budgets; rocks: asteroid instances; interval: ms between frames (0 = one frame per minute).
+    const QUALITY = [
+        { dpr: 1.5, samples: 2, bloom: 1, steps: 12, dust: 6000, stars: 1, rocks: 140, detail: 1, interval: 33 },
+        { dpr: 1.25, samples: 0, bloom: 0.5, steps: 8, dust: 4000, stars: 1, rocks: 90, detail: 1, interval: 33 },
+        { dpr: 1, samples: 0, bloom: 0, steps: 6, dust: 2000, stars: 0.5, rocks: 50, detail: 0, interval: 42 },
+        { dpr: 0.85, samples: 0, bloom: 0, steps: 6, dust: 2000, stars: 0.5, rocks: 50, detail: 0, interval: 0 },
+        { dpr: 1, samples: 0, bloom: 0, steps: 6, dust: 2000, stars: 0.5, rocks: 50, detail: 0, interval: 0, hidden: true }
+    ];
+    const STAR_LAYERS = [{ count: 3500, size: [1.0, 1.9], bright: [0.25, 0.85], radius: 2700, shift: 5 },
+        { count: 1500, size: [1.5, 2.6], bright: [0.5, 1.2], radius: 2680, shift: 12 },
+        { count: 400, size: [2.2, 3.8], bright: [1.0, 2.6], radius: 2660, shift: 24 }];
+    const DUST_MAX = 6000;
+    const PIXEL_BUDGET = [3.7e6, 3.0e6, 2.2e6, 1.6e6, 1.6e6];
+    const MSAA_MAX_PIXELS = PIXEL_BUDGET[0];
+    const FRAME_SLACK = 3;
+    const THROTTLE = { coverage: 0.96, interval: 500 };
+    const STATIC_REFRESH_MS = 60000;
+    const ADAPT = { window: 30, downCost: 12, upCost: 5, upAfterMs: 25000, downGap: 1.45, upGap: 1.1, stallMs: 250, warmup: 4 };
+    const PROBE = { level: 3, everyMs: 5000 };
+    const RESIZE_DEBOUNCE_MS = 150;
+    const INITIAL_PIXELS = 4.2e6;
+    const SOFTWARE_GPU = /swiftshader|llvmpipe|lavapipe|softpipe|software|basic render/i;
+    const RAD = Math.PI / 180;
+
+    function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+    function smoothstep(a, b, x) { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
+    // The cloud decks turn as one at SPIN rad/s; on top of that each latitude swings by zonalVar() back and forth with a
+    // period of SHEAR_PERIOD seconds, so the shear between latitudes stays bounded (about 7 degrees) and the planet looks
+    // the same after hours. zonalVar() mirrors the shader. surfaceShift is the texture shift in turns.
+    const SPIN = 0.0046;
+    const SHEAR_PERIOD = 360;
+    const TAU = Math.PI * 2;
+    function zonalVar(lat) { return 0.0014 * Math.sin(lat * 5 + 0.4) + 0.0007 * Math.sin(lat * 13 + 1.9); }
+    function shearPhase(t) { return SHEAR_PERIOD / (TAU * TAU) * Math.sin(TAU * t / SHEAR_PERIOD); }
+    function spinTurns(t) { return (((SPIN * t / TAU) % 1) + 1) % 1; }
+    function surfaceShift(lat, t) { return spinTurns(t) + zonalVar(lat) * shearPhase(t); }
+
+    function create(options) {
+        const vendor = options.vendor;
+        const THREE = vendor.THREE;
+        const choreo = options.choreo;
+        const shaders = options.shaders;
+        const motion = !!options.motion;
+        const assetsBase = options.assetsBase || '/3d/desktop-theme-orbit/v1/';
+
+        const host = document.createElement('div');
+        host.className = 'vd-fx-orbit-scene';
+        host.setAttribute('aria-hidden', 'true');
+        host.style.cssText = 'position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;opacity:0;' +
+            (motion ? 'transition:opacity ' + OPACITY_FADE_MS + 'ms ease;' : '');
+        const canvas = document.createElement('canvas');
+        canvas.style.cssText = 'display:block;width:100%;height:100%;';
+        host.appendChild(canvas);
+        document.body.insertBefore(host, document.body.firstChild);
+
+        let renderer = null, composer = null, scene = null, camera = null, refCam = null;
+        let flareScene = null, flareCamera = null, gradePass = null, bloomPass = null, models = null;
+        let disposed = false, built = false, ready = false, paused = false, contextLost = false;
+        let backend = 'loading', gpu = '', lastError = '';
+        let buildTimer = 0, raf = 0, staticTimer = 0, resizeTimer = 0;
+        let quality = 0, initialQuality = 0, qualityLock = null;
+        let width = 1, height = 1, dpr = 1, distance = 340;
+        let frames = 0, buildMs = 0, triangles = 0, lastCost = 0, lastRender = 0, clock = START_TIME;
+        let frozen = null, throttled = false, skipGap = true, lastTick = 0, refresh = 34;
+        let coverage = 0, pulseAt = -1, resolveReady = null;
+        let samplesNow = -1, bloomNow = -1;
+        const stamps = [], costs = [], gaps = [], probeCosts = [];
+        let warm = ADAPT.warmup, fastSince = 0;
+        const pointer = { x: 0, y: 0, goalX: 0, goalY: 0 };
+        const disposables = [];
+        const timings = {};
+        let buildStart = 0;
+        function mark(name) { timings[name] = Math.round(performance.now() - buildStart); }
+        const readyPromise = new Promise(resolve => { resolveReady = resolve; });
+
+        const basis = { right: new THREE.Vector3(), up: new THREE.Vector3(), back: new THREE.Vector3() };
+        const ring = { n: new THREE.Vector3(), e1: new THREE.Vector3(), e2: new THREE.Vector3(), quaternion: new THREE.Quaternion() };
+        const U = {
+            time: { value: 0 },
+            noise: { value: null },
+            sunDir: { value: new THREE.Vector3(0, 1, 0) },
+            sunColor: { value: new THREE.Vector3(LIGHT.color[0], LIGHT.color[1], LIGHT.color[2]) },
+            ringN: { value: new THREE.Vector3(0, 1, 0) },
+            ringRange: { value: new THREE.Vector4(RING.inner * R, RING.outer * R, 0, 0) }
+        };
+        const objects = {};
+        const bolts = [0, 1, 2, 3].map(() => new THREE.Vector4());
+        const rig = new THREE.Quaternion();
+        // the direction of the screen centre (the lens shift moves it away from the planet): comets cross around it
+        const view = { forward: new THREE.Vector3(0, 0, -1), right: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3(0, 1, 0) };
+        const tmp = { a: new THREE.Vector3(), b: new THREE.Vector3(), c: new THREE.Vector3(), d: new THREE.Vector3() };
+
+        function track(item) { disposables.push(item); return item; }
+        function noteError(stage, error) {
+            const message = error && error.message ? error.message : String(error || 'unknown failure');
+            lastError = String(stage) + ': ' + message.slice(0, 240);
+            if (window.console && typeof window.console.warn === 'function') console.warn('[orbit FX] ' + lastError);
+            if (typeof options.noteError === 'function') { try { options.noteError(stage, error); } catch (_) { /* optional */ } }
+        }
+        function hideHost() { host.style.display = 'none'; }
+        function showHost() { host.style.display = ''; }
+        function finishReady() { if (resolveReady) { resolveReady(); resolveReady = null; } }
+
+        // ---- Renderer ------------------------------------------------------------------------------
+        function releaseRenderer() {
+            if (!renderer) return;
+            try { renderer.dispose(); renderer.forceContextLoss(); } catch (_) { /* the context may already be gone */ }
+            renderer = null;
+        }
+
+        function createRenderer() {
+            try {
+                renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: false, stencil: false });
+            } catch (error) {
+                renderer = null;
+                backend = 'none';
+                hideHost();
+                noteError('WebGL initialization', error);
+                return false;
+            }
+            try {
+                const gl = renderer.getContext();
+                const info = gl.getExtension('WEBGL_debug_renderer_info');
+                gpu = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER) || '');
+            } catch (_) { gpu = ''; }
+            if (SOFTWARE_GPU.test(gpu) && window.__auraOrbitSoftwareGL !== true) {
+                backend = 'software';
+                hideHost();
+                releaseRenderer();
+                return false;
+            }
+            renderer.setClearColor(0x000000, 1);
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.05;
+            renderer.info.autoReset = false;
+            canvas.addEventListener('webglcontextlost', event => {
+                event.preventDefault();
+                if (disposed) return;
+                contextLost = true;
+                backend = 'lost';
+                stopLoops();
+                hideHost();
+                noteError('WebGL', 'context lost');
+            });
+            canvas.addEventListener('webglcontextrestored', () => {
+                if (disposed) return;
+                // the baked plates and the filtered environment live in GPU memory only: build both again
+                try { bakeAll(); buildEnvironment(); } catch (error) { noteError('re-bake', error); return; }
+                contextLost = false;
+                backend = 'three-webgl';
+                if (!QUALITY[quality].hidden) showHost();
+                startLoops();
+            });
+            backend = 'three-webgl';
+            return true;
+        }
+
+        // ---- Frame of the neutral camera ----------------------------------------------------------
+        function computeFrame() {
+            const az = CAMERA.azimuth * RAD, el = CAMERA.elevation * RAD;
+            basis.back.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).normalize();
+            basis.right.set(0, 1, 0).cross(basis.back).normalize();
+            basis.up.crossVectors(basis.back, basis.right).normalize();
+            const rEl = RING.elevation * RAD, rRoll = RING.roll * RAD;
+            ring.n.set(0, 0, 0).addScaledVector(basis.right, -Math.sin(rRoll) * Math.cos(rEl)).addScaledVector(basis.up, Math.cos(rRoll) * Math.cos(rEl)).addScaledVector(basis.back, Math.sin(rEl)).normalize();
+            ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), ring.n);
+            ring.e1.set(1, 0, 0).applyQuaternion(ring.quaternion);
+            ring.e2.set(0, 1, 0).applyQuaternion(ring.quaternion);
+            const phase = LIGHT.phase * RAD, sa = LIGHT.screenAngle * RAD;
+            U.sunDir.value.set(0, 0, 0).addScaledVector(basis.right, Math.sin(phase) * Math.cos(sa)).addScaledVector(basis.up, Math.sin(phase) * Math.sin(sa)).addScaledVector(basis.back, Math.cos(phase)).normalize();
+            U.ringN.value.copy(ring.n);
+        }
+
+        // ---- Bake: the surface of the giant and the nebula plate ----------------------------------
+        let bakeScene = null, bakeCamera = null, bakeQuad = null;
+        function bakeTexture(fragmentShader, uniforms, size, mipmaps, anisotropy) {
+            const material = new THREE.ShaderMaterial({ uniforms, vertexShader: shaders.fullscreenVertex, fragmentShader, depthTest: false, depthWrite: false, blending: THREE.NoBlending });
+            const target = new THREE.WebGLRenderTarget(size[0], size[1], {
+                depthBuffer: false, stencilBuffer: false, generateMipmaps: mipmaps, type: THREE.UnsignedByteType, format: THREE.RGBAFormat,
+                minFilter: mipmaps ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter, magFilter: THREE.LinearFilter
+            });
+            target.texture.colorSpace = THREE.SRGBColorSpace;
+            target.texture.anisotropy = anisotropy || 1;
+            bakeQuad.material = material;
+            renderer.setRenderTarget(target);
+            renderer.render(bakeScene, bakeCamera);
+            renderer.setRenderTarget(null);
+            material.dispose();
+            return target;
+        }
+
+        function stormColumn(lat, offset) {
+            const inverse = objects.planet.quaternion.clone().invert();
+            const dir = basis.back.clone().applyQuaternion(inverse);
+            const phi = Math.atan2(dir.z, -dir.x);
+            const face = (phi / (2 * Math.PI) + 1) % 1;
+            return face + offset + surfaceShift(lat, STATIC_TIME);
+        }
+
+        function bakeAll() {
+            if (!bakeScene) {
+                bakeScene = new THREE.Scene();
+                bakeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+                bakeQuad = new THREE.Mesh(track(new THREE.PlaneGeometry(2, 2)), null);
+                bakeQuad.frustumCulled = false;
+                bakeScene.add(bakeQuad);
+            }
+            const aniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+            if (objects.planetPlate) objects.planetPlate.dispose();
+            if (objects.skyPlate) objects.skyPlate.dispose();
+            objects.planetPlate = bakeTexture(shaders.planetBakeFragment, {
+                uNoise: U.noise,
+                uStorm: { value: new THREE.Vector2(stormColumn(STORM.lat, STORM.offsetU), STORM.lat) },
+                uOval: { value: new THREE.Vector2(stormColumn(STORM.ovalLat, STORM.ovalOffsetU), STORM.ovalLat) },
+                uSpot: { value: new THREE.Vector2(stormColumn(STORM.spotLat, STORM.spotOffsetU), STORM.spotLat) },
+                uSpot2: { value: new THREE.Vector2(stormColumn(STORM.spot2Lat, STORM.spot2OffsetU), STORM.spot2Lat) }
+            }, BAKE_SIZE, true, aniso);
+            objects.skyPlate = bakeTexture(shaders.skyBakeFragment, {
+                uNoise: U.noise, uExtent: { value: new THREE.Vector2(SKY_EXTENT[0], SKY_EXTENT[1]) },
+                uBand: { value: new THREE.Vector3(-0.45, 1.0, 0.10) }
+            }, BAKE_SIZE, false, 1);
+            if (objects.planetMaterial) objects.planetMaterial.uniforms.uAlbedo.value = objects.planetPlate.texture;
+            if (objects.skyMaterial) objects.skyMaterial.uniforms.uPlate.value = objects.skyPlate.texture;
+        }
+
+        // ---- World ----------------------------------------------------------------------------------
+        function material(spec) {
+            return track(new THREE.ShaderMaterial(spec));
+        }
+
+        function buildPlanet() {
+            const planet = new THREE.Mesh(track(new THREE.SphereGeometry(R, 160, 120)), null);
+            planet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), ring.n);
+            scene.add(planet);
+            objects.planet = planet;
+            objects.ringTexture = track(window.AuraOrbitTextures.ringProfile(THREE, choreo, Math.min(8, renderer.capabilities.getMaxAnisotropy())));
+            bakeAll();
+            objects.planetMaterial = material({
+                uniforms: {
+                    uAlbedo: { value: objects.planetPlate.texture }, uRingTex: { value: objects.ringTexture }, uSunDir: U.sunDir, uSunColor: U.sunColor,
+                    uRingN: U.ringN, uRimColor: { value: new THREE.Vector3(0.20, 0.38, 0.70) }, uRingRange: U.ringRange, uBolt: { value: bolts },
+                    uSpin: { value: 0 }, uShear: { value: 0 }, uTime: U.time, uDetail: { value: 1 }, uGain: { value: 0.74 }, uNoise: U.noise
+                },
+                vertexShader: shaders.planetVertex, fragmentShader: shaders.planetFragment
+            });
+            planet.material = objects.planetMaterial;
+
+            const atmosphere = new THREE.Mesh(track(new THREE.SphereGeometry(R * SHELL, 96, 64)), material({
+                uniforms: {
+                    uSunDir: U.sunDir, uAxis: U.ringN, uDay: { value: new THREE.Vector3(0.20, 0.58, 1.0) }, uDusk: { value: new THREE.Vector3(0.20, 0.10, 0.95) },
+                    uPlanetR: { value: R }, uShellR: { value: R * SHELL }, uIntensity: { value: 0.40 }, uAurora: { value: 1.1 }, uTime: U.time, uSteps: { value: 12 }, uNoise: U.noise
+                },
+                vertexShader: shaders.atmosphereVertex, fragmentShader: shaders.atmosphereFragment,
+                transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+            }));
+            atmosphere.renderOrder = 2;
+            scene.add(atmosphere);
+            objects.atmosphere = atmosphere;
+        }
+
+        function buildRings() {
+            const mesh = new THREE.Mesh(track(new THREE.RingGeometry(RING.inner * R, RING.outer * R, 256, 1)), material({
+                uniforms: {
+                    uProfile: { value: objects.ringTexture }, uSunDir: U.sunDir, uSunColor: U.sunColor, uNormal: U.ringN,
+                    uRange: U.ringRange, uPlanetR: { value: R }, uTime: U.time
+                },
+                vertexShader: shaders.ringVertex, fragmentShader: shaders.ringFragment,
+                transparent: true, depthWrite: false, side: THREE.DoubleSide
+            }));
+            mesh.quaternion.copy(ring.quaternion);
+            mesh.renderOrder = 3;
+            scene.add(mesh);
+            objects.rings = mesh;
+
+            // ring dust: points on circular orbits in a thin slab, inner ones faster (the vertex shader moves them)
+            const rng = choreo.createRng(SEED * 31);
+            const orbit = new Float32Array(DUST_MAX * 4);
+            for (let i = 0; i < DUST_MAX; i++) {
+                const r = (RING.inner + (RING.outer - RING.inner) * Math.sqrt(rng() * 0.96 + 0.02)) * R;
+                orbit[i * 4] = r; orbit[i * 4 + 1] = rng() * Math.PI * 2;
+                orbit[i * 4 + 2] = (rng() - 0.5) * 2.4 * (0.4 + rng()); orbit[i * 4 + 3] = rng();
+            }
+            const geometry = track(new THREE.BufferGeometry());
+            geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(DUST_MAX * 3), 3));
+            geometry.setAttribute('aOrbit', new THREE.BufferAttribute(orbit, 4));
+            const dust = new THREE.Points(geometry, objects.dustMaterial = material({
+                uniforms: {
+                    uProfile: { value: objects.ringTexture }, uRange: U.ringRange, uSunDir: U.sunDir, uTime: U.time, uPx: { value: 1 }, uPlanetR: { value: R }, uRef: { value: distance }
+                },
+                vertexShader: shaders.dustVertex, fragmentShader: shaders.dustFragment, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+            }));
+            dust.quaternion.copy(ring.quaternion);
+            dust.frustumCulled = false;
+            dust.renderOrder = 4;
+            scene.add(dust);
+            objects.dust = dust;
+        }
+
+        function buildMoon() {
+            const moon = new THREE.Mesh(track(new THREE.SphereGeometry(MOON.radius, 64, 48)), objects.moonMaterial = material({
+                uniforms: { uSunDir: U.sunDir, uSunColor: U.sunColor, uPlanetShine: { value: new THREE.Vector3(0.55, 0.50, 0.42) }, uPlanetPos: { value: new THREE.Vector3() }, uPlanetR: { value: R }, uNoise: U.noise },
+                vertexShader: shaders.moonVertex, fragmentShader: shaders.moonFragment
+            }));
+            scene.add(moon);
+            objects.moon = moon;
+        }
+
+        // The sky root follows the camera: nebula, stars, sun and comets sit at infinity.
+        function buildSky() {
+            const root = new THREE.Group();
+            scene.add(root);
+            objects.skyRoot = root;
+            const sky = new THREE.Mesh(track(new THREE.SphereGeometry(3000, 48, 32)), objects.skyMaterial = material({
+                uniforms: { uPlate: { value: objects.skyPlate.texture }, uExtent: { value: new THREE.Vector2(SKY_EXTENT[0], SKY_EXTENT[1]) }, uGain: { value: 1 } },
+                vertexShader: shaders.skyVertex, fragmentShader: shaders.skyFragment, side: THREE.BackSide, depthWrite: false, depthTest: false
+            }));
+            sky.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(basis.right, basis.up, basis.back));
+            sky.renderOrder = -100;
+            sky.frustumCulled = false;
+            root.add(sky);
+
+            const rng = choreo.createRng(SEED * 7);
+            const forward = basis.back.clone().negate();
+            objects.stars = STAR_LAYERS.map((layer, index) => {
+                const position = new Float32Array(layer.count * 3);
+                const size = new Float32Array(layer.count), bright = new Float32Array(layer.count), temp = new Float32Array(layer.count), phase = new Float32Array(layer.count);
+                for (let i = 0; i < layer.count; i++) {
+                    // a cone around the view direction, denser toward the nebula band
+                    let cos = 0, phi = 0;
+                    for (let tries = 0; tries < 4; tries++) {
+                        cos = 1 + (Math.cos(64 * RAD) - 1) * rng();
+                        phi = rng() * Math.PI * 2;
+                        const sin = Math.sqrt(1 - cos * cos);
+                        tmp.a.copy(forward).multiplyScalar(cos).addScaledVector(basis.right, Math.cos(phi) * sin).addScaledVector(basis.up, Math.sin(phi) * sin);
+                        const off = tmp.a.dot(tmp.b.set(-0.45, 1.0, 0.10).normalize());
+                        if (rng() < 0.35 + 0.65 * Math.exp(-off * off / 0.09)) break;
+                    }
+                    position[i * 3] = tmp.a.x * layer.radius; position[i * 3 + 1] = tmp.a.y * layer.radius; position[i * 3 + 2] = tmp.a.z * layer.radius;
+                    const k = Math.pow(rng(), index === 0 ? 2.2 : 1.6);
+                    size[i] = layer.size[0] + (layer.size[1] - layer.size[0]) * k;
+                    bright[i] = layer.bright[0] + (layer.bright[1] - layer.bright[0]) * k;
+                    temp[i] = rng(); phase[i] = rng();
+                }
+                const geometry = track(new THREE.BufferGeometry());
+                geometry.setAttribute('position', new THREE.BufferAttribute(position, 3));
+                geometry.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+                geometry.setAttribute('aBright', new THREE.BufferAttribute(bright, 1));
+                geometry.setAttribute('aTemp', new THREE.BufferAttribute(temp, 1));
+                geometry.setAttribute('aPhase', new THREE.BufferAttribute(phase, 1));
+                const points = new THREE.Points(geometry, material({
+                    uniforms: { uPx: { value: 1 }, uTime: U.time, uTwinkle: { value: motion ? 1 : 0 } },
+                    vertexShader: shaders.starVertex, fragmentShader: shaders.starFragment, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+                }));
+                points.frustumCulled = false;
+                points.renderOrder = 1;
+                points.userData.count = layer.count;
+                points.userData.shift = layer.shift;
+                root.add(points);
+                return points;
+            });
+
+            // the sun: a billboard far away in the screen direction of the composition, plus the comets
+            objects.sunMaterial = material({
+                uniforms: { uSize: { value: 520 }, uColor: { value: new THREE.Vector3(1.0, 0.92, 0.78) }, uGain: { value: 1 } },
+                vertexShader: shaders.billboardVertex, fragmentShader: shaders.sunFragment, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+            });
+            const sun = new THREE.Mesh(track(new THREE.PlaneGeometry(2, 2)), objects.sunMaterial);
+            sun.frustumCulled = false;
+            sun.renderOrder = 5;
+            root.add(sun);
+            objects.sun = sun;
+
+            const tAttr = new Float32Array(COMET_POINTS);
+            for (let i = 0; i < COMET_POINTS; i++) tAttr[i] = i / (COMET_POINTS - 1);
+            objects.comets = [];
+            for (let i = 0; i < COMET_SLOTS; i++) {
+                const geometry = track(new THREE.BufferGeometry());
+                geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(COMET_POINTS * 3), 3));
+                geometry.setAttribute('aT', new THREE.BufferAttribute(tAttr, 1));
+                const comet = new THREE.Points(geometry, material({
+                    uniforms: { uHead: { value: new THREE.Vector3() }, uTail: { value: new THREE.Vector3() }, uLen: { value: 240 }, uPx: { value: 1 }, uAlpha: { value: 0 } },
+                    vertexShader: shaders.cometVertex, fragmentShader: shaders.cometFragment, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+                }));
+                comet.frustumCulled = false;
+                comet.visible = false;
+                comet.renderOrder = 6;
+                root.add(comet);
+                objects.comets.push(comet);
+            }
+        }
+
+        // Ghosts of the lens flare, drawn in screen space after the scene (and bloomed with it).
+        function buildFlares() {
+            flareScene = new THREE.Scene();
+            flareCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1);
+            // line: where the ghost sits on the line from the screen centre (0) through the sun (1); negative is beyond the centre
+            const specs = [
+                { line: 1.0, w: 1.15, h: 0.11, shape: 3, alpha: 0.05, color: [0.55, 0.75, 1.0] },
+                { line: 0.62, w: 0.045, h: 0.045, shape: 0, alpha: 0.03, color: [1.0, 0.72, 0.42] },
+                { line: 0.25, w: 0.07, h: 0.07, shape: 1, alpha: 0.010, color: [0.45, 0.78, 1.0] },
+                { line: -0.15, w: 0.05, h: 0.05, shape: 2, alpha: 0.04, color: [0.7, 0.55, 1.0] },
+                { line: -0.5, w: 0.12, h: 0.12, shape: 0, alpha: 0.006, color: [1.0, 0.8, 0.55] }
+            ];
+            const geometry = track(new THREE.PlaneGeometry(2, 2));
+            objects.flares = specs.map(spec => {
+                const mesh = new THREE.Mesh(geometry, material({
+                    uniforms: { uColor: { value: new THREE.Vector3(spec.color[0], spec.color[1], spec.color[2]) }, uAlpha: { value: spec.alpha }, uShape: { value: spec.shape } },
+                    vertexShader: shaders.flareVertex, fragmentShader: shaders.flareFragment, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending
+                }));
+                mesh.frustumCulled = false;
+                mesh.userData = spec;
+                flareScene.add(mesh);
+                return mesh;
+            });
+        }
+
+        // Metals need something to reflect: a dim gradient sky with a sun disc and the warm glow of the giant, filtered once.
+        function buildEnvironment() {
+            const envScene = new THREE.Scene();
+            const envMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    uSun: { value: U.sunDir.value.clone() },
+                    uPlanet: { value: basis.back.clone().negate().addScaledVector(basis.right, 0.45).addScaledVector(basis.up, -0.35).normalize() }
+                },
+                vertexShader: 'varying vec3 vDir; void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+                fragmentShader: 'precision highp float; varying vec3 vDir; uniform vec3 uSun; uniform vec3 uPlanet;' +
+                    'void main() { vec3 d = normalize(vDir);' +
+                    ' vec3 col = vec3(0.010, 0.014, 0.034) + vec3(0.040, 0.034, 0.090) * smoothstep(-0.3, 1.0, d.y);' +
+                    ' col += vec3(0.020, 0.030, 0.060) * smoothstep(0.2, -1.0, d.y);' +
+                    ' float s = max(dot(d, uSun), 0.0);' +
+                    ' col += vec3(1.0, 0.92, 0.78) * (pow(s, 900.0) * 90.0 + pow(s, 30.0) * 0.9 + pow(s, 4.0) * 0.10);' +
+                    ' float p = max(dot(d, uPlanet), 0.0);' +
+                    ' col += vec3(0.95, 0.66, 0.40) * pow(p, 2.5) * 0.34;' +
+                    ' gl_FragColor = vec4(col, 1.0); }',
+                side: THREE.BackSide, depthWrite: false
+            });
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), envMaterial);
+            envScene.add(mesh);
+            const generator = new THREE.PMREMGenerator(renderer);
+            const target = generator.fromScene(envScene, 0.04);
+            generator.dispose();
+            mesh.geometry.dispose();
+            envMaterial.dispose();
+            if (objects.envTarget) { try { objects.envTarget.dispose(); } catch (_) { /* best effort */ } }
+            objects.envTarget = target;
+            scene.environment = target.texture;
+            scene.environmentIntensity = 0.7;
+        }
+
+        function buildLighting() {
+            const sun = new THREE.DirectionalLight(0xfff1dc, 2.7);
+            sun.position.copy(U.sunDir.value).multiplyScalar(1000);
+            scene.add(sun, new THREE.AmbientLight(0x1a2350, 0.35), new THREE.HemisphereLight(0x4060c0, 0x100818, 0.25));
+        }
+
+        // ---- Post chain -----------------------------------------------------------------------------
+        function destroyComposer() {
+            if (!composer) return;
+            try { composer.dispose(); } catch (_) { /* best effort */ }
+            for (const pass of composer.passes || []) { try { if (pass.dispose) pass.dispose(); } catch (_) { /* best effort */ } }
+            composer = null; gradePass = null; bloomPass = null;
+        }
+
+        function buildComposer() {
+            destroyComposer();
+            const spec = QUALITY[quality];
+            const target = new THREE.WebGLRenderTarget(Math.max(1, Math.round(width * dpr)), Math.max(1, Math.round(height * dpr)), {
+                type: THREE.HalfFloatType, samples: spec.samples, depthBuffer: true, stencilBuffer: false
+            });
+            composer = new vendor.EffectComposer(renderer, target);
+            composer.setPixelRatio(dpr);
+            composer.setSize(width, height);
+            composer.addPass(new vendor.RenderPass(scene, camera));
+            const flares = new vendor.RenderPass(flareScene, flareCamera);
+            flares.clear = false;
+            flares.clearDepth = true;
+            composer.addPass(flares);
+            if (spec.bloom > 0) {
+                bloomPass = new vendor.UnrealBloomPass(new THREE.Vector2(width * dpr, height * dpr), 0.85, 0.55, 0.72);
+                if (spec.bloom < 1) {
+                    const base = bloomPass.setSize.bind(bloomPass);
+                    bloomPass.setSize = (w, h) => base(Math.max(2, w >> 1), Math.max(2, h >> 1));
+                    bloomPass.setSize(width * dpr, height * dpr);
+                }
+                composer.addPass(bloomPass);
+            }
+            gradePass = new vendor.ShaderPass({
+                uniforms: {
+                    tDiffuse: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uAspect: { value: 1 }, uTime: { value: 0 }, uVignette: { value: 0.35 },
+                    uAberration: { value: 0.0016 }, uGrain: { value: 0.035 }, uPulseCenter: { value: new THREE.Vector2(0.5, 0.5) }, uPulseTime: { value: -1 },
+                    uMeteorA: { value: [0, 1, 2].map(() => new THREE.Vector4()) }, uMeteorB: { value: [0, 1, 2].map(() => new THREE.Vector4()) }
+                },
+                vertexShader: shaders.gradeVertex, fragmentShader: shaders.gradeFragment
+            });
+            composer.addPass(gradePass);
+            composer.addPass(new vendor.OutputPass());
+            samplesNow = spec.samples;
+            bloomNow = spec.bloom;
+        }
+
+        // ---- Camera, lens, layout -------------------------------------------------------------------
+        function applyLens() {
+            const comp = choreo.composition(width, height);
+            const fov = FOV * RAD;
+            const radius = comp.planet.radius * Math.min(width, height);
+            const tanA = radius * Math.tan(fov / 2) / (height / 2);
+            distance = R / (tanA / Math.sqrt(1 + tanA * tanA));
+            for (const cam of [camera, refCam]) {
+                cam.aspect = width / height;
+                cam.setViewOffset(width, height, (0.5 - comp.planet.x) * width, (0.5 - comp.planet.y) * height, width, height);
+                cam.updateProjectionMatrix();
+            }
+            refCam.position.copy(basis.back).multiplyScalar(distance);
+            refCam.up.set(0, 1, 0);
+            refCam.lookAt(0, 0, 0);
+            refCam.updateMatrixWorld(true);
+            return comp;
+        }
+
+        function rayPoint(sx, sy, dist, out) {
+            tmp.d.set(sx * 2 - 1, 1 - sy * 2, 0.5).unproject(refCam).sub(refCam.position).normalize();
+            return out.copy(refCam.position).addScaledVector(tmp.d, dist);
+        }
+
+        function layoutWorld() {
+            const comp = applyLens();
+            // the sun billboard sits in the sky root, in the direction of its place on screen
+            rayPoint(comp.sun.x, comp.sun.y, 1, tmp.c);
+            objects.sun.position.copy(tmp.c).sub(refCam.position).normalize().multiplyScalar(SUN_DISTANCE);
+            objects.dustMaterial.uniforms.uRef.value = distance;
+            rayPoint(0.5, 0.5, 1, tmp.c);
+            view.forward.copy(tmp.c).sub(refCam.position).normalize();
+            view.right.crossVectors(view.forward, basis.up).normalize();
+            view.up.crossVectors(view.right, view.forward).normalize();
+            if (models) models.layout({ rayPoint, basis, composition: comp, ringN: ring.n, ringE1: ring.e1, ringE2: ring.e2 });
+            return comp;
+        }
+
+        function updateCamera(dt, t) {
+            if (motion) {
+                const blend = 1 - Math.exp(-dt / POINTER_TAU);
+                pointer.x += (pointer.goalX - pointer.x) * blend;
+                pointer.y += (pointer.goalY - pointer.y) * blend;
+            }
+            const pose = choreo.cameraPose(t, motion ? pointer : null, motion);
+            const az = CAMERA.azimuth * RAD + pose.yaw, el = CAMERA.elevation * RAD + pose.pitch;
+            camera.position.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(distance);
+            camera.up.set(0, 1, 0);
+            camera.lookAt(0, 0, 0);
+            camera.rotateZ(pose.roll);
+            camera.updateMatrixWorld(true);
+        }
+
+        // ---- Per-frame world update -----------------------------------------------------------------
+        function eventEnvelope(age) {
+            if (age < 0 || age > 0.25) return 0;
+            return Math.max(Math.exp(-Math.pow((age - 0.03) / 0.035, 2)), 0.7 * Math.exp(-Math.pow((age - 0.13) / 0.05, 2)));
+        }
+
+        function updateLightning(t) {
+            for (const bolt of bolts) bolt.w = 0;
+            const events = choreo.eventsBetween(SEED, 'lightning', t - 0.3, t + 1e-6);
+            // flashes are placed around the part of the night side that faces the camera
+            tmp.a.copy(U.sunDir.value).negate().multiplyScalar(0.55).addScaledVector(basis.back, 0.85).normalize();
+            tmp.b.crossVectors(tmp.a, ring.n).normalize();
+            tmp.c.crossVectors(tmp.a, tmp.b).normalize();
+            let slot = 0;
+            for (const event of events) {
+                const k = eventEnvelope(t - event.start) * event.strength;
+                if (k <= 0 || slot >= bolts.length) continue;
+                const spread = 0.75;
+                tmp.d.copy(tmp.a).addScaledVector(tmp.b, Math.cos(event.lon) * spread * (0.4 + Math.abs(event.lat))).addScaledVector(tmp.c, Math.sin(event.lon) * spread * 0.7 + event.lat * 0.5).normalize();
+                bolts[slot].set(tmp.d.x, tmp.d.y, tmp.d.z, k);
+                slot++;
+            }
+        }
+
+        function updateComets(t) {
+            const events = choreo.eventsBetween(SEED, 'comet', t - 11, t);
+            const sunSky = tmp.c.copy(objects.sun.position).normalize();
+            let slot = 0;
+            for (const event of events) {
+                if (t >= event.start + event.duration || slot >= objects.comets.length) continue;
+                const k = (t - event.start) / event.duration;
+                const point = objects.comets[slot++];
+                const place = (p, out) => {
+                    // squeeze the sky cone toward the view direction so that most comets cross the picture
+                    const lx = p.x / 2400 * 0.5, ly = p.y / 2400 * 0.5, lz = -Math.sqrt(Math.max(0, 1 - lx * lx - ly * ly));
+                    return out.set(0, 0, 0).addScaledVector(view.right, lx).addScaledVector(view.up, ly).addScaledVector(view.forward, -lz);
+                };
+                const from = place(event.from, tmp.a).clone();
+                const to = place(event.to, tmp.b).clone();
+                const head = from.lerp(to, k).normalize();
+                const tail = tmp.d.copy(head).sub(sunSky);
+                tail.addScaledVector(head, -tail.dot(head)).normalize();
+                const u = point.material.uniforms;
+                u.uHead.value.copy(head).multiplyScalar(2400);
+                u.uTail.value.copy(tail);
+                u.uAlpha.value = smoothstep(0, 0.12, k) * (1 - smoothstep(0.82, 1, k));
+                point.visible = true;
+            }
+            for (let i = slot; i < objects.comets.length; i++) objects.comets[i].visible = false;
+        }
+
+        function updateMeteors(t) {
+            // the pass holds its own copies of the uniform arrays (cloneUniforms deep-clones them)
+            const meteorA = gradePass.uniforms.uMeteorA.value, meteorB = gradePass.uniforms.uMeteorB.value;
+            for (let i = 0; i < 3; i++) meteorB[i].set(0, 0, 0, 0);
+            const events = choreo.eventsBetween(SEED, 'meteor', t - 1.2, t + 1e-6);
+            let slot = 0;
+            for (const event of events) {
+                const age = t - event.start;
+                if (age < 0 || age > event.duration || slot >= 3) continue;
+                const p = age / event.duration;
+                meteorA[slot].set(event.x0, event.y0, event.angle, event.length);
+                meteorB[slot].set(p, smoothstep(0, 0.12, p) * (1 - smoothstep(0.7, 1, p)), 0, 0);
+                slot++;
+            }
+        }
+
+        // Projects the sun and the planet to place the flare ghosts; the planet covers the sun and its ghosts.
+        function updateFlares() {
+            const aspect = width / height;
+            tmp.a.copy(objects.sun.position).applyQuaternion(objects.skyRoot.quaternion).add(camera.position).project(camera);
+            const sx = tmp.a.x, sy = tmp.a.y;
+            const front = tmp.a.z < 1 ? 1 : 0;
+            tmp.b.set(0, 0, 0).project(camera);
+            const dist = camera.position.length();
+            const rNdc = Math.tan(Math.asin(R / dist)) / Math.tan(FOV * RAD / 2);
+            const gap = Math.hypot((sx - tmp.b.x) * aspect, sy - tmp.b.y);
+            const occluded = smoothstep(rNdc * 0.97, rNdc * 1.06, gap);
+            const edge = 1 - smoothstep(1.0, 1.7, Math.max(Math.abs(sx), Math.abs(sy)));
+            // the ghosts are for a sun at the edge of the frame; toward the centre they fade to a quarter
+            const near = 0.25 + 0.75 * smoothstep(0.3, 0.85, Math.max(Math.abs(sx), Math.abs(sy)));
+            const vis = front * occluded * edge * near;
+            flareCamera.left = -aspect; flareCamera.right = aspect;
+            flareCamera.updateProjectionMatrix();
+            for (const mesh of objects.flares) {
+                const spec = mesh.userData;
+                mesh.position.set(sx * aspect * spec.line, sy * spec.line, 0);
+                mesh.scale.set(spec.w, spec.h, 1);
+                mesh.material.uniforms.uAlpha.value = spec.alpha * vis;
+                mesh.visible = vis > 0.003;
+            }
+            objects.sunMaterial.uniforms.uGain.value = 1;
+        }
+
+        function updateWorld(t, dt) {
+            U.time.value = t % 100000;
+            objects.planetMaterial.uniforms.uSpin.value = spinTurns(t);
+            objects.planetMaterial.uniforms.uShear.value = shearPhase(t);
+            updateLightning(t);
+            const a = (MOON.phase + 2 * Math.PI * t / MOON.period);
+            const inc = MOON.inclination * RAD;
+            tmp.a.copy(ring.e1).multiplyScalar(Math.cos(a));
+            tmp.b.copy(ring.e2).multiplyScalar(Math.cos(inc)).addScaledVector(ring.n, Math.sin(inc)).multiplyScalar(Math.sin(a));
+            objects.moon.position.copy(tmp.a).add(tmp.b).multiplyScalar(MOON.orbit);
+            objects.moonMaterial.uniforms.uPlanetPos.value.set(0, 0, 0);
+            objects.skyRoot.position.copy(camera.position);
+            // a slow sway of about half a degree, never a drift: the nebula plate and the star cone cover a window of the sky
+            objects.skyRoot.quaternion.setFromAxisAngle(basis.up, 0.01 * Math.sin(TAU * t / 900));
+            for (const layer of objects.stars) {
+                const k = layer.userData.shift;
+                layer.position.copy(basis.right).multiplyScalar(-pointer.x * k).addScaledVector(basis.up, pointer.y * k);
+            }
+            updateComets(t);
+            updateMeteors(t);
+            updateFlares();
+            tmp.a.copy(camera.position).normalize();
+            rig.setFromUnitVectors(basis.back, tmp.a);
+            if (models) models.update(t, dt, quality >= 2, rig);
+            if (pulseAt >= 0) pulseAt += dt;
+            const grade = gradePass.uniforms;
+            grade.uTime.value = t % 1000;
+            grade.uPulseTime.value = pulseAt >= 0 && pulseAt < PULSE_SECONDS ? pulseAt : -1;
+            if (pulseAt >= PULSE_SECONDS) pulseAt = -1;
+            grade.uAspect.value = width / height;
+            grade.uRes.value.set(canvas.width, canvas.height);
+        }
+
+        // ---- Quality, size --------------------------------------------------------------------------
+        function readSize() {
+            width = Math.max(1, Math.round(window.innerWidth || 1));
+            height = Math.max(1, Math.round(window.innerHeight || 1));
+            dpr = Math.min(window.devicePixelRatio || 1, QUALITY[quality].dpr, Math.sqrt(PIXEL_BUDGET[quality] / (width * height)));
+        }
+
+        function applySize() {
+            if (resizeTimer) { clearTimeout(resizeTimer); resizeTimer = 0; }
+            if (!renderer || !camera || disposed) return;
+            readSize();
+            renderer.setPixelRatio(dpr);
+            renderer.setSize(width, height, false);
+            const spec = QUALITY[quality];
+            if (!composer || samplesNow !== spec.samples || bloomNow !== spec.bloom) buildComposer();
+            else { composer.setPixelRatio(dpr); composer.setSize(width, height); }
+            layoutWorld();
+            for (const layer of objects.stars) layer.material.uniforms.uPx.value = dpr;
+            for (const comet of objects.comets) comet.material.uniforms.uPx.value = dpr;
+            objects.dustMaterial.uniforms.uPx.value = dpr;
+            if (models) models.setQuality(QUALITY[quality].rocks, dpr);
+            if (!built || contextLost) return;
+            if (raf) { lastRender = 0; skipGap = true; } else renderStatic();
+        }
+
+        function resize() {
+            if (!renderer || !camera || disposed) return;
+            if (built && !raf) {
+                if (resizeTimer) clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(applySize, RESIZE_DEBOUNCE_MS);
+                return;
+            }
+            applySize();
+        }
+
+        function applyQuality(level) {
+            const next = clamp(Math.round(level), 0, QUALITY.length - 1);
+            const spec = QUALITY[next];
+            const changed = next !== quality;
+            quality = next;
+            if (typeof options.onQuality === 'function') { try { options.onQuality(next); } catch (_) { /* optional */ } }
+            objects.atmosphere.material.uniforms.uSteps.value = spec.steps;
+            objects.planetMaterial.uniforms.uDetail.value = spec.detail;
+            objects.dust.geometry.setDrawRange(0, spec.dust);
+            for (const layer of objects.stars) layer.geometry.setDrawRange(0, Math.round(layer.userData.count * spec.stars));
+            if (models) models.setQuality(spec.rocks, dpr);
+            if (spec.hidden) hideHost();
+            else if (host.style.display === 'none' && backend === 'three-webgl') showHost();
+            warm = ADAPT.warmup; costs.length = 0; gaps.length = 0; probeCosts.length = 0; fastSince = 0; skipGap = true;
+            if (changed || !built) applySize();
+            if (changed) startLoops();
+        }
+
+        function setQualityLevel(level, automatic) {
+            if (automatic && qualityLock !== null) return;
+            applyQuality(level);
+        }
+
+        // ---- Adaptive quality (the numbers of the Voxel World scene) ----------------------------------
+        function mean(list) { return list.reduce((a, b) => a + b, 0) / list.length; }
+        function trackRefresh(now) {
+            if (lastTick) {
+                const delta = now - lastTick;
+                if (delta >= 4 && delta < refresh) refresh = delta;
+            }
+            lastTick = now;
+        }
+        function expectedGap(interval) { return Math.max(interval, Math.ceil((interval - FRAME_SLACK) / refresh) * refresh); }
+
+        function adapt(cost, gap, interval, now) {
+            if (throttled) { fastSince = 0; return; }
+            if (warm > 0) { warm--; return; }
+            costs.push(cost);
+            if (costs.length > ADAPT.window) costs.shift();
+            if (gap !== null) { gaps.push(gap); if (gaps.length > ADAPT.window) gaps.shift(); }
+            if (qualityLock !== null) { fastSince = 0; return; }
+            const expected = expectedGap(interval);
+            const full = costs.length >= ADAPT.window && gaps.length >= ADAPT.window;
+            const meanCost = mean(costs);
+            const meanGap = gaps.length ? mean(gaps) : 0;
+            const stalled = gap !== null && gap > ADAPT.stallMs;
+            if (quality < QUALITY.length - 1 && (stalled || (full && (meanCost > ADAPT.downCost || meanGap > expected * ADAPT.downGap)))) {
+                setQualityLevel(quality + 1, true);
+            } else if (quality > initialQuality && full && meanCost < ADAPT.upCost && meanGap < expected * ADAPT.upGap) {
+                if (!fastSince) fastSince = now;
+                else if (now - fastSince >= ADAPT.upAfterMs) setQualityLevel(quality - 1, true);
+            } else fastSince = 0;
+        }
+
+        function probeTick() {
+            if (!built || disposed || paused || contextLost || !renderer || quality !== PROBE.level) return;
+            const begin = performance.now();
+            if (frozen === null) clock += PROBE.everyMs / 1000;
+            drawFrame(0, begin);
+            try { renderer.getContext().finish(); } catch (_) { /* the probe then measures the CPU only */ }
+            lastCost = performance.now() - begin;
+            probeCosts.push(lastCost);
+            const needed = Math.ceil(ADAPT.upAfterMs / PROBE.everyMs);
+            while (probeCosts.length > needed) probeCosts.shift();
+            if (qualityLock === null && quality > initialQuality && probeCosts.length >= needed && mean(probeCosts) < ADAPT.upCost) setQualityLevel(quality - 1, true);
+        }
+
+        function onVisibility() { skipGap = true; lastTick = 0; gaps.length = 0; fastSince = 0; }
+
+        // ---- Frames -----------------------------------------------------------------------------------
+        function sceneTime() { return frozen !== null ? frozen : motion ? clock : STATIC_TIME; }
+
+        function drawFrame(dt, now) {
+            if (!renderer || disposed || contextLost || !built) return;
+            const begin = performance.now();
+            const t = sceneTime();
+            try {
+                updateCamera(dt, t);
+                updateWorld(t, dt);
+                renderer.info.reset();
+                composer.render(dt);
+            } catch (error) {
+                backend = 'error';
+                stopLoops();
+                hideHost();
+                noteError('render', error);
+                finishReady();
+                return;
+            }
+            triangles = renderer.info.render.triangles;
+            frames++;
+            lastCost = performance.now() - begin;
+            stamps.push(now);
+            while (stamps.length && now - stamps[0] > 2000) stamps.shift();
+            if (!ready) {
+                ready = true;
+                if (!QUALITY[quality].hidden) host.style.opacity = '1';
+                finishReady();
+            }
+        }
+
+        function renderStatic() {
+            if (!built || disposed || paused) return;
+            drawFrame(0, performance.now());
+        }
+
+        function tick(now) {
+            raf = 0;
+            if (disposed || paused || !renderer || contextLost) return;
+            raf = requestAnimationFrame(tick);
+            trackRefresh(now);
+            const wasThrottled = throttled;
+            throttled = coverage >= THROTTLE.coverage;
+            if (throttled !== wasThrottled) { skipGap = true; gaps.length = 0; fastSince = 0; }
+            const interval = throttled ? THROTTLE.interval : QUALITY[quality].interval;
+            if (lastRender && now - lastRender < interval - FRAME_SLACK) return;
+            const sample = !!lastRender && !skipGap && !document.hidden;
+            const gap = lastRender ? now - lastRender : interval;
+            const dt = lastRender ? Math.min(gap / 1000, 0.1) : 1 / 30;
+            skipGap = false;
+            lastRender = now;
+            if (frozen === null) clock += dt;
+            drawFrame(dt, now);
+            adapt(lastCost, sample ? gap : null, interval, now);
+        }
+
+        function stopLoops() {
+            if (raf) cancelAnimationFrame(raf);
+            raf = 0;
+            if (staticTimer) clearInterval(staticTimer);
+            staticTimer = 0;
+        }
+
+        function startLoops() {
+            stopLoops();
+            if (!renderer || !built || disposed || paused || contextLost || backend === 'error') return;
+            const spec = QUALITY[quality];
+            if (spec.hidden) return;
+            lastRender = 0; skipGap = true; gaps.length = 0; fastSince = 0;
+            if (!motion) {
+                renderStatic();
+                staticTimer = setInterval(renderStatic, STATIC_REFRESH_MS);
+            } else if (!spec.interval) {
+                renderStatic();
+                staticTimer = setInterval(probeTick, PROBE.everyMs);
+            } else {
+                raf = requestAnimationFrame(tick);
+            }
+        }
+
+        // ---- Build ------------------------------------------------------------------------------------
+        function build() {
+            buildTimer = 0;
+            if (disposed) return;
+            const started = performance.now();
+            buildStart = started;
+            try {
+                if (!createRenderer()) { finishReady(); return; }
+                U.noise.value = track(window.AuraOrbitTextures.noise(THREE, choreo.createRng(SEED * 101)));
+                computeFrame();
+                scene = new THREE.Scene();
+                camera = new THREE.PerspectiveCamera(FOV, 1, 1, 6000);
+                refCam = new THREE.PerspectiveCamera(FOV, 1, 1, 6000);
+                scene.add(camera);
+                mark('setup');
+                buildPlanet();
+                mark('planet');
+                buildRings();
+                buildMoon();
+                buildSky();
+                buildFlares();
+                buildLighting();
+                buildEnvironment();
+                mark('world');
+                models = window.AuraOrbitModels.create({
+                    THREE, GLTFLoader: vendor.GLTFLoader, scene, choreo, assetsBase, shaders, noteError, pixelRatio: () => dpr
+                });
+                readSize();
+                const ratio = Math.min(window.devicePixelRatio || 1, QUALITY[0].dpr);
+                initialQuality = width * height * ratio * ratio > INITIAL_PIXELS ? 1 : 0;
+                quality = -1;
+                applyQuality(qualityLock !== null ? qualityLock : initialQuality);
+                mark('quality');
+            } catch (error) {
+                backend = 'error';
+                hideHost();
+                noteError('build', error);
+                releaseRenderer();
+                finishReady();
+                return;
+            }
+            buildMs = Math.round(performance.now() - started);
+            built = true;
+            models.load().catch(error => noteError('models', error)).then(() => {
+                if (disposed) return;
+                layoutWorld();
+                models.setQuality(QUALITY[quality].rocks, dpr);
+                if (!raf) renderStatic();
+            });
+            startLoops();
+        }
+
+        buildTimer = setTimeout(build, 0);
+        document.addEventListener('visibilitychange', onVisibility);
+        window.addEventListener('resize', resize, { passive: true });
+
+        // ---- Public surface ---------------------------------------------------------------------------
+        function setState(state) {
+            if (!state) return;
+            if (state.coverage != null) coverage = Number(state.coverage) || 0;
+            if (state.pointer !== undefined && motion) {
+                const p = state.pointer;
+                pointer.goalX = p ? clamp(Number(p.x) || 0, -1, 1) : 0;
+                pointer.goalY = p ? clamp(Number(p.y) || 0, -1, 1) : 0;
+            }
+        }
+
+        function ping(x, y) {
+            if (!renderer || !gradePass) return;
+            gradePass.uniforms.uPulseCenter.value.set(clamp(x / Math.max(1, width), 0, 1), 1 - clamp(y / Math.max(1, height), 0, 1));
+            pulseAt = 0;
+            skipGap = true;
+        }
+
+        function pause() { paused = true; stopLoops(); }
+        function resume() { if (!paused) return; paused = false; startLoops(); }
+
+        function lockQuality(level) {
+            qualityLock = level !== null && level !== undefined && Number.isFinite(Number(level)) ? clamp(Math.round(Number(level)), 0, QUALITY.length - 1) : null;
+            if (qualityLock !== null && built) setQualityLevel(qualityLock, false);
+        }
+
+        function capture(w, h, grain) {
+            if (!built || !renderer || contextLost) return null;
+            const saved = { width, height, dpr };
+            const cw = clamp(Math.round(w) || 1920, 64, 4096), ch = clamp(Math.round(h) || 1080, 64, 4096);
+            width = cw; height = ch; dpr = 1;
+            renderer.setPixelRatio(1);
+            renderer.setSize(cw, ch, false);
+            composer.setPixelRatio(1);
+            composer.setSize(cw, ch);
+            layoutWorld();
+            const grainUniform = gradePass.uniforms.uGrain, savedGrain = grainUniform.value;
+            if (grain !== null) grainUniform.value = grain;
+            drawFrame(0, performance.now());
+            const url = canvas.toDataURL('image/png');
+            grainUniform.value = savedGrain;
+            width = saved.width; height = saved.height; dpr = saved.dpr;
+            applySize();
+            return url;
+        }
+
+        function command(name, payload) {
+            const number = key => (payload && payload[key] != null && Number.isFinite(Number(payload[key])) ? Number(payload[key]) : null);
+            if (name === 'orbit.time') {
+                frozen = number('t');
+                if (built && !raf) renderStatic();
+                return inspect();
+            }
+            if (name === 'orbit.quality') { lockQuality(number('level')); return inspect(); }
+            if (name === 'orbit.capture') return capture(number('width') || 1920, number('height') || 1080, number('grain'));
+            return null;
+        }
+
+        function planetOnScreen() {
+            if (!camera || !built) return null;
+            tmp.a.set(0, 0, 0).project(camera);
+            const dist = camera.position.length();
+            const radius = Math.tan(Math.asin(R / dist)) / Math.tan(FOV * RAD / 2) * height / 2;
+            return { x: Math.round((tmp.a.x * 0.5 + 0.5) * width), y: Math.round((-tmp.a.y * 0.5 + 0.5) * height), radius: Math.round(radius) };
+        }
+
+        function inspect() {
+            const now = performance.now();
+            while (stamps.length && now - stamps[0] > 2000) stamps.shift();
+            const modelState = models ? models.inspect() : null;
+            return {
+                ready, backend, gpu, quality, qualityLocked: qualityLock !== null,
+                pixels: { width: renderer ? canvas.width : 0, height: renderer ? canvas.height : 0 },
+                fps: Math.round(stamps.length / 2 * 10) / 10, frames, buildMs, triangles: Math.round(triangles),
+                models: models ? { ...models.status } : { station: 'pending', shuttle: 'pending', satellite: 'pending', asteroids: 'pending' },
+                bloom: QUALITY[Math.max(quality, 0)].bloom > 0, throttled, coverage: Math.round(coverage * 1000) / 1000, pulse: pulseAt >= 0 ? Math.round(pulseAt * 100) / 100 : null, time: Math.round(sceneTime() * 100) / 100, error: lastError,
+                lastCostMs: Math.round(lastCost * 10) / 10, gapMs: gaps.length ? Math.round(mean(gaps) * 10) / 10 : 0, refreshMs: Math.round(refresh * 10) / 10,
+                timings, planet: planetOnScreen(), distance: Math.round(distance * 10) / 10, scenery: modelState
+            };
+        }
+
+        function dispose() {
+            if (disposed) return;
+            disposed = true;
+            if (buildTimer) clearTimeout(buildTimer);
+            if (resizeTimer) clearTimeout(resizeTimer);
+            buildTimer = resizeTimer = 0;
+            document.removeEventListener('visibilitychange', onVisibility);
+            window.removeEventListener('resize', resize);
+            stopLoops();
+            if (models) { try { models.dispose(); } catch (_) { /* best effort */ } }
+            destroyComposer();
+            for (const key of ['planetPlate', 'skyPlate', 'envTarget']) { if (objects[key]) { try { objects[key].dispose(); } catch (_) { /* best effort */ } } }
+            for (const item of disposables) { try { item.dispose(); } catch (_) { /* best effort */ } }
+            releaseRenderer();
+            host.remove();
+            finishReady();
+        }
+
+        return { ready: readyPromise, setState, ping, pause, resume, dispose, command, inspect };
+    }
+
+    window.AuraOrbitScene = Object.freeze({ create });
 }());
 
 ;
@@ -10434,13 +13446,175 @@ void main() {
 (function () {
     'use strict';
 
-    // Orbit window bridge (global AuraOrbitWindows). Listens to the aurago:desktop-window events and turns them into CSS
-    // variables and particles: drag velocity drives tilt springs (--vd-orbit-tilt-x, --vd-orbit-tilt-y, --vd-orbit-lift),
-    // open, close and minimize emit particles, the minimize target follows the taskbar button, and the pointer sheen
-    // variables follow the mouse. Windows are flat at rest; the bridge removes its attributes once a spring settles. It
-    // never changes application state and never intercepts input. This file is the scaffold; the bridge arrives with the
-    // orchestrator work.
-    window.AuraOrbitWindows = Object.freeze({});
+    // Orbit window bridge (global AuraOrbitWindows). Listens to the aurago:desktop-window events (the orchestrator forwards
+    // them to handle()) and turns them into CSS variables and particles: drag velocity drives three springs per window
+    // (--vd-orbit-tilt-x, --vd-orbit-tilt-y in deg, --vd-orbit-lift in px) behind the attribute data-orbit-tilt, which the
+    // skin turns into a perspective tilt; open, close and minimize emit particles, and a thruster glows at the trailing edge
+    // of a dragged window. Windows are flat at rest: once the springs have settled the attribute and the variables are
+    // removed again. The bridge never changes application state and never intercepts input.
+    // window.AuraOrbitWindows = { create }; create({ particles, choreo, onSound }) -> { handle, update, dispose, inspect }.
+
+    const SETTLE = 0.05;
+    const THRUSTER_SPEED = 1800;
+    const PROPERTIES = ['--vd-orbit-tilt-x', '--vd-orbit-tilt-y', '--vd-orbit-lift'];
+    const UNITS = ['deg', 'deg', 'px'];
+
+    function finite(value, fallback) { const n = Number(value); return Number.isFinite(n) ? n : fallback; }
+
+    function cssEscape(value) {
+        if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
+        return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+    }
+
+    function rectOf(detail) {
+        const r = detail && detail.rect;
+        if (!r) return null;
+        const rect = { x: finite(r.x, NaN), y: finite(r.y, NaN), width: finite(r.width, NaN), height: finite(r.height, NaN) };
+        return Number.isFinite(rect.x + rect.y + rect.width + rect.height) && rect.width > 0 && rect.height > 0 ? rect : null;
+    }
+
+    function create(options) {
+        const particles = options.particles;
+        const choreo = options.choreo;
+        const tracked = new Map();            // element -> { element, springs: [x, y, lift], targets: [x, y, lift], written: [..], releasing }
+        let disposed = false;
+        let lastStreamTarget = null;          // where the latest minimize stream was aimed (inspect() serves the browser test)
+
+        function entryFor(element) {
+            let entry = tracked.get(element);
+            if (!entry) {
+                entry = { element, springs: [{ value: 0, velocity: 0 }, { value: 0, velocity: 0 }, { value: 0, velocity: 0 }], targets: [0, 0, 0], written: [NaN, NaN, NaN], releasing: false };
+                tracked.set(element, entry);
+                element.setAttribute('data-orbit-tilt', '');
+            }
+            return entry;
+        }
+
+        function release(entry) {
+            tracked.delete(entry.element);
+            entry.element.removeAttribute('data-orbit-tilt');
+            for (const name of PROPERTIES) entry.element.style.removeProperty(name);
+        }
+
+        // The centre of the window's taskbar button (or of its app's dock icon), like windowMinimizeTargetDelta in the shell.
+        function taskbarCenter(detail) {
+            const host = document.getElementById('vd-taskbar-apps');
+            if (!host || !detail.id) return null;
+            const dock = !!document.body && document.body.dataset.shell === 'dock';
+            const selector = dock ? '.vd-dock-button[data-app-id="' + cssEscape(detail.appId) + '"]' : '[data-window-id="' + cssEscape(detail.id) + '"]';
+            const button = host.querySelector(selector);
+            const box = button && button.getBoundingClientRect();
+            if (!box || !(box.width > 0) || !(box.height > 0)) return null;
+            return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+        }
+
+        // Where the minimized window travels to: the delta the shell wrote on the element, else the taskbar button, else the
+        // bottom edge below the window.
+        function minimizeTarget(detail, rect) {
+            const style = detail.element && detail.element.style;
+            const dx = style ? parseFloat(style.getPropertyValue('--vd-minimize-dx')) : NaN;
+            const dy = style ? parseFloat(style.getPropertyValue('--vd-minimize-dy')) : NaN;
+            const cx = rect.x + rect.width / 2, cy = rect.y + rect.height / 2;
+            if (Number.isFinite(dx) && Number.isFinite(dy)) return { x: cx + dx, y: cy + dy };
+            const button = taskbarCenter(detail);
+            if (button) return button;
+            return { x: cx, y: Math.max(cy, (window.innerHeight || 0) - 24) };
+        }
+
+        // The shell emits 'minimize' before it writes --vd-minimize-dx/-dy, and the event is synchronous: the rest of its
+        // minimize code has run by the time the microtask does, so the stream aims at the right button on the first minimize too.
+        function streamAfterShell(detail, rect) {
+            const run = () => {
+                if (disposed) return;
+                const target = minimizeTarget(detail, rect);
+                if (!Number.isFinite(target.x + target.y)) return;
+                lastStreamTarget = { x: Math.round(target.x * 10) / 10, y: Math.round(target.y * 10) / 10 };
+                particles.emitStream(rect, target);
+            };
+            if (typeof queueMicrotask === 'function') queueMicrotask(run);
+            else Promise.resolve().then(run);
+        }
+
+        function thruster(detail, rect) {
+            const vx = finite(detail.velocity && detail.velocity.x, 0), vy = finite(detail.velocity && detail.velocity.y, 0);
+            const speed = Math.hypot(vx, vy);
+            if (speed < 40) return;
+            let point;
+            if (Math.abs(vx) >= Math.abs(vy)) point = { x: vx > 0 ? rect.x : rect.x + rect.width, y: rect.y + rect.height / 2 };
+            else point = { x: rect.x + rect.width / 2, y: vy > 0 ? rect.y : rect.y + rect.height };
+            particles.emitThruster(point, { x: -vx / speed, y: -vy / speed }, Math.min(1, speed / THRUSTER_SPEED));
+        }
+
+        function handle(detail) {
+            if (!detail || !particles) return;
+            const rect = rectOf(detail);
+            switch (detail.phase) {
+                case 'open':
+                    if (!detail.silent && detail.visible !== false && rect) particles.emitMaterialize(rect);
+                    break;
+                case 'close':
+                    if (!detail.silent && rect) particles.emitDissolve(rect);
+                    if (detail.element && tracked.has(detail.element)) release(tracked.get(detail.element));
+                    break;
+                case 'minimize':
+                    if (rect) streamAfterShell(detail, rect);
+                    break;
+                case 'drag-start':
+                    if (detail.element && !detail.silent) { const entry = entryFor(detail.element); entry.releasing = false; }
+                    break;
+                case 'drag': {
+                    if (!detail.element || detail.silent) break;
+                    const entry = entryFor(detail.element);
+                    entry.releasing = false;
+                    const tilt = choreo.tiltFromVelocity(finite(detail.velocity && detail.velocity.x, 0), finite(detail.velocity && detail.velocity.y, 0));
+                    entry.targets[0] = tilt.x; entry.targets[1] = tilt.y; entry.targets[2] = tilt.lift;
+                    if (rect) thruster(detail, rect);
+                    break;
+                }
+                case 'drag-end': {
+                    const entry = detail.element && tracked.get(detail.element);
+                    if (entry) { entry.targets[0] = entry.targets[1] = entry.targets[2] = 0; entry.releasing = true; }
+                    break;
+                }
+                default:
+            }
+        }
+
+        // Advances the springs; returns true while any window is still tracked (the orchestrator keeps its loop alive).
+        function update(dt) {
+            for (const entry of Array.from(tracked.values())) {
+                if (!entry.element.isConnected) { tracked.delete(entry.element); continue; }
+                let settled = true;
+                for (let i = 0; i < 3; i++) {
+                    entry.springs[i] = choreo.spring(entry.springs[i], entry.targets[i], dt);
+                    if (Math.abs(entry.springs[i].value) >= SETTLE || Math.abs(entry.springs[i].velocity) >= SETTLE) settled = false;
+                    const rounded = Math.round(entry.springs[i].value * 1000) / 1000;
+                    if (rounded !== entry.written[i]) {
+                        entry.written[i] = rounded;
+                        entry.element.style.setProperty(PROPERTIES[i], rounded + UNITS[i]);
+                    }
+                }
+                if (entry.releasing && settled) release(entry);
+            }
+            return tracked.size > 0;
+        }
+
+        function dispose() {
+            disposed = true;
+            for (const entry of Array.from(tracked.values())) release(entry);
+            tracked.clear();
+        }
+
+        function inspect() {
+            let tilting = 0;
+            for (const entry of tracked.values()) if (entry.springs.some(s => Math.abs(s.value) >= SETTLE)) tilting++;
+            return { tracked: tracked.size, tilting, lastStreamTarget: lastStreamTarget ? { x: lastStreamTarget.x, y: lastStreamTarget.y } : null };
+        }
+
+        return { handle, update, dispose, inspect };
+    }
+
+    window.AuraOrbitWindows = Object.freeze({ create });
 }());
 
 ;
@@ -10449,10 +13623,359 @@ void main() {
     'use strict';
 
     // Orbit effect (registered as "orbit" with AuraDesktopThemeFx). The orchestrator of the theme: it owns the lifecycle of
-    // the live scene, the particle layer and the window bridge, renders one still frame instead of a loop when motion is off
-    // (the theme declares staticFx), pauses while the tab is hidden, and answers inspect() and command(). This file is the
-    // scaffold: it registers an effect that does nothing yet.
+    // the live space scene (orbit-scene.js, only with the theme wallpaper), the Canvas 2D particle layer (orbit-particles.js)
+    // and the window bridge (orbit-windows.js). With motion it forwards window events and the pointer, answers clicks on the
+    // empty desktop with a sonar ping, and runs one animation loop only while something is moving; without motion (the theme
+    // declares staticFx) it only keeps the scene rendering still frames. It pauses with a hidden tab and releases everything
+    // in stop(). inspect() and command() serve the browser tests (orbit.time, orbit.quality, orbit.capture, orbit.ping,
+    // orbit.burst).
     const fx = window.AuraDesktopThemeFx;
     if (!fx) return;
-    fx.register('orbit', { start() { return { pause() {}, resume() {}, stop() {} }; } });
+
+    const VENDOR_URL = '/js/vendor/desktop-themes/orbit-runtime.js';
+    // A click on the bare desktop (.vd-workspace) pings, unless it lands on any of these (the check of Voxel World's click burst).
+    const PING_BLOCKERS = '.vd-window, .vd-icon, .vd-widget, .vd-taskbar, .vd-dock, .vd-start-menu, .vd-context-menu, .vd-modal-backdrop, .vd-toast-container, .vd-global-menu, .vd-radial-menu, .vd-sip-phone-gadget, button, a, input, textarea, select, [contenteditable]';
+    const PING_INTERVAL_MS = 350;
+    // A touch pings only as a tap: it must end within TAP_MAX_MS and move less than TAP_SLOP_PX, else it was the start of a pan.
+    const TAP_MAX_MS = 500;
+    const TAP_SLOP_PX = 8;
+    const STARDUST_STEP = 18;
+    const COVERAGE_INTERVAL_MS = 100;
+    const COVERAGE_SETTLE_MS = 450;
+    const MAX_DPR = 1.5;
+
+    function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+
+    function start({ layer, signal, options }) {
+        const motion = !!(options && options.motion);
+        const fullWallpaper = !!(options && options.wallpaper === 'orbit');
+        const choreo = window.AuraOrbitChoreo;
+        const Particles = window.AuraOrbitParticles;
+        const Windows = window.AuraOrbitWindows;
+
+        let stopped = false;
+        let paused = false;
+        let sceneReady = false;
+        let lastError = '';
+        let scene = null;
+        let raf = 0;
+        let lastFrame = 0;
+        let lastPingAt = 0;
+        let lastCoverageAt = 0;
+        let coverageTimer = 0;
+        let tap = null;                       // the touch that might become a tap: { id, x, y, at }
+        let pointerFrame = 0;
+        let stardustFrom = null;
+        let stardustCarry = 0;
+        let canvas = null;
+        let context = null;
+        let canvasDpr = 1;
+        let system = null;
+        let bridge = null;
+        const pointer = { x: 0, y: 0, nx: 0, ny: 0, inside: false };
+
+        function noteError(stage, error) {
+            const message = error && error.message ? error.message : String(error || 'unknown failure');
+            lastError = String(stage) + ': ' + message.slice(0, 240);
+            if (window.console && typeof window.console.warn === 'function') console.warn('[orbit FX] ' + lastError);
+        }
+
+        function isCurrent() { return !stopped && !(signal && signal.aborted); }
+
+        // ---- Particle layer ----------------------------------------------------------------------
+        function sizeCanvas() {
+            if (!canvas) return;
+            canvasDpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+            canvas.width = Math.max(1, Math.round((layer.clientWidth || window.innerWidth || 1) * canvasDpr));
+            canvas.height = Math.max(1, Math.round((layer.clientHeight || window.innerHeight || 1) * canvasDpr));
+        }
+
+        function busy() {
+            if (!system) return false;
+            const stats = system.stats();
+            return stats.live > 0 || stats.rings > 0;
+        }
+
+        function frame(now) {
+            raf = 0;
+            if (stopped || paused) return;
+            const dt = lastFrame ? clamp((now - lastFrame) / 1000, 0, 0.05) : 1 / 60;
+            lastFrame = now;
+            const tilting = bridge ? bridge.update(dt) : false;
+            system.update(dt);
+            Particles.drawCanvas2D(context, system, canvasDpr);
+            if (busy() || tilting) raf = requestAnimationFrame(frame);
+            else { lastFrame = 0; Particles.drawCanvas2D(context, system, canvasDpr); }
+        }
+
+        function kick() {
+            if (stopped || paused || raf || !system) return;
+            raf = requestAnimationFrame(frame);
+        }
+
+        // ---- Scene coverage ---------------------------------------------------------------------
+        function snapshot() {
+            const api = window.AuraDesktopWindowEffects;
+            if (!api || typeof api.snapshot !== 'function') return [];
+            try {
+                const list = api.snapshot();
+                return Array.isArray(list) ? list : [];
+            } catch (_) { return []; }
+        }
+
+        // Share of the usable desktop (the viewport without the taskbar band) the largest visible window covers; a window
+        // that hides the scene slows it down. A maximized window stops short of the floating taskbar, so it counts as covering.
+        function refreshCoverage(force) {
+            if (!scene) return;
+            const now = performance.now();
+            if (!force && now - lastCoverageAt < COVERAGE_INTERVAL_MS) return;
+            lastCoverageAt = now;
+            const viewW = Math.max(1, window.innerWidth), viewH = Math.max(1, window.innerHeight);
+            let usableH = viewH;
+            const bar = document.querySelector('.vd-taskbar');
+            if (bar && !bar.hidden) {
+                const b = bar.getBoundingClientRect();
+                if (b.height > 0 && b.top > viewH / 2) usableH = Math.max(1, b.top - (viewH - b.bottom));
+            }
+            let largest = 0;
+            for (const record of snapshot()) {
+                if (!record || record.visible === false || record.minimized) continue;
+                // the live element when there is one: a window may be mid-animation or resized from outside
+                const r = record.element && typeof record.element.getBoundingClientRect === 'function' ? record.element.getBoundingClientRect() : record.rect;
+                if (!r) continue;
+                const x = Number(r.x ?? r.left), y = Number(r.y ?? r.top);
+                const w = Math.min(x + r.width, viewW) - Math.max(x, 0);
+                const h = Math.min(y + r.height, viewH) - Math.max(y, 0);
+                if (w > 0 && h > 0) largest = Math.max(largest, w * h);
+            }
+            scene.setState({ coverage: Math.min(1, largest / (viewW * usableH)) });
+        }
+
+        // ---- Events ------------------------------------------------------------------------------
+        function onWindowEvent(event) {
+            const detail = event && event.detail;
+            if (!detail) return;
+            if (bridge) {
+                bridge.handle(detail);
+                kick();
+            }
+            refreshCoverage(detail.phase !== 'drag' && detail.phase !== 'resize');
+            // a maximize or a snap finishes its transition after the event: measure again once it has settled
+            if (coverageTimer) clearTimeout(coverageTimer);
+            coverageTimer = setTimeout(() => { coverageTimer = 0; if (isCurrent()) refreshCoverage(true); }, COVERAGE_SETTLE_MS);
+        }
+
+        function overEmptyDesktop(target) {
+            return target instanceof Element && !target.closest(PING_BLOCKERS) && !!target.closest('.vd-workspace');
+        }
+
+        function playPing(x) {
+            if (!motion || paused || document.hidden || !window.DesktopSounds || typeof window.DesktopSounds.play !== 'function') return;
+            const pan = clamp((x / Math.max(1, window.innerWidth)) * 2 - 1, -1, 1);
+            try { window.DesktopSounds.play('orbit.ping', { variant: 'medium', strength: 0.8, pan }); } catch (_) { /* sound support is optional */ }
+        }
+
+        // True while the WebGL scene is on screen (it draws its own scanner pulse).
+        function sceneShows() {
+            if (!scene) return false;
+            const state = scene.inspect();
+            return state.backend === 'three-webgl' && state.ready && state.quality < 4;
+        }
+
+        function ping(x, y, force) {
+            const now = performance.now();
+            if (!force && now - lastPingAt < PING_INTERVAL_MS) return false;
+            lastPingAt = now;
+            if (system) {
+                // One ring is enough: with the scene running its scanner pulse is the ring, the overlay keeps the sparks;
+                // on the poster (no scene, software GL) the overlay ring stays.
+                system.emitPing({ x, y });
+                if (sceneShows()) system.rings().pop();
+                kick();
+            }
+            if (scene) scene.ping(x, y);
+            playPing(x);
+            return true;
+        }
+
+        function onPointerDown(event) {
+            if (event.pointerType === 'touch') tap = null;   // any new touch voids a pending tap (a second finger is a gesture)
+            if (paused || event.button !== 0 || !overEmptyDesktop(event.target)) return;
+            if (event.pointerType !== 'touch') ping(event.clientX, event.clientY, false);
+            else if (event.isPrimary) tap = { id: event.pointerId, x: event.clientX, y: event.clientY, at: performance.now() };
+        }
+
+        function onPointerEnd(event) {
+            if (!tap || tap.id !== event.pointerId) return;
+            const { x, y, at } = tap;
+            tap = null;
+            if (event.type === 'pointerup' && performance.now() - at < TAP_MAX_MS && Math.hypot(event.clientX - x, event.clientY - y) < TAP_SLOP_PX) ping(x, y, false);
+        }
+
+        // The pointer variables of the skin and the scene parallax are written at most once per animation frame.
+        function flushPointer() {
+            pointerFrame = 0;
+            if (stopped) return;
+            const body = document.body;
+            if (body) {
+                body.style.setProperty('--vd-orbit-mx', (pointer.x / Math.max(1, window.innerWidth) * 100).toFixed(1) + '%');
+                body.style.setProperty('--vd-orbit-my', (pointer.y / Math.max(1, window.innerHeight) * 100).toFixed(1) + '%');
+            }
+            if (scene) scene.setState({ pointer: pointer.inside ? { x: pointer.nx, y: pointer.ny } : null });
+        }
+
+        function onPointerMove(event) {
+            if (tap && event.pointerId === tap.id && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) >= TAP_SLOP_PX) tap = null;
+            pointer.x = event.clientX;
+            pointer.y = event.clientY;
+            pointer.nx = clamp(event.clientX / Math.max(1, window.innerWidth) * 2 - 1, -1, 1);
+            pointer.ny = clamp(event.clientY / Math.max(1, window.innerHeight) * 2 - 1, -1, 1);
+            pointer.inside = true;
+            if (!pointerFrame) pointerFrame = requestAnimationFrame(flushPointer);
+            if (!system || paused || event.pointerType === 'touch' || !overEmptyDesktop(event.target)) { stardustFrom = null; return; }
+            // one mote per STARDUST_STEP px of travel over the empty desktop
+            if (stardustFrom) {
+                const dx = event.clientX - stardustFrom.x, dy = event.clientY - stardustFrom.y;
+                const travelled = Math.hypot(dx, dy);
+                const dt = Math.max(0.008, (event.timeStamp - stardustFrom.at) / 1000);
+                stardustCarry += travelled;
+                let emitted = 0;
+                while (stardustCarry >= STARDUST_STEP && emitted < 3) {
+                    stardustCarry -= STARDUST_STEP;
+                    emitted++;
+                    system.emitStardust({ x: event.clientX - dx * stardustCarry / Math.max(travelled, 1), y: event.clientY - dy * stardustCarry / Math.max(travelled, 1) }, { x: dx / dt, y: dy / dt });
+                }
+                stardustCarry = Math.min(stardustCarry, STARDUST_STEP);
+                if (emitted) kick();
+            }
+            stardustFrom = { x: event.clientX, y: event.clientY, at: event.timeStamp };
+        }
+
+        function onPointerLeave() {
+            pointer.inside = false;
+            stardustFrom = null;
+            if (!pointerFrame && !stopped) pointerFrame = requestAnimationFrame(flushPointer);
+        }
+
+        // ---- Scene -------------------------------------------------------------------------------
+        // The skin drops its backdrop blur at quality 2 and below (data-orbit-quality on the body): glass over a moving
+        // scene is the costly part of a window frame on an integrated GPU.
+        function publishQuality(level) {
+            if (stopped || !document.body) return;
+            document.body.dataset.orbitQuality = String(level);
+        }
+
+        function loadScene() {
+            import(new URL(VENDOR_URL, window.location.href).href).then(vendor => {
+                if (!isCurrent()) return;
+                if (!window.AuraOrbitScene || !window.AuraOrbitShaders) throw new Error('scene modules missing');
+                scene = window.AuraOrbitScene.create({ vendor, motion, choreo, shaders: window.AuraOrbitShaders, onQuality: publishQuality });
+                if (paused) scene.pause();
+                refreshCoverage(true);
+                scene.ready.then(() => { sceneReady = true; });
+            }).catch(error => {
+                if (!isCurrent()) return;
+                noteError('scene', error);
+            });
+        }
+
+        // ---- Lifecycle ---------------------------------------------------------------------------
+        function pause() {
+            paused = true;
+            if (raf) cancelAnimationFrame(raf);
+            raf = 0;
+            lastFrame = 0;
+            if (scene) scene.pause();
+        }
+
+        function resume() {
+            if (stopped || !paused) return;
+            paused = false;
+            if (scene) scene.resume();
+            kick();
+        }
+
+        function stop() {
+            if (stopped) return;
+            stopped = true;
+            if (raf) cancelAnimationFrame(raf);
+            if (pointerFrame) cancelAnimationFrame(pointerFrame);
+            if (coverageTimer) clearTimeout(coverageTimer);
+            coverageTimer = 0;
+            raf = pointerFrame = 0;
+            if (bridge) bridge.dispose();
+            if (scene) { try { scene.dispose(); } catch (_) { /* best effort */ } }
+            scene = null;
+            bridge = null;
+            system = null;
+            if (canvas) canvas.remove();
+            canvas = context = null;
+            const body = document.body;
+            if (body) {
+                body.style.removeProperty('--vd-orbit-mx');
+                body.style.removeProperty('--vd-orbit-my');
+                delete body.dataset.orbitQuality;
+            }
+        }
+
+        function inspect() {
+            return {
+                ready: !fullWallpaper || sceneReady,
+                motion,
+                wallpaper: fullWallpaper ? 'orbit' : 'other',
+                scene: scene ? scene.inspect() : null,
+                particles: system ? system.stats() : null,
+                windows: bridge ? bridge.inspect() : null,
+                error: lastError
+            };
+        }
+
+        function command(name, payload) {
+            if (name === 'orbit.time' || name === 'orbit.quality' || name === 'orbit.capture') return scene ? scene.command(name, payload) : null;
+            if (name === 'orbit.ping') {
+                const x = Number(payload && payload.x), y = Number(payload && payload.y);
+                if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+                return ping(x, y, true);
+            }
+            if (name === 'orbit.burst') {
+                if (!system || !payload) return null;
+                const record = snapshot().find(item => item && String(item.id) === String(payload.windowId));
+                const r = record && record.rect;
+                if (!r) return null;
+                const rect = { x: Number(r.x), y: Number(r.y), width: Number(r.width), height: Number(r.height) };
+                if (payload.kind === 'materialize') system.emitMaterialize(rect);
+                else if (payload.kind === 'dissolve') system.emitDissolve(rect);
+                else return null;
+                kick();
+                return true;
+            }
+            return null;
+        }
+
+        if (motion) {
+            canvas = document.createElement('canvas');
+            canvas.className = 'vd-fx-orbit-particles';
+            canvas.setAttribute('aria-hidden', 'true');
+            canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;';
+            layer.appendChild(canvas);
+            context = canvas.getContext('2d', { alpha: true });
+            sizeCanvas();
+            system = Particles.createSystem({ capacity: 900, seed: 7 });
+            bridge = Windows.create({ particles: system, choreo, onSound: playPing });
+            const listen = { passive: true, signal };
+            window.addEventListener('resize', sizeCanvas, listen);
+            window.addEventListener('aurago:desktop-window', onWindowEvent, listen);
+            window.addEventListener('aurago:desktop-windows-refresh', () => refreshCoverage(true), listen);
+            window.addEventListener('pointermove', onPointerMove, listen);
+            document.addEventListener('pointerdown', onPointerDown, listen);
+            document.addEventListener('pointerup', onPointerEnd, listen);
+            document.addEventListener('pointercancel', onPointerEnd, listen);
+            document.documentElement.addEventListener('pointerleave', onPointerLeave, listen);
+        }
+        if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', stop, { once: true });
+        if (fullWallpaper) loadScene();
+        return { pause, resume, stop, inspect, command };
+    }
+
+    fx.register('orbit', { start });
 }());

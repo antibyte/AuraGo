@@ -2095,7 +2095,7 @@
         Object.freeze({ id: 'windows_xp', labelKey: 'desktop.settings_theme_windows_xp', descKey: 'desktop.settings_theme_windows_xp_desc', scheme: 'light', schemeSetting: '', shell: 'taskbar', startMenu: 'xp', globalMenu: false, iconTheme: 'windows_xp', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: false, staticFx: false, wallpaper: 'windows_xp', thumb: '/img/themes/windows_xp.svg', cursorTheme: 'windows_xp', soundTheme: 'windows_xp', motion: Object.freeze({ open: 120, close: 100, minimize: 180, restore: 220, menuOpen: 120, menuClose: 100, startOpen: 150, startClose: 120 }) }),
         Object.freeze({ id: 'green_slime', labelKey: 'desktop.settings_theme_green_slime', descKey: 'desktop.settings_theme_green_slime_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: true, staticFx: true, wallpaper: 'green_slime', thumb: '/img/themes/green_slime.svg', cursorTheme: 'green_slime', soundTheme: 'green_slime', motion: Object.freeze({ open: 360, close: 220, minimize: 180, restore: 220, menuOpen: 120, menuClose: 100, startOpen: 150, startClose: 120 }) }),
         Object.freeze({ id: 'voxel_world', labelKey: 'desktop.settings_theme_voxel_world', descKey: 'desktop.settings_theme_voxel_world_desc', scheme: 'light', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: true, staticFx: true, wallpaper: 'voxel_world', thumb: '/img/themes/voxel_world.svg', cursorTheme: 'voxel_world', soundTheme: 'voxel_world', motion: Object.freeze({ open: 260, close: 100, minimize: 180, restore: 220, menuOpen: 120, menuClose: 100, startOpen: 150, startClose: 120 }) }),
-        Object.freeze({ id: 'orbit', labelKey: 'desktop.settings_theme_orbit', descKey: 'desktop.settings_theme_orbit_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: true, staticFx: true, wallpaper: 'orbit', thumb: '/img/themes/orbit.svg', cursorTheme: '', soundTheme: 'crystal', motion: Object.freeze({ open: 620, close: 520, minimize: 460, restore: 480, menuOpen: 260, menuClose: 180, startOpen: 380, startClose: 240 }) }),
+        Object.freeze({ id: 'orbit', labelKey: 'desktop.settings_theme_orbit', descKey: 'desktop.settings_theme_orbit_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: true, staticFx: true, wallpaper: 'orbit', thumb: '/img/themes/orbit.svg', cursorTheme: 'orbit', soundTheme: 'orbit', motion: Object.freeze({ open: 620, close: 520, minimize: 460, restore: 480, menuOpen: 260, menuClose: 180, startOpen: 380, startClose: 240 }) }),
         Object.freeze({ id: 'minimal', labelKey: 'desktop.settings_theme_minimal', descKey: 'desktop.settings_theme_minimal_desc', scheme: 'light', schemeSetting: 'appearance.minimal_mode', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: false, staticFx: false, wallpaper: 'minimal', thumb: '/img/themes/minimal.svg', cursorTheme: '', soundTheme: 'crystal', motion: Object.freeze({ open: 200, close: 140, minimize: 180, restore: 200, menuOpen: 120, menuClose: 100, startOpen: 160, startClose: 120 }) })
     ]);
 
@@ -2300,15 +2300,15 @@
         'window.open': 'windows', 'window.close': 'windows', 'window.minimize': 'windows',
         'window.restore': 'windows', 'window.maximize': 'windows', 'window.snap': 'windows', 'window.deny': 'windows',
         'window.fracture': 'windows', 'window.impact': 'windows',
-        'slime.pop': 'windows', 'slime.snap': 'windows',
+        'slime.pop': 'windows', 'slime.snap': 'windows', 'orbit.ping': 'navigation',
         'notify.info': 'notifications', 'notify.message': 'notifications', 'notify.error': 'notifications',
         'menu.open': 'navigation', 'menu.close': 'navigation', 'space.switch': 'navigation',
         'dialog.open': 'files', 'dialog.confirm': 'files', 'dialog.cancel': 'files',
         'file.trash': 'files', 'file.delete': 'files', 'file.drop': 'files'
     };
 
-    const THEME_IDS = ['crystal', 'wood', 'analog', 'workshop', 'water', 'amiga', 'cyberpunk', 'black_gloss', 'crazy', 'lollipop', 'organic', 'electronic_dreams', 'windows_xp', 'green_slime', 'voxel_world'];
-    // Theme FX are sounds that a theme effect asks for by name (a block landing, a bubble bursting), not shell
+    const THEME_IDS = ['crystal', 'wood', 'analog', 'workshop', 'water', 'amiga', 'cyberpunk', 'black_gloss', 'crazy', 'lollipop', 'organic', 'electronic_dreams', 'windows_xp', 'green_slime', 'voxel_world', 'orbit'];
+    // Theme FX are sounds that a theme effect asks for by name (a block landing, a bubble bursting, a sonar ping), not shell
     // events. Every family belongs to one sound theme and plays only while that theme is effective. Its sounds
     // are theme.specialFx[event][variant], rendered lazily one at a time, so a first use never renders the
     // whole bank. Calls within coalesceMs merge into the loudest; a coalesced call older than expireMs is
@@ -2324,6 +2324,11 @@
             theme: 'green_slime', option: 'variant', variants: ['small', 'medium', 'large'], fallback: 'medium',
             events: { 'slime.pop': { gain: 0.4, gapMs: 350 }, 'slime.snap': { gain: 0.42, gapMs: 900 } },
             coalesceMs: 80, expireMs: 240, gapMs: 0, windowMs: 2000, maxInWindow: 3, curve: 0.85, seconds: 0.3
+        },
+        orbit: {
+            theme: 'orbit', option: 'variant', variants: ['small', 'medium', 'large'], fallback: 'medium',
+            events: { 'orbit.ping': { gain: 0.38, gapMs: 350 } },
+            coalesceMs: 80, expireMs: 240, gapMs: 0, windowMs: 2000, maxInWindow: 3, curve: 0.85, seconds: 1.0
         }
     };
     const THEME_FX_OF = {};
