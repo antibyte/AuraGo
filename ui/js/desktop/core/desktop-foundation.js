@@ -298,6 +298,7 @@
         'appearance.density': 'comfortable',
         'appearance.icon_theme': 'papirus',
         'appearance.fruity_mode': 'light',
+        'appearance.minimal_mode': 'light',
         'desktop.icon_size': 'medium',
         'desktop.show_widgets': 'true',
         'desktop.open_fullscreen': 'false',

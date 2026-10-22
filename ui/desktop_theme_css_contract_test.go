@@ -345,10 +345,10 @@ func cssDeclarationValue(value string) string {
 	return value
 }
 
-var cssThemeAttributeSelector = regexp.MustCompile(`\[\s*(data-theme|data-animations)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\]\s]+))\s*\]`)
+var cssThemeAttributeSelector = regexp.MustCompile(`\[\s*(data-theme|data-animations|data-scheme)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\]\s]+))\s*\]`)
 
-// canonicalCSSSelector writes the data-theme and data-animations attribute selectors one way (double quotes,
-// no spaces), so equivalent spellings of the same selector compare equal.
+// canonicalCSSSelector writes the data-theme, data-animations and data-scheme attribute selectors one way (double
+// quotes, no spaces), so equivalent spellings of the same selector compare equal.
 func canonicalCSSSelector(selector string) string {
 	return cssThemeAttributeSelector.ReplaceAllStringFunc(selector, func(match string) string {
 		parts := cssThemeAttributeSelector.FindStringSubmatch(match)
@@ -559,11 +559,27 @@ func desktopThemeCSSViolations(theme desktopThemeDescriptor, css string) []strin
 	if first := sheet.Rules[0]; canonicalCSSSelector(first.Selector) != rootSelector || len(first.Context) != 0 {
 		add("the first rule must be the plain root rule %s, got %.80q", rootSelector, first.Selector)
 	}
+	// A theme with a scheme setting (Fruity, Minimal) renders both schemes from one skin: the plain root rule is the
+	// registry scheme and a second plain rule keyed on [data-scheme="dark"] carries the dark palette. The contract
+	// measures that rule too, so it may set the root-only tokens.
+	darkSelector := ""
+	if theme.SchemeSetting != "" {
+		darkSelector = rootSelector + `[data-scheme="dark"]`
+	}
 	tokens := map[string]string{}
+	darkTokens := map[string]string{}
+	darkSeen := false
 	for _, rule := range sheet.Rules {
 		if len(rule.Context) == 0 && canonicalCSSSelector(rule.Selector) == rootSelector {
 			for _, decl := range rule.Decls { // a later declaration wins, as in the cascade
 				tokens[decl.Property] = cssDeclarationValue(decl.Value)
+			}
+			continue
+		}
+		if darkSelector != "" && len(rule.Context) == 0 && canonicalCSSSelector(rule.Selector) == darkSelector {
+			darkSeen = true
+			for _, decl := range rule.Decls {
+				darkTokens[decl.Property] = cssDeclarationValue(decl.Value)
 			}
 			continue
 		}
@@ -594,54 +610,78 @@ func desktopThemeCSSViolations(theme desktopThemeDescriptor, css string) []strin
 		}
 	}
 
-	// The measured colours are plain hex: #rgb is expanded, a value with an alpha channel (#rgba, #rrggbbaa) is not opaque.
-	colour := func(token string) ([3]float64, bool) {
-		value := tokens[token]
-		if value == "" {
-			return [3]float64{}, false // missing, reported above
+	// measure checks the palette of one scheme: the contrast ratios, the match with the scheme and the text on the
+	// accent. label prefixes every message: empty for the root rule, "dark: " for the dark scheme root rule.
+	measure := func(tokens map[string]string, scheme, label string) {
+		// The measured colours are plain hex: #rgb is expanded, a value with an alpha channel (#rgba, #rrggbbaa) is not opaque.
+		colour := func(token string) ([3]float64, bool) {
+			value := tokens[token]
+			if value == "" {
+				return [3]float64{}, false // missing, reported above
+			}
+			rgb, ok := parseCSSHexColor(value)
+			if !ok {
+				add("%s%s is %q, want an opaque hex colour (#rgb or #rrggbb)", label, token, value)
+			}
+			return rgb, ok
 		}
-		rgb, ok := parseCSSHexColor(value)
-		if !ok {
-			add("%s is %q, want an opaque hex colour (#rgb or #rrggbb)", token, value)
+		appBg, appBgOK := colour("--vd-theme-app-bg")
+		panelBg, panelBgOK := colour("--vd-theme-panel-bg")
+		text, textOK := colour("--vd-text")
+		muted, mutedOK := colour("--vd-theme-muted")
+		accentContrast, accentContrastOK := colour("--vd-accent-contrast")
+		ratio := func(foreground, background [3]float64, foregroundName, backgroundName string) {
+			if got := cssContrastRatio(foreground, background); got < 4.5 {
+				add("%scontrast of %s on %s is %.2f:1, want at least 4.5:1", label, foregroundName, backgroundName, got)
+			}
 		}
-		return rgb, ok
-	}
-	appBg, appBgOK := colour("--vd-theme-app-bg")
-	panelBg, panelBgOK := colour("--vd-theme-panel-bg")
-	text, textOK := colour("--vd-text")
-	muted, mutedOK := colour("--vd-theme-muted")
-	accentContrast, accentContrastOK := colour("--vd-accent-contrast")
-	ratio := func(foreground, background [3]float64, foregroundName, backgroundName string) {
-		if got := cssContrastRatio(foreground, background); got < 4.5 {
-			add("contrast of %s on %s is %.2f:1, want at least 4.5:1", foregroundName, backgroundName, got)
+		if textOK && appBgOK {
+			ratio(text, appBg, "--vd-text", "--vd-theme-app-bg")
 		}
-	}
-	if textOK && appBgOK {
-		ratio(text, appBg, "--vd-text", "--vd-theme-app-bg")
-	}
-	if textOK && panelBgOK {
-		ratio(text, panelBg, "--vd-text", "--vd-theme-panel-bg")
-	}
-	if mutedOK && appBgOK {
-		ratio(muted, appBg, "--vd-theme-muted", "--vd-theme-app-bg")
-	}
+		if textOK && panelBgOK {
+			ratio(text, panelBg, "--vd-text", "--vd-theme-panel-bg")
+		}
+		if mutedOK && appBgOK {
+			ratio(muted, appBg, "--vd-theme-muted", "--vd-theme-app-bg")
+		}
 
-	// The registry scheme has to match the palette. Compare the two luminances instead of testing the background
-	// against a threshold: a mid-grey skin with black text (Amiga) is a light theme.
-	if appBgOK && textOK {
-		background, foreground := cssRelativeLuminance(appBg), cssRelativeLuminance(text)
+		// The scheme has to match the palette. Compare the two luminances instead of testing the background
+		// against a threshold: a mid-grey skin with black text (Amiga) is a light theme.
+		if appBgOK && textOK {
+			background, foreground := cssRelativeLuminance(appBg), cssRelativeLuminance(text)
+			switch {
+			case scheme == "light" && !(background > foreground):
+				add("%sthe registry scheme is light, but --vd-theme-app-bg (luminance %.3f) is not lighter than --vd-text (%.3f)", label, background, foreground)
+			case scheme == "dark" && !(background < foreground):
+				add("%sthe registry scheme is dark, but --vd-theme-app-bg (luminance %.3f) is not darker than --vd-text (%.3f)", label, background, foreground)
+			}
+		}
+
+		// Text that sits on the accent: a fixed accent must be readable under it; a user accent only carries the token.
+		if theme.Accent == "fixed" {
+			if accent, accentOK := colour("--vd-accent"); accentOK && accentContrastOK {
+				ratio(accentContrast, accent, "--vd-accent-contrast", "--vd-accent")
+			}
+		}
+	}
+	measure(tokens, theme.Scheme, "")
+
+	if darkSelector != "" {
 		switch {
-		case theme.Scheme == "light" && !(background > foreground):
-			add("the registry scheme is light, but --vd-theme-app-bg (luminance %.3f) is not lighter than --vd-text (%.3f)", background, foreground)
-		case theme.Scheme == "dark" && !(background < foreground):
-			add("the registry scheme is dark, but --vd-theme-app-bg (luminance %.3f) is not darker than --vd-text (%.3f)", background, foreground)
-		}
-	}
-
-	// Text that sits on the accent: a fixed accent must be readable under it; a user accent only carries the token.
-	if theme.Accent == "fixed" {
-		if accent, accentOK := colour("--vd-accent"); accentOK && accentContrastOK {
-			ratio(accentContrast, accent, "--vd-accent-contrast", "--vd-accent")
+		case !darkSeen:
+			add("a theme with schemeSetting %s needs the dark root rule %s", theme.SchemeSetting, darkSelector)
+		default:
+			if darkTokens["color-scheme"] != "dark" {
+				add("the dark root rule must set color-scheme: dark, got %q", darkTokens["color-scheme"])
+			}
+			merged := map[string]string{}
+			for token, value := range tokens {
+				merged[token] = value
+			}
+			for token, value := range darkTokens {
+				merged[token] = value
+			}
+			measure(merged, "dark", "dark: ")
 		}
 	}
 	return violations
@@ -842,6 +882,64 @@ func desktopThemeProbeSkin(theme desktopThemeDescriptor, overrides map[string]st
 	}
 	skin.WriteString("}\n" + rest)
 	return skin.String()
+}
+
+// desktopThemeContractProbeTokens renders a full valid root rule for the theme "probe" with a fixed accent: every
+// token of the contract is declared, the five measured values come from the arguments and the panel background
+// follows the app background.
+func desktopThemeContractProbeTokens(scheme, appBg, text, muted, accent, accentContrast string) string {
+	values := map[string]string{
+		"color-scheme": scheme, "--vd-theme-app-bg": appBg, "--vd-theme-panel-bg": appBg, "--vd-text": text,
+		"--vd-theme-muted": muted, "--vd-accent": accent, "--vd-accent-contrast": accentContrast,
+	}
+	order := append(desktopThemeRequiredTokens(), desktopThemeAccentTokens...)
+	var skin strings.Builder
+	skin.WriteString(`.desktop-body[data-theme="probe"] {` + "\n")
+	for _, token := range order {
+		value, ok := values[token]
+		if !ok {
+			value = "0"
+		}
+		fmt.Fprintf(&skin, "  %s: %s;\n", token, value)
+	}
+	skin.WriteString("}\n")
+	return skin.String()
+}
+
+func containsSubstring(list []string, part string) bool {
+	for _, entry := range list {
+		if strings.Contains(entry, part) {
+			return true
+		}
+	}
+	return false
+}
+
+// A theme with a schemeSetting (Fruity, Minimal) renders both schemes from one skin: the plain root rule is the
+// registry scheme, a second rule keyed on [data-scheme="dark"] carries the dark palette. The contract measures both.
+func TestDesktopThemeCSSContractChecksTheDarkSchemeRoot(t *testing.T) {
+	t.Parallel()
+	theme := desktopThemeDescriptor{ID: "probe", Scheme: "light", SchemeSetting: "appearance.minimal_mode", Accent: "fixed"}
+	light := desktopThemeContractProbeTokens("light", "#ffffff", "#161616", "#6b6a66", "#161616", "#f7f6f3")
+	dark := `.desktop-body[data-theme="probe"][data-scheme="dark"] { color-scheme: dark; --vd-theme-app-bg: #181818; --vd-theme-panel-bg: #1c1c1c; --vd-text: #ededed; --vd-theme-muted: #9a9893; --vd-accent: #ededed; --vd-accent-contrast: #121212; }`
+	if v := desktopThemeCSSViolations(theme, light+"\n"+dark); len(v) != 0 {
+		t.Fatalf("valid light+dark skin rejected: %v", v)
+	}
+	if v := desktopThemeCSSViolations(theme, light); !containsSubstring(v, "dark root rule") {
+		t.Fatalf("missing dark root not reported: %v", v)
+	}
+	lowContrast := strings.Replace(dark, "--vd-text: #ededed", "--vd-text: #333333", 1)
+	if v := desktopThemeCSSViolations(theme, light+"\n"+lowContrast); !containsSubstring(v, "dark: contrast of --vd-text") {
+		t.Fatalf("dark contrast not measured: %v", v)
+	}
+	wrongScheme := strings.Replace(dark, "color-scheme: dark", "color-scheme: light", 1)
+	if v := desktopThemeCSSViolations(theme, light+"\n"+wrongScheme); !containsSubstring(v, "dark root rule must set color-scheme: dark") {
+		t.Fatalf("dark color-scheme not checked: %v", v)
+	}
+	plain := desktopThemeDescriptor{ID: "probe", Scheme: "light", Accent: "fixed"}
+	if v := desktopThemeCSSViolations(plain, light+"\n"+dark); !containsSubstring(v, "sets --vd-text") {
+		t.Fatalf("a theme without schemeSetting must not get a dark root: %v", v)
+	}
 }
 
 func TestDesktopThemeCSSCheckerStrictness(t *testing.T) {

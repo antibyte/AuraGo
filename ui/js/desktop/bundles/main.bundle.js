@@ -530,6 +530,7 @@
         'appearance.density': 'comfortable',
         'appearance.icon_theme': 'papirus',
         'appearance.fruity_mode': 'light',
+        'appearance.minimal_mode': 'light',
         'desktop.icon_size': 'medium',
         'desktop.show_widgets': 'true',
         'desktop.open_fullscreen': 'false',
@@ -2093,7 +2094,9 @@
         Object.freeze({ id: 'electronic_dreams', labelKey: 'desktop.settings_theme_electronic_dreams', descKey: 'desktop.settings_theme_electronic_dreams_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: true, staticFx: true, wallpaper: 'electronic_dreams', thumb: '/img/themes/electronic_dreams.svg', cursorTheme: 'electronic_dreams', soundTheme: 'electronic_dreams', motion: Object.freeze({ open: 240, close: 160, minimize: 180, restore: 220, menuOpen: 120, menuClose: 100, startOpen: 150, startClose: 120 }) }),
         Object.freeze({ id: 'windows_xp', labelKey: 'desktop.settings_theme_windows_xp', descKey: 'desktop.settings_theme_windows_xp_desc', scheme: 'light', schemeSetting: '', shell: 'taskbar', startMenu: 'xp', globalMenu: false, iconTheme: 'windows_xp', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: false, staticFx: false, wallpaper: 'windows_xp', thumb: '/img/themes/windows_xp.svg', cursorTheme: 'windows_xp', soundTheme: 'windows_xp', motion: Object.freeze({ open: 120, close: 100, minimize: 180, restore: 220, menuOpen: 120, menuClose: 100, startOpen: 150, startClose: 120 }) }),
         Object.freeze({ id: 'green_slime', labelKey: 'desktop.settings_theme_green_slime', descKey: 'desktop.settings_theme_green_slime_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: true, staticFx: true, wallpaper: 'green_slime', thumb: '/img/themes/green_slime.svg', cursorTheme: 'green_slime', soundTheme: 'green_slime', motion: Object.freeze({ open: 360, close: 220, minimize: 180, restore: 220, menuOpen: 120, menuClose: 100, startOpen: 150, startClose: 120 }) }),
-        Object.freeze({ id: 'voxel_world', labelKey: 'desktop.settings_theme_voxel_world', descKey: 'desktop.settings_theme_voxel_world_desc', scheme: 'light', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: true, staticFx: true, wallpaper: 'voxel_world', thumb: '/img/themes/voxel_world.svg', cursorTheme: 'voxel_world', soundTheme: 'voxel_world', motion: Object.freeze({ open: 260, close: 100, minimize: 180, restore: 220, menuOpen: 120, menuClose: 100, startOpen: 150, startClose: 120 }) })
+        Object.freeze({ id: 'voxel_world', labelKey: 'desktop.settings_theme_voxel_world', descKey: 'desktop.settings_theme_voxel_world_desc', scheme: 'light', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: true, staticFx: true, wallpaper: 'voxel_world', thumb: '/img/themes/voxel_world.svg', cursorTheme: 'voxel_world', soundTheme: 'voxel_world', motion: Object.freeze({ open: 260, close: 100, minimize: 180, restore: 220, menuOpen: 120, menuClose: 100, startOpen: 150, startClose: 120 }) }),
+        Object.freeze({ id: 'orbit', labelKey: 'desktop.settings_theme_orbit', descKey: 'desktop.settings_theme_orbit_desc', scheme: 'dark', schemeSetting: '', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: true, staticFx: true, wallpaper: 'orbit', thumb: '/img/themes/orbit.svg', cursorTheme: '', soundTheme: 'crystal', motion: Object.freeze({ open: 620, close: 520, minimize: 460, restore: 480, menuOpen: 260, menuClose: 180, startOpen: 380, startClose: 240 }) }),
+        Object.freeze({ id: 'minimal', labelKey: 'desktop.settings_theme_minimal', descKey: 'desktop.settings_theme_minimal_desc', scheme: 'light', schemeSetting: 'appearance.minimal_mode', shell: 'taskbar', startMenu: 'classic', globalMenu: false, iconTheme: 'papirus', iconFamily: 'standard', accent: 'fixed', glassPolish: false, fx: false, staticFx: false, wallpaper: 'minimal', thumb: '/img/themes/minimal.svg', cursorTheme: '', soundTheme: 'crystal', motion: Object.freeze({ open: 200, close: 140, minimize: 180, restore: 200, menuOpen: 120, menuClose: 100, startOpen: 160, startClose: 120 }) })
     ]);
 
     // Load token of the lazy effects bundle: a newer sync invalidates an older pending load.
@@ -9797,7 +9800,7 @@ function wireWindow(win, id) {
     }
 
     function knownWallpaperIds() {
-        return ['groupshoot', 'aurora', 'midnight', 'slate', 'ember', 'forest', 'alpine_dawn', 'city_rain', 'ocean_cliff', 'aurora_glass', 'nebula_flow', 'paper_waves', 'silk_flow', 'firefly_dusk', 'neon_overdrive', 'fractal_trip', 'electronic_dreams', 'windows_xp', 'green_slime', 'voxel_world'];
+        return ['groupshoot', 'aurora', 'midnight', 'slate', 'ember', 'forest', 'alpine_dawn', 'city_rain', 'ocean_cliff', 'aurora_glass', 'nebula_flow', 'paper_waves', 'silk_flow', 'firefly_dusk', 'neon_overdrive', 'fractal_trip', 'electronic_dreams', 'windows_xp', 'green_slime', 'voxel_world', 'orbit', 'minimal'];
     }
 
     function normalizeWallpaperId(value) {
@@ -17037,7 +17040,8 @@ function updateTaskbarSystemButtonsForMobile() {
             ['aurora_glass', 'desktop.settings_wallpaper_aurora_glass'],
             ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'],
             ['paper_waves', 'desktop.settings_wallpaper_paper_waves'],
-            ['electronic_dreams', 'desktop.settings_wallpaper_electronic_dreams'], ['windows_xp', 'desktop.settings_wallpaper_windows_xp'], ['green_slime', 'desktop.settings_wallpaper_green_slime'], ['voxel_world', 'desktop.settings_wallpaper_voxel_world']
+            ['electronic_dreams', 'desktop.settings_wallpaper_electronic_dreams'], ['windows_xp', 'desktop.settings_wallpaper_windows_xp'], ['green_slime', 'desktop.settings_wallpaper_green_slime'], ['voxel_world', 'desktop.settings_wallpaper_voxel_world'],
+            ['orbit', 'desktop.settings_wallpaper_orbit'], ['minimal', 'desktop.settings_wallpaper_minimal']
         ];
         const animated = [
             ['silk_flow', 'desktop.settings_wallpaper_silk_flow'],

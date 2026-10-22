@@ -11264,6 +11264,30 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     border-radius: 0;
     text-shadow: 1px 1px 0 #000;
 }
+/* Orbit: deep space until the live scene (or its poster) paints over it; cool labels on a dark glass plate. */
+.desktop-body[data-wallpaper="orbit"] {
+    background: #03040c radial-gradient(120% 90% at 72% 70%, #1b2550 0%, #0a0f26 38%, #03040c 100%) fixed;
+}
+.desktop-body[data-wallpaper="orbit"] .vd-icon-label {
+    color: #eaf6ff;
+    background: rgba(6, 10, 26, .62);
+    text-shadow: 0 1px 2px #000;
+}
+/* Minimal: paper or graphite with one barely visible light, following the colour scheme. */
+.desktop-body[data-wallpaper="minimal"] {
+    background: #f1f0eb radial-gradient(130% 100% at 50% 32%, #f9f8f5 0%, #f2f1ec 58%, #ebeae4 100%) fixed;
+}
+.desktop-body[data-wallpaper="minimal"][data-scheme="dark"] {
+    background: #0f0f0f radial-gradient(130% 100% at 50% 32%, #1a1a1a 0%, #121212 58%, #0c0c0c 100%) fixed;
+}
+.desktop-body[data-wallpaper="minimal"] .vd-icon-label {
+    color: #161616;
+    background: transparent;
+    text-shadow: none;
+}
+.desktop-body[data-wallpaper="minimal"][data-scheme="dark"] .vd-icon-label {
+    color: #ededed;
+}
 
 /* ui/css/desktop-theme-amiga.css */
 /* desktop-theme-amiga.css - Amiga Workbench 3.1 desktop skin (theme id "amiga").
@@ -16310,6 +16334,312 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     }
 }
 
+/* ui/css/desktop-theme-orbit.css */
+/* desktop-theme-orbit.css - Orbit shell skin (theme id "orbit"): a maximal, live 3D space theme.
+   Behind the shell a WebGL scene shows a ringed giant, a space station and drifting dust (theme-fx: orbit.js,
+   orbit-scene.js); a Canvas 2D particle layer and a window bridge (orbit-particles.js, orbit-windows.js) add sparks and
+   drag tilt. This file styles the DOM: dark glass windows with cyan and violet hairlines, a HUD taskbar, and the 3D
+   open, close and minimize keyframes. Windows are flat at rest; the third dimension exists only while they move.
+   Every rule is rooted at .desktop-body[data-theme="orbit"]; ui/desktop_theme_css_contract_test.go enforces the
+   contract: the bare root rule comes first and carries every token, every animation sits behind
+   :not([data-animations="false"]) on the root compound, and keyframes (vd-theme-orbit-*) animate only transform,
+   opacity, offset and animation-timing-function.
+   Palette: deep space #03040c to #0b1020, glass panels #0e1428, ice text #e8f1ff, signal cyan #5ce1ff (accent),
+   nebula violet #8b7bff, ring amber #ffb547.
+   Fonts: Geist (Vercel, SIL Open Font License 1.1, listed in THIRD_PARTY_LIBRARIES.md) and Barlow Condensed
+   (c) 2017 The Barlow Project Authors, SIL Open Font License 1.1, see /fonts/BarlowCondensed-LICENSE.txt. */
+
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-SemiBold.woff2') format('woff2');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Desktop Theme Barlow Condensed";
+    src: url('/fonts/BarlowCondensed-SemiBold.ttf') format('truetype');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+.desktop-body[data-theme="orbit"] {
+    color-scheme: dark;
+
+    /* Core */
+    --vd-bg: #060913;
+    --vd-surface: rgba(14, 20, 40, .62);
+    --vd-surface-strong: rgba(14, 20, 40, .88);
+    --vd-border: rgba(92, 225, 255, .22);
+    --vd-border-bright: rgba(139, 123, 255, .55);
+    --vd-text: #e8f1ff;
+    --vd-muted: #9fb0cc;
+    --vd-shadow: 0 0 0 1px rgba(92, 225, 255, .08), 0 18px 48px rgba(0, 0, 8, .6);
+    --vd-shadow-window: 0 0 0 1px rgba(92, 225, 255, .16), 0 0 28px rgba(92, 225, 255, .1), 0 28px 70px rgba(0, 0, 8, .68);
+    --vd-inner-glow: inset 0 1px 0 rgba(200, 230, 255, .1);
+    --vd-window-radius: 14px;
+    --vd-font-ui: "Desktop Theme Geist", "Segoe UI", system-ui, sans-serif;
+
+    /* Fixed accent: signal cyan */
+    --vd-accent: #5ce1ff;
+    --vd-accent-r: 92;
+    --vd-accent-g: 225;
+    --vd-accent-b: 255;
+    --vd-accent-glow: rgba(92, 225, 255, .45);
+    --vd-accent-contrast: #04121a; /* text on the accent: near-black on cyan */
+
+    /* Theme bridge */
+    --vd-theme-app-bg: #0b1020;
+    --vd-theme-panel-bg: #0e1428;
+    --vd-theme-panel-bg-strong: rgba(14, 20, 40, .94);
+    --vd-theme-chrome-bg: rgba(8, 12, 28, .74);
+    --vd-theme-overlay-bg: rgba(3, 5, 14, .68);
+    --vd-theme-control-bg: rgba(92, 225, 255, .06);
+    --vd-theme-control-hover: rgba(92, 225, 255, .14);
+    --vd-theme-border: rgba(92, 225, 255, .22);
+    --vd-theme-border-strong: rgba(139, 123, 255, .55);
+    --vd-theme-muted: #9fb0cc;
+    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 92), var(--vd-accent-g, 225), var(--vd-accent-b, 255), .14);
+    --vd-theme-accent-border: rgba(var(--vd-accent-r, 92), var(--vd-accent-g, 225), var(--vd-accent-b, 255), .5);
+    --vd-theme-radius-panel: 14px;
+    --vd-theme-radius-modal: 18px;
+    --vd-theme-shadow-panel: 0 0 0 1px rgba(92, 225, 255, .12), 0 16px 40px rgba(0, 0, 8, .6);
+    --vd-theme-shadow-modal: 0 0 0 1px rgba(139, 123, 255, .28), 0 0 36px rgba(92, 225, 255, .12), 0 28px 80px rgba(0, 0, 8, .72);
+    --vd-theme-blur: blur(18px) saturate(1.2);
+    --vd-theme-overlay-blur: blur(12px) saturate(1.1);
+
+    /* Chrome */
+    --vd-chrome-highlight: inset 0 1px 0 rgba(210, 235, 255, .14);
+    --vd-chrome-ring: inset 0 0 0 1px rgba(92, 225, 255, .28);
+    --vd-chrome-hairline: linear-gradient(90deg, transparent, rgba(92, 225, 255, .7) 20%, rgba(139, 123, 255, .6) 80%, transparent);
+
+    /* Design system */
+    --ds-color-fg-primary: #e8f1ff;
+    --ds-color-fg-secondary: #c3d2ea;
+    --ds-color-fg-muted: #9fb0cc;
+    --ds-color-fg-disabled: #6d7e9c;
+    --ds-color-bg-canvas: #060913;
+    --ds-color-bg-raised: #0b1020;
+    --ds-color-bg-overlay: #0e1428;
+    --ds-color-bg-modal: #121a33;
+    --ds-color-surface-0: #0b1020;
+    --ds-color-surface-1: #0e1428;
+    --ds-color-surface-2: #121a33;
+    --ds-color-surface-3: #18213f;
+    --ds-color-border-subtle: rgba(92, 225, 255, .12);
+    --ds-color-border-default: rgba(92, 225, 255, .26);
+    --ds-color-border-strong: rgba(139, 123, 255, .55);
+    --ds-color-border-focus: #5ce1ff;
+    --ds-color-accent-500: #5ce1ff;
+    --ds-color-accent-600: #2fb8dc;
+    --ds-color-accent-glow: rgba(92, 225, 255, .3);
+    --ds-color-control-active: rgba(92, 225, 255, .24);
+    --ds-color-inner-highlight: rgba(210, 235, 255, .1);
+    --ds-elevation-1: 0 0 0 1px rgba(92, 225, 255, .1), 0 2px 6px rgba(0, 0, 8, .5);
+    --ds-elevation-2: 0 0 0 1px rgba(92, 225, 255, .12), 0 6px 16px rgba(0, 0, 8, .55);
+    --ds-elevation-3: 0 0 0 1px rgba(92, 225, 255, .14), 0 12px 32px rgba(0, 0, 8, .6);
+    --ds-elevation-4: 0 0 0 1px rgba(92, 225, 255, .16), 0 0 18px rgba(92, 225, 255, .08), 0 20px 50px rgba(0, 0, 8, .66);
+    --ds-elevation-5: 0 0 0 1px rgba(139, 123, 255, .26), 0 0 28px rgba(92, 225, 255, .12), 0 28px 70px rgba(0, 0, 8, .72);
+    --ds-blur-fine: blur(12px) saturate(1.2);
+    --ds-blur-coarse: blur(6px);
+}
+
+/* ui/css/desktop-theme-minimal.css */
+/* desktop-theme-minimal.css - Minimal shell skin (theme id "minimal"): ultra plain, light or dark.
+   Hairlines, generous type and nothing else: flat windows, no blur, no gradients, no decoration. One skin file serves
+   both colour schemes. The plain root rule below is the light palette (the registry scheme); the second rule, keyed on
+   [data-scheme="dark"], is the dark palette. The shell sets data-scheme from the setting appearance.minimal_mode.
+   Every rule is rooted at .desktop-body[data-theme="minimal"]; ui/desktop_theme_css_contract_test.go enforces the
+   contract: the bare root rule comes first and carries every token, and the dark root rule (the only other rule that
+   may set the measured tokens color-scheme, --vd-theme-app-bg, --vd-theme-panel-bg, --vd-text, --vd-theme-muted,
+   --vd-accent and --vd-accent-contrast) is contrast-checked as well. Every animation sits behind
+   :not([data-animations="false"]) on the root compound; keyframes (vd-theme-minimal-*) animate only transform and
+   opacity.
+   Palette: paper #f7f6f3 and white windows, ink #161616, hairlines #e4e2dc, muted #6b6a66; dark: graphite #121212 to
+   #1c1c1c, text #ededed, hairlines #2a2a2a, muted #9a9893. The accent is the ink itself.
+   Geist (Vercel), SIL Open Font License 1.1, listed in THIRD_PARTY_LIBRARIES.md. */
+
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-Light.woff2') format('woff2');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+.desktop-body[data-theme="minimal"] {
+    color-scheme: light;
+
+    /* Core */
+    --vd-bg: #f7f6f3;
+    --vd-surface: #fbfaf8;
+    --vd-surface-strong: #ffffff;
+    --vd-border: #e4e2dc;
+    --vd-border-bright: #cfcdc6;
+    --vd-text: #161616;
+    --vd-muted: #6b6a66;
+    --vd-shadow: none;
+    --vd-shadow-window: 0 24px 60px -28px rgba(0, 0, 0, .18);
+    --vd-inner-glow: none;
+    --vd-window-radius: 8px;
+    --vd-font-ui: "Desktop Theme Geist", "Segoe UI", system-ui, sans-serif;
+
+    /* Fixed accent: the ink */
+    --vd-accent: #161616;
+    --vd-accent-r: 22;
+    --vd-accent-g: 22;
+    --vd-accent-b: 22;
+    --vd-accent-glow: rgba(22, 22, 22, .12);
+    --vd-accent-contrast: #f7f6f3; /* text on the accent: paper on ink */
+
+    /* Theme bridge */
+    --vd-theme-app-bg: #ffffff;
+    --vd-theme-panel-bg: #fbfaf8;
+    --vd-theme-panel-bg-strong: #ffffff;
+    --vd-theme-chrome-bg: #f7f6f3;
+    --vd-theme-overlay-bg: rgba(247, 246, 243, .72);
+    --vd-theme-control-bg: rgba(22, 22, 22, .03);
+    --vd-theme-control-hover: rgba(22, 22, 22, .07);
+    --vd-theme-border: #e4e2dc;
+    --vd-theme-border-strong: #c9c7c0;
+    --vd-theme-muted: #6b6a66;
+    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 22), var(--vd-accent-g, 22), var(--vd-accent-b, 22), .06);
+    --vd-theme-accent-border: rgba(var(--vd-accent-r, 22), var(--vd-accent-g, 22), var(--vd-accent-b, 22), .32);
+    --vd-theme-radius-panel: 8px;
+    --vd-theme-radius-modal: 10px;
+    --vd-theme-shadow-panel: none;
+    --vd-theme-shadow-modal: none;
+    --vd-theme-blur: none;
+    --vd-theme-overlay-blur: none;
+
+    /* Chrome */
+    --vd-chrome-highlight: 0 0 0 transparent;
+    --vd-chrome-ring: inset 0 0 0 1px #e4e2dc;
+    --vd-chrome-hairline: linear-gradient(90deg, transparent, #e4e2dc, transparent);
+
+    /* Design system */
+    --ds-color-fg-primary: #161616;
+    --ds-color-fg-secondary: #3d3c39;
+    --ds-color-fg-muted: #6b6a66;
+    --ds-color-fg-disabled: #a09e98;
+    --ds-color-bg-canvas: #f7f6f3;
+    --ds-color-bg-raised: #ffffff;
+    --ds-color-bg-overlay: #fbfaf8;
+    --ds-color-bg-modal: #ffffff;
+    --ds-color-surface-0: #ffffff;
+    --ds-color-surface-1: #fbfaf8;
+    --ds-color-surface-2: #f4f3ef;
+    --ds-color-surface-3: #ecebe6;
+    --ds-color-border-subtle: #efede8;
+    --ds-color-border-default: #e4e2dc;
+    --ds-color-border-strong: #c9c7c0;
+    --ds-color-border-focus: #161616;
+    --ds-color-accent-500: #161616;
+    --ds-color-accent-600: #000000;
+    --ds-color-accent-glow: rgba(22, 22, 22, .12);
+    --ds-color-control-active: rgba(22, 22, 22, .1);
+    --ds-color-inner-highlight: transparent;
+    --ds-elevation-1: none;
+    --ds-elevation-2: none;
+    --ds-elevation-3: none;
+    --ds-elevation-4: 0 18px 40px -24px rgba(0, 0, 0, .22);
+    --ds-elevation-5: 0 24px 60px -28px rgba(0, 0, 0, .18);
+    --ds-blur-fine: none;
+    --ds-blur-coarse: none;
+}
+
+/* Dark scheme: only the colours change. Tokens built from other tokens (the accent soft and border tints) follow. */
+.desktop-body[data-theme="minimal"][data-scheme="dark"] {
+    color-scheme: dark;
+
+    /* Core */
+    --vd-bg: #121212;
+    --vd-surface: #1c1c1c;
+    --vd-surface-strong: #202020;
+    --vd-border: #2a2a2a;
+    --vd-border-bright: #3a3a3a;
+    --vd-text: #ededed;
+    --vd-muted: #9a9893;
+    --vd-shadow-window: 0 24px 60px -28px rgba(0, 0, 0, .7);
+
+    /* Fixed accent: the ink, inverted */
+    --vd-accent: #ededed;
+    --vd-accent-r: 237;
+    --vd-accent-g: 237;
+    --vd-accent-b: 237;
+    --vd-accent-glow: rgba(237, 237, 237, .12);
+    --vd-accent-contrast: #121212;
+
+    /* Theme bridge */
+    --vd-theme-app-bg: #181818;
+    --vd-theme-panel-bg: #1c1c1c;
+    --vd-theme-panel-bg-strong: #202020;
+    --vd-theme-chrome-bg: #121212;
+    --vd-theme-overlay-bg: rgba(10, 10, 10, .66);
+    --vd-theme-control-bg: rgba(237, 237, 237, .04);
+    --vd-theme-control-hover: rgba(237, 237, 237, .09);
+    --vd-theme-border: #2a2a2a;
+    --vd-theme-border-strong: #444444;
+    --vd-theme-muted: #9a9893;
+
+    /* Chrome */
+    --vd-chrome-ring: inset 0 0 0 1px #2a2a2a;
+    --vd-chrome-hairline: linear-gradient(90deg, transparent, #2a2a2a, transparent);
+
+    /* Design system */
+    --ds-color-fg-primary: #ededed;
+    --ds-color-fg-secondary: #c9c8c4;
+    --ds-color-fg-muted: #9a9893;
+    --ds-color-fg-disabled: #6a6966;
+    --ds-color-bg-canvas: #121212;
+    --ds-color-bg-raised: #1c1c1c;
+    --ds-color-bg-overlay: #1c1c1c;
+    --ds-color-bg-modal: #202020;
+    --ds-color-surface-0: #181818;
+    --ds-color-surface-1: #1c1c1c;
+    --ds-color-surface-2: #222222;
+    --ds-color-surface-3: #292929;
+    --ds-color-border-subtle: #222222;
+    --ds-color-border-default: #2a2a2a;
+    --ds-color-border-strong: #444444;
+    --ds-color-border-focus: #ededed;
+    --ds-color-accent-500: #ededed;
+    --ds-color-accent-600: #ffffff;
+    --ds-color-accent-glow: rgba(237, 237, 237, .12);
+    --ds-color-control-active: rgba(237, 237, 237, .12);
+    --ds-elevation-4: 0 18px 40px -24px rgba(0, 0, 0, .6);
+    --ds-elevation-5: 0 24px 60px -28px rgba(0, 0, 0, .7);
+}
+
 /* ui/css/desktop-cursors.css */
 /* Native cursors only on pointing devices. High-contrast mode keeps the OS cursor.
    App canvases, remote desktops and inline tool cursors retain their own semantics. */
@@ -16392,6 +16722,8 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-wallpaper="windows_xp"] { --vd-ambient-top: 64, 133, 225; --vd-ambient-bottom: 69, 131, 38; --vd-ambient-glow: 184, 217, 252; }
 .desktop-body[data-wallpaper="green_slime"] { --vd-ambient-top: 37, 63, 22; --vd-ambient-bottom: 25, 44, 15; --vd-ambient-glow: 165, 217, 65; }
 .desktop-body[data-wallpaper="voxel_world"] { --vd-ambient-top: 155, 200, 219; --vd-ambient-bottom: 90, 128, 54; --vd-ambient-glow: 255, 211, 126; }
+.desktop-body[data-wallpaper="orbit"] { --vd-ambient-top: 14, 18, 44; --vd-ambient-bottom: 4, 6, 16; --vd-ambient-glow: 92, 225, 255; }
+.desktop-body[data-wallpaper="minimal"] { --vd-ambient-top: 242, 241, 236; --vd-ambient-bottom: 235, 234, 228; --vd-ambient-glow: 22, 22, 22; }
 
 .desktop-body[data-theme="fruity"][data-fruity-mode="light"] {
     --vd-reveal: var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255);

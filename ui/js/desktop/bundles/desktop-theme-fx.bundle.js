@@ -10379,3 +10379,80 @@ void main() {
 
     window.AuraDesktopThemeFx.register('voxel_world', { start });
 })();
+
+;
+/* ui/js/desktop/theme-fx/orbit-choreo.js */
+(function () {
+    'use strict';
+
+    // Orbit choreography (global AuraOrbitChoreo). DOM-free logic for the live space scene: a seeded random generator,
+    // composition anchors for the planet, station and sun per screen aspect, shuttle and comet schedules, the slow camera
+    // drift and a damped spring shared by the scene and the window bridge. It touches neither the DOM nor WebGL, so the
+    // Node regression suite can drive it. This file is the scaffold; the logic arrives with the scene work.
+    window.AuraOrbitChoreo = Object.freeze({});
+}());
+
+;
+/* ui/js/desktop/theme-fx/orbit-particles.js */
+(function () {
+    'use strict';
+
+    // Orbit particles (global AuraOrbitParticles). A DOM-free particle pool with the emitters of the theme (materialize,
+    // dissolve, stream, thruster, ping and stardust) plus a Canvas 2D additive renderer that draws into the effect layer
+    // only while particles are alive. The pool is bounded, so a burst of window events never grows memory. This file is
+    // the scaffold; the pool, the emitters and the renderer arrive with the choreography work.
+    window.AuraOrbitParticles = Object.freeze({});
+}());
+
+;
+/* ui/js/desktop/theme-fx/orbit-shaders.js */
+(function () {
+    'use strict';
+
+    // Orbit shaders (global AuraOrbitShaders). The GLSL sources of the space scene as plain strings: the nebula skydome,
+    // the star layers, the gas giant with its atmosphere rim, the ring system, the sun with its flare and the final grade
+    // pass (vignette, aberration, grain). The scene module compiles them; this file holds no WebGL calls. This file is the
+    // scaffold; the sources arrive with the scene work.
+    window.AuraOrbitShaders = Object.freeze({});
+}());
+
+;
+/* ui/js/desktop/theme-fx/orbit-scene.js */
+(function () {
+    'use strict';
+
+    // Orbit scene (global AuraOrbitScene). Builds the live WebGL scene behind the shell on the canvas .vd-fx-orbit-scene:
+    // renderer, camera, post-processing composer, loading of the station, shuttle, satellite and asteroid models, the
+    // gas giant, its rings and the sun, the quality ladder that steps down when frames get slow, and the disposal of every
+    // GPU resource. Three.js comes from the lazily loaded vendor bundle. This file is the scaffold; the scene arrives with
+    // the WebGL work.
+    window.AuraOrbitScene = Object.freeze({});
+}());
+
+;
+/* ui/js/desktop/theme-fx/orbit-windows.js */
+(function () {
+    'use strict';
+
+    // Orbit window bridge (global AuraOrbitWindows). Listens to the aurago:desktop-window events and turns them into CSS
+    // variables and particles: drag velocity drives tilt springs (--vd-orbit-tilt-x, --vd-orbit-tilt-y, --vd-orbit-lift),
+    // open, close and minimize emit particles, the minimize target follows the taskbar button, and the pointer sheen
+    // variables follow the mouse. Windows are flat at rest; the bridge removes its attributes once a spring settles. It
+    // never changes application state and never intercepts input. This file is the scaffold; the bridge arrives with the
+    // orchestrator work.
+    window.AuraOrbitWindows = Object.freeze({});
+}());
+
+;
+/* ui/js/desktop/theme-fx/orbit.js */
+(function () {
+    'use strict';
+
+    // Orbit effect (registered as "orbit" with AuraDesktopThemeFx). The orchestrator of the theme: it owns the lifecycle of
+    // the live scene, the particle layer and the window bridge, renders one still frame instead of a loop when motion is off
+    // (the theme declares staticFx), pauses while the tab is hidden, and answers inspect() and command(). This file is the
+    // scaffold: it registers an effect that does nothing yet.
+    const fx = window.AuraDesktopThemeFx;
+    if (!fx) return;
+    fx.register('orbit', { start() { return { pause() {}, resume() {}, stop() {} }; } });
+}());

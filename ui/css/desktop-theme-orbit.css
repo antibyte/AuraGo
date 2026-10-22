@@ -1,0 +1,123 @@
+/* desktop-theme-orbit.css - Orbit shell skin (theme id "orbit"): a maximal, live 3D space theme.
+   Behind the shell a WebGL scene shows a ringed giant, a space station and drifting dust (theme-fx: orbit.js,
+   orbit-scene.js); a Canvas 2D particle layer and a window bridge (orbit-particles.js, orbit-windows.js) add sparks and
+   drag tilt. This file styles the DOM: dark glass windows with cyan and violet hairlines, a HUD taskbar, and the 3D
+   open, close and minimize keyframes. Windows are flat at rest; the third dimension exists only while they move.
+   Every rule is rooted at .desktop-body[data-theme="orbit"]; ui/desktop_theme_css_contract_test.go enforces the
+   contract: the bare root rule comes first and carries every token, every animation sits behind
+   :not([data-animations="false"]) on the root compound, and keyframes (vd-theme-orbit-*) animate only transform,
+   opacity, offset and animation-timing-function.
+   Palette: deep space #03040c to #0b1020, glass panels #0e1428, ice text #e8f1ff, signal cyan #5ce1ff (accent),
+   nebula violet #8b7bff, ring amber #ffb547.
+   Fonts: Geist (Vercel, SIL Open Font License 1.1, listed in THIRD_PARTY_LIBRARIES.md) and Barlow Condensed
+   (c) 2017 The Barlow Project Authors, SIL Open Font License 1.1, see /fonts/BarlowCondensed-LICENSE.txt. */
+
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-SemiBold.woff2') format('woff2');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Desktop Theme Barlow Condensed";
+    src: url('/fonts/BarlowCondensed-SemiBold.ttf') format('truetype');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+.desktop-body[data-theme="orbit"] {
+    color-scheme: dark;
+
+    /* Core */
+    --vd-bg: #060913;
+    --vd-surface: rgba(14, 20, 40, .62);
+    --vd-surface-strong: rgba(14, 20, 40, .88);
+    --vd-border: rgba(92, 225, 255, .22);
+    --vd-border-bright: rgba(139, 123, 255, .55);
+    --vd-text: #e8f1ff;
+    --vd-muted: #9fb0cc;
+    --vd-shadow: 0 0 0 1px rgba(92, 225, 255, .08), 0 18px 48px rgba(0, 0, 8, .6);
+    --vd-shadow-window: 0 0 0 1px rgba(92, 225, 255, .16), 0 0 28px rgba(92, 225, 255, .1), 0 28px 70px rgba(0, 0, 8, .68);
+    --vd-inner-glow: inset 0 1px 0 rgba(200, 230, 255, .1);
+    --vd-window-radius: 14px;
+    --vd-font-ui: "Desktop Theme Geist", "Segoe UI", system-ui, sans-serif;
+
+    /* Fixed accent: signal cyan */
+    --vd-accent: #5ce1ff;
+    --vd-accent-r: 92;
+    --vd-accent-g: 225;
+    --vd-accent-b: 255;
+    --vd-accent-glow: rgba(92, 225, 255, .45);
+    --vd-accent-contrast: #04121a; /* text on the accent: near-black on cyan */
+
+    /* Theme bridge */
+    --vd-theme-app-bg: #0b1020;
+    --vd-theme-panel-bg: #0e1428;
+    --vd-theme-panel-bg-strong: rgba(14, 20, 40, .94);
+    --vd-theme-chrome-bg: rgba(8, 12, 28, .74);
+    --vd-theme-overlay-bg: rgba(3, 5, 14, .68);
+    --vd-theme-control-bg: rgba(92, 225, 255, .06);
+    --vd-theme-control-hover: rgba(92, 225, 255, .14);
+    --vd-theme-border: rgba(92, 225, 255, .22);
+    --vd-theme-border-strong: rgba(139, 123, 255, .55);
+    --vd-theme-muted: #9fb0cc;
+    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 92), var(--vd-accent-g, 225), var(--vd-accent-b, 255), .14);
+    --vd-theme-accent-border: rgba(var(--vd-accent-r, 92), var(--vd-accent-g, 225), var(--vd-accent-b, 255), .5);
+    --vd-theme-radius-panel: 14px;
+    --vd-theme-radius-modal: 18px;
+    --vd-theme-shadow-panel: 0 0 0 1px rgba(92, 225, 255, .12), 0 16px 40px rgba(0, 0, 8, .6);
+    --vd-theme-shadow-modal: 0 0 0 1px rgba(139, 123, 255, .28), 0 0 36px rgba(92, 225, 255, .12), 0 28px 80px rgba(0, 0, 8, .72);
+    --vd-theme-blur: blur(18px) saturate(1.2);
+    --vd-theme-overlay-blur: blur(12px) saturate(1.1);
+
+    /* Chrome */
+    --vd-chrome-highlight: inset 0 1px 0 rgba(210, 235, 255, .14);
+    --vd-chrome-ring: inset 0 0 0 1px rgba(92, 225, 255, .28);
+    --vd-chrome-hairline: linear-gradient(90deg, transparent, rgba(92, 225, 255, .7) 20%, rgba(139, 123, 255, .6) 80%, transparent);
+
+    /* Design system */
+    --ds-color-fg-primary: #e8f1ff;
+    --ds-color-fg-secondary: #c3d2ea;
+    --ds-color-fg-muted: #9fb0cc;
+    --ds-color-fg-disabled: #6d7e9c;
+    --ds-color-bg-canvas: #060913;
+    --ds-color-bg-raised: #0b1020;
+    --ds-color-bg-overlay: #0e1428;
+    --ds-color-bg-modal: #121a33;
+    --ds-color-surface-0: #0b1020;
+    --ds-color-surface-1: #0e1428;
+    --ds-color-surface-2: #121a33;
+    --ds-color-surface-3: #18213f;
+    --ds-color-border-subtle: rgba(92, 225, 255, .12);
+    --ds-color-border-default: rgba(92, 225, 255, .26);
+    --ds-color-border-strong: rgba(139, 123, 255, .55);
+    --ds-color-border-focus: #5ce1ff;
+    --ds-color-accent-500: #5ce1ff;
+    --ds-color-accent-600: #2fb8dc;
+    --ds-color-accent-glow: rgba(92, 225, 255, .3);
+    --ds-color-control-active: rgba(92, 225, 255, .24);
+    --ds-color-inner-highlight: rgba(210, 235, 255, .1);
+    --ds-elevation-1: 0 0 0 1px rgba(92, 225, 255, .1), 0 2px 6px rgba(0, 0, 8, .5);
+    --ds-elevation-2: 0 0 0 1px rgba(92, 225, 255, .12), 0 6px 16px rgba(0, 0, 8, .55);
+    --ds-elevation-3: 0 0 0 1px rgba(92, 225, 255, .14), 0 12px 32px rgba(0, 0, 8, .6);
+    --ds-elevation-4: 0 0 0 1px rgba(92, 225, 255, .16), 0 0 18px rgba(92, 225, 255, .08), 0 20px 50px rgba(0, 0, 8, .66);
+    --ds-elevation-5: 0 0 0 1px rgba(139, 123, 255, .26), 0 0 28px rgba(92, 225, 255, .12), 0 28px 70px rgba(0, 0, 8, .72);
+    --ds-blur-fine: blur(12px) saturate(1.2);
+    --ds-blur-coarse: blur(6px);
+}

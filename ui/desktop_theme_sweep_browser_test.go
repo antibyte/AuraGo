@@ -673,12 +673,15 @@ func (s *themeSweepSession) sweep(t *testing.T, combo themeSweepCombo, width int
 	}
 	s.closeAllWindows(t)
 	s.setViewport(t, width)
-	s.store.set(map[string]string{
-		"appearance.theme":       theme.ID,
-		"appearance.icon_theme":  theme.IconTheme,
-		"appearance.fruity_mode": mode,
-		"windows.animations":     "false",
-	})
+	updates := map[string]string{
+		"appearance.theme":      theme.ID,
+		"appearance.icon_theme": theme.IconTheme,
+		"windows.animations":    "false",
+	}
+	if theme.SchemeSetting != "" { // Fruity and Minimal each pick their scheme through their own setting
+		updates[theme.SchemeSetting] = mode
+	}
+	s.store.set(updates)
 	s.pushSettings(t)
 	s.openApps(t, "calculator", "settings")
 	s.screenshot(t, filepath.Join(screenshotDir, fmt.Sprintf("%s-%d.png", combo.label(), width)))

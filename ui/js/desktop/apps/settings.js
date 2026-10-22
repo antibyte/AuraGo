@@ -3,6 +3,9 @@
 
     let host, ctx;
 
+    // Label key of the light/dark row for each setting a theme can name as its schemeSetting.
+    const SCHEME_MODE_LABELS = Object.freeze({ 'appearance.fruity_mode': 'desktop.settings_fruity_mode', 'appearance.minimal_mode': 'desktop.settings_minimal_mode' });
+
     // The active theme descriptor from the registry; null when the host context predates it.
     function activeThemeInfo() {
         return typeof ctx.currentDesktopTheme === 'function' ? ctx.currentDesktopTheme() : null;
@@ -14,6 +17,8 @@
         const activeTheme = activeThemeInfo();
         // The light/dark choice belongs to themes that carry one; the accent only to themes that follow it.
         const showSchemeMode = !activeTheme || !!activeTheme.schemeSetting;
+        const schemeSetting = activeTheme && activeTheme.schemeSetting ? activeTheme.schemeSetting : 'appearance.fruity_mode';
+        const schemeLabel = SCHEME_MODE_LABELS[schemeSetting] || 'desktop.settings_fruity_mode';
         const showAccent = !activeTheme || activeTheme.accent === 'user';
         return [
             {
@@ -25,12 +30,13 @@
                         ['aurora_glass', 'desktop.settings_wallpaper_aurora_glass'], ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'], ['paper_waves', 'desktop.settings_wallpaper_paper_waves'],
                         ['silk_flow', 'desktop.settings_wallpaper_silk_flow'], ['firefly_dusk', 'desktop.settings_wallpaper_firefly_dusk'],
                         ['neon_overdrive', 'desktop.settings_wallpaper_neon_overdrive'], ['fractal_trip', 'desktop.settings_wallpaper_fractal_trip'],
-                        ['electronic_dreams', 'desktop.settings_wallpaper_electronic_dreams'], ['windows_xp', 'desktop.settings_wallpaper_windows_xp'], ['green_slime', 'desktop.settings_wallpaper_green_slime'], ['voxel_world', 'desktop.settings_wallpaper_voxel_world']
+                        ['electronic_dreams', 'desktop.settings_wallpaper_electronic_dreams'], ['windows_xp', 'desktop.settings_wallpaper_windows_xp'], ['green_slime', 'desktop.settings_wallpaper_green_slime'], ['voxel_world', 'desktop.settings_wallpaper_voxel_world'],
+                        ['orbit', 'desktop.settings_wallpaper_orbit'], ['minimal', 'desktop.settings_wallpaper_minimal']
                     ]),
                     settingDesktopThemes(),
                     settingToggle('appearance.theme_cursors', 'desktop.settings_theme_cursors', 'desktop.settings_theme_cursors_desc'),
                     activeTheme && activeTheme.cursorTheme ? { type: 'cursor_preview', theme: activeTheme.cursorTheme } : null,
-                    showSchemeMode ? settingSelect('appearance.fruity_mode', 'desktop.settings_fruity_mode', 'desktop.settings_fruity_mode_desc', [
+                    showSchemeMode ? settingSelect(schemeSetting, schemeLabel, schemeLabel + '_desc', [
                         ['light', 'desktop.settings_fruity_mode_light'], ['dark', 'desktop.settings_fruity_mode_dark']
                     ]) : null,
                     showAccent ? settingSelect('appearance.accent', 'desktop.settings_accent', 'desktop.settings_accent_desc', [

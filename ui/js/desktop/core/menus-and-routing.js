@@ -292,7 +292,8 @@
             ['aurora_glass', 'desktop.settings_wallpaper_aurora_glass'],
             ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'],
             ['paper_waves', 'desktop.settings_wallpaper_paper_waves'],
-            ['electronic_dreams', 'desktop.settings_wallpaper_electronic_dreams'], ['windows_xp', 'desktop.settings_wallpaper_windows_xp'], ['green_slime', 'desktop.settings_wallpaper_green_slime'], ['voxel_world', 'desktop.settings_wallpaper_voxel_world']
+            ['electronic_dreams', 'desktop.settings_wallpaper_electronic_dreams'], ['windows_xp', 'desktop.settings_wallpaper_windows_xp'], ['green_slime', 'desktop.settings_wallpaper_green_slime'], ['voxel_world', 'desktop.settings_wallpaper_voxel_world'],
+            ['orbit', 'desktop.settings_wallpaper_orbit'], ['minimal', 'desktop.settings_wallpaper_minimal']
         ];
         const animated = [
             ['silk_flow', 'desktop.settings_wallpaper_silk_flow'],

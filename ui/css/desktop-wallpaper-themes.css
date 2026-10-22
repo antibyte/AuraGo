@@ -23,3 +23,27 @@
     border-radius: 0;
     text-shadow: 1px 1px 0 #000;
 }
+/* Orbit: deep space until the live scene (or its poster) paints over it; cool labels on a dark glass plate. */
+.desktop-body[data-wallpaper="orbit"] {
+    background: #03040c radial-gradient(120% 90% at 72% 70%, #1b2550 0%, #0a0f26 38%, #03040c 100%) fixed;
+}
+.desktop-body[data-wallpaper="orbit"] .vd-icon-label {
+    color: #eaf6ff;
+    background: rgba(6, 10, 26, .62);
+    text-shadow: 0 1px 2px #000;
+}
+/* Minimal: paper or graphite with one barely visible light, following the colour scheme. */
+.desktop-body[data-wallpaper="minimal"] {
+    background: #f1f0eb radial-gradient(130% 100% at 50% 32%, #f9f8f5 0%, #f2f1ec 58%, #ebeae4 100%) fixed;
+}
+.desktop-body[data-wallpaper="minimal"][data-scheme="dark"] {
+    background: #0f0f0f radial-gradient(130% 100% at 50% 32%, #1a1a1a 0%, #121212 58%, #0c0c0c 100%) fixed;
+}
+.desktop-body[data-wallpaper="minimal"] .vd-icon-label {
+    color: #161616;
+    background: transparent;
+    text-shadow: none;
+}
+.desktop-body[data-wallpaper="minimal"][data-scheme="dark"] .vd-icon-label {
+    color: #ededed;
+}

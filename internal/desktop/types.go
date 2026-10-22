@@ -246,7 +246,7 @@ type SettingDefinition struct {
 }
 
 func desktopWallpaperValues() []string {
-	return []string{"groupshoot", "aurora", "midnight", "slate", "ember", "forest", "alpine_dawn", "city_rain", "ocean_cliff", "aurora_glass", "nebula_flow", "paper_waves", "silk_flow", "firefly_dusk", "neon_overdrive", "fractal_trip", "electronic_dreams", "windows_xp", "green_slime", "voxel_world"}
+	return []string{"groupshoot", "aurora", "midnight", "slate", "ember", "forest", "alpine_dawn", "city_rain", "ocean_cliff", "aurora_glass", "nebula_flow", "paper_waves", "silk_flow", "firefly_dusk", "neon_overdrive", "fractal_trip", "electronic_dreams", "windows_xp", "green_slime", "voxel_world", "orbit", "minimal"}
 }
 
 func desktopWallpaperValueSet() map[string]struct{} {
@@ -270,6 +270,7 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "appearance.density", Default: "comfortable", Values: []string{"comfortable", "compact"}},
 		{Key: "appearance.icon_theme", Default: "papirus", Values: []string{"papirus", "whitesur", "windows_xp"}},
 		{Key: "appearance.fruity_mode", Default: "light", Values: []string{"light", "dark"}},
+		{Key: "appearance.minimal_mode", Default: "light", Values: []string{"light", "dark"}},
 		{Key: "desktop.icon_size", Default: "medium", Values: []string{"small", "medium", "large"}},
 		{Key: "desktop.show_widgets", Default: "true", Values: []string{"true", "false"}},
 		{Key: "desktop.open_fullscreen", Default: "false", Values: []string{"true", "false"}},

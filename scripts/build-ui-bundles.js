@@ -163,7 +163,13 @@ const jsBundles = [
       'ui/js/desktop/theme-fx/voxel-scene.js',
       'ui/js/desktop/theme-fx/voxel-graphics.js',
       'ui/js/desktop/theme-fx/voxel-fragments.js',
-      'ui/js/desktop/theme-fx/voxel_world.js'
+      'ui/js/desktop/theme-fx/voxel_world.js',
+      'ui/js/desktop/theme-fx/orbit-choreo.js',
+      'ui/js/desktop/theme-fx/orbit-particles.js',
+      'ui/js/desktop/theme-fx/orbit-shaders.js',
+      'ui/js/desktop/theme-fx/orbit-scene.js',
+      'ui/js/desktop/theme-fx/orbit-windows.js',
+      'ui/js/desktop/theme-fx/orbit.js'
     ]
   },
   {
@@ -228,6 +234,8 @@ const cssBundles = [
       'ui/css/desktop-theme-windows-xp.css',
       'ui/css/desktop-theme-green-slime.css',
       'ui/css/desktop-theme-voxel-world.css',
+      'ui/css/desktop-theme-orbit.css',
+      'ui/css/desktop-theme-minimal.css',
       'ui/css/desktop-cursors.css',
       'ui/css/desktop-polish.css'
     ]

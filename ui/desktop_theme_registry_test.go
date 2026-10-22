@@ -310,8 +310,8 @@ func TestDesktopThemeRegistryMatchesGoAndAssets(t *testing.T) {
 			if theme.Shell == "dock" && !theme.GlobalMenu {
 				t.Errorf("a dock shell needs the global menu bar (globalMenu: true)")
 			}
-			if theme.SchemeSetting != "" && theme.SchemeSetting != "appearance.fruity_mode" {
-				t.Errorf("schemeSetting %q must be empty or appearance.fruity_mode", theme.SchemeSetting)
+			if allowedSchemeSettings := map[string]bool{"appearance.fruity_mode": true, "appearance.minimal_mode": true}; theme.SchemeSetting != "" && !allowedSchemeSettings[theme.SchemeSetting] {
+				t.Errorf("schemeSetting %q must be empty, appearance.fruity_mode or appearance.minimal_mode", theme.SchemeSetting)
 			}
 			if !desktopThemeContains(iconThemes, theme.IconTheme) {
 				t.Errorf("iconTheme %q is not an appearance.icon_theme value %v", theme.IconTheme, iconThemes)
