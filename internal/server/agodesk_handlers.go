@@ -1128,6 +1128,14 @@ func agodeskTTSConfigured(cfg *config.Config) bool {
 	case "mistral":
 		return strings.TrimSpace(cfg.TTS.Mistral.APIKey) != "" &&
 			strings.TrimSpace(cfg.TTS.Mistral.VoiceID) != ""
+	case "xai":
+		return strings.TrimSpace(cfg.TTS.XAI.APIKey) != ""
+	case "openai":
+		return strings.TrimSpace(cfg.TTS.OpenAI.APIKey) != ""
+	case "stepfun":
+		return strings.TrimSpace(cfg.TTS.StepFun.APIKey) != ""
+	case "resemble":
+		return strings.TrimSpace(cfg.TTS.Resemble.APIKey) != "" && strings.TrimSpace(cfg.TTS.Resemble.VoiceID) != ""
 	case "piper":
 		return cfg.TTS.Piper.Enabled
 	case "supertonic":

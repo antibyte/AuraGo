@@ -101,5 +101,16 @@
   "config.tts.mistral_voice_id_help": "Προκαθορισμένο ή προσαρμοσμένο ID φωνής από το Mistral Studio.",
   "config.tts.mistral_voice_id_placeholder": "ID φωνής Mistral",
   "config.tts.mistral_model_id_label": "ID μοντέλου",
-  "config.tts.mistral_model_id_help": "Μοντέλο Voxtral για μετατροπή κειμένου σε ομιλία."
+  "config.tts.mistral_model_id_help": "Μοντέλο Voxtral για μετατροπή κειμένου σε ομιλία.",
+  "config.tts.cloud_api_key_label": "Κλειδί API",
+  "config.tts.cloud_save_key": "Αποθήκευση κλειδιού",
+  "config.tts.cloud_voice_label": "Φωνή",
+  "config.tts.cloud_model_label": "Μοντέλο",
+  "config.tts.cloud_model_help": "Επίλεξε φωνή που υποστηρίζεται από το επιλεγμένο μοντέλο. Χρησιμοποίησε την προσαρμοσμένη επιλογή για δικά σου αναγνωριστικά.",
+  "config.tts.resemble_voice_help": "Απαιτείται το UUID φωνής από τον λογαριασμό σου στο Resemble.",
+  "config.tts.cloud_api_key_required": "Εισήγαγε κλειδί API.",
+  "config.tts.cloud_api_key_saved": "Το κλειδί API αποθηκεύτηκε.",
+  "config.tts.cloud_api_key_save_failed": "Δεν ήταν δυνατή η αποθήκευση του κλειδιού API.",
+  "config.tts.openai_retirement_help": "Αυτά τα μοντέλα OpenAI TTS θα αποσυρθούν στις 6 Ιανουαρίου 2027. Χρησιμοποίησε το Realtime για νέες ενσωματώσεις.",
+  "config.tts.resemble_archive_help": "Η προηγούμενη υπηρεσία ομιλίας του Resemble έχει αρχειοθετηθεί. Απαιτείται πρόσβαση που εξακολουθεί να λειτουργεί."
 }

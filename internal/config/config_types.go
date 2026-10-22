@@ -1859,7 +1859,7 @@ type Config struct {
 		APIToken string `yaml:"-" json:"-"`
 	} `yaml:"paperless_ngx"`
 	TTS struct {
-		Provider            string `yaml:"provider"`              // "sanotts", "google", "elevenlabs", "minimax", "mistral", "piper", "supertonic", or "s2s"
+		Provider            string `yaml:"provider"`              // sanoTTS, Google, cloud speech providers, Piper, Supertonic, or s2s
 		Language            string `yaml:"language"`              // BCP-47 language; "auto" follows the user language for sanoTTS
 		CacheRetentionHours int    `yaml:"cache_retention_hours"` // remove cached TTS files older than this many hours (0 disables age-based cleanup)
 		CacheMaxFiles       int    `yaml:"cache_max_files"`       // max cached TTS files to retain (0 disables count-based cleanup)
@@ -1879,7 +1879,11 @@ type Config struct {
 			VoiceID string `yaml:"voice_id"`          // preset or custom Mistral voice ID
 			ModelID string `yaml:"model_id"`          // e.g. "voxtral-mini-tts-2603"
 		} `yaml:"mistral"`
-		Piper struct {
+		XAI      TTSVoiceProviderConfig `yaml:"xai"`
+		OpenAI   TTSModelProviderConfig `yaml:"openai"`
+		StepFun  TTSModelProviderConfig `yaml:"stepfun"`
+		Resemble TTSVoiceProviderConfig `yaml:"resemble"`
+		Piper    struct {
 			Enabled       bool   `yaml:"enabled"`        // auto-manage a Piper TTS container
 			Voice         string `yaml:"voice"`          // e.g. "de_DE-thorsten-high"
 			SpeakerID     int    `yaml:"speaker_id"`     // multi-speaker model speaker index

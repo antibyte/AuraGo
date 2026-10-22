@@ -1,7 +1,14 @@
 // cfg/tts.js — TTS config section with Piper voice browser
 
+const ttsCloudProviders = {
+    xai: { name: 'xAI', voice: 'eve', voices: ['eve', 'ara', 'leo', 'rex', 'sal', 'carina', 'zagan', 'helix', 'orion', 'luna', 'iris', 'altair', 'zenith', 'perseus', 'helios', 'lux', 'kepler', 'rigel', 'cosmo', 'celeste', 'ursa', 'sirius', 'lumen', 'castor', 'naksh', 'atlas', 'aurora', 'liora'] },
+    openai: { name: 'OpenAI', voice: 'coral', voices: ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse', 'marin', 'cedar'], model: 'gpt-4o-mini-tts', models: ['gpt-4o-mini-tts', 'tts-1', 'tts-1-hd'], notice: 'openai_retirement_help' },
+    stepfun: { name: 'StepFun', voice: 'jingdiannvsheng', voices: ['jingdiannvsheng'], model: 'step-tts-mini', models: ['step-tts-mini', 'stepaudio-3-tts'] },
+    resemble: { name: 'Resemble AI', notice: 'resemble_archive_help' }
+};
+
 function renderTTSSection(section) {
-    const data = configData['tts'] || {};
+    const data = window.AuraConfigState?.get('tts') || configData['tts'] || {};
     const piperData = data.piper || {};
     const piperEnabled = piperData.enabled === true;
     const currentProvider = data.provider || '';
@@ -25,6 +32,9 @@ function renderTTSSection(section) {
     html += '<option value="elevenlabs"' + (currentProvider === 'elevenlabs' ? ' selected' : '') + '>' + t('config.tts.provider_elevenlabs') + '</option>';
     html += '<option value="minimax"' + (currentProvider === 'minimax' ? ' selected' : '') + '>' + t('config.tts.provider_minimax') + '</option>';
     html += '<option value="mistral"' + (currentProvider === 'mistral' ? ' selected' : '') + '>' + t('config.tts.provider_mistral') + '</option>';
+    Object.entries(ttsCloudProviders).forEach(([id, provider]) => {
+        html += '<option value="' + id + '"' + (currentProvider === id ? ' selected' : '') + '>' + provider.name + '</option>';
+    });
     html += '<option value="piper"' + (currentProvider === 'piper' ? ' selected' : '') + '>' + t('config.tts.provider_piper') + '</option>';
     html += '<option value="supertonic"' + (currentProvider === 'supertonic' ? ' selected' : '') + '>' + t('config.tts.provider_supertonic') + '</option>';
     html += '</select>';
@@ -124,6 +134,32 @@ function renderTTSSection(section) {
     html += '<input class="field-input" type="text" data-path="tts.mistral.model_id" value="' + escapeAttr(mistralData.model_id || 'voxtral-mini-tts-2603') + '" placeholder="voxtral-mini-tts-2603">';
     html += '</div>';
     html += '</div>';
+
+    Object.entries(ttsCloudProviders).forEach(([id, provider]) => {
+        const settings = data[id] || {};
+        const path = 'tts.' + id;
+        html += '<div id="tts-' + id + '-section" class="tts-provider-section' + (currentProvider === id ? '' : ' is-hidden') + '">';
+        html += '<div class="tts-subsection-title">' + provider.name + '</div>';
+        if (provider.notice) html += '<div class="adg-status-banner is-warning" role="note">' + t('config.tts.' + provider.notice) + '</div>';
+        html += '<div class="field-group"><label class="field-label" for="tts-' + id + '-api-key">' + t('config.tts.cloud_api_key_label') + '</label>';
+        html += '<div class="adg-password-row"><div class="password-wrap adg-password-input">';
+        html += '<input class="field-input adg-password-input" type="password" id="tts-' + id + '-api-key" value="' + escapeAttr(cfgSecretValue(settings.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(settings.api_key, provider.name)) + '"' + cfgNoAutofillAttrs(true) + '>';
+        html += '</div><button type="button" class="btn-save adg-save-btn" onclick="ttsSaveCloudKey(\'' + id + '\')">' + t('config.tts.cloud_save_key') + '</button></div></div>';
+        html += '<div class="field-group"><label class="field-label" for="tts-' + id + '-voice">' + t('config.tts.cloud_voice_label') + '</label>';
+        if (provider.voices) {
+            html += ttsCloudSelect(path + '.voice_id', settings.voice_id || provider.voice, provider.voices, 'tts-' + id + '-voice');
+        } else {
+            html += '<input class="field-input" id="tts-' + id + '-voice" type="text" data-path="' + path + '.voice_id" value="' + escapeAttr(settings.voice_id || '') + '" placeholder="voice_uuid">';
+            html += '<div class="field-help">' + t('config.tts.resemble_voice_help') + '</div>';
+        }
+        html += '</div>';
+        if (provider.models) {
+            html += '<div class="field-group"><label class="field-label" for="tts-' + id + '-model">' + t('config.tts.cloud_model_label') + '</label>';
+            html += ttsCloudSelect(path + '.model_id', settings.model_id || provider.model, provider.models, 'tts-' + id + '-model');
+            html += '<div class="field-help">' + t('config.tts.cloud_model_help') + '</div></div>';
+        }
+        html += '</div>';
+    });
 
     const showSupertonic = currentProvider === 'supertonic';
     html += '<div id="tts-supertonic-section" class="tts-provider-section' + (showSupertonic ? '' : ' is-hidden') + '">';
@@ -292,6 +328,10 @@ function ttsLanguageSelect(path, selected) {
 }
 
 function ttsProviderChanged(val) {
+    Object.keys(ttsCloudProviders).forEach(id => {
+        const section = document.getElementById('tts-' + id + '-section');
+        if (section) section.classList.toggle('is-hidden', val !== id);
+    });
     const elSection = document.getElementById('tts-elevenlabs-section');
     if (elSection) elSection.classList.toggle('is-hidden', val !== 'elevenlabs');
     const mmSection = document.getElementById('tts-minimax-section');
@@ -302,6 +342,41 @@ function ttsProviderChanged(val) {
     if (supertonicSection) {
         supertonicSection.classList.toggle('is-hidden', val !== 'supertonic');
         if (val === 'supertonic') supertonicCheckStatus();
+    }
+}
+
+function ttsCloudSelect(path, value, options, id) {
+    const custom = !options.includes(value);
+    let html = '<select class="field-select" id="' + id + '" data-path="' + path + '" onchange="cfgToggleCustomInput(this)">';
+    options.forEach(option => {
+        html += '<option value="' + escapeAttr(option) + '"' + (option === value ? ' selected' : '') + '>' + escapeHtml(option) + '</option>';
+    });
+    html += '<option value="' + escapeAttr(CFG_OPTION_OTHER_CUSTOM) + '"' + (custom ? ' selected' : '') + '>' + cfgFieldOptionLabel(CFG_OPTION_OTHER_CUSTOM) + '</option></select>';
+    html += '<input class="field-input cfg-custom-input' + (custom ? '' : ' is-hidden') + '" type="text" data-custom-for="' + path + '" aria-label="' + escapeAttr(t('config.field.other_custom_option')) + '" value="' + escapeAttr(custom ? value : '') + '">';
+    return html;
+}
+
+async function ttsSaveCloudKey(provider) {
+    if (!Object.hasOwn(ttsCloudProviders, provider)) return;
+    const input = document.getElementById('tts-' + provider + '-api-key');
+    const value = input ? input.value.trim() : '';
+    if (!value) {
+        showToast(t('config.tts.cloud_api_key_required'), 'warn');
+        return;
+    }
+    try {
+        const response = await fetch('/api/vault/secrets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'tts_' + provider + '_api_key', value })
+        });
+        const result = await response.json();
+        if (!response.ok || !(result.status === 'ok' || result.success)) throw new Error('vault save failed');
+        cfgMarkSecretStored(input, 'tts.' + provider + '.api_key');
+        window.AuraConfigState?.markSaved('tts.' + provider + '.api_key', configData.tts[provider].api_key);
+        showToast(t('config.tts.cloud_api_key_saved'), 'success');
+    } catch (_) {
+        showToast(t('config.tts.cloud_api_key_save_failed'), 'error');
     }
 }
 

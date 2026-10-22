@@ -854,6 +854,10 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("tts_elevenlabs_api_key", &c.TTS.ElevenLabs.APIKey)
 	apply("tts_minimax_api_key", &c.TTS.MiniMax.APIKey)
 	apply("tts_mistral_api_key", &c.TTS.Mistral.APIKey)
+	apply("tts_xai_api_key", &c.TTS.XAI.APIKey)
+	apply("tts_openai_api_key", &c.TTS.OpenAI.APIKey)
+	apply("tts_stepfun_api_key", &c.TTS.StepFun.APIKey)
+	apply("tts_resemble_api_key", &c.TTS.Resemble.APIKey)
 	apply("telnyx_api_key", &c.Telnyx.APIKey)
 	apply("agentmail_api_key", &c.AgentMail.APIKey)
 

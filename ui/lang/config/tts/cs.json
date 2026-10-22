@@ -101,5 +101,16 @@
   "config.tts.mistral_voice_id_help": "Přednastavené nebo vlastní ID hlasu z Mistral Studio.",
   "config.tts.mistral_voice_id_placeholder": "ID hlasu Mistral",
   "config.tts.mistral_model_id_label": "ID modelu",
-  "config.tts.mistral_model_id_help": "Model Voxtral pro převod textu na řeč."
+  "config.tts.mistral_model_id_help": "Model Voxtral pro převod textu na řeč.",
+  "config.tts.cloud_api_key_label": "Klíč API",
+  "config.tts.cloud_save_key": "Uložit klíč",
+  "config.tts.cloud_voice_label": "Hlas",
+  "config.tts.cloud_model_label": "Model",
+  "config.tts.cloud_model_help": "Vyber hlas podporovaný zvoleným modelem. Vlastní ID zadej přes vlastní možnost.",
+  "config.tts.resemble_voice_help": "UUID hlasu z tvého účtu Resemble je povinné.",
+  "config.tts.cloud_api_key_required": "Zadej klíč API.",
+  "config.tts.cloud_api_key_saved": "Klíč API byl uložen.",
+  "config.tts.cloud_api_key_save_failed": "Klíč API se nepodařilo uložit.",
+  "config.tts.openai_retirement_help": "Tyto modely OpenAI TTS budou vypnuty 6. ledna 2027. Pro nové integrace použij Realtime.",
+  "config.tts.resemble_archive_help": "Původní hlasová služba Resemble je archivována. Vyžaduje stále funkční přístup."
 }

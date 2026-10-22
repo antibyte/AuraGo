@@ -101,5 +101,16 @@
   "config.tts.mistral_voice_id_help": "Forudindstillet eller brugerdefineret stemme-ID fra Mistral Studio.",
   "config.tts.mistral_voice_id_placeholder": "Mistral stemme-ID",
   "config.tts.mistral_model_id_label": "Model-ID",
-  "config.tts.mistral_model_id_help": "Voxtral-model til tekst-til-tale."
+  "config.tts.mistral_model_id_help": "Voxtral-model til tekst-til-tale.",
+  "config.tts.cloud_api_key_label": "API-nøgle",
+  "config.tts.cloud_save_key": "Gem nøgle",
+  "config.tts.cloud_voice_label": "Stemme",
+  "config.tts.cloud_model_label": "Model",
+  "config.tts.cloud_model_help": "Vælg en stemme, som den valgte model understøtter. Brug den brugerdefinerede mulighed til egne ID’er.",
+  "config.tts.resemble_voice_help": "Stemmets UUID fra din Resemble-konto er påkrævet.",
+  "config.tts.cloud_api_key_required": "Indtast en API-nøgle.",
+  "config.tts.cloud_api_key_saved": "API-nøglen er gemt.",
+  "config.tts.cloud_api_key_save_failed": "API-nøglen kunne ikke gemmes.",
+  "config.tts.openai_retirement_help": "Disse OpenAI TTS-modeller lukkes den 6. januar 2027. Brug Realtime til nye integrationer.",
+  "config.tts.resemble_archive_help": "Resembles tidligere taletjeneste er arkiveret. Kræver fortsat fungerende adgang."
 }

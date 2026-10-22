@@ -101,5 +101,16 @@
   "config.tts.mistral_voice_id_help": "Mistral Studio のプリセットまたはカスタム音声 ID。",
   "config.tts.mistral_voice_id_placeholder": "Mistral 音声 ID",
   "config.tts.mistral_model_id_label": "モデル ID",
-  "config.tts.mistral_model_id_help": "テキスト読み上げ用の Voxtral モデル。"
+  "config.tts.mistral_model_id_help": "テキスト読み上げ用の Voxtral モデル。",
+  "config.tts.cloud_api_key_label": "APIキー",
+  "config.tts.cloud_save_key": "キーを保存",
+  "config.tts.cloud_voice_label": "音声",
+  "config.tts.cloud_model_label": "モデル",
+  "config.tts.cloud_model_help": "選択したモデルが対応する音声を選んでください。独自のIDにはカスタムオプションを使ってください。",
+  "config.tts.resemble_voice_help": "Resembleアカウントの音声UUIDが必要です。",
+  "config.tts.cloud_api_key_required": "APIキーを入力してください。",
+  "config.tts.cloud_api_key_saved": "APIキーを保存しました。",
+  "config.tts.cloud_api_key_save_failed": "APIキーを保存できませんでした。",
+  "config.tts.openai_retirement_help": "これらのOpenAI TTSモデルは2027年1月6日に終了します。新しい連携にはRealtimeを使ってください。",
+  "config.tts.resemble_archive_help": "Resembleの旧ホスト型音声サービスはアーカイブされています。引き続き動作するアクセスが必要です。"
 }

@@ -806,6 +806,11 @@ func Load(path string) (*Config, error) {
 	cfg.TTS.CacheRetentionHours = 168
 	cfg.TTS.CacheMaxFiles = 500
 	cfg.TTS.Mistral.ModelID = "voxtral-mini-tts-2603"
+	cfg.TTS.XAI.VoiceID = "eve"
+	cfg.TTS.OpenAI.ModelID = "gpt-4o-mini-tts"
+	cfg.TTS.OpenAI.VoiceID = "coral"
+	cfg.TTS.StepFun.ModelID = "step-tts-mini"
+	cfg.TTS.StepFun.VoiceID = "jingdiannvsheng"
 	cfg.TTS.Piper.ContainerPort = 10200
 	cfg.TTS.Piper.DataPath = "data/piper"
 	cfg.TTS.Piper.Image = "rhasspy/wyoming-piper:latest"

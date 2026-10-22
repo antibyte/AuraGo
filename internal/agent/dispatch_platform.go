@@ -125,6 +125,10 @@ func buildRuntimeTTSConfig(cfg *config.Config, language string) tools.TTSConfig 
 	ttsCfg.Mistral.APIKey = cfg.TTS.Mistral.APIKey
 	ttsCfg.Mistral.VoiceID = cfg.TTS.Mistral.VoiceID
 	ttsCfg.Mistral.ModelID = cfg.TTS.Mistral.ModelID
+	ttsCfg.XAI = cfg.TTS.XAI
+	ttsCfg.OpenAI = cfg.TTS.OpenAI
+	ttsCfg.StepFun = cfg.TTS.StepFun
+	ttsCfg.Resemble = cfg.TTS.Resemble
 	ttsCfg.Piper.Port = cfg.TTS.Piper.ContainerPort
 	ttsCfg.Piper.Voice = cfg.TTS.Piper.Voice
 	ttsCfg.Piper.SpeakerID = cfg.TTS.Piper.SpeakerID
@@ -156,6 +160,14 @@ func isTTSConfigured(cfg *config.Config) bool {
 	case "mistral":
 		return strings.TrimSpace(cfg.TTS.Mistral.APIKey) != "" &&
 			strings.TrimSpace(cfg.TTS.Mistral.VoiceID) != ""
+	case "xai":
+		return strings.TrimSpace(cfg.TTS.XAI.APIKey) != ""
+	case "openai":
+		return strings.TrimSpace(cfg.TTS.OpenAI.APIKey) != ""
+	case "stepfun":
+		return strings.TrimSpace(cfg.TTS.StepFun.APIKey) != ""
+	case "resemble":
+		return strings.TrimSpace(cfg.TTS.Resemble.APIKey) != "" && strings.TrimSpace(cfg.TTS.Resemble.VoiceID) != ""
 	case "piper":
 		return cfg.TTS.Piper.Enabled
 	case "supertonic":

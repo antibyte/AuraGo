@@ -84,6 +84,34 @@ func TestBuildRuntimeTTSConfigIncludesMiniMaxAndPiper(t *testing.T) {
 	}
 }
 
+func TestTTSCloudRuntimeSettingsAndReadiness(t *testing.T) {
+	cfg := &config.Config{}
+	for _, provider := range []string{"xai", "openai", "stepfun", "resemble"} {
+		cfg.TTS.Provider = provider
+		if isTTSConfigured(cfg) {
+			t.Fatalf("%s is ready without credentials", provider)
+		}
+	}
+	cfg.TTS.XAI = config.TTSVoiceProviderConfig{APIKey: "fixture-xai", VoiceID: "rex"}
+	cfg.TTS.OpenAI = config.TTSModelProviderConfig{APIKey: "fixture-openai", VoiceID: "coral", ModelID: "tts-1"}
+	cfg.TTS.StepFun = config.TTSModelProviderConfig{APIKey: "fixture-stepfun", VoiceID: "custom", ModelID: "step-tts-mini"}
+	cfg.TTS.Resemble = config.TTSVoiceProviderConfig{APIKey: "fixture-resemble", VoiceID: "voice-uuid"}
+	for _, provider := range []string{"xai", "openai", "stepfun", "resemble"} {
+		cfg.TTS.Provider = provider
+		if !isTTSConfigured(cfg) {
+			t.Fatalf("%s is unavailable with credentials", provider)
+		}
+		got := buildRuntimeTTSConfig(cfg, "de")
+		if got.Provider != provider || got.XAI != cfg.TTS.XAI || got.OpenAI != cfg.TTS.OpenAI || got.StepFun != cfg.TTS.StepFun || got.Resemble != cfg.TTS.Resemble {
+			t.Fatalf("%s runtime lost TTS settings", provider)
+		}
+	}
+	cfg.TTS.Resemble.VoiceID = ""
+	if isTTSConfigured(cfg) {
+		t.Fatal("Resemble is ready without a voice UUID")
+	}
+}
+
 func TestIsTTSConfiguredRequiresUsableBackend(t *testing.T) {
 	if isTTSConfigured(&config.Config{}) {
 		t.Fatal("empty TTS config should not be considered configured")

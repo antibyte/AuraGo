@@ -25,7 +25,7 @@ import (
 
 // TTSConfig holds TTS provider configuration.
 type TTSConfig struct {
-	Provider            string // "sanotts", "google", "elevenlabs", "minimax", "mistral", "piper", or "supertonic"
+	Provider            string // configured local or cloud speech provider
 	Language            string // BCP-47 language code (e.g. "de", "en")
 	Context             context.Context
 	DataDir             string // base data directory for storing audio files
@@ -60,6 +60,10 @@ type TTSConfig struct {
 		VoiceID string // preset or custom Mistral voice ID
 		ModelID string // e.g. "voxtral-mini-tts-2603"
 	}
+	XAI      config.TTSVoiceProviderConfig
+	OpenAI   config.TTSModelProviderConfig
+	StepFun  config.TTSModelProviderConfig
+	Resemble config.TTSVoiceProviderConfig
 	// SpeechLab is used when Provider is "s2s" / "speech_lab".
 	SpeechLab struct {
 		BaseURL        string
@@ -71,8 +75,7 @@ type TTSConfig struct {
 	}
 }
 
-// ttsHTTPClient carries the ElevenLabs xi-api-key and the Mistral/MiniMax
-// bearer keys, so it never follows a redirect to another origin.
+// ttsHTTPClient carries provider credentials and never redirects to another origin.
 var ttsHTTPClient = httporigin.NewClient(30 * time.Second)
 
 // TTSSynthesize generates speech audio from text and returns the filename (relative to data/tts/).
@@ -110,7 +113,7 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 	var audioData []byte
 	var err error
 
-	switch strings.ToLower(cfg.Provider) {
+	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
 	case "sanotts":
 		audioData, err = ttsSano(cfg, text)
 	case "elevenlabs":
@@ -119,6 +122,8 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 		audioData, err = ttsMiniMax(cfg, text)
 	case "mistral":
 		audioData, err = ttsMistral(cfg, text)
+	case "xai", "openai", "stepfun", "resemble":
+		audioData, err = ttsCloud(cfg, text)
 	case "piper":
 		audioData, err = ttsPiper(cfg, text)
 	case "supertonic":
@@ -172,6 +177,14 @@ func ttsCacheKey(cfg TTSConfig, text string) string {
 			cfg.Mistral.ModelID,
 			text,
 		}, "\x00")
+	case "xai":
+		return strings.Join([]string{provider, cfg.Language, cfg.XAI.VoiceID, text}, "\x00")
+	case "openai":
+		return strings.Join([]string{provider, cfg.Language, cfg.OpenAI.VoiceID, cfg.OpenAI.ModelID, text}, "\x00")
+	case "stepfun":
+		return strings.Join([]string{provider, cfg.Language, cfg.StepFun.VoiceID, cfg.StepFun.ModelID, text}, "\x00")
+	case "resemble":
+		return strings.Join([]string{provider, cfg.Language, cfg.Resemble.VoiceID, text}, "\x00")
 	case "piper":
 		return strings.Join([]string{
 			provider,

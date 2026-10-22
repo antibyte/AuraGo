@@ -275,7 +275,12 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   fallback for unavailable local voices. Quick Setup keeps this installation default
   even when a provider profile supplies cloud TTS credentials. Existing saved provider
   choices and the disabled option remain editable. Keep all `lang/config/tts/` locales
-  aligned; verify with `TestTTSConfigSanoDefaultsBrowser`.
+  aligned; verify with `TestTTSConfigSanoDefaultsBrowser`. Cloud choices include xAI,
+  OpenAI, StepFun and archived Resemble with separate Vault key saves, custom voices
+  and model selection. Keep provider availability notices visible and verify draft,
+  navigation and key masking with `TestTTSCloudProviderConfigBrowser`.
+  Shared config state resolves custom dropdown values through the adjacent
+  `data-custom-for` input during editing, snapshot collection and DOM restoration.
 
 - Speech Lab Config keeps a persistent live action status for refresh, deployment,
   hardware profile saves, and stack activation. Deployment actions poll the status API

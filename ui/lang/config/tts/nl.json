@@ -101,5 +101,16 @@
   "config.tts.mistral_voice_id_help": "Vooraf ingestelde of aangepaste stem-ID uit Mistral Studio.",
   "config.tts.mistral_voice_id_placeholder": "Mistral stem-ID",
   "config.tts.mistral_model_id_label": "Model-ID",
-  "config.tts.mistral_model_id_help": "Voxtral-model voor tekst-naar-spraak."
+  "config.tts.mistral_model_id_help": "Voxtral-model voor tekst-naar-spraak.",
+  "config.tts.cloud_api_key_label": "API-sleutel",
+  "config.tts.cloud_save_key": "Sleutel opslaan",
+  "config.tts.cloud_voice_label": "Stem",
+  "config.tts.cloud_model_label": "Model",
+  "config.tts.cloud_model_help": "Kies een stem die het geselecteerde model ondersteunt. Gebruik de aangepaste optie voor je eigen ID’s.",
+  "config.tts.resemble_voice_help": "De stem-UUID uit je Resemble-account is vereist.",
+  "config.tts.cloud_api_key_required": "Voer een API-sleutel in.",
+  "config.tts.cloud_api_key_saved": "API-sleutel opgeslagen.",
+  "config.tts.cloud_api_key_save_failed": "De API-sleutel kon niet worden opgeslagen.",
+  "config.tts.openai_retirement_help": "Deze OpenAI TTS-modellen worden op 6 januari 2027 stopgezet. Gebruik Realtime voor nieuwe integraties.",
+  "config.tts.resemble_archive_help": "De voormalige gehoste spraakdienst van Resemble is gearchiveerd. Vereist toegang die nog werkt."
 }

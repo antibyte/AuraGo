@@ -36,6 +36,8 @@ func TTSSynthesizeInMemoryContext(ctx context.Context, cfg TTSConfig, text strin
 		data, err = ttsMiniMax(cfg, text)
 	case "mistral":
 		data, err = ttsMistral(cfg, text)
+	case "xai", "openai", "stepfun", "resemble":
+		data, err = ttsCloud(cfg, text)
 	case "piper":
 		data, err = ttsPiper(cfg, text)
 	case "supertonic":

@@ -939,6 +939,20 @@ tts:
         api_key: ""                    # stored in Vault by the Web UI
         model_id: voxtral-mini-tts-2603
         voice_id: ""                   # preset or custom voice ID from Mistral Studio
+    xai:
+        api_key: ""                    # stored in Vault by the Web UI
+        voice_id: eve
+    openai:
+        api_key: ""                    # stored in Vault by the Web UI
+        model_id: gpt-4o-mini-tts       # Speech API models retire on 2027-01-06
+        voice_id: coral
+    stepfun:
+        api_key: ""                    # stored in Vault by the Web UI
+        model_id: step-tts-mini
+        voice_id: jingdiannvsheng
+    resemble:
+        api_key: ""                    # archived hosted service; requires working account access
+        voice_id: ""                   # required voice UUID from your Resemble account
     language: auto                    # sanoTTS follows the user language; unsupported voices use English
     piper:
         container_port: 10200

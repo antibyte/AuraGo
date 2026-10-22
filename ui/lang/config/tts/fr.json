@@ -101,5 +101,16 @@
   "config.tts.mistral_voice_id_help": "ID de voix prédéfinie ou personnalisée depuis Mistral Studio.",
   "config.tts.mistral_voice_id_placeholder": "ID de voix Mistral",
   "config.tts.mistral_model_id_label": "ID du modèle",
-  "config.tts.mistral_model_id_help": "Modèle Voxtral de synthèse vocale."
+  "config.tts.mistral_model_id_help": "Modèle Voxtral de synthèse vocale.",
+  "config.tts.cloud_api_key_label": "Clé API",
+  "config.tts.cloud_save_key": "Enregistrer la clé",
+  "config.tts.cloud_voice_label": "Voix",
+  "config.tts.cloud_model_label": "Modèle",
+  "config.tts.cloud_model_help": "Choisis une voix prise en charge par le modèle sélectionné. Utilise l’option personnalisée pour tes propres identifiants.",
+  "config.tts.resemble_voice_help": "L’UUID de voix de ton compte Resemble est requis.",
+  "config.tts.cloud_api_key_required": "Saisis une clé API.",
+  "config.tts.cloud_api_key_saved": "Clé API enregistrée.",
+  "config.tts.cloud_api_key_save_failed": "Impossible d’enregistrer la clé API.",
+  "config.tts.openai_retirement_help": "Ces modèles TTS OpenAI seront arrêtés le 6 janvier 2027. Utilise Realtime pour les nouvelles intégrations.",
+  "config.tts.resemble_archive_help": "L’ancien service vocal hébergé de Resemble est archivé. Un accès toujours fonctionnel est nécessaire."
 }

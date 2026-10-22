@@ -141,6 +141,10 @@
     function controlValue(element) {
         if (element.classList.contains('toggle')) return element.classList.contains('on');
         if (element.type === 'radio') return element.checked ? element.value : read(draftConfig, element.dataset.path);
+        if (element.tagName === 'SELECT' && element.value === 'Other / Custom') {
+            const custom = element.nextElementSibling;
+            if (custom?.dataset.customFor === element.dataset.path) return custom.value.trim();
+        }
         if (element.type === 'number' || element.type === 'range' || element.dataset.type === 'number') {
             if (element.value === '') return 0;
             if (element.dataset.path?.startsWith('cloudflare_tunnel.')) return Number(element.value);
@@ -197,6 +201,12 @@
                 element.value = Array.isArray(value) ? value.join('\n') : (value == null ? '' : value);
             } else if (element.dataset.type === 'json') {
                 element.value = typeof value === 'string' ? value : JSON.stringify(value == null ? {} : value, null, 2);
+            } else if (element.tagName === 'SELECT' && element.nextElementSibling?.dataset.customFor === element.dataset.path && value != null) {
+                const custom = element.nextElementSibling;
+                const known = Array.from(element.options).some(option => option.value === String(value));
+                element.value = known ? value : 'Other / Custom';
+                custom.value = known ? '' : value;
+                custom.classList.toggle('is-hidden', known);
             } else {
                 element.value = value == null ? '' : value;
             }
@@ -208,8 +218,10 @@
         if (boundRoot.__auraConfigStateBound === true) return;
         boundRoot.__auraConfigStateBound = true;
         const syncEvent = event => {
-            const element = event.target && event.target.closest ? event.target.closest('[data-path]') : null;
+            const custom = event.target?.dataset?.customFor ? event.target : null;
+            const element = custom ? custom.previousElementSibling : event.target?.closest?.('[data-path]');
             if (!element) return;
+            if (custom && element.dataset.path !== custom.dataset.customFor) return;
             if (event.type === 'click' && !element.classList.contains('toggle')) return;
             if (syncElement(element)) notify();
         };
