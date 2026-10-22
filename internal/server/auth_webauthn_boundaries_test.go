@@ -328,6 +328,18 @@ func TestWebAuthnConfigAndLastFactorGuards(t *testing.T) {
 	}
 }
 
+func TestWebAuthnGenericConfigValidationPreservesPolicy(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Auth.WebAuthn = config.WebAuthnConfig{Enabled: true, LoginMode: "passkey", RPID: "aurago.example.test", Origins: []string{"https://aurago.example.test"}}
+	patch := map[string]interface{}{"auth": map[string]interface{}{"webauthn": map[string]interface{}{"origins": []string{"https://attacker.aurago.example.test"}}}}
+	if !rejectWebAuthnConfigPatch(cfg, patch) {
+		t.Error("generic config admitted changed origins")
+	}
+	if cfg.Auth.WebAuthn.Origins[0] != "https://aurago.example.test" {
+		t.Fatal("validation mutated live policy through a shared slice")
+	}
+}
+
 func TestWebAuthnConcurrentCeremonyAndCounterRegression(t *testing.T) {
 	s, _ := newWebAuthnTestServer(t, "passkey")
 	key, credential, state := seedWebAuthnTestCredential(t, s)

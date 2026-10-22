@@ -9,6 +9,7 @@ import (
 	"mime"
 	"net/http"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -520,6 +521,7 @@ func rejectWebAuthnConfigPatch(cfg *config.Config, patch map[string]interface{})
 			return true
 		}
 		candidate := cfg.Auth.WebAuthn
+		candidate.Origins = slices.Clone(candidate.Origins)
 		decoder := json.NewDecoder(bytes.NewReader(raw))
 		decoder.DisallowUnknownFields()
 		if decoder.Decode(&candidate) != nil || !reflect.DeepEqual(candidate, cfg.Auth.WebAuthn) {
