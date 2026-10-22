@@ -204,7 +204,7 @@ func TestPixelSaveUsesWorkspaceAndConditionalImageWrites(t *testing.T) {
 		handlePixelSave(s)(w, r)
 		return w
 	}
-	for _, path := range []string{"../escape.png", "Documents/../../escape.png", "/absolute.png", `C:\outside.png`, `\\host\share\outside.png`, "wrong.jpg", "wrong.svg"} {
+	for _, path := range []string{"../escape.png", "Documents/../../escape.png", "/absolute.png", `C:\outside.png`, `\\host\share\outside.png`, "wrong.jpg", "wrong.svg", "Pictures/COM1.png", "con.png", "Pictures/aux/device.png"} {
 		w := call(path, pngBytes, "*")
 		if w.Code < 400 {
 			t.Errorf("accepted invalid path/extension %q", path)

@@ -28,6 +28,9 @@ func (s *Service) resolveWorkspacePathNoSymlinks(rawPath string, allowMissing bo
 	if !isWithinPath(rootAbs, candidateAbs) {
 		return "", fmt.Errorf("desktop path escapes workspace")
 	}
+	if err := validateWorkspaceDeviceNames(rootAbs, candidateAbs); err != nil {
+		return "", err
+	}
 	if err := validateNoSymlinkComponents(rootAbs, candidateAbs, allowMissing); err != nil {
 		return "", err
 	}
@@ -53,6 +56,9 @@ func (s *Service) resolveWorkspaceRenameDestinationNoSymlinkParent(rawPath strin
 	}
 	if !isWithinPath(rootAbs, candidateAbs) {
 		return "", fmt.Errorf("desktop path escapes workspace")
+	}
+	if err := validateWorkspaceDeviceNames(rootAbs, candidateAbs); err != nil {
+		return "", err
 	}
 	if err := validateNoSymlinkComponents(rootAbs, filepath.Dir(candidateAbs), true); err != nil {
 		return "", err

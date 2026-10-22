@@ -575,6 +575,9 @@ func (s *Service) CreateDirectory(ctx context.Context, rawPath, source string) e
 	if err != nil {
 		return err
 	}
+	if err := validateWorkspaceDeviceNames(s.Config().WorkspaceDir, path); err != nil {
+		return err
+	}
 	if err := s.guardNoteMutation(path, source); err != nil {
 		return err
 	}
@@ -634,6 +637,9 @@ func (s *Service) movePathConditional(ctx context.Context, oldPath, newPath, sou
 		}
 		if strings.TrimSpace(toRel) == "" {
 			return fmt.Errorf("desktop media destination must be inside the mount")
+		}
+		if err := validateNoReservedDeviceNames(toRel); err != nil {
+			return err
 		}
 		for _, path := range []string{from, to} {
 			if err := s.guardNoteMutation(path, source); err != nil {
@@ -741,6 +747,9 @@ func (s *Service) CopyPathConditional(ctx context.Context, srcPath, dstPath, sou
 		}
 		if strings.TrimSpace(toRel) == "" {
 			return fmt.Errorf("desktop media destination must be inside the mount")
+		}
+		if err := validateNoReservedDeviceNames(toRel); err != nil {
+			return err
 		}
 		if err := s.guardNoteMutation(to, source); err != nil {
 			return err
@@ -985,6 +994,9 @@ func (s *Service) CreateSymlink(ctx context.Context, targetPath, linkPath string
 	resolvedLink, err := s.ResolvePath(linkPath)
 	if err != nil {
 		return fmt.Errorf("resolve symlink destination: %w", err)
+	}
+	if err := validateWorkspaceDeviceNames(s.Config().WorkspaceDir, resolvedLink); err != nil {
+		return err
 	}
 
 	resolvedTarget, err := s.ResolvePath(targetPath)
