@@ -172,6 +172,9 @@
 }
 
 .desktop-body[data-theme="orbit"] .vd-window.active.no-titlebar { border-color: rgba(92, 225, 255, .5); }
+/* Integrated GPUs: orbit.js publishes the scene's quality level on the body; at 2 and below the frame loses its backdrop
+   blur (the costly part of glass over a moving scene) and gets a more opaque fill. */
+.desktop-body[data-theme="orbit"]:is([data-orbit-quality="2"], [data-orbit-quality="3"], [data-orbit-quality="4"]) .vd-window:not(.no-titlebar) { background: rgba(10, 14, 32, .84); -webkit-backdrop-filter: none; backdrop-filter: none; }
 .desktop-body[data-theme="orbit"] .vd-window.maximized.active,
 .desktop-body[data-theme="orbit"] .vd-window.maximized { border-radius: 0; box-shadow: none; }
 .desktop-body[data-theme="orbit"] .vd-window.vd-window-file-drop-target { border-color: #5ce1ff; box-shadow: 0 0 0 2px rgba(92, 225, 255, .35), 0 0 32px rgba(92, 225, 255, .3); }

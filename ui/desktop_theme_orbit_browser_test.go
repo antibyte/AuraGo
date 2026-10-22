@@ -146,13 +146,50 @@ func TestDesktopOrbitBrowser(t *testing.T) {
 	s.eval(t, `()=>{const w=[...auditTest.state.windows.values()].find(w=>w.appId==='files');void auditTest.closeWindow(w.id);}`)
 	s.waitFor(t, "the scene to run at full cadence again", 5*time.Second, `()=>AuraDesktopThemeFx.inspect().scene.throttled===false`)
 
-	// 4. The sonar ping.
+	// Integrated GPUs: the scene publishes its quality on the body, and at 2 and below the window frame loses its blur.
+	s.openApps(t, "calculator")
+	frameFilter := `()=>getComputedStyle(document.querySelector('.vd-window')).backdropFilter`
+	if got := s.eval(t, `()=>document.body.dataset.orbitQuality`).Value.Str(); got != "1" {
+		t.Errorf("data-orbit-quality is %q at quality 1", got)
+	}
+	if got := s.eval(t, frameFilter).Value.Str(); !strings.Contains(got, "blur") {
+		t.Errorf("the window frame has no backdrop blur at quality 1: %q", got)
+	}
+	s.eval(t, `()=>AuraDesktopThemeFx.command('orbit.quality',{level:2})`)
+	if got := s.eval(t, `()=>document.body.dataset.orbitQuality`).Value.Str(); got != "2" {
+		t.Errorf("data-orbit-quality is %q at quality 2", got)
+	}
+	if got := s.eval(t, frameFilter).Value.Str(); got != "none" {
+		t.Errorf("the window frame keeps its backdrop blur at quality 2: %q", got)
+	}
+	s.eval(t, `()=>AuraDesktopThemeFx.command('orbit.quality',{level:1})`)
+	s.waitFor(t, "the blur to return at quality 1", 5*time.Second, `()=>document.body.dataset.orbitQuality==='1' && getComputedStyle(document.querySelector('.vd-window')).backdropFilter.includes('blur')`)
+
+	// 4. The sonar ping. The scene draws the scanner pulse, so the overlay keeps only the sparks; the call reaches the sound
+	// system (a spy around DesktopSounds.play records it, the sound system itself decides what is audible).
+	s.eval(t, `()=>{window.orbitSoundCalls=[];const sounds=window.DesktopSounds;if(!sounds)return;const play=sounds.play;sounds.play=function(...args){window.orbitSoundCalls.push([args[0],args[1]&&args[1].variant]);return play.apply(this,args);};}`)
+	before = emitted()
 	if !s.eval(t, `()=>AuraDesktopThemeFx.command('orbit.ping',{x:300,y:300})`).Value.Bool() {
 		t.Error("command orbit.ping did not return true")
 	}
-	if rings := s.eval(t, `()=>AuraDesktopThemeFx.inspect().particles.rings`).Value.Int(); rings != 1 {
-		t.Errorf("rings after one ping: %d, want 1", rings)
+	if got := s.eval(t, `()=>({rings:AuraDesktopThemeFx.inspect().particles.rings,pulse:AuraDesktopThemeFx.inspect().scene.pulse,emitted:AuraDesktopThemeFx.inspect().particles.emitted,sounds:window.orbitSoundCalls,sink:typeof window.DesktopSounds==='object'?DesktopSounds.inspect().themeFx.orbit.theme:null})`).Value; got.Get("rings").Int() != 0 || got.Get("pulse").Nil() || got.Get("emitted").Int() < before+24 {
+		t.Errorf("a ping with the scene running should start the scene pulse and the sparks but no overlay ring: %s", got.String())
+	} else if got.Get("sink").Nil() {
+		t.Log("the fixture has no sound system; the orbit.ping call was not observed")
+	} else if calls := got.Get("sounds").String(); !strings.Contains(calls, "orbit.ping") || !strings.Contains(calls, "medium") || got.Get("sink").Str() != "orbit" {
+		t.Errorf("the ping did not reach DesktopSounds.play('orbit.ping', {variant: 'medium'}): %s", got.String())
 	}
+	// Without the scene (another wallpaper) the overlay ring is the ping.
+	s.store.set(map[string]string{"appearance.wallpaper": "groupshoot"})
+	s.pushSettings(t)
+	s.waitFor(t, "the effect without a scene", 20*time.Second, `()=>{const f=AuraDesktopThemeFx.inspect();return f.activeId==='orbit' && f.wallpaper==='other' && !f.scene && !!f.particles;}`)
+	if !s.eval(t, `()=>AuraDesktopThemeFx.command('orbit.ping',{x:300,y:300})`).Value.Bool() {
+		t.Error("command orbit.ping did not return true without a scene")
+	}
+	if rings := s.eval(t, `()=>AuraDesktopThemeFx.inspect().particles.rings`).Value.Int(); rings != 1 {
+		t.Errorf("rings after one ping without a scene: %d, want 1", rings)
+	}
+	startOrbit(t, s, true, 1)
 
 	// 5. Without window animations the scene stays, as a still frame, and the particle layer is gone.
 	s.store.set(map[string]string{"windows.animations": "false"})
@@ -171,7 +208,7 @@ func TestDesktopOrbitBrowser(t *testing.T) {
 	s.store.set(map[string]string{"appearance.theme": "standard", "windows.animations": "true"})
 	s.pushSettings(t)
 	s.waitFor(t, "the orbit effect to stop", 10*time.Second, `()=>AuraDesktopThemeFx.activeId()===''`)
-	if got := s.eval(t, `()=>({layers:document.querySelectorAll('.vd-theme-fx-layer').length,scenes:document.querySelectorAll('.vd-fx-orbit-scene').length,mx:document.body.style.getPropertyValue('--vd-orbit-mx'),tilt:document.querySelectorAll('[data-orbit-tilt]').length})`).Value; got.Get("layers").Int() != 0 || got.Get("scenes").Int() != 0 || got.Get("mx").Str() != "" || got.Get("tilt").Int() != 0 {
+	if got := s.eval(t, `()=>({layers:document.querySelectorAll('.vd-theme-fx-layer').length,scenes:document.querySelectorAll('.vd-fx-orbit-scene').length,mx:document.body.style.getPropertyValue('--vd-orbit-mx'),quality:document.body.dataset.orbitQuality||'',tilt:document.querySelectorAll('[data-orbit-tilt]').length})`).Value; got.Get("layers").Int() != 0 || got.Get("scenes").Int() != 0 || got.Get("mx").Str() != "" || got.Get("quality").Str() != "" || got.Get("tilt").Int() != 0 {
 		t.Errorf("the orbit effect leaked after switching themes: %s", got.String())
 	}
 
@@ -264,7 +301,7 @@ func TestDesktopOrbitCloseUpsBrowser(t *testing.T) {
 	if backend := s.eval(t, `()=>AuraDesktopThemeFx.inspect().scene.backend`).Value.Str(); backend != "three-webgl" {
 		t.Skipf("the orbit scene needs WebGL; its backend here is %q: %s", backend, orbitSceneJSON(t, s))
 	}
-	s.eval(t, `()=>AuraDesktopThemeFx.command('orbit.time',{t:42})`)
+	s.eval(t, `()=>AuraDesktopThemeFx.command('orbit.time',{t:44})`)
 	waitFrames := func(n int) {
 		t.Helper()
 		before := s.eval(t, `()=>AuraDesktopThemeFx.inspect().scene.frames`).Value.Int()

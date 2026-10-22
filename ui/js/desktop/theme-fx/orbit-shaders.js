@@ -48,8 +48,9 @@ vec2 raySphere(vec3 ro, vec3 rd, float r) {
     h = sqrt(h);
     return vec2(-b - h, -b + h);
 }
-// Differential rotation of the cloud decks in rad/s at a latitude; the scene mirrors it to place the storm.
-float zonalSpeed(float lat) { return 0.0046 + 0.0014 * sin(lat * 5.0 + 0.4) + 0.0007 * sin(lat * 13.0 + 1.9); }
+// The differential part of the cloud rotation in rad/s at a latitude. The scene swings it back and forth (uShear) so the
+// shear between latitudes stays bounded, and mirrors this function to place the storms.
+float zonalVar(float lat) { return 0.0014 * sin(lat * 5.0 + 0.4) + 0.0007 * sin(lat * 13.0 + 1.9); }
 `;
 
     const FULLSCREEN_VERTEX = `
@@ -68,6 +69,8 @@ precision highp float;
 varying vec2 vUv;
 uniform vec2 uStorm;
 uniform vec2 uOval;
+uniform vec2 uSpot;
+uniform vec2 uSpot2;
 ${NOISE}
 float wrapPi(float a) { return a - TAU * floor((a + PI) / TAU); }
 // Rotates the sample point around a storm centre; returns the displacement, core is 1 at the centre.
@@ -93,23 +96,27 @@ void main() {
     float lat = (vUv.y - 0.5) * PI;
     float coreA;
     float coreB;
+    float coreC;
+    float coreD;
     vec2 qA = vec2(wrapPi(phi - uStorm.x * TAU) * cos(uStorm.y), lat - uStorm.y);
     vec2 qB = vec2(wrapPi(phi - uOval.x * TAU) * cos(uOval.y), lat - uOval.y);
-    vec2 off = vortex(qA, vec2(0.46, 0.17), 3.8, coreA) + vortex(qB, vec2(0.12, 0.06), 3.2, coreB);
+    vec2 qC = vec2(wrapPi(phi - uSpot.x * TAU) * cos(uSpot.y), lat - uSpot.y);
+    vec2 qD = vec2(wrapPi(phi - uSpot2.x * TAU) * cos(uSpot2.y), lat - uSpot2.y);
+    vec2 off = vortex(qA, vec2(0.46, 0.17), 3.8, coreA) + vortex(qB, vec2(0.12, 0.06), 3.2, coreB) + vortex(qC, vec2(0.22, 0.09), 3.0, coreC) + vortex(qD, vec2(0.30, 0.11), 3.2, coreD);
     float lat2 = clamp(lat + off.y, -1.55, 1.55);
     float phi2 = phi + off.x / max(cos(lat), 0.2);
     vec3 d = vec3(-cos(phi2) * cos(lat2), sin(lat2), sin(phi2) * cos(lat2));
 
     float warpA = fbm(d * vec3(2.2, 3.4, 2.2) + vec3(3.1, 1.7, 9.2), 4);
     float warpB = fbm(d * 6.0 + vec3(8.3, 2.8, 5.5), 4);
-    float latW = lat2 + 0.055 * warpA + 0.022 * warpB;
+    float latW = lat2 + 0.085 * warpA + 0.034 * warpB;
     float z = zonal(latW);
     float zc = sign(z) * pow(abs(z), 0.72);
-    float streak = fbm(vec3(d.x * 2.6, d.y * 42.0, d.z * 2.6) + vec3(warpB, warpA * 0.5, warpB), 6);
+    float streak = fbm(vec3(d.x * 4.4, d.y * 42.0, d.z * 4.4) + vec3(warpB, warpA * 0.5, warpB), 6);
     float edge = 1.0 - abs(zc);
     float eddy = fbm(d * vec3(11.0, 26.0, 11.0) + vec3(5.2, 1.3, 8.7) + vec3(warpA, 0.0, warpB) * 0.8, 5);
     float puffs = fbm(d * 58.0 + vec3(2.0, 6.0, 1.0), 4);
-    float v = 0.5 + 0.42 * zc + 0.34 * streak + 0.30 * eddy * (0.3 + 0.7 * edge) + 0.05 * puffs;
+    float v = 0.5 + 0.42 * zc + 0.34 * streak + 0.44 * eddy * (0.4 + 0.6 * edge) + 0.05 * puffs;
 
     vec3 cream = srgb(233.0, 216.0, 181.0);
     vec3 rust = srgb(188.0, 98.0, 52.0);
@@ -133,11 +140,13 @@ void main() {
     col += cream * rim * 0.20;
     float ovalMask = smoothstep(0.35, 0.65, coreB);
     col = mix(col, srgb(246.0, 238.0, 222.0), ovalMask * 0.75);
+    col = mix(col, srgb(238.0, 204.0, 170.0), smoothstep(0.35, 0.65, coreC) * 0.7);
+    col = mix(col, srgb(196.0, 96.0, 62.0), smoothstep(0.40, 0.70, coreD) * 0.55);
     col = clamp(col, 0.0, 0.92);
 
     // Zones of floating cloud cities (alpha): the lights themselves are drawn as round dots by the planet shader.
     float zone = smoothstep(0.42, 0.70, fbm(d * 4.0 + 9.0, 4) + 0.20 * cos(lat * 3.0)) * (1.0 - polar);
-    gl_FragColor = vec4(col, clamp(zone * 1.3, 0.0, 1.0));
+    gl_FragColor = vec4(col, clamp(zone * smoothstep(-0.25, 0.45, zc) * 1.4, 0.0, 1.0));
 }`;
 
     // ---------------------------------------------------------------------------------------------
@@ -226,7 +235,8 @@ uniform vec3 uRingN;
 uniform vec3 uRimColor;
 uniform vec4 uRingRange;
 uniform vec4 uBolt[4];
-uniform float uShift;
+uniform float uSpin;
+uniform float uShear;
 uniform float uTime;
 uniform float uDetail;
 uniform float uGain;
@@ -235,7 +245,7 @@ void main() {
     vec3 N = normalize(vNormalW);
     vec3 V = normalize(cameraPosition - vWorld);
     float lat = (vUv.y - 0.5) * PI;
-    float shift = uShift * zonalSpeed(lat) / TAU;
+    float shift = uSpin + zonalVar(lat) * uShear;
     vec2 uv = vec2(vUv.x + shift, vUv.y);
     vec4 tex = texture2D(uAlbedo, uv);
     vec3 albedo = tex.rgb;
@@ -246,8 +256,8 @@ void main() {
 
     float ndl = dot(N, uSunDir);
     float day = smoothstep(-0.16, 0.42, ndl);
-    float diff = pow(clamp((ndl + 0.12) / 1.12, 0.0, 1.0), 1.35);
-    float tq = (ndl - 0.03) / 0.16;
+    float diff = pow(clamp((ndl + 0.05) / 1.05, 0.0, 1.0), 1.35);
+    float tq = (ndl - 0.01) / 0.10;
     float twilight = exp(-tq * tq);
 
     // shadow of the rings: follow the ray to the sun through the ring plane
@@ -267,21 +277,23 @@ void main() {
 
     vec3 col = albedo * uSunColor * diff * shadow * uGain;
     // the sky of the terminator turns the clouds red
-    col += albedo * vec3(0.95, 0.38, 0.18) * twilight * 0.50 * uGain;
+    col += albedo * vec3(0.95, 0.38, 0.18) * twilight * 0.38 * uGain;
     // earthshine: the night side is never black
-    col += albedo * vec3(0.50, 0.62, 1.0) * 0.024 * (1.0 - day);
+    col += albedo * vec3(0.50, 0.62, 1.0) * 0.008 * (1.0 - day);
     // soft blue haze toward the day-side limb
     float fres = pow(1.0 - max(dot(N, V), 0.0), 3.2);
     col += uRimColor * fres * day * 0.22;
 
-    // night: lights of cloud cities
-    float night = 1.0 - smoothstep(-0.02, 0.22, ndl);
-    vec2 grid = uv * vec2(760.0, 380.0);
+    // night: lights of cloud cities. Small round dots on a grid in uv space, sparse and clustered along the cloud bands
+    // (tex.a), only where the surface is genuinely dark and never at the rim.
+    float dark = 1.0 - smoothstep(-0.24, -0.06, ndl);
+    float inside = smoothstep(0.12, 0.42, dot(N, V));
+    vec2 grid = uv * vec2(1000.0, 500.0);
     vec3 hc = hash3(vec3(floor(grid), 4.0));
     float dd = length(fract(grid) - (0.25 + 0.5 * hc.xy));
-    float dotMask = (1.0 - smoothstep(0.0, 0.30, dd)) * step(hc.z, tex.a * 0.32);
-    float tw = 0.65 + 0.35 * sin(uTime * (1.5 + 3.5 * hc.x) + hc.y * 40.0);
-    col += vec3(1.0, 0.74, 0.32) * dotMask * night * tw * 3.0;
+    float dotMask = (1.0 - smoothstep(0.0, 0.22, dd)) * step(hc.z, tex.a * 0.16);
+    float tw = 0.8 + 0.2 * sin(uTime * (1.2 + 2.0 * hc.x) + hc.y * 40.0);
+    col += vec3(1.0, 0.72, 0.32) * dotMask * dark * inside * tw * 3.2;
 
     // lightning: a bright core and a soft flash that lights the cloud tops under it
     vec3 radial = normalize(vWorld);

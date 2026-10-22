@@ -154,11 +154,24 @@
             try { window.DesktopSounds.play('orbit.ping', { variant: 'medium', strength: 0.8, pan }); } catch (_) { /* sound support is optional */ }
         }
 
+        // True while the WebGL scene is on screen (it draws its own scanner pulse).
+        function sceneShows() {
+            if (!scene) return false;
+            const state = scene.inspect();
+            return state.backend === 'three-webgl' && state.ready && state.quality < 4;
+        }
+
         function ping(x, y, force) {
             const now = performance.now();
             if (!force && now - lastPingAt < PING_INTERVAL_MS) return false;
             lastPingAt = now;
-            if (system) { system.emitPing({ x, y }); kick(); }
+            if (system) {
+                // One ring is enough: with the scene running its scanner pulse is the ring, the overlay keeps the sparks;
+                // on the poster (no scene, software GL) the overlay ring stays.
+                system.emitPing({ x, y });
+                if (sceneShows()) system.rings().pop();
+                kick();
+            }
             if (scene) scene.ping(x, y);
             playPing(x);
             return true;
@@ -224,11 +237,18 @@
         }
 
         // ---- Scene -------------------------------------------------------------------------------
+        // The skin drops its backdrop blur at quality 2 and below (data-orbit-quality on the body): glass over a moving
+        // scene is the costly part of a window frame on an integrated GPU.
+        function publishQuality(level) {
+            if (stopped || !document.body) return;
+            document.body.dataset.orbitQuality = String(level);
+        }
+
         function loadScene() {
             import(new URL(VENDOR_URL, window.location.href).href).then(vendor => {
                 if (!isCurrent()) return;
                 if (!window.AuraOrbitScene || !window.AuraOrbitShaders) throw new Error('scene modules missing');
-                scene = window.AuraOrbitScene.create({ vendor, motion, choreo, shaders: window.AuraOrbitShaders });
+                scene = window.AuraOrbitScene.create({ vendor, motion, choreo, shaders: window.AuraOrbitShaders, onQuality: publishQuality });
                 if (paused) scene.pause();
                 refreshCoverage(true);
                 scene.ready.then(() => { sceneReady = true; });
@@ -270,7 +290,11 @@
             if (canvas) canvas.remove();
             canvas = context = null;
             const body = document.body;
-            if (body) { body.style.removeProperty('--vd-orbit-mx'); body.style.removeProperty('--vd-orbit-my'); }
+            if (body) {
+                body.style.removeProperty('--vd-orbit-mx');
+                body.style.removeProperty('--vd-orbit-my');
+                delete body.dataset.orbitQuality;
+            }
         }
 
         function inspect() {

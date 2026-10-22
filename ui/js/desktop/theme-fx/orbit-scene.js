@@ -20,11 +20,13 @@
     const LIGHT = { screenAngle: 150, phase: 74, color: [1.14, 1.06, 0.95] };   // sun direction on screen and phase angle
     const SHELL = 1.045;
     const SEED = 11;
-    const STATIC_TIME = 42;
+    const STATIC_TIME = 44;               // a moment of the cycle with the shuttle out and no comet, shooting star or flash
     const START_TIME = 34;
     const SKY_EXTENT = [1.75, 0.96];                               // half extents in rad of the baked nebula plate
     const BAKE_SIZE = [2048, 1024];
-    const STORM = { lat: 0.20, offsetU: 0.045, ovalLat: 0.70, ovalOffsetU: -0.03 };
+    // The vortices of the cloud decks as longitude offsets (in turns) from the meridian that faces the camera at STATIC_TIME. The big
+    // storm and the oval face the camera there; the two spots sit about 110 degrees to either side, so a vortex is never far from the middle of the disc.
+    const STORM = { lat: 0.20, offsetU: 0.045, ovalLat: 0.70, ovalOffsetU: -0.03, spotLat: -0.32, spotOffsetU: 0.30, spot2Lat: 0.10, spot2OffsetU: -0.30 };
     const MOON = { radius: 9, orbit: 260, period: 300, inclination: 6, phase: 1.476 };
     const SUN_DISTANCE = 2500;
     const POINTER_TAU = 0.35;
@@ -60,8 +62,16 @@
 
     function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
     function smoothstep(a, b, x) { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
-    // The differential rotation of the cloud decks; mirrors zonalSpeed() in the shaders.
-    function zonalSpeed(lat) { return 0.0046 + 0.0014 * Math.sin(lat * 5 + 0.4) + 0.0007 * Math.sin(lat * 13 + 1.9); }
+    // The cloud decks turn as one at SPIN rad/s; on top of that each latitude swings by zonalVar() back and forth with a
+    // period of SHEAR_PERIOD seconds, so the shear between latitudes stays bounded (about 7 degrees) and the planet looks
+    // the same after hours. zonalVar() mirrors the shader. surfaceShift is the texture shift in turns.
+    const SPIN = 0.0046;
+    const SHEAR_PERIOD = 360;
+    const TAU = Math.PI * 2;
+    function zonalVar(lat) { return 0.0014 * Math.sin(lat * 5 + 0.4) + 0.0007 * Math.sin(lat * 13 + 1.9); }
+    function shearPhase(t) { return SHEAR_PERIOD / (TAU * TAU) * Math.sin(TAU * t / SHEAR_PERIOD); }
+    function spinTurns(t) { return (((SPIN * t / TAU) % 1) + 1) % 1; }
+    function surfaceShift(lat, t) { return spinTurns(t) + zonalVar(lat) * shearPhase(t); }
 
     function create(options) {
         const vendor = options.vendor;
@@ -222,7 +232,7 @@
             const dir = basis.back.clone().applyQuaternion(inverse);
             const phi = Math.atan2(dir.z, -dir.x);
             const face = (phi / (2 * Math.PI) + 1) % 1;
-            return face + offset + STATIC_TIME * zonalSpeed(lat) / (2 * Math.PI);
+            return face + offset + surfaceShift(lat, STATIC_TIME);
         }
 
         function bakeAll() {
@@ -236,12 +246,12 @@
             const aniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
             if (objects.planetPlate) objects.planetPlate.dispose();
             if (objects.skyPlate) objects.skyPlate.dispose();
-            objects.stormColumn = stormColumn(STORM.lat, STORM.offsetU);
-            objects.ovalColumn = stormColumn(STORM.ovalLat, STORM.ovalOffsetU);
             objects.planetPlate = bakeTexture(shaders.planetBakeFragment, {
                 uNoise: U.noise,
-                uStorm: { value: new THREE.Vector2(objects.stormColumn, STORM.lat) },
-                uOval: { value: new THREE.Vector2(objects.ovalColumn, STORM.ovalLat) }
+                uStorm: { value: new THREE.Vector2(stormColumn(STORM.lat, STORM.offsetU), STORM.lat) },
+                uOval: { value: new THREE.Vector2(stormColumn(STORM.ovalLat, STORM.ovalOffsetU), STORM.ovalLat) },
+                uSpot: { value: new THREE.Vector2(stormColumn(STORM.spotLat, STORM.spotOffsetU), STORM.spotLat) },
+                uSpot2: { value: new THREE.Vector2(stormColumn(STORM.spot2Lat, STORM.spot2OffsetU), STORM.spot2Lat) }
             }, BAKE_SIZE, true, aniso);
             objects.skyPlate = bakeTexture(shaders.skyBakeFragment, {
                 uNoise: U.noise, uExtent: { value: new THREE.Vector2(SKY_EXTENT[0], SKY_EXTENT[1]) },
@@ -267,7 +277,7 @@
                 uniforms: {
                     uAlbedo: { value: objects.planetPlate.texture }, uRingTex: { value: objects.ringTexture }, uSunDir: U.sunDir, uSunColor: U.sunColor,
                     uRingN: U.ringN, uRimColor: { value: new THREE.Vector3(0.20, 0.38, 0.70) }, uRingRange: U.ringRange, uBolt: { value: bolts },
-                    uShift: { value: 0 }, uTime: U.time, uDetail: { value: 1 }, uGain: { value: 0.74 }, uNoise: U.noise
+                    uSpin: { value: 0 }, uShear: { value: 0 }, uTime: U.time, uDetail: { value: 1 }, uGain: { value: 0.74 }, uNoise: U.noise
                 },
                 vertexShader: shaders.planetVertex, fragmentShader: shaders.planetFragment
             });
@@ -424,11 +434,10 @@
             // line: where the ghost sits on the line from the screen centre (0) through the sun (1); negative is beyond the centre
             const specs = [
                 { line: 1.0, w: 1.15, h: 0.11, shape: 3, alpha: 0.05, color: [0.55, 0.75, 1.0] },
-                { line: 0.62, w: 0.07, h: 0.07, shape: 0, alpha: 0.05, color: [1.0, 0.72, 0.42] },
-                { line: 0.25, w: 0.17, h: 0.17, shape: 1, alpha: 0.045, color: [0.45, 0.78, 1.0] },
-                { line: -0.15, w: 0.08, h: 0.08, shape: 2, alpha: 0.07, color: [0.7, 0.55, 1.0] },
-                { line: -0.5, w: 0.30, h: 0.30, shape: 0, alpha: 0.022, color: [1.0, 0.8, 0.55] },
-                { line: -0.95, w: 0.13, h: 0.13, shape: 1, alpha: 0.012, color: [0.5, 1.0, 0.85] }
+                { line: 0.62, w: 0.045, h: 0.045, shape: 0, alpha: 0.03, color: [1.0, 0.72, 0.42] },
+                { line: 0.25, w: 0.07, h: 0.07, shape: 1, alpha: 0.010, color: [0.45, 0.78, 1.0] },
+                { line: -0.15, w: 0.05, h: 0.05, shape: 2, alpha: 0.04, color: [0.7, 0.55, 1.0] },
+                { line: -0.5, w: 0.12, h: 0.12, shape: 0, alpha: 0.006, color: [1.0, 0.8, 0.55] }
             ];
             const geometry = track(new THREE.PlaneGeometry(2, 2));
             objects.flares = specs.map(spec => {
@@ -658,7 +667,9 @@
             const gap = Math.hypot((sx - tmp.b.x) * aspect, sy - tmp.b.y);
             const occluded = smoothstep(rNdc * 0.97, rNdc * 1.06, gap);
             const edge = 1 - smoothstep(1.0, 1.7, Math.max(Math.abs(sx), Math.abs(sy)));
-            const vis = front * occluded * edge;
+            // the ghosts are for a sun at the edge of the frame; toward the centre they fade to a quarter
+            const near = 0.25 + 0.75 * smoothstep(0.3, 0.85, Math.max(Math.abs(sx), Math.abs(sy)));
+            const vis = front * occluded * edge * near;
             flareCamera.left = -aspect; flareCamera.right = aspect;
             flareCamera.updateProjectionMatrix();
             for (const mesh of objects.flares) {
@@ -673,7 +684,8 @@
 
         function updateWorld(t, dt) {
             U.time.value = t % 100000;
-            objects.planetMaterial.uniforms.uShift.value = t;
+            objects.planetMaterial.uniforms.uSpin.value = spinTurns(t);
+            objects.planetMaterial.uniforms.uShear.value = shearPhase(t);
             updateLightning(t);
             const a = (MOON.phase + 2 * Math.PI * t / MOON.period);
             const inc = MOON.inclination * RAD;
@@ -682,7 +694,8 @@
             objects.moon.position.copy(tmp.a).add(tmp.b).multiplyScalar(MOON.orbit);
             objects.moonMaterial.uniforms.uPlanetPos.value.set(0, 0, 0);
             objects.skyRoot.position.copy(camera.position);
-            objects.skyRoot.quaternion.setFromAxisAngle(basis.up, t * 0.0004);
+            // a slow sway of about half a degree, never a drift: the nebula plate and the star cone cover a window of the sky
+            objects.skyRoot.quaternion.setFromAxisAngle(basis.up, 0.01 * Math.sin(TAU * t / 900));
             for (const layer of objects.stars) {
                 const k = layer.userData.shift;
                 layer.position.copy(basis.right).multiplyScalar(-pointer.x * k).addScaledVector(basis.up, pointer.y * k);
@@ -742,6 +755,7 @@
             const spec = QUALITY[next];
             const changed = next !== quality;
             quality = next;
+            if (typeof options.onQuality === 'function') { try { options.onQuality(next); } catch (_) { /* optional */ } }
             objects.atmosphere.material.uniforms.uSteps.value = spec.steps;
             objects.planetMaterial.uniforms.uDetail.value = spec.detail;
             objects.dust.geometry.setDrawRange(0, spec.dust);
@@ -968,7 +982,7 @@
             if (qualityLock !== null && built) setQualityLevel(qualityLock, false);
         }
 
-        function capture(w, h) {
+        function capture(w, h, grain) {
             if (!built || !renderer || contextLost) return null;
             const saved = { width, height, dpr };
             const cw = clamp(Math.round(w) || 1920, 64, 4096), ch = clamp(Math.round(h) || 1080, 64, 4096);
@@ -978,8 +992,11 @@
             composer.setPixelRatio(1);
             composer.setSize(cw, ch);
             layoutWorld();
+            const grainUniform = gradePass.uniforms.uGrain, savedGrain = grainUniform.value;
+            if (grain !== null) grainUniform.value = grain;
             drawFrame(0, performance.now());
             const url = canvas.toDataURL('image/png');
+            grainUniform.value = savedGrain;
             width = saved.width; height = saved.height; dpr = saved.dpr;
             applySize();
             return url;
@@ -993,7 +1010,7 @@
                 return inspect();
             }
             if (name === 'orbit.quality') { lockQuality(number('level')); return inspect(); }
-            if (name === 'orbit.capture') return capture(number('width') || 1920, number('height') || 1080);
+            if (name === 'orbit.capture') return capture(number('width') || 1920, number('height') || 1080, number('grain'));
             return null;
         }
 
@@ -1005,27 +1022,6 @@
             return { x: Math.round((tmp.a.x * 0.5 + 0.5) * width), y: Math.round((-tmp.a.y * 0.5 + 0.5) * height), radius: Math.round(radius) };
         }
 
-        function featureOnScreen(column, lat) {
-            if (!camera || !built) return null;
-            const phi = (column - sceneTime() * zonalSpeed(lat) / (2 * Math.PI)) * 2 * Math.PI;
-            tmp.a.set(-Math.cos(phi) * Math.cos(lat), Math.sin(lat), Math.sin(phi) * Math.cos(lat)).multiplyScalar(R).applyQuaternion(objects.planet.quaternion).project(camera);
-            return { x: Math.round((tmp.a.x * 0.5 + 0.5) * width), y: Math.round((-tmp.a.y * 0.5 + 0.5) * height) };
-        }
-
-        function cometsOnScreen() {
-            if (!camera || !built) return [];
-            return objects.comets.filter(c => c.visible).map(c => {
-                tmp.a.copy(c.material.uniforms.uHead.value).applyQuaternion(objects.skyRoot.quaternion).add(camera.position).project(camera);
-                return { x: Math.round((tmp.a.x * 0.5 + 0.5) * width), y: Math.round((-tmp.a.y * 0.5 + 0.5) * height), alpha: Math.round(c.material.uniforms.uAlpha.value * 100) / 100 };
-            });
-        }
-
-        function moonOnScreen() {
-            if (!camera || !built) return null;
-            tmp.a.copy(objects.moon.position).project(camera);
-            return { x: Math.round((tmp.a.x * 0.5 + 0.5) * width), y: Math.round((-tmp.a.y * 0.5 + 0.5) * height) };
-        }
-
         function inspect() {
             const now = performance.now();
             while (stamps.length && now - stamps[0] > 2000) stamps.shift();
@@ -1035,9 +1031,9 @@
                 pixels: { width: renderer ? canvas.width : 0, height: renderer ? canvas.height : 0 },
                 fps: Math.round(stamps.length / 2 * 10) / 10, frames, buildMs, triangles: Math.round(triangles),
                 models: models ? { ...models.status } : { station: 'pending', shuttle: 'pending', satellite: 'pending', asteroids: 'pending' },
-                bloom: QUALITY[Math.max(quality, 0)].bloom > 0, throttled, coverage: Math.round(coverage * 1000) / 1000, time: Math.round(sceneTime() * 100) / 100, error: lastError,
+                bloom: QUALITY[Math.max(quality, 0)].bloom > 0, throttled, coverage: Math.round(coverage * 1000) / 1000, pulse: pulseAt >= 0 ? Math.round(pulseAt * 100) / 100 : null, time: Math.round(sceneTime() * 100) / 100, error: lastError,
                 lastCostMs: Math.round(lastCost * 10) / 10, gapMs: gaps.length ? Math.round(mean(gaps) * 10) / 10 : 0, refreshMs: Math.round(refresh * 10) / 10,
-                timings, planet: planetOnScreen(), moon: moonOnScreen(), comets: cometsOnScreen(), storm: featureOnScreen(objects.stormColumn, STORM.lat), oval: featureOnScreen(objects.ovalColumn, STORM.ovalLat), distance: Math.round(distance * 10) / 10, scenery: modelState
+                timings, planet: planetOnScreen(), distance: Math.round(distance * 10) / 10, scenery: modelState
             };
         }
 
