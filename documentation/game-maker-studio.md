@@ -792,7 +792,19 @@ dot-path files. Without the variable the test skips, so ordinary
 their own environment flags.
 
 `game-maker-comparison.json` defines eight fixed weak-model cases and the recorded
-fields. Run both commits with the same configured provider/model and settings,
-then record human playability observations independently of model success prose.
-This provider-dependent comparison is separate from the deterministic browser
-suite; do not claim a model quality improvement without those measurements.
+fields. `scripts/game-maker-benchmark.mjs` runs them and records the terminal job
+outcome, repair passes, usage and duration per case:
+
+```bash
+node scripts/game-maker-benchmark.mjs --dry-run      # list the cases
+AURAGO_BASE_URL=https://127.0.0.1:8443 AURAGO_TOKEN=<admin token> \
+GM_PROVIDER=<provider id> GM_MODEL=<model> GM_COMMIT=$(git rev-parse --short HEAD) \
+node scripts/game-maker-benchmark.mjs
+```
+
+The report lands in the ignored `reports/game-maker-benchmark/` as JSON plus a
+Markdown summary; it never contains the token. The runner cannot judge quality:
+fill `playable` per case by watching the games, independently of model prose. Run
+both commits with the same configured provider/model and settings. This
+provider-dependent comparison is separate from the deterministic browser suite;
+do not claim a model quality improvement without those measurements.
