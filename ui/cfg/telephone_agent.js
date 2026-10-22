@@ -124,6 +124,7 @@ function taRender() {
     const providers = telephoneAgentCatalog?.providers || [];
     const profiles = telephoneAgentCatalog?.realtime_profiles || [];
     const ttsProviders = telephoneAgentCatalog?.tts_providers || [];
+    const asrModes = [...new Set([...(telephoneAgentCatalog?.asr_modes || []), c.voice.classic.asr_mode])];
     const classic = c.voice.backend === 'classic';
     document.getElementById('content').innerHTML = `<section class="cfg-section active telephone-agent-section">
         <div class="section-header">${taEsc(t('config.telephone_agent.title'))}</div>
@@ -156,7 +157,7 @@ function taRender() {
                 ${classic ? `
 					<label>${taLabel('config.telephone_agent.asr_provider', 'asr_provider_id')}<select class="field-select" data-ta="voice.classic.asr_provider_id">${taOptions(providers, c.voice.classic.asr_provider_id, 'config.telephone_agent.choose_provider')}</select></label>
 					<label>${taLabel('config.telephone_agent.asr_mode', 'asr_mode')}<select class="field-select" data-ta="voice.classic.asr_mode">
-                        ${(telephoneAgentCatalog?.asr_modes || []).map(mode => `<option value="${taEsc(mode)}" ${mode === c.voice.classic.asr_mode ? 'selected' : ''}>${taEsc(mode)}</option>`).join('')}
+                        ${asrModes.map(mode => `<option value="${taEsc(mode)}" ${mode === c.voice.classic.asr_mode ? 'selected' : ''}>${taEsc(mode)}</option>`).join('')}
                     </select></label>
 					<label>${taLabel('config.telephone_agent.tts_provider', 'tts_provider')}<select class="field-select" data-ta="voice.classic.tts_provider">${taOptions(ttsProviders, c.voice.classic.tts_provider, 'config.telephone_agent.choose_provider')}</select></label>
                 ` : `<label>${taEsc(t('config.sip.realtime_profile'))}<select class="field-select" data-ta="voice.realtime_profile_id">${taOptions(profiles, c.voice.realtime_profile_id, 'config.telephone_agent.choose_profile')}</select></label>`}

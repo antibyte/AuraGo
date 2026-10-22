@@ -66,6 +66,39 @@ func newTelephoneConfigBrowserPage(t *testing.T, locale string) *rod.Page {
 	return page
 }
 
+func TestTelephoneAgentInitialCatalogFailureKeepsASRMode(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	for _, mode := range []string{"whisper", "multimodal", "local", "speech_lab"} {
+		t.Run(mode, func(t *testing.T) {
+			page := newTelephoneConfigBrowserPage(t, "de")
+			page.MustEval(`async mode=>{
+ telephoneFixture.profile.config.voice.classic.asr_mode=mode;
+ telephoneFixture.failCatalog=true;
+ await selectSection('telephone_agent',{scrollBehavior:'auto'});
+}`, mode)
+			if !page.MustEval(`mode=>document.querySelector('[data-ta="voice.classic.asr_mode"]').value===mode&&taRead().voice.classic.asr_mode===mode&&!telephoneAgentHasUnsavedChanges()&&!isDirty`, mode).Bool() {
+				t.Fatal("initial catalog failure changed the ASR mode or created an unsaved draft")
+			}
+			page.MustEval(`async()=>{
+ const input=document.querySelector('[data-ta="voice.behavior.purpose"]');
+ input.value='Purpose edited without catalog';input.dispatchEvent(new Event('input',{bubbles:true}));
+ await taSave();
+}`)
+			if !page.MustEval(`mode=>telephoneFixture.saves.length===1&&telephoneFixture.saves[0].voice.classic.asr_mode===mode&&telephoneFixture.saves[0].voice.behavior.purpose==='Purpose edited without catalog'&&!telephoneAgentHasUnsavedChanges()`, mode).Bool() {
+				t.Fatal("saving after a catalog failure lost the ASR mode or draft edit")
+			}
+			page.MustEval(`async()=>{
+ telephoneFixture.failCatalog=false;
+ telephoneFixture.catalog.asr_modes=['whisper','multimodal','local','speech_lab'];
+ await taLoad();
+}`)
+			if !page.MustEval(`mode=>document.querySelector('[data-ta="voice.classic.asr_mode"]').value===mode&&document.querySelector('[data-ta="voice.classic.asr_mode"]').options.length===4&&!telephoneAgentHasUnsavedChanges()&&!document.querySelector('[data-ta-action="retry"]')`, mode).Bool() {
+				t.Fatal("catalog recovery changed the ASR mode or kept the failure state")
+			}
+		})
+	}
+}
+
 func TestTelephoneAgentConfigBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	for _, theme := range []string{"dark", "light"} {
