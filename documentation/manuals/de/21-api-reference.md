@@ -1269,6 +1269,8 @@ GET /api/pixel/config
 
 Gibt zurück, ob Bildgenerierung aktiv ist, welchen Provider/welches Modell AuraGo nutzt, welche Standardgröße/-qualität/-style gesetzt sind und ob Image-to-Image unterstützt wird.
 
+`supports_cutout_ai` ist `true`, wenn das lokale KI-Freistellen auf diesem Server laufen kann. Es ist `false`, wenn die Plattform keinen ONNX-Runtime-Build für das KI-Freistellen hat. Der klassische Freistellmodus auf dem Gerät im Editor funktioniert in jedem Fall. Status und Modell-Downloads werden unten beschrieben.
+
 #### Bild generieren
 ```http
 POST /api/pixel/generate
@@ -1310,6 +1312,126 @@ Content-Type: application/json
 ```
 
 Relative Pfade werden unter dem konfigurierten Data-Workspace gespeichert.
+
+`format` ist `png`, `jpeg` (Alias `jpg`) oder `ora`. Er muss zur Dateiendung passen, sonst schlägt die Anfrage mit `400` und
+„Image format and filename must agree“ fehl. Ein Pfad, der auf `.ora` endet, oder `format: "ora"` speichert ein
+OpenRaster-Projekt (Ebenen, Masken, Mischmodi, Sperren), das GIMP und Krita öffnen:
+
+```http
+POST /api/pixel/save
+Content-Type: application/json
+
+{
+  "path": "Images/project.ora",
+  "data": "data:application/zip;base64,...",
+  "format": "ora"
+}
+```
+
+`data` ist das Base64-kodierte ZIP-Archiv; das Präfix der Data-URL ignoriert der Server. Das Archiv wird geprüft, bevor etwas
+geschrieben wird: höchstens 32 MiB (oder die kleinere Dateigrößengrenze des Desktops), höchstens 128 Einträge, ein gespeicherter
+Eintrag `mimetype` an erster Stelle mit dem Wert `image/openraster`, sichere Eintragsnamen (ohne `..` und ohne absolute Pfade),
+eine `stack.xml` mit höchstens 1 MiB, Ebenen- und Masken-PNGs, die die Bildprüfungen bestehen und ins Dokument passen, und
+insgesamt höchstens 512 MiB unkomprimiert.
+
+Ein erfolgreiches Speichern liefert `200`:
+
+```json
+{"status": "ok", "path": "Images/project.ora", "size": 183204, "version": "..."}
+```
+
+Dieselbe `version` steht im Header `ETag`. Sende sie beim nächsten Speichern dieser Datei als `If-Match` zurück, damit eine
+neuere Änderung aus einem anderen Fenster nicht überschrieben wird. Fehler liefern `{"error": "..."}`: `400` bei ungültigen
+Eingaben oder einer falschen Formatangabe, `413` bei einer zu großen Datei und `503`, wenn der Dienst des Virtual Desktop nicht
+verfügbar ist. Im schreibgeschützten Virtual Desktop wird die Anfrage mit `403` und `"code": "desktop_readonly"` abgelehnt.
+
+#### KI-Freistellen: Status
+```http
+GET /api/pixel/cutout/status
+```
+
+Meldet, ob das lokale KI-Freistellen laufen kann, den Zustand seiner beiden Modelle und ob gerade ein Freistellvorgang läuft.
+Es lädt nichts herunter und braucht Lesezugriff auf den Virtual Desktop. Andere Methoden liefern `405`.
+
+```json
+{
+  "available": true,
+  "runtime_ready": false,
+  "busy": false,
+  "models": [
+    {"id": "standard", "name": "ISNet general-use", "license": "Apache-2.0", "size_bytes": 178648008, "ready": false, "downloading": false, "progress": 0, "error": ""},
+    {"id": "precise", "name": "BiRefNet general lite", "license": "MIT", "size_bytes": 224005088, "ready": false, "downloading": false, "progress": 0, "error": ""}
+  ]
+}
+```
+
+- `available`: Die Plattform hat einen ONNX-Runtime-Build für das KI-Freistellen (derselbe Wert wie `supports_cutout_ai`).
+- `runtime_ready`: Die ONNX-Runtime-Bibliothek ist vorhanden.
+- `busy`: Ein Freistellvorgang läuft. Es läuft immer nur einer gleichzeitig.
+- `progress`: Von `0` bis `1`, während ein Modell geladen wird.
+- `error`: Der letzte Download-Fehler oder ein leerer Text.
+
+Die Modelle sind `standard` (ISNet general-use, Apache-2.0, aus dem rembg-Release v0.0.0) und `precise` (BiRefNet general lite,
+MIT, aus demselben Release). Größen und SHA-256-Hashwerte stehen fest in `internal/pixelmatte/model.go`.
+
+#### KI-Freistellmodell vorbereiten
+```http
+POST /api/pixel/cutout/prepare
+Content-Type: application/json
+
+{"model": "standard"}
+```
+
+Startet den Hintergrund-Download des Modells und, falls er fehlt, der ONNX Runtime für die Plattform. Diese Anfrage ist die
+einzige, die etwas herunterlädt. Pro Modell läuft der Download nur einmal; wiederholte Aufrufe schließen sich ihm an. Er läuft
+weiter, bis er fertig ist oder der Server stoppt, auch wenn die Anfrage schon beendet ist.
+
+| Status | Antwort | Bedeutung |
+|---|---|---|
+| `202 Accepted` | `{"status": "downloading"}` | Download gestartet oder läuft bereits |
+| `200 OK` | `{"status": "ready"}` | Modell und Runtime sind bereits vorhanden |
+| `400 Bad Request` | `{"status": "error", "error": "model must be standard or precise"}` | Unbekanntes Modell oder ungültiges JSON |
+| `409 Conflict` | `{"status": "unavailable", "error": "AI cutout is not available on this platform"}` | Kein ONNX-Runtime-Build für diese Plattform |
+| `403 Forbidden` | `"code": "desktop_readonly"` | Der Virtual Desktop ist schreibgeschützt |
+
+#### KI-Freistellen ausführen
+```http
+POST /api/pixel/cutout
+Content-Type: application/json
+
+{
+  "model": "standard",
+  "source_data": "data:image/png;base64,..."
+}
+```
+
+`model` ist `standard` oder `precise`. `source_data` ist ein PNG- oder JPEG-Bild als Data-URL. Der Anfragekörper darf bis zu
+44 MiB groß sein, das dekodierte Bild bis zu 32 MiB und 32 Megapixel. Das Modell muss vorher geladen sein (siehe `prepare`). Der
+Pixel-Editor verkleinert das Bild vor dem Hochladen auf höchstens 2048 Pixel an der längeren Seite. Die zurückgegebene Maske hat
+daher die Größe des hochgeladenen Bildes, und der Editor skaliert sie auf das Dokument zurück.
+
+Ein erfolgreicher Lauf liefert `200`:
+
+```json
+{"status": "ok", "mask": "data:image/png;base64,...", "width": 1024, "height": 683, "ms": 1870}
+```
+
+`mask` ist ein 8-Bit-Graustufen-PNG mit `width` × `height`. Helle Pixel gehören zum Motiv, die Helligkeit ist also der Alpha-Wert.
+`ms` ist die Laufzeit in Millisekunden. Bilddaten werden nie in die Protokolle geschrieben.
+
+| Status | Antwort | Bedeutung |
+|---|---|---|
+| `400 Bad Request` | `{"status": "error", "error": "..."}` | Unbekanntes Modell, fehlendes `source_data`, eine Kodierung, die keine Data-URL ist, oder ein Bild, das kein gültiges PNG oder JPEG ist oder die Grenzen überschreitet |
+| `403 Forbidden` | `"code": "desktop_readonly"` | Der Virtual Desktop ist schreibgeschützt |
+| `409 Conflict` | `{"status": "not_ready", "error": "The AI cutout model is not downloaded yet"}` | Das Modell fehlt: zuerst `prepare` aufrufen |
+| `409 Conflict` | `{"status": "unavailable", "error": "..."}` | Kein ONNX-Runtime-Build für diese Plattform |
+| `413 Payload Too Large` | `{"status": "error", "error": "Image request is too large"}` | Der Anfragekörper ist größer als 44 MiB |
+| `429 Too Many Requests` | `{"status": "busy", "error": "Another cutout is running"}` | Ein anderer Lauf ist aktiv |
+| `504 Gateway Timeout` | `{"status": "timeout", "error": "The cutout took too long"}` | Der Lauf hat 180 Sekunden überschritten |
+| `500 Internal Server Error` | `{"status": "error", "error": "Background matting failed"}` | Der Worker ist fehlgeschlagen; Details stehen im Serverprotokoll |
+
+Die älteren Provider-Endpunkte (`/api/pixel/generate`, `/enhance`, `/remove-bg` und `/upscale`) sind davon getrennt. Sie nutzen den
+Bildgenerierungs-Provider und starten die lokalen Modelle nicht.
 
 ### Music Generation API
 

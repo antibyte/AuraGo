@@ -129,6 +129,7 @@ Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Re
 28. [Mailer](28-mailer.md) — Mail-Client für IMAP-, POP3- und SMTP-Konten, Google über gog und AgentMail
 29. [Infra](29-infra.md) — Der gemeinsame Homelab-Atlas: Atlas-, Topologie- und Inventar-Ansicht mit Live-Stromwerten
 30. [RuView](30-ruview.md) — Experimentelles Wi-Fi-Sensing mit ESP32-Boards (erweitert Kapitel 8)
+31. [Pixel](31-pixel.md) — Ebenen-Bildeditor mit Masken, 80 Filtern, 43 Generatoren, KI-Freistellen und OpenRaster-Projekten
 
 [FAQ](faq.md) · [Handbuch-Start](../README.md) · [Release Notes](../../release-notes-2026-10-audit-remediation.md)
 
@@ -173,4 +174,4 @@ Die UI spricht **16 Sprachen**. Pick your company in **Config → Personality**.
 
 [![Flaggen der 16 UI-Sprachen](../../../assets/readme/language-flags.webp)](../../../assets/readme/language-flags.webp)
 
-*Stand: 19. Oktober 2026. Die englische Fassung ist [hier](../en/README.md).*
+*Stand: 22. Oktober 2026. Die englische Fassung ist [hier](../en/README.md).*

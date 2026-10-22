@@ -239,7 +239,7 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Code Studio** | Container-backed IDE with file tree, editor, search, terminal, and agent context |
 | **Terminal** | Workspace terminal with selectable CRT styles (retro tube look); with **Retro-Net** (on by default) also a dialing directory for Telnet BBSes, C64 boards, MUDs and more — see below |
 | **Writer / Sheets / Notes / Viewer** | Native DOCX word processor, native spreadsheet, and rich note editor (list, live preview, tags, rich layout), plus a file viewer |
-| **Pixel** | Image editor for local files, canvas edits, filters, crop/resize, and optional AI generation/enhancement |
+| **Pixel** | Layered image editor with masks, blend modes, selections, retouch tools, 80 filters and adjustments, 43 generators, background removal (on the device, or AI models downloaded on demand), a command palette and OpenRaster (`.ora`) projects. Also has the older provider-based AI panel ([Chapter 31](31-pixel.md)) |
 | **Video Studio** | Multitrack video editor with keyframes, speed ramps, LUTs, masks, chroma key, a WebGL2 preview and FFmpeg export. Off by default ([Chapter 26](26-video-studio.md)) |
 | **Bookshelf** | Library and ebook reader for EPUB, MOBI/KF8, FB2, CBZ, TXT and PDF from local folders, uploads and connected sources ([Chapter 27](27-bookshelf.md)) |
 | **Mailer** | Mail client for IMAP, POP3 and SMTP accounts, Google via gog and AgentMail, with background sync ([Chapter 28](28-mailer.md)) |

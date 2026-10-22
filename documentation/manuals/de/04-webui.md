@@ -239,7 +239,7 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Code Studio** | Container-basierte IDE mit Dateibaum, Editor, Suche, Terminal und Agent-Kontext |
 | **Terminal** | Workspace-Terminal mit wählbaren CRT-Stilen (Retro-Röhren-Look); mit **Retro-Net** (standardmäßig an) zusätzlich ein Wählerverzeichnis für Telnet-BBS, C64-Boards, MUDs u. a. — siehe unten |
 | **Autor / Tabellen / Notizen / Viewer** | Nativer DOCX-Textprozessor, native Tabellenkalkulation und Rich-Notiz-Editor (Liste, Live-Vorschau, Tags, Rich-Layout) sowie Dateibetrachter |
-| **Pixel** | Bildeditor für lokale Dateien, Canvas-Edits, Filter, Crop/Resize und optionale KI-Generierung/-Verbesserung |
+| **Pixel** | Ebenen-Bildeditor mit Masken, Mischmodi, Auswahlen, Retuschewerkzeugen, 80 Filtern und Anpassungen, 43 Generatoren, Freistellen (auf dem Gerät oder KI-Modelle auf Abruf), Befehlspalette und OpenRaster-Projekten (`.ora`). Dazu kommt das ältere KI-Panel mit Providern ([Kapitel 31](31-pixel.md)) |
 | **Video Studio** | Mehrspur-Videoeditor mit Keyframes, Speed-Ramps, LUTs, Masken, Chroma-Key, WebGL2-Vorschau und FFmpeg-Export. Standardmäßig aus ([Kapitel 26](26-video-studio.md)) |
 | **Bookshelf** | Bibliothek und E-Book-Reader für EPUB, MOBI/KF8, FB2, CBZ, TXT und PDF aus lokalen Ordnern, Uploads und verbundenen Quellen ([Kapitel 27](27-bookshelf.md)) |
 | **Mailer** | Mail-Client für IMAP-, POP3- und SMTP-Konten, Google über gog und AgentMail, mit Hintergrund-Sync ([Kapitel 28](28-mailer.md)) |

@@ -1261,6 +1261,8 @@ GET /api/pixel/config
 
 Returns whether image generation is enabled, the resolved provider/model, default size/quality/style, and image-to-image support.
 
+`supports_cutout_ai` is `true` when the local AI background removal can run on this server. It is `false` when the platform has no ONNX Runtime build for the AI cutout; the classic on-device engine in the editor works either way. Its status and model downloads are described below.
+
 #### Generate Image
 ```http
 POST /api/pixel/generate
@@ -1302,6 +1304,125 @@ Content-Type: application/json
 ```
 
 Relative paths are stored under the configured data workspace.
+
+`format` is `png`, `jpeg` (alias `jpg`) or `ora`. It must agree with the file extension; otherwise the request fails with
+`400` and `Image format and filename must agree`. A path ending in `.ora`, or `format: "ora"`, saves an OpenRaster project
+(layers, masks, blend modes, locks), which GIMP and Krita open:
+
+```http
+POST /api/pixel/save
+Content-Type: application/json
+
+{
+  "path": "Images/project.ora",
+  "data": "data:application/zip;base64,...",
+  "format": "ora"
+}
+```
+
+`data` is the base64 encoded ZIP archive; the server ignores the data URL prefix. The archive is validated before anything is
+written: at most 32 MiB (or the lower desktop file size limit), at most 128 entries, a stored `mimetype` entry first that
+reads `image/openraster`, safe entry names (no `..`, no absolute paths), a `stack.xml` of at most 1 MiB, layer and mask PNGs
+that pass the image checks and fit the document, and at most 512 MiB uncompressed in total.
+
+A successful save returns `200`:
+
+```json
+{"status": "ok", "path": "Images/project.ora", "size": 183204, "version": "..."}
+```
+
+The same `version` is sent in the `ETag` header. Send it back as `If-Match` on the next save of that file, so that a newer
+change from another window is not overwritten. Errors use `{"error": "..."}`: `400` for invalid input or a format mismatch,
+`413` for a file that is too large, and `503` when the Virtual Desktop service is unavailable. In a read-only Virtual Desktop
+the request is refused with `403` and `"code": "desktop_readonly"`.
+
+#### AI Cutout Status
+```http
+GET /api/pixel/cutout/status
+```
+
+Reports whether the local AI background removal can run, the state of its two models and whether a cutout is running. It
+never downloads anything and needs read access to the Virtual Desktop. Other methods return `405`.
+
+```json
+{
+  "available": true,
+  "runtime_ready": false,
+  "busy": false,
+  "models": [
+    {"id": "standard", "name": "ISNet general-use", "license": "Apache-2.0", "size_bytes": 178648008, "ready": false, "downloading": false, "progress": 0, "error": ""},
+    {"id": "precise", "name": "BiRefNet general lite", "license": "MIT", "size_bytes": 224005088, "ready": false, "downloading": false, "progress": 0, "error": ""}
+  ]
+}
+```
+
+- `available`: the platform has an ONNX Runtime build for the AI cutout (the same value as `supports_cutout_ai`).
+- `runtime_ready`: the ONNX Runtime library is present.
+- `busy`: a cutout is running. Only one cutout runs at a time.
+- `progress`: from `0` to `1` while a model is downloading.
+- `error`: the last download error, or an empty string.
+
+The models are `standard` (ISNet general-use, Apache-2.0, from the rembg v0.0.0 release) and `precise` (BiRefNet general lite,
+MIT, from the same release). Sizes and SHA-256 hashes are pinned in `internal/pixelmatte/model.go`.
+
+#### Prepare AI Cutout Model
+```http
+POST /api/pixel/cutout/prepare
+Content-Type: application/json
+
+{"model": "standard"}
+```
+
+Starts the background download of the model and, when it is missing, the ONNX Runtime for the platform. This is the only
+request that downloads anything. A download runs once per model; repeated calls join it, and it continues until it finishes
+or the server stops, even if the request has ended.
+
+| Status | Body | Meaning |
+|---|---|---|
+| `202 Accepted` | `{"status": "downloading"}` | Download started, or already running |
+| `200 OK` | `{"status": "ready"}` | Model and runtime are already present |
+| `400 Bad Request` | `{"status": "error", "error": "model must be standard or precise"}` | Unknown model or invalid JSON |
+| `409 Conflict` | `{"status": "unavailable", "error": "AI cutout is not available on this platform"}` | No ONNX Runtime build for this platform |
+| `403 Forbidden` | `"code": "desktop_readonly"` | The Virtual Desktop is read-only |
+
+#### Run AI Cutout
+```http
+POST /api/pixel/cutout
+Content-Type: application/json
+
+{
+  "model": "standard",
+  "source_data": "data:image/png;base64,..."
+}
+```
+
+`model` is `standard` or `precise`. `source_data` is a PNG or JPEG image as a data URL. The request body may be up to 44 MiB,
+and the decoded image up to 32 MiB and 32 megapixels. The model must be downloaded first (see `prepare`). The Pixel editor
+scales the image to at most 2048 pixels on its longer side before it uploads, so the returned mask has the size of the
+uploaded image, and the editor scales it back to the document.
+
+A successful run returns `200`:
+
+```json
+{"status": "ok", "mask": "data:image/png;base64,...", "width": 1024, "height": 683, "ms": 1870}
+```
+
+`mask` is an 8-bit grayscale PNG of `width` × `height`. Bright pixels are the subject, so the luminance is the alpha value.
+`ms` is the run time in milliseconds. Image data is never written to the logs.
+
+| Status | Body | Meaning |
+|---|---|---|
+| `400 Bad Request` | `{"status": "error", "error": "..."}` | Unknown model, missing `source_data`, an encoding that is not a data URL, or an image that is not a valid PNG or JPEG or exceeds the limits |
+| `403 Forbidden` | `"code": "desktop_readonly"` | The Virtual Desktop is read-only |
+| `409 Conflict` | `{"status": "not_ready", "error": "The AI cutout model is not downloaded yet"}` | The model is missing: call `prepare` first |
+| `409 Conflict` | `{"status": "unavailable", "error": "..."}` | No ONNX Runtime build for this platform |
+| `413 Payload Too Large` | `{"status": "error", "error": "Image request is too large"}` | The request body is above 44 MiB |
+| `429 Too Many Requests` | `{"status": "busy", "error": "Another cutout is running"}` | Another run is in progress |
+| `504 Gateway Timeout` | `{"status": "timeout", "error": "The cutout took too long"}` | The run exceeded 180 seconds |
+| `500 Internal Server Error` | `{"status": "error", "error": "Background matting failed"}` | The worker failed; the details are in the server log |
+
+The older provider-based endpoints (`/api/pixel/generate`, `/enhance`, `/remove-bg` and `/upscale`) are separate. They use the
+image-generation provider and do not run the local models.
 
 ### Music Generation API
 
