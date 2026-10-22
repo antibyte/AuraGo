@@ -168,6 +168,8 @@ const jsBundles = [
       'ui/js/desktop/theme-fx/orbit-choreo.js',
       'ui/js/desktop/theme-fx/orbit-particles.js',
       'ui/js/desktop/theme-fx/orbit-shaders.js',
+      'ui/js/desktop/theme-fx/orbit-textures.js',
+      'ui/js/desktop/theme-fx/orbit-models.js',
       'ui/js/desktop/theme-fx/orbit-scene.js',
       'ui/js/desktop/theme-fx/orbit-windows.js',
       'ui/js/desktop/theme-fx/orbit.js'
