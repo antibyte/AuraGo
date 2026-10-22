@@ -159,6 +159,13 @@ the expanded plan and warnings, and neither accept it nor consume the budget.
 A job may request a different repair budget (`StartJobRequest.max_repair_passes`,
 1–6, default 3); the repair loop, the mutation gate, the visual repair and the
 disclosed remaining count all use the same limit.
+New jobs resolve the selected provider/model limits before starting. A model that
+is known to have fewer than 16 384 usable context tokens is refused with
+`model_context_too_small`; pass `allow_small_model` in the start request to
+override that for an explicit weak-model experiment. Models the registry does not
+know keep the conservative defaults and are never refused. The passive endpoint
+`GET /api/game-maker/model-limits?provider_id=…&model=…` reports the resolved
+context, output limit, source and the minimum without a provider probe.
 Deterministic asset normalization (plural `pack_ids`/`asset_ids`, duplicate
 roles, unknown catalog metadata) runs before validation and is reported as
 `warnings`; unknown catalog IDs, conflicting mechanics and invalid scenes still

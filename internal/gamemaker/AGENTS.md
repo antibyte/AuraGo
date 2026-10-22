@@ -219,6 +219,11 @@ revision publication and standalone export for Phaser and Three.js games.
   default 0.2, both clamped 0.05–1.5); the tool-enabled loop and the tool-free
   minimal loops use the same values. Prepared profiles are `game-maker/v2/...`;
   any prompt text change bumps the version.
+- New Studio jobs resolve the selected provider/model limits before starting. A known
+  model below 16384 usable context tokens is refused with `model_context_too_small`
+  unless `StartJobRequest.AllowSmallModel` is set; unknown models keep the
+  conservative defaults and are never refused. `GET /api/game-maker/model-limits`
+  reports the resolved limits passively, without a provider probe.
 - Planning, editing, source-only generation and image review have versioned
   prepared prompt profiles. Editing is shared by building and repair. Select
   2D/3D guidance once; keep the three planning/four editing schemas and their
