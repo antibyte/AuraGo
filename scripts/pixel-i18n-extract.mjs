@@ -7,16 +7,17 @@
 //   node scripts/pixel-i18n-extract.mjs --verbose       list every key, conflict and exercise error
 //
 // Two sources are merged:
-//  1. static: a small JS tokenizer over ui/js/desktop/apps/pixel*.js finds literal pairs t('pixel.key', 'English') (any
-//     callee: t, r.t, this.t, tx, tr, F/opt helpers, [key, English] tuples) and object literals that carry
-//     labelKey/key plus fallback/label/fb/title in the same literal;
+//  1. static: a small JS tokenizer over ui/js/desktop/apps/pixel*.js collects every literal 'pixel.*' key and the English
+//     texts that sit next to a key (helper calls such as tx/tr, [key, English] tuples, and object literals that carry
+//     labelKey/key plus fallback/label/fb/title in the same literal). Plain t('pixel.key') calls carry no text: the repo
+//     lint forbids inline fallbacks there, the English text lives in en.json;
 //  2. dynamic: the real scripts run in the fake DOM of scripts/pixel-test-dom.mjs; every call of the window's t() is
 //     recorded (panels, menus, commands, tools, dialogs are exercised) and the registries (filters, generators, presets,
 //     params, options, blend modes, menus, tools, panels) are walked for { labelKey, fallback } objects. This is what
 //     finds the keys that are built at run time (gen_*, cmd_gen_*, gp_*, go_*, gpr_*, fxp_*, fxo_*, filter_*, blend_*,
 //     gradient_preset_*, cutout_*, sel_*, layer_*, ...).
-// Keys that are used but have no English text in code, in a runtime call or in en.json are listed separately: give them
-// a fallback at the call site (the safety net in pixel.js shows it until the key exists).
+// Keys that are used but have no English text in code, in a runtime call or in en.json are listed separately (exit 1): add
+// the key with its English text to ui/lang/desktop/en.json, then the translations with scripts/pixel-i18n-merge.mjs.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

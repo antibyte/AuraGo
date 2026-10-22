@@ -1,5 +1,6 @@
-// Guards the English bundle: every Pixel key the scripts use (literal pairs and the keys built at run time) must have its
-// English text in ui/lang/desktop/en.json. Fix a failure with: node scripts/pixel-i18n-extract.mjs --write
+// Guards the English bundle: every Pixel key the scripts use (literal keys and the keys built at run time) must have its
+// English text in ui/lang/desktop/en.json. Fix a failure by adding the key to en.json (plain t('pixel.key') calls carry no
+// inline text); node scripts/pixel-i18n-extract.mjs --write inserts keys whose English text a registry object or helper still carries.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';

@@ -413,14 +413,14 @@
                 rows.push({ heading: title });
                 fresh.forEach(cmd => { used.add(cmd.id); rows.push({ cmd, positions: [] }); });
             };
-            push(r.t('pixel.cmd_suggested', 'Suggested'), contextSuggestions(r, commands));
+            push(r.t('pixel.cmd_suggested'), contextSuggestions(r, commands));
             const byId = new Map(commands.map(cmd => [cmd.id, cmd]));
-            push(r.t('pixel.cmd_recent', 'Recent'), loadRecent().map(id => byId.get(id)).filter(Boolean));
+            push(r.t('pixel.cmd_recent'), loadRecent().map(id => byId.get(id)).filter(Boolean));
             const rest = commands.filter(cmd => !used.has(cmd.id)).sort((a, b) => {
                 const ga = BROWSE_GROUP_ORDER.indexOf(a.groupId), gb = BROWSE_GROUP_ORDER.indexOf(b.groupId);
                 return (ga < 0 ? 99 : ga) - (gb < 0 ? 99 : gb) || a.label.localeCompare(b.label);
             }).slice(0, MAX_BROWSE);
-            push(r.t('pixel.cmd_all', 'All commands'), rest);
+            push(r.t('pixel.cmd_all'), rest);
             return rows;
         }
 
@@ -469,7 +469,7 @@
             if (!palette.list) return;
             palette.items = buildRows(palette.input ? palette.input.value : '');
             if (!palette.items.length) {
-                palette.list.innerHTML = `<div class="pixel-palette-empty">${r.esc(r.t('pixel.cmd_no_results', 'No matching commands'))}</div>`;
+                palette.list.innerHTML = `<div class="pixel-palette-empty">${r.esc(r.t('pixel.cmd_no_results'))}</div>`;
                 palette.active = -1;
                 return;
             }
@@ -505,10 +505,10 @@
             palette.previousFocus = document.activeElement || null;
             const el = document.createElement('div');
             el.className = 'pixel-palette-backdrop';
-            el.innerHTML = `<div class="pixel-palette" role="dialog" aria-modal="true" aria-label="${r.esc(r.t('pixel.cmd_palette', 'Command palette'))}">
-                <div class="pixel-palette-head">${SEARCH_ICON}<input class="pixel-palette-input" type="text" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-controls="pixel-palette-list" autocomplete="off" spellcheck="false" data-pal-input placeholder="${r.esc(r.t('pixel.cmd_placeholder', 'Type a command, tool or filter'))}"></div>
+            el.innerHTML = `<div class="pixel-palette" role="dialog" aria-modal="true" aria-label="${r.esc(r.t('pixel.cmd_palette'))}">
+                <div class="pixel-palette-head">${SEARCH_ICON}<input class="pixel-palette-input" type="text" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-controls="pixel-palette-list" autocomplete="off" spellcheck="false" data-pal-input placeholder="${r.esc(r.t('pixel.cmd_placeholder'))}"></div>
                 <div class="pixel-palette-list" id="pixel-palette-list" role="listbox" data-pal-list></div>
-                <div class="pixel-palette-foot"><span><kbd class="pixel-kbd">↑</kbd><kbd class="pixel-kbd">↓</kbd> ${r.esc(r.t('pixel.cmd_hint_navigate', 'navigate'))}</span><span><kbd class="pixel-kbd">Enter</kbd> ${r.esc(r.t('pixel.cmd_hint_run', 'run'))}</span><span><kbd class="pixel-kbd">Esc</kbd> ${r.esc(r.t('pixel.cmd_hint_close', 'close'))}</span></div>
+                <div class="pixel-palette-foot"><span><kbd class="pixel-kbd">↑</kbd><kbd class="pixel-kbd">↓</kbd> ${r.esc(r.t('pixel.cmd_hint_navigate'))}</span><span><kbd class="pixel-kbd">Enter</kbd> ${r.esc(r.t('pixel.cmd_hint_run'))}</span><span><kbd class="pixel-kbd">Esc</kbd> ${r.esc(r.t('pixel.cmd_hint_close'))}</span></div>
             </div>`;
             root.appendChild(el);
             palette.el = el;
@@ -562,8 +562,8 @@
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'pixel-btn-icon pixel-palette-btn';
-            button.title = r.t('pixel.cmd_palette_title', 'Command palette (Ctrl+K)');
-            button.setAttribute('aria-label', r.t('pixel.cmd_palette', 'Command palette'));
+            button.title = r.t('pixel.cmd_palette_title');
+            button.setAttribute('aria-label', r.t('pixel.cmd_palette'));
             button.innerHTML = SEARCH_ICON;
             button.addEventListener('click', () => r.toggleCommandPalette());
             bar.appendChild(spacer);

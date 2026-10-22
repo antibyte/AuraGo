@@ -126,8 +126,8 @@
         labelKey: 'pixel.remove_object', fallback: 'Remove object', svg: REMOVE_OBJECT_SVG,
         options: r => {
             const size = r.smartState.removeSize;
-            return `<div class="pixel-slider-row"><span class="pixel-slider-label">${r.esc(r.t('pixel.brush_size', 'Size'))}</span><input type="range" class="pixel-slider" data-ro-size min="4" max="200" value="${size}"><span class="pixel-slider-value" data-ro-size-val>${size}px</span></div>
-                <p class="pixel-draw-hint">${r.esc(r.t('pixel.remove_object_hint', 'Paint over what should disappear, then release.'))}</p>`;
+            return `<div class="pixel-slider-row"><span class="pixel-slider-label">${r.esc(r.t('pixel.brush_size'))}</span><input type="range" class="pixel-slider" data-ro-size min="4" max="200" value="${size}"><span class="pixel-slider-value" data-ro-size-val>${size}px</span></div>
+                <p class="pixel-draw-hint">${r.esc(r.t('pixel.remove_object_hint'))}</p>`;
         },
         wireOptions: (r, bar) => {
             const slider = bar.querySelector('[data-ro-size]');
@@ -141,7 +141,7 @@
         },
         onDown: (r, e, p) => {
             if (r.smartState.busy) {
-                r.notify({ type: 'info', message: r.t('pixel.caf_busy', 'Another fill is still running.') });
+                r.notify({ type: 'info', message: r.t('pixel.caf_busy') });
                 return;
             }
             r.smartState.stroke = { points: [{ x: p.x, y: p.y }], size: r.smartState.removeSize };
@@ -215,40 +215,40 @@
         const num = (attr, label, min, max) => `<label class="pixel-sc-num"><span>${label}</span><input type="number" class="pixel-param-number" ${attr} min="${min}" max="${max}" step="1"></label>`;
         return `<div class="pixel-color-section pixel-sc">
             <div class="pixel-sc-top">
-                <button class="pixel-sc-chip pixel-sc-chip-primary" type="button" data-sc-primary style="background:${r.primaryColor}" title="${t('pixel.color_primary', 'Primary color')}"></button>
-                <button class="pixel-sc-chip pixel-sc-chip-secondary" type="button" data-sc-secondary style="background:${r.secondaryColor}" title="${t('pixel.color_secondary', 'Secondary color')}"></button>
-                <button class="pixel-btn-icon" type="button" data-sc-swap title="${t('pixel.swap_colors', 'Swap colors')}">${SWAP_ARROWS}</button>
-                <button class="pixel-btn-icon" type="button" data-sc-eyedropper title="${t('pixel.eyedropper', 'Eyedropper')}">${r.toolSvg('eyedropper')}</button>
+                <button class="pixel-sc-chip pixel-sc-chip-primary" type="button" data-sc-primary style="background:${r.primaryColor}" title="${t('pixel.color_primary')}"></button>
+                <button class="pixel-sc-chip pixel-sc-chip-secondary" type="button" data-sc-secondary style="background:${r.secondaryColor}" title="${t('pixel.color_secondary')}"></button>
+                <button class="pixel-btn-icon" type="button" data-sc-swap title="${t('pixel.swap_colors')}">${SWAP_ARROWS}</button>
+                <button class="pixel-btn-icon" type="button" data-sc-eyedropper title="${t('pixel.eyedropper')}">${r.toolSvg('eyedropper')}</button>
             </div>
             <div class="pixel-sc-picker">
-                <canvas class="pixel-sc-sv" data-sc-sv width="240" height="150" tabindex="0" role="slider" aria-label="${t('pixel.sc_saturation_value', 'Saturation and brightness')}"></canvas>
-                <canvas class="pixel-sc-hue" data-sc-hue width="240" height="16" tabindex="0" role="slider" aria-label="${t('pixel.sc_hue', 'Hue')}"></canvas>
+                <canvas class="pixel-sc-sv" data-sc-sv width="240" height="150" tabindex="0" role="slider" aria-label="${t('pixel.sc_saturation_value')}"></canvas>
+                <canvas class="pixel-sc-hue" data-sc-hue width="240" height="16" tabindex="0" role="slider" aria-label="${t('pixel.sc_hue')}"></canvas>
             </div>
             <div class="pixel-sc-fields">
-                <input type="text" class="pixel-hex-input" data-hex-input data-sc-hex value="${r.primaryColor}" maxlength="7" spellcheck="false" title="${t('pixel.hex_value', 'Hex value')}">
+                <input type="text" class="pixel-hex-input" data-hex-input data-sc-hex value="${r.primaryColor}" maxlength="7" spellcheck="false" title="${t('pixel.hex_value')}">
                 <div class="pixel-sc-row">${num('data-sc-r', 'R', 0, 255)}${num('data-sc-g', 'G', 0, 255)}${num('data-sc-b', 'B', 0, 255)}</div>
                 <div class="pixel-sc-row">${num('data-sc-h', 'H', 0, 360)}${num('data-sc-s', 'S', 0, 100)}${num('data-sc-l', 'L', 0, 100)}</div>
-                <div class="pixel-slider-row"><span class="pixel-slider-label">${t('pixel.sc_opacity', 'Opacity')}</span><input type="range" class="pixel-slider" data-sc-opacity min="1" max="100" value="${r.brushOpacity}"><span class="pixel-slider-value" data-sc-opacity-val>${r.brushOpacity}%</span></div>
+                <div class="pixel-slider-row"><span class="pixel-slider-label">${t('pixel.sc_opacity')}</span><input type="range" class="pixel-slider" data-sc-opacity min="1" max="100" value="${r.brushOpacity}"><span class="pixel-slider-value" data-sc-opacity-val>${r.brushOpacity}%</span></div>
             </div>
-            <details class="pixel-sc-group" open><summary>${t('pixel.sc_harmonies', 'Harmonies')}</summary><div class="pixel-sc-harmonies" data-sc-harmonies></div></details>
-            <details class="pixel-sc-group" open><summary>${t('pixel.sc_swatches', 'Swatches')}</summary>
+            <details class="pixel-sc-group" open><summary>${t('pixel.sc_harmonies')}</summary><div class="pixel-sc-harmonies" data-sc-harmonies></div></details>
+            <details class="pixel-sc-group" open><summary>${t('pixel.sc_swatches')}</summary>
                 <div class="pixel-sc-grid" data-sc-swatches></div>
-                <div class="pixel-sc-actions"><button class="pixel-btn" type="button" data-sc-add-swatch>${t('pixel.sc_add_swatch', 'Add current color')}</button></div>
+                <div class="pixel-sc-actions"><button class="pixel-btn" type="button" data-sc-add-swatch>${t('pixel.sc_add_swatch')}</button></div>
             </details>
-            <details class="pixel-sc-group" data-sc-palette-group><summary>${t('pixel.sc_palette', 'Palette from image')}</summary>
+            <details class="pixel-sc-group" data-sc-palette-group><summary>${t('pixel.sc_palette')}</summary>
                 <div class="pixel-sc-actions">
-                    <select class="pixel-select pixel-sc-count" data-sc-count aria-label="${t('pixel.sc_palette_count', 'Number of colors')}">${[5, 6, 8, 10, 12, 16].map(n => `<option value="${n}"${n === 8 ? ' selected' : ''}>${n}</option>`).join('')}</select>
-                    <button class="pixel-btn" type="button" data-sc-extract>${t('pixel.sc_extract', 'Extract')}</button>
+                    <select class="pixel-select pixel-sc-count" data-sc-count aria-label="${t('pixel.sc_palette_count')}">${[5, 6, 8, 10, 12, 16].map(n => `<option value="${n}"${n === 8 ? ' selected' : ''}>${n}</option>`).join('')}</select>
+                    <button class="pixel-btn" type="button" data-sc-extract>${t('pixel.sc_extract')}</button>
                 </div>
                 <div class="pixel-sc-grid" data-sc-palette></div>
                 <div class="pixel-sc-actions" data-sc-palette-actions hidden>
-                    <button class="pixel-btn" type="button" data-sc-pal-swatches>${t('pixel.sc_pal_to_swatches', 'Add to swatches')}</button>
-                    <button class="pixel-btn" type="button" data-sc-pal-gradient>${t('pixel.sc_pal_gradient', 'As gradient')}</button>
-                    <button class="pixel-btn" type="button" data-sc-pal-layer>${t('pixel.sc_pal_layer', 'Palette layer')}</button>
+                    <button class="pixel-btn" type="button" data-sc-pal-swatches>${t('pixel.sc_pal_to_swatches')}</button>
+                    <button class="pixel-btn" type="button" data-sc-pal-gradient>${t('pixel.sc_pal_gradient')}</button>
+                    <button class="pixel-btn" type="button" data-sc-pal-layer>${t('pixel.sc_pal_layer')}</button>
                 </div>
             </details>
-            <details class="pixel-sc-group"><summary>${t('pixel.sc_presets', 'Presets')}</summary><div class="pixel-palette-grid">${presets}</div></details>
-            <div class="pixel-recent-colors"><span class="pixel-label">${t('pixel.recent_colors', 'Recent colors')}</span><div class="pixel-recent-row" data-recent-colors></div></div>
+            <details class="pixel-sc-group"><summary>${t('pixel.sc_presets')}</summary><div class="pixel-palette-grid">${presets}</div></details>
+            <div class="pixel-recent-colors"><span class="pixel-label">${t('pixel.recent_colors')}</span><div class="pixel-recent-row" data-recent-colors></div></div>
         </div>`;
     }
 
@@ -345,11 +345,11 @@
         function renderSwatches() {
             const host = q('[data-sc-swatches]');
             if (!host) return;
-            host.title = r.t('pixel.sc_swatch_hint', 'Click: primary color. Right-click: secondary color. Shift+click: remove.');
+            host.title = r.t('pixel.sc_swatch_hint');
             const list = loadSwatches();
             host.innerHTML = list.length
                 ? list.map(c => swatchButton(r, 'data-sc-saved', c)).join('')
-                : `<span class="pixel-draw-hint">${r.esc(r.t('pixel.sc_no_swatches', 'No saved swatches yet.'))}</span>`;
+                : `<span class="pixel-draw-hint">${r.esc(r.t('pixel.sc_no_swatches'))}</span>`;
         }
 
         function renderPalette() {
@@ -585,7 +585,7 @@
             const el = document.createElement('div');
             el.className = 'pixel-smart-busy';
             el.setAttribute('role', 'status');
-            el.innerHTML = `<span class="pixel-smart-busy-label">${r.esc(label)}</span><span class="pixel-smart-busy-bar"><i data-sb-fill></i></span><button type="button" class="pixel-btn" data-sb-cancel>${r.esc(t('pixel.cancel', 'Cancel'))}</button>`;
+            el.innerHTML = `<span class="pixel-smart-busy-label">${r.esc(label)}</span><span class="pixel-smart-busy-bar"><i data-sb-fill></i></span><button type="button" class="pixel-btn" data-sb-cancel>${r.esc(t('pixel.cancel'))}</button>`;
             root.appendChild(el);
             const fill = el.querySelector('[data-sb-fill]');
             const onKey = e => {
@@ -611,7 +611,7 @@
             const L = lib();
             const layer = r.activeLayer();
             if (!layer || !r.imgWidth || !L || typeof L.inpaintRegion !== 'function') return false;
-            if (smart.busy) { info(t('pixel.caf_busy', 'Another fill is still running.')); return false; }
+            if (smart.busy) { info(t('pixel.caf_busy')); return false; }
             if (!r.canPaintActiveLayer('content-aware-fill')) return false;
             r.commitPendingPreviews();
             const W = r.imgWidth, H = r.imgHeight, box = spec.box;
@@ -636,9 +636,9 @@
                     image, mask, patch: spec.patch || 7, iterations: spec.iterations || QUALITY.balanced, margin: spec.margin, seed: 1, inPlace: true
                 }, { transfer: [image.data.buffer, mask.buffer], signal: controller.signal, key: 'pixel-inpaint', onProgress: f => progress.set(f) });
             } catch (err) {
-                if (err && err.name === 'AbortError') info(t('pixel.caf_cancelled', 'Fill cancelled.'));
-                else if (err && /no-sources/.test(err.message || '')) failure(t('pixel.caf_no_sources', 'There is nothing around the selection to copy from. Select a smaller area.'));
-                else failure(t('pixel.caf_failed', 'The fill failed.') + (err && err.message ? ' ' + err.message : ''));
+                if (err && err.name === 'AbortError') info(t('pixel.caf_cancelled'));
+                else if (err && /no-sources/.test(err.message || '')) failure(t('pixel.caf_no_sources'));
+                else failure(t('pixel.caf_failed') + (err && err.message ? ' ' + err.message : ''));
                 return false;
             } finally {
                 progress.done();
@@ -649,7 +649,7 @@
             if (r.state.disposed) return false;
             const stale = r.layers !== stamp.layers || r.layers.indexOf(layer) < 0 || r.imgWidth !== stamp.width || r.imgHeight !== stamp.height ||
                 (inMask ? layer.maskRev : layer.rev) !== stamp.rev || r.activeLayer() !== layer;
-            if (stale) { info(t('pixel.caf_stale', 'The image changed while the fill was running, so the result was dropped.')); return false; }
+            if (stale) { info(t('pixel.caf_stale')); return false; }
             const out = r.copyCanvas(sourceCanvas);
             putImage(out.getContext('2d'), result.image, region.x, region.y);
             const extra = new Uint8ClampedArray(W * H);
@@ -669,7 +669,7 @@
             const L = lib();
             if (!r.imgWidth || !L) return false;
             const sel = r.getSelectionMask();
-            if (!sel) { info(t('pixel.caf_need_selection', 'Select the area to fill first.')); return false; }
+            if (!sel) { info(t('pixel.caf_need_selection')); return false; }
             const o = Object.assign({}, smart.fill, options || {});
             const grow = clampNum(Math.round(Number(o.grow) || 0), 0, 40);
             const W = r.imgWidth, H = r.imgHeight;
@@ -683,7 +683,7 @@
             }
             if (grow > 0) alpha = L.morphAlpha(alpha, box.w, box.h, grow, 'dilate');
             return inpaintHole({
-                alpha, box, label: t('pixel.content_aware_fill', 'Content-aware fill'),
+                alpha, box, label: t('pixel.content_aware_fill'),
                 margin: o.area === 'around' ? clampNum(Number(o.margin) || 128, 16, 512) : 'auto',
                 iterations: QUALITY[o.quality] || QUALITY.balanced, respectSelection: false
             });
@@ -691,17 +691,17 @@
 
         function showContentAwareFillDialog() {
             if (!r.imgWidth) return;
-            if (!r.selection) { info(t('pixel.caf_need_selection', 'Select the area to fill first.')); return; }
+            if (!r.selection) { info(t('pixel.caf_need_selection')); return; }
             const values = Object.assign(r.defaultParams(FILL_SCHEMA), smart.fill);
             const dlg = document.createElement('div');
             dlg.className = 'vd-modal-backdrop';
             dlg.innerHTML = `<form class="vd-modal pixel-smart-dialog" role="dialog" aria-modal="true">
-                <div class="vd-modal-title">${r.esc(t('pixel.content_aware_fill', 'Content-aware fill'))}</div>
-                <p class="pixel-draw-hint">${r.esc(t('pixel.caf_hint', 'Fills the selection with what the surroundings suggest.'))}</p>
+                <div class="vd-modal-title">${r.esc(t('pixel.content_aware_fill'))}</div>
+                <p class="pixel-draw-hint">${r.esc(t('pixel.caf_hint'))}</p>
                 <div data-caf-params>${r.buildParamControls(FILL_SCHEMA, values, { idPrefix: 'pixel-caf' })}</div>
                 <div class="vd-modal-actions">
-                    <button type="button" class="vd-button" data-cancel>${r.esc(t('pixel.cancel', 'Cancel'))}</button>
-                    <button type="submit" class="vd-button vd-button-primary">${r.esc(t('pixel.apply', 'Apply'))}</button>
+                    <button type="button" class="vd-button" data-cancel>${r.esc(t('pixel.cancel'))}</button>
+                    <button type="submit" class="vd-button vd-button-primary">${r.esc(t('pixel.apply'))}</button>
                 </div>
             </form>`;
             document.body.appendChild(dlg);
@@ -741,7 +741,7 @@
             }
             if (!any) return Promise.resolve(false);
             alpha = L.morphAlpha(alpha, box.w, box.h, 3, 'dilate');
-            return inpaintHole({ alpha, box, label: t('pixel.remove_object', 'Remove object'), margin: 'auto', iterations: QUALITY.balanced, respectSelection: true });
+            return inpaintHole({ alpha, box, label: t('pixel.remove_object'), margin: 'auto', iterations: QUALITY.balanced, respectSelection: true });
         }
 
         // --- smart document actions ---
@@ -757,8 +757,8 @@
             if (!r.imgWidth || !L) return false;
             r.commitPendingPreviews();
             const box = scanCanvasBounds(r.flattenDocument(), { mode: 'alpha', threshold: 0 });
-            if (!box) { info(t('pixel.trim_empty', 'The image is completely transparent.')); return false; }
-            if (box.w === r.imgWidth && box.h === r.imgHeight) { info(t('pixel.trim_nothing', 'There is nothing to trim.')); return false; }
+            if (!box) { info(t('pixel.trim_empty')); return false; }
+            if (box.w === r.imgWidth && box.h === r.imgHeight) { info(t('pixel.trim_nothing')); return false; }
             cropDocument(box, 'trim');
             return true;
         }
@@ -777,8 +777,8 @@
             const box = scanCanvasBounds(flat, background.transparent
                 ? { mode: 'alpha', threshold: 8 }
                 : { mode: 'color', background: background.color, tolerance: tol, threshold: 8 });
-            if (!box) { info(t('pixel.autocrop_empty', 'No content found.')); return false; }
-            if (box.w === w && box.h === h) { info(t('pixel.autocrop_nothing', 'The content already fills the image.')); return false; }
+            if (!box) { info(t('pixel.autocrop_empty')); return false; }
+            if (box.w === w && box.h === h) { info(t('pixel.autocrop_nothing')); return false; }
             cropDocument(box, 'auto-crop');
             return true;
         }
@@ -789,8 +789,8 @@
             r.commitPendingPreviews();
             let box = null;
             r.layers.forEach(layer => { box = unionBox(box, scanCanvasBounds(layer.canvas, { mode: 'alpha', threshold: 0 })); });
-            if (!box) { info(t('pixel.trim_empty', 'The image is completely transparent.')); return false; }
-            if (box.w === r.imgWidth && box.h === r.imgHeight) { info(t('pixel.fit_canvas_nothing', 'The canvas already fits the layers.')); return false; }
+            if (!box) { info(t('pixel.trim_empty')); return false; }
+            if (box.w === r.imgWidth && box.h === r.imgHeight) { info(t('pixel.fit_canvas_nothing')); return false; }
             cropDocument(box, 'fit-canvas');
             return true;
         }
@@ -802,7 +802,7 @@
             if (!r.imgWidth) return false;
             const nw = Math.round(Number(width)), nh = Math.round(Number(height));
             if (!(nw >= 1 && nh >= 1) || nw > MAX_CANVAS_SIDE || nh > MAX_CANVAS_SIDE || nw * nh > MAX_CANVAS_PIXELS) {
-                failure(t('pixel.canvas_too_large', 'That canvas size is not possible.'));
+                failure(t('pixel.canvas_too_large'));
                 return false;
             }
             const w = r.imgWidth, h = r.imgHeight;
@@ -817,7 +817,7 @@
             if (color && (nw > w || nh > h)) {
                 let target = r.layers[0];
                 if (!target || target.sticker || target.lockPixels) {
-                    target = r.createLayer({ name: t('pixel.layer_background', 'Background') });
+                    target = r.createLayer({ name: t('pixel.layer_background') });
                     r.layers.unshift(target);
                     r.activeLayerIdx = r.activeLayerIdx + 1;
                 }
@@ -845,22 +845,22 @@
             dlg.className = 'vd-modal-backdrop';
             const fillOption = (value, key, fallback) => `<option value="${value}">${r.esc(t(key, fallback))}</option>`;
             dlg.innerHTML = `<form class="vd-modal pixel-smart-dialog" role="dialog" aria-modal="true">
-                <div class="vd-modal-title">${r.esc(t('pixel.canvas_size_title', 'Canvas size'))}</div>
+                <div class="vd-modal-title">${r.esc(t('pixel.canvas_size_title'))}</div>
                 <div class="pixel-smart-form">
-                    <label class="pixel-label">${r.esc(t('pixel.width', 'Width'))}</label>
+                    <label class="pixel-label">${r.esc(t('pixel.width'))}</label>
                     <input class="vd-modal-input" type="number" data-cs-w value="${r.imgWidth}" min="1" max="${MAX_CANVAS_SIDE}">
-                    <label class="pixel-label">${r.esc(t('pixel.height', 'Height'))}</label>
+                    <label class="pixel-label">${r.esc(t('pixel.height'))}</label>
                     <input class="vd-modal-input" type="number" data-cs-h value="${r.imgHeight}" min="1" max="${MAX_CANVAS_SIDE}">
-                    <label class="pixel-checkbox-row"><input type="checkbox" data-cs-lock> ${r.esc(t('pixel.lock_ratio', 'Keep proportions'))}</label>
-                    <span class="pixel-label">${r.esc(t('pixel.canvas_anchor', 'Anchor'))}</span>
-                    <div class="pixel-smart-anchor" role="radiogroup" aria-label="${r.esc(t('pixel.canvas_anchor', 'Anchor'))}">${ANCHORS.map(([code, glyph]) =>
+                    <label class="pixel-checkbox-row"><input type="checkbox" data-cs-lock> ${r.esc(t('pixel.lock_ratio'))}</label>
+                    <span class="pixel-label">${r.esc(t('pixel.canvas_anchor'))}</span>
+                    <div class="pixel-smart-anchor" role="radiogroup" aria-label="${r.esc(t('pixel.canvas_anchor'))}">${ANCHORS.map(([code, glyph]) =>
                         `<button type="button" class="pixel-smart-anchor-btn${code === 'c' ? ' active' : ''}" role="radio" aria-checked="${code === 'c' ? 'true' : 'false'}" data-cs-anchor="${code}">${glyph}</button>`).join('')}</div>
-                    <label class="pixel-label">${r.esc(t('pixel.canvas_fill', 'New area'))}</label>
+                    <label class="pixel-label">${r.esc(t('pixel.canvas_fill'))}</label>
                     <select class="pixel-select" data-cs-fill>${fillOption('transparent', 'pixel.canvas_fill_transparent', 'Transparent')}${fillOption('primary', 'pixel.canvas_fill_primary', 'Primary color')}${fillOption('secondary', 'pixel.canvas_fill_secondary', 'Secondary color')}${fillOption('white', 'pixel.canvas_fill_white', 'White')}${fillOption('black', 'pixel.canvas_fill_black', 'Black')}</select>
                 </div>
                 <div class="vd-modal-actions">
-                    <button type="button" class="vd-button" data-cancel>${r.esc(t('pixel.cancel', 'Cancel'))}</button>
-                    <button type="submit" class="vd-button vd-button-primary">${r.esc(t('pixel.apply', 'Apply'))}</button>
+                    <button type="button" class="vd-button" data-cancel>${r.esc(t('pixel.cancel'))}</button>
+                    <button type="submit" class="vd-button vd-button-primary">${r.esc(t('pixel.apply'))}</button>
                 </div>
             </form>`;
             document.body.appendChild(dlg);
@@ -897,7 +897,7 @@
             if (!normal) return false;
             const list = loadSwatches();
             if (list.includes(normal)) {
-                if (!quiet) info(t('pixel.sc_swatch_exists', 'That color is already saved.'));
+                if (!quiet) info(t('pixel.sc_swatch_exists'));
                 return false;
             }
             list.unshift(normal);
@@ -918,14 +918,14 @@
             const pctx = proxy.getContext('2d', { willReadFrequently: true });
             pctx.drawImage(r.canvas, box.x, box.y, box.w, box.h, 0, 0, pw, ph);
             const palette = L.extractPalette({ width: pw, height: ph, data: pctx.getImageData(0, 0, pw, ph).data }, count);
-            if (!palette.length) info(t('pixel.sc_palette_empty', 'There are no visible colors to extract.'));
+            if (!palette.length) info(t('pixel.sc_palette_empty'));
             return palette;
         }
 
         // A new layer above the active one, painted by paint(ctx, width, height).
         function addGeneratedLayer(name, paint) {
             if (!r.imgWidth) return false;
-            if (r.layers.length >= r.MAX_LAYERS) { failure(r.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: r.MAX_LAYERS })); return false; }
+            if (r.layers.length >= r.MAX_LAYERS) { failure(r.t('pixel.layer_max', { n: r.MAX_LAYERS })); return false; }
             r.commitPendingPreviews();
             const layer = r.createLayer({ name });
             paint(layer.canvas.getContext('2d'), r.imgWidth, r.imgHeight);
@@ -947,7 +947,7 @@
             if (!list.length) return false;
             const stops = list.map((c, i) => ({ pos: list.length === 1 ? 0 : i / (list.length - 1), color: c.hex }));
             r.paletteGradient = stops;
-            return addGeneratedLayer(t('pixel.sc_gradient_layer', 'Palette gradient'), (ctx, w, h) => {
+            return addGeneratedLayer(t('pixel.sc_gradient_layer'), (ctx, w, h) => {
                 const g = ctx.createLinearGradient(0, 0, w, 0);
                 stops.forEach(stop => g.addColorStop(stop.pos, stop.color));
                 ctx.fillStyle = g;
@@ -959,7 +959,7 @@
         function paletteToLayer(palette) {
             const list = palette || [];
             if (!list.length) return false;
-            return addGeneratedLayer(t('pixel.sc_palette_layer', 'Palette'), (ctx, w, h) => {
+            return addGeneratedLayer(t('pixel.sc_palette_layer'), (ctx, w, h) => {
                 const size = clampNum(Math.floor(Math.min(w / (list.length + 1), h / 3)), 8, 160);
                 const gap = Math.max(2, Math.round(size / 8));
                 const left = Math.round((w - list.length * size - (list.length - 1) * gap) / 2);

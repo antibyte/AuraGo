@@ -2,7 +2,7 @@
 // recording canvas: layer model, history sharing, selection masks, commitLayerPixels and the WP0b registries
 // (modules, panels, tools, menus, commands, overlays, jobs, parameter controls).
 import assert from 'node:assert/strict';
-import { installFakeDom, makeEl, loaderScripts, loaderStyles, loadPixelApp } from './pixel-test-dom.mjs';
+import { installFakeDom, makeEl, loaderScripts, loaderStyles, loadPixelApp, englishT } from './pixel-test-dom.mjs';
 
 installFakeDom();
 // A module whose installer throws is logged and skipped by pixel.js; the integration check below fails on that.
@@ -22,7 +22,7 @@ function renderWindow(id) {
     const host = makeEl('div');
     window.PixelApp.render(host, id, {
         esc: v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'),
-        t: (k, f) => f || k, api: async () => ({}), iconMarkup: () => '', notify: n => notes.push(n),
+        t: englishT(), api: async () => ({}), iconMarkup: () => '', notify: n => notes.push(n),
         setWindowMenus: (windowId, menus) => { menusSeen = menus; },
         readonly: false
     });

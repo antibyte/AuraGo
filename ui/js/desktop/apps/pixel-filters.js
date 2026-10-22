@@ -258,10 +258,10 @@
                     <div class="pixel-param-segmented" role="group">${chans}</div>
                     <canvas class="pixel-fx-curves-canvas" data-curve-canvas width="256" height="256"></canvas>
                     <div class="pixel-fx-curves-row">
-                        <select class="pixel-select" data-curve-preset><option value="">${r.esc(r.t('pixel.curve_presets', 'Presets'))}</option>${presets}</select>
-                        <button type="button" class="pixel-param-mini" data-curve-reset>${r.esc(r.t('pixel.reset', 'Reset'))}</button>
+                        <select class="pixel-select" data-curve-preset><option value="">${r.esc(r.t('pixel.curve_presets'))}</option>${presets}</select>
+                        <button type="button" class="pixel-param-mini" data-curve-reset>${r.esc(r.t('pixel.reset'))}</button>
                     </div>
-                    <p class="pixel-draw-hint">${r.esc(r.t('pixel.curve_hint', 'Click to add a point, drag to move it, double-click a point to remove it.'))}</p>
+                    <p class="pixel-draw-hint">${r.esc(r.t('pixel.curve_hint'))}</p>
                 </div>`;
             },
             wire(el, values, change) {
@@ -471,7 +471,7 @@
 
         function setBusy(s, busy, label) {
             r.host.querySelectorAll('[data-fx-status]').forEach(el => {
-                el.textContent = busy ? (label || r.t('pixel.fx_rendering', 'Rendering…')) : '';
+                el.textContent = busy ? (label || r.t('pixel.fx_rendering')) : '';
                 el.classList.toggle('active', !!busy);
             });
             r.host.querySelectorAll('[data-action="apply-filter"],[data-action="apply-adjust"]').forEach(btn => { btn.disabled = !!(busy && s && s.applying); });
@@ -511,7 +511,7 @@
             if (!layer || !r.imgWidth || !r.requireRasterLayer(layer)) return null;
             if (r.editMaskMode) r.leaveMaskEdit();
             if (layer.lockPixels) {
-                r.notify({ type: 'info', message: r.t('pixel.layer_locked', 'This layer is locked.') });
+                r.notify({ type: 'info', message: r.t('pixel.layer_locked') });
                 return null;
             }
             if (sess && (sess.kind !== kind || sess.layer !== layer || sess.w !== r.imgWidth || sess.h !== r.imgHeight || sess.rev !== layer.rev)) {
@@ -652,10 +652,10 @@
             if (opts && opts.async && s.big && !cachedFull) {
                 const rc = recipe(s), token = ++s.applying;
                 s.seq++;
-                setBusy(s, true, r.t('pixel.fx_applying', 'Applying…'));
+                setBusy(s, true, r.t('pixel.fx_applying'));
                 return r.runJob('fx.render', { image: ensureFull(s), id: rc.id, params: rc.params, scale: 1, fade: rc.fade, mask: null, keepRaw: false }, {
                     key: 'fx-apply', signal: s.abort.signal,
-                    onProgress: f => r.host.querySelectorAll('[data-fx-status]').forEach(el => { el.textContent = r.t('pixel.fx_applying', 'Applying…') + ' ' + Math.round(f * 100) + '%'; })
+                    onProgress: f => r.host.querySelectorAll('[data-fx-status]').forEach(el => { el.textContent = r.t('pixel.fx_applying') + ' ' + Math.round(f * 100) + '%'; })
                 }).then(res => (sess === s && s.applying === token && stillValid(s) ? finish(s, res.image, label) : false))
                     .catch(err => {
                         if (sess === s && s.applying === token) { s.applying = 0; setBusy(s, false); }
@@ -713,7 +713,7 @@
             if (title) title.textContent = filterLabel(def);
             if (star) star.textContent = (r.filterFavorites || []).includes(def.id) ? '★' : '☆';
             if (paramsEl) {
-                paramsEl.innerHTML = schema.length ? r.buildParamControls(schema, s.params, { idPrefix: 'pixel-fx-' + snake(r.windowId) }) : `<p class="pixel-draw-hint">${r.esc(r.t('pixel.fx_no_options', 'This filter has no options.'))}</p>`;
+                paramsEl.innerHTML = schema.length ? r.buildParamControls(schema, s.params, { idPrefix: 'pixel-fx-' + snake(r.windowId) }) : `<p class="pixel-draw-hint">${r.esc(r.t('pixel.fx_no_options'))}</p>`;
                 if (schema.length) detailWire = r.wireParamControls(paramsEl, schema, s.params, () => { s.pseq++; requestPreview(s, {}); });
             }
             syncFadeControls();
@@ -980,7 +980,7 @@
                 const last = this.lastFilter;
                 if (!this.canvas.width) return false;
                 if (!last || !this.filterDef(last.id)) {
-                    this.notify({ type: 'info', message: this.t('pixel.fx_no_last', 'No filter has been applied yet.') });
+                    this.notify({ type: 'info', message: this.t('pixel.fx_no_last') });
                     return false;
                 }
                 this.commitPendingPreviews();
@@ -1183,30 +1183,30 @@
             const cards = Pixel.FILTERS.map(def => {
                 const fav = favs.has(def.id), name = r.esc(filterLabel(def));
                 return `<button class="pixel-filter-card${fav ? ' is-favorite' : ''}" type="button" data-filter-id="${r.esc(def.id)}" data-filter-card-cat="${def.cat}" data-filter-fav="${fav ? '1' : '0'}" title="${name}">
-                    <span class="pixel-filter-fav" data-filter-fav-toggle="${r.esc(def.id)}" title="${t('pixel.filter_favorite', 'Toggle favorite')}">${fav ? '★' : '☆'}</span>
+                    <span class="pixel-filter-fav" data-filter-fav-toggle="${r.esc(def.id)}" title="${t('pixel.filter_favorite')}">${fav ? '★' : '☆'}</span>
                     <canvas class="pixel-filter-thumb" data-filter-thumb="${r.esc(def.id)}" width="${THUMB_EDGE}" height="64"></canvas>
                     <span class="pixel-filter-name">${name}</span>
                 </button>`;
             }).join('');
             const blends = (window.AuraPixelLib && window.AuraPixelLib.fx ? window.AuraPixelLib.fx.fadeModes : ['normal']).map(mode => `<option value="${mode}">${t('pixel.fxo_' + snake(mode), OPTION_NAMES[snake(mode)] || mode)}</option>`).join('');
-            return `<input type="search" class="pixel-fx-search" data-filter-search placeholder="${t('pixel.fx_search', 'Search filters…')}" aria-label="${t('pixel.fx_search', 'Search filters…')}" autocomplete="off" spellcheck="false">
+            return `<input type="search" class="pixel-fx-search" data-filter-search placeholder="${t('pixel.fx_search')}" aria-label="${t('pixel.fx_search')}" autocomplete="off" spellcheck="false">
                 <div class="pixel-filter-chips" data-filter-chips>${chips}</div>
                 <div class="pixel-filter-gallery pixel-fx-gallery" data-filter-gallery>${cards}</div>
-                <p class="pixel-draw-hint" data-filter-empty hidden>${t('pixel.fx_no_match', 'No filters match.')}</p>
+                <p class="pixel-draw-hint" data-filter-empty hidden>${t('pixel.fx_no_match')}</p>
                 <div class="pixel-fx-detail" data-filter-detail hidden>
-                    <div class="pixel-fx-detail-head"><strong class="pixel-fx-title" data-filter-title></strong><button class="pixel-fx-star" type="button" data-filter-detail-fav title="${t('pixel.filter_favorite', 'Toggle favorite')}">☆</button></div>
+                    <div class="pixel-fx-detail-head"><strong class="pixel-fx-title" data-filter-title></strong><button class="pixel-fx-star" type="button" data-filter-detail-fav title="${t('pixel.filter_favorite')}">☆</button></div>
                     <div class="pixel-fx-params" data-filter-params></div>
                     <div class="pixel-fx-fade">
-                        <div class="pixel-slider-row"><span class="pixel-slider-label">${t('pixel.filter_strength', 'Strength')}</span><input type="range" class="pixel-slider" data-filter-strength min="0" max="100" value="100"><span class="pixel-slider-value" data-filter-strength-val>100%</span></div>
-                        <div class="pixel-slider-row"><span class="pixel-slider-label">${t('pixel.fx_blend', 'Blend')}</span><select class="pixel-select" data-filter-blend>${blends}</select></div>
+                        <div class="pixel-slider-row"><span class="pixel-slider-label">${t('pixel.filter_strength')}</span><input type="range" class="pixel-slider" data-filter-strength min="0" max="100" value="100"><span class="pixel-slider-value" data-filter-strength-val>100%</span></div>
+                        <div class="pixel-slider-row"><span class="pixel-slider-label">${t('pixel.fx_blend')}</span><select class="pixel-select" data-filter-blend>${blends}</select></div>
                     </div>
                     <div class="pixel-fx-status" data-fx-status role="status"></div>
                     <div class="pixel-panel-actions">
-                        <button class="pixel-btn" type="button" data-action="filter-compare">${t('pixel.filter_compare', 'Before / After')}</button>
-                        <button class="pixel-btn" type="button" data-action="reset-filter">${t('pixel.reset', 'Reset')}</button>
-                        <button class="pixel-btn" type="button" data-action="cancel-filter">${t('pixel.cancel', 'Cancel')}</button>
+                        <button class="pixel-btn" type="button" data-action="filter-compare">${t('pixel.filter_compare')}</button>
+                        <button class="pixel-btn" type="button" data-action="reset-filter">${t('pixel.reset')}</button>
+                        <button class="pixel-btn" type="button" data-action="cancel-filter">${t('pixel.cancel')}</button>
                     </div>
-                    <div class="pixel-panel-actions"><button class="pixel-btn pixel-btn-primary" type="button" data-action="apply-filter">${t('pixel.apply_filter', 'Apply Filter')}</button></div>
+                    <div class="pixel-panel-actions"><button class="pixel-btn pixel-btn-primary" type="button" data-action="apply-filter">${t('pixel.apply_filter')}</button></div>
                 </div>`;
         }
 
@@ -1219,14 +1219,14 @@
                 </div>`).join('');
             const modes = [['rgb', 'RGB'], ['luma', 'Luma'], ['r', 'R'], ['g', 'G'], ['b', 'B']].map(([id, text]) => `<button type="button" class="pixel-param-seg-btn${id === histMode ? ' active' : ''}" data-hist-mode="${id}">${r.esc(text)}</button>`).join('');
             const presets = ADJUST_PRESETS.map(p => `<option value="${p.id}">${t('pixel.adjust_preset_' + p.id, p.fallback)}</option>`).join('');
-            return `<div class="pixel-fx-hist-wrap"><canvas class="pixel-fx-hist" data-fx-hist width="256" height="72" aria-label="${t('pixel.histogram', 'Histogram')}"></canvas><div class="pixel-param-segmented pixel-fx-hist-modes" role="group">${modes}</div></div>
+            return `<div class="pixel-fx-hist-wrap"><canvas class="pixel-fx-hist" data-fx-hist width="256" height="72" aria-label="${t('pixel.histogram')}"></canvas><div class="pixel-param-segmented pixel-fx-hist-modes" role="group">${modes}</div></div>
                 <div class="pixel-fx-auto-row">
-                    <button class="pixel-btn" type="button" data-action="adjust-auto" title="${t('pixel.adjust_auto_hint', 'Levels, contrast, white balance and a little vibrance in one click')}">${t('pixel.adjust_auto', 'Auto')}</button>
-                    <select class="pixel-select" data-adjust-preset aria-label="${t('pixel.adjust_presets', 'Presets')}"><option value="">${t('pixel.adjust_presets', 'Presets')}</option>${presets}</select>
+                    <button class="pixel-btn" type="button" data-action="adjust-auto" title="${t('pixel.adjust_auto_hint')}">${t('pixel.adjust_auto')}</button>
+                    <select class="pixel-select" data-adjust-preset aria-label="${t('pixel.adjust_presets')}"><option value="">${t('pixel.adjust_presets')}</option>${presets}</select>
                 </div>
                 ${groups}
                 <div class="pixel-fx-status" data-fx-status role="status"></div>
-                <div class="pixel-panel-actions"><button class="pixel-btn pixel-btn-primary" type="button" data-action="apply-adjust">${t('pixel.apply', 'Apply')}</button><button class="pixel-btn" type="button" data-action="reset-adjust">${t('pixel.reset', 'Reset')}</button><button class="pixel-btn" type="button" data-action="compare-toggle">${t('pixel.compare', 'Compare')}</button></div>`;
+                <div class="pixel-panel-actions"><button class="pixel-btn pixel-btn-primary" type="button" data-action="apply-adjust">${t('pixel.apply')}</button><button class="pixel-btn" type="button" data-action="reset-adjust">${t('pixel.reset')}</button><button class="pixel-btn" type="button" data-action="compare-toggle">${t('pixel.compare')}</button></div>`;
         }
 
         // Panel registrations call these through the runtime so every window has its own state.
@@ -1285,9 +1285,9 @@
     function filterMenuItems(r) {
         const t = (key, fallback) => r.t(key, fallback);
         const head = [
-            { id: 'repeat-last', labelKey: 'pixel.fx_repeat_last', label: t('pixel.fx_repeat_last', 'Repeat last filter'), shortcut: 'Ctrl+F', keywords: ['filter', 'again'], action: rt => rt.repeatLastFilter(false) },
-            { id: 'last-dialog', labelKey: 'pixel.fx_last_dialog', label: t('pixel.fx_last_dialog', 'Last filter...'), shortcut: 'Ctrl+Alt+F', keywords: ['filter', 'dialog'], action: rt => rt.repeatLastFilter(true) },
-            { id: 'auto-enhance', labelKey: 'pixel.fx_auto_enhance', label: t('pixel.fx_auto_enhance', 'Auto enhance'), shortcut: 'Ctrl+Shift+L', keywords: ['auto', 'levels', 'contrast', 'white balance'], action: rt => rt.autoEnhance({ apply: true }) },
+            { id: 'repeat-last', labelKey: 'pixel.fx_repeat_last', label: t('pixel.fx_repeat_last'), shortcut: 'Ctrl+F', keywords: ['filter', 'again'], action: rt => rt.repeatLastFilter(false) },
+            { id: 'last-dialog', labelKey: 'pixel.fx_last_dialog', label: t('pixel.fx_last_dialog'), shortcut: 'Ctrl+Alt+F', keywords: ['filter', 'dialog'], action: rt => rt.repeatLastFilter(true) },
+            { id: 'auto-enhance', labelKey: 'pixel.fx_auto_enhance', label: t('pixel.fx_auto_enhance'), shortcut: 'Ctrl+Shift+L', keywords: ['auto', 'levels', 'contrast', 'white balance'], action: rt => rt.autoEnhance({ apply: true }) },
             { type: 'separator' }
         ];
         const groups = Pixel.FILTER_CATEGORIES.map(cat => ({

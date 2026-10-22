@@ -645,9 +645,9 @@
         const settings = r => toolUi.settings(r, cfg);
         cfg.onChange = (r, key, value, s) => { if (key === 'size' || key === 'opacity' || key === 'hardness' || key === 'preset') syncRuntime(r, s); };
         if (cfg.presets) {
-            cfg.head = (r) => '<label class="pixel-opt-field"><span class="pixel-opt-label">' + r.esc(r.t('pixel.brush_preset', 'Preset')) + '</span><select class="pixel-select pixel-opt-select" data-brush-preset><option value="">' + r.esc(r.t('pixel.brush_preset_pick', 'Choose...')) + '</option>' +
+            cfg.head = (r) => '<label class="pixel-opt-field"><span class="pixel-opt-label">' + r.esc(r.t('pixel.brush_preset')) + '</span><select class="pixel-select pixel-opt-select" data-brush-preset><option value="">' + r.esc(r.t('pixel.brush_preset_pick')) + '</option>' +
                 PRESETS.map(p => '<option value="' + p.id + '">' + r.esc(r.t(p.labelKey, p.fallback)) + '</option>').join('') + '</select></label>';
-            cfg.tail = (r) => '<button type="button" class="pixel-btn pixel-opt-more" data-brush-panel-open>' + r.esc(r.t('pixel.brush_settings', 'Brush settings')) + '</button>';
+            cfg.tail = (r) => '<button type="button" class="pixel-btn pixel-opt-more" data-brush-panel-open>' + r.esc(r.t('pixel.brush_settings')) + '</button>';
             cfg.wireExtra = (r, bar) => {
                 const sel = bar.querySelector('[data-brush-preset]');
                 if (sel) sel.addEventListener('change', () => { if (Brush.applyPreset(r, cfg, sel.value)) sel.value = ''; });
@@ -691,7 +691,7 @@
         r.brushPanelCfg = cfg || null;
         r.brushPanelHandle = null;
         if (!cfg || (cfg.mode === 'effect' && !cfg.panel)) {
-            el.innerHTML = '<p class="pixel-draw-hint">' + r.esc(r.t('pixel.brush_panel_hint', 'Pick a brush tool to see its settings.')) + '</p>';
+            el.innerHTML = '<p class="pixel-draw-hint">' + r.esc(r.t('pixel.brush_panel_hint')) + '</p>';
             return;
         }
         const s = toolUi.settings(r, cfg);

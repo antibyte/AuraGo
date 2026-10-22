@@ -89,15 +89,12 @@ func TestPixelSelectionPureKitIsDOMFree(t *testing.T) {
 	}
 }
 
-func TestPixelSelectionStringsHaveEnglishFallbacksAndPrefixedClasses(t *testing.T) {
+func TestPixelSelectionStringsUseBundleKeysAndPrefixedClasses(t *testing.T) {
 	src := normalizePixelAsset(readDesktopAssetText(t, pixelSelectionScript))
 	css := normalizePixelAsset(readDesktopAssetText(t, "css/pixel-selection.css"))
 
-	// Every key goes through t('pixel.key', 'English'); a bare key would show the key itself until the translation pass.
-	bare := regexp.MustCompile(`\bt\('pixel\.[a-z0-9_]+'\)`)
-	if match := bare.FindString(src); match != "" {
-		t.Fatalf("%s uses a translation key without an English fallback: %s", pixelSelectionScript, match)
-	}
+	// Every key goes through t('pixel.key') or t('pixel.key', vars); the English text lives in en.json.
+	requirePixelBundleKeys(t, pixelSelectionScript, src, 20)
 	for _, text := range []string{src, css} {
 		if regexp.MustCompile(`[.\s"'](cc-)[a-z]`).MatchString(text) {
 			t.Fatal("cookie-blocker extensions hide cc- classes: use the pixel- prefix")

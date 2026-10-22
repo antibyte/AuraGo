@@ -892,6 +892,33 @@ func normalizePixelAsset(text string) string {
 	return strings.ReplaceAll(text, "\r\n", "\n")
 }
 
+// pixelLiteralFallback matches a t() / r.t() / this.t() call that carries an inline English text. The repo lint
+// TestFrontend_JS_NoLiteralTranslationFallbacks forbids it everywhere; the Pixel string tests repeat it for their script.
+var pixelLiteralFallback = regexp.MustCompile(`\bt\(\s*(?:'[^']+'|"[^"]+")\s*,\s*(?:'[^']*'|"[^"]*")`)
+
+// pixelBundleKeyCall matches t('pixel.key') and t('pixel.key', vars) with a literal key.
+var pixelBundleKeyCall = regexp.MustCompile(`\bt\(\s*'(pixel\.[a-z0-9_]+)'\s*[,)]`)
+
+// requirePixelBundleKeys checks the Pixel string convention for one script: the English text lives in en.json, so no
+// translation call carries an inline fallback and every statically named key resolves in the English bundle. (The other
+// 15 languages are covered by TestDesktopUsedI18nKeysExistInAllLanguages.)
+func requirePixelBundleKeys(t *testing.T, name, source string, minCalls int) {
+	t.Helper()
+	if match := pixelLiteralFallback.FindString(source); match != "" {
+		t.Fatalf("%s passes an inline English fallback to a translation call: %s", name, match)
+	}
+	calls := pixelBundleKeyCall.FindAllStringSubmatch(source, -1)
+	if len(calls) < minCalls {
+		t.Fatalf("%s: expected at least %d t('pixel.…') calls, found %d", name, minCalls, len(calls))
+	}
+	english := readMergedLangMap(t, "en")
+	for _, call := range calls {
+		if strings.TrimSpace(english[call[1]]) == "" {
+			t.Fatalf("%s uses %s, which en.json does not define", name, call[1])
+		}
+	}
+}
+
 // pixelAppScriptPaths is the module loader's script order for Pixel. pixel-worker.js is not in it: runtime.runJob starts it
 // as a Worker. The lib files are listed because the main thread uses them as the fallback when no Worker is available.
 var pixelAppScriptPaths = []string{

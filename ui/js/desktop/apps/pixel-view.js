@@ -75,7 +75,7 @@
 
     function stopRowsHTML(r, stops) {
         return stops.map((stop, i) =>
-            `<div class="pixel-param-stop" data-param-stop="${i}"><input type="color" class="pixel-param-stop-color" data-stop-color value="${normalizeHex(stop.color) || '#000000'}" title="${r.esc(r.t('pixel.param_stop_color', 'Stop color'))}"><input type="number" class="pixel-param-number" data-stop-pos min="0" max="100" step="1" value="${Math.round(clampNumber(Number(stop.pos) || 0, 0, 1) * 100)}" title="${r.esc(r.t('pixel.param_stop_position', 'Stop position (%)'))}"><span class="pixel-param-unit">%</span><button type="button" class="pixel-param-mini" data-stop-remove title="${r.esc(r.t('pixel.param_remove_stop', 'Remove stop'))}">×</button></div>`
+            `<div class="pixel-param-stop" data-param-stop="${i}"><input type="color" class="pixel-param-stop-color" data-stop-color value="${normalizeHex(stop.color) || '#000000'}" title="${r.esc(r.t('pixel.param_stop_color'))}"><input type="number" class="pixel-param-number" data-stop-pos min="0" max="100" step="1" value="${Math.round(clampNumber(Number(stop.pos) || 0, 0, 1) * 100)}" title="${r.esc(r.t('pixel.param_stop_position'))}"><span class="pixel-param-unit">%</span><button type="button" class="pixel-param-mini" data-stop-remove title="${r.esc(r.t('pixel.param_remove_stop'))}">×</button></div>`
         ).join('');
     }
 
@@ -314,7 +314,7 @@
                     }).join('');
                     const style = entry.dock === 'bottom' && docks.length > 1 ? ` style="flex-basis:${(split * 100).toFixed(2)}%"` : '';
                     const splitter = index > 0
-                        ? `<div class="pixel-splitter" data-dock-splitter role="separator" aria-orientation="horizontal" tabindex="0" title="${this.esc(this.t('pixel.dock_resize', 'Drag to resize the panels'))}"></div>`
+                        ? `<div class="pixel-splitter" data-dock-splitter role="separator" aria-orientation="horizontal" tabindex="0" title="${this.esc(this.t('pixel.dock_resize'))}"></div>`
                         : '';
                     return `${splitter}<div class="pixel-dock pixel-dock-${entry.dock}" data-dock="${entry.dock}"${style}>
                         <div class="pixel-tabs" role="tablist" data-dock-tabs="${entry.dock}">${tabs}</div>
@@ -562,11 +562,11 @@
                         case 'color': {
                             const hex = normalizeHex(value) || '#000000';
                             return `<div class="pixel-param-row">
-                                <button type="button" class="pixel-param-swatch" data-param-swatch style="background:${hex}" title="${this.esc(this.t('pixel.param_pick_color', 'Pick a color'))}"></button>
+                                <button type="button" class="pixel-param-swatch" data-param-swatch style="background:${hex}" title="${this.esc(this.t('pixel.param_pick_color'))}"></button>
                                 <input type="text" class="pixel-param-hex" id="${id}" data-param-hex maxlength="7" spellcheck="false" value="${hex}">
                                 <input type="color" class="pixel-param-native" data-param-native value="${hex}" tabindex="-1" aria-hidden="true">
-                                <button type="button" class="pixel-param-mini" data-param-use="primary" title="${this.esc(this.t('pixel.param_use_primary', 'Use primary color'))}"><span class="pixel-param-chip" style="background:${this.esc(this.primaryColor)}"></span>1</button>
-                                <button type="button" class="pixel-param-mini" data-param-use="secondary" title="${this.esc(this.t('pixel.param_use_secondary', 'Use secondary color'))}"><span class="pixel-param-chip" style="background:${this.esc(this.secondaryColor)}"></span>2</button>
+                                <button type="button" class="pixel-param-mini" data-param-use="primary" title="${this.esc(this.t('pixel.param_use_primary'))}"><span class="pixel-param-chip" style="background:${this.esc(this.primaryColor)}"></span>1</button>
+                                <button type="button" class="pixel-param-mini" data-param-use="secondary" title="${this.esc(this.t('pixel.param_use_secondary'))}"><span class="pixel-param-chip" style="background:${this.esc(this.secondaryColor)}"></span>2</button>
                             </div>`;
                         }
                         case 'angle':
@@ -575,7 +575,7 @@
                                 <input type="number" class="pixel-param-number" id="${id}" data-param-input min="0" max="360" step="1" value="${this.esc(value)}"><span class="pixel-param-unit">°</span>
                             </div>`;
                         case 'seed':
-                            return `<div class="pixel-param-row"><input type="number" class="pixel-param-number pixel-param-seed" id="${id}" data-param-input min="0" max="4294967295" step="1" value="${this.esc(value)}"><button type="button" class="pixel-param-mini" data-param-dice title="${this.esc(this.t('pixel.param_randomize', 'Randomize'))}">${DICE_SVG}</button></div>`;
+                            return `<div class="pixel-param-row"><input type="number" class="pixel-param-number pixel-param-seed" id="${id}" data-param-input min="0" max="4294967295" step="1" value="${this.esc(value)}"><button type="button" class="pixel-param-mini" data-param-dice title="${this.esc(this.t('pixel.param_randomize'))}">${DICE_SVG}</button></div>`;
                         case 'point': {
                             const pt = value && typeof value === 'object' ? value : { x: 0.5, y: 0.5 };
                             return `<div class="pixel-param-row">
@@ -590,10 +590,10 @@
                             const presets = lib && lib.GRADIENT_PRESETS ? lib.GRADIENT_PRESETS : [];
                             const current = presets.find(p => sameStops(stops, p.stops));
                             return `<div class="pixel-param-gradient">
-                                <select class="pixel-select" id="${id}" data-param-preset><option value="">${this.esc(this.t('pixel.param_custom', 'Custom'))}</option>${presets.map(p => `<option value="${this.esc(p.id)}"${current && current.id === p.id ? ' selected' : ''}>${this.esc(this.t('pixel.gradient_preset_' + p.id, p.id.charAt(0).toUpperCase() + p.id.slice(1)))}</option>`).join('')}</select>
+                                <select class="pixel-select" id="${id}" data-param-preset><option value="">${this.esc(this.t('pixel.param_custom'))}</option>${presets.map(p => `<option value="${this.esc(p.id)}"${current && current.id === p.id ? ' selected' : ''}>${this.esc(this.t('pixel.gradient_preset_' + p.id, p.id.charAt(0).toUpperCase() + p.id.slice(1)))}</option>`).join('')}</select>
                                 <div class="pixel-param-gradient-bar" data-param-bar style="background:${gradientCss(stops)}"></div>
                                 <div class="pixel-param-stops" data-param-stops>${stopRows(stops)}</div>
-                                <button type="button" class="pixel-param-mini pixel-param-add-stop" data-param-add-stop>+ ${this.esc(this.t('pixel.param_add_stop', 'Add stop'))}</button>
+                                <button type="button" class="pixel-param-mini pixel-param-add-stop" data-param-add-stop>+ ${this.esc(this.t('pixel.param_add_stop'))}</button>
                             </div>`;
                         }
                         case 'custom':

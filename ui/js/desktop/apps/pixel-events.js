@@ -545,7 +545,7 @@
                 const more = this.listCommands()
                     .filter(cmd => cmd.source !== 'tool' && cmd.source !== 'panel' && cmd.shortcut && !cmd.shortcuts.every(key => listed.has(key)))
                     .map(cmd => [cmd.shortcut, cmd.label]);
-                if (more.length) shortcuts.push([this.t('pixel.shortcuts_more', 'More'), more]);
+                if (more.length) shortcuts.push([this.t('pixel.shortcuts_more'), more]);
                 const dlg = document.createElement('div');
                 dlg.className = 'vd-modal-backdrop';
                 dlg.innerHTML = `<div class="vd-modal pixel-shortcuts-modal" role="dialog">

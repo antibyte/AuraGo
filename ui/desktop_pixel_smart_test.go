@@ -149,8 +149,9 @@ func TestPixelSmartSelectorsHaveMarkup(t *testing.T) {
 	}
 }
 
-// Strings go through t(key, fallback) / labelKey + fallback, never bare text.
-func TestPixelSmartStringsHaveEnglishFallbacks(t *testing.T) {
+// Strings go through t(key) / t(key, vars) with the English text in en.json, or through labelKey + fallback in registry
+// objects (the registry walk of scripts/pixel-i18n-extract.mjs reads those); never bare text.
+func TestPixelSmartStringsUseBundleKeys(t *testing.T) {
 	for _, name := range []string{pixelSmartScript, pixelCommandsScript} {
 		source := normalizePixelAsset(readDesktopAssetText(t, name))
 		label := regexp.MustCompile(`labelKey: 'pixel\.[a-z0-9_]+'`)
@@ -163,10 +164,7 @@ func TestPixelSmartStringsHaveEnglishFallbacks(t *testing.T) {
 				t.Fatalf("%s: %s has no fallback next to it", name, source[loc[0]:loc[1]])
 			}
 		}
-		bare := regexp.MustCompile(`\bt\('pixel\.[a-z0-9_]+'\)`)
-		if bare.MatchString(source) {
-			t.Fatalf("%s: every t('pixel.…') call needs an English fallback", name)
-		}
+		requirePixelBundleKeys(t, name, source, 10)
 	}
 }
 

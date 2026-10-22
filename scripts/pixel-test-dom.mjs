@@ -93,3 +93,14 @@ export function loadPixelApp() {
     });
     return globalThis.AuraPixelApp;
 }
+
+// The desktop shell's t(key, vars) for English: texts come from ui/lang/desktop/en.json (the code carries no inline
+// fallbacks), a missing key returns the key, {name} and {{name}} placeholders are replaced like in ui/shared.js.
+export function englishT() {
+    const en = JSON.parse(fs.readFileSync(path.join(repoRoot, 'ui', 'lang', 'desktop', 'en.json'), 'utf8'));
+    return (key, vars) => {
+        let text = Object.prototype.hasOwnProperty.call(en, key) ? en[key] : key;
+        if (vars && typeof vars === 'object') Object.keys(vars).forEach(name => { text = text.split('{{' + name + '}}').join(vars[name]).split('{' + name + '}').join(vars[name]); });
+        return text;
+    };
+}

@@ -80,13 +80,13 @@
         const outputs = [['layer', 'pixel.gen_out_layer', 'New layer'], ['replace', 'pixel.gen_out_replace', 'Replace layer'], ['selection', 'pixel.gen_out_selection', 'Into selection']];
         return `<div class="pixel-gen" data-gen-root>
             <div class="pixel-gen-browse" data-gen-browse>
-                <input type="search" class="pixel-gen-search" data-gen-search placeholder="${t('pixel.gen_search', 'Search generators')}" aria-label="${t('pixel.gen_search', 'Search generators')}" spellcheck="false" autocomplete="off">
+                <input type="search" class="pixel-gen-search" data-gen-search placeholder="${t('pixel.gen_search')}" aria-label="${t('pixel.gen_search')}" spellcheck="false" autocomplete="off">
                 <div class="pixel-filter-chips" data-gen-cats>${chipsHTML(r, st)}</div>
                 <div class="pixel-gen-list" data-gen-list></div>
             </div>
             <div class="pixel-gen-detail" data-gen-detail hidden>
                 <div class="pixel-gen-head">
-                    <button class="pixel-btn" type="button" data-gen-back title="${t('pixel.gen_back', 'All generators')}">&larr; ${t('pixel.gen_back', 'All generators')}</button>
+                    <button class="pixel-btn" type="button" data-gen-back title="${t('pixel.gen_back')}">&larr; ${t('pixel.gen_back')}</button>
                     <span class="pixel-gen-title" data-gen-title></span>
                 </div>
                 <div class="pixel-gen-preview-wrap">
@@ -96,23 +96,23 @@
                 <div class="pixel-gen-presets" data-gen-presets></div>
                 <div class="pixel-gen-params" data-gen-params></div>
                 <div class="pixel-gen-output">
-                    <span class="pixel-label">${t('pixel.gen_output', 'Output')}</span>
+                    <span class="pixel-label">${t('pixel.gen_output')}</span>
                     <div class="pixel-param-segmented" role="group" data-gen-outputs>${outputs.map(([id, key, fallback], i) =>
                         `<button type="button" class="pixel-param-seg-btn${i === 0 ? ' active' : ''}" data-gen-out="${id}" aria-pressed="${i === 0 ? 'true' : 'false'}">${t(key, fallback)}</button>`).join('')}</div>
                     <div class="pixel-gen-layer-opts" data-gen-layer-opts>
-                        <select class="pixel-select" data-gen-blend aria-label="${t('pixel.gen_blend', 'Blend mode')}">${blends}</select>
-                        <div class="pixel-slider-row"><span class="pixel-slider-label">${t('pixel.layer_opacity', 'Opacity')}</span><input type="range" class="pixel-slider" data-gen-opacity min="1" max="100" value="100"><span class="pixel-slider-value" data-gen-opacity-val>100%</span></div>
+                        <select class="pixel-select" data-gen-blend aria-label="${t('pixel.gen_blend')}">${blends}</select>
+                        <div class="pixel-slider-row"><span class="pixel-slider-label">${t('pixel.layer_opacity')}</span><input type="range" class="pixel-slider" data-gen-opacity min="1" max="100" value="100"><span class="pixel-slider-value" data-gen-opacity-val>100%</span></div>
                     </div>
                     <div class="pixel-gen-size" data-gen-size hidden>
-                        <label class="pixel-param-axis">${t('pixel.width', 'Width')}<input type="number" class="pixel-param-number" data-gen-width min="16" max="${MAX_DOC}" step="1" value="1024"></label>
-                        <label class="pixel-param-axis">${t('pixel.height', 'Height')}<input type="number" class="pixel-param-number" data-gen-height min="16" max="${MAX_DOC}" step="1" value="1024"></label>
+                        <label class="pixel-param-axis">${t('pixel.width')}<input type="number" class="pixel-param-number" data-gen-width min="16" max="${MAX_DOC}" step="1" value="1024"></label>
+                        <label class="pixel-param-axis">${t('pixel.height')}<input type="number" class="pixel-param-number" data-gen-height min="16" max="${MAX_DOC}" step="1" value="1024"></label>
                     </div>
-                    <label class="pixel-gen-switch"><span>${t('pixel.gen_live', 'Preview on canvas')}</span><span class="pixel-param-switch"><input type="checkbox" role="switch" data-gen-live><span class="pixel-param-switch-track"><span class="pixel-param-switch-thumb"></span></span></span></label>
+                    <label class="pixel-gen-switch"><span>${t('pixel.gen_live')}</span><span class="pixel-param-switch"><input type="checkbox" role="switch" data-gen-live><span class="pixel-param-switch-track"><span class="pixel-param-switch-thumb"></span></span></span></label>
                     <p class="pixel-draw-hint" data-gen-hint hidden></p>
                 </div>
                 <div class="pixel-gen-actions">
-                    <button class="pixel-btn pixel-btn-primary" type="button" data-gen-go>${t('pixel.generate', 'Generate')}</button>
-                    <button class="pixel-btn" type="button" data-gen-cancel hidden>${t('pixel.cancel', 'Cancel')}</button>
+                    <button class="pixel-btn pixel-btn-primary" type="button" data-gen-go>${t('pixel.generate')}</button>
+                    <button class="pixel-btn" type="button" data-gen-cancel hidden>${t('pixel.cancel')}</button>
                 </div>
                 <div class="pixel-gen-progress" data-gen-progress hidden><span data-gen-progress-bar></span></div>
             </div>
@@ -478,7 +478,7 @@
 
     // Generated pixels become a new layer above the active one (history label generate:<id>).
     function addGeneratedLayer(r, st, def, canvas) {
-        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: r.MAX_LAYERS }) }); return false; }
+        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.layer_max', { n: r.MAX_LAYERS }) }); return false; }
         r.commitPendingPreviews();
         const layer = r.createLayer({ name: generatorName(r, def), opacity: st.opacity / 100, blend: st.blend });
         layer.canvas.getContext('2d').drawImage(canvas, 0, 0);

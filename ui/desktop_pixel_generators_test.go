@@ -71,10 +71,8 @@ func TestPixelGeneratorsModuleRegistersPanelMenuAndCommands(t *testing.T) {
 	if !strings.Contains(source, "stripTransientFromHistory") || !strings.Contains(source, "r.on('history-changed'") {
 		t.Fatal("the transient preview layer has to be stripped from history entries")
 	}
-	// New strings go through t() with an English fallback; the panel markup escapes dynamic text.
-	if regexp.MustCompile(`r\.t\('pixel\.[a-z0-9_]+'\)`).MatchString(source) {
-		t.Fatal("pixel-generators.js should pass an English fallback to every t() call")
-	}
+	// Strings go through t(key) with the English text in en.json; the panel markup escapes dynamic text.
+	requirePixelBundleKeys(t, "pixel-generators.js", source, 5)
 	if strings.Contains(source, "data-action=") {
 		t.Fatal("the generators panel uses data-gen-* hooks, not the shared data-action names")
 	}

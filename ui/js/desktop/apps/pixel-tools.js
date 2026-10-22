@@ -312,7 +312,7 @@
                                     return;
                                 }
                                 const img = await this.loadImage(url);
-                                if (this.layers.length >= this.MAX_LAYERS) { this.notify({ type: 'error', message: this.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: this.MAX_LAYERS }) }); return; }
+                                if (this.layers.length >= this.MAX_LAYERS) { this.notify({ type: 'error', message: this.t('pixel.layer_max', { n: this.MAX_LAYERS }) }); return; }
                                 this.commitPendingPreviews();
                                 const layer = this.createLayer({ name: this.t('pixel.paste'), source: img });
                                 this.layers.push(layer);
@@ -502,7 +502,7 @@
                 const layer = this.activeLayer();
                 if (!layer) return;
                 if (layer.lockPosition) {
-                    this.notify({ type: 'info', message: this.t('pixel.layer_locked', 'This layer is locked.') });
+                    this.notify({ type: 'info', message: this.t('pixel.layer_locked') });
                     return;
                 }
                 if (layer.sticker) {
@@ -821,7 +821,7 @@
             }),
             addLayer: Pixel.bindRuntime(runtime, function addLayer() {
                 if (!this.imgWidth || !this.imgHeight) return;
-                if (this.layers.length >= this.MAX_LAYERS) { this.notify({ type: 'error', message: this.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: this.MAX_LAYERS }) }); return; }
+                if (this.layers.length >= this.MAX_LAYERS) { this.notify({ type: 'error', message: this.t('pixel.layer_max', { n: this.MAX_LAYERS }) }); return; }
                 this.commitPendingPreviews();
                 const layer = this.createLayer({ name: this.t('pixel.layer') + ' ' + (this.layers.length + 1) });
                 this.layers.push(layer);

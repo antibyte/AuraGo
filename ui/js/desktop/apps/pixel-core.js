@@ -532,7 +532,7 @@
         Pixel.listTools().forEach(def => {
             raw.push({
                 id: 'tool:' + def.id, source: 'tool', group: 'tools',
-                label: t('pixel.cmd_tool_prefix', 'Tool') + ': ' + (def.labelKey ? t(def.labelKey, def.fallback || def.id) : t('pixel.' + String(def.id).replace(/-/g, '_'), def.fallback || def.id)),
+                label: t('pixel.cmd_tool_prefix') + ': ' + (def.labelKey ? t(def.labelKey, def.fallback || def.id) : t('pixel.' + String(def.id).replace(/-/g, '_'), def.fallback || def.id)),
                 shortcut: def.shortcut || Pixel.TOOL_SHORTCUTS[def.id] || '', keywords: [def.id, def.group],
                 run: r => r.setActiveTool(def.id)
             });
@@ -540,7 +540,7 @@
         Pixel.listPanels().forEach(def => {
             raw.push({
                 id: 'panel:' + def.id, source: 'panel', group: 'panels',
-                label: t('pixel.cmd_show_prefix', 'Show') + ' ' + t(def.labelKey || ('pixel.' + def.id), def.fallback || def.id),
+                label: t('pixel.cmd_show_prefix') + ' ' + t(def.labelKey || ('pixel.' + def.id), def.fallback || def.id),
                 keywords: [def.id], run: r => r.showPanel(def.id)
             });
         });
@@ -1042,7 +1042,7 @@
                 if (!layer || !this.requireRasterLayer(layer)) return false;
                 const inMask = !!(this.editMaskMode && layer.maskCanvas);
                 if (!inMask && (layer.lockPixels || (layer.lockAlpha && tool === 'eraser'))) {
-                    this.notify({ type: 'info', message: this.t('pixel.layer_locked', 'This layer is locked.') });
+                    this.notify({ type: 'info', message: this.t('pixel.layer_locked') });
                     return false;
                 }
                 return true;
@@ -1279,7 +1279,7 @@
                 if (!this.requireRasterLayer(layer)) return false;
                 const inMask = !!(this.editMaskMode && layer === this.activeLayer() && layer.maskCanvas);
                 if (layer.lockPixels && !inMask) {
-                    this.notify({ type: 'info', message: this.t('pixel.layer_locked', 'This layer is locked.') });
+                    this.notify({ type: 'info', message: this.t('pixel.layer_locked') });
                     return false;
                 }
                 const w = this.canvas.width, h = this.canvas.height;

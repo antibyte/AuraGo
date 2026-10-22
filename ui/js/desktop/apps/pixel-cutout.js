@@ -590,7 +590,7 @@
         await flushRefine(r);
         const layer = guardLayer(r);
         if (!layer) return false;
-        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: r.MAX_LAYERS }) }); return false; }
+        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.layer_max', { n: r.MAX_LAYERS }) }); return false; }
         const alpha = await subjectAlpha(r, layer);
         if (!alpha || r.layerById(layer.id) !== layer) return false;
         return guarded(r, tx(r, 'pixel.cutout_busy_layer', 'Cutting out…'), async ticket => {
@@ -626,7 +626,7 @@
         await flushRefine(r);
         const layer = guardLayer(r);
         if (!layer) return false;
-        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: r.MAX_LAYERS }) }); return false; }
+        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.layer_max', { n: r.MAX_LAYERS }) }); return false; }
         const alpha = await subjectAlpha(r, layer);
         if (!alpha || r.layerById(layer.id) !== layer) return false;
         const st = stateOf(r);
@@ -654,7 +654,7 @@
             if (layer.maskCanvas) { r.notify({ type: 'info', message: tx(r, 'pixel.cutout_done', 'Background removed.') }); return true; }
             return removeBackground(r);
         }
-        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: r.MAX_LAYERS }) }); return false; }
+        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.layer_max', { n: r.MAX_LAYERS }) }); return false; }
         const alpha = await subjectAlpha(r, layer);
         if (!alpha || r.layerById(layer.id) !== layer) return false;
         return guarded(r, tx(r, 'pixel.cutout_busy_replace', 'Replacing the background…'), async ticket => {
@@ -691,7 +691,7 @@
             r.notify({ type: 'info', message: tx(r, 'pixel.cutout_no_mask', 'Remove the background first.') });
             return false;
         }
-        if (layer.lockPixels || layer.lockAlpha) { r.notify({ type: 'info', message: r.t('pixel.layer_locked', 'This layer is locked.') }); return false; }
+        if (layer.lockPixels || layer.lockAlpha) { r.notify({ type: 'info', message: r.t('pixel.layer_locked') }); return false; }
         if (!r.requireRasterLayer(layer)) return false;
         r.commitPendingPreviews();
         return guarded(r, tx(r, 'pixel.cutout_busy_apply', 'Applying the mask…'), async ticket => {

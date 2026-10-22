@@ -13,7 +13,7 @@
     const { F, opt } = toolUi;
     const svg = body => '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>';
     const HANDLES = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]];
-    const lockedNote = r => r.notify({ type: 'info', message: r.t('pixel.layer_locked', 'This layer is locked.') });
+    const lockedNote = r => r.notify({ type: 'info', message: r.t('pixel.layer_locked') });
 
     // --- pure geometry ---
 
@@ -171,7 +171,7 @@
     const MOVE_CFG = {
         id: 'move',
         schema: [F('autoSelect', 'bool', 'pixel.move_auto_select', 'Auto-select layer', { default: false }), F('snap', 'bool', 'pixel.view_snap', 'Snap to Guides', { default: true })],
-        tail: r => '<span class="pixel-opt-hint">' + r.esc(r.t('pixel.move_hint_pro', 'Drag moves the layer or selection. Ctrl+click picks the layer under the cursor, Alt+drag copies a selection, arrow keys nudge.')) + '</span>',
+        tail: r => '<span class="pixel-opt-hint">' + r.esc(r.t('pixel.move_hint_pro')) + '</span>',
         onChange: (r, key, value) => { if (key === 'snap') { r.viewOpts.snap = value; r.refreshMenus(); } }
     };
 
@@ -330,8 +330,8 @@
             F('angle', 'range', 'pixel.brush_angle', 'Angle', { min: -180, max: 180, step: 0.1, unit: '°', default: 0 }),
             F('lock', 'bool', 'pixel.lock_ratio', 'Lock aspect ratio', { default: true })
         ],
-        tail: r => '<span class="pixel-opt-buttons"><button type="button" class="pixel-btn pixel-btn-primary" data-ft-apply>' + r.esc(r.t('pixel.apply', 'Apply')) + '</button><button type="button" class="pixel-btn" data-ft-cancel>' + r.esc(r.t('pixel.cancel', 'Cancel')) + '</button>' +
-            '<button type="button" class="pixel-btn" data-ft-flip="h">' + r.esc(r.t('pixel.flip_h')) + '</button><button type="button" class="pixel-btn" data-ft-flip="v">' + r.esc(r.t('pixel.flip_v')) + '</button><button type="button" class="pixel-btn" data-ft-rotate>' + r.esc(r.t('pixel.ft_rotate90', 'Rotate 90°')) + '</button></span>',
+        tail: r => '<span class="pixel-opt-buttons"><button type="button" class="pixel-btn pixel-btn-primary" data-ft-apply>' + r.esc(r.t('pixel.apply')) + '</button><button type="button" class="pixel-btn" data-ft-cancel>' + r.esc(r.t('pixel.cancel')) + '</button>' +
+            '<button type="button" class="pixel-btn" data-ft-flip="h">' + r.esc(r.t('pixel.flip_h')) + '</button><button type="button" class="pixel-btn" data-ft-flip="v">' + r.esc(r.t('pixel.flip_v')) + '</button><button type="button" class="pixel-btn" data-ft-rotate>' + r.esc(r.t('pixel.ft_rotate90')) + '</button></span>',
         wireExtra: (r, bar) => {
             const on = (sel, fn) => { const el = bar.querySelector(sel); if (el) el.addEventListener('click', fn); };
             on('[data-ft-apply]', () => { applyFT(r); leaveFT(r); });
@@ -591,7 +591,7 @@
             F('ch', 'int', 'pixel.crop_ratio_h', 'Ratio H', { min: 1, max: 1000, default: 4, showIf: v => v.ratio === 'custom' }),
             F('guides', 'select', 'pixel.crop_guides', 'Overlay', { default: 'thirds', options: [opt('thirds', 'pixel.crop_thirds', 'Rule of thirds'), opt('grid', 'pixel.crop_grid', 'Grid'), opt('none', 'pixel.opt_off', 'Off')] })
         ],
-        tail: r => '<span class="pixel-opt-buttons"><button type="button" class="pixel-btn pixel-btn-primary" data-crop-apply>' + r.esc(r.t('pixel.apply_crop', 'Apply Crop')) + '</button><button type="button" class="pixel-btn" data-crop-cancel>' + r.esc(r.t('pixel.cancel_crop', 'Cancel')) + '</button></span>',
+        tail: r => '<span class="pixel-opt-buttons"><button type="button" class="pixel-btn pixel-btn-primary" data-crop-apply>' + r.esc(r.t('pixel.apply_crop')) + '</button><button type="button" class="pixel-btn" data-crop-cancel>' + r.esc(r.t('pixel.cancel_crop')) + '</button></span>',
         wireExtra: (r, bar) => {
             const on = (sel, fn) => { const el = bar.querySelector(sel); if (el) el.addEventListener('click', fn); };
             on('[data-crop-apply]', () => applyCrop(r));

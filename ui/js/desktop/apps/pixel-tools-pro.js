@@ -654,7 +654,7 @@
                 out.getContext('2d').globalCompositeOperation = 'destination-in';
                 out.getContext('2d').drawImage(mc, 0, 0);
                 composeOver(r, 'retouch:spot-heal', ctx => ctx.drawImage(out, x0, y0));
-            }).catch(err => { if (!err || err.name !== 'AbortError') r.notify({ type: 'error', message: r.t('pixel.spot_heal_failed', 'Spot healing failed.') }); });
+            }).catch(err => { if (!err || err.name !== 'AbortError') r.notify({ type: 'error', message: r.t('pixel.spot_heal_failed') }); });
         },
         abort(r) { r.spotMark = null; },
         overlayExtra(ctx, r) { if (r.spotMark) { ctx.save(); ctx.globalAlpha = 0.55; ctx.drawImage(r.spotMark.mark, 0, 0); ctx.restore(); } }
@@ -697,7 +697,7 @@
             const x0 = Math.max(0, Math.floor(p.x - R * 1.4)), y0 = Math.max(0, Math.floor(p.y - R * 1.4)), x1 = Math.min(w, Math.ceil(p.x + R * 1.4)), y1 = Math.min(h, Math.ceil(p.y + R * 1.4));
             if (x1 <= x0 || y1 <= y0) return;
             const read = r.getActiveReadCtx(), data = read.getImageData(x0, y0, x1 - x0, y1 - y0);
-            if (!Pro.fixRedEye(data, p.x - x0, p.y - y0, R, s.darken / 100)) { r.notify({ type: 'info', message: r.t('pixel.redeye_none', 'No red eye found here.') }); return; }
+            if (!Pro.fixRedEye(data, p.x - x0, p.y - y0, R, s.darken / 100)) { r.notify({ type: 'info', message: r.t('pixel.redeye_none') }); return; }
             composeOver(r, 'retouch:red-eye', ctx => ctx.putImageData(data, x0, y0));
         }
     }));

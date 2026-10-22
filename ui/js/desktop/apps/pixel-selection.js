@@ -974,7 +974,7 @@
     }
 
     function deselectButtonHTML(r) {
-        return `<button class="pixel-btn pixel-sel-clear" type="button" data-sel-act="deselect">${r.esc(r.t('pixel.clear_selection', 'Deselect'))}</button>`;
+        return `<button class="pixel-btn pixel-sel-clear" type="button" data-sel-act="deselect">${r.esc(r.t('pixel.clear_selection'))}</button>`;
     }
 
     function hintHTML(r, key, fallback) {
@@ -989,8 +989,8 @@
             fixed: ['pixel.sel_style_fixed', 'Size', 'pixel.sel_style_fixed_hint', 'Fixed size in pixels']
         };
         let html = `<div class="pixel-sel-group">${segmentedHTML(r, 'style', ['normal', 'ratio', 'fixed'], o.style, styles)}`;
-        if (o.style === 'ratio') html += numberHTML(r, 'ratioW', r.t('pixel.sel_width_short', 'W'), 1, 999) + numberHTML(r, 'ratioH', r.t('pixel.sel_height_short', 'H'), 1, 999);
-        if (o.style === 'fixed') html += numberHTML(r, 'sizeW', r.t('pixel.sel_width_short', 'W'), 1, 16384) + numberHTML(r, 'sizeH', r.t('pixel.sel_height_short', 'H'), 1, 16384);
+        if (o.style === 'ratio') html += numberHTML(r, 'ratioW', r.t('pixel.sel_width_short'), 1, 999) + numberHTML(r, 'ratioH', r.t('pixel.sel_height_short'), 1, 999);
+        if (o.style === 'fixed') html += numberHTML(r, 'sizeW', r.t('pixel.sel_width_short'), 1, 16384) + numberHTML(r, 'sizeH', r.t('pixel.sel_height_short'), 1, 16384);
         return html + '</div>';
     }
 
@@ -1146,7 +1146,7 @@
     }
 
     function showSelectionSize(r, q) {
-        r.setStatus(r.t('pixel.sel_status', 'Selection') + ': ' + q.w + ' × ' + q.h + '  (' + q.x + ', ' + q.y + ')');
+        r.setStatus(r.t('pixel.sel_status') + ': ' + q.w + ' × ' + q.h + '  (' + q.x + ', ' + q.y + ')');
     }
 
     async function commitShape(r, kind, q, mode) {
@@ -1652,8 +1652,8 @@
             <div class="vd-modal-title">${r.esc(spec.title)}</div>
             <div class="pixel-resize-form">${spec.fields.map(fieldHTML).join('')}</div>
             <div class="vd-modal-actions">
-                <button type="button" class="vd-button" data-sel-cancel>${r.esc(r.t('pixel.cancel', 'Cancel'))}</button>
-                <button type="submit" class="vd-button vd-button-primary">${r.esc(spec.ok || r.t('pixel.apply', 'Apply'))}</button>
+                <button type="button" class="vd-button" data-sel-cancel>${r.esc(r.t('pixel.cancel'))}</button>
+                <button type="submit" class="vd-button vd-button-primary">${r.esc(spec.ok || r.t('pixel.apply'))}</button>
             </div>
         </form>`;
         document.body.appendChild(dlg);
@@ -1718,7 +1718,7 @@
         const alpha = cur.alpha;
         const box = kit.boundsOf(alpha, w, h, 0);
         if (!box) return false;
-        r.setStatus(r.t('pixel.sel_working', 'Working…'));
+        r.setStatus(r.t('pixel.sel_working'));
         await tick();
         let out;
         if (kind === 'feather' || kind === 'smooth') {
@@ -1747,7 +1747,7 @@
         if (r.selectionRev !== rev) { r.updateStatus(); return false; }
         const ok = r.setSelectionMask(out, { mode: 'replace' });
         recordSelection(r, ok ? 'select:' + kind : 'select:none');
-        if (!ok) r.notify({ type: 'info', message: r.t('pixel.sel_empty', 'The selection is empty now.') });
+        if (!ok) r.notify({ type: 'info', message: r.t('pixel.sel_empty') });
         return ok;
     }
 
@@ -1804,14 +1804,14 @@
     async function selectSubject(r) {
         if (typeof r.computeSubjectMask !== 'function' || !r.canvas.width) return false;
         const w = r.canvas.width, h = r.canvas.height;
-        r.setStatus(r.t('pixel.sel_subject_working', 'Detecting the subject…'));
+        r.setStatus(r.t('pixel.sel_subject_working'));
         try {
             const res = await r.computeSubjectMask({ engine: 'auto' });
             const alpha = res && res.alpha;
-            if (!alpha || alpha.length !== w * h) throw new Error(r.t('pixel.sel_subject_failed', 'The subject could not be detected.'));
+            if (!alpha || alpha.length !== w * h) throw new Error(r.t('pixel.sel_subject_failed'));
             return await finishMask(r, alpha instanceof Uint8ClampedArray ? alpha : Uint8ClampedArray.from(alpha), 'replace', 'select:subject', 0);
         } catch (err) {
-            if (!err || err.name !== 'AbortError') r.notify({ type: 'error', message: (err && err.message) || r.t('pixel.sel_subject_failed', 'The subject could not be detected.') });
+            if (!err || err.name !== 'AbortError') r.notify({ type: 'error', message: (err && err.message) || r.t('pixel.sel_subject_failed') });
             return false;
         } finally {
             r.updateStatus();
@@ -1872,7 +1872,7 @@
         const src = r.activeLayer();
         if (!sel || !src || !r.requireRasterLayer(src)) return false;
         if (r.layers.length >= r.MAX_LAYERS) {
-            r.notify({ type: 'error', message: r.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: r.MAX_LAYERS }) });
+            r.notify({ type: 'error', message: r.t('pixel.layer_max', { n: r.MAX_LAYERS }) });
             return false;
         }
         r.commitPendingPreviews();
@@ -1905,7 +1905,7 @@
             if (!r.commitLayerPixels(src, cleared, { respectSelection: false, history: false })) return false;
         }
         const index = r.activeLayerIdx;
-        const layer = r.createLayer({ name: cut ? r.t('pixel.sel_layer_cut', 'Selection cut') : r.t('pixel.sel_layer_copy', 'Selection copy'), canvas: copy });
+        const layer = r.createLayer({ name: cut ? r.t('pixel.sel_layer_cut') : r.t('pixel.sel_layer_copy'), canvas: copy });
         r.layers.splice(index + 1, 0, layer);
         r.activeLayerIdx = index + 1;
         r.editMaskMode = false;
@@ -1959,16 +1959,16 @@
         if (!r.selection) return;
         const u = ui(r);
         askValues(r, {
-            title: r.t('pixel.sel_stroke', 'Stroke selection'),
+            title: r.t('pixel.sel_stroke'),
             fields: [
-                { key: 'width', label: r.t('pixel.stroke_width', 'Stroke width'), min: 1, max: 250, step: 1, value: u.strokeValues.width },
-                { key: 'color', type: 'color', label: r.t('pixel.color_primary', 'Color'), value: /^#[0-9a-f]{6}$/i.test(r.primaryColor) ? r.primaryColor : '#000000' },
+                { key: 'width', label: r.t('pixel.stroke_width'), min: 1, max: 250, step: 1, value: u.strokeValues.width },
+                { key: 'color', type: 'color', label: r.t('pixel.color_primary'), value: /^#[0-9a-f]{6}$/i.test(r.primaryColor) ? r.primaryColor : '#000000' },
                 {
-                    key: 'location', type: 'select', label: r.t('pixel.sel_stroke_location', 'Location'), value: u.strokeValues.location,
+                    key: 'location', type: 'select', label: r.t('pixel.sel_stroke_location'), value: u.strokeValues.location,
                     options: [
-                        { value: 'inside', label: r.t('pixel.sel_stroke_inside', 'Inside') },
-                        { value: 'center', label: r.t('pixel.sel_stroke_center', 'Center') },
-                        { value: 'outside', label: r.t('pixel.sel_stroke_outside', 'Outside') }
+                        { value: 'inside', label: r.t('pixel.sel_stroke_inside') },
+                        { value: 'center', label: r.t('pixel.sel_stroke_center') },
+                        { value: 'outside', label: r.t('pixel.sel_stroke_outside') }
                     ]
                 }
             ],
@@ -2026,10 +2026,10 @@
 
     function renderColorRangeSwatches(r, cr) {
         if (!cr.swatches) return;
-        const chip = (c, exclude) => `<span class="pixel-sel-swatch${exclude ? ' pixel-sel-swatch-ex' : ''}" style="background:rgb(${c[0]},${c[1]},${c[2]})" title="${r.esc(exclude ? r.t('pixel.sel_cr_removed', 'Removed color') : r.t('pixel.sel_cr_picked', 'Picked color'))}"></span>`;
+        const chip = (c, exclude) => `<span class="pixel-sel-swatch${exclude ? ' pixel-sel-swatch-ex' : ''}" style="background:rgb(${c[0]},${c[1]},${c[2]})" title="${r.esc(exclude ? r.t('pixel.sel_cr_removed') : r.t('pixel.sel_cr_picked'))}"></span>`;
         cr.swatches.innerHTML = cr.include.length || cr.exclude.length
             ? cr.include.map(c => chip(c, false)).join('') + cr.exclude.map(c => chip(c, true)).join('')
-            : `<span class="pixel-sel-hint">${r.esc(r.t('pixel.sel_cr_empty', 'No color picked yet.'))}</span>`;
+            : `<span class="pixel-sel-hint">${r.esc(r.t('pixel.sel_cr_empty'))}</span>`;
     }
 
     function pickColorRangeColor(r, cr, e) {
@@ -2082,18 +2082,18 @@
         const el = document.createElement('div');
         el.className = 'pixel-sel-cr';
         el.setAttribute('role', 'dialog');
-        el.setAttribute('aria-label', r.t('pixel.sel_color_range', 'Color range'));
-        el.innerHTML = `<div class="pixel-sel-cr-title">${r.esc(r.t('pixel.sel_color_range', 'Color range'))}</div>
-            <p class="pixel-sel-hint">${r.esc(r.t('pixel.sel_cr_hint', 'Click the image to pick a color. Shift+click adds a color, Alt+click removes one.'))}</p>
+        el.setAttribute('aria-label', r.t('pixel.sel_color_range'));
+        el.innerHTML = `<div class="pixel-sel-cr-title">${r.esc(r.t('pixel.sel_color_range'))}</div>
+            <p class="pixel-sel-hint">${r.esc(r.t('pixel.sel_cr_hint'))}</p>
             <div class="pixel-sel-swatches" data-sel-swatches></div>
             ${sliderHTML(r, 'crFuzz', 'pixel.sel_fuzziness', 'Fuzziness', 0, 200, '')}
             ${checkHTML(r, 'crInvert', 'pixel.sel_invert', 'Invert')}
             ${checkHTML(r, 'crAll', 'pixel.sel_sample_all', 'Sample all layers')}
             ${modeHTML(r, 'crMode')}
             <div class="pixel-sel-cr-actions">
-                <button type="button" class="pixel-btn" data-sel-cr="reset">${r.esc(r.t('pixel.reset', 'Reset'))}</button>
-                <button type="button" class="pixel-btn" data-sel-cr="cancel">${r.esc(r.t('pixel.cancel', 'Cancel'))}</button>
-                <button type="button" class="pixel-btn pixel-btn-primary" data-sel-cr="ok">${r.esc(r.t('pixel.sel_cr_ok', 'Select'))}</button>
+                <button type="button" class="pixel-btn" data-sel-cr="reset">${r.esc(r.t('pixel.reset'))}</button>
+                <button type="button" class="pixel-btn" data-sel-cr="cancel">${r.esc(r.t('pixel.cancel'))}</button>
+                <button type="button" class="pixel-btn pixel-btn-primary" data-sel-cr="ok">${r.esc(r.t('pixel.sel_cr_ok'))}</button>
             </div>`;
         cr.el = el;
         cr.swatches = el.querySelector('[data-sel-swatches]');
@@ -2184,7 +2184,7 @@
     const hasSelection = r => !!r.selection;
 
     function needSelection(r) {
-        r.notify({ type: 'info', message: r.t('pixel.sel_need_selection', 'Make a selection first.') });
+        r.notify({ type: 'info', message: r.t('pixel.sel_need_selection') });
     }
 
     // The built-in Edit items run r.selectAll() / r.deselect() directly; these also write the history step.
@@ -2261,7 +2261,7 @@
             baseUpdateStatus();
             const size = selectionSize(this.selection);
             if (!size || !this.statusText || !this.imgWidth) return;
-            this.setStatus(this.statusText.textContent + '  ·  ' + this.t('pixel.sel_status', 'Selection') + ' ' + size.w + ' × ' + size.h);
+            this.setStatus(this.statusText.textContent + '  ·  ' + this.t('pixel.sel_status') + ' ' + size.w + ' × ' + size.h);
         });
 
         // Double-clicking closes a polygon; the shell would also read it as "zoom to fit".
