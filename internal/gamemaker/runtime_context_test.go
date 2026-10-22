@@ -135,3 +135,86 @@ func TestVerifiedTemplateDescriptorCoversEveryEngine(t *testing.T) {
 		}
 	}
 }
+
+// A comment-only or body-only edit keeps the documented API; adding or changing
+// an exported symbol or a hook signature still drops to legacy/custom.
+func TestRuntimeContextToleratesEditsToVerifiedHelper(t *testing.T) {
+	s := newTestService(t)
+	project := createTestProject(t, s, "2d")
+	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
+		if run.Stage == "planning" {
+			return s.SetPlan(ctx, run.Job.ID, ExampleGamePlan(project))
+		}
+		if run.Stage != "building" {
+			return errors.New("unexpected stage")
+		}
+		plan, err := s.GetPlan(ctx, run.Job.ID)
+		if err != nil || plan == nil {
+			return errors.New("accepted plan is unavailable")
+		}
+		sources, err := gameTemplateSources(*plan)
+		if err != nil {
+			return err
+		}
+		base := string(sources["common.ts"])
+		renameCodeHook := func(source string) string {
+			lines := strings.Split(source, "\n")
+			for i, line := range lines {
+				trimmed := strings.TrimSpace(line)
+				if trimmed == "" || strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "*") {
+					continue
+				}
+				if strings.Contains(line, "step(") {
+					lines[i] = strings.Replace(line, "step(", "stepFixed(", 1)
+					return strings.Join(lines, "\n")
+				}
+			}
+			return source
+		}
+		changedHook := renameCodeHook(base)
+		if changedHook == base {
+			t.Fatal("fixture has no code-level step hook")
+		}
+		changedExport := strings.Replace(base, "export class ", "export class Renamed", 1)
+		if changedExport == base {
+			t.Fatal("fixture has no exported class")
+		}
+		for _, tc := range []struct {
+			name          string
+			source        string
+			wantReference bool
+			wantWarning   bool
+		}{
+			{"exact", base, true, false},
+			{"comment", "// reviewed helper edit\n" + base, true, true},
+			{"body", base + "\nconst helperNote = 1;\n", true, true},
+			{"new export", base + "\nexport const extraHelper = 1;\n", false, false},
+			{"changed hook", changedHook, false, false},
+			{"changed export", changedExport, false, false},
+			{"custom", "export const custom = true;", false, false},
+		} {
+			if err := s.writeJobFile(ctx, run.Job.ID, "src/common.ts", tc.source); err != nil {
+				return err
+			}
+			runtime := s.RuntimeContext(ctx, run.Job.ID)
+			_, hasReference := runtime["api_reference"]
+			warnings, _ := runtime["helper_warnings"].([]map[string]any)
+			if hasReference != tc.wantReference || (len(warnings) > 0) != tc.wantWarning {
+				t.Errorf("%s: reference=%v warnings=%d", tc.name, hasReference, len(warnings))
+			}
+			if tc.wantWarning && len(warnings) == 1 {
+				if warnings[0]["kind"] != "comments_or_bodies_changed" || warnings[0]["path"] != "src/common.ts" {
+					t.Errorf("%s: unexpected helper warning %+v", tc.name, warnings[0])
+				}
+			}
+		}
+		return errors.New("helper tolerance verified")
+	}))
+	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if done := waitJob(t, s, job.ID); done.Error != "helper tolerance verified" {
+		t.Fatal(done.Error)
+	}
+}

@@ -151,5 +151,6 @@ func (s *Service) validateForPublication(ctx context.Context, jobID, scope strin
 func (s *Service) RemainingRepairs(jobID string) int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return max(0, min(3, 4-s.validationFailures[jobID]))
+	limit := s.repairLimitLocked(jobID)
+	return max(0, min(limit, limit+1-s.validationFailures[jobID]))
 }

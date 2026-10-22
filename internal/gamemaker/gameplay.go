@@ -500,7 +500,7 @@ func (s *Service) stopAfterValidation(jobID string, repairRound bool, exploratio
 		// Checks the game source can still satisfy keep a building round open;
 		// only missing browser evidence ends it without another edit.
 		validated := current != nil && current != previous &&
-			(repairRound || s.validationFailures[jobID] >= 4 || current.RuntimeStatus == "unavailable" || current.GameplayStatus == "unavailable" && !current.Repairable)
+			(repairRound || s.validationFailures[jobID] >= s.repairLimitLocked(jobID)+1 || current.RuntimeStatus == "unavailable" || current.GameplayStatus == "unavailable" && !current.Repairable)
 		s.mu.RUnlock()
 		if !active || validated {
 			return active && validated

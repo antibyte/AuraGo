@@ -64,6 +64,7 @@ type Service struct {
 	planConstraints    map[string]planSelectionConstraints
 	jobSummaries       map[string]string
 	validationFailures map[string]int
+	repairLimits       map[string]int
 	lastFailedBuild    map[string]string
 	lastValidation     map[string]*BuildResult
 }
@@ -133,6 +134,7 @@ func NewService(opts Options) (*Service, error) {
 		planConstraints:    map[string]planSelectionConstraints{},
 		jobSummaries:       map[string]string{},
 		validationFailures: map[string]int{},
+		repairLimits:       map[string]int{},
 		lastFailedBuild:    map[string]string{},
 		lastValidation:     map[string]*BuildResult{},
 	}
@@ -548,6 +550,7 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	s.activeJobID = job.ID
 	s.jobCancels[job.ID] = cancel
 	s.planConstraints[job.ID] = newPlanSelectionConstraints(assetSelections, modelAssetIDs, req.Presentation)
+	s.repairLimits[job.ID] = clampRepairPasses(req.MaxRepairPasses)
 	s.mu.Unlock()
 
 	project.ProviderID = providerID
@@ -595,6 +598,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		delete(s.validationFailures, job.ID)
 		delete(s.lastFailedBuild, job.ID)
 		delete(s.lastValidation, job.ID)
+		delete(s.repairLimits, job.ID)
 	}()
 	defer s.releaseJob(job.ID)
 	stage := filepath.Join(s.stagingDir, job.ID)
@@ -792,9 +796,10 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 	// game left unverified (no target, blocked route, no effect) can.
 	passes := 0
 	repairPasses := &passes
-	for attempt := 1; !result.OK && (result.Repairable || result.RuntimeStatus != "unavailable" && result.GameplayStatus != "unavailable") && attempt <= 3; attempt++ {
+	repairLimit := s.repairLimit(job.ID)
+	for attempt := 1; !result.OK && (result.Repairable || result.RuntimeStatus != "unavailable" && result.GameplayStatus != "unavailable") && attempt <= repairLimit; attempt++ {
 		s.mu.RLock()
-		exhausted := s.validationFailures[job.ID] >= 4
+		exhausted := s.validationFailures[job.ID] >= s.repairLimitLocked(job.ID)+1
 		s.mu.RUnlock()
 		if exhausted {
 			break

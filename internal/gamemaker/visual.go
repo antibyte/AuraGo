@@ -171,7 +171,7 @@ func (s *Service) reviewAndRepairVisual(ctx context.Context, runner Runner, run 
 		// A passing build after three failed versions already consumed the
 		// shared repair allowance. Keep the advisory findings without risking it.
 		s.mu.RLock()
-		repairsExhausted := s.validationFailures[run.Job.ID] >= 3
+		repairsExhausted := s.validationFailures[run.Job.ID] >= s.repairLimitLocked(run.Job.ID)
 		s.mu.RUnlock()
 		if repairsExhausted {
 			return result

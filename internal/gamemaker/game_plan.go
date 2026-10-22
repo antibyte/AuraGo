@@ -714,7 +714,7 @@ func (s *Service) CheckJobMutation(ctx context.Context, jobID string) error {
 	}
 	s.mu.RLock()
 	accepted := s.acceptedPlans[jobID]
-	exhausted := s.validationFailures[jobID] >= 4
+	exhausted := s.validationFailures[jobID] >= s.repairLimitLocked(jobID)+1
 	s.mu.RUnlock()
 	if exhausted {
 		return ErrRepairLimit

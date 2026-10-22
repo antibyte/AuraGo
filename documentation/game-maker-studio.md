@@ -156,6 +156,9 @@ loops. Planning charges at most three failed `set_design` submissions: an attemp
 that reduces the number of independent design issues is free, every job caps at
 five submissions, and up to three `dry_run` previews validate a design, return
 the expanded plan and warnings, and neither accept it nor consume the budget.
+A job may request a different repair budget (`StartJobRequest.max_repair_passes`,
+1–6, default 3); the repair loop, the mutation gate, the visual repair and the
+disclosed remaining count all use the same limit.
 Deterministic asset normalization (plural `pack_ids`/`asset_ids`, duplicate
 roles, unknown catalog metadata) runs before validation and is reported as
 `warnings`; unknown catalog IDs, conflicting mechanics and invalid scenes still

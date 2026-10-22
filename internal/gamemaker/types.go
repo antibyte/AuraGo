@@ -125,8 +125,11 @@ type StartJobRequest struct {
 	Prompt                string           `json:"prompt"`
 	ProviderID            string           `json:"provider_id"`
 	Model                 string           `json:"model"`
-	ImageGeneration       *bool            `json:"image_generation,omitempty"`
-	MusicGeneration       *bool            `json:"music_generation,omitempty"`
+	// MaxRepairPasses overrides the shared validation repair budget for this job
+	// (0 keeps the default, values are clamped to 1–6).
+	MaxRepairPasses int   `json:"max_repair_passes,omitempty"`
+	ImageGeneration *bool `json:"image_generation,omitempty"`
+	MusicGeneration *bool `json:"music_generation,omitempty"`
 }
 
 type AssetSelection struct {

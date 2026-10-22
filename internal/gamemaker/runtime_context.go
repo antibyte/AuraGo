@@ -21,7 +21,15 @@ func (s *Service) RuntimeContext(ctx context.Context, jobID string) map[string]a
 		lines := strings.Split(content, "\n")
 		file := map[string]any{"path": path, "sha256": sourceHash(content), "lines": len(lines)}
 		if path == "src/common.ts" {
-			if descriptor := verifiedTemplateDescriptor(plan, content); descriptor != nil {
+			if descriptor := toleratedHelperDescriptor(plan, content); descriptor != nil {
+				if changed, _ := descriptor["helper_changed"].(bool); changed {
+					delete(descriptor, "helper_changed")
+					result["helper_warnings"] = []map[string]any{{
+						"kind":     "comments_or_bodies_changed",
+						"path":     "src/common.ts",
+						"guidance": "The exported symbols and hook signatures still match the generated template, so api_reference stays valid. Read only the code you must change.",
+					}}
+				}
 				result["api"] = descriptor
 				result["version"] = descriptor["version"]
 			}
