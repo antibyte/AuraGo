@@ -17,6 +17,16 @@
     width: 56px;
 }
 
+/* At the default window size the 36 tools do not all fit: the rail scrolls, the colour swatches stay in view. */
+.pixel-tool-rail .pixel-rail-colors {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin-top: 2px;
+    padding-bottom: 4px;
+    background: var(--vd-theme-chrome-bg);
+}
+
 /* Option bar: the param-kit controls of a tool sit in one wrapping row. */
 .pixel-opt-wrap {
     display: contents;

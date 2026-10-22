@@ -276,7 +276,7 @@ check('every WP4 tool is registered with the right group, shortcut and handlers'
         'clone-stamp': ['retouch', 'S'], healing: ['retouch', 'Shift+J'], 'spot-heal': ['retouch', 'J'], smudge: ['retouch', 'Y'], 'blur-brush': ['retouch', 'N'], 'dodge-burn': ['retouch', 'D'], 'color-replace': ['retouch', 'Shift+B'], 'red-eye': ['retouch', 'Shift+E'],
         fill: ['fill', 'G'], gradient: ['fill', 'U'],
         line: ['shape', 'Shift+L'], arrow: ['shape', 'Shift+A'], rectangle: ['shape', 'R'], ellipse: ['shape', 'O'], 'rounded-rect': ['shape', 'Shift+R'], polygon: ['shape', 'Shift+O'], star: ['shape', 'Shift+S'],
-        move: ['select', 'M'], 'free-transform': ['select', 'Ctrl+T'], crop: ['view', 'C'], hand: ['view', 'H'], zoom: ['view', 'Z']
+        move: ['select', 'M'], crop: ['view', 'C'], hand: ['view', 'H'], zoom: ['view', 'Z']
     };
     Object.keys(expected).forEach(id => {
         const def = Pixel.getTool(id);
@@ -291,6 +291,14 @@ check('every WP4 tool is registered with the right group, shortcut and handlers'
     ['brush', 'airbrush', 'eraser', 'pencil', 'smudge', 'blur-brush', 'dodge-burn', 'clone-stamp', 'healing', 'color-replace', 'spot-heal'].forEach(id => assert.equal(Pixel.getTool(id).cursor, 'none', id + ' hides the system cursor'));
     assert.equal(Pixel.getTool('move').raster, false);
     assert.equal(Pixel.getTool('brush').raster, true);
+    // Free transform: Ctrl+Alt+T / Ctrl+T belong to the Edit menu item only, so no second command owns the key.
+    const ft = Pixel.getTool('free-transform');
+    assert.equal(ft.group, 'select');
+    assert.equal(ft.shortcut, '');
+    assert.ok(Pixel.toolHasHandlers(ft));
+    const item = Pixel.listMenuItems('edit', rt).find(i => i.id === 'free-transform');
+    assert.equal(item.shortcut, 'Ctrl+Alt+T');
+    assert.deepEqual(item.shortcuts, ['Ctrl+T']);
 });
 
 check('every tool builds an option bar and wires it', () => {
@@ -613,7 +621,6 @@ check('hand, zoom and the View menu', () => {
 check('Brush panel and module registrations', () => {
     const ids = Pixel.listPanels('inspector').map(p => p.id);
     assert.ok(ids.indexOf('brush') > ids.indexOf('colors') && ids.indexOf('brush') < ids.indexOf('transform'));
-    ['transform.free'].forEach(id => assert.ok(Pixel.getCommand(id), id));
     assert.ok(Pixel.listModules().map(m => m.id).includes('brush'));
     assert.deepEqual(errors, [], 'no installer or handler logged an error');
 });

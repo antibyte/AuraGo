@@ -78,7 +78,7 @@ func TestPixelToolShortcutsAreUnique(t *testing.T) {
 	for _, m := range regexp.MustCompile(`'([a-z-]+)': '([A-Za-z+]+)'`).FindAllStringSubmatch(state[strings.Index(state, "const TOOL_SHORTCUTS"):], -1) {
 		builtin[strings.ToLower(m[2])] = m[1]
 	}
-	// Free transform shares Ctrl+T between its tool, the Edit menu item and the command on purpose.
+	// Free transform: its Edit menu item owns Ctrl+Alt+T (and Ctrl+T through shortcuts); the tool and the command carry no key.
 	seen := map[string]bool{}
 	for _, source := range []string{pro, transform} {
 		for _, m := range regexp.MustCompile(`shortcut: '([A-Za-z+]+)'`).FindAllStringSubmatch(source, -1) {
@@ -126,11 +126,13 @@ func TestPixelToolsCSSIsPrefixedAndSelfContained(t *testing.T) {
 func TestPixelToolsKeepLegacyCropEntryPoints(t *testing.T) {
 	_, _, transform := pixelToolsSources(t)
 	view := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-view.js"))
-	// The Transform panel and the Image menu still call these runtime methods; the crop tool answers them.
-	for _, want := range []string{"this.startCrop()", "this.applyCrop()", "this.cancelCrop()"} {
-		if !strings.Contains(view, want) {
-			t.Fatalf("pixel-view.js should keep calling %s", want)
-		}
+	// The Transform panel and the Image menu start the crop tool through startCrop(); Apply / Cancel live in the tool's
+	// options bar, so the panel carries no (dead) buttons of its own. The crop tool answers all three runtime methods.
+	if !strings.Contains(view, "this.startCrop()") {
+		t.Fatal("pixel-view.js should keep calling this.startCrop()")
+	}
+	if strings.Contains(view, "data-crop-actions") || strings.Contains(view, "apply-crop") {
+		t.Fatal("the Transform panel must not show Apply / Cancel crop buttons that the crop tool never enables")
 	}
 	for _, want := range []string{"startCrop: function startCrop()", "applyCrop: function applyCropRuntime()", "cancelCrop: function cancelCropRuntime()"} {
 		if !strings.Contains(transform, want) {

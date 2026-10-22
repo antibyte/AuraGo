@@ -109,7 +109,11 @@
                 // onActivate runs before the options bar is built so options(r) can read what the tool prepared.
                 const nextDef = next ? Pixel.getTool(next) : null;
                 if (nextDef && typeof nextDef.onActivate === 'function') runHook(nextDef, 'onActivate', this);
-                this.host.querySelectorAll('[data-draw-tool]').forEach(b => b.classList.toggle('active', b.dataset.drawTool === this.activeTool));
+                this.host.querySelectorAll('[data-draw-tool]').forEach(b => {
+                    const on = b.dataset.drawTool === this.activeTool;
+                    b.classList.toggle('active', on);
+                    if (on) this.revealRailButton(b);
+                });
                 this.renderOptionsBar();
                 this.updateStatus();
                 if (this.statusTool) this.statusTool.textContent = this.activeTool ? this.toolLabel(this.activeTool) : '';
@@ -118,6 +122,17 @@
                 if (this.overlayCanvas) this.overlayCanvas.style.cursor = cursor;
                 this.emit('tool-changed', { tool: this.activeTool, previous });
                 this.requestOverlay();
+            }),
+            // A tool picked by shortcut or palette may sit in the scrolled-away part of the rail: bring its button into view.
+            revealRailButton: Pixel.bindRuntime(runtime, function revealRailButton(button) {
+                const rail = this.toolRail;
+                if (!rail || !button || !button.getBoundingClientRect || !rail.getBoundingClientRect) return;
+                const bar = rail.querySelector ? rail.querySelector('.pixel-rail-colors') : null;
+                const railBox = rail.getBoundingClientRect(), box = button.getBoundingClientRect();
+                const bottom = bar && bar.getBoundingClientRect ? Math.min(railBox.bottom, bar.getBoundingClientRect().top) : railBox.bottom;
+                if (!(railBox.height > 0)) return;
+                if (box.top < railBox.top) rail.scrollTop -= railBox.top - box.top + 4;
+                else if (box.bottom > bottom) rail.scrollTop += box.bottom - bottom + 4;
             }),
             activeToolDef: Pixel.bindRuntime(runtime, function activeToolDef() {
                 return this.activeTool ? Pixel.getTool(this.activeTool) : null;
@@ -297,7 +312,7 @@
                                     return;
                                 }
                                 const img = await this.loadImage(url);
-                                if (this.layers.length >= this.MAX_LAYERS) { this.notify({ type: 'error', message: this.t('pixel.max_layers') }); return; }
+                                if (this.layers.length >= this.MAX_LAYERS) { this.notify({ type: 'error', message: this.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: this.MAX_LAYERS }) }); return; }
                                 this.commitPendingPreviews();
                                 const layer = this.createLayer({ name: this.t('pixel.paste'), source: img });
                                 this.layers.push(layer);
@@ -806,7 +821,7 @@
             }),
             addLayer: Pixel.bindRuntime(runtime, function addLayer() {
                 if (!this.imgWidth || !this.imgHeight) return;
-                if (this.layers.length >= this.MAX_LAYERS) { this.notify({ type: 'error', message: this.t('pixel.max_layers') }); return; }
+                if (this.layers.length >= this.MAX_LAYERS) { this.notify({ type: 'error', message: this.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: this.MAX_LAYERS }) }); return; }
                 this.commitPendingPreviews();
                 const layer = this.createLayer({ name: this.t('pixel.layer') + ' ' + (this.layers.length + 1) });
                 this.layers.push(layer);

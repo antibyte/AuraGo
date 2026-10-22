@@ -519,7 +519,7 @@
     const ftHit = (r, ft, p) => T.hitTest(ft.g, ft.w0, ft.h0, p, 8 / Math.max(0.05, r.zoom));
 
     toolUi.defineTool(FT_CFG, {
-        group: 'select', order: 60, shortcut: 'Ctrl+T', labelKey: 'pixel.free_transform', fallback: 'Free Transform', cursor: 'default',
+        group: 'select', order: 60, shortcut: '', labelKey: 'pixel.free_transform', fallback: 'Free Transform', cursor: 'default',
         svg: svg('<rect x="3.5" y="3.5" width="9" height="9" stroke-dasharray="2 1.5"/><rect x="1.8" y="1.8" width="3" height="3" fill="currentColor"/><rect x="11.2" y="1.8" width="3" height="3" fill="currentColor"/><rect x="1.8" y="11.2" width="3" height="3" fill="currentColor"/><rect x="11.2" y="11.2" width="3" height="3" fill="currentColor"/>'),
         onActivate: r => {
             const mode = r.ftMode || 'pixels';
@@ -687,7 +687,7 @@
 
     const needDoc = r => !!r.imgWidth;
     Pixel.registerMenuItems('edit', [
-        { id: 'free-transform', labelKey: 'pixel.free_transform', label: 'Free Transform', icon: 'maximize', shortcut: 'Ctrl+T', shortcuts: ['Ctrl+Alt+T'], enabled: needDoc, action: r => r.startFreeTransform() },
+        { id: 'free-transform', labelKey: 'pixel.free_transform', label: 'Free Transform', icon: 'maximize', keywords: ['transform', 'scale', 'rotate'], shortcut: 'Ctrl+Alt+T', shortcuts: ['Ctrl+T'], enabled: needDoc, action: r => r.startFreeTransform() },
         {
             id: 'transform-layer', labelKey: 'pixel.transform_layer', label: 'Transform Layer', enabled: needDoc,
             items: [
@@ -701,7 +701,6 @@
     Pixel.registerMenuItems('select', [
         { id: 'transform-selection', labelKey: 'pixel.transform_selection', label: 'Transform Selection', enabled: r => !!r.selection, action: r => r.startFreeTransform('outline') }
     ], { order: 60 });
-    Pixel.registerCommand({ id: 'transform.free', labelKey: 'pixel.free_transform', fallback: 'Free Transform', group: 'edit', keywords: ['transform', 'scale', 'rotate'], shortcut: ['Ctrl+T', 'Ctrl+Alt+T'], enabled: needDoc, run: r => r.startFreeTransform() });
 
     Pixel.registerModule('transform', function install(r) {
         Object.assign(r, {

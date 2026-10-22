@@ -24,6 +24,32 @@
         }, true);
     }
 
+    function interpolate(text, vars) {
+        let out = String(text);
+        if (vars) Object.keys(vars).forEach(name => {
+            const value = String(vars[name] == null ? '' : vars[name]);
+            out = out.split('{{' + name + '}}').join(value).split('{' + name + '}').join(value);
+        });
+        return out;
+    }
+
+    // The desktop t(key, vars) returns the key for a missing translation and reads its 2nd argument as a placeholder map.
+    // Pixel code calls t(key, 'English'), t(key, vars) and t(key, 'English', vars): this wrapper resolves all three and
+    // falls back to the interpolated English text until the key exists in the language files.
+    Pixel.makeTranslator = function makeTranslator(base) {
+        const source = typeof base === 'function' ? base : null;
+        return function t(key, second, third) {
+            const fallback = typeof second === 'string' ? second : '';
+            const vars = second && typeof second === 'object' ? second : (third && typeof third === 'object' ? third : null);
+            let text = '';
+            if (source) {
+                try { text = source(key, vars || undefined); } catch (_) { text = ''; }
+            }
+            if (typeof text !== 'string' || !text || text === key) return fallback ? interpolate(fallback, vars) : (typeof text === 'string' && text ? text : String(key == null ? '' : key));
+            return text;
+        };
+    };
+
     function render(host, windowId, context) {
         if (!host) return;
         const state = { disposed: false, lastActive: 0, host };
@@ -31,7 +57,7 @@
         trackPointerScope();
         const ctx = context || {};
         const esc = ctx.esc || (v => String(v == null ? '' : v));
-        const t = ctx.t || ((k, f) => f || k);
+        const t = Pixel.makeTranslator(ctx.t);
         const api = ctx.api || fetchJSON;
         const iconMarkup = ctx.iconMarkup || ((k, f) => `<span>${esc(f || k || '')}</span>`);
         const notify = ctx.notify || (() => {});

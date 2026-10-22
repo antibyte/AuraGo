@@ -1,4 +1,4 @@
-// Runs every scripts/test-pixel-*.mjs (except this file) one after the other and stops at the first failure.
+// Runs every scripts/test-pixel-*.mjs (except this file) one after the other and reports all failures at the end.
 // New work packages only add their own scripts/test-pixel-<area>.mjs; nothing here needs to change.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -16,12 +16,19 @@ if (!tests.length) {
     process.exit(1);
 }
 
+const failed = [];
 for (const name of tests) {
     console.log('--- ' + name);
     const result = spawnSync(process.execPath, [path.join(dir, name)], { stdio: 'inherit' });
     if (result.status !== 0) {
-        console.error('test-pixel-all: ' + name + ' failed' + (result.error ? ': ' + result.error.message : ' (exit ' + result.status + ')'));
-        process.exit(result.status || 1);
+        const why = result.error ? result.error.message : 'exit ' + result.status;
+        console.error('test-pixel-all: ' + name + ' failed (' + why + ')');
+        failed.push(name + ' (' + why + ')');
     }
+}
+if (failed.length) {
+    console.error('test-pixel-all: ' + failed.length + ' of ' + tests.length + ' scripts failed:');
+    failed.forEach(entry => console.error('  - ' + entry));
+    process.exit(1);
 }
 console.log('test-pixel-all: ' + tests.length + ' scripts passed');

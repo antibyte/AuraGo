@@ -5,6 +5,10 @@ import assert from 'node:assert/strict';
 import { installFakeDom, makeEl, loaderScripts, loaderStyles, loadPixelApp } from './pixel-test-dom.mjs';
 
 installFakeDom();
+// A module whose installer throws is logged and skipped by pixel.js; the integration check below fails on that.
+const consoleErrors = [];
+const realConsoleError = console.error;
+console.error = (...args) => { consoleErrors.push(args.map(a => (a && a.message) || String(a)).join(' ')); };
 const Pixel = loadPixelApp();
 
 // Registered before the first window renders: captures every runtime that is created.
@@ -26,6 +30,7 @@ function renderWindow(id) {
 }
 
 const { host: host1, rt } = renderWindow('w1');
+console.error = realConsoleError;
 assert.ok(rt, 'runtime captured');
 const events = [];
 ['layers-changed', 'selection-changed', 'document-changed', 'tool-changed', 'history-changed', 'active-layer-changed', 'panel-changed'].forEach(e => rt.on(e, () => events.push(e)));
@@ -463,8 +468,11 @@ check('tool rail is built from the registry in group order', () => {
     const order = ['select-rect', 'brush', 'fill', 'line', 'text'].map(idx);
     assert.ok(order.every(i => i >= 0));
     assert.deepEqual(order, order.slice().sort((a, b) => a - b));
-    assert.equal((html.match(/data-draw-tool="/g) || []).length, 20);
-    assert.equal(Pixel.toolGroups().map(g => g.group).join(','), 'select,paint,fill,shape,type');
+    assert.equal((html.match(/data-draw-tool="/g) || []).length, Pixel.listTools().length);
+    const groups = Pixel.toolGroups().map(g => g.group);
+    ['select', 'paint', 'fill', 'shape', 'type'].forEach(g => assert.ok(groups.includes(g), 'group ' + g));
+    const rank = g => Pixel.TOOL_GROUP_ORDER.indexOf(g);
+    assert.deepEqual(groups, groups.slice().sort((a, b) => rank(a) - rank(b)), 'groups follow TOOL_GROUP_ORDER');
 });
 
 check('showPanel only touches the dock of that panel and runs onHide/onShow', () => {
@@ -520,6 +528,16 @@ check('shortcut normalisation (Ctrl = Meta, letters lower case, Shift symbols fo
     assert.equal(Pixel.shortcutFromEvent({ key: '{', shiftKey: true }), 'shift+[');
     assert.equal(Pixel.shortcutFromEvent({ key: 'Shift', shiftKey: true }), '');
     assert.equal(Pixel.shortcutFromEvent({ key: 'F1' }), 'f1');
+});
+
+check('integration: every shortcut maps to one command, no module failed to install', () => {
+    const byKey = new Map();
+    rt.listCommands().forEach(cmd => cmd.shortcuts.forEach(key => byKey.set(key, (byKey.get(key) || []).concat(cmd.id))));
+    const clashes = Array.from(byKey).filter(([, ids]) => ids.length > 1).map(([key, ids]) => key + ': ' + ids.join(', '));
+    assert.deepEqual(clashes, [], 'shortcut clashes');
+    // The window rendered with the built-in installers plus every feature module; none threw.
+    ['layers', 'selection', 'brush', 'tools-pro', 'transform', 'generators', 'cutout', 'smart', 'commands', 'ora'].forEach(id => assert.ok(Pixel.listModules().some(m => m.id === id), id));
+    assert.equal(consoleErrors.length, 0, 'console.error during install: ' + consoleErrors.join(' | ').slice(0, 300));
 });
 
 check('keyboard: tool shortcuts including Shift ones, only for the active window, never in inputs', () => {
@@ -632,7 +650,15 @@ check('every tool, panel and menu item is a command', () => {
 
 check('window menus come from the registry in the fixed order and keep the literal items', () => {
     assert.ok(Array.isArray(menusSeen));
-    assert.deepEqual(menusSeen.map(m => m.id), ['file', 'edit', 'image', 'view', 'ai']);
+    const menuIds = menusSeen.map(m => m.id);
+    const at = ['file', 'edit', 'image', 'view', 'ai'].map(id => menuIds.indexOf(id));
+    assert.ok(at.every(i => i >= 0), 'the built-in menus are present');
+    assert.deepEqual(at, at.slice().sort((a, b) => a - b), 'in the fixed order');
+    menusSeen.forEach(m => m.items.forEach(function check(item) {
+        if (item.type === 'separator') return;
+        assert.ok(item.label, 'menu item ' + m.id + '/' + item.id + ' has a label');
+        (item.items || []).forEach(check);
+    }));
     const edit = menusSeen.find(m => m.id === 'edit');
     assert.equal(edit.items[0].id, 'undo');
     assert.equal(edit.items[0].shortcut, 'Ctrl+Z');
@@ -642,7 +668,11 @@ check('window menus come from the registry in the fixed order and keep the liter
     edit.items[0].action();
     assert.equal(rt.layers.length, before, 'item actions run on the window runtime');
     const image = menusSeen.find(m => m.id === 'image');
-    assert.deepEqual(image.items.filter(i => i.id).map(i => [i.id, i.icon]), [['rotate-cw', 'redo'], ['rotate-ccw', 'undo'], ['flip-h', 'sort'], ['flip-v', 'sort'], ['crop', 'scissors'], ['resize', 'maximize']]);
+    [['rotate-cw', 'redo'], ['rotate-ccw', 'undo'], ['flip-h', 'sort'], ['flip-v', 'sort'], ['crop', 'scissors'], ['resize', 'maximize']].forEach(([id, icon]) => {
+        const item = image.items.find(i => i.id === id);
+        assert.ok(item, 'image menu keeps ' + id);
+        assert.equal(item.icon, icon);
+    });
 });
 
 check('registerMenuItems: new menus slot into the fixed order, chunks get separators, same id replaces', () => {
@@ -653,7 +683,10 @@ check('registerMenuItems: new menus slot into the fixed order, chunks get separa
     let replaced = 0;
     Pixel.registerMenuItems('edit', [{ id: 'undo', labelKey: 'pixel.undo', icon: 'undo', shortcut: 'Ctrl+Z', action: () => { replaced++; } }, { id: 'fill', fallback: 'Fill', action: () => {} }]);
     const menus = Pixel.composeMenus(rt);
-    assert.deepEqual(menus.map(m => m.id), ['file', 'edit', 'image', 'layer', 'select', 'filter', 'generate', 'view', 'ai']);
+    const ids = menus.map(m => m.id);
+    const order = ['file', 'edit', 'image', 'layer', 'select', 'filter', 'generate', 'view', 'ai'].map(id => ids.indexOf(id));
+    assert.ok(order.every(i => i >= 0), 'all nine menus are present');
+    assert.deepEqual(order, order.slice().sort((a, b) => a - b), 'in the fixed order');
     const edit = menus.find(m => m.id === 'edit');
     assert.equal(edit.items.filter(i => i.id === 'undo').length, 1);
     edit.items.find(i => i.id === 'undo').action();
@@ -661,11 +694,37 @@ check('registerMenuItems: new menus slot into the fixed order, chunks get separa
     assert.equal(edit.items[0].id, 'undo', 'and kept its place');
     const sepIndex = edit.items.findIndex((i, n) => n > 0 && i.type === 'separator' && edit.items[n + 1] && edit.items[n + 1].id === 'fill');
     assert.ok(sepIndex > 0, 'a separator precedes the new chunk');
-    const gen = menus.find(m => m.id === 'generate').items[0];
+    const gen = menus.find(m => m.id === 'generate').items.find(i => i.id === 'noise');
     assert.equal(typeof gen.disabled, 'function');
     assert.equal(gen.disabled(), false);
-    assert.equal(menus.find(m => m.id === 'filter').items[0].id, 'blur', 'items may be a function of the runtime');
+    assert.equal(gen.label, 'Noise', 'a missing label is filled from the English fallback');
+    const filterItems = menus.find(m => m.id === 'filter').items;
+    assert.equal(filterItems.find(i => i.id === 'blur').label, 'Blur');
+    assert.ok(filterItems.indexOf(filterItems.find(i => i.id === 'blur')) <= filterItems.findIndex(i => i.id && i.id !== 'blur'), 'order 5 chunk comes first');
     assert.ok(rt.listCommands().some(c => c.id === 'menu:layer:new'));
+});
+
+check('translation safety net: English fallback, placeholder map, both together, key when nothing is known', () => {
+    // Same contract as the desktop t(key, vars): the key for a missing entry, the 2nd argument is a placeholder map.
+    const dict = { 'pixel.known': 'Known {n}', 'pixel.known_double': 'Double {{n}}' };
+    const desktopT = (key, vars) => {
+        let text = dict[key] || key;
+        if (vars) Object.entries(vars).forEach(([name, value]) => { text = text.replaceAll('{{' + name + '}}', () => value).replaceAll('{' + name + '}', () => value); });
+        return text;
+    };
+    const t = Pixel.makeTranslator(desktopT);
+    assert.equal(t('pixel.missing', 'English text'), 'English text');
+    assert.equal(t('pixel.missing', 'Max {n} layers', { n: 64 }), 'Max 64 layers');
+    assert.equal(t('pixel.missing', 'Max {{n}} layers', { n: 64 }), 'Max 64 layers');
+    assert.equal(t('pixel.missing', { n: 3 }), 'pixel.missing', 'no English text and no entry: the key');
+    assert.equal(t('pixel.known', 'Fallback {n}', { n: 7 }), 'Known 7');
+    assert.equal(t('pixel.known', { n: 8 }), 'Known 8');
+    assert.equal(t('pixel.known_double', { n: 9 }), 'Double 9');
+    assert.equal(t('pixel.known'), 'Known {n}');
+    assert.equal(t('pixel.missing', '$& stays literal {x}', { x: '$1' }), '$& stays literal $1');
+    assert.equal(Pixel.makeTranslator(undefined)('pixel.x', 'Plain'), 'Plain');
+    assert.equal(Pixel.makeTranslator(() => { throw new Error('boom'); })('pixel.x', 'Survives'), 'Survives');
+    assert.equal(rt.t('pixel.never_defined', 'Window t {n}', { n: 2 }), 'Window t 2', 'the window runtime uses the wrapped t');
 });
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -674,10 +733,11 @@ check('registerMenuItems: new menus slot into the fixed order, chunks get separa
 
 check('registerTool: override inherits metadata, owns the gesture, gates raster tools, builds its own options', () => {
     const calls = [];
+    // The brush is a built-in with its own handlers by now: keep its definition and restore it at the end.
     const before = Pixel.getTool('brush');
+    const savedBrush = Object.assign({}, before);
     assert.equal(before.group, 'paint');
     assert.equal(before.raster, true);
-    assert.equal(before.onDown, undefined);
     Pixel.registerTool({
         id: 'brush',
         onDown: (r, e, p) => calls.push(['down', r === rt, p.x, p.y, p.pressure, p.shift, p.alt, p.ctrl]),
@@ -732,16 +792,22 @@ check('registerTool: override inherits metadata, owns the gesture, gates raster 
     assert.deepEqual(calls, [['key', 'q'], ['key', 'e']]);
     assert.equal(rt.activeTool, 'eraser', 'a key the tool did not consume still runs its command');
     rt.setActiveTool('eraser');
-    // restore the built-in brush for the following checks
-    Pixel.registerTool({ id: 'brush', onDown: undefined, onMove: undefined, onUp: undefined, onHover: undefined, options: undefined, wireOptions: undefined, onKey: undefined, onActivate: undefined, onDeactivate: undefined });
-    assert.equal(Pixel.toolHasHandlers(Pixel.getTool('brush')), false);
+    // restore the real brush for the following checks
+    Pixel.registerTool(savedBrush);
+    const restored = Pixel.getTool('brush');
+    ['onDown', 'onMove', 'onUp', 'onHover', 'options', 'wireOptions', 'onKey', 'onActivate', 'onDeactivate'].forEach(key => assert.equal(restored[key], savedBrush[key], key + ' restored'));
+    assert.equal(restored.group, 'paint');
 });
 
 await check('registerTool: new tool in a group, tool-preview overlay hook, pointer info is in document coordinates', () => {
     let overlayCalls = 0;
     Pixel.registerTool({ id: 'test-tool', group: 'retouch', order: 5, svg: '<svg></svg>', shortcut: 'Ctrl+Alt+T', labelKey: 'x', fallback: 'Test tool', raster: false, cursor: () => 'cell', overlay: () => { overlayCalls++; } });
     const groups = Pixel.toolGroups().map(g => g.group);
-    assert.deepEqual(groups, ['select', 'paint', 'retouch', 'fill', 'shape', 'type']);
+    ['select', 'paint', 'retouch', 'fill', 'shape', 'type'].forEach(g => assert.ok(groups.includes(g), 'group ' + g));
+    const groupRank = g => Pixel.TOOL_GROUP_ORDER.indexOf(g);
+    assert.deepEqual(groups, groups.slice().sort((a, b) => groupRank(a) - groupRank(b)), 'groups follow TOOL_GROUP_ORDER');
+    const retouch = Pixel.listTools('retouch');
+    assert.ok(retouch.some(d => d.id === 'test-tool') && retouch[0].order <= retouch[retouch.length - 1].order, 'the new tool is listed in its group');
     rt.setActiveTool('test-tool');
     assert.equal(rt.getToolCursor(), 'cell');
     rt.onCanvasMouseMove(pointerEvent({ clientX: 3, clientY: 4, buttons: 0 }));
@@ -758,12 +824,20 @@ await check('registerTool: new tool in a group, tool-preview overlay hook, point
 // ---------------------------------------------------------------------------------------------------------------
 
 await check('overlays: built-in order, custom z order, coalesced repaint, clearOverlay keeps the others', async () => {
-    assert.deepEqual(rt.listOverlays().slice(0, 4), ['selection', 'tool-preview', 'compare', 'cursor']);
+    const baseline = rt.listOverlays();
+    const builtIn = ['selection', 'tool-preview', 'compare', 'cursor'].map(id => baseline.indexOf(id));
+    assert.ok(builtIn.every(i => i >= 0), 'the built-in overlays are registered');
+    assert.deepEqual(builtIn, builtIn.slice().sort((a, b) => a - b), 'in z order');
+    assert.ok(baseline.indexOf('grids') < baseline.indexOf('selection'), 'the grid sits below the selection');
     const order = [];
     const offHigh = rt.registerOverlay('t-high', () => order.push('high'), 95);
     rt.registerOverlay('t-low', () => order.push('low'), 5);
     rt.registerOverlay('t-mid', () => order.push('mid'), 65);
-    assert.deepEqual(rt.listOverlays(), ['t-low', 'selection', 'tool-preview', 't-mid', 'compare', 'cursor', 't-high']);
+    const withCustom = baseline.slice();
+    withCustom.unshift('t-low');
+    withCustom.splice(withCustom.indexOf('compare'), 0, 't-mid');
+    withCustom.push('t-high');
+    assert.deepEqual(rt.listOverlays(), withCustom);
     await new Promise(resolve => setTimeout(resolve, 20));
     order.length = 0;
     rt.requestOverlay(); rt.requestOverlay(); rt.requestOverlay();
@@ -773,14 +847,14 @@ await check('overlays: built-in order, custom z order, coalesced repaint, clearO
     rt.toolPreview = () => order.push('preview');
     rt.clearOverlay();
     assert.equal(rt.toolPreview, null);
-    assert.equal(rt.listOverlays().length, 7, 'clearOverlay leaves the other overlays registered');
+    assert.equal(rt.listOverlays().length, baseline.length + 3, 'clearOverlay leaves the other overlays registered');
     rt.registerOverlay('t-mid', () => order.push('mid2'), 65);
     order.length = 0;
     offHigh();
     await new Promise(resolve => setTimeout(resolve, 20));
     assert.deepEqual(order, ['low', 'mid2']);
     rt.unregisterOverlay('t-low'); rt.unregisterOverlay('t-mid');
-    assert.deepEqual(rt.listOverlays(), ['selection', 'tool-preview', 'compare', 'cursor']);
+    assert.deepEqual(rt.listOverlays(), baseline);
     // a throwing overlay must not take the others down
     let ok = 0;
     rt.registerOverlay('t-bad', () => { throw new Error('bad overlay'); }, 10);

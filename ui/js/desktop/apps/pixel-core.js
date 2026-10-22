@@ -466,6 +466,11 @@
     function bindMenuItem(item, runtime) {
         if (item.type === 'separator' || item.separator) return { type: 'separator' };
         const bound = Object.assign({}, item);
+        // The desktop shell draws item.label || item.id, so every item gets its translated (or English) label here.
+        if (!bound.label && (bound.labelKey || bound.fallback)) {
+            const translate = runtime && typeof runtime.t === 'function' ? runtime.t : null;
+            bound.label = translate && bound.labelKey ? translate(bound.labelKey, bound.fallback || bound.id || '') : (bound.fallback || bound.id || '');
+        }
         const children = item.items || item.children;
         if (children) {
             bound.items = trimSeparators((typeof children === 'function' ? children(runtime) : children).filter(Boolean)).map(child => bindMenuItem(child, runtime));
@@ -489,7 +494,8 @@
             const items = composeMenuItems(id, runtime).map(item => bindMenuItem(item, runtime));
             if (!items.length) return null;
             const label = MENU_LABELS[id] || [null, id];
-            return { id, labelKey: label[0] || '', label: label[1], items };
+            const translate = runtime && typeof runtime.t === 'function' ? runtime.t : null;
+            return { id, labelKey: label[0] || '', label: translate && label[0] ? translate(label[0], label[1]) : label[1], items };
         }).filter(Boolean);
     };
 
@@ -507,7 +513,7 @@
                 id: 'menu:' + menuId + ':' + id,
                 labelKey: item.labelKey, fallback: item.fallback || item.label || item.id,
                 group: menuId, keywords: item.keywords || [],
-                shortcut: [item.shortcut, item.shortcutHint].concat(item.shortcuts || []).filter(Boolean),
+                shortcut: [item.shortcut].concat(item.shortcuts || []).filter(Boolean), hint: item.shortcutHint || '',
                 run: r => item.action(r),
                 enabled: typeof item.enabled === 'function' ? item.enabled : (typeof item.disabled === 'function' ? r => !item.disabled(r) : (item.disabled ? () => false : null)),
                 source: 'menu'
@@ -539,6 +545,11 @@
             });
         });
         registry.commands.forEach(def => raw.push(Object.assign({ source: 'command' }, def)));
+        // A shortcutHint is only drawn in the menu and handled by the command table: it is skipped when another command
+        // already owns the key (the Select menu repeats the Ctrl+A / Ctrl+D of the Edit menu, for example).
+        const claimed = new Set();
+        raw.forEach(cmd => [].concat(cmd.shortcut || []).forEach(key => claimed.add(Pixel.normalizeShortcut(key))));
+        raw.forEach(cmd => { if (cmd.hint && !claimed.has(Pixel.normalizeShortcut(cmd.hint))) cmd.shortcut = [].concat(cmd.shortcut || [], cmd.hint); });
         return raw.map(cmd => {
             const list = [].concat(cmd.shortcut || []).filter(Boolean);
             return {
