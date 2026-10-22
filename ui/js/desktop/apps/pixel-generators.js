@@ -478,7 +478,7 @@
 
     // Generated pixels become a new layer above the active one (history label generate:<id>).
     function addGeneratedLayer(r, st, def, canvas) {
-        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: tx(r, 'pixel.max_layers', 'Maximum number of layers reached.') }); return false; }
+        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: r.MAX_LAYERS }) }); return false; }
         r.commitPendingPreviews();
         const layer = r.createLayer({ name: generatorName(r, def), opacity: st.opacity / 100, blend: st.blend });
         layer.canvas.getContext('2d').drawImage(canvas, 0, 0);

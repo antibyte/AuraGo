@@ -1872,7 +1872,7 @@
         const src = r.activeLayer();
         if (!sel || !src || !r.requireRasterLayer(src)) return false;
         if (r.layers.length >= r.MAX_LAYERS) {
-            r.notify({ type: 'error', message: r.t('pixel.max_layers', 'Maximum number of layers reached.') });
+            r.notify({ type: 'error', message: r.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: r.MAX_LAYERS }) });
             return false;
         }
         r.commitPendingPreviews();
@@ -1905,7 +1905,7 @@
             if (!r.commitLayerPixels(src, cleared, { respectSelection: false, history: false })) return false;
         }
         const index = r.activeLayerIdx;
-        const layer = r.createLayer({ name: r.t(cut ? 'pixel.sel_layer_cut' : 'pixel.sel_layer_copy', cut ? 'Selection cut' : 'Selection copy'), canvas: copy });
+        const layer = r.createLayer({ name: cut ? r.t('pixel.sel_layer_cut', 'Selection cut') : r.t('pixel.sel_layer_copy', 'Selection copy'), canvas: copy });
         r.layers.splice(index + 1, 0, layer);
         r.activeLayerIdx = index + 1;
         r.editMaskMode = false;

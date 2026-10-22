@@ -372,7 +372,6 @@
                                 this.refreshStickerControls();
                                 this.cropOverlay.hidden = false;
                                 this.cropOverlay.innerHTML = '<div class="pixel-crop-selection" data-crop-sel></div>';
-                                this.host.querySelector('[data-crop-actions]').hidden = false;
                                 this.setStatus(this.t('pixel.crop_hint'));
             }),
             cancelCrop: Pixel.bindRuntime(runtime, function cancelCrop() {

@@ -345,8 +345,10 @@
                                     const removeBtn = this.host.querySelector('[data-ai-remove-bg]');
                                     const upscaleBtn = this.host.querySelector('[data-ai-upscale]');
                                     if (removeBtn) {
-                                        removeBtn.disabled = !this.aiSupportsRemoveBG;
-                                        removeBtn.title = this.aiSupportsRemoveBG ? '' : this.t('pixel.remove_bg_unavailable');
+                                        // With the cutout module the button runs the local/AI-model engine, which needs no image provider.
+                                        const usable = typeof this.removeBackground === 'function' || this.aiSupportsRemoveBG;
+                                        removeBtn.disabled = !usable;
+                                        removeBtn.title = usable ? '' : this.t('pixel.remove_bg_unavailable');
                                     }
                                     if (upscaleBtn) {
                                         upscaleBtn.disabled = !this.aiSupportsUpscale;

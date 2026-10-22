@@ -553,6 +553,7 @@
         if (layer && lookupContext(r, layer)) {
             r.commitPendingPreviews();
             r.setSelectionMask(alphaOfCanvas(r, layer.maskCanvas), { mode: 'replace' });
+            if (typeof r.recordSelection === 'function') r.recordSelection('select:subject');
             r.notify({ type: 'success', message: tx(r, 'pixel.cutout_selected', 'Subject selected.') });
             return true;
         }
@@ -563,6 +564,7 @@
             });
             if (tokenStale(r, ticket.token)) return false;
             r.setSelectionMask(result.alpha, { mode: 'replace' });
+            if (typeof r.recordSelection === 'function') r.recordSelection('select:subject');
             r.notify({ type: 'success', message: tx(r, 'pixel.cutout_selected', 'Subject selected.') });
             return true;
         });
@@ -588,7 +590,7 @@
         await flushRefine(r);
         const layer = guardLayer(r);
         if (!layer) return false;
-        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.max_layers') }); return false; }
+        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: r.MAX_LAYERS }) }); return false; }
         const alpha = await subjectAlpha(r, layer);
         if (!alpha || r.layerById(layer.id) !== layer) return false;
         return guarded(r, tx(r, 'pixel.cutout_busy_layer', 'Cutting out…'), async ticket => {
@@ -624,7 +626,7 @@
         await flushRefine(r);
         const layer = guardLayer(r);
         if (!layer) return false;
-        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.max_layers') }); return false; }
+        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: r.MAX_LAYERS }) }); return false; }
         const alpha = await subjectAlpha(r, layer);
         if (!alpha || r.layerById(layer.id) !== layer) return false;
         const st = stateOf(r);
@@ -652,7 +654,7 @@
             if (layer.maskCanvas) { r.notify({ type: 'info', message: tx(r, 'pixel.cutout_done', 'Background removed.') }); return true; }
             return removeBackground(r);
         }
-        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.max_layers') }); return false; }
+        if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: r.MAX_LAYERS }) }); return false; }
         const alpha = await subjectAlpha(r, layer);
         if (!alpha || r.layerById(layer.id) !== layer) return false;
         return guarded(r, tx(r, 'pixel.cutout_busy_replace', 'Replacing the background…'), async ticket => {

@@ -95,13 +95,13 @@
             },
             async addSticker(id) {
                 if (!r.imgWidth || !r.imgHeight) { r.notify({ type: 'info', message: tr('openImage') }); return; }
-                if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.max_layers') }); return; }
+                if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: r.MAX_LAYERS }) }); return; }
                 const revision = r.state.documentRevision, layers = r.layers, w = r.imgWidth, h = r.imgHeight;
                 const controller = new AbortController(); loads.add(controller);
                 try {
                     const image = await window.AuraStickerLibrary.image(id, controller.signal);
                     if (r.state.disposed || revision !== r.state.documentRevision || layers !== r.layers || w !== r.imgWidth || h !== r.imgHeight) return;
-                    if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.max_layers') }); return; }
+                    if (r.layers.length >= r.MAX_LAYERS) { r.notify({ type: 'error', message: r.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: r.MAX_LAYERS }) }); return; }
                     r.resetFilterPreview(); r.commitPendingPreviews(); r.deselect(); r.editMaskMode = false;
                     const side = .24 * Math.min(w, h);
                     const layer = r.createLayer({ name: tr('name.' + id), stickerImage: image,

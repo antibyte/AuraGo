@@ -769,7 +769,7 @@
             if (!hasDoc() || !r.ctx.openFileDialog || !canAdd()) return null;
             const result = await r.ctx.openFileDialog({
                 title: placeTitle(), initialPath: 'Photos',
-                filters: [{ label: r.t('desktop.file_dialog_images'), extensions: r.IMAGE_EXTS }]
+                filters: [{ label: r.t('desktop.file_dialog_images'), extensions: r.IMAGE_EXTS.filter(ext => ext !== 'ora') }]
             });
             if (!result || result.canceled || !result.path) return null;
             return placeImagePath(result.path);

@@ -925,7 +925,7 @@
         // A new layer above the active one, painted by paint(ctx, width, height).
         function addGeneratedLayer(name, paint) {
             if (!r.imgWidth) return false;
-            if (r.layers.length >= r.MAX_LAYERS) { failure(t('pixel.max_layers', 'The layer limit is reached.')); return false; }
+            if (r.layers.length >= r.MAX_LAYERS) { failure(r.t('pixel.layer_max', 'Maximum number of layers reached ({n}).', { n: r.MAX_LAYERS })); return false; }
             r.commitPendingPreviews();
             const layer = r.createLayer({ name });
             paint(layer.canvas.getContext('2d'), r.imgWidth, r.imgHeight);

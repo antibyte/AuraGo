@@ -14,6 +14,7 @@
         return;
     }
     const { F, opt } = toolUi;
+    const cap = text => text.charAt(0).toUpperCase() + text.slice(1);
 
     // Draws over the active layer (or its mask) and commits through commitLayerPixels: selection, locks and history apply.
     function composeOver(r, label, draw) {
@@ -225,8 +226,8 @@
     const GRADIENT_CFG = {
         id: 'gradient',
         schema: [
-            F('type', 'select', 'pixel.gradient_mode', 'Gradient Mode', { default: 'linear', options: ['linear', 'radial', 'conic', 'diamond', 'reflected'].map(v => opt(v, 'pixel.gradient_' + v, v)) }),
-            F('source', 'select', 'pixel.gradient_colors', 'Colors', { default: 'fgbg', options: [opt('fgbg', 'pixel.gradient_fg_bg', 'Primary to secondary'), opt('fgtrans', 'pixel.gradient_fg_transparent', 'Primary to transparent')].concat(gradientPresets().map(p => opt('preset:' + p.id, 'pixel.gradient_preset_' + p.id, p.id))) }),
+            F('type', 'select', 'pixel.gradient_mode', 'Gradient Mode', { default: 'linear', options: ['linear', 'radial', 'conic', 'diamond', 'reflected'].map(v => opt(v, 'pixel.gradient_' + v, cap(v))) }),
+            F('source', 'select', 'pixel.gradient_colors', 'Colors', { default: 'fgbg', options: [opt('fgbg', 'pixel.gradient_fg_bg', 'Primary to secondary'), opt('fgtrans', 'pixel.gradient_fg_transparent', 'Primary to transparent')].concat(gradientPresets().map(p => opt('preset:' + p.id, 'pixel.gradient_preset_' + p.id, cap(p.id)))) }),
             F('reverse', 'bool', 'pixel.gradient_reverse', 'Reverse', { default: false }),
             F('dither', 'bool', 'pixel.gradient_dither', 'Dither', { default: true }),
             F('opacity', 'range', 'pixel.brush_opacity', 'Opacity', { min: 1, max: 100, step: 1, unit: '%', default: 100 })
@@ -357,7 +358,7 @@
             F('tolerance', 'range', 'pixel.tolerance', 'Tolerance', { min: 0, max: 255, step: 1, default: 32 }),
             F('sampleAll', 'bool', 'pixel.fill_sample_all', 'All layers', { default: false }),
             F('source', 'select', 'pixel.fill_source', 'Fill with', { default: 'primary', options: [opt('primary', 'pixel.fill_primary', 'Primary color'), opt('pattern', 'pixel.fill_pattern', 'Pattern')] }),
-            F('pattern', 'select', 'pixel.fill_pattern_kind', 'Pattern', { default: 'checker', showIf: v => v.source === 'pattern', options: PATTERNS.map(v => opt(v, 'pixel.pattern_' + v, v)) }),
+            F('pattern', 'select', 'pixel.fill_pattern_kind', 'Pattern', { default: 'checker', showIf: v => v.source === 'pattern', options: PATTERNS.map(v => opt(v, 'pixel.pattern_' + v, cap(v))) }),
             F('antialias', 'bool', 'pixel.shape_antialias', 'Anti-aliasing', { default: true }),
             F('opacity', 'range', 'pixel.brush_opacity', 'Opacity', { min: 1, max: 100, step: 1, unit: '%', default: 100 })
         ]

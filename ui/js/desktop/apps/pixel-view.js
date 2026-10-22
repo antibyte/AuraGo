@@ -211,10 +211,6 @@
                     <div class="pixel-btn-group"><button class="pixel-btn" type="button" data-action="flip-h">${this.iconMarkup('sort', 'H')} ${this.esc(this.t('pixel.flip_h'))}</button><button class="pixel-btn" type="button" data-action="flip-v">${this.iconMarkup('sort', 'V')} ${this.esc(this.t('pixel.flip_v'))}</button></div>
                     <hr class="pixel-divider">
                     <button class="pixel-btn" type="button" data-action="crop">${this.iconMarkup('scissors', 'C')} ${this.esc(this.t('pixel.crop'))}</button>
-                    <div class="pixel-crop-actions" data-crop-actions hidden>
-                        <button class="pixel-btn pixel-btn-primary" type="button" data-action="apply-crop">${this.esc(this.t('pixel.apply_crop'))}</button>
-                        <button class="pixel-btn" type="button" data-action="cancel-crop">${this.esc(this.t('pixel.cancel_crop'))}</button>
-                    </div>
                     <hr class="pixel-divider">
                     <button class="pixel-btn" type="button" data-action="resize">${this.iconMarkup('maximize', 'R')} ${this.esc(this.t('pixel.resize'))}</button>`;
             }),
@@ -437,9 +433,8 @@
                 click('[data-action="rotate-ccw"]', () => this.rotateCanvas(-90));
                 click('[data-action="flip-h"]', () => this.flipCanvas(true));
                 click('[data-action="flip-v"]', () => this.flipCanvas(false));
+                // The crop tool has its own Apply / Cancel in the options bar; this button only starts it.
                 click('[data-action="crop"]', () => this.startCrop());
-                click('[data-action="apply-crop"]', () => this.applyCrop());
-                click('[data-action="cancel-crop"]', () => this.cancelCrop());
                 click('[data-action="resize"]', () => this.resizeImage());
             }),
             mountLayersPanel: Pixel.bindRuntime(runtime, function mountLayersPanel(el) {
@@ -503,7 +498,10 @@
                 const click = (selector, handler) => el.querySelectorAll(selector).forEach(b => b.addEventListener('click', handler));
                 click('[data-action="ai-generate"]', () => this.aiGenerate());
                 click('[data-action="ai-enhance"]', () => this.aiEnhance());
-                click('[data-action="ai-remove-bg"]', () => this.aiRemoveBG());
+                // The cutout module (local engines or an AI model) replaces the img2img remove-bg call when it is loaded.
+                click('[data-action="ai-remove-bg"]', () => {
+                    if (typeof this.removeBackground === 'function') { this.showPanel('cutout'); this.removeBackground(); } else this.aiRemoveBG();
+                });
                 click('[data-action="ai-upscale"]', () => this.aiUpscale());
                 const strength = el.querySelector('[data-enhance-strength]');
                 if (strength) {
