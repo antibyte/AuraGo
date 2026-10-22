@@ -73,8 +73,8 @@ func chromecastMediaServerBindHost(host string) string {
 }
 
 var uiI18NSections = map[string][]string{
-	"config":    {"config", "chat", "help", "security", "shared", "ruview"},
-	"dashboard": {"dashboard", "chat", "config", "knowledge", "shared"},
+	"config":    {"config", "chat", "help", "security", "shared", "ruview", "personality_dynamics", "personality_legacy"},
+	"dashboard": {"dashboard", "chat", "config", "knowledge", "shared", "personality_dynamics"},
 	// Desktop shell embeds only desktop.* (+ common via GetJSONForSections).
 	// App prefixes (cheater, pixel, chat, …) load on demand via /api/i18n?sections=
 	// when module-loader loads the app. Omitting config alone saves ~250KB.
@@ -89,7 +89,7 @@ var uiI18NSections = map[string][]string{
 	"skills":      {"skills", "chat", "config", "shared"},
 	"invasion":    {"invasion", "chat", "config", "shared"},
 	"setup":       {"setup", "chat", "config", "shared"},
-	"chat":        {"chat", "config", "plans", "pwa", "shared", "viewer"},
+	"chat":        {"chat", "config", "plans", "pwa", "shared", "viewer", "personality_legacy"},
 	"404":         {"notfound"},
 }
 

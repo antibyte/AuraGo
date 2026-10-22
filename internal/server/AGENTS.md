@@ -471,6 +471,11 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### Configuration UI Integration Test Contract
 
+- Page translation payloads are selected by key prefix in `uiI18NSections`, not
+  by the locale directory. Config needs `personality_dynamics` and
+  `personality_legacy`, Dashboard needs `personality_dynamics`, and Chat needs
+  `personality_legacy`. Verify `TestPersonalityTemplateDataIncludesTranslations`
+  across all sixteen locales when changing these shared components.
 - RuView `GET /api/ruview/board-setup` and its Desktop integration alias are
   administrator-only, `no-store` reads of saved receiver/UDP defaults and LAN
   suggestions. They never resolve DNS, probe, start a runtime or publish UDP.
