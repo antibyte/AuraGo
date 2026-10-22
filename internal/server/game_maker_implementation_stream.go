@@ -45,6 +45,7 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 		outputCandidates = append(outputCandidates, gameMakerBuildAnswerTokens)
 	}
 	maxOutputTokens := outputCandidates[0]
+	temperature := gameMakerPhaseTemperature(cfg, "building")
 	for attempt := 0; ; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return agent.MinimalLoopResult{}, nil, err
@@ -77,7 +78,7 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 		throughput.Base, throughput.ReserveTokens = timeout, maxOutputTokens
 		callCtx, cancel := llm.NewThroughputDeadline(ctx, throughput)
 		dispatchCtx := &agent.DispatchContext{Cfg: cfg, Guardian: r.server.Guardian, BudgetTracker: r.server.BudgetTracker, SessionID: "game-maker-" + run.Job.ID, MessageSource: "game_maker", ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}}
-		opts := &agent.MinimalLoopOptions{MaxToolRounds: 0, BudgetCategory: "game_maker", StreamText: true, MaxOutputTokens: maxOutputTokens, PreserveReasoning: true, Checkpoint: checkpoint, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer}
+		opts := &agent.MinimalLoopOptions{MaxToolRounds: 0, BudgetCategory: "game_maker", StreamText: true, MaxOutputTokens: maxOutputTokens, PreserveReasoning: true, Checkpoint: checkpoint, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer, Temperature: &temperature}
 		response, completion, err := agent.ExecuteMinimalLoop(callCtx, client, cfg.LLM.Model, system, prompt, nil,
 			dispatchCtx, requestHistory, r.server.Logger, opts)
 		for _, fallback := range outputCandidates {

@@ -436,6 +436,8 @@ Tools are defined in `internal/tools/`:
   reserve on every round, correction and final summary. Optional
   `MaxOutputTokens` selects a task-specific reserve including reasoning; all
   eligible provider/model/context caps still apply before sending.
+  `MinimalLoopOptions.Temperature` pins sampling for a caller such as Game Maker;
+  nil keeps the provider default.
 
 - Persistent history compression must make bounded progress through oversized
   conversations at complete tool-round boundaries. Preserve the current human

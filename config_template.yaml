@@ -1245,6 +1245,8 @@ game_maker:
     max_asset_size_mb: 32
     max_project_size_mb: 100
     job_timeout_seconds: 1800                              # normal budget; recent compiled source may earn one 50% extension, capped at 15 min
+    planning_temperature: 0.6                              # sampling for planning; omit for the default (clamped 0.05-1.5)
+    building_temperature: 0.2                              # sampling for building, repair and source generation; omit for the default
 cyd_creator:
     enabled: false                                         # CYD Creator desktop app (needs docker.enabled); builds run in a Docker container
     builder_image: ghcr.io/antibyte/aurago-cyd-builder:1   # published toolchain image; pulled from the app, never built locally

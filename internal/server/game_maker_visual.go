@@ -182,6 +182,7 @@ func (r *gameMakerAgentRunner) reviewGameImages(ctx context.Context, cfg *config
 		fallback.StructuredOutputs = cfg.LLM.StructuredOutputs
 	}
 	format := llm.JSONResponseFormat(llm.ResolveProviderCapabilities(route, fallback).StructuredOutputs)
+	temperature := gameMakerPhaseTemperature(&reviewCfg, "building")
 	for attempt := 0; attempt < 2; attempt++ {
 		responseFormat := format
 		if attempt > 0 {
@@ -190,7 +191,7 @@ func (r *gameMakerAgentRunner) reviewGameImages(ctx context.Context, cfg *config
 			// images, but make the single correction a plain JSON request.
 			responseFormat = nil
 		}
-		response, sent, err := agent.ExecuteMinimalLoop(ctx, client, route.Model, "", "Return bounded JSON visual observations only.", nil, &agent.DispatchContext{Cfg: &reviewCfg, BudgetTracker: r.server.BudgetTracker, ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}}, history, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, BudgetCategory: "game_maker", ResponseFormat: responseFormat, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer})
+		response, sent, err := agent.ExecuteMinimalLoop(ctx, client, route.Model, "", "Return bounded JSON visual observations only.", nil, &agent.DispatchContext{Cfg: &reviewCfg, BudgetTracker: r.server.BudgetTracker, ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}}, history, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, BudgetCategory: "game_maker", ResponseFormat: responseFormat, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer, Temperature: &temperature})
 		if err != nil || response.FinishReason != openai.FinishReasonStop {
 			reason := gameVisualFailureReason(err, response.FinishReason)
 			// A route may reject a structured multimodal request that it serves as

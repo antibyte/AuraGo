@@ -53,6 +53,9 @@ type MinimalLoopOptions struct {
 	// 0 means "no tools at all" (the request is sent without tool schemas).
 	// -1 or unset defaults to 3.
 	MaxToolRounds int
+	// Temperature overrides the sampling temperature when set. Callers that pin
+	// code generation use a low value; nil keeps the provider default.
+	Temperature *float32
 	// BudgetCategory attributes every provider response to this budget category.
 	// Empty categories use "chat" so minimal-loop responses are never silently exempt.
 	BudgetCategory string
@@ -174,6 +177,9 @@ func ExecuteMinimalLoop(
 		Messages: messages,
 		Tools:    reqTools,
 		Stream:   opts != nil && opts.StreamText && noTools,
+	}
+	if opts != nil && opts.Temperature != nil {
+		req.Temperature = *opts.Temperature
 	}
 	if opts != nil && noTools {
 		req.ResponseFormat = opts.ResponseFormat

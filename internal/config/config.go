@@ -1542,6 +1542,27 @@ func Load(path string) (*Config, error) {
 	if cfg.GameMaker.JobTimeoutSeconds <= 0 {
 		cfg.GameMaker.JobTimeoutSeconds = 1800
 	}
+	if cfg.GameMaker.PlanningTemperature != nil {
+		value := *cfg.GameMaker.PlanningTemperature
+		if value < 0.05 {
+			value = 0.05
+		}
+		if value > 1.5 {
+			value = 1.5
+		}
+		cfg.GameMaker.PlanningTemperature = &value
+	}
+	if cfg.GameMaker.BuildingTemperature != nil {
+		value := *cfg.GameMaker.BuildingTemperature
+		if value < 0.05 {
+			value = 0.05
+		}
+		if value > 1.5 {
+			value = 1.5
+		}
+		cfg.GameMaker.BuildingTemperature = &value
+	}
+
 	if strings.TrimSpace(cfg.VirtualComputers.Provider) == "" {
 		cfg.VirtualComputers.Provider = "boring_computers"
 	}
@@ -3243,6 +3264,16 @@ func (c *Config) Save(path string) error {
 		{[]string{"game_maker", "max_asset_size_mb"}, c.GameMaker.MaxAssetSizeMB},
 		{[]string{"game_maker", "max_project_size_mb"}, c.GameMaker.MaxProjectSizeMB},
 		{[]string{"game_maker", "job_timeout_seconds"}, c.GameMaker.JobTimeoutSeconds},
+	}
+	if c.GameMaker.PlanningTemperature != nil {
+		if err := setYAMLPathValue(&root, []string{"game_maker", "planning_temperature"}, *c.GameMaker.PlanningTemperature); err != nil {
+			return fmt.Errorf("failed to patch config path game_maker.planning_temperature: %w", err)
+		}
+	}
+	if c.GameMaker.BuildingTemperature != nil {
+		if err := setYAMLPathValue(&root, []string{"game_maker", "building_temperature"}, *c.GameMaker.BuildingTemperature); err != nil {
+			return fmt.Errorf("failed to patch config path game_maker.building_temperature: %w", err)
+		}
 	}
 	for _, patch := range patches {
 		if err := setYAMLPathValue(&root, patch.path, patch.value); err != nil {

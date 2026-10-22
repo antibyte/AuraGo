@@ -118,6 +118,9 @@ func (s *Service) expandDesign(ctx context.Context, jobID string, project Projec
 			delete(draft, "settings")
 		}
 	}
+	// Repair the deterministic mistakes before strict decoding: plural asset
+	// IDs, duplicate roles, unknown asset metadata and incompatible settings.
+	s.repairDesignDraft(jobID, project, draft)
 	merged, err := json.Marshal(draft)
 	if err != nil {
 		return nil, err
@@ -139,7 +142,7 @@ func (s *Service) expandDesign(ctx context.Context, jobID string, project Projec
 		s.designDrafts = map[string]map[string]json.RawMessage{}
 	}
 	s.designDrafts[jobID] = draft
-	remaining := max(0, 3-s.planAttempts[jobID])
+	remaining := s.remainingPlanAttemptsLocked(jobID)
 	s.mu.Unlock()
 	if issues := s.designIssues(project, design); len(issues) > 0 {
 		return nil, &DesignValidationError{Issues: issues, RemainingAttempts: remaining, RetainedBase: design.Base}
@@ -202,6 +205,13 @@ func normalizeDesignMechanics(patch, draft map[string]json.RawMessage) error {
 
 func (s *Service) planFromDesign(ctx context.Context, jobID string, project Project, d GameDesign) (GamePlan, error) {
 	p := ExampleGamePlan(project)
+	// New games must not inherit the example's instruction prose. Edits keep the
+	// authored content of the published revision, including older plans.
+	if project.CurrentRevision == 0 {
+		if err := rejectDesignPlaceholders(d); err != nil {
+			return p, err
+		}
+	}
 	p.Template = d.Base
 	p.Objective = d.Objective
 	p.Scope = d.Features
@@ -223,6 +233,12 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 	}
 	p.Fallback = "Use the explicitly named procedural role where no library asset is selected"
 	p.Gameplay = d.Settings
+	// A 2D design that omits assets gets deterministic procedural roles instead
+	// of the shared example's instruction text. Catalog IDs stay optional.
+	if project.CurrentRevision == 0 && len(d.Assets) == 0 && slices.Contains(templateNames(), d.Base) && !is3DTemplate(d.Base) {
+		d.Assets = defaultDesignAssets(d.Base)
+		s.noteDesignWarning(jobID, "design.assets: filled the default procedural roles for base "+d.Base+"; replace any role with exact search_assets IDs when the request needs specific artwork")
+	}
 	seen := map[string]bool{}
 	for _, a := range d.Assets {
 		if strings.TrimSpace(a.Role) == "" || seen[a.Role] {
@@ -294,6 +310,13 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 				d.Assets = append(d.Assets, a)
 			}
 		}
+	}
+	if project.Dimension == "3d" && len(d.Assets) == 0 && d.Base == "three" {
+		// Free-code three declares no planned roles; replace the example entry
+		// with one concrete procedural role so its instruction prose cannot
+		// become part of the plan.
+		d.Assets = []DesignAsset{{Role: "player", Fallback: "procedural player capsule"}}
+		s.noteDesignWarning(jobID, "design.assets: filled the default procedural player role for base three")
 	}
 	if len(d.Assets) > 0 {
 		p.Assets = nil

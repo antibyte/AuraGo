@@ -57,8 +57,10 @@ type Service struct {
 	skills             []SkillInfo
 	skillsReady        bool
 	acceptedPlans      map[string]bool
-	planAttempts       map[string]int
+	planBudgets        map[string]*planBudget
 	planErrors         map[string]error
+	designPreviews     map[string][]byte
+	designWarnings     map[string][]string
 	planConstraints    map[string]planSelectionConstraints
 	jobSummaries       map[string]string
 	validationFailures map[string]int
@@ -124,7 +126,9 @@ func NewService(opts Options) (*Service, error) {
 		tokens:             map[string]previewToken{},
 		previewJobs:        map[string]string{},
 		acceptedPlans:      map[string]bool{},
-		planAttempts:       map[string]int{},
+		planBudgets:        map[string]*planBudget{},
+		designPreviews:     map[string][]byte{},
+		designWarnings:     map[string][]string{},
 		planErrors:         map[string]error{},
 		planConstraints:    map[string]planSelectionConstraints{},
 		jobSummaries:       map[string]string{},
@@ -581,8 +585,10 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		delete(s.acceptedPlans, job.ID)
-		delete(s.planAttempts, job.ID)
+		delete(s.planBudgets, job.ID)
 		delete(s.planErrors, job.ID)
+		delete(s.designPreviews, job.ID)
+		delete(s.designWarnings, job.ID)
 		delete(s.planConstraints, job.ID)
 		delete(s.designDrafts, job.ID)
 		delete(s.jobSummaries, job.ID)
@@ -678,7 +684,8 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		}
 		s.mu.RLock()
 		accepted := s.acceptedPlans[job.ID]
-		exhausted := s.planAttempts[job.ID] >= 3
+		budget := s.planBudgets[job.ID]
+		exhausted := budget != nil && budget.charged >= planChargedLimit
 		planErr := s.planErrors[job.ID]
 		s.mu.RUnlock()
 		if accepted {
@@ -699,7 +706,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		}
 	}
 	if plan == nil {
-		s.terminateJob(job, ctx, &JobError{Code: "planning", Err: fmt.Errorf("game planning failed after at most two corrections: %s", diagnosticsText(planDiagnostics))})
+		s.terminateJob(job, ctx, &JobError{Code: "planning", Err: fmt.Errorf("game planning failed after the charged correction budget was spent: %s", diagnosticsText(planDiagnostics))})
 		return
 	}
 	_, _ = s.emit(ctx, project.ID, job.ID, "plan_summary", planSummaryPayload(plan))

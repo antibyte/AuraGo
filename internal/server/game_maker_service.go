@@ -430,7 +430,35 @@ func gameMakerBudget(ctx context.Context, toolCalls int, run gamemaker.JobRun) m
 const (
 	gameMakerBuildAnswerTokens = 16384
 	gameMakerReasoningTokens   = 16384
+	// Default sampling for the isolated agent. Planning benefits from variety;
+	// code phases need schema and syntax fidelity, so they run near-deterministic.
+	gameMakerPlanningTemperature = 0.6
+	gameMakerBuildingTemperature = 0.2
 )
+
+// gameMakerPhaseTemperature resolves the configured sampling temperature for one
+// phase. The value is clamped to the range the agent loop applies itself.
+func gameMakerPhaseTemperature(cfg *config.Config, stage string) float32 {
+	value := gameMakerBuildingTemperature
+	if stage == "planning" {
+		value = gameMakerPlanningTemperature
+	}
+	if cfg != nil {
+		if stage == "planning" && cfg.GameMaker.PlanningTemperature != nil {
+			value = *cfg.GameMaker.PlanningTemperature
+		}
+		if stage != "planning" && cfg.GameMaker.BuildingTemperature != nil {
+			value = *cfg.GameMaker.BuildingTemperature
+		}
+	}
+	if value < 0.05 {
+		value = 0.05
+	}
+	if value > 1.5 {
+		value = 1.5
+	}
+	return float32(value)
+}
 
 // gameMakerStreamThroughput lets a slow model that keeps streaming outlast the
 // fixed per-call timeout. The LLM timeout stays the base until output is
@@ -570,6 +598,9 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		return r.implementGameStarter(ctx, &cfg, client, run)
 	}
 	cfg.LLM.UseNativeFunctions = true
+	// Game Maker pins sampling per phase so code phases stay far from the
+	// provider default; the agent loop still clamps the value.
+	cfg.LLM.Temperature = float64(gameMakerPhaseTemperature(&cfg, run.Stage))
 	profile, err := gameMakerPromptProfile(run.Stage, run.Project.Dimension, run.Project.Variant)
 	if err != nil {
 		return err

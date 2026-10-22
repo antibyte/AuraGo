@@ -148,6 +148,18 @@ Observed streams on the official OpenAI route request `stream_options.include_us
 unknown/custom routes keep their existing request compatibility.
 Missing measurements remain `null`, including providers that report no cache data.
 
+Sampling is pinned per phase: planning uses `game_maker.planning_temperature`
+(default 0.6), building, repair, source generation and image review use
+`game_maker.building_temperature` (default 0.2). Both are clamped to the agent
+loop's 0.05–1.5 range and reach the tool-enabled loop and the tool-free minimal
+loops. Planning charges at most three failed `set_design` submissions: an attempt
+that reduces the number of independent design issues is free, every job caps at
+five submissions, and up to three `dry_run` previews validate a design, return
+the expanded plan and warnings, and neither accept it nor consume the budget.
+Deterministic asset normalization (plural `pack_ids`/`asset_ids`, duplicate
+roles, unknown catalog metadata) runs before validation and is reported as
+`warnings`; unknown catalog IDs, conflicting mechanics and invalid scenes still
+reject.
 Protocol references: [StepFun usage](https://platform.stepfun.ai/docs/en/api-reference/chat/chat-completion-create),
 [Anthropic cache accounting](https://platform.claude.com/docs/en/build-with-claude/prompt-caching),
 and [OpenAI caching](https://developers.openai.com/api/docs/guides/prompt-caching).

@@ -22,7 +22,7 @@ const gameMakerPlanningWorkflow = `## Planning workflow
 1. New game: choose the base that fits the request and write the design from design_example. Search assets only for artwork, effects or sounds the request actually needs.
 2. Edit: read the plan (get_plan) and only the affected source; keep the existing base and working behavior.
 3. Submit set_design once with base, objective, 1–12 concrete features and the optional fields you need.
-4. If it is rejected, resubmit only the listed fields (supplied arrays replace the whole array). At most two corrections exist.
+4. If it is rejected, resubmit only the listed fields (supplied arrays replace the whole array). At most two charged corrections exist; an optional dry_run preview validates a design without consuming one.
 5. An accepted design ends planning: stop immediately. The server installs the template (new games only), imports planned assets and starts building.
 Never write files, import or generate assets during planning. Scene data is optional; scene_inspect is read-only here.
 A new game has only a scaffold: src/common.ts, src/voxel.json, assets and the runtime API are created after acceptance, and building receives the complete API reference. Do not read vendor or runtime files to plan.`
@@ -73,7 +73,7 @@ func gameMakerPromptProfile(stage, dimension string, variant ...string) (*agent.
 		} else {
 			sections = append(sections, gamemaker.VoxelRuntimeGuide)
 		}
-		return agent.NewPreparedPromptProfile("game-maker/v1/"+stage+"/voxel", strings.Join(sections, "\n\n"), agent.GameMakerPhaseToolSchemas(stage, dimension, "voxel"))
+		return agent.NewPreparedPromptProfile("game-maker/v2/"+stage+"/voxel", strings.Join(sections, "\n\n"), agent.GameMakerPhaseToolSchemas(stage, dimension, "voxel"))
 	}
 	if stage == "planning" && dimension == "3d" {
 		sections = append(sections, gameMakerGuided3DBase)
@@ -89,5 +89,5 @@ func gameMakerPromptProfile(stage, dimension string, variant ...string) (*agent.
 			sections = append(sections, gamemaker.PresentationGuide3D, gamemaker.ModelRuntimeGuide)
 		}
 	}
-	return agent.NewPreparedPromptProfile("game-maker/v1/"+stage+"/"+dimension, strings.Join(sections, "\n\n"), agent.GameMakerPhaseToolSchemas(stage, dimension))
+	return agent.NewPreparedPromptProfile("game-maker/v2/"+stage+"/"+dimension, strings.Join(sections, "\n\n"), agent.GameMakerPhaseToolSchemas(stage, dimension))
 }

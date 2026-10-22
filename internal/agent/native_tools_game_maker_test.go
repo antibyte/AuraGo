@@ -183,10 +183,16 @@ func TestGameMakerProjectSchemaExposesOptionalSceneAndMechanics(t *testing.T) {
 		}
 	}
 	planning := nativeToolProperties(t, GameMakerPhaseToolSchemas("planning", "2d"), "game_maker_project")
-	for _, key := range []string{"scene", "patch", "generate", "expected_sha256", "dry_run"} {
+	// dry_run is a planning control now: it validates set_design without
+	// consuming a correction, so it stays advertised while the scene mutation
+	// payloads remain absent.
+	for _, key := range []string{"scene", "patch", "generate", "expected_sha256"} {
 		if _, ok := planning[key]; ok {
 			t.Fatalf("planning schema exposed mutation payload %s", key)
 		}
+	}
+	if dryRun, ok := planning["dry_run"].(map[string]interface{}); !ok || !strings.Contains(dryRun["description"].(string), "set_design") {
+		t.Fatalf("planning dry_run does not describe its set_design scope: %#v", planning["dry_run"])
 	}
 	for _, key := range []string{"node_ids", "region_id"} {
 		if _, ok := planning[key]; !ok {
