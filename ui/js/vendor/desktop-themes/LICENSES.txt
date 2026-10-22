@@ -1,4 +1,4 @@
-Third-party licenses bundled with AuraGo Desktop voxel theme effects.
+Third-party licenses bundled with AuraGo Desktop theme effects (Voxel World, Orbit).
 
 Three.js 0.186.1 (MIT)
 The MIT License
