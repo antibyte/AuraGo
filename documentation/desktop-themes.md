@@ -1,6 +1,6 @@
 # Desktop Themes
 
-The Virtual Desktop has twelve themes. A theme sets the shell layout (taskbar or dock), the colour scheme, the icon set, the look of windows, menus and controls and, for some themes, subtle visual effects. Apps keep their own content and take their colours from the shared theme tokens.
+The Virtual Desktop has fourteen themes. A theme sets the shell layout (taskbar or dock), the colour scheme, the icon set, the look of windows, menus and controls and, for some themes, subtle visual effects. Apps keep their own content and take their colours from the shared theme tokens.
 
 This page covers choosing a theme, accessibility and the developer contract. The implementation rules live in `ui/AGENTS.md` (Desktop theme system) and `ui/js/desktop/apps/AGENTS.md` (App theme bridge contract).
 
@@ -20,17 +20,19 @@ This page covers choosing a theme, accessibility and the developer contract. The
 | Windows XP | Taskbar | Light | Windows XP | Fixed blue | Luna blue gradients, a green Start button, warm controls and a two-column Start menu. |
 | Green Slime | Taskbar | Dark | Papirus | Fixed lime | Glossy lime drips, mossy frames and soft, squishy controls. |
 | Voxel World | Taskbar | Light | Papirus | Fixed forest green | A live voxel island behind the shell, with block-framed windows and an inventory-style taskbar. |
+| Orbit | Taskbar | Dark | Papirus | Fixed ice cyan | A live 3D orbit behind the shell: a ringed gas giant, a space station, a shuttle and asteroids, with smoked-glass windows that fly in and out in 3D. |
+| Minimal | Taskbar | Light or dark | Papirus | Fixed ink | Paper or graphite, hairlines and typography, nothing else. |
 
-"Your accent" means the Accent color setting applies. Fruity's scheme follows its own Light/Dark setting.
+"Your accent" means the Accent color setting applies. Fruity's and Minimal's schemes follow their own Light/Dark setting.
 
 ## Choosing a Theme
 
 - Open Settings, category **Appearance**, and pick a card under **Theme**. A click, Enter or Space selects it.
 - A theme also sets the **Icon theme** (Papirus, WhiteSur or Windows XP). You can change the icon set afterwards; picking a theme pairs its icon set again.
-- The wallpaper follows the theme while it is still the previous theme's suggestion, or the default *Group Shot*, in every space. Suggestions: Amiga *Slate*, Cyberpunk *City Rain*, Black Gloss *Midnight*, Crazy *Fractal Trip (animated)*, Lollipop *Paper Waves*, Organic *Forest*, Electronic Dreams *Electronic Dreams*, Windows XP *Windows XP Bliss*, Green Slime *Green Slime* and Voxel World *Voxel World*. Standard and Fruity use *Group Shot*. A wallpaper you picked yourself is never changed.
-- **Fruity appearance** (Light or Dark) appears only while Fruity is selected. The other themes have a fixed scheme.
-- **Accent color** (teal, orange, blue, violet or green) applies to Standard, Fruity and Black Gloss. The other nine themes use their fixed accent and hide the row.
-- The settings are `appearance.theme`, `appearance.icon_theme`, `appearance.fruity_mode`, `appearance.accent`, `appearance.wallpaper` and `appearance.wallpaper_by_space`. The UI saves them through `PUT /api/desktop/settings`.
+- The wallpaper follows the theme while it is still the previous theme's suggestion, or the default *Group Shot*, in every space. Suggestions: Amiga *Slate*, Cyberpunk *City Rain*, Black Gloss *Midnight*, Crazy *Fractal Trip (animated)*, Lollipop *Paper Waves*, Organic *Forest*, Electronic Dreams *Electronic Dreams*, Windows XP *Windows XP Bliss*, Green Slime *Green Slime*, Voxel World *Voxel World*, Orbit *Orbit* and Minimal *Minimal*. Standard and Fruity use *Group Shot*. A wallpaper you picked yourself is never changed.
+- **Fruity appearance** and **Minimal appearance** (Light or Dark) appear only while their theme is selected. Minimal starts in Light. The other themes have a fixed scheme.
+- **Accent color** (teal, orange, blue, violet or green) applies to Standard, Fruity and Black Gloss. The other eleven themes use their fixed accent and hide the row.
+- The settings are `appearance.theme`, `appearance.icon_theme`, `appearance.fruity_mode`, `appearance.minimal_mode`, `appearance.accent`, `appearance.wallpaper` and `appearance.wallpaper_by_space`. The UI saves them through `PUT /api/desktop/settings`.
 
 ## Accessibility
 
@@ -40,7 +42,7 @@ This page covers choosing a theme, accessibility and the developer contract. The
 - **Focus.** Keyboard focus shows a ring in every theme. Amiga draws a dashed black outline and Crazy a cyan ring.
 - **Amiga window gadgets.** The Amiga skin keeps the authentic Workbench gadget layout (close far left, depth and zoom gadgets on the right) purely visually through CSS grid placement, so keyboard Tab order follows the DOM (AI, minimize, maximize, close; AI and maximize are omitted where a window lacks them) rather than the on-screen order, and the dashed black focus ring makes the focused gadget visible.
 - **Windows XP Start menu.** The Luna-style Start menu uses two columns: the app list fills the left pane, with system links and categories stacked on the right. The CSS adapts the column widths on narrow screens while keeping each action reachable.
-- **Theme motion.** Electronic Dreams' signal light and the Green Slime and Voxel World effects switch to a still rendering when *Window animations* is off or reduced motion is requested. The Windows XP, Green Slime and Voxel World skins keep their gradients, glossy surfaces and block edges when glass polish is off.
+- **Theme motion.** Electronic Dreams' signal light and the Green Slime, Voxel World and Orbit effects switch to a still rendering when *Window animations* is off or reduced motion is requested. The Windows XP, Green Slime and Voxel World skins keep their gradients, glossy surfaces and block edges when glass polish is off.
 - Touch: on a coarse pointer the global menu bar grows to 44 px and every tray control fills it; below 1024 px the window menus move to a second 44 px row and the bar is 88 px (`css/desktop-chrome.css`). Amiga sizes its gadgets from the bar height in its skin and keeps a single row.
 
 ## Developer Guide
@@ -48,16 +50,16 @@ This page covers choosing a theme, accessibility and the developer contract. The
 ### Matching cursors and sounds
 
 Amiga, Cyberpunk, Black Gloss, Crazy, Lollipop, Organic, Electronic Dreams,
-Windows XP, Green Slime and Voxel World include original cursor artwork and
+Windows XP, Green Slime, Voxel World and Orbit include original cursor artwork and
 individual sound sets. In **Settings → Appearance**, **Theme cursors**
 switches between the theme artwork and system cursors. There are twelve cursor
 roles per theme, including text, links, drag, resize and busy states. High-contrast
 mode and touch-only devices retain system cursors. App canvases and remote desktop
-surfaces keep their own tool cursors. Standard and Fruity retain system cursors.
+surfaces keep their own tool cursors. Standard, Fruity and Minimal retain system cursors.
 
 In **Settings → Sound**, enable **UI sounds** to hear the feedback. Sounds remain
 off by default. **Follow desktop theme** automatically picks the matching sound
-set (Crystal for Standard and Fruity); a manually chosen set remains selected
+set (Crystal for Standard, Fruity and Minimal); a manually chosen set remains selected
 when changing the desktop theme. Existing saved sound choices are preserved.
 Volume and the window, notification, navigation and file category switches still
 apply. The **Preview** buttons play a short sample without enabling UI sounds.
@@ -74,36 +76,39 @@ apply. The **Preview** buttons play a short sample without enabling UI sounds.
 | Windows XP | Classic pointer with blue and gold details | Bright friendly chimes with short, rounded tails |
 | Green Slime | Glossy lime slime pointer | Low-pass wet plips, elastic sweeps and soft squelches, plus quiet blub pops for bursting bubbles and a wet thwip-plop for parting strands |
 | Voxel World | Block-edged pointer in earth and green tones | Dry taps and wood, stone and earth impacts |
+| Orbit | Sleek cyan-violet arrow with an amber orbit ring | Soft synth whooshes, sonar pings and airlock hiss; a window opens with a rising whoosh and closes with a falling whoosh and sparkle grains |
 
 `cursorTheme` and `soundTheme` on each registry descriptor own the pairing.
 `core/cursor-runtime.js` applies versioned, local SVG cursor URLs with native
 hotspots and keyword fallbacks. `css/desktop-cursors.css` preserves semantic
 cursor roles without a pointer-following overlay or animation loop.
-The 120 cursor SVGs, ten cursor preview sheets and ten theme sound-set covers are original AuraGo artwork, generated
+The 132 cursor SVGs, eleven cursor preview sheets and eleven theme sound-set covers are original AuraGo artwork, generated
 by `node scripts/build-desktop-cursors.mjs`; use `--check` to verify reproducibility.
 No third-party cursor artwork or sampled operating-system sounds are included.
 
-Electronic Dreams, Windows XP, Green Slime and Voxel World each have a separate
+Electronic Dreams, Windows XP, Green Slime, Voxel World and Orbit each have a separate
 sound bank in `sound/theme-electronic-dreams.js`, `sound/theme-windows-xp.js`,
-`sound/theme-green-slime.js` and `sound/theme-voxel-world.js`. Each bank supplies
-the shell events through the shared lazy Web Audio synthesizer; the four themes
+`sound/theme-green-slime.js`, `sound/theme-voxel-world.js` and
+`sound/theme-orbit.js`. Each bank supplies
+the shell events through the shared lazy Web Audio synthesizer; the five themes
 do not share one generic theme bank. In-flight synthesis is shared; mute, theme
 changes and tab hiding cancel pending playback. Audio unlock remains bound to a
 user gesture. Turning sound off releases the AudioContext immediately.
-Verify `TestDesktopThemeSensoryBrowser`, `TestDesktopSoundBrowser` (all fifteen
-sets, the voxel and slime effect sounds and their rate limits) and
+Verify `TestDesktopThemeSensoryBrowser`, `TestDesktopSoundBrowser` (all sixteen
+sets, the voxel, slime and orbit effect sounds and their rate limits) and
 `TestThemeSensorySettingsPersistIndependently`, then rebuild UI bundles.
 
-**Effect sounds.** Voxel World and Green Slime also have sounds that their desktop
+**Effect sounds.** Voxel World, Green Slime and Orbit also have sounds that their desktop
 effect asks for by name, not shell events: `window.fracture` and `window.impact`
 (Voxel World; wood, stone or earth) and `slime.pop` and `slime.snap` (Green Slime;
-small, medium or large). A bank supplies them as `specialFx[event][variant]`. The
-effect only calls `DesktopSounds.play(event, { variant | material, strength, pan })`
+small, medium or large) and `orbit.ping` (Orbit; small, medium or large). A bank supplies them as
+`specialFx[event][variant]`. The effect only calls `DesktopSounds.play(event, { variant | material, strength, pan })`
 (`strength` 0 to 1, `pan` -1 to 1) and `core/sound-runtime.js` decides whether
 anything is heard. It plays them only when UI sounds are on and unlocked, the
-**Windows** category is on, the effective sound theme is the owning theme, the page
+event's category is on (**Windows** for the Voxel World and Green Slime sounds,
+**Navigation** for `orbit.ping`), the effective sound theme is the owning theme, the page
 is visible, no session restore runs and the call is not a preview. Calls within
-75 ms (Voxel World) or 80 ms (Green Slime) merge into the loudest one, and a call
+75 ms (Voxel World) or 80 ms (Green Slime and Orbit) merge into the loudest one, and a call
 that is older than 240 ms by the time its sound is rendered is dropped. Each sound
 is rendered on first use and cached per theme, event and variant, so the full bank
 is never rendered for it. `inspect().themeFx` counts requests, plays, rate-limited
@@ -115,12 +120,17 @@ and expired calls per family.
 - Green Slime snap: a band-passed noise sweep downward (25 to 40 ms), then about
   40 ms later a soft low plop (about 180 to 120 Hz for a large strand), under 260 ms
   in all. The plop carries a quiet octave above it so small speakers still carry it.
+- Orbit ping: a sine at 1320, 1100 or 880 Hz for a small, medium or large ping,
+  with a 6 ms attack, a 420 to 700 ms release, a faint noise click at the start
+  and an echo 180 ms later at 9 dB less. The runtime plays it at 0.38 of a window
+  sound.
 - Levels: the synth peak-normalises every buffer, so the runtime sets the level. A pop
   plays at 0.40 and a snap at 0.42 of a window sound at full strength (about 25 to
   33 % in 20 ms loudness), and the strength curve makes the smallest ones softer
-  still. The master volume and the Windows category apply as usual.
+  still. The master volume and the category of the event apply as usual.
 - Rate limits: at most one pop per 350 ms, one snap per 900 ms and three Green Slime
-  sounds per 2 s; Voxel World keeps four per second and 190 ms apart.
+  sounds per 2 s; Voxel World keeps four per second and 190 ms apart. Orbit allows one ping per
+  350 ms and three Orbit sounds per 2 s.
 - No layer of these banks uses the synth's reverb pool: its convolver is shared by all
   layers of one render and would smear one layer into the envelope of the next.
 
@@ -132,7 +142,7 @@ and expired calls per family.
 4. JavaScript asks the capability helpers (`shellLayout()`, `themeUsesGlobalMenu()`, `themeScheme()`, `themeMotionMs(kind)`, `themeIconFamily()`) and never compares a theme id. Apps read `document.body.dataset.scheme`.
 5. `syncDesktopThemeFx()` starts or stops the effects of an `fx` theme.
 
-Layering in `ui/css/desktop-shell.bundle.css`: the shared shell files (`desktop-base.css` carries the Standard and Fruity core tokens), then `desktop-shell-overrides.css` (the `--vd-theme-*` bridge), `desktop-chrome.css`, `desktop-wallpaper-live.css`, `desktop-wallpaper-themes.css` (the four locally packaged theme wallpapers), the skins `desktop-theme-amiga.css`, `-cyberpunk`, `-black-gloss`, `-crazy`, `-lollipop`, `-organic`, `-electronic-dreams`, `-windows-xp`, `-green-slime` and `-voxel-world`, and last `desktop-polish.css`. `scripts/build-ui-bundles.js` assembles this bundle and the `desktop-theme-fx` bundle.
+Layering in `ui/css/desktop-shell.bundle.css`: the shared shell files (`desktop-base.css` carries the Standard and Fruity core tokens), then `desktop-shell-overrides.css` (the `--vd-theme-*` bridge), `desktop-chrome.css`, `desktop-wallpaper-live.css`, `desktop-wallpaper-themes.css` (the five locally packaged theme wallpapers), the skins `desktop-theme-amiga.css`, `-cyberpunk`, `-black-gloss`, `-crazy`, `-lollipop`, `-organic`, `-electronic-dreams`, `-windows-xp`, `-green-slime`, `-voxel-world`, `-orbit` and `-minimal`, then `desktop-cursors.css`, and last `desktop-polish.css`. `scripts/build-ui-bundles.js` assembles this bundle and the `desktop-theme-fx` bundle.
 
 ### Body attributes
 
@@ -146,6 +156,7 @@ Layering in `ui/css/desktop-shell.bundle.css`: the shared shell files (`desktop-
 | `data-fruity-mode` | `light`, `dark` | Fruity rules |
 | `data-accent` | `teal`, `orange`, `blue`, `violet`, `green` | accent palette in `desktop-base.css` |
 | `data-animations` | `true`, `false` | every theme animation and the effects (*Window animations*) |
+| `data-orbit-quality` | `0` to `4`, only while Orbit's scene runs | Orbit skin: from quality 2 the window frames drop their backdrop blur and get a more opaque fill |
 
 ### Descriptor Reference
 
@@ -156,7 +167,7 @@ Each `DESKTOP_THEMES` entry is one `Object.freeze({ ... })` line with these keys
 | `id` | `^[a-z][a-z0-9_]*$`, not `light` or `dark` | `appearance.theme` value, `data-theme`, skin file name (`_` becomes `-`) and keyframe prefix |
 | `labelKey`, `descKey` | desktop locale keys | card title and description |
 | `scheme` | `light`, `dark` | colour scheme; must equal the skin's `color-scheme` |
-| `schemeSetting` | empty or `appearance.fruity_mode` | the setting that picks the scheme; shows the Fruity appearance row |
+| `schemeSetting` | empty, `appearance.fruity_mode` or `appearance.minimal_mode` | the setting that picks the scheme; shows the light/dark row, labelled for the theme (Fruity appearance, Minimal appearance). A skin of such a theme also needs a dark root rule (see Token Contract) |
 | `shell` | `taskbar`, `dock` | layout; `dock` requires `globalMenu: true` |
 | `startMenu` | `classic`, `xp` | Start menu presentation; XP adds a branded header and right-hand links/categories |
 | `globalMenu` | boolean | top menu bar; read by `themeUsesGlobalMenu()` |
@@ -185,6 +196,7 @@ Every skin root (`.desktop-body[data-theme="<id>"]`) defines:
 - App interiors: an app that paints on the accent exposes a token on its root and a fixed-accent skin overrides it in an "App tokens" rule of its skin file: Video Studio `--vs-accent-strong` and `--vs-accent-hover` on `.vs-app` (cyberpunk sets both), Code Studio `--cs-accent-contrast` on `.code-studio` (amiga, cyberpunk, crazy and lollipop set it to their `--vd-accent-contrast`). Mission Control needs no skin rule; it mixes `--mc-accent-ink` and `--mc-danger-ink` from the accent, the danger red and `--vd-text`, with the danger share lowered under `[data-scheme="light"]`.
 - For `accent: "fixed"`: `--vd-accent`, `--vd-accent-r`, `--vd-accent-g`, `--vd-accent-b` and `--vd-accent-glow`. User-accent themes must not set them.
 - Contrast: `--vd-text` on `--vd-theme-app-bg` and `--vd-theme-panel-bg`, and `--vd-theme-muted` on `--vd-theme-app-bg`, at least 4.5:1, with opaque `#rrggbb` app and panel backgrounds.
+- Dark root rule, for a theme with a `schemeSetting`: the skin also has a plain rule `.desktop-body[data-theme="<id>"][data-scheme="dark"]` that sets `color-scheme: dark`. That rule may set the root-only tokens (`color-scheme`, `--vd-theme-app-bg`, `--vd-theme-panel-bg`, `--vd-text`, `--vd-theme-muted`, `--vd-accent` and `--vd-accent-contrast`). The contract merges it over the root rule and measures its contrast and scheme the same way. Those tokens set in any other rule fail the contract. Minimal is the skin with this rule; Fruity has no skin file.
 
 Standard and Fruity have no skin file. Their core tokens live in `desktop-base.css` and their `--vd-theme-*` bridge in `desktop-shell-overrides.css`. The contract tests check skins only.
 
@@ -202,11 +214,11 @@ Standard and Fruity have no skin file. Their core tokens live in `desktop-base.c
 
 - The host `ui/js/desktop/theme-fx/fx-core.js` exposes `window.AuraDesktopThemeFx` with `register(id, impl)`, `start(id, options)`, `stop()`, `activeId()`, `inspect()` and `command(name, payload)`.
 - `inspect()` returns the active effect's diagnostics with `activeId`, `motion`, `paused` and `aborted` added. With no active effect it returns `activeId: ''`.
-- `command(name, payload)` forwards to the active effect's `command(name, payload)` and returns its result. It returns `null` when no effect is active, when the effect has no `command` method, when the call throws, or when the result is `undefined`. Tests and debugging use it to trigger effect actions, for example Green Slime's `bubble`, `poke`, `drop` and `quality` commands.
+- `command(name, payload)` forwards to the active effect's `command(name, payload)` and returns its result. It returns `null` when no effect is active, when the effect has no `command` method, when the call throws, or when the result is `undefined`. Tests and debugging use it to trigger effect actions, for example Green Slime's `bubble`, `poke`, `drop` and `quality` commands and Orbit's `orbit.time`, `orbit.quality`, `orbit.capture`, `orbit.ping` and `orbit.burst` commands.
 - An effect module `ui/js/desktop/theme-fx/<id>.js` registers `{ start }` under its theme id. `start({ layer, signal, options })` returns `{ pause, resume, stop }` and may add `inspect` and `command`; missing methods are no-ops.
 - The host creates `.vd-theme-fx-layer` (fixed, full viewport, `pointer-events: none`, one z-index step below `--vd-z-dock`; the rule lives in `desktop-base.css`), an AbortController and a `visibilitychange` listener. A hidden tab calls `pause()` and a visible tab calls `resume()`.
 - `stop()` runs before the signal is aborted and the layer is removed. Bind listeners to `signal` and release everything in `stop()`.
-- `options.motion` separates material rendering from movement. Electronic Dreams, Green Slime and Voxel World declare `staticFx: true`: reduced motion and disabled animations keep a still frame with no continuous animation loop. Crazy remains entirely inert in this mode. Mobile desktop mode uses the CSS skins and local wallpaper without loading a material renderer.
+- `options.motion` separates material rendering from movement. Electronic Dreams, Green Slime, Voxel World and Orbit declare `staticFx: true`: reduced motion and disabled animations keep a still frame with no continuous animation loop. Crazy remains entirely inert in this mode. Mobile desktop mode uses the CSS skins and local wallpaper without loading a material renderer.
 - `window.AuraDesktopWindowEffects.snapshot()` exposes visible window geometry. The `aurago:desktop-window` event reports open, focus, drag/resize start/update/end, minimize, restore, maximize, snap and accepted close, with window ID, rectangle, z order, workspace, velocity and restoration-silence information. An `open` precedes focus; a rejected close never emits destruction. Effects must not mutate application state or intercept input.
 - The voxel island renders in `voxel-scene.js`, the block frames and fragments in `voxel-graphics.js`; `voxel_world.js` owns physics and lifecycle. The separate `vendor/desktop-themes/voxel-runtime.js` ESM bundle loads Three.js and Rapier only when needed. Frame cubes use instancing and ranked depth occlusion; shell overlays and window contents are stencil masked. WebGL failure retains the Canvas/CSS fallback.
 - Voxel physics advances at 60 fixed steps per second with at most 256 pooled fragments. Long frame intervals lower render resolution before reducing scenery and fragment budgets. Hidden tabs suspend work; switching themes releases observers, bodies, render targets and WebGL contexts. Hardware frame-rate acceptance is separate from the software-WebGL browser fixture.
@@ -380,15 +392,129 @@ Two small islets bob nearby.
 AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_THEME_RECORDINGS=1 go test ./ui -run '^TestDesktopVoxelWorldCloseUpsBrowser$' -count=1 -timeout 10m
 ```
 
+### Orbit
+
+Orbit has three layers: a live 3D space scene behind the shell, a Canvas 2D particle layer and 3D window motion. Its effect is registered as `orbit` and declares `staticFx: true`, so reduced motion and disabled animations keep a still frame (see *Effects API*). Windows are flat at rest. The third dimension appears only in motion: while a window opens, closes, moves, minimizes or restores, and while menus and modals open.
+
+**Scene.** The scene draws on its own canvas, `.vd-fx-orbit-scene`, at z-index -1, so it sits behind the whole shell. It is built only with the Orbit wallpaper and fades in when its first frame is drawn. It shows:
+
+- a gas giant with banded clouds, storms, night-side lights, lightning, an atmosphere glow and aurorae;
+- a ring system with a shadow and dust, and a moon;
+- a nebula sky, three star layers, the sun with lens flares, comets and meteors;
+- a space station with a turning habitat ring and beacons;
+- a shuttle on a 96 s cycle (docked, undock, cruise, approach and dock), with engine glow and exhaust;
+- a satellite that crosses the foreground;
+- an asteroid belt drawn as instanced rocks.
+
+Post-processing adds bloom, a vignette, chromatic aberration, film grain and a scanner pulse. The planet's surface and the nebula are baked once into textures. The cloud decks turn with a differential shear that swings back and forth on a 360 s period, so the shear stays bounded (about 7 degrees) and the planet looks the same after hours. The sky sways about half a degree on a 900 s period.
+
+**Models.** Four Blender models load from `ui/3d/desktop-theme-orbit/v1/`: `station.glb`, `shuttle.glb`, `satellite.glb` and `asteroids.glb`. `assets/desktop-theme-orbit/generate.py` (Blender 5.2, deterministic) builds them. `manifest.json` records the SHA-256 hash, size and triangle count of each file. Every model is optional. A model that fails to load is reported as `error`, and the rest of the scene keeps working.
+
+**Window choreography.** `orbit-windows.js` turns the `aurago:desktop-window` events into motion. It never changes application state or intercepts input.
+
+- **Open:** the window flies in from depth over 620 ms. A hologram scan line crosses its content once, and particles converge on its frame.
+- **Close:** the window tilts back and falls into depth over 520 ms, and particles burst from its frame.
+- **Minimize and restore:** the window folds to its taskbar slot over 460 ms and comes back over 480 ms. Particles stream along the path.
+- **Drag:** a spring tilts the window by up to 9° from its drag velocity. The runtime sets `data-orbit-tilt` and `--vd-orbit-tilt-x`, `--vd-orbit-tilt-y` and `--vd-orbit-lift`, and a thruster glows at the trailing edge. After release the window settles flat and the properties are removed.
+- **Modals** open like a hatch over 420 ms, above a backdrop that fades in. **Context menus** unfold with their rows in a stagger. The **start menu** appears as a hologram with a light cone over 380 ms.
+- A **glint** circles the frame of the focused window every 7 s.
+- A silent event, such as a restoration, emits no particles and no sound.
+
+**Particles.** `orbit-particles.js` draws up to 900 particles on a Canvas 2D overlay, `.vd-fx-orbit-particles`, in the effect layer. The pool is a ring buffer: when it is full, the oldest particle is overwritten. The particles are additive and come in cyan, violet and amber. Up to four sonar rings run at once. The emitters are materialize, dissolve, stream, thruster, spark and stardust. Each emitter draws from a seeded generator, so a given sequence repeats.
+
+**Interaction.**
+
+- A click on the empty desktop sends a sonar ping and an `orbit.ping` sound (medium, panned to the click position). Pings are at least 350 ms apart. Clicks on windows, icons, widgets, bars, menus, dialogs and controls do nothing. While the live scene is on screen, the scene's scanner pulse (`inspect().scene.pulse`) is the only ring, and the particle layer adds 24 sparks only (`inspect().particles.rings` stays 0). Without a live scene (the poster, quality 4 or software GL), the particle layer draws the ring too. Motion-off mode has no particle layer.
+- A mouse or pen pings on press. A touch pings only as a tap: it must end within 500 ms and move less than 8 px.
+- Pointer travel over the empty desktop leaves faint stardust motes, one for each 18 px.
+- The pointer moves the camera slightly (parallax). It also sets the pointer sheen through `--vd-orbit-mx` and `--vd-orbit-my` on `<body>`.
+
+**Shell.** The skin is dark glass: deep-blue panels with cyan and violet hairlines, and a HUD taskbar. The signal colour is cyan (`#5CE1FF`), with near-black text on it. Barlow Condensed SemiBold sets the uppercase dialog, popup and panel headings. Geist sets the text.
+
+**Wallpaper and fallback.** The *Orbit* wallpaper is the poster `/img/wallpapers/themes/orbit.png` (set in `css/desktop-wallpaper-themes.css`): a still frame of the scene at t = 44 s, from the neutral camera and without film grain. It shows while the live scene loads, without WebGL, with software GL and at quality 4. The live canvas fades in over it. With any other wallpaper, the theme keeps the particles and the window motion and builds no scene.
+
+**Performance.**
+
+- The scene runs at about 30 fps at Q0 and Q1, and at about 24 fps at Q2.
+- The quality ladder follows the frame cadence, as in Voxel World. The scene steps down when frames run slow and steps back up after a sustained run of fast frames. Large screens start at Q1 (above about 4.2 million pixels at the capped pixel ratio).
+- The pixel ratio is the lowest of the device ratio, the level's cap and the ratio at which the window fits the level's budget (3.7, 3.0, 2.2 and 1.6 million pixels for Q0 to Q3).
+- The loop drops to 2 fps while a window covers 96% or more of the usable desktop, the viewport without the taskbar band.
+- The loop pauses while the page is hidden.
+- The `<body>` carries `data-orbit-quality` with the current level (see *Body attributes*). From Q2 the window frames drop their backdrop blur and get a more opaque fill.
+
+| Level | Behaviour |
+| --- | --- |
+| Q0 | Full bloom, two-sample multisampling, a pixel ratio of up to 1.5, 140 asteroids |
+| Q1 | Half bloom, a pixel ratio of up to 1.25, 90 asteroids |
+| Q2 | No bloom, a pixel ratio of up to 1, 50 asteroids, reduced planet detail and half the stars |
+| Q3 | Static, with a pixel ratio of up to 0.85 and a probe render every 5 s that can step back up |
+| Q4 | Scene hidden; the poster shows |
+
+**Fallbacks.**
+
+- With reduced motion or disabled animations, the scene shows one still frame (t = 44 s) and refreshes it every 60 s. Without motion there are no particles and no window bridge.
+- Software GL is refused: SwiftShader, llvmpipe, lavapipe, softpipe, or a GPU string that contains "software" or "basic render". The scene stays hidden and the poster shows. `window.__auraOrbitSoftwareGL = true` overrides the check, and the browser tests use it.
+- If WebGL is missing, the scene fails to build or the vendor bundle does not load, the poster stays. A lost WebGL context hides the scene, and the scene returns when the context is restored.
+- The particle layer and the CSS window motion do not need WebGL.
+
+**Commands.** Tests and screenshots drive the effect through `AuraDesktopThemeFx.command(name, payload)`. The scene commands return `null` when the Orbit wallpaper builds no scene.
+
+- `orbit.time` `{t: seconds | null}` freezes the scene clock at `t`, or releases it.
+- `orbit.quality` `{level: 0..4 | null}` locks the quality level, or releases the lock.
+- `orbit.capture` `{width, height, grain}` returns the scene as a PNG data URL, or `null` before the scene is built. The default size is 1920 × 1080, at most 4096 px per side. `grain` sets the film grain for that capture (the poster uses 0); without it the scene's own grain stays.
+- `orbit.ping` `{x, y}` sends a ping at that point, even inside the 350 ms interval. It returns `true`, or `null` without numeric coordinates.
+- `orbit.burst` `{kind: 'materialize' | 'dissolve', windowId}` emits the burst over that window's rectangle. It returns `true`, or `null` for an unknown window or kind.
+
+`AuraDesktopThemeFx.inspect()` reports `scene` (backend, GPU, quality, pixels, fps, frames, build time, triangles, models, bloom, throttled and coverage), `particles` (live, emitted, capacity and rings) and `windows` (tracked and tilting).
+
+**Files.** All in `ui/js/desktop/theme-fx/` unless noted. The `desktop-theme-fx` bundle loads the Orbit parts after `voxel_world.js`, in this order: `orbit-choreo`, `orbit-particles`, `orbit-shaders`, `orbit-textures`, `orbit-models`, `orbit-scene`, `orbit-windows` and `orbit`.
+
+- `orbit-choreo.js`: DOM-free schedules (the shuttle cycle, comets, meteors and lightning), the camera composition, the spring and the drag tilt.
+- `orbit-particles.js`: the DOM-free particle pool and its Canvas 2D renderer.
+- `orbit-shaders.js`: the GLSL sources.
+- `orbit-textures.js`: the noise and ring textures computed on the CPU.
+- `orbit-models.js`: loads and animates the four models.
+- `orbit-scene.js`: the WebGL renderer, camera, post chain and quality ladder. It is about 1,060 lines. Keep it under 1,100 and put new code in a part of its own.
+- `orbit-windows.js`: the window bridge (springs, tilt and thrusters).
+- `orbit-runtime-entry.js`: entry of the vendor bundle.
+- `orbit.js`: the orchestrator, registered as `orbit`.
+- `ui/js/vendor/desktop-themes/orbit-runtime.js`: the vendor bundle with Three.js 0.186.1, GLTFLoader and the post passes, built by `scripts/build-desktop-theme-vendor.mjs`. It loads only when the scene starts.
+- `ui/css/desktop-theme-orbit.css`: the skin.
+- `ui/img/wallpapers/themes/orbit.png`: the poster, regenerated by `TestDesktopOrbitPosterBrowser` (see *Tests*).
+- `ui/js/desktop/sound/theme-orbit.js`: the sound bank.
+- `assets/desktop-theme-orbit/generate.py` and `ui/3d/desktop-theme-orbit/v1/`: the model source, the GLBs, the manifest and the licence.
+
+**Tests.**
+
+- `node scripts/test-ui-regressions.mjs` covers the choreography and the particle system. It needs no browser.
+- `node scripts/test-desktop-theme-orbit-assets.mjs` checks the GLBs against `manifest.json`. `npm run check:desktop-themes` runs it too.
+- The browser tests in `ui/desktop_theme_orbit_browser_test.go` need `AURAGO_RUN_BROWSER_SMOKE=1`: `TestDesktopOrbitBrowser`, `TestDesktopOrbitReducedMotionBrowser` and `TestDesktopOrbitSoftwareFallbackBrowser`. The other tests set `window.__auraOrbitSoftwareGL`, so the scene runs on SwiftShader. That is slow, so these tests check behaviour, not frame rate. The software-fallback test does not set the flag and checks that the scene is refused.
+- `TestDesktopOrbitCloseUpsBrowser` writes review images to the ignored `reports/desktop-experience-themes/orbit/` folder when `AURAGO_THEME_RECORDINGS=1` is set. Hardware frame-rate acceptance is separate from these tests.
+- `TestDesktopOrbitPosterBrowser` regenerates `ui/img/wallpapers/themes/orbit.png` from the live scene at t = 44 s with no grain. It needs `AURAGO_RUN_BROWSER_SMOKE=1` and `AURAGO_ORBIT_POSTER=1`. It re-encodes the PNG with the best compression when the capture is over 2.5 MB, and it fails above 2.8 MB. Run it after visible scene changes.
+
+### Minimal
+
+Minimal is a light or dark theme of paper or graphite, hairlines and typography. It has no effect layer (`fx: false`). Its scheme follows `appearance.minimal_mode`, which is Light by default. Settings shows **Minimal appearance** while the theme is selected. The accent is the ink itself: `#161616` in Light and `#EDEDED` in Dark.
+
+- **Type.** Geist. Window titles are uppercase with wide tracking.
+- **Surfaces.** Windows are flat, with no blur and no gradients. One soft shadow lifts the active window and the floating panels. Everything else is a hairline.
+- **Icons.** Grayscale at rest. They take their colour under the pointer.
+- **Motion.** Calm fades of 100 to 200 ms, with a few pixels of travel.
+- **Wallpaper.** *Minimal* is a CSS gradient of paper or graphite with a faint light. It follows the scheme.
+- **Cursors and sounds.** System cursors and the Crystal sound set.
+
+The skin file has two root rules. The plain root rule holds the Light palette, and `.desktop-body[data-theme="minimal"][data-scheme="dark"]` holds the Dark palette (see *Token Contract*).
+
 ### Add a Theme
 
 1. Add one descriptor line to `DESKTOP_THEMES` in `ui/js/desktop/core/theme-runtime.js`, keys in registry order, with `thumb: '/img/themes/<id>.svg'`.
 2. Add the same id at the same position in `DesktopThemeIDs()` in `internal/desktop/themes.go`.
 3. Create `ui/css/desktop-theme-<id>.css` with the root rule and the full token set. List it in the `desktop-shell.bundle.css` entry of `cssBundles` in `scripts/build-ui-bundles.js`, after `desktop-wallpaper-live.css` and before `desktop-polish.css`.
-4. If `fx: true`, create `ui/js/desktop/theme-fx/<id>.js` and list it in the `desktop-theme-fx` bundle after `fx-core.js`.
-5. Create `ui/img/themes/<id>.svg` (schematic, at most 8192 bytes).
-6. Add `desktop.settings_theme_<id>` and `desktop.settings_theme_<id>_desc` to all 16 `ui/lang/desktop/*.json` files.
-7. Run `npm run build:ui`, then the tests below.
+4. If `schemeSetting` is set, the skin also needs the dark root rule `.desktop-body[data-theme="<id>"][data-scheme="dark"]` that sets `color-scheme: dark` (see *Token Contract*). A new scheme setting also needs its key in the allowed list of `ui/desktop_theme_registry_test.go`, a light and dark setting in `internal/desktop/types.go` and a label in `SCHEME_MODE_LABELS` in `ui/js/desktop/apps/settings.js`.
+5. If `fx: true`, create `ui/js/desktop/theme-fx/<id>.js` and list it in the `desktop-theme-fx` bundle after `fx-core.js`. A theme with several parts lists them in order, with the entry file last (Orbit has eight parts, with `orbit.js` last).
+6. Create `ui/img/themes/<id>.svg` (schematic, at most 8192 bytes).
+7. Add `desktop.settings_theme_<id>` and `desktop.settings_theme_<id>_desc` to all 16 `ui/lang/desktop/*.json` files.
+8. Run `npm run build:ui`, then the tests below.
 
 ### Tests and Commands
 
@@ -397,10 +523,14 @@ npm run build:ui                                   # regenerate the bundles
 npm run check:ui                                   # fail when a generated bundle is stale
 npm run check:desktop-themes                       # cursors, XP icons, pinned vendor and UI bundles
 go test ./ui -run DesktopTheme -count=1            # registry, CSS contract, thumbnails, bundle order, layering
-node scripts/test-ui-regressions.mjs               # Node suite, no browser; includes the Green Slime simulation
+node scripts/test-ui-regressions.mjs               # Node suite, no browser; includes the Green Slime simulation, Orbit choreography and particles
 AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run DesktopTheme -timeout 30m
 AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '(TestDesktopGreenSlime|TestDesktopLivingMaterials|TestDesktopExperience)' -count=1 -timeout 30m
 AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_THEME_RECORDINGS=1 go test ./ui -run '^TestDesktopGreenSlimeCloseUpsBrowser$' -count=1 -timeout 10m
+node scripts/test-desktop-theme-orbit-assets.mjs    # Orbit model pack against its manifest (also in check:desktop-themes)
+AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '(?i)TestDesktopOrbit(Browser|ReducedMotionBrowser|SoftwareFallbackBrowser)$' -count=1 -timeout 20m
+AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_THEME_RECORDINGS=1 go test ./ui -run '^TestDesktopOrbitCloseUpsBrowser$' -count=1 -timeout 15m
+AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_ORBIT_POSTER=1 go test ./ui -run '^TestDesktopOrbitPosterBrowser$' -count=1 -timeout 15m    # regenerates ui/img/wallpapers/themes/orbit.png
 AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_THEME_SWEEP=fruity,crazy go test ./ui -run TestDesktopThemeSweepBrowser -timeout 30m
 go test ./ui -run TestDesktopAuditAppearanceBrowser -count=1
 ```
