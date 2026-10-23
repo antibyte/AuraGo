@@ -982,7 +982,76 @@ plan.
 | H18 | done | The site detail is a definition list with monospace paths and a copy button, the deploy URLs get their own line instead of "htt…", and the reason no longer repeats the outcome. |
 | H19 | done | The site list is loaded once, the target resolver reuses the sites panel list and its cached detail: **7 → 5** requests at start, **6 → 2** per target change, **4 → 2** per site selection. |
 | H20 | done | The refresh timer, the history debounce and the `ResizeObserver` are owned and released; the duplicate `safeExternalURL` is gone (the sites module receives the canonical one); the drift enum has one owner; `prefers-reduced-motion` covers the inputs, the panel width and the splitter; `.visually-hidden` was added. |
-| H21 | pending | The marker tests are updated for the new module split and the behaviour tests are added. |
+| H21 | done | Four marker tests are re-pointed at the module split and the new contracts; five behaviour tests execute the real module in Node (`tr()` fallback, live-region contract, three device widths, the request budget, the preview URL per target) and are mutation-checked; `ui/homepage_studio_workbench_browser_test.go` adds a real-browser smoke test behind `AURAGO_RUN_BROWSER_SMOKE`. |
+
+### Backend (waves 1–2), 2026-10-23
+
+| Task | Status | Notes |
+| --- | --- | --- |
+| H1 | done | `validateHomepagePathSegment` (allowlist `^[A-Za-z0-9._/-]+$`, no empty/`.`/`..` segment, no `-`-leading segment) is applied to every editor, file and template entry point before a command runs; every path that still reaches a shell is quoted with `shellSingleQuote`. `dist`/`build`/`out` are rejected as the project root or its first segment. |
+| H2 | done | `validateHomepagePackageName` accepts a scoped name plus an optional version range only. The build autofix capture is narrowed to `[a-zA-Z0-9@._~/-]+` and the captured module is validated and quoted before it becomes an `npm install` argument; a rejected name yields no command at all. |
+| H3 | done | `security.RegisterSensitive` at every `vercel_token` read site (`internal/agent/agent_dispatch_services.go`, `internal/agent/dispatch_cloud.go`, `internal/server/vercel_handlers.go` via the new `vercelServerConfig`), plus `security.Scrub` on the deploy and alias output. The token itself only ever travels as an environment variable. |
+| H4 | done | `homepageDockerExecFailure` captures the exec result and aborts a non-zero exit with a scrubbed container message. The three editors read and write through the bounded archive transport and report a failure as `{"status":"error","error":…}`; a failed listing is an error, not an empty list. |
+| H5 | done | `fileutil.WriteFileContext` replaces `os.WriteFile` at the proxy-route, webserver-state, asset, `next.config`, local-write, local-template and manifest sites. The bind-mounted Caddyfile is the one exception: it is written in place through `writeHomepageBindMountedFile`, because a rename would leave the running container on the old inode. |
+| H6 | done | `loadProxyRoutes` returns a parse error instead of `nil`; `homepageReadProxyRoutes` and `homepageMutateProxyRoutes` hold one `proxyRoutesMu` lock across load, modify and save, and the load/save helpers stay lock-free so a mutator never re-enters the lock. A damaged route file is kept, not replaced. |
+| H7 | done | The registry schema is version 2 with a partial unique index on `project_dir` that ignores the empty provider-ledger value. Duplicate directories merge into the newest row before the index is created, child rows are re-pointed, a `project_dir_merged` ledger event is written, and a failed merge refuses the migration instead of dropping data. |
+| H8 | done | An unreadable dependency answer or a missing exit code stops the install; an unverifiable asset is skipped with a recorded reason (`SkippedAssets`) instead of passing silently. |
+| H9 | done | `resolveHomepagePath` resolves symlinks (workspace plus the longest existing prefix) and refuses a target outside the workspace. Revisions skip symlinks and special files and record them as `skipped` instead of following them. |
+
+**Deviations from the plan**
+
+1. **H4 uses the archive transport** (DOX `internal/tools/AGENTS.md:297` wins over the plan wording
+   "capture the DockerExec result at all three editor sites"): the editors read through
+   `homepageReadDockerFile` and write through `homepageWriteDockerFile`, so no file content
+   reaches a shell argument. The exec result is captured once in the transport layer, which
+   covers all three editors.
+2. **H9 blocks `dist`/`build`/`out` at the first two segments**, not at every segment: a
+   literal "every segment" rule would reject the source build folder that
+   `TestValidateHomepageSourceEditPathAllowsSourceBuildFolder` requires to stay writable.
+3. **H5 keeps the Caddyfile inode**: a rename over a bind-mounted file would leave the
+   running Caddy container on the old inode, so both Caddyfile sites write in place. The
+   residual window is a crash mid-copy leaving a partial Caddyfile; Caddy reloads only
+   after the write returns.
+4. **H2 quoting changed the autofix command shape** (`npm install 'pkg'`); four existing
+   assertions were updated accordingly.
+5. **H7 uses a partial unique index** because provider-ledger rows legitimately carry an
+   empty `project_dir`; the backup file names carry the target version, so two existing
+   backup globs were widened to `homepage-v*-*.bak`.
+6. **The template scaffold writer was converted to the archive transport as well.** It was
+   the last Homepage write that still put file content into a shell argument, so it did not
+   satisfy `internal/tools/AGENTS.md:297`. The two template tests were rewritten against
+   the archive test engine and a third test asserts that no template content reaches a
+   `DockerExec` command.
+
+**Verification (2026-10-23)**
+
+| Command | Result |
+| --- | --- |
+| `go test ./internal/tools -run 'Homepage' -count=1` | ok |
+| `go test -race ./internal/tools -run 'Homepage' -count=1` | ok, no data race |
+| `go test ./internal/agent -run 'Homepage|Sensitive|Dispatch' -count=1` | ok |
+| `go test ./internal/server -run 'Homepage|Vercel|Netlify' -count=1` | ok |
+| `go test ./ui -count=1` | ok |
+| `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'Homepage' -count=1` | ok |
+| `go vet ./internal/tools ./internal/agent ./internal/server ./internal/security ./internal/fileutil` | clean |
+
+The three failures in the **full** package suites are pre-existing on this host and were
+reproduced on a clean `HEAD` worktree without the Homepage backend change:
+`TestPythonQualityValidationIgnoresAgentVenvCWDAndPythonPath` (needs a trusted system
+Python), `TestSkillQualityMaintenanceImprovementRestoresRunningDaemonWithNewApprovedHash`
+(same cause) and, in `internal/server`, `TestReleaseScriptsPreserveCodeStudioDockerfile`
+(a `make_release.bat` marker) plus `TestGetDesktopServiceReusesCanonicalConfigWithRelativeDefaults`
+(a Windows cross-drive `filepath.Rel`).
+
+**Two gaps the implementation review closed after the first worker report**
+
+1. `TestDispatchServicesRegistersVercelTokenForScrubbing` never reached the Vercel token
+   read, because a mutating homepage operation requires a `reason` and the test passed
+   none. The narrow `-run 'Homepage|Sensitive'` filter also never matched the test, so it
+   reported green. The test now passes a reason and asserts that the dispatch actually
+   reached the token read.
+2. The template scaffold writer still base64-encoded file content into a shell argument.
+   It now uses the archive transport (see deviation 6).
 
 **Deviations from the plan**
 
