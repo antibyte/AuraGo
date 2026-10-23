@@ -742,3 +742,28 @@ after a server restart (case must show `interrupted` with the resume path intact
 
 Filled in while executing: one line per task with commit hash, tests run and any deviation from this
 plan.
+
+### Wave 1 — D1–D5 (2026-10-23)
+
+Each task is one commit on `main`; the failing test came first.
+
+| Task | Commit | Tests | Deviations |
+| --- | --- | --- | --- |
+| plan | `ee1a3508c` | — | committed before the first task |
+| D1 | `50ff845c2` | `scripts/test-ui-regressions.mjs` (new: revision selection), `go test ./ui -run Detective` | — |
+| D2 | `2674bb153` | `scripts/test-ui-regressions.mjs` (new: fake crypto object) | — |
+| D3 | `3dbf6cb3b` | `TestDetectiveCapabilitiesBlockReason`, `TestDetectiveTranslations`, node test for `canStop` | `block_reason` has three values (`disabled`, `read_only`, `initializing`); "permission" stayed an automatic-update outcome instead of a capability reason |
+| D4 | `5bda7c392` | `TestRestartQueryIgnoresCorruptInactiveCase`, `TestCompleteReturnsPersistenceErrors`, full package | the backoff has no direct test: a persistent write failure also breaks the queue SELECT, so the loop cannot be reproduced deterministically |
+| D5 | `104e0edd9` | `TestQueuedCaseWaitsForPermission`, `TestPermissionRevokedRunStaysResumable`, `TestDetectiveTranslations` | — |
+
+Notes for the following waves:
+
+- Two UI regression tests fail at `HEAD` before this work (`Game Maker asset selection…:
+  bindModelLimits is not defined`, `Game Maker forwards runtime diagnostics…: fail is not defined`).
+  Reproduced against `git show HEAD:scripts/test-ui-regressions.mjs`; out of scope here.
+- `go test -race` cannot run in this environment: the repository builds with `CGO_ENABLED=0`
+  (modernc SQLite) and `-race` answers `requires cgo`. Concurrency evidence therefore comes from the
+  focused tests, not the race detector.
+- The sixteen `ui/lang/desktop/*.json` files carried uncommitted homepage-studio keys from a
+  parallel workstream. The Detective locale lines were staged hunk-wise (`git apply --cached` with a
+  filtered patch), so no foreign line entered these commits; the working tree kept the other lines.
