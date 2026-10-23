@@ -1,7 +1,9 @@
 package server
 
 import (
+	"encoding/json"
 	"io/fs"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -65,3 +67,55 @@ func TestDetectiveInitializationErrorCodes(t *testing.T) {
 type errString string
 
 func (e errString) Error() string { return string(e) }
+
+// The allowlist preview names the tools and the configured operations; it works for an
+// administrator even while the integration is disabled (audit 4.16).
+func TestDetectiveReadOperationsEndpoint(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Auth.Enabled = false
+	cfg.VirtualDesktop.Enabled = true
+	cfg.VirtualDesktop.AllowAgentControl = true
+	cfg.Detective.ExtraReadOperations = map[string][]string{"mcp_call": {"archive/read"}}
+	s := &Server{Cfg: cfg}
+	read := func() map[string]any {
+		t.Helper()
+		r := httptest.NewRequest("GET", "/api/desktop/detective/read-operations", nil)
+		w := httptest.NewRecorder()
+		s.handleDetective(w, r)
+		if w.Code != 200 {
+			t.Fatalf("read-operations: %d %s", w.Code, w.Body.String())
+		}
+		var body map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		return body
+	}
+	body := read()
+	tools, _ := body["tools"].([]any)
+	if len(tools) == 0 {
+		t.Fatalf("no tools: %v", body)
+	}
+	found := false
+	for _, name := range tools {
+		if name == "detective_report" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("detective_report missing: %v", tools)
+	}
+	freeForm, _ := body["free_form"].([]any)
+	if len(freeForm) != 2 {
+		t.Fatalf("free_form = %v", freeForm)
+	}
+	configured, _ := body["configured"].(map[string]any)
+	if _, ok := configured["mcp_call"]; !ok {
+		t.Fatalf("configured = %v", configured)
+	}
+	// Disabling the integration keeps the preview readable.
+	cfg.Detective.Enabled = false
+	if body = read(); body["tools"] == nil {
+		t.Fatalf("disabled integration lost the tools: %v", body)
+	}
+}

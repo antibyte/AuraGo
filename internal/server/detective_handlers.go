@@ -147,6 +147,21 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "Desktop unavailable", 503)
 		return
 	}
+	if path == "read-operations" && r.Method == http.MethodGet {
+		// The administrator-owned allowlist is security relevant, so it gets a preview:
+		// tool names, the free-form tools and the current mapping, never tool schemas.
+		tools := []string{}
+		for _, schema := range detectiveSchemas(cfg, s, detective.Request{}) {
+			tools = append(tools, schema.Function.Name)
+		}
+		sort.Strings(tools)
+		configured := cfg.Detective.ExtraReadOperations
+		if configured == nil {
+			configured = map[string][]string{}
+		}
+		detectiveJSON(w, 200, map[string]any{"tools": tools, "free_form": []string{"mcp_call", "composio_call"}, "configured": configured})
+		return
+	}
 	if path == "capabilities" && r.Method == http.MethodGet {
 		tools := []string{}
 		for _, schema := range detectiveSchemas(cfg, s, detective.Request{}) {

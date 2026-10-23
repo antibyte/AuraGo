@@ -27,3 +27,27 @@ func TestDetectiveConfigurationRoundTrip(t *testing.T) {
 		t.Fatalf("lost research config: %+v", cfg.Detective)
 	}
 }
+
+func TestNormalizeDetectiveReadOperations(t *testing.T) {
+	plain := DetectiveConfig{}
+	plain.Normalize()
+	if plain.ExtraReadOperations != nil {
+		t.Fatalf("empty config gained a map: %v", plain.ExtraReadOperations)
+	}
+	cfg := DetectiveConfig{ExtraReadOperations: map[string][]string{
+		" mcp_call ":    {" archive/read ", "", "archive/read", "  "},
+		"composio_call": {},
+		"   ":           {"orphan"},
+		"web_scraper":   {"read"},
+	}}
+	cfg.Normalize()
+	if got := cfg.ExtraReadOperations; len(got) != 2 {
+		t.Fatalf("tools = %v", got)
+	}
+	if ops := cfg.ExtraReadOperations["mcp_call"]; len(ops) != 1 || ops[0] != "archive/read" {
+		t.Fatalf("mcp_call = %v", ops)
+	}
+	if ops := cfg.ExtraReadOperations["web_scraper"]; len(ops) != 1 || ops[0] != "read" {
+		t.Fatalf("web_scraper = %v", ops)
+	}
+}

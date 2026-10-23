@@ -1651,6 +1651,7 @@ func Load(path string) (*Config, error) {
 	if cfg.SQLite.GameMakerPath == "" {
 		cfg.SQLite.GameMakerPath = "./data/game_maker.db"
 	}
+	cfg.Detective.Normalize()
 	if cfg.SQLite.DetectivePath == "" {
 		cfg.SQLite.DetectivePath = "./data/detective.db"
 	}
