@@ -192,7 +192,7 @@ property (body size, projection content, no excerpt in the body) and provide
 | D11 | Localized error codes and PDF capability | 4.8, 4.13 | M | — |
 | D12 | Provisional revisions and append base | 4.14 | M | D6 |
 | D13 | Answers and token/cost visibility | 4.15, 4.17 | S | — |
-| D14 | `cfb93191f` (server side) | `TestDetectiveNotificationOnPublish`, `TestDetectiveNotificationSuppressedWhenDisabled`, `TestDetectiveNotificationRateLimited` | Click-through pending: `DetectiveApp.open` plus the `menus-and-routing.js` branch need a desktop bundle rebuild, and rebuilding now would capture the parallel workstream's uncommitted app changes. Server notifications are complete and tested |
+| D14 | `cfb93191f` (server) + `c34548d33` (click-through) | `TestDetectiveNotificationOnPublish`, `TestDetectiveNotificationSuppressedWhenDisabled`, `TestDetectiveNotificationRateLimited`, `TestDesktopDetectiveOpensTheNotifiedCase` | The click-through landed in the next round: the bundle rebuild was safe once the bundle check was green and the foreign workstream had not touched bundle inputs |
 | D14 | Desktop notifications for update, question and failure | 4.16 | M | — |
 | D15 | `extra_read_operations` in Config | 4.9 | L | — |
 | D16 | `sqlite.detective_path` and init visibility | 4.19 | M | — |
