@@ -212,6 +212,19 @@ async function testMidiGeneration() {
 
 async function main() {
     const Music=loadClassicModule('ui/js/desktop/apps/synth-studio-music.js');
+    const Performance=loadClassicModule('ui/js/desktop/apps/synth-studio-performance.js');
+    loadClassicModule('ui/js/desktop/apps/synth-studio-voices.js');loadClassicModule('ui/js/desktop/apps/synth-studio-audio.js');
+    const takeSource=Model.create('Source'),takeTrack=Model.addTrack(takeSource,'gm-0'),takeClip=Model.createClip('gm-0');
+    takeClip.notes=[{id:'held',pitch:60,start:0,duration:120,velocity:.8}];takeClip.controllers=[{tick:0,type:'sustain',value:1},{tick:960,type:'sustain',value:0},{tick:240,type:'bend',value:.2}];takeTrack.clips=[takeClip];takeSource.tempo=40;
+    const sourceBefore=JSON.stringify(takeSource),take=Performance.createTake(takeSource,{start:0,end:1920},runtime.SynthStudioAudio.prepareRender);
+    assert.ok(take.limit<64*1920&&take.limit>1920,'take stops before five-minute WAV limit including tails');
+    const linear=take.render(3840);assert.equal(linear.tracks[0].clips.length,2);assert.equal(linear.tracks[0].clips[0].notes[0].duration,960,'sustain is baked into editable note length');assert.equal(linear.loop.enabled,false);
+    assert.equal(Performance.flatten(takeSource,[{at:0,start:0,end:1920}],480).tracks[0].clips[0].notes[0].duration,480,'section boundary releases held notes');
+    take.scene({start:1920,end:3840,name:'Break'},1920);assert.equal(take.render(3840).tracks[0].clips[1].notes.length,0);
+    take.automation(takeTrack.id,[{tick:120,parameter:'tone',value:.1},{tick:480,parameter:'tone',value:.8}],960);
+    assert.ok(take.render(1920).tracks[0].automation.some(p=>p.parameter==='tone'&&p.value===.8));assert.equal(JSON.stringify(takeSource),sourceBefore,'take does not mutate its source');
+    const reduced=Performance.reducePoints([{tick:0,parameter:'tone',value:.2},{tick:1,parameter:'tone',value:.2},{tick:2,parameter:'tone',value:.2}]);assert.equal(reduced.length,2,'point reduction retains gesture endpoints');
+    const wrapped=Model.clone(takeSource).tracks[0];Performance.mergeGesture(wrapped,[{tick:0,parameter:'tone',value:.2},{tick:120,parameter:'tone',value:.4},{tick:0,parameter:'tone',value:.7}]);assert.equal(wrapped.automation.filter(p=>p.tick===0).length,1);
     const v2=Model.demo(),legacy=JSON.parse(JSON.stringify(v2));legacy.version=1;delete legacy.harmony;delete legacy.scenes;legacy.tracks.forEach(t=>delete t.automation);
     equalJSON(Model.validate(legacy),legacy,'v1 remains v1 and is not mutated');
     const upgraded=Model.upgrade(legacy);assert.equal(upgraded.version,2);equalJSON(upgraded.harmony,{root:0,scale:'major',snap:false});assert.equal(legacy.version,1);

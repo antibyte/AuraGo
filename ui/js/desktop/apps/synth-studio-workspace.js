@@ -2,7 +2,7 @@
     'use strict';
     function create(root, options) {
         const {tr, signal} = options, key = 'aurago:synth-studio:view:1';
-        let view = { panel: 'notes', height: 290, library: true };
+        let view = { panel: 'notes', height: 290, library: true, compactLibrary:false };
         try { const saved = JSON.parse(localStorage.getItem(key)); if (saved) view = { ...view, ...saved }; } catch (_) {}
         view.height = Math.max(180, Math.min(560, Number(view.height) || 290));
         if (!['notes','sound','performance'].includes(view.panel)) view.panel = 'notes';
@@ -22,12 +22,12 @@
         const performance = document.createElement('section'); performance.className = 'ss-performance-workbench'; performance.dataset.workPanel = 'performance'; host.append(performance);
         const save = () => { try { localStorage.setItem(key, JSON.stringify(view)); } catch (_) {} };
         function render() {
-            root.dataset.workPanel = view.panel; root.classList.toggle('ss-library-collapsed',!view.library);
+            root.dataset.workPanel = view.panel;root.classList.toggle('ss-library-open',view.compactLibrary===true); root.classList.toggle('ss-library-collapsed',!view.library);
             root.style.setProperty('--ss-workbench-height',view.height+'px');
             grip.setAttribute('aria-valuenow',String(view.height));
             tabs.querySelectorAll('button').forEach(b => { b.setAttribute('aria-selected',String(b.dataset.workTab===view.panel)); b.tabIndex=b.dataset.workTab===view.panel?0:-1; });
             host.querySelectorAll('[data-work-panel]').forEach(p=>{p.hidden=p.dataset.workPanel!==view.panel;p.setAttribute('role','tabpanel');});
-            root.querySelectorAll('[data-action="library"]').forEach(b=>b.setAttribute('aria-expanded',String(view.library)));
+            root.querySelectorAll('[data-action="library"]').forEach(b=>b.setAttribute('aria-expanded',String(root.clientWidth<=540?!!view.compactLibrary:!!view.library)));
         }
         function panel(name) { view.panel=name; render(); save(); }
         tabs.addEventListener('click',e=>{const b=e.target.closest('[data-work-tab]');if(b)panel(b.dataset.workTab);},{signal});
@@ -44,7 +44,7 @@
         for(const action of ['new','open']){const b=document.createElement('button');b.dataset.action=action;b.type='button';b.textContent=tr(action);welcome.append(b);}
         root.querySelector('.ss-main').prepend(welcome);
         render();
-        return { panel, performance, sound, welcome, toggleLibrary(){view.library=root.clientWidth<=540?!root.classList.contains('ss-library-open'):!view.library;root.classList.toggle('ss-library-open',view.library);render();save();}, refresh(){welcome.hidden=options.project().tracks.length>0;welcome.querySelectorAll('[data-template]').forEach(b=>b.disabled=options.blocked());} };
+        return { panel, performance, sound, welcome, toggleLibrary(){if(root.clientWidth<=540)view.compactLibrary=!view.compactLibrary;else view.library=!view.library;render();save();}, refresh(){welcome.hidden=options.project().tracks.length>0;welcome.querySelectorAll('[data-template]').forEach(b=>b.disabled=options.blocked());} };
     }
     window.SynthStudioWorkspace={create};
 })();

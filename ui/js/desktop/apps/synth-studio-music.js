@@ -55,4 +55,3 @@
     }
     return {scales,random,inScale,fit,chord,arpPitch,arpeggio,variation,rhythm};
 });
-

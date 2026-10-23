@@ -14,7 +14,7 @@
         const settings=()=>Object.fromEntries([...host.querySelectorAll('[data-music]')].map(e=>[e.dataset.music,e.type==='checkbox'?e.checked:e.type==='number'||e.type==='range'||['root','seventh','division','octaves','steps','accent','pitch'].includes(e.dataset.music)?Number(e.value):e.value]));
         function selection(){const p=options.project(),s=options.selection(),track=p.tracks.find(t=>t.id===s.trackId);return {p,track,clip:track?.clips.find(c=>c.id===s.clipId)};}
         function cancel(){epoch++;previewAudio.stop();preview=null;host.querySelector('.ss-preview').hidden=true;}
-        function stopLive(){clearInterval(timer);timer=null;held.clear();for(const v of scheduled)v.cancel();scheduled=[];padReleases.forEach(fn=>fn());padReleases=[];}
+        function stopLive(){epoch++;clearInterval(timer);timer=null;held.clear();for(const v of scheduled)v.cancel();scheduled=[];padReleases.forEach(fn=>fn());padReleases=[];}
         function stop(){cancel();stopLive();}
         function pump(){
             if(!held.size)return;
@@ -58,7 +58,9 @@
         function compare(variant){
             if(!preview)return;options.stopTransport();previewAudio.stop();
             const p=M.clone(variant?preview.p:JSON.parse(preview.base)),t=p.tracks.find(t=>t.id===preview.track),c=t.clips.find(c=>c.id===preview.clip);
-            p.tracks=[t];t.clips=[c];c.start=0;t.automation=[];p.loop={enabled:true,start:0,end:c.length};
+            p.tracks=[t];t.clips=[c];const start=c.start;
+            for(const parameter of ['tone','reverb'])for(const point of t.automation)if(point.parameter===parameter&&point.tick<=start)t.params[parameter]=point.value;
+            t.automation=t.automation.filter(point=>point.tick>=start&&point.tick<start+c.length).map(point=>({...point,tick:point.tick-start}));c.start=0;p.loop={enabled:true,start:0,end:c.length};
             const token=++epoch;previewAudio.unlock().then(()=>{if(token!==epoch)return;return previewAudio.play(p,0);}).catch(options.fail);
             host.querySelectorAll('[data-compose="original"],[data-compose="variant"]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.compose===(variant?'variant':'original'))));
         }
@@ -98,6 +100,7 @@
             host.querySelector('[data-compose=apply]').disabled=options.blocked();
             host.querySelectorAll('input,select').forEach(e=>e.disabled=options.blocked());
             const h=JSON.stringify([p.harmony,settings().seventh]);if(h!==lastHarmony){lastHarmony=h;pads();}
+            host.querySelectorAll('[data-chord]').forEach(e=>e.disabled=options.blocked());
         }
         signal.addEventListener('abort',()=>{stop();previewAudio.dispose();},{once:true});
         refresh();
@@ -105,4 +108,3 @@
     }
     window.SynthStudioCompose={create};
 })();
-

@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const scheduledVoices = [];
+const scheduledAutomation = [];
+const releasedRanges=[];
 const timers = [];
 
 class FakeParam {
@@ -34,7 +36,7 @@ class FakeAudioContext {
 }
 
 const voices = {
-  DEFAULT_PARAMS: { tone: 0.5, release: 0 },
+  DEFAULT_PARAMS: { tone: 0.5, reverb: 0, release: 0 },
   clamp(value, min, max, fallback) {
     const number = Number(value);
     return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
@@ -44,10 +46,11 @@ const voices = {
   makeMix() { return { master: { gain: new FakeParam(0.78) } }; },
   createTrackBus() { return { input: new FakeNode() }; },
   updateTrackBus() {},
+  updateTrackParameter(_bus,track,parameter,value,at,cancel){scheduledAutomation.push({id:track.id,parameter,value,at,cancel});},
   scheduleMetronome() {},
   createVoice(context, _mix, _bus, _state, _track, pitch, _velocity, at) {
     const source = new FakeNode();
-    const voice = { sources: [source], voiceGain: new FakeNode(), endTime: at + 0.025 };
+    const voice = { sources: [source], voiceGain: new FakeNode(), startTime:at, endTime: at + 0.025 };
     scheduledVoices.push({ pitch, at, observedAt: context.currentTime, voice });
     return voice;
   },
@@ -55,7 +58,7 @@ const voices = {
   releaseVoice(voice, at) { voice.endTime = at + 0.008; },
   makeTrackState() { return { voices: new Set(), pending: [], sustain: false, bend: 0, mod: 0 }; },
   applyController() {},
-  releaseTrackState() {}
+  releaseTrackState(_context,state,_track,at){releasedRanges.push(at);state.sustain=false;state.pending=[];}
 };
 
 const sandbox = {
@@ -199,3 +202,42 @@ assert.equal(changingRun.timer.cleared,true);assert.equal(changing.pendingChange
 assert.equal(obsolete,0,'stop discards queued callbacks');
 await changingRun.pending;changing.dispose();
 console.log('Synth Studio live mix and quantized replacement checks passed.');
+
+const automated=structuredClone(loopProject);automated.tracks[0].automation=[{tick:240,parameter:'tone',value:.2},{tick:480,parameter:'tone',value:.8}];
+const automPlayer=context.SynthStudioAudio.create(),automRun=await startPlayer(automPlayer,automated),automClock=sandbox.__lastAudioContext;
+scheduledAutomation.length=0;automClock.currentTime=.2;automRun.timer.callback();
+assert.ok(scheduledAutomation.some(p=>p.value===.2&&Math.abs(p.at-.295)<1e-9),'automation uses the musical audio clock');
+automPlayer.setManual(automated.tracks[0].id,'tone',true);automClock.currentTime=.45;automRun.timer.callback();
+assert.ok(!scheduledAutomation.some(p=>p.value===.8),'manual gesture suppresses queued automation');
+automClock.currentTime=.55;automPlayer.setManual(automated.tracks[0].id,'tone',false);
+assert.ok(scheduledAutomation.some(p=>p.value===.8&&p.cancel),'automation resumes at its current value after release');
+const replacement=structuredClone(automated);replacement.tracks[0].automation=[{tick:720,parameter:'tone',value:.4}];automPlayer.setAutomation(replacement);automClock.currentTime=.7;automRun.timer.callback();
+assert.ok(scheduledAutomation.some(p=>p.value===.4&&Math.abs(p.at-.795)<1e-9),'recorded automation updates without restarting transport');
+const beforeBound=scheduledVoices.length;automPlayer.setStopAfter(1);automClock.currentTime=.95;automRun.timer.callback();automClock.currentTime=1.06;automRun.timer.callback();assert.equal(automPlayer.running(),false,'hard recording bound completes playback');assert.ok(scheduledVoices.slice(beforeBound).every(v=>v.at<1.045),'recording deadline never schedules a new onset at or after the limit');await automRun.pending;automPlayer.dispose();
+
+const late=context.SynthStudioAudio.create(),lateRun=await startPlayer(late,loopProject),lateClock=sandbox.__lastAudioContext;
+let oldCallback=0,newCallback=0;const at=late.queueProject(changedProject,0,()=>oldCallback++).at;
+lateClock.currentTime=at-.06;lateRun.timer.callback();
+const earlier=scheduledVoices.at(-1);assert.equal(earlier.pitch,91);
+const newest=structuredClone(changedProject);newest.tracks[0].clips[0].notes[0].pitch=92;
+const sameBoundary=late.queueProject(newest,0,()=>newCallback++).at;assert.equal(sameBoundary,at,'last-moment scene replacement keeps the requested bar');
+assert.ok(earlier.voice.sources[0].stopped.some(t=>t<=at),'replaced future voice is cancelled before sounding');
+lateClock.currentTime=at+.01;lateRun.timer.callback();assert.equal(oldCallback,0);assert.equal(newCallback,1);
+assert.equal(scheduledVoices.filter(v=>v.pitch===92&&Math.abs(v.at-at)<1e-9).length,1,'replacement has a single note onset');late.stop();await lateRun.pending;late.dispose();
+const firstLate=context.SynthStudioAudio.create(),firstRun=await startPlayer(firstLate,loopProject),firstClock=sandbox.__lastAudioContext;
+const nextBar=2.045;firstClock.currentTime=nextBar-.06;firstRun.timer.callback();
+assert.ok(releasedRanges.some(at=>Math.abs(at-nextBar)<1e-9),'scene repetition releases sustain before the next cycle');
+const reserved=scheduledVoices.filter(v=>v.observedAt===firstClock.currentTime&&v.at>=nextBar);
+assert.ok(reserved.length,'the old loop has already reserved the next bar');
+const firstRequest=firstLate.queueProject(newest,0);
+assert.ok(Math.abs(firstRequest.at-nextBar)<1e-9,'a first late request still uses the immediately next bar');
+assert.ok(reserved.every(v=>v.voice.sources[0].stopped.some(t=>t<=nextBar)),'all obsolete reserved notes are cancelled');
+firstLate.stop();await firstRun.pending;firstLate.dispose();
+
+const bounded=context.SynthStudioAudio.create(),boundedRun=await startPlayer(bounded,loopProject),boundedClock=sandbox.__lastAudioContext;
+let beyondLimit=0;boundedClock.currentTime=.1;bounded.setStopAfter(2);bounded.queueProject(newest,0,()=>beyondLimit++);
+const beforeBoundary=scheduledVoices.length;boundedClock.currentTime=1.99;boundedRun.timer.callback();boundedClock.currentTime=2.06;boundedRun.timer.callback();
+assert.equal(beyondLimit,0,'scene at the recording deadline never activates');
+assert.ok(!scheduledVoices.slice(beforeBoundary).some(v=>v.pitch===92),'recording deadline takes priority over a scene');
+await boundedRun.pending;bounded.dispose();
+console.log('Synth Studio automation override, recording bound and last-moment scene checks passed.');

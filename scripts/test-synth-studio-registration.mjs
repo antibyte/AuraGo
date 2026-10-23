@@ -37,7 +37,7 @@ assert.deepEqual(Array.from(assets.scripts), [
     '/js/desktop/apps/synth-studio-midi.js',
     '/js/desktop/apps/synth-studio-storage.js',
     '/js/desktop/apps/synth-studio-editor.js',
-    '/js/desktop/apps/synth-studio-workspace.js', '/js/desktop/apps/synth-studio-compose.js',
+    '/js/desktop/apps/synth-studio-workspace.js', '/js/desktop/apps/synth-studio-compose.js', '/js/desktop/apps/synth-studio-performance.js', '/js/desktop/apps/synth-studio-stage.js',
     '/js/desktop/apps/synth-studio.js'
 ]);
 for (const url of assets.scripts) {

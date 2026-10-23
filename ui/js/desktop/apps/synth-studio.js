@@ -11,11 +11,11 @@
         const button=(action,key,symbol,extra='')=>'<button type="button" data-action="'+action+'" title="'+esc(tr(key))+'" aria-label="'+esc(tr(key))+'" '+extra+'>'+symbol+'</button>';
         let history=M.history(M.create(tr('untitled'))), currentProject=history.current(), audio=window.SynthStudioAudio.create(), storage, editor, disposed=false, busy=false, playing=false, recording=null, cursor=0;
         let category='all', libraryMode='instruments', revoked=false, selectedInstrument='bass-sub', countIn=true, quantize=120, latency=0, metronome=false;
-        let workspace, composer, parameterGesture=null;
+        let workspace, composer, stage, parameterGesture=null;
         let live=new Map(), storageState={}, midiState={}, generation=0, ready=false;
         const timers=new Set(), later=(fn,delay)=>{const timer=setTimeout(()=>{timers.delete(timer);fn();},delay);timers.add(timer);};
         const eventCount=p=>p.tracks.reduce((total,t)=>total+(t.automation?.length||0)+t.clips.reduce((clipTotal,c)=>clipTotal+c.notes.length+c.controllers.length,0),0);
-        const readonly=()=>!!ctx.readonly||revoked, blocked=()=>!ready||readonly()||busy||!!storageState.loading||!!recording;
+        const readonly=()=>!!ctx.readonly||revoked, blocked=()=>disposed||!ready||readonly()||busy||!!storageState.loading||!!recording||!!stage?.active();
         // Keep one validated view snapshot; MIDI packets must not clone the whole song.
         const project=()=>currentProject, track=()=>project().tracks.find(t=>t.id===editor?.selection().trackId);
         const fail=error=>{if(disposed)return;let code=typeof error==='string'?error:error?.code;if(code?.startsWith('E_PROJECT_'))code=code==='E_PROJECT_LIMIT'?'too_many_tracks':'invalid_project';else if(code==='E_MIDI_DENIED')code='denied';else if(code==='E_MIDI_UNSUPPORTED')code='unsupported';else if(code?.startsWith('E_MIDI_DEVICE'))code='no_device';else if(code?.startsWith('E_MIDI_'))code='unsupported_midi';else if(code==='SYNTH_STUDIO_RENDER_BUDGET')code='export_limit';notice(tr(['unsupported','denied','no_device','invalid_project','unsupported_midi','too_many_tracks','export_limit','readonly'].includes(code)?code:'error'));};
@@ -26,11 +26,12 @@
             '<section class="ss-midi-panel" data-midi-panel hidden><strong>'+esc(tr('midi_title'))+'</strong><button data-action="connect">'+esc(tr('midi_connect'))+'</button><select data-midi-input aria-label="'+esc(tr('midi_device'))+'"><option value="">'+esc(tr('midi_device'))+'</option></select><span data-midi-state role="status"></span><label><input data-count-in type="checkbox" checked> '+esc(tr('count_in'))+'</label><label>'+esc(tr('latency'))+' <input data-latency type="number" inputmode="numeric" enterkeyhint="done" min="-200" max="200" step="1" value="0"> ms</label><label><input data-record-quantize type="checkbox" checked> '+esc(tr('quantize'))+'</label>'+button('importMidi','import_midi',tr('import_midi'))+'</section>'+
             '<footer class="ss-footer"><span data-save-state role="status"></span><span class="ss-footer-hint">'+esc(tr('shortcuts'))+'</span><span class="ss-midi-led" data-midi-led aria-hidden="true"></span><span>80 SYNTHS · 6 FX · 128 GM</span></footer><input type="file" data-midi-file accept=".mid,.midi,audio/midi" hidden></div>';
         const root=host.firstElementChild, find=q=>root.querySelector(q);
-        editor=window.SynthStudioEditor.create(find('[data-editor-host]'),{getProject:project,readonly:blocked,tr,mutate,onTrackVolume:true,onSelect:()=>{renderInspector();composer?.refresh();},onAdd:()=>insert({type:'instrument',id:selectedInstrument},'',0),onDrop:insert,onNewClip:newClip,onSeek:seek,onAudition:p=>audition(p),onNoteOn:p=>noteOn(p,.8,performance.now(),17),onNoteOff:p=>noteOff(p,performance.now(),17),onError:fail});
+        editor=window.SynthStudioEditor.create(find('[data-editor-host]'),{getProject:project,readonly:blocked,tr,mutate,onTrackVolume:true,onSelect:()=>{renderInspector();composer?.refresh();stage?.refresh();},onAdd:()=>insert({type:'instrument',id:selectedInstrument},'',0),onDrop:insert,onNewClip:newClip,onSeek:seek,onAudition:p=>audition(p),onNoteOn:p=>noteOn(p,.8,performance.now(),17),onNoteOff:p=>noteOff(p,performance.now(),17),onError:fail});
         workspace=window.SynthStudioWorkspace.create(root,{tr,signal,project,blocked});
         composer=window.SynthStudioCompose.create(workspace.performance,{tr,esc,signal,project,selection:()=>editor.selection(),cursor:()=>cursor,blocked,mutate,audio,fail,stopTransport:()=>stop(false,true),showNotes:()=>workspace.panel('notes'),onArpNote:captureArp});
         const midi=window.SynthStudioMIDI.create({onNoteOn:e=>noteOn(e.pitch,e.velocity,e.time,e.channel),onNoteOff:e=>noteOff(e.pitch,e.time,e.channel),onController:e=>controller(e),onState:s=>{midiState=s;if(s.status!=='connected'){if(recording)stop();else panic();}renderMIDI();}});
-        storage=window.SynthStudioStorage.create({...ctx,windowId:id},{serialize:project,validate:M.validate,beforeLoad:()=>stop(),onLoaded:p=>{if(p)loadProject(p);},onState:s=>{storageState=s;status();}});
+        stage=window.SynthStudioStage.create(workspace.performance,{tr,esc,signal,audio,project,track,mutate,playing:()=>playing,cursor:()=>cursor,editable:()=>!disposed&&ready&&!readonly()&&!busy&&!storageState.loading&&!recording,canPlay:()=>!disposed&&ready&&!busy&&!storageState.loading,play,stop,refresh,fail,prompt:(title,value)=>ctx.promptDialog?.(title,value),confirm:(title,message)=>ctx.confirmDialog?.(title,message),adopt:p=>storage.newDocument(p,{dirty:true}),transport:find('.ss-transport'),whenReady:()=>storage.ready,sessionKey:ctx.sessionKey||ctx.state?.windows?.get(id)?.sessionKey||id});
+        storage=window.SynthStudioStorage.create({...ctx,windowId:id},{serialize:project,validate:M.validate,beforeLoad:()=>stop(),onLoaded:p=>{if(p)loadProject(p);},onState:s=>{const loaded=storageState.loading&&!s.loading;storageState=s;if(loaded)refresh();else status();}});
         function status(){
             if(disposed)return;const p=project();find('[data-project-name]').textContent=p.name;find('[data-project-name]').disabled=blocked();
             find('[data-save-state]').textContent=readonly()?tr('readonly'):storageState.legacyCopy?tr('legacy_copy'):storageState.error?tr('save_error'):storageState.saving?tr('saving'):storageState.dirty?tr('unsaved'):storageState.path?tr('saved'):tr('local_draft');
@@ -39,18 +40,18 @@
             find('[data-loop-start]').value=Math.floor(p.loop.start/BAR)+1;find('[data-loop-end]').value=Math.floor(p.loop.end/BAR)+1;
             for(const a of ['new','save','saveAs','demo','record','importMidi'])find('[data-action="'+a+'"]')?.toggleAttribute('disabled',!ready||readonly()||busy||!!storageState.loading);
             find('[data-action="open"]').disabled=!ready||busy||!!storageState.loading;find('[data-action="play"]').disabled=!ready||busy||!!storageState.loading;find('[data-tempo]').disabled=blocked();find('[data-loop]').disabled=blocked();find('[data-loop-start]').disabled=blocked();find('[data-loop-end]').disabled=blocked();
-            find('[data-action="undo"]').disabled=blocked()||!history.canUndo();find('[data-action="redo"]').disabled=blocked()||!history.canRedo();find('[data-export]').disabled=busy||!!recording;
+            find('[data-action="undo"]').disabled=blocked()||!history.canUndo();find('[data-action="redo"]').disabled=blocked()||!history.canRedo();find('[data-export]').disabled=busy||!!recording||!!stage?.active();root.querySelectorAll('[data-insert]').forEach(el=>el.disabled=blocked());
             const item=ctx.state?.windows?.get(id);if(item){item.context={...(item.context||{}),path:storageState.path||''};if(item.element)item.element.classList.toggle('ss-dirty',!!storageState.dirty);}
         }
         function refresh(){
             const active=document.activeElement,attrs=['data-param','data-track-name','data-instrument','data-track-volume','data-velocity'],attr=attrs.find(a=>active?.hasAttribute(a)),value=attr?active.getAttribute(attr):'';
-            editor.render();renderInspector();status();workspace?.refresh();composer?.refresh();
+            editor.render();renderInspector();status();workspace?.refresh();composer?.refresh();stage?.refresh();
             if(attr)root.querySelectorAll('['+attr+']').forEach(el=>{if(el.getAttribute(attr)===value)el.focus({preventScroll:true});});
         }
-        function loadProject(p){stop();history=M.history(M.upgrade(p));currentProject=history.current();cursor=0;editor.select('','');refresh();}
+        function loadProject(p){stop();history=M.history(M.upgrade(p));currentProject=history.current();cursor=0;editor.select(p.tracks[0]?.id||'',p.tracks[0]?.clips[0]?.id||'');workspace.performance.scrollTop=0;refresh();}
         function mutate(fn,kind='timeline'){
             if(blocked())return;
-            try{const next=M.clone(project());fn(next);M.validate(next);if(playing){if(kind==='mix')audio.updateTracks(next);else if(kind!=='metadata'){audio.queueProject({...next,metronome},undefined,()=>notice(''));notice(tr('change_queued'));}}history.commit(next);currentProject=history.current();storage.changed();refresh();}catch(error){fail(error);}
+            try{const next=M.clone(project());fn(next);M.validate(next);if(playing){if(kind==='mix')audio.updateTracks(next);else if(kind==='automation')audio.setAutomation(next);else if(kind!=='metadata'){audio.queueProject({...stage.runtime(next),metronome},undefined,()=>{notice('');stage.sceneApplied();});notice(tr('change_queued'));}}history.commit(next);currentProject=history.current();storage.changed();refresh();}catch(error){fail(error);}
         }
         function updatedHistory(direction){if(blocked())return;stop();history[direction]();currentProject=history.current();storage.changed();refresh();}
         function insert(data,tid,tick){
@@ -74,13 +75,14 @@
             const query=find('[data-search]').value.toLowerCase(),list=libraryMode==='patterns'?M.patterns:[...P.presets,...P.gm.map(p=>({...p,category:'gm'})),{id:'gm-drums',name:tr('gm_drums'),category:'gm'}];
             const items=list.map(x=>libraryMode==='patterns'?{...x,name:patternName(x)}:x).filter(x=>(category==='all'||x.category===category)&&x.name.toLowerCase().includes(query));
             find('[data-library-list]').innerHTML=items.map((x,i)=>'<div class="ss-library-item '+(x.id===selectedInstrument?'is-selected':'')+'" draggable="'+!readonly()+'" data-library-id="'+esc(x.id)+'" data-library-type="'+(libraryMode==='patterns'?'pattern':'instrument')+'"><button data-preview="'+esc(x.id)+'" aria-label="'+esc(tr('preview')+' '+x.name)+'">'+(libraryMode==='patterns'?'▥':'♪')+'</button><button class="ss-library-name" data-choose="'+esc(x.id)+'"><span>'+esc(x.name)+'</span><small>'+(libraryMode==='patterns'?esc(tr('pattern')):String(i+1).padStart(2,'0'))+'</small></button><button class="ss-insert" data-insert="'+esc(x.id)+'" aria-label="'+esc(tr('add'))+'">＋</button></div>').join('')||'<p class="ss-muted">'+esc(tr('no_results'))+'</p>';
+            root.querySelectorAll('[data-insert]').forEach(el=>el.disabled=blocked());
             root.querySelectorAll('[data-library-mode]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.libraryMode===libraryMode)));
         }
         function renderInspector(){
             const t=track(),pane=find('[data-inspector]');if(!t){pane.innerHTML='<div class="ss-inspector-empty"><span>♫</span><strong>'+esc(tr('your_sound'))+'</strong><p>'+esc(tr('inspector_hint'))+'</p></div>';return;}
             const drum=t.instrument==='drums-kit'||t.instrument==='gm-drums'||t.instrument.startsWith('drum-'),items=drum?[{id:'drums-kit',name:tr('drums')},{id:'gm-drums',name:tr('gm_drums')},...P.drums]:[...P.presets.filter(x=>x.category!=='drums'),...P.gm];
             pane.innerHTML='<h3>'+esc(tr('track'))+'</h3><input data-track-name type="text" inputmode="text" enterkeyhint="done" maxlength="80" value="'+esc(t.name)+'" aria-label="'+esc(tr('name'))+'"><label>'+esc(tr('instrument'))+'<select data-instrument>'+items.map(i=>'<option value="'+esc(i.id)+'"'+(i.id===t.instrument?' selected':'')+'>'+esc(i.name)+'</option>').join('')+'</select></label><div class="ss-param-grid">'+[['pan',-1,1,.01,t.pan],['tone',0,1,.01,t.params.tone],['resonance',0,1,.01,t.params.resonance??0],['drive',0,1,.01,t.params.drive??0],['attack',0,2,.01,t.params.attack],['release',.02,3,.01,t.params.release],['chorus',0,1,.01,t.params.chorus??0],['phaser',0,1,.01,t.params.phaser??0],['reverb',0,1,.01,t.params.reverb],['delay',0,1,.01,t.params.delay]].map(([key,min,max,step,value])=>'<label class="ss-parameter"><span>'+esc(tr(key))+'</span><input data-param="'+key+'" type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+value+'" aria-label="'+esc(tr(key))+'"><output>'+Number(value).toFixed(2)+'</output><button type="button" data-reset-param="'+key+'" title="'+esc(tr('reset'))+'">'+esc(tr('reset'))+'</button></label>').join('')+'</div><div class="ss-mini-keys">'+[60,62,64,65,67,69,71,72].map((p,i)=>'<button data-audition="'+(drum?P.drums[i].drumNote:p)+'" aria-label="'+esc(tr('preview'))+'">'+(drum?'•':['C','D','E','F','G','A','B','C'][i])+'</button>').join('')+'</div><button data-action="deleteTrack" class="ss-delete-track">'+esc(tr('delete_track'))+'</button><p class="ss-help">'+esc(tr('edit_hint'))+'</p>';
-            pane.querySelectorAll('input,select,[data-action="deleteTrack"]').forEach(el=>el.disabled=blocked());
+            pane.querySelectorAll('input,select,[data-reset-param],[data-action="deleteTrack"]').forEach(el=>el.disabled=blocked()&&!(stage?.active()&&['tone','reverb'].includes(el.dataset.param)));
         }
 
         function controlTarget(el) {
@@ -90,18 +92,20 @@
         }
         function setParameter(p, c) {const t=p.tracks.find(t=>t.id===c.id);if(!t)return;if(['pan','volume'].includes(c.key))t[c.key]=c.value;else t.params[c.key]=c.value;}
         function previewParameter(el) {
-            if(blocked())return;
             const c=controlTarget(el);if(!c?.id)return;
-            const p=M.clone(project());setParameter(p,c);audio.updateTracks(p);
+            if(stage?.preview(c)){const out=el.parentElement.querySelector('output');if(out)out.textContent=c.value.toFixed(2);return;}
+            if(blocked())return;
+            const p={...project(),tracks:project().tracks.map(t=>({...t,params:{...t.params}}))};setParameter(p,c);audio.updateTracks(p);
             const out=el.parentElement.querySelector('output');if(out)out.textContent=Number(c.value).toFixed(2);
         }
         function finishParameter(cancel=false) {
             const g=parameterGesture;if(!g)return;parameterGesture=null;
+            if(g.staged){stage.end(cancel);refresh();return;}
             if(cancel||blocked()){audio.updateTracks(project());refresh();return;}
             const c=controlTarget(g.element);if(c)mutate(p=>setParameter(p,{...c,id:g.id}),'mix');
         }
-        root.addEventListener('pointerdown',e=>{const c=controlTarget(e.target);if(c?.id&&!blocked())parameterGesture={element:e.target,id:c.id};},{signal});
-        root.addEventListener('keydown',e=>{if(e.key==='Escape'&&parameterGesture){e.preventDefault();finishParameter(true);return;}const c=controlTarget(e.target);if(c?.id&&!blocked()&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(e.key))parameterGesture||={element:e.target,id:c.id};},{signal});
+        root.addEventListener('pointerdown',e=>{const c=controlTarget(e.target);if(c?.id&&(!blocked()||stage?.active()&&['tone','reverb'].includes(c.key)))parameterGesture={element:e.target,id:c.id,staged:stage?.begin({...c,external:true})};},{signal});
+        root.addEventListener('keydown',e=>{if(e.key==='Escape'&&parameterGesture){e.preventDefault();finishParameter(true);return;}const c=controlTarget(e.target);if(c?.id&&(!blocked()||stage?.active()&&['tone','reverb'].includes(c.key))&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(e.key))parameterGesture||={element:e.target,id:c.id,staged:stage?.begin({...c,external:true})};},{signal});
         window.addEventListener('pointerup',()=>finishParameter(),{signal});
         window.addEventListener('keyup',e=>{if(parameterGesture&&e.target===parameterGesture.element)finishParameter();},{signal});
         window.addEventListener('pointercancel',()=>finishParameter(true),{signal});
@@ -110,22 +114,22 @@
             input.innerHTML='<option value="">'+esc(tr('midi_device'))+'</option>'+midi.inputs().map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join('');if([...input.options].some(o=>o.value===value))input.value=value;
             find('[data-midi-state]').textContent=tr(['connected','disconnected','unsupported','denied'].includes(midiState.status)?midiState.status:'disconnected');
         }
-        function position(tick){if(recording?.phase==='record'&&tick>=recording.start+recording.maxLength){const limited=recording.timelineLimited;stop();if(limited)fail({code:'E_PROJECT_LIMIT'});return;}cursor=Math.max(0,tick);editor.setPlayhead(cursor);find('[data-position]').textContent=String(Math.floor(cursor/BAR)+1).padStart(2,'0')+' : '+String(Math.floor(cursor%BAR/PPQ)+1).padStart(2,'0');}
-        async function play(at=cursor){
-            if(disposed||busy)return;composer?.stop();const epoch=++generation;try{await audio.unlock();if(disposed||epoch!==generation)return;playing=true;status();await audio.play({...project(),metronome},at,position,()=>{if(epoch===generation){if(recording)finishRecording();playing=false;status();}});}catch(error){playing=false;fail(error);status();}
+        function position(tick,meta){if(meta)stage?.onTick(tick,meta);if(recording?.phase==='record'&&tick>=recording.start+recording.maxLength){const limited=recording.timelineLimited;stop();if(limited)fail({code:'E_PROJECT_LIMIT'});return;}cursor=Math.max(0,tick);editor.setPlayhead(cursor);find('[data-position]').textContent=String(Math.floor(cursor/BAR)+1).padStart(2,'0')+' : '+String(Math.floor(cursor%BAR/PPQ)+1).padStart(2,'0');}
+        async function play(at=cursor,override,onStarted){
+            if(disposed||busy)return;composer?.stop();const epoch=++generation;try{await audio.unlock();if(disposed||epoch!==generation)return;playing=true;status();const running=audio.play({...(override||stage.runtime(project())),metronome},at,position,()=>{if(epoch===generation){if(recording)finishRecording();stage?.stop();playing=false;refresh();}});await Promise.resolve();if(epoch===generation&&audio.running())onStarted?.();await running;}catch(error){stage?.stop();playing=false;fail(error);refresh();}
         }
         function panic(){for(const [key,n] of [...live.entries()])noteOff(Number(key.split(':')[1]),performance.now(),n.channel);audio.panic?.();}
-        function stop(reset=false,keepPreview=false){generation++;if(!keepPreview)composer?.stop();const tick=audio.stop();if(recording)finishRecording();panic();playing=false;position(reset?0:tick||cursor);status();}
+        function stop(reset=false,keepPreview=false){generation++;if(!keepPreview)composer?.stop();stage?.stop();const tick=audio.stop();notice('');if(recording)finishRecording();panic();playing=false;position(reset?0:tick||cursor);refresh();}
         function seek(tick){const resume=playing;stop();position(tick);if(resume)play(tick);}
         async function audition(pitch=60,instrument){
-            const epoch=generation;try{await audio.unlock();if(disposed||epoch!==generation)return;const targetInst=instrument||selectedInstrument,presetParams=M.defaultParamsFor?.(targetInst)||{tone:.5,resonance:0,drive:0,attack:.01,release:.3,chorus:0,phaser:0,reverb:.1,delay:0};const t=track()||{id:'audition',instrument:targetInst,volume:.65,pan:0,params:presetParams};const release=audio.noteOn(instrument?{...t,id:'audition-'+instrument,instrument,params:presetParams}:t,pitch,.7);later(()=>release?.(),300);}catch(error){fail(error);}
+            if(stage?.active())return;const epoch=generation;try{await audio.unlock();if(disposed||epoch!==generation)return;const targetInst=instrument||selectedInstrument,presetParams=M.defaultParamsFor?.(targetInst)||{tone:.5,resonance:0,drive:0,attack:.01,release:.3,chorus:0,phaser:0,reverb:.1,delay:0};const t=track()||{id:'audition',instrument:targetInst,volume:.65,pan:0,params:presetParams};const release=audio.noteOn(instrument?{...t,id:'audition-'+instrument,instrument,params:presetParams}:t,pitch,.7);later(()=>release?.(),300);}catch(error){fail(error);}
         }
         function recordTick(time){const r=recording;if(!r||r.phase!=='record')return 0;return Math.min(r.start+r.maxLength,Math.max(r.start,audio.currentTick()+(time-performance.now()-latency)/1000*project().tempo/60*PPQ));}
         function stopForRecordingLimit(){if(!recording)return;stop();fail({code:'E_PROJECT_LIMIT'});}
         // Recorded event fields and IDs are ASCII, so JSON string length is its exact UTF-8 byte count.
         function eventBytes(value){return JSON.stringify(value).length;}
         async function noteOn(pitch,velocity=.8,time=performance.now(),channel=16){
-            const t=recording?project().tracks.find(t=>t.id===recording.trackId):track();if(!t||disposed)return;const epoch=generation,key=channel+':'+pitch;noteOff(pitch,time,channel);
+            if(stage?.active())return;const t=recording?project().tracks.find(t=>t.id===recording.trackId):track();if(!t||disposed)return;const epoch=generation,key=channel+':'+pitch;noteOff(pitch,time,channel);
             if(project().harmony.snap&&!M.isDrumInstrument?.(t.instrument)&&!t.instrument.includes('drum'))pitch=window.SynthStudioMusic.fit(pitch,project().harmony);
             if(composer?.enabled()){composer.hold(key,pitch,velocity);return;}
             const r=recording&&recording.phase==='record'?recording:null,start=r?recordTick(time):null;
@@ -206,8 +210,8 @@
         }
         async function replaceProject(p){stop();await storage.newDocument(p,{dirty:true});}
         async function exportFile(type){
-            if(busy||recording)return;busy=true;stop();status();notice(tr('export')+' '+type.toUpperCase()+'…');const snapshot=M.clone(project()),epoch=++generation;
-            try{const blob=type==='wav'?await window.SynthStudioAudio.renderWav(snapshot):new Blob([window.SynthStudioMIDI.exportFile(snapshot)],{type:'audio/midi'});if(disposed||epoch!==generation)return;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(snapshot.name.replace(/[<>:"/\\|?*]/g,'_')||'Synth Studio')+(type==='wav'?'.wav':'.mid');a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);notice(type==='midi'?tr('midi_export_hint'):'');}catch(error){fail(error);}finally{busy=false;status();}
+            if(busy||recording||stage.active())return;busy=true;stop();status();notice(tr('export')+' '+type.toUpperCase()+'…');const snapshot=M.clone(project()),epoch=++generation;snapshot.loop.enabled=false;
+            try{const blob=type==='wav'?await window.SynthStudioAudio.renderWav(snapshot):new Blob([window.SynthStudioMIDI.exportFile(snapshot)],{type:'audio/midi'});if(disposed||epoch!==generation)return;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(snapshot.name.replace(/[<>:"/\\|?*]/g,'_')||'Synth Studio')+(type==='wav'?'.wav':'.mid');a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);notice(type==='midi'?tr('midi_export_hint')+' '+tr('midi_automation_hint'):'');}catch(error){fail(error);}finally{busy=false;status();}
         }
         const actions={play:()=>playing?stop():play(),pause:()=>stop(),stop:()=>stop(true),record:startRecording,new:()=>replaceProject(M.create(tr('untitled'))),demo:()=>{const p=M.demo();p.tracks.forEach(t=>{const pat=M.patterns.find(x=>x.instrument===t.instrument);if(pat){t.name=patternName(pat);t.clips.forEach(c=>c.name=patternName(pat));}});return replaceProject(p);},open:()=>{stop();return storage.open();},save:()=>storage.save(false),saveAs:()=>storage.save(true),undo:()=>updatedHistory('undo'),redo:()=>updatedHistory('redo'),library:()=>{root.classList.remove('ss-inspector-open');root.classList.toggle('ss-library-open');},inspector:()=>{root.classList.remove('ss-library-open');root.classList.toggle('ss-inspector-open');},midi:()=>{find('[data-midi-panel]').hidden=!find('[data-midi-panel]').hidden;},connect:async()=>{await midi.connect();renderMIDI();},importMidi:()=>find('[data-midi-file]').click(),rename:async()=>{if(blocked())return;const value=await ctx.promptDialog?.(tr('name'),project().name);if(value?.trim())mutate(p=>{p.name=value.trim().slice(0,80);});},deleteTrack:async()=>{const t=track();if(!t||blocked())return;if(await ctx.confirmDialog?.(tr('delete_track'),tr('delete_track_confirm')))mutate(p=>{p.tracks=p.tracks.filter(x=>x.id!==t.id);});}};
 
@@ -259,10 +263,10 @@
         document.addEventListener('aurago:auth-ended',()=>dispose(id),{signal});
         window.addEventListener('beforeunload',e=>{if(storage.state.dirty){e.preventDefault();e.returnValue='';}},{signal});
         window.addEventListener('pagehide',()=>dispose(id),{signal});
-        const guard=async()=>{stop();return storage.guard();};
+        const guard=async()=>{stop();await stage?.guard();return storage.guard();};
         ctx.setWindowBeforeClose?.(id,guard);
         ctx.registerWindowCleanup?.(id,()=>dispose(id));
-        const instance={guard,dispose(){if(disposed)return;disposed=true;generation++;audio.stop();composer?.stop();panic();timers.forEach(clearTimeout);timers.clear();life.abort();midi.dispose();audio.dispose();storage.dispose();editor.dispose();},project:()=>M.clone(project()),editor,storage};
+        const instance={guard,dispose(){if(disposed)return;stage?.stop();disposed=true;generation++;audio.stop();composer?.stop();panic();timers.forEach(clearTimeout);timers.clear();life.abort();midi.dispose();audio.dispose();storage.dispose();editor.dispose();},project:()=>M.clone(project()),editor,storage,stage,audio};
         instances.set(id,instance);renderLibrary();refresh();
         Promise.resolve(storage.ready).catch(fail).finally(()=>{if(!disposed){ready=true;refresh();}});
         return instance;

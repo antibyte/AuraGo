@@ -132,7 +132,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - `synth-studio-workspace.js` owns workbench tabs, resizing, templates and local
   view preferences. Parameter gestures update existing audio buses and commit one
   undo step; cancellation restores the initial value. Structural edits wait for
-  the next unscheduled bar without restarting transport. Verify scheduler tests
+  the next bar without restarting transport; cancel obsolete reserved voices even
+  inside look-ahead. Stop/deadline takes priority over queued changes. Verify scheduler tests
   and responsive browser flows when changing these contracts.
 - `synth-studio-music.js` owns deterministic scale/chord/arp/variation/rhythm
   transforms; `synth-studio-compose.js` owns preview/apply and held live inputs.
@@ -140,6 +141,17 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   Format v2 stores harmony, bar-range scenes and track automation; all automation
   counts toward the event/byte limits. v1 validation preserves v1. Upgrade in
   memory and require a create-only v2 copy before enabling autosave.
+- `synth-studio-performance.js` owns pure scene expansion, sustain-to-duration
+  conversion, automation reduction and take limits. `synth-studio-stage.js` owns
+  scene pads, XY/manual override, point editing and temporary take recovery.
+  Takes preserve their source and become distinct unsaved projects. Bound them by
+  64 bars and the same renderer/project budgets before scheduling; keep captured
+  material on stop or failure. Store drafts through OfficeSession with conditional
+  removal, and start recovery only after initial project loading completes.
+- Tone/reverb automation uses arrangement ticks, native AudioParam smoothing and
+  at most 20 capture samples/second plus gesture endpoints. Manual input suppresses
+  that parameter's automation until release. Scene changes release held/sustained
+  notes, chase controllers and retain effect tails; Stop cancels future actions.
 - Model validation owns project trust boundaries. Notes/controllers use clip-local
   ticks; clips use arrangement ticks. Live playback and offline WAV rendering
   share the native Web Audio implementation. Never schedule musical timing from

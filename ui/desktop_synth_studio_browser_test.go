@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/go-rod/rod/lib/proto"
 )
 
 func TestDesktopSynthStudioBrowser(t *testing.T) {
@@ -18,7 +20,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	html = regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(html, "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
 	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/desktop-app-synth-studio.css"><style>body{margin:0}.vd-shell{height:100vh}</style></head>`, 1)
-	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
+	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio-performance.js", "/js/desktop/apps/synth-studio-stage.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
 	var tags strings.Builder
 	for _, path := range scripts {
 		fmt.Fprintf(&tags, `<script src="%s"></script>`, path)
@@ -43,7 +45,10 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 	page := newSmokeBrowser(t).MustPage().Timeout(120 * time.Second)
-	defer page.Close()
+	defer func() {
+		_, _ = page.Eval(`()=>{for(const id of [...SynthStudioApp.instances.keys()])SynthStudioApp.dispose(id)}`)
+		_ = page.Close()
+	}()
 	page.MustSetViewport(1440, 1000, 1, false)
 	page.MustNavigate(srv.URL + "/fixture").MustWaitLoad()
 	page.MustEval(`async()=>{await synthFixtureReady;await synthInstance().storage.ready;}`)
@@ -90,6 +95,17 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("generator produces editable notes", `()=>synthInstance().project().tracks[1].clips[0].notes.length===8`)
 	page.MustElement("[data-action=undo]").MustClick()
 	check("generator is one undo step", `()=>JSON.stringify(synthInstance().project())===generatorOriginal`)
+	check("rapid chord changes cancel pending audition", `async()=>{
+        const audio=synthInstance().audio,unlock=audio.unlock,noteOn=audio.noteOn,resolvers=[];let sounding=0;
+        audio.unlock=()=>new Promise(r=>resolvers.push(r));audio.noteOn=()=>{sounding++;return()=>sounding--;};
+        const pads=document.querySelectorAll('[data-chord]');
+        try{
+            pads[0].dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+            pads[1].dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+            for(const resolve of resolvers)resolve();await Promise.resolve();await Promise.resolve();
+            const chordOnly=sounding===3;pads[1].dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',bubbles:true}));return chordOnly&&sounding===0;
+        }finally{audio.unlock=unlock;audio.noteOn=noteOn;}
+    }`)
 	page.MustEval(`()=>{const p=synthInstance().project(),t=p.tracks[0];synthInstance().editor.select(t.id,t.clips[0].id);}`)
 	before := page.MustEval(`()=>synthInstance().project().tracks.length`).Int()
 	page.MustElement("[data-category=leads]").MustClick()
@@ -123,10 +139,66 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("keyboard recording commits timed notes", `()=>{const n=synthInstance().project().tracks.at(-1).clips.at(-1).notes;return n.length===1&&n[0].pitch===60&&n[0].duration>=120&&n[0].duration<1920;}`)
 	page.MustEval(`async()=>{await synthInstance().storage.save();}`)
 
+	page.MustElement("[data-work-tab=performance]").MustClick()
+	page.MustEval(`()=>{const set=(s,v)=>{const e=document.querySelector(s);e.value=v;e.dispatchEvent(new Event('change',{bubbles:true}));};set('[data-tempo]',240);set('[data-loop-start]',1);set('[data-loop-end]',2);}`)
+	page.MustElement("[data-stage=sceneCreate]").MustClick()
+	waitForJSBool(t, page, `()=>synthInstance().project().scenes.length===1`)
+	page.MustEval(`()=>{const set=(s,v)=>{const e=document.querySelector(s);e.value=v;e.dispatchEvent(new Event('change',{bubbles:true}));};set('[data-loop-end]',3);set('[data-loop-start]',2);}`)
+	page.MustElement("[data-stage=sceneCreate]").MustClick()
+	waitForJSBool(t, page, `()=>synthInstance().project().scenes.length===2`)
+	page.MustElement("[data-scene]").MustClick()
+	waitForJSBool(t, page, `()=>document.querySelectorAll('.ss-scene-pads .active').length===1`)
+	waitForJSBool(t, page, `()=>synthInstance().audio.elapsed()>.1`)
+	page.MustEval(`()=>{document.querySelectorAll('[data-scene]')[1].click();document.querySelectorAll('[data-scene]')[0].click();}`)
+	check("latest scene is visibly queued", `()=>document.querySelector('[data-scene]').classList.contains('queued')`)
+	waitForJSBool(t, page, `()=>!synthInstance().audio.pendingChange()`)
+	check("latest scene becomes active", `()=>document.querySelector('[data-scene]').classList.contains('active')`)
+	page.MustElement("[data-action=stop]").MustClick()
+	check("stop clears queued scenes", `()=>!document.querySelector('.ss-scene-pads .queued')&&!document.querySelector('.ss-scene-pads .active')`)
+	page.MustEval(`()=>{const t=synthInstance().project().tracks[1];synthInstance().editor.select(t.id,t.clips[0].id);window.beforeTake=JSON.stringify(synthInstance().project());window.sourcePath=synthInstance().storage.state.path;}`)
+	page.MustElement("[data-stage=takeRecord]").MustClick()
+	waitForJSBool(t, page, `()=>synthInstance().stage.active()&&synthInstance().audio.running()`)
+	page.MustEval(`async()=>{const e=document.querySelector('[data-macro=tone]');e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0}));e.value=.2;e.dispatchEvent(new Event('input',{bubbles:true}));await new Promise(r=>setTimeout(r,100));e.value=.8;e.dispatchEvent(new Event('input',{bubbles:true}));window.dispatchEvent(new PointerEvent('pointerup'));}`)
+	page.MustEval(`()=>document.querySelectorAll('[data-scene]')[0].click()`)
+	waitForJSBool(t, page, `()=>!synthInstance().audio.pendingChange()`)
+	page.MustElement("[data-stage=takeStop]").MustClick()
+	page.MustEval(`async()=>await synthInstance().stage.guard()`)
+	check("stopping a take restores editing", `()=>!document.querySelector('[data-tempo]').disabled&&!document.querySelector('[data-compose=generate]').disabled`)
+	check("take preserves original and records automation", `()=>{const p=synthInstance().stage.readyTake();return JSON.stringify(synthInstance().project())===beforeTake&&p&&!p.loop.enabled&&p.tracks[1].automation.some(v=>v.parameter==='tone'&&v.value===.8);}`)
+	page.MustEval(`async()=>{
+        const p=synthInstance().stage.readyTake(),key=location.origin+':synth-studio:take:recovery-test';
+        await OfficeSession.draft('put',key,{id:'recovery-take',content:JSON.stringify(p)},'synth-studio');
+        window.recoveryHost=document.createElement('div');document.body.append(recoveryHost);window.recoveryLife=new AbortController();
+        let ready;const loaded=new Promise(r=>ready=r);
+        window.recoveredStage=SynthStudioStage.create(recoveryHost,{tr:k=>k,esc:s=>s,signal:recoveryLife.signal,audio:{meter:()=>0},project:()=>SynthStudioModel.create('Source'),track:()=>null,editable:()=>true,canPlay:()=>true,playing:()=>false,cursor:()=>0,whenReady:()=>loaded,confirm:async()=>true,sessionKey:'recovery-test',transport:recoveryHost,fail:e=>fixtureErrors.push(String(e))});
+        recoveredStage.stop();ready();
+    }`)
+	waitForJSBool(t, page, `()=>!!recoveredStage.readyTake()`)
+	check("take recovery waits for project loading", `()=>recoveredStage.readyTake().tracks.length===synthInstance().stage.readyTake().tracks.length`)
+	page.MustEval(`()=>{recoveryLife.abort();recoveryHost.remove();}`)
+	page.MustElement("[data-stage=takeAdopt]").MustClick()
+	waitForJSBool(t, page, `()=>!synthInstance().stage.readyTake()`)
+	check("take becomes a distinct unsaved project", `()=>synthInstance().storage.state.path===''&&synthInstance().storage.state.dirty&&synthInstance().project().scenes.length===0&&JSON.stringify(JSON.parse(synthFiles.get(sourcePath).content))===beforeTake`)
+	page.MustEval(`()=>{const t=synthInstance().project().tracks[1];synthInstance().editor.select(t.id,t.clips[0].id);window.beforePointEdit=JSON.stringify(synthInstance().project());document.querySelector('.ss-automation-editor').open=true;const e=document.querySelector('[data-automation-value]');e.value='.33';document.querySelector('[data-stage=automationApply]').click();}`)
+	check("take automation remains editable", `()=>synthInstance().project().tracks[1].automation.find(p=>p.parameter==='tone').value===.33`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("automation edit is one undo step", `()=>JSON.stringify(synthInstance().project())===beforePointEdit`)
+	if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "reduce"}}}).Call(page); err != nil {
+		t.Fatal(err)
+	}
 	for _, theme := range []string{"standard", "fruity"} {
 		for _, mode := range []string{"dark", "light"} {
 			for _, width := range []int{1280, 760, 420} {
 				page.MustEval(`(theme,mode,width)=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode=mode;document.body.dataset.mode=mode;document.body.dataset.scheme=mode;const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width=width+'px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`, theme, mode, width)
+				page.MustElement("[data-work-tab=notes]").MustClick()
+				page.MustElement(".ss-clip").MustClick()
+				page.MustElement("[data-tool=select]").MustClick()
+				page.MustEval(`()=>{const editor=document.querySelector('[data-note-editor]');window.beforeNoteEdit=JSON.stringify(synthInstance().project());editor.dispatchEvent(new KeyboardEvent('keydown',{key:'a',ctrlKey:true,bubbles:true}));document.querySelector('[data-copy-notes]').click();}`)
+				page.MustElement("[data-paste-notes]").MustClick()
+				check("copy/paste remains usable at this width", `()=>JSON.stringify(synthInstance().project())!==beforeNoteEdit`)
+				page.MustElement("[data-action=undo]").MustClick()
+				check("note edit restores the whole project", `()=>JSON.stringify(synthInstance().project())===beforeNoteEdit`)
+				page.MustElement("[data-work-tab=performance]").MustClick()
 				t.Log(theme, mode, width, page.MustEval(`()=>{const a=document.querySelector('.ss-app'),r=a.getBoundingClientRect(),f=document.querySelector('.ss-footer').getBoundingClientRect();return JSON.stringify({width:a.clientWidth,scrollWidth:a.scrollWidth,bottom:r.bottom,footerBottom:f.bottom,arrange:document.querySelector('.ss-arrangement').clientHeight})}`).Str())
 				if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
 					if err := os.MkdirAll(dir, 0755); err != nil {
@@ -137,9 +209,49 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 					}
 				}
 				check("responsive bounds", `()=>{const a=document.querySelector('.ss-app'),r=a.getBoundingClientRect(),f=document.querySelector('.ss-footer').getBoundingClientRect();return a.scrollWidth<=a.clientWidth+1 && f.bottom<=r.bottom+1 && document.querySelector('.ss-arrangement').clientHeight>=100;}`)
+				check("performance pads have touch targets", `()=>[...document.querySelectorAll('.ss-scene-pads button,.ss-chord-pads button')].every(e=>{const r=e.getBoundingClientRect();return r.width>=44&&r.height>=44})`)
 			}
 		}
 	}
+	page.MustEval(`()=>{const t=synthInstance().project().tracks[1];synthInstance().editor.select(t.id,t.clips[0].id);window.beforeTouch=JSON.stringify(synthInstance().project());document.querySelector('[data-xy]').scrollIntoView({block:'center'});}`)
+	if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: true}).Call(page); err != nil {
+		t.Fatal(err)
+	}
+	xy := page.MustEval(`()=>{const r=document.querySelector('[data-xy]').getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}}`)
+	touch := func(kind proto.InputDispatchTouchEventType, x, y float64) {
+		t.Helper()
+		points := []*proto.InputTouchPoint{}
+		if kind != proto.InputDispatchTouchEventTypeTouchEnd && kind != proto.InputDispatchTouchEventTypeTouchCancel {
+			points = append(points, &proto.InputTouchPoint{X: x, Y: y})
+		}
+		if err := (proto.InputDispatchTouchEvent{Type: kind, TouchPoints: points}).Call(page); err != nil {
+			t.Fatal(err)
+		}
+	}
+	touch(proto.InputDispatchTouchEventTypeTouchStart, xy.Get("x").Num()+xy.Get("w").Num()*.25, xy.Get("y").Num()+xy.Get("h").Num()*.75)
+	touch(proto.InputDispatchTouchEventTypeTouchMove, xy.Get("x").Num()+xy.Get("w").Num()*.75, xy.Get("y").Num()+xy.Get("h").Num()*.25)
+	touch(proto.InputDispatchTouchEventTypeTouchEnd, 0, 0)
+	check("touch XY commits both parameters", `()=>{const p=synthInstance().project().tracks[1].params;return Math.abs(p.tone-.75)<.02&&Math.abs(p.reverb-.75)<.02}`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("one undo restores XY gesture", `()=>JSON.stringify(synthInstance().project())===beforeTouch`)
+	check("XY marker follows restored sound", `()=>Math.abs(parseFloat(document.querySelector('.ss-xy-dot').style.left)/100-synthInstance().project().tracks[1].params.tone)<.001`)
+	page.MustEval(`()=>{document.querySelector('[data-xy]').scrollIntoView({block:'center'});}`)
+	xy = page.MustEval(`()=>{const r=document.querySelector('[data-xy]').getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}}`)
+	touch(proto.InputDispatchTouchEventTypeTouchStart, xy.Get("x").Num()+xy.Get("w").Num()*.2, xy.Get("y").Num()+xy.Get("h").Num()*.2)
+	touch(proto.InputDispatchTouchEventTypeTouchCancel, 0, 0)
+	check("touch cancellation preserves project", `()=>JSON.stringify(synthInstance().project())===beforeTouch`)
+	page.MustElement("[data-macro=tone]").MustFocus()
+	for _, kind := range []proto.InputDispatchKeyEventType{proto.InputDispatchKeyEventTypeKeyDown, proto.InputDispatchKeyEventTypeKeyDown, proto.InputDispatchKeyEventTypeKeyUp} {
+		if err := (proto.InputDispatchKeyEvent{Type: kind, Key: "ArrowRight", Code: "ArrowRight", WindowsVirtualKeyCode: 39}).Call(page); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check("keyboard slider changes sound", `()=>JSON.stringify(synthInstance().project())!==beforeTouch`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("one undo restores held keyboard gesture", `()=>JSON.stringify(synthInstance().project())===beforeTouch`)
+	page.MustEval(`()=>{const root=document.querySelector('.ss-app');root.classList.add('ss-library-collapsed');root.classList.remove('ss-library-open');document.querySelector('[data-action=library]').click();}`)
+	check("compact library opens after desktop collapse", `()=>getComputedStyle(document.querySelector('.ss-library')).display!=='none'`)
+	check("reduced motion respected", `()=>matchMedia('(prefers-reduced-motion: reduce)').matches&&getComputedStyle(document.querySelector('.ss-xy-dot')).animationName==='none'`)
 	page.MustEval(`()=>document.dispatchEvent(new CustomEvent('aurago:desktop-policy',{detail:{readonly:true}}))`)
 	check("live readonly revocation", `()=>document.querySelector('[data-action=record]').disabled && document.querySelector('[data-action=save]').disabled`)
 	page.MustEval(`()=>document.dispatchEvent(new CustomEvent('aurago:auth-ended'))`)

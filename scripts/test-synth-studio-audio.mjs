@@ -59,7 +59,20 @@ assert.equal(contexts[1].nodes[0].gain.value, 0, 'pre-unlock volume zero mutes t
 mutedSynth.setVolume(0.4);
 assert.ok(Math.abs(contexts[1].nodes[0].gain.value - 0.312) < 1e-9, 'volume changes ramp the existing master gain');
 assert.equal(contexts[1].nodes[0].gain.events.at(-1)[0], 'target');
+const mixTrack={id:'large-timeline',params:{tone:.4},get clips(){throw Error('Mixer must not read timeline events');}};
+mutedSynth.updateTracks({tempo:120,ppq:480,tracks:[mixTrack]});
 mutedSynth.dispose();
+
+const stopped=[],detune=new FakeParam(),voice={sources:[{stop:at=>stopped.push(at),detune}],envelopes:[],releaseSeconds:.3,startTime:0,endTime:Infinity};
+audioSandbox.SynthStudioVoices.releaseVoice(voice,4);
+audioSandbox.SynthStudioVoices.releaseVoice(voice,2);
+assert.equal(voice.releaseAt,2,'a scene can shorten an already scheduled note release');
+assert.ok(stopped.at(-1)<2.35,'native source stop is moved to the earlier scene boundary');
+audioSandbox.SynthStudioVoices.releaseVoice(voice,3);
+assert.equal(voice.releaseAt,2,'a later note-off cannot extend the released voice');
+const releasedState=audioSandbox.SynthStudioVoices.makeTrackState();releasedState.voices.add(voice);
+audioSandbox.SynthStudioVoices.applyController({},releasedState,null,{},'bend',1,2.1);
+assert.equal(detune.events.length,0,'a new scene does not bend a previous release tail');
 
 await import('./test-synth-studio-voices-presets.mjs');
 await import('./test-synth-studio-scheduler.mjs');

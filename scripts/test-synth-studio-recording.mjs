@@ -87,7 +87,7 @@ function harness(initial) {
         M, BAR, PPQ, MAX_TICK, MAX_EVENTS, MAX_CLIPS, MAX_PROJECT_BYTES, RECORDING_TICKS, TextEncoder,
         currentProject: project, recording: null, playing: false, cursor: 0, disposed: false, generation: 0,
         ready: true, busy: false, selectedInstrument: 'gm-0', countIn: false, quantize: 120, latency: 0, metronome: false,
-        composer: null, storageState: {}, live: new Map(), errors: [], playCalls: 0,
+        composer: null, stage: null, notice(){}, storageState: {}, live: new Map(), errors: [], playCalls: 0,
         performance: globalThis.performance,
         project() { return this.currentProject; },
         track() { return this.currentProject.tracks.find(t => t.id === selection); },

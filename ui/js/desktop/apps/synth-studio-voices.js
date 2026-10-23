@@ -422,6 +422,19 @@
     if (bus.feedback) set(bus.feedback.gain, 0.24 + clamp(p.delay, 0, 1, 0) * 0.18);
   }
 
+  function updateTrackParameter(bus,track,parameter,value,at,cancel=false) {
+    const now=at??bus.input.context.currentTime;
+    const set=(param,v)=>{
+      if(cancel) { if(param.cancelAndHoldAtTime)param.cancelAndHoldAtTime(now);else param.cancelScheduledValues(now); }
+      param.setTargetAtTime(v,now,.015);
+    };
+    if(parameter==='reverb'){set(bus.reverbGain.gain,value*.36*track.volume);return;}
+    const cutoff=root.SynthStudioPresets?.get(track.instrument)?.patch?.cutoff;
+    const tone=Number.isFinite(cutoff)?value*.65+cutoff*.35:value;
+    set(bus.filter.frequency,240+tone*18500);
+    set(bus.filter.Q,.7+tone*.8+Math.pow(clamp(track.params.resonance,0,1,0),1.35)*11.5);
+  }
+
   const CUSTOM_HARMONICS = {
     w9999: [0, 1, 0.48, 0.32, 0.22, 0.14, 0.09, 0.05, 0.08],
     supersaw: [0, 1, 0.62, 0.44, 0.33, 0.26, 0.21, 0.17, 0.14, 0.11, 0.09, 0.07, 0.05],
@@ -578,8 +591,9 @@
   }
 
   function releaseVoice(voice, at, tailOverride) {
-    if (!voice || voice.releaseRequested || voice.disposed) return;
+    if (!voice || voice.disposed || (voice.releaseRequested && (voice.releaseAt ?? -Infinity) <= at)) return;
     voice.releaseRequested = true;
+    voice.releaseAt = at;
     const tail = tailOverride === undefined ? voice.releaseSeconds : clamp(tailOverride, 0, 30, voice.releaseSeconds);
     for (const envelope of voice.envelopes) {
       const age = Math.max(0, at - voice.startTime);
@@ -622,24 +636,25 @@
     if (type === "bend") {
       state.bend = clamp(value, -1, 1, 0);
       for (const voice of voiceSet) for (const source of voice.sources) {
-        if (source.detune && voice.endTime > at) source.detune.setValueAtTime(state.bend * 200, Math.max(at, voice.startTime));
+        if (source.detune && voice.endTime > at && !(voice.releaseRequested && voice.releaseAt <= at)) source.detune.setValueAtTime(state.bend * 200, Math.max(at, voice.startTime));
       }
       return;
     }
     if (type === "modulation") {
       state.mod = clamp(value, 0, 1, 0);
       for (const voice of voiceSet) {
-        if (voice.endTime <= at) continue;
+        if (voice.endTime <= at || (voice.releaseRequested && voice.releaseAt <= at)) continue;
         attachVibrato(context, voice, state.mod, Math.max(at, voice.startTime));
       }
     }
   }
 
   function releaseTrackState(context, state, track, at) {
-    applyController(context, state, null, track, "sustain", 0, at);
-    applyController(context, state, null, track, "bend", 0, at);
-    applyController(context, state, null, track, "modulation", 0, at);
-    for (const voice of state.voices) releaseVoice(voice, at);
+    for (const voice of state.voices) {
+      for(const source of voice.sources)source.detune?.cancelScheduledValues(at);
+      releaseVoice(voice, at);
+    }
+    state.sustain=false;state.bend=0;state.mod=0;
     state.pending.length = 0;
   }
 
@@ -657,6 +672,7 @@
     makeMix,
     createTrackBus,
     updateTrackBus,
+    updateTrackParameter,
     scheduleMetronome,
     createVoice,
     disposeVoice,

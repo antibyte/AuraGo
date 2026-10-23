@@ -72,6 +72,16 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
  check(held.rms(0.2,0.42)>0.01,'held note remains audible before note-off');
  check(held.rms(1.2,1.4)<0.001,'released note fades to silence');
 
+ const movement=makeProject('lead-saw',[{id:'moving',pitch:84,start:0,duration:1920,velocity:.8}]);
+ movement.tracks[0].params.tone=0;
+ const still=await readPCM(await SynthStudioAudio.renderWav(movement));
+ movement.tracks[0].automation=[{tick:960,parameter:'tone',value:1},{tick:1440,parameter:'reverb',value:.6}];
+ const moving=await readPCM(await SynthStudioAudio.renderWav(movement));
+ check(Math.abs(still.rms(.2,.8)-moving.rms(.2,.8))<.001,'automation leaves earlier PCM unchanged');
+ let movementDifference=0;for(let i=44100*2;i<44100*3;i++)movementDifference+=Math.abs(still.samples[i]-moving.samples[i]);
+ check(movementDifference>10000,'WAV contains scheduled sound movement');
+ check(SynthStudioAudio.prepareRender(movement).selected.filter(e=>e.type==='automation').length===2,'offline and live share automation event preparation');
+
  const sustained=makeProject('lead-saw',[{id:'sustain',pitch:60,start:0,duration:48,velocity:0.9}]);
  sustained.tracks[0].clips[0].length=240;
  sustained.tracks[0].clips[0].controllers=[{tick:0,type:'sustain',value:1}];
