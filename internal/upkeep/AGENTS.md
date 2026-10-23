@@ -28,6 +28,9 @@ The updater owns transaction manifests; this package verifies them before collec
   diagnostics; `--summary` must preserve failure exit codes and visible errors.
   Older rollback binaries without `--summary` get a generic success line.
 - Source builds with Go do not resolve or download GitHub Release artifacts.
+  Reject missing/invalid current-binary resource pins before shutdown and explain that
+  recovery requires rebuilding with generated asset flags and `--check-assets`;
+  packaging alone cannot repair an unpinned executable. Never guess an asset set.
   Release installs pin the tag and checksum manifest before shutdown and reuse
   that pair throughout the update. Retry transient downloads at most three
   times; retain mandatory checksums and optional/strict signature policy.

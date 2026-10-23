@@ -132,6 +132,17 @@ update artifacts automatically. Explicit release/rollback pins stay protected.
 See [update retention](update-retention.md) for previews, legacy adoption and
 recovery of interrupted updates.
 
+If the updater reports `Cannot identify current web assets`, inspect
+`bin/aurago_linux --assets-info` (or the executable selected by your installation).
+An empty `asset_set_id` means the executable has no resource pin. The updater
+stops before shutdown or file replacement because it cannot verify a rollback
+resource set. Use the build commands above to generate matching resources and
+rebuild the executable with their exact flags, or restore a previously verified
+executable and its matching set. Verify the replacement with `--check-assets`
+before installing it, then restart and retry the update. Packaging alone,
+reusing stale `deploy/web-assets.ldflags`, or selecting an installed directory
+by date cannot repair the executable's missing pin.
+
 `node scripts/check-web-assets.mjs <stripped-binary>...` enforces a
 130 MB (130,000,000 bytes) executable ceiling, a 10 MB first-party embed budget and a 1 MB bootstrap
 limit. The packaging CI checks Windows and Linux. Production assets are never
