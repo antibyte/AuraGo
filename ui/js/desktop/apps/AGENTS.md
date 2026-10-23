@@ -3364,6 +3364,14 @@ registration lives in `internal/desktop/types.go`.
   1099 px and 719 px app-width breakpoints and `container-name: mailer-compose`
   for the composer. Viewport media queries are forbidden. The reader is an
   overlay pane below 719 px, and the list panel stays the flex child.
+- The reader hands the whole pane to the message body. `.vd-mailer-reader` is a
+  flex column, the message stack and the message grow into the free height, and
+  the mail frame is an absolutely positioned iframe inside a relative wrap, so
+  the body fills the column instead of floating in a fixed 210px strip. The
+  reader itself only scrolls when the subject header, the sender rows and the
+  footer need more room than the pane; a long mail scrolls inside its frame.
+  The automation report (`.vd-mailer-rule-runs`) is capped and scrolls inside
+  its own box, so it can never squeeze the mail body out of the reader.
 - Mailer surfaces use the shared desktop app conventions: focus-visible rings,
   styled thin scrollbars, 140 ms hover feedback, `prefers-reduced-motion`
   fallbacks, sender avatars with a stable tone per name, and an unread marker on

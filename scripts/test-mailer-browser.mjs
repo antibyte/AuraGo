@@ -108,6 +108,22 @@ try {
         assert.equal((await page.locator('.vd-mailer-thread-line b').first().textContent()).trim(),'Alice Example','the row label must name the sender');
         await page.locator('[data-thread-id]').first().focus(); await page.keyboard.press('Enter');
         await page.locator('[data-reader] iframe').first().waitFor({state:'visible'});
+        const readerFill=await page.evaluate(()=>{
+            const reader=document.querySelector('[data-reader]');
+            const head=reader.querySelector('.vd-mailer-reader-head');
+            const message=reader.querySelector('.vd-mailer-message');
+            const body=reader.querySelector('.vd-mailer-message-body');
+            const readerStyle=getComputedStyle(reader), messageStyle=getComputedStyle(message);
+            const outer=el=>{const cs=getComputedStyle(el);return el.getBoundingClientRect().height+parseFloat(cs.marginTop)+parseFloat(cs.marginBottom);};
+            const siblings=[...message.children].filter(child=>child!==body);
+            const free=message.getBoundingClientRect().height-parseFloat(messageStyle.paddingTop)-parseFloat(messageStyle.paddingBottom)-siblings.reduce((sum,child)=>sum+outer(child),0);
+            return {readerContent:reader.clientHeight-parseFloat(readerStyle.paddingTop)-parseFloat(readerStyle.paddingBottom),
+                head:head.getBoundingClientRect().height, message:message.getBoundingClientRect().height, free,
+                body:body.getBoundingClientRect().height, below:reader.getBoundingClientRect().bottom-message.getBoundingClientRect().bottom};
+        });
+        assert(readerFill.message>=readerFill.readerContent-readerFill.head-4,'the message must fill the reader column instead of leaving dead space, got '+JSON.stringify(readerFill));
+        assert(readerFill.body>=readerFill.free-4,'the mail body must take the free height of the message, got '+JSON.stringify(readerFill));
+        assert(readerFill.below<=40,'the reader must not leave dead space below the message, got '+JSON.stringify(readerFill));
         const readerActions=await page.locator('.vd-mailer-reader-actions [data-reader-action]').count();
         assert(readerActions>=6,'the reader must offer its response and file actions');
         assert.equal(await page.locator('.vd-mailer-reader-actions [data-reader-action] svg.vd-mailer-icon').count(),readerActions,'every reader action must carry its icon');

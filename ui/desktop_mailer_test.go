@@ -145,6 +145,10 @@ func TestDesktopMailerResponsiveAndReaderContracts(t *testing.T) {
 		".vd-mailer-reader-action-group + .vd-mailer-reader-action-group {",
 		".vd-mailer-reader-action--icon {",
 		".vd-mailer-participant-chip {",
+		".vd-mailer-reader { display: flex; flex-direction: column;",
+		".vd-mailer-message-stack { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }",
+		".vd-mailer-message-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 210px;",
+		".vd-mailer-html-wrap iframe { position: absolute; inset: 0;",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("desktop Mailer styles are missing responsive/theme marker %q", marker)
