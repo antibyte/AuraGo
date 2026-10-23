@@ -552,6 +552,7 @@ func TestCompleteReturnsPersistenceErrors(t *testing.T) {
 		t.Fatal("complete hid a persistence error")
 	}
 }
+
 // A revoked permission must not start a queued case, and the case must start once the
 // rights return instead of failing in the meantime (audit 4.5).
 func TestQueuedCaseWaitsForPermission(t *testing.T) {
