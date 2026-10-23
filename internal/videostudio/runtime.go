@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	"aurago/internal/mediabins"
 )
 
 const commandOutputLimit = 4 << 20
@@ -107,34 +108,17 @@ func hasRequiredRenderFilters(output string) bool {
 	return true
 }
 
+// resolveBinary resolves an external converter binary. The shared policy lives
+// in internal/mediabins: a configured path must be an existing regular file,
+// and a configured bare name is looked up on PATH.
 func resolveBinary(configuredPath, name string) (string, error) {
-	configuredPath = strings.TrimSpace(configuredPath)
-	if configuredPath != "" {
-		if filepath.IsAbs(configuredPath) || strings.ContainsAny(configuredPath, `/\`) {
-			resolved, err := filepath.Abs(configuredPath)
-			if err != nil {
-				return "", fmt.Errorf("resolve %s path: %w", name, err)
-			}
-			info, err := os.Stat(resolved)
-			if err != nil || !info.Mode().IsRegular() {
-				return "", fmt.Errorf("%s binary %q is unavailable", name, configuredPath)
-			}
-			return resolved, nil
-		}
-		resolved, err := exec.LookPath(configuredPath)
-		if err != nil {
-			return "", fmt.Errorf("%s binary %q was not found", name, configuredPath)
-		}
-		return resolved, nil
-	}
+	candidates := []string{name}
 	if runtime.GOOS == "windows" {
-		if resolved, err := exec.LookPath(name + ".exe"); err == nil {
-			return resolved, nil
-		}
+		candidates = []string{name + ".exe", name}
 	}
-	resolved, err := exec.LookPath(name)
+	resolved, err := mediabins.Resolve(configuredPath, candidates)
 	if err != nil {
-		return "", fmt.Errorf("%s binary was not found on PATH", name)
+		return "", fmt.Errorf("%s %w", name, err)
 	}
 	return resolved, nil
 }
@@ -165,24 +149,11 @@ func resolveProbeFromConfiguredPath(path string) (string, error) {
 	return resolveProbeBinary(ffmpeg)
 }
 
+// runSmallCommand runs a converter with a bounded output buffer. The shared
+// policy lives in internal/mediabins: stdout and stderr stay apart, the output
+// is capped, and a cancelled or expired context stays matchable with errors.Is.
 func runSmallCommand(ctx context.Context, path string, args []string, limit int) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, path, args...)
-	var stdout, stderr cappedBuffer
-	stdout.limit = limit
-	stderr.limit = limit
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		if ctx.Err() != nil {
-			return stdout.Bytes(), ctx.Err()
-		}
-		message := strings.TrimSpace(stderr.String())
-		if message == "" {
-			message = strings.TrimSpace(stdout.String())
-		}
-		return stdout.Bytes(), fmt.Errorf("%w: %s", err, message)
-	}
-	return stdout.Bytes(), nil
+	return mediabins.Run(ctx, path, args, limit)
 }
 
 func firstLine(value string) string {

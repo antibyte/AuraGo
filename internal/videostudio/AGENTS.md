@@ -163,6 +163,12 @@ The 2f export benchmark `TestEffectsExportBenchmarkOptIn` is described in the 2f
   fade-through-black curve measured from FFmpeg. The curve is not linear: `out = (1−p)·(1−S(p; 0, 0.2))`,
   `inc = p·S(p; 0, 0.8)`, `black = 1−out−inc`, with S the smoothstep (darkest near p ≈ 0.2); FFmpeg 5.1.9 matches within
   1/255, 8.1.1 within 2/255. `testdata/parity/transitions.json` shares the numbers with JS and the GL shader.
+- Binary discovery and converter execution live in `internal/mediabins` (`../mediabins/AGENTS.md`):
+  `resolveBinary` and `runSmallCommand` are thin wrappers over it, so a configured converter path
+  must be an existing regular file, the Windows system `convert.exe` is never treated as
+  ImageMagick, the converter output stays capped per stream, and a cancelled or expired context
+  remains matchable with `errors.Is`. The local `cappedBuffer` stays for the staged-graph runner
+  that writes into its own pipes.
 - Capabilities (`capabilities.go`): `ProbeCapabilities` runs `-filters` and `-h filter=xfade` once per binary
   (memoized by resolved path, size and modification time) and lists `filter:<name>` / `xfade:<name>` gaps for the
   phase 2 filters and the registry transitions. `CheckRuntime` fills `RuntimeStatus.Missing`; `renderOnce` fails at
