@@ -533,6 +533,7 @@ func isAdminProtectedPath(path string) bool {
 		"/api/backup/create",
 		"/api/backup/import",
 		"/api/debug/kg-file-sync-cleanup",
+		"/api/media-conversion/test",
 		"/api/proxy/destroy",
 		"/api/vault":
 		return true
