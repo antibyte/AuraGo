@@ -30,8 +30,10 @@ provider/spending limits still apply.
   available findings produce a clearly marked partial revision. An automatic
   update keeps the last published report and archives its intermediate findings.
   Stop stays available when Detective or Virtual Desktop is read-only, as long
-  as Detective is enabled and ready. Start, Continue, Deepen, Delete and New
-  do not.
+  as Detective is enabled — it is a state write and does not need a ready
+  research runner. Start, Continue, Deepen, Delete and New do not. When actions
+  are disabled, the app names the reason (disabled, read-only, starting up)
+  from the capabilities answer.
 - **Continue** resumes with the remaining recorded budget, including after a
   restart. It does not apply a new effort.
 - **Deepen** explicitly grants a new effort budget to an existing case that has

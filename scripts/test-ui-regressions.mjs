@@ -4980,6 +4980,27 @@ function testDetectiveIdempotencyKeyWithoutSecureContext() {
   assert.match(source, /typeof c\.randomUUID === 'function'/, 'randomUUID is no longer called unguarded');
 }
 
+// Detective: Stop is a server state write and must not wait for a research runner, while a
+// disabled integration still hides it (audit finding 4.6).
+function testDetectiveStopFollowsEnabledNotReady() {
+  const viewsSource = read('ui/js/desktop/apps/detective-views.js');
+  const context = { Map, Set, String, Number, Date, JSON, URL, window: {} };
+  vm.createContext(context);
+  vm.runInContext(`${viewsSource}\nglobalThis.views = window.DetectiveViews;`, context);
+  const views = context.views;
+
+  assert.equal(views.canStop({ enabled: true, ready: false }), true, 'ready is not required');
+  assert.equal(views.canStop({ enabled: true, ready: true }), true);
+  assert.equal(views.canStop({ enabled: false, ready: true }), false, 'a disabled integration hides Stop');
+  assert.equal(views.canStop(undefined), false, 'missing capabilities stay closed');
+
+  const app = read('ui/js/desktop/apps/detective.js');
+  assert.match(app, /const canStop = v\.canStop\(caps\)/);
+  assert.doesNotMatch(app, /const canStop = !!caps\.enabled && !!caps\.ready/);
+  assert.match(app, /const blockText = \(\) => \{ const reason = \(state\.caps \|\| \{\}\)\.block_reason/);
+  assert.match(app, /role="status">\$\{e\(tr\('unavailable'\)\)\}/);
+}
+
 const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
@@ -5051,6 +5072,7 @@ const tests = [
   ['Network Cameras notifications keep the detection event id', testNetworkCamerasNotificationContextKeepsEventIds],
   ['Detective revision selection survives a case switch', testDetectiveRevisionSelectionSurvivesCaseSwitch],
   ['Detective idempotency keys work without a secure context', testDetectiveIdempotencyKeyWithoutSecureContext],
+  ['Detective Stop follows enabled, not ready', testDetectiveStopFollowsEnabledNotReady],
   ['EasyDrag session keeps only valid flow ids', testEasyDragSessionKeepsOnlyValidFlowIds],
   ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
   ['Desktop event delivered over WebSocket and SSE is handled once', testDesktopEventDeliveredTwiceIsHandledOnce],

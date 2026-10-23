@@ -50,5 +50,8 @@
         if (!revision) return reports.at(-1);
         return selected || reports.find(report => report.revision === revision) || reports.at(-1);
     }
-    window.DetectiveViews = { esc, report, sources, activity, activityItems, autoSettings, autoStatus, knownReports, chosenReport };
+    // Stop is a state write on the server, not provider work: it stays available whenever the
+    // integration is enabled, even if the research runner is not ready yet.
+    function canStop(caps) { return !!(caps && caps.enabled); }
+    window.DetectiveViews = { esc, report, sources, activity, activityItems, autoSettings, autoStatus, knownReports, chosenReport, canStop };
 })();

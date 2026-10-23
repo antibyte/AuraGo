@@ -473,10 +473,12 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   stores `latestSourceID` only after the loaded sources match that id, and an
   absent source list becomes an empty list so the next poll does not refetch it.
 - Stop stays enabled for an active case when Detective or Virtual Desktop is
-  read-only, while the integration is enabled and ready. Finish, Start,
-  Continue, Deepen, Delete and New stay disabled. A draft offers Start and the
-  effort control, not Deepen. Continue does not post `effort`. Start and Deepen
-  do.
+  read-only, and when the integration is enabled without a ready runner
+  (`v.canStop(caps)` needs only `enabled`; Stop is a server state write). Finish,
+  Start, Continue, Deepen, Delete and New stay disabled. A draft offers Start and
+  the effort control, not Deepen. Continue does not post `effort`. Start and
+  Deepen do. Disabled actions name their reason from `caps.block_reason`
+  (`disabled`, `read_only`, `initializing`) through `desktop.detective_block_*`.
 - The revision selection is view state: `knownReports`/`chosenReport` in
   `detective-views.js` merge current reports, history and the pinned report, and a
   revision that is not in that set falls back to the newest one. `resetArchive()`

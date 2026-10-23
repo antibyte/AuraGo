@@ -49,6 +49,21 @@ func detectiveDecode(w http.ResponseWriter, r *http.Request, v any) error {
 	return nil
 }
 
+// detectiveBlockReason names why the research surface is unavailable, so the UI can
+// explain disabled actions instead of showing a generic notice. Empty means ready.
+func detectiveBlockReason(cfg *config.Config, ready bool) string {
+	if cfg == nil || !cfg.Detective.Enabled {
+		return "disabled"
+	}
+	if !ready {
+		return "initializing"
+	}
+	if cfg.Detective.ReadOnly || cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl {
+		return "read_only"
+	}
+	return ""
+}
+
 func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 	// Cases can contain selected private material. Desktop read-only bearer scopes
 	// never grant access to this administrative research surface.
@@ -117,7 +132,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		if s.Detective != nil {
 			profiles = s.Detective.Profiles()
 		}
-		detectiveJSON(w, 200, map[string]any{"enabled": cfg.Detective.Enabled, "ready": ready, "read_only": cfg.Detective.ReadOnly || cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl, "profiles": profiles, "tools": tools, "private_sources": private, "providers": providers, "provider_id": cfg.LLM.Provider, "model": cfg.LLM.Model})
+		detectiveJSON(w, 200, map[string]any{"enabled": cfg.Detective.Enabled, "ready": ready, "block_reason": detectiveBlockReason(cfg, ready), "read_only": cfg.Detective.ReadOnly || cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl, "profiles": profiles, "tools": tools, "private_sources": private, "providers": providers, "provider_id": cfg.LLM.Provider, "model": cfg.LLM.Model})
 		return
 	}
 	if s.Detective == nil || !cfg.Detective.Enabled {
