@@ -105,12 +105,25 @@ type Job struct {
 	ChecksFailed          *int             `json:"checks_failed,omitempty"`
 	RepairPasses          *int             `json:"repair_passes,omitempty"`
 	GameplayStatus        string           `json:"gameplay_status,omitempty"`
+	OpenChecks            []OpenCheck      `json:"open_checks,omitempty"`
 	Usage                 *PromptUsageCard `json:"usage,omitempty"`
 	BaseRevision          int64            `json:"base_revision,omitempty"`
 	ResultRevision        int64            `json:"result_revision,omitempty"`
 	CreatedAt             time.Time        `json:"created_at"`
 	StartedAt             *time.Time       `json:"started_at,omitempty"`
 	FinishedAt            *time.Time       `json:"finished_at,omitempty"`
+}
+
+// OpenCheck is one bounded, still-open browser check of a finished job. It is a
+// copy of a CheckResult plus the model-facing next step, never source text.
+type OpenCheck struct {
+	ID         string         `json:"id"`
+	Status     string         `json:"status"`
+	Expected   string         `json:"expected,omitempty"`
+	Observed   string         `json:"observed,omitempty"`
+	Steps      []GameTestStep `json:"steps,omitempty"`
+	Repairable bool           `json:"repairable,omitempty"`
+	NextAction string         `json:"next_action,omitempty"`
 }
 
 type StartJobRequest struct {

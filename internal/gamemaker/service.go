@@ -908,8 +908,8 @@ func (s *Service) failJob(job Job, failure error) {
 	job.FinishedAt = &now
 	s.finishWorkingCopy(job)
 	s.mu.Lock()
-	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='failed',phase='failed',error=?,error_code=?,finished_at=?,gameplay_status=?,checks_passed=?,checks_failed=?,repair_passes=? WHERE id=?`,
-		message, job.ErrorCode, now, job.GameplayStatus, nullableInt(job.ChecksPassed), nullableInt(job.ChecksFailed), nullableInt(job.RepairPasses), job.ID)
+	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='failed',phase='failed',error=?,error_code=?,finished_at=?,gameplay_status=?,checks_passed=?,checks_failed=?,repair_passes=?,open_checks=? WHERE id=?`,
+		message, job.ErrorCode, now, job.GameplayStatus, nullableInt(job.ChecksPassed), nullableInt(job.ChecksFailed), nullableInt(job.RepairPasses), encodeOpenChecks(job.OpenChecks), job.ID)
 	_, _ = s.db.Exec(`UPDATE gm_projects SET status='failed',updated_at=? WHERE id=?`, now, job.ProjectID)
 	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
@@ -943,8 +943,8 @@ func (s *Service) cancelledJob(job Job, cause error) {
 	job.FinishedAt = &now
 	s.finishWorkingCopy(job)
 	s.mu.Lock()
-	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='cancelled',phase='cancelled',error=?,error_code=?,finished_at=?,gameplay_status=?,checks_passed=?,checks_failed=?,repair_passes=? WHERE id=?`,
-		message, job.ErrorCode, now, job.GameplayStatus, nullableInt(job.ChecksPassed), nullableInt(job.ChecksFailed), nullableInt(job.RepairPasses), job.ID)
+	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='cancelled',phase='cancelled',error=?,error_code=?,finished_at=?,gameplay_status=?,checks_passed=?,checks_failed=?,repair_passes=?,open_checks=? WHERE id=?`,
+		message, job.ErrorCode, now, job.GameplayStatus, nullableInt(job.ChecksPassed), nullableInt(job.ChecksFailed), nullableInt(job.RepairPasses), encodeOpenChecks(job.OpenChecks), job.ID)
 	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
 	s.attachPromptUsage(&job)
