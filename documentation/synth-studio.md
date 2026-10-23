@@ -1,6 +1,6 @@
 # Synth Studio
 
-Synth Studio is AuraGo Desktop's compact, browser-rendered music editor. Open it
+Synth Studio is AuraGo Desktop's browser-rendered creative instrument. Open it
 from the Creative app category. Sound is produced on the computer running the
 browser; the AuraGo server stores project files through the existing Desktop
 file API. No cloud music service or audio sidecar is required.
@@ -8,7 +8,7 @@ file API. No cloud music service or audio sidecar is required.
 ## Compose
 
 - Choose an instrument or drag an editable pattern onto the arrangement.
-- Use the five banks of ten synthesizer presets: Drums, Bass, Leads, Pads and
+- Use the five banks of sixteen synthesizer presets: Drums, Bass, Leads, Pads and
   Keys/Plucks. The additional General MIDI bank contains 128 synthesized sounds
   and a percussion kit. These are compact synthesized approximations, not a
   sampled acoustic orchestra.
@@ -20,7 +20,7 @@ file API. No cloud music service or audio sidecar is required.
   or extend. Shift-drag that edge repeats their notes into the extended clip.
   Ctrl/Cmd+D duplicates the selected clip directly after itself.
 - Track controls provide volume, mute, solo and recording selection. The sound
-  panel provides instrument choice, pan, tone, attack, release, reverb and delay.
+  panel provides instrument choice, pan, tone, resonance, drive, attack, release, chorus, phaser, reverb and delay.
   Compact windows expose that panel and the library through toolbar buttons.
 - Space plays/pauses, Ctrl/Cmd+S saves, Shift+Ctrl/Cmd+S saves a copy, and
   Ctrl/Cmd+Z / Shift+Ctrl/Cmd+Z undo/redo. The computer-keyboard row A–K plays
@@ -31,6 +31,26 @@ There are at most fifteen melodic tracks and one percussion track. The loop
 range uses bar positions; the end is exclusive. The demo supplies a starting
 arrangement. Browser-tab hiding pauses playback; minimizing only the Desktop
 window keeps playback running. Reopening never starts playback automatically.
+
+## Instrument workspace
+
+The transport stays visible while Notes, Sound and Performance share a resizable workbench.
+Panel height, the selected workbench and library visibility are local view preferences. Dark and light
+desktop schemes use graphite and aluminium surfaces respectively. Electronic,
+Chill and Retro templates start paused and contain four editable bars.
+
+The library separates selection, preview and insertion and searches all banks
+until a category is selected. The note editor offers draw/select tools, rectangle
+selection, copy/paste, per-selected-note velocity and draggable bar-loop handles.
+Keyboard arrows move loop handles by one bar. Control values are displayed and can
+be reset. Dragging a sound or volume control previews it immediately and commits
+one undo step; Escape or pointer cancellation restores the previous sound.
+
+Mix changes preserve the audio clock. Structural edits are queued at the next
+bar, including requests inside the audio scheduler's look-ahead window. Reserved
+notes from an obsolete request are cancelled before that boundary. A queued
+notice remains until the change is audible. Stop discards pending changes.
+Live editing does not recreate AudioContext.
 
 ## MIDI keyboard and files
 
@@ -55,9 +75,67 @@ supported tempo and 4/4 meter. Unsupported controller messages, changing tempo
 or meter, type 2, and SMPTE timing produce an error instead of silently changing
 the arrangement. MIDI exports retain notes and supported controllers, but use
 General MIDI approximations for the custom Synth Studio presets. Use WAV for
-the actual synthesizer sound and effects.
+the actual synthesizer sound, effects and tone/reverb automation. The MIDI export
+notice explains that sound automation remains in WAV.
+
+## Musical tools
+
+The Performance workbench provides eight diatonic chord pads, major/natural-minor
+scale assistance, a live/printable arpeggiator, seeded melodic/rhythmic variations
+and a Euclidean drum generator. Hold pads or use the screen/typing/MIDI keyboard
+for live arpeggios. Choose a clip, prepare a preview, compare Original/Variation
+in a loop, then Apply or Cancel. Apply writes ordinary notes as one undo step.
+The visible seed, input notes and controls determine repeatable results. Scale
+constraints affect new notes only; fitting existing notes requires an explicit
+generator preview and Apply. New projects default to C major with constraints off.
+
+## Scenes, automation and performance takes
+
+Create up to eight named scenes from the current loop boundaries. A scene repeats
+that arrangement range; pressing another pad queues it for the next bar.
+Pressing more pads replaces that pending choice. Text and pad states distinguish
+active, queued and stopped scenes. Stop is immediate and clears pending actions.
+At a scene boundary, held and sustained notes enter their release phase, sustain
+and controller state are reset/chased for the new range, and existing effect tails
+continue through the track buses. Notes already sounding before a target range
+are not retriggered.
+
+The XY pad controls the selected track's tone horizontally and reverb vertically.
+The two labelled sliders provide the same functions with the keyboard. Enable
+Record automation before a gesture during playback to write tone/reverb points;
+one gesture is one undo step. Capture is limited to 20 samples per second plus
+gesture endpoints and reduces redundant points. Edit automation exposes individual
+points, bar positions and values, with Apply/Delete and undo. Clear automation
+removes the selected track's curve. Without recording, a manual gesture temporarily
+overrides an existing curve, which resumes on release.
+
+Record performance captures scene choices and XY gestures in a temporary take.
+The remaining bar count reflects the smaller of 64 bars and the existing WAV,
+event, clip and project-size budgets. At the limit, recording finishes cleanly and
+keeps the material already captured. Stop also creates a browser-local recovery
+draft. A failed draft write is shown and prevents silently closing through the
+normal window guard. Recovery waits for the source project's initial load.
+
+Adopt as new project creates an unsaved, linear project with editable clips and
+automation; the source file is preserved. Scene repeats become separate clips,
+sustain becomes note duration, and pitch bend/modulation are retained. Save the
+new project through the usual picker. A new recording or cancellation can discard
+the temporary take explicitly. These takes capture arrangement playback and sound
+gestures, not microphone/audio input.
+
+Live playback and WAV use the same event preparation and native
+[AudioParam scheduling](https://developer.mozilla.org/en-US/docs/Web/API/AudioParam),
+with smoothed parameter changes. The compact output meter and clipping indicator
+are visual feedback only; musical timing does not depend on their refresh rate.
 
 ## Save and export
+
+New projects use format v2: project-level harmony (root, major/minor, snap), up to
+eight named bar-range scenes, and track-level tone/reverb automation points using
+arrangement ticks. Validation still accepts v1 unchanged. The editor upgrades a
+copy in memory; the first v2 save requires a new filename in the regular picker.
+Autosave stays suspended until that copy succeeds, protecting the original v1
+file. Draft recovery and conditional writes continue to apply.
 
 Projects are versioned `.aurasynth` JSON files in Desktop storage; the default
 folder is `Documents/Synth Studio`. The regular
@@ -76,9 +154,9 @@ limited to five minutes, 12,000 notes and 256 overlapping voices. Shorten or
 simplify the arrangement if this limit is reached.
 
 Project validation limits input to 5 MiB, sixteen tracks, 256 clips per track,
-50,000 note/controller events and bounded finite tick values. Unknown schema
+50,000 notes/controllers/automation points and bounded finite tick values. Unknown schema
 fields and unsupported project versions are rejected. Audio recording, audio
-clips, plug-ins, automation lanes and external MIDI output are outside this
+clips, plug-ins and external MIDI output are outside this
 version's scope.
 
 ## Maintenance and validation
@@ -89,6 +167,7 @@ data and the MIDI parser are vendored with licenses under
 `ui/js/vendor/synth-studio/`; no runtime CDN is used.
 
 Run `node scripts/test-synth-studio-model.js`,
+`node scripts/test-synth-studio-audio.mjs`,
 `node scripts/test-synth-studio-recording.mjs`,
 `node scripts/test-synth-studio-storage.mjs`,
 `node scripts/test-synth-studio-registration.mjs`, UI bundle

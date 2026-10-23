@@ -21,6 +21,7 @@
     makeMix,
     createTrackBus,
     updateTrackBus,
+    updateTrackParameter,
     scheduleMetronome,
     createVoice,
     disposeVoice,
@@ -52,7 +53,7 @@
     return root.OfflineAudioContext || root.webkitOfflineAudioContext;
   }
 
-  function normalizeProject(project) {
+  function normalizeProject(project, mixOnly = false) {
     if (!project || typeof project !== "object" || !Array.isArray(project.tracks)) {
       throw new TypeError("Synth Studio project needs a tracks array.");
     }
@@ -61,7 +62,7 @@
     const ppq = Math.round(clamp(project.ppq, 24, 1920, 480));
     const tracks = [];
     const ids = new Set();
-    let noteCount = 0;
+    let noteCount = 0, eventCount = 0;
     let endTick = 0;
     for (let index = 0; index < project.tracks.length; index++) {
       const source = project.tracks[index] || {};
@@ -77,7 +78,8 @@
         mute: Boolean(source.mute),
         solo: Boolean(source.solo),
         params: { ...DEFAULT_PARAMS, ...(source.params || {}) },
-        clips: []
+        clips: [],
+        automation: []
       };
       track.params.tone = clamp(track.params.tone, 0, 1, DEFAULT_PARAMS.tone);
       track.params.resonance = clamp(track.params.resonance, 0, 1, DEFAULT_PARAMS.resonance);
@@ -88,6 +90,7 @@
       track.params.phaser = clamp(track.params.phaser, 0, 1, DEFAULT_PARAMS.phaser);
       track.params.reverb = clamp(track.params.reverb, 0, 1, DEFAULT_PARAMS.reverb);
       track.params.delay = clamp(track.params.delay, 0, 1, DEFAULT_PARAMS.delay);
+      if (mixOnly) { tracks.push(track); continue; }
       for (let clipIndex = 0; clipIndex < (Array.isArray(source.clips) ? source.clips.length : 0); clipIndex++) {
         const input = source.clips[clipIndex] || {};
         const start = Math.max(0, Math.floor(clamp(input.start, 0, 1e9, 0)));
@@ -124,6 +127,14 @@
         track.clips.push(clip);
         endTick = Math.max(endTick, start + length);
       }
+      if(source.automation!==undefined&&!Array.isArray(source.automation))throw new TypeError('Invalid automation.');
+      track.automation=(source.automation||[]).map(p=>{
+        if(!p||!['tone','reverb'].includes(p.parameter)||!Number.isInteger(p.tick)||p.tick<0||p.tick>10000000||!Number.isFinite(p.value)||p.value<0||p.value>1)throw new TypeError('Invalid automation point.');
+        endTick=Math.max(endTick,p.tick);
+        return {...p};
+      }).sort((a,b)=>a.tick-b.tick);
+      eventCount+=track.automation.length+track.clips.reduce((n,c)=>n+c.notes.length+c.controllers.length,0);
+      if(eventCount>50000)throw budgetError('The project exceeds 50,000 notes, controllers and automation points.');
       tracks.push(track);
     }
     if (noteCount > MAX_NOTES) throw budgetError(`A project can contain at most ${MAX_NOTES} notes.`);
@@ -146,6 +157,7 @@
   function allEvents(info) {
     const events = [];
     for (const track of info.tracks) {
+      for(const point of track.automation)events.push({type:'automation',tick:point.tick,track,point});
       for (const clip of track.clips) {
         for (const note of clip.notes) {
           events.push({ type: "noteOn", tick: note.absoluteStart, ownerTick: note.absoluteStart, key: note.key, track, note });
@@ -164,15 +176,20 @@
         events.push({ type: "metronome", tick, accent: Math.floor(tick / info.ppq) % info.beatsPerBar === 0 });
       }
     }
-    const order = { metronome: 0, controller: 1, noteOff: 2, noteOn: 3 };
+    const order = { automation:0, metronome: 0, controller: 1, noteOff: 2, noteOn: 3 };
     events.sort((a, b) => a.tick - b.tick || order[a.type] - order[b.type]);
     return events;
   }
 
-  function seedControllers(events, info, startTick) {
+  function seedState(events, info, startTick) {
     const seeds = [];
     for (const track of info.tracks) {
       const latest = new Map();
+      for(const parameter of ['tone','reverb']){
+        let value=track.params[parameter];
+        for(const point of track.automation)if(point.parameter===parameter&&point.tick<startTick)value=point.value;
+        seeds.push({type:'automation',tick:startTick,track,point:{parameter,value}});
+      }
       for (const event of events) {
         if (event.type !== "controller" || event.track.id !== track.id || event.tick >= startTick) continue;
         const previous = latest.get(event.controller.type);
@@ -199,7 +216,7 @@
         { type: "controller", tick: info.loop.start, track, controller: { type: "modulation", value: 0 } }
       );
     }
-    return [...defaults, ...seedControllers(events, info, info.loop.start)];
+    return [...defaults, ...seedState(events, info, info.loop.start)];
   }
 
   function eventsForRange(events, startTick, endTick, initialStart) {
@@ -308,7 +325,8 @@
     let rejectPlayback = null;
     let playGeneration = 0;
     let retireBuses = false;
-    let volume = 1;
+    let volume = 1, analyser=null, meterSamples=null;
+    const manual=new Set();
     const voices = new Set();
     const liveStates = new Map();
 
@@ -319,6 +337,7 @@
       context = new Constructor();
       mix = makeMix(context);
       mix.master.gain.value = 0.78 * volume;
+      if(context.createAnalyser){analyser=context.createAnalyser();analyser.fftSize=256;meterSamples=new Float32Array(256);mix.master.connect(analyser);}
       return context;
     }
 
@@ -338,11 +357,29 @@
       if (!bus) {
         bus = createTrackBus(ensureContext(), mix, track);
         buses.set(track.id, bus);
-      } else {
-        updateTrackBus(bus, track);
       }
       return bus;
     }
+
+    function updateTracks(project, smooth = true) {
+      const info = normalizeProject(project, true);
+      const solo = info.tracks.some(t => t.solo);
+      for (const track of info.tracks) {
+        const current = currentInfo?.tracks.find(t => t.id === track.id);
+        if (current) Object.assign(current, { volume: track.volume, pan: track.pan, mute: track.mute, solo: track.solo, params: track.params });
+        const bus = buses.get(track.id);
+        if (bus) updateTrackBus(bus, { ...track, mute: !isAudible(track, solo) }, undefined, smooth);
+      }
+      playback?.mix?.(info);
+      playback?.restore?.();
+    }
+
+    function queueProject(project, startTick, onApplied) {
+      if (!playback?.queue) return false;
+      return playback.queue(normalizeProject(project), startTick, onApplied);
+    }
+
+    function pendingChange() { return playback?.pending || null; }
 
     function disconnectBuses() {
       for (const bus of buses.values()) {
@@ -364,7 +401,7 @@
 
     function resolveTrack(trackValue) {
       if (trackValue && typeof trackValue === "object") {
-        return normalizeProject({ tempo: 120, ppq: 480, tracks: [trackValue] }).tracks[0];
+        return normalizeProject({ tempo: 120, ppq: 480, tracks: [trackValue] }, true).tracks[0];
       }
       const id = String(trackValue || "");
       const existing = currentInfo?.tracks.find(track => track.id === id);
@@ -455,23 +492,22 @@
     }
 
     function play(project, startTick = 0, onTick, onEnd) {
-      const info = normalizeProject(project);
+      let info = normalizeProject(project);
       const requestGeneration = ++playGeneration;
       if (playback) finishPlayback(currentTick(), true);
       clearVoices(ensureContext().currentTime);
       disconnectBuses();
       currentInfo = info;
-      const anySolo = info.tracks.some(track => track.solo);
-      if (anySolo) for (const track of info.tracks) if (!isAudible(track, anySolo)) track.volume = 0;
+      let anySolo = info.tracks.some(track => track.solo);
       for (const track of info.tracks) busFor(track);
       return unlock().then(() => {
         if (requestGeneration !== playGeneration) return;
         return new Promise((resolve, reject) => {
-        const all = allEvents(info);
-        const secPerTick = 60 / info.tempo / info.ppq;
-        const loop = info.loop.enabled;
-        const loopStart = loop ? info.loop.start : 0;
-        const loopEnd = loop ? info.loop.end : Math.max(info.endTick, 1);
+        let all = allEvents(info);
+        let secPerTick = 60 / info.tempo / info.ppq;
+        let loop = info.loop.enabled;
+        let loopStart = loop ? info.loop.start : 0;
+        let loopEnd = loop ? info.loop.end : Math.max(info.endTick, 1);
         let tick = Math.max(0, Math.floor(clamp(startTick, 0, 1e9, 0)));
         if (loop) {
           if (tick < loopStart || tick >= loopEnd) tick = loopStart;
@@ -480,10 +516,10 @@
           ? eventsForRange(all, loopStart, loopEnd, loopStart).map(event =>
             event.type === "noteOff" && event.tick > loopEnd ? { ...event, tick: loopEnd } : event)
           : eventsForRange(all, tick, Math.max(info.endTick, tick + 1), tick);
-        const loopSeeds = loop ? loopControllerSeeds(all, info) : [];
+        let loopSeeds = loop ? loopControllerSeeds(all, info) : [];
         const preflightEvents = loop
           ? [...loopSeeds, ...liveRange]
-          : [...seedControllers(all, info, tick), ...liveRange];
+          : [...seedState(all, info, tick), ...liveRange];
         const peak = activeVoiceLimit(
           preflightEvents,
           loop ? loopStart : tick,
@@ -495,13 +531,15 @@
         if (peak > MAX_ACTIVE_NOTES) throw budgetError(`The arrangement has more than ${MAX_ACTIVE_NOTES} overlapping notes.`);
         resolvePlayback = resolve;
         rejectPlayback = reject;
-        const startTime = context.currentTime + 0.045;
+        let startTime = context.currentTime + 0.045;
+        const transportStart = startTime;
+        let change = null, applied = null;
         const states = new Map(info.tracks.map(track => [track.id, makeTrackState()]));
-        const tailSeconds = maxReleaseSeconds(info) + MAX_EFFECT_TAIL_SECONDS;
-        const initial = seedControllers(all, info, tick);
+        let tailSeconds = maxReleaseSeconds(info) + MAX_EFFECT_TAIL_SECONDS;
+        const initial = seedState(all, info, tick);
         for (const event of initial) {
-          const value = event.controller.value;
-          applyController(context, states.get(event.track.id), null, event.track, event.controller.type, value, startTime);
+          if(event.type==='automation')updateTrackParameter(busFor(event.track),event.track,event.point.parameter,event.point.value,startTime);
+          else applyController(context, states.get(event.track.id), null, event.track, event.controller.type, event.controller.value, startTime);
         }
         const scheduleCycle = (baseTime, cycleStart, firstCycle, cycleIndex) => {
           const anchor = firstCycle ? cycleStart : loopStart;
@@ -515,7 +553,7 @@
             return { ...event, key, at: baseTime + (eventTick - anchor) * secPerTick };
           });
           if (firstCycle) return cycleEvents;
-          return [...loopSeeds.map(event => ({ ...event, at: baseTime })), ...cycleEvents];
+          return [{type:'rangeEnd',at:baseTime}, ...loopSeeds.map(event => ({ ...event, at: baseTime })), ...cycleEvents];
         };
         let pending = [];
         let nextCycleTime = startTime;
@@ -529,7 +567,8 @@
           pending = all.filter(event => event.tick >= tick).map(event => ({ ...event, at: startTime + (event.tick - tick) * secPerTick }));
           pending.push({ type: "end", tick: info.endTick, at: endTime });
         }
-        const priority = { metronome: 0, controller: 1, noteOff: 2, noteOn: 3, end: 4 };
+        const priority = { rangeEnd:-1, automation:0, metronome: 0, controller: 1, noteOff: 2, noteOn: 3, end: 4 };
+        let automatic=[],stopAt=Infinity,stopScheduled=false;
         pending.sort((a, b) => a.at - b.at || priority[a.type] - priority[b.type]);
         for (const track of info.tracks) if (isAudible(track, anySolo)) busFor(track);
         const stateKeys = new Map();
@@ -538,12 +577,18 @@
           pending.sort((a, b) => a.at - b.at || priority[a.type] - priority[b.type]);
         };
         const process = event => {
+          if(event.type==='automation'){
+            automatic.push(event);
+            if(!manual.has(event.track.id+':'+event.point.parameter))updateTrackParameter(busFor(event.track),event.track,event.point.parameter,event.point.value,event.at);
+            return;
+          }
           if (event.type === "metronome") {
             scheduleMetronome(context, mix, event.at, event.accent);
             return;
           }
-          if (event.type === "end") {
+          if (event.type === "end" || event.type === "rangeEnd") {
             for (const track of info.tracks) releaseTrackState(context, states.get(track.id), track, event.at);
+            if(event.type==="rangeEnd")stateKeys.clear();
             return;
           }
           const state = states.get(event.track.id);
@@ -565,22 +610,47 @@
         const renderTick = () => {
           try {
             const now = context.currentTime;
+            automatic=automatic.filter(e=>e.at>=now);
+            if (change && change.at < stopAt && change.at <= now + lookAhead) {
+              // Future voices are cancelled at the bar; held voices release into the existing effect buses.
+              while (pending.length && pending[0].at < change.at) process(pending.shift());
+              for (const track of info.tracks) releaseTrackState(context, states.get(track.id), track, change.at);
+              const previous = playback.previous && now < playback.startTime ? playback.previous : { ...playback, previous: null };
+              info = change.info; currentInfo = info; all = allEvents(info);
+              anySolo = info.tracks.some(t => t.solo); secPerTick = 60 / info.tempo / info.ppq;
+              loop = info.loop.enabled; loopStart = loop ? info.loop.start : 0; loopEnd = loop ? info.loop.end : Math.max(info.endTick, 1);
+              tick = Math.max(0, change.tick); if (loop && (tick < loopStart || tick >= loopEnd)) tick = loopStart;
+              startTime = change.at; endTime = startTime + Math.max(0, info.endTick - tick) * secPerTick;
+              tailSeconds = maxReleaseSeconds(info) + MAX_EFFECT_TAIL_SECONDS;
+              loopSeeds = loop ? loopControllerSeeds(all, info) : [];
+              states.clear(); stateKeys.clear(); automatic=[];
+              for (const track of info.tracks) {
+                states.set(track.id, makeTrackState());
+                updateTrackBus(busFor(track), { ...track, mute: !isAudible(track, anySolo) }, startTime, true);
+              }
+              pending = [...seedState(all, info, tick).map(e => ({ ...e, at: startTime })), ...scheduleCycle(startTime, tick, true, cycleIndex++)];
+              if (!loop) pending.push({ type: 'end', tick: info.endTick, at: endTime });
+              pending.sort((a,b) => a.at-b.at || priority[a.type]-priority[b.type]);
+              nextCycleTime = startTime + (loopEnd - tick) * secPerTick;
+              Object.assign(playback, { previous, startTime, startTick: tick, loop, loopStart, loopEnd, secPerTick, endTime, tailSeconds });
+              applied = { ...change, tick }; change = null;
+            }
             if (loop) {
-              while (nextCycleTime <= now + lookAhead) {
+              while (nextCycleTime <= Math.min(now + lookAhead, stopAt - 0.000001, change ? change.at - 0.000001 : Infinity)) {
                 const baseTime = nextCycleTime;
                 enqueue(scheduleCycle(baseTime, loopStart, false, cycleIndex++));
                 nextCycleTime += (loopEnd - loopStart) * secPerTick;
               }
             }
-            const horizon = now + lookAhead;
+            const horizon = Math.min(now + lookAhead, stopAt - 0.000001, change ? change.at - 0.000001 : Infinity);
             while (pending.length && pending[0].at <= horizon) process(pending.shift());
-            const elapsedTick = tick + Math.max(0, now - startTime) / secPerTick;
-            let shownTick = elapsedTick;
-            if (loop && elapsedTick >= loopEnd) shownTick = loopStart + ((elapsedTick - loopStart) % (loopEnd - loopStart));
+            if(!stopScheduled&&stopAt<=now+lookAhead){process({type:'end',at:stopAt});stopScheduled=true;}
+            const shownTick = currentTick();
             currentTickValue = shownTick;
-            if (typeof onTick === "function") onTick(shownTick);
-            if (!loop && now >= endTime + tailSeconds) {
-              finishPlayback(info.endTick, false);
+            if (applied && now >= applied.at) { const done = applied; applied = null; playback.pending = null; playback.previous = null; done.onApplied?.(done.tick,{elapsedSeconds:done.at-transportStart,at:done.at}); }
+            if (typeof onTick === "function") onTick(shownTick, { elapsedSeconds: Math.max(0, now - transportStart), pending: playback?.pending });
+            if (now >= stopAt || (!loop && !change && now >= endTime + tailSeconds)) {
+              finishPlayback(now>=stopAt?shownTick:info.endTick, false);
               if (typeof onEnd === "function") {
                 try { onEnd(); } catch (_) {}
               }
@@ -589,7 +659,56 @@
             finishPlayback(currentTickValue, true, error);
           }
         };
-        playback = { timer: setInterval(renderTick, TICK_MS), states, startTime, startTick: tick, loop, loopStart, loopEnd, secPerTick, endTime, tailSeconds };
+        playback = { timer: setInterval(renderTick, TICK_MS), states, transportStart, startTime, startTick: tick, loop, loopStart, loopEnd, secPerTick, endTime, tailSeconds };
+        playback.stopAfter=seconds=>{stopAt=transportStart+Math.max(0,seconds);stopScheduled=false;};
+        playback.mix=next=>{for(const t of next.tracks){const pendingTrack=change?.info.tracks.find(v=>v.id===t.id);if(pendingTrack)Object.assign(pendingTrack,{volume:t.volume,pan:t.pan,mute:t.mute,solo:t.solo,params:t.params});}};
+        playback.automation=next=>{
+          for(const t of next.tracks){const current=info.tracks.find(v=>v.id===t.id);if(current)current.automation=t.automation;const queued=change?.info.tracks.find(v=>v.id===t.id);if(queued)queued.automation=t.automation;}
+          all=allEvents(info);loopSeeds=loop?loopControllerSeeds(all,info):[];
+          pending=pending.filter(e=>e.type!=='automation');automatic=[];
+          const now=context.currentTime;
+          let base=startTime,anchor=tick,end=loopEnd;
+          if(loop&&base+(end-anchor)*secPerTick<now){
+            base+=(end-anchor)*secPerTick;anchor=loopStart;
+            base+=Math.floor(Math.max(0,now-base)/((loopEnd-loopStart)*secPerTick))*((loopEnd-loopStart)*secPerTick);
+          }
+          do{
+            enqueue(all.filter(e=>e.type==='automation'&&e.tick>=anchor&&(!loop||e.tick<end)).map(e=>({...e,at:base+(e.tick-anchor)*secPerTick})).filter(e=>e.at>now));
+            if(!loop)break;base+=(end-anchor)*secPerTick;anchor=loopStart;
+          }while(base<nextCycleTime-.000001);
+          playback.restore();renderTick();
+        };
+        playback.restore=()=>{
+          const now=context.currentTime,atTick=currentTick();
+          for(const track of info.tracks)for(const parameter of ['tone','reverb']){
+            if(manual.has(track.id+':'+parameter)||!track.automation.some(p=>p.parameter===parameter))continue;
+            let value=track.params[parameter];
+            for(const point of track.automation)if(point.parameter===parameter&&point.tick<=atTick)value=point.value;
+            updateTrackParameter(busFor(track),track,parameter,value,now,true);
+            for(const event of automatic)if(event.track.id===track.id&&event.point.parameter===parameter&&event.at>now)updateTrackParameter(busFor(track),track,parameter,event.point.value,event.at);
+          }
+        };
+        playback.queue = (next, target, callback) => {
+          if((change&&change.at<=context.currentTime)||(applied&&applied.at<=context.currentTime))renderTick();
+          if(!playback)return null;
+          const events = allEvents(next), end = next.loop.enabled ? next.loop.end : Math.max(next.endTick, 1);
+          const start=next.loop.enabled?next.loop.start:Math.max(0,target??0),seconds=60/next.tempo/next.ppq;
+          const seeds=next.loop.enabled?loopControllerSeeds(events,next):seedState(events,next,start);
+          const range=eventsForRange(events,start,end,start).map(e=>next.loop.enabled&&e.type==='noteOff'&&e.tick>end?{...e,tick:end}:e);
+          if(activeVoiceLimit([...seeds,...range],start,end,seconds,next.loop.enabled?{seeds,maxReleaseSeconds:maxReleaseSeconds(next)}:null,end)>MAX_ACTIVE_NOTES)throw budgetError('Too many overlapping voices.');
+          const safeTime = context.currentTime + 0.001;
+          const raw = tick + Math.max(0, safeTime - startTime) / secPerTick;
+          const bar = info.ppq * info.beatsPerBar;
+          const boundary = Math.ceil(raw / bar) * bar;
+          const at = change?.at || (applied&&context.currentTime<applied.at?applied.at:startTime + (boundary - tick) * secPerTick);
+          for(const voice of voices)if(voice.startTime>=at){voice.voiceGain.gain.cancelScheduledValues(at);voice.voiceGain.gain.setValueAtTime(0,at);voice.endTime=at;voice.releaseRequested=true;voice.releaseAt=at;for(const source of voice.sources)try{source.stop(at);}catch(_){}}
+          if(applied&&at===applied.at)applied=null;
+          const mapped = loop && boundary >= loopEnd ? loopStart + ((boundary - loopStart) % (loopEnd - loopStart)) : boundary;
+          change = { info: next, tick: target ?? mapped, at, onApplied: callback };
+          const request={ tick: change.tick, at, elapsedSeconds:at-transportStart };playback.pending=request;
+          renderTick();
+          return request;
+        };
         currentTickValue = tick;
         renderTick();
         });
@@ -597,7 +716,7 @@
     }
 
     function stop() {
-      playGeneration++;
+      manual.clear();playGeneration++;
       const tick = currentTick();
       if (playback) finishPlayback(tick, true);
       else {
@@ -609,10 +728,11 @@
 
     function currentTick() {
       if (!playback || !context) return currentTickValue;
-      const elapsed = Math.max(0, context.currentTime - playback.startTime) / playback.secPerTick;
-      const raw = playback.startTick + elapsed;
-      if (!playback.loop || raw < playback.loopEnd) return raw;
-      return playback.loopStart + ((raw - playback.loopStart) % (playback.loopEnd - playback.loopStart));
+      const clock = playback.previous && context.currentTime < playback.startTime ? playback.previous : playback;
+      const elapsed = Math.max(0, context.currentTime - clock.startTime) / clock.secPerTick;
+      const raw = clock.startTick + elapsed;
+      if (!clock.loop || raw < clock.loopEnd) return raw;
+      return clock.loopStart + ((raw - clock.loopStart) % (clock.loopEnd - clock.loopStart));
     }
 
     function noteOn(trackValue, pitchValue, velocityValue) {
@@ -631,6 +751,13 @@
         if (state.sustain) state.pending.push(voice);
         else releaseVoice(voice, at);
       };
+    }
+
+    function scheduleNote(trackValue,pitch,velocity,at,duration) {
+      const track=resolveTrack(trackValue),state=stateFor(track);
+      const voice=voiceOn(track,pitch,velocity,Math.max(context.currentTime,at),state,true);
+      if(voice)releaseVoice(voice,Math.max(context.currentTime,at)+duration);
+      return () => { if(!voice)return;const now=context.currentTime;voice.voiceGain.gain.cancelScheduledValues(now);voice.voiceGain.gain.setValueAtTime(0,now);for(const source of voice.sources)try{source.stop(now+.006);}catch(_){} };
     }
 
     function addController(trackValue, type, value) {
@@ -682,12 +809,16 @@
       }
     }
 
-    return { unlock, play, stop, currentTick, noteOn, addController, panic, setVolume, dispose };
+    function setAutomation(project){const next=normalizeProject(project);playback?.automation?.(next);}
+    function setManual(id,parameter,active){const key=id+':'+parameter;if(active)manual.add(key);else{manual.delete(key);playback?.restore?.();}}
+    function meter(){if(!analyser)return 0;analyser.getFloatTimeDomainData(meterSamples);return meterSamples.reduce((peak,v)=>Math.max(peak,Math.abs(v)),0);}
+
+    return { unlock, play, stop, currentTick, meter, setManual, setAutomation, running:()=>!!playback, elapsed:()=>playback?Math.max(0,context.currentTime-playback.transportStart):0, setStopAfter:seconds=>playback?.stopAfter(seconds), clock:()=>ensureContext().currentTime, scheduleNote, noteOn, addController, panic, setVolume, updateTracks, queueProject, pendingChange, dispose };
   }
 
   function checkRenderBudget(info, events, startTick, endTick, durationSeconds, secPerTick, seedEvents = events) {
     if (info.noteCount > MAX_NOTES) throw budgetError(`A project can contain at most ${MAX_NOTES} notes.`);
-    const seeds = seedControllers(seedEvents, info, startTick);
+    const seeds = seedState(seedEvents, info, startTick);
     const peak = activeVoiceLimit([...seeds, ...events], startTick, endTick, secPerTick, null, endTick);
     if (peak > MAX_ACTIVE_NOTES) throw budgetError(`The arrangement has more than ${MAX_ACTIVE_NOTES} overlapping notes.`);
     if (!Number.isFinite(durationSeconds) || durationSeconds > MAX_RENDER_SECONDS) {
@@ -729,23 +860,23 @@
     return new Blob([bytes], { type: "audio/wav" });
   }
 
+  function prepareRender(project) {
+    const info=normalizeProject(project),events=allEvents(info),looping=info.loop.enabled;
+    const startTick=looping?info.loop.start:0,endTick=looping?info.loop.end:Math.max(info.endTick,1);
+    const selected=eventsForRange(events,startTick,endTick,startTick).map(e=>looping&&e.type==='noteOff'&&e.tick>endTick?{...e,tick:endTick}:e);
+    const secPerTick=60/info.tempo/info.ppq;
+    let audibleEndTick=endTick;
+    for(const event of selected)if(event.type==='noteOff')audibleEndTick=Math.max(audibleEndTick,event.tick);
+    const duration=Math.max(.05,(audibleEndTick-startTick)*secPerTick)+maxReleaseSeconds(info)+MAX_EFFECT_TAIL_SECONDS;
+    checkRenderBudget(info,selected,startTick,endTick,duration,secPerTick,events);
+    return {info,events,selected,startTick,endTick,audibleEndTick,duration,secPerTick};
+  }
+
   async function renderWav(project) {
     const Constructor = offlineContextConstructor();
     if (!Constructor) throw codedError("SYNTH_STUDIO_AUDIO_UNAVAILABLE", "Offline Web Audio is unavailable in this browser.");
-    const info = normalizeProject(project);
-    const events = allEvents(info);
-    const looping = info.loop.enabled;
-    const startTick = looping ? info.loop.start : 0;
-    const endTick = looping ? info.loop.end : Math.max(info.endTick, 1);
-    const selected = eventsForRange(events, startTick, endTick, startTick).map(event =>
-      looping && event.type === "noteOff" && event.tick > endTick ? { ...event, tick: endTick } : event);
-    const rate = 44100;
-    const secPerTick = 60 / info.tempo / info.ppq;
-    let audibleEndTick = endTick;
-    for (const event of selected) if (event.type === "noteOff") audibleEndTick = Math.max(audibleEndTick, event.tick);
-    const tailSeconds = maxReleaseSeconds(info) + MAX_EFFECT_TAIL_SECONDS;
-    const duration = Math.max(0.05, (audibleEndTick - startTick) * secPerTick) + tailSeconds;
-    checkRenderBudget(info, selected, startTick, endTick, duration, secPerTick, events);
+    const {info,events,selected,startTick,endTick,audibleEndTick,duration,secPerTick}=prepareRender(project);
+    const rate=44100;
     const frames = Math.ceil(duration * rate);
     const context = new Constructor(2, frames, rate);
     const mix = makeMix(context);
@@ -756,15 +887,16 @@
       buses.set(track.id, createTrackBus(context, mix, track));
       states.set(track.id, makeTrackState());
     }
-    const initial = seedControllers(events, info, startTick);
+    const initial = seedState(events, info, startTick);
     const schedule = [
       ...initial.map(event => ({ ...event, tick: startTick })),
       ...selected,
       { type: "end", tick: audibleEndTick }
-    ].sort((a, b) => a.tick - b.tick || ({ metronome: 0, controller: 1, noteOff: 2, noteOn: 3, end: 4 }[a.type] - ({ metronome: 0, controller: 1, noteOff: 2, noteOn: 3, end: 4 }[b.type])));
+    ].sort((a, b) => a.tick - b.tick || ({ automation:0, metronome: 0, controller: 1, noteOff: 2, noteOn: 3, end: 4 }[a.type] - ({ automation:0, metronome: 0, controller: 1, noteOff: 2, noteOn: 3, end: 4 }[b.type])));
     const active = new Map();
     for (const event of schedule) {
       const at = Math.max(0, (event.tick - startTick) * secPerTick);
+      if(event.type==='automation'){updateTrackParameter(buses.get(event.track.id),event.track,event.point.parameter,event.point.value,at);continue;}
       if (event.type === "metronome") {
         scheduleMetronome(context, mix, at, event.accent);
         continue;
@@ -793,5 +925,5 @@
     return encodeWav(rendered);
   }
 
-  root.SynthStudioAudio = { create, renderWav };
+  root.SynthStudioAudio = { create, renderWav, prepareRender };
 })(typeof window !== "undefined" ? window : globalThis);

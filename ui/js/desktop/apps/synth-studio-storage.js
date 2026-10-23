@@ -11,11 +11,11 @@
         let path = '', version = null, queue = null, disposed = false, busy = false;
         let readonly = !!ctx.readonly;
         let pendingTarget = '', lastDraft = null, request = null, writeRequest = null, draftTimer = null, draftDeadline = null, draftToken = 0;
-        let loadedText = '', generation = 0;
+        let loadedText = '', generation = 0, legacyCopy = false;
         const state = { name: 'Untitled', path: '', dirty: false, saving: false, loading: false, error: null, readonly, recovered: false, revision: 0 };
 
         const emit = patch => {
-            Object.assign(state, patch || {}, { path, name: basename(path) || 'Untitled', dirty: !!queue?.dirty, saving: !!queue?.pending, revision: queue?.revision || 0 });
+            Object.assign(state, patch || {}, { path, name: basename(path) || 'Untitled', dirty: !!queue?.dirty, saving: !!queue?.pending, revision: queue?.revision || 0, legacyCopy });
             options.onState?.({ ...state });
         };
         const model = () => {
@@ -71,6 +71,7 @@
             if (readonly) throw new Error('Desktop is read-only');
             const target = pendingTarget || path;
             if (!target) throw new Error('Choose a save location first');
+            if (legacyCopy && target === path) throw new Error(ctx.t?.('synthStudio.legacy_copy') || 'Save a version 2 copy with a new filename.');
             const expected = target === path ? version : null;
             const token = generation;
             writeRequest?.abort();
@@ -84,6 +85,7 @@
                     body: JSON.stringify({ path: target, content })
                 });
                 if (disposed || token !== generation) return saved;
+                legacyCopy = false;
                 updatePath(saved.path || target);
                 version = saved.version || null;
                 pendingTarget = '';
@@ -103,7 +105,7 @@
                 clearBackup: clearDraft,
                 onState: value => emit({ error: value.error || null, dirty: value.dirty, saving: value.saving })
             });
-            if (!path || readonly) queue.suspend();
+            if (!path || readonly || legacyCopy) queue.suspend();
             if (dirty) queue.changed();
             emit();
         }
@@ -135,6 +137,7 @@
             if (disposed || token !== generation) return false;
             if (!/\.aurasynth$/i.test(target)) throw new Error('Open a .aurasynth project file');
             const project = validate(response.content);
+            legacyCopy = project.version === 1;
             loadedText = JSON.stringify(project);
             path = target;
             version = response.version || null;
@@ -168,7 +171,8 @@
             try {
                 const project = validate(backup.content);
                 const stale = !!(backup.path && backup.path === path && backup.etag && backup.etag !== version);
-                if (stale) updatePath('');
+                if (stale) { legacyCopy = false; updatePath(''); }
+                else legacyCopy = legacyCopy || (!!path && project.version === 1);
                 await options.onLoaded?.(project, { path, name: basename(path) || 'Recovered', recovered: true, conflict: stale });
                 if (disposed) return;
                 makeQueue(true);
@@ -246,6 +250,7 @@
                 path = '';
                 version = null;
                 pendingTarget = '';
+                legacyCopy = false;
                 loadedText = '';
                 await options.onLoaded?.(normalized, { path: '', name: 'Untitled', recovered: false });
                 if (disposed) return false;
@@ -266,11 +271,11 @@
         async function save(saveAs) {
             if (disposed || readonly || !queue || busy) return false;
             let target = path;
-            if (saveAs || !target) {
+            if (saveAs || !target || legacyCopy) {
                 const choice = await ctx.saveFileDialog?.({
                     title: ctx.t?.('synthStudio.save') || 'Save project',
                     initialPath: directory(path) || 'Documents/Synth Studio',
-                    defaultName: basename(path) || 'Untitled' + EXTENSION,
+                    defaultName: legacyCopy ? basename(path).replace(/\.aurasynth$/i, '.v2.aurasynth') : basename(path) || 'Untitled' + EXTENSION,
                     defaultExtension: EXTENSION,
                     filters: [{ label: 'Synth Studio', extensions: [EXTENSION] }]
                 });
@@ -279,6 +284,7 @@
             }
             if (disposed || readonly) return false;
             if (!/\.aurasynth$/i.test(target)) { setError(new Error('Save as a .aurasynth project file')); return false; }
+            if (legacyCopy && target === path) { setError(new Error(ctx.t?.('synthStudio.legacy_copy') || 'Save a version 2 copy with a new filename.')); return false; }
             pendingTarget = target;
             if (target !== path) queue.suspend();
             if (target !== path && !queue.dirty) queue.changed();
@@ -292,21 +298,21 @@
             } catch (error) { if (!disposed) emit({ error }); return false; }
             finally {
                 pendingTarget = '';
-                if (queue && path) queue.resume();
+                if (queue && path && !legacyCopy && !readonly) queue.resume();
             }
         }
 
         async function guard(config) {
             if (disposed || busy) return false;
             if (!queue?.dirty) return true;
-            if (config?.forReplacement && !path) {
+            if (config?.forReplacement && (!path || legacyCopy)) {
                 if (readonly) {
                     try { return await writeDraft(await projectJSON(), queue.revision); }
                     catch (_) { return false; }
                 }
                 return save(true);
             }
-            if (path) {
+            if (path && !legacyCopy) {
                 try { await queue.save(); return !disposed && !queue.dirty; }
                 catch (_) { /* Keep the recovery draft when saving is unavailable. */ }
             }
@@ -352,7 +358,7 @@
                 queue?.suspend();
                 writeRequest?.abort();
             }
-            else if (path) {
+            else if (path && !legacyCopy) {
                 queue?.resume();
                 if (queue?.dirty) queue.changed();
             }
