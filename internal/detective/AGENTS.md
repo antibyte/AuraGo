@@ -101,6 +101,12 @@ and tool dispatch; Desktop adapters own UI state.
 ## Verification
 Run `go test ./internal/detective ./internal/agent ./internal/server ./ui` with
 the focused Detective tests first. Browser tests use the production app modules.
+`TestMigrateV2ToV4KeepsCasesAndBacksUp` runs the whole v2 -> v3 -> v4 path (backup,
+summary equality, second open does not migrate again), `TestSetAutoUpdateMatrix` pins
+the scheduling rule per status, and `TestLiveUnderAutomaticUpdate` asserts the live
+transitions queued/running/completed and that `no_changes` changes neither revision nor
+report. The opt-in browser fixture stays focused on rendering; the revision switch, the
+lazy excerpt and the provisional marking are covered without a DOM by the node suite.
 
 ## Child DOX Index
 None.
