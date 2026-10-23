@@ -34,8 +34,8 @@ class PhononPreparationTests(unittest.TestCase):
         for changed in (data[:-1], b"x" * len(data), data + b"x"):
             with self.assertRaises(ValueError):
                 prepare.verify(changed, expected)
-        git = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
-        prepare.verify(data, {"size": len(data), "git_blob_sha1": git})
+        with self.assertRaises(ValueError):
+            prepare.verify(data, {"size": len(data), "sha256": ""})
 
     def test_redirect_drops_credentials(self):
         request = urllib.request.Request("https://huggingface.co/model", headers={"Authorization": "Bearer fixture-token"})

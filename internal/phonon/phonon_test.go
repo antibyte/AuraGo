@@ -70,6 +70,11 @@ func TestCatalogAndPersonaDefaults(t *testing.T) {
 	if len(manifest.Voices) != 102 || len(manifest.ModelRevision) != 40 || len(manifest.Runtimes) != 5 {
 		t.Fatal("incomplete pinned catalog or runtime matrix")
 	}
+	for _, file := range manifest.ModelFiles {
+		if file.Size <= 0 || len(file.SHA256) != 64 {
+			t.Fatalf("model resource %s lacks a pinned size or SHA-256", file.Name)
+		}
+	}
 	seen := map[string]bool{}
 	bundled := 0
 	for _, voice := range manifest.Voices {

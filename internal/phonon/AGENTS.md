@@ -33,6 +33,8 @@ requirements to Phonon inference; the packaging helper is maintainer-only.
 and the native runner protocol. `AURAGO_PHONON_SMOKE_DIR` enables real ten-voice
 offline CPU synthesis. Also run focused TTS config/tools/agent/server/browser tests,
 the preparation helper checks and relevant installer/release/Docker contracts.
+`TestPhononCPUSmokePaths` verifies cached/transient speech and telephone PCM decoding
+for all ten bundled voices; run it in the runtime image with networking disabled.
 
 ## Child DOX Index
 None.

@@ -2,7 +2,6 @@ package phonon
 
 import (
 	"context"
-	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -47,7 +46,7 @@ func verifyFile(path string, expected File) error {
 	if err != nil || !info.Mode().IsRegular() || info.Size() != expected.Size {
 		return errors.New("Phonon resource is missing or has an invalid size")
 	}
-	stamp := fmt.Sprintf("%s:%d:%d:%s:%s", path, info.Size(), info.ModTime().UnixNano(), expected.SHA256, expected.GitBlobSHA1)
+	stamp := fmt.Sprintf("%s:%d:%d:%s", path, info.Size(), info.ModTime().UnixNano(), expected.SHA256)
 	if _, ok := verifiedFiles.Load(stamp); ok {
 		return nil
 	}
@@ -56,18 +55,9 @@ func verifyFile(path string, expected File) error {
 		return fmt.Errorf("open Phonon resource: %w", err)
 	}
 	defer file.Close()
-	var valid bool
-	if expected.SHA256 != "" {
-		hash := sha256.New()
-		_, err = io.Copy(hash, io.LimitReader(file, expected.Size+1))
-		valid = hex.EncodeToString(hash.Sum(nil)) == expected.SHA256
-	} else if expected.GitBlobSHA1 != "" {
-		hash := sha1.New()
-		fmt.Fprintf(hash, "blob %d\x00", expected.Size)
-		_, err = io.Copy(hash, io.LimitReader(file, expected.Size+1))
-		valid = hex.EncodeToString(hash.Sum(nil)) == expected.GitBlobSHA1
-	}
-	if err != nil || !valid {
+	hash := sha256.New()
+	_, err = io.Copy(hash, io.LimitReader(file, expected.Size+1))
+	if err != nil || hex.EncodeToString(hash.Sum(nil)) != expected.SHA256 {
 		return errors.New("Phonon resource checksum mismatch")
 	}
 	verifiedFiles.Store(stamp, true)

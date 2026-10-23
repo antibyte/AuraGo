@@ -5,7 +5,7 @@
     {
       "name": "config.json",
       "size": 4674,
-      "sha256": "",
+      "sha256": "e312ab694d5ec1f79ccea520a2eeec989969ce07e9b4189ae7e9ad8e035ef82e",
       "git_blob_sha1": "5ddd955511e851a1f8c744ac23b69eb6000565d5"
     },
     {
@@ -23,7 +23,7 @@
     {
       "name": "tokenizer.json",
       "size": 277749,
-      "sha256": "",
+      "sha256": "a5e8c6060bf927ed367314f21355148fdf4acff6fadb94e49c86bc7182449433",
       "git_blob_sha1": "e2d7bebf27916234f26883ad8e55c5219d0ae148"
     }
   ],

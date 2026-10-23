@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"aurago/internal/phonon"
+	voicepcm "aurago/internal/voice"
 )
 
 func TestPhononFallbackCacheAndCancellation(t *testing.T) {
@@ -94,6 +95,17 @@ func TestPhononCPUSmokePaths(t *testing.T) {
 			data, ext, err := TTSSynthesizeInMemoryContext(context.Background(), cfg, text)
 			if err != nil || ext != ".wav" || len(data) < 1000 {
 				t.Fatalf("transient speech: %v", err)
+			}
+			pcm, rate, err := voicepcm.DecodeWAVPCM16Source(data)
+			nonzero := false
+			for _, sample := range pcm {
+				if sample != 0 {
+					nonzero = true
+					break
+				}
+			}
+			if err != nil || rate != 24000 || !nonzero {
+				t.Fatalf("speech is silent or incompatible with telephone PCM decoding: rate=%d, error=%v", rate, err)
 			}
 		})
 	}

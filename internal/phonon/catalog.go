@@ -11,10 +11,9 @@ import (
 var manifestJSON []byte
 
 type File struct {
-	Name        string `json:"name"`
-	Size        int64  `json:"size"`
-	SHA256      string `json:"sha256"`
-	GitBlobSHA1 string `json:"git_blob_sha1"`
+	Name   string `json:"name"`
+	Size   int64  `json:"size"`
+	SHA256 string `json:"sha256"`
 }
 
 type Voice struct {

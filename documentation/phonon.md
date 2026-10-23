@@ -46,8 +46,8 @@ Unknown IDs and user-supplied URLs or filesystem paths are never download inputs
   revision `0ee17205f254b5abc43b266c8a0f215565c352f7`.
   Each embedding is 256,136 bytes. All IDs, hashes and runtime archive/binary
   checksums are pinned in `internal/phonon/manifest.json`.
-- Small Git-hosted model metadata is pinned by its original Git blob identity;
-  the finished archives additionally record SHA-256 for every included file.
+- Every runtime, model, tokenizer and voice file is pinned by exact size and
+  SHA-256; the finished archives additionally record SHA-256 for every included file.
 
 Maintainers obtain the gated model once with approved access. Set `HF_TOKEN` in
 the packaging process, then run `python scripts/prepare-phonon.py --fetch`.
@@ -60,6 +60,8 @@ network access. `--pack` produces `deploy/phonon-model.dat` and five
 `deploy/phonon-runtime_<os>_<arch>.dat` archives. Release builders require these
 verified resources before publication and include them in the release checksums.
 Only manifest-listed files and required notices enter the packages.
+The model/voice archive is about 67 MB compressed; adding one native runtime
+brings the installation download to about 75–77 MB, depending on the platform.
 The Docker publishing workflow reuses the model package from the corresponding
 AuraGo release (`--from-release TAG`; manual builds can use `latest`) and checks
 every resource against the source manifest. It needs no Hugging Face secret.
@@ -77,7 +79,8 @@ Published runtime requirements: Linux glibc 2.35+, macOS 15+, Windows 10+;
 x86-64 binaries require x86-64-v3 (AVX2/FMA/F16C). Linux and macOS also have
 ARM64 builds. No native upstream Windows ARM64 binary is available. Unsupported
 platforms and failed native execution use sanoTTS. Synthesis is serialized,
-cancellable, bounded to 120 seconds and returns temporary mono WAV audio.
+cancellable, bounded to 120 seconds and returns temporary mono PCM16 WAV audio
+at 24 kHz, compatible with the existing telephone decoder/resampler.
 
 ## Licenses and verification
 

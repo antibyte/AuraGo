@@ -38,11 +38,8 @@ def digest(data):
 def verify(data, expected):
     if len(data) != expected["size"]:
         raise ValueError("resource size mismatch")
-    if expected.get("sha256"):
-        if digest(data) != expected["sha256"]:
-            raise ValueError("resource SHA-256 mismatch")
-    elif hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest() != expected["git_blob_sha1"]:
-        raise ValueError("resource source revision mismatch")
+    if digest(data) != expected.get("sha256"):
+        raise ValueError("resource SHA-256 mismatch")
 
 
 def fetch(url, limit, token=""):
