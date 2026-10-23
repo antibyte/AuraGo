@@ -145,7 +145,7 @@
   "desktop.detective_error_permission_revoked": "L'administrateur a retiré l'accès à la recherche.",
   "desktop.detective_error_unsupported_format": "Ce format d'export n'est pas disponible.",
   "desktop.detective_error_export_too_large": "L'export est trop volumineux. Choisis une révision plus courte ou Markdown.",
-  "desktop.detective_error_pdf_unsupported_font": "Le PDF ne peut pas restituer une partie de ce rapport (arabe, devanagari, hébreu, CJK ou emoji). Utilise plutôt Word ou Markdown.",
+  "desktop.detective_error_pdf_unsupported_font": "Le PDF ne peut pas restituer une partie de ce rapport (arabe, devanagari, hébreu ou emoji). Utilise Word ou Markdown, ou configure Document Creator avec Gotenberg.",
   "desktop.detective_error_copy_exists": "Une copie portant ce nom existe déjà.",
   "desktop.detective_pdf_hint": "L'arabe, le devanagari, l'hébreu et les emojis manquent dans le PDF : utilise Word ou Markdown.",
   "desktop.detective_provisional": "provisoire",

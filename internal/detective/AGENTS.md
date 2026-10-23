@@ -50,10 +50,11 @@ and tool dispatch; Desktop adapters own UI state.
 - Every export binds an immutable report revision and uses the same content. Export
   refusals carry sentinels (`ErrExportFormat`, `ErrExportTooLarge`, `ErrPDFFont`) and
   the server maps them to the codes `unsupported_format`, `export_too_large` and
-  `pdf_unsupported_font`. The built-in PDF writer is the only PDF path: it renders
-  Go-font coverage (Latin, Greek, Cyrillic) and refuses Arabic, Devanagari, Hebrew,
-  CJK and emoji rather than emitting a damaged file. Never advise configuring
-  Document Creator/Gotenberg for it — nothing routes there.
+  `pdf_unsupported_font`. Without a configured renderer the built-in PDF writer
+  covers Go-font Latin, Greek and Cyrillic and refuses Arabic, Devanagari, Hebrew, CJK
+  and emoji rather than emitting a damaged file. `Options.PDF` (artifacts.go) may
+  replace it with the Document Creator/Gotenberg renderer, which covers every script;
+  `/capabilities` reports that as `pdf_backend: "gotenberg"` and `pdf_scripts: true`.
 - The server scheduler shares the single research queue. An enabled case starts
   only after a completed baseline report; each completion schedules from now,
   with at most one overdue catchup. Interrupted automatic runs keep their ID,

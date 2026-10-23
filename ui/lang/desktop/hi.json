@@ -145,7 +145,7 @@
   "desktop.detective_error_permission_revoked": "व्यवस्थापक ने शोध पहुँच वापस ले ली है।",
   "desktop.detective_error_unsupported_format": "यह निर्यात फ़ॉर्मैट उपलब्ध नहीं है।",
   "desktop.detective_error_export_too_large": "निर्यात बहुत बड़ा है। छोटा संस्करण या Markdown चुनें।",
-  "desktop.detective_error_pdf_unsupported_font": "PDF इस रिपोर्ट का कुछ हिस्सा नहीं दिखा सकता (अरबी, देवनागरी, हिब्रू, CJK या इमोजी)। इसके बजाय Word या Markdown इस्तेमाल करें।",
+  "desktop.detective_error_pdf_unsupported_font": "PDF इस रिपोर्ट का कुछ हिस्सा नहीं दिखा सकता (अरबी, देवनागरी, हिब्रू या इमोजी)। Word या Markdown इस्तेमाल करें, या Document Creator को Gotenberg के साथ सेट करें।",
   "desktop.detective_error_copy_exists": "इस नाम की प्रतिलिपि पहले से मौजूद है।",
   "desktop.detective_pdf_hint": "PDF में अरबी, देवनागरी, हिब्रू और इमोजी नहीं हैं – Word या Markdown इस्तेमाल करें।",
   "desktop.detective_provisional": "अस्थायी",

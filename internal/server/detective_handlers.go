@@ -69,13 +69,16 @@ func detectiveDecode(w http.ResponseWriter, r *http.Request, v any) error {
 	return nil
 }
 
-// detectivePDFBackend names the exporter's PDF writer. The built-in writer uses a Latin
-// font, so reports in other scripts must use Word/Markdown or Document Creator with
-// Gotenberg; the app orders the export formats by this capability.
-const (
-	detectivePDFBackend = "builtin"
-	detectivePDFScripts = false
-)
+// detectivePDFSupport names the PDF writer the service will use. With Document Creator
+// and the Gotenberg backend configured, artifacts.go renders through it and every script
+// works; otherwise the built-in Go-font writer covers Latin, Greek and Cyrillic only.
+// The app orders the export formats and shows its PDF hint by this capability.
+func detectivePDFSupport(cfg *config.Config) (backend string, scripts bool) {
+	if cfg != nil && cfg.Tools.DocumentCreator.Enabled && cfg.Tools.DocumentCreator.Backend == "gotenberg" {
+		return "gotenberg", true
+	}
+	return "builtin", false
+}
 
 // detectiveCaseView keeps the case response bounded: source text is served per source
 // and findings page through the case archive, so neither belongs in the case payload.
@@ -166,11 +169,12 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 			providers = append(providers, map[string]string{"id": p.ID, "name": p.Name, "model": p.Model, "usage": usage})
 		}
 		profiles := detective.Profiles()
+		pdfBackend, pdfScripts := detectivePDFSupport(cfg)
 		ready := s.Detective != nil && s.Detective.Ready()
 		if s.Detective != nil {
 			profiles = s.Detective.Profiles()
 		}
-		detectiveJSON(w, 200, map[string]any{"enabled": cfg.Detective.Enabled, "ready": ready, "block_reason": detectiveBlockReason(cfg, ready), "read_only": cfg.Detective.ReadOnly || cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl, "pdf_backend": detectivePDFBackend, "pdf_scripts": detectivePDFScripts, "profiles": profiles, "tools": tools, "private_sources": private, "providers": providers, "provider_id": cfg.LLM.Provider, "model": cfg.LLM.Model})
+		detectiveJSON(w, 200, map[string]any{"enabled": cfg.Detective.Enabled, "ready": ready, "block_reason": detectiveBlockReason(cfg, ready), "read_only": cfg.Detective.ReadOnly || cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl, "pdf_backend": pdfBackend, "pdf_scripts": pdfScripts, "profiles": profiles, "tools": tools, "private_sources": private, "providers": providers, "provider_id": cfg.LLM.Provider, "model": cfg.LLM.Model})
 		return
 	}
 	if s.Detective == nil || !cfg.Detective.Enabled {

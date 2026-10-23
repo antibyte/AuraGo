@@ -145,7 +145,7 @@
   "desktop.detective_error_permission_revoked": "Správce odebral přístup k výzkumu.",
   "desktop.detective_error_unsupported_format": "Tento formát exportu není dostupný.",
   "desktop.detective_error_export_too_large": "Export je příliš velký. Zvol kratší revizi nebo Markdown.",
-  "desktop.detective_error_pdf_unsupported_font": "PDF nedokáže zobrazit část této zprávy (arabština, dévanágarí, hebrejština, CJK nebo emoji). Použij místo toho Word nebo Markdown.",
+  "desktop.detective_error_pdf_unsupported_font": "PDF nedokáže zobrazit část této zprávy (arabština, dévanágarí, hebrejština nebo emoji). Použij Word nebo Markdown, případně nastav Document Creator s Gotenbergem.",
   "desktop.detective_error_copy_exists": "Kopie s tímto názvem už existuje.",
   "desktop.detective_pdf_hint": "Arabština, dévanágarí, hebrejština a emoji v PDF chybí – použij Word nebo Markdown.",
   "desktop.detective_provisional": "předběžná",

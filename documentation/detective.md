@@ -155,14 +155,15 @@ notice and a button to the provisional revision. Automatic updates and append ba
 always continue from the last full report, so a failed deepen neither blocks the
 schedule nor makes the partial result the baseline.
 
-The built-in PDF renderer embeds Go fonts and requires no Docker service. It covers
-Latin, Greek and Cyrillic; Arabic, Devanagari, Hebrew, CJK and emoji are
-refused instead of producing a damaged PDF. Detective does not call the Document
-Creator or Gotenberg — the built-in writer is the only PDF path — so the app warns
-before the click: `GET /api/desktop/detective/capabilities` reports `pdf_backend`
-`builtin` and `pdf_scripts` false, and the export bar then orders Word and
-Markdown first and names the limit next to the PDF link. Use Word or Markdown for
-those reports. Report HTML has no scripts, remote images or external stylesheets.
+PDF rendering has two paths. With Document Creator enabled on the Gotenberg backend,
+Detective renders through it and every script works. Otherwise the built-in renderer
+embeds Go fonts and needs no Docker service; it covers Latin, Greek and Cyrillic and
+refuses Arabic, Devanagari, Hebrew, CJK and emoji instead of producing a damaged PDF,
+telling the user to use Word/Markdown or to configure Gotenberg. The app warns before
+the click: `GET /api/desktop/detective/capabilities` reports `pdf_backend`
+`gotenberg`/`builtin` and `pdf_scripts`, and without full script support the export
+bar orders Word and Markdown first and names the limit next to the PDF link. Report
+HTML has no scripts, remote images or external stylesheets.
 
 Cases live in `detective.db` beside the configured Game Maker SQLite database
 (default `data/detective.db`). The store includes private continuation, so protect

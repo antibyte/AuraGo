@@ -145,7 +145,7 @@
   "desktop.detective_error_permission_revoked": "管理者が調査アクセスを取り消しました。",
   "desktop.detective_error_unsupported_format": "このエクスポート形式は利用できません。",
   "desktop.detective_error_export_too_large": "エクスポートが大きすぎます。短いリビジョンか Markdown を選んでください。",
-  "desktop.detective_error_pdf_unsupported_font": "PDF はこのレポートの一部（アラビア語、デーヴァナーガリー、ヘブライ語、CJK、絵文字）を表示できません。代わりに Word か Markdown をお使いください。",
+  "desktop.detective_error_pdf_unsupported_font": "PDF はこのレポートの一部（アラビア語、デーヴァナーガリー、ヘブライ語、絵文字）を表示できません。Word か Markdown を使うか、Document Creator を Gotenberg で設定してください。",
   "desktop.detective_error_copy_exists": "この名前のコピーはすでに存在します。",
   "desktop.detective_pdf_hint": "PDF にはアラビア語・デーヴァナーガリー・ヘブライ語・絵文字がありません。Word か Markdown をお使いください。",
   "desktop.detective_provisional": "暫定",

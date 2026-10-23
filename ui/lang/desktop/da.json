@@ -145,7 +145,7 @@
   "desktop.detective_error_permission_revoked": "Administratoren har trukket research-adgangen tilbage.",
   "desktop.detective_error_unsupported_format": "Dette eksportformat er ikke tilgængeligt.",
   "desktop.detective_error_export_too_large": "Eksporten er for stor. Vælg en kortere revision eller Markdown.",
-  "desktop.detective_error_pdf_unsupported_font": "PDF kan ikke gengive en del af denne rapport (arabisk, devanagari, hebraisk, CJK eller emoji). Brug Word eller Markdown i stedet.",
+  "desktop.detective_error_pdf_unsupported_font": "PDF kan ikke gengive en del af denne rapport (arabisk, devanagari, hebraisk eller emoji). Brug Word eller Markdown, eller opsæt Document Creator med Gotenberg.",
   "desktop.detective_error_copy_exists": "Der findes allerede en kopi med dette navn.",
   "desktop.detective_pdf_hint": "Arabisk, devanagari, hebraisk og emoji mangler i PDF – brug Word eller Markdown.",
   "desktop.detective_provisional": "foreløbig",

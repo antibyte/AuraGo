@@ -180,7 +180,7 @@ func reportPDF(ctx context.Context, r Report) ([]byte, error) {
 		}
 		glyph, err := font.GlyphIndex(nil, char)
 		if err != nil || glyph == 0 || char > 0xffff || unicode.In(char, unicode.Arabic, unicode.Devanagari, unicode.Hebrew) {
-			return nil, fmt.Errorf("%w U+%04X reliably; use Word or Markdown instead", ErrPDFFont, char)
+			return nil, fmt.Errorf("%w U+%04X reliably; use Word/Markdown or configure Document Creator with Gotenberg for this script", ErrPDFFont, char)
 		}
 	}
 	p := gofpdf.New("P", "mm", "A4", "")

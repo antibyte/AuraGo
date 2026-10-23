@@ -145,7 +145,7 @@
   "desktop.detective_error_permission_revoked": "Research access was withdrawn by the administrator.",
   "desktop.detective_error_unsupported_format": "This export format is not available.",
   "desktop.detective_error_export_too_large": "The export is too large. Choose a shorter revision or Markdown.",
-  "desktop.detective_error_pdf_unsupported_font": "PDF cannot render part of this report (Arabic, Devanagari, Hebrew, CJK or emoji). Use Word or Markdown instead.",
+  "desktop.detective_error_pdf_unsupported_font": "PDF cannot render part of this report (Arabic, Devanagari, Hebrew or emoji). Use Word or Markdown, or configure Document Creator with Gotenberg.",
   "desktop.detective_error_copy_exists": "A copy with this name already exists.",
   "desktop.detective_pdf_hint": "Arabic, Devanagari, Hebrew and emoji are missing in PDF — use Word or Markdown.",
   "desktop.detective_provisional": "provisional",

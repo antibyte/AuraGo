@@ -145,7 +145,7 @@
   "desktop.detective_error_permission_revoked": "A administração retirou o acesso à investigação.",
   "desktop.detective_error_unsupported_format": "Este formato de exportação não está disponível.",
   "desktop.detective_error_export_too_large": "A exportação é demasiado grande. Escolhe uma revisão mais curta ou Markdown.",
-  "desktop.detective_error_pdf_unsupported_font": "O PDF não consegue apresentar parte deste relatório (árabe, devanágari, hebraico, CJK ou emoji). Usa Word ou Markdown em vez disso.",
+  "desktop.detective_error_pdf_unsupported_font": "O PDF não consegue apresentar parte deste relatório (árabe, devanágari, hebraico ou emoji). Usa Word ou Markdown, ou configura o Document Creator com Gotenberg.",
   "desktop.detective_error_copy_exists": "Já existe uma cópia com este nome.",
   "desktop.detective_pdf_hint": "Faltam no PDF o árabe, o devanágari, o hebraico e os emojis — usa Word ou Markdown.",
   "desktop.detective_provisional": "provisória",

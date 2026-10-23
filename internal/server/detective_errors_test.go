@@ -50,8 +50,27 @@ func TestDetectiveErrorCodes(t *testing.T) {
 	}
 }
 
-// The app orders the export formats by these capabilities, so they must be present and
-// name the real writer (audit 4.14).
+// The app orders the export formats and shows its PDF hint by this capability, so it
+// must name the writer the service really uses (audit 4.14).
+func TestDetectivePDFSupportFollowsTheConfiguredRenderer(t *testing.T) {
+	if backend, scripts := detectivePDFSupport(nil); backend != "builtin" || scripts {
+		t.Fatalf("nil config: %q %v", backend, scripts)
+	}
+	cfg := &config.Config{}
+	if backend, scripts := detectivePDFSupport(cfg); backend != "builtin" || scripts {
+		t.Fatalf("default: %q %v", backend, scripts)
+	}
+	cfg.Tools.DocumentCreator.Enabled = true
+	cfg.Tools.DocumentCreator.Backend = "gotenberg"
+	if backend, scripts := detectivePDFSupport(cfg); backend != "gotenberg" || !scripts {
+		t.Fatalf("gotenberg: %q %v", backend, scripts)
+	}
+	cfg.Tools.DocumentCreator.Enabled = false
+	if backend, scripts := detectivePDFSupport(cfg); backend != "builtin" || scripts {
+		t.Fatalf("disabled: %q %v", backend, scripts)
+	}
+}
+
 func TestDetectiveCapabilitiesAdvertiseThePDFWriter(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Auth.Enabled = false
@@ -68,9 +87,6 @@ func TestDetectiveCapabilitiesAdvertiseThePDFWriter(t *testing.T) {
 	var caps map[string]any
 	if err := json.Unmarshal(w.Body.Bytes(), &caps); err != nil {
 		t.Fatal(err)
-	}
-	if detectivePDFBackend != "builtin" {
-		t.Fatalf("backend constant=%q", detectivePDFBackend)
 	}
 	if caps["pdf_backend"] != "builtin" {
 		t.Fatalf("pdf_backend=%v", caps["pdf_backend"])
