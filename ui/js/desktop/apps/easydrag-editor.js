@@ -43,10 +43,11 @@
             '<div class="ed-head-actions">' +
             '<button type="button" class="ed-btn ed-btn--ghost" data-ed-cmd="runs" aria-pressed="false">' + core.icon('history') + '<span>' + esc(t('easydrag.ui.runs_title')) + '</span></button>' +
             '<button type="button" class="ed-btn" data-ed-cmd="test" title="' + esc(t('easydrag.ui.test_draft') + ' (' + core.shortcut('Ctrl+Enter') + ')') + '">' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.test_draft')) + '</span></button>' +
-            '<button type="button" class="ed-btn ed-btn--danger" data-ed-cmd="cancel" hidden>' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
+            // Below 900 px the text of Stop and of the Active switch (below) is hidden: the name and the tooltip say the same words.
+            '<button type="button" class="ed-btn ed-btn--danger" data-ed-cmd="cancel" title="' + esc(t('easydrag.ui.run_cancel')) + '" aria-label="' + esc(t('easydrag.ui.run_cancel')) + '" hidden>' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--primary" data-ed-cmd="publish">' + core.icon('rocket') + '<span>' + esc(t('easydrag.ui.publish')) + '</span></button>' +
             '<button type="button" class="ed-btn" data-ed-cmd="run-now" hidden>' + core.icon('play') + '<span>' + esc(t('easydrag.ui.run_now')) + '</span></button>' +
-            '<button type="button" class="ed-switch-btn" role="switch" aria-checked="false" data-ed-cmd="active"><span class="ed-switch" aria-hidden="true"><span></span></span><span>' + esc(t('easydrag.ui.active')) + '</span></button>' +
+            '<button type="button" class="ed-switch-btn" role="switch" aria-checked="false" data-ed-cmd="active" title="' + esc(t('easydrag.ui.active')) + '" aria-label="' + esc(t('easydrag.ui.active')) + '"><span class="ed-switch" aria-hidden="true"><span></span></span><span>' + esc(t('easydrag.ui.active')) + '</span></button>' +
             '<button type="button" class="ed-icon-btn" data-ed-cmd="more" aria-label="' + esc(t('easydrag.ui.more')) + '" title="' + esc(t('easydrag.ui.more')) + '">' + core.icon('dots') + '</button>' +
             '</div></header>' +
             '<div class="ed-runview-banner" role="status" hidden>' + core.icon('history') + '<span data-ed-runview-text></span>' +
@@ -524,13 +525,13 @@
                 },
                 {
                     id: 'edit', labelKey: 'easydrag.ui.menu_edit', items: [
-                        { id: 'undo', labelKey: 'easydrag.ui.undo', icon: 'undo', shortcutHint: 'Ctrl+Z', disabled: ro || busy || !ed.model.canUndo(), action: unlessOverlay(() => ed.model.undo()) },
-                        { id: 'redo', labelKey: 'easydrag.ui.redo', icon: 'redo', shortcutHint: 'Ctrl+Shift+Z', disabled: ro || busy || !ed.model.canRedo(), action: unlessOverlay(() => ed.model.redo()) },
+                        { id: 'undo', labelKey: 'easydrag.ui.undo', icon: 'undo', shortcutHint: 'Ctrl+Z', disabled: ro || busy || !ed.model.canUndo(), action: unlessOverlay(() => interact.undo()) },
+                        { id: 'redo', labelKey: 'easydrag.ui.redo', icon: 'redo', shortcutHint: 'Ctrl+Shift+Z', disabled: ro || busy || !ed.model.canRedo(), action: unlessOverlay(() => interact.redo()) },
                         { type: 'separator' },
-                        { id: 'cut', labelKey: 'easydrag.ui.cut', icon: 'scissors', shortcutHint: 'Ctrl+X', disabled: ro || busy || !sel, action: unlessOverlay(() => { if (interact.copySelection()) interact.removeSelection(); }) },
+                        { id: 'cut', labelKey: 'easydrag.ui.cut', icon: 'scissors', shortcutHint: 'Ctrl+X', disabled: ro || busy || !sel, action: unlessOverlay(() => { if (interact.copySelection()) interact.removeSelection({ quiet: true }); }) },
                         { id: 'copy', labelKey: 'easydrag.ui.copy', icon: 'copy', shortcutHint: 'Ctrl+C', disabled: busy || !sel, action: unlessOverlay(() => interact.copySelection()) },
                         { id: 'paste', labelKey: 'easydrag.ui.paste', icon: 'clipboard', shortcutHint: 'Ctrl+V', disabled: ro || busy, action: unlessOverlay(() => interact.pasteAt(null)) },
-                        { id: 'duplicate', labelKey: 'easydrag.ui.duplicate', icon: 'copy', shortcutHint: 'Ctrl+D', disabled: ro || busy || !sel, action: unlessOverlay(() => interact.select(ed.model.duplicate(Array.from(ed.selection)))) },
+                        { id: 'duplicate', labelKey: 'easydrag.ui.duplicate', icon: 'copy', shortcutHint: 'Ctrl+D', disabled: ro || busy || !sel, action: unlessOverlay(() => interact.duplicateSteps(Array.from(ed.selection))) },
                         { id: 'delete-sel', labelKey: 'easydrag.ui.delete', icon: 'trash', shortcutHint: 'Del', disabled: ro || busy || (!sel && !ed.selectedEdge), action: unlessOverlay(() => interact.removeSelection()) },
                         { type: 'separator' },
                         { id: 'select-all', labelKey: 'easydrag.ui.select_all', icon: 'check-square', shortcutHint: 'Ctrl+A', disabled: busy, action: unlessOverlay(() => interact.selectAll()) },

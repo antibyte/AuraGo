@@ -713,8 +713,10 @@
             }).join('');
         }
 
-        // announce speaks text through the canvas's live region (core.announcer).
+        // announce speaks text through the canvas's live region (core.announcer). ed.announce lets the
+        // modules without a canvas (the palette, the inspector) speak too (core.say).
         function announce(text) { voice.announce(text); }
+        ed.announce = announce;
 
         bag.listen(listEl, 'click', (event) => {
             const btn = event.target.closest('[data-ed-focus-node]');

@@ -120,6 +120,9 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	page.Keyboard.MustType(input.Escape)
 	s.wait(`()=>!document.querySelector('.ed-detail-backdrop')`)
 
+	// The inspector lists a step's wires and removes or inserts into them from the keyboard.
+	s.connections()
+
 	// A step test runs the steps before it too: testing the Telegram step also asks about the
 	// files of the PDF step in front of it. Nothing is confirmed while the dialog is cancelled.
 	page.MustEval(`()=>{const ed=edFixture.editor();ed.bus.emit('node-test',{nodeId:ed.model.doc.nodes.find(n=>n.type==='notify.telegram').id})}`)
@@ -224,6 +227,54 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	// A flow deleted elsewhere while it is open: the editor says so and shows the start page.
 	s.deletedElsewhere()
 	s.failOnPageErrors("final")
+}
+
+// connections opens the inspector of the "Zusammenfassen" step (one wire in from the search, one out
+// to the PDF step) on its Settings tab and drives the Connections section with the keyboard: Remove
+// deletes a wire and leaves the focus in the inspector, Insert opens quick-add on the wire, and the
+// step chosen there ends up between the two ends. Each change is undone at the end, so the steps
+// that follow find the seeded flow plus the Telegram step.
+func (s *easyDragSmoke) connections() {
+	s.t.Helper()
+	page := s.page
+	page.MustEval(`()=>{window.__ids=edFixture.editor().model.doc.nodes.map(n=>n.id);edFixture.editor().bus.emit('open-detail',{nodeId:'n_ki'})}`)
+	s.wait(`()=>!!document.querySelector('.ed-detail')`)
+	page.MustElement(`.ed-detail [data-ed-pane="settings"]`).MustClick()
+	// Both wires are listed with the other step and the port, and each button names both ends.
+	s.wait(`()=>{const ed=edFixture.editor();const rows=[...document.querySelectorAll('.ed-detail .ed-conn')];if(rows.length!==2)return false;
+		const text=r=>r.querySelector('.ed-conn-text').textContent;
+		const remove=r=>r.querySelector('[data-ed-conn-remove]').getAttribute('aria-label');
+		return text(rows[0])===ed.t('easydrag.ui.connections_from',{name:'Nachrichten suchen'}) && text(rows[1])===ed.t('easydrag.ui.connections_to',{name:'PDF erstellen'})
+			&& remove(rows[0])===ed.t('easydrag.ui.connections_remove',{from:'Nachrichten suchen',to:'Zusammenfassen'})
+			&& remove(rows[1])===ed.t('easydrag.ui.connections_remove',{from:'Zusammenfassen',to:'PDF erstellen'})
+			&& rows.every(r=>r.querySelector('.ed-conn-port').textContent.length>0 && r.querySelector('[data-ed-conn-insert]').getAttribute('title').length>0)}`)
+	// The section ends the Settings pane: scroll it into view for the screenshot.
+	page.MustEval(`()=>document.querySelector('.ed-detail [data-ed-connections]').scrollIntoView({block:'end'})`)
+	s.shot("inspector-connections")
+	s.noRawKeys("connections")
+	// Remove, pressed with the keyboard: the wire goes, and the focus stays in the section (the next row's button).
+	// A key press first, so that Chrome treats the script focus that follows as keyboard focus and draws its ring.
+	page.Keyboard.MustType(input.Tab)
+	page.MustEval(`()=>document.querySelector('.ed-detail [data-ed-conn-remove]').focus()`)
+	s.wait(`()=>document.activeElement.hasAttribute('data-ed-conn-remove') && document.activeElement.matches(':focus-visible')`)
+	page.MustEval(`()=>document.querySelector('.ed-detail [data-ed-connections]').scrollIntoView({block:'end'})`)
+	s.shot("inspector-connections-focus")
+	page.Keyboard.MustType(input.Enter)
+	s.wait(`()=>{const ed=edFixture.editor();const a=document.activeElement;return ed.model.doc.edges.length===3 && document.querySelectorAll('.ed-detail .ed-conn').length===1 && !!a && !!a.closest('.ed-conns') && a.hasAttribute('data-ed-conn-remove')}`)
+	page.MustEval(`()=>edFixture.editor().model.undo()`)
+	s.wait(`()=>edFixture.editor().model.doc.edges.length===4 && document.querySelectorAll('.ed-detail .ed-conn').length===2`)
+	// Insert on the wire to the PDF step: quick-add opens; Enter picks its first step.
+	page.MustEval(`()=>document.querySelectorAll('.ed-detail [data-ed-conn-insert]')[1].focus()`)
+	page.Keyboard.MustType(input.Enter)
+	s.wait(`()=>document.activeElement && document.activeElement.classList.contains('ed-quick-search')`)
+	page.Keyboard.MustType(input.Enter)
+	s.wait(`()=>{const m=edFixture.editor().model;const added=m.doc.nodes.find(n=>!window.__ids.includes(n.id));const a=document.activeElement;
+		return !!added && m.incoming('n_pdf').map(e=>e.source.node).join()===added.id && m.incoming(added.id).map(e=>e.source.node).join()==='n_ki' && !document.querySelector('.ed-quick') && !!a && !!a.closest('.ed-conns')}`)
+	page.MustEval(`()=>edFixture.editor().model.undo()`)
+	s.wait(`()=>edFixture.editor().model.doc.nodes.length===window.__ids.length && edFixture.editor().model.doc.edges.length===4`)
+	page.Keyboard.MustType(input.Escape)
+	s.wait(`()=>!document.querySelector('.ed-detail-backdrop')`)
+	s.failOnPageErrors("connections")
 }
 
 // tabStops counts the canvas's tab stops with 5 steps: without a selection the canvas and the four

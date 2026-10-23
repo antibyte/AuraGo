@@ -699,6 +699,15 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-file-meta > span:first-of-type { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ed-note { min-height: 220px; }
 
+/* connections of the step: the end of the settings pane (keyboard access to the wires' hover buttons) */
+.ed-conns { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--ed-border); }
+.ed-conns-title { margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ed-muted); }
+.ed-conns-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.ed-conn { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 2px 4px 2px 10px; border: 1px solid var(--ed-border); border-radius: var(--ed-radius); background: var(--ed-panel-strong); }
+.ed-conn-text { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.ed-conn-port { flex: none; }
+.ed-conn [data-ed-conn-remove]:hover:not(:disabled) { color: var(--ed-danger-ink); }
+
 /* input tree */
 .ed-inputs .ed-col-head select { max-width: 60%; }
 .ed-tree { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
@@ -914,8 +923,9 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 
 /* ── responsive ─────────────────────────────────────────────────────────────── */
 @container (max-width: 900px) {
+    /* The text goes, the name stays: these spans are hidden visually (as .ed-sr-only does), and the buttons carry the same words as aria-label. */
     .ed-head-actions .ed-btn:not([data-ed-cmd="test"]):not([data-ed-cmd="publish"]):not([data-ed-cmd="runs"]):not([data-ed-cmd="run-now"]) > span,
-    .ed-switch-btn > span:last-child { display: none; }
+    .ed-switch-btn > span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     .ed-head-actions .ed-btn[data-ed-cmd="test"] > span,
     .ed-head-actions .ed-btn[data-ed-cmd="publish"] > span,
     .ed-head-actions .ed-btn[data-ed-cmd="runs"] > span,

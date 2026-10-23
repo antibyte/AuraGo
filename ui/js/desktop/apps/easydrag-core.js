@@ -128,6 +128,27 @@
         };
     }
 
+    // say speaks text through the editor's live region (ed.announce, set by the canvas). A state
+    // without a canvas stays silent.
+    function say(ed, text) { if (ed && typeof ed.announce === 'function' && text) ed.announce(text); }
+
+    // stepsText tells what an action did to steps: the name for one, the count for several. The two
+    // texts are separate keys because languages count differently (keyOne takes {name}, keyMany {count}).
+    function stepsText(t, keyOne, keyMany, names) {
+        return names.length === 1 ? t(keyOne, { name: names[0] }) : t(keyMany, { count: names.length });
+    }
+
+    // removeConnection deletes one connection on the user's behalf (the wire's button, Delete, the
+    // inspector) and says which two steps it joined.
+    function removeConnection(ed, edgeId) {
+        const e = ed.model.edge(edgeId);
+        if (!e) return;
+        const name = id => { const n = ed.model.node(id); return n ? (n.label || n.type) : ''; };
+        const text = ed.t('easydrag.ui.announce_disconnected', { from: name(e.source.node), to: name(e.target.node) });
+        ed.model.disconnect([edgeId]);
+        say(ed, text);
+    }
+
     // frame coalesces many requests into one requestAnimationFrame callback.
     function frame(fn) {
         let id = 0;
@@ -470,7 +491,7 @@
     }
 
     ED.core = {
-        ICONS, icon, esc, tr, clamp, debounce, announcer, frame, emitter, bag, el, isEditable, isMod, shortcut, IS_MAC,
+        ICONS, icon, esc, tr, clamp, debounce, announcer, say, stepsText, removeConnection, frame, emitter, bag, el, isEditable, isMod, shortcut, IS_MAC,
         randomID, lang, fmt, storage, FLOW_KEYS, forgetFlow, createApi, errorCode, errorText, issueText, stepErrorText, modal, capturePointer, catOf, openFlowSettings
     };
 })();

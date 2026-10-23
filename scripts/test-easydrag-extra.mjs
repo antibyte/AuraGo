@@ -188,17 +188,18 @@ export async function run(env) {
             edges: [{ source: { node: 'a', port: 'out' }, target: { node: 'b', port: 'in' } }] }));
         await h.interact.pasteAt({ x: 100, y: 200 });
         const pasted = Array.from(h.ed.selection);
-        eq('c1d04 a good fragment is pasted, drawn and selected without an announcement',
-            [h.model.doc.nodes.length, pasted.length, h.model.incoming(pasted[1]).length, h.announced.length, !!h.card(pasted[0]), h.canvas.wiresSvg.querySelectorAll('.ed-edge').length],
-            [3, 2, 1, 2, true, 1]);
+        // a1023b U3: the paste is announced (the count of the steps pasted) after the two refusals.
+        eq('c1d04 a good fragment is pasted, drawn, selected and announced',
+            [h.model.doc.nodes.length, pasted.length, h.model.incoming(pasted[1]).length, h.announced, !!h.card(pasted[0]), h.canvas.wiresSvg.querySelectorAll('.ed-edge').length],
+            [3, 2, 1, ['paste_refused', 'paste_refused', 'announce_added_many:2'], true, 1]);
         // readClipboard keeps the easydrag marker check: other JSON on the system clipboard is not pasted.
         h.store.delete(KEY);
         h.navigator.clipboard = { readText: async () => JSON.stringify({ nodes: [{ id: 'x', type: 'web.search' }], edges: [] }) };
         await h.interact.pasteAt({ x: 0, y: 0 });
-        eq('c1d04 clipboard JSON without the easydrag marker is not pasted', [h.model.doc.nodes.length, h.announced.length], [3, 2]);
+        eq('c1d04 clipboard JSON without the easydrag marker is not pasted', [h.model.doc.nodes.length, h.announced.length], [3, 3]);
         h.navigator.clipboard = { readText: async () => { h.ed.readonly = true; return JSON.stringify({ easydrag: 1, nodes: [{ id: 'x', type: 'web.search' }], edges: [] }); } };
         await h.interact.pasteAt({ x: 0, y: 0 });
-        eq('c1d04 a canvas that turned read-only while the clipboard was read pastes nothing', [h.model.doc.nodes.length, h.announced.length], [3, 2]);
+        eq('c1d04 a canvas that turned read-only while the clipboard was read pastes nothing', [h.model.doc.nodes.length, h.announced.length], [3, 3]);
         eq('c1d04 the paste checks log no errors', h.logged, []);
     });
 

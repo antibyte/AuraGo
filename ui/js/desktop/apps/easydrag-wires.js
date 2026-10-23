@@ -188,12 +188,11 @@
             if (!btn || !hoverEdge) return;
             const edgeId = hoverEdge;
             if (btn.dataset.edWire === 'delete') {
-                ed.model.disconnect([edgeId]);
+                core.removeConnection(ed, edgeId);
                 hideActions(true);
                 return;
             }
-            const rect = btn.getBoundingClientRect();
-            ed.bus.emit('quick-add', { x: rect.left + rect.width / 2, y: rect.bottom + 6, edge: edgeId });
+            ED.palette.requestInsert(ed, edgeId, btn);
             hideActions(true);
         });
         bag.listen(layer, 'click', (event) => {

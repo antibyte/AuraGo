@@ -768,6 +768,10 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   record is read again and `FLOW_NOT_FOUND` means deleted. Every delete (editor, start-page card,
   elsewhere, a broadcast on the start page) calls `core.forgetFlow(id)`, which drops the four
   per-flow keys (`core.FLOW_KEYS`: emergency copy, view, effects-ok, test-trigger).
+- Below 900 px (`@container`) the header hides the text of Stop and of the Active switch, visually
+  only (the `.ed-sr-only` pattern, not `display: none`). Both carry the same words as `aria-label`
+  and `title`, so the visible label is part of the name; Stop's name follows its text to "Stopping…"
+  (`setStopPending`). A new header button that loses its text needs the same.
 - Run now is off while a published flow is paused (`runNowState`), in the ⋯ menu, the Flow menu
   and a card's menu, with `disabledHint` (`error_flow_disabled`), a menu-item field the desktop
   draws as the disabled item's tooltip; a stale click gets the server's 409 `FLOW_DISABLED`.
@@ -790,6 +794,16 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `is-inspector`) the graph and the inspector take turns. EasyDrag is not a mobile wide window.
   `appWindowMinSize` is 360×480. The responsive check also uses a 320 px viewport. Supported
   appearances there are Standard, Fruity light and Fruity dark. There is no Standard-light theme.
+- The Settings pane of the inspector ends with Connections (`[data-ed-connections]`, `renderConnections`
+  in `easydrag-detail.js`): the step's incoming wires first, then the outgoing ones, each as "From/To
+  {step}" with the port the wire leaves (`ED.canvas.portLabel`). It is the keyboard way to what the
+  canvas shows on wire hover only: Remove (`core.removeConnection`) and Insert a step (the same
+  quick-add as the wire's insert button, `ED.palette.requestInsert`, which takes a `restoreFocus`
+  callback so the focus returns to the row, not the canvas). Both buttons name both ends in
+  `aria-label`. A read-only desktop and the run view list the wires without buttons. The list redraws
+  on every model change while the Settings tab shows (a signature of the rows keeps typing from
+  redrawing it), also for an undo that touches no step; a redraw keeps the focus in the list (same wire,
+  else the row now at that place, else the heading `[data-ed-conns-title]`).
 - Keyboard model of the canvas: Tab, Space and Enter keep ordinary control behavior, so the canvas
   is not a focus trap and Tab does not add a step. The canvas is one tab stop and the zoom bar
   follows. With five steps and no selection the browser smoke test counts five stops (canvas plus
@@ -809,7 +823,17 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   run. A rebuild hands that focus to the new button with the same `data-ed-node-tool` while the
   card is selected, else to the canvas. D, Ctrl+D and Del remain keys; Test step is also in the
   inspector (Enter). The screen-reader step list (`.ed-node-list`) duplicates the arrow keys, so
-  its buttons are `tabindex="-1"`. Accessibility acceptance requires screen-reader and user
+  its buttons are `tabindex="-1"`. User actions are announced in the canvas's live region
+  (`canvas.announce`, `ed.announce`, `core.say`; WCAG 4.1.3): steps added (palette, quick-add,
+  paste, duplicate), deleted, turned off or on, moved by Shift+Arrow (one text 500 ms after the last
+  key, never for a pointer drag), undo and redo (only when there was something to undo), a removed
+  connection (wire button, Delete, inspector), a started test or live run and each step that fails
+  during a live run (once per step). One step gives its name, several the count, as separate keys
+  (`announce_*_one` takes {name}, `announce_*_many` {count}: languages count differently). Not
+  announced: autosave (the save chip has its own live region), a cut (its copy says "Copied"), the
+  inspector's switch for a step turned off (a switch speaks its own state), steps that went well.
+  Do not add announcements to the model's change descriptor; announce from the user-action site.
+  Accessibility acceptance requires screen-reader and user
   task checks, not screenshots alone. The minimap patches selection and run status on existing
   rects (`minimapMarks` / `selectionTick`) without rebuilding geometry. Performance acceptance
   requires measured p95 interaction latency at most 100 ms with the hardware, browser and
@@ -906,7 +930,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - Other surfaces: Mission Control (`MissionControlTriggers.isFlow`/`isUnpublishedFlow`/
   `upcomingRun`), `ui/js/missions/main.js`, `ui/cfg/flows.js` and the dashboard's cron list
   (`managed_by: easydrag`). User docs: manual chapter 24.
-- Verify: `node scripts/test-easydrag.mjs` (with `-extra.mjs` to `-extra6.mjs`),
+- Verify: `node scripts/test-easydrag.mjs` (with `-extra.mjs` to `-extra7.mjs`),
   `npm run test:mission-control`, `npm run test:dashboard-cron`, `npm run test:missions-page`,
   `go test ./ui -run 'EasyDrag|MissionControlShowsFlow|StandaloneMissionsPage'` and the opt-in
   browser tests `TestDesktopEasyDragBrowser`, `TestDesktopEasyDragDecisionBrowser` and

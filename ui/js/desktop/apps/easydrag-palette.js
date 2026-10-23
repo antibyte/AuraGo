@@ -67,8 +67,18 @@
             ed.selection.clear();
             ed.selection.add(id);
             ed.bus.emit('selection', ed.selection);
+            const added = ed.model.node(id);
+            ED.core.say(ed, ed.t('easydrag.ui.announce_added_one', { name: added.label || added.type }));
         }
         return id;
+    }
+
+    // requestInsert asks the editor for the quick-add popover that puts a step into a connection. The
+    // popover opens under anchor (the wire's insert button, a row of the inspector's connections).
+    // extra: restoreFocus() takes the focus back once the popover closes, where the canvas would.
+    function requestInsert(ed, edgeId, anchor, extra) {
+        const rect = anchor.getBoundingClientRect();
+        ed.bus.emit('quick-add', Object.assign({ x: rect.left + rect.width / 2, y: rect.bottom + 6, edge: edgeId }, extra));
     }
 
     function createPanel(ed, canvas) {
@@ -317,7 +327,9 @@
     }
 
     // openQuickAdd shows the quick-add popover at client point (x, y).
-    // req: {x, y, from?: {node, port}, edge?: edgeId, filter?: "trigger"}
+    // req: {x, y, from?: {node, port}, edge?: edgeId, filter?: "trigger", restoreFocus?: () => void}
+    // restoreFocus takes the focus back when the popover ends with a choice, Escape or Tab; without
+    // it the canvas gets the focus.
     function openQuickAdd(ed, canvas, req) {
         const core = ED.core;
         const G = ED.geometry;
@@ -400,7 +412,12 @@
             const spot = req.edge ? at : G.freeSpot(at, rects);
             const id = place(ed, info.type, spot, { from: req.from, edge: req.edge });
             close();
-            if (id) canvas.el.focus({ preventScroll: true });
+            if (id) giveFocusBack();
+        }
+
+        function giveFocusBack() {
+            if (typeof req.restoreFocus === 'function') req.restoreFocus();
+            else canvas.el.focus({ preventScroll: true });
         }
 
         let closed = false;
@@ -422,7 +439,7 @@
             if (event.key === 'ArrowDown') { event.preventDefault(); active = Math.min(items.length - 1, active + 1); render(); }
             else if (event.key === 'ArrowUp') { event.preventDefault(); active = Math.max(0, active - 1); render(); }
             else if (event.key === 'Enter') { event.preventDefault(); choose(active); }
-            else if (event.key === 'Escape' || event.key === 'Tab') { event.preventDefault(); close(); canvas.el.focus({ preventScroll: true }); }
+            else if (event.key === 'Escape' || event.key === 'Tab') { event.preventDefault(); close(); giveFocusBack(); }
             event.stopPropagation();
         });
         listEl.addEventListener('pointerdown', (event) => {
@@ -446,5 +463,5 @@
         if (ed.quickAdd) ed.quickAdd.close();
     }
 
-    ED.palette = { createPanel, openQuickAdd, closeQuickAdd, search, place };
+    ED.palette = { createPanel, openQuickAdd, closeQuickAdd, requestInsert, search, place };
 })();

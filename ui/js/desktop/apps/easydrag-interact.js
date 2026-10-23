@@ -32,6 +32,19 @@
 
         const readonly = () => !!(ed.readonly || ed.runView);
 
+        // ── announcements ───────────────────────────────────────────────────────
+
+        const nameOf = id => { const n = ed.model.node(id); return n ? (n.label || n.type) : ''; };
+        // tell says what an action did to steps in the live region: the name of one, the count of several.
+        function tell(keyOne, keyMany, names) { if (names.length) canvas.announce(core.stepsText(t, keyOne, keyMany, names)); }
+        // Arrow-key moves come in bursts: the live region hears about them once, 500 ms after the last
+        // key press. A pointer drag never goes through here.
+        let movedIds = [];
+        const movedSoon = core.debounce(() => {
+            tell('easydrag.ui.announce_moved_one', 'easydrag.ui.announce_moved_many', movedIds.map(nameOf).filter(Boolean));
+            movedIds = [];
+        }, 500);
+
         // ── selection ───────────────────────────────────────────────────────────
 
         function select(ids, opts) {
@@ -396,10 +409,42 @@
                 ed.bus.emit('quick-add', { x: rect.right + 8, y: rect.top, from: { node: id, port: outs[0] } });
             } else if (action === 'connect') ed.bus.emit('connect-picker', { nodeId: id });
             else if (action === 'test') ed.bus.emit('node-test', { nodeId: id });
-            else if (action === 'disable') ed.model.toggleDisabled([id]);
-            else if (action === 'duplicate') select(ed.model.duplicate([id]));
-            else if (action === 'delete') { ed.model.removeNodes([id], { bridge: true }); select([]); }
+            else if (action === 'disable') toggleSteps([id]);
+            else if (action === 'duplicate') duplicateSteps([id]);
+            else if (action === 'delete') removeSteps([id]);
         }
+
+        // ── commands that say what they did ─────────────────────────────────────
+
+        // duplicateSteps copies steps next to themselves, selects the copies and announces them.
+        function duplicateSteps(ids) {
+            const added = ed.model.duplicate(ids);
+            select(added);
+            tell('easydrag.ui.announce_added_one', 'easydrag.ui.announce_added_many', added.map(nameOf));
+        }
+
+        // removeSteps deletes steps (one step hands its wires on, bridge) and announces them.
+        function removeSteps(ids, quiet) {
+            const names = ids.map(nameOf).filter(Boolean);
+            ed.model.removeNodes(ids, { bridge: ids.length === 1 });
+            select([]);
+            if (!quiet) tell('easydrag.ui.announce_deleted_one', 'easydrag.ui.announce_deleted_many', names);
+        }
+
+        // toggleSteps turns steps off, or on when all of them are off, and announces which.
+        function toggleSteps(ids) {
+            const list = ids.map(id => ed.model.node(id)).filter(Boolean);
+            if (!list.length) return;
+            const off = list.some(n => !n.settings.disabled);
+            ed.model.toggleDisabled(list.map(n => n.id));
+            const names = list.map(n => n.label || n.type);
+            if (off) tell('easydrag.ui.announce_disabled_one', 'easydrag.ui.announce_disabled_many', names);
+            else tell('easydrag.ui.announce_enabled_one', 'easydrag.ui.announce_enabled_many', names);
+        }
+
+        // undo and redo announce only when there was something to undo or redo.
+        function undo() { if (!readonly() && ed.model.undo()) canvas.announce(t('easydrag.ui.announce_undo')); }
+        function redo() { if (!readonly() && ed.model.redo()) canvas.announce(t('easydrag.ui.announce_redo')); }
 
         function onHover(event) {
             const nodeEl = event.target.closest && event.target.closest('.ed-node');
@@ -420,9 +465,9 @@
                 { icon: 'edit', label: t('easydrag.ui.menu_open_node'), action: () => ed.bus.emit('open-detail', { nodeId: id }) },
                 { icon: 'play', label: t('easydrag.ui.node_test'), disabled: ro, action: () => ed.bus.emit('node-test', { nodeId: id }) },
                 { separator: true },
-                { icon: 'copy', label: t('easydrag.ui.node_duplicate'), disabled: ro, action: () => select(ed.model.duplicate(Array.from(ed.selection))) },
+                { icon: 'copy', label: t('easydrag.ui.node_duplicate'), disabled: ro, action: () => duplicateSteps(Array.from(ed.selection)) },
                 { icon: 'copy', label: t('easydrag.ui.menu_copy'), action: () => copySelection() },
-                { icon: 'pause', label: n && n.settings.disabled ? t('easydrag.ui.node_enable') : t('easydrag.ui.node_disable'), disabled: ro, action: () => ed.model.toggleDisabled(Array.from(ed.selection)) }
+                { icon: 'pause', label: n && n.settings.disabled ? t('easydrag.ui.node_enable') : t('easydrag.ui.node_disable'), disabled: ro, action: () => toggleSteps(Array.from(ed.selection)) }
             ];
             if (ed.selection.size >= 2) {
                 items.push(
@@ -499,6 +544,7 @@
                 return;
             }
             select(ids);
+            tell('easydrag.ui.announce_added_one', 'easydrag.ui.announce_added_many', ids.map(nameOf));
         }
 
         function centerWorld() {
@@ -506,13 +552,14 @@
             return G.toWorld(ed.view, { x: s.w / 2, y: s.h / 2 });
         }
 
-        function removeSelection() {
+        // removeSelection deletes the selected wire or steps. A cut (quiet) leaves the announcement to
+        // its copy: "Copied" already says where the steps went.
+        function removeSelection(opts) {
             if (readonly()) return;
-            if (ed.selectedEdge) { ed.model.disconnect([ed.selectedEdge]); ed.selectedEdge = null; return; }
+            if (ed.selectedEdge) { core.removeConnection(ed, ed.selectedEdge); ed.selectedEdge = null; return; }
             const ids = Array.from(ed.selection);
             if (!ids.length) return;
-            ed.model.removeNodes(ids, { bridge: ids.length === 1 });
-            select([]);
+            removeSteps(ids, !!(opts && opts.quiet));
         }
 
         // ── keyboard ────────────────────────────────────────────────────────────
@@ -541,13 +588,13 @@
             const mod = core.isMod(event);
             const one = ed.selection.size === 1 ? Array.from(ed.selection)[0] : null;
             if (key === ' ' && !event.repeat) { spaceDown = true; el.classList.add('is-space'); return true; }
-            if (mod && key.toLowerCase() === 'z' && !event.shiftKey) { if (!readonly()) ed.model.undo(); return true; }
-            if (mod && (key.toLowerCase() === 'y' || (key.toLowerCase() === 'z' && event.shiftKey))) { if (!readonly()) ed.model.redo(); return true; }
+            if (mod && key.toLowerCase() === 'z' && !event.shiftKey) { undo(); return true; }
+            if (mod && (key.toLowerCase() === 'y' || (key.toLowerCase() === 'z' && event.shiftKey))) { redo(); return true; }
             if (mod && key.toLowerCase() === 'a') { selectAll(); return true; }
             if (mod && key.toLowerCase() === 'c') return copySelection();
-            if (mod && key.toLowerCase() === 'x') { if (copySelection()) removeSelection(); return true; }
+            if (mod && key.toLowerCase() === 'x') { if (copySelection()) removeSelection({ quiet: true }); return true; }
             if (mod && key.toLowerCase() === 'v') { pasteAt(null); return true; }
-            if (mod && key.toLowerCase() === 'd') { if (!readonly() && ed.selection.size) select(ed.model.duplicate(Array.from(ed.selection))); return true; }
+            if (mod && key.toLowerCase() === 'd') { if (!readonly() && ed.selection.size) duplicateSteps(Array.from(ed.selection)); return true; }
             if (mod && key === '0') { const s = canvas.size(); canvas.setView(G.zoomAt(ed.view, 1, { x: s.w / 2, y: s.h / 2 }), { animate: true }); return true; }
             if (mod) return false;
             if (key === 'Delete' || key === 'Backspace') { removeSelection(); return true; }
@@ -555,14 +602,16 @@
             if (key === '!' || (key === '1' && event.shiftKey)) { canvas.fit({ animate: true }); return true; }
             if (key === '+' || key === '=') { canvas.zoomBy(1.2); return true; }
             if (key === '-') { canvas.zoomBy(1 / 1.2); return true; }
-            if ((key === 'd' || key === 'D') && ed.selection.size) { if (!readonly()) ed.model.toggleDisabled(Array.from(ed.selection)); return true; }
+            if ((key === 'd' || key === 'D') && ed.selection.size) { if (!readonly()) toggleSteps(Array.from(ed.selection)); return true; }
             if (key === 'Enter' && one) { ed.bus.emit('open-detail', { nodeId: one }); return true; }
             if ((key === 'c' || key === 'C') && one && !readonly()) { ed.bus.emit('connect-picker', { nodeId: one }); return true; }
             if (key.startsWith('Arrow')) {
                 if (event.shiftKey && ed.selection.size && !readonly()) {
                     const d = event.altKey ? 1 : G.GRID;
                     const delta = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[key];
-                    ed.model.moveNodes(Array.from(ed.selection), delta[0], delta[1]);
+                    movedIds = Array.from(ed.selection);
+                    ed.model.moveNodes(movedIds, delta[0], delta[1]);
+                    movedSoon();
                     return true;
                 }
                 const start = one || (ed.model.doc.nodes[0] && ed.model.doc.nodes[0].id);
@@ -595,12 +644,12 @@
         bag.listen(el, 'click', onClick);
         bag.listen(el, 'contextmenu', onContextMenu);
         bag.listen(el, 'focusout', () => { spaceDown = false; el.classList.remove('is-space'); });
-        bag.add(() => { clearTimeout(hoverTimer); clearTimeout(longPress); });
+        bag.add(() => { clearTimeout(hoverTimer); clearTimeout(longPress); movedSoon.cancel(); });
         // Added last, so it runs first on dispose: a gesture still in progress is cancelled.
         bag.add(() => { if (gesture) gesture.abort(); });
 
         return {
-            select, selectAll, handleKey, handleKeyUp, copySelection, pasteAt, removeSelection, edgeNear,
+            select, selectAll, handleKey, handleKeyUp, copySelection, pasteAt, removeSelection, duplicateSteps, undo, redo, edgeNear,
             lastPointer: () => lastPointer,
             // abortGesture cancels a pan, drag, connect or box select in progress (a drag moves back).
             abortGesture() { if (gesture) gesture.abort(); },

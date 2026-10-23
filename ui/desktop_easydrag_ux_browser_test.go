@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/go-rod/rod/lib/input"
@@ -48,6 +49,7 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 				if width < 760 {
 					s.wait(`()=>['test','publish','more'].every(cmd=>{const r=document.querySelector('[data-ed-cmd="'+cmd+'"]').getBoundingClientRect();return r.width>=44 && r.height>=44;})`)
 				}
+				s.headerNames()
 				// Position is fixture setup; opening and closing use real keyboard/buttons.
 				page.MustEval(`()=>{const ed=edFixture.editor();ed.bus.emit('focus-node',ed.model.doc.nodes[0].id);document.querySelector('.ed-canvas').focus();}`)
 				page.Keyboard.MustType(input.Enter)
@@ -80,4 +82,38 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 	page.MustElement(`[data-ed-home-retry]`).MustClick()
 	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1`)
 	s.failOnPageErrors("initial load recovery")
+}
+
+// axName returns the accessible name Chrome computes for the first element that matches selector.
+func (s *easyDragSmoke) axName(selector string) string {
+	s.t.Helper()
+	el := s.page.MustElement(selector)
+	node, err := el.Describe(0, false)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	tree, err := proto.AccessibilityGetPartialAXTree{ObjectID: el.Object.ObjectID, FetchRelatives: false}.Call(s.page)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	for _, n := range tree.Nodes {
+		if n.BackendDOMNodeID == node.BackendNodeID && n.Name != nil {
+			return strings.TrimSpace(n.Name.Value.Str())
+		}
+	}
+	return ""
+}
+
+// headerNames checks that Stop and the Active switch have a name at this width, where the header
+// may hide their text (below 900 px). Stop only shows during a run: it is shown for the check and
+// hidden again.
+func (s *easyDragSmoke) headerNames() {
+	s.t.Helper()
+	s.page.MustEval(`()=>{document.querySelector('[data-ed-cmd="cancel"]').hidden=false}`)
+	for _, cmd := range []string{"cancel", "active", "more"} {
+		if name := s.axName(`[data-ed-cmd="` + cmd + `"]`); name == "" {
+			s.t.Errorf("header button %s has no accessible name", cmd)
+		}
+	}
+	s.page.MustEval(`()=>{document.querySelector('[data-ed-cmd="cancel"]').hidden=true}`)
 }

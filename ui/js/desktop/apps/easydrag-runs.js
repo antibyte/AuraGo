@@ -175,6 +175,19 @@
             if (source) { source.close(); source = null; }
         }
 
+        // failedSpoken holds the steps of the live run whose failure was announced: a step that
+        // reports again (the snapshot of a reconnect) is not announced twice. Steps that went well
+        // are not announced at all; the end of the run is (finish).
+        let failedSpoken = new Set();
+
+        function announceFailed(nodeId, step) {
+            if (!step || step.status !== 'error' || failedSpoken.has(nodeId)) return;
+            failedSpoken.add(nodeId);
+            const node = ed.model.node(nodeId);
+            const name = node ? (node.label || node.type) : step.node_key;
+            if (name) canvas.announce(t('easydrag.ui.announce_step_failed', { name }));
+        }
+
         // attach follows a live run. A run started while the run view shows a stored run (its
         // request answered after the view opened) must not paint over it: it is parked, and
         // clearRun() attaches it when the run view ends.
@@ -186,6 +199,7 @@
             retryDelay = RETRY_MS;
             failures = 0;
             parked = null;
+            failedSpoken = new Set();
             setRun({ id: runId, status: 'queued', mode, steps: new Map(), record: null, error: '' });
             connect(runId);
         }
@@ -206,7 +220,7 @@
                 if (!streamed(runId)) return;
                 ed.run.record = detail.run;
                 ed.run.status = detail.run.status;
-                (detail.steps || []).forEach(s => ed.run.steps.set(s.node_id, s));
+                (detail.steps || []).forEach(s => { ed.run.steps.set(s.node_id, s); announceFailed(s.node_id, s); });
                 setRun(ed.run);
             });
             es.addEventListener('event', (event) => {
@@ -281,7 +295,7 @@
         function applyEvent(ev) {
             if (ev.type === 'run_started') ed.run.status = 'running';
             else if (ev.type === 'step_started') ed.run.steps.set(ev.node_id, Object.assign({}, ed.run.steps.get(ev.node_id), { node_id: ev.node_id, status: 'running' }));
-            else if (ev.type === 'step_finished' && ev.step) ed.run.steps.set(ev.node_id, ev.step);
+            else if (ev.type === 'step_finished' && ev.step) { ed.run.steps.set(ev.node_id, ev.step); announceFailed(ev.node_id, ev.step); }
             else if (ev.type === 'run_finished' && ev.run) {
                 ed.run.status = ev.run.status;
                 ed.run.error = ev.run.error_message || '';
@@ -538,7 +552,7 @@
                     const body = { trigger_node: triggerNode, only_node: onlyNode || undefined, remember_data: !!remember };
                     if (data) body.trigger_data = data;
                     const res = await ed.api.test(ed.flow.id, body);
-                    if (res && res.run_id && !disposed) attach(res.run_id, { mode: 'test' });
+                    if (res && res.run_id && !disposed) { attach(res.run_id, { mode: 'test' }); canvas.announce(t('easydrag.ui.announce_test_started')); }
                     return true;
                 } catch (err) {
                     ed.ctx.notify({ title: t('easydrag.ui.test_title'), message: core.errorText(t, err), type: 'error' });
@@ -552,7 +566,7 @@
             return trackStart(async () => {
                 try {
                     const res = await ed.api.runNow(ed.flow.id);
-                    if (res && res.run_id && !disposed) attach(res.run_id, { mode: 'live' });
+                    if (res && res.run_id && !disposed) { attach(res.run_id, { mode: 'live' }); canvas.announce(t('easydrag.ui.announce_run_started')); }
                 } catch (err) {
                     ed.ctx.notify({ title: t('easydrag.ui.run_now'), message: core.errorText(t, err), type: 'error' });
                 }
@@ -599,6 +613,13 @@
                 if (on) b.setAttribute('aria-busy', 'true');
                 else b.removeAttribute('aria-busy');
                 b.classList.toggle('is-busy', !!on);
+                // The header's Stop is named after its text (its text is hidden on narrow headers):
+                // the name says "Stopping…" as long as the text does.
+                if (b.dataset.edCmd === 'cancel') {
+                    const name = on ? t('easydrag.ui.run_stopping') : t('easydrag.ui.run_cancel');
+                    b.setAttribute('aria-label', name);
+                    b.setAttribute('title', name);
+                }
                 const span = b.querySelector('span');
                 if (!span) return;
                 if (on) {
