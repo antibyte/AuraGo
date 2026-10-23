@@ -108,3 +108,72 @@ func TestBuildEmbeddingFingerprintKeepsExistingFormatAndHidesQueryCredentials(t 
 		t.Fatalf("query fingerprint = %q", got)
 	}
 }
+
+func fingerprintParamDigest(param string) string {
+	sum := sha256.Sum256([]byte(param))
+	return ";p=" + hex.EncodeToString(sum[:])[:16]
+}
+
+// URL parsing cannot be relied on to redact: the fallback works on the string. The
+// secret S must not survive in any of these, however broken the URL is.
+func TestRedactURLForFingerprintHidesCredentialsOfUnparsableURLs(t *testing.T) {
+	const secret = "S-fixture-7485"
+	query := fingerprintQueryDigest("key=" + secret)
+	cases := []struct {
+		raw  string
+		want string
+	}{
+		{"https://h/v1/%zz?key=" + secret, "https://h/v1/%zz?" + query},
+		{"https://h/v1?key=" + secret + "#%zz", "https://h/v1?" + query},
+		{"https://us%zzer:" + secret + "@h/v1", "https://h/v1"},
+		{"https://user name:" + secret + "@h/v1", "https://h/v1"},
+		{"https://h:abc/v1?key=" + secret, "https://h:abc/v1?" + query},
+		{"https://[::1/v1?key=" + secret, "https://[::1/v1?" + query},
+		{"https:///v1?key=" + secret, "https:///v1?" + query},
+		{"localhost:11434/v1?key=" + secret, "localhost:11434/v1?" + query},
+		{"h/v1?key=" + secret, "h/v1?" + query},
+		{"https://h/v1;key=" + secret, "https://h/v1" + fingerprintParamDigest("key="+secret)},
+		{"https://h/v1;key=" + secret + "/x;a=1;b=2", "https://h/v1" + fingerprintParamDigest("key="+secret) + "/x" + fingerprintParamDigest("a=1") + fingerprintParamDigest("b=2")},
+		{"user:" + secret + "@localhost:11434/v1", "localhost:11434/v1"},
+		{"//user:" + secret + "@h/v1", "//h/v1"},
+		{"https://h/v1?key=" + secret + "&a=b@c#frag@x", "https://h/v1?" + fingerprintQueryDigest("key="+secret+"&a=b@c")},
+		{"https://u:" + secret + "@h:8080/v1;k=" + secret + "?x=" + secret + "#" + secret, "https://h:8080/v1" + fingerprintParamDigest("k="+secret) + "?" + fingerprintQueryDigest("x="+secret)},
+	}
+	for _, tc := range cases {
+		for name, got := range map[string]string{
+			"RedactURLForFingerprint":     RedactURLForFingerprint(" " + tc.raw + " "),
+			"FingerprintEmbeddingBaseURL": FingerprintEmbeddingBaseURL(" " + tc.raw + " "),
+		} {
+			if got != tc.want {
+				t.Errorf("%s(%q) = %q, want %q", name, tc.raw, got, tc.want)
+			}
+			if strings.Contains(got, secret) {
+				t.Errorf("%s(%q) leaks the secret: %q", name, tc.raw, got)
+			}
+		}
+	}
+
+	// A changed credential must still change the fingerprint, so the index is rebuilt.
+	if RedactURLForFingerprint("https://h/v1;key=a") == RedactURLForFingerprint("https://h/v1;key=b") {
+		t.Error("different path parameters produced one fingerprint")
+	}
+	if RedactURLForFingerprint("h/v1?key=a") == RedactURLForFingerprint("h/v1?key=b") {
+		t.Error("different queries produced one fingerprint")
+	}
+}
+
+// Characters that merely appear, without anything behind them to hide, change nothing.
+func TestRedactURLForFingerprintKeepsInputsWithNothingToHide(t *testing.T) {
+	for _, raw := range []string{
+		"https://host.example/a@b/c",
+		"https://host.example/v1;",
+		"https://host.example/v1?",
+		"https://host.example/v1#",
+		"https://host.example/v1?#",
+		"http://localhost:11434/v1/",
+	} {
+		if got := RedactURLForFingerprint(" " + raw + " "); got != raw {
+			t.Errorf("RedactURLForFingerprint(%q) = %q, want it unchanged", raw, got)
+		}
+	}
+}

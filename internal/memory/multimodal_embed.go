@@ -111,7 +111,7 @@ func (me *MultimodalEmbedder) embedOpenAI(ctx context.Context, mimeType, b64 str
 	return me.doHTTPEmbeddingWithRetry(ctx, func() (*http.Request, error) {
 		req, err := http.NewRequestWithContext(ctx, "POST", me.baseURL+"/embeddings", bytes.NewReader(body))
 		if err != nil {
-			return nil, fmt.Errorf("create request: %w", err)
+			return nil, me.requestCreationError()
 		}
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+me.apiKey)
@@ -160,7 +160,7 @@ func (me *MultimodalEmbedder) embedVertex(ctx context.Context, mimeType, b64 str
 	return me.doHTTPEmbeddingWithRetry(ctx, func() (*http.Request, error) {
 		req, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(body))
 		if err != nil {
-			return nil, fmt.Errorf("create request: %w", err)
+			return nil, me.requestCreationError()
 		}
 		req.Header.Set("Content-Type", "application/json")
 		if me.apiKey != "" {
@@ -168,6 +168,13 @@ func (me *MultimodalEmbedder) embedVertex(ctx context.Context, mimeType, b64 str
 		}
 		return req, nil
 	}, me.doVertexRequest)
+}
+
+// requestCreationError reports an unusable endpoint without the wrapped url.Error,
+// which quotes the whole URL, including a query that may hold the API key. Only
+// the scheme and host are named, as in the other embedding error paths.
+func (me *MultimodalEmbedder) requestCreationError() error {
+	return fmt.Errorf("create request: invalid embedding endpoint (%s)", redactEmbeddingURL(me.baseURL))
 }
 
 func (me *MultimodalEmbedder) doHTTPEmbeddingWithRetry(ctx context.Context, buildRequest func() (*http.Request, error), do func(*http.Request) ([]float32, error)) ([]float32, error) {

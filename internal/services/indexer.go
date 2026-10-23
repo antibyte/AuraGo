@@ -491,7 +491,7 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 			seenPaths[path] = struct{}{}
 		}
 		if outcome.err != nil {
-			errors = append(errors, outcome.err.Error())
+			errors = append(errors, scrubIndexingError(outcome.err))
 			return nil
 		}
 		if outcome.indexed {

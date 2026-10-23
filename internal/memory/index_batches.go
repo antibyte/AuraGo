@@ -35,10 +35,17 @@ func (cv *ChromemVectorDB) indexingContext() (context.Context, context.CancelFun
 	return ctx, cancel
 }
 
-// indexFileTimeout bounds the replacement of one indexed file: embedding all of its
-// chunks plus a fixed allowance for the metadata-store publication that follows.
+// indexFileTimeout bounds the replacement of one indexed file: every one of its
+// batches gets the deadline of a full batch, plus a fixed allowance for the
+// metadata-store publication that follows. The deadline grows with the file;
+// calculateBatchTimeout caps a single batch, but a file of many batches would be cut
+// off by that cap even though no batch is slow.
 func indexFileTimeout(chunks int) time.Duration {
-	return calculateBatchTimeout(chunks) + 30*time.Second
+	if chunks < 0 {
+		chunks = 0
+	}
+	batches := (chunks + indexDocumentBatchSize - 1) / indexDocumentBatchSize
+	return time.Duration(batches)*calculateBatchTimeout(indexDocumentBatchSize) + 30*time.Second
 }
 
 // indexBatchStats reports what addDocumentsInBatches did with its documents.
@@ -46,7 +53,13 @@ type indexBatchStats struct {
 	embedded  int // written after a provider call
 	rewritten int // written again with the stored vector, no provider call
 	unchanged int // already published exactly as wanted, left alone
+	// rejected lists the IDs of documents the credential policy kept out: they were
+	// neither embedded nor written, so callers must not count them as indexed.
+	rejected []string
 }
+
+// maxLoggedRejectedIDs bounds the document IDs named in the log of one run.
+const maxLoggedRejectedIDs = 20
 
 // addDocumentsInBatches embeds and publishes docs in batches of
 // indexDocumentBatchSize. Every batch gets its own deadline sized for the work it
@@ -54,21 +67,33 @@ type indexBatchStats struct {
 // hundreds of other documents. Finished batches stay written when a later one
 // fails; the caller decides what a partial run means.
 //
-// Each batch is checked against the credential policy before any of its content
-// is sent to the embedding provider. With reuseIndexed, documents whose stored
-// copy has the same content and the current embedding fingerprint are not
+// Every document is checked against the credential policy before any of its content
+// is sent to the embedding provider. A rejected document is skipped on its own: it
+// is neither embedded nor written, it is reported in the stats and logged by ID and
+// count, and the rest of the run continues. With reuseIndexed, documents whose
+// stored copy has the same content and the current embedding fingerprint are not
 // embedded again: an identical stored copy is left alone, a copy with changed
 // metadata is rewritten with the stored vector.
-func (cv *ChromemVectorDB) addDocumentsInBatches(ctx context.Context, col *chromem.Collection, docs []chromem.Document, reuseIndexed bool) (indexBatchStats, error) {
-	var stats indexBatchStats
+func (cv *ChromemVectorDB) addDocumentsInBatches(ctx context.Context, col *chromem.Collection, docs []chromem.Document, reuseIndexed bool) (stats indexBatchStats, err error) {
+	defer func() {
+		if len(stats.rejected) == 0 || cv.logger == nil {
+			return
+		}
+		ids := stats.rejected
+		if len(ids) > maxLoggedRejectedIDs {
+			ids = ids[:maxLoggedRejectedIDs]
+		}
+		cv.logger.Warn("Skipped documents that the credential policy rejects", "collection", col.Name, "count", len(stats.rejected), "ids", ids)
+	}()
 	batches := (len(docs) + indexDocumentBatchSize - 1) / indexDocumentBatchSize
 	for start := 0; start < len(docs); start += indexDocumentBatchSize {
 		if err := ctx.Err(); err != nil {
 			return stats, err
 		}
-		batch := docs[start:min(start+indexDocumentBatchSize, len(docs))]
-		if err := validateNewVectorDocuments(batch); err != nil {
-			return stats, err
+		batch, rejected := splitRejectedDocuments(docs[start:min(start+indexDocumentBatchSize, len(docs))])
+		stats.rejected = append(stats.rejected, rejected...)
+		if len(batch) == 0 {
+			continue
 		}
 		pending := batch
 		var unchanged, rewritten int
@@ -89,6 +114,27 @@ func (cv *ChromemVectorDB) addDocumentsInBatches(ctx context.Context, col *chrom
 		stats.embedded += len(pending) - rewritten
 	}
 	return stats, nil
+}
+
+// splitRejectedDocuments separates the documents that pass the credential policy
+// from the IDs of those that do not. Without a rejection it returns docs itself.
+func splitRejectedDocuments(docs []chromem.Document) (accepted []chromem.Document, rejected []string) {
+	for i, doc := range docs {
+		if validateNewVectorDocuments([]chromem.Document{doc}) == nil {
+			if accepted != nil {
+				accepted = append(accepted, doc)
+			}
+			continue
+		}
+		if accepted == nil {
+			accepted = append(make([]chromem.Document, 0, len(docs)-1), docs[:i]...)
+		}
+		rejected = append(rejected, doc.ID)
+	}
+	if accepted == nil {
+		return docs, nil
+	}
+	return accepted, rejected
 }
 
 // dropIndexedDocuments removes the documents of a batch that need no work

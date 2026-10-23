@@ -7,18 +7,14 @@ import (
 	"time"
 
 	"aurago/internal/memory/kgsemantic"
-
-	chromem "github.com/philippgille/chromem-go"
 )
 
-// blockedEmbeddingReason marks pending corpus documents whose embedding failed.
-// Startup reconcile sets it; the retry loop below clears it on success.
+// blockedEmbeddingReason marks pending corpus documents whose embedding failed on
+// the provider side. Startup reconcile sets it, also for documents it no longer
+// tries after its failure breaker opened; the retry loop below clears it on success.
+// The other blocked reasons (blockedCredentialReason, blockedRejectedReason) are
+// defined with the shared pass code and are not picked up by the loop.
 const blockedEmbeddingReason = "embedding_failed"
-
-// blockedRetryMaxConsecutiveFailures is how many provider-side failures in a row end
-// a retry pass. The provider is evidently unavailable, and every further document
-// would only burn a full retry cycle before the next interval tries again.
-const blockedRetryMaxConsecutiveFailures = 3
 
 // blockedRetryFlightKey keys the single-flight slot shared by every corpus
 // reconcile and retry pass. The NUL prefix keeps it clear of the query strings
@@ -89,7 +85,11 @@ func (cv *ChromemVectorDB) runBlockedEmbeddingRetryPass(ctx context.Context) err
 // retryBlockedEmbeddings is the narrow counterpart of reconcileCorpus: it embeds
 // only the documents blocked with blockedEmbeddingReason and publishes them through
 // the same recheck-and-persist step, which clears the block. A document that fails
-// again simply stays blocked.
+// again simply stays blocked, one the provider refuses for good moves to
+// blockedRejectedReason and is not sent again, and one that violates the credential
+// policy moves to blockedCredentialReason without a provider call. The pass ends at
+// the first provider-wide refusal, after a few provider-side failures in a row, and
+// after blockedRetryMaxFailedAttempts failed attempts.
 func (cv *ChromemVectorDB) retryBlockedEmbeddings(ctx context.Context) error {
 	var anyBlocked bool
 	if err := cv.corpus.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM documents WHERE pending<>0 AND blocked_reason=? AND collection<>?)`, blockedEmbeddingReason, kgsemantic.CollectionName).Scan(&anyBlocked); err != nil {
@@ -102,69 +102,38 @@ func (cv *ChromemVectorDB) retryBlockedEmbeddings(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	var passErr error
-	var attempted, recovered int
-	consecutiveFailures := 0
-	defer func() {
-		if attempted > 0 && cv.logger != nil {
-			cv.logger.Info("Retried documents blocked by failed embeddings", "attempted", attempted, "recovered", recovered)
-		}
-	}()
+	pass := newCorpusEmbeddingPass(cv, false, blockedRetryMaxFailedAttempts)
+	defer pass.logSummary("retry")
 	for _, name := range names {
 		if name == kgsemantic.CollectionName {
 			continue
 		}
 		col, err := cv.db.GetOrCreateCollection(name, nil, cv.embeddingFunc)
 		if err != nil {
-			return errors.Join(passErr, err)
+			return errors.Join(pass.report(), err)
 		}
 		afterID := ""
 		for {
 			page, err := cv.corpus.blockedDocumentPage(ctx, name, afterID, blockedEmbeddingReason)
 			if err != nil {
-				return errors.Join(passErr, err)
+				return errors.Join(pass.report(), err)
 			}
 			if len(page) == 0 {
 				break
 			}
-			var candidates []corpusReconcileCandidate
-			providerDown := false
-			for _, snapshot := range page {
-				if err := ctx.Err(); err != nil {
-					return err
-				}
-				doc := snapshot.document
-				doc.Embedding = nil
-				embedded := []chromem.Document{doc}
-				attempted++
-				if err := cv.embedDocumentsOutsideLock(ctx, embedded); err != nil {
-					if ctx.Err() != nil {
-						return ctx.Err()
-					}
-					passErr = errors.Join(passErr, err)
-					if shouldRetryEmbeddingError(ctx, err) {
-						consecutiveFailures++
-					} else {
-						consecutiveFailures = 0
-					}
-					if consecutiveFailures >= blockedRetryMaxConsecutiveFailures {
-						providerDown = true
-						break
-					}
-					continue
-				}
-				consecutiveFailures = 0
-				doc = embedded[0]
-				doc.Metadata = cv.addEmbeddingMetadata(doc.Metadata)
-				candidates = append(candidates, corpusReconcileCandidate{snapshot: snapshot, document: doc})
+			res, err := pass.embedPage(ctx, page)
+			if err != nil {
+				return err
 			}
-			// Publish what was embedded before the pass gives up.
-			if err := cv.persistReconcileCandidates(ctx, name, col, candidates); err != nil {
-				return errors.Join(passErr, err)
+			// Record the outcomes and publish what was embedded before the pass gives up.
+			if err := pass.markPage(ctx, name, res); err != nil {
+				return errors.Join(pass.report(), err)
 			}
-			recovered += len(candidates)
-			if providerDown {
-				return passErr
+			if err := cv.persistReconcileCandidates(ctx, name, col, res.candidates); err != nil {
+				return errors.Join(pass.report(), err)
+			}
+			if pass.breaker.open {
+				return pass.report()
 			}
 			afterID = page[len(page)-1].document.ID
 			if len(page) < corpusPageSize {
@@ -172,5 +141,5 @@ func (cv *ChromemVectorDB) retryBlockedEmbeddings(ctx context.Context) error {
 			}
 		}
 	}
-	return passErr
+	return pass.report()
 }

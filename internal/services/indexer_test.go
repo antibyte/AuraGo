@@ -1399,3 +1399,37 @@ func TestShouldRetryIndexingErr(t *testing.T) {
 		})
 	}
 }
+
+// Errors of a directory scan are returned to the caller and shown in the UI, so
+// they are scrubbed like the log lines of the same failure.
+func TestFileIndexerScanDirectoryScrubsCollectedErrors(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	const secret = "hunter2hunter2xyz"
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "password="+secret+".png"), []byte("fake"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.PollIntervalSeconds = 60
+	cfg.Embeddings.Multimodal = true
+	// An endpoint that cannot be used makes the multimodal embedding of the image fail.
+	cfg.Embeddings.BaseURL = "http://[::1/v1?key=" + secret
+	cfg.Embeddings.Model = "embed-model"
+	cfg.Embeddings.ProviderType = "openai"
+	fi := NewFileIndexer(cfg, &sync.RWMutex{}, &fakeIndexerVectorDB{}, stm, logger)
+
+	_, indexed, errs := fi.scanDirectory(context.Background(), dir, "file_index")
+	if indexed != 0 || len(errs) != 1 {
+		t.Fatalf("scan indexed=%d errors=%v, want the image to fail with one error", indexed, errs)
+	}
+	if strings.Contains(errs[0], secret) || strings.Contains(errs[0], "key=") {
+		t.Fatalf("collected error is not scrubbed: %s", errs[0])
+	}
+}

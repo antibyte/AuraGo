@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"sync/atomic"
 	"testing"
@@ -97,17 +98,42 @@ func TestBlockedEmbeddingRetryPassReembedsAndUnblocks(t *testing.T) {
 	}
 }
 
+// seedBlockedEmbeddingDocuments writes count pending documents that an earlier
+// reconcile blocked because their embedding failed, and returns their IDs.
+func seedBlockedEmbeddingDocuments(t *testing.T, cv *ChromemVectorDB, count int) []string {
+	t.Helper()
+	var ids []string
+	var docs []chromem.Document
+	for i := range count {
+		id := fmt.Sprintf("blocked-%03d", i)
+		ids = append(ids, id)
+		docs = append(docs, chromem.Document{ID: id, Content: "content " + id})
+	}
+	seedPendingCorpusDocuments(t, cv, docs...)
+	if err := cv.setCorpusBlocked(t.Context(), "aurago_memories", ids, "embedding_failed"); err != nil {
+		t.Fatal(err)
+	}
+	return ids
+}
+
 // With the provider unreachable a pass must give up after a few failures instead
-// of burning a full retry cycle on every blocked document; permanent per-document
-// failures must not stop it from reaching the documents behind them.
+// of burning a full retry cycle on every blocked document. Credential refusals end
+// it at once, and a provider that rejects documents one by one is bounded by a cap
+// of failed attempts per pass.
 func TestBlockedEmbeddingRetryPassStopsWhenProviderIsDown(t *testing.T) {
 	for _, tc := range []struct {
-		name      string
-		failure   error
-		wantCalls int64
+		name         string
+		failure      error
+		documents    int
+		wantCalls    int64
+		wantRejected int
 	}{
-		{"provider unavailable", &embeddingHTTPStatusError{statusCode: 503}, blockedRetryMaxConsecutiveFailures},
-		{"documents rejected individually", &embeddingHTTPStatusError{statusCode: 400}, 8},
+		{"provider unavailable", &embeddingHTTPStatusError{statusCode: 503}, 8, blockedRetryMaxConsecutiveFailures, 0},
+		{"unknown failure", errors.New("embedding provider unavailable"), 8, blockedRetryMaxConsecutiveFailures, 0},
+		{"credentials refused 401", &embeddingHTTPStatusError{statusCode: 401}, 8, 1, 0},
+		{"payment required 402", &embeddingHTTPStatusError{statusCode: 402}, 8, 1, 0},
+		{"forbidden 403", &embeddingHTTPStatusError{statusCode: 403}, 8, 1, 0},
+		{"documents rejected individually", &embeddingHTTPStatusError{statusCode: 400}, 30, blockedRetryMaxFailedAttempts, blockedRetryMaxFailedAttempts},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cv := newCorpusTestVectorDB(t, filepath.Join(t.TempDir(), "vectors"))
@@ -116,17 +142,7 @@ func TestBlockedEmbeddingRetryPassStopsWhenProviderIsDown(t *testing.T) {
 				calls.Add(1)
 				return nil, tc.failure
 			}
-			var ids []string
-			var docs []chromem.Document
-			for i := range 8 {
-				id := fmt.Sprintf("blocked-%02d", i)
-				ids = append(ids, id)
-				docs = append(docs, chromem.Document{ID: id, Content: "content " + id})
-			}
-			seedPendingCorpusDocuments(t, cv, docs...)
-			if err := cv.setCorpusBlocked(t.Context(), "aurago_memories", ids, "embedding_failed"); err != nil {
-				t.Fatal(err)
-			}
+			ids := seedBlockedEmbeddingDocuments(t, cv, tc.documents)
 
 			if err := cv.runBlockedEmbeddingRetryPass(t.Context()); err == nil {
 				t.Fatal("pass reported success although every embedding failed")
@@ -134,10 +150,118 @@ func TestBlockedEmbeddingRetryPassStopsWhenProviderIsDown(t *testing.T) {
 			if got := calls.Load(); got != tc.wantCalls {
 				t.Fatalf("pass made %d embedding calls, want %d", got, tc.wantCalls)
 			}
+			rejected := 0
 			for _, id := range ids {
-				if pending, blocked := corpusDocumentState(t, cv, id); pending != 1 || blocked != "embedding_failed" {
-					t.Fatalf("%s lost its block: pending=%d blocked=%q", id, pending, blocked)
+				pending, blocked := corpusDocumentState(t, cv, id)
+				if pending != 1 {
+					t.Fatalf("%s was published: pending=%d", id, pending)
 				}
+				switch blocked {
+				case "embedding_rejected":
+					rejected++
+				case "embedding_failed":
+				default:
+					t.Fatalf("%s has blocked reason %q", id, blocked)
+				}
+			}
+			if rejected != tc.wantRejected {
+				t.Fatalf("%d documents marked embedding_rejected, want %d", rejected, tc.wantRejected)
+			}
+		})
+	}
+}
+
+// A document the provider rejected for good must not be sent again by every later
+// pass; documents blocked only by a failure still are.
+func TestBlockedEmbeddingRetryPassDoesNotResendRejectedDocuments(t *testing.T) {
+	cv := newCorpusTestVectorDB(t, filepath.Join(t.TempDir(), "vectors"))
+	var calls atomic.Int64
+	var status atomic.Int64
+	status.Store(http.StatusBadRequest)
+	cv.embeddingFunc = func(context.Context, string) ([]float32, error) {
+		calls.Add(1)
+		return nil, &embeddingHTTPStatusError{statusCode: int(status.Load())}
+	}
+	ids := seedBlockedEmbeddingDocuments(t, cv, 3)
+
+	if err := cv.runBlockedEmbeddingRetryPass(t.Context()); err == nil {
+		t.Fatal("first pass reported success although the provider rejected every document")
+	}
+	if got := calls.Load(); got != 3 {
+		t.Fatalf("first pass made %d calls, want 3", got)
+	}
+	for _, id := range ids {
+		requireCorpusRowState(t, cv, "aurago_memories", id, 1, "embedding_rejected")
+	}
+
+	calls.Store(0)
+	status.Store(http.StatusOK)
+	if err := cv.runBlockedEmbeddingRetryPass(t.Context()); err != nil {
+		t.Fatalf("second pass: %v", err)
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("second pass sent %d rejected documents again", got)
+	}
+	for _, id := range ids {
+		requireCorpusRowState(t, cv, "aurago_memories", id, 1, "embedding_rejected")
+	}
+}
+
+// With the provider down the startup reconcile must not pay a full retry cycle for
+// every pending document. After the breaker trips, the remaining documents are
+// marked for the runtime retry loop without another provider call.
+func TestReconcileStopsEmbeddingWhenTheProviderIsDown(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		failure   error
+		documents int
+		wantCalls int64
+	}{
+		{"provider unavailable", &embeddingHTTPStatusError{statusCode: 503}, 10, blockedRetryMaxConsecutiveFailures},
+		{"unknown failure across several pages", errors.New("embedding provider unavailable"), 300, blockedRetryMaxConsecutiveFailures},
+		{"credentials refused", &embeddingHTTPStatusError{statusCode: 401}, 10, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cv := newCorpusTestVectorDB(t, filepath.Join(t.TempDir(), "vectors"))
+			var calls atomic.Int64
+			var failing atomic.Bool
+			failing.Store(true)
+			cv.embeddingFunc = func(context.Context, string) ([]float32, error) {
+				calls.Add(1)
+				if failing.Load() {
+					return nil, tc.failure
+				}
+				return []float32{1, 0, 0}, nil
+			}
+			var ids []string
+			var docs []chromem.Document
+			for i := range tc.documents {
+				id := fmt.Sprintf("pending-%03d", i)
+				ids = append(ids, id)
+				docs = append(docs, chromem.Document{ID: id, Content: "content " + id})
+			}
+			seedPendingCorpusDocuments(t, cv, docs...)
+
+			if err := cv.reconcileCorpus(t.Context()); err == nil {
+				t.Fatal("reconcile reported success although the provider was down")
+			}
+			if got := calls.Load(); got != tc.wantCalls {
+				t.Fatalf("reconcile made %d embedding calls, want %d", got, tc.wantCalls)
+			}
+			for _, id := range ids {
+				requireCorpusRowState(t, cv, "aurago_memories", id, 1, "embedding_failed")
+			}
+
+			failing.Store(false)
+			calls.Store(0)
+			if err := cv.runBlockedEmbeddingRetryPass(t.Context()); err != nil {
+				t.Fatalf("retry pass with a working provider: %v", err)
+			}
+			if got := calls.Load(); got != int64(tc.documents) {
+				t.Fatalf("retry pass embedded %d documents, want %d", got, tc.documents)
+			}
+			for _, id := range ids {
+				requireCorpusRowState(t, cv, "aurago_memories", id, 0, "")
 			}
 		})
 	}

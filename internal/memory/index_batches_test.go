@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -140,30 +141,59 @@ func TestIndexToolGuidesGivesEveryBatchItsOwnDeadline(t *testing.T) {
 }
 
 // No guide content may reach the embedding provider before the credential policy
-// has accepted it.
-func TestIndexToolGuidesRejectsCredentialBeforeEmbedding(t *testing.T) {
+// has accepted it. One rejected guide is skipped; it neither stops the run nor
+// keeps the bundled guides out of the index, and it is not part of the manifest, so
+// the next run does not try it again.
+func TestIndexToolGuidesSkipsRejectedGuideAndIndexesTheRest(t *testing.T) {
 	embedder := &recordingEmbedder{}
 	cv := newIndexBatchTestDB(t, embedder)
+	var logs bytes.Buffer
+	cv.logger = slog.New(slog.NewTextHandler(&logs, nil))
 	toolsDir := t.TempDir()
 	leaky := "---\ndescription: Leaky guide\n---\n\n# Leaky\n\nkey: " + batchTestSecret + "\n"
 	if err := os.WriteFile(filepath.Join(toolsDir, "zz-leaky.md"), []byte(leaky), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	err := cv.IndexToolGuides(toolsDir, true)
-	if !errors.Is(err, ErrAutomaticMemorySkipped) {
-		t.Fatalf("IndexToolGuides error = %v, want ErrAutomaticMemorySkipped", err)
+	if err := cv.IndexToolGuides(toolsDir, true); err != nil {
+		t.Fatalf("IndexToolGuides: %v", err)
 	}
 	if embedder.sawText(batchTestSecret) {
 		t.Fatal("credential text reached the embedding provider before validation")
 	}
-	if _, statErr := os.Stat(filepath.Join(cv.dataDir, ".tool_guides_hash")); !os.IsNotExist(statErr) {
-		t.Fatalf("content hash written for a rejected run: %v", statErr)
+	collection, err := cv.db.GetOrCreateCollection("tool_guides", nil, cv.embeddingFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collection.Count() == 0 || collection.Count() != embedder.callCount() {
+		t.Fatalf("indexed %d documents with %d provider calls, want every accepted guide embedded once", collection.Count(), embedder.callCount())
+	}
+	if _, err := collection.GetByID(t.Context(), "tool_zz-leaky"); err == nil {
+		t.Fatal("rejected guide was written")
+	}
+	for _, id := range cv.readToolGuidesDocManifest() {
+		if id == "tool_zz-leaky" {
+			t.Fatal("rejected guide is listed in the manifest")
+		}
+	}
+	if data, err := os.ReadFile(filepath.Join(cv.dataDir, ".tool_guides_hash")); err != nil || len(data) == 0 {
+		t.Fatalf("content hash not written after a run that only skipped a guide: %v", err)
+	}
+	if !strings.Contains(logs.String(), "tool_zz-leaky") || strings.Contains(logs.String(), batchTestSecret) {
+		t.Fatalf("log must name the skipped document and never its content: %s", logs.String())
+	}
+
+	// Nothing changed, so the next run leaves everything alone.
+	embedder.reset(0)
+	if err := cv.IndexToolGuides(toolsDir, false); err != nil || embedder.callCount() != 0 {
+		t.Fatalf("second run: err=%v provider calls=%d, want a skipped run", err, embedder.callCount())
 	}
 }
 
-// IndexDirectory validates a file's chunks before embedding them, with and
-// without the metadata store.
+// IndexDirectory validates a file's chunks before embedding them. Without the
+// metadata store a rejected chunk is skipped and the other files are indexed; with
+// it a rejected file is refused as a whole, as before, and the other files still
+// follow.
 func TestIndexDirectoryRejectsCredentialBeforeEmbedding(t *testing.T) {
 	for _, withStore := range []bool{true, false} {
 		name := "without metadata store"
@@ -174,7 +204,10 @@ func TestIndexDirectoryRejectsCredentialBeforeEmbedding(t *testing.T) {
 			embedder := &recordingEmbedder{}
 			cv := newIndexBatchTestDB(t, embedder)
 			dir := t.TempDir()
-			if err := os.WriteFile(filepath.Join(dir, "leak.md"), []byte("# Notes\n\npassword token "+batchTestSecret+"\n"), 0o644); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, "a-leak.md"), []byte("# Notes\n\npassword token "+batchTestSecret+"\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "b-clean.md"), []byte("# Garden\n\nTomatoes need sun.\n"), 0o644); err != nil {
 				t.Fatal(err)
 			}
 			var stm *SQLiteMemory
@@ -188,13 +221,53 @@ func TestIndexDirectoryRejectsCredentialBeforeEmbedding(t *testing.T) {
 			}
 
 			err := cv.IndexDirectory(dir, "docs", stm, true)
-			if !errors.Is(err, ErrAutomaticMemorySkipped) {
-				t.Fatalf("IndexDirectory error = %v, want ErrAutomaticMemorySkipped", err)
+			if withStore {
+				if !errors.Is(err, ErrAutomaticMemorySkipped) {
+					t.Fatalf("IndexDirectory error = %v, want ErrAutomaticMemorySkipped", err)
+				}
+			} else if err != nil {
+				t.Fatalf("IndexDirectory: %v", err)
 			}
-			if embedder.callCount() != 0 || embedder.sawText(batchTestSecret) {
-				t.Fatalf("embedding provider was called %d times for a rejected credential file", embedder.callCount())
+			if embedder.sawText(batchTestSecret) {
+				t.Fatal("credential text reached the embedding provider")
+			}
+			if !embedder.sawText("Tomatoes need sun") || embedder.callCount() != 1 {
+				t.Fatalf("provider calls = %d, want exactly the clean file embedded", embedder.callCount())
+			}
+			collection, err := cv.db.GetOrCreateCollection("docs", nil, cv.embeddingFunc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if collection.Count() != 1 {
+				t.Fatalf("collection holds %d documents, want only the clean one", collection.Count())
 			}
 		})
+	}
+}
+
+// The deadline of one file grows with its batches. calculateBatchTimeout caps a
+// single batch, so a file of many batches must not inherit that cap.
+func TestIndexFileTimeoutScalesWithTheNumberOfBatches(t *testing.T) {
+	batch := calculateBatchTimeout(indexDocumentBatchSize)
+	for _, tc := range []struct {
+		chunks int
+		want   time.Duration
+	}{
+		{-3, 30 * time.Second},
+		{0, 30 * time.Second},
+		{1, batch + 30*time.Second},
+		{indexDocumentBatchSize, batch + 30*time.Second},
+		{indexDocumentBatchSize + 1, 2*batch + 30*time.Second},
+		{3*indexDocumentBatchSize + 1, 4*batch + 30*time.Second},
+		{10 * indexDocumentBatchSize, 10*batch + 30*time.Second},
+		{1000, 63*batch + 30*time.Second},
+	} {
+		if got := indexFileTimeout(tc.chunks); got != tc.want {
+			t.Errorf("indexFileTimeout(%d) = %v, want %v", tc.chunks, got, tc.want)
+		}
+	}
+	if got := indexFileTimeout(10 * indexDocumentBatchSize); got <= 5*time.Minute+30*time.Second {
+		t.Errorf("a 10-batch file still gets the capped deadline %v", got)
 	}
 }
 

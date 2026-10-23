@@ -326,3 +326,31 @@ func TestEmbedFile_EmptyResponse(t *testing.T) {
 		t.Fatal("expected error for empty embedding response")
 	}
 }
+
+// A base URL that cannot be parsed must not come back inside the request error:
+// compatible providers accept API keys in the query.
+func TestEmbedFileErrorsDoNotContainTheRawBaseURL(t *testing.T) {
+	const secret = "sk-proj-AAAAAAAAAAAAAAAAAAAAAAAA"
+	tmpFile := filepath.Join(t.TempDir(), "test.png")
+	if err := os.WriteFile(tmpFile, []byte("fake"), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	for _, tc := range []struct {
+		name, format, baseURL string
+	}{
+		{"openai format", "openai", "http://[::1/v1?key=" + secret},
+		{"vertex format", "vertex", "http://[::1/v1?key=" + secret},
+		{"control character", "openai", "http://host/\x7f?key=" + secret},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := NewMultimodalEmbedder(tc.baseURL, "key", "model", tc.format, "", nil)
+			_, err := e.EmbedFile(context.Background(), tmpFile)
+			if err == nil {
+				t.Fatal("expected an error for an unusable endpoint")
+			}
+			if strings.Contains(err.Error(), secret) || strings.Contains(err.Error(), "key=") {
+				t.Fatalf("error exposes the raw base URL: %v", err)
+			}
+		})
+	}
+}

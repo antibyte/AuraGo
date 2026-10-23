@@ -394,6 +394,12 @@ func (cv *ChromemVectorDB) loadCorpusIndex(ctx context.Context) error {
 	return nil
 }
 
+// reconcileCorpus embeds every pending corpus document again. Stored content is
+// sent to the provider only after it passed the credential policy that new writes
+// pass; a rejected document is blocked with blockedCredentialReason, never embedded
+// and never loaded into the index. After a few provider-side failures in a row, or
+// one provider-wide refusal, it stops calling the provider and marks the documents
+// still pending with blockedEmbeddingReason, which the runtime retry loop picks up.
 func (cv *ChromemVectorDB) reconcileCorpus(ctx context.Context) error {
 	if cv.corpus == nil {
 		return nil
@@ -402,7 +408,8 @@ func (cv *ChromemVectorDB) reconcileCorpus(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	var indexErrors error
+	pass := newCorpusEmbeddingPass(cv, true, 0)
+	defer pass.logSummary("reconcile")
 	for _, name := range names {
 		if name == kgsemantic.CollectionName {
 			continue
@@ -420,8 +427,8 @@ func (cv *ChromemVectorDB) reconcileCorpus(ctx context.Context) error {
 			if len(page) == 0 {
 				break
 			}
-			var blockedMultimodal, blockedEmbedding []string
-			var candidates []corpusReconcileCandidate
+			var blockedMultimodal []string
+			embeddable := make([]corpusDocumentSnapshot, 0, len(page))
 			for _, snapshot := range page {
 				if err := ctx.Err(); err != nil {
 					return err
@@ -432,27 +439,19 @@ func (cv *ChromemVectorDB) reconcileCorpus(ctx context.Context) error {
 					cv.logger.Warn("Multimodal memory retained pending source reindex", "collection", name, "doc_id", doc.ID)
 					continue
 				}
-				doc.Embedding = nil
-				embedded := []chromem.Document{doc}
-				if err := cv.embedDocumentsOutsideLock(ctx, embedded); err != nil {
-					if ctx.Err() != nil {
-						return ctx.Err()
-					}
-					blockedEmbedding = append(blockedEmbedding, doc.ID)
-					indexErrors = errors.Join(indexErrors, err)
-					continue
-				}
-				doc = embedded[0]
-				doc.Metadata = cv.addEmbeddingMetadata(doc.Metadata)
-				candidates = append(candidates, corpusReconcileCandidate{snapshot: snapshot, document: doc})
+				embeddable = append(embeddable, snapshot)
+			}
+			result, err := pass.embedPage(ctx, embeddable)
+			if err != nil {
+				return err
 			}
 			if err := cv.setCorpusBlocked(ctx, name, blockedMultimodal, "multimodal_source_reindex_required"); err != nil {
 				return err
 			}
-			if err := cv.setCorpusBlocked(ctx, name, blockedEmbedding, blockedEmbeddingReason); err != nil {
-				return errors.Join(indexErrors, err)
+			if err := pass.markPage(ctx, name, result); err != nil {
+				return errors.Join(pass.report(), err)
 			}
-			if err := cv.persistReconcileCandidates(ctx, name, col, candidates); err != nil {
+			if err := cv.persistReconcileCandidates(ctx, name, col, result.candidates); err != nil {
 				return err
 			}
 			afterID = page[len(page)-1].document.ID
@@ -461,7 +460,7 @@ func (cv *ChromemVectorDB) reconcileCorpus(ctx context.Context) error {
 			}
 		}
 	}
-	return indexErrors
+	return pass.report()
 }
 
 // persistReconcileCandidates publishes freshly embedded documents, but only those

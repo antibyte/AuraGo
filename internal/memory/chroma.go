@@ -126,9 +126,15 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		// hash and the manifest below are still written only after every batch.
 		cv.logger.Info("Indexing tool guides...", "total", len(docs), "batch_size", indexDocumentBatchSize)
 		stats, err := cv.addDocumentsInBatches(ctx, collection, docs, true)
-		cv.logger.Info("Tool guide batches processed", "embedded", stats.embedded, "rewritten", stats.rewritten, "unchanged", stats.unchanged, "total", len(docs))
+		cv.logger.Info("Tool guide batches processed", "embedded", stats.embedded, "rewritten", stats.rewritten, "unchanged", stats.unchanged, "rejected", len(stats.rejected), "total", len(docs))
 		if err != nil {
 			return fmt.Errorf("failed to batch index tool guides: %w", err)
+		}
+		// A guide the credential policy rejected is not indexed, so it does not belong
+		// in the manifest either: a copy indexed earlier is removed as stale below, and
+		// the next run does not take the rejected guide for a missing one.
+		for _, id := range stats.rejected {
+			delete(newDocIDs, id)
 		}
 	}
 
