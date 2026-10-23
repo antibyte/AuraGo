@@ -1654,6 +1654,7 @@ func Load(path string) (*Config, error) {
 	cfg.Detective.Normalize()
 	if cfg.SQLite.DetectivePath == "" {
 		cfg.SQLite.DetectivePath = "./data/detective.db"
+		cfg.SQLite.DetectivePathDefaulted = true
 	}
 	cfg.SQLite.DetectivePath = resolvePath(configDir, cfg.SQLite.DetectivePath)
 	cfg.SQLite.GameMakerPath = resolvePath(configDir, cfg.SQLite.GameMakerPath)

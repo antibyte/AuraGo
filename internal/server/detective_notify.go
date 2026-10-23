@@ -27,6 +27,14 @@ func (l *detectiveNotifyLimiter) allow(caseID string, now time.Time) bool {
 		return false
 	}
 	l.last[caseID] = now
+	// Deleted cases would otherwise keep their slot forever; prune once the map is large.
+	if len(l.last) > 256 {
+		for id, at := range l.last {
+			if now.Sub(at) >= detectiveNotifyInterval {
+				delete(l.last, id)
+			}
+		}
+	}
 	return true
 }
 

@@ -119,3 +119,63 @@ func TestDetectiveReadOperationsEndpoint(t *testing.T) {
 		t.Fatalf("disabled integration lost the tools: %v", body)
 	}
 }
+
+// The default path only falls back to the legacy store when nothing would be lost: the
+// configured store does not exist yet and an older one sits beside Game Maker.
+func TestDetectivePathKeepsLegacyAfterUpgrade(t *testing.T) {
+	dir := t.TempDir()
+	legacy := filepath.Join(dir, "detective.db")
+	cfg := &config.Config{}
+	cfg.SQLite.GameMakerPath = filepath.Join(dir, "game_maker.db")
+	cfg.SQLite.DetectivePath = filepath.Join(dir, "data", "detective.db")
+	cfg.SQLite.DetectivePathDefaulted = true
+	if err := os.WriteFile(legacy, []byte("legacy"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := detectiveStorePath(cfg); got != legacy {
+		t.Fatalf("upgrade path = %q, want %q", got, legacy)
+	}
+	// Once the new store exists the default stays authoritative.
+	if err := os.MkdirAll(filepath.Dir(cfg.SQLite.DetectivePath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cfg.SQLite.DetectivePath, []byte("new"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := detectiveStorePath(cfg); got != cfg.SQLite.DetectivePath {
+		t.Fatalf("existing store path = %q", got)
+	}
+	// An explicit choice never redirects, even while the legacy file exists.
+	cfg.SQLite.DetectivePathDefaulted = false
+	os.Remove(cfg.SQLite.DetectivePath)
+	if got := detectiveStorePath(cfg); got != cfg.SQLite.DetectivePath {
+		t.Fatalf("explicit path = %q", got)
+	}
+}
+
+// A Config save normalizes the allowlist before it is written to YAML.
+func TestNormalizeDetectiveYAMLSection(t *testing.T) {
+	raw := map[string]interface{}{"detective": map[string]interface{}{
+		"extra_read_operations": map[string]interface{}{
+			" mcp_call ":  []interface{}{" archive/read ", "", "archive/read"},
+			"empty_tool":  []interface{}{},
+			"   ":         []interface{}{"orphan"},
+			"web_scraper": []interface{}{"read"},
+		},
+	}}
+	normalizeDetectiveYAMLSection(raw)
+	section := raw["detective"].(map[string]interface{})
+	entries := section["extra_read_operations"].(map[string]interface{})
+	if len(entries) != 2 {
+		t.Fatalf("tools = %v", entries)
+	}
+	if ops := entries["mcp_call"].([]interface{}); len(ops) != 1 || ops[0] != "archive/read" {
+		t.Fatalf("mcp_call = %v", ops)
+	}
+	// A malformed value becomes an empty map instead of blocking the save.
+	raw["detective"] = map[string]interface{}{"extra_read_operations": "not-a-map"}
+	normalizeDetectiveYAMLSection(raw)
+	if got := raw["detective"].(map[string]interface{})["extra_read_operations"].(map[string]interface{}); len(got) != 0 {
+		t.Fatalf("malformed value = %v", got)
+	}
+}

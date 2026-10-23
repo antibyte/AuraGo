@@ -642,10 +642,12 @@ func TestDesktopDetectiveAccessibilityMarkers(t *testing.T) {
 		"<section class=\"dt-status\">",
 		"role=\"tab\"",
 		"aria-selected=\"${state.tab === tab}\"",
-		"aria-controls=\"dt-panel\"",
+		"aria-controls=\"dt-panel-${state.id}\"",
+		"id=\"dt-tab-${state.id}-${tab}\"",
 		"role=\"tablist\"",
-		"role=\"tabpanel\" id=\"dt-panel\"",
-		"typeof ctx.confirmDialog === 'function'",
+		"role=\"tabpanel\" id=\"dt-panel-${state.id}\"",
+		"aria-labelledby=\"dt-tab-${state.id}-${state.tab}\"",
+		"if (typeof ctx.confirmDialog !== 'function') { error(new Error(tr('unavailable'))); return; }",
 	} {
 		if !strings.Contains(app, want) {
 			t.Fatalf("detective.js lacks %q", want)

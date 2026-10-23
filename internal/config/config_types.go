@@ -1200,21 +1200,23 @@ type Config struct {
 		HomepageRegistryPath string `yaml:"homepage_registry_path"`
 		GameMakerPath        string `yaml:"game_maker_path"`
 		DetectivePath        string `yaml:"detective_path"`
-		CYDCreatorPath       string `yaml:"cyd_creator_path"`
-		ContactsPath         string `yaml:"contacts_path"`
-		PlannerPath          string `yaml:"planner_path"`
-		VirtualDesktopPath   string `yaml:"virtual_desktop_path"`
-		VirtualComputersPath string `yaml:"virtual_computers_path"`
-		SiteMonitorPath      string `yaml:"site_monitor_path"`
-		SQLConnectionsPath   string `yaml:"sql_connections_path"`
-		SkillsPath           string `yaml:"skills_path"`
-		KnowledgeGraphPath   string `yaml:"knowledge_graph_path"`
-		OptimizationPath     string `yaml:"optimization_path"`
-		PreparedMissionsPath string `yaml:"prepared_missions_path"`
-		MissionHistoryPath   string `yaml:"mission_history_path"`
-		PushPath             string `yaml:"push_path"`
-		LaunchpadPath        string `yaml:"launchpad_path"`
-		NetworkSharesPath    string `yaml:"network_shares_path"`
+		// DetectivePathDefaulted records that Load applied the default, not the operator.
+		DetectivePathDefaulted bool   `yaml:"-"`
+		CYDCreatorPath         string `yaml:"cyd_creator_path"`
+		ContactsPath           string `yaml:"contacts_path"`
+		PlannerPath            string `yaml:"planner_path"`
+		VirtualDesktopPath     string `yaml:"virtual_desktop_path"`
+		VirtualComputersPath   string `yaml:"virtual_computers_path"`
+		SiteMonitorPath        string `yaml:"site_monitor_path"`
+		SQLConnectionsPath     string `yaml:"sql_connections_path"`
+		SkillsPath             string `yaml:"skills_path"`
+		KnowledgeGraphPath     string `yaml:"knowledge_graph_path"`
+		OptimizationPath       string `yaml:"optimization_path"`
+		PreparedMissionsPath   string `yaml:"prepared_missions_path"`
+		MissionHistoryPath     string `yaml:"mission_history_path"`
+		PushPath               string `yaml:"push_path"`
+		LaunchpadPath          string `yaml:"launchpad_path"`
+		NetworkSharesPath      string `yaml:"network_shares_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
 		Provider         string `yaml:"provider"`          // "disabled" or provider entry ID

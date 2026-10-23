@@ -587,6 +587,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		deepMerge(rawCfg, patch, "")
 		rawCfg = normalizeConfigYAMLMap(rawCfg)
 		normalizeAIGatewayYAMLSection(rawCfg)
+		normalizeDetectiveYAMLSection(rawCfg)
 		removeDeprecatedSpeechLabVoice(rawCfg)
 
 		// Write back
@@ -2829,4 +2830,45 @@ func cleanupRemovedGo2RTCStreamSecrets(oldStreams, newStreams []config.Go2RTCStr
 			}
 		}
 	}
+}
+
+// normalizeDetectiveYAMLSection trims the administrator-owned allowlist inside the merged
+// YAML map, so a Config save cannot persist blank tools or blank operations.
+func normalizeDetectiveYAMLSection(rawCfg map[string]interface{}) {
+	section, ok := rawCfg["detective"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	value, present := section["extra_read_operations"]
+	if !present {
+		return
+	}
+	entries, ok := value.(map[string]interface{})
+	if !ok {
+		section["extra_read_operations"] = map[string]interface{}{}
+		return
+	}
+	cleaned := map[string]interface{}{}
+	for tool, raw := range entries {
+		name := strings.TrimSpace(tool)
+		list, _ := raw.([]interface{})
+		kept := []interface{}{}
+		seen := map[string]bool{}
+		for _, item := range list {
+			operation, ok := item.(string)
+			if !ok {
+				continue
+			}
+			operation = strings.TrimSpace(operation)
+			if operation == "" || seen[operation] {
+				continue
+			}
+			seen[operation] = true
+			kept = append(kept, operation)
+		}
+		if name != "" && len(kept) > 0 {
+			cleaned[name] = kept
+		}
+	}
+	section["extra_read_operations"] = cleaned
 }

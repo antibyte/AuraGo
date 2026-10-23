@@ -188,9 +188,9 @@
             return `${provisionalNotice()}${baseRevision ? `<button data-base-revision="${baseRevision}">${e(tr('archive_previous'))}</button>` : ''}${parts.map(r => v.report(r, tr)).join('')}`;
         }
         function caseMainHTML(c, ro) {
-            const tabs = ['report', 'sources', 'activity', 'history'].map(tab => `<button data-tab="${tab}" role="tab" id="dt-tab-${tab}" aria-controls="dt-panel" aria-selected="${state.tab === tab}">${e(tr(tab))}${tab === 'sources' ? ` (${c.source_count || (c.sources || []).length})` : ''}</button>`).join('');
+            const tabs = ['report', 'sources', 'activity', 'history'].map(tab => `<button data-tab="${tab}" role="tab" id="dt-tab-${state.id}-${tab}" aria-controls="dt-panel-${state.id}" aria-selected="${state.tab === tab}">${e(tr(tab))}${tab === 'sources' ? ` (${c.source_count || (c.sources || []).length})` : ''}</button>`).join('');
             const activity = state.tab === 'activity' ? '' : `<ol class="dt-activity" hidden>${v.activityItems(state.events, tr)}</ol>`;
-            return `<section class="dt-status">${statusInner(c, ro)}</section>${autoPanel(c, ro)}<nav class="dt-tabs" role="tablist" aria-label="${e(tr('views'))}">${tabs}</nav><div class="dt-export">${exportHTML(c, ro)}</div><div class="dt-content" role="tabpanel" id="dt-panel" aria-labelledby="dt-tab-${state.tab}">${contentHTML()}</div>${activity}`;
+            return `<section class="dt-status">${statusInner(c, ro)}</section>${autoPanel(c, ro)}<nav class="dt-tabs" role="tablist" aria-label="${e(tr('views'))}">${tabs}</nav><div class="dt-export">${exportHTML(c, ro)}</div><div class="dt-content" role="tabpanel" id="dt-panel-${state.id}" aria-labelledby="dt-tab-${state.id}-${state.tab}">${contentHTML()}</div>${activity}`;
         }
         function appHTML(main) {
             const ro = readOnly();
@@ -601,7 +601,8 @@
                     return;
                 }
                 if (action === 'delete') {
-                    const accepted = typeof ctx.confirmDialog === 'function' && await ctx.confirmDialog(tr('delete'), tr('delete_confirm'));
+                    if (typeof ctx.confirmDialog !== 'function') { error(new Error(tr('unavailable'))); return; }
+            const accepted = await ctx.confirmDialog(tr('delete'), tr('delete_confirm'));
                     if (!accepted) return;
                     await request('/cases/' + state.current.id, {method: 'DELETE'});
                     state.current = null;

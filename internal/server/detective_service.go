@@ -27,14 +27,26 @@ import (
 // legacy location next to the Game Maker database only while that file already exists,
 // so an upgrade does not lose its cases and a fresh install uses the data directory.
 func detectiveStorePath(cfg *config.Config) string {
-	if p := strings.TrimSpace(cfg.SQLite.DetectivePath); p != "" {
-		return p
-	}
+	configured := strings.TrimSpace(cfg.SQLite.DetectivePath)
 	legacy := filepath.Join(filepath.Dir(cfg.SQLite.GameMakerPath), "detective.db")
-	if _, err := os.Stat(legacy); err == nil {
-		return legacy
+	legacyExists := false
+	if info, err := os.Stat(legacy); err == nil && !info.IsDir() {
+		legacyExists = true
 	}
-	return "data/detective.db"
+	if configured == "" {
+		if legacyExists {
+			return legacy
+		}
+		return "data/detective.db"
+	}
+	if configured != legacy && legacyExists && cfg.SQLite.DetectivePathDefaulted {
+		if _, err := os.Stat(configured); errors.Is(err, fs.ErrNotExist) {
+			// An upgrade: the operator never chose a path, the default store is not there yet
+			// and the old file is. Starting empty would look like lost cases.
+			return legacy
+		}
+	}
+	return configured
 }
 
 // detectiveInitCode maps a store initialization failure onto a small, stable set of codes;
