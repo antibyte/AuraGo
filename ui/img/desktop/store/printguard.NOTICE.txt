@@ -1,0 +1,9 @@
+PrintGuard
+Copyright Oliver Bravery and contributors.
+Source: https://github.com/oliverbravery/PrintGuard/tree/v2.6.3
+Logo: web/public/apple-touch-icon.png from that release, copied without modification.
+License: GPL-2.0-only; see printguard.LICENSE.txt.
+
+The Store uses upstream container images as a separate service. Printer and camera
+credentials are managed by PrintGuard in its /data volume; the AuraGo MCP token is
+stored separately in AuraGo's encrypted Vault.

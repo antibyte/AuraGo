@@ -39,6 +39,16 @@ Calls a specific tool on an MCP server.
 Response contains the tool's output text.
 
 ## Security
+- The Store-managed `printguard-store` connection defaults off. Its read grant
+  exposes status, printer/monitor/camera reads, current camera frames and recent
+  events only. Control adds only `control_printer` for `pause`, `resume`, `cancel`.
+  Send those commands only on the user's explicit request. PrintGuard owns
+  automatic failure responses; do not create an agent monitoring/control loop.
+  After a command transport failure, report an uncertain outcome and read
+  `get_printer` or `get_state` before any further action. Never automatically
+  repeat the command. Heating, print start and management tools are excluded even
+  when an upstream token would grant them. Do not request or expose the saved
+  token; setup and token rotation belong to the Desktop Store dialog.
 - MCP must be explicitly enabled in two places:
   1. **Danger Zone**: `agent.allow_mcp: true` (capability gate)
   2. **MCP Section**: `mcp.enabled: true` (feature toggle)

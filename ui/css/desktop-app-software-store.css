@@ -391,7 +391,10 @@
     gap: 4px;
 }
 /* Stored provider keys never prefill this dialog. */
-.vd-gev-config { max-height: 85vh; overflow-y: auto; }
+.vd-gev-config, .vd-pg-config { max-height: 85vh; overflow-y: auto; }
+.vd-pg-config .vd-modal-actions { flex-wrap: wrap; }
+.vd-pg-config [data-pg-status]:empty { display: none; }
+.vd-pg-config select { width: 100%; min-width: 0; padding: 8px 10px; border: 1px solid var(--vd-border); border-radius: 7px; background: var(--vd-bg, #20252b); color: var(--vd-text); font: inherit; }
 .vd-gev-key-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; }
 .vd-gev-key-row .vd-store-choice { margin-bottom: 12px; }
 

@@ -1044,7 +1044,8 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 			// Apply hot-reload by publishing a new immutable config snapshot after
 			// all synchronous auto-detection adjustments are complete.
-			if !reflect.DeepEqual(oldCfg.Agent, newCfg.Agent) || !reflect.DeepEqual(oldCfg.Docker, newCfg.Docker) || !reflect.DeepEqual(oldCfg.Sandbox, newCfg.Sandbox) || !reflect.DeepEqual(oldCfg.MCP, newCfg.MCP) || !reflect.DeepEqual(oldCfg.Dograh, newCfg.Dograh) {
+			desktopMCPGrantChanged := oldCfg.VirtualDesktop.Enabled != newCfg.VirtualDesktop.Enabled || oldCfg.VirtualDesktop.ReadOnly != newCfg.VirtualDesktop.ReadOnly
+			if desktopMCPGrantChanged || !reflect.DeepEqual(oldCfg.Agent, newCfg.Agent) || !reflect.DeepEqual(oldCfg.Docker, newCfg.Docker) || !reflect.DeepEqual(oldCfg.Sandbox, newCfg.Sandbox) || !reflect.DeepEqual(oldCfg.MCP, newCfg.MCP) || !reflect.DeepEqual(oldCfg.Dograh, newCfg.Dograh) {
 				syncMCPAfterUnlock = true
 				mcpGeneration = shutdownExternalMCPManager()
 			}

@@ -93,6 +93,9 @@ func closeMCPConnections(connections map[string]*mcpConn) {
 }
 
 func (m *MCPManager) connect(ctx context.Context, name string) (*mcpConn, error) {
+	if err := m.requireToolAllowed(name, ""); err != nil {
+		return nil, err
+	}
 	ctx, cancel := m.callContext(ctx)
 	defer cancel()
 	for {
@@ -134,7 +137,8 @@ func (m *MCPManager) connect(ctx context.Context, name string) (*mcpConn, error)
 		m.mu.Lock()
 		delete(m.connecting, name)
 		close(done)
-		if m.closed || ctx.Err() != nil {
+		current, stillConfigured := m.configs[name]
+		if m.closed || ctx.Err() != nil || !stillConfigured || current.ManagedRevision != cfg.ManagedRevision {
 			m.mu.Unlock()
 			if conn != nil {
 				closeManagedMCPConn(conn)

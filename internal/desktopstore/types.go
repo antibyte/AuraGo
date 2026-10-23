@@ -186,17 +186,32 @@ type PortBinding struct {
 
 // ContainerSpec is the Docker create contract used by the store.
 type ContainerSpec struct {
-	Name         string              `json:"name"`
-	Image        string              `json:"image"`
-	Env          []string            `json:"env,omitempty"`
-	PortBindings []PortBinding       `json:"port_bindings,omitempty"`
-	Volumes      []VolumeBinding     `json:"volumes,omitempty"`
-	HostBinds    []HostBinding       `json:"host_binds,omitempty"`
-	ExtraHosts   []string            `json:"extra_hosts,omitempty"`
-	NetworkMode  string              `json:"network_mode,omitempty"`
-	Restart      string              `json:"restart,omitempty"`
-	Labels       map[string]string   `json:"labels,omitempty"`
-	Hardening    *ContainerHardening `json:"hardening,omitempty"`
+	Devices        []DeviceMapping     `json:"devices,omitempty"`
+	DeviceRequests []DeviceRequest     `json:"device_requests,omitempty"`
+	Name           string              `json:"name"`
+	Image          string              `json:"image"`
+	Env            []string            `json:"env,omitempty"`
+	PortBindings   []PortBinding       `json:"port_bindings,omitempty"`
+	Volumes        []VolumeBinding     `json:"volumes,omitempty"`
+	HostBinds      []HostBinding       `json:"host_binds,omitempty"`
+	ExtraHosts     []string            `json:"extra_hosts,omitempty"`
+	NetworkMode    string              `json:"network_mode,omitempty"`
+	Restart        string              `json:"restart,omitempty"`
+	Labels         map[string]string   `json:"labels,omitempty"`
+	Hardening      *ContainerHardening `json:"hardening,omitempty"`
+}
+
+// DeviceMapping and DeviceRequest are fixed catalog GPU grants, never request fields.
+type DeviceMapping struct {
+	PathOnHost        string
+	PathInContainer   string
+	CgroupPermissions string
+}
+
+type DeviceRequest struct {
+	Driver       string
+	Count        int
+	Capabilities [][]string
 }
 
 // ContainerState is the health/status subset returned by Docker inspect.
@@ -288,6 +303,7 @@ type Operation struct {
 
 // InstallRequest is the public request for installing a catalog app.
 type InstallRequest struct {
+	DockerNetwork    string   `json:"docker_network,omitempty"`
 	AppID            string   `json:"app_id"`
 	BindMode         string   `json:"bind_mode"`
 	TailscaleEnabled bool     `json:"tailscale_enabled"`

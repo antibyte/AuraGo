@@ -1366,7 +1366,15 @@ per-window minimum width/height, including the fixed opposite edge on west/north
 Free titlebar/menubar space supports dragging and double-click maximizing;
 buttons and menu popovers remain excluded from those gestures.
 
-### God's Eye View Store setup
+### Store app setup
+
+- PrintGuard setup in `software-store.js` uses its admin config/test endpoints,
+  CPU-first install, defined acceleration/network choices and explicit off/read/
+  control grants. Never prefill tokens or test unsaved drafts. Clear credentials
+  and ignore late requests on close/disposal; preserve focus trapping and status
+  announcements. Show active compute, CPU fallback and pending runtime changes.
+  Keep all `desktop.store.pg_*` texts in sixteen locales and the upstream icon /
+  license under `img/desktop/store/`. Verify `TestPrintGuard*` and bundle `--check`.
 
 - Store operation failures remain as escaped, accessible text on the app card
   until retry, including when install rollback removes the installed record.

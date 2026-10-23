@@ -793,9 +793,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// MCP: start external MCP server connections (only when both gates are open)
 		if s.Cfg.Agent.AllowMCP && s.Cfg.MCP.Enabled {
 			mcpConfigs := buildRuntimeMCPConfigs(s.Cfg, s.Vault, s.Logger)
-			if len(mcpConfigs) > 0 {
-				tools.InitMCPManager(mcpConfigs, s.Logger)
-			}
+			tools.InitMCPManager(mcpConfigs, s.Logger)
+			go s.startPrintGuardMCP()
 		}
 
 		// Sandbox: start the llm-sandbox MCP server (separate from user MCP servers)
