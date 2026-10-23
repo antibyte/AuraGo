@@ -92,6 +92,13 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Local Contracts
 
+- Speech Output defaults to `phonon` with automatic language/voice on fresh setup.
+  The Phonon picker uses `AuraConfigState`, retains manual voices across navigation
+  and async catalog refreshes, and separates downloads from selection/saving.
+  Catalog reads are passive; only explicit download buttons install a voice.
+  Late responses cannot repaint another section. Keep all sixteen TTS locales
+  and `TestPhononConfigDownloadAndDraftBrowser` aligned.
+
 ### Render and asynchronous ownership
 
 - Dashboard prompt analytics show module selection, base formatting and request
@@ -272,9 +279,8 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   do not actuate arbitrary home devices for acceptance. App contracts live in
   `js/desktop/apps/AGENTS.md`.
 
-- Speech Output offers local CPU `sanotts` and automatic user language, with English
-  fallback for unavailable local voices. Quick Setup keeps this installation default
-  even when a provider profile supplies cloud TTS credentials. Existing saved provider
+- Speech Output retains local CPU `sanotts` as a fallback, using English for unavailable
+  local voices. Existing saved provider
   choices and the disabled option remain editable. Keep all `lang/config/tts/` locales
   aligned; verify with `TestTTSConfigSanoDefaultsBrowser`. Cloud choices include xAI,
   OpenAI, StepFun and archived Resemble with separate Vault key saves, custom voices

@@ -112,5 +112,21 @@
   "config.tts.cloud_api_key_saved": "Chiave API salvata.",
   "config.tts.cloud_api_key_save_failed": "Impossibile salvare la chiave API.",
   "config.tts.openai_retirement_help": "Questi modelli TTS di OpenAI saranno disattivati il 6 gennaio 2027. Usa Realtime per le nuove integrazioni.",
-  "config.tts.resemble_archive_help": "Il precedente servizio vocale ospitato di Resemble è archiviato. Richiede un accesso ancora funzionante."
+  "config.tts.resemble_archive_help": "Il precedente servizio vocale ospitato di Resemble è archiviato. Richiede un accesso ancora funzionante.",
+  "config.tts.phonon_help": "Phonon funziona localmente sulla CPU: tedesco, inglese, francese, spagnolo e portoghese. Le altre lingue usano sanoTTS.",
+  "config.tts.phonon_voice_label": "Voce",
+  "config.tts.phonon_voice_auto": "Automatica in base al personaggio",
+  "config.tts.phonon_voice_help": "La modalità automatica segue lingua e personaggio. Una scelta manuale viene mantenuta quando cambia il personaggio.",
+  "config.tts.phonon_catalog_label": "Altre voci",
+  "config.tts.phonon_all_languages": "Tutte le lingue",
+  "config.tts.phonon_ready": "Il pacchetto vocale Phonon è installato.",
+  "config.tts.phonon_fallback": "Phonon non è disponibile. La sintesi vocale usa sanoTTS.",
+  "config.tts.phonon_license_help": "Modello: CC BY-NC 4.0, solo per uso non commerciale. Sono incluse dieci voci; altre possono essere scaricate e usate offline.",
+  "config.tts.phonon_male": "Maschile",
+  "config.tts.phonon_female": "Femminile",
+  "config.tts.phonon_installed": "Installata",
+  "config.tts.phonon_download": "Scarica",
+  "config.tts.phonon_downloading": "Download in corso …",
+  "config.tts.phonon_catalog_error": "Impossibile caricare il catalogo delle voci.",
+  "config.tts.phonon_download_error": "Download non riuscito. La selezione vocale precedente è stata mantenuta."
 }

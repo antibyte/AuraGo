@@ -1864,11 +1864,14 @@ type Config struct {
 		APIToken string `yaml:"-" json:"-"`
 	} `yaml:"paperless_ngx"`
 	TTS struct {
-		Provider            string `yaml:"provider"`              // sanoTTS, Google, cloud speech providers, Piper, Supertonic, or s2s
-		Language            string `yaml:"language"`              // BCP-47 language; "auto" follows the user language for sanoTTS
+		Provider            string `yaml:"provider"`              // Phonon, sanoTTS, Google, cloud speech providers, Piper, Supertonic, or s2s
+		Language            string `yaml:"language"`              // BCP-47 language; "auto" follows the user language
 		CacheRetentionHours int    `yaml:"cache_retention_hours"` // remove cached TTS files older than this many hours (0 disables age-based cleanup)
 		CacheMaxFiles       int    `yaml:"cache_max_files"`       // max cached TTS files to retain (0 disables count-based cleanup)
-		ElevenLabs          struct {
+		Phonon              struct {
+			VoiceID string `yaml:"voice_id"` // empty selects a bundled voice by language and persona
+		} `yaml:"phonon"`
+		ElevenLabs struct {
 			APIKey  string `yaml:"-" vault:"api_key"` // vault-only
 			VoiceID string `yaml:"voice_id"`          // default voice ID
 			ModelID string `yaml:"model_id"`          // e.g. "eleven_multilingual_v2"

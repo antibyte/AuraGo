@@ -10,6 +10,12 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Local Contracts
 
+- `phonon` is the fresh-install local default for en/fr/de/es/pt, with sanoTTS
+  fallback before cache lookup and after native runtime failure. Cancellation
+  never starts fallback synthesis. Cached and transient dispatch carry the same
+  snapshot language/manual voice/persona and key caches by effective voice/revision.
+  The pinned native resource/download contract lives in `../phonon/AGENTS.md`.
+
 - Cloud TTS supports `xai`, `openai`, `stepfun` and archived `resemble` through fixed HTTPS endpoints and the credential-bound `ttsHTTPClient`. Keep cached and transient synthesis dispatch aligned, forward cancellation, bound responses and reject empty/error audio. All four request MP3; cache keys include provider, voice and model. Speech keys use separate `tts_<provider>_api_key` Vault slots and remain blocked from Python export. Verify `TestTTSCloud*` and `TestTTSCloudConfigVaultRoundTrip`; availability limits are documented in `documentation/tts-providers.md`.
 
 - Ollama workers retain a role-specific revision and cancellation context beneath the shared admission fence. Preserve unaffected inference, embedding and external-pull work and its status when another role changes. Stops have two reserved operation/history slots beyond the ordinary limits, without evicting uncertain receipts. Docker's native `default`/`bridge` inspect aliases do not imply spec drift; named application bridges remain distinct. Verify `TestOllamaConfigChangesOnlyCancelAffectedRoles`, `TestOllamaStopAdmissionSurvivesBusyWorkersAndFullHistory` and `TestOllamaManagedSpecDriftNormalizesNativeNetwork`.

@@ -211,7 +211,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Retro-Net Terminal | `internal/retronet/AGENTS.md` | Catalog/directory, guarded Telnet/SSH dialing/negotiation/charsets/session limits; server/Desktop setting/Terminal app. |
 | RTL-SDR | `internal/rtlsdr/AGENTS.md` | Optional receive-only runtime/schedules/leases/recordings/ASR. |
 | RuView | `internal/ruview/AGENTS.md` | Pinned sensing runtime/passive status/UDP readiness/this-process recording acknowledgement. |
-| Default speech | `internal/sanotts/AGENTS.md` | Pinned local CPU runtime/voice selection/licenses/synthesis checks. |
+| Default speech | `internal/phonon/AGENTS.md`, `internal/sanotts/AGENTS.md` | Bundled Phonon CPU runtime/catalog/downloads and the sanoTTS local fallback. |
 | Security | `internal/security/AGENTS.md` | Primitives/Vault-token persistence/import grants/public URL trust/Guardian caching/Cast tickets. |
 | Serial ports | `internal/serialutil/AGENTS.md` | Shared enumeration/canonical reservations/cancellation-safe leases. |
 | HTTP/integrations | `internal/server/AGENTS.md` | HTTP/cross-component contracts: System World Tower Voice, 3D Printer, go2rtc, AI Gateway, here.now, GitHub, Homepage Managed Website Ledger, Configuration UI Integration Test Contract. |

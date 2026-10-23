@@ -121,6 +121,11 @@ if not exist bin mkdir bin
 
 REM -- [1/5] Pack resources.dat
 echo [1/5] Packing resources.dat ...
+python scripts\prepare-phonon.py --pack
+if errorlevel 1 (
+    echo [ERROR] Pinned Phonon resources are missing or invalid. Nothing was published.
+    exit /b 1
+)
 
 set TMPSTAGE=%TEMP%\aurago-release-%RANDOM%
 mkdir "%TMPSTAGE%\agent_workspace\skills"
@@ -237,6 +242,12 @@ echo     [OK] deploy\update.sh
 
 for %%F in (
     "deploy\gog\gog-*.zip"
+    "deploy\phonon-model.dat"
+    "deploy\phonon-runtime_linux_amd64.dat"
+    "deploy\phonon-runtime_linux_arm64.dat"
+    "deploy\phonon-runtime_darwin_amd64.dat"
+    "deploy\phonon-runtime_darwin_arm64.dat"
+    "deploy\phonon-runtime_windows_amd64.dat"
     "deploy\resources.dat"
     "deploy\!ASSET_ARCHIVE!"
     "deploy\install.sh"
@@ -278,6 +289,7 @@ powershell -nologo -noprofile -command ^
   "  'deploy\\aurago-remote_windows_arm64.exe'" ^
   ");" ^
   "$files += @(Get-ChildItem -LiteralPath deploy/gog -Filter 'gog-*.zip' | ForEach-Object { $_.FullName });" ^
+  "$files += @('deploy\\phonon-model.dat', 'deploy\\phonon-runtime_linux_amd64.dat', 'deploy\\phonon-runtime_linux_arm64.dat', 'deploy\\phonon-runtime_darwin_amd64.dat', 'deploy\\phonon-runtime_darwin_arm64.dat', 'deploy\\phonon-runtime_windows_amd64.dat');" ^
   "$out = foreach ($file in $files) { if (Test-Path $file) { $hash = Get-Sha256Hex $file; '{0}  {1}' -f $hash, [IO.Path]::GetFileName($file) } };" ^
   "[IO.File]::WriteAllText((Join-Path (Get-Location).Path 'deploy\\SHA256SUMS'), ((@($out) -join [char]10) + [char]10), (New-Object System.Text.UTF8Encoding($false)))"
 if errorlevel 1 (
@@ -372,6 +384,12 @@ if not "!GH_RELEASE_RC!"=="0" (
 echo     Uploading release assets...
 for %%F in (
     "deploy\gog\gog-*.zip"
+    "deploy\phonon-model.dat"
+    "deploy\phonon-runtime_linux_amd64.dat"
+    "deploy\phonon-runtime_linux_arm64.dat"
+    "deploy\phonon-runtime_darwin_amd64.dat"
+    "deploy\phonon-runtime_darwin_arm64.dat"
+    "deploy\phonon-runtime_windows_amd64.dat"
     "deploy\resources.dat"
     "deploy\!ASSET_ARCHIVE!"
     "deploy\SHA256SUMS"

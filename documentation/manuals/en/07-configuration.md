@@ -1206,9 +1206,9 @@ Only shares created by AuraGo and recorded in `data/network_shares.db` may be ch
 
 The resident workspace index is controlled by `workspace_search.enabled`; it is separate from the semantic `indexing` service and does not persist file contents. The `go2rtc` camera integration is opt-in as well; sources and the internal password are stored only in the Vault. See [go2rtc](../../go2rtc.md) and [Workspace Search](06-tools.md#10-workspace-search) for the detailed limits.
 
-### Speech Output — sanoTTS as the Local Default
+### Speech Output — Phonon as the Local Default
 
-New installations use the local CPU pipeline **sanoTTS** (`tts.provider: sanotts`) for speech output by default; the voice follows the user language, and unsupported voices fall back to English. Existing providers (ElevenLabs, Mistral, Piper, Supertonic) remain selectable under **Config → Speech Output**. The Speech Lab stays separate and attaches the s2s pipeline.
+New installations use bundled local **Phonon (CPU)** (`tts.provider: phonon`) for German, English, French, Spanish and Portuguese. Other languages and unavailable resources use sanoTTS. Automatic voices follow language and persona; manual voice selection and additional voice downloads are available in **Config → Speech Output**. Existing providers remain selectable, and Speech Lab keeps its own s2s pipeline. See `documentation/phonon.md` for details and licensing.
 
 ### Task LLM Router
 
@@ -1314,7 +1314,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `ollama` | Local Ollama management. | `ollama:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  managed_instance:`<br>`    enabled: false`<br>`    container_port: 11434`<br>`    use_host_gpu: false`<br>`    gpu_backend: auto`<br>`    default_models: []`<br>`    memory_limit: ""`<br>`    volume_path: ""` |
 | `rocketchat` | Rocket.Chat bot. | `rocketchat:`<br>`  enabled: false`<br>`  url: ""`<br>`  user_id: ""`<br>`  channel: ""` |
 | `github` | GitHub repository integration. | `github:`<br>`  enabled: false`<br>`  readonly: false`<br>`  owner: ""`<br>`  default_private: false` |
-| `tts` | Text-to-speech config. New installs default to the local CPU `sanotts` pipeline; ElevenLabs, Mistral, Piper and Supertonic stay selectable in Config → Speech Output. | `tts:`<br>`  provider: sanotts`<br>`  language: auto`<br>`  cache_max_files: 500` |
+| `tts` | Text-to-speech config. New installs use bundled local CPU Phonon for supported languages, with sanoTTS fallback; other providers remain selectable in Config → Speech Output. | `tts:`<br>`  provider: phonon`<br>`  language: auto`<br>`  phonon:`<br>`    voice_id: ""`<br>`  cache_max_files: 500` |
 | `notifications` | Push notification providers. | `notifications:`<br>`  ntfy:`<br>`    enabled: false`<br>`    url: ""`<br>`    topic: ""` |
 | `budget` | Token cost tracking. | `budget:`<br>`  enabled: false`<br>`  daily_limit_usd: 5`<br>`  enforcement: warn`<br>`  warning_threshold: 0.8`<br>`  default_cost:`<br>`    input_per_million: 1.0`<br>`    output_per_million: 3.0` |
 | `fallback_llm` | Failover LLM. | `fallback_llm:`<br>`  enabled: false`<br>`  provider: ""`<br>`  error_threshold: 2`<br>`  probe_interval_seconds: 60` |

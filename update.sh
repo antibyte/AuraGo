@@ -3304,6 +3304,11 @@ if $GO_FOUND; then
 
     [ -f "$DIR/bin/aurago_linux" ] || abort_update "Required AuraGo binary missing after source build."
     ok "Main binary built successfully"
+    if python3 scripts/prepare-phonon.py --from-release latest --target "linux_${GOARCH}" --install-dir "$DIR/bin"; then
+        ok "Offline Phonon speech resources installed."
+    else
+        warn "Matching Phonon resources are unavailable; keeping existing resources and the sanoTTS fallback."
+    fi
     if $BINARY_ONLY; then
         printf '%s' "$RELEASE_TAG" > "$DIR/.version"
     elif [ -n "${GIT_VER:-}" ]; then
@@ -3385,6 +3390,16 @@ else
     mark_executable_if_present "$DIR/deploy/aurago-remote_linux"
 
     [ -f "$DIR/bin/aurago_linux" ] || abort_update "Required AuraGo binary missing after update."
+    # Versioned paths preserve the speech resources used by rollback binaries.
+    PHONON_STAGE="$(mktemp -d "$UPDATE_WORK/phonon.XXXXXX")"
+    if download_release_asset "phonon-model.dat" "$PHONON_STAGE/phonon-model.dat" && \
+       download_release_asset "phonon-runtime_linux_${GOARCH}.dat" "$PHONON_STAGE/phonon-runtime.dat"; then
+        tar -xzf "$PHONON_STAGE/phonon-model.dat" -C "$PHONON_STAGE" || abort_update "Failed to extract verified Phonon model package."
+        tar -xzf "$PHONON_STAGE/phonon-runtime.dat" -C "$PHONON_STAGE" || abort_update "Failed to extract verified Phonon runtime package."
+        cp -r "$PHONON_STAGE/phonon" "$DIR/bin/" || abort_update "Failed to install Phonon speech resources."
+    else
+        warn "Phonon packages are unavailable; keeping existing resources and the sanoTTS fallback."
+    fi
     ok "Main binary built successfully"
     printf '%s' "$RELEASE_TAG" > "$DIR/.version"
 fi

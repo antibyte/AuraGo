@@ -671,7 +671,7 @@ function buildQuickConfigPatch() {
 
     // Keep local CPU speech as the installation default; retain profile credentials
     // so the user can select that provider later in Speech Output settings.
-    patch.tts = { provider: 'sanotts', language: 'auto' };
+    patch.tts = { provider: 'phonon', language: 'auto' };
     if (p.tts && p.tts.provider) {
         const ttsProvider = p.tts.provider;
         patch.tts[ttsProvider] = { api_key: apiKey };

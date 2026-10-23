@@ -112,5 +112,21 @@
   "config.tts.cloud_api_key_saved": "Klíč API byl uložen.",
   "config.tts.cloud_api_key_save_failed": "Klíč API se nepodařilo uložit.",
   "config.tts.openai_retirement_help": "Tyto modely OpenAI TTS budou vypnuty 6. ledna 2027. Pro nové integrace použij Realtime.",
-  "config.tts.resemble_archive_help": "Původní hlasová služba Resemble je archivována. Vyžaduje stále funkční přístup."
+  "config.tts.resemble_archive_help": "Původní hlasová služba Resemble je archivována. Vyžaduje stále funkční přístup.",
+  "config.tts.phonon_help": "Phonon běží místně na CPU: němčina, angličtina, francouzština, španělština a portugalština. Ostatní jazyky používají sanoTTS.",
+  "config.tts.phonon_voice_label": "Hlas",
+  "config.tts.phonon_voice_auto": "Automaticky podle persony",
+  "config.tts.phonon_voice_help": "Automatický režim sleduje jazyk a personu. Ruční volba zůstává zachována při změně persony.",
+  "config.tts.phonon_catalog_label": "Další hlasy",
+  "config.tts.phonon_all_languages": "Všechny jazyky",
+  "config.tts.phonon_ready": "Hlasový balíček Phonon je nainstalován.",
+  "config.tts.phonon_fallback": "Phonon není dostupný. Hlasový výstup používá sanoTTS.",
+  "config.tts.phonon_license_help": "Model: CC BY-NC 4.0, pouze pro nekomerční použití. Obsahuje deset hlasů; další lze stáhnout a poté používat offline.",
+  "config.tts.phonon_male": "Mužský",
+  "config.tts.phonon_female": "Ženský",
+  "config.tts.phonon_installed": "Nainstalováno",
+  "config.tts.phonon_download": "Stáhnout",
+  "config.tts.phonon_downloading": "Stahování …",
+  "config.tts.phonon_catalog_error": "Katalog hlasů se nepodařilo načíst.",
+  "config.tts.phonon_download_error": "Stahování selhalo. Předchozí volba hlasu zůstává zachována."
 }

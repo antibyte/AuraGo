@@ -88,6 +88,10 @@ if (-not (Test-Path "bin")) {
 
 # ── Step 1: Pack resources.dat ───────────────────────────────────────────
 Write-Host "[1/5] Packing resources.dat ..." -ForegroundColor Yellow
+& python (Join-Path $scriptDir 'scripts\prepare-phonon.py') --pack
+if ($LASTEXITCODE -ne 0) { throw 'Pinned Phonon resources are missing or invalid; nothing was published.' }
+$phononManifest = Get-Content -LiteralPath (Join-Path $scriptDir 'internal\phonon\manifest.json') -Raw | ConvertFrom-Json
+$phononPackages = @('deploy\phonon-model.dat') + @($phononManifest.runtimes | ForEach-Object { 'deploy\phonon-runtime_' + $_.target + '.dat' })
 
 $tmpStage = Join-Path $env:TEMP "aurago-release-$([guid]::NewGuid().ToString().Substring(0,8))"
 try {
@@ -303,6 +307,7 @@ $checksumFiles = @(
     "deploy\aurago-remote_windows_arm64.exe"
 )
 $checksumFiles += @($gogPackages | ForEach-Object { 'deploy\gog\' + $_.Name })
+$checksumFiles += $phononPackages
 $checksumLines = foreach ($file in $checksumFiles) {
     $fullPath = Join-Path $scriptDir $file
     if (Test-Path $fullPath) {
@@ -369,6 +374,7 @@ $assetPaths = @(
 )
 
 $assetPaths += @($gogPackages | ForEach-Object { 'deploy\gog\' + $_.Name })
+$assetPaths += $phononPackages
 foreach ($path in $assetPaths) {
     $fullPath = Join-Path $scriptDir $path
     if (Test-Path $fullPath) {

@@ -3,7 +3,8 @@
 Select a provider in **Configuration → Speech Output**, save its API key with
 **Save key**, then save the provider, voice and model settings. Credentials are
 kept in the encrypted Vault and are never written to `config.yaml` or exported
-to agent Python tools. The local sanoTTS installation default remains available.
+to agent Python tools. New installations use bundled [Phonon](phonon.md) with
+sanoTTS as local fallback; both remain selectable alongside these cloud providers.
 
 | Provider ID | Default model | Default voice | API documentation |
 | --- | --- | --- | --- |

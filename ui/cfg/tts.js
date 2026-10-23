@@ -27,6 +27,7 @@ function renderTTSSection(section) {
     html += '<div class="field-help">' + t('config.tts.provider_help') + '</div>';
     html += '<select class="field-select" data-path="tts.provider" onchange="ttsProviderChanged(this.value)">';
     html += '<option value=""' + (currentProvider === '' ? ' selected' : '') + '>— ' + t('config.tts.provider_none') + ' —</option>';
+    html += '<option value="phonon"' + (currentProvider === 'phonon' ? ' selected' : '') + '>Phonon (CPU)</option>';
     html += '<option value="sanotts"' + (currentProvider === 'sanotts' ? ' selected' : '') + '>sanoTTS (CPU)</option>';
     html += '<option value="google"' + (currentProvider === 'google' ? ' selected' : '') + '>' + t('config.tts.provider_google') + '</option>';
     html += '<option value="elevenlabs"' + (currentProvider === 'elevenlabs' ? ' selected' : '') + '>' + t('config.tts.provider_elevenlabs') + '</option>';
@@ -38,7 +39,7 @@ function renderTTSSection(section) {
     html += '<option value="piper"' + (currentProvider === 'piper' ? ' selected' : '') + '>' + t('config.tts.provider_piper') + '</option>';
     html += '<option value="supertonic"' + (currentProvider === 'supertonic' ? ' selected' : '') + '>' + t('config.tts.provider_supertonic') + '</option>';
     html += '</select>';
-    html += '<div class="field-help">' + t('config.tts.sanotts_help') + '</div>';
+    html += '<div class="field-help" id="tts-local-help">' + (currentProvider === 'sanotts' ? t('config.tts.sanotts_help') : '') + '</div>';
     html += '</div>';
 
     html += '<div class="field-group">';
@@ -46,6 +47,21 @@ function renderTTSSection(section) {
     html += '<div class="field-help">' + t('config.tts.language_help') + '</div>';
     html += ttsLanguageSelect('tts.language', data.language || 'auto');
     html += '</div>';
+
+    const phononVoice = data.phonon?.voice_id || '';
+    html += '<div id="tts-phonon-section" class="tts-provider-section' + (currentProvider === 'phonon' ? '' : ' is-hidden') + '">';
+    html += '<div class="tts-subsection-title">Phonon</div>';
+    html += '<div class="field-help">' + t('config.tts.phonon_help') + '</div>';
+    html += '<div class="field-group"><label class="field-label" for="phonon-voice-select">' + t('config.tts.phonon_voice_label') + '</label>';
+    html += '<select class="field-select" id="phonon-voice-select" data-path="tts.phonon.voice_id"><option value="">' + t('config.tts.phonon_voice_auto') + '</option>';
+    if (phononVoice) html += '<option value="' + escapeAttr(phononVoice) + '" selected>' + escapeHtml(phononVoice) + '</option>';
+    html += '</select><div class="field-help">' + t('config.tts.phonon_voice_help') + '</div></div>';
+    html += '<p class="field-help" id="phonon-status" role="status"></p>';
+    html += '<div class="field-group"><label class="field-label" for="phonon-language-filter">' + t('config.tts.phonon_catalog_label') + '</label>';
+    html += '<select id="phonon-language-filter" class="field-select" onchange="ttsPhononRenderCatalog()"><option value="">' + t('config.tts.phonon_all_languages') + '</option>';
+    for (const lang of ['de','en','fr','es','pt']) html += '<option value="' + lang + '">' + lang + '</option>';
+    html += '</select><div id="phonon-voice-list"></div></div>';
+    html += '<div class="field-help">' + t('config.tts.phonon_license_help') + '</div></div>';
 
     const showEL = currentProvider === 'elevenlabs';
     html += '<div id="tts-elevenlabs-section" class="tts-provider-section' + (showEL ? '' : ' is-hidden') + '">';
@@ -301,6 +317,8 @@ function renderTTSSection(section) {
 
     document.getElementById('content').innerHTML = html;
 
+    if (currentProvider === 'phonon') ttsPhononLoadVoices();
+
     if (piperEnabled) {
         piperCheckStatus();
     } else {
@@ -328,6 +346,13 @@ function ttsLanguageSelect(path, selected) {
 }
 
 function ttsProviderChanged(val) {
+    const localHelp = document.getElementById('tts-local-help');
+    if (localHelp) localHelp.textContent = val === 'sanotts' ? t('config.tts.sanotts_help') : '';
+    const phononSection = document.getElementById('tts-phonon-section');
+    if (phononSection) {
+        phononSection.classList.toggle('is-hidden', val !== 'phonon');
+        if (val === 'phonon') ttsPhononLoadVoices();
+    }
     Object.keys(ttsCloudProviders).forEach(id => {
         const section = document.getElementById('tts-' + id + '-section');
         if (section) section.classList.toggle('is-hidden', val !== id);
@@ -342,6 +367,83 @@ function ttsProviderChanged(val) {
     if (supertonicSection) {
         supertonicSection.classList.toggle('is-hidden', val !== 'supertonic');
         if (val === 'supertonic') supertonicCheckStatus();
+    }
+}
+
+async function ttsPhononLoadVoices() {
+    const select = document.getElementById('phonon-voice-select');
+    const list = document.getElementById('phonon-voice-list');
+    if (!select || !list) return;
+    const controller = new AbortController();
+    list._phononRequest?.abort();
+    list._phononRequest = controller;
+    try {
+        const response = await fetch('/api/tts/phonon/voices', {signal: controller.signal});
+        if (!response.ok) throw new Error('catalog');
+        const data = await response.json();
+        if (controller.signal.aborted || document.getElementById('phonon-voice-list') !== list) return;
+        const selected = select.value;
+        list._phononVoices = data.voices || [];
+        if (!list._phononLoaded) {
+            const language = String(data.language || '').toLowerCase().replace('_','-').split('-')[0];
+            const filter = document.getElementById('phonon-language-filter');
+            if (filter && Array.from(filter.options).some(option => option.value === language)) filter.value = language;
+            list._phononLoaded = true;
+        }
+        select.replaceChildren(new Option(t('config.tts.phonon_voice_auto'), ''));
+        for (const voice of list._phononVoices) {
+            if (voice.installed || voice.id === selected) {
+                const option = new Option(voice.name + ' · ' + voice.locale, voice.id);
+                select.appendChild(option);
+            }
+        }
+        if (selected && !Array.from(select.options).some(option => option.value === selected)) select.appendChild(new Option(selected, selected));
+        select.value = selected;
+        const status = document.getElementById('phonon-status');
+        if (status) status.textContent = t(data.ready ? 'config.tts.phonon_ready' : 'config.tts.phonon_fallback');
+        ttsPhononRenderCatalog();
+    } catch (error) {
+        if (error.name !== 'AbortError' && document.getElementById('phonon-voice-list') === list) list.textContent = t('config.tts.phonon_catalog_error');
+    }
+}
+
+function ttsPhononRenderCatalog() {
+    const list = document.getElementById('phonon-voice-list');
+    if (!list) return;
+    const language = document.getElementById('phonon-language-filter')?.value || '';
+    list.replaceChildren();
+    for (const voice of list._phononVoices || []) {
+        if (language && voice.language !== language) continue;
+        const row = document.createElement('div');
+        row.className = 'tts-voice-item tts-phonon-voice-item';
+        const name = document.createElement('div');
+        name.className = 'tts-voice-item-name';
+        const gender = voice.gender === 'male' || voice.gender === 'female' ? ' · ' + t('config.tts.phonon_' + voice.gender) : '';
+        name.textContent = voice.name + ' · ' + voice.locale + gender;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn-save';
+        button.textContent = t(voice.installed ? 'config.tts.phonon_installed' : 'config.tts.phonon_download');
+        button.disabled = voice.installed === true;
+        button.setAttribute('aria-label', button.textContent + ': ' + voice.name);
+        button.addEventListener('click', async () => {
+            button.disabled = true;
+            button.textContent = t('config.tts.phonon_downloading');
+            try {
+                const response = await fetch('/api/tts/phonon/voices/' + encodeURIComponent(voice.id) + '/download', {method:'POST'});
+                if (!response.ok) throw new Error('download');
+                if (document.getElementById('phonon-voice-list') === list) await ttsPhononLoadVoices();
+            } catch (_) {
+                if (button.isConnected) {
+                    button.disabled = false;
+                    button.textContent = t('config.tts.phonon_download');
+                    const status = document.getElementById('phonon-status');
+                    if (status) status.textContent = t('config.tts.phonon_download_error');
+                }
+            }
+        });
+        row.append(name, button);
+        list.appendChild(row);
     }
 }
 

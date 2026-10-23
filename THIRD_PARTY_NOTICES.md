@@ -1,5 +1,15 @@
 # Third-party notices
 
+## Gradium Phonon speech resources
+
+The separate local speech package contains Gradium's Phonon `ptts` 0.4.0 runtime
+(MIT/Apache-2.0), the Apache-2.0 `gradium/phonon-voices` catalog and the unchanged
+q8 weights of `gradium/phonon-40m-multilingual` (CC BY-NC 4.0, noncommercial only).
+Attribution, source URLs, exact revisions and checksums are in
+[`documentation/phonon.md`](documentation/phonon.md). Packages carry that notice,
+the original runtime MIT text and the Apache-2.0 and CC BY-NC 4.0 license texts.
+These component licenses do not change AuraGo's own MIT license.
+
 ## Native code graph
 
 `github.com/odvcencio/gotreesitter v0.56.0` is MIT licensed,

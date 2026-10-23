@@ -251,7 +251,7 @@ sip:
         classic:
             asr_provider_id: ""                             # empty inherits whisper.provider until first save
             asr_mode: ""                                    # whisper, multimodal, local, speech_lab; empty inherits whisper.mode
-            tts_provider: ""                                # google, elevenlabs, minimax, mistral, piper, supertonic, sanotts, speech_lab
+            tts_provider: ""                                # phonon, sanotts, google, elevenlabs, minimax, mistral, piper, supertonic, speech_lab
         behavior:
             greeting_enabled: true
             greeting: ""                                    # empty uses a safe pipeline-native AuraGo greeting
@@ -961,7 +961,9 @@ tts:
         image: rhasspy/wyoming-piper:latest
         speaker_id: 0
         voice: de_DE-thorsten-high
-    provider: sanotts                  # local CPU default; selectable in Speech Output config
+    provider: phonon                   # bundled CPU default; sanoTTS fallback for other languages
+    phonon:
+        voice_id: ""                  # empty: automatic voice matching language and persona
     supertonic:
         auto_start: false
         container_name: aurago-supertonic-tts

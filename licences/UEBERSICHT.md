@@ -1,5 +1,17 @@
 # Externe Projekte und Lizenzbedingungen
 
+## Phonon-Sprachausgabe
+
+Gradium Phonon wird als getrenntes lokales Sprachpaket mitgeliefert. Die Laufzeit
+`ptts` 0.4.0 steht unter MIT/Apache-2.0, der Katalog `gradium/phonon-voices` unter
+Apache-2.0. Die unveränderten Gewichte von `gradium/phonon-40m-multilingual`
+stehen unter **CC BY-NC 4.0 und sind nur für nichtkommerzielle Nutzung freigegeben**.
+Eine kommerzielle Nutzung benötigt eine entsprechende Erlaubnis von Gradium.
+Quellen, feste Revisionen und Attribution stehen in `documentation/phonon.md`;
+das Paket enthält diese Hinweise sowie `texts/CC-BY-NC-4.0.txt`,
+`texts/Apache-2.0.txt` und den originalen Laufzeittext `texts/Phonon-MIT.txt`.
+AuraGos eigene MIT-Lizenz bleibt bestehen.
+
 Der native Codegraph verwendet zusätzlich `github.com/odvcencio/gotreesitter`
 `v0.56.0` (MIT, Copyright (c) 2026 Oscar Villavicencio). Eingebunden sind nur die
 Go-, JavaScript-, TypeScript-/TSX- und Python-Grammatiken (MIT; Max Brunsfeld,

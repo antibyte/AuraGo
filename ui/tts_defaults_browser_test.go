@@ -119,7 +119,7 @@ func TestTTSConfigSanoDefaultsBrowser(t *testing.T) {
         await selectSection('tts', {scrollBehavior:'auto'});
         const provider = document.querySelector('[data-path="tts.provider"]');
         const language = document.querySelector('[data-path="tts.language"]');
-        if (provider.value !== 'sanotts' || language.value !== 'auto') throw Error('Fresh TTS defaults missing');
+        if (provider.value !== 'phonon' || language.value !== 'auto') throw Error('Fresh TTS defaults missing');
         if (!language.selectedOptions[0].textContent.includes('Nutzersprache')) throw Error('Automatic language label missing');
         provider.value = 'google';
         provider.dispatchEvent(new Event('change', {bubbles:true}));
@@ -165,7 +165,7 @@ func TestQuickSetupKeepsSanoDefaultBrowser(t *testing.T) {
         document.getElementById('quick-admin-password').value = 'fixture-password';
         document.getElementById('quick-language').value = 'de';
         const patch = buildQuickConfigPatch();
-        if (patch.tts.provider !== 'sanotts' || patch.tts.language !== 'auto' || patch.server.ui_language !== 'de') throw Error('Cloud profile replaced local speech default');
+        if (patch.tts.provider !== 'phonon' || patch.tts.language !== 'auto' || patch.server.ui_language !== 'de') throw Error('Cloud profile replaced local speech default');
         if (patch.tts.minimax.api_key !== 'fixture-key' || patch.tts.minimax.voice_id !== 'fixture-voice') throw Error('Optional cloud credentials lost');
     }`)
 }

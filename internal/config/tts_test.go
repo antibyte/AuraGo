@@ -70,7 +70,7 @@ func TestFreshInstallTTSAndLanguage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.TTS.Provider != "sanotts" || cfg.TTS.Language != "auto" {
+	if cfg.TTS.Provider != "phonon" || cfg.TTS.Language != "auto" {
 		t.Fatalf("fresh installation TTS = %q/%q", cfg.TTS.Provider, cfg.TTS.Language)
 	}
 	cfg.Server.UILanguage = "de"

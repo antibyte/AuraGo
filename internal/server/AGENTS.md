@@ -56,6 +56,12 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- `/api/tts/phonon/voices` is an admin-only passive catalog/resource read.
+  Voice downloads are admin/CSRF-protected POSTs accepting pinned catalog IDs only;
+  they never change the selected voice or provider. Chat/AgoDesk/SIP readiness
+  recognizes `phonon` and preserves explicit Speech Lab routing. See
+  `../phonon/AGENTS.md` and `documentation/phonon.md` for shared resource rules.
+
 - Action policy catalog/preview and pending/decision APIs are administrator-only, as are generic config updates and Vault secret mutation. Preview never dispatches or creates approvals. Decisions accept only the server-owned action ID and approve/reject, preserve its originating session and revalidate current gates. Tool Bridge uses expiring originating-run capabilities, current and inherited tool/SQL scopes, loopback transport and bounded calls; a process-wide internal token cannot authenticate bridge execution. Unknown or active workspace `/files/` content is a sandboxed attachment; preserve known audio/image/video playback.
 
 ### Quick Connect serial access

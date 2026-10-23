@@ -1119,7 +1119,7 @@ func agodeskTTSConfigured(cfg *config.Config) bool {
 		provider = "piper"
 	}
 	switch provider {
-	case "google", "sanotts":
+	case "google", "sanotts", "phonon":
 		return true
 	case "elevenlabs":
 		return strings.TrimSpace(cfg.TTS.ElevenLabs.APIKey) != ""

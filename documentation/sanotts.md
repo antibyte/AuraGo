@@ -1,8 +1,9 @@
 # Default local speech output
 
-New installations select **sanoTTS (CPU)** in Config → Speech Output, with
-**Automatic (user language)**. Existing configurations retain their selected
-provider, including disabled speech. Users can select another provider at any time.
+New installations select bundled [Phonon (CPU)](phonon.md), with **Automatic
+(user language)**. sanoTTS supplies the local fallback for unsupported Phonon
+languages and unavailable resources/runtimes, and remains directly selectable.
+Existing configurations retain their selected provider, including disabled speech.
 
 Python 3.10+ with `venv` and `pip` is required (included in the Docker image;
 the native installer offers it). On first speech output, AuraGo automatically

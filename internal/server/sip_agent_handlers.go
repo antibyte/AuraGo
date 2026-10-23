@@ -146,7 +146,7 @@ func handleSIPAgentCatalog(s *Server) http.HandlerFunc {
 				Ready: profile.Enabled && strings.TrimSpace(profile.APIKey) != "",
 			})
 		}
-		ttsProviders := []string{"sanotts", "google", "elevenlabs", "minimax", "mistral", "xai", "openai", "stepfun", "resemble", "piper", "supertonic"}
+		ttsProviders := []string{"phonon", "sanotts", "google", "elevenlabs", "minimax", "mistral", "xai", "openai", "stepfun", "resemble", "piper", "supertonic"}
 		asrModes := []string{"whisper", "multimodal", "local"}
 		if cfg.SpeechLab.Active() && cfg.SpeechLab.SIPEnabled {
 			ttsProviders = append(ttsProviders, "speech_lab")

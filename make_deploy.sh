@@ -118,7 +118,7 @@ normalize_targets "AURAGO_REMOTE_TARGETS" "${REMOTE_TARGETS[@]}"
 REMOTE_TARGETS=("${NORMALIZED_TARGETS[@]}")
 
 derive_release_artifact_lists() {
-  RELEASE_DEPLOY_ASSETS=("$RESOURCES" install.sh update.sh)
+  RELEASE_DEPLOY_ASSETS=("$RESOURCES" install.sh update.sh phonon-model.dat phonon-runtime_linux_amd64.dat phonon-runtime_linux_arm64.dat phonon-runtime_darwin_amd64.dat phonon-runtime_darwin_arm64.dat phonon-runtime_windows_amd64.dat)
   RELEASE_BIN_ASSETS=()
 
   for target in "${TARGETS[@]}"; do
@@ -201,6 +201,7 @@ done
 
 # ── Step 1: Build resources.dat (tar.gz of runtime resources) ─────────────
 echo "[1/5] Packing resources.dat ..."
+python3 scripts/prepare-phonon.py --pack || { echo "Pinned Phonon resources are missing or invalid; nothing was published." >&2; exit 1; }
 
 TMPDIR_RES=$(mktemp -d)
 trap "rm -rf '$TMPDIR_RES'" EXIT

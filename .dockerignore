@@ -5,6 +5,20 @@ deploy/*
 !deploy/
 !deploy/docker/
 !deploy/docker/**
+!deploy/phonon/
+!deploy/phonon/model/
+!deploy/phonon/model/config.json
+!deploy/phonon/model/tokenizer.json
+!deploy/phonon/model/model.q8.gguf
+!deploy/phonon/model/default-voice.safetensors
+!deploy/phonon/voices/
+!deploy/phonon/voices/*.safetensors
+!deploy/phonon/voices.jsonl
+!deploy/phonon/runtime/
+!deploy/phonon/runtime/linux_amd64/
+!deploy/phonon/runtime/linux_amd64/ptts
+!deploy/phonon/runtime/linux_arm64/
+!deploy/phonon/runtime/linux_arm64/ptts
 *.bat
 *.sh
 !docker-entrypoint.sh
@@ -54,5 +68,6 @@ agent_workspace/skills/client_secrets.json
 *.lock
 *.md
 !README.md
+!documentation/phonon.md
 !**/THIRD_PARTY_NOTICES.md
 !**/LICENSE*

@@ -115,6 +115,8 @@ type RouteContract struct {
 
 func RouteContractManifest() []RouteContract {
 	return []RouteContract{
+		{Pattern: "/api/tts/phonon/voices", Methods: []string{"GET"}, Auth: "session-admin", Category: "tts", ContentTypes: []string{"application/json"}},
+		{Pattern: "/api/tts/phonon/voices/", Methods: []string{"POST"}, Auth: "session-admin-csrf", Category: "tts", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/gog/", Methods: []string{"GET", "POST"}, Auth: "session-admin", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/desktop/integrations/gog/", Methods: []string{"GET", "POST"}, Auth: "session-or-desktop-admin-token", Category: "desktop", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/auth/", Methods: []string{"GET", "POST", "DELETE"}, Auth: "public-bootstrap", Category: "auth"},
@@ -210,6 +212,7 @@ type NetworkClientUse struct {
 
 func NetworkClientInventory() []NetworkClientUse {
 	return []NetworkClientUse{
+		{Path: "internal/phonon/", Classification: "fixed-pinned-public-voice-downloads-with-allowlisted-https-redirects"},
 		{Path: "internal/decisions/", Classification: "pinned-model-downloads-and-authenticated-private-scoring-runtime", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/gog/", Classification: "fixed-google-oauth-same-origin-and-checksummed-release-download", RequiresSSRF: true, Credentialed: true},
 		{Path: "internal/mailer/gmail_adapter.go", Classification: "fixed-google-gmail-api-same-origin-redirects", Credentialed: true},

@@ -2224,6 +2224,12 @@ if $BUILD_FROM_SOURCE; then
     tui_run "Building bin/aurago-remote_linux" env CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" \
         go build -trimpath -ldflags="-s -w" -o bin/aurago-remote_linux ./cmd/remote
 
+    if python3 scripts/prepare-phonon.py --from-release latest --target "linux_${GOARCH}" --install-dir "$INSTALL_DIR/bin"; then
+        ok "Offline Phonon speech resources installed."
+    else
+        warn "Matching Phonon resources are unavailable; local speech will use sanoTTS."
+    fi
+
     # Install config.yaml from template if none exists (source build has config_template.yaml in repo)
     if [ ! -f "$INSTALL_DIR/config.yaml" ] && [ -f "$INSTALL_DIR/config_template.yaml" ]; then
         cp "$INSTALL_DIR/config_template.yaml" "$INSTALL_DIR/config.yaml"
@@ -2279,6 +2285,18 @@ else
         cp "$TMPEXT/config.yaml" "$INSTALL_DIR/config.yaml.new_template"
     fi
     ok "Resources extracted."
+
+    # The model package is shared; the native CPU executable is platform-specific.
+    # Both archives contain versioned paths, preserving resources used by rollback binaries.
+    if download_release_asset "phonon-model.dat" "$TMPEXT/phonon-model.dat" && \
+       download_release_asset "phonon-runtime_linux_${GOARCH}.dat" "$TMPEXT/phonon-runtime.dat"; then
+        tar -xzf "$TMPEXT/phonon-model.dat" -C "$TMPEXT" || die "Failed to extract verified Phonon model package."
+        tar -xzf "$TMPEXT/phonon-runtime.dat" -C "$TMPEXT" || die "Failed to extract verified Phonon runtime package."
+        cp -r "$TMPEXT/phonon" "$INSTALL_DIR/bin/" || die "Failed to install Phonon speech resources."
+        ok "Offline Phonon speech resources installed."
+    else
+        warn "Phonon resource packages are unavailable; local speech will use sanoTTS."
+    fi
 
     # Download binaries
     if [ "$GOARCH" = "arm64" ]; then

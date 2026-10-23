@@ -19,7 +19,7 @@ func TestMakeDeployUsesExactReleaseArtifactManifests(t *testing.T) {
 	script := string(data)
 	for _, marker := range []string{
 		"derive_release_artifact_lists",
-		"RELEASE_DEPLOY_ASSETS=(\"$RESOURCES\" install.sh update.sh)",
+		"RELEASE_DEPLOY_ASSETS=(\"$RESOURCES\" install.sh update.sh phonon-model.dat phonon-runtime_linux_amd64.dat phonon-runtime_linux_arm64.dat phonon-runtime_darwin_amd64.dat phonon-runtime_darwin_arm64.dat phonon-runtime_windows_amd64.dat)",
 		"RELEASE_BIN_ASSETS=()",
 		"for target in \"${TARGETS[@]}\"; do",
 		"for target in \"${REMOTE_TARGETS[@]}\"; do",

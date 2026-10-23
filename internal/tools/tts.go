@@ -19,6 +19,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/httporigin"
+	"aurago/internal/phonon"
 	"aurago/internal/sanotts"
 	"aurago/internal/speechlab"
 )
@@ -31,7 +32,12 @@ type TTSConfig struct {
 	DataDir             string // base data directory for storing audio files
 	CacheRetentionHours int    // remove cached files older than this many hours; 0 disables age-based cleanup
 	CacheMaxFiles       int    // keep at most this many cached files; 0 disables count-based cleanup
-	ElevenLabs          struct {
+	Phonon              struct {
+		VoiceID string
+		Persona string
+		Root    string // internal resource override; empty uses the installation's package
+	}
+	ElevenLabs struct {
 		APIKey  string
 		VoiceID string
 		ModelID string
@@ -81,12 +87,24 @@ var ttsHTTPClient = httporigin.NewClient(30 * time.Second)
 // TTSSynthesize generates speech audio from text and returns the filename (relative to data/tts/).
 // The file is saved as MP3 in {DataDir}/tts/{hash}.mp3.
 func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
+	if err := ttsRequestContext(cfg).Err(); err != nil {
+		return "", err
+	}
 	if text == "" {
 		return "", fmt.Errorf("text is required")
 	}
 	// Enforce 500 character limit (rune-safe to handle multi-byte UTF-8)
 	if len([]rune(text)) > 500 {
 		text = string([]rune(text)[:500])
+	}
+	if strings.EqualFold(strings.TrimSpace(cfg.Provider), "phonon") {
+		if err := phonon.ValidateText(text); err != nil {
+			return "", err
+		}
+	}
+	cfg = resolvePhononTTSConfig(cfg)
+	if err := ttsRequestContext(cfg).Err(); err != nil {
+		return "", err
 	}
 
 	// Ensure output directory exists
@@ -114,6 +132,12 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 	var err error
 
 	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
+	case "phonon":
+		audioData, err = phonon.Synthesize(ttsRequestContext(cfg), cfg.Phonon.Root, cfg.DataDir, cfg.Language, cfg.Phonon.VoiceID, text)
+		if phononFallbackAllowed(ttsRequestContext(cfg), err) {
+			cfg.Provider = "sanotts"
+			return TTSSynthesize(cfg, text)
+		}
 	case "sanotts":
 		audioData, err = ttsSano(cfg, text)
 	case "elevenlabs":
@@ -150,6 +174,8 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 func ttsCacheKey(cfg TTSConfig, text string) string {
 	provider := strings.ToLower(strings.TrimSpace(cfg.Provider))
 	switch provider {
+	case "phonon":
+		return strings.Join([]string{provider, phonon.Revision(), phonon.Language(cfg.Language), cfg.Phonon.VoiceID, text}, "\x00")
 	case "sanotts":
 		return strings.Join([]string{provider, sanotts.Revision, sanotts.Voice(cfg.Language), text}, "\x00")
 	case "elevenlabs":
@@ -226,7 +252,7 @@ func ttsCacheKey(cfg TTSConfig, text string) string {
 
 func ttsAudioExtension(cfg TTSConfig) string {
 	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
-	case "piper", "sanotts":
+	case "piper", "sanotts", "phonon":
 		return ".wav"
 	case "supertonic":
 		return "." + supertonicResponseFormat(cfg.Supertonic.ResponseFormat)

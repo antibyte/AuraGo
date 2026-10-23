@@ -112,5 +112,21 @@
   "config.tts.cloud_api_key_saved": "API 密钥已保存。",
   "config.tts.cloud_api_key_save_failed": "无法保存 API 密钥。",
   "config.tts.openai_retirement_help": "这些 OpenAI TTS 模型将于 2027 年 1 月 6 日停用。新的集成请使用 Realtime。",
-  "config.tts.resemble_archive_help": "Resemble 原有的托管语音服务已归档。需要仍然有效的访问权限。"
+  "config.tts.resemble_archive_help": "Resemble 原有的托管语音服务已归档。需要仍然有效的访问权限。",
+  "config.tts.phonon_help": "Phonon在CPU上本地运行，支持德语、英语、法语、西班牙语和葡萄牙语。其他语言使用sanoTTS。",
+  "config.tts.phonon_voice_label": "语音",
+  "config.tts.phonon_voice_auto": "根据角色自动选择",
+  "config.tts.phonon_voice_help": "自动模式跟随语言和角色。手动选择的语音在切换角色后仍会保留。",
+  "config.tts.phonon_catalog_label": "更多语音",
+  "config.tts.phonon_all_languages": "所有语言",
+  "config.tts.phonon_ready": "Phonon语音包已安装。",
+  "config.tts.phonon_fallback": "Phonon不可用。语音输出将使用sanoTTS。",
+  "config.tts.phonon_license_help": "模型：CC BY-NC 4.0，仅限非商业用途。已包含十种语音，其他语音可下载后离线使用。",
+  "config.tts.phonon_male": "男性",
+  "config.tts.phonon_female": "女性",
+  "config.tts.phonon_installed": "已安装",
+  "config.tts.phonon_download": "下载",
+  "config.tts.phonon_downloading": "正在下载 …",
+  "config.tts.phonon_catalog_error": "无法加载语音目录。",
+  "config.tts.phonon_download_error": "下载失败。之前的语音选择已保留。"
 }

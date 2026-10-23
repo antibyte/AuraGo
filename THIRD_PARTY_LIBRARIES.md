@@ -1,5 +1,9 @@
 # Third-Party Libraries and Assets
 
+Gradium Phonon `ptts` 0.4.0 (MIT/Apache-2.0), its Apache-2.0 voice catalog and
+the CC BY-NC 4.0, noncommercial-only Phonon 40m multilingual weights are delivered
+as separate local speech resources. See [provenance and attribution](documentation/phonon.md).
+
 Inventory of external libraries, runtimes, fonts, icons, and other third-party assets used by **AuraGo**.
 
 The German compact listing and the license texts that must travel with a redistribution are in [`licences/UEBERSICHT.md`](licences/UEBERSICHT.md).

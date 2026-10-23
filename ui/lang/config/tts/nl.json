@@ -112,5 +112,21 @@
   "config.tts.cloud_api_key_saved": "API-sleutel opgeslagen.",
   "config.tts.cloud_api_key_save_failed": "De API-sleutel kon niet worden opgeslagen.",
   "config.tts.openai_retirement_help": "Deze OpenAI TTS-modellen worden op 6 januari 2027 stopgezet. Gebruik Realtime voor nieuwe integraties.",
-  "config.tts.resemble_archive_help": "De voormalige gehoste spraakdienst van Resemble is gearchiveerd. Vereist toegang die nog werkt."
+  "config.tts.resemble_archive_help": "De voormalige gehoste spraakdienst van Resemble is gearchiveerd. Vereist toegang die nog werkt.",
+  "config.tts.phonon_help": "Phonon werkt lokaal op de CPU: Duits, Engels, Frans, Spaans en Portugees. Andere talen gebruiken sanoTTS.",
+  "config.tts.phonon_voice_label": "Stem",
+  "config.tts.phonon_voice_auto": "Automatisch per persona",
+  "config.tts.phonon_voice_help": "Automatisch volgt de taal en persona. Een handmatige keuze blijft behouden wanneer de persona verandert.",
+  "config.tts.phonon_catalog_label": "Meer stemmen",
+  "config.tts.phonon_all_languages": "Alle talen",
+  "config.tts.phonon_ready": "Het Phonon-spraakpakket is geïnstalleerd.",
+  "config.tts.phonon_fallback": "Phonon is niet beschikbaar. Spraakuitvoer gebruikt sanoTTS.",
+  "config.tts.phonon_license_help": "Model: CC BY-NC 4.0, alleen niet-commercieel gebruik. Tien stemmen zijn inbegrepen; meer stemmen kunnen worden gedownload en daarna offline gebruikt.",
+  "config.tts.phonon_male": "Mannelijk",
+  "config.tts.phonon_female": "Vrouwelijk",
+  "config.tts.phonon_installed": "Geïnstalleerd",
+  "config.tts.phonon_download": "Downloaden",
+  "config.tts.phonon_downloading": "Downloaden …",
+  "config.tts.phonon_catalog_error": "De stemmencatalogus kon niet worden geladen.",
+  "config.tts.phonon_download_error": "Download mislukt. Je vorige stemkeuze blijft behouden."
 }

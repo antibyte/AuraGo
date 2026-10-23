@@ -112,5 +112,21 @@
   "config.tts.cloud_api_key_saved": "Clé API enregistrée.",
   "config.tts.cloud_api_key_save_failed": "Impossible d’enregistrer la clé API.",
   "config.tts.openai_retirement_help": "Ces modèles TTS OpenAI seront arrêtés le 6 janvier 2027. Utilise Realtime pour les nouvelles intégrations.",
-  "config.tts.resemble_archive_help": "L’ancien service vocal hébergé de Resemble est archivé. Un accès toujours fonctionnel est nécessaire."
+  "config.tts.resemble_archive_help": "L’ancien service vocal hébergé de Resemble est archivé. Un accès toujours fonctionnel est nécessaire.",
+  "config.tts.phonon_help": "Phonon fonctionne localement sur le processeur : allemand, anglais, français, espagnol et portugais. Les autres langues utilisent sanoTTS.",
+  "config.tts.phonon_voice_label": "Voix",
+  "config.tts.phonon_voice_auto": "Automatique selon le personnage",
+  "config.tts.phonon_voice_help": "Le mode automatique suit la langue et le personnage. Un choix manuel reste sélectionné après un changement de personnage.",
+  "config.tts.phonon_catalog_label": "Autres voix",
+  "config.tts.phonon_all_languages": "Toutes les langues",
+  "config.tts.phonon_ready": "Le pack vocal Phonon est installé.",
+  "config.tts.phonon_fallback": "Phonon est indisponible. La synthèse vocale utilise sanoTTS.",
+  "config.tts.phonon_license_help": "Modèle : CC BY-NC 4.0, usage non commercial uniquement. Dix voix sont incluses ; les autres peuvent être téléchargées puis utilisées hors ligne.",
+  "config.tts.phonon_male": "Masculine",
+  "config.tts.phonon_female": "Féminine",
+  "config.tts.phonon_installed": "Installée",
+  "config.tts.phonon_download": "Télécharger",
+  "config.tts.phonon_downloading": "Téléchargement …",
+  "config.tts.phonon_catalog_error": "Impossible de charger le catalogue de voix.",
+  "config.tts.phonon_download_error": "Échec du téléchargement. Votre sélection de voix précédente est conservée."
 }

@@ -297,6 +297,8 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/ansible/generate-token", handleAnsibleGenerateToken(s))
 
 	// Local TTS sidecar endpoints
+	mux.Handle("/api/tts/phonon/voices", requireAdmin(s, handlePhononVoices(s)))
+	mux.Handle("/api/tts/phonon/voices/", requireAdmin(s, handlePhononVoiceDownload(s)))
 	mux.HandleFunc("/api/piper/status", handlePiperStatus(s))
 	mux.HandleFunc("/api/piper/voices", handlePiperVoices(s))
 	mux.HandleFunc("/api/supertonic/status", handleSupertonicStatus(s))

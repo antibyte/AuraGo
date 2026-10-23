@@ -14,6 +14,8 @@
 /nul
 # bin/ — all binaries are distributed via GitHub Releases, not tracked in git
 /bin/
+/phonon/
+/data/phonon/
 METRICS_DASHBOARD_DATA_SOURCES.md
 # Lock files (runtime)
 *.lock

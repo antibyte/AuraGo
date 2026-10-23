@@ -112,5 +112,21 @@
   "config.tts.cloud_api_key_saved": "Klucz API został zapisany.",
   "config.tts.cloud_api_key_save_failed": "Nie udało się zapisać klucza API.",
   "config.tts.openai_retirement_help": "Te modele OpenAI TTS zostaną wyłączone 6 stycznia 2027 r. W nowych integracjach używaj Realtime.",
-  "config.tts.resemble_archive_help": "Dawna hostowana usługa głosowa Resemble została zarchiwizowana. Wymagany jest nadal działający dostęp."
+  "config.tts.resemble_archive_help": "Dawna hostowana usługa głosowa Resemble została zarchiwizowana. Wymagany jest nadal działający dostęp.",
+  "config.tts.phonon_help": "Phonon działa lokalnie na procesorze: niemiecki, angielski, francuski, hiszpański i portugalski. Pozostałe języki korzystają z sanoTTS.",
+  "config.tts.phonon_voice_label": "Głos",
+  "config.tts.phonon_voice_auto": "Automatycznie według persony",
+  "config.tts.phonon_voice_help": "Tryb automatyczny uwzględnia język i personę. Wybór ręczny pozostaje po zmianie persony.",
+  "config.tts.phonon_catalog_label": "Więcej głosów",
+  "config.tts.phonon_all_languages": "Wszystkie języki",
+  "config.tts.phonon_ready": "Pakiet głosowy Phonon jest zainstalowany.",
+  "config.tts.phonon_fallback": "Phonon jest niedostępny. Synteza mowy korzysta z sanoTTS.",
+  "config.tts.phonon_license_help": "Model: CC BY-NC 4.0, wyłącznie do użytku niekomercyjnego. Zawiera dziesięć głosów; kolejne można pobrać i używać offline.",
+  "config.tts.phonon_male": "Męski",
+  "config.tts.phonon_female": "Żeński",
+  "config.tts.phonon_installed": "Zainstalowano",
+  "config.tts.phonon_download": "Pobierz",
+  "config.tts.phonon_downloading": "Pobieranie …",
+  "config.tts.phonon_catalog_error": "Nie udało się wczytać katalogu głosów.",
+  "config.tts.phonon_download_error": "Pobieranie nie powiodło się. Poprzedni wybór głosu został zachowany."
 }

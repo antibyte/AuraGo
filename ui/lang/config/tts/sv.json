@@ -112,5 +112,21 @@
   "config.tts.cloud_api_key_saved": "API-nyckeln har sparats.",
   "config.tts.cloud_api_key_save_failed": "Det gick inte att spara API-nyckeln.",
   "config.tts.openai_retirement_help": "Dessa OpenAI TTS-modeller stängs av den 6 januari 2027. Använd Realtime för nya integrationer.",
-  "config.tts.resemble_archive_help": "Resembles tidigare värdbaserade taltjänst är arkiverad. Kräver åtkomst som fortfarande fungerar."
+  "config.tts.resemble_archive_help": "Resembles tidigare värdbaserade taltjänst är arkiverad. Kräver åtkomst som fortfarande fungerar.",
+  "config.tts.phonon_help": "Phonon körs lokalt på CPU:n: tyska, engelska, franska, spanska och portugisiska. Andra språk använder sanoTTS.",
+  "config.tts.phonon_voice_label": "Röst",
+  "config.tts.phonon_voice_auto": "Automatiskt efter persona",
+  "config.tts.phonon_voice_help": "Automatiskt följer språk och persona. Ett manuellt val behålls när personan ändras.",
+  "config.tts.phonon_catalog_label": "Fler röster",
+  "config.tts.phonon_all_languages": "Alla språk",
+  "config.tts.phonon_ready": "Phonons talpaket är installerat.",
+  "config.tts.phonon_fallback": "Phonon är inte tillgängligt. Talutmatning använder sanoTTS.",
+  "config.tts.phonon_license_help": "Modell: CC BY-NC 4.0, endast icke-kommersiell användning. Tio röster ingår; fler kan hämtas och sedan användas offline.",
+  "config.tts.phonon_male": "Manlig",
+  "config.tts.phonon_female": "Kvinnlig",
+  "config.tts.phonon_installed": "Installerad",
+  "config.tts.phonon_download": "Hämta",
+  "config.tts.phonon_downloading": "Hämtar …",
+  "config.tts.phonon_catalog_error": "Röstkatalogen kunde inte läsas in.",
+  "config.tts.phonon_download_error": "Hämtningen misslyckades. Ditt tidigare röstval behålls."
 }

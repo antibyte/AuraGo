@@ -699,9 +699,9 @@ Nur AuraGo-erstellte und im Ledger `data/network_shares.db` erfasste Shares dür
 
 Der residente Workspace-Index wird über `workspace_search.enabled` gesteuert; er ist vom semantischen `indexing`-Indexer getrennt und speichert keine Dateiinhalte. Die Kamera-Integration `go2rtc` bleibt ebenfalls opt-in; Quellen und internes Passwort werden ausschließlich im Vault verwaltet. Die ausführlichen Grenzen stehen in [go2rtc](../../go2rtc.md) und im Abschnitt [Workspace Search](06-tools.md#10-workspace-search).
 
-### Sprachausgabe – sanoTTS als lokaler Standard
+### Sprachausgabe – Phonon als lokaler Standard
 
-Neue Installationen nutzen für die Sprachausgabe standardmäßig die lokale CPU-Pipeline **sanoTTS** (`tts.provider: sanotts`); die Sprache folgt der Nutzersprache, nicht unterstützte Stimmen fallen auf Englisch zurück. Bestehende Provider (ElevenLabs, Mistral, Piper, Supertonic) bleiben in **Config → Speech Output** wählbar. Das Sprach-Lab (Speech Lab) bleibt getrennt und bindet die s2s-Pipeline an.
+Neue Installationen nutzen für die Sprachausgabe das mitgelieferte lokale **Phonon (CPU)** (`tts.provider: phonon`) für Deutsch, Englisch, Französisch, Spanisch und Portugiesisch. Andere Sprachen und nicht verfügbare Ressourcen nutzen sanoTTS. Die automatische Stimme folgt Sprache und Persona; eine manuelle Auswahl und weitere Stimmen-Downloads stehen in **Config → Speech Output** bereit. Bestehende Provider bleiben wählbar. Das Sprach-Lab (Speech Lab) behält seine eigene s2s-Pipeline. Details und Lizenzbedingungen stehen in `documentation/phonon.md`.
 
 ### Task-LLM-Router
 

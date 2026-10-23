@@ -14,6 +14,7 @@ WORKDIR /src
 # Ensure git is available so `go mod download` can resolve them reliably.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
+        python3 \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -23,6 +24,7 @@ RUN go mod download
 
 # Copy source and build the production binaries
 COPY . .
+RUN python3 scripts/prepare-phonon.py --check --target "${TARGETOS}_${TARGETARCH}" --install-dir /phonon-release
 RUN go run ./cmd/assetpack -out /asset-artifacts -stage /web-assets
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags="-s -w -X aurago/internal/buildinfo.BuildID=${AURAGO_BUILD_ID} $(cat /asset-artifacts/web-assets.ldflags)" -o /aurago ./cmd/aurago
@@ -70,6 +72,8 @@ WORKDIR /app
 
 # Binaries from builder stage
 COPY --from=builder /aurago /app/aurago
+COPY --from=builder /phonon-release/phonon /opt/aurago/phonon
+ENV AURAGO_PHONON_DIR=/opt/aurago/phonon
 COPY --from=builder /web-assets /opt/aurago/web-assets
 # Installation staging is private; the image's non-root user needs read access.
 RUN chmod -R a+rX /opt/aurago/web-assets

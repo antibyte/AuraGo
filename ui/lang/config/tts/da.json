@@ -112,5 +112,21 @@
   "config.tts.cloud_api_key_saved": "API-nøglen er gemt.",
   "config.tts.cloud_api_key_save_failed": "API-nøglen kunne ikke gemmes.",
   "config.tts.openai_retirement_help": "Disse OpenAI TTS-modeller lukkes den 6. januar 2027. Brug Realtime til nye integrationer.",
-  "config.tts.resemble_archive_help": "Resembles tidligere taletjeneste er arkiveret. Kræver fortsat fungerende adgang."
+  "config.tts.resemble_archive_help": "Resembles tidligere taletjeneste er arkiveret. Kræver fortsat fungerende adgang.",
+  "config.tts.phonon_help": "Phonon kører lokalt på CPU: tysk, engelsk, fransk, spansk og portugisisk. Andre sprog bruger sanoTTS.",
+  "config.tts.phonon_voice_label": "Stemme",
+  "config.tts.phonon_voice_auto": "Automatisk efter persona",
+  "config.tts.phonon_voice_help": "Automatisk følger sprog og persona. Et manuelt valg bevares, når personaen ændres.",
+  "config.tts.phonon_catalog_label": "Flere stemmer",
+  "config.tts.phonon_all_languages": "Alle sprog",
+  "config.tts.phonon_ready": "Phonon-talepakken er installeret.",
+  "config.tts.phonon_fallback": "Phonon er ikke tilgængelig. Taleoutput bruger sanoTTS.",
+  "config.tts.phonon_license_help": "Model: CC BY-NC 4.0, kun til ikke-kommerciel brug. Ti stemmer er inkluderet; flere kan downloades og derefter bruges offline.",
+  "config.tts.phonon_male": "Mandlig",
+  "config.tts.phonon_female": "Kvindelig",
+  "config.tts.phonon_installed": "Installeret",
+  "config.tts.phonon_download": "Download",
+  "config.tts.phonon_downloading": "Downloader …",
+  "config.tts.phonon_catalog_error": "Stemmekataloget kunne ikke indlæses.",
+  "config.tts.phonon_download_error": "Download mislykkedes. Dit tidligere stemmevalg er bevaret."
 }
