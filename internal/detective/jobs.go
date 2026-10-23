@@ -211,10 +211,22 @@ func (s *Service) worker() {
 				err = runSafely(ctx, runner, session)
 			}
 			cancel()
-			session.complete(err)
+			completeErr := session.complete(err)
 			s.mu.Lock()
 			s.active = nil
 			s.mu.Unlock()
+			if completeErr != nil {
+				// The case is still queued. Retrying immediately would spin on the same
+				// row, so wait for the next tick instead. A persistent failure stays
+				// visible as a queued case and is logged every third attempt.
+				s.failures[key]++
+				if s.failures[key] >= 3 {
+					s.failures[key] = 0
+					s.log().Warn("detective run state could not be persisted", "case_id", key, "error", completeErr)
+				}
+				break
+			}
+			delete(s.failures, key)
 		}
 	}
 }
@@ -436,8 +448,8 @@ func (x *Session) Wait(question string) error {
 	})
 }
 
-func (x *Session) complete(runErr error) {
-	_ = x.update(func(c *Case) error {
+func (x *Session) complete(runErr error) error {
+	return x.update(func(c *Case) error {
 		if x.published {
 			return nil
 		}

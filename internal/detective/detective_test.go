@@ -490,3 +490,64 @@ func TestFindingQuoteRejectsParticles(t *testing.T) {
 		t.Fatalf("short exact measurement: %v %+v", err, got)
 	}
 }
+
+// Restart marks the previously active cases interrupted without decoding the bodies
+// of unrelated cases: a corrupt inactive case must not block startup (audit 4.7).
+func TestRestartQueryIgnoresCorruptInactiveCase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "detective.db")
+	s, err := New(Options{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	active, err := s.Create(Request{Topic: "active", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	active.Run.Status = "running"
+	if err = s.saveLocked(&active); err != nil {
+		s.mu.Unlock()
+		t.Fatal(err)
+	}
+	s.mu.Unlock()
+	idle, err := s.Create(Request{Topic: "idle", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.db.Exec("UPDATE detective_cases SET body='{broken', status='partial' WHERE id=?", idle.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := New(Options{Path: path})
+	if err != nil {
+		t.Fatalf("restart decoded an unrelated body: %v", err)
+	}
+	t.Cleanup(func() { _ = reopened.Close() })
+	got, err := reopened.Get(active.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Run.Status != "interrupted" || got.Run.Reason != "server_restart" {
+		t.Fatalf("active case not interrupted: %s/%s", got.Run.Status, got.Run.Reason)
+	}
+}
+
+// A state write that cannot be persisted must surface through complete(), so the
+// worker waits for the next tick instead of retrying the same row immediately (4.11).
+func TestCompleteReturnsPersistenceErrors(t *testing.T) {
+	s := newTestService(t)
+	c, err := s.Create(Request{Topic: "persist", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	x := &Session{service: s, CaseID: c.ID}
+	if err = s.db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err = x.complete(nil); err == nil {
+		t.Fatal("complete hid a persistence error")
+	}
+}

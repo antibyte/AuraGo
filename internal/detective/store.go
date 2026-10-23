@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,6 +28,7 @@ type Options struct {
 	Now      func() time.Time
 	PDF      func(context.Context, Report) ([]byte, error)
 	Allowed  func() bool
+	Logger   *slog.Logger
 }
 
 type Service struct {
@@ -44,6 +46,16 @@ type Service struct {
 	closed   bool
 	pdf      func(context.Context, Report) ([]byte, error)
 	allowed  func() bool
+	logger   *slog.Logger
+	failures map[string]int
+}
+
+// log returns a usable logger; the service must not require one to run.
+func (s *Service) log() *slog.Logger {
+	if s.logger != nil {
+		return s.logger
+	}
+	return slog.Default()
 }
 
 func New(opts Options) (*Service, error) {
@@ -89,33 +101,51 @@ func New(opts Options) (*Service, error) {
 		now = time.Now
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	s := &Service{db: db, profiles: p, now: now, ctx: ctx, cancel: cancel, kick: make(chan struct{}, 1), exports: make(chan struct{}, 1), pdf: opts.PDF, allowed: opts.Allowed}
-	cases, err := s.List()
+	s := &Service{db: db, profiles: p, now: now, ctx: ctx, cancel: cancel, kick: make(chan struct{}, 1), exports: make(chan struct{}, 1), pdf: opts.PDF, allowed: opts.Allowed, logger: opts.Logger, failures: map[string]int{}}
+	// Only the restart pass needs the bodies; the status column answers which cases
+	// were active, so a corrupt or oversized unrelated case cannot block starting.
+	active, err := s.activeIDs()
 	if err != nil {
 		db.Close()
 		cancel()
 		return nil, err
 	}
-	for _, c := range cases {
-		if c.Run.Status == "running" || c.Run.Status == "queued" {
-			c, err = s.getLocked(c.ID)
-			if err != nil {
-				db.Close()
-				cancel()
-				return nil, err
-			}
-			c.Run.Status = "interrupted"
-			c.Run.Reason = "server_restart"
-			if err = s.saveLocked(&c); err != nil {
-				db.Close()
-				cancel()
-				return nil, err
-			}
+	for _, key := range active {
+		c, err := s.getLocked(key)
+		if err != nil {
+			db.Close()
+			cancel()
+			return nil, err
+		}
+		c.Run.Status = "interrupted"
+		c.Run.Reason = "server_restart"
+		if err = s.saveLocked(&c); err != nil {
+			db.Close()
+			cancel()
+			return nil, err
 		}
 	}
 	s.wg.Add(1)
 	go s.worker()
 	return s, nil
+}
+
+// activeIDs lists the cases that were running or queued when the process stopped.
+func (s *Service) activeIDs() ([]string, error) {
+	rows, err := s.db.Query("SELECT id FROM detective_cases WHERE status IN ('running','queued') ORDER BY updated")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var key string
+		if err = rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		ids = append(ids, key)
+	}
+	return ids, rows.Err()
 }
 
 func migrateDatabase(db *sql.DB, schemaVersion int) error {

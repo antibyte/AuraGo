@@ -43,7 +43,7 @@ func (s *Server) initDetective() {
 	if s.Cfg.SQLite.GameMakerPath == "" {
 		path = "data/detective.db"
 	}
-	service, err := detective.New(detective.Options{Path: path, Profiles: profiles, Allowed: func() bool { return detectiveResearchAllowed(s.ConfigSnapshot()) }, PDF: func(ctx context.Context, report detective.Report) ([]byte, error) {
+	service, err := detective.New(detective.Options{Path: path, Profiles: profiles, Logger: s.Logger, Allowed: func() bool { return detectiveResearchAllowed(s.ConfigSnapshot()) }, PDF: func(ctx context.Context, report detective.Report) ([]byte, error) {
 		cfg := s.ConfigSnapshot()
 		if cfg != nil && cfg.Tools.DocumentCreator.Enabled && cfg.Tools.DocumentCreator.Backend == "gotenberg" {
 			return tools.RenderReportHTMLPDF(ctx, &cfg.Tools.DocumentCreator.Gotenberg, detective.ReportHTML(report))

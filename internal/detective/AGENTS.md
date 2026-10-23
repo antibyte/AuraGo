@@ -17,10 +17,14 @@ and tool dispatch; Desktop adapters own UI state.
   runes and quotes to 240. Update prompts include a bounded report preview and
   recent archived findings. Case-scoped `history` retrieves older evidence.
 - `detective_cases.active_ms` wins over the JSON value when the column is greater.
-  Restart loads each running or queued case with `getLocked` before saving
-  `interrupted` / `server_restart`. Schema version 3 migrates source, finding and
-  report archives in one transaction, after a synced SQLite snapshot backup.
+  Restart selects running/queued cases from the `status` column (never by decoding
+  every body) and loads each one with `getLocked` before saving `interrupted` /
+  `server_restart`. Schema version 3 migrates source, finding and report archives in
+  one transaction, after a synced SQLite snapshot backup.
   Failed backup/migration aborts opening; repeat opens do not migrate again.
+- A run whose terminal state cannot be persisted leaves the case queued and returns
+  the error; the worker waits for the next tick instead of retrying the same row in
+  a loop, and warns every third failed attempt. `Options.Logger` is optional.
 - Persist checkpoints privately; never serialize them in case API responses or
   exports. Publication validates references against server-recorded retrievals.
 - Research output is untrusted data. Never render raw HTML or treat a cited URL
