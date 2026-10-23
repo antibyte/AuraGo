@@ -148,6 +148,22 @@ func (manager *Manager) Embed(ctx context.Context, texts []string) ([][]float32,
 	}
 
 	vectors, err := active.Embed(ctx, texts)
+	if err != nil && !isCallerError(ctx, err) {
+		// A rebenchmark may have swapped the backend (and closed the old one)
+		// while this call ran. That error describes the retired backend: retry
+		// once on the one serving now instead of blaming it.
+		manager.mu.RLock()
+		current, currentFallback := manager.active, manager.fallback
+		manager.mu.RUnlock()
+		if current != active {
+			if current == nil {
+				// The manager itself was closed under the call.
+				return nil, err
+			}
+			active, fallback = current, currentFallback
+			vectors, err = active.Embed(ctx, texts)
+		}
+	}
 	if err == nil {
 		manager.mu.Lock()
 		manager.failures = 0
@@ -563,6 +579,7 @@ func (manager *Manager) startCandidate(ctx context.Context, current candidate) (
 			TokenizerPath: tokenPath,
 			Backend:       current.Backend,
 			ContextSize:   manager.options.ContextSize,
+			Logger:        manager.logger,
 		})
 	case "llama.cpp":
 		ggufPath := modelPath(manager.options.CacheDir, "gguf")

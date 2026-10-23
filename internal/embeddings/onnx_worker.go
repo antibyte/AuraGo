@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -120,6 +121,9 @@ const (
 	// onnxDrainTimeout bounds how long an abandoned request may keep the
 	// worker busy before the process is considered hung and killed.
 	onnxDrainTimeout = 2 * time.Minute
+	// onnxCloseWaitTimeout bounds how long Close waits for a request in flight
+	// (or a drain) before it stops the process anyway.
+	onnxCloseWaitTimeout = 30 * time.Second
 )
 
 var errONNXWorkerClosed = errors.New("ONNX worker is closed")
@@ -168,6 +172,8 @@ type onnxWorkerEmbedder struct {
 	start        func(context.Context, onnxWorkerOptions) (*onnxWorkerConn, error)
 	respawns     *restartBudget
 	drainTimeout time.Duration
+	closeWait    time.Duration
+	logger       *slog.Logger
 	slot         chan struct{}
 	nextID       atomic.Uint64
 	fingerprint  string
@@ -187,6 +193,8 @@ type onnxWorkerOptions struct {
 	TokenizerPath string
 	Backend       string
 	ContextSize   int
+	// Logger receives worker supervision warnings; nil means slog.Default().
+	Logger *slog.Logger
 }
 
 func newONNXWorkerEmbedder(ctx context.Context, options onnxWorkerOptions) (*onnxWorkerEmbedder, error) {
@@ -208,11 +216,17 @@ func newONNXWorkerEmbedderWith(
 	if err != nil {
 		return nil, err
 	}
+	logger := options.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
 	worker := &onnxWorkerEmbedder{
+		logger:       logger,
 		options:      options,
 		start:        start,
 		respawns:     respawns,
 		drainTimeout: onnxDrainTimeout,
+		closeWait:    onnxCloseWaitTimeout,
 		slot:         make(chan struct{}, 1),
 		backend:      options.Backend,
 		fingerprint:  onnxFingerprint(),
@@ -403,19 +417,35 @@ func (worker *onnxWorkerEmbedder) finish(conn *onnxWorkerConn, request workerReq
 
 // drain owns the slot of an abandoned request: it waits for the response
 // (bounded by drainTimeout), discards it and frees the slot. A broken response
-// or a worker that stays silent past the timeout gets the process killed.
+// or a worker that stays silent past the timeout gets the process killed, with
+// one warning: no caller is left to receive the error.
 func (worker *onnxWorkerEmbedder) drain(conn *onnxWorkerConn, requestID uint64, result <-chan workerExchange) {
 	defer func() { <-worker.slot }()
 	timer := time.NewTimer(worker.drainTimeout)
 	defer timer.Stop()
 	select {
 	case exchange := <-result:
-		if exchange.err != nil || exchange.response.ID != requestID {
-			worker.dropConn(conn)
+		switch {
+		case exchange.err != nil:
+			worker.dropAfterDrain(conn, requestID, exchange.err.Error())
+		case exchange.response.ID != requestID:
+			worker.dropAfterDrain(conn, requestID, fmt.Sprintf("response ID %d, want %d", exchange.response.ID, requestID))
 		}
 	case <-timer.C:
-		worker.dropConn(conn)
+		worker.dropAfterDrain(conn, requestID, fmt.Sprintf("no response within %s", worker.drainTimeout))
 	}
+}
+
+// dropAfterDrain logs why a drained worker is dropped, then drops it. After
+// Close the process is stopped on purpose, so that failure is not worth a warning.
+func (worker *onnxWorkerEmbedder) dropAfterDrain(conn *onnxWorkerConn, requestID uint64, reason string) {
+	if !worker.isClosed() {
+		worker.logger.Warn("Abandoned ONNX worker request ended badly; dropping the worker process",
+			"request_id", requestID,
+			"reason", reason,
+			"log", conn.log())
+	}
+	worker.dropConn(conn)
 }
 
 // connection returns the live process, starting a new one when the previous
@@ -497,8 +527,12 @@ func (worker *onnxWorkerEmbedder) Status() Status {
 	worker.stateMu.Lock()
 	defer worker.stateMu.Unlock()
 	state := "ready"
-	if worker.closed {
+	switch {
+	case worker.closed:
 		state = "closed"
+	case worker.conn == nil && worker.respawns.remaining() == 0:
+		// The process is gone and the next Embed may not start another one.
+		state = "unavailable"
 	}
 	return Status{
 		State:        state,
@@ -516,10 +550,25 @@ func (worker *onnxWorkerEmbedder) Status() Status {
 }
 
 // Close ends the worker for good; unlike a crash it is never followed by a
-// restart. A request still in flight fails when its pipes close.
+// restart. It admits no new request, then waits (bounded by closeWait) for the
+// request in flight or the drain in progress, so a backend swap does not fail
+// the callers still embedding on the old one. After the wait, or when it runs
+// out, the process is stopped anyway. Safe to call more than once.
 func (worker *onnxWorkerEmbedder) Close() error {
 	worker.stateMu.Lock()
 	worker.closed = true
+	worker.stateMu.Unlock()
+
+	timer := time.NewTimer(worker.closeWait)
+	defer timer.Stop()
+	select {
+	case worker.slot <- struct{}{}:
+		// Owning the slot means no request is running when the process stops.
+		defer func() { <-worker.slot }()
+	case <-timer.C:
+	}
+
+	worker.stateMu.Lock()
 	conn := worker.conn
 	worker.conn = nil
 	worker.stateMu.Unlock()

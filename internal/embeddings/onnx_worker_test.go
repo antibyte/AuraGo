@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -107,7 +108,7 @@ func (process *fakeONNXProcess) nextRequest(t *testing.T) workerRequest {
 
 func newTestONNXWorker(t *testing.T, start func(context.Context, onnxWorkerOptions) (*onnxWorkerConn, error), respawns *restartBudget) *onnxWorkerEmbedder {
 	t.Helper()
-	worker, err := newONNXWorkerEmbedderWith(context.Background(), onnxWorkerOptions{Backend: "cpu"}, start, respawns)
+	worker, err := newONNXWorkerEmbedderWith(context.Background(), onnxWorkerOptions{Backend: "cpu", Logger: discardEmbeddingLogger()}, start, respawns)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,8 +252,15 @@ func TestONNXWorkerRespawnsAfterCrashWithinBudgetAndCloseIsFinal(t *testing.T) {
 	if _, err := worker.Embed(context.Background(), []string{"over budget"}); err == nil || !strings.Contains(err.Error(), "restart limit") {
 		t.Fatalf("over-budget error = %v, want the restart limit", err)
 	}
+	// No process and no restart left: the worker must not claim to be ready.
+	if state := worker.Status().State; state != "unavailable" {
+		t.Fatalf("state with no process and no restart budget = %q, want unavailable", state)
+	}
 	// ... and the window frees it again.
 	now = now.Add(processRestartWindow + time.Minute)
+	if state := worker.Status().State; state != "ready" {
+		t.Fatalf("state once the window frees a restart = %q, want ready", state)
+	}
 	if _, err := worker.Embed(context.Background(), []string{"after the window"}); err != nil {
 		t.Fatalf("Embed after the window = %v", err)
 	}
@@ -266,5 +274,211 @@ func TestONNXWorkerRespawnsAfterCrashWithinBudgetAndCloseIsFinal(t *testing.T) {
 	}
 	if starts.Load() != startsBeforeClose {
 		t.Fatal("Close was not final: the worker was started again")
+	}
+}
+
+// Close must not cut a request off: a rebenchmark swaps backends while callers
+// are still embedding, and those callers have to get their vectors.
+func TestONNXWorkerCloseWaitsForInFlightRequest(t *testing.T) {
+	process := newFakeONNXProcess(t, true)
+	worker := newTestONNXWorker(t, func(context.Context, onnxWorkerOptions) (*onnxWorkerConn, error) {
+		return process.conn, nil
+	}, newRestartBudget(maxProcessRestarts, processRestartWindow))
+
+	inFlight := embedAsync(worker, context.Background(), "in flight")
+	process.nextRequest(t)
+
+	closed := make(chan error, 1)
+	go func() { closed <- worker.Close() }()
+	select {
+	case err := <-closed:
+		t.Fatalf("Close returned (%v) while a request was in flight", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	if process.kills.Load() != 0 {
+		t.Fatal("Close killed the process under a running request")
+	}
+	// A closing worker admits nothing new.
+	if _, err := worker.Embed(context.Background(), []string{"late"}); !errors.Is(err, errONNXWorkerClosed) {
+		t.Fatalf("Embed while closing = %v, want the closed error", err)
+	}
+
+	process.release <- struct{}{}
+	if outcome := awaitOutcome(t, inFlight); outcome.err != nil || len(outcome.vectors) != 1 {
+		t.Fatalf("in-flight request = %v, %v; want its vector", outcome.vectors, outcome.err)
+	}
+	select {
+	case err := <-closed:
+		if err != nil {
+			t.Fatalf("Close = %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close did not return after the request finished")
+	}
+	if process.kills.Load() != 1 {
+		t.Fatalf("kills = %d, want 1", process.kills.Load())
+	}
+}
+
+// A drain in progress holds the slot like a request does, so Close waits for it
+// too. A worker that never answers is stopped once the wait is over, and a
+// second Close is a no-op.
+func TestONNXWorkerCloseWaitsForDrainAndIsBounded(t *testing.T) {
+	process := newFakeONNXProcess(t, true)
+	worker := newTestONNXWorker(t, func(context.Context, onnxWorkerOptions) (*onnxWorkerConn, error) {
+		return process.conn, nil
+	}, newRestartBudget(maxProcessRestarts, processRestartWindow))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	abandoned := embedAsync(worker, ctx, "abandoned")
+	process.nextRequest(t)
+	cancel()
+	awaitOutcome(t, abandoned) // the drain goroutine now owns the slot
+
+	closed := make(chan error, 1)
+	go func() { closed <- worker.Close() }()
+	select {
+	case <-closed:
+		t.Fatal("Close returned while the drain still owned the request slot")
+	case <-time.After(50 * time.Millisecond):
+	}
+	process.release <- struct{}{} // the late response ends the drain
+	select {
+	case err := <-closed:
+		if err != nil {
+			t.Fatalf("Close = %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close did not return after the drain finished")
+	}
+	if process.kills.Load() != 1 {
+		t.Fatalf("kills = %d, want 1", process.kills.Load())
+	}
+
+	hung := newFakeONNXProcess(t, true)
+	stuck := newTestONNXWorker(t, func(context.Context, onnxWorkerOptions) (*onnxWorkerConn, error) {
+		return hung.conn, nil
+	}, newRestartBudget(maxProcessRestarts, processRestartWindow))
+	stuck.closeWait = 30 * time.Millisecond
+	pending := embedAsync(stuck, context.Background(), "never answered")
+	hung.nextRequest(t)
+	if err := stuck.Close(); err != nil {
+		t.Fatalf("Close of a stuck worker = %v", err)
+	}
+	if outcome := awaitOutcome(t, pending); outcome.err == nil {
+		t.Fatal("request on a worker that was stopped after the wait succeeded")
+	}
+	if err := stuck.Close(); err != nil || hung.kills.Load() != 1 {
+		t.Fatalf("second Close = %v, kills = %d; want nil and 1", err, hung.kills.Load())
+	}
+}
+
+// Close during a respawn must neither deadlock nor leak the fresh process.
+func TestONNXWorkerCloseDuringRespawnStopsFreshProcess(t *testing.T) {
+	dead := newFakeONNXProcess(t, false)
+	fresh := newFakeONNXProcess(t, false)
+	startEntered := make(chan struct{})
+	releaseStart := make(chan struct{})
+	var starts atomic.Int32
+	worker := newTestONNXWorker(t, func(context.Context, onnxWorkerOptions) (*onnxWorkerConn, error) {
+		if starts.Add(1) == 1 {
+			return dead.conn, nil
+		}
+		close(startEntered)
+		<-releaseStart
+		return fresh.conn, nil
+	}, newRestartBudget(maxProcessRestarts, processRestartWindow))
+	worker.closeWait = 30 * time.Millisecond
+
+	dead.die()
+	if _, err := worker.Embed(context.Background(), []string{"hits the dead process"}); err == nil {
+		t.Fatal("Embed on a dead worker succeeded")
+	}
+	respawning := embedAsync(worker, context.Background(), "respawns")
+	select {
+	case <-startEntered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("respawn did not start")
+	}
+
+	if err := worker.Close(); err != nil { // waits out closeWait, then gives up
+		t.Fatalf("Close during respawn = %v", err)
+	}
+	close(releaseStart)
+	if outcome := awaitOutcome(t, respawning); !errors.Is(outcome.err, errONNXWorkerClosed) {
+		t.Fatalf("Embed that respawned during Close = %v, want the closed error", outcome.err)
+	}
+	if fresh.kills.Load() != 1 {
+		t.Fatalf("fresh process kills = %d, want 1", fresh.kills.Load())
+	}
+}
+
+// captureHandler records log records so a test can assert on them.
+type captureHandler struct {
+	mu      sync.Mutex
+	records []slog.Record
+}
+
+func (handler *captureHandler) Enabled(context.Context, slog.Level) bool { return true }
+func (handler *captureHandler) WithAttrs([]slog.Attr) slog.Handler       { return handler }
+func (handler *captureHandler) WithGroup(string) slog.Handler            { return handler }
+
+func (handler *captureHandler) Handle(_ context.Context, record slog.Record) error {
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+	handler.records = append(handler.records, record.Clone())
+	return nil
+}
+
+func (handler *captureHandler) snapshot() []slog.Record {
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+	return append([]slog.Record(nil), handler.records...)
+}
+
+// A drain that ends in a broken response must not drop the worker silently: one
+// warning names the request, the reason and the worker's own log.
+func TestONNXWorkerDrainFailureIsLogged(t *testing.T) {
+	process := newFakeONNXProcess(t, true)
+	process.conn.stderr = newLimitedBuffer(1 << 10)
+	_, _ = process.conn.stderr.Write([]byte("onnxruntime: session aborted"))
+	logs := &captureHandler{}
+	worker, err := newONNXWorkerEmbedderWith(context.Background(),
+		onnxWorkerOptions{Backend: "cpu", Logger: slog.New(logs)},
+		func(context.Context, onnxWorkerOptions) (*onnxWorkerConn, error) { return process.conn, nil },
+		newRestartBudget(maxProcessRestarts, processRestartWindow))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = worker.Close() })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	abandoned := embedAsync(worker, ctx, "abandoned")
+	request := process.nextRequest(t)
+	cancel()
+	awaitOutcome(t, abandoned)
+	process.die() // the worker vanishes before it answers the abandoned request
+
+	deadline := time.Now().Add(5 * time.Second)
+	for len(logs.snapshot()) == 0 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	records := logs.snapshot()
+	if len(records) != 1 || records[0].Level != slog.LevelWarn {
+		t.Fatalf("drain failure produced %d records, want one warning", len(records))
+	}
+	attrs := map[string]any{}
+	records[0].Attrs(func(attr slog.Attr) bool {
+		attrs[attr.Key] = attr.Value.Any()
+		return true
+	})
+	if attrs["request_id"] != request.ID {
+		t.Fatalf("request_id = %v, want %d", attrs["request_id"], request.ID)
+	}
+	if reason, _ := attrs["reason"].(string); reason == "" {
+		t.Fatal("warning carries no reason")
+	}
+	if log, _ := attrs["log"].(string); !strings.Contains(log, "session aborted") {
+		t.Fatalf("worker log = %q, want the process stderr", attrs["log"])
 	}
 }

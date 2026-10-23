@@ -226,3 +226,117 @@ func TestRestartBudgetSlidesOverTheWindow(t *testing.T) {
 		t.Fatalf("release did not return the restart: remaining=%d", budget.remaining())
 	}
 }
+
+// blockingEmbedder parks Embed until released, then fails the way an ONNX worker
+// does when its process is stopped under a running request.
+type blockingEmbedder struct {
+	countingEmbedder
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (embedder *blockingEmbedder) Embed(context.Context, []string) ([][]float32, error) {
+	embedder.calls.Add(1)
+	embedder.entered <- struct{}{}
+	<-embedder.release
+	return nil, embedder.err
+}
+
+// A rebenchmark swaps the backend and closes the old one while a call is still
+// running on it. The error of that call describes the retired backend, not the
+// one serving now: it must not degrade the manager or count towards a re-benchmark.
+func TestManagerEmbedIgnoresFailureFromReplacedBackend(t *testing.T) {
+	cases := []struct {
+		name        string
+		swap        func(manager *Manager, fresh Embedder)
+		wantRetried bool
+		wantState   string
+	}{
+		{
+			name: "replaced by a new backend",
+			swap: func(manager *Manager, fresh Embedder) {
+				manager.active, manager.fallback = fresh, fresh
+			},
+			wantRetried: true,
+			wantState:   "ready",
+		},
+		{
+			name: "manager closed",
+			swap: func(manager *Manager, _ Embedder) {
+				manager.active, manager.fallback = nil, nil
+				manager.status.State = "closed"
+			},
+			wantState: "closed",
+		},
+	}
+	for _, current := range cases {
+		t.Run(current.name, func(t *testing.T) {
+			ready := make(chan struct{})
+			close(ready)
+			old := &blockingEmbedder{
+				countingEmbedder: countingEmbedder{
+					status: Status{Runtime: "onnxruntime", Backend: "cpu", Fingerprint: onnxFingerprint()},
+					err:    errors.New("read ONNX worker response: file already closed"),
+				},
+				entered: make(chan struct{}, 1),
+				release: make(chan struct{}),
+			}
+			fresh := &countingEmbedder{
+				status:  Status{Runtime: "onnxruntime", Backend: "cpu", Fingerprint: onnxFingerprint()},
+				vectors: [][]float32{unitTestVector()},
+			}
+			var benchmarkCalls atomic.Int32
+			rootCtx, cancelRoot := context.WithCancel(context.Background())
+			manager := &Manager{
+				active:   old,
+				fallback: old,
+				status:   Status{State: "ready"},
+				ready:    ready,
+				logger:   discardEmbeddingLogger(),
+				rootCtx:  rootCtx,
+				cancel:   cancelRoot,
+				setupOverride: func(context.Context, bool) error {
+					benchmarkCalls.Add(1)
+					return nil
+				},
+			}
+			defer manager.Close()
+
+			type outcome struct {
+				vectors [][]float32
+				err     error
+			}
+			result := make(chan outcome, 1)
+			go func() {
+				vectors, err := manager.Embed(context.Background(), []string{"text"})
+				result <- outcome{vectors: vectors, err: err}
+			}()
+			<-old.entered
+			manager.mu.Lock()
+			current.swap(manager, fresh)
+			manager.mu.Unlock()
+			close(old.release)
+
+			var got outcome
+			select {
+			case got = <-result:
+			case <-time.After(5 * time.Second):
+				t.Fatal("Embed did not return")
+			}
+			if current.wantRetried {
+				if got.err != nil || len(got.vectors) != 1 || fresh.calls.Load() != 1 {
+					t.Fatalf("retry on the current backend = %v, %v, calls=%d; want its vector", got.vectors, got.err, fresh.calls.Load())
+				}
+			} else if got.err == nil {
+				t.Fatal("Embed on a closed manager succeeded")
+			}
+			manager.initWG.Wait()
+			manager.mu.RLock()
+			failures, state := manager.failures, manager.status.State
+			manager.mu.RUnlock()
+			if failures != 0 || state != current.wantState || benchmarkCalls.Load() != 0 {
+				t.Fatalf("retired backend error counted: failures=%d state=%s benchmarks=%d", failures, state, benchmarkCalls.Load())
+			}
+		})
+	}
+}
