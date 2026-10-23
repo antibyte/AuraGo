@@ -38,6 +38,26 @@ func mediaConversionArgValue(args []string, flag string) string {
 	return ""
 }
 
+// mediaConversionCapture records every converter invocation. A conversion is
+// followed by an optional metadata probe, so the arguments of the conversion
+// call must be picked explicitly.
+type mediaConversionCapture struct {
+	calls [][]string
+}
+
+func (c *mediaConversionCapture) record(args []string) {
+	c.calls = append(c.calls, args)
+}
+
+func (c *mediaConversionCapture) conversionArgs() []string {
+	for _, args := range c.calls {
+		if mediaConversionArgValue(args, "-i") != "" {
+			return args
+		}
+	}
+	return nil
+}
+
 func TestExecuteMediaConversionStopsWhenContextIsCancelled(t *testing.T) {
 	workspaceDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(workspaceDir, "input.wav"), []byte("source"), 0o600); err != nil {
@@ -46,7 +66,7 @@ func TestExecuteMediaConversionStopsWhenContextIsCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	result := decodeMediaConversionResult(t, ExecuteMediaConversion(ctx, workspaceDir, mediaConversionTestConfig(true), MediaConversionRequest{
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(ctx, workspaceDir, mediaConversionTestConfig(true), nil, MediaConversionRequest{
 		Operation: "audio_convert", FilePath: "input.wav", OutputFormat: "mp3",
 	}))
 
@@ -78,7 +98,7 @@ func TestExecuteMediaConversionReportsTimeout(t *testing.T) {
 
 	cfg := mediaConversionTestConfig(true)
 	cfg.TimeoutSeconds = 1
-	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, cfg, MediaConversionRequest{
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, cfg, nil, MediaConversionRequest{
 		Operation: "audio_convert", FilePath: "input.wav", OutputFormat: "mp3",
 	}))
 
@@ -90,8 +110,94 @@ func TestExecuteMediaConversionReportsTimeout(t *testing.T) {
 	}
 }
 
+func TestExecuteMediaConversionRegistersOutputAndReportsSize(t *testing.T) {
+	workspaceDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workspaceDir, "input.wav"), []byte("source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	db, err := InitMediaRegistryDB(filepath.Join(t.TempDir(), "media.db"))
+	if err != nil {
+		t.Fatalf("InitMediaRegistryDB: %v", err)
+	}
+	defer db.Close()
+
+	oldLookPath, oldRunCommand := mediaConversionLookPath, mediaConversionRunCommand
+	t.Cleanup(func() {
+		mediaConversionLookPath, mediaConversionRunCommand = oldLookPath, oldRunCommand
+	})
+	mediaConversionLookPath = func(string) (string, error) { return "ffmpeg", nil }
+	mediaConversionRunCommand = func(_ context.Context, _ string, args []string) ([]byte, error) {
+		return nil, os.WriteFile(args[len(args)-1], []byte("converted"), 0o600)
+	}
+
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), db, MediaConversionRequest{
+		Operation: "audio_convert", FilePath: "input.wav", OutputFormat: "mp3",
+	}))
+	if result["status"] != "success" {
+		t.Fatalf("conversion result: %#v", result)
+	}
+	if size, _ := result["output_size_bytes"].(float64); size != float64(len("converted")) {
+		t.Fatalf("output_size_bytes = %v, want %d", result["output_size_bytes"], len("converted"))
+	}
+
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM media_items WHERE source_tool = ? AND media_type = ?", "media_conversion", "audio").Scan(&count); err != nil {
+		t.Fatalf("registry query: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("media_items rows = %d, want 1", count)
+	}
+	var filename, format string
+	if err := db.QueryRow("SELECT filename, format FROM media_items WHERE source_tool = ?", "media_conversion").Scan(&filename, &format); err != nil {
+		t.Fatalf("registry query: %v", err)
+	}
+	if filename != "input.mp3" {
+		t.Fatalf("filename = %q, want input.mp3", filename)
+	}
+	if format != "mp3" {
+		t.Fatalf("format = %q, want mp3", format)
+	}
+}
+
+func TestExecuteMediaConversionSurvivesRegistryFailure(t *testing.T) {
+	workspaceDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workspaceDir, "input.wav"), []byte("source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	db, err := InitMediaRegistryDB(filepath.Join(t.TempDir(), "media.db"))
+	if err != nil {
+		t.Fatalf("InitMediaRegistryDB: %v", err)
+	}
+	defer db.Close()
+	if _, err := db.Exec("DROP TABLE media_items"); err != nil {
+		t.Fatalf("drop table: %v", err)
+	}
+
+	oldLookPath, oldRunCommand := mediaConversionLookPath, mediaConversionRunCommand
+	t.Cleanup(func() {
+		mediaConversionLookPath, mediaConversionRunCommand = oldLookPath, oldRunCommand
+	})
+	mediaConversionLookPath = func(string) (string, error) { return "ffmpeg", nil }
+	mediaConversionRunCommand = func(_ context.Context, _ string, args []string) ([]byte, error) {
+		return nil, os.WriteFile(args[len(args)-1], []byte("converted"), 0o600)
+	}
+
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), db, MediaConversionRequest{
+		Operation: "audio_convert", FilePath: "input.wav", OutputFormat: "mp3",
+	}))
+	if result["status"] != "success" {
+		t.Fatalf("a registry failure must not fail the conversion: %#v", result)
+	}
+	if !strings.Contains(result["message"].(string), "media registry update failed") {
+		t.Fatalf("message = %q, want the registry warning", result["message"])
+	}
+	if _, err := os.Stat(filepath.Join(workspaceDir, "input.mp3")); err != nil {
+		t.Fatalf("the converted file must survive a registry failure: %v", err)
+	}
+}
+
 func TestExecuteMediaConversionDisabled(t *testing.T) {
-	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), t.TempDir(), &config.MediaConversionConfig{}, MediaConversionRequest{
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), t.TempDir(), &config.MediaConversionConfig{}, nil, MediaConversionRequest{
 		Operation: "info",
 		FilePath:  "sample.png",
 	}))
@@ -108,7 +214,7 @@ func TestExecuteMediaConversionReadOnlyBlocksWrites(t *testing.T) {
 	cfg := mediaConversionTestConfig(true)
 	cfg.ReadOnly = true
 
-	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), t.TempDir(), cfg, MediaConversionRequest{
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), t.TempDir(), cfg, nil, MediaConversionRequest{
 		Operation:    "audio_convert",
 		FilePath:     "sample.wav",
 		OutputFormat: "mp3",
@@ -125,7 +231,7 @@ func TestExecuteMediaConversionReadOnlyBlocksWrites(t *testing.T) {
 func TestExecuteMediaConversionRejectsPathOutsideWorkspace(t *testing.T) {
 	cfg := mediaConversionTestConfig(true)
 
-	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), t.TempDir(), cfg, MediaConversionRequest{
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), t.TempDir(), cfg, nil, MediaConversionRequest{
 		Operation: "info",
 		FilePath:  "../escape.mp4",
 	}))
@@ -148,11 +254,14 @@ func TestExecuteMediaConversionStagesExternalProcessIO(t *testing.T) {
 		mediaConversionLookPath, mediaConversionRunCommand = oldLookPath, oldRunCommand
 	})
 	mediaConversionLookPath = func(string) (string, error) { return "ffmpeg", nil }
+	capture := &mediaConversionCapture{}
 	mediaConversionRunCommand = func(_ context.Context, _ string, args []string) ([]byte, error) {
+		capture.record(args)
 		input := mediaConversionArgValue(args, "-i")
 		output := args[len(args)-1]
 		if input == "" {
-			t.Fatalf("converter received no input argument: %v", args)
+			// The metadata probe is not a conversion call.
+			return nil, nil
 		}
 		if strings.HasPrefix(input, workspaceDir) || strings.HasPrefix(output, workspaceDir) {
 			t.Fatalf("converter received a workspace path: %q %q", input, output)
@@ -163,7 +272,7 @@ func TestExecuteMediaConversionStagesExternalProcessIO(t *testing.T) {
 		}
 		return nil, os.WriteFile(output, []byte("converted"), 0o600)
 	}
-	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), MediaConversionRequest{
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), nil, MediaConversionRequest{
 		Operation: "audio_convert", FilePath: "input.wav", OutputFormat: "mp3",
 	}))
 	if result["status"] != "success" || result["file"] != filepath.Join(workspaceDir, "input.mp3") {
@@ -185,17 +294,24 @@ func TestExecuteMediaConversionAddsProtocolWhitelist(t *testing.T) {
 		mediaConversionLookPath, mediaConversionRunCommand = oldLookPath, oldRunCommand
 	})
 	mediaConversionLookPath = func(string) (string, error) { return "ffmpeg", nil }
-	var captured []string
+	capture := &mediaConversionCapture{}
 	mediaConversionRunCommand = func(_ context.Context, _ string, args []string) ([]byte, error) {
-		captured = args
+		capture.record(args)
+		if mediaConversionArgValue(args, "-i") == "" {
+			return nil, nil
+		}
 		return nil, os.WriteFile(args[len(args)-1], []byte("converted"), 0o600)
 	}
 
-	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), MediaConversionRequest{
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), nil, MediaConversionRequest{
 		Operation: "audio_convert", FilePath: "input.wav", OutputFormat: "mp3",
 	}))
 	if result["status"] != "success" {
 		t.Fatalf("conversion result: %#v", result)
+	}
+	captured := capture.conversionArgs()
+	if captured == nil {
+		t.Fatal("no conversion call was recorded")
 	}
 	if got := mediaConversionArgValue(captured, "-protocol_whitelist"); got != mediaConversionProtocols {
 		t.Fatalf("-protocol_whitelist = %q, want %q (args: %v)", got, mediaConversionProtocols, captured)
@@ -220,17 +336,24 @@ func TestExecuteMediaConversionAudioDropsVideoStream(t *testing.T) {
 		mediaConversionLookPath, mediaConversionRunCommand = oldLookPath, oldRunCommand
 	})
 	mediaConversionLookPath = func(string) (string, error) { return "ffmpeg", nil }
-	var captured []string
+	capture := &mediaConversionCapture{}
 	mediaConversionRunCommand = func(_ context.Context, _ string, args []string) ([]byte, error) {
-		captured = args
+		capture.record(args)
+		if mediaConversionArgValue(args, "-i") == "" {
+			return nil, nil
+		}
 		return nil, os.WriteFile(args[len(args)-1], []byte("converted"), 0o600)
 	}
 
-	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), MediaConversionRequest{
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), nil, MediaConversionRequest{
 		Operation: "audio_convert", FilePath: "input.mp4", OutputFormat: "mp3",
 	}))
 	if result["status"] != "success" {
 		t.Fatalf("conversion result: %#v", result)
+	}
+	captured := capture.conversionArgs()
+	if captured == nil {
+		t.Fatal("no conversion call was recorded")
 	}
 	if !slicesContains(captured, "-vn") {
 		t.Fatalf("audio conversion must drop the video stream: %v", captured)
@@ -263,7 +386,7 @@ func TestExecuteMediaConversionImageInfo(t *testing.T) {
 		t.Fatalf("failed to write png: %v", err)
 	}
 
-	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), MediaConversionRequest{
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), nil, MediaConversionRequest{
 		Operation: "info",
 		FilePath:  "sample.png",
 	}))
@@ -278,7 +401,7 @@ func TestExecuteMediaConversionImageInfo(t *testing.T) {
 
 func TestExecuteMediaConversionInfoMissingFile(t *testing.T) {
 	workspaceDir := t.TempDir()
-	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), MediaConversionRequest{
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), nil, MediaConversionRequest{
 		Operation: "info",
 		FilePath:  "nonexistent.mp4",
 	}))
@@ -386,7 +509,7 @@ func TestExecuteMediaConversionOutputWithoutExtension(t *testing.T) {
 		return nil, os.WriteFile(stagedOutput, []byte("converted"), 0o600)
 	}
 
-	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), MediaConversionRequest{
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), nil, MediaConversionRequest{
 		Operation: "audio_convert", FilePath: "input.wav", OutputFile: "out", OutputFormat: "mp3",
 	}))
 	if result["status"] != "success" {
@@ -405,7 +528,7 @@ func TestExecuteMediaConversionRejectsFormatConflict(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(workspaceDir, "input.wav"), []byte("source"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), MediaConversionRequest{
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), nil, MediaConversionRequest{
 		Operation: "audio_convert", FilePath: "input.wav", OutputFile: "out.mp4", OutputFormat: "mp3",
 	}))
 	if got, _ := result["status"].(string); got != "error" {
@@ -435,7 +558,7 @@ func TestExecuteMediaConversionRejectsOversizedFile(t *testing.T) {
 
 	cfg := mediaConversionTestConfig(true)
 	cfg.MaxFileSizeMB = 0 // unlimited should allow the file
-	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, cfg, MediaConversionRequest{
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, cfg, nil, MediaConversionRequest{
 		Operation: "info",
 		FilePath:  "sample.png",
 	}))
@@ -450,7 +573,7 @@ func TestExecuteMediaConversionRejectsOversizedFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg.MaxFileSizeMB = 1
-	result = decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, cfg, MediaConversionRequest{
+	result = decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, cfg, nil, MediaConversionRequest{
 		Operation: "info",
 		FilePath:  "big.png",
 	}))

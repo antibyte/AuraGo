@@ -46,7 +46,7 @@ func dispatchFilesystem(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 			return "Tool Output: [PERMISSION DENIED] media_conversion write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
 		}
 		logger.Info("LLM requested media conversion", "op", req.Operation, "path", req.FilePath, "output", req.OutputFile)
-		return "Tool Output: " + tools.ExecuteMediaConversion(ctx, cfg.Directories.WorkspaceDir, &cfg.Tools.MediaConversion, tools.MediaConversionRequest{
+		return "Tool Output: " + tools.ExecuteMediaConversion(ctx, cfg.Directories.WorkspaceDir, &cfg.Tools.MediaConversion, dc.MediaRegistryDB, tools.MediaConversionRequest{
 			Operation:    req.Operation,
 			FilePath:     req.FilePath,
 			OutputFile:   req.OutputFile,

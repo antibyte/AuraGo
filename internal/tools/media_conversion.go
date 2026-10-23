@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -107,6 +108,7 @@ type mediaConversionResult struct {
 	Channels        int     `json:"channels,omitempty"`
 	SampleRate      int     `json:"sample_rate,omitempty"`
 	DurationSeconds float64 `json:"duration_seconds,omitempty"`
+	OutputSizeBytes int64   `json:"output_size_bytes,omitempty"`
 	VideoCodec      string  `json:"video_codec,omitempty"`
 	AudioCodec      string  `json:"audio_codec,omitempty"`
 }
@@ -151,7 +153,10 @@ func mediaConversionJSON(r mediaConversionResult) string {
 // ExecuteMediaConversion runs one media conversion. The caller context is the
 // parent of the conversion deadline: cancelling the agent turn stops the
 // converter instead of leaving it running until the timeout.
-func ExecuteMediaConversion(ctx context.Context, workspaceDir string, cfg *config.MediaConversionConfig, req MediaConversionRequest) string {
+//
+// The converted file is registered in the media registry when a registry
+// database is supplied, so the media UI and the send_* tools can find it.
+func ExecuteMediaConversion(ctx context.Context, workspaceDir string, cfg *config.MediaConversionConfig, registryDB *sql.DB, req MediaConversionRequest) string {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -260,7 +265,72 @@ func ExecuteMediaConversion(ctx context.Context, workspaceDir string, cfg *confi
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("cannot save converted output: %v", err), Operation: op})
 	}
 	converted.File = target.Destination
+	if info, err := os.Stat(target.Destination); err == nil {
+		converted.OutputSizeBytes = info.Size()
+	}
+	if meta := mediaConversionOutputMetadata(ctx, cfg, target.Destination); meta != nil {
+		if meta.Width > 0 {
+			converted.Width = meta.Width
+		}
+		if meta.Height > 0 {
+			converted.Height = meta.Height
+		}
+		if meta.DurationSeconds > 0 {
+			converted.DurationSeconds = meta.DurationSeconds
+		}
+	}
+	if registryDB != nil {
+		if err := registerConvertedMedia(registryDB, target, converted, req); err != nil {
+			// The file is already written; a registry failure must not lose it.
+			converted.Message += fmt.Sprintf(" (media registry update failed: %v)", err)
+		}
+	}
 	return mediaConversionJSON(converted)
+}
+
+// mediaConversionOutputMetadata reads the metadata of the produced file. It is
+// best effort: a missing probe never fails the conversion.
+func mediaConversionOutputMetadata(ctx context.Context, cfg *config.MediaConversionConfig, path string) *mediaConversionResult {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp":
+		f, err := os.Open(path)
+		if err != nil {
+			return nil
+		}
+		defer f.Close()
+		cfgImage, _, err := image.DecodeConfig(f)
+		if err != nil {
+			return nil
+		}
+		return &mediaConversionResult{MediaType: "image", Width: cfgImage.Width, Height: cfgImage.Height}
+	default:
+		meta, err := probeMediaMetadata(ctx, cfg, path)
+		if err != nil {
+			return nil
+		}
+		return &meta
+	}
+}
+
+// registerConvertedMedia records the converted file in the media registry.
+func registerConvertedMedia(db *sql.DB, target conversionTarget, result mediaConversionResult, req MediaConversionRequest) error {
+	hash, _ := ComputeMediaFileHash(target.Destination)
+	mediaType := result.MediaType
+	if mediaType == "" {
+		mediaType = mediaTypeForOperation(req.Operation)
+	}
+	_, _, err := RegisterMedia(db, MediaItem{
+		MediaType:   mediaType,
+		SourceTool:  "media_conversion",
+		Filename:    filepath.Base(target.Destination),
+		FilePath:    target.Destination,
+		FileSize:    result.OutputSizeBytes,
+		Format:      target.Format,
+		Hash:        hash,
+		DurationMs:  int64(result.DurationSeconds * 1000),
+		Description: fmt.Sprintf("%s converted to %s", filepath.Base(req.FilePath), target.Format),
+	})
+	return err
 }
 
 func MediaConversionHealth(ctx context.Context, cfg *config.MediaConversionConfig) map[string]interface{} {
@@ -465,33 +535,42 @@ func imageInfoResult(req MediaConversionRequest) string {
 }
 
 func ffprobeInfoResult(ctx context.Context, cfg *config.MediaConversionConfig, req MediaConversionRequest) string {
+	probe, err := probeMediaMetadata(ctx, cfg, req.FilePath)
+	if err != nil {
+		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: req.Operation, Tool: "ffprobe"})
+	}
+	probe.Status = "success"
+	probe.Message = "media info collected"
+	probe.Operation = req.Operation
+	probe.Tool = "ffprobe"
+	return mediaConversionJSON(probe)
+}
+
+// probeMediaMetadata reads the stream metadata of a media file with ffprobe.
+func probeMediaMetadata(ctx context.Context, cfg *config.MediaConversionConfig, path string) (mediaConversionResult, error) {
 	ffprobePath, err := resolveFFprobeBinary(cfg)
 	if err != nil {
-		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: req.Operation})
+		return mediaConversionResult{}, err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, mediaConversionTimeout(cfg))
 	defer cancel()
 	args := []string{"-hide_banner", "-nostdin", "-v", "error", "-protocol_whitelist", mediaConversionProtocols}
-	if demuxer := mediaConversionDemuxerForPath(req.FilePath); demuxer != "" {
+	if demuxer := mediaConversionDemuxerForPath(path); demuxer != "" {
 		args = append(args, "-format_whitelist", demuxer)
 	}
-	args = append(args, "-print_format", "json", "-show_format", "-show_streams", req.FilePath)
+	args = append(args, "-print_format", "json", "-show_format", "-show_streams", path)
 	output, runErr := mediaConversionRunCommand(ctx, ffprobePath, args)
 	if runErr != nil {
-		return mediaConversionRunError(ctx, cfg, runErr, output, req.Operation, "ffprobe")
+		return mediaConversionResult{}, errors.New(trimCommandOutput(runErr, output))
 	}
 
 	var probe ffprobeOutput
 	if err := json.Unmarshal(output, &probe); err != nil {
-		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("failed to parse ffprobe output: %v", err), Operation: req.Operation})
+		return mediaConversionResult{}, fmt.Errorf("failed to parse ffprobe output: %w", err)
 	}
 
 	result := mediaConversionResult{
-		Status:      "success",
-		Message:     "media info collected",
-		Operation:   req.Operation,
-		Tool:        "ffprobe",
 		InputFormat: firstCSVItem(probe.Format.FormatName),
 	}
 	if dur, err := strconv.ParseFloat(strings.TrimSpace(probe.Format.Duration), 64); err == nil {
@@ -522,7 +601,7 @@ func ffprobeInfoResult(ctx context.Context, cfg *config.MediaConversionConfig, r
 		}
 	}
 
-	return mediaConversionJSON(result)
+	return result, nil
 }
 
 func inspectMediaBinary(ctx context.Context, configuredPath string, candidates []string, versionArgs []string) mediaConversionHealthBinary {
