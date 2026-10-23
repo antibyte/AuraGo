@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -17,14 +18,15 @@ const (
 // agentProgressFeedback sends transient status only while an interactive turn
 // is still running. It never adds an assistant message or changes the tool result.
 type agentProgressFeedback struct {
-	mu       sync.Mutex
-	ctx      context.Context
-	broker   FeedbackBroker
-	language string
-	timer    *time.Timer
-	steps    int
-	sent     int
-	stopped  bool
+	mu          sync.Mutex
+	ctx         context.Context
+	broker      FeedbackBroker
+	language    string
+	timer       *time.Timer
+	steps       int
+	sent        int
+	waitVariant int
+	stopped     bool
 }
 
 func newAgentProgressFeedback(ctx context.Context, broker FeedbackBroker, language string, enabled bool) *agentProgressFeedback {
@@ -46,11 +48,22 @@ func (f *agentProgressFeedback) onTimer() {
 }
 
 func (f *agentProgressFeedback) sendLocked() {
-	key := "backend.workflow_feedback"
+	message := i18n.T(f.language, "backend.workflow_feedback")
 	if f.sent > 0 {
-		key = "backend.workflow_wait"
+		messages := i18n.WorkflowWaitMessages(f.language)
+		count := len(messages)
+		if f.sent > 1 {
+			count--
+		}
+		variant := rand.IntN(count)
+		// Skip the previous phrase so consecutive updates always differ.
+		if f.sent > 1 && variant >= f.waitVariant {
+			variant++
+		}
+		f.waitVariant = variant
+		message = messages[variant]
 	}
-	f.broker.Send("progress", i18n.T(f.language, key))
+	f.broker.Send("progress", message)
 	f.sent++
 }
 

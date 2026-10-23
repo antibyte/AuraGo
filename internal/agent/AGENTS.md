@@ -127,6 +127,8 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   missions, co-agents, maintenance and autonomous runs stay silent. Progress
   never enters the assistant answer, tool result or persistent history, and
   cancellation/completion stops it. Count queued and batched tool calls too.
+  Repeated updates randomly choose from six translated waiting phrases without
+  consecutive repeats; Live Speech must speak the same selected phrase.
 
 ### Tool System
 

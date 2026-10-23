@@ -382,6 +382,8 @@ Server-owned HTTP and cross-component integration contracts.
   TTS and voice snapshot for Speech Lab sessions, or effective chat TTS for other
   profiles. Synthesize in memory with bounded concurrency/time/bytes; reject
   foreign origins and sessions and never accept arbitrary client speech text.
+  An optional `message` must exactly match a translated server-owned phrase for
+  its kind and current UI language; preserve the agent's chosen waiting variant.
 
 ### System World Tower Voice
 - POST `/api/desktop/system-world/voice` returns one short transient audio clip.

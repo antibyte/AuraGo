@@ -520,6 +520,8 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   add progress to the chat transcript/tool result. Do not speak over the user or
   provider; stop in-flight audio on completion, cancellation, or session close.
   Feed audible progress clips to the same analyser-driven Persona mouth motion.
+  Forward the exact progress caption as `message` to the audio endpoint; the
+  server validates its translated phrase allowlist so spoken variants match.
 - SIP Phone surfaces `outbound_policy_migration_required` as a localized setup
   blocker.
 - Live Speech remembers the selected/started profile ID in browser storage

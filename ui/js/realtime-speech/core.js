@@ -695,7 +695,7 @@
             return Common.analyserLevel(this.progressOutputAnalyser, this.progressOutputBuffer);
         }
 
-        async playActionProgress(action, kind) {
+        async playActionProgress(action, kind, message) {
             if (!this.sessionId || !this.adapter || !this.adapter.connected || this.userSpeaking ||
                 this.providerSpeaking || this.actionProgressPlayback) return;
             const playback = { controller: new AbortController(), audio: null, url: '' };
@@ -710,7 +710,7 @@
                         'Content-Type': 'application/json',
                         'X-Realtime-Speech-Client-ID': this.clientId
                     },
-                    body: JSON.stringify({ session_id: this.sessionId, client_id: this.clientId, request_id: action.requestId, kind })
+                    body: JSON.stringify({ session_id: this.sessionId, client_id: this.clientId, request_id: action.requestId, kind, message })
                 });
                 if (!response.ok) return;
                 const blob = await response.blob();
@@ -786,7 +786,7 @@
                             const kind = action.progressCount ? 'wait' : 'ack';
                             action.progressCount = (action.progressCount || 0) + 1;
                             this.emit('action', { phase: 'progress', requestId, message: payload.detail });
-                            void this.playActionProgress(action, kind);
+                            void this.playActionProgress(action, kind, payload.detail);
                         }
                         if (eventName.includes('question') || eventName.includes('needs_input')) status = 'needs_input';
                         else if (eventName.includes('cancel') || eventName.includes('interrupt')) status = 'cancelled';
