@@ -111,7 +111,7 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if err := config.ValidateLocalMusicConfig(&validateCfg); err != nil {
 		return nil, err
 	}
-	if err := config.ValidateMediaConversionConfig(&validateCfg.Tools.MediaConversion); err != nil {
+	if err := validateMediaConversionPatch(patch); err != nil {
 		return nil, err
 	}
 	if (s.Cfg.MusicGeneration.Enabled && s.Cfg.UsesLocalMusic() || localMusicStopPending(s)) && (!validateCfg.Docker.Enabled || validateCfg.Docker.ReadOnly) {

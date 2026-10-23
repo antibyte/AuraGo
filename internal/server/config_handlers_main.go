@@ -670,6 +670,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := validateMediaConversionPatch(patch); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if workspaceErr := config.ValidateVirtualComputersAgentControl(validateCfg.VirtualComputers.AgentControl); workspaceErr != nil {
 			s.Logger.Error("[Config] Invalid Virtual Computers agent-control settings — save rejected", "error", workspaceErr)
 			jsonError(w, workspaceErr.Error(), http.StatusBadRequest)
