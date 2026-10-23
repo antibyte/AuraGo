@@ -554,13 +554,16 @@
             change('disconnect', rec => { (ids || []).forEach(id => { if (edge(id)) rec.removeEdge(id); }); });
         }
 
-        // insertOnEdge places a node (new type or existing id) between the two ends of an edge.
+        // insertOnEdge places a node (new type or existing id) between the two ends of an edge. It
+        // returns null and changes nothing for a node without an input or without an output: the
+        // wire would end at it and cut off the node behind it.
         function insertOnEdge(edgeId, typeOrId, position) {
             const e = edge(edgeId);
             if (!e) return null;
             let id = node(typeOrId) ? typeOrId : null;
             const i = id ? info(node(id).type) : info(typeOrId);
             if (!i || !(i.inputs || []).length) return null;
+            if (!outputs(id ? node(id) : { type: typeOrId, params: defaults(i), settings: {} }).length) return null;
             change('insert', rec => {
                 if (!id) {
                     id = newNodeID();
@@ -621,7 +624,11 @@
             if (!node(id)) return;
             change('settings', rec => {
                 const n = rec.node(id);
-                n.settings = Object.assign({}, n.settings, clone(patch));
+                // clone() goes through JSON and would drop an undefined value, which keeps the old
+                // setting: each value is cloned on its own, and undefined, null and '' (back to the
+                // default) are removed below.
+                n.settings = Object.assign({}, n.settings);
+                Object.keys(patch).forEach(k => { n.settings[k] = clone(patch[k]); });
                 Object.keys(n.settings).forEach(k => { if (n.settings[k] === undefined || n.settings[k] === null || n.settings[k] === '') delete n.settings[k]; });
                 dropDanglingEdges(rec, id);
             }, { coalesce: 'settings:' + id + ':' + Object.keys(patch).join(',') });

@@ -9,6 +9,8 @@
 // elsewhere, the shared state words, pans, the saver's emergency copy, run views and focus.
 // The a1008 checks (test-easydrag-extra6.mjs) run the editor findings of the 2026-10-08 audit on
 // the c1d07 sandbox.
+// The a1023 checks (test-easydrag-extra7.mjs) run the editor fixes of the 2026-10-23 audit on
+// the c1d07 sandbox.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -1092,6 +1094,9 @@ await (await import('./test-easydrag-extra5.mjs')).run({ apps, types, t, miniDom
 // ── a1008: audit 2026-10-08, the editor findings (test-easydrag-extra6.mjs, on the c1d07 sandbox) ──
 await (await import('./test-easydrag-extra6.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor,
     desktopMenus: editorHarness.desktopMenus });
+
+// ── a1023: audit 2026-10-23, editor fixes (test-easydrag-extra7.mjs, on the c1d07 sandbox) ──
+await (await import('./test-easydrag-extra7.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor });
 
 // ── start page preview and shortcut table ──
 const H = ED.home;

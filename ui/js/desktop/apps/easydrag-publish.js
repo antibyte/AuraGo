@@ -272,7 +272,13 @@
                 b.disabled = true;
                 try {
                     if (ed.flushPendingEdits && ed.flushPendingEdits() === false) { b.disabled = false; return; }
-                    if (ed.saver && ed.saver.isDirty && ed.saver.isDirty()) await ed.saver.flush();
+                    // The restore replaces the draft and drops its emergency copy: an invalid, offline
+                    // or failed draft that did not save would be lost with it.
+                    if (ed.saver && ed.saver.isDirty && ed.saver.isDirty() && !(await ed.saver.flush())) {
+                        b.disabled = false;
+                        ed.ctx.notify({ title: t('easydrag.ui.versions_title'), message: t('easydrag.ui.versions_unsaved'), type: 'error' });
+                        return;
+                    }
                     const baseRev = ed.saver ? ed.saver.revision : ed.flow.draft_revision;
                     const res = await ed.api.restoreVersion(ed.flow.id, rev, baseRev);
                     dialog.close('restored');

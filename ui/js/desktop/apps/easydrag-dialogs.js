@@ -290,12 +290,15 @@
 
     // restore offers a local emergency copy that the server never received. It resolves to
     // "restore" or "discard"; anything else (null when the dialog closed without an answer, e.g.
-    // with its window) resolves to null: keep the copy and decide when the flow opens again.
+    // with its window) resolves to null: keep the copy and decide when the flow opens again. A
+    // stale copy (made on an older server revision, see emergencyCopy) says that restoring it
+    // replaces the newer draft.
     function restore(ed, copy) {
         const { t, esc } = ed;
         const dialog = ED.core.modal(ed.root, {
             title: t('easydrag.ui.restore_title'), closeLabel: t('easydrag.ui.close'), dismissible: false,
-            body: '<p>' + esc(t('easydrag.ui.restore_text', { time: ED.core.fmt.dateTime(copy.at) })) + '</p>',
+            body: '<p>' + esc(t('easydrag.ui.restore_text', { time: ED.core.fmt.dateTime(copy.at) })) + '</p>' +
+                (copy.stale ? '<p class="ed-callout ed-callout--warn" data-ed-restore-stale>' + ED.core.icon('alert') + '<span>' + esc(t('easydrag.ui.restore_stale')) + '</span></p>' : ''),
             actions: [{ id: 'discard', label: t('easydrag.ui.restore_discard'), danger: true }, { id: 'restore', label: t('easydrag.ui.restore_apply'), primary: true, icon: 'history' }]
         });
         return dialog.done.then(result => (result === 'restore' || result === 'discard' ? result : null));

@@ -53,12 +53,14 @@
         if (!info || ed.readonly || ed.runView) return null;
         rememberType(type);
         const pos = { x: G.snap(at.x), y: G.snap(at.y) };
-        let id;
+        let id = null;
         if (opts && opts.edge && ed.model.edge(opts.edge) && (info.inputs || []).length) {
             id = ed.model.insertOnEdge(opts.edge, type, pos);
-        } else if (opts && opts.from && !info.trigger) {
+        }
+        // insertOnEdge refuses a step without outputs (it would cut the wire off): that step is added beside the wire.
+        if (!id && opts && opts.from && !info.trigger) {
             id = ed.model.addNode(type, pos, null, opts.from);
-        } else {
+        } else if (!id) {
             id = ed.model.addNode(type, pos);
         }
         if (id) {

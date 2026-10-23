@@ -765,9 +765,11 @@
 
         // ── start ───────────────────────────────────────────────────────────────
 
-        // start offers an emergency copy that differs from the server draft. Only an explicit
-        // "discard" drops it; any other answer (null: the dialog closed with the editor) keeps the
-        // copy and the draft as they are, so the offer comes again when the flow opens next.
+        // start offers an emergency copy that differs from the server draft, also one made on an
+        // older server revision (the dialog warns that it replaces the newer draft; the restore
+        // saves against the current revision, the saver's). Only an explicit "discard" drops it;
+        // any other answer (null: the dialog closed with the editor) keeps the copy and the draft
+        // as they are, so the offer comes again when the flow opens next.
         async function start() {
             const copy = !ed.readonly && ED.saver.emergencyCopy(ed.flow.id, ed.flow.draft_revision);
             if (copy && differs(copy.doc, draftModel.toJSON())) {

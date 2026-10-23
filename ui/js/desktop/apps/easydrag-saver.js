@@ -330,11 +330,13 @@
         };
     }
 
-    // emergencyCopy returns a locally kept draft that is newer than the server's revision.
+    // emergencyCopy returns a locally kept draft that the server never received. A copy made on
+    // another revision than the server's current one is marked stale: the flow was saved again
+    // since (another window, the agent), and restoring the copy replaces that newer draft.
     function emergencyCopy(flowId, serverRevision) {
         const copy = ED.core.storage.get(emergencyKey(flowId), null);
-        if (!copy || !copy.doc || copy.revision !== serverRevision) return null;
-        return copy;
+        if (!copy || !copy.doc) return null;
+        return copy.revision === serverRevision ? copy : Object.assign({}, copy, { stale: true });
     }
 
     function dropEmergencyCopy(flowId) { ED.core.storage.remove(emergencyKey(flowId)); }

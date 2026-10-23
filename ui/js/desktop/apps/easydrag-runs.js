@@ -259,14 +259,20 @@
             const status = Number(failure && failure.status) || 0;
             const code = core.errorCode(failure);
             if (failure && (status === 404 || status === 503 || code === 'FLOW_RUN_NOT_FOUND' || code === 'FLOWS_DISABLED')) {
-                closeStream();
-                ed.run.stale = true;
-                ed.run.error = core.errorText(t, failure);
-                setRun(ed.run);
-                ed.ctx.notify({ title: t('easydrag.ui.run_stream_lost'), message: ed.run.error, type: 'error' });
+                streamLost(failure);
                 return;
             }
             reconnectLater(runId);
+        }
+
+        // streamLost gives up following the run: its stored state cannot be had. isRunning ends
+        // (the run is stale) and the error is shown.
+        function streamLost(failure) {
+            closeStream();
+            ed.run.stale = true;
+            ed.run.error = core.errorText(t, failure);
+            setRun(ed.run);
+            ed.ctx.notify({ title: t('easydrag.ui.run_stream_lost'), message: ed.run.error, type: 'error' });
         }
 
         // isRunning: a live run is active (not a run view, not one whose stream was given up).
@@ -287,16 +293,29 @@
 
         // finish loads the stored result of a run (known: a detail fetched already) and announces
         // it, once per run: "end" and a cancel that found the run finished may both get here. A
-        // run that another run (or a run view) replaced during the fetch is left alone.
+        // run that another run (or a run view) replaced during the fetch is left alone. When the
+        // fetch fails and the streamed state is not final, the run is not finished as far as the
+        // editor knows: finished is reset so that a later finish or probe can complete it, and the
+        // stream reconnects (backing off) to end again and ask again. After MAX_FAILURES failed
+        // fetches the run counts as lost.
         async function finish(runId, known) {
             const current = ed.run;
             if (!current || current.id !== runId || current.finished) return;
             current.finished = true;
             let detail = known || null;
+            let failure = null;
             if (!detail) {
-                try { detail = await ed.api.run(runId, false); } catch (err) { detail = null; /* keep the streamed state */ }
+                try { detail = await ed.api.run(runId, false); } catch (err) { detail = null; failure = err; /* keep the streamed state */ }
             }
             if (disposed || ed.run !== current) return;
+            if (failure && !isFinal(current.status)) {
+                current.finished = false;
+                current.finishFailures = (current.finishFailures || 0) + 1;
+                if (current.finishFailures >= MAX_FAILURES) { streamLost(failure); return; }
+                retryDelay = Math.min(RETRY_MS * Math.pow(2, current.finishFailures - 1), RETRY_MAX_MS);
+                reconnectLater(runId);
+                return;
+            }
             if (detail && detail.run) {
                 current.record = detail.run;
                 current.status = detail.run.status;

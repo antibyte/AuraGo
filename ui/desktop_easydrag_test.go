@@ -136,7 +136,7 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 	families := map[string][]string{
 		"easydrag.ui.status_":      {"pending", "queued", "running", "waiting", "success", "error", "skipped", "cancelled"},
 		"easydrag.ui.effect_":      {"sends_message", "writes_files", "controls_devices", "runs_code", "deletes", "system_change"},
-		"easydrag.ui.port_":        {"in", "out", "error", "true", "false", "default"},
+		"easydrag.ui.port_":        {"in", "out", "error", "true", "false", "default", "uncertain"},
 		"easydrag.ui.connect_":     {"missing", "self", "port", "duplicate", "cycle"},
 		"easydrag.ui.key_":         {"invalid", "reserved", "taken", "missing"},
 		"easydrag.ui.save_":        {"saved", "dirty", "saving", "invalid", "offline", "failed", "conflict"},
@@ -155,12 +155,12 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 			"flow_no_trigger", "flow_schema", "flow_too_many_nodes", "node_id_duplicate", "node_id_invalid", "node_key_duplicate", "node_key_invalid",
 			"node_key_reserved", "node_type_unknown", "node_unavailable", "node_unreachable", "param_invalid", "param_required", "template_not_upstream",
 			"template_root_unavailable", "template_syntax", "template_unknown_field", "template_unknown_root", "untrusted_data_to_sink",
-			"flow_too_many_issues", "flow_node_not_found"},
+			"flow_too_many_issues", "flow_node_not_found", "untrusted_secret_target"},
 		// error_ lists every code the flows API and the engine send (internal/flows, internal/server/flows*).
 		"easydrag.ui.error_": {"flows_disabled", "flow_bad_request", "flow_cancelled", "flow_internal", "flow_invalid", "flow_locked", "flow_not_found",
 			"flow_not_published", "flow_no_trigger", "flow_options_unavailable", "flow_permission_denied", "flow_revision_conflict", "flow_run_limit",
 			"flow_run_not_found", "flow_run_timeout", "flow_node_timeout", "flow_tool_error", "flow_tool_denied", "flow_ai_unavailable", "flow_budget_exceeded",
-			"flow_secret_unavailable", "flow_restarted", "generic", "network",
+			"flow_secret_unavailable", "flow_restarted", "flow_ai_output_cut", "generic", "network",
 			"flow_exists", "flow_mission_ambiguous", "flow_mission_missing", "flow_too_large", "flow_rate_limited", "flow_run_finished", "flow_publish_incomplete",
 			"flow_too_many_issues", "flow_port_invalid", "flow_run_output_too_large", "flow_node_abandoned", "flow_runner_panic", "flow_tools_unavailable",
 			"node_type_unknown", "flow_ai_output_invalid", "flow_condition_failed", "flow_condition_invalid", "flow_cycle", "flow_file_exists",

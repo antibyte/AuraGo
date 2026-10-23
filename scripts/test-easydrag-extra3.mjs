@@ -108,10 +108,12 @@ export async function run(env) {
         let nextId = 1;
         const store = new Map();
         const logged = [];
+        const sources = [];
         class EventSource {
-            constructor(url) { this.url = url; this.listeners = {}; this.closed = false; this.onerror = null; }
+            constructor(url) { this.url = url; this.listeners = {}; this.closed = false; this.onerror = null; sources.push(this); }
             addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
             close() { this.closed = true; }
+            emit(type, data) { if (!this.closed) (this.listeners[type] || []).slice().forEach(fn => fn({ type, data: JSON.stringify(data) })); }
         }
         const box = vm.createContext({
             window: { SYSTEM_LANG: 'en', location: { origin: 'https://aurago.test' }, open() {}, addEventListener: (type, fn) => { (winListeners[type] = winListeners[type] || []).push(fn); },
@@ -151,7 +153,7 @@ export async function run(env) {
             return Promise.resolve().then(() => { const out = answer(req); return out === undefined ? defaults(req) : out; });
         };
         const h = {
-            ED, dom, body, win: box.window, store, timers, frames, logged, docListeners, winListeners, dialogs, requests, transport,
+            ED, dom, body, win: box.window, store, timers, frames, logged, docListeners, winListeners, dialogs, requests, transport, sources,
             api: ED.core.createApi(transport), catalog: catalogOf(),
             notes: [], confirms: [], confirmAnswer: false, menus: [], cleared: [], homes: [], opened: [],
             puts: () => requests.filter(r => r.method === 'PUT'),

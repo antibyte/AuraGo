@@ -200,7 +200,7 @@
                 ed.model.moveNodes(ids, want.x - applied.x, want.y - applied.y);
                 applied = want;
                 dropEdge = null;
-                if (ids.length === 1 && !ed.model.incoming(nodeId).length && !ed.model.outgoing(nodeId).length && ed.model.inputs(primary).length) {
+                if (ids.length === 1 && !ed.model.incoming(nodeId).length && !ed.model.outgoing(nodeId).length && ed.model.inputs(primary).length && ed.model.outputs(primary).length) {
                     const rect = canvas.nodeRect(nodeId);
                     const cy = rect.y + rect.h / 2;
                     const near = edgeNear({ x: rect.x + rect.w / 2, y: cy }, nodeId) ||
