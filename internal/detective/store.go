@@ -33,6 +33,9 @@ type Options struct {
 	PDF      func(context.Context, Report) ([]byte, error)
 	Allowed  func() bool
 	Logger   *slog.Logger
+	// Notify reports a case event (publish, no changes, question, failure) to the Desktop.
+	// The server supplies it; a nil callback keeps the service silent.
+	Notify func(kind, caseID, title, message string)
 }
 
 type Service struct {
@@ -52,6 +55,7 @@ type Service struct {
 	allowed  func() bool
 	logger   *slog.Logger
 	failures map[string]int
+	notifyFn func(kind, caseID, title, message string)
 }
 
 // log returns a usable logger; the service must not require one to run.
@@ -105,7 +109,7 @@ func New(opts Options) (*Service, error) {
 		now = time.Now
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	s := &Service{db: db, profiles: p, now: now, ctx: ctx, cancel: cancel, kick: make(chan struct{}, 1), exports: make(chan struct{}, 1), pdf: opts.PDF, allowed: opts.Allowed, logger: opts.Logger, failures: map[string]int{}}
+	s := &Service{db: db, profiles: p, now: now, ctx: ctx, cancel: cancel, kick: make(chan struct{}, 1), exports: make(chan struct{}, 1), pdf: opts.PDF, allowed: opts.Allowed, logger: opts.Logger, notifyFn: opts.Notify, failures: map[string]int{}}
 	// Only the restart pass needs the bodies; the status column answers which cases
 	// were active, so a corrupt or oversized unrelated case cannot block starting.
 	active, err := s.activeIDs()
@@ -308,6 +312,14 @@ type LiveView struct {
 	LatestCompleteRevision int        `json:"latest_complete_revision,omitempty"`
 	LatestSourceID         string     `json:"latest_source_id"`
 	AutoUpdate             AutoUpdate `json:"auto_update"`
+}
+
+// notify reports a case event to the Desktop sink. It is called outside the lock and
+// never fails the research path.
+func (s *Service) notify(kind, caseID, title, message string) {
+	if s.notifyFn != nil {
+		s.notifyFn(kind, caseID, title, message)
+	}
 }
 
 func (s *Service) Exists(key string) (bool, error) {

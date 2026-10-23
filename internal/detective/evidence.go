@@ -239,6 +239,8 @@ func sealReport(c *Case, r *Report, now time.Time) {
 	}
 }
 func (x *Session) Submit(r Report) error {
+	var published int
+	var topic string
 	err := x.update(func(c *Case) error {
 		if x.published {
 			return errors.New("report already published")
@@ -279,6 +281,7 @@ func (x *Session) Submit(r Report) error {
 		}
 		c.Reports = []Report{r}
 		c.pendingReports = append(c.pendingReports, r)
+		published, topic = r.Revision, c.Request.Topic
 		c.Run.Phase = "finished"
 		c.Run.Status = "completed"
 		if r.Partial {
@@ -298,6 +301,7 @@ func (x *Session) Submit(r Report) error {
 		x.published = true
 		x.service.mu.Unlock()
 		x.Event("report", "report published")
+		x.service.notify("info", x.CaseID, fmt.Sprintf("Detective: revision %d published", published), topic)
 	}
 	return err
 }

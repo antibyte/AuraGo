@@ -83,7 +83,10 @@ a run stopped this way is reported as "research permission revoked" and can be
 continued. Pause remains available in readonly mode.
 
 No new findings means no report version is created. Extra URLs for the same
-finding do not count as news. Failed or stopped updates keep the last published
+finding do not count as news. A published revision, a `no_changes` result, a pending
+question and a failed run also reach the Desktop notification center, at most one
+notification per case per minute; the notification names the case so a click can
+open it, and delivery needs Virtual Desktop. Failed or stopped updates keep the last published
 report; a later run can revisit and publish pending findings after checking their
 sources again. Corrections need newly retrieved evidence as well.
 

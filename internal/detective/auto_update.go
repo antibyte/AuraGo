@@ -133,6 +133,7 @@ func (x *Session) Checked() error {
 }
 
 func (x *Session) NoChanges() error {
+	var topic string
 	err := x.update(func(c *Case) error {
 		if !c.Run.Automatic || !activeStatus(c.Run.Status) || x.published {
 			return ErrConflict
@@ -146,6 +147,7 @@ func (x *Session) NoChanges() error {
 		c.Run.Status, c.Run.Phase, c.Run.Reason = "completed", "finished", "no_changes"
 		c.AutoUpdate.LastCheckedAt = x.service.now().UTC()
 		c.AutoUpdate.Outcome, c.AutoUpdate.Error = "no_changes", ""
+		topic = c.Request.Topic
 		nextUpdate(c, x.service.now())
 		return nil
 	})
@@ -154,6 +156,7 @@ func (x *Session) NoChanges() error {
 		x.published = true
 		x.service.mu.Unlock()
 		x.Event("auto_update", "no_changes")
+		x.service.notify("info", x.CaseID, "Detective: no new information", topic)
 	}
 	return err
 }

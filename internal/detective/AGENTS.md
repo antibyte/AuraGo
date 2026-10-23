@@ -33,6 +33,10 @@ and tool dispatch; Desktop adapters own UI state.
   in one transaction after a synced `.pre-v4-<timestamp>.bak` SQLite snapshot.
   Failed backup/migration aborts opening; repeat opens do not migrate or back up
   again.
+- `Options.Notify(kind, caseID, title, message)` reports publish, `no_changes`,
+  question and terminal failure to the server, which owns the Desktop transport. The
+  callback runs outside the store lock and a nil callback keeps the service silent, so
+  tests and embedded use need no notification sink.
 - A run whose terminal state cannot be persisted leaves the case queued and returns
   the error; the worker waits for the next tick instead of retrying the same row in
   a loop, and warns every third failed attempt. `Options.Logger` is optional.

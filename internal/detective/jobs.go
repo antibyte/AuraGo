@@ -441,7 +441,8 @@ func (x *Session) Checkpoint(v Continuation) error     { return x.service.SaveCo
 func (x *Session) Done() bool                          { s := x.service; s.mu.Lock(); defer s.mu.Unlock(); return x.published }
 
 func (x *Session) Wait(question string) error {
-	return x.update(func(c *Case) error {
+	var topic string
+	err := x.update(func(c *Case) error {
 		if !activeStatus(c.Run.Status) || x.published {
 			return context.Canceled
 		}
@@ -451,21 +452,27 @@ func (x *Session) Wait(question string) error {
 			c.AutoUpdate.Outcome = "waiting_for_user"
 			c.AutoUpdate.NextRunAt = time.Time{}
 		}
+		topic = c.Request.Topic
 		x.service.eventLocked(c, "question", question)
 		x.cancel()
 		return nil
 	})
+	if err == nil {
+		x.service.notify("question", x.CaseID, "Detective: question waiting", fmt.Sprintf("%s — %s", topic, bounded(question, 200)))
+	}
+	return err
 }
 
 func (x *Session) complete(runErr error) error {
-	return x.update(func(c *Case) error {
+	var topic, status, reason string
+	err := x.update(func(c *Case) error {
 		if x.published {
 			return nil
 		}
 		if c.Run.Status == "waiting_for_user" {
 			return nil
 		}
-		reason := "incomplete_response"
+		reason = "incomplete_response"
 		if runErr != nil {
 			reason = "provider_or_tool_failure"
 		}
@@ -489,6 +496,7 @@ func (x *Session) complete(runErr error) error {
 			}
 		}
 		c.Run.Reason = reason
+		status = c.Run.Status
 		if c.Run.Automatic {
 			if c.Run.Status != "interrupted" || reason == "permission_revoked" {
 				if reason == "permission_revoked" {
@@ -513,7 +521,12 @@ func (x *Session) complete(runErr error) error {
 			c.Reports = []Report{report}
 			c.pendingReports = append(c.pendingReports, report)
 		}
+		topic, status = c.Request.Topic, c.Run.Status
 		x.service.eventLocked(c, "status", reason)
 		return nil
 	})
+	if err == nil && status == "failed" {
+		x.service.notify("error", x.CaseID, "Detective: research failed", fmt.Sprintf("%s — %s", topic, reason))
+	}
+	return err
 }
