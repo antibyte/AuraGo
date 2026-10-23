@@ -1,7 +1,8 @@
 # Media conversion — fixes and optimizations plan
 
 Status: **executed** on 2026-10-23. All nine tasks are implemented and committed; see
-"Execution record" at the end for the commit per task.
+"Execution record" at the end for the commit per task. The result was reviewed afterwards and the
+seven review findings are fixed as well — see "Review record" at the end.
 Source baseline: `reports/media-conversion-audit-2026-10-23.md` (findings A–L), inspected on 2026-10-23.
 
 > **For agentic workers:** execute the tasks in wave order. Every task follows the same
@@ -861,3 +862,52 @@ scripts/validate_i18n_json.go` (1825 files, 0 errors) and the test suites of `in
 `internal/videostudio` are green. The only failing test in the repository is
 `TestPythonQualityValidationIgnoresAgentVenvCWDAndPythonPath`, which needs a trusted system
 Python that this machine does not have; it is unrelated to the media conversion work.
+
+## Review record
+
+The executed plan was reviewed on 2026-10-23 (code review plus an independent verifier). Seven
+findings came out of that review; all of them are fixed and committed in one follow-up series.
+
+| Finding | Problem | Fix | Files |
+| --- | --- | --- | --- |
+| R1 | The media conversion settings were only validated on the setup path, so `PUT /api/config` accepted an out-of-range `timeout_seconds` or `max_file_size_mb`. | `validateMediaConversionPatch` runs on every configuration save path. | `internal/server/config_media_conversion.go`, `internal/server/config_handlers_main.go`, `internal/server/config_patch.go` |
+| R2 | The health endpoint refused a bare converter name, because it checked the raw configured string with `os.Stat` instead of resolving it. | The configured value is resolved through `internal/mediabins` exactly like the tool does; the base name of the resolved file decides. | `internal/server/media_conversion_handlers.go` |
+| R3 | The registry entry pointed at the workspace file, which the media UI filters out, so a converted file was never visible. | The result is copied into the media data directory and registered there with its web path. | `internal/tools/media_conversion.go` |
+| R4 | A pre-existing out-of-range value in `config.yaml` blocked every configuration save. | The validation is patch-scoped: only the values the patch itself changes are checked. `config.Load` still clamps the rest at startup. | `internal/server/config_media_conversion.go` |
+| R5 | The registry description named the staging file instead of the source. | The source name is captured before staging and used in the description. | `internal/tools/media_conversion.go` |
+| R6 | The in-place guard compared paths case-sensitively, so on a case-insensitive filesystem `Input.mp3` and `input.mp3` passed as two different files. | The comparison ignores the case on Windows and macOS. | `internal/tools/media_conversion.go` |
+| R7 | The tool schema did not name the supported formats, so the model had to guess. | The description lists the allowlist per operation. | `internal/agent/native_tools_content.go` |
+
+Deliberate scope decisions:
+
+- The health endpoint does not pin the location of the converter: an administrator may test their
+  own ffmpeg build. The residual risk is that an administrator can execute a renamed payload; the
+  endpoint stays administrator-only.
+- `DeleteMedia` remains a soft delete, so a registry entry can never delete a workspace file.
+- The file name in the media data directory is hash based (`<stem>_<hash8>.<ext>`), so two
+  conversions with the same name cannot overwrite each other.
+- The workspace output stays exactly where the user asked for it; only the registry copy moves.
+
+| Finding | Commit |
+| --- | --- |
+| R1, R4 | `5ba5776d7` fix(server): validate media conversion settings on every configuration save |
+| R2 | `eff91d4b7` fix(server): resolve the probed converter before approving it |
+| R3, R5, R6 | `b75a296ac` fix(tools): register the converted file in the media directory |
+| R7 | `cc2957afb` fix(agent): name the supported output formats in the tool schema |
+
+Verification of the review fixes: `go build ./...`, `go vet` over the touched packages,
+`go run scripts/validate_i18n_json.go` (1825 files, 0 errors) and the test suites of
+`internal/tools`, `internal/mediabins`, `internal/config`, `internal/videostudio`, `internal/agent`
+and `internal/server` are green apart from failures outside the media conversion scope:
+
+- `TestPythonQualityValidationIgnoresAgentVenvCWDAndPythonPath` (`internal/tools`) and
+  `TestSkillQualityMaintenanceImprovementRestoresRunningDaemonWithNewApprovedHash`
+  (`internal/agent`) need a trusted system Python, which this machine does not have;
+- `TestReleaseScriptsPreserveCodeStudioDockerfile` reads a release script that an unrelated
+  commit changed;
+- `TestGetDesktopServiceReusesCanonicalConfigWithRelativeDefaults` computes a relative path from
+  the package directory to a temporary directory, which fails when the temporary directory sits on
+  another drive;
+- `TestMQTTMissionOwnershipFollowsEnableUpdateAndDelete` is timing dependent and passes on its
+  own.
+
