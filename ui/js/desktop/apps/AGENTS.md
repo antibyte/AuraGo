@@ -477,6 +477,12 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   Continue, Deepen, Delete and New stay disabled. A draft offers Start and the
   effort control, not Deepen. Continue does not post `effort`. Start and Deepen
   do.
+- The revision selection is view state: `knownReports`/`chosenReport` in
+  `detective-views.js` merge current reports, history and the pinned report, and a
+  revision that is not in that set falls back to the newest one. `resetArchive()`
+  clears `state.revision` (case switch, "New", and after creating a case, which also
+  opens the report tab), so a stale selection can never leave the export bar without
+  a report. Test it without a DOM in `scripts/test-ui-regressions.mjs`.
 - Export links name the revision on screen. A live poll rebuilds the export bar
   when the visible revision changes or when the revision set grows or shrinks,
   even if the chosen number stays the same. A poll that leaves both unchanged

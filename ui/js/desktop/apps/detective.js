@@ -15,7 +15,7 @@
         let archiveSources = [], sourceNext = 0, sourcesLoaded = false, viewGeneration = 0;
         const autoDrafts = new Map();
         const draftKey = () => state.current?.id || 'new';
-        function resetArchive() { selectedReport = null; reportParts = []; history = []; historyNext = 0; historyLoaded = false; archiveSources = []; sourceNext = 0; sourcesLoaded = false; viewGeneration++; }
+        function resetArchive() { selectedReport = null; reportParts = []; history = []; historyNext = 0; historyLoaded = false; archiveSources = []; sourceNext = 0; sourcesLoaded = false; state.revision = 0; viewGeneration++; }
         const readOnly = () => { const caps = state.caps || {}; return !!(ctx.readonly || caps.read_only || !caps.enabled || !caps.ready || state.current?.auto_update?.outcome === 'permission_blocked'); };
         const request = async (path, options = {}) => {
             const opts = {...options, signal: controller.signal};
@@ -29,10 +29,7 @@
             const node = host.querySelector('.dt-error');
             if (node) { node.hidden = false; node.textContent = state.notice; }
         };
-        const chosenReport = () => {
-            const revisions = state.current?.reports || [];
-            return state.revision ? selectedReport || revisions.find(x => x.revision === state.revision) : revisions.at(-1);
-        };
+        const chosenReport = () => v.chosenReport(state.current, state.revision, history, selectedReport);
         function autoDraft() {
             const box = host.querySelector('.dt-auto-settings');
             if (!box) return null;
@@ -72,10 +69,7 @@
         function autoPanel(c, ro) {
             return `<details class="dt-auto-panel"><summary>${e(tr('auto_title'))}</summary><div class="dt-auto-state" aria-live="polite">${v.autoStatus(c.auto_update, tr)}</div>${v.autoSettings(c.auto_update, tr, ro)}<div class="dt-auto-actions"><button data-do="auto-save"${ro ? ' disabled' : ''}>${e(tr('auto_save'))}</button><button data-do="auto-pause"${!c.auto_update?.enabled ? ' disabled' : ''}>${e(tr('auto_pause'))}</button></div></details>`;
         }
-        function knownReports() {
-            const map = new Map([...history, ...(state.current?.reports || []), ...(selectedReport ? [selectedReport] : [])].map(r => [r.revision, r]));
-            return [...map.values()].sort((a, b) => a.revision - b.revision);
-        }
+        const knownReports = () => v.knownReports(state.current, history, selectedReport);
         function listHTML() {
             const c = state.current;
             return state.cases.map(item => `<button class="dt-case ${item.id === c?.id ? 'is-selected' : ''}" data-case="${e(item.id)}" aria-pressed="${item.id === c?.id}"><b>${e(item.request.topic)}</b><small>${e(tr(item.run.status))} · ${e(tr(item.request.effort))}</small></button>`).join('') || `<p>${e(tr('no_cases'))}</p>`;
@@ -105,8 +99,8 @@
             return `<h2>${e(c.request.topic)}</h2><div><strong>${e(tr(r.status))}</strong><span>${e(tr(r.phase || 'research'))}</span><span>${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} min · ${usage.tools || 0}/${p.tools || 0} ${e(tr('tools'))} · ${usage.pages || 0} ${e(tr('sources'))}</span></div>${reason ? `<p>${e(reason)}</p>` : ''}<div class="dt-actions">${actionsHTML(c, ro)}</div>${r.status === 'waiting_for_user' ? answerFieldHTML() : ''}`;
         }
         function exportHTML(c, ro) {
-            const revisions = knownReports(), chosen = chosenReport();
-            if (!revisions.length) return '';
+            const revisions = knownReports(), chosen = chosenReport() || revisions.at(-1);
+            if (!revisions.length || !chosen) return '';
             return `<label>${e(tr('revision'))}<select class="dt-revision">${revisions.map(x => `<option value="${x.revision}" ${x === chosen ? 'selected' : ''}>${x.revision}${x.partial ? ' · ' + e(tr('partial')) : ''}</option>`).join('')}</select></label>${['md', 'pdf', 'docx'].map(format => `<a class="dt-download" href="${base}/cases/${encodeURIComponent(c.id)}/export?revision=${chosen.revision}&format=${format}">${format === 'md' ? 'Markdown' : format === 'docx' ? 'Word' : 'PDF'}</a>`).join('')}<button data-do="autor" ${ro ? 'disabled' : ''}>${e(tr('autor'))}</button>`;
         }
         function linkedExportRevision() {
@@ -381,6 +375,7 @@
                 state.events = [];
                 state.fresh = false;
                 state.latestSourceID = '';
+                state.tab = 'report';
                 try {
                     await request('/cases/' + c.id + '/run', {method: 'POST', body: {action: 'start', idempotency_key: key()}});
                 } catch (err) {

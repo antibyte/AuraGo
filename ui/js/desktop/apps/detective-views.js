@@ -37,5 +37,18 @@
         const status = a.enabled ? (a.outcome || 'scheduled') : 'paused';
         return `<strong>${esc(tr('auto_' + status))}</strong><dl><div><dt>${esc(tr('auto_next'))}</dt><dd>${esc(date(a.next_run_at))}</dd></div><div><dt>${esc(tr('auto_checked'))}</dt><dd>${esc(date(a.last_checked_at))}</dd></div><div><dt>${esc(tr('auto_changed'))}</dt><dd>${esc(date(a.last_changed_at))}</dd></div></dl>${a.error ? `<p>${esc(tr(a.error))}</p>` : ''}`;
     }
-    window.DetectiveViews = { esc, report, sources, activity, activityItems, autoSettings, autoStatus };
+    // Revision selection is pure: the app owns polling, the view owns which revision is shown.
+    // A revision that is not in the known list falls back to the newest one, so a stale
+    // selection (case switch, "New", an archived revision) can never leave the export bar
+    // without a report.
+    function knownReports(current, history, selected) {
+        const map = new Map([...(history || []), ...(selected ? [selected] : []), ...(current?.reports || [])].map(report => [report.revision, report]));
+        return [...map.values()].sort((a, b) => a.revision - b.revision);
+    }
+    function chosenReport(current, revision, history, selected) {
+        const reports = knownReports(current, history, selected);
+        if (!revision) return reports.at(-1);
+        return selected || reports.find(report => report.revision === revision) || reports.at(-1);
+    }
+    window.DetectiveViews = { esc, report, sources, activity, activityItems, autoSettings, autoStatus, knownReports, chosenReport };
 })();

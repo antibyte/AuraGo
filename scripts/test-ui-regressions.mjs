@@ -4927,6 +4927,37 @@ async function testOrbitChoreoAndParticles() {
   P.drawCanvas2D({}, sys, 1);
 }
 
+// Detective: the selected revision belongs to the view, and a stale selection falls back to the
+// newest known revision instead of leaving the export bar without a report (audit finding 4.2).
+function testDetectiveRevisionSelectionSurvivesCaseSwitch() {
+  const viewsSource = read('ui/js/desktop/apps/detective-views.js');
+  const context = { Map, Set, String, Number, Date, JSON, URL, window: {} };
+  vm.createContext(context);
+  vm.runInContext(`${viewsSource}\nglobalThis.views = window.DetectiveViews;`, context);
+  const views = context.views;
+  assert.ok(views && typeof views.chosenReport === 'function', 'views expose the revision helpers');
+
+  const fresh = { reports: [{ revision: 1, title: 'fresh' }] };
+  assert.equal(views.chosenReport(fresh, 0, [], null).revision, 1, 'no selection picks the newest');
+  assert.equal(views.chosenReport(fresh, 3, [], null).revision, 1, 'a stale revision falls back to the newest');
+  assert.equal(views.chosenReport({ reports: [] }, 3, [], null), undefined, 'no reports yield no selection');
+
+  const history = [{ revision: 1 }, { revision: 2 }];
+  const current = { reports: [{ revision: 3 }] };
+  assert.equal(views.chosenReport(current, 2, history, null).revision, 2, 'an archived revision is found');
+  const selected = { revision: 2, title: 'pinned' };
+  assert.equal(views.chosenReport(current, 2, history, selected).title, 'pinned', 'the pinned report wins');
+  assert.deepEqual(Array.from(views.knownReports(current, history, null), report => report.revision), [1, 2, 3]);
+  assert.deepEqual(Array.from(views.knownReports(current, history, selected), report => report.revision), [1, 2, 3]);
+
+  const app = read('ui/js/desktop/apps/detective.js');
+  assert.match(app, /state\.revision = 0;\s*viewGeneration\+\+/, 'resetArchive owns the revision reset');
+  assert.match(app, /const chosenReport = \(\) => v\.chosenReport\(state\.current, state\.revision, history, selectedReport\)/);
+  assert.match(app, /const knownReports = \(\) => v\.knownReports\(state\.current, history, selectedReport\)/);
+  assert.match(app, /const revisions = knownReports\(\), chosen = chosenReport\(\) \|\| revisions\.at\(-1\)/);
+  assert.match(app, /state\.tab = 'report';/, 'a created case opens on the report tab');
+}
+
 const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
@@ -4996,6 +5027,7 @@ const tests = [
   ['Window menu shortcut hints are drawn but not dispatched', testWindowMenuShortcutHintIsDrawnButNotDispatched],
   ['EasyDrag notifications keep only server-shaped flow and run ids', testEasyDragNotificationContextKeepsOnlyServerIds],
   ['Network Cameras notifications keep the detection event id', testNetworkCamerasNotificationContextKeepsEventIds],
+  ['Detective revision selection survives a case switch', testDetectiveRevisionSelectionSurvivesCaseSwitch],
   ['EasyDrag session keeps only valid flow ids', testEasyDragSessionKeepsOnlyValidFlowIds],
   ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
   ['Desktop event delivered over WebSocket and SSE is handled once', testDesktopEventDeliveredTwiceIsHandledOnce],
