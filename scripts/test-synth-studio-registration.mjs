@@ -31,13 +31,13 @@ assert.deepEqual(Array.from(assets.scripts), [
     '/js/vendor/synth-studio/gm-data.js',
     '/js/desktop/apps/synth-studio-presets.js',
     '/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js',
-    '/js/desktop/apps/synth-studio-model.js',
+    '/js/desktop/apps/synth-studio-model.js', '/js/desktop/apps/synth-studio-music.js',
     '/js/desktop/apps/synth-studio-voices.js',
     '/js/desktop/apps/synth-studio-audio.js',
     '/js/desktop/apps/synth-studio-midi.js',
     '/js/desktop/apps/synth-studio-storage.js',
     '/js/desktop/apps/synth-studio-editor.js',
-    '/js/desktop/apps/synth-studio-workspace.js',
+    '/js/desktop/apps/synth-studio-workspace.js', '/js/desktop/apps/synth-studio-compose.js',
     '/js/desktop/apps/synth-studio.js'
 ]);
 for (const url of assets.scripts) {

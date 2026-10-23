@@ -224,10 +224,12 @@
             try { source = JSON.parse(source); }
             catch (_) { throw error('E_PROJECT_JSON', 'Project file is not valid JSON.'); }
         }
-        const project = plainObject(source, 'project', ['version', 'name', 'tempo', 'ppq', 'beatsPerBar', 'loop', 'tracks']);
-        if (required(project, 'version', 'project') !== 1) throw error('E_PROJECT_VERSION', 'Only Synth Studio project version 1 is supported.');
+        const project = plainObject(source, 'project', ['version', 'name', 'tempo', 'ppq', 'beatsPerBar', 'loop', 'tracks', 'harmony', 'scenes']);
+        const version = required(project, 'version', 'project');
+        if (![1, 2].includes(version)) throw error('E_PROJECT_VERSION', 'Only Synth Studio project versions 1 and 2 are supported.');
+        if (version === 1 && ('harmony' in project || 'scenes' in project)) throw error('E_PROJECT_FIELD_UNKNOWN', 'Version 1 does not support harmony or scenes.');
         const result = {
-            version: 1,
+            version,
             name: text(required(project, 'name', 'project'), 'project.name'),
             tempo: number(required(project, 'tempo', 'project'), 'project.tempo', 40, 240),
             ppq: number(required(project, 'ppq', 'project'), 'project.ppq', PPQ, PPQ, true),
@@ -247,8 +249,19 @@
         const tracks = list(required(project, 'tracks', 'project'), 'project.tracks', MAX_TRACKS);
         const ids = new Set();
         const totals = { events: 0 };
+        if (version === 2) {
+            const h = plainObject(required(project, 'harmony', 'project'), 'harmony', ['root','scale','snap']);
+            if (!['major','minor'].includes(h.scale)) throw error('E_PROJECT_TYPE', 'Invalid scale.');
+            result.harmony = {root:number(h.root,'harmony.root',0,11,true),scale:h.scale,snap:bool(h.snap,'harmony.snap')};
+            result.scenes = list(required(project,'scenes','project'),'scenes',8).map(s => {
+                plainObject(s,'scene',['id','name','start','end']);
+                const start=number(s.start,'scene.start',0,MAX_TICK,true),end=number(s.end,'scene.end',1,MAX_TICK,true);
+                if (start % BAR || end % BAR || end <= start) throw error('E_PROJECT_TICK','Scenes require complete bars.');
+                return {id:id(s.id,'scene.id',ids),name:text(s.name,'scene.name'),start,end};
+            });
+        }
         result.tracks = tracks.map(sourceTrack => {
-            const track = plainObject(sourceTrack, 'track', trackKeys);
+            const track = plainObject(sourceTrack, 'track', version === 2 ? [...trackKeys,'automation'] : trackKeys);
             const params = plainObject(required(track, 'params', 'track'), 'track.params', paramKeys);
             const clips = list(required(track, 'clips', 'track'), 'track.clips', MAX_CLIPS_PER_TRACK);
             return {
@@ -270,7 +283,8 @@
                     reverb: number(required(params, 'reverb', 'track.params'), 'track.params.reverb', 0, 1),
                     delay: number(required(params, 'delay', 'track.params'), 'track.params.delay', 0, 1)
                 },
-                clips: clips.map(sourceClip => normalizedClip(sourceClip, ids, totals))
+                clips: clips.map(sourceClip => normalizedClip(sourceClip, ids, totals)),
+                ...(version === 2 ? {automation: normalizedAutomation(required(track,'automation','track'),totals)} : {})
             };
         });
         const drumTracks = result.tracks.filter(track => isDrumInstrument(track.instrument)).length;
@@ -284,9 +298,30 @@
         return result;
     }
 
+    function normalizedAutomation(points, totals) {
+        const safe=list(points,'track.automation',MAX_EVENTS), seen=new Set();
+        totals.events+=safe.length;
+        if(totals.events>MAX_EVENTS)throw error('E_PROJECT_LIMIT','Notes, controllers and automation exceed the event budget.');
+        return safe.map(p=>{
+            plainObject(p,'automation',['tick','parameter','value']);
+            if(!['tone','reverb'].includes(p.parameter))throw error('E_PROJECT_TYPE','Unsupported automation parameter.');
+            const tick=number(p.tick,'automation.tick',0,MAX_TICK,true),key=tick+':'+p.parameter;
+            if(seen.has(key))throw error('E_PROJECT_TYPE','Duplicate automation point.');seen.add(key);
+            return {tick,parameter:p.parameter,value:number(p.value,'automation.value',0,1)};
+        }).sort((a,b)=>a.tick-b.tick||a.parameter.localeCompare(b.parameter));
+    }
+
+    function upgrade(project) {
+        const p=validate(project);
+        if(p.version===1){p.version=2;p.harmony={root:0,scale:'major',snap:false};p.scenes=[];p.tracks.forEach(t=>t.automation=[]);}
+        return validate(p);
+    }
+
     function create(name = 'Untitled') {
         return {
-            version: 1,
+            version: 2,
+            harmony: {root:0,scale:'major',snap:false},
+            scenes: [],
             name: text(name || 'Untitled', 'project.name'),
             tempo: 120,
             ppq: PPQ,
@@ -319,6 +354,7 @@
             mute: false,
             solo: false,
             params: defaultParamsFor(instrument),
+            ...(project.version === 2 ? {automation:[]} : {}),
             clips: []
         };
         project.tracks.push(track);
@@ -444,5 +480,5 @@
         };
     }
 
-    return { PPQ, BAR, newID: randomId, create, validate, addTrack, defaultParamsFor, createClip, patterns, demo, template, events, endTick, clone, cloneClip, history };
+    return { PPQ, BAR, newID: randomId, create, validate, upgrade, addTrack, defaultParamsFor, createClip, patterns, demo, template, events, endTick, clone, cloneClip, history };
 });

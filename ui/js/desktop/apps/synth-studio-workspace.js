@@ -10,7 +10,7 @@
         const tabs = document.createElement('div'); tabs.className = 'ss-workbench-tabs'; tabs.setAttribute('role','tablist');
         for (const name of ['notes','sound','performance']) {
             const button = document.createElement('button'); button.type = 'button'; button.dataset.workTab = name;
-            button.disabled=name==='performance';button.textContent = tr('workspace_' + name); button.setAttribute('role','tab'); tabs.append(button);
+            button.textContent = tr('workspace_' + name); button.setAttribute('role','tab'); tabs.append(button);
         }
         const grip = document.createElement('div'); grip.className = 'ss-workbench-grip'; grip.tabIndex = 0;
         grip.setAttribute('role','separator'); grip.setAttribute('aria-orientation','horizontal'); grip.setAttribute('aria-label',tr('resize'));

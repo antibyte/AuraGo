@@ -18,7 +18,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	html = regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(html, "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
 	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/desktop-app-synth-studio.css"><style>body{margin:0}.vd-shell{height:100vh}</style></head>`, 1)
-	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
+	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
 	var tags strings.Builder
 	for _, path := range scripts {
 		fmt.Fprintf(&tags, `<script src="%s"></script>`, path)
@@ -77,6 +77,20 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("one undo restores whole gesture", `()=>synthInstance().project().tracks[0].params.tone===originalTone`)
 	page.MustEval(`()=>{const e=document.querySelector('[data-param=tone]');e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));e.value=.12;e.dispatchEvent(new Event('input',{bubbles:true}));window.dispatchEvent(new PointerEvent('pointercancel'));}`)
 	check("cancelled gesture leaves model untouched", `()=>synthInstance().project().tracks[0].params.tone===originalTone`)
+	page.MustEval(`()=>{const p=synthInstance().project(),t=p.tracks[1];synthInstance().editor.select(t.id,t.clips[0].id);window.generatorOriginal=JSON.stringify(synthInstance().project());}`)
+	page.MustElement("[data-work-tab=performance]").MustClick()
+	page.MustEval(`()=>{const e=document.querySelector('[data-music=generator]');e.value='arp';e.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	page.MustElement("[data-compose=generate]").MustClick()
+	check("preview keeps original unchanged", `()=>JSON.stringify(synthInstance().project())===generatorOriginal&&!document.querySelector('.ss-preview').hidden`)
+	page.MustElement("[data-compose=variant]").MustClick()
+	page.MustElement("[data-compose=cancel]").MustClick()
+	check("cancel preserves complete original", `()=>JSON.stringify(synthInstance().project())===generatorOriginal`)
+	page.MustElement("[data-compose=generate]").MustClick()
+	page.MustElement("[data-compose=apply]").MustClick()
+	check("generator produces editable notes", `()=>synthInstance().project().tracks[1].clips[0].notes.length===8`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("generator is one undo step", `()=>JSON.stringify(synthInstance().project())===generatorOriginal`)
+	page.MustEval(`()=>{const p=synthInstance().project(),t=p.tracks[0];synthInstance().editor.select(t.id,t.clips[0].id);}`)
 	before := page.MustEval(`()=>synthInstance().project().tracks.length`).Int()
 	page.MustElement("[data-category=leads]").MustClick()
 	page.MustElement("[data-library-id=lead-saw] [data-insert]").MustClick()
@@ -89,7 +103,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	page.MustEval(`()=>{const d=new DataTransfer();d.setData('application/x-aurago-synth',JSON.stringify({type:'pattern',id:SynthStudioModel.patterns.find(p=>p.category==='leads').id}));document.querySelector('[data-empty-drop]').dispatchEvent(new DragEvent('drop',{dataTransfer:d,bubbles:true,cancelable:true}));}`)
 	check("pattern drop creates notes", `()=>synthInstance().project().tracks.at(-1).clips[0].notes.length>0`)
 	page.MustEval(`async()=>{await synthInstance().storage.save();}`)
-	check("project saved through API", `()=>synthFiles.size===1 && [...synthFiles.values()][0].content.includes('"version":1') && !synthInstance().storage.state.dirty`)
+	check("project saved through API", `()=>synthFiles.size===1 && [...synthFiles.values()][0].content.includes('"version":2') && !synthInstance().storage.state.dirty`)
 	page.MustEval(`()=>{synthFailWrite=true;document.querySelector('[data-tempo]').value='135';document.querySelector('[data-tempo]').dispatchEvent(new Event('change',{bubbles:true}));}`)
 	page.MustEval(`async()=>{try{await synthInstance().storage.save()}catch{}}`)
 	check("failed save preserves project", `()=>synthInstance().storage.state.dirty && synthInstance().project().tempo===135`)

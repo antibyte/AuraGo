@@ -134,6 +134,12 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   undo step; cancellation restores the initial value. Structural edits wait for
   the next unscheduled bar without restarting transport. Verify scheduler tests
   and responsive browser flows when changing these contracts.
+- `synth-studio-music.js` owns deterministic scale/chord/arp/variation/rhythm
+  transforms; `synth-studio-compose.js` owns preview/apply and held live inputs.
+  Preview/cancel never changes the project; Apply commits ordinary notes once.
+  Format v2 stores harmony, bar-range scenes and track automation; all automation
+  counts toward the event/byte limits. v1 validation preserves v1. Upgrade in
+  memory and require a create-only v2 copy before enabling autosave.
 - Model validation owns project trust boundaries. Notes/controllers use clip-local
   ticks; clips use arrangement ticks. Live playback and offline WAV rendering
   share the native Web Audio implementation. Never schedule musical timing from

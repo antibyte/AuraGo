@@ -211,6 +211,26 @@ async function testMidiGeneration() {
 }
 
 async function main() {
+    const Music=loadClassicModule('ui/js/desktop/apps/synth-studio-music.js');
+    const v2=Model.demo(),legacy=JSON.parse(JSON.stringify(v2));legacy.version=1;delete legacy.harmony;delete legacy.scenes;legacy.tracks.forEach(t=>delete t.automation);
+    equalJSON(Model.validate(legacy),legacy,'v1 remains v1 and is not mutated');
+    const upgraded=Model.upgrade(legacy);assert.equal(upgraded.version,2);equalJSON(upgraded.harmony,{root:0,scale:'major',snap:false});assert.equal(legacy.version,1);
+    const animated=Model.clone(v2);animated.scenes=[{id:'scene-one',name:'Intro',start:0,end:1920}];animated.tracks[0].automation=[{tick:120,parameter:'tone',value:.7}];
+    equalJSON(Model.validate(JSON.stringify(animated)),animated,'v2 fields round trip');
+    expectCode(()=>Model.validate({...v2,harmony:{root:12,scale:'major',snap:false}}),'E_PROJECT_TICK');
+    expectCode(()=>Model.validate({...v2,scenes:[{id:'bad',name:'Bad',start:1,end:1920}]}),'E_PROJECT_TICK');
+    const over=Model.clone(animated);over.tracks[0].automation=Array.from({length:50000},(_,tick)=>({tick,parameter:'tone',value:.5}));expectCode(()=>Model.validate(over),'E_PROJECT_LIMIT');
+    for(const scale of ['major','minor'])for(let root=0;root<12;root++)for(let degree=0;degree<8;degree++){
+        const harmony={root,scale,snap:false},chord=Music.chord(harmony,degree,true);assert.equal(chord.length,4);assert.ok(chord.every(p=>Music.inScale(p,harmony)&&p<=127));
+        for(let pitch=0;pitch<128;pitch++)assert.ok(Music.inScale(Music.fit(pitch,harmony),harmony));
+    }
+    const notes=[{id:'input',pitch:61,start:1800,duration:120,velocity:1}],before=JSON.stringify(notes),settings={seed:'audible',density:2,swing:.6,humanize:1,lockPitch:false,lockRhythm:false};
+    const variant=Music.variation(notes,1920,v2.harmony,settings);equalJSON(variant,Music.variation(notes,1920,v2.harmony,settings));assert.equal(JSON.stringify(notes),before);
+    assert.ok(variant.every(n=>n.start>=0&&n.start+n.duration<=1920&&n.velocity<=1&&n.pitch<=127));
+    equalJSON(Music.variation(notes,1920,v2.harmony,{...settings,lockPitch:true,lockRhythm:true}).map(n=>[n.pitch,n.start,n.duration]),notes.map(n=>[n.pitch,n.start,n.duration]));
+    for(const order of ['up','down','pendulum','random']){const settings={order,division:32,octaves:3,gate:.7,seed:'42'},arp=Music.arpeggio([60,64,67],1920,settings);assert.equal(arp.length,32);equalJSON(arp,Music.arpeggio([60,64,67],1920,settings));assert.ok(arp.every((n,i)=>n.pitch===Music.arpPitch([60,64,67],settings,i)&&n.start+n.duration<=1920));}
+    for(const steps of [16,32])for(let hits=0;hits<=steps;hits++)for(const rotation of [0,1,7])assert.equal(Music.rhythm(1920,{steps,hits,rotation,pitch:36,accent:4}).length,hits);
+    assert.throws(()=>Music.arpeggio([60],10000000,{division:32,octaves:1,order:'up',gate:.5}));
     const project = Model.create('Test');
     const clean = Model.validate(project);
     clean.name = 'changed';
@@ -221,7 +241,7 @@ async function main() {
     expectCode(() => Model.validate({ ...project, tempo: 241 }), 'E_PROJECT_NUMBER');
     assert.equal(Model.validate({ ...project, tempo: 40 }).tempo, 40);
     assert.equal(Model.validate({ ...project, tempo: 240 }).tempo, 240);
-    expectCode(() => Model.validate({ ...project, version: 2 }), 'E_PROJECT_VERSION');
+    expectCode(() => Model.validate({ ...project, version: 999 }), 'E_PROJECT_VERSION');
     expectCode(() => Model.validate({ ...project, name: '<bad\nname>' }), 'E_PROJECT_TEXT');
     expectCode(() => Model.validate({ ...project, tracks: [null] }), 'E_PROJECT_TYPE');
     expectCode(() => Model.validate('{bad json'), 'E_PROJECT_JSON');

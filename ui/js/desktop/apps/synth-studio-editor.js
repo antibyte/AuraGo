@@ -9,7 +9,7 @@
         const life = new AbortController(), signal = life.signal, tr = options.tr;
         host.tabIndex = 0;
         let trackId = '', clipId = '', selected = new Set(), beatWidth = 40, snap = 120, playingTick = 0, gesture = null;
-        let previousClip = '', rollScroll = null, tool='draw', clipboard=null;
+        let previousClip = '', rollScroll = null, tool='draw', clipboard=null, heldKey=null;
         host.innerHTML = '<div class="ss-arrangement" data-arrangement><div class="ss-arrange-inner"></div></div><section class="ss-note-editor" data-note-editor></section>';
         const arrangement = host.querySelector('[data-arrangement]'), inner = arrangement.firstElementChild, editor = host.querySelector('[data-note-editor]');
         const get = () => { const project = options.getProject(); const track = project.tracks.find(t => t.id === trackId); return {project, track, clip:track?.clips.find(c => c.id === clipId)}; };
@@ -36,8 +36,9 @@
             const drum = isDrum(track), pitches = drum ? drums().map(d => d.drumNote) : Array.from({length:128},(_,i) => 127-i), rowH = drum ? 25 : 17;
             // Imported GM percussion outside the custom kit remains editable.
             if(drum) clip.notes.forEach(n=>{if(!pitches.includes(n.pitch))pitches.push(n.pitch);});
+            const harmony=get().project.harmony;
             const noteWidth = Math.max(px(clip.length), 400), noteHeight = pitches.length*rowH;
-            editor.innerHTML = '<header class="ss-editor-header"><button data-tool="select" aria-pressed="'+(tool==='select')+'">'+esc(tr('select_tool'))+'</button><button data-tool="draw" aria-pressed="'+(tool==='draw')+'">'+esc(tr('draw_tool'))+'</button><button data-copy-notes>'+esc(tr('copy'))+'</button><button data-paste-notes'+(!clipboard||options.readonly()?' disabled':'')+'>'+esc(tr('paste'))+'</button><strong>'+esc(clip.name)+'</strong><span>'+esc(tr(drum?'drum_editor':'piano_roll'))+'</span><button data-delete-notes'+(!selected.size||options.readonly()?' disabled':'')+'>'+esc(tr('delete'))+'</button><label>'+esc(tr('velocity'))+' <input type="range" data-velocity min=".05" max="1" step=".05" value="'+(clip.notes.find(n=>selected.has(n.id))?.velocity ?? .8)+'"'+(!selected.size||options.readonly()?' disabled':'')+'></label></header><div class="ss-roll-scroll"><div class="ss-roll" style="width:'+(noteWidth+92)+'px;height:'+noteHeight+'px;--ss-beat:'+beatWidth+'px;--ss-row:'+rowH+'px"><div class="ss-keys">'+pitches.map(p => { const d=drums().find(d=>d.drumNote===p); return '<button class="'+(!drum&&[1,3,6,8,10].includes(p%12)?'is-black':'')+'" data-key="'+p+'" style="height:'+rowH+'px">'+esc(drum?(d?.name||'GM '+p):noteName(p))+'</button>'; }).join('')+'</div><div class="ss-note-grid" data-grid style="width:'+noteWidth+'px;height:'+noteHeight+'px">'+clip.notes.map(n => {const y=pitches.indexOf(n.pitch); if(y<0)return ''; return '<div role="button" tabindex="0" data-note="'+n.id+'" class="ss-note '+(selected.has(n.id)?'is-selected':'')+'" style="left:'+px(n.start)+'px;top:'+(y*rowH+1)+'px;width:'+Math.max(6,px(n.duration)-1)+'px;height:'+(rowH-2)+'px;opacity:'+(.45+n.velocity*.55)+'" aria-label="'+esc(noteName(n.pitch))+'"><b data-note-resize></b></div>';}).join('')+'</div></div></div>';
+            editor.innerHTML = '<header class="ss-editor-header"><button data-tool="select" aria-pressed="'+(tool==='select')+'">'+esc(tr('select_tool'))+'</button><button data-tool="draw" aria-pressed="'+(tool==='draw')+'">'+esc(tr('draw_tool'))+'</button><button data-copy-notes>'+esc(tr('copy'))+'</button><button data-paste-notes'+(!clipboard||options.readonly()?' disabled':'')+'>'+esc(tr('paste'))+'</button><strong>'+esc(clip.name)+'</strong><span>'+esc(tr(drum?'drum_editor':'piano_roll'))+'</span><button data-delete-notes'+(!selected.size||options.readonly()?' disabled':'')+'>'+esc(tr('delete'))+'</button><label>'+esc(tr('velocity'))+' <input type="range" data-velocity min=".05" max="1" step=".05" value="'+(clip.notes.find(n=>selected.has(n.id))?.velocity ?? .8)+'"'+(!selected.size||options.readonly()?' disabled':'')+'></label></header><div class="ss-roll-scroll"><div class="ss-roll" style="width:'+(noteWidth+92)+'px;height:'+noteHeight+'px;--ss-beat:'+beatWidth+'px;--ss-row:'+rowH+'px"><div class="ss-keys">'+pitches.map(p => { const d=drums().find(d=>d.drumNote===p); return '<button class="'+(!drum&&harmony&&window.SynthStudioMusic?.inScale(p,harmony)?'is-scale ':'')+(!drum&&[1,3,6,8,10].includes(p%12)?'is-black':'')+'" data-key="'+p+'" style="height:'+rowH+'px">'+esc(drum?(d?.name||'GM '+p):noteName(p))+'</button>'; }).join('')+'</div><div class="ss-note-grid" data-grid style="width:'+noteWidth+'px;height:'+noteHeight+'px">'+(!drum&&harmony?pitches.map((p,i)=>window.SynthStudioMusic?.inScale(p,harmony)?'<i class="ss-scale-row" style="top:'+(i*rowH)+'px;height:'+rowH+'px"></i>':'').join(''):'')+clip.notes.map(n => {const y=pitches.indexOf(n.pitch); if(y<0)return ''; return '<div role="button" tabindex="0" data-note="'+n.id+'" class="ss-note '+(selected.has(n.id)?'is-selected':'')+'" style="left:'+px(n.start)+'px;top:'+(y*rowH+1)+'px;width:'+Math.max(6,px(n.duration)-1)+'px;height:'+(rowH-2)+'px;opacity:'+(.45+n.velocity*.55)+'" aria-label="'+esc(noteName(n.pitch))+'"><b data-note-resize></b></div>';}).join('')+'</div></div></div>';
 
             const velocities=document.createElement('div');velocities.className='ss-note-velocities';
             clip.notes.filter(n=>selected.has(n.id)).forEach(n=>{
@@ -89,7 +90,7 @@
             if(e.button!==0)return;
             if(!e.target.closest('input,select,button'))host.focus({preventScroll:true});
             const loopHandle=e.target.closest('[data-loop-handle]');if(loopHandle&&!options.readonly()){e.preventDefault();gesture={kind:'loop',edge:loopHandle.dataset.loopHandle,x:e.clientX,start:get().project.loop[loopHandle.dataset.loopHandle],element:loopHandle};return;}
-            const key=e.target.closest('[data-key]');if(key){e.preventDefault();options.onAudition?.(Number(key.dataset.key));return;}
+            const key=e.target.closest('[data-key]');if(key){e.preventDefault();heldKey=Number(key.dataset.key);if(options.onNoteOn)options.onNoteOn(heldKey);else options.onAudition?.(heldKey);return;}
             const box=e.target.closest('[data-clip]');
             if(box){
                 e.preventDefault();e.stopPropagation();
@@ -111,7 +112,7 @@
             const rect=grid.getBoundingClientRect(),pitches=JSON.parse(editor.dataset.pitches),pitch=pitches[Math.floor((e.clientY-rect.top)/Number(editor.dataset.rowHeight))];
             const start=quantize((e.clientX-rect.left)/beatWidth*PPQ);if(pitch==null||start>=clip.length)return;
             if(tool==='select'){const box=document.createElement('div');box.className='ss-selection-box';grid.append(box);gesture={kind:'box',x:e.clientX,y:e.clientY,rect,element:box,keep:e.shiftKey?new Set(selected):new Set()};return;}
-            const id=uid();selected=new Set([id]);change(p=>{p.tracks.find(t=>t.id===trackId).clips.find(c=>c.id===clipId).notes.push({id,pitch,start,duration:Math.min(snap,clip.length-start),velocity:.8});});emit();options.onAudition?.(pitch);
+            const id=uid();selected=new Set([id]);change(p=>{p.tracks.find(t=>t.id===trackId).clips.find(c=>c.id===clipId).notes.push({id,pitch:(!p.tracks.find(t=>t.id===trackId).instrument.includes('drum')&&p.harmony?.snap)?window.SynthStudioMusic.fit(pitch,p.harmony):pitch,start,duration:Math.min(snap,clip.length-start),velocity:.8});});emit();options.onAudition?.(pitch);
         },{signal});
         document.addEventListener('pointermove',e=>{
             if(!gesture)return;const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;
@@ -123,6 +124,7 @@
             else gesture.element.style.width=Math.max(6,px((gesture.clip?.length||gesture.note?.duration)+Math.round(dx/beatWidth*PPQ)))+'px';
         },{signal});
         document.addEventListener('pointerup',e=>{
+            if(heldKey!==null){options.onNoteOff?.(heldKey);heldKey=null;}
             if(!gesture)return;const g=gesture;gesture=null;
             if(g.kind==='box'){const left=Math.min(g.x,e.clientX),right=Math.max(g.x,e.clientX),top=Math.min(g.y,e.clientY),bottom=Math.max(g.y,e.clientY);selected=g.keep;editor.querySelectorAll('[data-note]').forEach(el=>{const r=el.getBoundingClientRect();if(r.right>=left&&r.left<=right&&r.bottom>=top&&r.top<=bottom)selected.add(el.dataset.note);});emit();render();return;}
             if(g.kind==='loop'){change(p=>{const at=Math.max(0,g.start+Math.round((e.clientX-g.x)/beatWidth*PPQ/BAR)*BAR);p.loop[g.edge]=g.edge==='start'?Math.max(0,Math.min(at,p.loop.end-BAR)):Math.max(at,p.loop.start+BAR);});render();return;}
@@ -157,11 +159,12 @@
             }
             render();
         },{signal});
-        document.addEventListener('pointercancel',()=>{gesture=null;render();},{signal});
+        document.addEventListener('pointercancel',()=>{if(heldKey!==null)options.onNoteOff?.(heldKey);heldKey=null;gesture=null;render();},{signal});
         host.addEventListener('keydown',e=>{
+            const piano=e.target.closest('[data-key]');if(piano&&['Enter',' '].includes(e.key)){e.preventDefault();if(!e.repeat){heldKey=Number(piano.dataset.key);options.onNoteOn?.(heldKey);}return;}
             if(e.target.matches('input,select,textarea')||options.readonly())return;
             const handle=e.target.closest('[data-loop-handle]');if(handle&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();change(p=>{const edge=handle.dataset.loopHandle,at=p.loop[edge]+(e.key==='ArrowLeft'?-BAR:BAR);p.loop[edge]=edge==='start'?Math.max(0,Math.min(at,p.loop.end-BAR)):Math.max(at,p.loop.start+BAR);});return;}
-            const {track,clip}=get();if(!clip)return;
+            const {project,track,clip}=get();if(!clip)return;
             if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'){e.preventDefault();copyNotes();return;}
             if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'){e.preventDefault();pasteNotes();return;}
             if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();if(selected.size)deleteNotes();else{change(p=>{const t=p.tracks.find(t=>t.id===trackId);t.clips=t.clips.filter(c=>c.id!==clipId);});clipId='';render();}return;}
@@ -171,6 +174,7 @@
                 change(p=>{const c=p.tracks.find(t=>t.id===track.id).clips.find(c=>c.id===clip.id);if(!selected.size)c.start=Math.max(0,c.start+dt);else c.notes.forEach(n=>{if(selected.has(n.id)){n.start=Math.max(0,Math.min(c.length-n.duration,n.start+dt));n.pitch=Math.max(0,Math.min(127,n.pitch+dp));}});});
             }
         },{signal});
+        host.addEventListener('keyup',e=>{if(e.target.closest('[data-key]')&&['Enter',' '].includes(e.key)){e.preventDefault();if(heldKey!==null)options.onNoteOff?.(heldKey);heldKey=null;}},{signal});
         return {render,select,selection:()=>({trackId,clipId,notes:[...selected]}),setPlayhead,setZoom(value){beatWidth=Math.max(20,Math.min(100,value));render();},setSnap(value){snap=Math.max(30,value);},dispose(){life.abort();gesture=null;host.replaceChildren();}};
     }
     window.SynthStudioEditor={create};

@@ -78,6 +78,22 @@ the actual synthesizer sound and effects.
 
 ## Save and export
 
+The Performance workbench provides eight diatonic chord pads, major/natural-minor
+scale assistance, a live/printable arpeggiator, seeded melodic/rhythmic variations
+and a Euclidean drum generator. Hold pads or use the screen/typing/MIDI keyboard
+for live arpeggios. Choose a clip, prepare a preview, compare Original/Variation
+in a loop, then Apply or Cancel. Apply writes ordinary notes as one undo step.
+The visible seed, input notes and controls determine repeatable results. Scale
+constraints affect new notes only; fitting existing notes requires an explicit
+generator preview and Apply. New projects default to C major with constraints off.
+
+New projects use format v2: project-level harmony (root, major/minor, snap), up to
+eight named bar-range scenes, and track-level tone/reverb automation points using
+arrangement ticks. Validation still accepts v1 unchanged. The editor upgrades a
+copy in memory; the first v2 save requires a new filename in the regular picker.
+Autosave stays suspended until that copy succeeds, protecting the original v1
+file. Draft recovery and conditional writes continue to apply.
+
 Projects are versioned `.aurasynth` JSON files in Desktop storage; the default
 folder is `Documents/Synth Studio`. The regular
 Desktop file picker, conditional writes and conflict dialog are reused. Editing
@@ -95,9 +111,9 @@ limited to five minutes, 12,000 notes and 256 overlapping voices. Shorten or
 simplify the arrangement if this limit is reached.
 
 Project validation limits input to 5 MiB, sixteen tracks, 256 clips per track,
-50,000 note/controller events and bounded finite tick values. Unknown schema
+50,000 notes/controllers/automation points and bounded finite tick values. Unknown schema
 fields and unsupported project versions are rejected. Audio recording, audio
-clips, plug-ins, automation lanes and external MIDI output are outside this
+clips, plug-ins and external MIDI output are outside this
 version's scope.
 
 ## Maintenance and validation

@@ -180,3 +180,21 @@
  .ss-editor-header strong,.ss-editor-header>label {display:none}.ss-editor-header button {font-size:12px}
  .ss-workbench-tabs button {padding:5px 9px}.ss-welcome {padding:8px;gap:5px}
 }
+.ss-app .ss-performance-workbench{overflow:auto;padding:14px}
+.ss-app .ss-harmony,.ss-app .ss-generator-controls,.ss-app .ss-generator-actions,.ss-app .ss-preview{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
+.ss-app .ss-compose label{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px}
+.ss-app .ss-compose label:has(select),.ss-app .ss-compose label:has(input[type=range]){flex-direction:column;align-items:start}
+.ss-app .ss-compose input[type=text],.ss-app .ss-compose input[type=number]{width:70px}
+.ss-app .ss-compose input[type=range]{width:100px}
+.ss-app .ss-compose button,.ss-app .ss-compose select{min-height:36px}
+.ss-app .ss-chord-pads{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;margin:14px 0}
+.ss-app .ss-chord-pads button{min-height:64px;min-width:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--ss-bg);box-shadow:inset 0 -3px 0 #0003}
+.ss-app .ss-chord-pads span{font-size:10px;white-space:normal}
+.ss-app .ss-chord-pads [aria-pressed=true]{border-color:var(--ss-accent);box-shadow:inset 0 -3px 0 var(--ss-accent)}
+.ss-app .ss-compose details{border-block-start:1px solid var(--ss-border);padding:10px 0}
+.ss-app .ss-compose summary{font-size:13px;cursor:pointer;margin-bottom:8px}
+.ss-app .ss-preview{padding:12px;margin-top:8px;border:1px solid var(--ss-accent);border-radius:6px}
+.ss-app .ss-scale-row{position:absolute;left:0;right:0;background:color-mix(in srgb,var(--ss-accent) 7%,transparent);pointer-events:none}
+.ss-app .ss-keys button.is-scale{border-left:3px solid var(--ss-accent)}
+.ss-app .ss-editor-header button{font-size:13px}
+@container (max-width:540px){.ss-app .ss-chord-pads{grid-template-columns:repeat(4,minmax(0,1fr))}.ss-app .ss-generator-controls{gap:10px}.ss-app .ss-compose label{max-width:100%}}

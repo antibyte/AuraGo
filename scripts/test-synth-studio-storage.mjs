@@ -34,7 +34,7 @@ context.OfficeSession.draft = async (operation, key, value) => {
 vm.runInContext(readFileSync('ui/js/desktop/apps/synth-studio-storage.js', 'utf8'), context);
 vm.runInContext(readFileSync('ui/js/desktop/apps/synth-studio-model.js', 'utf8'), context);
 
-const makeProject = name => ({ version: 1, name });
+const makeProject = name => ({ version: 2, name });
 const rawValidationInputs = [];
 const validate = value => {
     let project = value;
@@ -43,8 +43,8 @@ const validate = value => {
         if (project.length > 5 * 1024 * 1024) throw new Error('project too large');
         project = JSON.parse(project);
     }
-    if (!project || project.version !== 1 || typeof project.name !== 'string') throw new Error('invalid project');
-    return { version: 1, name: project.name };
+    if (!project || ![1,2].includes(project.version) || typeof project.name !== 'string') throw new Error('invalid project');
+    return { version: project.version, name: project.name };
 };
 assert.throws(
     () => context.SynthStudioModel.validate(' '.repeat(5 * 1024 * 1024 + 1)),
@@ -201,4 +201,14 @@ assert.equal(loading.state.loading, false, 'loading clears after the project has
 assert.equal(loadingStates.at(-1), false);
 loading.dispose();
 
-console.log('Synth Studio storage: stable draft recovery, latest guard flush, clean Save As, stale-version protection, read-only open, and policy lifecycle pass');
+const legacyPath='Documents/Synth Studio/Legacy.aurasynth',copyPath='Documents/Synth Studio/Legacy.v2.aurasynth';
+const legacyContent=JSON.stringify({version:1,name:'Legacy'});files.set(legacyPath,{content:legacyContent,version:'"old"',counter:1});
+const legacyProject={current:makeProject('Default'),loads:[]},legacyContext=makeContext({windowId:'legacy',path:legacyPath,savePath:legacyPath});
+const migration=makeStorage(legacyContext,legacyProject,{onLoaded:p=>{if(p)legacyProject.current={...p,version:2};}});await migration.ready;
+assert.equal(migration.state.legacyCopy,true);legacyProject.current.name='Edited v2';migration.changed();
+await new Promise(r=>setTimeout(r,900));assert.equal(files.get(legacyPath).content,legacyContent,'legacy source is never autosaved');
+assert.equal(await migration.save(),false,'same-name migration is rejected');assert.equal(migration.state.dirty,true);
+legacyContext.saveFileDialog=async()=>({canceled:true});assert.equal(await migration.save(),false);assert.equal(files.get(legacyPath).content,legacyContent);
+legacyContext.saveFileDialog=async()=>({path:copyPath});assert.equal(await migration.save(),true);assert.equal(files.get(legacyPath).content,legacyContent);assert.equal(JSON.parse(files.get(copyPath).content).version,2);assert.equal(migration.state.legacyCopy,false);
+legacyProject.current.name='Autosave v2';migration.changed();assert.equal(await migration.save(),true);assert.equal(JSON.parse(files.get(copyPath).content).name,'Autosave v2');migration.dispose();
+console.log('Synth Studio storage: recovery, conflicts, policy and non-destructive v1 migration pass');

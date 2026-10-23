@@ -687,6 +687,13 @@
       };
     }
 
+    function scheduleNote(trackValue,pitch,velocity,at,duration) {
+      const track=resolveTrack(trackValue),state=stateFor(track);
+      const voice=voiceOn(track,pitch,velocity,Math.max(context.currentTime,at),state,true);
+      if(voice)releaseVoice(voice,Math.max(context.currentTime,at)+duration);
+      return () => { if(!voice)return;const now=context.currentTime;voice.voiceGain.gain.cancelScheduledValues(now);voice.voiceGain.gain.setValueAtTime(0,now);for(const source of voice.sources)try{source.stop(now+.006);}catch(_){} };
+    }
+
     function addController(trackValue, type, value) {
       if (!["sustain", "bend", "modulation"].includes(type)) return false;
       const track = resolveTrack(trackValue);
@@ -736,7 +743,7 @@
       }
     }
 
-    return { unlock, play, stop, currentTick, noteOn, addController, panic, setVolume, updateTracks, queueProject, pendingChange, dispose };
+    return { unlock, play, stop, currentTick, clock:()=>ensureContext().currentTime, scheduleNote, noteOn, addController, panic, setVolume, updateTracks, queueProject, pendingChange, dispose };
   }
 
   function checkRenderBudget(info, events, startTick, endTick, durationSeconds, secPerTick, seedEvents = events) {
