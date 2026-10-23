@@ -262,8 +262,8 @@ type MediaConversionConfig struct {
 	ReadOnly        bool   `yaml:"readonly"`         // block conversion writes when true; info remains allowed
 	FFmpegPath      string `yaml:"ffmpeg_path"`      // optional ffmpeg binary path override
 	ImageMagickPath string `yaml:"imagemagick_path"` // optional ImageMagick binary path override
-	TimeoutSeconds  int    `yaml:"timeout_seconds"`  // per-conversion timeout in seconds
-	MaxFileSizeMB   int    `yaml:"max_file_size_mb"` // max input file size in MB (0 = unlimited)
+	TimeoutSeconds  int    `yaml:"timeout_seconds"`  // per-conversion timeout in seconds (5..1800, 0 = default)
+	MaxFileSizeMB   int    `yaml:"max_file_size_mb"` // max input file size in MB (0 = unlimited, max 102400)
 }
 
 // VideoDownloadConfig holds settings for the video_download tool.

@@ -111,6 +111,9 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if err := config.ValidateLocalMusicConfig(&validateCfg); err != nil {
 		return nil, err
 	}
+	if err := config.ValidateMediaConversionConfig(&validateCfg.Tools.MediaConversion); err != nil {
+		return nil, err
+	}
 	if (s.Cfg.MusicGeneration.Enabled && s.Cfg.UsesLocalMusic() || localMusicStopPending(s)) && (!validateCfg.Docker.Enabled || validateCfg.Docker.ReadOnly) {
 		return nil, fmt.Errorf("disable local music and wait until stopped before disabling Docker mutations")
 	}
