@@ -5022,6 +5022,29 @@ function testDetectiveSourceTextLoadsOnExpand() {
   assert.match(app, /'\/source\?id=' \+ encodeURIComponent\(id\)/);
 }
 
+// Detective: polling backs off when nothing is running, pauses while the window is
+// hidden, and reads status plus events in one round trip (audit 4.1/4.18).
+function testDetectivePollingBacksOffAndPauses() {
+  const viewsSource = read('ui/js/desktop/apps/detective-views.js');
+  const context = { Map, Set, String, Number, Date, JSON, URL, window: {} };
+  vm.createContext(context);
+  vm.runInContext(`${viewsSource}\nglobalThis.views = window.DetectiveViews;`, context);
+  const views = context.views;
+  for (const status of ['queued', 'running', 'waiting_for_user']) {
+    assert.equal(views.pollDelay(status), 3000, `${status} polls every 3 s`);
+  }
+  for (const status of ['completed', 'partial', 'failed', 'draft', undefined]) {
+    assert.equal(views.pollDelay(status), 10000, `${status} backs off to 10 s`);
+  }
+
+  const app = read('ui/js/desktop/apps/detective.js');
+  assert.match(app, /'\/state\?after=' \+ after/, 'status and events share one request');
+  assert.doesNotMatch(app, /\/live'/, 'the app no longer polls /live separately');
+  assert.match(app, /if \(state\.disposed \|\| document\.hidden\) return;/, 'a hidden window does no work');
+  assert.match(app, /addEventListener\('visibilitychange', onVisibility/, 'becoming visible polls at once');
+  assert.match(app, /setTimeout\(poll, v\.pollDelay\(state\.current\?\.run\?\.status\)\)/);
+}
+
 const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
@@ -5095,6 +5118,7 @@ const tests = [
   ['Detective idempotency keys work without a secure context', testDetectiveIdempotencyKeyWithoutSecureContext],
   ['Detective Stop follows enabled, not ready', testDetectiveStopFollowsEnabledNotReady],
   ['Detective source text loads on expand', testDetectiveSourceTextLoadsOnExpand],
+  ['Detective polling backs off and pauses when hidden', testDetectivePollingBacksOffAndPauses],
   ['EasyDrag session keeps only valid flow ids', testEasyDragSessionKeepsOnlyValidFlowIds],
   ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
   ['Desktop event delivered over WebSocket and SSE is handled once', testDesktopEventDeliveredTwiceIsHandledOnce],

@@ -457,10 +457,15 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   with the existing search icon. All sixteen locales use `desktop.detective_*`.
 - `DetectiveApp` owns a per-window instance with cancellable polling. Disposal
   aborts that window's UI controller only; it does not stop the run. Research
-  remains owned by the server. While a case is open, one refresh chain polls
-  live status and new events every 3 seconds on every tab. Source text and the
-  report render again only when that data changes. A missing report and
-  `latest_revision` 0 are the same revision, so an empty report stays in place.
+  remains owned by the server. While a case is open, one refresh chain reads
+  `GET …/state?after=` (live view plus new events in one round trip) and the case
+  list, every 3 seconds while the case is queued, running or waiting, every 10
+  seconds otherwise (`v.pollDelay`). A hidden document does no work at all; the
+  `visibilitychange` listener polls once as soon as the window is visible again.
+  With the research form open only the first list load happens, never a poll.
+  Source text and the report render again only when that data changes. A missing
+  report and `latest_revision` 0 are the same revision, so an empty report stays in
+  place.
   An open source disclosure, a report text selection, scroll position, and a
   focused answer keep their text through a status-only poll. The reason
   paragraph tracks the live reason. `waiting_for_user` shows `.dt-answer` on

@@ -333,16 +333,27 @@
             return run;
         }
         async function load(redraw) {
-            const list = await request('/cases');
-            if (state.disposed) return;
-            state.cases = list.cases || [];
-            if (!state.current) { if (redraw && !host.querySelector('.dt-form')) draw(); return; }
+            if (!state.current) {
+                // Research form open: no case to poll. The list arrives once so the
+                // sidebar is filled, then stays until a case is selected again.
+                if (!state.cases.length) {
+                    const list = await request('/cases');
+                    if (state.disposed) return;
+                    state.cases = list.cases || [];
+                }
+                if (redraw && !host.querySelector('.dt-form')) draw();
+                return;
+            }
             const id = state.current.id;
-            const live = await request('/cases/' + id + '/live');
             const after = state.events.at(-1)?.id || 0;
-            const data = await request('/cases/' + id + '/events?after=' + after);
+            // One round trip for status and new events; the list stays for the sidebar.
+            const snapshot = await request('/cases/' + id + '/state?after=' + after);
             if (state.disposed || state.current?.id !== id) return;
-            const fresh = (data.events || []).filter(ev => ev.id > after);
+            const list = await request('/cases');
+            if (state.disposed || state.current?.id !== id) return;
+            state.cases = list.cases || [];
+            const live = snapshot.live || {};
+            const fresh = (snapshot.events || []).filter(ev => ev.id > after);
             state.events = [...state.events, ...fresh].slice(-500);
             const liveSourceID = live.latest_source_id || '';
             const sourcesChanged = state.latestSourceID !== liveSourceID;
@@ -361,11 +372,19 @@
             if (redraw) paint(sourcesChanged, reportChanged, fresh);
         }
         async function poll() {
-            if (state.disposed) return;
+            if (state.disposed || document.hidden) return;
             try { await refresh(true); }
             catch (err) { error(err); }
-            if (!state.disposed) state.timer = setTimeout(poll, 3000);
+            if (!state.disposed) state.timer = setTimeout(poll, v.pollDelay(state.current?.run?.status));
         }
+        // A hidden tab or minimized Desktop window does no work at all; becoming visible
+        // polls immediately instead of waiting for the next interval.
+        const onVisibility = () => {
+            if (state.disposed) return;
+            clearTimeout(state.timer);
+            if (!document.hidden) poll();
+        };
+        document.addEventListener('visibilitychange', onVisibility, {signal: controller.signal});
         host.addEventListener('submit', async ev => {
             if (!ev.target.matches('.dt-form')) return;
             ev.preventDefault();

@@ -41,8 +41,11 @@ provider/spending limits still apply.
   The effort control next to Deepen applies only to Deepen and to the first
   Start of a draft.
 - Closing the window leaves the server job running. Reopening restores the case.
-  An open window polls live status and new activity, and reloads source text or
-  the report only when that list changes.
+  An open window polls status and new activity in one request — every 3 seconds
+  while the case is queued, running or waiting for an answer, every 10 seconds
+  otherwise — and reloads the report only when its revision changes. A hidden or
+  minimized window does not poll at all and refreshes as soon as it is visible
+  again; source text loads when a source is opened.
 
 One case runs at a time; additional cases queue. The app shows actual tool,
 source and time counters, concise plans, retrieved sources and recorded findings.
@@ -174,7 +177,9 @@ The case API includes `auto_update`, archive counts and the latest revision. A c
 response stays bounded: sources carry metadata only (no excerpt) and the case-level
 `findings` are omitted; source text comes from `GET .../source?id=` and findings from
 `GET .../findings`. Live status comes from the bounded summary table, so polling does
-not touch the evidence.
+not touch the evidence. `GET .../state?after=<event id>` returns the live view, the new
+activity and the next cursor in one response; `GET .../live` and `GET .../events`
+remain available.
 `PUT /api/desktop/detective/cases/{id}/auto-update` accepts `enabled`,
 `interval_hours`, `report_style` (`append`/`rewrite`) and `effort`
 (`quick`/`normal`/`maximum`). GET `reports`, `sources` and `findings` below that case

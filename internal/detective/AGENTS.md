@@ -15,12 +15,14 @@ and tool dispatch; Desktop adapters own UI state.
 - Live status and existence checks do not load the evidence body. `Live` and
   `ListSummaries` read `detective_summaries`, which `saveCaseTx` writes from
   `caseSummary`; a missing row (a case written before version 4) is projected from
-  the body once. The summary has its own table and the case row keeps `body` as its
-  last column, because SQLite walks the overflow chain of a large value for every
-  column stored after it. The server prompt copy includes the bounded working
-  findings, with text limited to 500 runes and quotes to 240. Update prompts include
-  a bounded report preview and recent archived findings. Case-scoped `history`
-  retrieves older evidence.
+  the body once. `GET .../state?after=` merges the live view with the event page and
+  returns the next cursor; the separate `/live` and `/events` routes stay for
+  compatibility but the Desktop app polls the merged one. The summary has its own
+  table and the case row keeps `body` as its last column, because SQLite walks the
+  overflow chain of a large value for every column stored after it. The server prompt
+  copy includes the bounded working findings, with text limited to 500 runes and
+  quotes to 240. Update prompts include a bounded report preview and recent archived
+  findings. Case-scoped `history` retrieves older evidence.
 - `detective_cases.active_ms` wins over the JSON value when the column is greater.
   Restart selects running/queued cases from the `status` column (never by decoding
   every body) and loads each one with `getLocked` before saving `interrupted` /

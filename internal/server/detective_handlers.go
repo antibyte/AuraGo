@@ -347,6 +347,31 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		detectiveJSON(w, 200, view)
+	case "state":
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", 405)
+			return
+		}
+		after, _ := strconv.ParseInt(r.URL.Query().Get("after"), 10, 64)
+		if after < 0 {
+			detectiveError(w, errors.New("invalid event cursor"))
+			return
+		}
+		view, err := s.Detective.Live(key)
+		if err != nil {
+			detectiveError(w, err)
+			return
+		}
+		events, err := s.Detective.Events(key, after)
+		if err != nil {
+			detectiveError(w, err)
+			return
+		}
+		next := after
+		if n := len(events); n > 0 {
+			next = events[n-1].ID
+		}
+		detectiveJSON(w, 200, map[string]any{"live": view, "events": events, "next": next})
 	case "run":
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", 405)

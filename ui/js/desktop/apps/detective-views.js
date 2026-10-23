@@ -55,5 +55,9 @@
     // Stop is a state write on the server, not provider work: it stays available whenever the
     // integration is enabled, even if the research runner is not ready yet.
     function canStop(caps) { return !!(caps && caps.enabled); }
-    window.DetectiveViews = { esc, report, sources, activity, activityItems, autoSettings, autoStatus, knownReports, chosenReport, canStop };
+    // Polling: a case that is queued, running or waiting for an answer needs a short
+    // interval; anything else can wait. A hidden window does not poll at all.
+    const ACTIVE_RUN_STATUSES = ['queued', 'running', 'waiting_for_user'];
+    function pollDelay(status) { return ACTIVE_RUN_STATUSES.includes(status) ? 3000 : 10000; }
+    window.DetectiveViews = { esc, report, sources, activity, activityItems, autoSettings, autoStatus, knownReports, chosenReport, canStop, pollDelay };
 })();
