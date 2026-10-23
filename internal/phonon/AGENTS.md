@@ -27,6 +27,8 @@ UI owns the state-backed picker and explicit download action.
 ## Work Guidance
 Use the standard-library preparation helper. Do not add Python or heavy ML runtime
 requirements to Phonon inference; the packaging helper is maintainer-only.
+Keep prepared `deploy/phonon` inputs through release cleanup; clean worktrees must
+receive these ignored inputs before running a release builder.
 
 ## Verification
 `go test ./internal/phonon` covers catalog defaults, download integrity/cancellation

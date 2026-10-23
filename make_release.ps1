@@ -79,7 +79,9 @@ if ([string]::IsNullOrEmpty($scriptDir)) {
 Set-Location $scriptDir
 
 if (Test-Path "deploy") {
-    Remove-Item -Recurse -Force "deploy"
+    Get-ChildItem -LiteralPath 'deploy' -Force |
+        Where-Object { $_.Name -notin @('docker', 'phonon') } |
+        ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }
 }
 New-Item -ItemType Directory -Force -Path "deploy" | Out-Null
 if (-not (Test-Path "bin")) {

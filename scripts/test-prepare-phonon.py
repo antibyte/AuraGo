@@ -4,6 +4,9 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import re
+import shutil
+import subprocess
 import tarfile
 import tempfile
 import unittest
@@ -16,6 +19,29 @@ spec.loader.exec_module(prepare)
 
 
 class PhononPreparationTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("powershell"), "Windows release cleanup requires PowerShell")
+    def test_windows_release_cleanup_preserves_prepared_resources(self):
+        for script in ("make_release.bat", "make_release.ps1"):
+            with self.subTest(script=script), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                keep = ("deploy/phonon/model/checkpoint.bin", "deploy/docker/Dockerfile")
+                stale = ("deploy/old [version].dat", "deploy/old-runtime/ptts")
+                for name in keep + stale:
+                    path = root / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(b"fixture")
+                source = (prepare.REPO / script).read_text(encoding="utf-8")
+                if script.endswith(".bat"):
+                    match = re.search(r'^powershell .*?-command "([^"]*Get-ChildItem[^\n]*)"$', source, re.M)
+                else:
+                    match = re.search(r'(^if \(Test-Path "deploy"\) \{.*?^New-Item[^\n]*"deploy"[^\n]*)', source, re.M | re.S)
+                self.assertIsNotNone(match, "release cleanup block not found")
+                subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", "$ErrorActionPreference='Stop'; " + match[1]], cwd=root, check=True, capture_output=True)
+                for name in keep:
+                    self.assertEqual((root / name).read_bytes(), b"fixture")
+                for name in stale:
+                    self.assertFalse((root / name).exists())
+
     def test_failed_atomic_write_keeps_previous_resource_and_cleans_temp(self):
         with tempfile.TemporaryDirectory() as directory:
             destination = Path(directory) / "resource.bin"

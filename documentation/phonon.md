@@ -60,6 +60,9 @@ network access. `--pack` produces `deploy/phonon-model.dat` and five
 `deploy/phonon-runtime_<os>_<arch>.dat` archives. Release builders require these
 verified resources before publication and include them in the release checksums.
 Only manifest-listed files and required notices enter the packages.
+Release cleanup retains the prepared `deploy/phonon` directory. When building in
+a clean worktree, copy that ignored directory from the prepared checkout first;
+the builder verifies it again before packaging.
 The model/voice archive is about 67 MB compressed; adding one native runtime
 brings the installation download to about 75–77 MB, depending on the platform.
 The Docker publishing workflow reuses the model package from the corresponding

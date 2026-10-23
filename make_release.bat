@@ -112,7 +112,7 @@ echo.
 
 REM -- Prepare output dirs
 if not exist deploy mkdir deploy
-powershell -nologo -noprofile -command "Get-ChildItem -LiteralPath 'deploy' -Force | Where-Object { $_.Name -ne 'docker' } | Remove-Item -Recurse -Force"
+powershell -nologo -noprofile -command "Get-ChildItem -LiteralPath 'deploy' -Force | Where-Object { $_.Name -notin @('docker', 'phonon') } | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }"
 if errorlevel 1 (
     echo [ERROR] Failed to clean generated deploy artifacts.
     exit /b 1
