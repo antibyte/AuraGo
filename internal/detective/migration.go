@@ -89,6 +89,9 @@ CREATE TABLE detective_reports(case_id TEXT NOT NULL,revision INTEGER NOT NULL,b
 		}
 		for _, r := range c.Reports {
 			c.LatestRevision = max(c.LatestRevision, r.Revision)
+			if !r.Partial && !r.Provisional {
+				c.LatestCompleteRevision = max(c.LatestCompleteRevision, r.Revision)
+			}
 		}
 		if len(c.Reports) > 0 {
 			c.Reports = c.Reports[len(c.Reports)-1:]

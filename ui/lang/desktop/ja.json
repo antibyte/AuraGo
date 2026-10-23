@@ -143,6 +143,8 @@
   "desktop.detective_error_pdf_unsupported_font": "PDF はこのレポートの一部（アラビア語、デーヴァナーガリー、ヘブライ語、CJK、絵文字）を表示できません。代わりに Word か Markdown をお使いください。",
   "desktop.detective_error_copy_exists": "この名前のコピーはすでに存在します。",
   "desktop.detective_pdf_hint": "PDF にはアラビア語・デーヴァナーガリー・ヘブライ語・絵文字がありません。Word か Markdown をお使いください。",
+  "desktop.detective_provisional": "暫定",
+  "desktop.detective_provisional_notice": "このリビジョンは暫定的な部分レポートです。最後の完全なレポートが既定のままです。",
   "stickers.title": "ステッカー",
   "stickers.search": "ステッカーを検索",
   "stickers.category": "すべてのカテゴリ",

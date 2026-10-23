@@ -146,8 +146,15 @@ selected edition and its additions. Export assembly is limited to 4096 segments
 and 16 MiB of report data, output to 32 MiB, and requests to 60 seconds. Oversized
 editions return an explicit error; choose an earlier edition or a new full rewrite.
 
-The built-in PDF renderer embeds Go fonts and requires no Docker service. It
-covers Latin, Greek and Cyrillic; Arabic, Devanagari, Hebrew, CJK and emoji are
+A continue, deepen or update that ends without a full report may keep its findings as a
+**provisional** partial revision. It is listed in the revision selector, can be
+exported, and never becomes the default: the app shows the last full report with a
+notice and a button to the provisional revision. Automatic updates and append bases
+always continue from the last full report, so a failed deepen neither blocks the
+schedule nor makes the partial result the baseline.
+
+The built-in PDF renderer embeds Go fonts and requires no Docker service. It covers
+Latin, Greek and Cyrillic; Arabic, Devanagari, Hebrew, CJK and emoji are
 refused instead of producing a damaged PDF. Detective does not call the Document
 Creator or Gotenberg — the built-in writer is the only PDF path — so the app warns
 before the click: `GET /api/desktop/detective/capabilities` reports `pdf_backend`

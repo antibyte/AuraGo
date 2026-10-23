@@ -509,7 +509,11 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   (`disabled`, `read_only`, `initializing`) through `desktop.detective_block_*`.
 - The revision selection is view state: `knownReports`/`chosenReport` in
   `detective-views.js` merge current reports, history and the pinned report, and a
-  revision that is not in that set falls back to the newest one. `resetArchive()`
+  revision that is not in that set falls back to the newest one. A provisional revision (the
+  partial a failed continue, deepen or update keeps) never becomes the default:
+  `chosenReport` prefers the newest non-provisional revision, the selector marks it,
+  and the report tab shows `desktop.detective_provisional_notice` with a button to the
+  last full revision. `resetArchive()`
   clears `state.revision` (case switch, "New", and after creating a case, which also
   opens the report tab), so a stale selection can never leave the export bar without
   a report. Test it without a DOM in `scripts/test-ui-regressions.mjs`.

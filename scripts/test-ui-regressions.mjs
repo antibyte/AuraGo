@@ -5079,6 +5079,25 @@ function testDetectiveErrorsAndExportFormats() {
   assert.match(app, /aria-describedby="\$\{hintID\}"/);
 }
 
+// Detective: a provisional partial report never becomes the default revision, and an
+// explicit selection still reaches it (audit 4.14).
+function testDetectiveProvisionalRevisionStaysOutOfTheDefault() {
+  const viewsSource = read('ui/js/desktop/apps/detective-views.js');
+  const context = { Map, Set, String, Number, Date, JSON, URL, window: {} };
+  vm.createContext(context);
+  vm.runInContext(`${viewsSource}\nglobalThis.views = window.DetectiveViews;`, context);
+  const views = context.views;
+  const current = { latest_complete_revision: 3, reports: [{ revision: 3, partial: false }, { revision: 4, partial: true, provisional: true }] };
+  assert.equal(views.chosenReport(current, 0, [], null).revision, 3, 'the last full report stays the default');
+  assert.equal(views.chosenReport(current, 4, [], null).revision, 4, 'an explicit selection reaches the provisional revision');
+  assert.equal(views.chosenReport({ reports: [{ revision: 2, partial: true, provisional: true }] }, 0, [], null).revision, 2, 'without a full report the provisional one is shown');
+
+  const app = read('ui/js/desktop/apps/detective.js');
+  assert.match(app, /function provisionalNotice\(\)/);
+  assert.match(app, /tr\('provisional_notice'\)/);
+  assert.match(app, /x\.provisional \? ' · ' \+ e\(tr\('provisional'\)\)/);
+}
+
 const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
@@ -5154,6 +5173,7 @@ const tests = [
   ['Detective source text loads on expand', testDetectiveSourceTextLoadsOnExpand],
   ['Detective polling backs off and pauses when hidden', testDetectivePollingBacksOffAndPauses],
   ['Detective errors and export formats follow the API codes', testDetectiveErrorsAndExportFormats],
+  ['Detective provisional reports stay out of the default', testDetectiveProvisionalRevisionStaysOutOfTheDefault],
   ['EasyDrag session keeps only valid flow ids', testEasyDragSessionKeepsOnlyValidFlowIds],
   ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
   ['Desktop event delivered over WebSocket and SSE is handled once', testDesktopEventDeliveredTwiceIsHandledOnce],

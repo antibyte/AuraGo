@@ -72,7 +72,7 @@ func (s *Service) startLocked(key, action, effort, requestKey string, answers ..
 			return c, ErrConflict
 		}
 	case "update":
-		if !c.AutoUpdate.Enabled || c.LatestRevision == 0 {
+		if !c.AutoUpdate.Enabled || c.completeRevision() == 0 {
 			return c, ErrConflict
 		}
 	default:
@@ -91,7 +91,7 @@ func (s *Service) startLocked(key, action, effort, requestKey string, answers ..
 		}
 		c.Run = Run{ID: id("run_"), Profile: p, Phase: "research"}
 		if action == "update" {
-			c.Run.Automatic, c.Run.BaseRevision, c.Run.ReportStyle = true, c.LatestRevision, c.AutoUpdate.ReportStyle
+			c.Run.Automatic, c.Run.BaseRevision, c.Run.ReportStyle = true, c.completeRevision(), c.AutoUpdate.ReportStyle
 			c.Sources, c.Findings, c.Plan = []Source{}, []Finding{}, nil
 		}
 	}
@@ -499,7 +499,10 @@ func (x *Session) complete(runErr error) error {
 				nextUpdate(c, x.service.now())
 			}
 		} else if len(c.Findings) > 0 {
-			report := Report{Title: c.Request.Topic, Summary: "Partial research findings", Partial: true, Limitations: reason}
+			// A continue/decrease/update run that ends without a full report may keep its
+			// findings, but the result must not replace the last complete report as the
+			// default revision (audit 4.14).
+			report := Report{Title: c.Request.Topic, Summary: "Partial research findings", Partial: true, Provisional: c.Run.BaseRevision > 0, Limitations: reason}
 			for _, f := range c.Findings {
 				report.Blocks = append(report.Blocks, Block{Type: "paragraph", Text: f.Text, Evidence: []string{f.ID}})
 			}

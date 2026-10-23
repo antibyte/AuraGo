@@ -143,6 +143,8 @@
   "desktop.detective_error_pdf_unsupported_font": "PDF nie potrafi renderować części tego raportu (arabski, dewanagari, hebrajski, CJK lub emoji). Użyj zamiast tego Worda lub Markdown.",
   "desktop.detective_error_copy_exists": "Kopia o tej nazwie już istnieje.",
   "desktop.detective_pdf_hint": "W PDF brakuje arabskiego, dewanagari, hebrajskiego i emoji – użyj Worda lub Markdown.",
+  "desktop.detective_provisional": "wstępna",
+  "desktop.detective_provisional_notice": "Ta rewizja to wstępny raport częściowy. Ostatni pełny raport pozostaje domyślny.",
   "stickers.title": "Naklejki",
   "stickers.search": "Szukaj naklejek",
   "stickers.category": "Wszystkie kategorie",

@@ -110,13 +110,19 @@
             const reason = reasonText(r.reason);
             return `<h2>${e(c.request.topic)}</h2><div><strong>${e(tr(r.status))}</strong><span>${e(tr(r.phase || 'research'))}</span><span>${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} min · ${usage.tools || 0}/${p.tools || 0} ${e(tr('tools'))} · ${usage.pages || 0} ${e(tr('sources'))}</span></div>${reason ? `<p>${e(reason)}</p>` : ''}<div class="dt-actions"${blockText() ? ` title="${e(blockText())}"` : ''}>${actionsHTML(c, ro)}</div>${r.status === 'waiting_for_user' ? answerFieldHTML() : ''}`;
         }
+        function provisionalNotice() {
+            const report = chosenReport();
+            if (!report?.provisional) return '';
+            const complete = state.current?.latest_complete_revision || 0;
+            return `<p class="dt-hint dt-provisional">${e(tr('provisional_notice'))}${complete ? ` <button data-revision="${complete}">${e(tr('revision'))} ${complete}</button>` : ''}</p>`;
+        }
         function exportHTML(c, ro) {
             const revisions = knownReports(), chosen = chosenReport() || revisions.at(-1);
             if (!revisions.length || !chosen) return '';
             const formats = v.formats(state.caps), hintID = `dt-pdf-hint-${state.id}`;
             const links = formats.map(f => `<a class="dt-download" href="${base}/cases/${encodeURIComponent(c.id)}/export?revision=${chosen.revision}&format=${f.id}"${f.hint ? ` aria-describedby="${hintID}"` : ''}>${f.label}</a>`).join('');
             const hint = formats.some(f => f.hint) ? `<span class="dt-hint" id="${hintID}">${e(tr('pdf_hint'))}</span>` : '';
-            return `<label>${e(tr('revision'))}<select class="dt-revision">${revisions.map(x => `<option value="${x.revision}" ${x === chosen ? 'selected' : ''}>${x.revision}${x.partial ? ' · ' + e(tr('partial')) : ''}</option>`).join('')}</select></label>${links}${hint}<button data-do="autor" ${ro ? 'disabled' : ''}>${e(tr('autor'))}</button>`;
+            return `<label>${e(tr('revision'))}<select class="dt-revision">${revisions.map(x => `<option value="${x.revision}" ${x === chosen ? 'selected' : ''}>${x.revision}${x.partial ? ' · ' + e(tr('partial')) : ''}${x.provisional ? ' · ' + e(tr('provisional')) : ''}</option>`).join('')}</select></label>${links}${hint}<button data-do="autor" ${ro ? 'disabled' : ''}>${e(tr('autor'))}</button>`;
         }
         function linkedExportRevision() {
             const link = host.querySelector('.dt-export a.dt-download');
@@ -149,7 +155,7 @@
             if (state.tab === 'history') return `<div class="dt-history">${history.map(r => `<button data-revision="${r.revision}"><b>${e(tr('revision'))} ${r.revision}</b><span>${e(new Date(r.created_at).toLocaleString())}</span><span>${e(r.title)}</span></button>`).join('')}${!historyLoaded || historyNext ? `<button data-do="history-more">${e(tr('archive_more'))}</button>` : ''}</div>`;
             const parts = reportParts.length ? reportParts : [chosenReport()];
             const baseRevision = parts[0]?.base_revision || 0;
-            return `${baseRevision ? `<button data-base-revision="${baseRevision}">${e(tr('archive_previous'))}</button>` : ''}${parts.map(r => v.report(r, tr)).join('')}`;
+            return `${provisionalNotice()}${baseRevision ? `<button data-base-revision="${baseRevision}">${e(tr('archive_previous'))}</button>` : ''}${parts.map(r => v.report(r, tr)).join('')}`;
         }
         function caseMainHTML(c, ro) {
             const tabs = ['report', 'sources', 'activity', 'history'].map(tab => `<button data-tab="${tab}" aria-pressed="${state.tab === tab}">${e(tr(tab))}${tab === 'sources' ? ` (${c.source_count || (c.sources || []).length})` : ''}</button>`).join('');

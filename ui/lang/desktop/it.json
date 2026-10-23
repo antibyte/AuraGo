@@ -143,6 +143,8 @@
   "desktop.detective_error_pdf_unsupported_font": "Il PDF non riesce a renderizzare una parte di questo rapporto (arabo, devanagari, ebraico, CJK o emoji). Usa invece Word o Markdown.",
   "desktop.detective_error_copy_exists": "Esiste già una copia con questo nome.",
   "desktop.detective_pdf_hint": "Nel PDF mancano arabo, devanagari, ebraico ed emoji: usa Word o Markdown.",
+  "desktop.detective_provisional": "provvisoria",
+  "desktop.detective_provisional_notice": "Questa revisione è un rapporto parziale provvisorio. L'ultimo rapporto completo resta quello predefinito.",
   "stickers.title": "Adesivi",
   "stickers.search": "Cerca adesivi",
   "stickers.category": "Tutte le categorie",

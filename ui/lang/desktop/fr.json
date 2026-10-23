@@ -143,6 +143,8 @@
   "desktop.detective_error_pdf_unsupported_font": "Le PDF ne peut pas restituer une partie de ce rapport (arabe, devanagari, hébreu, CJK ou emoji). Utilise plutôt Word ou Markdown.",
   "desktop.detective_error_copy_exists": "Une copie portant ce nom existe déjà.",
   "desktop.detective_pdf_hint": "L'arabe, le devanagari, l'hébreu et les emojis manquent dans le PDF : utilise Word ou Markdown.",
+  "desktop.detective_provisional": "provisoire",
+  "desktop.detective_provisional_notice": "Cette révision est un rapport partiel provisoire. Le dernier rapport complet reste celui par défaut.",
   "stickers.title": "Autocollants",
   "stickers.search": "Rechercher des autocollants",
   "stickers.category": "Toutes les catégories",

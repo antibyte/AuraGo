@@ -143,6 +143,8 @@
   "desktop.detective_error_pdf_unsupported_font": "PDF 无法呈现此报告的部分内容（阿拉伯语、天城文、希伯来语、CJK 或表情符号）。请改用 Word 或 Markdown。",
   "desktop.detective_error_copy_exists": "同名副本已存在。",
   "desktop.detective_pdf_hint": "PDF 不支持阿拉伯语、天城文、希伯来语和表情符号——请使用 Word 或 Markdown。",
+  "desktop.detective_provisional": "临时",
+  "desktop.detective_provisional_notice": "此修订是临时的部分报告。最后一份完整报告仍为默认。",
   "stickers.title": "贴纸",
   "stickers.search": "搜索贴纸",
   "stickers.category": "所有类别",

@@ -143,6 +143,8 @@
   "desktop.detective_error_pdf_unsupported_font": "El PDF no puede representar una parte de este informe (árabe, devanagari, hebreo, CJK o emoji). Usa Word o Markdown en su lugar.",
   "desktop.detective_error_copy_exists": "Ya existe una copia con este nombre.",
   "desktop.detective_pdf_hint": "En el PDF faltan el árabe, el devanagari, el hebreo y los emojis: usa Word o Markdown.",
+  "desktop.detective_provisional": "provisional",
+  "desktop.detective_provisional_notice": "Esta revisión es un informe parcial provisional. El último informe completo sigue siendo el predeterminado.",
   "stickers.title": "Pegatinas",
   "stickers.search": "Buscar pegatinas",
   "stickers.category": "Todas las categorías",

@@ -143,6 +143,8 @@
   "desktop.detective_error_pdf_unsupported_font": "PDF kan inte återge en del av rapporten (arabiska, devanagari, hebreiska, CJK eller emoji). Använd Word eller Markdown i stället.",
   "desktop.detective_error_copy_exists": "Det finns redan en kopia med det här namnet.",
   "desktop.detective_pdf_hint": "Arabiska, devanagari, hebreiska och emoji saknas i PDF – använd Word eller Markdown.",
+  "desktop.detective_provisional": "preliminär",
+  "desktop.detective_provisional_notice": "Den här revisionen är en preliminär delrapport. Den senaste fullständiga rapporten är fortfarande standard.",
   "stickers.title": "Klistermärken",
   "stickers.search": "Sök klistermärken",
   "stickers.category": "Alla kategorier",

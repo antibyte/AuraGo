@@ -6,18 +6,19 @@ package detective
 // backfills every row through it and a test asserts the stored value equals the
 // projection of the loaded case.
 type CaseSummary struct {
-	Status         string     `json:"status"`
-	Phase          string     `json:"phase"`
-	Reason         string     `json:"reason,omitempty"`
-	Effort         string     `json:"effort"`
-	Topic          string     `json:"topic"`
-	Usage          Usage      `json:"usage"`
-	Profile        Profile    `json:"profile"`
-	Sources        int        `json:"sources"`
-	Findings       int        `json:"findings"`
-	LatestRevision int        `json:"latest_revision"`
-	LatestSourceID string     `json:"latest_source_id,omitempty"`
-	AutoUpdate     AutoUpdate `json:"auto_update"`
+	Status                 string     `json:"status"`
+	Phase                  string     `json:"phase"`
+	Reason                 string     `json:"reason,omitempty"`
+	Effort                 string     `json:"effort"`
+	Topic                  string     `json:"topic"`
+	Usage                  Usage      `json:"usage"`
+	Profile                Profile    `json:"profile"`
+	Sources                int        `json:"sources"`
+	Findings               int        `json:"findings"`
+	LatestRevision         int        `json:"latest_revision"`
+	LatestCompleteRevision int        `json:"latest_complete_revision,omitempty"`
+	LatestSourceID         string     `json:"latest_source_id,omitempty"`
+	AutoUpdate             AutoUpdate `json:"auto_update"`
 }
 
 func caseSummary(c *Case) CaseSummary {
@@ -33,18 +34,19 @@ func caseSummary(c *Case) CaseSummary {
 		latestSource = c.Sources[len(c.Sources)-1].ID
 	}
 	return CaseSummary{
-		Status:         c.Run.Status,
-		Phase:          c.Run.Phase,
-		Reason:         c.Run.Reason,
-		Effort:         c.Request.Effort,
-		Topic:          c.Request.Topic,
-		Usage:          c.Run.Usage,
-		Profile:        c.Run.Profile,
-		Sources:        sources,
-		Findings:       findings,
-		LatestRevision: c.LatestRevision,
-		LatestSourceID: latestSource,
-		AutoUpdate:     c.AutoUpdate,
+		Status:                 c.Run.Status,
+		Phase:                  c.Run.Phase,
+		Reason:                 c.Run.Reason,
+		Effort:                 c.Request.Effort,
+		Topic:                  c.Request.Topic,
+		Usage:                  c.Run.Usage,
+		Profile:                c.Run.Profile,
+		Sources:                sources,
+		Findings:               findings,
+		LatestRevision:         c.LatestRevision,
+		LatestCompleteRevision: c.completeRevision(),
+		LatestSourceID:         latestSource,
+		AutoUpdate:             c.AutoUpdate,
 	}
 }
 
@@ -56,19 +58,20 @@ func liveView(id string, activeMS int64, sum CaseSummary) LiveView {
 		usage.ActiveMS = activeMS
 	}
 	return LiveView{
-		ID:             id,
-		Status:         sum.Status,
-		Phase:          sum.Phase,
-		Reason:         sum.Reason,
-		Effort:         sum.Effort,
-		Topic:          sum.Topic,
-		Usage:          usage,
-		Profile:        sum.Profile,
-		Sources:        sum.Sources,
-		Findings:       sum.Findings,
-		LatestRevision: sum.LatestRevision,
-		LatestSourceID: sum.LatestSourceID,
-		AutoUpdate:     sum.AutoUpdate,
+		ID:                     id,
+		Status:                 sum.Status,
+		Phase:                  sum.Phase,
+		Reason:                 sum.Reason,
+		Effort:                 sum.Effort,
+		Topic:                  sum.Topic,
+		Usage:                  usage,
+		Profile:                sum.Profile,
+		Sources:                sum.Sources,
+		Findings:               sum.Findings,
+		LatestRevision:         sum.LatestRevision,
+		LatestCompleteRevision: sum.LatestCompleteRevision,
+		LatestSourceID:         sum.LatestSourceID,
+		AutoUpdate:             sum.AutoUpdate,
 	}
 }
 
@@ -80,13 +83,14 @@ func summaryCase(id string, activeMS int64, sum CaseSummary) Case {
 		usage.ActiveMS = activeMS
 	}
 	return Case{
-		ID:             id,
-		Request:        Request{Topic: sum.Topic, Effort: sum.Effort, AutoUpdate: sum.AutoUpdate.AutoUpdateSettings},
-		Run:            Run{Status: sum.Status, Phase: sum.Phase, Reason: sum.Reason, Usage: usage, Profile: sum.Profile},
-		AutoUpdate:     sum.AutoUpdate,
-		LatestRevision: sum.LatestRevision,
-		SourceCount:    sum.Sources,
-		FindingCount:   sum.Findings,
-		LatestSourceID: sum.LatestSourceID,
+		ID:                     id,
+		Request:                Request{Topic: sum.Topic, Effort: sum.Effort, AutoUpdate: sum.AutoUpdate.AutoUpdateSettings},
+		Run:                    Run{Status: sum.Status, Phase: sum.Phase, Reason: sum.Reason, Usage: usage, Profile: sum.Profile},
+		AutoUpdate:             sum.AutoUpdate,
+		LatestRevision:         sum.LatestRevision,
+		LatestCompleteRevision: sum.LatestCompleteRevision,
+		SourceCount:            sum.Sources,
+		FindingCount:           sum.Findings,
+		LatestSourceID:         sum.LatestSourceID,
 	}
 }

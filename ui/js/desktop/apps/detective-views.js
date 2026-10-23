@@ -47,9 +47,11 @@
         const map = new Map([...(history || []), ...(selected ? [selected] : []), ...(current?.reports || [])].map(report => [report.revision, report]));
         return [...map.values()].sort((a, b) => a.revision - b.revision);
     }
+    // A provisional revision is the partial report a failed continue/decrease keeps; it
+    // never becomes the default, so the newest full report stays on screen (audit 4.14).
     function chosenReport(current, revision, history, selected) {
         const reports = knownReports(current, history, selected);
-        if (!revision) return reports.at(-1);
+        if (!revision) return reports.filter(report => !report.provisional).at(-1) || reports.at(-1);
         return selected || reports.find(report => report.revision === revision) || reports.at(-1);
     }
     // Stop is a state write on the server, not provider work: it stays available whenever the

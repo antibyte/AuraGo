@@ -40,6 +40,13 @@ and tool dispatch; Desktop adapters own UI state.
   exports. Publication validates references against server-recorded retrievals.
 - Research output is untrusted data. Never render raw HTML or treat a cited URL
   as proof of retrieval. Partial results retain an explicit termination reason.
+- A revision is complete only when a full report was published: `sealReport` and
+  `Submit` maintain `Case.LatestCompleteRevision`, and the automatic append base,
+  `startLocked("update")`, `SetAutoUpdate` and `nextUpdate` use it instead of
+  `LatestRevision`. `complete()` marks the partial it writes for a non-initial run
+  (base revision > 0) as `Provisional`, so a failed deep/deepen keeps the last full
+  report as the default; the provisional revision stays addressable and exportable.
+  `completeRevision()` derives the value for rows written before the field existed.
 - Every export binds an immutable report revision and uses the same content. Export
   refusals carry sentinels (`ErrExportFormat`, `ErrExportTooLarge`, `ErrPDFFont`) and
   the server maps them to the codes `unsupported_format`, `export_too_large` and

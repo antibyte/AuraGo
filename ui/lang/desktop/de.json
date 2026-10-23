@@ -143,6 +143,8 @@
   "desktop.detective_error_pdf_unsupported_font": "PDF kann einen Teil dieses Berichts nicht darstellen (Arabisch, Devanagari, Hebräisch, CJK oder Emojis). Nutze stattdessen Word oder Markdown.",
   "desktop.detective_error_copy_exists": "Eine Kopie mit diesem Namen existiert bereits.",
   "desktop.detective_pdf_hint": "Arabisch, Devanagari, Hebräisch und Emojis fehlen im PDF – nutze Word oder Markdown.",
+  "desktop.detective_provisional": "vorläufig",
+  "desktop.detective_provisional_notice": "Diese Revision ist ein vorläufiger Teilbericht. Der letzte vollständige Bericht bleibt der Standard.",
   "stickers.title": "Sticker",
   "stickers.search": "Sticker suchen",
   "stickers.category": "Alle Bereiche",

@@ -225,6 +225,9 @@ func ValidateReport(c Case, r Report) error {
 func sealReport(c *Case, r *Report, now time.Time) {
 	r.Revision = c.LatestRevision + 1
 	c.LatestRevision = r.Revision
+	if !r.Partial && !r.Provisional {
+		c.LatestCompleteRevision = r.Revision
+	}
 	r.CreatedAt = now.UTC()
 	r.Findings = append([]Finding(nil), c.Findings...)
 	sources, _ := reportSources(Report{Blocks: r.Blocks, Findings: r.Findings, Sources: c.Sources})
@@ -271,6 +274,9 @@ func (x *Session) Submit(r Report) error {
 		}
 		r.Revision, r.CreatedAt = c.LatestRevision+1, x.service.now().UTC()
 		c.LatestRevision = r.Revision
+		if !r.Partial && !r.Provisional {
+			c.LatestCompleteRevision = r.Revision
+		}
 		c.Reports = []Report{r}
 		c.pendingReports = append(c.pendingReports, r)
 		c.Run.Phase = "finished"

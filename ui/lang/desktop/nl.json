@@ -143,6 +143,8 @@
   "desktop.detective_error_pdf_unsupported_font": "PDF kan een deel van dit rapport niet weergeven (Arabisch, Devanagari, Hebreeuws, CJK of emoji). Gebruik in plaats daarvan Word of Markdown.",
   "desktop.detective_error_copy_exists": "Er bestaat al een kopie met deze naam.",
   "desktop.detective_pdf_hint": "Arabisch, Devanagari, Hebreeuws en emoji ontbreken in PDF – gebruik Word of Markdown.",
+  "desktop.detective_provisional": "voorlopig",
+  "desktop.detective_provisional_notice": "Deze revisie is een voorlopig deelrapport. Het laatste volledige rapport blijft de standaard.",
   "stickers.title": "Stickers",
   "stickers.search": "Stickers zoeken",
   "stickers.category": "Alle categorieën",

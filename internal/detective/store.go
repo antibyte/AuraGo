@@ -293,20 +293,21 @@ func (s *Service) List() ([]Case, error) {
 func (s *Service) ListSummaries() ([]Case, error) { return s.list(true) }
 
 type LiveView struct {
-	ID             string     `json:"id"`
-	UpdatedAt      time.Time  `json:"updated_at"`
-	Status         string     `json:"status"`
-	Phase          string     `json:"phase"`
-	Reason         string     `json:"reason"`
-	Effort         string     `json:"effort"`
-	Topic          string     `json:"topic"`
-	Usage          Usage      `json:"usage"`
-	Profile        Profile    `json:"profile"`
-	Sources        int        `json:"sources"`
-	Findings       int        `json:"findings"`
-	LatestRevision int        `json:"latest_revision"`
-	LatestSourceID string     `json:"latest_source_id"`
-	AutoUpdate     AutoUpdate `json:"auto_update"`
+	ID                     string     `json:"id"`
+	UpdatedAt              time.Time  `json:"updated_at"`
+	Status                 string     `json:"status"`
+	Phase                  string     `json:"phase"`
+	Reason                 string     `json:"reason"`
+	Effort                 string     `json:"effort"`
+	Topic                  string     `json:"topic"`
+	Usage                  Usage      `json:"usage"`
+	Profile                Profile    `json:"profile"`
+	Sources                int        `json:"sources"`
+	Findings               int        `json:"findings"`
+	LatestRevision         int        `json:"latest_revision"`
+	LatestCompleteRevision int        `json:"latest_complete_revision,omitempty"`
+	LatestSourceID         string     `json:"latest_source_id"`
+	AutoUpdate             AutoUpdate `json:"auto_update"`
 }
 
 func (s *Service) Exists(key string) (bool, error) {

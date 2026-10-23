@@ -143,6 +143,8 @@
   "desktop.detective_error_pdf_unsupported_font": "PDF nedokáže zobrazit část této zprávy (arabština, dévanágarí, hebrejština, CJK nebo emoji). Použij místo toho Word nebo Markdown.",
   "desktop.detective_error_copy_exists": "Kopie s tímto názvem už existuje.",
   "desktop.detective_pdf_hint": "Arabština, dévanágarí, hebrejština a emoji v PDF chybí – použij Word nebo Markdown.",
+  "desktop.detective_provisional": "předběžná",
+  "desktop.detective_provisional_notice": "Tato revize je předběžná částečná zpráva. Poslední úplná zpráva zůstává výchozí.",
   "stickers.title": "Samolepky",
   "stickers.search": "Hledat samolepky",
   "stickers.category": "Všechny kategorie",

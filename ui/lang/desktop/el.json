@@ -143,6 +143,8 @@
   "desktop.detective_error_pdf_unsupported_font": "Το PDF δεν μπορεί να αποδώσει μέρος αυτής της αναφοράς (αραβικά, ντεβαναγκάρι, εβραϊκά, CJK ή emoji). Χρησιμοποίησε Word ή Markdown.",
   "desktop.detective_error_copy_exists": "Υπάρχει ήδη αντίγραφο με αυτό το όνομα.",
   "desktop.detective_pdf_hint": "Αραβικά, ντεβαναγκάρι, εβραϊκά και emoji λείπουν από το PDF – χρησιμοποίησε Word ή Markdown.",
+  "desktop.detective_provisional": "προσωρινή",
+  "desktop.detective_provisional_notice": "Αυτή η αναθεώρηση είναι προσωρινή μερική αναφορά. Η τελευταία πλήρης αναφορά παραμένει η προεπιλογή.",
   "stickers.title": "Αυτοκόλλητα",
   "stickers.search": "Αναζήτηση αυτοκόλλητων",
   "stickers.category": "Όλες οι κατηγορίες",
