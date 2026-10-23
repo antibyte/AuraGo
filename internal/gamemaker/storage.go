@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS gm_jobs (
  error_code TEXT NOT NULL DEFAULT '', gameplay_status TEXT NOT NULL DEFAULT '',
  checks_passed INTEGER, checks_failed INTEGER, repair_passes INTEGER,
  open_checks TEXT NOT NULL DEFAULT '',
+ small_model INTEGER NOT NULL DEFAULT 0, building_mode TEXT NOT NULL DEFAULT '',
  base_revision INTEGER NOT NULL DEFAULT 0, result_revision INTEGER NOT NULL DEFAULT 0,
  created_at DATETIME NOT NULL, started_at DATETIME, finished_at DATETIME,
  FOREIGN KEY(project_id) REFERENCES gm_projects(id) ON DELETE CASCADE
@@ -120,22 +121,25 @@ func scanProject(row interface{ Scan(...any) error }) (Project, error) {
 	return p, err
 }
 
-const jobSelectColumns = `id,project_id,kind,prompt,status,phase,provider_id,model,error,error_code,base_revision,result_revision,created_at,started_at,finished_at,gameplay_status,checks_passed,checks_failed,repair_passes,open_checks`
+const jobSelectColumns = `id,project_id,kind,prompt,status,phase,provider_id,model,error,error_code,base_revision,result_revision,created_at,started_at,finished_at,gameplay_status,checks_passed,checks_failed,repair_passes,open_checks,small_model,building_mode`
 
 func scanJob(row interface{ Scan(...any) error }) (Job, error) {
 	var j Job
 	var started, finished sql.NullTime
 	var passed, failed, repairs sql.NullInt64
 	var openChecks string
+	var smallModel int
 	err := row.Scan(&j.ID, &j.ProjectID, &j.Kind, &j.Prompt, &j.Status, &j.Phase,
 		&j.ProviderID, &j.Model, &j.Error, &j.ErrorCode, &j.BaseRevision, &j.ResultRevision,
-		&j.CreatedAt, &started, &finished, &j.GameplayStatus, &passed, &failed, &repairs, &openChecks)
+		&j.CreatedAt, &started, &finished, &j.GameplayStatus, &passed, &failed, &repairs, &openChecks,
+		&smallModel, &j.BuildingMode)
 	if started.Valid {
 		j.StartedAt = &started.Time
 	}
 	if finished.Valid {
 		j.FinishedAt = &finished.Time
 	}
+	j.SmallModel = smallModel != 0
 	j.ChecksPassed = nullInt(passed)
 	j.ChecksFailed = nullInt(failed)
 	j.RepairPasses = nullInt(repairs)
@@ -187,6 +191,8 @@ func ensureJobOutcomeColumns(db *sql.DB) error {
 		{"checks_failed", `ALTER TABLE gm_jobs ADD COLUMN checks_failed INTEGER`},
 		{"repair_passes", `ALTER TABLE gm_jobs ADD COLUMN repair_passes INTEGER`},
 		{"open_checks", `ALTER TABLE gm_jobs ADD COLUMN open_checks TEXT NOT NULL DEFAULT ''`},
+		{"small_model", `ALTER TABLE gm_jobs ADD COLUMN small_model INTEGER NOT NULL DEFAULT 0`},
+		{"building_mode", `ALTER TABLE gm_jobs ADD COLUMN building_mode TEXT NOT NULL DEFAULT ''`},
 	}
 	missing := false
 	for _, column := range columns {

@@ -179,7 +179,9 @@ revision publication and standalone export for Phaser and Three.js games.
   (`game_maker.planning_temperature` default 0.6, `game_maker.building_temperature`
   default 0.2, both clamped 0.05–1.5); the tool-enabled loop and the tool-free
   minimal loops use the same values. Prepared profiles are `game-maker/v2/...`;
-  any prompt text change bumps the version.
+  small-model jobs use the separate `game-maker/v3/<planning|building>/<2d|3d>/compact`
+  branch (a small voxel job keeps the v2 voxel text and only takes the v3 name). Any
+  prompt text change bumps the version; never edit a published profile in place.
 - New Studio jobs resolve the selected provider/model limits before starting. A known
   model below 16384 usable context tokens is refused with `model_context_too_small`
   unless `StartJobRequest.AllowSmallModel` is set; unknown models keep the
@@ -243,7 +245,8 @@ revision publication and standalone export for Phaser and Three.js games.
   examples and remaining attempts. Draft omission/null/array rules and the
   charged correction budget remain binding; deterministic asset normalization (plural IDs, duplicate roles, unknown asset metadata) runs before validation and is reported as warnings.
 - Building and repair context carries `current_sources`: the complete `src/main.ts`
-  (and `src/voxel.json`) with sha256 when each fits one 24000-byte read window, so
+  (and `src/voxel.json`) with sha256 when each fits one 24000-byte read window
+  (12000 bytes for the compact small-model profile), so
   the first call can be the edit. Larger files instead appear in `omitted_sources`
   with reason, byte/line counts, hash and a readable first range when possible.
   File-size/path gates still apply. Prompts and budget guidance must not claim
@@ -313,6 +316,28 @@ revision publication and standalone export for Phaser and Three.js games.
 - After plan acceptance, emit `plan_summary` once: template, objective truncated to 240 runes, perspective, up to 8 sorted control keys, and up to 12 assets `{role, id}`. No scene, mechanics, or model prose. `GET /api/game-maker/projects/{id}` also returns the latest `plan_summary` and `latest_job`.
 - `gm_jobs` stores `error_code`, `gameplay_status`, and nullable `checks_passed`, `checks_failed`, and `repair_passes`. `ensureJobOutcomeColumns` backs up the database only when a column is missing. Fresh databases already include the columns. Terminal `job_status` carries the code and counts. Codes are `planning`, `validation`, `preview`, `timeout`, `cancelled`, `model`, and `internal`. Unavailable checks are not failures. A nil repair count means the run never entered repair; adopt stores 0.
 - `gm_jobs.open_checks` stores the bounded JSON list behind the failure card: at most six still-open checks (failed or unavailable, never passed or skipped) with `id`, `status`, `expected`, `observed`, at most eight executed `steps`, `repairable`, and the result's `ValidationNextAction` as `next_action`. Text fields are truncated, unreadable values degrade to "no open checks", and the list never carries source or provider text. `LatestJob`, `GetJob` and the terminal `job_status` expose it as `open_checks`; a ready job clears it. The Studio card renders it above the technical details; it never becomes `passed`.
+- `gm_jobs.small_model` and `gm_jobs.building_mode` record the small-model decision
+  (additive columns; the backup still runs only when a column is missing). A job is
+  small when the resolved route has fewer than 65536 context or 16384 output tokens
+  or `StartJobRequest.SmallModel` opts in; unknown models are never small and an
+  explicit `false` cannot disable a resolved-small route. `building_mode` is `adapt`
+  only for a new game (`kind: create`, `BaseRevision 0`) on a small model whose
+  template is not `minimal`, `three` or `voxel`; every other job stores `rewrite` and
+  adopt keeps it empty. Both values reach `GetJob`/`LatestJob`, the terminal
+  `job_status` and `plan_summary`.
+- In `adapt` mode the building/repair context carries `edit_targets`: at most six
+  `{path, sha256, start_line, end_line, snippet, purpose}` anchors derived
+  deterministically from the installed `src/main.ts` (snippet at most 400 bytes).
+  A full-content `write` of `src/main.ts` is refused with `mode_requires_replace`
+  and that anchor list; `replace`, `replace_many`, other files under `src/`, the
+  `minimal` base and normal jobs stay writable, and the refusal consumes no repair
+  pass and does not end the round. Tool-free starter generation never runs in
+  `adapt` mode, so the server cannot rewrite the starter itself. Guided 3D starters
+  have no anchor that fits the snippet bound, so their write gate stays open.
+- The compact small-model building context caps `current_sources` at 12000 bytes and
+  replaces `api_reference` with a bounded cheat sheet (`CompactRuntimeReference`, at
+  most 2000 bytes) built from the same runtime reference. Ordinary runs keep the
+  24000-byte window and the complete reference.
 - The result card reads that job's `prompt_usage` events only. It reports the call count, the sum of measured input and output tokens when every call reported both, and `estimated_cost_usd` when every call has a finite price. Cache reads and writes stay out of the token sum. Legacy `token_usage` is ignored. A missing measurement stays off the field so the UI can call it unknown. Zero calls omit the line, including adopt. Fill it on the terminal `job_status` and in `LatestJob`. It is not a `gm_jobs` column and `GetJob` does not scan it.
 - Game Maker planning/building/repair use a server-owned per-run tool budget of `max(40, ceil(circuit_breaker.max_tool_calls * 1.25))`, rounded upward and logged at job start. It overrides personality/tool adjustments for that run only; the shared system setting, other agents, time/token limits and plan/repair attempt limits remain unchanged. Tool-free implementation/image review stays tool-free.
 - Provider schemas may encode `set_plan.plan` as a JSON object string. Native and XML fallback parsing must preserve the complete structured plan, including the legacy XML task-prompt alias. Keep field-specific validation errors across planning rounds and in the final failure; successful correction must not carry obsolete plan errors into building.

@@ -13,6 +13,35 @@ import (
 // reserve) cannot fit reliably; the operator may opt in explicitly.
 const gameMakerMinContextWindow = 16384
 
+// Small-model promotion boundary: the same route thresholds gameMakerOutputTokens
+// applies to the reasoning allowance. A route below either value gets the compact
+// profile and, for a new plan-bound game, the adapt building mode.
+const (
+	gameMakerSmallContextWindow = 65536
+	gameMakerSmallOutputTokens  = 16384
+)
+
+// gameMakerSmallModelDecision resolves the recorded small-model decision for a
+// job. An explicit opt-in always wins; automatic detection also promotes a route
+// that resolves below the boundary, so an explicit false cannot switch it off.
+// Unknown models keep the conservative defaults and are never treated as small.
+func gameMakerSmallModelDecision(cfg *config.Config, providerID, model string, explicit bool) bool {
+	if explicit {
+		return true
+	}
+	if cfg == nil {
+		return false
+	}
+	limits := gameMakerModelLimits(cfg, providerID, model)
+	if limits.Unknown {
+		return false
+	}
+	if limits.ContextWindow > 0 && limits.ContextWindow < gameMakerSmallContextWindow {
+		return true
+	}
+	return limits.MaxOutputTokens > 0 && limits.MaxOutputTokens < gameMakerSmallOutputTokens
+}
+
 // gameMakerModelLimits resolves the effective limits for a provider/model pair
 // without network probes. Unknown models keep the conservative defaults and are
 // never treated as verified-small.

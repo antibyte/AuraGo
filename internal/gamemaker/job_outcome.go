@@ -90,13 +90,19 @@ func (s *Service) planningDrift(ctx context.Context, job Job, project Project) *
 	return &drift
 }
 
-func planSummaryPayload(plan *GamePlan) map[string]any {
+func planSummaryPayload(job Job, plan *GamePlan) map[string]any {
 	payload := map[string]any{
 		"template":    "",
 		"objective":   "",
 		"perspective": "",
 		"controls":    []string{},
 		"assets":      []map[string]string{},
+	}
+	if job.SmallModel {
+		payload["small_model"] = true
+	}
+	if job.BuildingMode != "" {
+		payload["building_mode"] = job.BuildingMode
 	}
 	if plan == nil {
 		return payload
@@ -154,6 +160,12 @@ func applyJobOutcome(payload map[string]any, job Job) map[string]any {
 	}
 	if strings.TrimSpace(job.GameplayStatus) != "" {
 		payload["gameplay_status"] = job.GameplayStatus
+	}
+	if job.SmallModel {
+		payload["small_model"] = true
+	}
+	if job.BuildingMode != "" {
+		payload["building_mode"] = job.BuildingMode
 	}
 	if job.Usage != nil && job.Usage.Calls > 0 {
 		payload["usage"] = job.Usage
@@ -216,7 +228,7 @@ func (s *Service) runAdoptJob(ctx context.Context, job Job, project Project, sta
 		s.terminateJob(job, ctx, &JobError{Code: "planning", Err: err})
 		return
 	}
-	_, _ = s.emit(ctx, project.ID, job.ID, "plan_summary", planSummaryPayload(accepted))
+	_, _ = s.emit(ctx, project.ID, job.ID, "plan_summary", planSummaryPayload(job, accepted))
 	if err := s.updateJobPhase(ctx, &job, "validating"); err != nil {
 		s.terminateJob(job, ctx, &JobError{Code: "internal", Err: err})
 		return

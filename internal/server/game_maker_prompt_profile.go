@@ -1,6 +1,7 @@
 package server
 
 import (
+	"slices"
 	"strings"
 
 	"aurago/internal/agent"
@@ -26,6 +27,22 @@ const gameMakerPlanningWorkflow = `## Planning workflow
 5. An accepted design ends planning: stop immediately. The server installs the template (new games only), imports planned assets and starts building.
 Never write files, import or generate assets during planning. Scene data is optional; scene_inspect is read-only here.
 A new game has only a scaffold: src/common.ts, src/voxel.json, assets and the runtime API are created after acceptance, and building receives the complete API reference. Do not read vendor or runtime files to plan.`
+
+// gameMakerCompactPlanningNote replaces the presentation choices for small-model
+// runs: the compact design schema has no asset, presentation, scenario or scene
+// fields, so the server fills them from the plan defaults.
+const gameMakerCompactPlanningNote = `## Compact design
+- Submit only base, objective, 1–12 concrete features and at most two stages.
+- assets, presentation, scenarios, scene and settings are filled by the server from the plan defaults. Do not search artwork, effects or sounds here and do not choose presentation IDs.
+- Name the artwork the request needs in the feature text; user-selected catalog IDs still reach the accepted plan.`
+
+// gameMakerAdaptModeNote is the compact editing rule for adapt jobs. It is inert
+// without edit_targets, so one profile text serves every small-model build.
+const gameMakerAdaptModeNote = `## Adapting the starter (edit_targets)
+- A new small-model game starts from the installed starter. edit_targets lists up to six {path, sha256, start_line, end_line, snippet, purpose} anchors read from src/main.ts.
+- Change it with operation="replace": old_text is one exact snippet, new_text your version, expected_sha256 the supplied file digest. Use replace_many for several non-overlapping anchors.
+- Never write src/main.ts with complete content in this mode; the server answers mode_requires_replace and repeats the anchors. New files under src/ may still be created with write.
+- Keep the rest of the starter and src/common.ts unchanged. Without edit_targets the normal building workflow applies.`
 
 // gameMakerGuided3DBase is 3D planning only, and it is placed before phase
 // guidance so the base choice is visible before the long design rules.
@@ -55,17 +72,44 @@ const gameMakerSpriteContract = `## Sprite contract
 - GameScene.step(deltaSeconds) already receives seconds: move by speed * deltaSeconds, never divide by 1000 again. Use Phaser.Utils.Array.GetRandom(array); Phaser.Math.pick does not exist.
 - Full validation must observe spawning, actions and restart.`
 
+// gameMakerProfileName is the versioned profile identity. Ordinary runs keep the
+// v2 names byte-identically. Small-model runs move to the v3 branch: voxel keeps
+// the v2 text and schemas (voxel planning has its own compact contract), every
+// other dimension gets the compact design/context variant.
+func gameMakerProfileName(stage, dimension string, voxel, small bool) string {
+	switch {
+	case small && voxel:
+		return "game-maker/v3/" + stage + "/" + dimension + "/voxel"
+	case small:
+		return "game-maker/v3/" + stage + "/" + dimension + "/compact"
+	case voxel:
+		return "game-maker/v2/" + stage + "/voxel"
+	default:
+		return "game-maker/v2/" + stage + "/" + dimension
+	}
+}
+
 // Building and repair intentionally share instructions and ordered schemas.
+// variant entries: "voxel" selects the voxel surfaces, "compact" selects the
+// small-model profile (v3, compact design and context).
 func gameMakerPromptProfile(stage, dimension string, variant ...string) (*agent.PreparedPromptProfile, error) {
-	voxel := len(variant) > 0 && variant[0] == "voxel"
+	voxel := slices.Contains(variant, "voxel")
+	small := slices.Contains(variant, "compact")
+	compact := small && !voxel
 	if stage != "planning" {
 		stage = "building"
 	}
 	sections := []string{gameMakerGroundRules}
 	if stage == "planning" {
 		sections = append(sections, gameMakerPlanningWorkflow)
+		if compact {
+			sections = append(sections, gameMakerCompactPlanningNote)
+		}
 	} else {
 		sections = append(sections, gameMakerBuildingWorkflow)
+		if compact {
+			sections = append(sections, gameMakerAdaptModeNote)
+		}
 	}
 	if voxel {
 		if stage == "planning" {
@@ -73,14 +117,18 @@ func gameMakerPromptProfile(stage, dimension string, variant ...string) (*agent.
 		} else {
 			sections = append(sections, gamemaker.VoxelRuntimeGuide)
 		}
-		return agent.NewPreparedPromptProfile("game-maker/v2/"+stage+"/voxel", strings.Join(sections, "\n\n"), agent.GameMakerPhaseToolSchemas(stage, dimension, "voxel"))
+		return agent.NewPreparedPromptProfile(gameMakerProfileName(stage, dimension, true, small), strings.Join(sections, "\n\n"), agent.GameMakerPhaseToolSchemas(stage, dimension, "voxel"))
 	}
 	if stage == "planning" && dimension == "3d" {
 		sections = append(sections, gameMakerGuided3DBase)
 	}
 	sections = append(sections, gamemaker.PhaseGuidance(stage, dimension))
 	if stage == "planning" {
-		sections = append(sections, gamemaker.DesignCraftGuide, gamemaker.PresentationPlanningGuide)
+		sections = append(sections, gamemaker.DesignCraftGuide)
+		// The compact design cannot submit presentation IDs.
+		if !compact {
+			sections = append(sections, gamemaker.PresentationPlanningGuide)
+		}
 	} else {
 		sections = append(sections, gamemaker.BuildCraftGuide)
 		if dimension == "2d" {
@@ -89,5 +137,9 @@ func gameMakerPromptProfile(stage, dimension string, variant ...string) (*agent.
 			sections = append(sections, gamemaker.PresentationGuide3D, gamemaker.ModelRuntimeGuide)
 		}
 	}
-	return agent.NewPreparedPromptProfile("game-maker/v2/"+stage+"/"+dimension, strings.Join(sections, "\n\n"), agent.GameMakerPhaseToolSchemas(stage, dimension))
+	var schemas []string
+	if compact {
+		schemas = []string{"compact"}
+	}
+	return agent.NewPreparedPromptProfile(gameMakerProfileName(stage, dimension, false, small), strings.Join(sections, "\n\n"), agent.GameMakerPhaseToolSchemas(stage, dimension, schemas...))
 }

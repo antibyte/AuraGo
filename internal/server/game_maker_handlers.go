@@ -313,6 +313,9 @@ func handleGameMakerStartJob(w http.ResponseWriter, r *http.Request, s *Server, 
 			})
 			return
 		}
+		// Record the small-model decision once, before the job exists: the explicit
+		// client opt-in wins, automatic detection still applies to an explicit false.
+		request.SmallModel = gameMakerSmallModelDecision(cfg, providerID, model, request.SmallModel)
 	}
 	job, err := s.GameMaker.StartJob(r.Context(), projectID, request)
 	if err != nil {

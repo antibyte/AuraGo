@@ -89,29 +89,35 @@ type UpdateProjectRequest struct {
 
 type Job struct {
 	// ResumeFrom is server-owned and never accepted as an arbitrary client path.
-	ResumeFrom            string           `json:"-"`
-	ValidateRestoredDraft bool             `json:"-"`
-	ID                    string           `json:"id"`
-	ProjectID             string           `json:"project_id"`
-	Kind                  string           `json:"kind"`
-	Prompt                string           `json:"prompt"`
-	Status                string           `json:"status"`
-	Phase                 string           `json:"phase"`
-	ProviderID            string           `json:"provider_id,omitempty"`
-	Model                 string           `json:"model,omitempty"`
-	Error                 string           `json:"error,omitempty"`
-	ErrorCode             string           `json:"error_code,omitempty"`
-	ChecksPassed          *int             `json:"checks_passed,omitempty"`
-	ChecksFailed          *int             `json:"checks_failed,omitempty"`
-	RepairPasses          *int             `json:"repair_passes,omitempty"`
-	GameplayStatus        string           `json:"gameplay_status,omitempty"`
-	OpenChecks            []OpenCheck      `json:"open_checks,omitempty"`
-	Usage                 *PromptUsageCard `json:"usage,omitempty"`
-	BaseRevision          int64            `json:"base_revision,omitempty"`
-	ResultRevision        int64            `json:"result_revision,omitempty"`
-	CreatedAt             time.Time        `json:"created_at"`
-	StartedAt             *time.Time       `json:"started_at,omitempty"`
-	FinishedAt            *time.Time       `json:"finished_at,omitempty"`
+	ResumeFrom            string `json:"-"`
+	ValidateRestoredDraft bool   `json:"-"`
+	ID                    string `json:"id"`
+	ProjectID             string `json:"project_id"`
+	Kind                  string `json:"kind"`
+	Prompt                string `json:"prompt"`
+	Status                string `json:"status"`
+	Phase                 string `json:"phase"`
+	ProviderID            string `json:"provider_id,omitempty"`
+	Model                 string `json:"model,omitempty"`
+	Error                 string `json:"error,omitempty"`
+	ErrorCode             string `json:"error_code,omitempty"`
+	ChecksPassed          *int   `json:"checks_passed,omitempty"`
+	ChecksFailed          *int   `json:"checks_failed,omitempty"`
+	RepairPasses          *int   `json:"repair_passes,omitempty"`
+	GameplayStatus        string `json:"gameplay_status,omitempty"`
+	// SmallModel records that this run uses the compact small-model profile and
+	// the adapt building mode when its accepted plan allows it.
+	SmallModel bool `json:"small_model,omitempty"`
+	// BuildingMode records how the job implements its plan: "rewrite" (ordinary
+	// runs), "adapt" (small model edits the installed starter) or "" for adopt.
+	BuildingMode   string           `json:"building_mode,omitempty"`
+	OpenChecks     []OpenCheck      `json:"open_checks,omitempty"`
+	Usage          *PromptUsageCard `json:"usage,omitempty"`
+	BaseRevision   int64            `json:"base_revision,omitempty"`
+	ResultRevision int64            `json:"result_revision,omitempty"`
+	CreatedAt      time.Time        `json:"created_at"`
+	StartedAt      *time.Time       `json:"started_at,omitempty"`
+	FinishedAt     *time.Time       `json:"finished_at,omitempty"`
 }
 
 // OpenCheck is one bounded, still-open browser check of a finished job. It is a
@@ -142,7 +148,12 @@ type StartJobRequest struct {
 	// (0 keeps the default, values are clamped to 1–6).
 	MaxRepairPasses int `json:"max_repair_passes,omitempty"`
 	// AllowSmallModel starts a job on a model below the Studio context floor.
-	AllowSmallModel bool  `json:"allow_small_model,omitempty"`
+	AllowSmallModel bool `json:"allow_small_model,omitempty"`
+	// SmallModel selects the compact small-model profile and (for a new game on a
+	// plan-bound starter) the adapt building mode. It is an explicit client opt-in;
+	// the server also sets it automatically when the resolved route is below the
+	// small-model threshold. An explicit false never disables that detection.
+	SmallModel      bool  `json:"small_model,omitempty"`
 	ImageGeneration *bool `json:"image_generation,omitempty"`
 	MusicGeneration *bool `json:"music_generation,omitempty"`
 }

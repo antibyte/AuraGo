@@ -660,6 +660,20 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			result, err = service.WriteJobFileChecked(ctx, jobID, path, content, toolArgString(tc.Params, "expected_sha256"))
 		}
 		if err != nil {
+			// Adapt mode edits the installed starter. The refusal lists the anchors
+			// and stays an ordinary tool error: replace/replace_many are still open,
+			// no repair pass is consumed and the agent round does not end.
+			var rejected *gamemaker.ModeRequiresReplaceError
+			if errors.As(err, &rejected) {
+				return gameMakerToolJSON(map[string]any{
+					"status":       "error",
+					"code":         gamemaker.CodeModeRequiresReplace,
+					"message":      rejected.Error(),
+					"path":         rejected.Path,
+					"edit_targets": rejected.Targets,
+					"next_action":  "Use operation=replace with the exact snippet as old_text and the supplied sha256 as expected_sha256, or replace_many for several anchors. Writing src/main.ts with complete content is unavailable in this mode; new files under src/ may still be written.",
+				}), true
+			}
 			return gameMakerToolError(err), true
 		}
 		answer := map[string]any{"status": "ok", "operation": operation, "path": path, "written": result.Written, "sha256": result.SHA256, "build": result.Build, "next_action": "If build.ok is false, repair the reported source location. A saved file is not a validated game."}

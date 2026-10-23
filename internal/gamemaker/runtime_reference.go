@@ -1,5 +1,7 @@
 package gamemaker
 
+import "strings"
+
 // runtimeReference is the complete public API of one installed helper version.
 // Members lists every documented definition; tests require each to exist in
 // the template that declares the version, so the text cannot drift silently.
@@ -90,3 +92,37 @@ api:
 - levelIndex (current stage), nextLevel(), win(), lose(), reset(), dispose().
 Counters: score, hits and pickup_events change only through the built-in role behaviour above or scene-builder rules; custom code cannot add to them. Give every checked target a real config.objects role.
 Movement is camera-relative: D/RIGHT moves toward screen right and W/UP away from the camera.`
+
+// CompactRuntimeReference bounds a complete runtime reference for small-model
+// runs. Complete lines are kept, so documented members stay usable; the tail
+// names the omission instead of cutting a sentence in half.
+const compactRuntimeReferenceTail = "\n- Cheat sheet only: read bounded src/common.ts ranges for the remaining members."
+
+func CompactRuntimeReference(reference string, maxBytes int) string {
+	reference = strings.TrimSpace(reference)
+	if maxBytes <= 0 {
+		maxBytes = 2000
+	}
+	if len(reference) <= maxBytes {
+		return reference
+	}
+	budget := maxBytes - len(compactRuntimeReferenceTail)
+	if budget < 0 {
+		budget = 0
+	}
+	var sheet strings.Builder
+	for _, line := range strings.Split(reference, "\n") {
+		next := len(line)
+		if sheet.Len() > 0 {
+			next++
+		}
+		if sheet.Len()+next > budget {
+			break
+		}
+		if sheet.Len() > 0 {
+			sheet.WriteByte('\n')
+		}
+		sheet.WriteString(line)
+	}
+	return sheet.String() + compactRuntimeReferenceTail
+}

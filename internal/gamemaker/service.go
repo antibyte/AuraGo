@@ -538,7 +538,11 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 		ProviderID:            providerID,
 		Model:                 model,
 		BaseRevision:          project.CurrentRevision,
-		CreatedAt:             now,
+		// The server resolves small-model detection before starting; the request
+		// value is already the recorded decision.
+		SmallModel:   req.SmallModel,
+		BuildingMode: InitialBuildingMode(kind),
+		CreatedAt:    now,
 	}
 
 	s.mu.Lock()
@@ -564,9 +568,9 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 		return Job{}, fmt.Errorf("update game maker job preferences: %w", err)
 	}
 	_, err = s.db.ExecContext(ctx, `INSERT INTO gm_jobs
-		(id,project_id,kind,prompt,status,phase,provider_id,model,base_revision,created_at)
-		VALUES(?,?,?,?,?,?,?,?,?,?)`, job.ID, job.ProjectID, job.Kind, job.Prompt, job.Status, job.Phase,
-		job.ProviderID, job.Model, job.BaseRevision, job.CreatedAt)
+		(id,project_id,kind,prompt,status,phase,provider_id,model,base_revision,created_at,small_model,building_mode)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, job.ID, job.ProjectID, job.Kind, job.Prompt, job.Status, job.Phase,
+		job.ProviderID, job.Model, job.BaseRevision, job.CreatedAt, boolInt(job.SmallModel), job.BuildingMode)
 	if err != nil {
 		s.releaseJob(job.ID)
 		return Job{}, fmt.Errorf("create game maker job: %w", err)
@@ -713,7 +717,10 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		s.terminateJob(job, ctx, &JobError{Code: "planning", Err: fmt.Errorf("game planning failed after the charged correction budget was spent: %s", diagnosticsText(planDiagnostics))})
 		return
 	}
-	_, _ = s.emit(ctx, project.ID, job.ID, "plan_summary", planSummaryPayload(plan))
+	// The accepted base decides rewrite versus adapt; record it before any
+	// prompt, context or tool guard reads the run.
+	s.applyBuildingMode(ctx, &job, plan)
+	_, _ = s.emit(ctx, project.ID, job.ID, "plan_summary", planSummaryPayload(job, plan))
 	if err := s.updateJobPhase(ctx, &job, "building"); err != nil {
 		s.terminateJob(job, ctx, err)
 		return

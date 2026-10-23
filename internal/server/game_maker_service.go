@@ -491,11 +491,27 @@ func gameMakerRouteLimits(cfg *config.Config) llm.ModelLimits {
 // handed-over file is never larger than a single read could return.
 const gameMakerCurrentSourceMaxBytes = 24000
 
+// gameMakerCompactSourceMaxBytes is the small-model window. A compact run keeps
+// the first call an edit without spending 24 KB of the request on the entry.
+const gameMakerCompactSourceMaxBytes = 12000
+
+// gameMakerCompactAPIReferenceMaxBytes bounds the small-model cheat sheet.
+const gameMakerCompactAPIReferenceMaxBytes = 2000
+
 // gameMakerCurrentSources hands the agent its editable entry files once. Real
 // runs spent many reads before the first edit; with content and sha256 in the
 // context the first call can be the edit itself. Larger files carry metadata
 // and bounded read guidance instead of silently disappearing.
 func gameMakerCurrentSources(ctx context.Context, service *gamemaker.Service, jobID string) ([]gamemaker.SourceRead, []map[string]any) {
+	return gameMakerCurrentSourcesWithin(ctx, service, jobID, gameMakerCurrentSourceMaxBytes)
+}
+
+// gameMakerCurrentSourcesWithin applies an explicit window; the compact profile
+// passes a smaller bound.
+func gameMakerCurrentSourcesWithin(ctx context.Context, service *gamemaker.Service, jobID string, maxBytes int) ([]gamemaker.SourceRead, []map[string]any) {
+	if maxBytes <= 0 {
+		maxBytes = gameMakerCurrentSourceMaxBytes
+	}
 	var sources []gamemaker.SourceRead
 	var omitted []map[string]any
 	for _, path := range []string{"src/main.ts", "src/voxel.json"} {
@@ -507,11 +523,11 @@ func gameMakerCurrentSources(ctx context.Context, service *gamemaker.Service, jo
 			}
 			continue
 		}
-		if len(source.Content) <= gameMakerCurrentSourceMaxBytes {
+		if len(source.Content) <= maxBytes {
 			sources = append(sources, source)
 			continue
 		}
-		entry := map[string]any{"path": path, "sha256": source.SHA256, "bytes": len(source.Content), "total_lines": source.TotalLines, "reason": "exceeds_context_limit", "max_content_bytes": gameMakerCurrentSourceMaxBytes,
+		entry := map[string]any{"path": path, "sha256": source.SHA256, "bytes": len(source.Content), "total_lines": source.TotalLines, "reason": "exceeds_context_limit", "max_content_bytes": maxBytes,
 			"next_action": "Content was omitted. Search for the affected code or use the supplied hook/diagnostic lines, then read bounded ranges before replacing. Do not overwrite unread source."}
 		bytes, end := 0, 0
 		for _, line := range strings.Split(source.Content, "\n") {
@@ -519,7 +535,7 @@ func gameMakerCurrentSources(ctx context.Context, service *gamemaker.Service, jo
 			if end > 0 {
 				separator = 1
 			}
-			if end == 120 || bytes+separator+len(line) > gameMakerCurrentSourceMaxBytes {
+			if end == 120 || bytes+separator+len(line) > maxBytes {
 				break
 			}
 			bytes += separator + len(line)
@@ -531,6 +547,25 @@ func gameMakerCurrentSources(ctx context.Context, service *gamemaker.Service, jo
 		omitted = append(omitted, entry)
 	}
 	return sources, omitted
+}
+
+// gameMakerCompactRuntime keeps the same runtime context but replaces the complete
+// api_reference with a bounded cheat sheet derived from it. Everything else
+// (helper version, file hashes, hook locations, warning codes) is unchanged.
+func gameMakerCompactRuntime(runtime map[string]any) map[string]any {
+	if runtime == nil {
+		return nil
+	}
+	reference, _ := runtime["api_reference"].(string)
+	if strings.TrimSpace(reference) == "" {
+		return runtime
+	}
+	copied := make(map[string]any, len(runtime))
+	for key, value := range runtime {
+		copied[key] = value
+	}
+	copied["api_reference"] = gamemaker.CompactRuntimeReference(reference, gameMakerCompactAPIReferenceMaxBytes)
+	return copied
 }
 
 func gameMakerToolCallLimit(systemLimit int) int {
@@ -594,14 +629,26 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 			return r.implementGameStarter(ctx, &cfg, client, run)
 		}
 	}
-	if run.Stage == "repair" && run.Job.BaseRevision == 0 && slices.ContainsFunc(run.Diagnostics, func(d gamemaker.Diagnostic) bool { return d.Level == "implementation" }) {
+	// A small model runs the compact v3 profile and, on a plan-bound starter, the
+	// adapt building mode. Voxel keeps its own compact definition contract, so it
+	// only moves to the v3 name.
+	small := run.Job.SmallModel
+	compact := small && run.Project.Variant != "voxel"
+	if run.Stage == "repair" && run.Job.BaseRevision == 0 && run.Job.BuildingMode != gamemaker.BuildingModeAdapt && slices.ContainsFunc(run.Diagnostics, func(d gamemaker.Diagnostic) bool { return d.Level == "implementation" }) {
 		return r.implementGameStarter(ctx, &cfg, client, run)
 	}
 	cfg.LLM.UseNativeFunctions = true
 	// Game Maker pins sampling per phase so code phases stay far from the
 	// provider default; the agent loop still clamps the value.
 	cfg.LLM.Temperature = float64(gameMakerPhaseTemperature(&cfg, run.Stage))
-	profile, err := gameMakerPromptProfile(run.Stage, run.Project.Dimension, run.Project.Variant)
+	var variant []string
+	if run.Project.Variant == "voxel" {
+		variant = append(variant, "voxel")
+	}
+	if small {
+		variant = append(variant, "compact")
+	}
+	profile, err := gameMakerPromptProfile(run.Stage, run.Project.Dimension, variant...)
 	if err != nil {
 		return err
 	}
@@ -610,18 +657,33 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	contextData["visual_repair"] = run.Stage == "repair" && len(run.Captures) > 0
 	contextData["remaining_repair_passes"] = r.service.RemainingRepairs(run.Job.ID)
 	if run.Stage != "planning" {
-		contextData["runtime"] = r.service.RuntimeContext(ctx, run.Job.ID)
+		runtimeContext := r.service.RuntimeContext(ctx, run.Job.ID)
+		if compact {
+			runtimeContext = gameMakerCompactRuntime(runtimeContext)
+		}
+		contextData["runtime"] = runtimeContext
 		// Disclose the exact checks up front so the game is built toward them
 		// instead of discovering each one through a failed validation.
 		if plan := r.service.ValidationPlan(ctx, run.Job.ID); plan != nil {
 			contextData["validation_plan"] = plan
 		}
-		sources, omitted := gameMakerCurrentSources(ctx, r.service, run.Job.ID)
+		sourceWindow := gameMakerCurrentSourceMaxBytes
+		if compact {
+			sourceWindow = gameMakerCompactSourceMaxBytes
+		}
+		sources, omitted := gameMakerCurrentSourcesWithin(ctx, r.service, run.Job.ID, sourceWindow)
 		if len(sources) > 0 {
 			contextData["current_sources"] = sources
 		}
 		if len(omitted) > 0 {
 			contextData["omitted_sources"] = omitted
+		}
+		// Adapt mode anchors stay untrusted context next to current_sources; they
+		// never enter the prepared system prompt or its fingerprint.
+		if run.Job.BuildingMode == gamemaker.BuildingModeAdapt {
+			if targets := r.service.AdaptJobTargets(ctx, run.Job.ID); len(targets) > 0 {
+				contextData["edit_targets"] = targets
+			}
 		}
 	}
 	requests, err := r.service.PreviousJobRequests(ctx, run.Job.ID)

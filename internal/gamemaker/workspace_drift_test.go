@@ -132,7 +132,7 @@ func TestPlanSummaryPayloadStaysBounded(t *testing.T) {
 	}
 	assets[12].AssetID = ""
 	assets[12].AssemblyID = "asm"
-	payload := planSummaryPayload(&GamePlan{
+	payload := planSummaryPayload(Job{SmallModel: true, BuildingMode: BuildingModeAdapt}, &GamePlan{
 		Template:    "minimal",
 		Objective:   strings.Repeat("ä", 241),
 		Perspective: "top",
@@ -147,6 +147,13 @@ func TestPlanSummaryPayloadStaysBounded(t *testing.T) {
 	}
 	if _, ok := payload["scene"]; ok {
 		t.Fatal("summary included scene")
+	}
+	// The plan summary names the small-model decision the job was started with.
+	if payload["small_model"] != true || payload["building_mode"] != BuildingModeAdapt {
+		t.Fatalf("summary lost the small-model decision: %#v", payload)
+	}
+	if quiet := planSummaryPayload(Job{BuildingMode: BuildingModeRewrite}, &GamePlan{Template: "minimal"}); quiet["small_model"] != nil {
+		t.Fatalf("normal summary claims a small model: %#v", quiet)
 	}
 }
 
@@ -185,6 +192,18 @@ func TestJobOutcomeColumnsMigrateOnce(t *testing.T) {
 	}
 	if job.ErrorCode != "" || job.ChecksPassed != nil || job.ChecksFailed != nil || job.RepairPasses != nil || job.GameplayStatus != "" {
 		t.Fatalf("old job gained outcome data: %+v", job)
+	}
+	// Additive small-model and building-mode columns keep old rows ordinary.
+	if job.SmallModel || job.BuildingMode != "" {
+		t.Fatalf("old job gained a small-model decision: %+v", job)
+	}
+	var smallModel int
+	var buildingMode string
+	if err := db.QueryRow(`SELECT small_model, building_mode FROM gm_jobs WHERE id='job'`).Scan(&smallModel, &buildingMode); err != nil {
+		t.Fatal(err)
+	}
+	if smallModel != 0 || buildingMode != "" {
+		t.Fatalf("migrated defaults = %d/%q", smallModel, buildingMode)
 	}
 
 	fresh := newTestService(t)

@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"slices"
+
 	"aurago/internal/gamemaker"
 
 	openai "github.com/sashabaranov/go-openai"
@@ -268,9 +270,27 @@ func gameDesignSchema() map[string]interface{} {
 	}, "base", "objective", "features")
 }
 
+// compactGameDesignSchema drops the fields the server fills for a small-model
+// design (asset defaults, presentation, scenarios and scene data) and caps the
+// stage commitment at two. Required arguments and their order are unchanged, and
+// so is every other tool schema.
+func compactGameDesignSchema(design map[string]interface{}) {
+	for _, key := range []string{"assets", "presentation", "scenarios", "scene", "settings"} {
+		delete(design, key)
+	}
+	if stages, ok := design["stages"].(map[string]interface{}); ok {
+		stages["maxItems"] = 2
+		stages["description"] = "At most two distinct levels/areas the player advances through, each naming its layout and one new challenge. Waves inside one arena belong in features; omit for a single board"
+	}
+}
+
 // Freeze only phase-relevant schemas; runtime mutation gates remain authoritative.
+// variant entries: "voxel" selects the voxel surface, "compact" selects the
+// small-model design subset. Everything else stays byte-identical to the frozen
+// snapshot, so the ordinary profile keeps its schema hash.
 func GameMakerPhaseToolSchemas(stage, dimension string, variant ...string) []openai.Tool {
-	voxel := len(variant) > 0 && variant[0] == "voxel"
+	voxel := slices.Contains(variant, "voxel")
+	compact := !voxel && slices.Contains(variant, "compact")
 	schemas := appendGameMakerToolSchemas(nil, ToolFeatureFlags{GameMakerEnabled: true})
 	out := []openai.Tool{}
 	for _, t := range schemas {
@@ -329,6 +349,9 @@ func GameMakerPhaseToolSchemas(stage, dimension string, variant ...string) []ope
 				design["base"] = baseSchema
 				if dimension != "3d" {
 					delete(design, "settings")
+				}
+				if compact {
+					compactGameDesignSchema(design)
 				}
 				for _, key := range []string{"scene", "patch", "generate", "expected_sha256"} {
 					delete(props, key)

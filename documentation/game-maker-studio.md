@@ -262,6 +262,14 @@ browser validation still decide whether the resulting game is ready.
   Unknown models show no warning and are never blocked. The copy names the
   rough budget: about 12–14K input plus a 16K output reserve for a 2D building
   round, so 32K context is a sensible minimum.
+- Models below 65 536 tokens of context, or below 16 384 output tokens, count as
+  small and run the compact profile: the design schema asks only for base,
+  objective, features and up to two stages, the building context keeps at most
+  12 000 bytes of source, and the API reference shrinks to a short cheat sheet.
+  A new game on such a model edits the installed starter through a list of up to
+  six anchors instead of rewriting `src/main.ts`; a full rewrite of that file is
+  refused with the anchor list. Validation, repair and publication gates are
+  unchanged, and an ordinary run keeps the complete profile and source window.
 - While a job runs, a banner shows the current phase, the elapsed time, and
   the repair pass when the builder loops back from validation. The phase
   stepper below it mirrors the same state.
