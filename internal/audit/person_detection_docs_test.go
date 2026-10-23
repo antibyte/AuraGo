@@ -10,14 +10,14 @@ import (
 )
 
 // TestPersonDetectionContractsAreRouted keeps the onnxrt and persondetect
-// package contracts in the root routing table and Child DOX Index. Child
+// package contracts in the root's combined Child DOX Index / routing table. Child
 // AGENTS.md files are git-ignored by pattern and must be added with git add -f.
 func TestPersonDetectionContractsAreRouted(t *testing.T) {
 	t.Parallel()
 	root := readRepoFile(t, "AGENTS.md")
 	for _, contract := range []string{"internal/onnxrt/AGENTS.md", "internal/persondetect/AGENTS.md"} {
-		if got := strings.Count(root, "`"+contract+"`"); got < 2 {
-			t.Errorf("root AGENTS.md must route %s in the contract table and the Child DOX Index, found %d references", contract, got)
+		if !strings.Contains(root, "`"+contract+"`") {
+			t.Errorf("root AGENTS.md must route %s in the Child DOX Index", contract)
 		}
 		requireAll(t, contract, readRepoFile(t, contract), []string{
 			"## Purpose", "## Ownership", "## Local Contracts", "## Work Guidance", "## Verification", "## Child DOX Index",

@@ -135,8 +135,8 @@ func TestLocalWikipediaReadmeMention(t *testing.T) {
 func TestLocalWikipediaContractIsRouted(t *testing.T) {
 	t.Parallel()
 	root := readRepoFile(t, "AGENTS.md")
-	if got := strings.Count(root, "`internal/localwiki/AGENTS.md`"); got < 2 {
-		t.Errorf("root AGENTS.md must route Local Wikipedia in the contract table and the Child DOX Index, found %d references", got)
+	if !strings.Contains(root, "`internal/localwiki/AGENTS.md`") {
+		t.Error("root AGENTS.md must route Local Wikipedia in the Child DOX Index")
 	}
 	requireAll(t, "AGENTS.md", root, []string{"| Local Wikipedia Contract |"})
 	contract := readRepoFile(t, "internal/localwiki/AGENTS.md")

@@ -1,134 +1,67 @@
-# AuraGo - AI Coding Agent Reference
+# AuraGo — Agent Reference
 
-> **Language**: This project primarily uses **English** for code and documentation. The default system language is set to German (`Deutsch`) in config but English is the development language.
+English code/comments/docs; default application language: German (`Deutsch`). AuraGo is a portable, CGO-free Go home-lab agent (Linux/macOS/Windows, amd64/arm64), with embedded SQLite, shell/Python/filesystem/HTTP/cron tools and Docker, Proxmox, Home Assistant and SSH integrations. Optional runtimes/integrations have separate dependencies. The single backend binary embeds recovery/login only; the full UI is a verified, version-bound external resource set.
 
-## Project Overview
+## DOX: read, edit, close out
 
-**AuraGo** is a Go agent for home labs. Its portable, CGO-free backend uses embedded SQLite; the full Web UI is a verified, version-bound external resource set. Optional integrations and runtimes have their own dependencies.
+- Each `AGENTS.md` binds its subtree. Before editing, identify target paths and read the root plus every parent/child guide along each route, including indexed children. Re-read this chain in the current session; memory is insufficient. Nearest guidance controls local details; children cannot weaken DOX. Work products, sources, instructions, records, assets and durable docs must remain understandable from that chain.
+- Root owns global rules/preferences/workflows and areas without local contracts; children own domain details and Child DOX Indexes. Parents explain child scope and retained ownership; deeper guidance must be more specific/practical.
+- Every meaningful change needs a DOX pass: update the nearest owner for changed purpose/scope/ownership, structure/contracts/workflows/rules, inputs/outputs/permissions/constraints/side effects/artifacts, user preferences, or guide creation/deletion/move/rename/index. Update affected parents/children/indexes; remove stale/contradictory text. Behavior-neutral edits may leave guides unchanged after review; report why.
+- Create child guides at durable boundaries with distinct purpose/rules/responsibilities/workflow/materials/quality standards. Section order: Purpose → Ownership → Local Contracts → Work Guidance → Verification → Child DOX Index. Work Guidance reflects actual project/user standards; Verification reflects existing checks. Leave either empty until these exist.
+- Keep docs concise, current, operational: stable contracts, direct bullets/explicit names; broad rules in parents, concrete details in children. Avoid duplication unless locally necessary; delete diary/history, obvious statements, misplaced detail and obsolete warnings. Record durable user behavior preferences here or in the relevant child.
+- Closeout: re-check changed paths against the chain; update owning/affected guides and indexes; run relevant existing verification; report intentionally unchanged guides and reasons.
 
-### Key Characteristics
-- **Single binary deployment** - Pure Go with embedded SQLite (no CGO)
-- **Portable backend** - Small recovery UI embedded; full UI in a verified local resource set
-- **Home lab focused** - Docker, Proxmox, Home Assistant, SSH device management, and other integrations
-- **Multi-platform** - Linux, macOS, Windows (amd64, arm64)
-- **Built-in tools** - Shell, Python execution, file system, HTTP requests, cron, and more
+## Repository map
 
-## Technology Stack
+Go 1.27.2+; standard `net/http`; pure-Go `modernc.org/sqlite`; embedded `chromem-go`; vanilla JavaScript SPA; Python 3.10+ in a sandbox venv; Docker/Compose. Dependencies: `github.com/sashabaranov/go-openai` (compatible LLM client), `github.com/philippgille/chromem-go`, `github.com/go-telegram-bot-api/telegram-bot-api/v5`, `github.com/bwmarrin/discordgo`, `github.com/robfig/cron/v3`, `golang.org/x/crypto` (SSH/bcrypt/ACME/Let's Encrypt), `github.com/gofrs/flock`, `tailscale.com`, `github.com/aws/aws-sdk-go-v2` (S3).
 
-| Component | Technology |
-|-----------|------------|
-| Language | Go 1.27.2+ |
-| Web Framework | Standard library `net/http` |
-| Database | SQLite (modernc.org/sqlite - pure Go, no CGO) |
-| Vector DB | chromem-go (embedded) |
-| Frontend | Vanilla JavaScript SPA (external versioned resource set) |
-| Python Runtime | Python 3.10+ (for sandboxed execution in venv) |
-| Container | Docker, Docker Compose |
+- `cmd/`: entry points; `cmd/aurago`: startup (`main.go`, `platform_unix.go`, `platform_windows.go`); `cmd/remote`, `cmd/config-merger`, `cmd/assetpack`, `cmd/memory-repair`: remote execution, config merging, UI packaging, reviewed offline analysis duplicate merging.
+- `internal/`: private Go production logic. Core: `agent` (loop/dispatch/co-agents), `budget` (token cost), `commands` (slash commands), `config` (YAML/defaults), `llm` (client/failover/retry/pricing), `logger` (structured logs), `media` (files), `memory` (STM/LTM/KG/personality), `prompts` (dynamic prompts), `security` (Vault/tokens/Guardian), `server` (HTTP/API), `services` (indexing/ingestion), `setup` (first run), `tools` (implementations).
+- Integrations in `internal/`: `contacts` (address book), `discord`/`rocketchat` (bots), `fritzbox` (TR-064), `invasion` (egg/nest), `inventory` (SQLite SSH devices), `meshcentral` (control WebSocket/devices/wake/power/MeshAgent commands), `mqtt`, `remote` (SSH/protocol), `scraper`, `sqlconnections` (external SQL), `telegram` (text/voice/vision), `telnyx` (SMS/voice), `tsnetnode` (Tailscale), `webhooks` (incoming/outgoing); `sandbox` owns Linux Landlock.
+- `agent_workspace/`: runtime workspace; `agent_workspace/skills`: bundled Python skills; `agent_workspace/tools`: generated tools/manifest; `agent_workspace/workdir`: sandbox/venv. `prompts/`: `prompts/identity.md`, `rules.md`, `personalities/`, `templates/`, `tools_manuals/` own identity/rules/profiles/templates/RAG-indexed manuals.
+- `ui/`: external HTML/CSS/JS, 16 locales, UI tests and `embed.go` fixtures. `assets/`: bundled/static/sample assets. `knowledge/`: application knowledge. `mcps/`: connector/tool definitions. `licences/`: third-party records/texts.
+- `.github/`: Actions/agents/prompts/automation metadata. `scripts/`, `tools/`: developer/runtime helpers. `ansible_api/`: sidecar API. `browser_automation_sidecar/`: browser sidecar sources/support. `plans/`, `openspec/`: planning/specifications/change management. `docs/`, `documentation/`: user/operator guides.
+- `deploy/`: tracked deployment/release inputs and ignored generated artifacts. `config.yaml`: local config; `config_template.yaml`: full reference. `Dockerfile`, `docker-compose.yml`, `Dockerfile.ansible`: containers. `install.sh`, `update.sh`, `make_deploy.sh`, `make_release.bat`: install/update/release.
+- External `../agotrain` (`antibyte/agotrain`): training datasets/curated contracts/Python environments/Needle3; workflow: `documentation/training.md`. Ordinary builds need no training checkout.
+- Ignored/runtime `bin/` (binaries), `data/` (state), `reports/` (analysis), `node_modules/`, `.venv/`, `.worktrees/`, `terminals/` are not child DOX owners.
 
-### Key Dependencies
-- `github.com/sashabaranov/go-openai` - OpenAI-compatible LLM client
-- `github.com/philippgille/chromem-go` - Embedded vector database
-- `modernc.org/sqlite` - Pure Go SQLite driver
-- `github.com/go-telegram-bot-api/telegram-bot-api/v5` - Telegram bot
-- `github.com/bwmarrin/discordgo` - Discord integration
-- `github.com/robfig/cron/v3` - Cron scheduler
-- `golang.org/x/crypto` - SSH client, bcrypt, ACME/Let's Encrypt
-- `github.com/gofrs/flock` - File-based locking
-- `tailscale.com` - Tailscale VPN integration
-- `github.com/aws/aws-sdk-go-v2` - AWS S3 SDK
+## Build, test and operate
 
-## Project Structure
+### Builds
 
-- `cmd/aurago` starts the agent (`main.go`, `platform_unix.go`, `platform_windows.go`); `cmd/remote`, `cmd/config-merger`, and `cmd/assetpack` provide remote execution, config merging, and Web UI packaging. `cmd/memory-repair` provides reviewed offline analysis duplicate merging.
-- `internal/` core: `agent` (loop/dispatch/co-agents), `budget` (token cost), `commands` (slash commands), `config` (YAML/defaults), `llm` (client/failover/retry/pricing), `logger` (structured logs), `media` (files), `memory` (STM/LTM/KG/personality), `prompts` (dynamic prompts), `security` (vault/tokens/Guardian), `server` (HTTP/API), `services` (indexing/ingestion), `setup` (first run), and `tools` (implementations).
-- `internal/` integrations: `contacts` (address book), `discord` (bot), `fritzbox` (TR-064), `invasion` (egg/nest), `inventory` (SQLite SSH devices), `meshcentral` (control WebSocket for devices, wake, power and MeshAgent commands), `mqtt` (client), `remote` (SSH/protocol), `rocketchat` (bot), `scraper` (web), `sqlconnections` (external SQL), `telegram` (text/voice/vision), `telnyx` (SMS/voice), `tsnetnode` (Tailscale), and `webhooks` (incoming/outgoing). `sandbox` owns Linux Landlock execution.
-- `agent_workspace/skills` holds bundled Python skills; `agent_workspace/tools` holds agent-created tools and their manifest; `agent_workspace/workdir` is the sandbox/venv workdir.
-- `prompts/identity.md`, `rules.md`, `personalities/`, `templates/`, and `tools_manuals/` hold identity, rules, profiles, templates, and RAG-indexed manuals.
-- `ui/` holds external HTML, CSS, JavaScript, 16 locale translations, and `embed.go` source fixtures for frontend tests.
-- `data/` holds runtime state; `documentation/` holds guides; ignored `bin/` and `reports/` hold binaries and analysis reports. `deploy/` contains tracked deployment inputs and ignored generated artifacts. `config.yaml` is local config; `config_template.yaml` is the full reference. `Dockerfile`, `docker-compose.yml`, and `Dockerfile.ansible` define containers; `install.sh`, `update.sh`, `make_deploy.sh`, and `make_release.bat` handle installation, updates, and releases.
-
-## Build Commands
-
-### Development Build
 ```bash
-# Build main binary (requires Go 1.27.2+)
+# Development: version-bound UI, then backend
 go run ./cmd/assetpack -out deploy -stage assets/web
 go build -ldflags="$(cat deploy/web-assets.ldflags)" -o aurago ./cmd/aurago
-
-# Build and start locally
-./start.sh
-
-# Build all binaries
+# All binaries (after asset packaging)
 mkdir -p bin
 go build -ldflags="$(cat deploy/web-assets.ldflags)" -o bin/aurago ./cmd/aurago
 go build -o bin/aurago-remote ./cmd/remote
 go build -o bin/config-merger ./cmd/config-merger
-```
-
-### Production Build
-```bash
-# Cross-compile for all platforms (Linux/macOS)
-./make_deploy.sh
-
-# Cross-compile for all platforms (Windows)
-make_release.bat
-
-# Individual platform build
-go run ./cmd/assetpack -out deploy -stage assets/web
+# Individual cross-build
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w $(cat deploy/web-assets.ldflags)" -o aurago ./cmd/aurago
-```
-
-Plain `go build` without the generated resource flags produces recovery only.
-Packaging resources alone does not repair an unpinned binary: rebuild it with
-the flags, verify with `--check-assets`, then restart. On Windows use `start.bat`
-or the PowerShell commands in `documentation/web-assets.md`.
-
-### Docker Build
-```bash
-# Build image
+# Docker
 docker build -t aurago:latest .
-
-# Or use docker-compose (recommended)
 docker-compose up -d
-
-# View logs
 docker-compose logs -f aurago
 ```
 
-### Test Commands
+Plain `go build` without resource flags produces recovery only. Packaging assets cannot repair an unpinned binary: rebuild with the flags, verify `--check-assets`, then restart. Local startup: `./start.sh`; Windows: `start.bat` or PowerShell in `documentation/web-assets.md`.
 
-In a working tree with ignored scratch Go files, use
-`./scripts/go-test-with-cache.ps1` (or pass `./...` to it). The wrapper tests
-the production roots and both versioned training utilities, excluding local
-scratch directories. Use literal `go test ./...` in a clean checkout.
-Keep new temporary Go files under `disposable/_<task>/`; Go ignores underscore
-directories during recursive package discovery. Do not add a module boundary
-above the tracked `disposable/export_tools` and `disposable/import_training_traces`.
-```bash
-# Run all tests
-go test ./...
+Production releases must use `./make_deploy.sh` (Linux/macOS) or `make_release.bat` / `make_release.ps1` (Windows), not ad-hoc builds; these scripts do not upload to a test server. Side effects are listed below.
 
-# Run tests for specific package
-go test ./internal/config/...
-go test ./internal/agent/...
-go test ./internal/memory/...
+### Verification and editing
 
-# Run with verbose output
-go test -v ./internal/tools/...
+- With ignored scratch Go files use `./scripts/go-test-with-cache.ps1` (also accepts `./...`): production roots and both versioned training utilities, excluding scratch directories. Literal `go test ./...` is for clean checkouts. Temporary Go files belong in `disposable/_<task>/` (Go skips underscore directories); never add a module boundary above tracked `disposable/export_tools` or `disposable/import_training_traces`.
+- Focused tests: `go test ./internal/config/...`, `go test ./internal/agent/...`, `go test ./internal/memory/...`, `go test -v ./internal/tools/...`. Coverage: `go test -cover ./internal/...`; race: `go test -race ./...`; benchmarks: `go test -bench=. ./internal/...`.
+- Put `*_test.go` beside source; name tests `TestFunctionName`; prefer table-driven cases (e.g. `internal/config/config_test.go`, `internal/tools/shell_test.go`, `internal/memory/history_test.go`, `internal/agent/agent_test.go`). Cover critical/complex paths and new features with focused unit and tool/workflow integration tests.
+- Wrap errors (`fmt.Errorf("context: %w", err)`); use structured `slog` (`log.Info("message", "key", value)`). Packages: short/lowercase/no underscores. Files: `snake_case.go`; exported types/constants/functions: `PascalCase`; unexported names/variables: `camelCase`. One responsibility per file; split oversized files.
+- Windows/PowerShell: never undo a broken edit with `git checkout <file>` (discards others' work); inspect the diff and revert only the failed edit. `[System.Text.Encoding]::UTF8` adds a BOM; use `[System.Text.UTF8Encoding]::new($false)` or another BOM-free writer; inspect the first three bytes when relevant (BOM breaks Go `encoding/json`). Normalize mixed CRLF/LF to LF per `.gitattributes`.
+- Before tests check encoding and `git diff --check`; JS: `node --check <file.js>`; JSON: `python -m json.tool <file.json>` or another parser. Windows isolated build/release checks use `scripts/invoke-clean-worktree.ps1` (`finally` removes worktree/prunes metadata), not ad-hoc `%TEMP%` worktrees.
+- Commit completed changes locally with a descriptive message, only intended files. Before each commit inspect `git diff --cached`, run `git diff --cached --check` and scan contextually for secrets without exposing values. Temporary scripts/files go in `disposable/`; clean up temporary files/logs and never push them.
 
-# Run with coverage
-go test -cover ./internal/...
+### Configuration
 
-# Race detection
-go test -race ./...
-
-# Benchmarks
-go test -bench=. ./internal/...
-```
-
-## Configuration
-
-### Required Minimum Configuration
 ```yaml
 providers:
   - id: main
@@ -136,592 +69,201 @@ providers:
     name: "Haupt-LLM"
     base_url: https://openrouter.ai/api/v1
     model: "<supported-model-id>"
-
 llm:
   provider: main
 ```
 
-### Environment Variables
-| Variable | Purpose |
-|----------|---------|
-| `AURAGO_MASTER_KEY` | 64-character hex key for vault encryption (32 bytes) |
-| `AURAGO_SERVER_HOST` | Override server bind address (Docker: `0.0.0.0`) |
-| `LLM_API_KEY` | Override LLM API key |
-| `OPENAI_API_KEY` | Alternative LLM API key |
-| `TAILSCALE_API_KEY` | Tailscale integration |
-| `ANSIBLE_API_TOKEN` | Ansible sidecar authentication |
+Set provider keys through Setup Wizard/Config UI into the encrypted Vault (`provider_main_api_key` here), never `config.yaml` or agent-visible data. Environment: `AURAGO_MASTER_KEY` = startup Vault key (64 hex characters/32 bytes); `AURAGO_SERVER_HOST` = bind override (Docker `0.0.0.0`); `LLM_API_KEY` / alternative `OPENAI_API_KEY` = LLM key override; `TAILSCALE_API_KEY` = Tailscale; `ANSIBLE_API_TOKEN` = sidecar auth.
 
-### Security Note
-Set the provider key through the Setup Wizard or Config UI, which stores it in the encrypted Vault (`provider_main_api_key` for the example). Do not put credentials in `config.yaml` or expose them to the agent.
+Debug: `./aurago -debug` or `agent.debug_mode: true` in `config.yaml`.
 
-## Code Style Guidelines
+### Install and development reset
 
-### Go Code Standards
-1. **Error handling** - Always wrap errors with context: `fmt.Errorf("context: %w", err)`
-2. **Logging** - Use structured logging with `slog`: `log.Info("message", "key", value)`
-3. **Comments** - Use English for all code comments
-4. **Package naming** - Short, lowercase, no underscores
-5. **File organization** - One responsibility per file
+Docker is recommended: `docker-compose up -d`; `docker-compose -f docker-compose.yml up -d` selects the default file explicitly. Linux:
 
-### Naming Conventions
-- **Files**: `snake_case.go` for multi-word files
-- **Types**: `PascalCase` (exported), `camelCase` (unexported)
-- **Constants**: `PascalCase` for exported, `camelCase` for unexported
-- **Functions**: `PascalCase` (exported), `camelCase` (unexported)
-- **Variables**: `camelCase`
+- Verified install: download `install.sh` and `SHA256SUMS` from `https://github.com/antibyte/AuraGo/releases/latest/download/`, then `sha256sum -c --ignore-missing SHA256SUMS && bash install.sh`.
+- Main-branch quick install: `curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash`.
+- Manual: `wget https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux` (arm64: `aurago_linux_arm64`), `chmod +x aurago_linux`, `./aurago_linux`. Systemd: `sudo ./install_service_linux.sh`.
 
-## Testing Strategy
+Development reset deletes databases/vectors/venv and removes locks after stopping:
 
-Use the commands above. Place `*_test.go` beside the source, name unit tests `TestFunctionName`, and prefer table-driven cases. Examples: `internal/config/config_test.go`, `internal/tools/shell_test.go`, `internal/memory/history_test.go`, and `internal/agent/agent_test.go`.
-
-## Security Considerations
-
-### Vault System
-- AES-256-GCM encryption for all secrets
-- Master key (64 hex chars = 32 bytes) required at startup via `AURAGO_MASTER_KEY`
-- Vault file: `data/vault.bin`
-- Never commit `.env` or vault files
-- Vault replacement keeps the original until a synced temporary file is renamed
-  through `internal/fileutil`. Verify `TestVaultAtomicReplaceHandlesWindowsReaders`.
-
-### Danger Zone Capabilities
-All potentially dangerous operations are gated via config:
-- `sudo_enabled` - Sudo command execution
-- `sudo_unrestricted` - Sudo writes outside the install directory (requires removing `ProtectSystem=strict` from the systemd unit)
-- `allow_shell` - Shell command execution
-- `allow_python` - Python code execution
-- `allow_filesystem_write` - File write operations
-- `allow_network_requests` - HTTP requests
-- `allow_remote_shell` - SSH to remote devices
-- `allow_self_update` - Binary self-updates
-- `allow_mcp` - Model Context Protocol
-- `allow_web_scraper` - Web scraping
-
-Operator slash commands (`/sudopwd`, `/addssh`, `/restart`, `/personality`, `/debug`, `/voice`) run only with `commands.Context.AllowOperator`: Telegram private chats, Discord DMs, `rocketchat.allow_operator_commands`, the web console, the desktop chat and mission runs, never model-written follow-up loopback turns. Classify every new command in `operatorCommands` or its test.
-
-### Sensitive Data Scrubbing
-Use `security.RegisterSensitive(value)` to prevent values from appearing in logs or LLM outputs.
-
-Register credentials before the first network call, including SDK constructors.
-The shared logger scrubs messages, bound attributes and nested errors. Telegram
-text delivery splits at its UTF-16 limit without cutting a Unicode code point.
-AgentMail retries only GET/HEAD automatically; uncertain mutations are never
-replayed. Its relay completes initial seeding before forwarding, deduplicates an
-accepted notification independently of label updates, and drains on shutdown.
-Web Push retains subscriptions on transient errors and counts only 2xx delivery;
-only 404/410 removes a subscription.
-
-### Agent Reports & Analysis Files
-
-Keep analysis reports, logs, and files that may contain sensitive data under ignored `reports/`, never `documentation/`; do not commit them. Never stage master keys, Vault secrets, API keys, tokens, passwords, credentials, sensitive logs, memory dumps, or conversation history.
-
-Before each commit, review the exact staged diff (`git diff --cached` and `git diff --cached --check`) and scan it contextually for secrets without publishing their values. If a secret was committed, assume compromise, rotate it immediately, and coordinate history removal (for example with BFG) and any required force push with the team.
-
-## Deployment
-
-- Docker deployment is recommended: use `docker-compose up -d` from Build Commands; `docker-compose -f docker-compose.yml up -d` explicitly selects the same default file.
-- Verified Linux install: download `install.sh` and `SHA256SUMS` from `https://github.com/antibyte/AuraGo/releases/latest/download/`, then `sha256sum -c --ignore-missing SHA256SUMS && bash install.sh`.
-- Quick Linux install (runs the script from the main branch): `curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash`.
-- Manual Linux binary install: `wget https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux` (arm64: `aurago_linux_arm64`), then `chmod +x aurago_linux` and `./aurago_linux`.
-- Systemd service: `sudo ./install_service_linux.sh`.
-
-## Key Architecture Patterns
-
-### Agent Loop
-The core agent loop (`internal/agent/agent_loop.go`) implements:
-1. Message reception
-2. LLM interaction with native function calling
-3. Tool dispatch and execution
-4. Response streaming via SSE
-5. Error recovery and retry logic
-
-### Server Architecture
-- AgoDesk extracts `/files/...` references from prose before signing; Markdown,
-  JSON escape, query and fragment delimiters must not become filename bytes.
-  Preserve escaped filenames and structured payload queries when rewriting URLs;
-  never repair contaminated signed URLs in the asset handler. Verify with tests
-  `TestAgodeskMediaReferencesServeSignedAudio` and
-  `TestAgodeskChatBrokerDeduplicatesDelimitedMediaPaths`.
-- Single HTTP server with SSE for streaming
-- `internal/httpstream.WithWriteTimeout` wraps the outer HTTP handler for local,
-  HTTPS and Tailscale listeners/proxies. Successful SSE and MJPEG responses renew
-  the existing finite write budget per write/flush; ordinary/error responses keep
-  their absolute timeout. Write/flush failure cancels the request and must never
-  revive a failed stream. Preserve WebSocket hijacking and response-controller
-  access. Verify with `go test ./internal/httpstream` and server
-  `TestAgentHTTPServerKeepsSSEAliveThroughMiddleware` plus Tailscale proxy tests.
-- RESTful API under `/api/`
-- Full Web UI served from verified, version-bound external resource sets; only recovery/login is embedded.
-- Fresh installations use HTTPS with a local self-signed certificate; native setup selects 443 or 8443, Docker uses 8443. Upgrades preserve existing HTTP/TLS choices. See `internal/server/AGENTS.md` and `documentation/https.md`.
-
-### Cross-component contract routing
-
-Before changing any listed feature, read its canonical child `AGENTS.md` in addition to the normal DOX chain, even when editing server, UI, config, assets, tests, or workflows outside that child's subtree. The linked contracts apply across those components; moving them out of this root file does not narrow their scope.
-
-| Feature contracts | Canonical child DOX |
-| --- | --- |
-| Shared file replacement and free-space probe | `internal/fileutil/AGENTS.md` |
-| Quick Connect serial and shared MeshCore port ownership | `internal/desktop/AGENTS.md`, `internal/meshcore/AGENTS.md`, `internal/serialutil/AGENTS.md` |
-| Docker Engine transport and version negotiation | `internal/dockerutil/AGENTS.md` |
-| Desktop rooted files and archives | `internal/desktop/AGENTS.md` |
-| Security primitives, Vault import grants and Cast tickets | `internal/security/AGENTS.md` |
-| WebAuthn/passkey owner login, protected auth policy, recovery and credential registry | `internal/server/AGENTS.md`, `internal/security/AGENTS.md`, `ui/AGENTS.md`, `internal/webassets/AGENTS.md` |
-| Invasion worker protocol and deployment | `internal/invasion/AGENTS.md` |
-| Remote enrollment and connection lifecycle | `internal/remote/AGENTS.md` |
-| Retro-Net Terminal dialing (server, Desktop setting, Terminal app) | `internal/retronet/AGENTS.md` |
-| RuView sensing, passive status and recording acknowledgement | `internal/ruview/AGENTS.md` |
-| LLM transport trust and failover | `internal/llm/AGENTS.md` |
-| HTTP stream write budgets | `internal/httpstream/AGENTS.md` |
-| Telnyx call/SMS transport and reconciliation | `internal/telnyx/AGENTS.md` |
-| Tool System; Prompt and Runtime Drift Contract | `internal/agent/AGENTS.md` |
-| Bluetooth Integration Contract | `internal/bluetooth/AGENTS.md` |
-| CYD Creator domain, device template, builder image, generator, storage, build queue, agent jobs and HTTP API | `internal/cydcreator/AGENTS.md`, `internal/server/AGENTS.md`, `internal/agent/AGENTS.md` |
-| God's Eye View Store Contract | `internal/desktopstore/AGENTS.md` |
-| Infra homelab atlas, source identity, layout and durable action outcomes | `internal/infra/AGENTS.md` |
-| Fritz!Box Desktop Widget Contract | `internal/fritzbox/AGENTS.md` |
-| Game Maker Studio Contract; Game Maker tool validation contract; Game Maker sprite library contract | `internal/gamemaker/AGENTS.md` |
-| Chess 3D board and Blender piece kit | `ui/js/desktop/apps/AGENTS.md`, `ui/3d/chess/AGENTS.md`, `assets/chess-3d/AGENTS.md` |
-| Managed Local Model Contract | `internal/localllm/AGENTS.md` |
-| Decisions service and CPU permission | `internal/decisions/AGENTS.md` |
-| EasyDrag flows and Decisions media authorization | `internal/flows/AGENTS.md` |
-| Decisions native scoring runtime and HTTP errors (`runtime_busy`) | `decisions_runtime/AGENTS.md` |
-| Local Wikipedia Contract | `internal/localwiki/AGENTS.md` |
-| Bookshelf library, sources, reader isolation and conversion | `internal/bookshelf/AGENTS.md` |
-| ONNX Runtime binding, asset cache, person detection worker and Pixel AI background matting | `internal/onnxrt/AGENTS.md`, `internal/persondetect/AGENTS.md`, `internal/pixelmatte/AGENTS.md` |
-| Memory System | `internal/memory/AGENTS.md` |
-| Newspaper publication, scheduling and delivery | `internal/newspaper/AGENTS.md` |
-| MeshCentral control client, power gate and test route | `internal/meshcentral/AGENTS.md` |
-| MeshCore Integration Contract | `internal/meshcore/AGENTS.md` |
-| MQTT Configuration Contract | `internal/mqtt/AGENTS.md` |
-| Local Network Share Integration Contract | `internal/networkshares/AGENTS.md` |
-| Desktop Workbook Contract; Desktop Office Document Contract | `internal/office/AGENTS.md` |
-| Operational Issue Notification Contract | `internal/planner/AGENTS.md` |
-| Security proxy Caddyfile, images and container placement | `internal/proxy/AGENTS.md` |
-| Default Speech Output Contract | `internal/sanotts/AGENTS.md` |
-| System World Tower Voice; 3D Printer Integration Contract; go2rtc Integration Contract; AI Gateway Contract; here.now Integration Contract; GitHub Integration Contract; Homepage Managed Website Ledger; Configuration UI Integration Test Contract | `internal/server/AGENTS.md` |
-| Workspace Search System | `internal/services/AGENTS.md` |
-| Native SIP Telephony Contract | `internal/sipphone/AGENTS.md` |
-| External SQL permissions and managed SQLite imports | `internal/sqlconnections/AGENTS.md` |
-| Update artifact retention contract | `internal/upkeep/AGENTS.md` |
-| Speech Lab Integration Contract | `internal/speechlab/AGENTS.md` |
-| Desktop Tresor Storage Contract | `internal/tresor/AGENTS.md` |
-| Agent Filesystem Jail Contract; Agent Docker Inspect Contract; Managed Space Agent Contract; treg catalog gateway | `internal/tools/AGENTS.md` |
-| Virtual Computers Storage / Managed Garage Contract | `internal/virtualcomputers/AGENTS.md` |
-| Video Studio project, timeline and FFmpeg contract | `internal/videostudio/AGENTS.md` |
-| External browser resource contract | `internal/webassets/AGENTS.md` |
-
-## Development Workflow
-
-### Adding a New Tool
-1. Create tool implementation in `internal/tools/your_tool.go`
-2. Add tool definition/registration
-3. Add prompt manual in `prompts/tools_manuals/your_tool.md`
-4. Update tool registry if needed
-5. Add tests in `internal/tools/your_tool_test.go`
-6. Reconcile `../agotrain/training/tool_tiers.json` and `operation_contracts.json` with the
-   effective strict schema snapshot, preserving curated entries. Regenerate
-   training artifacts in `antibyte/agotrain` and run `.github/workflows/training-dataset.yml`
-   against the commit pinned in `.github/agotrain-revision`. See `documentation/training.md`.
-   Keep the validator's expected tool count and schema-token limit synchronized
-   with the exporter. `--check` is read-only for the committed training pack.
-   Preserve paired German/English direct coverage for every operation and
-   selector-free tool when the catalog changes.
-   Keep curated arguments sparse. The exporter uses the original argument schema
-   to add optional null placeholders to Strict wire calls on a copy; it never
-   invents required values. Catalogs retain both schemas for independent Python
-   validation and semantic evaluation. Operation required/excluded fields apply
-   to semantic arguments, not synthetic placeholders; domain-null values remain
-   meaningful. Preserve manifests when only the schema projection changes and
-   update their schema hash explicitly instead of bootstrapping them again.
-
-### Adding a New Integration
-1. Create package in `internal/your_integration/`
-2. Implement client/service logic
-3. Add config types to `internal/config/config_types.go`
-4. Add config loading defaults in `internal/config/config.go`
-5. Add Web UI handlers in `internal/server/` if needed
-6. Add translations for all 16 supported languages in `ui/lang/`; do not copy English into other locales.
-7. Document in `documentation/`
-
-### Database Migrations
-- SQLite migrations are handled automatically on startup
-- Schema changes should be backward compatible
-- New DB files auto-initialize with current schema
-
-### Dependency maintenance
-
-- Update Go, npm/vendor assets, Python locks and the Rust TUI together. Use stable releases and retain documented security or upstream compatibility bounds.
-- `documentation/dependencies.md` records supported exceptions and rebuild/check commands. Keep `tools/aurago-tui/Cargo.lock` versioned and test with `--locked`.
-
-### Provider and Model Catalog Refresh
-- Regenerate `internal/llm/model_registry_data.go` from `https://models.dev/api.json` with `go run scripts/generate_model_registry.go --write`, then run `--check`.
-- Regenerate the bundled provider/model catalog with `go run scripts/sync_ohmypi_catalog.go --write`, then run `--check`. Its source package is `@oh-my-pi/pi-catalog`; import `src/models.json` and compiled `src/compat/rules.json` from the same npm tarball.
-- Keep the catalog focused on LLMs, preserve explicit upstream `supportsTools` values, mark model-only providers as catalog-only, and verify catalog, registry, and server tests after a refresh.
-
-## Common Development Tasks
-
-### Reset Development Environment
 ```bash
 ./kill_all.sh
 rm -rf data/*.db data/vectordb/* agent_workspace/workdir/venv
 rm -f data/aurago.lock data/maintenance.lock
 ```
 
-### Regenerate Master Key
+Master-key generation examples (keep secrets out of Git):
+
 ```bash
-# Linux/macOS
 export AURAGO_MASTER_KEY="$(openssl rand -hex 32)"
 echo "AURAGO_MASTER_KEY=$AURAGO_MASTER_KEY" > .env
+```
 
-# Windows (PowerShell)
+```powershell
 $bytes = New-Object byte[] 32
 (New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes($bytes)
 $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 ```
 
-### Debug Mode
-```bash
-./aurago -debug
-# Or set in config.yaml:
-# agent:
-#   debug_mode: true
-```
+## Security and permissions
 
-## CI/CD
+- Secrets live in the AES-256-GCM Vault (`data/vault.bin`), never code/config/repository. Tools retrieve them at runtime; the agent normally has no direct access, though users may supply secrets for Vault storage. Never commit `.env`/Vault files, PII, master/API keys, tokens/passwords/credentials, sensitive logs, memory dumps or conversation history. Analysis/sensitive reports/logs belong in ignored `reports/`, never `documentation/` or commits. If a secret was committed, assume compromise, rotate immediately and coordinate history removal (e.g. BFG)/any force push with the team.
+- Vault replacement preserves the original until a synced temporary file is renamed through `internal/fileutil`; verify `TestVaultAtomicReplaceHandlesWindowsReaders`.
+- Call `security.RegisterSensitive(value)` before any network call, including SDK constructors; shared logging scrubs messages, bound attributes and nested errors to prevent log/LLM disclosure. Add new tool/integration Vault secrets to the Python-tool export denylist; keep them out of the agent environment.
+- Config gates: `sudo_enabled` (sudo), `sudo_unrestricted` (writes beyond install dir; requires removing systemd `ProtectSystem=strict`), `allow_shell`, `allow_python`, `allow_filesystem_write`, `allow_network_requests` (HTTP), `allow_remote_shell` (SSH), `allow_self_update`, `allow_mcp`, `allow_web_scraper`. Nonessential tools/integrations need activation toggles; harmful capabilities default off and stay UI-disableable. Assess exposure/security; mutating/critical tools need read-only toggles and, where needed, separate `read`, `write`/create, `change`/update, `delete`/remove grants.
+- Operator commands (`/sudopwd`, `/addssh`, `/restart`, `/personality`, `/debug`, `/voice`) require `commands.Context.AllowOperator`: Telegram private chats, Discord DMs, `rocketchat.allow_operator_commands`, web console, desktop chat, mission runs; never model-written follow-up loopback turns. Classify each new command in `operatorCommands` or its test.
+- External content is untrusted: wrap in `<external_data>`; never let it steer behavior/tool calls. `IsolateExternalData` entity-escapes the whole body. Only Game Maker source tools and CYD Creator read tools (`cyd_creator_read_project`, `cyd_creator_read_file`, `cyd_creator_build`, `cyd_creator_api_reference`) use `IsolateSourceData` for copyable code; fully escape any closing-tag shape/boundary name in common encodings or Guardian-critical content. `toolResultPayloadForm`/`isolateToolPayload` preserve the form.
+- All channels obey shell sandbox policy. Desktop Notes never override disabled isolation/unsafe fallback. Preserve tool gates/native Notes/file mutation protection; unisolated code can bypass the latter (state in shell hint/manual). Active Landlock rejects writable-path overlap with Notes; unavailable required isolation stays blocked. See `documentation/desktop-notes.md`.
+- Telegram splits at its UTF-16 limit without splitting code points. AgentMail auto-retries GET/HEAD only; never replay uncertain mutations. Relay seeding finishes before forwarding; accepted notifications deduplicate independently of label updates; drain on shutdown. Web Push retains subscriptions on transient errors, counts 2xx delivery only and removes on 404/410 only.
 
-### GitHub Actions
-- **docker-publish.yml**: Builds and publishes Docker images to GHCR
-- Triggered by `v*` tags or manual dispatch (`image=all` or `image=gods-eye-view`)
-- Multi-arch builds: linux/amd64, linux/arm64
+## Development workflows
 
-Every workflow `uses:` ref is pinned to a full commit SHA with a ` # vX.Y.Z` comment, and workflows default to `permissions: contents: read` with write scopes granted per job; `internal/audit` tests reject floating refs in tracked workflows. Dependabot (`.github/dependabot.yml`) refreshes the action pins monthly except `dtolnay/rust-toolchain`, which is refreshed by hand; `govulncheck@v1.8.0` (`security-gates.yml`) is also bumped by hand. Training Python dependencies, uv pins and GPU research live in `antibyte/agotrain`; AuraGo retains its Go exporter/importer and pinned integration checks.
+### Tools, integrations and training
 
-### Release Process
-1. `./make_deploy.sh` builds cross-platform artifacts; by default it may commit/push `main` (`--no-publish` suppresses that). It does not create a tag or GitHub Release.
-2. On Windows, `make_release.bat` or `make_release.ps1` builds cross-platform artifacts, commits/pushes as needed, creates a versioned GitHub Release with binaries, and cleans up older releases while keeping the latest three.
-3. Release builders pin `GOTOOLCHAIN=go1.27.2`; verify the selected compiler before publishing even when a newer system Go is installed.
-4. A pushed `v*` tag triggers `docker-publish.yml`; a push to `main` alone does not.
+- New tool: implement/register in `internal/tools/your_tool.go`, add `prompts/tools_manuals/your_tool.md`, update registry as needed and add `internal/tools/your_tool_test.go`. Tool/integration changes also update `prompts/tools_manuals/`, agent prompts, Web UI help and documentation.
+- Reconcile `../agotrain/training/tool_tiers.json` and `operation_contracts.json` with effective strict schema snapshots; preserve curated entries. Regenerate in `antibyte/agotrain`; run `.github/workflows/training-dataset.yml` against `.github/agotrain-revision`. Follow `documentation/training.md`; sync validator tool count/schema-token limit with exporter. `--check` is read-only for committed packs. Catalog changes retain paired German/English direct coverage for every operation and selector-free tool.
+- Keep curated arguments sparse. Exporter uses the original argument schema to add optional null placeholders on a copy of Strict wire calls, never inventing required values. Catalogs retain both schemas for independent Python validation/semantic evaluation. Required/excluded operation fields apply to semantic arguments, not synthetic placeholders; domain-null remains meaningful. Schema-projection-only changes preserve manifests and explicitly update their schema hash; never bootstrap again.
+- New integration: package/client/service in `internal/your_integration/`, types in `internal/config/config_types.go`, defaults in `internal/config/config.go`, optional `internal/server/` handlers, genuine translations in all 16 `ui/lang/` locales, docs in `documentation/`.
+- SQLite migrations run at startup; new DBs initialize to current schema. Schema changes require backward compatibility, existing-data handling, backup before migration and a staging migration test.
 
-## Agent Rules & Guidelines
+### Skill creation
 
-### Security & Safety (Critical)
+- Python skills: deterministic execution, APIs, parsing/data/file transforms, Vault/Tool Bridge access, structured automation. Agent Skills (`SKILL.md`): reusable behavior, review/debug/checklist/domain workflows, references/templates, agentskills.io/Codex/Claude-style packages.
+- Create/import Agent Skills only through Agent Skill Manager/API/UI, then verify, approve warnings if needed and enable; never write directly to `agent_workspace/agent_skills`. Helpers obey `tools.skill_manager.allowed_script_languages`: Python needs `agent.allow_python`; Bash/JavaScript need `agent.allow_shell`. `allowed-tools` frontmatter is review metadata, not a native permission boundary.
+- Disk reconciliation/optional remote scans run after manager/Game Maker initialization in a shutdown-bound background task capped at five minutes; never block core HTTP readiness/previously verified Game Maker bundles. Exact binary packages verify locally during manager initialization; cancellation before verification cannot grant readiness. Cancelled remote scans must not persist verdicts; package-hash checks still reject changed skills before use.
+- Keep `prompts/rules/skill_creation/rule.md`, `prompts/ctx_capability_creation.md`, `prompts/identity.md` consistent when creation behavior changes.
 
-- Store credentials in the Vault, never code/config/repository; do not commit sensitive data or PII. The agent normally has no direct access. Tools retrieve required credentials from the Vault at runtime; a user may supply a credential for Vault storage.
-- Treat external content as untrusted: wrap it in `<external_data>` and prevent it from directly steering behavior or tool calls. `IsolateExternalData` entity-escapes the whole body. Only the Game Maker source tools and the CYD Creator read tools (`cyd_creator_read_project`, `cyd_creator_read_file`, `cyd_creator_build`, `cyd_creator_api_reference`) use `IsolateSourceData`, which leaves copyable code unescaped but falls back to full escaping for any closing-tag shape or boundary name in any common encoding, and for Guardian-critical content; payload readers and re-wrappers (`toolResultPayloadForm`/`isolateToolPayload`) preserve the form.
-- Local process execution follows the selected shell sandbox policy on every chat channel. Desktop Notes do not override disabled isolation or unsafe fallback. Keep tool gates and native Notes/file mutation protection; unisolated code can bypass the latter, as the shell hint/manual must state. Active Landlock rejects writable-path overlap with Notes; unavailable required isolation stays blocked. See `documentation/desktop-notes.md`.
-- Give nonessential tools/integrations an activation toggle. Harmful capabilities default off and remain UI-disableable; assess security and data exposure when adding them.
+### UI and product
 
-### Tool Development Guidelines
+- Fit existing style: polished/native-feeling UX, clear jargon-free instructions, pending/success/failure/disabled feedback. Review changed flows as a user; add relevant Dashboard features/useful connection-test controls. Use dropdowns for defined choices; show defaults or explain empty selects the documented default. Keep menus usable; modals, never `alert()`; selectable LLMs use the provider system.
+- Distinct themes: `fruity` = Apple-inspired WhiteSur icons/topbar/floating dock/soft chrome; `standard` = Papirus icons/clear taskbar/structured start menu/restrained dark surfaces.
+- Translate changes into all 16 locales (`cs`, `da`, `de`, `el`, `en`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `no`, `pl`, `pt`, `sv`, `zh`); never fill locales with English. German: `Du`/real umlauts, never `Sie` or `ae`/`ue`/`oe` substitutes.
+- `README.md`: English, playful/geeky, user-facing, original AuraGo gopher; compact casual copy about real features/integrations, source-aligned claims, no corporate slogans. `assets/readme/` depicts real features/structure/connections; verify labels/arrows, authentic screenshots, Markdown explanations, light/dark desktop/mobile rendering.
+- Task LLM router defaults off: operator guide `documentation/llm-router.md`, runtime `internal/agent/AGENTS.md`. Align Newspaper implementation with product/editorial/delivery/acceptance plan `documentation/newspaper-plan.md`.
+- TeeVee retains supplied wood/metal CRT skin across themes; `documentation/teevee-retro-ui-plan.md` owns source/render/validation. CRT filter/glass reflection toggle independently; native playback survives blocked textures/WebGL. One decoder; explicit source-scoped proxy reconnect. Hardware 1080p/60 and external live-stream acceptance stay separate from local fixtures.
+- HA Switchboard (`ha-switchboard`): existing HA integration/Desktop shell, walnut cabinet/silver lever per selected `switch.*`; admin-only routes preserve HA service policy and both read-only gates. Validated `ha_switchboard.board` persists order/selection/labels; live reads confirm explicit on/off writes. Follow `documentation/ha-switchboard-plan.md` and owning UI/app contracts.
 
-- Mutating or critical tools/integrations need a read-only toggle; where needed, separate `read`, `write`/create, `change`/update, and `delete`/remove grants.
-- Update `prompts/tools_manuals/`, agent prompts, Web UI help text, and documentation when tools or integrations change.
+### Dependencies, catalogs and delivery
 
-#### Skill Creation Rules
-- AuraGo has two skill families: Python skills for executable reusable capabilities, and Agent Skills for `SKILL.md` workflow/domain-guidance packages.
-- Agent Skill disk reconciliation and optional remote security scans run after manager/Game Maker initialization in a shutdown-bound background task (five-minute ceiling). They must not block core HTTP readiness or previously verified Game Maker bundles. Exact binary packages are locally verified during manager initialization; cancellation before that verification cannot grant readiness. A cancelled remote scan must not persist its package verdict. Existing package-hash checks continue to reject changed skills before use.
-- Prefer Python skills for deterministic execution, APIs, parsers, data/file transforms, Vault access, Tool Bridge use, and structured automation.
-- Prefer Agent Skills for reusable agent behavior, checklists, review/debug workflows, domain methods, curated references, templates, and agentskills.io/Codex/Claude-style requests.
-- Create or import Agent Skills only through the Agent Skill Manager/API/UI path, then verify, approve warnings if needed, and enable; do not write directly into `agent_workspace/agent_skills`.
-- Agent Skill helper scripts must respect `tools.skill_manager.allowed_script_languages` and runtime gates: Python needs `agent.allow_python`, Bash/JavaScript need `agent.allow_shell`. `allowed-tools` frontmatter is review metadata only, not an enforced native-tool permission boundary.
-- Keep `prompts/rules/skill_creation/rule.md`, `prompts/ctx_capability_creation.md`, and `prompts/identity.md` consistent whenever skill creation behavior changes.
+- Update Go/npm/vendor assets/Python locks/Rust TUI together: stable releases, documented security/upstream bounds. Exceptions/rebuild checks: `documentation/dependencies.md`; version `tools/aurago-tui/Cargo.lock`, test `--locked`.
+- Registry: `go run scripts/generate_model_registry.go --write` from `https://models.dev/api.json` to `internal/llm/model_registry_data.go`, then `--check`. Catalog: `go run scripts/sync_ohmypi_catalog.go --write`, then `--check`; take `src/models.json` and compiled `src/compat/rules.json` from the same `@oh-my-pi/pi-catalog` npm tarball. LLMs only; preserve explicit `supportsTools`; mark model-only providers catalog-only; test catalog/registry/server.
+- Treat `config.yaml` carefully; align install/update scripts and Dockerfiles with system/dependency changes. AuraGo manages its Docker containers; do not assume manual user management.
+- Compose socket proxy defaults to `BUILD=0`. Code Studio/most sidecars pull with `IMAGES=1`, `POST=1`; Engine builds (Homepage first-use dev image, CommandCode fallback, local Code Studio runtimes, rate-limit Caddy image) need `BUILD=1` or preexisting host images. `aurago --print-homepage-dockerfile` supports host builds; see `documentation/docker_installation.md` section 4. Changing default to `BUILD=1` requires an explicit decision.
+- `docker-publish.yml` publishes GHCR linux/amd64 + linux/arm64 on `v*` tags/manual dispatch (`image=all` / `image=gods-eye-view`), never `main` pushes alone. Pin workflow `uses:` to full SHA plus ` # vX.Y.Z`; default `permissions: contents: read`, job-specific writes only (`internal/audit` rejects floating refs). `.github/dependabot.yml` refreshes monthly except manual `dtolnay/rust-toolchain`; `govulncheck@v1.8.0` in `security-gates.yml` is manual too. Training Python/uv/GPU research stays in `antibyte/agotrain`; AuraGo owns Go exporter/importer/pinned checks.
+- `./make_deploy.sh` cross-builds and may commit/push `main` by default (`--no-publish` suppresses); no tag/GitHub Release. Windows `make_release.bat`/`make_release.ps1` build, commit/push as needed, publish versioned GitHub Releases with binaries and retain the latest three. Builders pin `GOTOOLCHAIN=go1.27.2`; verify compiler before publishing even if system Go is newer.
 
-### Web UI Guidelines
+## Shared runtime contracts
 
-- Aim for polished, native-feeling UX: use clear, jargon-free instructions and visible pending, success, failure, and disabled feedback. Fit the existing style, fix confusing flows, and review every changed UI flow from the user's perspective before finishing. Add new features to the Dashboard when relevant and connection-test controls when useful for diagnosis.
-- Keep Desktop themes distinct: `fruity` uses Apple-inspired WhiteSur icons, topbar, floating dock, and soft chrome; `standard` uses Papirus icons, a clear taskbar, structured start menu, and restrained dark surfaces.
-- Translate changed UI strings in all 16 locales (`cs`, `da`, `de`, `el`, `en`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `no`, `pl`, `pt`, `sv`, `zh`); do not fill other locales with English. In German use `Du` and real umlauts, never `Sie` or `ae`/`ue`/`oe` substitutes.
-- Use dropdowns for fields with defined options. Show defaults in fields or explicitly explain that an empty field selects the documented default. Keep menus easy to use.
+- `internal/agent/agent_loop.go`: receive → LLM native function calling → tool dispatch/execution → SSE response → recovery/retry.
+- One HTTP server, SSE, REST `/api/`; verified external full UI, embedded recovery/login. Fresh installs use local self-signed HTTPS: native 443 or 8443, Docker 8443; upgrades preserve HTTP/TLS. See `internal/server/AGENTS.md`, `documentation/https.md`.
+- AgoDesk extracts prose `/files/...` before signing; Markdown/JSON-escape/query/fragment delimiters never become filename bytes. Preserve escaped filenames/structured payload queries when rewriting; never repair contaminated signed URLs in the asset handler. Tests: `TestAgodeskMediaReferencesServeSignedAudio`, `TestAgodeskChatBrokerDeduplicatesDelimitedMediaPaths`.
+- `internal/httpstream.WithWriteTimeout` wraps outer handlers for local/HTTPS/Tailscale listeners/proxies. Successful SSE/MJPEG renew existing finite write budgets per write/flush; ordinary/error responses keep absolute timeout. Write/flush failure cancels requests, never revives streams. Preserve WebSocket hijacking/response-controller access. Verify `go test ./internal/httpstream`, server `TestAgentHTTPServerKeepsSSEAliveThroughMiddleware`, Tailscale proxy tests.
 
-### Code Organization & Quality
+## Child DOX Index / cross-component routing
 
-- Split files that become too large for an agent to process clearly; keep structure maintainable.
-- Clean up temporary files/logs. On Windows, use `scripts/invoke-clean-worktree.ps1` for isolated build/release checks instead of ad-hoc `%TEMP%` worktrees; its `finally` removes the worktree and prunes stale Git metadata on success or failure.
-- Use a modal instead of `alert()`. Selectable LLMs must use the provider system.
+**Read every matching owner below in addition to the normal DOX chain before changing a listed feature, including server/UI/config/assets/tests/workflows outside its subtree.** Feature contracts remain repository-wide; this combined ownership/routing index does not narrow scope. Child guides own deeper indexes.
 
-### Testing & Quality Assurance
-
-- Test critical functionality and new features with focused unit tests and integration tests for tools/workflows; maintain good coverage for complex or critical paths to catch regressions.
-
-### Database Management
-
-- Schema changes need a backward-compatible migration strategy, existing-data handling, a backup before migration, and a staging migration test.
-
-### Deployment & Maintenance
-
-- Treat `config.yaml` changes carefully. Keep update/install scripts and Dockerfiles aligned with system changes, including new installation needs. AuraGo manages its Docker containers; do not assume users will manage them.
-- The default Compose Docker socket proxy keeps `BUILD=0`: Code Studio and most managed sidecars pull published images with `IMAGES=1` and `POST=1`. Images AuraGo builds through the Engine API (the Homepage dev image on first use, the CommandCode fallback build, local Code Studio runtime images, the security proxy's rate-limit Caddy image) need `BUILD=1` or must already exist on the host (`aurago --print-homepage-dockerfile` prints the Homepage Dockerfile for a host-side build); see `documentation/docker_installation.md` §4. Do not flip the default to `BUILD=1` without an explicit decision.
-- For production releases use `make_deploy.sh` (Linux/macOS) or `make_release.bat`/`make_release.ps1` (Windows), not ad-hoc build commands. These scripts do not upload to a test server.
-- Register Vault secrets used by new tools/integrations in the denylist for Python-tool export; protect them from the agent environment.
-
-## Additional Product Contracts
-
-- The optional task LLM router defaults off. `documentation/llm-router.md`
-  owns operator guidance; `internal/agent/AGENTS.md` owns its runtime contract.
-- Newspaper's planned product, editorial, delivery, and acceptance contract is
-  `documentation/newspaper-plan.md`; keep it aligned with the implemented app.
-- Keep `README.md` user-facing, English, playful, and geeky with the original AuraGo gopher. Use compact, casual copy naming real features and integrations, not corporate slogans. Keep claims source-aligned. `assets/readme/` artwork should depict real features, structure, and connections; verify labels/arrows, authentic screenshots, Markdown explanations, and light/dark desktop/mobile rendering.
-- TeeVee retains the supplied wood/metal CRT skin across themes. `documentation/teevee-retro-ui-plan.md` owns its source/render/validation contract. The video CRT filter and glass reflection switch independently; native playback survives blocked textures/WebGL. Keep one decoder and source-scoped explicit proxy reconnect. Hardware 1080p/60 and external live-stream acceptance remain distinct from local fixtures.
-- HA Switchboard (`ha-switchboard`) uses the existing HA integration/desktop shell, a walnut cabinet, and a silver lever for each selected `switch.*`. Admin-only routes preserve HA service policy and both read-only gates. Validated `ha_switchboard.board` stores order/selection/labels; live reads confirm explicit on/off writes. See `documentation/ha-switchboard-plan.md` and the owning UI/app contracts.
-
-## Work Habits
-
-- Commit completed changes locally with a clear descriptive message; review only the intended staged files.
-- Use `disposable/` for temporary scripts/files and do not push them. Put analysis reports in ignored `reports/` as specified above.
+| Feature / area | Required AGENTS.md | Scope |
+| --- | --- | --- |
+| Low-poly Game Maker pack | `assets/game-maker-low-poly/AGENTS.md` | Original 220-model Blender pack, animations, compact exports, playable acceptance scenes. |
+| Game Maker presentation | `assets/game-maker-presentation/AGENTS.md` | Effects/audio sources, licensing, builds, runtime limits. |
+| Game Maker worlds | `assets/game-maker-worlds/AGENTS.md` | Maritime/isometric Blender sources, catalog counts, exports, runtime limits. |
+| AuraGolf | `assets/minigolf/kit/AGENTS.md` | Procedural Blender tracks/courses/props, exports, collisions. |
+| Tiefsee screensaver | `assets/screensaver-abyss/AGENTS.md` | Creature generator, deterministic exports, asset checks. |
+| System World assets | `assets/system-world/AGENTS.md` | Blender city authoring/original sources/reproducible compact exports. |
+| Memory repair CLI | `cmd/memory-repair/AGENTS.md` | Offline analysis duplicate merging, previews/evidence/backups, resumable reference/vector cleanup. |
+| ACE-Step | `internal/acestep/AGENTS.md` | Private local music lifecycle, pinned runtime/models, hardware qualification. |
+| Agent/tool system | `internal/agent/AGENTS.md` | Runtime prompts/discovery/dispatch/context; Prompt and Runtime Drift Contract. |
+| Bluetooth | `internal/bluetooth/AGENTS.md` | Native discovery/permissions/playback. |
+| Bookshelf | `internal/bookshelf/AGENTS.md` | Library/sources, reader isolation, conversion. |
+| CYD Creator | `internal/cydcreator/AGENTS.md`, `internal/server/AGENTS.md`, `internal/agent/AGENTS.md` | Board/device profiles/themes/widgets/layout ops/validation/partitions/config blob; `cyd_template` runtime, builder image/deterministic generator, SQLite/storage, diagnostics/events/service, queue/jobs/revisions/tools/HTTP API. |
+| Decisions service | `internal/decisions/AGENTS.md` | Optional shared service, verified artifacts/device placement/CPU permission/bounded scoring. |
+| Decisions runtime | `decisions_runtime/AGENTS.md` | Pinned llama.cpp/mtmd scorer, private protocol/offload evidence/native-Docker packaging, HTTP `runtime_busy`. |
+| Desktop files/archives | `internal/desktop/AGENTS.md` | Rooted operations; owns pets-assets child index. |
+| God's Eye View Store | `internal/desktopstore/AGENTS.md` | Store app config/runtime/assets/publication. |
+| Detective | `internal/detective/AGENTS.md` | Isolated Desktop research cases/evidence/budgets/revisions/exports. |
+| Docker Engine | `internal/dockerutil/AGENTS.md` | Transport/API negotiation, mutation retry, streaming cancellation. |
+| File utilities | `internal/fileutil/AGENTS.md` | Shared file replacement/free-space probe. |
+| EasyDrag | `internal/flows/AGENTS.md` | Flows and Decisions media authorization. |
+| Fritz!Box | `internal/fritzbox/AGENTS.md` | TR-064 integration/Desktop widget. |
+| Game Maker | `internal/gamemaker/AGENTS.md` | Studio/planning/runtime feedback/progression/lifecycle/tool validation/sprite library/exports; owns asset-pack child index. |
+| HTTP streams | `internal/httpstream/AGENTS.md` | Finite write budgets/HTTP writer compatibility. |
+| Infra | `internal/infra/AGENTS.md` | Homelab atlas/source identity/layout/durable action outcomes. |
+| Invasion | `internal/invasion/AGENTS.md` | Egg/nest protocol/auth/connection generations/key rotation/private deployment. |
+| LLM transport | `internal/llm/AGENTS.md` | Trust/URL logging/failover state. |
+| Managed local models | `internal/localllm/AGENTS.md` | Lifecycle/routing/attestation/qualification. |
+| Local Wikipedia Contract | `internal/localwiki/AGENTS.md` | Offline editions/download/verify/swap/search/tools/content; readers `internal/zim`, `internal/zim/xapian`. |
+| Memory | `internal/memory/AGENTS.md` | Retrieval/hygiene/indexing/maintenance. |
+| MeshCentral | `internal/meshcentral/AGENTS.md` | Control WebSocket/power gate/command limits/TLS CA/admin connection test. |
+| MeshCore | `internal/meshcore/AGENTS.md` | USB/BLE radio/trust/messaging/agent replies. |
+| MQTT | `internal/mqtt/AGENTS.md` | Broker config/subscriptions/relays/mission dispatch. |
+| Network shares | `internal/networkshares/AGENTS.md` | SMB/NFS capability/ownership/mutation policy. |
+| Newspaper | `internal/newspaper/AGENTS.md` | Daily publication/source validation/scheduler/delivery receipts. |
+| Desktop Office | `internal/office/AGENTS.md` | Workbook/document preservation/editing/assist. |
+| ONNX Runtime | `internal/onnxrt/AGENTS.md` | Purego binding/verified pinned asset cache/native workers shared by embeddings/person detection. |
+| Personal Radio | `internal/personalradio/AGENTS.md` | Stations/durable audio library/rotation/news/provider quotas/Desktop playback. |
+| Person detection | `internal/persondetect/AGENTS.md` | D-FINE pinned models/WebGPU patcher/`--person-detect-worker` protocol/backend selection/supervision. |
+| Pixel AI matting | `internal/pixelmatte/AGENTS.md` | Pinned ISNet/BiRefNet/pre-postprocessing/`--pixel-matte-worker`/`/api/pixel/cutout*` manager. |
+| Operational issues | `internal/planner/AGENTS.md` | Lifecycle/notifications/background retries. |
+| Security proxy | `internal/proxy/AGENTS.md` | Managed Caddy/Vault Basic Auth/rate-limit image/container placement/reload. |
+| Remote | `internal/remote/AGENTS.md` | Enrollment/socket ownership/connection/command-result lifecycle. |
+| Retro-Net Terminal | `internal/retronet/AGENTS.md` | Catalog/directory, guarded Telnet/SSH dialing/negotiation/charsets/session limits; server/Desktop setting/Terminal app. |
+| RTL-SDR | `internal/rtlsdr/AGENTS.md` | Optional receive-only runtime/schedules/leases/recordings/ASR. |
+| RuView | `internal/ruview/AGENTS.md` | Pinned sensing runtime/passive status/UDP readiness/this-process recording acknowledgement. |
+| Default speech | `internal/sanotts/AGENTS.md` | Pinned local CPU runtime/voice selection/licenses/synthesis checks. |
+| Security | `internal/security/AGENTS.md` | Primitives/Vault-token persistence/import grants/public URL trust/Guardian caching/Cast tickets. |
+| Serial ports | `internal/serialutil/AGENTS.md` | Shared enumeration/canonical reservations/cancellation-safe leases. |
+| HTTP/integrations | `internal/server/AGENTS.md` | HTTP/cross-component contracts: System World Tower Voice, 3D Printer, go2rtc, AI Gateway, here.now, GitHub, Homepage Managed Website Ledger, Configuration UI Integration Test Contract. |
+| Workspace search | `internal/services/AGENTS.md` | Background services/search. |
+| Native SIP | `internal/sipphone/AGENTS.md` | Telephone registration/calls/media/agent policy. |
+| Speech Lab | `internal/speechlab/AGENTS.md` | Active ASR/TTS snapshots/speech-driven chat routing. |
+| External SQL | `internal/sqlconnections/AGENTS.md` | Permissions/managed SQLite imports. |
+| Telnyx | `internal/telnyx/AGENTS.md` | Call/SMS transport/bounded provider-confirmed reconciliation. |
+| Desktop Tresor | `internal/tresor/AGENTS.md` | Browser-encrypted storage/revisions/backups/agent file protection. |
+| Agent tools | `internal/tools/AGENTS.md` | Filesystem Jail/Docker Inspect/Managed Space Agent/treg catalog gateway safety. |
+| Updates | `internal/upkeep/AGENTS.md` | Transactions/artifact retention/maintenance CLI/cleanup safeguards. |
+| Virtual Computers | `internal/virtualcomputers/AGENTS.md` | Workspace leases/managed Garage storage lifecycle. |
+| Video Studio | `internal/videostudio/AGENTS.md` | Desktop project/timeline model/local FFmpeg/render limits. |
+| External Web UI assets | `internal/webassets/AGENTS.md` | Integrity/install/resolution/verification/external browser resources. |
+| ZIM reader | `internal/zim/AGENTS.md` | Read-only archives/cluster cache/decompression bounds/fixtures; owns xapian full-text/title-index child. |
+| Licenses | `licences/AGENTS.md` | External-project inventory/license conditions/redistributed texts. |
+| Web UI | `ui/AGENTS.md` | External UI/Precision Workspace opt-in/protected Chat-Desktop surfaces/translations/verification; owns deeper contracts. |
+| Quick Connect/shared MeshCore ports | `internal/desktop/AGENTS.md`, `internal/meshcore/AGENTS.md`, `internal/serialutil/AGENTS.md` | Shared serial ownership across features. |
+| WebAuthn/passkey owner login | `internal/server/AGENTS.md`, `internal/security/AGENTS.md`, `ui/AGENTS.md`, `internal/webassets/AGENTS.md` | Protected auth policy/recovery/credential registry. |
+| Chess 3D | `ui/js/desktop/apps/AGENTS.md`, `ui/3d/chess/AGENTS.md`, `assets/chess-3d/AGENTS.md` | Board/Blender piece kit. |
+| Shared ONNX/person detection/Pixel AI | `internal/onnxrt/AGENTS.md`, `internal/persondetect/AGENTS.md`, `internal/pixelmatte/AGENTS.md` | All three own shared binding/cache/detection/background-matting changes. |
 
 <!-- gitnexus:start -->
-# GitNexus — Code Intelligence
+## GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **AuraGo** (175469 symbols, 1097879 relationships, 1778 execution flows).
+Indexed repository: **AuraGo**. On query/context/impact/cypher object results check `staleness.status`, branch/lastCommit; `current` means clone HEAD, not main. Re-analyze only for behind/diverged: `node .gitnexus/run.cjs analyze --index-only`. Missing runner: bootstrap via `npx`, `bunx` or `pnpm dlx`, e.g. `bunx gitnexus@latest analyze` (#1939).
 
-> Index stale? Run `node .gitnexus/run.cjs analyze --index-only`. No `.gitnexus/run.cjs`? Bootstrap with `npx`, `bunx`, or `pnpm dlx`; e.g. `bunx gitnexus@latest analyze` (#1939).
-> On query/context/impact/cypher object results, read staleness.status and branch/lastCommit. Re-analyze only for behind or diverged — current is clone HEAD, not main.
+- **Before edits run impact**, never edit functions/classes/methods without it: `impact({target: "symbolName", direction: "upstream"})` or `node .gitnexus/run.cjs impact "symbolName" --direction upstream --repo .`. Report callers/processes/risk. Warn on HIGH/CRITICAL `risk`; `riskSharedAxes` never waives it. File/symbol risks differ (MCP File omits axes; Graph-RAG expands File).
+- `risk: UNKNOWN` is unresolved, never safe/low. Empty callers may reflect plain-object property access/dynamic/cross-language calls; heed `riskNote` and confirm by text search before change/deletion. Never substitute grep for graph impact.
+- Read-only graph-first analysis: `query({search_query: "concept"})` for concepts/flows, `context({name: "symbolName"})` for symbols, impact for blast radius; text search only for empty/UNKNOWN/literals. Security: `explain({target: "fileOrSymbol"})` for source→sink taint (needs `analyze --pdg`).
+- Rename only with graph `rename`: preview `dry_run: true`, review semantic spans/coverage, apply `dry_run: false`; never find-and-replace.
+- **Before commit run change analysis**: `detect_changes({scope: "all"})` or `node .gitnexus/run.cjs detect-changes --scope all --repo .`. `partial: true`/`truncated: true` is incomplete; rerun, never interpret unseen zeros as unaffected. Regression review: fetch remote `main`, compute merge base with reviewed HEAD, pass SHA to `detect_changes({scope: "compare", base_ref: "<merge-base SHA>"})` or `node .gitnexus/run.cjs detect-changes --scope compare --base-ref "<merge-base SHA>" --repo .`.
 
-## Always Do
+Resources: `gitnexus://repo/AuraGo/context` (overview/freshness), `gitnexus://repo/AuraGo/clusters` (areas), `gitnexus://repo/AuraGo/processes` (flows), `gitnexus://repo/AuraGo/process/{name}` (trace). Read the matching skill:
 
-- **MUST run impact before editing.** Use `impact({target: "symbolName", direction: "upstream"})` or `node .gitnexus/run.cjs impact "symbolName" --direction upstream --repo .`; report callers/processes/risk. Never substitute grep for graph analysis.
-- **MUST analyze changes before commit.** Run `detect_changes({scope: "all"})` or `node .gitnexus/run.cjs detect-changes --scope all --repo .`. `partial: true` or `truncated: true` is not a clean check — a zero means unseen, not unaffected; re-run it. For regression review, fetch target branch "main" from its remote; compute its merge base with the reviewed HEAD and pass that SHA to `detect_changes({scope: "compare", base_ref: "<merge-base SHA>"})` or `node .gitnexus/run.cjs detect-changes --scope compare --base-ref "<merge-base SHA>" --repo .`.
-- MUST warn on HIGH/CRITICAL `risk` pre-edit; never use `riskSharedAxes` to waive a HIGH/CRITICAL `risk` warning. Compare File/symbol: MCP File omits axes; Graph-RAG expands File.
-- **MUST treat `risk: UNKNOWN` as unresolved, not as low.** An empty caller set is not evidence the symbol is unused — it can also mean the callers are not resolvable by the index (plain-object property access, dynamic dispatch, cross-language calls). `impact` pairs `UNKNOWN` with a `riskNote` saying so. Confirm with a text search before treating the symbol as safe to change or delete; do not proceed on the strength of a zero.
-- **MUST use `query({search_query: "concept"})` for concepts/flows, `context({name: "symbolName"})` for a named symbol, or `impact` for blast radius, on read-only callers, dependencies, imports, or execution flow.** Graph first; text search only for empty/`UNKNOWN`/literals.
-- For security review, `explain({target: "fileOrSymbol"})` lists taint findings (source→sink flows; needs `analyze --pdg`).
-
-## Never Do
-
-- NEVER edit a function, class, or method before MCP/CLI impact analysis.
-- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis, and never read `UNKNOWN` as an all-clear — it means the walk could not answer, which is the one verdict that requires confirming by other means.
-- NEVER rename symbols with find-and-replace — use `rename` with `dry_run: true` first, review the graph-backed semantic spans and coverage, then apply with `dry_run: false`.
-- NEVER commit before MCP/CLI graph change analysis.
-
-## Resources
-
-| Resource | Use for |
+| Task | Skill |
 | --- | --- |
-| `gitnexus://repo/AuraGo/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/AuraGo/clusters` | All functional areas |
-| `gitnexus://repo/AuraGo/processes` | All execution flows |
-| `gitnexus://repo/AuraGo/process/{name}` | Step-by-step execution trace |
-
-## CLI
-
-| Task | Read this skill file |
-| --- | --- |
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus-cli/SKILL.md` |
-
+| Architecture/flows | `.claude/skills/gitnexus-exploring/SKILL.md` |
+| Blast radius | `.claude/skills/gitnexus-impact-analysis/SKILL.md` |
+| Bugs | `.claude/skills/gitnexus-debugging/SKILL.md` |
+| Rename/extract/split/refactor | `.claude/skills/gitnexus-refactoring/SKILL.md` |
+| Tools/resources/schema | `.claude/skills/gitnexus-guide/SKILL.md` |
+| Index/status/clean/wiki CLI | `.claude/skills/gitnexus-cli/SKILL.md` |
 <!-- gitnexus:end -->
-
-# DOX framework
-
-## Core Contract
-
-- DOX is highly performant AGENTS.md hierarchy installed here
-- Agent must follow DOX instructions across any edits
-- AGENTS.md files are binding work contracts for their subtrees
-- Work products, source materials, instructions, records, assets, and durable docs must stay understandable from the nearest applicable AGENTS.md plus every parent AGENTS.md above it
-
-## Read Before Editing
-
-1. Read the root AGENTS.md
-2. Identify every file or folder you expect to touch
-3. Walk from the repository root to each target path
-4. Read every AGENTS.md found along each route
-5. If a parent AGENTS.md lists a child AGENTS.md whose scope contains the path, read that child and continue from there
-6. Use the nearest AGENTS.md as the local contract and parent docs for repo-wide rules
-7. If docs conflict, the closer doc controls local work details, but no child doc may weaken DOX
-
-Do not rely on memory. Re-read the applicable DOX chain in the current session before editing.
-
-## Update After Editing
-
-Every meaningful change requires a DOX pass before the task is done.
-
-Update the closest owning AGENTS.md when a change affects:
-
-- purpose, scope, ownership, or responsibilities
-- durable structure, contracts, workflows, or operating rules
-- required inputs, outputs, permissions, constraints, side effects, or artifacts
-- user preferences about behavior, communication, process, organization, or quality
-- AGENTS.md creation, deletion, move, rename, or index contents
-
-Update parent docs when parent-level structure, ownership, workflow, or child index changes. Update child docs when parent changes alter local rules. Remove stale or contradictory text immediately. Small edits that do not change behavior or contracts may leave docs unchanged, but the DOX pass still must happen.
-
-## Hierarchy
-
-- Root AGENTS.md is the DOX rail: project-wide instructions, global preferences, durable workflow rules, and the top-level Child DOX Index
-- Child AGENTS.md files own domain-specific instructions and their own Child DOX Index
-- Each parent explains what its direct children cover and what stays owned by the parent
-- The closer a doc is to the work, the more specific and practical it must be
-
-## Child Doc Shape
-
-- Create a child AGENTS.md when a folder becomes a durable boundary with its own purpose, rules, responsibilities, workflow, materials, or quality standards
-- Work Guidance must reflect the current standards of the project or user instructions; if there are no specific standards or instructions yet, leave it empty
-- Verification must reflect an existing check; if no verification framework exists yet, leave it empty and update it when one exists
-
-Default section order:
-- Purpose
-- Ownership
-- Local Contracts
-- Work Guidance
-- Verification
-- Child DOX Index
-
-## Style
-
-- Keep docs concise, current, and operational
-- Document stable contracts, not diary entries
-- Put broad rules in parent docs and concrete details in child docs
-- Prefer direct bullets with explicit names
-- Do not duplicate rules across many files unless each scope needs a local version
-- Delete stale notes instead of explaining history
-- Trim obvious statements, repeated rules, misplaced detail, and warnings for risks that no longer exist
-
-## Closeout
-
-1. Re-check changed paths against the DOX chain
-2. Update nearest owning docs and any affected parents or children
-3. Refresh every affected Child DOX Index
-4. Remove stale or contradictory text
-5. Run existing verification when relevant
-6. Report any docs intentionally left unchanged and why
-
-## User Preferences
-
-When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md.
-
-### File Editing on Windows / PowerShell
-
-- Never use `git checkout <file>` to undo one broken edit: it discards other work in that file. Inspect the diff and restore only the failed change.
-- `[System.Text.Encoding]::UTF8` writes a UTF-8 BOM. Use `[System.Text.UTF8Encoding]::new($false)` or another BOM-free writer; inspect the first three bytes when encoding matters. A BOM can break Go's `encoding/json`.
-- Multi-line PowerShell edits can mix CRLF and LF. Normalize edited text to LF as required by `.gitattributes`.
-- Check encoding and `git diff --check` before tests. Run `node --check <file.js>` for JavaScript; use `python -m json.tool <file.json>` or another JSON parser for JSON.
-
-## Child DOX Index
-
-Current child AGENTS.md files:
-- `assets/game-maker-low-poly/AGENTS.md` — Original 220-model Blender pack, animation contracts, compact exports and playable acceptance scenes.
-- `assets/game-maker-presentation/AGENTS.md` — Game Maker effects/audio sources, licensing, builds and runtime limits.
-- `assets/game-maker-worlds/AGENTS.md` — Maritime and isometric Blender sources, catalog counts, exports and runtime limits.
-- `assets/minigolf/kit/AGENTS.md` — AuraGolf procedural Blender kit: track pieces, courses, props, export and collision contracts.
-- `assets/screensaver-abyss/AGENTS.md` — Tiefsee screensaver creature generator, deterministic exports and asset checks.
-- `assets/system-world/AGENTS.md` — Blender city asset authoring, original sources and reproducible compact exports.
-- `cmd/memory-repair/AGENTS.md` — Offline analysis duplicate merging, previews, evidence, backups and resumable reference/vector cleanup.
-- `internal/acestep/AGENTS.md` — Private local music lifecycle, pinned runtime/models and hardware qualification.
-- `internal/agent/AGENTS.md` — Runtime prompt, tool-discovery, dispatch, and context rules.
-- `internal/bluetooth/AGENTS.md` — Native Bluetooth discovery, permissions, and playback.
-- `internal/cydcreator/AGENTS.md` — CYD Creator domain: board profiles, themes, widget catalog, project validation and layout ops, partitions, config blob, build diagnostics, the `cyd_template` device runtime, the builder image, the deterministic generator, SQLite store, service, events, build queue, agent jobs, revisions and agent tools.
-- `internal/desktop/AGENTS.md` — Rooted Desktop file/archive operations; owns the pets-assets child index.
-- `internal/desktopstore/AGENTS.md` — Store app configuration, runtime, assets, and publication.
-- `internal/detective/AGENTS.md` — Isolated Desktop research cases, evidence, budgets, revisions and exports.
-- `internal/dockerutil/AGENTS.md` — Engine transport, API negotiation, mutation retry and streaming cancellation boundaries.
-- `internal/fritzbox/AGENTS.md` — TR-064 integration and Desktop widget behavior.
-- `internal/gamemaker/AGENTS.md` — Game planning, runtime feedback/progression, lifecycle, validation and exports; owns the asset-pack child index.
-- `internal/httpstream/AGENTS.md` — Finite stream write budgets and HTTP writer compatibility.
-- `internal/invasion/AGENTS.md` — Egg/nest authentication, connection generations, key rotation and private deployment.
-- `internal/llm/AGENTS.md` — Provider transport trust, URL logging and failover state.
-- `internal/localllm/AGENTS.md` — Local model lifecycle, routing, attestation, and qualification.
-- `internal/decisions/AGENTS.md` — Optional shared decision service, verified artifacts, device placement, CPU permission, and bounded scoring.
-- `decisions_runtime/AGENTS.md` — Pinned llama.cpp/mtmd scoring process, private protocol, offload evidence, and native/Docker packaging.
-- `internal/localwiki/AGENTS.md` — Offline Wikipedia: edition download/verify/swap, search, tool and content serving (readers: `internal/zim`, `internal/zim/xapian`).
-- `internal/memory/AGENTS.md` — Memory retrieval, hygiene, indexing, and maintenance.
-- `internal/meshcentral/AGENTS.md` — MeshCentral control WebSocket, power gate, command limits, TLS CA and admin connection test.
-- `internal/meshcore/AGENTS.md` — USB/BLE radio, trust, messaging, and agent replies.
-- `internal/mqtt/AGENTS.md` — Broker configuration, subscriptions, relays, and mission dispatch.
-- `internal/networkshares/AGENTS.md` — SMB/NFS capability, ownership, and mutation policy.
-- `internal/newspaper/AGENTS.md` — Personal daily publication, source validation, scheduler and delivery receipts.
-- `internal/office/AGENTS.md` — Workbook and document preservation, editing, and assist.
-- `internal/onnxrt/AGENTS.md` — Purego ONNX Runtime binding, verified pinned asset cache and native worker process helpers shared by embeddings and person detection.
-- `internal/personalradio/AGENTS.md` — Personal stations, durable audio library, rotation, news, provider quotas and desktop playback contracts.
-- `internal/persondetect/AGENTS.md` — D-FINE person detector: pinned models, WebGPU model patcher, `--person-detect-worker` protocol, backend selection and worker supervision.
-- `internal/pixelmatte/AGENTS.md` — Pixel AI background matting: pinned ISNet and BiRefNet models, pre- and post-processing, the `--pixel-matte-worker` process and the `/api/pixel/cutout*` manager.
-- `internal/planner/AGENTS.md` — Issue lifecycle, notification, and background retry policy.
-- `internal/proxy/AGENTS.md` — Managed Caddy security proxy: Vault Basic Auth, rate-limit image, Docker placement and reload.
-- `internal/rtlsdr/AGENTS.md` — Optional receive-only RTL-SDR runtime, schedules, leases, recordings and ASR.
-- `internal/remote/AGENTS.md` — Remote enrollment, socket ownership and command/result lifecycle.
-- `internal/retronet/AGENTS.md` — Retro-Net dialing directory: catalog, guarded Telnet/SSH dialing, negotiation, charsets, session limits.
-- `internal/ruview/AGENTS.md` — Pinned RuView runtime, passive status, UDP readiness and this-process recording acknowledgement.
-- `internal/sanotts/AGENTS.md` — Pinned local CPU speech runtime, voice selection, licenses and synthesis checks.
-- `internal/server/AGENTS.md` — Server-owned HTTP and cross-component integration contracts.
-- `internal/serialutil/AGENTS.md` — Shared serial enumeration, canonical device reservations and cancellation-safe port leases.
-- `internal/security/AGENTS.md` — Vault/token persistence, public URL trust, Guardian caching and Cast tickets.
-- `internal/services/AGENTS.md` — Background services and workspace search.
-- `internal/sipphone/AGENTS.md` — Native telephone registration, calls, media, and agent policy.
-- `internal/speechlab/AGENTS.md` — Active ASR/TTS snapshots and speech-driven chat routing.
-- `internal/tresor/AGENTS.md` — Browser-encrypted Desktop Tresor storage, revisions, backups and agent file protection.
-- `internal/telnyx/AGENTS.md` — Call/SMS transport and bounded provider-confirmed reconciliation.
-- `internal/tools/AGENTS.md` — Agent filesystem and Docker tool safety boundaries.
-- `internal/upkeep/AGENTS.md` — Update transactions, artifact retention, maintenance CLI and cleanup safeguards.
-- `internal/virtualcomputers/AGENTS.md` — Workspace lease and managed Garage storage lifecycle.
-- `internal/videostudio/AGENTS.md` — Desktop video project model, local FFmpeg processing and render limits.
-- `internal/webassets/AGENTS.md` — External resource integrity, installation, resolution and verification.
-- `internal/zim/AGENTS.md` — Read-only ZIM archive reader, cluster cache, decompression limits and test fixtures; owns the xapian (full-text and title index) child index.
-- `licences/AGENTS.md` — External-project inventory, license conditions, and redistributed license texts.
-- `ui/AGENTS.md` — External Web UI ownership, Precision Workspace opt-in rules, protected Chat/Desktop surfaces, translations, and UI verification. Its child index owns deeper UI contracts.
-
-The root AGENTS.md owns the whole repository except where a subtree has its own local contract.
-
-Top-level durable areas:
-- `.github/` - GitHub Actions, agents, prompts, and repository automation metadata.
-- `agent_workspace/` - Runtime agent workspace, bundled skills, tool manifests, and sandbox workdir assets.
-- `ansible_api/` - Ansible sidecar API implementation.
-- `assets/` - Bundled static and sample assets used by release packaging and runtime features.
-- `browser_automation_sidecar/` - Browser automation sidecar source and support files.
-- `cmd/` - Go entry points for AuraGo, remote agent, config merger, asset packaging and offline memory repair binaries.
-- `deploy/` - Deployment and release packaging inputs.
-- `docs/` and `documentation/` - User and operator documentation.
-- `internal/` - Private Go application packages and production logic.
-- `knowledge/` - Knowledge assets consumed by the application.
-- `mcps/` - MCP connector/tool definitions.
-- `plans/` and `openspec/` - Planning, specification, and change-management artifacts.
-- `prompts/` - Agent prompts, templates, personalities, and tool manuals.
-- `scripts/` and `tools/` - Developer and runtime helper tooling.
-- External `../agotrain` (`antibyte/agotrain`) owns training datasets, curated training contracts, Python environments and Needle3. `documentation/training.md` owns the cross-repository update workflow; ordinary AuraGo builds require no training checkout.
-- `ui/` - External Web UI HTML, CSS, JavaScript, translations, and UI tests.
-
-Ignored/runtime areas such as `bin/`, `data/`, `reports/`, `node_modules/`, `.venv/`, `.worktrees/`, and `terminals/` are not child DOX owners.
 
 <!-- graft:start -->
 ## Graft — repo context graph
 
-This repo is indexed in `graft/`: small linked markdown nodes that explain each
-system and carry exact file:line spans, kept in sync with the code through git.
+`graft/` contains linked system/context Markdown nodes with exact file:line spans (`graft/INDEX.md` is the entry). Consult the graph before source reads/search for understanding/location/scoping; reuse known symbols/errors/filenames. New repository: `graft map` gives directory clusters/hubs/hotspots (token-budgeted, deterministic, no key/LLM).
 
-For ANY task here — understanding how something works, finding where code lives,
-or scoping a change — get context from the graph before grepping or opening
-source files. Re-ask freely (it's cheap) and reuse literal identifiers you
-already have (symbol, error string, file name) as the query. New to this repo?
-Run `graft map` first — a token-budgeted orientation (dir clusters, hubs,
-hotspots), no LLM, no key.
-
-- Run `graft ask "<your question>" --source` → ranked nodes with the relevant
-  code spans inlined (each hit's ≤8-line crux by default; `--full` for whole
-  definitions when the crux isn't enough). Match the tool to the task shape:
-  for understanding or editing, the top node IS the answer — cite its
-  `covers:` file:line spans and edit straight from `--source`. For
-  exhaustive tasks ("every occurrence / every caller of this pattern"), ranked
-  results are top-N, not complete — run `graft grep "<literal>"` instead
-  (exhaustive over indexed files, grouped by enclosing symbol), falling back
-  to raw `grep -rn` only for unindexed files.
-- `graft skeleton <file>` → every definition's signature + span, ~10× cheaper
-  than reading the file; use it to skim an API surface.
-- `graft callers <symbol>` gives precomputed, exact edges — who calls this.
-  Add `--direction out` for what it calls, or `--depth N` to walk
-  transitively for the full blast radius. For structural questions, skip
-  ranking and use this directly.
-- Or browse: `graft/INDEX.md` lists every node; follow the links.
-- Monorepos and folders of multiple repos rank fairly across sub-projects —
-  hits carry `[scope/]` labels naming which one they're from. Narrow with
-  `graft ask "<task>" --in <scope>/` once you know where you're working.
-
-If a returned span is truncated ("+N more lines"), open the file at that exact
-range before finalizing. Only open source files when a node genuinely lacks a
-needed detail, and then at the exact file:line the node points to — never
-re-read whole files.
-
-After big code changes, refresh the graph with `graft build` (deterministic,
-no API key, $0).
+- `graft ask "<task>" --source`: ranked nodes/≤8-line excerpts; `--full` for whole definitions. Use top result, cite `covers:` file:line, edit there. Top-N is not exhaustive: `graft grep "<literal>"` finds all occurrences grouped by enclosing symbol; raw `grep -rn` only for unindexed files.
+- `graft skeleton <file>`: every signature/span, ~10× cheaper than reading a file. `graft callers <symbol>`: exact callers; `--direction out` for callees, `--depth N` for transitive blast radius. Structural questions use callers directly.
+- Monorepo hits carry `[scope/]`; scope with `graft ask "<task>" --in <scope>/`. Open truncated `+N more lines` at the exact range before finalizing; read source only for missing detail at returned file:line, never whole-file re-reads.
+- After big code changes run `graft build` (deterministic, no key, $0).
 <!-- graft:end -->
