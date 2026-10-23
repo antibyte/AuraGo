@@ -4,6 +4,7 @@
 (function () {
     'use strict';
 
+    const DRIFT_STATUSES = ['clean', 'local_changed', 'remote_changed', 'remote_unknown', 'not_deployed'];
     const DRIFT_KEYS = {
         clean: 'clean',
         local_changed: 'local-changed',
@@ -11,6 +12,85 @@
         remote_unknown: 'remote-unknown',
         not_deployed: 'not-deployed'
     };
+
+    function driftStatus(status) {
+        return DRIFT_STATUSES.includes(status) ? status : 'not_deployed';
+    }
+
+    /* Deployment target collection: the sites panel owns the deployment data,
+       so it also owns the provider normalisation and the target list. */
+    function firstString(...values) {
+        for (const value of values) {
+            if (typeof value === 'string' && value.trim()) return value;
+        }
+        return '';
+    }
+
+    function normalizeTargetProvider(provider) {
+        const value = firstString(provider).toLowerCase();
+        if (value === 'homepage') return 'local';
+        if (value === 'sftp' || value === 'scp' || value === 'ssh') return 'remote';
+        return value || 'remote';
+    }
+
+    function addTarget(targets, provider, url, label, previewURL) {
+        const normalizedProvider = normalizeTargetProvider(provider);
+        const normalizedURL = previewURL(url);
+        if (!normalizedProvider || !normalizedURL) return;
+        const key = normalizedProvider + '\n' + normalizedURL;
+        if (targets.some(item => item.key === key)) return;
+        targets.push({
+            key,
+            provider: normalizedProvider,
+            url: normalizedURL,
+            label: firstString(label, normalizedProvider)
+        });
+    }
+
+    function collectTargets(site, targets, previewURL) {
+        if (!site || typeof site !== 'object') return;
+        addTarget(targets, 'remote', site.last_deploy_url, site.name || site.project_dir, previewURL);
+        const deployTargets = Array.isArray(site.deploy_targets) ? site.deploy_targets : [];
+        for (const target of deployTargets) {
+            const provider = normalizeTargetProvider(target && target.provider);
+            const label = firstString(target && target.provider_target_id, site.name, site.project_dir, provider);
+            const url = previewURL(target && target.url, target && target.remote_path);
+            addTarget(targets, provider, url, label, previewURL);
+        }
+        const deployments = Array.isArray(site.deployments) ? site.deployments : [];
+        for (const deployment of deployments) {
+            const provider = normalizeTargetProvider(deployment && deployment.provider);
+            const label = firstString(deployment && deployment.provider_deploy_id, site.name, site.project_dir, provider);
+            addTarget(targets, provider, deployment && deployment.url, label, previewURL);
+        }
+        const observations = Array.isArray(site.remote_observations) ? site.remote_observations : [];
+        for (const observation of observations) {
+            const provider = normalizeTargetProvider(observation && observation.provider);
+            const label = firstString(observation && observation.provider_deploy_id, site.name, site.project_dir, provider);
+            addTarget(targets, provider, observation && observation.url, label, previewURL);
+        }
+    }
+
+    function externalTargetURL(target, deploymentTargets) {
+        if (!Array.isArray(deploymentTargets) || !deploymentTargets.length) return '';
+        const selected = normalizeTargetProvider(target);
+        const aliases = {
+            local: ['local', 'homepage'],
+            vercel: ['vercel'],
+            netlify: ['netlify'],
+            here_now: ['here_now'],
+            remote: ['remote', 'sftp', 'scp', 'ssh']
+        };
+        const allowed = aliases[selected] || [selected];
+        const exact = deploymentTargets.find(item => item && allowed.includes(item.provider) && item.url);
+        if (exact) return exact.url;
+        const externalTargets = ['remote', 'vercel', 'netlify', 'here_now'];
+        if (externalTargets.includes(selected)) {
+            const fallback = deploymentTargets.find(item => item && item.provider !== 'local' && item.url);
+            if (fallback) return fallback.url;
+        }
+        return '';
+    }
 
     function create(deps) {
         const container = deps.container;
@@ -38,13 +118,10 @@
             if (typeof deps.notify === 'function') deps.notify(message);
         }
 
+        /* The canonical URL guard lives in homepage-studio.js (security-lint pinned);
+           the sites panel reuses it instead of keeping a second implementation. */
         function safeURL(raw) {
-            const value = typeof raw === 'string' ? raw.trim() : '';
-            if (!value) return '';
-            try {
-                const url = new URL(value, window.location.origin);
-                if (url.protocol === 'http:' || url.protocol === 'https:') return url.href;
-            } catch (_) {}
+            if (typeof deps.safeExternalURL === 'function') return deps.safeExternalURL(raw);
             return '';
         }
 
@@ -52,7 +129,8 @@
             if (!value) return '';
             const date = new Date(value);
             if (Number.isNaN(date.getTime())) return '';
-            return date.toLocaleString();
+            const locale = deps.locale || window.SYSTEM_LANG || document.documentElement.lang || 'en';
+            return date.toLocaleString(locale);
         }
 
         function driftClass(status) {
@@ -61,9 +139,9 @@
         }
 
         function driftLabel(status) {
-            const known = ['clean', 'local_changed', 'remote_changed', 'remote_unknown', 'not_deployed'];
-            const normalized = known.includes(status) ? status : 'not_deployed';
-            return t('homepage_studio.sites_drift_' + normalized, normalized);
+            const normalized = driftStatus(status);
+            const tr = typeof deps.tr === 'function' ? deps.tr : deps.t;
+            return tr('homepage_studio.sites_drift_' + normalized, normalized);
         }
 
         async function load() {
@@ -164,18 +242,29 @@
             return `
                 <div class="vd-hp-site-row${statusClass}">
                     <span class="vd-hp-site-row-provider">${esc(provider || '—')}</span>
-                    ${renderLink(url, url)}
+                    <span class="vd-hp-site-row-url-wrap">${renderLink(url, url)}</span>
                     ${time ? `<span class="vd-hp-site-row-time">${esc(time)}</span>` : ''}
                 </div>`;
         }
 
+        function renderFact(label, value, copyValue) {
+            if (!value) return '';
+            const copy = copyValue
+                ? `<button type="button" class="vd-hp-site-copy" data-hp-copy="${esc(String(copyValue))}" title="${esc(t('homepage_studio.copy_path'))}" aria-label="${esc(t('homepage_studio.copy_path'))}">⧉</button>`
+                : '';
+            return `<div class="vd-hp-site-fact"><dt>${esc(label)}</dt><dd><code class="vd-hp-site-path">${esc(value)}</code>${copy}</dd></div>`;
+        }
+
         function renderDetail(site) {
             if (!site) return '';
+            const tr = typeof deps.tr === 'function' ? deps.tr : deps.t;
             const parts = ['<div class="vd-hp-site-detail">'];
             const originKey = site.origin === 'agent_created' ? 'agent' : site.origin === 'adopted' ? 'adopted' : 'unknown';
-            parts.push('<p class="vd-hp-site-detail-msg">' + esc(t('homepage_studio.sites_origin_' + originKey)) + '</p>');
-            if (site.local_root) parts.push('<p class="vd-hp-site-detail-msg">' + esc(t('homepage_studio.sites_local')) + ': <code class="vd-hp-site-path">' + esc(site.local_root) + '</code></p>');
-            if (site.container_path) parts.push('<p class="vd-hp-site-detail-msg">' + esc(t('homepage_studio.sites_container')) + ': <code class="vd-hp-site-path">' + esc(site.container_path) + '</code></p>');
+            parts.push('<p class="vd-hp-site-detail-msg">' + esc(tr('homepage_studio.sites_origin_' + originKey, originKey)) + '</p>');
+            const facts = [];
+            facts.push(renderFact(t('homepage_studio.sites_local'), site.local_root, site.local_root));
+            facts.push(renderFact(t('homepage_studio.sites_container'), site.container_path, site.container_path));
+            if (facts.length) parts.push('<dl class="vd-hp-site-facts">' + facts.join('') + '</dl>');
             if (site.last_reconciled_at) parts.push('<p class="vd-hp-site-detail-msg">' + esc(t('homepage_studio.sites_checked')) + ': ' + esc(formatTime(site.last_reconciled_at)) + '</p>');
 
             if (site.drift_message) {
@@ -185,7 +274,8 @@
             if (targets.length) {
                 parts.push(`<span class="vd-hp-site-section-label">${esc(t('homepage_studio.sites_targets'))}</span><div class="vd-hp-site-rows">`);
                 targets.forEach(target => {
-                    parts.push(renderRow((target.provider || '') + ' · ' + t('homepage_studio.sites_target_' + (target.status === 'active' ? 'active' : target.status === 'inactive' ? 'inactive' : 'unknown')), target.url || target.remote_path, formatTime(target.last_seen_at || target.updated_at), target.status));
+                    const targetKey = target.status === 'active' ? 'active' : target.status === 'inactive' ? 'inactive' : 'unknown';
+                    parts.push(renderRow((target.provider || '') + ' · ' + tr('homepage_studio.sites_target_' + targetKey, targetKey), target.url || target.remote_path, formatTime(target.last_seen_at || target.updated_at), target.status));
                 });
                 parts.push('</div>');
             }
@@ -217,11 +307,16 @@
                     const key = event.operation_id || String(event.id);
                     if (seen.has(key)) return;
                     seen.add(key);
-                    const reason = event.reason && event.reason !== 'unknown' ? event.reason : t('homepage_studio.sites_reason_unknown');
+                    const reason = event.reason && event.reason !== 'unknown' ? event.reason : tr('homepage_studio.sites_reason_unknown', 'unknown');
                     const details = event.details || {};
                     const files = Array.isArray(details.files_changed) ? details.files_changed : [];
                     const outcome = ['succeeded', 'failed', 'pending', 'partial', 'unknown'].includes(event.outcome) ? event.outcome : 'unknown';
-                    parts.push('<details class="vd-hp-site-event"><summary>' + esc(reason) + ' · ' + esc(t('homepage_studio.sites_outcome_' + outcome)) + '</summary><time>' + esc(formatTime(event.created_at)) + '</time>' + (files.length ? '<ul>' + files.map(file => '<li><code>' + esc(file.path || '') + '</code></li>').join('') + '</ul>' : '') + '</details>');
+                    const outcomeLabel = tr('homepage_studio.sites_outcome_' + outcome, outcome);
+                    /* The reason often states the outcome already; do not repeat it. */
+                    const summary = String(reason).toLowerCase().indexOf(String(outcomeLabel).toLowerCase()) >= 0
+                        ? String(reason)
+                        : String(reason) + ' · ' + outcomeLabel;
+                    parts.push('<details class="vd-hp-site-event"><summary>' + esc(summary) + '</summary><time>' + esc(formatTime(event.created_at)) + '</time>' + (files.length ? '<ul>' + files.map(file => '<li><code>' + esc(file.path || '') + '</code></li>').join('') + '</ul>' : '') + '</details>');
                 });
             }
             if (!deps.readonly) {
@@ -242,8 +337,10 @@
             const name = site.name || site.project_dir || '#' + id;
             const lastDeployed = formatTime(site.last_deployed_at);
             const detail = selected ? state.details.get(id) : null;
+            /* Roving tabindex: the selected card is the tab stop. */
+            const tabStop = selected || (!state.selectedId && state.sites[0] && Number(state.sites[0].id) === id);
             return `
-                <article class="vd-hp-site${selected ? ' is-selected' : ''}" data-site-id="${esc(String(id))}" tabindex="0" role="button" aria-pressed="${selected ? 'true' : 'false'}">
+                <article class="vd-hp-site${selected ? ' is-selected' : ''}" data-site-id="${esc(String(id))}" tabindex="${tabStop ? '0' : '-1'}" role="option" aria-selected="${selected ? 'true' : 'false'}">
                     <div class="vd-hp-site-head">
                         <span class="vd-hp-site-name">${esc(name)}</span>
                         ${site.framework ? `<span class="vd-hp-site-framework">${esc(site.framework)}</span>` : ''}
@@ -256,8 +353,23 @@
                 </article>`;
         }
 
+        /* Move the keyboard focus to a sibling card (listbox arrow keys). */
+        function focusSiteCard(id) {
+            if (!container) return;
+            const cards = Array.from(container.querySelectorAll('.vd-hp-site'));
+            const index = cards.findIndex(card => Number(card.getAttribute('data-site-id')) === Number(id));
+            if (index < 0) return;
+            cards.forEach(card => card.setAttribute('tabindex', '-1'));
+            cards[index].setAttribute('tabindex', '0');
+            cards[index].focus();
+        }
+
         function render() {
             if (!container) return;
+            /* The list is rebuilt on every state change; keep the keyboard position. */
+            const active = document.activeElement;
+            const activeCard = active && active.closest ? active.closest('.vd-hp-site') : null;
+            const focusedSiteId = activeCard ? activeCard.getAttribute('data-site-id') : '';
             if (state.loading && !state.sites.length) {
                 container.innerHTML = `<div class="vd-hp-sites-empty">${esc(t('homepage_studio.sites_loading'))}</div>`;
                 return;
@@ -282,16 +394,56 @@
                     if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
                         select(id);
+                        return;
+                    }
+                    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        const cards = Array.from(container.querySelectorAll('.vd-hp-site'));
+                        const index = cards.indexOf(card);
+                        const next = cards[index + (event.key === 'ArrowDown' ? 1 : -1)];
+                        if (next) focusSiteCard(next.getAttribute('data-site-id'));
                     }
                 });
             });
             container.querySelectorAll('[data-hp-reconcile]').forEach(btn => {
                 btn.addEventListener('click', () => reconcile(Number(btn.getAttribute('data-hp-reconcile')), btn));
             });
+            container.querySelectorAll('[data-hp-copy]').forEach(btn => {
+                btn.addEventListener('click', event => {
+                    event.stopPropagation();
+                    copyPath(btn.getAttribute('data-hp-copy'));
+                });
+            });
+            if (focusedSiteId) {
+                const cards = Array.from(container.querySelectorAll('.vd-hp-site'));
+                const restored = cards.find(card => card.getAttribute('data-site-id') === focusedSiteId);
+                if (restored) restored.focus();
+            }
+        }
+
+        async function copyPath(value) {
+            if (!value) return;
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(String(value));
+                }
+            } catch (_) {}
         }
 
         function getSelected() {
             return state.selectedId || 0;
+        }
+
+        /* The target resolver reuses this list instead of fetching it again. */
+        function getSites() {
+            return state.sites.slice();
+        }
+
+        /* The already loaded detail of a site (no second request). */
+        function getDetail(id) {
+            const key = Number(id);
+            if (!Number.isFinite(key) || key <= 0) return null;
+            return state.details.get(key) || null;
         }
 
         function setSelected(id, detail) {
@@ -308,8 +460,13 @@
             state.details.clear();
         }
 
-        return { load, select, reconcile, render, getSelected, setSelected, dispose };
+        return { load, select, reconcile, render, getSelected, getSites, getDetail, setSelected, dispose };
     }
 
-    window.HomepageStudioSites = { create };
+    window.HomepageStudioSites = {
+        create,
+        DRIFT_KEYS,
+        driftStatus,
+        targets: { collect: collectTargets, add: addTarget, normalize: normalizeTargetProvider, external: externalTargetURL }
+    };
 })();
