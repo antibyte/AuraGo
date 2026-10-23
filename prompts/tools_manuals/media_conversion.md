@@ -137,8 +137,9 @@ A successful conversion returns:
 - `width` / `height` — the dimensions of the result, when known
 - `duration_seconds` — the duration of the result, when known
 
-The result is registered in the media registry, so it can be reused with the media
-tools without registering it again.
+The result is registered in the media registry: a copy of the converted file is placed in the
+media library and served from there, so it can be reused with the media tools and shown in the
+media view without registering it again. The file in the workspace stays where it was written.
 
 A conversion that exceeds the configured timeout fails with a `timed out` message
 instead of a generic process error.

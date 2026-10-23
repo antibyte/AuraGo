@@ -417,9 +417,8 @@ func copyMediaFile(source, destination string) error {
 	if err := os.Chmod(tmp.Name(), 0o640); err != nil {
 		return err
 	}
-	if err := os.Remove(destination); err != nil && !os.IsNotExist(err) {
-		return err
-	}
+	// os.Rename replaces an existing regular file on every supported platform,
+	// so the destination never disappears in between.
 	return os.Rename(tmp.Name(), destination)
 }
 
