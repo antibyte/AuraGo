@@ -83,6 +83,16 @@ func saveCaseTx(tx *sql.Tx, c *Case) error {
 	if err != nil {
 		return err
 	}
+	// Keep the bounded summary in its own table; the live view and the list read only
+	// this row instead of the evidence body.
+	summary, err := json.Marshal(caseSummary(c))
+	if err != nil {
+		return err
+	}
+	if _, err = tx.Exec(`INSERT INTO detective_summaries(case_id, body) VALUES(?,?)
+ON CONFLICT(case_id) DO UPDATE SET body=excluded.body`, c.ID, string(summary)); err != nil {
+		return err
+	}
 	_, err = tx.Exec(`INSERT INTO detective_cases(id,body,status,updated,active_ms) VALUES(?,?,?,?,?)
 ON CONFLICT(id) DO UPDATE SET body=excluded.body,status=excluded.status,updated=excluded.updated,active_ms=excluded.active_ms`,
 		c.ID, b, c.Run.Status, c.UpdatedAt.Format(time.RFC3339Nano), c.Run.Usage.ActiveMS)

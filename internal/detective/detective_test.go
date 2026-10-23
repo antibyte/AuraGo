@@ -316,7 +316,7 @@ func TestActiveTimeSurvivesRestart(t *testing.T) {
 	if err = reopened.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
 		t.Fatal(err)
 	}
-	if version != 3 {
+	if version != SchemaVersion {
 		t.Fatalf("user_version=%d", version)
 	}
 	got, err := reopened.Get(c.ID)

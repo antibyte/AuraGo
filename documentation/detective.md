@@ -159,10 +159,14 @@ the former 30-revision cap no longer bound a case's lifetime archive. Source,
 finding and report tables grow with use; nothing is automatically removed.
 
 Opening an older database first creates a consistent, synced
-`detective.db.pre-v3-<timestamp>.bak` snapshot. The version-3 migration then moves
-existing evidence and reports into archive tables transactionally, retaining IDs,
-revision numbers and cached exports. A backup or migration error aborts opening.
-Protect backups like the database; they contain the same private data.
+`detective.db.pre-v4-<timestamp>.bak` snapshot. The migration then runs in one
+transaction: version 3 moves existing evidence and reports into archive tables and
+version 4 moves the evidence body to the end of the case row (so polling reads the
+case counters without touching the body), adds the bounded `detective_summaries`
+table that the live view and the case list read, and backfills it from the existing
+cases — retaining IDs, revision numbers and cached exports. A backup or migration
+error aborts opening and leaves the old file untouched. Protect backups like the
+database; they contain the same private data.
 
 The case API includes `auto_update`, archive counts and the latest revision.
 `PUT /api/desktop/detective/cases/{id}/auto-update` accepts `enabled`,

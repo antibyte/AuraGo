@@ -19,6 +19,10 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// SchemaVersion is the newest Detective database layout. Version 3 moved evidence into
+// archive tables; version 4 adds the bounded case summary the live view reads.
+const SchemaVersion = 4
+
 type Runner interface {
 	Run(context.Context, *Session) error
 }
@@ -68,11 +72,11 @@ func New(opts Options) (*Service, error) {
 	}
 	db.SetMaxOpenConns(1)
 	var schemaVersion int
-	if err = db.QueryRow("PRAGMA user_version").Scan(&schemaVersion); err != nil || schemaVersion > 3 {
+	if err = db.QueryRow("PRAGMA user_version").Scan(&schemaVersion); err != nil || schemaVersion > SchemaVersion {
 		db.Close()
 		return nil, fmt.Errorf("unsupported Detective database version %d: %v", schemaVersion, err)
 	}
-	if err = backupBeforeArchive(db, opts.Path, schemaVersion); err != nil {
+	if err = backupBeforeMigration(db, opts.Path, schemaVersion, SchemaVersion); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -154,33 +158,50 @@ func migrateDatabase(db *sql.DB, schemaVersion int) error {
 		return err
 	}
 	defer tx.Rollback()
-	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS detective_cases(id TEXT PRIMARY KEY, body BLOB NOT NULL, status TEXT NOT NULL, updated TEXT NOT NULL, active_ms INTEGER NOT NULL DEFAULT 0);
+	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS detective_cases(id TEXT PRIMARY KEY, status TEXT NOT NULL, updated TEXT NOT NULL, active_ms INTEGER NOT NULL DEFAULT 0, body BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS detective_continuations(case_id TEXT PRIMARY KEY REFERENCES detective_cases(id), body BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS detective_keys(case_id TEXT NOT NULL, key TEXT NOT NULL, run_id TEXT NOT NULL, PRIMARY KEY(case_id,key));
 CREATE TABLE IF NOT EXISTS detective_events(id INTEGER PRIMARY KEY AUTOINCREMENT, case_id TEXT NOT NULL, kind TEXT NOT NULL, body TEXT NOT NULL, at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS detective_event_case ON detective_events(case_id,id);
-CREATE TABLE IF NOT EXISTS detective_artifacts(case_id TEXT NOT NULL, revision INTEGER NOT NULL, format TEXT NOT NULL, body BLOB NOT NULL, mime TEXT NOT NULL, filename TEXT NOT NULL, sha256 TEXT NOT NULL, PRIMARY KEY(case_id,revision,format));`)
+CREATE TABLE IF NOT EXISTS detective_artifacts(case_id TEXT NOT NULL, revision INTEGER NOT NULL, format TEXT NOT NULL, body BLOB NOT NULL, mime TEXT NOT NULL, filename TEXT NOT NULL, sha256 TEXT NOT NULL, PRIMARY KEY(case_id,revision,format));
+CREATE TABLE IF NOT EXISTS detective_summaries(case_id TEXT PRIMARY KEY REFERENCES detective_cases(id), body TEXT NOT NULL);`)
 	if err != nil {
 		return err
 	}
-	if schemaVersion < 2 {
-		var cols int
-		if err = tx.QueryRow(`SELECT count(*) FROM pragma_table_info('detective_cases') WHERE name='active_ms'`).Scan(&cols); err != nil {
-			return err
-		}
-		if cols == 0 {
-			if _, err = tx.Exec(`ALTER TABLE detective_cases ADD COLUMN active_ms INTEGER NOT NULL DEFAULT 0`); err != nil {
-				return err
-			}
-		}
-		if _, err = tx.Exec(`UPDATE detective_cases SET active_ms = COALESCE(CAST(json_extract(body,'$.run.usage.active_ms') AS INTEGER), 0)`); err != nil {
-			return err
-		}
+	// Columns used by saveCaseTx must exist before any migration writes through it, so
+	// the whole chain runs on one shape of the table.
+	if err = ensureCaseColumns(tx, schemaVersion); err != nil {
+		return err
 	}
 	if err = migrateArchive(tx, schemaVersion); err != nil {
 		return err
 	}
+	if err = migrateSummary(tx, schemaVersion); err != nil {
+		return err
+	}
 	return tx.Commit()
+}
+
+// ensureCaseColumns adds the case columns the version-2 backfill needs. It is
+// idempotent and runs inside the migration transaction, so a failed open leaves the
+// old schema.
+func ensureCaseColumns(tx *sql.Tx, schemaVersion int) error {
+	var present int
+	if err := tx.QueryRow(`SELECT count(*) FROM pragma_table_info('detective_cases') WHERE name='active_ms'`).Scan(&present); err != nil {
+		return err
+	}
+	if present == 0 {
+		if _, err := tx.Exec(`ALTER TABLE detective_cases ADD COLUMN active_ms INTEGER NOT NULL DEFAULT 0`); err != nil {
+			return err
+		}
+	}
+	if schemaVersion < 2 {
+		// The version-2 backfill of the active time; the column exists by now.
+		if _, err := tx.Exec(`UPDATE detective_cases SET active_ms = COALESCE(CAST(json_extract(body,'$.run.usage.active_ms') AS INTEGER), 0)`); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func id(prefix string) string {
@@ -283,7 +304,6 @@ type LiveView struct {
 	Profile        Profile    `json:"profile"`
 	Sources        int        `json:"sources"`
 	Findings       int        `json:"findings"`
-	Reports        int        `json:"reports"`
 	LatestRevision int        `json:"latest_revision"`
 	LatestSourceID string     `json:"latest_source_id"`
 	AutoUpdate     AutoUpdate `json:"auto_update"`
@@ -300,67 +320,66 @@ func (s *Service) Exists(key string) (bool, error) {
 	return err == nil, err
 }
 
+// Live reports the bounded status of one case from its summary row. It never parses
+// the evidence body, so the cost of a poll does not grow with the case.
 func (s *Service) Live(key string) (LiveView, error) {
 	allowed := s.allowed == nil || s.allowed()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var v LiveView
-	var updated string
-	var auto []byte
-	err := s.db.QueryRow(`SELECT id, updated, active_ms,
-		COALESCE(json_extract(body,'$.run.status'),''),
-		COALESCE(json_extract(body,'$.run.phase'),''),
-		COALESCE(json_extract(body,'$.run.reason'),''),
-		COALESCE(json_extract(body,'$.request.effort'),''),
-		COALESCE(json_extract(body,'$.request.topic'),''),
-		COALESCE(json_extract(body,'$.run.usage.tools'),0),
-		COALESCE(json_extract(body,'$.run.usage.iterations'),0),
-		COALESCE(json_extract(body,'$.run.usage.requests'),0),
-		COALESCE(json_extract(body,'$.run.usage.prompt_tokens'),0),
-		COALESCE(json_extract(body,'$.run.usage.completion_tokens'),0),
-		COALESCE(json_extract(body,'$.run.usage.cached_tokens'),0),
-		COALESCE(json_extract(body,'$.run.usage.bytes'),0),
-		COALESCE(json_extract(body,'$.run.usage.pages'),0),
-		COALESCE(json_extract(body,'$.run.profile.seconds'),0),
-		COALESCE(json_extract(body,'$.run.profile.tools'),0),
-		COALESCE(json_extract(body,'$.run.profile.iterations'),0),
-		COALESCE(json_extract(body,'$.run.profile.tokens'),0),
-		MAX(COALESCE(json_extract(body,'$.source_count'),0),COALESCE(json_array_length(body,'$.sources'),0)),
-		MAX(COALESCE(json_extract(body,'$.finding_count'),0),COALESCE(json_array_length(body,'$.findings'),0)),
-		COALESCE(json_extract(body,'$.latest_revision'),0),
-		COALESCE(json_extract(body,'$.latest_revision'),0),
-		COALESCE(NULLIF(json_extract(body,'$.latest_source_id'),''),json_extract(body,'$.sources[#-1].id'),''),
-		COALESCE(json_extract(body,'$.auto_update'),'{}')
-		FROM detective_cases WHERE id=?`, key).Scan(
-		&v.ID, &updated, &v.Usage.ActiveMS,
-		&v.Status, &v.Phase, &v.Reason, &v.Effort, &v.Topic,
-		&v.Usage.Tools, &v.Usage.Iterations, &v.Usage.Requests, &v.Usage.PromptTokens, &v.Usage.CompletionTokens, &v.Usage.CachedTokens, &v.Usage.Bytes, &v.Usage.Pages,
-		&v.Profile.Seconds, &v.Profile.Tools, &v.Profile.Iterations, &v.Profile.Tokens,
-		&v.Sources, &v.Findings, &v.Reports, &v.LatestRevision, &v.LatestSourceID, &auto)
+	var id, updated, stored string
+	var active int64
+	err := s.db.QueryRow(`SELECT c.id, c.updated, c.active_ms, COALESCE(s.body,'')
+		FROM detective_cases c LEFT JOIN detective_summaries s ON s.case_id=c.id
+		WHERE c.id=?`, key).Scan(&id, &updated, &active, &stored)
 	if errors.Is(err, sql.ErrNoRows) {
 		return LiveView{}, ErrNotFound
 	}
 	if err != nil {
 		return LiveView{}, err
 	}
+	sum, err := s.decodeSummary(key, stored)
+	if err != nil {
+		return LiveView{}, err
+	}
+	v := liveView(id, active, sum)
 	v.UpdatedAt, err = time.Parse(time.RFC3339Nano, updated)
-	if err == nil {
-		err = json.Unmarshal(auto, &v.AutoUpdate)
+	if err != nil {
+		return LiveView{}, err
 	}
 	if v.AutoUpdate.Enabled && !allowed {
 		v.AutoUpdate.Outcome = "permission_blocked"
 	}
-	return v, err
+	return v, nil
+}
+
+// decodeSummary reads a stored summary. An empty value means a row written before the
+// column existed (or a half-migrated file); it is projected from the body once.
+func (s *Service) decodeSummary(key, stored string) (CaseSummary, error) {
+	if stored != "" {
+		var sum CaseSummary
+		if err := json.Unmarshal([]byte(stored), &sum); err != nil {
+			return CaseSummary{}, err
+		}
+		return sum, nil
+	}
+	var body []byte
+	if err := s.db.QueryRow("SELECT body FROM detective_cases WHERE id=?", key).Scan(&body); err != nil {
+		return CaseSummary{}, err
+	}
+	var c Case
+	if err := json.Unmarshal(body, &c); err != nil {
+		return CaseSummary{}, err
+	}
+	return caseSummary(&c), nil
 }
 
 func (s *Service) list(summary bool) ([]Case, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	query := "SELECT body, active_ms FROM detective_cases ORDER BY updated DESC LIMIT 100"
 	if summary {
-		query = "SELECT json_remove(CAST(body AS TEXT),'$.sources','$.findings','$.reports','$.answers','$.plan'), active_ms FROM detective_cases ORDER BY updated DESC LIMIT 100"
+		return s.listSummariesLocked()
 	}
-	rows, err := s.db.Query(query)
+	rows, err := s.db.Query("SELECT body, active_ms FROM detective_cases ORDER BY updated DESC LIMIT 100")
 	if err != nil {
 		return nil, err
 	}
@@ -382,6 +401,54 @@ func (s *Service) list(summary bool) ([]Case, error) {
 		out = append(out, c)
 	}
 	return out, rows.Err()
+}
+
+// listSummariesLocked serves the case list from the summary column. Rows without a
+// summary (a file that has not been migrated yet) fall back to their body once; the
+// scan finishes before any fallback query runs, because the pool has one connection.
+func (s *Service) listSummariesLocked() ([]Case, error) {
+	type entry struct {
+		key    string
+		stored string
+		active int64
+	}
+	rows, err := s.db.Query(`SELECT c.id, c.active_ms, COALESCE(s.body,'')
+		FROM detective_cases c LEFT JOIN detective_summaries s ON s.case_id=c.id
+		ORDER BY c.updated DESC LIMIT 100`)
+	if err != nil {
+		return nil, err
+	}
+	var entries []entry
+	for rows.Next() {
+		var e entry
+		if err = rows.Scan(&e.key, &e.active, &e.stored); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		entries = append(entries, e)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	out := []Case{}
+	for _, e := range entries {
+		if e.stored == "" {
+			c, err := s.getLocked(e.key)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, c)
+			continue
+		}
+		sum, err := s.decodeSummary(e.key, e.stored)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, summaryCase(e.key, e.active, sum))
+	}
+	return out, nil
 }
 
 func (s *Service) Create(req Request) (Case, error) {
@@ -434,7 +501,7 @@ func (s *Service) Delete(key string) error {
 		return err
 	}
 	defer tx.Rollback()
-	for _, q := range []string{"DELETE FROM detective_artifacts WHERE case_id=?", "DELETE FROM detective_sources WHERE case_id=?", "DELETE FROM detective_findings WHERE case_id=?", "DELETE FROM detective_reports WHERE case_id=?", "DELETE FROM detective_events WHERE case_id=?", "DELETE FROM detective_continuations WHERE case_id=?", "DELETE FROM detective_keys WHERE case_id=?", "DELETE FROM detective_cases WHERE id=?"} {
+	for _, q := range []string{"DELETE FROM detective_artifacts WHERE case_id=?", "DELETE FROM detective_sources WHERE case_id=?", "DELETE FROM detective_findings WHERE case_id=?", "DELETE FROM detective_reports WHERE case_id=?", "DELETE FROM detective_events WHERE case_id=?", "DELETE FROM detective_continuations WHERE case_id=?", "DELETE FROM detective_keys WHERE case_id=?", "DELETE FROM detective_summaries WHERE case_id=?", "DELETE FROM detective_cases WHERE id=?"} {
 		if _, err = tx.Exec(q, key); err != nil {
 			return err
 		}

@@ -579,7 +579,7 @@ func fixtureLive(c detective.Case) detective.LiveView {
 	view := detective.LiveView{
 		ID: c.ID, UpdatedAt: c.UpdatedAt, Status: c.Run.Status, Phase: c.Run.Phase, Reason: c.Run.Reason,
 		Effort: c.Request.Effort, Topic: c.Request.Topic, Usage: c.Run.Usage, Profile: c.Run.Profile,
-		Sources: len(c.Sources), Findings: len(c.Findings), Reports: len(c.Reports),
+		Sources: len(c.Sources), Findings: len(c.Findings),
 		AutoUpdate: c.AutoUpdate,
 	}
 	if n := len(c.Reports); n > 0 {

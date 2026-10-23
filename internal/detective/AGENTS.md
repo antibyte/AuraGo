@@ -12,16 +12,23 @@ and tool dispatch; Desktop adapters own UI state.
   deepen on a draft returns `ErrConflict`. Closing the client never cancels a run.
 - A finding quote needs at least 8 Unicode code points after trim and must be an
   exact substring of a source recorded as read.
-- Live status and existence checks do not load the evidence body. The server
-  prompt copy includes the bounded working findings, with text limited to 500
-  runes and quotes to 240. Update prompts include a bounded report preview and
-  recent archived findings. Case-scoped `history` retrieves older evidence.
+- Live status and existence checks do not load the evidence body. `Live` and
+  `ListSummaries` read `detective_summaries`, which `saveCaseTx` writes from
+  `caseSummary`; a missing row (a case written before version 4) is projected from
+  the body once. The summary has its own table and the case row keeps `body` as its
+  last column, because SQLite walks the overflow chain of a large value for every
+  column stored after it. The server prompt copy includes the bounded working
+  findings, with text limited to 500 runes and quotes to 240. Update prompts include
+  a bounded report preview and recent archived findings. Case-scoped `history`
+  retrieves older evidence.
 - `detective_cases.active_ms` wins over the JSON value when the column is greater.
   Restart selects running/queued cases from the `status` column (never by decoding
   every body) and loads each one with `getLocked` before saving `interrupted` /
-  `server_restart`. Schema version 3 migrates source, finding and report archives in
-  one transaction, after a synced SQLite snapshot backup.
-  Failed backup/migration aborts opening; repeat opens do not migrate again.
+  `server_restart`. Schema version 4 migrates the source/finding/report archives
+  (version 3), rebuilds the case row with the body last and adds the summary table,
+  in one transaction after a synced `.pre-v4-<timestamp>.bak` SQLite snapshot.
+  Failed backup/migration aborts opening; repeat opens do not migrate or back up
+  again.
 - A run whose terminal state cannot be persisted leaves the case queued and returns
   the error; the worker waits for the next tick instead of retrying the same row in
   a loop, and warns every third failed attempt. `Options.Logger` is optional.

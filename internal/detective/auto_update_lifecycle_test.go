@@ -182,7 +182,7 @@ func TestDetectiveArchiveBackupFailureAndV1Rollback(t *testing.T) {
 	if _, err = db.Exec("PRAGMA user_version=1; ALTER TABLE detective_cases DROP COLUMN active_ms"); err != nil {
 		t.Fatal(err)
 	}
-	if err = backupBeforeArchive(db, filepath.Join(t.TempDir(), "absent", "legacy.db"), 1); err == nil {
+	if err = backupBeforeMigration(db, filepath.Join(t.TempDir(), "absent", "legacy.db"), 1, SchemaVersion); err == nil {
 		t.Fatal("backup failure ignored")
 	}
 	db.Close()
