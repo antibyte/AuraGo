@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -193,6 +194,71 @@ func TestExecuteMediaConversionSurvivesRegistryFailure(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(workspaceDir, "input.mp3")); err != nil {
 		t.Fatalf("the converted file must survive a registry failure: %v", err)
+	}
+}
+
+func TestExecuteMediaConversionImageConvert(t *testing.T) {
+	workspaceDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workspaceDir, "source.png"), []byte("source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	oldLookPath, oldRunCommand := mediaConversionLookPath, mediaConversionRunCommand
+	t.Cleanup(func() {
+		mediaConversionLookPath, mediaConversionRunCommand = oldLookPath, oldRunCommand
+	})
+	mediaConversionLookPath = func(string) (string, error) { return "magick", nil }
+	capture := &mediaConversionCapture{}
+	mediaConversionRunCommand = func(_ context.Context, _ string, args []string) ([]byte, error) {
+		capture.record(args)
+		if len(args) == 0 {
+			return nil, nil
+		}
+		return nil, os.WriteFile(args[len(args)-1], []byte("converted"), 0o600)
+	}
+
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(context.Background(), workspaceDir, mediaConversionTestConfig(true), nil, MediaConversionRequest{
+		Operation: "image_convert", FilePath: "source.png", OutputFormat: "webp",
+	}))
+	if result["status"] != "success" {
+		t.Fatalf("conversion result: %#v", result)
+	}
+	if result["file"] != filepath.Join(workspaceDir, "source.webp") {
+		t.Fatalf("file = %v, want source.webp", result["file"])
+	}
+	if got, _ := result["output_format"].(string); got != "webp" {
+		t.Fatalf("output_format = %q, want webp", got)
+	}
+	data, err := os.ReadFile(filepath.Join(workspaceDir, "source.webp"))
+	if err != nil || string(data) != "converted" {
+		t.Fatalf("saved output: %q, %v", data, err)
+	}
+}
+
+func TestResolveConfiguredImageMagickSkipsWindowsSystemConvert(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("the convert.exe trap only exists on Windows")
+	}
+	oldLookPath := mediaConversionLookPath
+	t.Cleanup(func() { mediaConversionLookPath = oldLookPath })
+
+	dir := t.TempDir()
+	convert := filepath.Join(dir, "convert.exe")
+	if err := os.WriteFile(convert, []byte("binary"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	mediaConversionLookPath = func(name string) (string, error) {
+		if name == "convert" || name == "convert.exe" {
+			return convert, nil
+		}
+		return "", os.ErrNotExist
+	}
+
+	path, err := resolveConfiguredImageMagick("")
+	if err == nil {
+		t.Fatalf("the Windows system convert.exe must not be selected, got %q", path)
+	}
+	if path != "" {
+		t.Fatalf("resolved path = %q, want none", path)
 	}
 }
 
