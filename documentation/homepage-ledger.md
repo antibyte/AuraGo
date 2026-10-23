@@ -50,6 +50,18 @@ partial effects and uncertainty. Failed commands can still create revisions.
 Uncertain results carry retry_safe:false and must not be blindly replayed.
 Unfinished intents become explicit unknown outcomes after restart.
 
+`ledger_updated: true` confirms that the attempt was recorded, including a failed
+attempt. It does not report a successful file edit or deployment; use `status`
+and the recorded outcome, then verify the resulting file before publication.
+
+For targeted text changes use `homepage_file` with `operation: "edit_file"` and
+`sub_operation: "str_replace"`, `str_replace_all`, `insert_after`, `insert_before`,
+`append`, `prepend` or `delete_lines`. Replacement uses `old`/`new`; insertion
+uses `marker`/`content` and requires the marker to match exactly one line. Docker
+file reads and edits transfer complete files up to 2 MiB and reject incomplete,
+non-regular or oversized inputs before writing. `write_file` also requires
+complete content up to 2 MiB and rejects empty writes.
+
 Ordinary changes do not require duplicate log_edit/add_history calls. History
 notes remain useful for decisions, questions and additional explanations.
 Externally observed changes retain unknown original reasons.

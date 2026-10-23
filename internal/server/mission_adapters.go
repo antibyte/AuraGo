@@ -280,8 +280,11 @@ func missionResponseContainsFailureSignal(content string) bool {
 	structural := unwrapMissionResponseCodeFence(content)
 	var payload map[string]interface{}
 	if err := json.Unmarshal([]byte(structural), &payload); err == nil {
-		if status, ok := payload["status"].(string); ok && strings.EqualFold(strings.TrimSpace(status), "error") {
-			return true
+		if status, ok := payload["status"].(string); ok {
+			switch strings.ToLower(strings.TrimSpace(status)) {
+			case "error", "failed", "blocked", "fehlgeschlagen", "blockiert":
+				return true
+			}
 		}
 		if _, ok := payload["error"]; ok {
 			return true
@@ -289,6 +292,31 @@ func missionResponseContainsFailureSignal(content string) bool {
 	}
 
 	lowerContent := strings.ToLower(strings.TrimSpace(structural))
+	fence := ""
+	for _, line := range strings.Split(lowerContent, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "```") || strings.HasPrefix(line, "~~~") {
+			if fence == "" {
+				fence = line[:3]
+			} else if strings.HasPrefix(line, fence) {
+				fence = ""
+			}
+			continue
+		}
+		if fence != "" {
+			continue
+		}
+		line = strings.TrimLeft(line, "#*_` ")
+		if status, ok := strings.CutPrefix(line, "status:"); ok {
+			fields := strings.Fields(strings.TrimLeft(status, "*_` "))
+			if len(fields) > 0 {
+				switch strings.Trim(fields[0], "*_`.,;:") {
+				case "failed", "blocked", "fehlgeschlagen", "blockiert":
+					return true
+				}
+			}
+		}
+	}
 	failureMarkers := []string{
 		"[error]",
 		"tool output:",

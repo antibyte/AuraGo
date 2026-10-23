@@ -55,3 +55,5 @@ If `homepage.workspace_path` is configured in the UI, that is only the host moun
 ## Managed website identity and change reasons
 
 Query homepage_registry overview/get_site before changing an existing page. Every mutation requires reason, a short statement of purpose. managed_site_id is the internal identity, distinct from provider IDs. Exec requires project_dir and starts there. Changes and outcomes are recorded automatically; avoid duplicate routine notes. Use list_events for what changed and why, and discover_workspace/adopt for unregistered projects. Historical unknown reasons remain unknown.
+
+For existing files, prefer `homepage_file` `edit_file`: `str_replace`/`str_replace_all` use `old` and `new`; `insert_before`/`insert_after` use a unique marker line and `content`. `replace` and `insert` are invalid. Check `status` and verify the file before deployment; `ledger_updated` confirms the recorded attempt, including failures.

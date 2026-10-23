@@ -1480,6 +1480,12 @@ func TestBuiltinToolSchemasHomepageUsesFocusedTools(t *testing.T) {
 	if _, ok := homepageFileProps["sub_operation"]; !ok {
 		t.Fatal("homepage_file schema missing sub_operation property")
 	}
+	subOperation := homepageFileProps["sub_operation"].(map[string]interface{})["description"].(string)
+	for _, operation := range []string{"str_replace", "str_replace_all", "insert_after", "insert_before", "append", "prepend", "delete_lines"} {
+		if !strings.Contains(subOperation, operation) {
+			t.Errorf("homepage_file schema does not explain edit operation %q", operation)
+		}
+	}
 	if _, ok := homepageFileProps["file_path"]; !ok {
 		t.Fatal("homepage_file schema missing file_path alias for path")
 	}

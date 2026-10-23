@@ -406,6 +406,7 @@ Tools are defined in `internal/tools/`:
   chat, mission and co-agent prompt sizes independently of budget shedding.
   Missing tokenizer data must fail this test, never skip it. The Go test CI job
   provisions the checksummed vocabulary through `TIKTOKEN_CACHE_DIR`.
+- Focused Homepage schemas and manuals must expose the canonical text-edit sub-operations and their arguments. Keep unique marker-line semantics and distinguish recorded ledger attempts from execution success; never advertise ambiguous `replace`/`insert` aliases.
 
 - Game Maker's Voxel variant has its own prepared planning/editing/source
   profiles; build and repair share the same ordered four tools. Planning retains
