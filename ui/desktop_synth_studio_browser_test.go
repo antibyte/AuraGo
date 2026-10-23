@@ -18,7 +18,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	html = regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(html, "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
 	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/desktop-app-synth-studio.css"><style>body{margin:0}.vd-shell{height:100vh}</style></head>`, 1)
-	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
+	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
 	var tags strings.Builder
 	for _, path := range scripts {
 		fmt.Fprintf(&tags, `<script src="%s"></script>`, path)
@@ -53,7 +53,10 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 			t.Fatalf("%s; errors: %s", name, page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str())
 		}
 	}
-	check("app starts without errors", `()=>fixtureErrors.length===0 && document.querySelectorAll('.ss-library-item').length===16`)
+	check("app starts without errors", `()=>fixtureErrors.length===0 && document.querySelectorAll('.ss-library-item').length===209`)
+	page.MustElement("[data-template=electronic]").MustClick()
+	waitForJSBool(t, page, `()=>synthInstance().project().tracks.length===4`)
+	check("template is four bars and paused", `()=>{const p=synthInstance().project();return p.loop.end===7680&&!document.querySelector('[data-action=play]').classList.contains('is-active')}`)
 	check("clip repeat bounds allocation before expansion", `()=>{
         const p=SynthStudioModel.create('Repeat limit'),t=SynthStudioModel.addTrack(p,'bass-sub'),c=SynthStudioModel.createClip(t.instrument,0);
         c.length=1;c.notes=Array.from({length:10},(_,i)=>({id:'bounded-'+i,pitch:60,start:0,duration:1,velocity:.5}));t.clips.push(c);
@@ -68,6 +71,12 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("demo has audible notes", `()=>synthInstance().project().tracks.every(t=>t.clips.some(c=>c.notes.length))`)
 	page.MustElement(".ss-clip").MustClick()
 	check("clip opens notes and FX rack", `()=>document.querySelectorAll('.ss-note').length>0 && document.querySelectorAll('.ss-inspector [data-param]').length===10`)
+	page.MustEval(`()=>{window.originalTone=synthInstance().project().tracks[0].params.tone;const e=document.querySelector('[data-param=tone]');e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));for(const v of [.2,.4,.65]){e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));}window.dispatchEvent(new PointerEvent('pointerup'));}`)
+	check("parameter gesture commits", `()=>synthInstance().project().tracks[0].params.tone===.65`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("one undo restores whole gesture", `()=>synthInstance().project().tracks[0].params.tone===originalTone`)
+	page.MustEval(`()=>{const e=document.querySelector('[data-param=tone]');e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));e.value=.12;e.dispatchEvent(new Event('input',{bubbles:true}));window.dispatchEvent(new PointerEvent('pointercancel'));}`)
+	check("cancelled gesture leaves model untouched", `()=>synthInstance().project().tracks[0].params.tone===originalTone`)
 	before := page.MustEval(`()=>synthInstance().project().tracks.length`).Int()
 	page.MustElement("[data-category=leads]").MustClick()
 	page.MustElement("[data-library-id=lead-saw] [data-insert]").MustClick()
@@ -103,7 +112,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	for _, theme := range []string{"standard", "fruity"} {
 		for _, mode := range []string{"dark", "light"} {
 			for _, width := range []int{1280, 760, 420} {
-				page.MustEval(`(theme,mode,width)=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode=mode;document.body.dataset.mode=mode;const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width=width+'px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`, theme, mode, width)
+				page.MustEval(`(theme,mode,width)=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode=mode;document.body.dataset.mode=mode;document.body.dataset.scheme=mode;const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width=width+'px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`, theme, mode, width)
 				t.Log(theme, mode, width, page.MustEval(`()=>{const a=document.querySelector('.ss-app'),r=a.getBoundingClientRect(),f=document.querySelector('.ss-footer').getBoundingClientRect();return JSON.stringify({width:a.clientWidth,scrollWidth:a.scrollWidth,bottom:r.bottom,footerBottom:f.bottom,arrange:document.querySelector('.ss-arrangement').clientHeight})}`).Str())
 				if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
 					if err := os.MkdirAll(dir, 0755); err != nil {

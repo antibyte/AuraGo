@@ -171,3 +171,31 @@ assert.ok(scheduledVoices.every(event => event.voice.sources[0].stopped.length >
 resilientPlayer.dispose();
 
 console.log('Synth Studio scheduler reserve, delayed callback, sequential voice budget, and stop checks passed.');
+
+const changing = context.SynthStudioAudio.create();
+const loopProject = structuredClone(project); loopProject.loop={enabled:true,start:0,end:1920};
+const changingRun=await startPlayer(changing,loopProject);
+const clock=sandbox.__lastAudioContext;
+clock.currentTime=.25;changingRun.timer.callback();
+const positionBefore=changing.currentTick();
+const changedProject=structuredClone(loopProject);changedProject.tracks[0].params.tone=.9;
+changing.updateTracks(changedProject);
+assert.equal(changing.currentTick(),positionBefore,'mix changes preserve the audio clock');
+assert.equal(changingRun.timer.cleared,false,'mix changes preserve the transport');
+changedProject.tracks[0].clips[0].notes=[{id:'replacement',start:0,duration:120,pitch:91,velocity:.8}];
+let applied=0, obsolete=0;
+changing.queueProject(changedProject,0,()=>obsolete++);
+const boundary=changing.queueProject(changedProject,0,()=>applied++).at;
+clock.currentTime=boundary-.05;changingRun.timer.callback();
+assert.equal(applied,0,'queued notification waits for audible boundary');
+const future=scheduledVoices.filter(v=>v.pitch===91);
+assert.equal(future.length,1,'replacement is scheduled once');
+assert.ok(Math.abs(future[0].at-boundary)<1e-8,'replacement starts exactly at the queued bar');
+clock.currentTime=boundary+.01;changingRun.timer.callback();
+assert.equal(applied,1);assert.equal(obsolete,0,'latest queued request wins');
+changing.queueProject(loopProject,0,()=>obsolete++);
+changing.stop();clock.currentTime+=4;
+assert.equal(changingRun.timer.cleared,true);assert.equal(changing.pendingChange(),null);
+assert.equal(obsolete,0,'stop discards queued callbacks');
+await changingRun.pending;changing.dispose();
+console.log('Synth Studio live mix and quantized replacement checks passed.');

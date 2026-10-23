@@ -393,9 +393,14 @@
     oscillator.stop(at + 0.05);
   }
 
-  function updateTrackBus(bus, track) {
+  function updateTrackBus(bus, track, at, smooth = false) {
     const p = trackParams(track);
-    const now = bus.input.context.currentTime;
+    const now = at ?? bus.input.context.currentTime;
+    const set = (param, value) => {
+      if (!param) return;
+      if (smooth && param.setTargetAtTime) { param.cancelScheduledValues(now); param.setTargetAtTime(value, now, 0.015); }
+      else param.setValueAtTime(value, now);
+    };
     const presetTone = root.SynthStudioPresets?.get(track.instrument)?.patch?.cutoff;
     const tone = Number.isFinite(presetTone) ? p.tone * 0.65 + presetTone * 0.35 : p.tone;
     const resonance = clamp(p.resonance, 0, 1, 0);
@@ -403,17 +408,18 @@
     const chorusAmount = clamp(p.chorus, 0, 1, 0);
     const phaserAmount = clamp(p.phaser, 0, 1, 0);
     const qComp = 1 / (1 + resonance * 0.22);
-    bus.gain.gain.setValueAtTime(track.mute ? 0 : track.volume * qComp, now);
-    bus.filter.frequency.setValueAtTime(240 + tone * 18500, now);
-    bus.filter.Q.setValueAtTime(0.7 + tone * 0.8 + Math.pow(resonance, 1.35) * 11.5, now);
+    set(bus.input.gain, track.mute ? 0 : 1);
+    set(bus.gain.gain, track.volume * qComp);
+    set(bus.filter.frequency, 240 + tone * 18500);
+    set(bus.filter.Q, 0.7 + tone * 0.8 + Math.pow(resonance, 1.35) * 11.5);
     if (bus.drive) bus.drive.curve = DRIVE_CURVES[Math.round(driveAmount * 32)] || DRIVE_CURVES[0];
-    if (bus.phaserWet) bus.phaserWet.gain.setValueAtTime(phaserAmount * 0.55, now);
-    if (bus.chorusGain) bus.chorusGain.gain.setValueAtTime(chorusAmount * 0.46, now);
-    if (bus.pan.pan) bus.pan.pan.setValueAtTime(track.pan, now);
+    if (bus.phaserWet) set(bus.phaserWet.gain, phaserAmount * 0.55);
+    if (bus.chorusGain) set(bus.chorusGain.gain, chorusAmount * 0.46);
+    if (bus.pan.pan) set(bus.pan.pan, track.pan);
     else if (bus.pan.setPosition) bus.pan.setPosition(track.pan, 0, 1 - Math.abs(track.pan));
-    bus.reverbGain.gain.setValueAtTime(p.reverb * 0.36, now);
-    bus.delayGain.gain.setValueAtTime(p.delay * 0.4, now);
-    if (bus.feedback) bus.feedback.gain.setValueAtTime(0.24 + clamp(p.delay, 0, 1, 0) * 0.18, now);
+    set(bus.reverbGain.gain, p.reverb * 0.36 * track.volume);
+    set(bus.delayGain.gain, p.delay * 0.4 * track.volume);
+    if (bus.feedback) set(bus.feedback.gain, 0.24 + clamp(p.delay, 0, 1, 0) * 0.18);
   }
 
   const CUSTOM_HARMONICS = {

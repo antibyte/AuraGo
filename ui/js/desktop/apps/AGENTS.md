@@ -126,9 +126,14 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 ## Synth Studio
 
 - `synth-studio` is a native Creative app with the `synthStudio.*` locale prefix.
-  Keep its fifty presets (five groups of ten), 128 synthesized GM programs and
+  Keep its eighty presets (five groups of sixteen), 128 synthesized GM programs and
   percussion bank local. See `documentation/synth-studio.md` for supported music
   formats, controls and resource limits.
+- `synth-studio-workspace.js` owns workbench tabs, resizing, templates and local
+  view preferences. Parameter gestures update existing audio buses and commit one
+  undo step; cancellation restores the initial value. Structural edits wait for
+  the next unscheduled bar without restarting transport. Verify scheduler tests
+  and responsive browser flows when changing these contracts.
 - Model validation owns project trust boundaries. Notes/controllers use clip-local
   ticks; clips use arrangement ticks. Live playback and offline WAV rendering
   share the native Web Audio implementation. Never schedule musical timing from

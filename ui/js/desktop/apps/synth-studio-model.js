@@ -408,6 +408,17 @@
         return validate(project);
     }
 
+
+    function template(style, name) {
+        const project = demo(); project.name = name || style;
+        project.tempo = {electronic:124,chill:84,retro:108}[style] || 120;
+        project.loop = {enabled:true,start:0,end:BAR*4};
+        project.tracks = project.tracks.slice(0,4);
+        if(style==='chill'){project.tracks[2].instrument=presetFor('keys',0).id;project.tracks.forEach(t=>{t.volume*=.8;t.params.reverb=Math.min(1,t.params.reverb+.15);});}
+        if(style==='retro'){project.tracks[2].instrument='lead-square';project.tracks[3].instrument=presetFor('keys',1).id;}
+        return validate(project);
+    }
+
     function history(initial, limit = 100) {
         const cap = number(limit, 'history.limit', 2, 500, true);
         const snapshots = [validate(initial)];
@@ -433,5 +444,5 @@
         };
     }
 
-    return { PPQ, BAR, newID: randomId, create, validate, addTrack, defaultParamsFor, createClip, patterns, demo, events, endTick, clone, cloneClip, history };
+    return { PPQ, BAR, newID: randomId, create, validate, addTrack, defaultParamsFor, createClip, patterns, demo, template, events, endTick, clone, cloneClip, history };
 });

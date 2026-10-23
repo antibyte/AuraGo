@@ -8,7 +8,7 @@ file API. No cloud music service or audio sidecar is required.
 ## Compose
 
 - Choose an instrument or drag an editable pattern onto the arrangement.
-- Use the five banks of ten synthesizer presets: Drums, Bass, Leads, Pads and
+- Use the five banks of sixteen synthesizer presets: Drums, Bass, Leads, Pads and
   Keys/Plucks. The additional General MIDI bank contains 128 synthesized sounds
   and a percussion kit. These are compact synthesized approximations, not a
   sampled acoustic orchestra.
@@ -20,7 +20,7 @@ file API. No cloud music service or audio sidecar is required.
   or extend. Shift-drag that edge repeats their notes into the extended clip.
   Ctrl/Cmd+D duplicates the selected clip directly after itself.
 - Track controls provide volume, mute, solo and recording selection. The sound
-  panel provides instrument choice, pan, tone, attack, release, reverb and delay.
+  panel provides instrument choice, pan, tone, resonance, drive, attack, release, chorus, phaser, reverb and delay.
   Compact windows expose that panel and the library through toolbar buttons.
 - Space plays/pauses, Ctrl/Cmd+S saves, Shift+Ctrl/Cmd+S saves a copy, and
   Ctrl/Cmd+Z / Shift+Ctrl/Cmd+Z undo/redo. The computer-keyboard row A–K plays
@@ -31,6 +31,25 @@ There are at most fifteen melodic tracks and one percussion track. The loop
 range uses bar positions; the end is exclusive. The demo supplies a starting
 arrangement. Browser-tab hiding pauses playback; minimizing only the Desktop
 window keeps playback running. Reopening never starts playback automatically.
+
+## Instrument workspace
+
+The transport stays visible while Notes and Sound share a resizable workbench.
+Panel height and library visibility are local view preferences. Dark and light
+desktop schemes use graphite and aluminium surfaces respectively. Electronic,
+Chill and Retro templates start paused and contain four editable bars.
+
+The library separates selection, preview and insertion and searches all banks
+until a category is selected. The note editor offers draw/select tools, rectangle
+selection, copy/paste, per-selected-note velocity and draggable bar-loop handles.
+Keyboard arrows move loop handles by one bar. Control values are displayed and can
+be reset. Dragging a sound or volume control previews it immediately and commits
+one undo step; Escape or pointer cancellation restores the previous sound.
+
+Mix changes preserve the audio clock. Structural edits are queued at the next
+bar beyond the audio scheduler's existing look-ahead reservation; a late gesture
+can therefore use the following bar. A queued notice remains until the change is
+audible. Stop discards pending changes. Live editing does not recreate AudioContext.
 
 ## MIDI keyboard and files
 
