@@ -53,6 +53,11 @@ and tool dispatch; Desktop adapters own UI state.
   carry it). Findings keep their text in the body for the prompt, while every report
   revision snapshots them in full. A case response therefore carries no evidence
   text: `detectiveCaseView` blanks excerpts and drops the case-level findings.
+- Concurrency and cost: one connection and `Service.mu` serialize every read and
+  write. That stays sufficient because the hot reads are bounded — `BenchmarkCaseHotPaths`
+  at 200 sources / 4 MB of evidence measures `Live` ≈ 65 µs, `ListSummaries` ≈ 76 µs
+  and one state write ≈ 2.8 ms (dominated by the SQLite commit). Introduce a
+  read/write lock only if a read exceeds ~5 ms; keep `synchronous=FULL`.
 - Automatic failures never publish partial replacement reports. `no_changes`
   requires a successful retrieval and no pending new finding; it changes neither
   revision nor report. Publication, result and next due time commit together.
