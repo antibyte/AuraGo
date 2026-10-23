@@ -361,6 +361,12 @@ func dockerCreatePayload(spec ContainerSpec) map[string]any {
 		"SecurityOpt":   []string{"no-new-privileges:true"},
 	}
 	applyContainerHardening(hostConfig, spec.Hardening)
+	if len(spec.Devices) > 0 {
+		hostConfig["Devices"] = spec.Devices
+	}
+	if len(spec.DeviceRequests) > 0 {
+		hostConfig["DeviceRequests"] = spec.DeviceRequests
+	}
 	if len(spec.ExtraHosts) > 0 {
 		hostConfig["ExtraHosts"] = append([]string(nil), spec.ExtraHosts...)
 	}

@@ -86,6 +86,19 @@ Server-owned HTTP and cross-component integration contracts.
   deployment remain separate from local test/build evidence.
 
 - MCP connection tests require enabled MCP gates, test only the selected server and bind Vault aliases to its saved launch configuration. The automatic Dograh client grants private access only to the managed service's exact origin. Local/Docker stdio observes shell, sandbox, unsafe-host and Docker mutation grants at launch.
+- `desktop_store_printguard.go` owns admin config/test routes for Store ID
+  `printguard`, mandatory isolated HTTPS launch, exact origins and local Engine /
+  own-network validation. Support the bundled Compose `docker-proxy` only for
+  containerized AuraGo; exclude internal/control networks from app choices.
+  Setup probes the configured preview host without
+  credentials. Token removal/access-off must still work when setup is broken.
+  GET never returns secrets. The managed `printguard-store` MCP bridge requires
+  both global gates, fresh anonymous-401/authenticated-read/tool-discovery proof
+  and an execution-time grant check. Desktop enabled/read-only changes also
+  revoke and rebuild MCP through the config hot-reload path. Revoke before lifecycle changes; reconnect
+  only after confirmed start, preserving custom MCP connections. Verify
+  `TestPrintGuard*`, `TestManagedMCP*` and `TestPreviewGateway*`; operator contract:
+  `documentation/printguard.md`.
 - The incoming MCP endpoint checks Host against configured names/local addresses independently of Origin. Configure server.host or server.https.domain for an external name. Never resolve a request-supplied hostname as authority. MCP sessions are random, signed, expire after 24 hours and bind to the authenticated credential; stateless requests get independent sessions. The MCP allowlist is a hard scope for direct, wrapped and ask_aurago calls; enabling the IDE preset must not widen an explicitly selected list.
 
 - Integration connection tests bind stored credentials to saved targets. A Dograh target override requires an explicit credential. YepAPI tests accept POST only, use the saved base URL and read the free model catalog; they never create a paid search or claim that a public catalog proves key validity.

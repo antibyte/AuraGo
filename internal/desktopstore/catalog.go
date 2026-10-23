@@ -17,6 +17,15 @@ func DefaultCatalog() []CatalogEntry {
 			Metadata:    map[string]string{"store_ui": "ziro-designer", "description_key": "desktop.ziro.description"},
 		},
 		{
+			ID: PrintGuardAppID, Category: "system", Name: "PrintGuard",
+			Description: "Local camera monitoring and AI failure detection for 3D printers.",
+			Image:       printGuardImages["cpu"], Icon: "printer", LogoSlug: "printguard",
+			LogoURL:     "/img/desktop/store/printguard.png",
+			PrimaryPort: PortSpec{ID: "web", Name: "Web UI", ContainerPort: 8000, Protocol: "tcp"},
+			Volumes:     []VolumeTemplate{{NameSuffix: "data", ContainerPath: "/data"}},
+			Metadata:    map[string]string{"open_maximized": "true", "isolated": "true", "description_key": "desktop.store.pg_description"},
+		},
+		{
 			ID:          GodsEyeAppID,
 			Category:    "media",
 			Name:        "God's Eye View",

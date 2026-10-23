@@ -47,6 +47,8 @@ type MCPServerConfig struct {
 	Secrets              map[string]string   `yaml:"-"                        json:"-"`
 	ExecutionPermissions *RuntimePermissions `yaml:"-" json:"-"`
 	MCPEnabled           bool                `yaml:"-" json:"-"`
+	ManagedRevision      string              `yaml:"-" json:"-"`
+	CheckAccess          func() error        `yaml:"-" json:"-"`
 }
 
 // MCPToolInfo describes a tool exposed by an MCP server.
@@ -1031,7 +1033,12 @@ func (m *MCPManager) requireToolAllowed(serverName, toolName string) error {
 	if !ok {
 		return fmt.Errorf("MCP server %q not configured", serverName)
 	}
-	if allowed, restricted := mcpAllowedToolSet(cfg); restricted {
+	if cfg.CheckAccess != nil {
+		if err := cfg.CheckAccess(); err != nil {
+			return err
+		}
+	}
+	if allowed, restricted := mcpAllowedToolSet(cfg); restricted && toolName != "" {
 		if _, ok := allowed[toolName]; !ok {
 			return fmt.Errorf("MCP tool %q is not allowed for server %q", toolName, serverName)
 		}

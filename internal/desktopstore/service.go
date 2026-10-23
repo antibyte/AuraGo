@@ -76,6 +76,7 @@ type Config struct {
 // Service owns the software store catalog, persistent install records and
 // lifecycle operations.
 type Service struct {
+	printGuardMu  sync.Mutex
 	mu            sync.Mutex
 	cfg           Config
 	db            *sql.DB
@@ -586,6 +587,16 @@ func (s *Service) scheduleInterruptedInstallDockerCleanup(app InstalledApp, reso
 // goroutine via RunOperation.
 func (s *Service) StartInstall(ctx context.Context, req InstallRequest) (Operation, error) {
 	req.AppID = normalizeAppID(req.AppID)
+	if req.AppID == PrintGuardAppID {
+		if normalizeBindMode(req.BindMode) != BindModeLocal || req.TailscaleEnabled || !validPrintGuardNetwork(req.DockerNetwork) {
+			return Operation{}, fmt.Errorf("PrintGuard requires local binding and protected app access")
+		}
+		origins, err := validateGodsEyeOrigins(req.AllowedOrigins)
+		if err != nil || len(origins) == 0 {
+			return Operation{}, fmt.Errorf("PrintGuard requires protected app origins")
+		}
+		req.AllowedOrigins = origins
+	}
 	if req.AppID == GodsEyeAppID {
 		origins, err := validateGodsEyeOrigins(req.AllowedOrigins)
 		if err != nil {
@@ -727,7 +738,11 @@ func (s *Service) RunOperation(ctx context.Context, operationID string) error {
 			runErr = s.install(ctx, op, req)
 		}
 	case OperationUpdate, OperationConfigure:
-		runErr = s.update(ctx, op)
+		if op.AppID == PrintGuardAppID && op.Type == OperationConfigure {
+			runErr = s.configurePrintGuardRuntime(ctx, op)
+		} else {
+			runErr = s.update(ctx, op)
+		}
 	case OperationStart:
 		runErr = s.start(ctx, op)
 	case OperationStop:
@@ -746,7 +761,7 @@ func (s *Service) RunOperation(ctx context.Context, operationID string) error {
 	}
 	if runErr != nil {
 		errorCode, errorParams := operationErrorDetails(runErr)
-		if op.AppID == GodsEyeAppID {
+		if op.AppID == GodsEyeAppID || op.AppID == PrintGuardAppID {
 			runErr = errors.New(security.Scrub(runErr.Error()))
 		}
 		if op.Type == OperationConfigure {
@@ -1162,6 +1177,11 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 			return err
 		}
 	}
+	if entry.ID == PrintGuardAppID {
+		if err := s.preparePrintGuardInstall(req); err != nil {
+			return err
+		}
+	}
 	hostPort, err := s.portAllocator(ctx, entry.PrimaryPort.ContainerPort)
 	if err != nil {
 		return fmt.Errorf("allocate port: %w", err)
@@ -1197,6 +1217,12 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	}
 	record.Env = env
 	record.SecretRefs = secretRefs
+	if entry.ID == PrintGuardAppID {
+		if err := s.applyPrintGuardImage(&record); err != nil {
+			return err
+		}
+		entry.Image = record.Image
+	}
 	companions, err := s.prepareAutoCompanions(ctx, entry, record)
 	if err != nil {
 		return fmt.Errorf("resolve companion containers: %w", err)
@@ -1246,7 +1272,7 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	if err := s.requireDocker().StartContainer(ctx, record.ContainerName); err != nil {
 		return s.failInstall(ctx, record, err)
 	}
-	if err := s.waitContainerReady(ctx, record, appReadinessTimeout); err != nil {
+	if err := s.waitContainerReady(ctx, record, appReadinessTimeoutFor(record)); err != nil {
 		return s.failInstall(ctx, record, err)
 	}
 	if err := s.checkStartedCompanions(ctx, record, companionContainerNames(record.Companions), companionsStarted); err != nil {
@@ -1323,6 +1349,11 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	if err != nil {
 		return err
 	}
+	if record.AppID == PrintGuardAppID {
+		if err := s.preparePrintGuardUpdate(previous); err != nil {
+			return err
+		}
+	}
 	record.Image = entry.Image
 	if op.Type == OperationConfigure {
 		record.Image = previous.Image
@@ -1367,7 +1398,14 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	record.LastOperationType = op.Type
 	record.LastOperationState = OperationRunning
 	progress := record
-	if record.AppID == GodsEyeAppID {
+	if record.AppID == PrintGuardAppID {
+		if err := s.applyPrintGuardImage(&record); err != nil {
+			return err
+		}
+		entry.Image = record.Image
+		progress = record
+	}
+	if record.AppID == GodsEyeAppID || record.AppID == PrintGuardAppID {
 		// The stored revision identifies active credentials until replacement
 		// has actually succeeded; desired credentials remain in the vault.
 		progress.Env = previous.Env
@@ -1408,7 +1446,7 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 		}
 		return restorePrevious(runErr)
 	}
-	if op.Type != OperationConfigure {
+	if op.Type != OperationConfigure || record.AppID == PrintGuardAppID {
 		if err := s.ensureCatalogImage(ctx, entry); err != nil {
 			return restorePrevious(err)
 		}
@@ -1442,7 +1480,7 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 		if err := s.requireDocker().StartContainer(ctx, record.ContainerName); err != nil {
 			return rollback(fmt.Errorf("start updated container: %w", err))
 		}
-		if err := s.waitContainerReady(ctx, record, appReadinessTimeout); err != nil {
+		if err := s.waitContainerReady(ctx, record, appReadinessTimeoutFor(record)); err != nil {
 			return rollback(fmt.Errorf("updated container readiness: %w", err))
 		}
 	}
@@ -1504,7 +1542,7 @@ func (s *Service) start(ctx context.Context, op Operation) error {
 		if err := s.requireDocker().StartContainer(ctx, app.ContainerName); err != nil {
 			return err
 		}
-		return s.waitContainerReady(ctx, app, appReadinessTimeout)
+		return s.waitContainerReady(ctx, app, appReadinessTimeoutFor(app))
 	})
 }
 
@@ -1544,7 +1582,7 @@ func (s *Service) restart(ctx context.Context, op Operation) error {
 		if err := s.requireDocker().RestartContainer(ctx, app.ContainerName); err != nil {
 			return err
 		}
-		return s.waitContainerReady(ctx, app, appReadinessTimeout)
+		return s.waitContainerReady(ctx, app, appReadinessTimeoutFor(app))
 	})
 }
 
@@ -1644,6 +1682,11 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 		return err
 	}
 	if deleteData {
+		if app.AppID == PrintGuardAppID && s.cfg.Secrets != nil {
+			if err := s.cfg.Secrets.DeleteSecret(printGuardVaultKey); err != nil {
+				return err
+			}
+		}
 		if app.AppID == GodsEyeAppID && s.cfg.Secrets != nil {
 			if err := s.cfg.Secrets.DeleteSecret(godsEyeVaultKey); err != nil {
 				return fmt.Errorf("delete God's Eye View settings")
@@ -2156,6 +2199,9 @@ func (s *Service) updateEnv(entry CatalogEntry, app InstalledApp, previous Insta
 }
 
 func (s *Service) resolveEnv(entry CatalogEntry, app InstalledApp, previousEnv []string, previousRefs []SecretRef) ([]string, []SecretRef, error) {
+	if entry.ID == PrintGuardAppID {
+		return s.printGuardEnvironment()
+	}
 	if entry.ID == GodsEyeAppID {
 		return s.godsEyeEnvironment()
 	}
@@ -2637,7 +2683,7 @@ func (s *Service) upsertLaunchpad(ctx context.Context, entry CatalogEntry, app I
 }
 
 func (s *Service) saveInstalled(ctx context.Context, app InstalledApp) error {
-	if app.AppID == GodsEyeAppID {
+	if app.AppID == GodsEyeAppID || app.AppID == PrintGuardAppID {
 		app.Error = security.Scrub(app.Error)
 	}
 	app.UpdatedAt = time.Now().UTC()
@@ -2886,6 +2932,20 @@ func isMissingStoreArtifact(err error) bool {
 }
 
 func (s *Service) waitContainerReady(ctx context.Context, app InstalledApp, timeout time.Duration) error {
+	probeHost, probePort := app.HostIP, app.HostPort
+	if app.AppID == PrintGuardAppID {
+		settings, err := readPrintGuardSettings(s.cfg.Secrets)
+		if err != nil {
+			return err
+		}
+		active, err := settings.runtimeFor(app)
+		if err != nil {
+			return err
+		}
+		if active.DockerNetwork != "" {
+			probeHost, probePort = app.ContainerName, 8000
+		}
+	}
 	if timeout <= 0 {
 		timeout = appReadinessTimeout
 	}
@@ -2905,10 +2965,10 @@ func (s *Service) waitContainerReady(ctx context.Context, app InstalledApp, time
 			lastErr = fmt.Errorf("container health is %s", health)
 		} else if state.Health != "" && health != "healthy" {
 			lastErr = fmt.Errorf("container health is %s", state.Health)
-		} else if app.Protocol != "tcp" || s.portProbe(ctx, app.HostIP, app.HostPort) {
+		} else if app.Protocol != "tcp" || s.portProbe(ctx, probeHost, probePort) {
 			return nil
 		} else {
-			lastErr = fmt.Errorf("container web port %d is not reachable yet", app.HostPort)
+			lastErr = fmt.Errorf("container web port %d is not reachable yet", probePort)
 		}
 		if time.Now().After(deadline) {
 			if lastErr != nil {

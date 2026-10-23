@@ -15,6 +15,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/desktop"
 	"aurago/internal/desktopstore"
+	"aurago/internal/tools"
 	"aurago/internal/tsnetnode"
 )
 
@@ -193,6 +194,14 @@ func handleDesktopStoreInstall(s *Server) http.HandlerFunc {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
+		if req.AppID == desktopstore.PrintGuardAppID {
+			info, err := s.preparePrintGuardDeployment(r, "cpu", &req.DockerNetwork)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			req.AllowedOrigins = info.Origins
+		}
 		op, err := store.StartInstall(r.Context(), req)
 		if err != nil {
 			writeDesktopStoreStartError(w, err)
@@ -253,6 +262,16 @@ func handleDesktopStoreAppRoute(s *Server) http.HandlerFunc {
 		if appID == desktopstore.GodsEyeAppID && action == "config" && len(parts) == 2 {
 			handleDesktopStoreGodsEyeConfig(s)(w, r)
 			return
+		}
+		if appID == desktopstore.PrintGuardAppID && len(parts) == 2 {
+			if action == "config" {
+				handleDesktopStorePrintGuardConfig(s)(w, r)
+				return
+			}
+			if action == "test" {
+				handleDesktopStorePrintGuardTest(s)(w, r)
+				return
+			}
 		}
 		if action == "preview-status" {
 			handleDesktopStorePreviewStatus(s, appID)(w, r)
@@ -336,7 +355,7 @@ func handleDesktopStoreOpenURL(s *Server, appID string) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		if s.previewRequested(r) {
+		if appID == desktopstore.PrintGuardAppID || s.previewRequested(r) {
 			portID := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("port_id")))
 			if portID == "" && len(app.Ports) > 0 {
 				portID = app.Ports[0].ID
@@ -623,6 +642,11 @@ func (s *Server) runDesktopStoreOperation(store *desktopstore.Service, operation
 	go func() {
 		ctx, cancel := desktopStoreOperationContext(s.ShutdownCh, 30*time.Minute)
 		defer cancel()
+		if operation.AppID == desktopstore.PrintGuardAppID {
+			_ = store.RevokePrintGuardVerification()
+			_ = tools.SetManagedMCPServer(desktopstore.PrintGuardMCPName, nil)
+			defer s.refreshPrintGuardMCP(store)
+		}
 		if operation.Type != desktopstore.OperationStop {
 			runCtx, runDone, err := s.beginDesktopRun(ctx)
 			if err != nil {

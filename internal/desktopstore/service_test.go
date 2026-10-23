@@ -27,6 +27,7 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		runtime string
 	}{
 		"ziro-designer":       {image: "ghcr.io/antibyte/aurago-ziro-designer:ziro-7b45970-1", port: 8080, icon: "ziro-designer", runtime: RuntimeContainerWebApp},
+		"printguard":          {image: printGuardImages["cpu"], port: 8000, icon: "printer", runtime: RuntimeContainerWebApp},
 		"gods-eye-view":       {image: "ghcr.io/antibyte/aurago-gods-eye-view:gev-7596522-1", port: 4173, icon: "gods-eye-view", runtime: RuntimeContainerWebApp},
 		"homarr":              {image: "ghcr.io/homarr-labs/homarr:latest", port: 7575, icon: "home", runtime: RuntimeContainerWebApp},
 		"n8n":                 {image: "ghcr.io/n8n-io/n8n:latest", port: 5678, icon: "n8n", runtime: RuntimeContainerWebApp},
