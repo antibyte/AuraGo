@@ -130,7 +130,7 @@ func (r *detectiveRunner) Run(ctx context.Context, job *detective.Session) error
 	}
 	cfg := *cfgPtr
 	if !cfg.Detective.Enabled || cfg.Detective.ReadOnly || !cfg.VirtualDesktop.Enabled || cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl {
-		return errors.New("Detective research is disabled or read-only")
+		return detective.ErrPermission
 	}
 	c, err := job.Snapshot()
 	if err != nil {
@@ -212,7 +212,7 @@ func (r *detectiveRunner) Run(ctx context.Context, job *detective.Session) error
 				return err
 			}
 			if !detectiveResearchAllowed(s.ConfigSnapshot()) {
-				return errors.New("research permission revoked")
+				return detective.ErrPermission
 			}
 			limit, err := job.BeforeRequest(prompt, req.MaxTokens)
 			if err == nil {
@@ -226,7 +226,7 @@ func (r *detectiveRunner) Run(ctx context.Context, job *detective.Session) error
 			}
 			latest := s.ConfigSnapshot()
 			if latest == nil || !latest.Detective.Enabled || latest.Detective.ReadOnly || !latest.VirtualDesktop.Enabled || latest.VirtualDesktop.ReadOnly || !latest.VirtualDesktop.AllowAgentControl {
-				return errors.New("research permission revoked")
+				return detective.ErrPermission
 			}
 			if err := detectiveAuthorize(latest, c.Request, tc); err != nil {
 				return err

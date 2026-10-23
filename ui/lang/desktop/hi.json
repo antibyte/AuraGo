@@ -4990,6 +4990,7 @@
   "desktop.detective_block_disabled": "Detective बंद है।",
   "desktop.detective_block_read_only": "Detective केवल पढ़ने के लिए है।",
   "desktop.detective_block_initializing": "Detective शुरू हो रहा है।",
+  "desktop.detective_permission_revoked": "शोध अनुमति वापस ली गई।",
   "desktop.detective_start": "शोध शुरू करें",
   "desktop.detective_stop": "रोकें",
   "desktop.detective_finish": "वर्तमान निष्कर्षों से पूरा करें",

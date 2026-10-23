@@ -4990,6 +4990,7 @@
   "desktop.detective_block_disabled": "Το Detective είναι απενεργοποιημένο.",
   "desktop.detective_block_read_only": "Το Detective είναι μόνο για ανάγνωση.",
   "desktop.detective_block_initializing": "Το Detective ξεκινά.",
+  "desktop.detective_permission_revoked": "Τα δικαιώματα έρευνας ανακλήθηκαν.",
   "desktop.detective_start": "Έναρξη έρευνας",
   "desktop.detective_stop": "Διακοπή",
   "desktop.detective_finish": "Ολοκλήρωση με τα υπάρχοντα ευρήματα",

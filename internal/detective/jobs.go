@@ -191,6 +191,12 @@ func (s *Service) worker() {
 				s.mu.Unlock()
 				break
 			}
+			if !allowed {
+				// Rights were revoked: leave queued cases where they are and wait for
+				// the next tick instead of starting a run that must abort immediately.
+				s.mu.Unlock()
+				break
+			}
 			err := s.db.QueryRow("SELECT id FROM detective_cases WHERE status='queued' ORDER BY updated LIMIT 1").Scan(&key)
 			if err != nil {
 				s.mu.Unlock()
@@ -466,6 +472,10 @@ func (x *Session) complete(runErr error) error {
 		} else if x.stopReason != "" {
 			reason = x.stopReason
 			c.Run.Status = "cancelled"
+		} else if errors.Is(runErr, ErrPermission) {
+			// Rights changed under the run: keep it resumable instead of failing it.
+			reason = "permission_revoked"
+			c.Run.Status = "interrupted"
 		} else if errors.Is(runErr, context.DeadlineExceeded) || errors.Is(runErr, ErrBudget) || c.Run.Usage.ActiveMS >= int64(c.Run.Profile.Seconds)*1000 {
 			reason = "budget_exhausted"
 			c.Run.Status = "partial"
@@ -477,8 +487,12 @@ func (x *Session) complete(runErr error) error {
 		}
 		c.Run.Reason = reason
 		if c.Run.Automatic {
-			if c.Run.Status != "interrupted" {
-				c.AutoUpdate.Outcome, c.AutoUpdate.Error = "error", reason
+			if c.Run.Status != "interrupted" || reason == "permission_revoked" {
+				if reason == "permission_revoked" {
+					c.AutoUpdate.Outcome, c.AutoUpdate.Error = "permission_blocked", ""
+				} else {
+					c.AutoUpdate.Outcome, c.AutoUpdate.Error = "error", reason
+				}
 				if !c.AutoUpdate.Enabled {
 					c.AutoUpdate.Outcome = "paused"
 				}

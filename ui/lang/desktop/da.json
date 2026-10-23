@@ -4990,6 +4990,7 @@
   "desktop.detective_block_disabled": "Detective er deaktiveret.",
   "desktop.detective_block_read_only": "Detective er skrivebeskyttet.",
   "desktop.detective_block_initializing": "Detective starter.",
+  "desktop.detective_permission_revoked": "Forskningsrettighederne blev fjernet.",
   "desktop.detective_start": "Start undersøgelse",
   "desktop.detective_stop": "Stop",
   "desktop.detective_finish": "Afslut med nuværende resultater",

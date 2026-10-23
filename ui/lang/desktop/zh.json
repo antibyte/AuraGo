@@ -4990,6 +4990,7 @@
   "desktop.detective_block_disabled": "Detective 已停用。",
   "desktop.detective_block_read_only": "Detective 为只读。",
   "desktop.detective_block_initializing": "Detective 正在启动。",
+  "desktop.detective_permission_revoked": "研究权限已撤销。",
   "desktop.detective_start": "开始研究",
   "desktop.detective_stop": "停止",
   "desktop.detective_finish": "根据现有结果完成",

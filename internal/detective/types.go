@@ -11,6 +11,9 @@ var (
 	ErrConflict = errors.New("research case already has an active run")
 	ErrBudget   = errors.New("research budget exhausted")
 	ErrClosed   = errors.New("research service is closed")
+	// ErrPermission means the live configuration no longer allows research. The run
+	// stays resumable and is not counted as a research failure.
+	ErrPermission = errors.New("research permission revoked")
 )
 
 type Profile struct {

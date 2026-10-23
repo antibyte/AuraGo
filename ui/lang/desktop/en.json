@@ -6260,6 +6260,7 @@
   "desktop.detective_block_disabled": "Detective is disabled.",
   "desktop.detective_block_read_only": "Detective is read-only.",
   "desktop.detective_block_initializing": "Detective is starting up.",
+  "desktop.detective_permission_revoked": "Research permission revoked.",
   "desktop.detective_start": "Start research",
   "desktop.detective_stop": "Stop",
   "desktop.detective_finish": "Finish with current findings",

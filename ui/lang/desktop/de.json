@@ -4990,6 +4990,7 @@
   "desktop.detective_block_disabled": "Detective ist deaktiviert.",
   "desktop.detective_block_read_only": "Detective ist schreibgeschützt.",
   "desktop.detective_block_initializing": "Detective wird gestartet.",
+  "desktop.detective_permission_revoked": "Rechercherechte entzogen.",
   "desktop.detective_start": "Recherche starten",
   "desktop.detective_stop": "Stoppen",
   "desktop.detective_finish": "Mit bisherigen Erkenntnissen abschließen",

@@ -73,7 +73,9 @@ The app shows activation, next check, last successful check, last report change,
 and errors or questions. A question pauses checks until answered. **Pause** or
 **Stop** cancels an active automatic update and disables future checks, retaining
 recorded evidence. Permission restrictions prevent scheduling and revoke active
-work. Pause remains available in readonly mode.
+work. A queued case waits until permissions return instead of starting and failing;
+a run stopped this way is reported as "research permission revoked" and can be
+continued. Pause remains available in readonly mode.
 
 No new findings means no report version is created. Extra URLs for the same
 finding do not count as news. Failed or stopped updates keep the last published

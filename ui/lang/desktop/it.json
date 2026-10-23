@@ -4990,6 +4990,7 @@
   "desktop.detective_block_disabled": "Detective è disattivato.",
   "desktop.detective_block_read_only": "Detective è in sola lettura.",
   "desktop.detective_block_initializing": "Detective si sta avviando.",
+  "desktop.detective_permission_revoked": "Autorizzazioni alla ricerca revocate.",
   "desktop.detective_start": "Avvia ricerca",
   "desktop.detective_stop": "Interrompi",
   "desktop.detective_finish": "Concludi con i risultati attuali",

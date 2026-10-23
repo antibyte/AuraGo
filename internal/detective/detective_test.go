@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -549,5 +550,82 @@ func TestCompleteReturnsPersistenceErrors(t *testing.T) {
 	}
 	if err = x.complete(nil); err == nil {
 		t.Fatal("complete hid a persistence error")
+	}
+}
+// A revoked permission must not start a queued case, and the case must start once the
+// rights return instead of failing in the meantime (audit 4.5).
+func TestQueuedCaseWaitsForPermission(t *testing.T) {
+	var allowed atomic.Bool
+	s, err := New(Options{Path: filepath.Join(t.TempDir(), "queued.db"), Allowed: func() bool { return allowed.Load() }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	ran := make(chan struct{}, 1)
+	s.SetRunner(testRunner(func(ctx context.Context, _ *Session) error {
+		select {
+		case ran <- struct{}{}:
+		default:
+		}
+		return nil
+	}))
+	c, err := s.Create(Request{Topic: "queued", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Start(c.ID, "start", "quick", "queued-1"); err != nil {
+		t.Fatal(err)
+	}
+	s.wake()
+	select {
+	case <-ran:
+		t.Fatal("run started without permission")
+	case <-time.After(200 * time.Millisecond):
+	}
+	allowed.Store(true)
+	s.wake()
+	select {
+	case <-ran:
+	case <-time.After(5 * time.Second):
+		t.Fatal("queued case did not start after the permission returned")
+	}
+}
+
+// Losing research rights during a run interrupts it with its own reason, keeps it
+// resumable and reschedules an automatic update without publishing anything (4.5).
+func TestPermissionRevokedRunStaysResumable(t *testing.T) {
+	s := newTestService(t)
+	c, err := s.Create(Request{Topic: "revoked", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	c.Run.Status = "running"
+	c.Run.Profile = Profiles()["quick"]
+	c.Run.Automatic = true
+	c.LatestRevision = 1 // a completed baseline report, so the next check is scheduled
+	c.AutoUpdate.Enabled = true
+	c.AutoUpdate.IntervalHours = 1
+	if err = s.saveLocked(&c); err != nil {
+		s.mu.Unlock()
+		t.Fatal(err)
+	}
+	s.mu.Unlock()
+	x := &Session{service: s, CaseID: c.ID}
+	if err = x.complete(ErrPermission); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Get(c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Run.Status != "interrupted" || got.Run.Reason != "permission_revoked" {
+		t.Fatalf("status=%s reason=%s", got.Run.Status, got.Run.Reason)
+	}
+	if got.AutoUpdate.Outcome != "permission_blocked" || got.AutoUpdate.NextRunAt.IsZero() {
+		t.Fatalf("outcome=%s next=%s", got.AutoUpdate.Outcome, got.AutoUpdate.NextRunAt)
+	}
+	if got.LatestRevision != 1 || len(got.Reports) != 0 {
+		t.Fatalf("a revoked permission must not publish a revision (latest=%d reports=%d)", got.LatestRevision, len(got.Reports))
 	}
 }

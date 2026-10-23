@@ -4990,6 +4990,7 @@
   "desktop.detective_block_disabled": "Detective is uitgeschakeld.",
   "desktop.detective_block_read_only": "Detective is alleen-lezen.",
   "desktop.detective_block_initializing": "Detective start op.",
+  "desktop.detective_permission_revoked": "Onderzoeksrechten ingetrokken.",
   "desktop.detective_start": "Onderzoek starten",
   "desktop.detective_stop": "Stoppen",
   "desktop.detective_finish": "Afronden met huidige bevindingen",

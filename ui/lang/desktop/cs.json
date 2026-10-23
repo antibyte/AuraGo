@@ -4990,6 +4990,7 @@
   "desktop.detective_block_disabled": "Detective je vypnutý.",
   "desktop.detective_block_read_only": "Detective je jen pro čtení.",
   "desktop.detective_block_initializing": "Detective se spouští.",
+  "desktop.detective_permission_revoked": "Oprávnění k výzkumu byla odebrána.",
   "desktop.detective_start": "Zahájit průzkum",
   "desktop.detective_stop": "Zastavit",
   "desktop.detective_finish": "Dokončit s dosavadními výsledky",
