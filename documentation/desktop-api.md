@@ -37,6 +37,8 @@ configuration UI. Legacy YAML still loads; a normal save removes that key.
 `GET /api/desktop/file?path=Documents/example.txt` returns `content`, `entry` and
 `version`, with the same strong `ETag` response header. HEAD also returns the
 version for binary files. Keep the version with the particular editor's bytes.
+Binary `GET /api/desktop/download?path=...` also returns that strong ETag over
+the delivered bytes, so binary editors do not need a separate HEAD/read race.
 
 | Operation | Preconditions |
 | --- | --- |

@@ -498,6 +498,7 @@ func handleDesktopDownload(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", mimeType)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, contentDisposition, sanitizeContentDisposition(entry.Name)))
+		w.Header().Set("ETag", desktop.NoteVersion(data))
 		http.ServeContent(w, r, entry.Name, entry.ModTime, bytes.NewReader(data))
 	}
 }

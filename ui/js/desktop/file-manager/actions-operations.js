@@ -610,6 +610,7 @@
             apps.unshift({ label: t('desktop.app_bookshelf'), appId: 'bookshelf' });
         }
         
+        if (/\.kicad_pro$/i.test(file.name) && String(file.path).startsWith('Shared/') && (!fm.storage || fm.storage.provider === 'local')) apps.unshift({ label: 'Ziro Designer', appId: 'store-ziro-designer' });
         return apps.map(app => ({
             label: app.label,
             action: 'open-with-' + app.appId,

@@ -282,3 +282,11 @@ size and SHA-256 before it is used. AuraGo loads the files unmodified and does n
   is the "AI precise" engine.
 - Both models run in an isolated worker process on the CPU ONNX Runtime listed above. Images go
   to the AuraGo server only; no external service receives them.
+
+## Ziro Designer (Software Store)
+
+ZiroEDA and contributors; portions derived from KiCad, copyright The KiCad Developers.
+GPL-3.0-or-later; KiCad libraries CC-BY-SA-4.0 with the KiCad library exception.
+The separate Store image includes `/LICENSE`, `/NOTICE.md` and `/source.tar.gz`
+with the pinned upstream source and AuraGo adapter, served by the image web server.
+Upstream: https://github.com/ZiroEDA/ziro-designer/tree/7b4597005e4801d4fb19661fcac6fc3380547cf2.

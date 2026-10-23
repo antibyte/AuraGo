@@ -380,6 +380,7 @@ var desktopPreferredIconNames = []string{
 	"gallery-action-preview",
 	"globe",
 	"gods-eye-view",
+	"ziro-designer",
 	"go",
 	"grid",
 	"heart",

@@ -57,7 +57,7 @@
                     openEditorFile(entry.path);
                 },
                 openMedia: (entry) => openMediaPreview(entry),
-                openApp: (appId, ctx) => openApp(appId, ctx),
+                openApp: (appId, ctx) => appId === 'store-ziro-designer' && !allApps().some(app => app.id === appId) ? openApp('software-store', { app_id: 'ziro-designer' }) : openApp(appId, ctx),
                 addFileToChat: (entry) => addFileContextToChat(entry),
                 askAgentAboutFile: (entry) => askAgentAboutFile(entry),
                 refreshDesktop: loadBootstrap,

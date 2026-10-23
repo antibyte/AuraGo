@@ -115,6 +115,7 @@ AuraGo-eigene Oberflächen ohne Fremdcode stehen hier nicht.
 | Galaxy-Bedienelemente | Lucide | ISC |
 | Desktop-Themes | Papirus, WhiteSur | GPL-3.0 |
 | OpenSCAD | openscad, gepinnter Digest | GPL-2.0 plus CGAL-Linking-Ausnahme |
+| Ziro Designer | `ghcr.io/antibyte/aurago-ziro-designer:ziro-7b45970-1` | GPL-3.0-or-later; KiCad-Bibliotheken CC-BY-SA-4.0 mit KiCad-Ausnahme; Quellen und Hinweise im Image |
 | God's Eye View | Upstream von Bilawal Sidhu, Image `gev-7596522-1` | MIT, `ui/img/desktop/store/gods-eye-view.LICENSE` |
 | Retro Games | Emularity von archive.org | GPL-3.0, nicht mitgeliefert |
 | Quake | QuakeJS-Rootless-Image | GPL-2.0-Engine, proprietäre Spieldaten |

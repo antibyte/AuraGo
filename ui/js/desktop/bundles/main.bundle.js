@@ -7034,6 +7034,7 @@
             chess: { width: 980, height: 680 },
             layerling: { width: 1280, height: 850 },
             nasscad: { width: 1280, height: 850 },
+            'store-ziro-designer': { width: 1280, height: 850 },
             people: { width: 1020, height: 700 },
             'mission-control': { width: 1100, height: 750 },
             'pet-picker': { width: 760, height: 620 },
@@ -7113,7 +7114,7 @@
     function matchesExistingAppWindow(win, appId, context) {
         if (win.appId !== appId) return false;
         if (appId === 'quick-connect') return !!(context && typeof context.device_id === 'string' && context.device_id.length > 0);
-        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio' || appId === 'layerling') && context && context.path != null) {
+        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio' || appId === 'layerling' || appId === 'store-ziro-designer') && context && context.path != null) {
             const requestedPath = normalizeDesktopPath(context.path);
             return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
         }
@@ -16893,6 +16894,7 @@ function updateTaskbarSystemButtonsForMobile() {
         } else {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
         }
+        if (/\.kicad_pro$/i.test(name) && String(entry.path).startsWith('Shared/')) apps.unshift({ label: 'Ziro Designer', appId: allApps().some(app => app.id === 'store-ziro-designer') ? 'store-ziro-designer' : 'software-store' });
         if (isBookshelfFile) apps.unshift({ label: t('desktop.app_bookshelf'), appId: 'bookshelf' });
         const ext = /\.fb2\.zip$/i.test(String(name || '')) ? 'fb2.zip' : /\.txt\.gz$/i.test(String(name || '')) ? 'txt.gz' : desktopFileExtension(name);
         if (/\.(stl|obj|3mf|step|stp|svg)$/i.test(name)) apps.push({ label: 'Layerling', appId: 'layerling' });
@@ -18804,7 +18806,7 @@ if (appId === 'pixel') {
                     openEditorFile(entry.path);
                 },
                 openMedia: (entry) => openMediaPreview(entry),
-                openApp: (appId, ctx) => openApp(appId, ctx),
+                openApp: (appId, ctx) => appId === 'store-ziro-designer' && !allApps().some(app => app.id === appId) ? openApp('software-store', { app_id: 'ziro-designer' }) : openApp(appId, ctx),
                 addFileToChat: (entry) => addFileContextToChat(entry),
                 askAgentAboutFile: (entry) => askAgentAboutFile(entry),
                 refreshDesktop: loadBootstrap,
@@ -21459,10 +21461,33 @@ if (appId === 'pixel') {
 
     async function renderContainerWebApp(id, app) {
         const host = contentEl(id);
+        const context = state.windows.get(id)?.context || {};
         if (!host) return;
         const storeAppId = app && app.metadata && app.metadata.store_app_id;
         if (!storeAppId) {
             host.innerHTML = `<div class="vd-empty">${esc(t('desktop.app_missing'))}</div>`;
+            return;
+        }
+        if (app.metadata?.store_ui === 'ziro-designer') {
+            try {
+                await window.AuraLazyAssets.loadStyle('/css/desktop-app-software-store.css');
+                await window.AuraLazyAssets.loadScript('/js/desktop/apps/ziro-files.js');
+                await window.AuraLazyAssets.loadScript('/js/desktop/apps/ziro-designer.js');
+                if (contentEl(id) !== host) return;
+                return window.ZiroDesignerApp.render(host, id, app, context, {
+                    t, esc, api, makeSandboxedFrame, registerWindowCleanup, modalDialog,
+                    openFileDialog: options => openDesktopFileDialog(options),
+                    saveFileDialog: options => saveDesktopFileDialog(options),
+                    isReadonly: desktopReadonly,
+                    draftKey: state.windows.get(id)?.sessionKey || id,
+                    updateContext: value => updateWindowContext(id, value),
+                    openProjectWindow: value => openApp(app.id, { ...value, forceNew: true }),
+                    setBeforeClose: handler => { const win = state.windows.get(id); if (win) win.beforeClose = handler; },
+                    openURL: desktopStoreOpenURL(storeAppId)
+                });
+            } catch (_) {
+                if (contentEl(id) === host) host.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
+            }
             return;
         }
         if (app && app.metadata && app.metadata.store_ui === 'terminal-preview') {

@@ -136,6 +136,7 @@
         } else {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
         }
+        if (/\.kicad_pro$/i.test(name) && String(entry.path).startsWith('Shared/')) apps.unshift({ label: 'Ziro Designer', appId: allApps().some(app => app.id === 'store-ziro-designer') ? 'store-ziro-designer' : 'software-store' });
         if (isBookshelfFile) apps.unshift({ label: t('desktop.app_bookshelf'), appId: 'bookshelf' });
         const ext = /\.fb2\.zip$/i.test(String(name || '')) ? 'fb2.zip' : /\.txt\.gz$/i.test(String(name || '')) ? 'txt.gz' : desktopFileExtension(name);
         if (/\.(stl|obj|3mf|step|stp|svg)$/i.test(name)) apps.push({ label: 'Layerling', appId: 'layerling' });

@@ -1466,10 +1466,33 @@
 
     async function renderContainerWebApp(id, app) {
         const host = contentEl(id);
+        const context = state.windows.get(id)?.context || {};
         if (!host) return;
         const storeAppId = app && app.metadata && app.metadata.store_app_id;
         if (!storeAppId) {
             host.innerHTML = `<div class="vd-empty">${esc(t('desktop.app_missing'))}</div>`;
+            return;
+        }
+        if (app.metadata?.store_ui === 'ziro-designer') {
+            try {
+                await window.AuraLazyAssets.loadStyle('/css/desktop-app-software-store.css');
+                await window.AuraLazyAssets.loadScript('/js/desktop/apps/ziro-files.js');
+                await window.AuraLazyAssets.loadScript('/js/desktop/apps/ziro-designer.js');
+                if (contentEl(id) !== host) return;
+                return window.ZiroDesignerApp.render(host, id, app, context, {
+                    t, esc, api, makeSandboxedFrame, registerWindowCleanup, modalDialog,
+                    openFileDialog: options => openDesktopFileDialog(options),
+                    saveFileDialog: options => saveDesktopFileDialog(options),
+                    isReadonly: desktopReadonly,
+                    draftKey: state.windows.get(id)?.sessionKey || id,
+                    updateContext: value => updateWindowContext(id, value),
+                    openProjectWindow: value => openApp(app.id, { ...value, forceNew: true }),
+                    setBeforeClose: handler => { const win = state.windows.get(id); if (win) win.beforeClose = handler; },
+                    openURL: desktopStoreOpenURL(storeAppId)
+                });
+            } catch (_) {
+                if (contentEl(id) === host) host.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
+            }
             return;
         }
         if (app && app.metadata && app.metadata.store_ui === 'terminal-preview') {

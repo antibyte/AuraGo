@@ -1295,6 +1295,22 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 This subtree owns built-in virtual desktop app modules that are loaded lazily by
 `ui/js/desktop/core/module-loader.js`.
 
+- `ziro-designer.js` owns the `store_ui=ziro-designer` wrapper; `ziro-files.js`
+  owns bounded Shared project reads and conditional binary uploads. Load them
+  through the Store renderer, including its stylesheet. Only the parent owns
+  API credentials, file versions, dialogs and Shared paths. Bind a MessageChannel
+  to the exact Store iframe, origin and random document challenge, and revoke
+  it on navigation/disposal. Keep version/draft state per window and preserve
+  partial-save progress; a cancelled recovery must retain the original draft.
+  Once bound to a project, New/Open launch a separate Desktop window to isolate
+  pending editor callbacks; Save As retains the current editor's file set.
+  Snapshot every mounted editor before explicit Save/Ctrl+S and before closing.
+  Match dirty state to the snapshot generation so an older acknowledgement
+  cannot hide later edits. The upstream image adapter owns strict serialization,
+  binary/new-file preservation and local drafts. Read `documentation/ziro-designer.md`.
+  Verify `node scripts/test-ziro.mjs`, `node scripts/test-ziro-bridge.mjs` and
+  `node scripts/test-ziro-browser.mjs` against the built local image.
+
 - `tresor.js` owns setup, recovery confirmation, note/file workflows, encrypted note autosave/draft recovery, the five-minute idle lock and window disposal. Desktop close awaits saves and reports failures. Explicit, idle and pagehide locks immediately clear decrypted state even during failed/pending writes; only completed ciphertext drafts survive. Late operations cannot alter a newer session. Commit note selection only after loading/decryption succeeds, and keep both draft fields in state across redraws. `tresor-crypto.js` derives Argon2id keys with locally copied `argon2id@1.0.1` WASM, wipes its entire workspace and encrypts metadata and bodies with Web Crypto AES-256-GCM. Never send passwords, recovery keys or plaintext to `/api/desktop/tresor` or persistent browser storage. The door artwork is decorative; forms stay keyboard-accessible and reduced motion disables the opening effect. Verify `TestDesktopTresorBrowser` (including `checkTresorFailureRecovery`) and `npm run test:tresor-crypto`.
 
 - Game Maker's existing asset browser includes sprite packs and individual 3D

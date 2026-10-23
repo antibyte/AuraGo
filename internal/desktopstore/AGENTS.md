@@ -248,6 +248,21 @@ Store app configuration, runtime, assets, and publication.
 - Verify `install_journal_test.go` and `TestSoftwareStoreTranslatesStructuredOperationErrors`
   (`ui`).
 
+### Ziro Designer
+
+- `ziro-designer` is a creative `container-web-app`, metadata
+  `store_ui=ziro-designer`, pinned image `aurago-ziro-designer:ziro-7b45970-1`,
+  container port 8080. It has no volumes, workspace/socket binds or secrets;
+  Store lifecycle and uninstall never own or delete its Shared projects.
+- `ziro_designer_assets/AGENTS.md` owns the pinned build, static server,
+  GPL source distribution and browser adapter. Publish both architectures
+  through `docker-publish.yml` (`image=ziro-designer`) before catalog installation.
+- The Ziro icon is an original local SVG copied to Papirus/WhiteSur; register
+  its key in Desktop preferred icons and regenerate Windows XP mappings.
+- Shared operations stay in the trusted Desktop wrapper and existing conditional
+  file API. See `documentation/ziro-designer.md` for manual saves, partial failure,
+  draft recovery, offline library limits and the real-image browser test.
+
 ## Verification
 
 - Desktop Store jobs inherit the Desktop revocation context. Stop remains an
@@ -259,4 +274,4 @@ Store app configuration, runtime, assets, and publication.
 
 ## Child DOX Index
 
-None.
+- `ziro_designer_assets/AGENTS.md` — Offline Ziro image and document bridge.

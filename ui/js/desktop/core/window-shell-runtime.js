@@ -1335,6 +1335,7 @@
             chess: { width: 980, height: 680 },
             layerling: { width: 1280, height: 850 },
             nasscad: { width: 1280, height: 850 },
+            'store-ziro-designer': { width: 1280, height: 850 },
             people: { width: 1020, height: 700 },
             'mission-control': { width: 1100, height: 750 },
             'pet-picker': { width: 760, height: 620 },
@@ -1414,7 +1415,7 @@
     function matchesExistingAppWindow(win, appId, context) {
         if (win.appId !== appId) return false;
         if (appId === 'quick-connect') return !!(context && typeof context.device_id === 'string' && context.device_id.length > 0);
-        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio' || appId === 'layerling') && context && context.path != null) {
+        if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio' || appId === 'layerling' || appId === 'store-ziro-designer') && context && context.path != null) {
             const requestedPath = normalizeDesktopPath(context.path);
             return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
         }

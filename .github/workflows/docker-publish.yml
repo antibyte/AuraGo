@@ -12,6 +12,7 @@ on:
         options:
           - all
           - gods-eye-view
+          - ziro-designer
         default: all
 
 permissions:
@@ -22,6 +23,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
   CODE_STUDIO_IMAGE_NAME: ${{ github.repository_owner }}/aurago-code-studio
   COMMANDCODE_IMAGE_NAME: ${{ github.repository_owner }}/aurago-commandcode
+  ZIRO_IMAGE_NAME: ${{ github.repository_owner }}/aurago-ziro-designer
   GODS_EYE_IMAGE_NAME: ${{ github.repository_owner }}/aurago-gods-eye-view
   SUPERTONIC_IMAGE_NAME: ${{ github.repository_owner }}/aurago-supertonic
 
@@ -39,20 +41,20 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        if: inputs.image != 'gods-eye-view'
+        if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           package-manager-cache: false
 
       - name: Build CodeMirror bundle
-        if: inputs.image != 'gods-eye-view'
+        if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         run: |
           npm ci --no-audit --no-fund
           node scripts/build-codemirror.js
 
       - name: Prepare verified offline Phonon speech packages
-        if: inputs.image != 'gods-eye-view'
+        if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         env:
           PHONON_RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest' }}
         run: |
@@ -76,6 +78,7 @@ jobs:
           echo "IMAGE_LC=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
           echo "CODE_STUDIO_IMAGE_LC=${CODE_STUDIO_IMAGE_NAME,,}" >> "$GITHUB_ENV"
           echo "COMMANDCODE_IMAGE_LC=${COMMANDCODE_IMAGE_NAME,,}" >> "$GITHUB_ENV"
+          echo "ZIRO_IMAGE_LC=${ZIRO_IMAGE_NAME,,}" >> "$GITHUB_ENV"
           echo "GODS_EYE_IMAGE_LC=${GODS_EYE_IMAGE_NAME,,}" >> "$GITHUB_ENV"
           echo "SUPERTONIC_IMAGE_LC=${SUPERTONIC_IMAGE_NAME,,}" >> "$GITHUB_ENV"
 
@@ -102,7 +105,7 @@ jobs:
       # as raw refs rather than semver because docker/metadata-action warns on
       # non-semver tag strings.
       - name: Extract metadata (tags, labels)
-        if: inputs.image != 'gods-eye-view'
+        if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
@@ -113,7 +116,7 @@ jobs:
             type=sha,prefix=sha-,format=short
 
       - name: Build and push
-        if: inputs.image != 'gods-eye-view'
+        if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -128,7 +131,7 @@ jobs:
           cache-to:   type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_LC }}:buildcache,mode=max
 
       - name: Sign AuraGo image tags
-        if: inputs.image != 'gods-eye-view'
+        if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         run: |
           while IFS= read -r image; do
             [ -n "$image" ] || continue
@@ -136,7 +139,7 @@ jobs:
           done <<< "${{ steps.meta.outputs.tags }}"
 
       - name: Extract Code Studio metadata (tags, labels)
-        if: inputs.image != 'gods-eye-view'
+        if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         id: code-studio-meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
@@ -147,7 +150,7 @@ jobs:
             type=sha,prefix=sha-,format=short
 
       - name: Build and push Code Studio image
-        if: inputs.image != 'gods-eye-view'
+        if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -162,7 +165,7 @@ jobs:
           cache-to:   type=registry,ref=${{ env.REGISTRY }}/${{ env.CODE_STUDIO_IMAGE_LC }}:buildcache,mode=max
 
       - name: Sign Code Studio image tags
-        if: inputs.image != 'gods-eye-view'
+        if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         run: |
           while IFS= read -r image; do
             [ -n "$image" ] || continue
@@ -170,7 +173,7 @@ jobs:
           done <<< "${{ steps.code-studio-meta.outputs.tags }}"
 
       - name: Extract CommandCode metadata (tags, labels)
-        if: inputs.image != 'gods-eye-view'
+        if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         id: commandcode-meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
@@ -181,7 +184,7 @@ jobs:
             type=sha,prefix=sha-,format=short
 
       - name: Build and push CommandCode image
-        if: inputs.image != 'gods-eye-view'
+        if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: internal/desktopstore/commandcode_assets
@@ -196,14 +199,45 @@ jobs:
           cache-to:   type=registry,ref=${{ env.REGISTRY }}/${{ env.COMMANDCODE_IMAGE_LC }}:buildcache,mode=max
 
       - name: Sign CommandCode image tags
-        if: inputs.image != 'gods-eye-view'
+        if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         run: |
           while IFS= read -r image; do
             [ -n "$image" ] || continue
             cosign sign --yes "$image"
           done <<< "${{ steps.commandcode-meta.outputs.tags }}"
 
+      - name: Build and push Ziro Designer image
+        if: inputs.image != 'gods-eye-view'
+        id: ziro-build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: internal/desktopstore/ziro_designer_assets
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.ZIRO_IMAGE_LC }}:ziro-7b45970-1
+          provenance: true
+          sbom: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.ZIRO_IMAGE_LC }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.ZIRO_IMAGE_LC }}:buildcache,mode=max
+
+      - name: Sign Ziro Designer image
+        if: inputs.image != 'gods-eye-view'
+        env:
+          IMAGE_DIGEST: ${{ steps.ziro-build.outputs.digest }}
+        run: cosign sign --yes "${REGISTRY}/${ZIRO_IMAGE_LC}@${IMAGE_DIGEST}"
+
+      - name: Verify Ziro Designer signature
+        if: inputs.image != 'gods-eye-view'
+        env:
+          IMAGE_DIGEST: ${{ steps.ziro-build.outputs.digest }}
+        run: >-
+          cosign verify
+          --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          --certificate-identity "https://github.com/${GITHUB_WORKFLOW_REF}"
+          "${REGISTRY}/${ZIRO_IMAGE_LC}@${IMAGE_DIGEST}"
+
       - name: Build and push God's Eye View image
+        if: inputs.image != 'ziro-designer'
         id: gods-eye-build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -217,11 +251,13 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.GODS_EYE_IMAGE_LC }}:buildcache,mode=max
 
       - name: Sign God's Eye View image
+        if: inputs.image != 'ziro-designer'
         env:
           IMAGE_DIGEST: ${{ steps.gods-eye-build.outputs.digest }}
         run: cosign sign --yes "${REGISTRY}/${GODS_EYE_IMAGE_LC}@${IMAGE_DIGEST}"
 
       - name: Verify God's Eye View signature
+        if: inputs.image != 'ziro-designer'
         env:
           IMAGE_DIGEST: ${{ steps.gods-eye-build.outputs.digest }}
         run: >-
@@ -231,7 +267,7 @@ jobs:
           "${REGISTRY}/${GODS_EYE_IMAGE_LC}@${IMAGE_DIGEST}"
 
       - name: Extract Supertonic metadata (tags, labels)
-        if: inputs.image != 'gods-eye-view'
+        if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         id: supertonic-meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
@@ -242,7 +278,7 @@ jobs:
             type=sha,prefix=sha-,format=short
 
       - name: Build and push Supertonic image
-        if: inputs.image != 'gods-eye-view'
+        if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -257,7 +293,7 @@ jobs:
           cache-to:   type=registry,ref=${{ env.REGISTRY }}/${{ env.SUPERTONIC_IMAGE_LC }}:buildcache,mode=max
 
       - name: Sign Supertonic image tags
-        if: inputs.image != 'gods-eye-view'
+        if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         run: |
           while IFS= read -r image; do
             [ -n "$image" ] || continue
