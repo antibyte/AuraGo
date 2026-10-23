@@ -125,6 +125,11 @@ func (cv *ChromemVectorDB) replaceIndexedDocuments(ctx context.Context, stm *SQL
 	if stm == nil {
 		return nil, fmt.Errorf("file replacement requires a metadata store")
 	}
+	// Refuse credential-bearing chunks locally: an external embedding provider
+	// must never see them, not even for a replacement that is rejected later.
+	if err := validateNewVectorDocuments(docs); err != nil {
+		return nil, err
+	}
 	if err := cv.embedDocumentsOutsideLock(ctx, docs); err != nil {
 		return nil, err
 	}
@@ -390,6 +395,39 @@ func (cv *ChromemVectorDB) queryVisibleCollection(ctx context.Context, col *chro
 	return cv.queryVisibleCollectionWithBackfillHook(ctx, col, embedding, topK, nil)
 }
 
+// chromemResultCountError is the text of chromem's rejection of an nResults
+// above the collection's document count.
+const chromemResultCountError = "nResults must be <= the number of documents"
+
+// queryCollectionClamped runs a nearest-neighbour query for at most n results.
+// chromem fails the whole query when nResults exceeds the number of documents,
+// so n is clamped to the count read immediately before the call.
+func queryCollectionClamped(ctx context.Context, col *chromem.Collection, embedding []float32, n int) ([]chromem.Result, error) {
+	return queryCollectionClampedWithHook(ctx, col, embedding, n, nil)
+}
+
+// queryCollectionClampedWithHook keeps the test seam narrow: afterCount runs
+// once, between the first Count() and the query, where a concurrent delete can
+// shrink the collection. chromem then still rejects the clamped nResults, so the
+// query is re-clamped to the fresh count and retried once.
+func queryCollectionClampedWithHook(ctx context.Context, col *chromem.Collection, embedding []float32, n int, afterCount func()) ([]chromem.Result, error) {
+	for attempt := 0; ; attempt++ {
+		count := col.Count()
+		if n <= 0 || count == 0 {
+			return nil, nil
+		}
+		k := min(n, count)
+		if attempt == 0 && afterCount != nil {
+			afterCount()
+		}
+		results, err := col.QueryEmbedding(ctx, embedding, k, nil, nil)
+		if err != nil && attempt == 0 && ctx.Err() == nil && strings.Contains(err.Error(), chromemResultCountError) {
+			continue
+		}
+		return results, err
+	}
+}
+
 // queryVisibleCollectionWithBackfillHook keeps the test seam narrow: callers
 // normally leave afterBackfill nil, while focused tests can change metadata
 // between candidate discovery and the final grouped eligibility validation.
@@ -406,7 +444,8 @@ func (cv *ChromemVectorDB) queryVisibleCollectionWithBackfillHook(ctx context.Co
 	checked := make(map[string]checkedResult)
 	k := min(topK, count)
 	for {
-		results, err := col.QueryEmbedding(ctx, embedding, k, nil, nil)
+		// The collection may shrink after count was read; the helper re-clamps k.
+		results, err := queryCollectionClamped(ctx, col, embedding, k)
 		if err != nil {
 			return nil, err
 		}

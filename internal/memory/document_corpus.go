@@ -163,6 +163,22 @@ func (c *documentCorpus) documentPage(ctx context.Context, collection, afterID s
 	if err != nil {
 		return nil, err
 	}
+	return scanCorpusSnapshots(rows)
+}
+
+// blockedDocumentPage pages the pending documents of one collection that are
+// blocked for a single reason, e.g. a failed embedding.
+func (c *documentCorpus) blockedDocumentPage(ctx context.Context, collection, afterID, reason string) ([]corpusDocumentSnapshot, error) {
+	rows, err := c.db.QueryContext(ctx, `SELECT id,content,metadata,vector,dimension,fingerprint,pending,blocked_reason FROM documents WHERE collection=? AND id>? AND pending<>0 AND blocked_reason=? ORDER BY id LIMIT ?`, collection, afterID, reason, corpusPageSize)
+	if err != nil {
+		return nil, err
+	}
+	return scanCorpusSnapshots(rows)
+}
+
+// scanCorpusSnapshots reads and closes a page of documents selected in the
+// column order id,content,metadata,vector,dimension,fingerprint,pending,blocked_reason.
+func scanCorpusSnapshots(rows *sql.Rows) ([]corpusDocumentSnapshot, error) {
 	defer rows.Close()
 	var docs []corpusDocumentSnapshot
 	for rows.Next() {
@@ -433,23 +449,11 @@ func (cv *ChromemVectorDB) reconcileCorpus(ctx context.Context) error {
 			if err := cv.setCorpusBlocked(ctx, name, blockedMultimodal, "multimodal_source_reindex_required"); err != nil {
 				return err
 			}
-			if err := cv.setCorpusBlocked(ctx, name, blockedEmbedding, "embedding_failed"); err != nil {
+			if err := cv.setCorpusBlocked(ctx, name, blockedEmbedding, blockedEmbeddingReason); err != nil {
 				return errors.Join(indexErrors, err)
 			}
-			if len(candidates) > 0 {
-				cv.mu.Lock()
-				unchanged, err := cv.currentCorpusSnapshots(ctx, name, candidates)
-				if err == nil && len(unchanged) > 0 {
-					docs := make([]chromem.Document, 0, len(unchanged))
-					for _, item := range unchanged {
-						docs = append(docs, item.document)
-					}
-					err = cv.persistDocumentsLocked(ctx, col, docs)
-				}
-				cv.mu.Unlock()
-				if err != nil {
-					return err
-				}
+			if err := cv.persistReconcileCandidates(ctx, name, col, candidates); err != nil {
+				return err
 			}
 			afterID = page[len(page)-1].document.ID
 			if len(page) < corpusPageSize {
@@ -458,6 +462,26 @@ func (cv *ChromemVectorDB) reconcileCorpus(ctx context.Context) error {
 		}
 	}
 	return indexErrors
+}
+
+// persistReconcileCandidates publishes freshly embedded documents, but only those
+// whose corpus row is still exactly what was read before the embedding call: a
+// concurrent writer's newer version must win.
+func (cv *ChromemVectorDB) persistReconcileCandidates(ctx context.Context, collection string, col *chromem.Collection, candidates []corpusReconcileCandidate) error {
+	if len(candidates) == 0 {
+		return nil
+	}
+	cv.mu.Lock()
+	defer cv.mu.Unlock()
+	unchanged, err := cv.currentCorpusSnapshots(ctx, collection, candidates)
+	if err != nil || len(unchanged) == 0 {
+		return err
+	}
+	docs := make([]chromem.Document, 0, len(unchanged))
+	for _, item := range unchanged {
+		docs = append(docs, item.document)
+	}
+	return cv.persistDocumentsLocked(ctx, col, docs)
 }
 
 func stringsToAny(values []string) []any {

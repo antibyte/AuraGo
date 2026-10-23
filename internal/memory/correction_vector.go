@@ -23,6 +23,10 @@ func (cv *ChromemVectorDB) prepareCorrectionVectors(ctx context.Context, correct
 			docs = append(docs, chromem.Document{ID: item.ReplacementID, Content: item.Value})
 		}
 	}
+	// Plans are replayed from storage; re-check the policy where the provider is called.
+	if err := validateNewVectorDocuments(docs); err != nil {
+		return ctx, err
+	}
 	if err := cv.embedDocumentsOutsideLock(ctx, docs); err != nil {
 		return ctx, err
 	}

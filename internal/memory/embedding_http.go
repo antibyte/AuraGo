@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -74,7 +75,7 @@ func newOpenAICompatEmbeddingFuncWithClient(baseURL, apiKey, model string, clien
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			return nil, &embeddingHTTPStatusError{statusCode: resp.StatusCode}
+			return nil, newEmbeddingHTTPStatusError(resp)
 		}
 		body, err := readEmbeddingResponseBody(resp.Body)
 		if err != nil {
@@ -90,6 +91,51 @@ func newOpenAICompatEmbeddingFuncWithClient(baseURL, apiKey, model string, clien
 		}
 		return normalizeEmbedding(result.Data[0].Embedding), nil
 	}
+}
+
+// newEmbeddingHTTPStatusError builds the typed status error for a non-200
+// response. The body is deliberately not read: provider responses can echo
+// request content. Only 429 and 503 carry a Retry-After hint.
+func newEmbeddingHTTPStatusError(resp *http.Response) *embeddingHTTPStatusError {
+	statusErr := &embeddingHTTPStatusError{statusCode: resp.StatusCode}
+	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
+		statusErr.retryAfter = parseEmbeddingRetryAfter(resp.Header.Get("Retry-After"), time.Now())
+	}
+	return statusErr
+}
+
+// parseEmbeddingRetryAfter reads a Retry-After value (delta-seconds or an
+// HTTP-date). Garbage, negative and already-elapsed values yield zero; anything
+// larger than embeddingMaxRetryAfter is capped.
+func parseEmbeddingRetryAfter(value string, now time.Time) time.Duration {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0
+	}
+	seconds, err := strconv.ParseInt(value, 10, 64)
+	switch {
+	case err == nil && seconds <= 0:
+		return 0
+	case err == nil && seconds >= int64(embeddingMaxRetryAfter/time.Second):
+		return embeddingMaxRetryAfter
+	case err == nil:
+		return time.Duration(seconds) * time.Second
+	case errors.Is(err, strconv.ErrRange) && !strings.HasPrefix(value, "-"):
+		// More digits than int64 holds: certainly beyond the cap.
+		return embeddingMaxRetryAfter
+	}
+	date, err := http.ParseTime(value)
+	if err != nil {
+		return 0
+	}
+	wait := date.Sub(now)
+	switch {
+	case wait <= 0:
+		return 0
+	case wait > embeddingMaxRetryAfter:
+		return embeddingMaxRetryAfter
+	}
+	return wait
 }
 
 func readEmbeddingResponseBody(body io.Reader) ([]byte, error) {

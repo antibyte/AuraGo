@@ -156,6 +156,11 @@ func (c *MemoryCorrectionService) validateChange(ctx context.Context, change Mem
 	case "core":
 		return ValidateCoreMemoryFact(change.Value)
 	case "ltm":
+		// The replacement is embedded by the provider before it is staged, so the
+		// credential policy of normal memory writes must run first.
+		if err := validateMemoryDocument("", change.Value); err != nil {
+			return err
+		}
 		if _, ok := c.Vector.(correctionVectorWriter); !ok {
 			return fmt.Errorf("vector backend cannot stage a correction safely")
 		}

@@ -185,21 +185,8 @@ func (me *MultimodalEmbedder) doHTTPEmbeddingWithRetry(ctx context.Context, buil
 		if !shouldRetryEmbeddingError(ctx, err) || attempt == embeddingRetryAttempts {
 			return nil, err
 		}
-		delay := embeddingRetryDelay(attempt)
-		if me.logger != nil {
-			me.logger.Warn("Multimodal embedding request failed transiently; retrying", "attempt", attempt, "error", err, "backoff", delay)
-		}
-		if delay <= 0 {
-			continue
-		}
-		timer := time.NewTimer(delay)
-		select {
-		case <-ctx.Done():
-			if !timer.Stop() {
-				<-timer.C
-			}
-			return nil, ctx.Err()
-		case <-timer.C:
+		if waitErr := waitBeforeEmbeddingRetry(ctx, me.logger, "Multimodal embedding request", attempt, err); waitErr != nil {
+			return nil, waitErr
 		}
 	}
 	return nil, lastErr
@@ -214,7 +201,7 @@ func (me *MultimodalEmbedder) doRequest(req *http.Request) ([]float32, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, &embeddingHTTPStatusError{statusCode: resp.StatusCode}
+		return nil, newEmbeddingHTTPStatusError(resp)
 	}
 	respBody, err := readEmbeddingResponseBody(resp.Body)
 	if err != nil {
@@ -245,7 +232,7 @@ func (me *MultimodalEmbedder) doVertexRequest(req *http.Request) ([]float32, err
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, &embeddingHTTPStatusError{statusCode: resp.StatusCode}
+		return nil, newEmbeddingHTTPStatusError(resp)
 	}
 	respBody, err := readEmbeddingResponseBody(resp.Body)
 	if err != nil {

@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"aurago/internal/testutil"
 )
@@ -270,9 +269,7 @@ func TestEmbedFile_APIError(t *testing.T) {
 }
 
 func TestEmbedFileRetriesTransientOpenAIError(t *testing.T) {
-	oldDelay := embeddingRetryDelay
-	embeddingRetryDelay = func(int) time.Duration { return 0 }
-	t.Cleanup(func() { embeddingRetryDelay = oldDelay })
+	stubEmbeddingRetrySleep(t)
 
 	var attempts atomic.Int32
 	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

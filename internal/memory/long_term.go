@@ -441,7 +441,8 @@ func (cv *ChromemVectorDB) requireReadyForSearch() error {
 func buildEmbeddingFingerprint(provider, baseURL, model string) string {
 	parts := []string{
 		strings.TrimSpace(provider),
-		strings.TrimRight(strings.TrimSpace(baseURL), "/"),
+		// URL query credentials must never reach document metadata or the status API.
+		FingerprintEmbeddingBaseURL(baseURL),
 		strings.TrimSpace(model),
 	}
 	return strings.Join(parts, "|")
@@ -533,9 +534,12 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 				return
 			}
 			vdb.ready.Store(true)
-			if err := vdb.reconcileCorpus(validationCtx); err != nil {
+			if err := vdb.reconcileCorpusSingleFlight(validationCtx); err != nil {
 				logger.Error("Document corpus reindex remains pending", "error", err)
 			}
+			// Documents blocked above by a failed embedding are retried in the
+			// background; Close stops the loop through validationCancel and waits for it.
+			vdb.startBlockedEmbeddingRetry(validationCtx)
 			latency := time.Since(validationStart)
 			logger.Info("Embedding pipeline validated", "vector_dimensions", len(vec), "provider", runtime.Provider, "docs", collection.Count(), "latency", latency)
 			if runtime.Local && latency > 500*time.Millisecond {
@@ -1400,6 +1404,11 @@ func (cv *ChromemVectorDB) SearchSimilarScoredContext(ctx context.Context, query
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	// A non-positive limit matches nothing; it must not pay for a query embedding
+	// or reach the final slice below.
+	if topK <= 0 {
+		return nil, nil
+	}
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -1585,6 +1594,10 @@ func (cv *ChromemVectorDB) SearchMemoriesOnlyScoredContext(ctx context.Context, 
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
+	}
+	// A non-positive limit matches nothing; skip the query embedding.
+	if topK <= 0 {
+		return nil, nil
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)

@@ -890,7 +890,8 @@ func fingerprintProvider(name, provider, providerType, baseURL, model, apiKey st
 		name,
 		"provider=" + strings.TrimSpace(provider),
 		"type=" + strings.TrimSpace(providerType),
-		"base=" + strings.TrimSpace(baseURL),
+		// Query credentials and userinfo are replaced by a digest; other URLs stay byte-identical.
+		"base=" + memory.RedactURLForFingerprint(baseURL),
 		"model=" + strings.TrimSpace(model),
 		"key_sha256=" + hashSecretForFingerprint(apiKey),
 	}, ";")

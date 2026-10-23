@@ -77,9 +77,7 @@ func TestOpenAICompatEmbeddingRejectsCrossOriginRedirectWithoutRetry(t *testing.
 	}))
 	defer first.Close()
 
-	oldDelay := embeddingRetryDelay
-	embeddingRetryDelay = func(int) time.Duration { return 0 }
-	t.Cleanup(func() { embeddingRetryDelay = oldDelay })
+	stubEmbeddingRetrySleep(t)
 	fn := withEmbeddingRetry(newOpenAICompatEmbeddingFunc(first.URL+"/v1?token=private", "test-key", "model"), nil)
 	_, err := fn(context.Background(), "hello")
 	if !errors.Is(err, httporigin.ErrCrossOriginRedirect) {
@@ -93,7 +91,7 @@ func TestOpenAICompatEmbeddingRejectsCrossOriginRedirectWithoutRetry(t *testing.
 	}
 }
 
-func TestOpenAICompatEmbeddingRetriesTypedStatusesAtMostThreeTimes(t *testing.T) {
+func TestOpenAICompatEmbeddingRetriesTypedStatusesUpToTheAttemptLimit(t *testing.T) {
 	for _, status := range []int{http.StatusServiceUnavailable, http.StatusBadRequest} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
 			var hits atomic.Int32
@@ -104,9 +102,7 @@ func TestOpenAICompatEmbeddingRetriesTypedStatusesAtMostThreeTimes(t *testing.T)
 			}))
 			defer server.Close()
 
-			oldDelay := embeddingRetryDelay
-			embeddingRetryDelay = func(int) time.Duration { return 0 }
-			t.Cleanup(func() { embeddingRetryDelay = oldDelay })
+			stubEmbeddingRetrySleep(t)
 			fn := withEmbeddingRetry(newOpenAICompatEmbeddingFunc(server.URL+"/v1", "key", "model"), nil)
 			_, err := fn(context.Background(), "hello")
 			if err == nil {
