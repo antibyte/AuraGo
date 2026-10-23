@@ -73,6 +73,15 @@ async function renderMediaConversionSection(section) {
     html += '</div></div>';
 
     html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.media_conversion.max_file_size_label') + '</div>';
+    const helpMaxSize = t('help.media_conversion.max_file_size_mb');
+    if (helpMaxSize) html += '<div class="field-help">' + helpMaxSize + '</div>';
+    html += '<div class="dc-timeout-row">';
+    html += '<input class="field-input dc-timeout-input" type="number" min="0" max="102400" data-path="tools.media_conversion.max_file_size_mb" value="' + (data.max_file_size_mb || 0) + '">';
+    html += '<span class="dc-seconds-label">' + t('config.media_conversion.megabytes') + '</span>';
+    html += '</div></div>';
+
+    html += '<div class="field-group">';
     html += '<button class="btn-save dc-test-btn" onclick="mcTestTools()" id="mc-test-btn">🔌 ' + t('config.media_conversion.test_button') + '</button>';
     html += '<span id="mc-test-result" class="dc-test-result"></span>';
     html += '</div>';

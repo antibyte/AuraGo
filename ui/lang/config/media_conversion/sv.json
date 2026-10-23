@@ -8,6 +8,8 @@
   "config.media_conversion.imagemagick_path_label": "ImageMagick-sökväg",
   "config.media_conversion.timeout_label": "Tidsgräns",
   "config.media_conversion.seconds": "sekunder",
+  "config.media_conversion.max_file_size_label": "Maximal inmatningsstorlek",
+  "config.media_conversion.megabytes": "MB",
   "config.media_conversion.test_button": "Testa verktyg",
   "config.media_conversion.loading": "Kontrollerar verktyg…",
   "config.media_conversion.status_success": "✅",
@@ -19,5 +21,6 @@
   "help.media_conversion.readonly": "I skrivskyddat läge är bara info tillåtet. Faktiska konverteringar blockeras.",
   "help.media_conversion.ffmpeg_path": "Valfri egen sökväg till ffmpeg-binären. Lämna tomt för automatisk detektering via PATH.",
   "help.media_conversion.imagemagick_path": "Valfri egen sökväg till magick eller convert. Lämna tomt för automatisk detektering.",
-  "help.media_conversion.timeout_seconds": "Maximal körtid för en enskild konvertering i sekunder."
+  "help.media_conversion.timeout_seconds": "Maximal körtid för en enskild konvertering i sekunder.",
+  "help.media_conversion.max_file_size_mb": "Maximal storlek för en inmatningsfil i megabyte. 0 betyder obegränsad."
 }

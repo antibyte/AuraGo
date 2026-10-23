@@ -8,6 +8,8 @@
   "config.media_conversion.imagemagick_path_label": "Cesta k ImageMagick",
   "config.media_conversion.timeout_label": "Časový limit",
   "config.media_conversion.seconds": "sekundy",
+  "config.media_conversion.max_file_size_label": "Maximální velikost vstupu",
+  "config.media_conversion.megabytes": "MB",
   "config.media_conversion.test_button": "Otestovat nástroje",
   "config.media_conversion.loading": "Kontroluji nástroje…",
   "config.media_conversion.status_success": "✅",
@@ -19,5 +21,6 @@
   "help.media_conversion.readonly": "V režimu jen pro čtení je povolena pouze operace info. Skutečné převody jsou blokovány.",
   "help.media_conversion.ffmpeg_path": "Volitelná vlastní cesta k binárce ffmpeg. Nechte prázdné pro automatické vyhledání v PATH.",
   "help.media_conversion.imagemagick_path": "Volitelná vlastní cesta k magick nebo convert. Nechte prázdné pro automatické vyhledání.",
-  "help.media_conversion.timeout_seconds": "Maximální doba běhu pro jeden převod v sekundách."
+  "help.media_conversion.timeout_seconds": "Maximální doba běhu pro jeden převod v sekundách.",
+  "help.media_conversion.max_file_size_mb": "Maximální velikost vstupního souboru v megabytech. 0 znamená bez omezení."
 }

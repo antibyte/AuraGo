@@ -8,6 +8,8 @@
   "config.media_conversion.imagemagick_path_label": "Ścieżka ImageMagick",
   "config.media_conversion.timeout_label": "Limit czasu",
   "config.media_conversion.seconds": "sekundy",
+  "config.media_conversion.max_file_size_label": "Maksymalny rozmiar wejścia",
+  "config.media_conversion.megabytes": "MB",
   "config.media_conversion.test_button": "Przetestuj narzędzia",
   "config.media_conversion.loading": "Sprawdzanie narzędzi…",
   "config.media_conversion.status_success": "✅",
@@ -19,5 +21,6 @@
   "help.media_conversion.readonly": "W trybie tylko do odczytu dozwolona jest tylko operacja info. Rzeczywiste konwersje są blokowane.",
   "help.media_conversion.ffmpeg_path": "Opcjonalna własna ścieżka do pliku ffmpeg. Pozostaw puste, aby wykryć automatycznie z PATH.",
   "help.media_conversion.imagemagick_path": "Opcjonalna własna ścieżka do magick lub convert. Pozostaw puste dla automatycznego wykrywania.",
-  "help.media_conversion.timeout_seconds": "Maksymalny czas działania pojedynczej konwersji w sekundach."
+  "help.media_conversion.timeout_seconds": "Maksymalny czas działania pojedynczej konwersji w sekundach.",
+  "help.media_conversion.max_file_size_mb": "Maksymalny rozmiar pliku wejściowego w megabajtach. 0 oznacza bez limitu."
 }
