@@ -33,51 +33,12 @@ revision publication and standalone export for Phaser and Three.js games.
 
 ## Local Contracts
 
-### Voxel games
-
-- Voxel projects use immutable `dimension: 3d, variant: voxel`; legacy projects
-  retain the empty variant. Schema 5/base `voxel` owns `src/voxel.json` and optional
-  `main.ts` hooks. Plan acceptance and file writes share definition validation.
-  Build evidence requires a used definition and the installed Voxel runtime;
-  executable definitions count as implementations. Keep generic `config.objects`,
-  scene/mechanics and unchanged-code requirements on their existing game paths.
-- Version 1 is a finite, single-player FPS sandbox: 96×48×96 by default,
-  at most 128×64×128, 16³ chunks, 64 blocks/items/recipes and 24 enemies.
-  Survival/creative is fixed by the definition. Definition errors name the
-  element index/ID, the field and its accepted values. Grid mutation owns collision,
-  geometry invalidation and saves; inventory/crafting transactions are atomic.
-  Hooks use the public API and dispose their scene additions on reload/disposal.
-- Both modes require the seven `voxelTerrainMaterials` used by terrain generation.
-  Planning/editing guidance names them; creative supply does not remove them.
-  Definition validation reports bounded independent corrections together before
-  checking reachability. Native JSON-string and object designs retain the same
-  failed draft for partial corrections; acceptance and file-write gates stay strict.
-- Voxel prepared profiles keep three planning/four editing tools and fixed
-  schemas; repair shares editing. Only compact definitions/API and bounded file
-  observations enter prompts. Saves and chunk arrays never enter agent context.
-  Exact helper comparison remains necessary for compact source references.
-- The additive migration takes a SQLite backup before changing existing project
-  tables. Autosaves are CAS-versioned by project and compatible world identity;
-  incompatible revisions retain older saves. Reset advances a tombstone version.
-  Validate all 4 MiB payloads, coordinates, identities and numerical bounds.
-- Published saves require a separate parent-only project/revision grant plus
-  HTTP authorization and existing write/delete policy. Asset grants, draft and
-  validation frames never read or write saved progress. Published previews and
-  exports use immutable revision files; no automatic source/runtime migrations.
-  Exported games use IndexedDB; studio save rows are never exported.
-- Voxel validation uses real sampled block/inventory/player/enemy consequences.
-  Counter-only reports cannot pass mining, placing, crafting or combat. Preserve
-  the 16-check/60-second ceilings and the ordinary input-only driver boundary.
-  Pause, inventory, focus loss, touch cancellation and disposal release input.
-  Held input is owned by its keyboard, UI or canvas-pointer source: releasing
-  camera look cannot cancel a separately held Mine action. Verify
-  `TestVoxelTouchMineSurvivesCanvasLookRelease` with `GAMEMAKER_VOXEL_BROWSER=1`.
-- Canvas input must not request pointer capture while pointer lock owns the mouse.
-  Verify real right-click placement under pointer lock as well as unlocked mouse,
-  keyboard and touch input; keyboard-only placement checks miss browser failures.
-- Creative mining may discard drops when inventory is full, but still removes
-  the block and marks the save dirty. Count collection progress only for credited
-  items. Survival mining remains atomic and requires room for the drop.
+- Voxel definitions, finite worlds, transactions, evidence and isolated saves:
+  `voxel/AGENTS.md`.
+- Validation plan disclosure, repairable checks, tool validation evidence and
+  the browser evidence boundary: `validation/AGENTS.md`.
+- Revision blobs, publication fingerprints, filesystem receipts and ZIP export:
+  `export/AGENTS.md`.
 
 ### Shared game lifecycle
 
@@ -405,68 +366,6 @@ revision publication and standalone export for Phaser and Three.js games.
 - Preview tests accept only finite key/pointer/wait/observe steps, never model JavaScript. The authenticated parent forwards bounded numeric observations and at most two bounded PNGs. The server compares evidence; missing observations never pass. Runs are bound to a build and preview token, last at most 60 seconds, and reset gameplay afterwards. Optional image review uses only a confirmed image-capable selected model, is tool-free and cannot override technical checks.
 - Phase-specific verified guidance uses prepared prompt profiles; human intent, model plans, project files and diagnostics stay separate untrusted data. Planning text is never streamed/persisted as chat; final player prose is held until publication. `.aurago/validation-report.json` binds results to the compiled bundle hash and is revisioned but excluded from ZIP export.
 - Image and music generation are optional project capabilities. Generator failure, disabled configuration, or exhausted budget must return a visible procedural fallback without claiming unsupported 3D model generation.
-- Revision blobs are SHA-256 addressed and deduplicated. Restore creates a new revision; export excludes tokens, staging, revision metadata, and AuraGo state while including source, output, local runtimes, assets, and third-party notices.
-- Publication holds the source/build locks and rechecks the validation fingerprint
-  over source, assets, runtimes, output and plan before creating a revision.
-  Generated asset writes share the source lock. Changed or missing fingerprints
-  reject publication while preserving the working copy and playable revision.
-  A failed revision commit must retain staged blob work for retry or explicit cleanup;
-  rollback removes only records and blobs created by that failed attempt.
-- Publication and deletion write a private filesystem receipt before moving
-  project directories. On restart, recover only when the project revision and
-  expected files establish the outcome; retain ambiguous receipts for review.
-  Incomplete temporary receipt writes may be removed without changing projects.
-- Browser gameplay evidence is a cooperative quality check, not independent
-  attestation of hostile game code: the driver and project share one JavaScript
-  realm. Preserve sandbox/API isolation; do not claim that window/channel checks
-  authenticate observations independently of the generated game.
-- ZIP export reads one published revision from the blob store, verifies sizes/hashes and required entry files, and retains that revision's runtime files. Never export mutable workspace edits alongside old compiled output. Finish a temporary archive before committing HTTP download headers; export failures must not become successful partial ZIPs. Include standalone HTTP-server instructions; file:// is not a supported launch path. Check extracted 2D/3D games without the preview boot/driver, including subdirectory hosting, imported assets and audio. `TestNightlyExportBrowser` does that for one unmodified platformer export and one exploration export that uses the guided default catalog models, with no LLM, when `GAMEMAKER_NIGHTLY_BROWSER=1`. The larger `GAMEMAKER_*_BROWSER` suites stay opt-in.
-
-### Agent guidance and repairable checks
-
-- `validationScenarios` in `validation_plan.go` is the single source of the
-  scenarios a build drives. `ValidationPlan` and `BaseChecks` disclose exactly
-  those checks; never describe a check the build does not execute. Planning
-  context and `inspect` carry `base_checks`; building and repair carry
-  `validation_plan`. Both are untrusted context after the prompt prefix and
-  never change a profile fingerprint.
-- `CheckResult.Repairable` and `BuildResult.Repairable` mark an `unavailable`
-  check whose cause lies in the game: an absent or unreachable target, an
-  inactive or unsupported control, or sampled state without the expected
-  consequence. Such a result enters the bounded repair loop and shares its
-  budget with failed checks. Missing browser feedback, an absent measurement or
-  an unavailable runtime stays non-repairable and ends validation as before.
-  Repairable never turns a check into `passed` and never permits publication.
-- `ValidationNextAction` names the next step for every validation answer and
-  must never claim success for unobserved gameplay. Tool answers also return
-  the remaining repair passes.
-- Invalid scopes/check IDs and unsupported free-code 3D gameplay requests
-  return a `request` diagnostic with correction guidance. They preserve the
-  current preview and last validation, consume no repair pass and do not end
-  the agent round. Check IDs are resolved before building. Free-code `three`
-  needs valid 3D scene data for gameplay; declared scenarios alone do not enable it.
-- `game_maker_file` `search` without `path` scans `game.json` and `src/**` text
-  only: at most 64 files of 512 KiB each and twelve matches in total. Managed
-  runtimes, compiled output, assets and `.aurago` stay excluded. `path` is
-  therefore optional in every phase schema; other operations still reject a
-  missing path.
-- File errors are `*fs.PathError` values carrying the project-relative path, so
-  `os.IsNotExist` and `errors.Is` keep working. `RedactHostPaths` is the last
-  boundary before text reaches a model, a client or the job ledger; route new
-  error paths through it or through `fileError`.
-- Phase context includes `budget`: tool calls, remaining seconds rounded to
-  30 s and phase guidance. Keep it coarse; exact values defeat prompt reuse.
-
-### Game Maker tool validation contract
-
-- Game Maker `BuildJob` compiles without waiting; `ValidateJob` additionally
-  requires a build-bound browser startup check through the authenticated Studio
-  parent. Runtime errors feed the bounded repair loop; missing feedback prevents
-  publication. Diagnostics stay bounded, untrusted data and never become trusted
-  prompt instructions. Only the server boot's visible-canvas report establishes
-  readiness; engine console errors also fail validation. Procedural SVG assets
-  return `.svg` paths, never SVG bytes mislabeled as PNG. A passed startup check
-  does not certify all gameplay.
 
 ### Game Maker sprite library contract
 
@@ -628,3 +527,6 @@ Do not patch a published game merely because a new starter changed.
 ## Child DOX Index
 
 - `asset_packs/AGENTS.md`: original local content, metadata and reproducible packing.
+- `export/AGENTS.md`: revision blobs, publication fingerprints, receipts and ZIP export.
+- `validation/AGENTS.md`: validation plan disclosure, repairable checks and evidence.
+- `voxel/AGENTS.md`: Voxel definitions, finite worlds, transactions and saves.
