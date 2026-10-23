@@ -1,3 +1,28 @@
+// The administrator-owned operation allowlist: one "tool: op, op" line per tool. A
+// missing colon or an empty operation list is ignored, so a typo cannot store a blank
+// policy; the server normalizes the map again.
+function detectiveAllowlistText(map) {
+    return Object.entries(map || {}).sort(([a], [b]) => a.localeCompare(b))
+        .map(([tool, ops]) => tool + ': ' + (ops || []).join(', ')).join('\n');
+}
+function detectiveAllowlistMap(text) {
+    const map = {};
+    for (const raw of String(text || '').split('\n')) {
+        const line = raw.trim();
+        if (!line) continue;
+        const at = line.indexOf(':');
+        if (at <= 0) continue;
+        const tool = line.slice(0, at).trim();
+        const operations = line.slice(at + 1).split(',').map(op => op.trim()).filter(Boolean);
+        if (tool && operations.length) map[tool] = operations;
+    }
+    return map;
+}
+function syncDetectiveAllowlist(area) {
+    if (!configData.detective) configData.detective = {enabled: true, readonly: false};
+    configData.detective.extra_read_operations = detectiveAllowlistMap(area.value);
+    setDirty(true);
+}
 // Server-owned research profiles. Existing runs keep their accepted budgets.
 function renderDetectiveSection(section) {
     const data = configData.detective || (configData.detective = {enabled:true,readonly:false});
@@ -16,6 +41,10 @@ function renderDetectiveSection(section) {
         }
         html += '</div>';
     }
+    html += '<h3>'+label('extra_read_operations')+'</h3><div class="field-group"><div class="section-desc">'+label('extra_read_help')+'</div>'+
+        '<textarea class="field-input" rows="4" spellcheck="false" placeholder="mcp_call: archive/read" data-role="detective-allowlist" oninput="syncDetectiveAllowlist(this)">'+
+        escapeHtml(detectiveAllowlistText(data.extra_read_operations))+'</textarea>'+
+        '<div class="field-hint">'+label('extra_read_format')+'</div></div>';
     document.getElementById('content').innerHTML = html+'</div>';
     attachChangeListeners();
 }
