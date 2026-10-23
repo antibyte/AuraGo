@@ -210,6 +210,7 @@
   "webauthn.rate_limited": "Demasiadas tentativas. Espera antes de tentar novamente.",
   "webauthn.limit": "Podes registar até 16 chaves. Remove primeiro uma chave que não uses.",
   "webauthn.failed": "A operação falhou. Verifica a ligação e tenta novamente.",
+  "webauthn.owner_required": "Ativa a proteção de início de sessão e inicia sessão para gerir as chaves de acesso.",
   "webauthn.last_used": "Última utilização",
   "webauthn.uncertain": "O pedido pode ter sido concluído. Verifica as definições guardadas ou a lista de chaves antes de tentar novamente."
 }

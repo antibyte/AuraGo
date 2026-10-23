@@ -24,9 +24,11 @@ func TestWebAuthnBrowserLoginAndRecovery(t *testing.T) {
 	s, owner := newWebAuthnTestServer(t, "passkey")
 	i18n.Load(ui.Content, s.Logger)
 	var recovery atomic.Bool
+	var credentialReads, enrollmentFinishes atomic.Int64
 	mux := http.NewServeMux()
 	s.registerAssetRecoveryRoutes(mux)
 	mux.HandleFunc("/api/auth/status", handleAuthStatus(s))
+	mux.HandleFunc("/api/auth/activity", handleAuthActivity(s))
 	mux.HandleFunc("/api/auth/logout", handleAuthLogoutAPI(s))
 	mux.HandleFunc("/auth/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
@@ -53,9 +55,10 @@ func TestWebAuthnBrowserLoginAndRecovery(t *testing.T) {
 		settings, _ := json.Marshal(a.Config)
 		messages, _ := json.Marshal(webAuthnLocales["en"])
 		fmt.Fprintf(w, `<!doctype html><html lang="en" data-theme="dark"><head>%s<style>.is-hidden{display:none!important}body{margin:24px auto;max-width:760px;padding:20px}input,select,textarea{max-width:100%%}#content{padding:20px}</style></head><body class="pw-page" data-workspace-page="config"><main id="content"></main>
-<script>const configData={auth:{webauthn:%s},agent:{max_tokens:123}};const labels=%s;Object.assign(labels,{'common.enabled':'Enabled','common.disabled':'Disabled','common.btn_save':'Save','common.btn_delete':'Delete','common.btn_cancel':'Cancel','common.loading':'Loading…','login.password_label':'Password'});const t=key=>labels[key]||key;const escapeHtml=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const escapeAttr=escapeHtml;const setHidden=(el,value)=>el.classList.toggle('is-hidden',value);const showConfirm=async()=>true;</script>
+<script src="/js/shared/shared-core.js"></script>
+<script>window.configData={auth:{webauthn:%s},agent:{max_tokens:123}};const labels=%s;Object.assign(labels,{'common.enabled':'Enabled','common.disabled':'Disabled','common.btn_save':'Save','common.btn_delete':'Delete','common.btn_cancel':'Cancel','common.loading':'Loading…','login.password_label':'Password'});window.t=key=>labels[key]||key;window.escapeHtml=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));window.escapeAttr=escapeHtml;window.setHidden=(el,value)=>el.classList.toggle('is-hidden',value);window.showConfirm=async()=>true;</script>
 <script src="/js/config/state.js"></script><script src="/auth/webauthn/client.js"></script><script src="/cfg/auth_webauthn.js"></script><script src="/cfg/auth.js"></script>
-<script>AuraConfigState.init(configData);AuraConfigState.set('agent.max_tokens',456);_authStatus={password_set:true,totp_enabled:false};document.getElementById('content').innerHTML=renderWebAuthnSection(configData.auth.webauthn,_authStatus);initWebAuthnSection();</script></body></html>`, css, settings, messages)
+<script>(async()=>{AuraConfigState.init(configData);AuraConfigState.set('agent.max_tokens',456);_authStatus=await(await fetch('/api/auth/status')).json();document.getElementById('content').innerHTML='<div class="cfg-section active">'+renderWebAuthnSection(configData.auth.webauthn,_authStatus)+'</div>';initWebAuthnSection();})();</script></body></html>`, css, settings, messages)
 	})
 	files := http.FileServer(http.FS(ui.Content))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +68,15 @@ func TestWebAuthnBrowserLoginAndRecovery(t *testing.T) {
 		}
 		files.ServeHTTP(w, r)
 	})
-	server := httptest.NewServer(authMiddleware(s, mux))
+	server := httptest.NewServer(authMiddleware(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/auth/webauthn/credentials":
+			credentialReads.Add(1)
+		case "/api/auth/webauthn/register/finish":
+			enrollmentFinishes.Add(1)
+		}
+		mux.ServeHTTP(w, r)
+	})))
 	defer server.Close()
 	origin := strings.Replace(server.URL, "127.0.0.1", "localhost", 1)
 	s.Cfg.Auth.WebAuthn.Origins = []string{origin}
@@ -165,6 +176,44 @@ func TestWebAuthnBrowserLoginAndRecovery(t *testing.T) {
 	page.MustEval(`()=>{Object.defineProperty(window,'PublicKeyCredential',{value:undefined,configurable:true});renderWebAuthnLogin();}`)
 	if !page.MustEval(`()=>document.getElementById('btnPasskey').disabled&&document.getElementById('btnLogin').classList.contains('is-hidden')&&document.getElementById('webauthnHint').textContent===t('webauthn.unsupported')`).Bool() {
 		t.Fatal("unsupported browser weakened second-factor policy")
+	}
+
+	owner.Value = createSessionValue(s.Cfg.Auth.SessionSecret, time.Now().Add(time.Hour))
+	page.MustSetCookies(&proto.NetworkCookieParam{Name: owner.Name, Value: owner.Value, URL: origin, Path: "/", HTTPOnly: true})
+	page.MustNavigate(origin + "/fixture/settings").MustWaitLoad()
+	page.MustWait(`()=>document.getElementById('auth-webauthn')?.getAttribute('aria-busy')==='false'`)
+	page.MustEval(`()=>{const create=navigator.credentials.create.bind(navigator.credentials);navigator.credentials.create=options=>{window.fixtureEnrollmentSignal=options.signal;return create(options);};}`)
+	page.MustElement("#wa-label").MustInput("Cancelled on navigation")
+	page.MustElement("#auth-webauthn-current-pw").MustInput(stepUpTestPassword)
+	finishesBefore := enrollmentFinishes.Load()
+	page.MustElement(`[data-wa-action="add"]`).MustClick()
+	page.MustWait(`()=>!!window.fixtureEnrollmentSignal`)
+	page.MustEval(`()=>document.getElementById('content').replaceChildren()`)
+	page.MustWait(`()=>window.fixtureEnrollmentSignal.aborted`)
+	page.MustEval(`async()=>{await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);}`)
+	if enrollmentFinishes.Load() != finishesBefore {
+		t.Fatal("leaving the nested settings panel finished enrollment")
+	}
+
+	page.MustNavigate(origin + "/fixture/settings").MustWaitLoad()
+	page.MustWait(`()=>document.getElementById('auth-webauthn')?.getAttribute('aria-busy')==='false'`)
+	page.MustEval(`()=>AuraConfigState.set('agent.max_tokens',789)`)
+	page.MustElement("#auth-webauthn-current-pw").MustInput("incorrect fixture password")
+	page.MustElement(`[data-wa-action="settings"]`).MustClick()
+	page.MustWait(`()=>document.getElementById('wa-status')?.classList.contains('is-error')&&document.getElementById('auth-webauthn').getAttribute('aria-busy')==='false'`)
+	page.MustEval(`async()=>{await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);}`)
+	if !page.MustEval(`()=>location.pathname==='/fixture/settings'&&AuraConfigState.get('agent.max_tokens')===789&&document.getElementById('wa-status').textContent===t('webauthn.invalid_credentials')`).Bool() {
+		t.Fatal("a failed step-up discarded the draft or navigated away")
+	}
+
+	s.CfgMu.Lock()
+	s.Cfg.Auth.Enabled = false
+	s.CfgMu.Unlock()
+	readsBefore := credentialReads.Load()
+	page.MustNavigate(origin + "/fixture/settings").MustWaitLoad()
+	page.MustWait(`()=>document.getElementById('auth-webauthn')?.getAttribute('aria-disabled')==='true'`)
+	if credentialReads.Load() != readsBefore || !page.MustEval(`()=>location.pathname==='/fixture/settings'&&document.querySelector('#auth-webauthn [role="status"]').textContent===t('webauthn.owner_required')`).Bool() {
+		t.Fatal("disabled owner auth requested protected key metadata or navigated away")
 	}
 }
 

@@ -210,6 +210,7 @@
   "webauthn.rate_limited": "Zu viele Versuche. Warte, bevor Du es erneut versuchst.",
   "webauthn.limit": "Du kannst bis zu 16 Schlüssel registrieren. Entferne zuerst einen ungenutzten Schlüssel.",
   "webauthn.failed": "Der Vorgang ist fehlgeschlagen. Prüfe die Verbindung und versuche es erneut.",
+  "webauthn.owner_required": "Aktiviere den Login-Schutz und melde Dich an, um Passkeys zu verwalten.",
   "webauthn.last_used": "Zuletzt verwendet",
   "webauthn.uncertain": "Die Anfrage könnte abgeschlossen sein. Prüfe die gespeicherten Einstellungen oder die Schlüsselliste, bevor Du es erneut versuchst."
 }

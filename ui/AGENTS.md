@@ -978,12 +978,19 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   `data-search-path` for Config search, never ordinary `data-path` persistence.
   Enrollment requires saved RP/origin settings. Keep step-up, inline outcomes,
   cancellation and disposal guards; never start biometric prompts on status reads.
+  Without enabled login protection and an authenticated owner, show the translated
+  prerequisite instead of requesting protected credential metadata. Watch the stable
+  `#content` ancestor so removing a nested section aborts requests and prompts.
 - Full login and embedded recovery share `internal/server/auth_webauthn_client.js`.
   Require secure context/API capability while preserving external security-key
   support. In second-factor mode without TOTP, unsupported clients must never
   reveal a password-only alternative. Native JSON conversion has a tested legacy
   ArrayBuffer adapter. Do not automatically retry writes or finished assertions;
   distinguish an uncertain network outcome from cancelled authenticator selection.
+  Use `AuraAuth.nativeFetch` when available: wrong step-up credentials and expired
+  ceremonies stay inline without discarding drafts; genuine session failures still
+  reach the shared auth response handler. Keep the browser fixture nested under
+  `.cfg-section` and load `shared-core.js` to exercise both integrations.
 - Translate `webauthn.*` in all 16 `lang/common/` files and regenerate the small
   recovery subset with `node scripts/build-webauthn-locales.mjs`. Verify its
   `--check`, `node scripts/webauthn-client.test.mjs`, server `TestWebAuthn*` and

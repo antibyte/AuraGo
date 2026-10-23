@@ -210,6 +210,7 @@
   "webauthn.rate_limited": "Too many attempts. Wait before trying again.",
   "webauthn.limit": "You can register up to 16 keys. Remove an unused key first.",
   "webauthn.failed": "The operation failed. Check the connection and try again.",
+  "webauthn.owner_required": "Enable login protection and sign in to manage passkeys.",
   "webauthn.last_used": "Last used",
   "webauthn.uncertain": "The request may have completed. Check the saved settings or key list before trying again."
 }

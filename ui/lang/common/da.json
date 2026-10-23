@@ -210,6 +210,7 @@
   "webauthn.rate_limited": "For mange forsøg. Vent, før du prøver igen.",
   "webauthn.limit": "Du kan registrere op til 16 nøgler. Fjern først en ubrugt nøgle.",
   "webauthn.failed": "Handlingen mislykkedes. Kontrollér forbindelsen, og prøv igen.",
+  "webauthn.owner_required": "Aktivér loginbeskyttelse, og log ind for at administrere adgangsnøgler.",
   "webauthn.last_used": "Senest brugt",
   "webauthn.uncertain": "Anmodningen kan være gennemført. Kontrollér gemte indstillinger eller nøglelisten, før du prøver igen."
 }

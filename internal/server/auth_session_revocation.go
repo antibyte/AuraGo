@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// Signed session hashes are retained only until their original expiry. The
+// Session identities are retained until every issued renewal has expired. The
 // registry survives config/token-manager replacement within this process.
 var revokedSessions struct {
 	sync.Mutex
@@ -21,14 +21,24 @@ var revokedSessions struct {
 }
 
 func sessionIsRevoked(secret, value string) bool {
-	key := sha256.Sum256([]byte(secret + "\x00" + value))
 	revokedSessions.Lock()
 	defer revokedSessions.Unlock()
-	expiry, ok := revokedSessions.entries[key]
-	if ok && time.Now().Before(expiry) {
-		return true
+	return sessionIsRevokedLocked(secret, value)
+}
+
+func sessionRevocationKey(secret, value string) [32]byte {
+	return sha256.Sum256([]byte(secret + "\x00session\x00" + sessionNonce(value)))
+}
+
+func sessionIsRevokedLocked(secret, value string) bool {
+	// Continue honoring revocations persisted before session identities were stable.
+	legacy := sha256.Sum256([]byte(secret + "\x00" + value))
+	for _, key := range [][32]byte{sessionRevocationKey(secret, value), legacy} {
+		if expiry, ok := revokedSessions.entries[key]; ok && time.Now().Before(expiry) {
+			return true
+		}
+		delete(revokedSessions.entries, key)
 	}
-	delete(revokedSessions.entries, key)
 	return false
 }
 
@@ -47,13 +57,17 @@ func revokeRequestSession(s *Server, r *http.Request) bool {
 	if expiry.IsZero() {
 		return true
 	}
-	key := sha256.Sum256([]byte(secret + "\x00" + cookie.Value))
+	key := sessionRevocationKey(secret, cookie.Value)
 	revokedSessions.Lock()
 	defer revokedSessions.Unlock()
 	if revokedSessions.entries == nil {
 		revokedSessions.entries = make(map[[32]byte]time.Time)
 	}
 	now := time.Now()
+	// An older cookie must also revoke its later ten-minute renewals.
+	if renewedUntil := now.Add(authSessionRenewalDuration); expiry.Before(renewedUntil) {
+		expiry = renewedUntil
+	}
 	for k, until := range revokedSessions.entries {
 		if !now.Before(until) {
 			delete(revokedSessions.entries, k)
@@ -63,6 +77,9 @@ func revokeRequestSession(s *Server, r *http.Request) bool {
 		return false
 	}
 	previous, previouslyRevoked := revokedSessions.entries[key]
+	if previous.After(expiry) {
+		expiry = previous
+	}
 	revokedSessions.entries[key] = expiry
 	if dir != "" {
 		entries := make(map[string]time.Time, len(revokedSessions.entries))

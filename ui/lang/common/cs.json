@@ -210,6 +210,7 @@
   "webauthn.rate_limited": "Příliš mnoho pokusů. Před dalším pokusem počkej.",
   "webauthn.limit": "Lze zaregistrovat nejvýše 16 klíčů. Nejprve odstraň nepoužívaný klíč.",
   "webauthn.failed": "Akce selhala. Zkontroluj připojení a zkus to znovu.",
+  "webauthn.owner_required": "Zapni ochranu přihlášení a přihlas se, abys mohl spravovat přístupové klíče.",
   "webauthn.last_used": "Naposledy použito",
   "webauthn.uncertain": "Požadavek mohl být dokončen. Před dalším pokusem zkontroluj uložená nastavení nebo seznam klíčů."
 }

@@ -121,18 +121,38 @@ type desktopEmbedTokenPayload struct {
 
 // createSessionValue produces a tamper-proof session token.
 // Format: base64url(payload) + "." + hmac_hex
-// Payload: "user|<unix_expires>"
+// Payload: "user|<unix_expires>|<session_nonce>"
 func createSessionValue(secret string, expiry time.Time) string {
 	nonce := make([]byte, 16)
 	if _, err := rand.Read(nonce); err != nil {
 		return ""
 	}
-	payload := fmt.Sprintf("user|%d|%s", expiry.Unix(), hex.EncodeToString(nonce))
+	return signSessionValue(secret, expiry, hex.EncodeToString(nonce))
+}
+
+func signSessionValue(secret string, expiry time.Time, nonce string) string {
+	payload := fmt.Sprintf("user|%d|%s", expiry.Unix(), nonce)
 	payloadEnc := base64.URLEncoding.EncodeToString([]byte(payload))
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(payloadEnc))
 	sig := hex.EncodeToString(mac.Sum(nil))
 	return payloadEnc + "." + sig
+}
+
+// sessionNonce is a stable identity, not authentication; callers validate the signed token first.
+func sessionNonce(value string) string {
+	payload, err := base64.URLEncoding.DecodeString(strings.SplitN(value, ".", 2)[0])
+	if err == nil {
+		fields := strings.Split(string(payload), "|")
+		if len(fields) == 3 {
+			if nonce, err := hex.DecodeString(fields[2]); err == nil && len(nonce) == 16 {
+				return hex.EncodeToString(nonce)
+			}
+		}
+	}
+	// Legacy signed cookies acquire the same identity when first renewed.
+	digest := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(digest[:16])
 }
 
 // validateSessionValue verifies the signature and expiry of a session token.
@@ -358,8 +378,10 @@ func normalizeDesktopEmbedPath(rawPath string) (string, error) {
 // The Secure flag is automatically set when the request is over HTTPS.
 func SetSessionCookie(w http.ResponseWriter, r *http.Request, secret string, timeout time.Duration) {
 	expiry := time.Now().Add(timeout)
-	value := createSessionValue(secret, expiry)
+	setSessionCookie(w, r, createSessionValue(secret, expiry), expiry)
+}
 
+func setSessionCookie(w http.ResponseWriter, r *http.Request, value string, expiry time.Time) {
 	cookie := &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    value,

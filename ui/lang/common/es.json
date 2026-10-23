@@ -210,6 +210,7 @@
   "webauthn.rate_limited": "Demasiados intentos. Espera antes de volver a intentarlo.",
   "webauthn.limit": "Puedes registrar hasta 16 claves. Elimina primero una que no uses.",
   "webauthn.failed": "La operación falló. Comprueba la conexión e inténtalo de nuevo.",
+  "webauthn.owner_required": "Activa la protección de inicio de sesión e inicia sesión para gestionar tus claves de acceso.",
   "webauthn.last_used": "Último uso",
   "webauthn.uncertain": "La solicitud podría haberse completado. Comprueba los ajustes guardados o la lista de claves antes de volver a intentarlo."
 }

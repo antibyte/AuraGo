@@ -210,6 +210,7 @@
   "webauthn.rate_limited": "Trop de tentatives. Patiente avant de réessayer.",
   "webauthn.limit": "Tu peux enregistrer jusqu’à 16 clés. Supprime d’abord une clé inutilisée.",
   "webauthn.failed": "L’opération a échoué. Vérifie la connexion et réessaie.",
+  "webauthn.owner_required": "Active la protection de connexion et connecte-toi pour gérer tes clés d’accès.",
   "webauthn.last_used": "Dernière utilisation",
   "webauthn.uncertain": "La demande a peut-être abouti. Vérifie les paramètres enregistrés ou la liste des clés avant de réessayer."
 }

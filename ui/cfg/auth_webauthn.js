@@ -1,5 +1,8 @@
 // Protected auth settings use their own save action and preserve the ordinary config draft.
 function renderWebAuthnSection(settings, status) {
+    if (!status.enabled || !status.password_set || !status.authenticated) {
+        return `<section id="auth-webauthn" aria-labelledby="auth-webauthn-title" aria-disabled="true"><h2 class="auth-section-title auth-section-title-spaced" id="auth-webauthn-title">${t('webauthn.title')}</h2><p class="field-help" role="status">${t('webauthn.owner_required')}</p></section>`;
+    }
     const field = (id, key, input) => `<div class="field-group"><label class="field-label" for="${id}">${t(key)}</label>${input}</div>`;
     return `<section id="auth-webauthn" aria-labelledby="auth-webauthn-title">
         <h2 class="auth-section-title auth-section-title-spaced" id="auth-webauthn-title">${t('webauthn.title')}</h2>
@@ -26,7 +29,7 @@ function renderWebAuthnSection(settings, status) {
 
 function initWebAuthnSection() {
     const root = document.getElementById('auth-webauthn');
-    if (!root || !globalThis.AuraWebAuthn) return;
+    if (!root || root.getAttribute('aria-disabled') === 'true' || !globalThis.AuraWebAuthn) return;
     const api = AuraWebAuthn;
     const infoController = new AbortController();
     let actionController = null;
@@ -56,7 +59,7 @@ function initWebAuthnSection() {
     const observer = new MutationObserver(() => {
         if (!root.isConnected) { infoController.abort(); actionController?.abort(); observer.disconnect(); }
     });
-    observer.observe(root.parentNode, { childList: true });
+    observer.observe(document.getElementById('content'), { childList: true, subtree: true });
     async function loadCredentials(signal) {
 	    const revision = ++listRevision;
         const data = await api.send('/api/auth/webauthn/credentials', null, 'GET', signal);

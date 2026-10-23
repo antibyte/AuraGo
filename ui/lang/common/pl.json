@@ -210,6 +210,7 @@
   "webauthn.rate_limited": "Zbyt wiele prób. Poczekaj przed kolejną próbą.",
   "webauthn.limit": "Możesz zarejestrować do 16 kluczy. Najpierw usuń nieużywany klucz.",
   "webauthn.failed": "Operacja nie powiodła się. Sprawdź połączenie i spróbuj ponownie.",
+  "webauthn.owner_required": "Włącz ochronę logowania i zaloguj się, aby zarządzać kluczami dostępu.",
   "webauthn.last_used": "Ostatnie użycie",
   "webauthn.uncertain": "Żądanie mogło zostać wykonane. Przed ponowną próbą sprawdź zapisane ustawienia lub listę kluczy."
 }

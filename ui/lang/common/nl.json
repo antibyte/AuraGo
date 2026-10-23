@@ -210,6 +210,7 @@
   "webauthn.rate_limited": "Te veel pogingen. Wacht voordat je het opnieuw probeert.",
   "webauthn.limit": "Je kunt maximaal 16 sleutels registreren. Verwijder eerst een ongebruikte sleutel.",
   "webauthn.failed": "De handeling is mislukt. Controleer de verbinding en probeer opnieuw.",
+  "webauthn.owner_required": "Schakel aanmeldbeveiliging in en meld je aan om toegangssleutels te beheren.",
   "webauthn.last_used": "Laatst gebruikt",
   "webauthn.uncertain": "Het verzoek kan zijn voltooid. Controleer de opgeslagen instellingen of sleutellijst voordat je opnieuw probeert."
 }

@@ -210,6 +210,7 @@
   "webauthn.rate_limited": "尝试次数过多。请稍等后重试。",
   "webauthn.limit": "最多可注册 16 把密钥。请先删除不用的密钥。",
   "webauthn.failed": "操作失败。请检查连接后重试。",
+  "webauthn.owner_required": "启用登录保护并登录，即可管理通行密钥。",
   "webauthn.last_used": "上次使用",
   "webauthn.uncertain": "请求可能已经完成。重试前请先检查已保存的设置或密钥列表。"
 }

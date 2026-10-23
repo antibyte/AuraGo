@@ -234,7 +234,7 @@ func handleWebAuthnBegin(s *Server, registration bool) http.HandlerFunc {
 				webAuthnError(w, "webauthn_session_required", http.StatusUnauthorized)
 				return
 			}
-			tx.OwnerSession = sha256.Sum256([]byte(cookie.Value))
+			tx.OwnerSession = sha256.Sum256([]byte(sessionNonce(cookie.Value)))
 			tx.Operation = "register"
 			options, session, err = client.BeginRegistration(state, wa.WithRegistrationOrigin(tx.Origin), wa.WithExclusions(wa.Credentials(state.WebAuthnCredentials()).CredentialDescriptors()))
 		} else {

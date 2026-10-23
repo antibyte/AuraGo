@@ -349,8 +349,12 @@ Server-owned HTTP and cross-component integration contracts.
 - Browser sessions retain the configured initial `auth.session_timeout_hours`.
   Same-origin POST `/api/auth/activity` requires a still-valid signed cookie and
   extends its remaining lifetime to at least ten minutes. Never shorten a longer
-  session, accumulate extensions, or revive an expired/invalid cookie. Preserve
-  HttpOnly, SameSite=Strict and trusted-proxy Secure handling. GET auth status is
+  session, accumulate extensions, or revive an expired/invalid/revoked cookie.
+  Renewal preserves the signed session nonce; a new login creates a new one.
+  Logout revokes all versions of that session through their maximum renewal
+  lifetime, atomically with renewal issuance. Honor legacy token-hash revocations
+  after reload and upgrade legacy nonce-free cookies without changing identity.
+  Preserve HttpOnly, SameSite=Strict and trusted-proxy Secure handling. GET auth status is
   non-cacheable and reports remaining seconds without renewing; ordinary API
   polling and streams cannot extend sessions. Verify `TestAuthSession*`.
 - Forwarded host, scheme, and client IP count only when `server.https.behind_proxy` is enabled and the immediate peer matches `server.https.trusted_proxy_cidrs`; other forwarding headers are removed before auth and URL construction.
@@ -847,7 +851,8 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
   enforced by the handlers. Public status never exposes credential metadata.
 - Enrollment/policy/rename/removal require an owner browser session and current
   password plus active TOTP step-up. Bearer-only requests fail. Registration
-  binds that owner's exact session. Protect the last second-factor method.
+  binds that owner's signed session nonce across activity renewal; a different
+  login, logout or auth-policy change must still invalidate it. Protect the last second-factor method.
   Generic config/setup patches must not change policy or overwrite active
   factors; check under `CfgSaveMu` before generic write publication.
 - Lock order is `CfgSaveMu` before ceremony mutex. Bind transactions to browser,
@@ -856,6 +861,8 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
   and persist before setting a session cookie. Registry writes invalidate
   concurrent pending work. Never log challenge/assertion/raw credential IDs.
   Administrative credential URLs use opaque digests.
+  Every successful begin refreshes the same ten-minute browser-binding cookie;
+  a fresh two-minute transaction cannot outlive it or rotate another transaction's binding.
 - Read the registry fresh from Vault; preserve full library credential records,
   stable owner handle and RP across backups. Corrupt/unknown records never
   become empty accounts. Explicit RP reset requires disabled WebAuthn and

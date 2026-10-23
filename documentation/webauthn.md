@@ -101,6 +101,13 @@ origin-bound. Account changes, registry writes and config/Vault replacement
 invalidate pending work. Concurrent logins can require one fresh retry after
 the first succeeds. Nothing retries assertions or writes automatically.
 
+Normal session renewal preserves a pending enrollment. Leaving the settings
+section cancels its browser prompt; signing out invalidates enrollment and all
+renewed cookies for that session. Incorrect confirmation credentials stay inline
+and preserve other configuration drafts. If login protection is disabled or no
+owner is signed in, the key settings show the prerequisite without requesting
+protected key metadata.
+
 A cancelled browser prompt does not create a session. If a network response
 is lost after a write, the UI reports an uncertain result: check the saved key
 list/settings or session before retrying. A Vault write failure issues no

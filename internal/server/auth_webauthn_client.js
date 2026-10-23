@@ -28,14 +28,21 @@
     async function send(url, body, method = 'POST', signal) {
         let response, data;
         try {
-            response = await fetch(url, { method, credentials: 'same-origin', cache: 'no-store', signal,
+            const transport = globalThis.AuraAuth?.nativeFetch || fetch;
+            response = await transport(url, { method, credentials: 'same-origin', cache: 'no-store', signal,
                 headers: { 'Content-Type': 'application/json' }, body: method === 'GET' ? undefined : JSON.stringify(body || {}) });
+            if (response.status !== 401) globalThis.AuraAuth?.handleFetchAuthResponse?.(url, response);
             data = await response.json();
         } catch (error) {
             if (url.endsWith('/finish') || ['PUT', 'PATCH', 'DELETE'].includes(method)) throw Object.assign(new Error('webauthn_uncertain', { cause: error }), { code: 'webauthn_uncertain' });
             throw error;
         }
-        if (!response.ok) { const error = new Error(data.code || data.error || 'webauthn_failed'); error.code = data.code || data.error || 'webauthn_failed'; throw error; }
+        if (!response.ok) {
+            if (response.status === 401 && !['invalid_credentials', 'webauthn_invalid_credentials', 'webauthn_invalid_ceremony'].includes(data.code)) {
+                globalThis.AuraAuth?.handleFetchAuthResponse?.(url, response);
+            }
+            const error = new Error(data.code || data.error || 'webauthn_failed'); error.code = data.code || data.error || 'webauthn_failed'; throw error;
+        }
         return data;
     }
     function available() {
@@ -60,7 +67,7 @@
             if (error.name === 'NotAllowedError') return 'webauthn.cancelled_or_timeout';
             if (error.name === 'InvalidStateError') return 'webauthn.duplicate';
             if (error.name === 'SecurityError') return 'webauthn.origin_error';
-            const keys = { webauthn_browser_unavailable: 'unsupported', webauthn_invalid_credentials: 'invalid_credentials',
+            const keys = { invalid_credentials: 'invalid_credentials', webauthn_browser_unavailable: 'unsupported', webauthn_invalid_credentials: 'invalid_credentials',
                 webauthn_origin_rejected: 'origin_error', webauthn_invalid_ceremony: 'expired', webauthn_save_failed: 'save_failed',
                 webauthn_registry_unavailable: 'storage_error', webauthn_invalid_settings: 'settings_error', webauthn_credentials_required: 'enroll_first',
                 webauthn_last_factor: 'last_factor', webauthn_reset_required: 'reset_required', webauthn_rate_limited: 'rate_limited',

@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const authSessionRenewalDuration = 10 * time.Minute
+
 // handleAuthActivity renews a live browser session only on explicit UI activity.
 // Ordinary API requests, status polling and streams never renew the cookie.
 func handleAuthActivity(s *Server) http.HandlerFunc {
@@ -37,11 +39,19 @@ func handleAuthActivity(s *Server) http.HandlerFunc {
 			return
 		}
 		// Do not shorten the configured login duration or bank time on every click.
-		const extension = 10 * time.Minute
-		if time.Until(expiry) < extension {
-			SetSessionCookie(w, r, s.Cfg.Auth.SessionSecret, extension)
-			expiry = time.Now().Add(extension)
+		// Serialize issuance with logout so a revoked session cannot be renewed.
+		revokedSessions.Lock()
+		if sessionIsRevokedLocked(s.Cfg.Auth.SessionSecret, cookie.Value) {
+			revokedSessions.Unlock()
+			jsonError(w, "unauthorized", http.StatusUnauthorized)
+			return
 		}
+		if time.Until(expiry) < authSessionRenewalDuration {
+			expiry = time.Now().Add(authSessionRenewalDuration)
+			value := signSessionValue(s.Cfg.Auth.SessionSecret, expiry, sessionNonce(cookie.Value))
+			setSessionCookie(w, r, value, expiry)
+		}
+		revokedSessions.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"enabled":            true,

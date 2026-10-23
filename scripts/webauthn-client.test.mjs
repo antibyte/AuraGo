@@ -54,4 +54,28 @@ const lostBody = client({ fetch: async () => ({ ok: true, json: async () => { th
 await assert.rejects(lostBody.send('/auth/webauthn/login/finish', {}), error => lostBody.errorKey(error) === 'webauthn.uncertain');
 const cancelled = client({ fetch: async () => ({ ok: true, json: async () => ({ transaction: 'tx', options: { publicKey: { challenge: 'AQI' } } }) }), navigator: { credentials: { get: async () => { throw new DOMException('Cancelled', 'AbortError'); } } } });
 await assert.rejects(cancelled.login(), error => cancelled.errorKey(error) === 'webauthn.cancelled');
+
+const shared = readFileSync(new URL('../ui/js/shared/shared-core.js', import.meta.url), 'utf8');
+const authStart = shared.indexOf('window.AuraAuth = window.AuraAuth || {}');
+const authEnd = shared.indexOf('\n}());', authStart) + 7;
+assert.ok(authStart >= 0 && authEnd > authStart, 'shared auth wrapper must be present');
+for (const code of ['invalid_credentials', 'webauthn_invalid_credentials', 'webauthn_invalid_ceremony', 'webauthn_session_required', undefined]) {
+    const redirects = [];
+    const context = vm.createContext({ URL, atob, btoa, Uint8Array, AbortController,
+        setTimeout() {}, clearTimeout() {}, addEventListener() {},
+        document: { addEventListener() {}, dispatchEvent() {} }, CustomEvent: class {},
+        location: { origin: 'http://localhost', pathname: '/config', search: '', replace: url => redirects.push(url) },
+        fetch: async () => ({ status: 401, ok: false, json: async () => ({ code, error: 'unauthorized' }) }) });
+    context.window = context;
+    vm.runInContext(shared.slice(authStart, authEnd), context);
+    vm.runInContext(source, context);
+    await assert.rejects(context.AuraWebAuthn.send('/api/auth/webauthn/settings', {}, 'PUT'));
+    assert.equal(redirects.length, ['webauthn_session_required', undefined].includes(code) ? 1 : 0,
+        'only an unavailable owner session may navigate away from the draft: ' + code);
+}
+let handledRedirect = false;
+const redirected = client({ AuraAuth: { nativeFetch: async () => ({ status: 200, ok: true, redirected: true, json: async () => ({}) }),
+    handleFetchAuthResponse: (_url, response) => { handledRedirect = response.redirected; } }, fetch: () => assert.fail('must use the native transport') });
+await redirected.send('/api/auth/webauthn/credentials', null, 'GET');
+assert.ok(handledRedirect, 'native transport must preserve shared redirect handling');
 console.log('WebAuthn client: native/legacy encoding, capability checks, cancellation and no-retry failure handling passed.');

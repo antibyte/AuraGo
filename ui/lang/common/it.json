@@ -210,6 +210,7 @@
   "webauthn.rate_limited": "Troppi tentativi. Attendi prima di riprovare.",
   "webauthn.limit": "Puoi registrare fino a 16 chiavi. Rimuovi prima una chiave inutilizzata.",
   "webauthn.failed": "Operazione non riuscita. Verifica la connessione e riprova.",
+  "webauthn.owner_required": "Attiva la protezione dell’accesso e accedi per gestire le passkey.",
   "webauthn.last_used": "Ultimo utilizzo",
   "webauthn.uncertain": "La richiesta potrebbe essere stata completata. Controlla le impostazioni salvate o l’elenco delle chiavi prima di riprovare."
 }

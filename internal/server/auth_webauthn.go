@@ -222,7 +222,6 @@ func (s *Server) putWebAuthnTransaction(w http.ResponseWriter, r *http.Request, 
 	browser := webAuthnBrowser(r)
 	if browser == "" {
 		browser = base64.RawURLEncoding.EncodeToString(randomWebAuthnBytes())
-		http.SetCookie(w, &http.Cookie{Name: webAuthnCookie, Value: browser, Path: "/", MaxAge: 600, Secure: IsSecureRequest(r), HttpOnly: true, SameSite: http.SameSiteStrictMode})
 	}
 	transaction.Browser = sha256.Sum256([]byte(browser))
 	transaction.Expires = time.Now().Add(webAuthnTTL)
@@ -246,6 +245,7 @@ func (s *Server) putWebAuthnTransaction(w http.ResponseWriter, r *http.Request, 
 		return "", errors.New("webauthn ceremony limit reached")
 	}
 	s.webAuthn.transactions[id] = transaction
+	http.SetCookie(w, &http.Cookie{Name: webAuthnCookie, Value: browser, Path: "/", MaxAge: 600, Secure: IsSecureRequest(r), HttpOnly: true, SameSite: http.SameSiteStrictMode})
 	return id, nil
 }
 
@@ -260,7 +260,7 @@ func (s *Server) takeWebAuthnTransaction(r *http.Request, id, operation string, 
 	}
 	if operation == "register" {
 		cookie, err := r.Cookie(sessionCookieName)
-		if err != nil || tx.OwnerSession != sha256.Sum256([]byte(cookie.Value)) || !IsAuthenticated(r, a.SessionSecret) {
+		if err != nil || !IsAuthenticated(r, a.SessionSecret) || tx.OwnerSession != sha256.Sum256([]byte(sessionNonce(cookie.Value))) {
 			return webAuthnTransaction{}, false
 		}
 	}

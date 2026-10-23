@@ -210,6 +210,7 @@
   "webauthn.rate_limited": "För många försök. Vänta innan du försöker igen.",
   "webauthn.limit": "Du kan registrera upp till 16 nycklar. Ta först bort en oanvänd nyckel.",
   "webauthn.failed": "Åtgärden misslyckades. Kontrollera anslutningen och försök igen.",
+  "webauthn.owner_required": "Aktivera inloggningsskydd och logga in för att hantera åtkomstnycklar.",
   "webauthn.last_used": "Senast använd",
   "webauthn.uncertain": "Begäran kan ha slutförts. Kontrollera sparade inställningar eller nyckellistan innan du försöker igen."
 }
