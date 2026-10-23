@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"aurago/internal/config"
@@ -2039,15 +2040,80 @@ func compactKnowledgeContextForPrompt(text string, maxBytes int) string {
 	return kgquery.FitEntries(entries, "\n", maxBytes)
 }
 
+const (
+	// shortQueryRAGMaxBytes is the length (in bytes) below which a user message
+	// counts as a short query for the RAG relevance filter.
+	shortQueryRAGMaxBytes = 40
+	// shortQueryRAGMinScore is the minimum blended score a memory needs to be
+	// served for a short query.
+	shortQueryRAGMinScore = 0.50
+)
+
+// filterShortQueryRAGMemories drops weakly ranked memories for short messages
+// (<40 bytes). Very short messages such as "versuche es erneut" are
+// semantically close to old error messages and would otherwise pull in
+// contextually irrelevant memories. The threshold is deliberately soft (0.50)
+// so that highly relevant old memories survive. There is no top-1 fallback:
+// when nothing reaches the threshold the turn gets no retrieved memory at all
+// instead of the least-bad match. Longer messages are returned unchanged.
+func filterShortQueryRAGMemories(lastUserMsg string, ranked []rankedMemory) []rankedMemory {
+	if len(lastUserMsg) >= shortQueryRAGMaxBytes || len(ranked) == 0 {
+		return ranked
+	}
+	var filtered []rankedMemory
+	for _, r := range ranked {
+		if r.score >= shortQueryRAGMinScore {
+			filtered = append(filtered, r)
+		}
+	}
+	return filtered
+}
+
+// memoryExcerptMinBytes is the least amount of memory text worth keeping as an
+// excerpt. With less room completeMemoryForPrompt falls back to a bare pointer.
+const memoryExcerptMinBytes = 60
+
+// completeMemoryForPrompt returns the sanitized memory when it fits into
+// maxBytes. An over-long memory with a docID becomes an excerpt of its
+// beginning followed by a recall_memory pointer (the whole entry stays within
+// maxBytes); when maxBytes leaves less than memoryExcerptMinBytes for the
+// excerpt it degrades to the bare pointer. Without a docID there is nothing to
+// point at and the entry is dropped via FitEntries.
 func completeMemoryForPrompt(text, docID string, maxBytes int) string {
 	text = sanitizeMemoryForPrompt(text)
 	if len(text) <= maxBytes {
 		return text
 	}
 	if docID != "" {
+		suffix := " … [memory:" + docID + "] (truncated; use recall_memory for the full text)"
+		if excerpt := memoryExcerptForPrompt(text, maxBytes-len(suffix)); excerpt != "" {
+			return excerpt + suffix
+		}
 		return kgquery.FitEntries([]string{"[memory:" + docID + "] (content omitted; use recall_memory)"}, "", maxBytes)
 	}
 	return kgquery.FitEntries([]string{text}, "", maxBytes)
+}
+
+// memoryExcerptForPrompt returns the longest beginning of text (which must be
+// longer than maxBytes) that fits into maxBytes. The cut falls on a rune
+// boundary and, when that keeps at least half of the available bytes, on the
+// last whitespace so words are not split. It returns "" if maxBytes is below
+// memoryExcerptMinBytes.
+func memoryExcerptForPrompt(text string, maxBytes int) string {
+	if maxBytes < memoryExcerptMinBytes || maxBytes >= len(text) {
+		return ""
+	}
+	end := maxBytes
+	for end > 0 && !utf8.RuneStart(text[end]) {
+		end--
+	}
+	// A cut that already sits in front of whitespace ends on a word boundary.
+	if next, _ := utf8.DecodeRuneInString(text[end:]); !unicode.IsSpace(next) {
+		if idx := strings.LastIndexFunc(text[:end], unicode.IsSpace); idx >= end/2 {
+			end = idx
+		}
+	}
+	return strings.TrimRightFunc(text[:end], unicode.IsSpace)
 }
 
 const (
@@ -2070,23 +2136,57 @@ type promptMemoryEntry struct {
 	text  string
 }
 
+const (
+	// ragPromptEntrySeparator joins the retrieved-memory entries in
+	// flags.RetrievedMemories; applyAggressivePromptContextBudgets splits and
+	// re-fits the section on the same separator.
+	ragPromptEntrySeparator = "\n---\n"
+	// minRAGPromptEntryBytes is the smallest remaining budget in which a further
+	// memory is still worth adding (a bare recall pointer with a UUID is ~80 bytes).
+	minRAGPromptEntryBytes = 120
+)
+
+// buildAggressiveRAGPromptEntries renders the served memories in rank order.
+// The top memory may use the deep-details path (full text, aggressiveDetailedRAGMemoryChars);
+// every other memory is capped at aggressiveAutoRAGMemoryChars. The entries
+// joined with ragPromptEntrySeparator never exceed aggressiveRetrievedMemoriesChars,
+// the budget applyAggressivePromptContextBudgets later enforces on the whole
+// section: once it is used up the remaining memories are dropped, and the
+// last kept memory is shortened to the space left.
 func buildAggressiveRAGPromptEntries(served []rankedMemory, wantsDeepDetails bool, getFull func(string) (string, error)) []promptMemoryEntry {
 	if len(served) == 0 {
 		return nil
 	}
-	top := served[0]
-	if wantsDeepDetails && getFull != nil && top.docID != "" {
-		if full, err := getFull(top.docID); err == nil && full != "" && shouldServeRAGMemory(full) {
-			return []promptMemoryEntry{{
-				docID: top.docID,
-				text:  "[Detailed Memory]\n" + completeMemoryForPrompt(full, top.docID, aggressiveDetailedRAGMemoryChars-len("[Detailed Memory]\n")),
-			}}
+	entries := make([]promptMemoryEntry, 0, len(served))
+	used := 0 // bytes of the entries so far, joined with ragPromptEntrySeparator
+	for i, item := range served {
+		room := aggressiveRetrievedMemoriesChars - used
+		if len(entries) > 0 {
+			room -= len(ragPromptEntrySeparator)
+			if room < minRAGPromptEntryBytes {
+				break
+			}
 		}
+		var text string
+		if i == 0 && wantsDeepDetails && getFull != nil && item.docID != "" {
+			if full, err := getFull(item.docID); err == nil && full != "" && shouldServeRAGMemory(full) {
+				const header = "[Detailed Memory]\n"
+				text = header + completeMemoryForPrompt(full, item.docID, min(aggressiveDetailedRAGMemoryChars, room)-len(header))
+			}
+		}
+		if text == "" {
+			text = completeMemoryForPrompt(item.text, item.docID, min(aggressiveAutoRAGMemoryChars, room))
+		}
+		if text == "" {
+			continue
+		}
+		if len(entries) > 0 {
+			used += len(ragPromptEntrySeparator)
+		}
+		used += len(text)
+		entries = append(entries, promptMemoryEntry{docID: item.docID, text: text})
 	}
-	return []promptMemoryEntry{{
-		docID: top.docID,
-		text:  completeMemoryForPrompt(top.text, top.docID, aggressiveAutoRAGMemoryChars),
-	}}
+	return entries
 }
 
 func selectRAGMemoriesForOnDemand(ranked []rankedMemory, cfg config.MemoryOnDemandRetrievalConfig, logger *slog.Logger) ([]rankedMemory, []rankedMemory) {

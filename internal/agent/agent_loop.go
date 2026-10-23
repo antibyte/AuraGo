@@ -937,7 +937,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				ragLastUserMsg = lastUserMsg
 				ragToolIterationsSinceLastRefresh = 0
 
-				// Over-fetch 6 candidates, then re-rank to keep best 3
+				// Over-fetch candidates (6, or 8 with the helper batch) and re-rank
+				// them. Below, the top MaxEssentialMemories (default 1) are served in
+				// prompt form; with on-demand retrieval the rest become teasers.
 				RecordRetrievalEventForScope(telemetryScope, "rag_auto_attempt")
 				autoRetrievalStart := time.Now()
 				searchLimit := 6
@@ -998,28 +1000,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						ranked = rerankWithLLM(ctx, cfg, s.currentLogger, ranked, lastUserMsg, shortTermMem)
 					}
 
-					// For short queries (<40 chars), apply a softer score filtering to
-					// avoid injecting semantically-similar but contextually-irrelevant
-					// old memories (e.g. "versuche es erneut" matching old error messages).
-					// Use a lower threshold (0.50) to avoid filtering out highly-relevant old memories,
-					// and always keep at least the top result if anything was found.
-					if len(lastUserMsg) < 40 && len(ranked) > 0 {
-						scoreThreshold := 0.50
-						var filtered []rankedMemory
-						for _, r := range ranked {
-							if r.score >= scoreThreshold {
-								filtered = append(filtered, r)
-							}
-						}
-						// Preserve at least the top result if it was filtered out — old memories
-						// that are semantically highly similar may still be relevant.
-						if len(filtered) == 0 && len(ranked) > 0 {
-							filtered = ranked[:1]
-						}
-						if len(filtered) < len(ranked) {
-							s.currentLogger.Debug("[RAG] Short-query filter applied", "before", len(ranked), "after", len(filtered))
-						}
-						ranked = filtered
+					// For short queries (<40 bytes), drop memories below a soft score
+					// threshold (0.50) so that semantically-similar but contextually-
+					// irrelevant old memories (e.g. "versuche es erneut" matching old
+					// error messages) are not injected. If nothing reaches the threshold
+					// the turn simply gets no retrieved memory.
+					before := len(ranked)
+					ranked = filterShortQueryRAGMemories(lastUserMsg, ranked)
+					if len(ranked) < before {
+						s.currentLogger.Debug("[RAG] Short-query filter applied", "before", before, "after", len(ranked))
 					}
 
 					onDemandRetrieval := cfg.Tools.Memory.OnDemandRetrieval

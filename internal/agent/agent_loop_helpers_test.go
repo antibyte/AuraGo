@@ -334,21 +334,27 @@ func TestCountMemoryPromptTelemetryTokensIncludesAllMemorySections(t *testing.T)
 	}
 }
 
-func TestBuildAggressiveRAGPromptEntriesKeepsOneCompactMemory(t *testing.T) {
+func TestBuildAggressiveRAGPromptEntriesCapsEachMemoryAndKeepsOrder(t *testing.T) {
 	served := []rankedMemory{
 		{text: strings.Repeat("primary memory detail ", 80), docID: "mem-1", score: 0.95},
 		{text: "secondary memory", docID: "mem-2", score: 0.90},
 	}
 
 	entries := buildAggressiveRAGPromptEntries(served, false, nil)
-	if len(entries) != 1 {
-		t.Fatalf("entries len = %d, want 1: %+v", len(entries), entries)
+	if len(entries) != 2 {
+		t.Fatalf("entries len = %d, want 2: %+v", len(entries), entries)
 	}
-	if entries[0].docID != "mem-1" {
-		t.Fatalf("entry docID = %q, want mem-1", entries[0].docID)
+	if entries[0].docID != "mem-1" || entries[1].docID != "mem-2" {
+		t.Fatalf("entry docIDs = %q, %q, want mem-1, mem-2", entries[0].docID, entries[1].docID)
 	}
-	if len([]rune(entries[0].text)) > 321 {
-		t.Fatalf("entry text length = %d, want <= 321 including ellipsis", len([]rune(entries[0].text)))
+	if len(entries[0].text) > aggressiveAutoRAGMemoryChars {
+		t.Fatalf("entry text length = %d, want <= %d", len(entries[0].text), aggressiveAutoRAGMemoryChars)
+	}
+	if !strings.HasPrefix(entries[0].text, "primary memory detail primary") || !strings.Contains(entries[0].text, "[memory:mem-1]") {
+		t.Fatalf("overlong memory should be an excerpt with a recall pointer, got %q", entries[0].text)
+	}
+	if entries[1].text != "secondary memory" {
+		t.Fatalf("second entry = %q, want the short memory verbatim", entries[1].text)
 	}
 }
 
