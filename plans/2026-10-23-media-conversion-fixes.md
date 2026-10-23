@@ -895,6 +895,36 @@ Deliberate scope decisions:
 | R3, R5, R6 | `b75a296ac` fix(tools): register the converted file in the media directory |
 | R7 | `cc2957afb` fix(agent): name the supported output formats in the tool schema |
 
+### Self-review of the review fixes
+
+The seven fixes were checked once more (code review plus an independent verifier that probed
+the merge outcome of the configuration patch). One defect in the new code was found and fixed:
+
+| Finding | Problem | Fix | Files |
+| --- | --- | --- | --- |
+| R8 | `copyMediaFile` unlinked the destination before moving the new file into place. A reader could see the registered media file disappear for a moment, and a failing rename left the registry row pointing at a file that no longer existed. | `os.Rename` replaces an existing regular file on every supported platform, so the unlink is unnecessary. | `internal/tools/media_conversion.go` |
+
+The same pass closed two test gaps: the JSON number path of the patch decoder (every number
+arrives as a `float64`) and the configuration save path end to end — `PUT /api/config` refuses an
+out-of-range media conversion value and still accepts a save that does not touch the section.
+
+Checked and deliberately kept:
+
+- A `null` in the patch resets the value to the default instead of being refused; the value that
+  is written matches the value that was validated.
+- The in-place guard compares resolved absolute paths. `secureResolve` resolves symlinks and
+  makes the path absolute first, so the source file cannot be overwritten through a different
+  spelling of its path.
+- The guard compares case-insensitively on macOS as well. On a case-sensitive macOS volume a
+  conversion into a differently spelled name is refused, which is the safe direction.
+- The health endpoint refuses a `convert.exe` under Windows even when it is configured
+  explicitly, although the tool itself accepts an explicitly configured ImageMagick path. That
+  restriction is older than the review fixes and stays.
+
+| Finding | Commit |
+| --- | --- |
+| R8 | `e72af4dc2` fix(media): replace the registered media file without unlinking it first |
+
 Verification of the review fixes: `go build ./...`, `go vet` over the touched packages,
 `go run scripts/validate_i18n_json.go` (1825 files, 0 errors) and the test suites of
 `internal/tools`, `internal/mediabins`, `internal/config`, `internal/videostudio`, `internal/agent`
