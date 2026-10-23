@@ -41,7 +41,7 @@ func TTSSynthesizeInMemoryContext(ctx context.Context, cfg TTSConfig, text strin
 	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
 	case "phonon":
 		data, err = phonon.Synthesize(ctx, cfg.Phonon.Root, cfg.DataDir, cfg.Language, cfg.Phonon.VoiceID, text)
-		if phononFallbackAllowed(ctx, err) {
+		if phononFallbackAllowed(ctx, err) && !cfg.NoProviderFallback {
 			cfg.Provider = "sanotts"
 			return TTSSynthesizeInMemoryContext(ctx, cfg, text)
 		}

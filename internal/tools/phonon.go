@@ -23,6 +23,9 @@ func resolvePhononTTSConfig(cfg TTSConfig) TTSConfig {
 	if cfg.Phonon.VoiceID == "" {
 		cfg.Phonon.VoiceID = phonon.DefaultVoice(cfg.Language, cfg.Phonon.Persona)
 	}
+	if cfg.NoProviderFallback {
+		return cfg
+	}
 	if phonon.Language(cfg.Language) == "" || phonon.Ready(cfg.Phonon.Root) != nil {
 		cfg.Provider = "sanotts"
 	} else if _, err := phonon.VoicePath(cfg.Phonon.Root, cfg.DataDir, cfg.Phonon.VoiceID); err != nil {

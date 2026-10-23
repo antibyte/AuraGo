@@ -26,6 +26,13 @@ func TestPhononFallbackCacheAndCancellation(t *testing.T) {
 	if resolved.Provider != "sanotts" || resolved.Phonon.VoiceID != phonon.DefaultVoice("de", "") {
 		t.Fatal("missing resources must fall back to local speech")
 	}
+	cfg.NoProviderFallback = true
+	resolved = resolvePhononTTSConfig(cfg)
+	if resolved.Provider != "phonon" {
+		t.Fatal("glass speech must stay on the selected provider")
+	}
+	cfg.NoProviderFallback = false
+	resolved = resolvePhononTTSConfig(cfg)
 	want := fmt.Sprintf("%x.wav", md5.Sum([]byte(ttsCacheKey(resolved, "cached local speech"))))
 	if err := os.MkdirAll(filepath.Join(cfg.DataDir, "tts"), 0o700); err != nil {
 		t.Fatal(err)

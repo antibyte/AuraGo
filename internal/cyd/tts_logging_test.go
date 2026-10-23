@@ -22,7 +22,7 @@ func TestSpeakerUnavailableWarningOnce(t *testing.T) {
 	speaker := &Speaker{}
 	speaker.warnUnavailable()
 	speaker.warnUnavailable()
-	if count := strings.Count(output.String(), "sanoTTS executable not found"); count != 1 {
+	if count := strings.Count(output.String(), "active TTS is not configured"); count != 1 {
 		t.Fatalf("warnings = %d, want 1", count)
 	}
 }

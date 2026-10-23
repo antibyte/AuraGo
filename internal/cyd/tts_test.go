@@ -34,6 +34,34 @@ func TestSpeakLineEnglish(t *testing.T) {
 	if got != "Backup failed. disk data 98" {
 		t.Fatalf("got %q", got)
 	}
+	if got := SpeakLine("Tür", "offen"); got != "Tür. offen" {
+		t.Fatalf("german = %q", got)
+	}
+}
+
+func TestSpeakerUsesActiveSynth(t *testing.T) {
+	const from = 8000
+	const n = 160
+	data := make([]byte, n*2)
+	for i := 0; i < n; i++ {
+		v := int16(12000 * (i%10 - 5) / 5)
+		binary.LittleEndian.PutUint16(data[i*2:], uint16(v))
+	}
+	wav := makeWav(1, 16, from, data)
+	s := NewSpeaker()
+	s.SetSynth(func(text string) ([]byte, error) {
+		if text != "Hallo. Tür" {
+			t.Fatalf("text %q", text)
+		}
+		return wav, nil
+	}, func() bool { return true })
+	if !s.Available() {
+		t.Fatal("synth not available")
+	}
+	s.render("ntf_active", "Hallo. Tür")
+	if got := s.Get("ntf_active"); len(got) < 16 {
+		t.Fatalf("pcm len %d", len(got))
+	}
 }
 
 func TestMeshSpeakParts(t *testing.T) {

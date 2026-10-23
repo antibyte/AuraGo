@@ -71,6 +71,7 @@ func (s *Server) ensureCydHub() *cyd.Hub {
 		}
 		s.CfgMu.RUnlock()
 		s.CydHub.SetSpeakDataDir(dataDir)
+		s.useActiveGlassSpeech(s.CydHub)
 	}
 	return s.CydHub
 }

@@ -32,6 +32,9 @@ type TTSConfig struct {
 	DataDir             string // base data directory for storing audio files
 	CacheRetentionHours int    // remove cached files older than this many hours; 0 disables age-based cleanup
 	CacheMaxFiles       int    // keep at most this many cached files; 0 disables count-based cleanup
+	// NoProviderFallback keeps the selected provider. Glass alerts set this so a
+	// missing Phonon voice is not silently replaced by sanoTTS.
+	NoProviderFallback bool
 	Phonon              struct {
 		VoiceID string
 		Persona string
@@ -134,7 +137,7 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
 	case "phonon":
 		audioData, err = phonon.Synthesize(ttsRequestContext(cfg), cfg.Phonon.Root, cfg.DataDir, cfg.Language, cfg.Phonon.VoiceID, text)
-		if phononFallbackAllowed(ttsRequestContext(cfg), err) {
+		if phononFallbackAllowed(ttsRequestContext(cfg), err) && !cfg.NoProviderFallback {
 			cfg.Provider = "sanotts"
 			return TTSSynthesize(cfg, text)
 		}
