@@ -255,7 +255,13 @@ browser validation still decide whether the resulting game is ready.
 ## Studio workflow
 
 - The creation dialog offers localized idea chips and a short description
-  guide next to name, dimension, provider, and media options.
+  guide next to name, dimension, provider, and media options. It also shows the
+  resolved limits of the chosen model (`ctx … tok · out … tok`) and warns when a
+  known model sits below the Studio floor of 16 384 context tokens; starting
+  anyway asks for an explicit confirmation and sends the small-model opt-in.
+  Unknown models show no warning and are never blocked. The copy names the
+  rough budget: about 12–14K input plus a 16K output reserve for a 2D building
+  round, so 32K context is a sensible minimum.
 - While a job runs, a banner shows the current phase, the elapsed time, and
   the repair pass when the builder loops back from validation. The phase
   stepper below it mirrors the same state.
@@ -264,7 +270,16 @@ browser validation still decide whether the resulting game is ready.
   language (failed play test, unavailable browser test, time limit, plan,
   language model, cancelled run, or unexpected end), keeps the backend report
   folded under **Technical details**, and offers **Try again**, which continues
-  the saved working copy and agent context. When the server sends check counts,
+  the saved working copy and agent context. Above the technical details it names
+  the open checks (ID, expected and observed value) and the next step the model
+  was told to take; the server bounds that list to six checks and never puts
+  source text in it.
+- **Try with another model** reopens the model choice and continues the same
+  draft. The selected provider and model become the project default, so later
+  runs use them; the dialog says so. When the failed run used repair passes, an
+  **Extend repairs** action continues the draft with three more passes (at most
+  six in total), without a new planning round and without another model choice.
+  When the server sends check counts,
   the card shows how many passed and failed, and how many repair passes ran.
   When the job recorded `prompt_usage` calls, the same card shows the call
   count, measured input plus output tokens, and a price. A missing measurement
@@ -634,6 +649,12 @@ sandbox, authenticated parent and server policy gates remain the isolation
 boundary for AuraGo data and APIs.
 
 ## Curated skill sources
+
+The five bundled `aurago-*` game packages are general-agent guidance: they are
+installed, hash-verified and available to the chat agent, but Game Maker Studio
+runs never inject them. Studio guidance comes from the `craft.go` guides, the
+phase guidance and the prepared profiles, so a design rule that must reach the
+model belongs there and not only in a `SKILL.md`.
 
 - Three.js material is adapted from
   `majidmanzarpour/threejs-game-skills` at commit

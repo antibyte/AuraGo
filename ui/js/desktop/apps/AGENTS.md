@@ -2827,6 +2827,24 @@ registration lives in `internal/desktop/types.go`.
   a second usage stream in the client. Library states use `game_maker.status_<status>`. Verify with
   `TestGameMakerStudioLayoutBrowser` (`GAMEMAKER_STUDIO_REPORTS` writes
   screenshots).
+- Model qualification and continuation actions belong to the start and retry
+  dialogs plus the failure card. Both dialogs show the passive
+  `GET /api/game-maker/model-limits` line (`game_maker.model_limits_line`) under
+  the provider/model fields, warn with `game_maker.model_limits_warning` when a
+  known route reports `below_minimum`, and mark the field group with
+  `data-gm-model-state[data-below-minimum]`. The probe is debounced (350 ms),
+  ignores late responses and degrades to "unknown" on failure; only an explicit
+  confirmation sends `allow_small_model: true`, and a server
+  `model_context_too_small` answer replaces the dialog error with
+  `game_maker.small_model_blocked`. The failure card renders
+  `latest_job.open_checks` (bounded `id`/`status`/`expected`/`observed` plus the
+  model-facing `next_action`) above the folded technical details, offers
+  `data-gm-retry-model` (resume with the chosen provider/model, which becomes the
+  project default) and `data-gm-extend-repairs` only for a failed job whose
+  `repair_passes` is above zero and below six, carrying `used + 3` as
+  `max_repair_passes`. Both reuse the shared resume payload
+  (`resume`/`validate_restored_draft` plus the current asset selection) and never
+  reset unrelated fields. Verify `TestGameMakerFailureCardBrowser`.
 - Game Maker Studio exposes `window.GameMakerStudioApp = { render, dispose,
   instances }`. Every window owns and closes its EventSource, preview iframe,
   channel ID, diagnostics, modal handlers, job-elapsed and busy-poll timers,

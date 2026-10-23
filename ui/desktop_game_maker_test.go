@@ -68,6 +68,20 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 		// cannot settle before the loading overlay is attached.
 		`window.GameMakerStudioPreview.showLoading(state, shell, frame)`,
 		`frame.src = grant.url + '#gm-channel=' + encodeURIComponent(channelID)`,
+		// Model limits, retry with another model, repair extension and the
+		// open-check failure card.
+		`api.modelLimits(providerID, modelID)`,
+		`limitsState.limits`,
+		`game_maker.small_model_confirm`,
+		`allow_small_model: allowSmallModel`,
+		`allow_small_model: smallModelFlag(limitsState.limits)`,
+		`data-gm-model-warning`,
+		`data-gm-retry-model`,
+		`data-gm-extend-repairs`,
+		`Math.min(6, used + 3)`,
+		`max_repair_passes: count`,
+		`Array.isArray(job.open_checks)`,
+		`check.next_action`,
 	} {
 		if !strings.Contains(app+modals+preview, marker) {
 			t.Errorf("Game Maker UI missing lifecycle/security marker %q", marker)
@@ -153,6 +167,12 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		"game_maker.validating_preview_hint", "game_maker.leave_validating_title", "game_maker.leave_validating",
 		"game_maker.sources", "game_maker.sources_builtin",
 		"game_maker.failure_hint_internal", "game_maker.failure_hint_cancelled",
+		// Model limits, retry with another model and the repair extension.
+		"game_maker.model_limits_line", "game_maker.model_limits_warning",
+		"game_maker.small_model_title", "game_maker.small_model_confirm", "game_maker.small_model_blocked",
+		"game_maker.retry_model", "game_maker.retry_model_title", "game_maker.retry_model_note",
+		"game_maker.retry_model_start", "game_maker.extend_repairs", "game_maker.extend_repairs_note",
+		"game_maker.open_checks_title", "game_maker.open_check_next",
 	}
 	for _, file := range files {
 		data, err := os.ReadFile(file)
@@ -184,6 +204,19 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		}
 		if !strings.Contains(values["game_maker.usage_cost"], "{{cost}}") {
 			t.Errorf("%s game_maker.usage_cost missing {{cost}}", file)
+		}
+		for key, placeholders := range map[string][]string{
+			"game_maker.model_limits_line":  {"{{context}}", "{{output}}"},
+			"game_maker.model_limits_warning": {"{{minimum}}"},
+			"game_maker.small_model_confirm": {"{{context}}", "{{minimum}}"},
+			"game_maker.extend_repairs":      {"{{extra}}"},
+			"game_maker.extend_repairs_note": {"{{model}}", "{{passes}}"},
+		} {
+			for _, placeholder := range placeholders {
+				if !strings.Contains(values[key], placeholder) {
+					t.Errorf("%s %s missing %s", file, key, placeholder)
+				}
+			}
 		}
 	}
 }

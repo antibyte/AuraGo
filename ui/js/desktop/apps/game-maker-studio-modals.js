@@ -97,6 +97,8 @@
 
     function showModal(state, html, mount) {
         if (state.assetBrowserCleanup) state.assetBrowserCleanup();
+        if (state.modalCleanup) state.modalCleanup();
+        state.modalCleanup = null;
         const layer = state.container.querySelector('[data-gm-modal]');
         layer.hidden = false;
         layer.innerHTML = html;
@@ -114,6 +116,8 @@
             window.GameMakerStudioAssets.releaseSelectionHold(state, Boolean(layer?.querySelector('[data-gm-create]')));
         }
         if (state.assetBrowserCleanup) state.assetBrowserCleanup();
+        if (state.modalCleanup) state.modalCleanup();
+        state.modalCleanup = null;
         if (!layer) return;
         layer.hidden = true;
         layer.replaceChildren();

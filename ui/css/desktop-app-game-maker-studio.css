@@ -1135,6 +1135,53 @@
     color: var(--gm-text);
 }
 
+/* Open checks and the model-limit warning sit above the technical details. */
+.gm-result-card .gm-open-checks {
+    width: 100%;
+    min-width: 0;
+}
+
+.gm-result-card .gm-open-checks ul {
+    display: grid;
+    gap: 4px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.gm-result-card .gm-open-checks li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    align-items: baseline;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--gm-text) 7%, transparent);
+}
+
+.gm-result-card .gm-open-checks li small {
+    width: 100%;
+    color: var(--gm-muted);
+    overflow-wrap: anywhere;
+}
+
+.gm-model-warning {
+    margin: 0;
+    color: var(--gm-tone-warn, var(--gm-text));
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.gm-model-warning[hidden],
+.gm-field-help[hidden] {
+    display: none;
+}
+
+[data-gm-model-state][data-below-minimum="true"] select,
+[data-gm-model-state][data-below-minimum="true"] input {
+    border-color: var(--gm-tone-warn, var(--gm-accent));
+}
+
 .gm-result-card details {
     width: 100%;
     min-width: 0;
