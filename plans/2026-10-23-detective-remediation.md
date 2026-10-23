@@ -193,6 +193,7 @@ property (body size, projection content, no excerpt in the body) and provide
 | D12 | Provisional revisions and append base | 4.14 | M | D6 |
 | D13 | Answers and token/cost visibility | 4.15, 4.17 | S | — |
 | D14 | `cfb93191f` (server) + `c34548d33` (click-through) | `TestDetectiveNotificationOnPublish`, `TestDetectiveNotificationSuppressedWhenDisabled`, `TestDetectiveNotificationRateLimited`, `TestDesktopDetectiveOpensTheNotifiedCase` | The click-through landed in the next round: the bundle rebuild was safe once the bundle check was green and the foreign workstream had not touched bundle inputs |
+| D16 | `590bdad41` | `TestDetectivePathDefaultAndResolve`, `TestDetectivePathDefaultsAndOverride`, `TestDetectivePathKeepsLegacyLocation`, `TestDetectiveInitializationErrorCodes` | D15 follows separately; the capability key is `initialization_error` with four codes (`schema_too_new`, `permission_denied`, `path_missing`, `store_failed`), and the app renders one generic `desktop.detective_init_failed` label plus the code instead of four texts |
 | D14 | Desktop notifications for update, question and failure | 4.16 | M | — |
 | D15 | `extra_read_operations` in Config | 4.9 | L | — |
 | D16 | `sqlite.detective_path` and init visibility | 4.19 | M | — |
