@@ -406,6 +406,7 @@ func (kg *KnowledgeGraph) upsertSemanticNodeReindexBatchWithSnapshot(ctx context
 	docs := make([]chromem.Document, 0, len(nodes))
 	contentByID := make(map[string]string, len(nodes))
 	indexedIDs := make([]string, 0, len(nodes))
+	var withheldIDs []string
 	currentByID, err := kg.loadSemanticNodeSnapshots(ctx, nodes)
 	if err != nil {
 		return nil, err
@@ -435,16 +436,35 @@ func (kg *KnowledgeGraph) upsertSemanticNodeReindexBatchWithSnapshot(ctx context
 			indexedIDs = append(indexedIDs, node.ID)
 			continue
 		}
-		docs = append(docs, chromem.Document{
+		doc := chromem.Document{
 			ID:      node.ID,
 			Content: content,
 			Metadata: map[string]string{
 				"node_id": node.ID,
 				"label":   node.Label,
 			},
-		})
+		}
+		// A rejected node counts as handled, so its dirty flag clears and the
+		// next pass does not pick it up again; its SQLite row stays untouched.
+		if !semanticDocumentAllowed(doc) {
+			withheldIDs = append(withheldIDs, node.ID)
+			indexedIDs = append(indexedIDs, node.ID)
+			continue
+		}
+		docs = append(docs, doc)
 		contentByID[node.ID] = content
 		indexedIDs = append(indexedIDs, node.ID)
+	}
+	if len(withheldIDs) > 0 {
+		if err := removeSemanticDocumentsLocked(ctx, idx, withheldIDs); err != nil {
+			if idx.Logger != nil {
+				idx.Logger.Warn("KG semantic node batch reindex could not drop withheld vectors", "count", len(withheldIDs), "error", err)
+			}
+			return nil, fmt.Errorf("drop withheld semantic nodes: %w", err)
+		}
+		if idx.Logger != nil {
+			idx.Logger.Info("KG semantic reindex: nodes withheld from embedding by the credential policy", "count", len(withheldIDs))
+		}
 	}
 	if len(docs) == 0 {
 		return indexedIDs, nil
@@ -519,6 +539,7 @@ func (kg *KnowledgeGraph) upsertSemanticEdgeReindexBatch(ctx context.Context, id
 	}
 	docs := make([]chromem.Document, 0, len(edges))
 	indexedEdges := make([]Edge, 0, len(edges))
+	var withheldIDs []string
 	for _, edge := range edges {
 		content := kgsemantic.BuildEdgeContent(semanticEdgeContent(edge))
 		if content == "" {
@@ -526,7 +547,7 @@ func (kg *KnowledgeGraph) upsertSemanticEdgeReindexBatch(ctx context.Context, id
 			continue
 		}
 		edgeDocID := "edge://" + edge.Source + "\x00" + edge.Target + "\x00" + edge.Relation
-		docs = append(docs, chromem.Document{
+		doc := chromem.Document{
 			ID:      edgeDocID,
 			Content: content,
 			Metadata: map[string]string{
@@ -534,10 +555,17 @@ func (kg *KnowledgeGraph) upsertSemanticEdgeReindexBatch(ctx context.Context, id
 				"target":   edge.Target,
 				"relation": edge.Relation,
 			},
-		})
+		}
+		// A rejected edge counts as handled, so markSemanticEdgesIndexedAt clears
+		// its dirty flag; its SQLite row stays untouched.
+		if !semanticDocumentAllowed(doc) {
+			withheldIDs = append(withheldIDs, edgeDocID)
+		} else {
+			docs = append(docs, doc)
+		}
 		indexedEdges = append(indexedEdges, edge)
 	}
-	if len(docs) == 0 {
+	if len(docs) == 0 && len(withheldIDs) == 0 {
 		return indexedEdges, nil
 	}
 
@@ -545,6 +573,20 @@ func (kg *KnowledgeGraph) upsertSemanticEdgeReindexBatch(ctx context.Context, id
 		return nil, err
 	}
 	defer idx.MutationMu.Unlock()
+	if len(withheldIDs) > 0 {
+		if err := removeSemanticDocumentsLocked(ctx, idx, withheldIDs); err != nil {
+			if idx.Logger != nil {
+				idx.Logger.Warn("KG semantic edge batch reindex could not drop withheld vectors", "count", len(withheldIDs), "error", err)
+			}
+			return nil, fmt.Errorf("drop withheld semantic edges: %w", err)
+		}
+		if idx.Logger != nil {
+			idx.Logger.Info("KG semantic reindex: edges withheld from embedding by the credential policy", "count", len(withheldIDs))
+		}
+	}
+	if len(docs) == 0 {
+		return indexedEdges, nil
+	}
 	for start := 0; start < len(docs); start += kgsemantic.ReindexDocumentBatchSize {
 		end := start + kgsemantic.ReindexDocumentBatchSize
 		if end > len(docs) {
@@ -610,20 +652,39 @@ func (kg *KnowledgeGraph) upsertSemanticNodeIndexContext(ctx context.Context, no
 		return nil
 	}
 
+	doc := chromem.Document{
+		ID:      node.ID,
+		Content: content,
+		Metadata: map[string]string{
+			"node_id": node.ID,
+			"label":   node.Label,
+		},
+	}
+	allowed := semanticDocumentAllowed(doc)
+
 	if err := lockMemoryMutex(ctx, &idx.MutationMu); err != nil {
 		return err
 	}
 	defer idx.MutationMu.Unlock()
 
+	if !allowed {
+		// The credential policy withholds the node from the provider. This is not
+		// an error: the caller must not retry or mark the node dirty. An earlier
+		// clean version is dropped so search cannot return it.
+		if err := removeSemanticDocumentsLocked(ctx, idx, []string{node.ID}); err != nil {
+			if idx.Logger != nil {
+				idx.Logger.Warn("KG semantic node index could not drop withheld vector", "node_id", node.ID, "error", err)
+			}
+			return err
+		}
+		if idx.Logger != nil {
+			idx.Logger.Info("KG semantic node withheld from embedding by the credential policy", "node_id", node.ID)
+		}
+		return nil
+	}
+
 	err := kg.retrySemanticEmbeddingContext(ctx, "node_upsert", func(ctx context.Context) error {
-		return idx.Collection.AddDocument(ctx, chromem.Document{
-			ID:      node.ID,
-			Content: content,
-			Metadata: map[string]string{
-				"node_id": node.ID,
-				"label":   node.Label,
-			},
-		})
+		return idx.Collection.AddDocument(ctx, doc)
 	})
 	if err != nil {
 		if idx.Logger != nil {
@@ -657,22 +718,39 @@ func (kg *KnowledgeGraph) upsertSemanticEdgeIndexContext(ctx context.Context, ed
 		return nil
 	}
 
+	edgeDocID := "edge://" + edge.Source + "\x00" + edge.Target + "\x00" + edge.Relation
+	doc := chromem.Document{
+		ID:      edgeDocID,
+		Content: content,
+		Metadata: map[string]string{
+			"source":   edge.Source,
+			"target":   edge.Target,
+			"relation": edge.Relation,
+		},
+	}
+	allowed := semanticDocumentAllowed(doc)
+
 	if err := lockMemoryMutex(ctx, &idx.MutationMu); err != nil {
 		return err
 	}
 	defer idx.MutationMu.Unlock()
 
-	edgeDocID := "edge://" + edge.Source + "\x00" + edge.Target + "\x00" + edge.Relation
+	if !allowed {
+		// See upsertSemanticNodeIndexContext: withheld is handled, not an error.
+		if err := removeSemanticDocumentsLocked(ctx, idx, []string{edgeDocID}); err != nil {
+			if idx.Logger != nil {
+				idx.Logger.Warn("KG semantic edge index could not drop withheld vector", "source", edge.Source, "target", edge.Target, "error", err)
+			}
+			return err
+		}
+		if idx.Logger != nil {
+			idx.Logger.Info("KG semantic edge withheld from embedding by the credential policy", "source", edge.Source, "target", edge.Target)
+		}
+		return nil
+	}
+
 	err := kg.retrySemanticEmbeddingContext(ctx, "edge_upsert", func(ctx context.Context) error {
-		return idx.Collection.AddDocument(ctx, chromem.Document{
-			ID:      edgeDocID,
-			Content: content,
-			Metadata: map[string]string{
-				"source":   edge.Source,
-				"target":   edge.Target,
-				"relation": edge.Relation,
-			},
-		})
+		return idx.Collection.AddDocument(ctx, doc)
 	})
 	if err != nil {
 		if idx.Logger != nil {
@@ -775,6 +853,28 @@ func (kg *KnowledgeGraph) indexSemanticEdgeAfterWrite(edge Edge) {
 	kg.markSemanticEdgeDirty(edge.Source, edge.Target, edge.Relation)
 }
 
+// semanticDocumentAllowed applies the credential policy of the main vector store
+// to a KG document that chromem is about to embed. Node and edge content can
+// carry credentials that a user or an agent wrote into the graph.
+func semanticDocumentAllowed(doc chromem.Document) bool {
+	return validateNewVectorDocuments([]chromem.Document{doc}) == nil
+}
+
+// removeSemanticDocumentsLocked drops the vectors and content-cache entries of
+// documents the credential policy withheld, so search cannot return an earlier
+// version. The caller must hold idx.MutationMu.
+func removeSemanticDocumentsLocked(ctx context.Context, idx *kgsemantic.Index, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	idx.Mu.Lock()
+	for _, id := range ids {
+		idx.RemoveContentCacheEntry(id)
+	}
+	idx.Mu.Unlock()
+	return idx.Collection.Delete(ctx, nil, nil, ids...)
+}
+
 // removeSemanticNodeIndex removes a node's entry from the semantic index.
 func (kg *KnowledgeGraph) removeSemanticNodeIndex(nodeID string) error {
 	idx := kg.semanticIndex()
@@ -829,6 +929,22 @@ func (kg *KnowledgeGraph) removeSemanticEdgeIndexBatchContext(parent context.Con
 	return idx.Collection.Delete(ctx, nil, nil, ids...)
 }
 
+// semanticSearchAfterCountHook is a test seam: when set, it runs right after a
+// search read the collection count and before it queries, which is where a
+// concurrent delete can shrink the collection. Production code leaves it nil.
+var semanticSearchAfterCountHook func(col *chromem.Collection)
+
+// queryKGCollection queries the KG collection with n clamped to the live
+// document count. A concurrent delete can shrink the collection after a caller
+// read Count(), and chromem rejects nResults above the document count.
+func queryKGCollection(ctx context.Context, col *chromem.Collection, embedding []float32, n int) ([]chromem.Result, error) {
+	var afterCount func()
+	if hook := semanticSearchAfterCountHook; hook != nil {
+		afterCount = func() { hook(col) }
+	}
+	return queryCollectionClampedWithHook(ctx, col, embedding, n, afterCount)
+}
+
 func (kg *KnowledgeGraph) semanticSearchNodes(query string, minSim float32, maxNodes int) []Node {
 	return kg.semanticSearchNodesWithQueryer(kg.db, query, minSim, maxNodes)
 }
@@ -850,14 +966,10 @@ func (kg *KnowledgeGraph) semanticSearchNodesWithQueryer(q knowledgeGraphQueryer
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	count := idx.Collection.Count()
-	if count == 0 {
+	if idx.Collection.Count() == 0 {
 		return nil
 	}
-	if maxNodes > count {
-		maxNodes = count
-	}
-	results, err := idx.Collection.QueryEmbedding(ctx, embedding, maxNodes, nil, nil)
+	results, err := queryKGCollection(ctx, idx.Collection, embedding, maxNodes)
 	if err != nil {
 		if idx.Logger != nil {
 			idx.Logger.Debug("KG semantic search failed", "error", err)
@@ -912,14 +1024,10 @@ func (kg *KnowledgeGraph) semanticSearchNodeIDs(query string, maxNodes int) []st
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	count := idx.Collection.Count()
-	if count == 0 {
+	if idx.Collection.Count() == 0 {
 		return nil
 	}
-	if maxNodes > count {
-		maxNodes = count
-	}
-	results, err := idx.Collection.QueryEmbedding(ctx, embedding, maxNodes, nil, nil)
+	results, err := queryKGCollection(ctx, idx.Collection, embedding, maxNodes)
 	if err != nil {
 		if idx.Logger != nil {
 			idx.Logger.Debug("KG semantic search failed", "error", err)
@@ -968,7 +1076,9 @@ func (kg *KnowledgeGraph) semanticSearchNodeScores(query string, maxNodes int) m
 	minSim := kg.getMinSemanticSimilarity()
 	// Expand only when excluded nodes or edges consumed the candidate budget.
 	for limit := min(maxNodes, count); ; limit = min(count, limit*2) {
-		results, err := idx.Collection.QueryEmbedding(ctx, embedding, limit, nil, nil)
+		// The helper clamps limit to the live count, so a collection that shrank
+		// since count was read returns fewer results instead of failing.
+		results, err := queryKGCollection(ctx, idx.Collection, embedding, limit)
 		if err != nil {
 			if idx.Logger != nil {
 				idx.Logger.Debug("KG semantic search failed", "error", err)
@@ -988,7 +1098,9 @@ func (kg *KnowledgeGraph) semanticSearchNodeScores(query string, maxNodes int) m
 				out[result.ID] = result.Similarity
 			}
 		}
-		if len(out) >= maxNodes || limit == count || (len(results) > 0 && results[len(results)-1].Similarity < minSim) {
+		// Fewer results than requested means the collection is exhausted (or
+		// shrank below limit); a larger window cannot find more.
+		if len(out) >= maxNodes || limit >= count || len(results) < limit || (len(results) > 0 && results[len(results)-1].Similarity < minSim) {
 			return out
 		}
 	}
@@ -1005,14 +1117,10 @@ func (kg *KnowledgeGraph) semanticSearchEdgeIDs(query string, maxEdges int) []st
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	count := idx.Collection.Count()
-	if count == 0 {
+	if idx.Collection.Count() == 0 {
 		return nil
 	}
-	if maxEdges > count {
-		maxEdges = count
-	}
-	results, err := idx.Collection.QueryEmbedding(ctx, embedding, maxEdges, nil, nil)
+	results, err := queryKGCollection(ctx, idx.Collection, embedding, maxEdges)
 	if err != nil {
 		return nil
 	}
