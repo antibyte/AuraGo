@@ -590,3 +590,35 @@ func fixtureLive(c detective.Case) detective.LiveView {
 	}
 	return view
 }
+
+// A Desktop notification names a case; the shell must hand that context to the running
+// app, and the app must select it (audit 4.19).
+func TestDesktopDetectiveOpensTheNotifiedCase(t *testing.T) {
+	read := func(path string) string {
+		t.Helper()
+		b, err := os.ReadFile(filepath.Join("js", "desktop", path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	shell := read(filepath.Join("core", "window-shell-runtime.js"))
+	if !strings.Contains(shell, "appId === 'detective' && context && context.case_id") {
+		t.Fatal("the shell does not route a detective notification context")
+	}
+	if !strings.Contains(shell, "window.DetectiveApp.open(existing.id, context)") {
+		t.Fatal("the shell does not call DetectiveApp.open")
+	}
+	app := read(filepath.Join("apps", "detective.js"))
+	for _, want := range []string{
+		"async function selectCase(id)",
+		"state.selectCase = selectCase",
+		"typeof st.selectCase !== 'function'",
+		"window.DetectiveApp = {render, dispose, open}",
+		"ctx.context?.case_id || ctx.launch?.case_id",
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("detective.js lacks %q", want)
+		}
+	}
+}

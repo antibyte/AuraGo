@@ -7285,6 +7285,10 @@
             }
             if (appId === 'easydrag' && context && window.EasyDragApp && typeof window.EasyDragApp.open === 'function') window.EasyDragApp.open(existing.id, context);
             if (appId === 'retro-games' && context && context.game && window.RetroGamesApp && typeof window.RetroGamesApp.open === 'function') window.RetroGamesApp.open(existing.id, context);
+            if (appId === 'detective' && context && context.case_id && window.DetectiveApp && typeof window.DetectiveApp.open === 'function') {
+                updateWindowContext(existing.id, context);
+                window.DetectiveApp.open(existing.id, context);
+            }
             if (appId === 'network-cameras' && context && (context.event_id || context.camera_id)) {
                 updateWindowContext(existing.id, context);
                 window.NetworkCamerasApp?.open?.(existing.id, context);

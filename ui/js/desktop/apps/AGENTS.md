@@ -4842,3 +4842,9 @@ registration lives in `internal/desktop/types.go`.
 - Render locations, provenance, check timestamps and grouped automatic reasons from the shared managed-site model. Escape all ledger strings and retain the safe URL filter.
 - Stored URLs do not prove liveness; render explicit target state. Keep Homepage labels translated in all sixteen Desktop locales.
 - Verify Homepage source/locale tests and the deterministic browser timeline fixture.
+- Notifications: a published revision, `no_changes`, a question and a failed run arrive as
+  a Desktop notification with `appId: "detective"` and `context.case_id`. The shell's
+  `openApp` calls `window.DetectiveApp.open(existing.id, context)` (window-shell-runtime.js,
+  main bundle) and `selectCase` loads that case, resets the archive and opens the report
+  tab; a fresh window takes `ctx.context.case_id`/`ctx.launch.case_id`. Test:
+  `TestDesktopDetectiveOpensTheNotifiedCase`.

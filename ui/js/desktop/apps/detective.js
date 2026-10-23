@@ -121,6 +121,26 @@
             const complete = state.current?.latest_complete_revision || 0;
             return `<p class="dt-hint dt-provisional">${e(tr('provisional_notice'))}${complete ? ` <button data-revision="${complete}">${e(tr('revision'))} ${complete}</button>` : ''}</p>`;
         }
+        // selectCase is the entry point for a launch context (notification click).
+        async function selectCase(id) {
+            if (!id || state.disposed || state.current?.id === id) return;
+            resetArchive();
+            state.events = [];
+            state.tab = 'report';
+            state.notice = '';
+            state.current = state.cases.find(c => c.id === id) || null;
+            if (!state.current) {
+                try {
+                    state.current = await request('/cases/' + encodeURIComponent(id));
+                } catch (err) {
+                    error(err);
+                    return;
+                }
+                if (!Array.isArray(state.current.sources)) state.current.sources = [];
+            }
+            try { await refresh(true); } catch (err) { error(err); }
+            if (!state.disposed) draw();
+        }
         function exportHTML(c, ro) {
             const revisions = knownReports(), chosen = chosenReport() || revisions.at(-1);
             if (!revisions.length || !chosen) return '';
@@ -399,6 +419,7 @@
             if (!document.hidden) poll();
         };
         document.addEventListener('visibilitychange', onVisibility, {signal: controller.signal});
+        state.selectCase = selectCase;
         host.addEventListener('submit', async ev => {
             if (!ev.target.matches('.dt-form')) return;
             ev.preventDefault();
@@ -593,8 +614,15 @@
             } catch (err) { error(err); }
             finally { state.busy = false; syncAuto(); }
         }, {signal: controller.signal});
-        (async () => { try { state.caps = await request('/capabilities'); await refresh(false); if (!state.fresh && state.cases.length) { state.current = state.cases[0]; await refresh(false); } draw(); poll(); } catch (err) { draw(); error(err); } })();
+        (async () => { try { state.caps = await request('/capabilities'); await refresh(false); if (!state.fresh && state.cases.length) { state.current = state.cases[0]; await refresh(false); } const launch = String(ctx.context?.case_id || ctx.launch?.case_id || ''); draw(); poll(); if (launch) state.selectCase(launch); } catch (err) { draw(); error(err); } })();
+    }
+    // A Desktop notification names a case; the shell calls open for a running app.
+    async function open(windowId, context) {
+        const st = instances.get(windowId);
+        const id = context && context.case_id ? String(context.case_id) : '';
+        if (!st || st.disposed || !id || typeof st.selectCase !== 'function') return;
+        await st.selectCase(id);
     }
     function dispose(id) { const s = instances.get(id); if (!s) return; s.disposed = true; clearTimeout(s.timer); s.controller.abort(); instances.delete(id); }
-    window.DetectiveApp = {render, dispose};
+    window.DetectiveApp = {render, dispose, open};
 })();
