@@ -5098,6 +5098,33 @@ function testDetectiveProvisionalRevisionStaysOutOfTheDefault() {
   assert.match(app, /x\.provisional \? ' · ' \+ e\(tr\('provisional'\)\)/);
 }
 
+// Detective: token counts appear in the status line, the case list and the automatic
+// panel; a zero usage renders nothing (audit 4.17).
+function testDetectiveTokenCounts() {
+  const viewsSource = read('ui/js/desktop/apps/detective-views.js');
+  const context = { Map, Set, String, Number, Date, JSON, URL, window: {} };
+  vm.createContext(context);
+  vm.runInContext(`${viewsSource}\nglobalThis.views = window.DetectiveViews;`, context);
+  const views = context.views;
+  const labels = { tokens: 'Tokens', tokens_in: 'in', tokens_out: 'out', tokens_cached: 'cached' };
+  const tr = key => labels[key] || key;
+  assert.equal(views.tokenText({}, tr), '');
+  assert.equal(views.tokenText({ prompt_tokens: 0, completion_tokens: 0 }, tr), '');
+  const html = views.tokenText({ prompt_tokens: 1234, completion_tokens: 567 }, tr);
+  assert.match(html, /Tokens:/);
+  assert.match(html, /1[.,]?234/);
+  assert.match(html, /567/);
+  assert.doesNotMatch(html, /cached/);
+  const cached = views.tokenText({ prompt_tokens: 10, completion_tokens: 5, cached_tokens: 89 }, tr);
+  assert.match(cached, /cached/);
+  assert.match(cached, /89/);
+
+  const app = read('ui/js/desktop/apps/detective.js');
+  assert.match(app, /v\.tokenText\(usage, tr\)/, 'the status line shows tokens');
+  assert.match(app, /function caseTokens\(item\)/, 'the case list shows a token total');
+  assert.match(app, /v\.autoStatus\(c\.auto_update, tr, c\.run\?\.usage\)/, 'the automatic panel shows the last run usage');
+}
+
 const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
@@ -5174,6 +5201,7 @@ const tests = [
   ['Detective polling backs off and pauses when hidden', testDetectivePollingBacksOffAndPauses],
   ['Detective errors and export formats follow the API codes', testDetectiveErrorsAndExportFormats],
   ['Detective provisional reports stay out of the default', testDetectiveProvisionalRevisionStaysOutOfTheDefault],
+  ['Detective token counts are visible', testDetectiveTokenCounts],
   ['EasyDrag session keeps only valid flow ids', testEasyDragSessionKeepsOnlyValidFlowIds],
   ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
   ['Desktop event delivered over WebSocket and SSE is handled once', testDesktopEventDeliveredTwiceIsHandledOnce],

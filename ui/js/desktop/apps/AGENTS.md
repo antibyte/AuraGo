@@ -539,6 +539,12 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   (the built-in PDF writer's truth) Word comes before PDF and the PDF link gets
   `aria-describedby` pointing at the `pdf_hint` note, so the limit is visible
   before the download fails.
+- Answers and token counts are visible: `startLocked` writes an `answer` event, so the
+  activity tab shows the question and the reply after the window was closed, and
+  `v.tokenText(usage, tr)` renders `desktop.detective_tokens{,_in,_out,_cached}` in the
+  status line, the case list total (`caseTokens`) and the automatic panel (usage of the
+  last run). No pricing logic lives here; the budget tracker owns costs. Zero counts
+  render nothing.
 - Verify `TestDetectiveTranslations`, `TestDesktopDetectiveBrowser` and the
   Detective config section. Backend contracts: `internal/detective/AGENTS.md`.
 - Automatic Update settings belong to each case (also available on creation):

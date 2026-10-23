@@ -79,12 +79,17 @@
             if (pause) pause.disabled = !state.current?.auto_update?.enabled || state.busy || !state.caps?.ready;
         }
         function autoPanel(c, ro) {
-            return `<details class="dt-auto-panel"><summary>${e(tr('auto_title'))}</summary><div class="dt-auto-state" aria-live="polite">${v.autoStatus(c.auto_update, tr)}</div>${v.autoSettings(c.auto_update, tr, ro)}<div class="dt-auto-actions"><button data-do="auto-save"${ro ? ' disabled' : ''}>${e(tr('auto_save'))}</button><button data-do="auto-pause"${!c.auto_update?.enabled ? ' disabled' : ''}>${e(tr('auto_pause'))}</button></div></details>`;
+            return `<details class="dt-auto-panel"><summary>${e(tr('auto_title'))}</summary><div class="dt-auto-state" aria-live="polite">${v.autoStatus(c.auto_update, tr, c.run?.usage)}</div>${v.autoSettings(c.auto_update, tr, ro)}<div class="dt-auto-actions"><button data-do="auto-save"${ro ? ' disabled' : ''}>${e(tr('auto_save'))}</button><button data-do="auto-pause"${!c.auto_update?.enabled ? ' disabled' : ''}>${e(tr('auto_pause'))}</button></div></details>`;
         }
         const knownReports = () => v.knownReports(state.current, history, selectedReport);
+        function caseTokens(item) {
+            const usage = item.run?.usage || {};
+            const total = (usage.prompt_tokens || 0) + (usage.completion_tokens || 0);
+            return total ? ` · ${total.toLocaleString()} ${e(tr('tokens'))}` : '';
+        }
         function listHTML() {
             const c = state.current;
-            return state.cases.map(item => `<button class="dt-case ${item.id === c?.id ? 'is-selected' : ''}" data-case="${e(item.id)}" aria-pressed="${item.id === c?.id}"><b>${e(item.request.topic)}</b><small>${e(tr(item.run.status))} · ${e(tr(item.request.effort))}</small></button>`).join('') || `<p>${e(tr('no_cases'))}</p>`;
+            return state.cases.map(item => `<button class="dt-case ${item.id === c?.id ? 'is-selected' : ''}" data-case="${e(item.id)}" aria-pressed="${item.id === c?.id}"><b>${e(item.request.topic)}</b><small>${e(tr(item.run.status))} · ${e(tr(item.request.effort))}${caseTokens(item)}</small></button>`).join('') || `<p>${e(tr('no_cases'))}</p>`;
         }
         function actionsHTML(c, ro) {
             const r = c.run || {};
@@ -108,7 +113,7 @@
         function statusInner(c, ro) {
             const r = c.run || {}, usage = r.usage || {}, p = r.profile || {};
             const reason = reasonText(r.reason);
-            return `<h2>${e(c.request.topic)}</h2><div><strong>${e(tr(r.status))}</strong><span>${e(tr(r.phase || 'research'))}</span><span>${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} min · ${usage.tools || 0}/${p.tools || 0} ${e(tr('tools'))} · ${usage.pages || 0} ${e(tr('sources'))}</span></div>${reason ? `<p>${e(reason)}</p>` : ''}<div class="dt-actions"${blockText() ? ` title="${e(blockText())}"` : ''}>${actionsHTML(c, ro)}</div>${r.status === 'waiting_for_user' ? answerFieldHTML() : ''}`;
+            return `<h2>${e(c.request.topic)}</h2><div><strong>${e(tr(r.status))}</strong><span>${e(tr(r.phase || 'research'))}</span><span>${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} min · ${usage.tools || 0}/${p.tools || 0} ${e(tr('tools'))} · ${usage.pages || 0} ${e(tr('sources'))}${v.tokenText(usage, tr) ? ' ' + v.tokenText(usage, tr) : ''}</span></div>${reason ? `<p>${e(reason)}</p>` : ''}<div class="dt-actions"${blockText() ? ` title="${e(blockText())}"` : ''}>${actionsHTML(c, ro)}</div>${r.status === 'waiting_for_user' ? answerFieldHTML() : ''}`;
         }
         function provisionalNotice() {
             const report = chosenReport();

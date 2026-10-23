@@ -100,6 +100,9 @@ func (s *Service) startLocked(key, action, effort, requestKey string, answers ..
 			return c, errors.New("invalid clarification answer")
 		}
 		c.Answers = append(c.Answers, answers[0])
+		// The answer belongs in the activity feed: with the window closed, the question
+		// event alone would never show what the user replied.
+		s.eventLocked(&c, "answer", bounded(answers[0], 600))
 	}
 	c.Run.Status = "queued"
 	c.Run.Reason = ""

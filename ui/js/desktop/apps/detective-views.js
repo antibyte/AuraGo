@@ -33,11 +33,22 @@
         const options = (values, selected) => values.map(x => `<option value="${x}"${x === selected ? ' selected' : ''}>${esc(tr(x === 'append' || x === 'rewrite' ? 'auto_' + x : x))}</option>`).join('');
         return `<fieldset class="dt-auto-settings"${readonly ? ' disabled' : ''}><legend>${esc(tr('auto_title'))}</legend><label class="dt-auto-toggle"><input type="checkbox" name="auto_enabled"${a.enabled ? ' checked' : ''}>${esc(tr('auto_enabled'))}</label><div class="dt-auto-grid"><label>${esc(tr('auto_interval'))}<input type="number" name="auto_interval" min="1" max="${days ? 365 : 8760}" step="1" required value="${days ? hours / 24 : hours}"></label><label>${esc(tr('auto_unit'))}<select name="auto_unit"><option value="hours"${!days ? ' selected' : ''}>${esc(tr('auto_hours'))}</option><option value="days"${days ? ' selected' : ''}>${esc(tr('auto_days'))}</option></select></label><label>${esc(tr('auto_style'))}<select name="auto_style">${options(['append','rewrite'], a.report_style || 'append')}</select></label><label>${esc(tr('auto_effort'))}<select name="auto_effort">${options(['quick','normal','maximum'], a.effort || 'quick')}</select></label></div><p class="dt-auto-help">${esc(tr('auto_help'))}</p></fieldset>`;
     }
-    function autoStatus(a, tr) {
+    // Token counts are the only cost figure Detective shows; the budget tracker owns
+    // pricing. An absent or zero count renders nothing.
+    function tokenText(usage, tr) {
+        const input = (usage && usage.prompt_tokens) || 0;
+        const output = (usage && usage.completion_tokens) || 0;
+        if (!input && !output) return '';
+        const cached = (usage && usage.cached_tokens) || 0;
+        const parts = [`${input.toLocaleString()} ${tr('tokens_in')}`, `${output.toLocaleString()} ${tr('tokens_out')}`];
+        if (cached) parts.push(`${cached.toLocaleString()} ${tr('tokens_cached')}`);
+        return `<span class="dt-tokens">${esc(tr('tokens'))}: ${esc(parts.join(' · '))}</span>`;
+    }
+    function autoStatus(a, tr, usage) {
         a = a || {};
         const date = raw => raw && !raw.startsWith('0001-') && Number.isFinite(Date.parse(raw)) ? new Date(raw).toLocaleString() : '—';
         const status = a.enabled ? (a.outcome || 'scheduled') : 'paused';
-        return `<strong>${esc(tr('auto_' + status))}</strong><dl><div><dt>${esc(tr('auto_next'))}</dt><dd>${esc(date(a.next_run_at))}</dd></div><div><dt>${esc(tr('auto_checked'))}</dt><dd>${esc(date(a.last_checked_at))}</dd></div><div><dt>${esc(tr('auto_changed'))}</dt><dd>${esc(date(a.last_changed_at))}</dd></div></dl>${a.error ? `<p>${esc(tr(a.error))}</p>` : ''}`;
+        return `<strong>${esc(tr('auto_' + status))}</strong><dl><div><dt>${esc(tr('auto_next'))}</dt><dd>${esc(date(a.next_run_at))}</dd></div><div><dt>${esc(tr('auto_checked'))}</dt><dd>${esc(date(a.last_checked_at))}</dd></div><div><dt>${esc(tr('auto_changed'))}</dt><dd>${esc(date(a.last_changed_at))}</dd></div></dl>${a.error ? `<p>${esc(tr(a.error))}</p>` : ''}${usage ? `<p>${tokenText(usage, tr)}</p>` : ''}`;
     }
     // Revision selection is pure: the app owns polling, the view owns which revision is shown.
     // A revision that is not in the known list falls back to the newest one, so a stale
@@ -81,5 +92,5 @@
         const pdf = {id: 'pdf', label: 'PDF', hint: caps && caps.pdf_scripts === false ? 'pdf_hint' : ''};
         return caps && caps.pdf_scripts === false ? [markdown, word, pdf] : [markdown, pdf, word];
     }
-    window.DetectiveViews = { esc, report, sources, activity, activityItems, autoSettings, autoStatus, knownReports, chosenReport, canStop, pollDelay, errorText, formats };
+    window.DetectiveViews = { esc, report, sources, activity, activityItems, autoSettings, autoStatus, knownReports, chosenReport, canStop, pollDelay, errorText, formats, tokenText };
 })();

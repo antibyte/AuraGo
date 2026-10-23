@@ -47,7 +47,9 @@ provider/spending limits still apply.
   minimized window does not poll at all and refreshes as soon as it is visible
   again; source text loads when a source is opened.
 
-One case runs at a time; additional cases queue. The app shows actual tool,
+One case runs at a time; additional cases queue. The app shows actual tool, token and
+time counters; tokens appear as input, output and cached counts, and a clarification
+answer appears in the activity feed.
 source and time counters, concise plans, retrieved sources and recorded findings.
 Private model continuation never appears in the activity feed or exports.
 
