@@ -46,31 +46,35 @@ const (
 var speechLabManifestPublicKeyB64 = "zNBMSpDXLlcTLrkRYAkIt095X5FN2SsxGI8zWPbOxZI="
 
 type ImageSet struct {
-	Gateway         string `json:"gateway"`
-	Controller      string `json:"controller"`
-	ASR             string `json:"asr,omitempty"`
-	TTS             string `json:"tts,omitempty"`
-	LLM             string `json:"llm,omitempty"`
-	Whisper         string `json:"whisper,omitempty"`
-	ConfuciusCPU    string `json:"confucius_cpu,omitempty"`
-	ConfuciusCUDA   string `json:"confucius_cuda,omitempty"`
-	ConfuciusVulkan string `json:"confucius_vulkan,omitempty"`
-	ParakeetCPU     string `json:"parakeet_cpu,omitempty"`
-	ParakeetCUDA    string `json:"parakeet_cuda,omitempty"`
-	VoxtralCPU      string `json:"voxtral_cpu,omitempty"`
-	VoxtralCUDA     string `json:"voxtral_cuda,omitempty"`
-	QwenSYCLAOT     string `json:"qwen_sycl_aot,omitempty"`
-	QwenSYCLJIT     string `json:"qwen_sycl_jit,omitempty"`
-	QwenVulkan      string `json:"qwen_vulkan,omitempty"`
-	QwenCUDA        string `json:"qwen_cuda,omitempty"`
-	Kokoro          string `json:"kokoro,omitempty"`
-	VibeVoiceCPU    string `json:"vibevoice_cpu,omitempty"`
-	VibeVoiceCUDA   string `json:"vibevoice_cuda,omitempty"`
-	HiggsCUDA       string `json:"higgs_cuda,omitempty"`
-	LlamaCPU        string `json:"llama_cpu,omitempty"`
-	LlamaCUDA       string `json:"llama_cuda,omitempty"`
-	Web             string `json:"web"`
-	ModelInit       string `json:"model_init"`
+	Gateway             string `json:"gateway"`
+	Controller          string `json:"controller"`
+	ASR                 string `json:"asr,omitempty"`
+	TTS                 string `json:"tts,omitempty"`
+	LLM                 string `json:"llm,omitempty"`
+	Whisper             string `json:"whisper,omitempty"`
+	ConfuciusCPU        string `json:"confucius_cpu,omitempty"`
+	ConfuciusCUDA       string `json:"confucius_cuda,omitempty"`
+	ConfuciusVulkan     string `json:"confucius_vulkan,omitempty"`
+	Phonon              string `json:"phonon,omitempty"`
+	GraniteSpeechCPU    string `json:"granite_speech_cpu,omitempty"`
+	GraniteSpeechCUDA   string `json:"granite_speech_cuda,omitempty"`
+	GraniteSpeechVulkan string `json:"granite_speech_vulkan,omitempty"`
+	ParakeetCPU         string `json:"parakeet_cpu,omitempty"`
+	ParakeetCUDA        string `json:"parakeet_cuda,omitempty"`
+	VoxtralCPU          string `json:"voxtral_cpu,omitempty"`
+	VoxtralCUDA         string `json:"voxtral_cuda,omitempty"`
+	QwenSYCLAOT         string `json:"qwen_sycl_aot,omitempty"`
+	QwenSYCLJIT         string `json:"qwen_sycl_jit,omitempty"`
+	QwenVulkan          string `json:"qwen_vulkan,omitempty"`
+	QwenCUDA            string `json:"qwen_cuda,omitempty"`
+	Kokoro              string `json:"kokoro,omitempty"`
+	VibeVoiceCPU        string `json:"vibevoice_cpu,omitempty"`
+	VibeVoiceCUDA       string `json:"vibevoice_cuda,omitempty"`
+	HiggsCUDA           string `json:"higgs_cuda,omitempty"`
+	LlamaCPU            string `json:"llama_cpu,omitempty"`
+	LlamaCUDA           string `json:"llama_cuda,omitempty"`
+	Web                 string `json:"web"`
+	ModelInit           string `json:"model_init"`
 }
 
 type BundleService struct {
@@ -1325,6 +1329,7 @@ func imageValues(images ImageSet) []string {
 	return []string{
 		images.Gateway, images.Controller, images.ASR, images.TTS, images.LLM,
 		images.Whisper, images.ConfuciusCPU, images.ConfuciusCUDA, images.ConfuciusVulkan,
+		images.Phonon, images.GraniteSpeechCPU, images.GraniteSpeechCUDA, images.GraniteSpeechVulkan,
 		images.ParakeetCPU, images.ParakeetCUDA, images.VoxtralCPU,
 		images.VoxtralCUDA, images.QwenSYCLAOT, images.QwenSYCLJIT, images.QwenVulkan,
 		images.QwenCUDA, images.Kokoro, images.VibeVoiceCPU, images.VibeVoiceCUDA,
@@ -1361,6 +1366,14 @@ func imageByKey(images ImageSet, key string) string {
 		return images.ConfuciusCUDA
 	case "confucius_vulkan":
 		return images.ConfuciusVulkan
+	case "phonon":
+		return images.Phonon
+	case "granite_speech_cpu":
+		return images.GraniteSpeechCPU
+	case "granite_speech_cuda":
+		return images.GraniteSpeechCUDA
+	case "granite_speech_vulkan":
+		return images.GraniteSpeechVulkan
 	case "parakeet_cpu":
 		return images.ParakeetCPU
 	case "parakeet_cuda":
