@@ -22,7 +22,9 @@ and tool dispatch; Desktop adapters own UI state.
   overflow chain of a large value for every column stored after it. The server prompt
   copy includes the bounded working findings, with text limited to 500 runes and
   quotes to 240. Update prompts include a bounded report preview and recent archived
-  findings. Case-scoped `history` retrieves older evidence.
+  findings. Tool results append a compact receipt (identity plus a 400-rune preview),
+  never the full excerpt the tool output already carries. Case-scoped `history`
+  retrieves older evidence.
 - `detective_cases.active_ms` wins over the JSON value when the column is greater.
   Restart selects running/queued cases from the `status` column (never by decoding
   every body) and loads each one with `getLocked` before saving `interrupted` /

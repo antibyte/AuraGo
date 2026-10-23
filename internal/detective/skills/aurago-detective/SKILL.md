@@ -16,10 +16,12 @@ names and parameters; never invent an integration or claim a disabled tool works
 3. Read promising results with `web_scraper`; use `site_crawler` only for a bounded
    relevant section with `max_pages` between 1 and 10. Native names are not Python skills. Follow `call_method`
    from `discover_tools` exactly; use `invoke_tool` when that method is returned.
-4. Tool results append server-recorded source IDs and excerpts. A search hit is
-   not a read source. Record each useful finding immediately using
+4. Tool results append compact server-recorded source receipts (ID, locator, hash
+   and a short preview of the stored text). A search hit is not a read source.
+   Record each useful finding immediately using
    `detective_report(operation="finding",content="{...}")` with `text`,
-   `source_id`, and a short exact `quote` from the recorded excerpt. Preserve
+   `source_id`, and a short exact `quote` taken from the text you read; the server
+   checks it against the stored source, not against the preview. Preserve
    disagreements, dates, and missing information; deduplicate copied reporting.
 5. Use browsers only when static retrieval is insufficient. Existing visible
    workspace tools and background browser sessions are different. For a human
