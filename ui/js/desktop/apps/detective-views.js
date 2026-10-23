@@ -3,7 +3,9 @@
     const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const url = value => { try { const u = new URL(value); return ['https:', 'http:'].includes(u.protocol) && !u.username && !u.password ? esc(u.href) : ''; } catch (_) { return ''; } };
     function sources(items, tr) {
-        return (items || []).map(s => `<details class="dt-source" data-id="${esc(s.id)}"><summary><span>${esc(s.title || s.url)}</span><small>${esc(tr(s.status))} · ${esc(new Date(s.retrieved_at).toLocaleDateString())}</small></summary>${url(s.url) ? `<a href="${url(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.url)}</a>` : `<span>${esc(s.url || s.locator)}</span>`}<blockquote>${esc(s.excerpt)}</blockquote></details>`).join('') || `<p class="dt-empty">${esc(tr('no_sources'))}</p>`;
+        // The case payload carries metadata only; an opened disclosure fetches its text.
+        const text = s => s.excerpt ? `<blockquote>${esc(s.excerpt)}</blockquote>` : `<blockquote aria-busy="true">…</blockquote>`;
+        return (items || []).map(s => `<details class="dt-source" data-id="${esc(s.id)}"><summary><span>${esc(s.title || s.url)}</span><small>${esc(tr(s.status))} · ${esc(new Date(s.retrieved_at).toLocaleDateString())}</small></summary>${url(s.url) ? `<a href="${url(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.url)}</a>` : `<span>${esc(s.url || s.locator)}</span>`}${text(s)}</details>`).join('') || `<p class="dt-empty">${esc(tr('no_sources'))}</p>`;
     }
     function report(r, tr) {
         if (!r) return `<div class="dt-empty"><span class="dt-symbol" aria-hidden="true">⌕</span><h2>${esc(tr('empty_title'))}</h2><p>${esc(tr('empty_report'))}</p></div>`;

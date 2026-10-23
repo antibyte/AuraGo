@@ -147,6 +147,23 @@ func migrateSummary(tx *sql.Tx, version int) error {
 		if e.active > c.Run.Usage.ActiveMS {
 			c.Run.Usage.ActiveMS = e.active
 		}
+		// The working set keeps source metadata only; the archive row keeps the excerpt.
+		rewritten := false
+		for i := range c.Sources {
+			if c.Sources[i].Excerpt != "" {
+				c.Sources[i].Excerpt = ""
+				rewritten = true
+			}
+		}
+		if rewritten {
+			body, err := json.Marshal(&c)
+			if err != nil {
+				return err
+			}
+			if _, err = tx.Exec("UPDATE detective_cases SET body=? WHERE id=?", body, e.key); err != nil {
+				return err
+			}
+		}
 		summary, err := json.Marshal(caseSummary(&c))
 		if err != nil {
 			return err

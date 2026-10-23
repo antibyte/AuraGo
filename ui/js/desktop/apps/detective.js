@@ -22,9 +22,11 @@
         instances.set(windowId, state);
         let selectedReport = null, reportParts = [], history = [], historyNext = 0, historyLoaded = false;
         let archiveSources = [], sourceNext = 0, sourcesLoaded = false, viewGeneration = 0;
+        // Source text loads on first expand; the case response carries metadata only.
+        const excerpts = new Map();
         const autoDrafts = new Map();
         const draftKey = () => state.current?.id || 'new';
-        function resetArchive() { selectedReport = null; reportParts = []; history = []; historyNext = 0; historyLoaded = false; archiveSources = []; sourceNext = 0; sourcesLoaded = false; state.revision = 0; viewGeneration++; }
+        function resetArchive() { selectedReport = null; reportParts = []; history = []; historyNext = 0; historyLoaded = false; archiveSources = []; sourceNext = 0; sourcesLoaded = false; excerpts.clear(); state.revision = 0; viewGeneration++; }
         const readOnly = () => { const caps = state.caps || {}; return !!(ctx.readonly || caps.read_only || !caps.enabled || !caps.ready || state.current?.auto_update?.outcome === 'permission_blocked'); };
         const blockText = () => { const reason = (state.caps || {}).block_reason; return reason ? tr('block_' + reason) : ''; };
         const request = async (path, options = {}) => {
@@ -136,7 +138,8 @@
         }
         function contentHTML() {
             if (state.tab === 'sources') {
-                const items = [...new Map([...(state.current.sources || []), ...archiveSources].map(s => [s.id, s])).values()];
+                const items = [...new Map([...(state.current.sources || []), ...archiveSources].map(s => [s.id, s])).values()]
+                    .map(s => (s.excerpt || !excerpts.has(s.id) ? s : {...s, excerpt: excerpts.get(s.id)}));
                 return v.sources(items, tr) + (!sourcesLoaded || sourceNext ? `<button data-do="sources-more">${e(tr('archive_more'))}</button>` : '');
             }
             if (state.tab === 'activity') return v.activity(state.events, tr);
@@ -405,6 +408,30 @@
         };
         host.addEventListener('input', rememberAuto, {signal: controller.signal});
         host.addEventListener('change', rememberAuto, {signal: controller.signal});
+        // A source disclosure fetches its text the first time it opens. The excerpt is
+        // not part of the case payload, so a metadata poll never downloads evidence.
+        host.addEventListener('toggle', async ev => {
+            const node = ev.target;
+            if (!node?.matches?.('.dt-source[open]') || state.busy) return;
+            const id = node.dataset.id;
+            const block = node.querySelector('blockquote');
+            if (!id || !block || !block.hasAttribute('aria-busy')) return;
+            const known = [...(state.current?.sources || []), ...archiveSources].find(s => s.id === id);
+            if (known?.excerpt) { block.textContent = known.excerpt; block.removeAttribute('aria-busy'); return; }
+            if (excerpts.has(id)) { block.textContent = excerpts.get(id); block.removeAttribute('aria-busy'); return; }
+            const caseID = state.current?.id;
+            if (!caseID) return;
+            try {
+                const source = await request('/cases/' + caseID + '/source?id=' + encodeURIComponent(id));
+                if (state.disposed || state.current?.id !== caseID) return;
+                excerpts.set(id, source.excerpt || '');
+                block.textContent = source.excerpt || '';
+                block.removeAttribute('aria-busy');
+            } catch (err) {
+                block.removeAttribute('aria-busy');
+                error(err);
+            }
+        }, {signal: controller.signal});
         async function selectRevision(revision) {
             const id = state.current.id, generation = viewGeneration;
             const report = (state.current.reports || []).find(r => r.revision === revision) || await request('/cases/' + id + '/report?revision=' + revision);

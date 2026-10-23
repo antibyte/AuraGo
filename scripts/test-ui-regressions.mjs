@@ -5001,6 +5001,27 @@ function testDetectiveStopFollowsEnabledNotReady() {
   assert.match(app, /role="status">\$\{e\(tr\('unavailable'\)\)\}/);
 }
 
+// Detective: the case payload carries source metadata only, so an opened disclosure
+// fetches its text; an already-loaded excerpt renders inline (audit finding 4.3).
+function testDetectiveSourceTextLoadsOnExpand() {
+  const viewsSource = read('ui/js/desktop/apps/detective-views.js');
+  const context = { Map, Set, String, Number, Date, JSON, URL, window: {} };
+  vm.createContext(context);
+  vm.runInContext(`${viewsSource}\nglobalThis.views = window.DetectiveViews;`, context);
+  const views = context.views;
+  const retrieved = new Date().toISOString();
+  const pending = views.sources([{ id: 'src_1', title: 'T', url: 'https://example.org/1', status: 'read', retrieved_at: retrieved }], key => key);
+  assert.match(pending, /<blockquote aria-busy="true">/, 'a pending excerpt is marked busy');
+  const loaded = views.sources([{ id: 'src_1', title: 'T', url: 'https://example.org/1', status: 'read', excerpt: 'Recorded evidence', retrieved_at: retrieved }], key => key);
+  assert.match(loaded, /<blockquote>Recorded evidence<\/blockquote>/);
+  assert.doesNotMatch(loaded, /aria-busy/);
+
+  const app = read('ui/js/desktop/apps/detective.js');
+  assert.match(app, /host\.addEventListener\('toggle'/, 'opening a source triggers the fetch');
+  assert.match(app, /excerpts\.clear\(\)/, 'a case switch drops the excerpt cache');
+  assert.match(app, /'\/source\?id=' \+ encodeURIComponent\(id\)/);
+}
+
 const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
@@ -5073,6 +5094,7 @@ const tests = [
   ['Detective revision selection survives a case switch', testDetectiveRevisionSelectionSurvivesCaseSwitch],
   ['Detective idempotency keys work without a secure context', testDetectiveIdempotencyKeyWithoutSecureContext],
   ['Detective Stop follows enabled, not ready', testDetectiveStopFollowsEnabledNotReady],
+  ['Detective source text loads on expand', testDetectiveSourceTextLoadsOnExpand],
   ['EasyDrag session keeps only valid flow ids', testEasyDragSessionKeepsOnlyValidFlowIds],
   ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
   ['Desktop event delivered over WebSocket and SSE is handled once', testDesktopEventDeliveredTwiceIsHandledOnce],

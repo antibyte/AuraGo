@@ -89,7 +89,12 @@ func (x *Session) recordSource(u, locator, title, method, excerpt string, read b
 		if len(c.Sources) >= 400 || c.Run.Usage.Bytes+len(excerpt) > 8<<20 {
 			return errors.New("source storage budget exhausted")
 		}
-		c.Sources = append(c.Sources, out)
+		// The working set keeps metadata only; the excerpt lives in detective_sources and
+		// is served by the per-source endpoint. Keeping it here made every state write
+		// rewrite megabytes and forced a case read to download them.
+		metadata := out
+		metadata.Excerpt = ""
+		c.Sources = append(c.Sources, metadata)
 		c.pendingSources = append(c.pendingSources, out)
 		c.SourceCount++
 		c.LatestSourceID = out.ID

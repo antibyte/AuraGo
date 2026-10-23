@@ -489,6 +489,12 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `crypto.getRandomValues` on a plain-HTTP LAN install (`Math.random` only without
   any crypto object), so Start/Continue never throw; the key stays under the
   server's 128-character limit.
+- The case payload carries source metadata only. A source disclosure starts with a
+  `<blockquote aria-busy="true">…</blockquote>` and the `toggle` listener fetches
+  `GET …/source?id=` once, caches the text per case (`excerpts`, cleared by
+  `resetArchive`), and fills that blockquote in place — no redraw, so the open
+  disclosure and the scroll position survive. Archive pages already carry their
+  excerpts and render inline.
 - Export links name the revision on screen. A live poll rebuilds the export bar
   when the visible revision changes or when the revision set grows or shrinks,
   even if the chosen number stays the same. A poll that leaves both unchanged

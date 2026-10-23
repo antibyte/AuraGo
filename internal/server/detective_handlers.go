@@ -49,6 +49,16 @@ func detectiveDecode(w http.ResponseWriter, r *http.Request, v any) error {
 	return nil
 }
 
+// detectiveCaseView keeps the case response bounded: source text is served per source
+// and findings page through the case archive, so neither belongs in the case payload.
+func detectiveCaseView(c detective.Case) detective.Case {
+	for i := range c.Sources {
+		c.Sources[i].Excerpt = ""
+	}
+	c.Findings = nil
+	return c
+}
+
 // detectiveBlockReason names why the research surface is unavailable, so the UI can
 // explain disabled actions instead of showing a generic notice. Empty means ready.
 func detectiveBlockReason(cfg *config.Config, ready bool) string {
@@ -206,7 +216,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 				detectiveError(w, err)
 				return
 			}
-			detectiveJSON(w, 200, c)
+			detectiveJSON(w, 200, detectiveCaseView(c))
 		case http.MethodDelete:
 			if err := s.Detective.Delete(key); err != nil {
 				detectiveError(w, err)
@@ -349,7 +359,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			c, _ := s.Detective.Get(key)
-			detectiveJSON(w, 200, c)
+			detectiveJSON(w, 200, detectiveCaseView(c))
 			return
 		}
 		c, err := s.Detective.Start(key, req.Action, req.Effort, req.Key, req.Answer)
@@ -357,7 +367,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 			detectiveError(w, err)
 			return
 		}
-		detectiveJSON(w, 202, c)
+		detectiveJSON(w, 202, detectiveCaseView(c))
 	case "export", "autor":
 		autor := parts[2] == "autor"
 		if (!autor && r.Method != http.MethodGet) || (autor && r.Method != http.MethodPost) {

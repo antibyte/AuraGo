@@ -155,8 +155,10 @@ Cases live in `detective.db` beside the configured Game Maker SQLite database
 it like other application data. Deleting a case removes its evidence,
 continuation, revisions, events and cached artifacts. Up to 100 cases are allowed.
 The working set remains bounded to 400 sources and 200 findings; those limits and
-the former 30-revision cap no longer bound a case's lifetime archive. Source,
-finding and report tables grow with use; nothing is automatically removed.
+the former 30-revision cap no longer bound a case's lifetime archive. The working
+set keeps source metadata only — the recorded excerpt stays in the archive table and
+is fetched per source when the app opens a disclosure. Source, finding and report
+tables grow with use; nothing is automatically removed.
 
 Opening an older database first creates a consistent, synced
 `detective.db.pre-v4-<timestamp>.bak` snapshot. The migration then runs in one
@@ -168,7 +170,11 @@ cases — retaining IDs, revision numbers and cached exports. A backup or migrat
 error aborts opening and leaves the old file untouched. Protect backups like the
 database; they contain the same private data.
 
-The case API includes `auto_update`, archive counts and the latest revision.
+The case API includes `auto_update`, archive counts and the latest revision. A case
+response stays bounded: sources carry metadata only (no excerpt) and the case-level
+`findings` are omitted; source text comes from `GET .../source?id=` and findings from
+`GET .../findings`. Live status comes from the bounded summary table, so polling does
+not touch the evidence.
 `PUT /api/desktop/detective/cases/{id}/auto-update` accepts `enabled`,
 `interval_hours`, `report_style` (`append`/`rewrite`) and `effort`
 (`quick`/`normal`/`maximum`). GET `reports`, `sources` and `findings` below that case

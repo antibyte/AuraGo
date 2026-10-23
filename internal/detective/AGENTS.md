@@ -48,6 +48,11 @@ and tool dispatch; Desktop adapters own UI state.
   `ErrPermission` and is stored as `interrupted` / `permission_revoked`, so it stays
   resumable; an automatic run records `permission_blocked` and reschedules without
   publishing a revision.
+- The working set keeps source metadata only; `Source.Excerpt` is empty in the body
+  and lives in `detective_sources` (the tool receipt and `GET .../source?id=` still
+  carry it). Findings keep their text in the body for the prompt, while every report
+  revision snapshots them in full. A case response therefore carries no evidence
+  text: `detectiveCaseView` blanks excerpts and drops the case-level findings.
 - Automatic failures never publish partial replacement reports. `no_changes`
   requires a successful retrieval and no pending new finding; it changes neither
   revision nor report. Publication, result and next due time commit together.
