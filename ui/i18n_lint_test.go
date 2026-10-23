@@ -1074,6 +1074,60 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/desktop/apps/ruview.js":                  {name: "t", prefix: "ruview."},
 }
 
+// desktopDynamicI18nPrefixes registers locale key prefixes that the Desktop
+// apps assemble at runtime, such as
+// t('homepage_studio.sites_drift_' + drift). The static lint only ever sees
+// the literal prefix, so every family needs its own "exists in every locale"
+// guarantee.
+var desktopDynamicI18nPrefixes = []string{
+	"homepage_studio.sites_drift_",
+	"homepage_studio.sites_origin_",
+	"homepage_studio.sites_target_",
+	"homepage_studio.sites_outcome_",
+	"homepage_studio.sites_reason_",
+	"homepage_studio.history_type_",
+	"homepage_studio.history_filter_",
+	"homepage_studio.target_",
+}
+
+// desktopDynamicI18nPrefixKeys returns every merged English key that belongs to
+// a registered dynamic prefix family.
+func desktopDynamicI18nPrefixKeys(t *testing.T) []string {
+	t.Helper()
+
+	merged := loadMergedEnglishTranslationKeys(t)
+	var keys []string
+	for key := range merged {
+		for _, prefix := range desktopDynamicI18nPrefixes {
+			if strings.HasPrefix(key, prefix) {
+				keys = append(keys, key)
+				break
+			}
+		}
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// TestDesktopDynamicI18nPrefixKeysExistInAllLanguages guarantees that every
+// dynamically built translation family is present in all sixteen locales.
+func TestDesktopDynamicI18nPrefixKeysExistInAllLanguages(t *testing.T) {
+	t.Parallel()
+
+	keys := desktopDynamicI18nPrefixKeys(t)
+	if len(keys) == 0 {
+		t.Fatal("no dynamic translation keys found in the merged English bundle")
+	}
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		values := readMergedLangMap(t, lang)
+		for _, key := range keys {
+			if strings.TrimSpace(values[key]) == "" {
+				t.Fatalf("%s missing dynamic translation key %s", lang, key)
+			}
+		}
+	}
+}
+
 // localI18nHelperKeys returns the full keys a registered file passes to its
 // local helper as bare literals. Dynamic arguments stay unresolved.
 func localI18nHelperKeys(relPath, content string) []string {
