@@ -11,6 +11,7 @@ Active ASR/TTS snapshots and speech-driven chat routing.
 ## Local Contracts
 
 ### Speech Lab Integration Contract
+- Bundle-v2 image metadata recognizes `phonon` and `granite_speech_cpu`, `granite_speech_cuda`, `granite_speech_vulkan`. Keep typed image decoding, `imageValues`, and `imageByKey` consistent so signed v0.2.19+ runtime descriptors validate without weakening the publisher/digest checks. These are optional catalog choices; retain Confucius/Supertonic defaults, saved stacks and chat-output settings.
 - The signed managed bundle starts Confucius4-R2T2 GGUF as its default ASR through llama.cpp `POST /v1/audio/transcriptions`, with a pinned model and audio projector. Select its published CPU, NVIDIA CUDA, or Vulkan image from the validated hardware profile before pulling and starting; leave older bundles unchanged. Keep the stable `confucius-asr` network alias and the gateway's selected ASR protocol/model consistent with the catalog and `/ready` snapshot.
 - Pass the selected accelerator and detected host DRM vendor into the managed gateway catalog profile. The gateway must resolve the same GPU variant that the managed ASR container runs, so the active backend remains available in the Browser Lab and AuraGo Config UI.
 - The signed managed bundle exposes published experimental variants only when they match the host platform and hardware. Browser Lab labels them and requires a warning modal before installation or activation; cancellation leaves the active stack and installed models unchanged. Unpublished runtimes and incompatible variants stay unavailable.
@@ -32,6 +33,7 @@ Active ASR/TTS snapshots and speech-driven chat routing.
 
 - Run `go test ./internal/speechlab` and the named cross-component checks in the contracts above when those paths change.
 - Run `go test ./internal/speechlab/deployer` for managed update, rollback, and interrupted-recovery regressions.
+- `TestPhononGraniteBundleImageKeysRoundTripAndValidate` covers the new image keys and rejects mismatching runtime digests.
 
 ## Child DOX Index
 
