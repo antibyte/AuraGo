@@ -174,6 +174,9 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 				"Operations: audio_convert, video_convert, image_convert, info. "+
 				"Use info to inspect codecs, duration, resolution, channels, or sample rate before converting. "+
 				"For audio_convert, video_convert, and image_convert you MUST provide either output_file or output_format. "+
+				"Supported output formats: audio_convert = mp3, wav, aac, m4a, ogg, flac, opus, aiff, wma; "+
+				"video_convert = mp4, webm, mkv, mov, avi, m4v, mpeg, ts; "+
+				"image_convert = png, jpg, jpeg, webp, gif, tiff, tif, bmp. "+
 				"All file paths must stay inside the workspace.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
@@ -183,7 +186,8 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 				},
 				"file_path":     prop("string", "Input media file path"),
 				"output_file":   prop("string", "Output media file path (auto-generated if omitted for conversions)"),
-				"output_format": prop("string", "Target file format/extension such as mp3, wav, mp4, webm, png, jpg, or webp"),
+				"output_format": prop("string", "Target file format/extension such as mp3, wav, mp4, webm, png, jpg, or webp. "+
+					"The format must be supported by the operation; an output_file without an extension gets the extension of output_format"),
 				"video_codec":   prop("string", "Optional FFmpeg video codec, e.g. libx264, libvpx-vp9, hevc"),
 				"audio_codec":   prop("string", "Optional FFmpeg audio codec, e.g. aac, libmp3lame, opus"),
 				"video_bitrate": prop("string", "Optional target video bitrate, e.g. 2M"),
