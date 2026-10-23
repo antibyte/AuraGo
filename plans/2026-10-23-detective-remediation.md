@@ -767,3 +767,31 @@ Notes for the following waves:
 - The sixteen `ui/lang/desktop/*.json` files carried uncommitted homepage-studio keys from a
   parallel workstream. The Detective locale lines were staged hunk-wise (`git apply --cached` with a
   filtered patch), so no foreign line entered these commits; the working tree kept the other lines.
+
+### Wave 2 — D6–D8 (2026-10-23)
+
+| Task | Commit | Tests | Deviations |
+| --- | --- | --- | --- |
+| D6 | `4f9a54c93` | `TestMigrateV3ToV4BackfillsSummary`, `TestLiveReadsSummaryOnly`, `TestCaseSummaryMatchesProjectionOnEverySave`, the existing v1/v2 migration tests | **DD2 changed**: the summary became its own table (`detective_summaries`) **and** the migration rebuilds the case row with `body` last. Reason: SQLite walks the overflow chain of a large value for every column stored after it, so a summary *column* behind the 4 MB body still cost 8.4 ms per read; with the split plus the new column order the same read costs 69 µs. `LiveView.reports` was removed (it held `latest_revision`, not a count) |
+| D7 | `13ee44b65` | `TestRecordSourceKeepsExcerptInArchiveOnly`, `TestCaseBodyStaysBounded`, `TestDetectiveCaseResponseStaysBounded`, node `Detective source text loads on expand` | `TestActiveTimeSurvivesRestart` stayed unchanged: it seeds the working set directly, so it still proves that a save/load cycle keeps whatever the store is given. The UI fetches a source excerpt on first expand instead of the case payload carrying it |
+| D8 | `18e2a6204` | `BenchmarkCaseHotPaths`, full package | DD3 decision recorded: the single mutex and `synchronous=FULL` stay, because reads are in the microseconds; a read/write lock only above ~5 ms per read |
+
+Measurements after D6/D7 (200 sources, 20 KB excerpt each, ~4 MB of evidence):
+
+| Path | Audit | Now | Target |
+| --- | ---: | ---: | ---: |
+| `Live()` | 242 ms | 65 µs | < 2 ms |
+| `ListSummaries()` | 28 ms | 76 µs | < 1 ms |
+| one state write | 114 ms | 2.8 ms (bench) | < 15 ms |
+| working-set body | 4.0 MB | 56 KB | < 256 KB |
+| case payload | ~4 MB | ~30 KB | < 150 KB |
+
+`Live` and the list are now independent of the evidence size (0 vs 200 sources differ by
+~10 µs). The remaining write cost is the SQLite commit, not the payload.
+
+Notes for the following waves:
+
+- `go test ./ui -run Detective` and the node suite stay green; the two foreign Game-Maker failures
+  and the unavailable `-race` run are unchanged from wave 1.
+- The plan's DD2 wording ("summary column") is superseded by the table in D6; the reason is the
+  SQLite row layout, not a preference.
