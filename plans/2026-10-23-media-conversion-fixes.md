@@ -908,6 +908,14 @@ The same pass closed two test gaps: the JSON number path of the patch decoder (e
 arrives as a `float64`) and the configuration save path end to end — `PUT /api/config` refuses an
 out-of-range media conversion value and still accepts a save that does not touch the section.
 
+An independent verifier reproduced the finding and added two low-severity notes that are
+deliberately kept:
+
+| Note | Problem | Why it stays |
+| --- | --- | --- |
+| D2 | `RegisterMedia` deduplicates by content hash and updates only `file_path`. A second conversion with byte-identical output but a different name therefore reuses the first row: the row keeps the first `filename` and `web_path` while `file_path` points at the second copy, and the second copy gets no row of its own. | The deduplication is existing registry behaviour, not part of this plan. The bytes served are identical in both cases, so nothing is corrupted; the second copy stays visible in the file based views. Changing the shared registry semantics would affect every producer (image generation, TTS, video), so the trade-off is documented instead of changed. |
+| D3 | `mediaConversionSameFile` compares case-insensitively on macOS as well. On a case-sensitive macOS volume a conversion into a differently spelled name (`Input.mp3` to `input.mp3`) is refused. | The guard errs on the side of refusing. On a case-insensitive volume the two names are the same file, and refusing costs the user a rename while accepting costs them the source file. The pre-R6 behaviour was case-sensitive everywhere and allowed the overwrite on a case-insensitive volume. |
+
 Checked and deliberately kept:
 
 - A `null` in the patch resets the value to the default instead of being refused; the value that
@@ -915,11 +923,11 @@ Checked and deliberately kept:
 - The in-place guard compares resolved absolute paths. `secureResolve` resolves symlinks and
   makes the path absolute first, so the source file cannot be overwritten through a different
   spelling of its path.
-- The guard compares case-insensitively on macOS as well. On a case-sensitive macOS volume a
-  conversion into a differently spelled name is refused, which is the safe direction.
 - The health endpoint refuses a `convert.exe` under Windows even when it is configured
   explicitly, although the tool itself accepts an explicitly configured ImageMagick path. That
   restriction is older than the review fixes and stays.
+- The registry deduplication by content hash means the same content converted under a second
+  name reuses the first registry entry (see D2).
 
 | Finding | Commit |
 | --- | --- |
