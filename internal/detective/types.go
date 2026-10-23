@@ -14,6 +14,11 @@ var (
 	// ErrPermission means the live configuration no longer allows research. The run
 	// stays resumable and is not counted as a research failure.
 	ErrPermission = errors.New("research permission revoked")
+	// Export failures keep a stable identity so the API can name the reason with a
+	// code the app translates instead of forwarding an English sentence.
+	ErrExportFormat   = errors.New("unsupported export format")
+	ErrExportTooLarge = errors.New("export exceeds 32 MiB")
+	ErrPDFFont        = errors.New("built-in PDF font cannot render")
 )
 
 type Profile struct {

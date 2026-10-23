@@ -529,6 +529,12 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   does not rebuild the bar. Autor
   opens a new, create-only DOCX copy. No private model continuation is returned
   to the UI.
+- API refusals carry `code` in `err.body.code`; `v.errorText(tr, err)` shows
+  `desktop.detective_error_<code>` and keeps the server text for an unknown code.
+  `v.formats(caps)` orders the export links: with `caps.pdf_scripts === false`
+  (the built-in PDF writer's truth) Word comes before PDF and the PDF link gets
+  `aria-describedby` pointing at the `pdf_hint` note, so the limit is visible
+  before the download fails.
 - Verify `TestDetectiveTranslations`, `TestDesktopDetectiveBrowser` and the
   Detective config section. Backend contracts: `internal/detective/AGENTS.md`.
 - Automatic Update settings belong to each case (also available on creation):
@@ -3896,14 +3902,44 @@ registration lives in `internal/desktop/types.go`.
   `allow-same-origin`) stay in `homepage-studio.js` — they are pinned by
   `ui/security_lint_test.go` and must not move into sub-modules.
 - `homepage-studio-preview.js` (`window.HomepageStudioPreview { create }`)
-  owns only the preview chrome (device widths, fullscreen); the sites panel
-  (`window.HomepageStudioSites { create }`) and history panel
-  (`window.HomepageStudioHistory { create }`) receive their dependencies
+  owns the preview chrome **and the workbench layout**: the device switcher, the
+  fullscreen control, the panel splitters (pointer drag, double-click collapse,
+  ArrowLeft/ArrowRight), the collapsed state, and the scaled device viewport
+  (the previewed page renders at the real device width — desktop 1280 px, tablet
+  768 px, mobile 390 px — and is scaled into the pane through
+  `.vd-hp-preview-frame`, `--hp-device-w`, `--hp-device-h`,
+  `--hp-device-scale`); the sites panel
+  (`window.HomepageStudioSites { create, DRIFT_KEYS, driftStatus, targets }`)
+  owns the site cards, the drift enum and the deployment target collection
+  (`targets.collect/add/normalize/external`), and the history panel
+  (`window.HomepageStudioHistory { create }`) receives their dependencies
   via a deps object like `NoisemakerLibrary`.
+- Homepage Studio accessibility contract: the chat log is a transcript, not a
+  live region — it carries `aria-busy` and **no** `aria-live`; a dedicated
+  `role="status"` node announces the finished message, the agent start and the
+  agent completion exactly once; the elapsed counter stays `aria-hidden`. The
+  inspector tabs are a `role="tablist"` with `role="tab"` children, arrow-key
+  navigation and a roving `tabindex`; the site list is a `role="listbox"` with
+  `role="option"` cards that keep the keyboard focus across re-renders; the
+  preview iframe always carries a `title`; the panel splitters expose
+  `aria-valuenow`/`aria-valuemin`/`aria-valuemax`; the device switcher is a
+  `role="radiogroup"`.
+- The shared translator `t(key, params)` treats its **second argument as a
+  placeholder map**, so a string fallback never applies. Homepage Studio uses
+  the local helper `tr(key, fallback)` (defined in `homepage-studio.js`, handed
+  to the sub-modules through the deps object) for every dynamically built key
+  (`homepage_studio.sites_drift_*`, `history_type_*`, `history_filter_*`,
+  `sites_origin_*`, `sites_target_*`, `sites_outcome_*`).
 - Homepage Studio honors `context.readonly` (composer, suggestion chips,
   reconcile, and history delete disabled). Destructive history deletes use
   the shell `confirmDialog` passed by `menus-and-routing.js`; native
   `alert`/`confirm`/`prompt` are forbidden in all four modules.
+- Homepage Studio loads its site list **once per status load** and refreshes
+  only the detail of the selected site; the target resolver reuses the sites
+  panel list and its cached detail instead of issuing a second request per
+  site. The status pill describes the **selected target** (container running,
+  cloud target reachable, cloud target unreachable), not only the local
+  container.
 - Homepage Studio visible UI strings use `homepage_studio.*` keys in all
   16 `ui/lang/desktop/*.json` files. The local webhost name fallback
   uses `homepage_studio.default_name`. Chat-stream failures reuse

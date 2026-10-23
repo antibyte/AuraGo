@@ -144,3 +144,18 @@ func TestResearchExportsLongTableAndScripts(t *testing.T) {
 		t.Fatal("report HTML executes source markup")
 	}
 }
+
+// An export refusal names its reason through a sentinel, so the API can answer with a
+// code the app translates (audit 4.14).
+func TestExportRefusalsCarryStableSentinels(t *testing.T) {
+	if _, err := Export(Report{Revision: 1, Title: "Detective", CreatedAt: time.Now()}, "xls"); !errors.Is(err, ErrExportFormat) {
+		t.Fatalf("unknown format: %v", err)
+	}
+	devanagari := Report{Revision: 1, Title: "रिपोर्ट", Summary: "सारांश", CreatedAt: time.Now()}
+	if _, err := Export(devanagari, "pdf"); !errors.Is(err, ErrPDFFont) {
+		t.Fatalf("non-Latin PDF: %v", err)
+	}
+	if artifact, err := Export(devanagari, "docx"); err != nil || len(artifact.Data) == 0 {
+		t.Fatalf("non-Latin docx: %v", err)
+	}
+}

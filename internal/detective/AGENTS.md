@@ -40,7 +40,13 @@ and tool dispatch; Desktop adapters own UI state.
   exports. Publication validates references against server-recorded retrievals.
 - Research output is untrusted data. Never render raw HTML or treat a cited URL
   as proof of retrieval. Partial results retain an explicit termination reason.
-- Every export binds an immutable report revision and uses the same content.
+- Every export binds an immutable report revision and uses the same content. Export
+  refusals carry sentinels (`ErrExportFormat`, `ErrExportTooLarge`, `ErrPDFFont`) and
+  the server maps them to the codes `unsupported_format`, `export_too_large` and
+  `pdf_unsupported_font`. The built-in PDF writer is the only PDF path: it renders
+  Go-font coverage (Latin, Greek, Cyrillic) and refuses Arabic, Devanagari, Hebrew,
+  CJK and emoji rather than emitting a damaged file. Never advise configuring
+  Document Creator/Gotenberg for it — nothing routes there.
 - The server scheduler shares the single research queue. An enabled case starts
   only after a completed baseline report; each completion schedules from now,
   with at most one overdue catchup. Interrupted automatic runs keep their ID,

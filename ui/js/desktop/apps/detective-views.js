@@ -59,5 +59,25 @@
     // interval; anything else can wait. A hidden window does not poll at all.
     const ACTIVE_RUN_STATUSES = ['queued', 'running', 'waiting_for_user'];
     function pollDelay(status) { return ACTIVE_RUN_STATUSES.includes(status) ? 3000 : 10000; }
-    window.DetectiveViews = { esc, report, sources, activity, activityItems, autoSettings, autoStatus, knownReports, chosenReport, canStop, pollDelay };
+    // An API refusal carries a stable code; the app shows a translated sentence for a
+    // code it knows and keeps the server text only as the fallback (audit 4.14).
+    function errorText(tr, err) {
+        const body = (err && err.body) || {};
+        const code = body.code || '';
+        if (code) {
+            const key = 'error_' + code;
+            const text = tr(key);
+            if (text && text !== key) return text;
+        }
+        return body.error || (err && err.message) || tr('error');
+    }
+    // The built-in PDF writer has no Arabic, Devanagari, Hebrew or emoji support, so Word
+    // comes first and the PDF link names the limit before the download fails.
+    function formats(caps) {
+        const markdown = {id: 'md', label: 'Markdown'};
+        const word = {id: 'docx', label: 'Word'};
+        const pdf = {id: 'pdf', label: 'PDF', hint: caps && caps.pdf_scripts === false ? 'pdf_hint' : ''};
+        return caps && caps.pdf_scripts === false ? [markdown, word, pdf] : [markdown, pdf, word];
+    }
+    window.DetectiveViews = { esc, report, sources, activity, activityItems, autoSettings, autoStatus, knownReports, chosenReport, canStop, pollDelay, errorText, formats };
 })();

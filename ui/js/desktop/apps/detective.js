@@ -37,7 +37,7 @@
         };
         const error = err => {
             if (state.disposed || !err || err.name === 'AbortError') return;
-            state.notice = err.message || tr('error');
+            state.notice = v.errorText(tr, err);
             const node = host.querySelector('.dt-error');
             if (node) { node.hidden = false; node.textContent = state.notice; }
         };
@@ -113,7 +113,10 @@
         function exportHTML(c, ro) {
             const revisions = knownReports(), chosen = chosenReport() || revisions.at(-1);
             if (!revisions.length || !chosen) return '';
-            return `<label>${e(tr('revision'))}<select class="dt-revision">${revisions.map(x => `<option value="${x.revision}" ${x === chosen ? 'selected' : ''}>${x.revision}${x.partial ? ' · ' + e(tr('partial')) : ''}</option>`).join('')}</select></label>${['md', 'pdf', 'docx'].map(format => `<a class="dt-download" href="${base}/cases/${encodeURIComponent(c.id)}/export?revision=${chosen.revision}&format=${format}">${format === 'md' ? 'Markdown' : format === 'docx' ? 'Word' : 'PDF'}</a>`).join('')}<button data-do="autor" ${ro ? 'disabled' : ''}>${e(tr('autor'))}</button>`;
+            const formats = v.formats(state.caps), hintID = `dt-pdf-hint-${state.id}`;
+            const links = formats.map(f => `<a class="dt-download" href="${base}/cases/${encodeURIComponent(c.id)}/export?revision=${chosen.revision}&format=${f.id}"${f.hint ? ` aria-describedby="${hintID}"` : ''}>${f.label}</a>`).join('');
+            const hint = formats.some(f => f.hint) ? `<span class="dt-hint" id="${hintID}">${e(tr('pdf_hint'))}</span>` : '';
+            return `<label>${e(tr('revision'))}<select class="dt-revision">${revisions.map(x => `<option value="${x.revision}" ${x === chosen ? 'selected' : ''}>${x.revision}${x.partial ? ' · ' + e(tr('partial')) : ''}</option>`).join('')}</select></label>${links}${hint}<button data-do="autor" ${ro ? 'disabled' : ''}>${e(tr('autor'))}</button>`;
         }
         function linkedExportRevision() {
             const link = host.querySelector('.dt-export a.dt-download');

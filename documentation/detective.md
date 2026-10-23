@@ -147,11 +147,13 @@ and 16 MiB of report data, output to 32 MiB, and requests to 60 seconds. Oversiz
 editions return an explicit error; choose an earlier edition or a new full rewrite.
 
 The built-in PDF renderer embeds Go fonts and requires no Docker service. It
-supports their Latin, Greek and Cyrillic coverage. Unsupported glyphs and complex
-scripts return an explicit error rather than a damaged PDF. For those reports,
-use DOCX/Markdown, or configure the existing Document Creator Gotenberg backend
-with suitable fonts. Detective uses that configured renderer without starting a
-container. Report HTML has no scripts, remote images or external stylesheets.
+covers Latin, Greek and Cyrillic; Arabic, Devanagari, Hebrew, CJK and emoji are
+refused instead of producing a damaged PDF. Detective does not call the Document
+Creator or Gotenberg — the built-in writer is the only PDF path — so the app warns
+before the click: `GET /api/desktop/detective/capabilities` reports `pdf_backend`
+`builtin` and `pdf_scripts` false, and the export bar then orders Word and
+Markdown first and names the limit next to the PDF link. Use Word or Markdown for
+those reports. Report HTML has no scripts, remote images or external stylesheets.
 
 Cases live in `detective.db` beside the configured Game Maker SQLite database
 (default `data/detective.db`). The store includes private continuation, so protect
@@ -188,6 +190,13 @@ accept `before`, `limit` (20 by default, at most 50) and optional `query`, retur
 `source?id=...` retrieves one source. Existing revision-bound export URLs keep
 their meaning. All routes retain the Desktop administrator boundary.
 
+Every refusal answers `{"error": "<server text>", "code": "<stable code>"}`, so the
+app can show a translated sentence instead of the English text. Codes: `not_found`
+(404), `conflict` (409), `budget_exhausted` (409), `copy_exists` (409),
+`permission_revoked` (403), `unavailable` (503), `unsupported_format`,
+`export_too_large`, `pdf_unsupported_font` and `invalid_request` (400). An unknown
+code falls back to the server text.
+
 ## Verification
 
 Automated coverage includes cumulative budgets for all three efforts, queue and
@@ -197,6 +206,6 @@ exports, long tables and Desktop lifecycle. Chrome exercises the production app
 modules in Standard/Fruity, light/dark and narrow/wide layouts. All 16 Desktop
 languages include the new labels.
 
-Live comparative provider runs, DOCX roundtrips in Word/LibreOffice/Autor and
-multilingual Gotenberg rendering remain release acceptance work. Automated
-reference checks are not a substitute for those quality checks.
+Live comparative provider runs, DOCX roundtrips in Word/LibreOffice/Autor and the
+PDF refusal for Arabic, Devanagari, Hebrew, CJK and emoji remain release acceptance
+work. Automated reference checks are not a substitute for those quality checks.

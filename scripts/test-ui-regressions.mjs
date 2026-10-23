@@ -5045,6 +5045,40 @@ function testDetectivePollingBacksOffAndPauses() {
   assert.match(app, /setTimeout\(poll, v\.pollDelay\(state\.current\?\.run\?\.status\)\)/);
 }
 
+// Detective: an API refusal shows a translated sentence for its code, and the export
+// formats follow the PDF capability (audit 4.14).
+function testDetectiveErrorsAndExportFormats() {
+  const viewsSource = read('ui/js/desktop/apps/detective-views.js');
+  const context = { Map, Set, String, Number, Date, JSON, URL, window: {} };
+  vm.createContext(context);
+  vm.runInContext(`${viewsSource}\nglobalThis.views = window.DetectiveViews;`, context);
+  const views = context.views;
+  const messages = {
+    'desktop.detective_error': 'Something failed',
+    'desktop.detective_error_budget_exhausted': 'Research budget is used up',
+    'desktop.detective_error_pdf_unsupported_font': 'PDF cannot render this report',
+  };
+  // tr mirrors the app wrapper: a missing message returns the bare key.
+  const tr = key => messages['desktop.detective_' + key] || key;
+  assert.equal(views.errorText(tr, { body: { code: 'budget_exhausted', error: 'server text' } }), 'Research budget is used up');
+  assert.equal(views.errorText(tr, { body: { code: 'pdf_unsupported_font', error: 'server text' } }), 'PDF cannot render this report');
+  assert.equal(views.errorText(tr, { body: { code: 'brand_new_code', error: 'server text' } }), 'server text', 'unknown codes keep the server text');
+  assert.equal(views.errorText(tr, { message: 'network down' }), 'network down');
+  assert.equal(views.errorText(tr, {}), 'Something failed');
+
+  assert.equal(views.formats().map(f => f.id).join(','), 'md,pdf,docx');
+  assert.equal(views.formats({ pdf_scripts: true }).map(f => f.id).join(','), 'md,pdf,docx');
+  const limited = views.formats({ pdf_scripts: false });
+  assert.equal(limited.map(f => f.id).join(','), 'md,docx,pdf', 'Word comes first without full PDF script support');
+  assert.equal(limited.find(f => f.id === 'pdf').hint, 'pdf_hint');
+  assert.equal(limited.filter(f => f.hint).map(f => f.id).join(','), 'pdf', 'only the PDF link names the limit');
+
+  const app = read('ui/js/desktop/apps/detective.js');
+  assert.match(app, /state\.notice = v\.errorText\(tr, err\)/);
+  assert.match(app, /const formats = v\.formats\(state\.caps\)/);
+  assert.match(app, /aria-describedby="\$\{hintID\}"/);
+}
+
 const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
@@ -5119,6 +5153,7 @@ const tests = [
   ['Detective Stop follows enabled, not ready', testDetectiveStopFollowsEnabledNotReady],
   ['Detective source text loads on expand', testDetectiveSourceTextLoadsOnExpand],
   ['Detective polling backs off and pauses when hidden', testDetectivePollingBacksOffAndPauses],
+  ['Detective errors and export formats follow the API codes', testDetectiveErrorsAndExportFormats],
   ['EasyDrag session keeps only valid flow ids', testEasyDragSessionKeepsOnlyValidFlowIds],
   ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
   ['Desktop event delivered over WebSocket and SSE is handled once', testDesktopEventDeliveredTwiceIsHandledOnce],
