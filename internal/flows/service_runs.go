@@ -527,12 +527,14 @@ func leafOutputs(f *Flow, res RunResult) map[string]any {
 // onTimerFired starts a live run for a due Date/Time trigger of an enabled flow. It is the
 // timer service's timerHandleFunc and returns nil when the occurrence is handled, so the
 // timer service consumes it: a run was created (started or queued), or no run is wanted.
-// No run is wanted for a flow that is gone (its timers went with it; logged at Debug), and,
-// each logged, for a flow without a published revision (Warn), a flow that is switched
-// off (Info), a flow whose mission Mission Control does not hold (Warn, naming
-// ErrFlowMissionMissing; a flow being deleted can show that too), a node that is no longer
-// an enabled trigger of the published revision (Warn), and a trigger the Skip concurrency
-// policy drops (StartSkipped, Info). Those return nil and the occurrence is consumed.
+// No run is wanted while the bridge's RunGate refuses automatic runs (missions read-only,
+// flows switched off; checked first, logged at Info with the reason), for a flow that is
+// gone (its timers went with it; logged at Debug), and, each logged, for a flow without a
+// published revision (Warn), a flow that is switched off (Info), a flow whose mission
+// Mission Control does not hold (Warn, naming ErrFlowMissionMissing; a flow being deleted
+// can show that too), a node that is no longer an enabled trigger of the published
+// revision (Warn), and a trigger the Skip concurrency policy drops (StartSkipped, Info).
+// Those return nil and the occurrence is consumed.
 // ErrMissionControlUnavailable (Mission Control cannot be read) keeps the same Warn and
 // returns that error, so the occurrence stays and is retried. Any other failure to start
 // (ErrQueueFull, a store error while reading the flow or recording the run, ErrRunnerClosed)
@@ -540,6 +542,13 @@ func leafOutputs(f *Flow, res RunResult) map[string]any {
 // the occurrence stored and tries it again after a backoff, with the same scheduled_for
 // (see TimerService). Past timerMaxRetryLateness the missed callback runs and starts no run.
 func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) error {
+	if gate, ok := s.bridge.(RunGate); ok {
+		if err := gate.AutomaticRunsAllowed(); err != nil {
+			s.logger.Info("a date and time trigger fired while automatic runs are not allowed; no run was started",
+				"flow", flowID, "node", nodeID, "reason", err.Error())
+			return nil
+		}
+	}
 	rec, err := s.store.GetFlow(context.Background(), flowID)
 	if errors.Is(err, ErrNotFound) {
 		s.logLookup("a date and time trigger could not read its flow", "", err, "flow", flowID, "node", nodeID)

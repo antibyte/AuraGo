@@ -40,7 +40,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 - A flow opens at a readable size: a small flow is shown whole, a larger one starts at its trigger at 80 %. In windows wider than 560 px, EasyDrag remembers on this device where you left each flow. Moving around the canvas and zooming are no changes to the flow: they are neither saved to it nor counted as *Unpublished changes*. **Show everything** (Shift+1) fits the whole flow; when that zooms out far, the cards show only their names, in larger type.
 - The inspector sits in the editor body. It is not a dialog, and EasyDrag does not open a pinned wide window for it. Input, Parameters and Output are tabs at every width. Below about 760 px the canvas and the inspector take turns. The EasyDrag window can be as narrow as 360 px; a 320 px viewport still fits. In narrow windows and on phones the building blocks panel starts closed. Opened, it floats over the canvas and closes once you add a step or tap the canvas.
 - *Flow settings* hold the name, the description, what happens when a trigger fires during a run (*Queue*, *Run in parallel* or *Skip*), the maximum run time and where failed runs are reported. The maximum run time takes minutes and seconds, from 1 second to 24 hours; with both fields empty a run may take 30 minutes, the default. **Apply** leaves it as it is unless you changed it.
-- When the desktop is read-only, EasyDrag opens flows read-only; only **Stop** still works for runs that have not ended (unless missions are read-only too, `tools.missions.read_only`). Switching the desktop to read-only does not stop flows that are already running: stop them under **Runs**.
+- When the desktop is read-only, EasyDrag opens flows read-only; only **Stop** still works for runs that have not ended (unless missions are read-only too, `tools.missions.readonly`). Switching the desktop to read-only does not stop flows that are already running: stop them under **Runs**. Read-only missions are different: while `tools.missions.readonly` is on, published flows start no new runs on their own (schedules, events, Date/Time timers) and Mission Control's *Run now* is refused, at once and without a restart.
 
 ## Saving
 
@@ -90,7 +90,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 
 ## When a Step Fails
 
-- Under *If this step fails* in a step's *Settings* you choose *Stop the run*, *Continue* (the next steps get the error as data) or *Error path* (an extra *Error* output for steps that handle the failure). *Retries*, *Seconds between* and *Time limit (s)* sit next to it.
+- Under *If this step fails* in a step's *Settings* you choose *Stop the run*, *Continue* (the next steps get the error as data; on an *If* step they get it along *No*, on a *Switch* step along *Otherwise*, never along *Yes* or a case) or *Error path* (an extra *Error* output for steps that handle the failure). *Retries*, *Seconds between* and *Time limit (s)* sit next to it.
 - *Data name* in the same tab is the name later steps use in references (`{{data_name.field}}`).
 
 ## Secrets
@@ -113,14 +113,14 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 ## Settings
 
 *Config → Agent Tools → EasyDrag flows*:
-- *Enable flows*, *Parallel runs (1–32)*, *Parallel steps per run (1–16)*, *Keep run history (days, 1–365)* and *Runs kept per flow (10–5000)*. Changes to these take effect after a restart; switching *Enable flows* off turns EasyDrag off at once (see [When EasyDrag is switched off](#when-easydrag-is-switched-off)), but published flows keep running until the restart.
+- *Enable flows*, *Parallel runs (1–32)*, *Parallel steps per run (1–16)*, *Keep run history (days, 1–365)* and *Runs kept per flow (10–5000)*. Changes to these take effect after a restart; switching *Enable flows* off turns EasyDrag off at once (see [When EasyDrag is switched off](#when-easydrag-is-switched-off)), and published flows start no new runs on their own (schedules, events, Date/Time timers) from then on; a run that is already going continues until you stop it under **Runs**.
 - *AI provider for AI steps*: pick a provider from your provider list. AI steps set to "Default model" use it; without one they use the main model. It applies at once.
 - The agent options (*Agent may only read flows*, *Agent may publish flows*) are locked. They take effect once the agent can work with flows.
 - *Open EasyDrag* opens the app on the desktop.
 
 ## When EasyDrag Is Switched Off
 
-EasyDrag needs *Enable flows* and the missions tool (`tools.missions.enabled`, see [Chapter 11](11-missions.md#prerequisites)). When either is off, the EasyDrag icon disappears the next time the desktop loads its app list. When EasyDrag loads while it is off (a new window, **Try again**, or opening a flow), it shows *EasyDrag is switched off* with **Open settings** and **Try again**. The start page shows the same card, with both buttons, in place of your flows the next time it loads its list; New flow, Import and the templates are then disabled. A flow that is already open stays in the editor, and its next save shows *Offline – retrying* until EasyDrag is on again. Flow missions stay in Mission Control and keep running until the restart. You can still stop a run that is already going.
+EasyDrag needs *Enable flows* and the missions tool (`tools.missions.enabled`, see [Chapter 11](11-missions.md#prerequisites)). When either is off, the EasyDrag icon disappears the next time the desktop loads its app list. When EasyDrag loads while it is off (a new window, **Try again**, or opening a flow), it shows *EasyDrag is switched off* with **Open settings** and **Try again**. The start page shows the same card, with both buttons, in place of your flows the next time it loads its list; New flow, Import and the templates are then disabled. A flow that is already open stays in the editor, and its next save shows *Offline – retrying* until EasyDrag is on again. Flow missions stay in Mission Control, but their schedules, events and Date/Time timers start no runs while EasyDrag is off, and Mission Control's *Run now* is refused. You can still stop a run that is already going.
 
 ## Keyboard Shortcuts
 

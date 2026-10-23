@@ -101,8 +101,14 @@ type ParamSpec struct {
 	// param into the output (the effect of the node, a file, a message, is what the
 	// data is for, and what the node returns is built from other params and from
 	// the tool's answer). The lint reads it; it is not part of the editor's API.
-	OutputIndependent bool        `json:"-"`
-	Fields            []ParamSpec `json:"fields,omitempty"`
+	OutputIndependent bool `json:"-"`
+	// SecretTarget: the param decides where the node sends its vault secret (the address
+	// and the headers of a request). While a ParamSecretRef param of the node is set,
+	// untrusted data reaching it is an error (IssueUntrustedSecretTarget), not the
+	// warning of a SensitiveSink. It takes effect together with SensitiveSink. The lint
+	// reads it; it is not part of the editor's API.
+	SecretTarget bool        `json:"-"`
+	Fields       []ParamSpec `json:"fields,omitempty"`
 }
 
 // FieldSpec describes one declared output field.
@@ -233,7 +239,13 @@ type NodeDef struct {
 	EffectsFunc      func(n *Node) []Effect
 	// ErrorModes optionally restricts how runtime errors are handled for this
 	// node. Empty keeps the historical stop/continue/error-port behavior.
-	ErrorModes       []ErrorMode
+	ErrorModes []ErrorMode
+	// ContinuePort names the output port a failure is delivered on when the node's
+	// on_error is "continue". Empty means the first non-error port. A node that branches
+	// names its fail-closed branch (false of logic.if, default of logic.switch), so a
+	// failed node never picks the branch that a success would have to earn. A name that
+	// is not one of the node's ports is ignored.
+	ContinuePort     string
 	UntrustedOutput  bool
 	DefaultTimeout   time.Duration
 	AvailabilityFunc func() Availability

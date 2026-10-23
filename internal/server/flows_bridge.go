@@ -86,6 +86,11 @@ func (b flowMissionBridge) FlowMissionEnabled(missionID string) bool {
 }
 
 var _ flows.MissionReconciler = flowMissionBridge{}
+var _ flows.RunGate = flowMissionBridge{}
+
+// AutomaticRunsAllowed implements flows.RunGate: the Date/Time timers start no run while
+// automaticFlowRunsAllowed refuses (read-only missions, flows switched off).
+func (b flowMissionBridge) AutomaticRunsAllowed() error { return b.s.automaticFlowRunsAllowed() }
 
 // FlowMissions implements flows.MissionReconciler: the flow missions Mission Control
 // holds, mission id → flow id; nil without Mission Control.
@@ -224,10 +229,17 @@ func (b flowMissionBridge) FlowRunFinished(info flows.RunFinishedInfo) {
 //     a flow lock. It calls Service.NextTimer, which takes no flow lock.
 type flowMissionHooks struct{ s *Server }
 
-// StartFlowRun implements tools.FlowHooks.
+// StartFlowRun implements tools.FlowHooks. It refuses while flows are switched off or
+// missions are read-only (automaticFlowRunsAllowed, tools.ErrFlowsUnavailable or
+// tools.ErrFlowRunsPaused): cron, event and dependent-mission triggers come through here and
+// must follow the switches at once, not at the next start. A cancel does not come through
+// here and stays open.
 func (h flowMissionHooks) StartFlowRun(missionID, nodeID, triggerType, triggerData string) error {
 	if h.s.Flows == nil {
 		return tools.ErrFlowsUnavailable
+	}
+	if err := h.s.automaticFlowRunsAllowed(); err != nil {
+		return err
 	}
 	_, err := h.s.Flows.TriggerFromMission(missionID, nodeID, triggerType, flows.NormalizeTriggerData(triggerType, triggerData))
 	return err

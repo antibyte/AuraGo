@@ -156,9 +156,13 @@ func homeAssistantDef(env CatalogEnv) *NodeDef {
 // a literal service of the shell_command or python_script domain also runs code, and one
 // of the hassio domain or homeassistant.restart and homeassistant.stop changes the
 // system, which the publish dialog then asks about (IsRisky). The domain of a plain
-// service is the entity's, when that is written out too. A service that is a template
-// or cannot be read stays a plain device control, as the run decides it. It is a hook:
-// it copes with a nil node and any parameter.
+// service is the entity's, when that is written out too. When the document does not
+// settle the domain, the run decides it and the effects are the worst case (device
+// control, code and a system change): a service that is a template or no service at all,
+// and a plain service on an entity that is a template or no entity id. Nothing written
+// yet (no service, or no entity for a plain service) is not judged: the node cannot run
+// until it is, and a palette entry with default parameters must not be shown as risky.
+// It is a hook: it copes with a nil node and any parameter.
 func homeAssistantEffects(n *Node) []Effect {
 	effects := []Effect{EffectControlsDevices}
 	if n == nil {
@@ -167,14 +171,21 @@ func homeAssistantEffects(n *Node) []Effect {
 	if op, ok := choiceParam(n.Params["operation"], "call_service", haOperations...); ok && op == "get_state" {
 		return nil
 	}
-	domain, service, err := haServiceName(n.Params["service"])
-	if err != nil {
+	worst := []Effect{EffectControlsDevices, EffectRunsCode, EffectSystemChange}
+	if isEmptyValue(n.Params["service"]) {
 		return effects
 	}
+	domain, service, err := haServiceName(n.Params["service"])
+	if err != nil {
+		return worst
+	}
 	if domain == "" {
+		if isEmptyValue(n.Params["entity"]) {
+			return effects
+		}
 		id, err := haEntityID(n.Params["entity"])
 		if err != nil {
-			return effects
+			return worst
 		}
 		domain, _, _ = strings.Cut(id, ".")
 	}

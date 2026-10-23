@@ -102,6 +102,11 @@ func (e *Engine) Services() *Services { return e.services }
 // (FLOW_NODE_PANIC) fail the run before any node runs; test runs execute
 // unpublished drafts, so these checks are their only guard.
 //
+// A node whose vault secret would be sent where unchecked data says (the lint's
+// UNTRUSTED_SECRET_TARGET, found once per run) fails with FLOW_PARAM_INVALID before
+// it runs, live or test, whatever revision the flow was published under; its
+// on_error setting decides only what follows the failure.
+//
 // The first terminal outcome wins: a stop signal is ignored once a node failed
 // or the run was cancelled or timed out. A run is reported cancelled or timed
 // out only if that actually interrupted a node; a run whose nodes all finished
@@ -123,8 +128,9 @@ func (e *Engine) Services() *Services { return e.services }
 //   - A node's parameters are resolved on its worker before its timeout starts,
 //     and the resolution cannot be cancelled. Expensive templates (for example
 //     100 filter chains over a 5 MiB value) can take about a second.
-//   - on_error "continue" routes a failed node into its default port, which is
-//     "true" for logic.if and "case_1" for logic.switch, with
+//   - on_error "continue" routes a failed node into its first output port, except
+//     logic.if ("false") and logic.switch ("default"), which continue on their
+//     fail-closed branch (NodeDef.ContinuePort), with
 //     {"error": {"code": ..., "message": ...}} as its output.
 func (e *Engine) Execute(ctx context.Context, req RunRequest, emit EventSink) RunResult {
 	if emit == nil {
@@ -170,9 +176,15 @@ func clampInt(v, lo, hi int) int {
 // capability (FLOW_AI_UNAVAILABLE, FLOW_TOOLS_UNAVAILABLE, FLOW_NODE_UNAVAILABLE,
 // FLOW_TOOL_DENIED, FLOW_ACTION_RULE_REQUIRED, FLOW_SECRET_UNAVAILABLE: a vault entry that is missing or unusable is
 // configuration), a used-up budget (FLOW_BUDGET_EXCEEDED) and data over the size
-// limits (FLOW_OUTPUT_TOO_LARGE). When an attempt fails with one of them the node's
-// Retry setting is ignored and the failure is final at once, so a refusal is not paid
-// for again (an ai.step under Retry 5 could otherwise make 12 model calls).
+// limits (FLOW_OUTPUT_TOO_LARGE). It also holds the failures that follow from the
+// resolved input alone, which is resolved once and so is the same on every attempt: a
+// condition that cannot be evaluated (FLOW_CONDITION_FAILED), a value that does not fit
+// its type (FLOW_VALUE_TYPE) and a wait-until time more than an hour away
+// (FLOW_WAIT_TOO_LONG: the clock moves on between attempts, but a retry delay is no way
+// to wait for it), and an AI answer cut off at its token limit (FLOW_AI_OUTPUT_CUT: the
+// same request is cut off again and pays again). When an attempt fails with one of them the
+// node's Retry setting is ignored and the failure is final at once, so a refusal is not
+// paid for again (an ai.step under Retry 5 could otherwise make 12 model calls).
 //
 // Everything else is retried, in particular FLOW_NODE_FAILED, FLOW_NODE_TIMEOUT,
 // FLOW_TOOL_ERROR and FLOW_AI_OUTPUT_INVALID, where a new attempt can answer
@@ -181,6 +193,10 @@ func clampInt(v, lo, hi int) int {
 var nonRetryableCodes = map[string]bool{
 	"FLOW_PARAM_INVALID":        true,
 	"FLOW_CONDITION_INVALID":    true,
+	"FLOW_CONDITION_FAILED":     true,
+	"FLOW_VALUE_TYPE":           true,
+	"FLOW_WAIT_TOO_LONG":        true,
+	"FLOW_AI_OUTPUT_CUT":        true,
 	"FLOW_BUDGET_EXCEEDED":      true,
 	"FLOW_TOOL_DENIED":          true,
 	"FLOW_ACTION_RULE_REQUIRED": true,
@@ -201,7 +217,12 @@ func hopeless(err error) bool {
 // executeNode runs one node with retries and timeouts. It runs on a worker
 // goroutine and must not touch the run state. A failure with a non-retryable code
 // ends the attempts at once.
-func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in ExecInput) nodeDone {
+//
+// A refusal (see runState.checkFlow) fails the node before its parameters are even
+// resolved: Execute is never called, so what it would have sent, a vault secret
+// included, is not read. It is an ordinary node failure, and the node's on_error
+// setting decides only what follows it.
+func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in ExecInput, refusal *NodeError) nodeDone {
 	d := nodeDone{nodeID: n.ID}
 	step := StepRecord{NodeID: n.ID, NodeKey: n.Key, Attempt: 1, StartedAt: e.services.Now()}
 	finish := func(status StepStatus) nodeDone {
@@ -225,6 +246,9 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 	}
 	if def == nil || def.Execute == nil {
 		return fail(&NodeError{Code: "NODE_TYPE_UNKNOWN", Message: "node type " + quoteForError(n.Type) + " is not available"})
+	}
+	if refusal != nil {
+		return fail(refusal)
 	}
 	params, err := ResolveParams(withDefaults(def, n.Params), in.Env)
 	if err != nil {
@@ -293,7 +317,7 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 // anywhere in executeNode (parameter resolution, output encoding through a
 // custom MarshalJSON, ...) into a FLOW_NODE_PANIC failure, so the process never
 // crashes and the coordinator always receives a result.
-func (e *Engine) runNode(ctx context.Context, def *NodeDef, n *Node, in ExecInput) (d nodeDone) {
+func (e *Engine) runNode(ctx context.Context, def *NodeDef, n *Node, in ExecInput, refusal *NodeError) (d nodeDone) {
 	started := e.services.Now()
 	defer func() {
 		if r := recover(); r != nil {
@@ -304,7 +328,7 @@ func (e *Engine) runNode(ctx context.Context, def *NodeDef, n *Node, in ExecInpu
 				ErrorCode: ne.Code, ErrorMessage: ne.Message}}
 		}
 	}()
-	return e.executeNode(ctx, def, n, in)
+	return e.executeNode(ctx, def, n, in, refusal)
 }
 
 // exitedNode is the result a worker reports when runNode never returns

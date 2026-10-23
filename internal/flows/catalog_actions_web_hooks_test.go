@@ -22,20 +22,22 @@ func webAnswers(req ToolRequest) (ToolResponse, error) {
 	return apiAnswer(200, `{"a":1}`), nil
 }
 
-// Only a GET is free of outward effects. A method that is not known yet (a
-// template) or has no meaning counts as one that may change something, and the hook
-// copes with a nil node and any parameter.
+// Only a GET is free of outward effects, and only a DELETE deletes. A method that is
+// not known yet (a template) or has no meaning counts as the worst case, a DELETE, and
+// the hook copes with a nil node and any parameter.
 func TestHTTPRequestEffects(t *testing.T) {
 	def := httpNodeDef(t)
 	sends := []Effect{EffectSendsMessage}
+	deletes := []Effect{EffectSendsMessage, EffectDeletes}
 	for name, c := range map[string]struct {
 		method any
 		want   []Effect
 	}{
 		"absent": {nil, nil}, "empty": {"", nil}, "blank": {"  ", nil}, "GET": {"GET", nil}, "lower": {"get", nil}, "padded": {" Get\n", nil},
-		"POST": {"POST", sends}, "post": {"post", sends}, "PUT": {"PUT", sends}, "PATCH": {"PATCH", sends}, "DELETE": {"delete", sends},
-		"template": {"{{trigger.data.method}}", sends}, "unknown": {"HEAD", sends}, "number": {5.0, sends}, "flag": {true, sends},
-		"list": {[]any{"GET"}, sends}, "object": {map[string]any{}, sends}, "huge": {strings.Repeat("G", 1<<20), sends},
+		"POST": {"POST", sends}, "post": {"post", sends}, "PUT": {"PUT", sends}, "PATCH": {"PATCH", sends},
+		"DELETE": {"DELETE", deletes}, "delete": {"delete", deletes}, "padded delete": {" Delete\n", deletes},
+		"template": {"{{trigger.data.method}}", deletes}, "unknown": {"HEAD", deletes}, "number": {5.0, deletes}, "flag": {true, deletes},
+		"list": {[]any{"GET"}, deletes}, "object": {map[string]any{}, deletes}, "huge": {strings.Repeat("G", 1<<20), deletes},
 	} {
 		if got := def.EffectsOf(&Node{Params: map[string]any{"method": c.method}}); !reflect.DeepEqual(got, c.want) {
 			t.Errorf("method %s: effects %v, want %v", name, got, c.want)

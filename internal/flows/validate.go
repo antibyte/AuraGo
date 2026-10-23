@@ -397,6 +397,7 @@ func (v *validator) publishRules() {
 		// crash must not go unnoticed here: publishing is blocked until it is fixed.
 		v.callDefHook(n, func() { _ = def.EffectsOf(n) })
 		v.requiredParams(n, def, sev)
+		v.secretRefParams(n, def, sev)
 		errorMode := n.Settings.OnError
 		if errorMode == "" {
 			errorMode = ErrorStop
@@ -433,6 +434,11 @@ func (v *validator) publishRules() {
 		}
 	}
 	for _, is := range LintUntrustedData(v.f, v.reg) {
+		// The lint's errors (IssueUntrustedSecretTarget) are publish rules like the node
+		// validators' errors: a draft stays saveable and gets a warning.
+		if is.Severity == SeverityError && v.vc.Mode == ModeDraft {
+			is.Severity = SeverityWarning
+		}
 		v.emit(is)
 	}
 }
@@ -448,6 +454,19 @@ func (v *validator) requiredParams(n *Node, def *NodeDef, sev Severity) {
 		}
 		if paramEmpty(spec, val) {
 			v.add(IssueParamRequired, sev, n.ID, "", spec.Name, fmt.Sprintf("%s needs a value for %s", echoKey(n.Key), spec.Name))
+		}
+	}
+}
+
+// secretRefParams refuses a template in a secret_ref parameter, whatever the node type:
+// the parameter names a vault entry, and the entry must be the document author's choice,
+// never one that data flowing through the run (a mail, a webhook) picks. Templatable is
+// only a hint for the editor, so this is checked here for the kind.
+func (v *validator) secretRefParams(n *Node, def *NodeDef, sev Severity) {
+	for _, spec := range def.Params {
+		if spec.Kind == ParamSecretRef && isTemplateText(n.Params[spec.Name]) {
+			v.add(IssueParamInvalid, sev, n.ID, "", spec.Name,
+				fmt.Sprintf("%s: %s names a vault secret and cannot hold a data reference; write the name out", echoKey(n.Key), spec.Name))
 		}
 	}
 }

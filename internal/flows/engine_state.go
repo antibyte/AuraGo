@@ -25,6 +25,12 @@ type nodeInfo struct {
 	// defaultPort is the first non-error port, "" when there is none, and "out"
 	// for an unknown type.
 	defaultPort string
+	// continuePort is the port a failure is delivered on under on_error "continue":
+	// the definition's ContinuePort when the node has it, else defaultPort.
+	continuePort string
+	// refusal is the failure the node gets instead of running, nil for a node that runs
+	// (see secretTargetRefusals).
+	refusal *NodeError
 }
 
 // runState is owned by the coordinator goroutine of one run.
@@ -89,7 +95,9 @@ func (s *runState) isTrigger(n *Node) bool {
 // checkFlow rejects a flow the engine cannot run: a missing one, one over the
 // document limits, one with a loop (a loop is only a warning for drafts, and
 // its nodes would never become ready) and one whose node definitions panic.
-// On success it has built the graph, the topological order and the node infos.
+// On success it has built the graph, the topological order and the node infos,
+// which also hold the nodes the run refuses to execute (unchecked data deciding
+// where a secret goes; the lint runs once here, not per node or attempt).
 func (s *runState) checkFlow() (code, msg, nodeID string) {
 	f := s.req.Flow
 	if f == nil {
@@ -113,6 +121,12 @@ func (s *runState) checkFlow() (code, msg, nodeID string) {
 		}
 		s.info[id] = info
 	}
+	for id, ne := range secretTargetRefusals(f, s.e.reg) {
+		if info, ok := s.info[id]; ok {
+			info.refusal = ne
+			s.info[id] = info
+		}
+	}
 	return "", "", ""
 }
 
@@ -127,7 +141,7 @@ func describeNode(reg *Registry, n *Node) (info nodeInfo, ne *NodeError) {
 	}()
 	def, _ := reg.Lookup(n.Type)
 	if def == nil {
-		return nodeInfo{defaultPort: PortOut}, nil
+		return nodeInfo{defaultPort: PortOut, continuePort: PortOut}, nil
 	}
 	info = nodeInfo{def: def, ports: def.OutputPorts(n)}
 	for _, p := range info.ports {
@@ -135,6 +149,10 @@ func describeNode(reg *Registry, n *Node) (info nodeInfo, ne *NodeError) {
 			info.defaultPort = p
 			break
 		}
+	}
+	info.continuePort = info.defaultPort
+	if def.ContinuePort != "" && def.ContinuePort != PortError && containsString(info.ports, def.ContinuePort) {
+		info.continuePort = def.ContinuePort
 	}
 	return info, nil
 }
@@ -335,7 +353,7 @@ func (s *runState) launch(ctx context.Context, id string, done chan<- nodeDone) 
 		Services: s.e.services,
 		Logger:   s.e.logger.With("flow", s.req.Flow.ID, "run", s.req.RunID, "node", n.Key),
 	}
-	def := s.def(n)
+	def, refusal := s.def(n), s.info[id].refusal
 	// The worker touches only these locals. runNode recovers from any panic, and
 	// the deferred send of the prefilled fallback also covers runtime.Goexit, so
 	// exactly one result is always sent; done has room for it.
@@ -343,7 +361,7 @@ func (s *runState) launch(ctx context.Context, id string, done chan<- nodeDone) 
 	go func() {
 		d := exitedNode(n, started)
 		defer func() { done <- d }()
-		d = e.runNode(ctx, def, n, in)
+		d = e.runNode(ctx, def, n, in, refusal)
 	}()
 }
 
@@ -430,11 +448,12 @@ func (s *runState) complete(ctx context.Context, d nodeDone) {
 		}
 		switch errorMode {
 		case ErrorContinue:
-			// The default port: "true" for logic.if, "case_1" for logic.switch.
+			// The continue port: the first output, except for a node that names a
+			// fail-closed one ("false" for logic.if, "default" for logic.switch).
 			s.outputs[n.Key] = errOut
 			step.Output = errOut
-			if info.defaultPort != "" {
-				step.Ports = []string{info.defaultPort}
+			if info.continuePort != "" {
+				step.Ports = []string{info.continuePort}
 			}
 			s.deliverPorts(n, step.Ports)
 		case ErrorPort:

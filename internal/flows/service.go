@@ -47,6 +47,17 @@ type MissionBridge interface {
 	FlowRunFinished(info RunFinishedInfo)
 }
 
+// RunGate is an optional extension of MissionBridge that the Service looks for by type
+// assertion (a bridge without it allows everything). AutomaticRunsAllowed says whether runs
+// that no one asked for at that moment may start, which today means the Date/Time timers
+// (Mission Control's own triggers are gated on its side, by the hooks): nil when they may,
+// else why not (missions read-only, flows switched off). A refused occurrence starts no run
+// and counts as handled, like one of a flow that is switched off. Like every bridge method
+// it follows the bridge rule: no call into a Service method that takes a flow lock.
+type RunGate interface {
+	AutomaticRunsAllowed() error
+}
+
 // RunFinishedInfo describes a finished live run for Mission Control. Every live run is
 // reported, also one whose flow was deleted while the run was queued or active; then
 // the fields hold what is still known.

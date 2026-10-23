@@ -4,13 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"runtime/debug"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/flows"
 	"aurago/internal/memory"
+	"aurago/internal/tools"
 )
 
 // flowsDBPath places flows.db next to the other desktop databases (config.FlowsDBPath).
@@ -80,6 +83,40 @@ func (s *Server) initFlows() {
 	s.MissionManagerV2.SetFlowHooks(flowMissionHooks{s: s})
 }
 
+// The delays between the start attempts of the flow service (flowsStartRetryDelay).
+const (
+	flowsStartRetryInitial = 5 * time.Second
+	flowsStartRetryMax     = 5 * time.Minute
+)
+
+// flowsStart starts the flow service; a variable so a test can make it fail.
+var flowsStart = func(ctx context.Context, svc *flows.Service) error { return svc.Start(ctx) }
+
+// flowsStartRetryDelay returns how long to wait after the failed start attempt n (1 for the
+// first): flowsStartRetryInitial, doubling, at most flowsStartRetryMax. A variable so a test
+// can shorten it. (The server package shadows the builtin min and max.)
+var flowsStartRetryDelay = func(attempt int) time.Duration {
+	d := flowsStartRetryInitial
+	for i := 1; i < attempt && d < flowsStartRetryMax; i++ {
+		d *= 2
+	}
+	if d > flowsStartRetryMax {
+		d = flowsStartRetryMax
+	}
+	return d
+}
+
+// flowsStartRetry is the background retry of a failed Service.Start: cancel ends it, done
+// closes when its goroutine has returned.
+type flowsStartRetry struct {
+	cancel context.CancelFunc
+	done   chan struct{}
+}
+
+// flowsStartRetries holds the running start retry of each flow service (a *flowsStartRetry),
+// so shutdownFlows can end and join it.
+var flowsStartRetries sync.Map
+
 // startFlows marks runs of the previous process as interrupted and arms the Date/Time
 // timers. Call it after MissionManagerV2.Start (the timers ask Mission Control whether a
 // flow is enabled).
@@ -88,21 +125,72 @@ func (s *Server) initFlows() {
 // reconciles Mission Control with the flow store once (Service.ReconcileMissions): a crash
 // between a flows.db write and the Mission Control update leaves them apart.
 // shutdownFlows waits for it through Service.Shutdown.
+//
+// A Start that fails (a locked or unreadable flows.db) would leave the Date/Time timers, the
+// retention loop and the marking of interrupted runs off until the next restart, so it is
+// retried on a goroutine of its own (retryFlowsStart: flowsStartRetryDelay between the
+// attempts, every failure logged at Warn with the attempt and the next delay, the recovery
+// at Info), followed by the same reconciliation. The retry ends when Start worked, when ctx
+// ends, when the service was shut down (ErrRunnerClosed) and in shutdownFlows, which joins it.
 func (s *Server) startFlows(ctx context.Context) {
 	if s.Flows == nil {
 		return
 	}
-	if err := s.Flows.Start(ctx); err != nil {
-		s.Logger.Error("EasyDrag flows could not start", "error", err)
+	svc, logger := s.Flows, s.Logger
+	if err := flowsStart(ctx, svc); err != nil {
+		if errors.Is(err, flows.ErrRunnerClosed) || ctx.Err() != nil {
+			logger.Warn("EasyDrag flows could not start", "error", err)
+			return
+		}
+		delay := flowsStartRetryDelay(1)
+		logger.Warn("EasyDrag flows could not start; trying again in the background", "error", err, "attempt", 1, "next_attempt_in", delay.String())
+		retryCtx, cancel := context.WithCancel(ctx)
+		retry := &flowsStartRetry{cancel: cancel, done: make(chan struct{})}
+		flowsStartRetries.Store(svc, retry)
+		go func() {
+			defer close(retry.done)
+			defer flowsStartRetries.CompareAndDelete(svc, retry)
+			defer cancel()
+			if retryFlowsStart(retryCtx, svc, logger, delay) {
+				reconcileFlows(retryCtx, svc, logger)
+			}
+		}()
 		return
 	}
-	svc, logger := s.Flows, s.Logger
-	go func() {
-		err := svc.ReconcileMissions(ctx)
-		if err != nil && !errors.Is(err, flows.ErrRunnerClosed) && ctx.Err() == nil {
-			logger.Warn("EasyDrag flows could not be checked against Mission Control", "error", err)
+	go reconcileFlows(ctx, svc, logger)
+}
+
+// reconcileFlows runs Service.ReconcileMissions and logs what is worth a line.
+func reconcileFlows(ctx context.Context, svc *flows.Service, logger *slog.Logger) {
+	err := svc.ReconcileMissions(ctx)
+	if err != nil && !errors.Is(err, flows.ErrRunnerClosed) && ctx.Err() == nil {
+		logger.Warn("EasyDrag flows could not be checked against Mission Control", "error", err)
+	}
+}
+
+// retryFlowsStart calls Service.Start again after delay, and after each further failure
+// after flowsStartRetryDelay of the attempt, until it works (true), ctx ends or the service
+// was shut down (false). Attempt 1 was the one that failed in startFlows.
+func retryFlowsStart(ctx context.Context, svc *flows.Service, logger *slog.Logger, delay time.Duration) bool {
+	for attempt := 2; ; attempt++ {
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return false
+		case <-timer.C:
 		}
-	}()
+		err := flowsStart(ctx, svc)
+		if err == nil {
+			logger.Info("EasyDrag flows started after earlier failures", "attempt", attempt)
+			return true
+		}
+		if errors.Is(err, flows.ErrRunnerClosed) || ctx.Err() != nil {
+			return false
+		}
+		delay = flowsStartRetryDelay(attempt)
+		logger.Warn("EasyDrag flows could not start; trying again in the background", "error", err, "attempt", attempt, "next_attempt_in", delay.String())
+	}
 }
 
 // The shutdown budget of the flow service: what is left of the server's shutdown context,
@@ -138,7 +226,8 @@ func flowsShutdownBudget(ctx context.Context) time.Duration {
 //
 // The server calls it once the HTTP API is drained, so no flow API request is in flight,
 // and before MQTT, mail, MCP, the sandbox, the mission history and the planner stop: flow
-// runs use all of them. The order is Service.Shutdown (timers, runs, the retention loop,
+// runs use all of them. The order is the background start retry, if one is still going
+// (ended and joined: see startFlows), Service.Shutdown (timers, runs, the retention loop,
 // a startup reconciliation still in progress), then the store. Shutdown gets
 // flowsShutdownBudget(ctx) on a context of its own (ctx's cancellation is ignored); runs
 // that do not stop in time end in the background, and their last writes then fail on the
@@ -157,6 +246,16 @@ func (s *Server) shutdownFlows(ctx context.Context) {
 	}
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), flowsShutdownBudget(ctx))
 	defer cancel()
+	// A start retry that is still going would call Start (and reconcile) against the
+	// service that is stopping: end it and wait for it first, within the same budget.
+	if v, ok := flowsStartRetries.LoadAndDelete(s.Flows); ok {
+		retry := v.(*flowsStartRetry)
+		retry.cancel()
+		select {
+		case <-retry.done:
+		case <-ctx.Done():
+		}
+	}
 	if err := s.Flows.Shutdown(ctx); err != nil {
 		s.Logger.Warn("EasyDrag flows did not stop in time", "error", err)
 	}
@@ -181,6 +280,24 @@ func flowsRuntimeConfigChanged(oldCfg, newCfg config.FlowsConfig) bool {
 func (s *Server) flowsAvailable() bool {
 	cfg := s.ConfigSnapshot()
 	return s.Flows != nil && cfg != nil && cfg.Flows.Enabled && cfg.Tools.Missions.Enabled
+}
+
+// automaticFlowRunsAllowed tells whether a flow run may start on a trigger instead of a
+// user's request: the flows gate (flowsAvailable: the service exists, flows.enabled and
+// tools.missions.enabled) and tools.missions.readonly, both read from the current config
+// snapshot, so a switch counts at once. flows.enabled is otherwise read at boot only, and
+// published flows used to keep running after it was switched off. Cron and event triggers
+// ask through flowMissionHooks.StartFlowRun, the Date/Time timers through the bridge's
+// flows.RunGate. It returns tools.ErrFlowsUnavailable or tools.ErrFlowRunsPaused, which
+// Mission Control notes on the flow mission instead of logging a failed start.
+func (s *Server) automaticFlowRunsAllowed() error {
+	if !s.flowsAvailable() {
+		return tools.ErrFlowsUnavailable
+	}
+	if cfg := s.ConfigSnapshot(); cfg.Tools.Missions.ReadOnly {
+		return tools.ErrFlowRunsPaused
+	}
+	return nil
 }
 
 // recordFlowAudit writes a user action on a flow to the audit timeline.

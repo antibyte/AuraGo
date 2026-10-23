@@ -172,9 +172,11 @@ func (r ConditionRow) Evaluate(loc *time.Location) (bool, error) {
 }
 
 // compilePattern compiles a "matches" pattern after bounding its size. Go's regexp
-// cannot be cancelled, so the pattern is parsed and compiled once up front to
-// count instructions; matching then costs at most len(input) times
-// maxPatternInsts steps.
+// cannot be cancelled, so the size is judged first: patternInstBound reads an upper
+// bound of the program off the parse tree, before Simplify copies the repeats and
+// Compile emits them (a 180-byte group repeated 1000 times is 182,000 instructions),
+// and the compiled program is counted once more; matching then costs at most
+// len(input) times maxPatternInsts steps.
 func compilePattern(pattern string) (*regexp.Regexp, error) {
 	if len(pattern) > maxPatternLength {
 		return nil, fmt.Errorf("the pattern is longer than %d bytes", maxPatternLength)
@@ -183,18 +185,82 @@ func compilePattern(pattern string) (*regexp.Regexp, error) {
 	if err != nil {
 		return nil, patternError(err)
 	}
+	if patternInstBound(parsed) > maxPatternInsts {
+		return nil, errPatternTooComplex
+	}
 	prog, err := syntax.Compile(parsed.Simplify())
 	if err != nil {
 		return nil, patternError(err)
 	}
 	if len(prog.Inst) > maxPatternInsts {
-		return nil, errors.New("the pattern is too complex (keep repeat counts below a few hundred)")
+		return nil, errPatternTooComplex
 	}
 	re, err := regexp.Compile(pattern)
 	if err != nil {
 		return nil, patternError(err)
 	}
 	return re, nil
+}
+
+var errPatternTooComplex = errors.New("the pattern is too complex (keep repeat counts below a few hundred)")
+
+// patternInstBound returns an upper bound of the instructions that compiling re would
+// emit (syntax.Simplify, then syntax.Compile), read off the parse tree without
+// expanding anything: literals count their runes, concatenations and alternations add
+// their parts (plus one alternative per join), a capture adds its two marks, star, plus
+// and quest add a constant, and a repeat multiplies its body by its count (Max, or Min
+// when Max is -1). The count stays tight for the common shapes, so a pattern within
+// maxPatternInsts is not refused by mistake. The result saturates at
+// maxPatternInsts+1, so no tree overflows it.
+func patternInstBound(re *syntax.Regexp) int {
+	const limit = maxPatternInsts + 1
+	// the program always has the fail instruction and the match instruction
+	return min(limit, 2+instBound(re, limit))
+}
+
+func instBound(re *syntax.Regexp, limit int) int {
+	add := func(a, b int) int { return min(limit, a+b) }
+	mul := func(n, b int) int {
+		if n > 0 && b > limit/n {
+			return limit
+		}
+		return min(limit, n*b)
+	}
+	sum := func() int {
+		total := 0
+		for _, sub := range re.Sub {
+			if total = add(total, instBound(sub, limit)); total >= limit {
+				break
+			}
+		}
+		return total
+	}
+	switch re.Op {
+	case syntax.OpLiteral:
+		return min(limit, max(1, len(re.Rune)))
+	case syntax.OpCapture:
+		return add(2, sum())
+	case syntax.OpStar, syntax.OpPlus, syntax.OpQuest:
+		return add(2, sum())
+	case syntax.OpConcat:
+		return max(1, sum())
+	case syntax.OpAlternate:
+		return add(max(0, len(re.Sub)-1), sum())
+	case syntax.OpRepeat:
+		body := sum()
+		switch {
+		case re.Max == re.Min:
+			// x{n}: n copies; x{0} is the empty match.
+			return max(1, mul(re.Min, body))
+		case re.Max < 0:
+			// x{n,}: n copies, the last one a plus; x{0,} is a star.
+			return add(mul(max(re.Min, 1), body), 2)
+		}
+		// x{n,m}: n copies, then m-n nested optional copies.
+		return add(mul(re.Min, body), mul(re.Max-re.Min, add(body, 1)))
+	}
+	// an empty match, a character class, any character, an anchor or a word boundary
+	return 1
 }
 
 // patternError describes a regexp compile failure without echoing the whole

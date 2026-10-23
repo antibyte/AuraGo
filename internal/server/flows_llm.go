@@ -240,8 +240,10 @@ func flowAIFormatRejected(request openai.ChatCompletionRequest, err error) bool 
 //   - An answer over flowAIMaxAnswerBytes is refused with FLOW_OUTPUT_TOO_LARGE, the code
 //     the node itself uses for an oversized AI answer; the engine does not retry it.
 //   - An answer cut off at the token limit (finish_reason length) is refused with
-//     FLOW_AI_OUTPUT_INVALID in both modes. A text answer is no exception: a cut summary
-//     looks complete. The engine retries that code under the node's Retry setting.
+//     FLOW_AI_OUTPUT_CUT in both modes. A text answer is no exception: a cut summary
+//     looks complete. The engine does not retry that code: the same request is cut off at
+//     the same limit again and would only be paid for again (the node has no setting for
+//     the answer length, so the fix is a shorter answer asked for).
 func flowAIAnswer(resp openai.ChatCompletionResponse, model string, structured bool, limit int) (flows.LLMResponse, error) {
 	if len(resp.Choices) == 0 {
 		return flows.LLMResponse{}, errors.New("the AI model returned no answer")
@@ -251,7 +253,7 @@ func flowAIAnswer(resp openai.ChatCompletionResponse, model string, structured b
 		return flows.LLMResponse{}, flows.NewNodeError("FLOW_OUTPUT_TOO_LARGE", "the AI answer is %d bytes; the limit is %d", n, flowAIMaxAnswerBytes)
 	}
 	if strings.EqualFold(strings.TrimSpace(string(choice.FinishReason)), string(openai.FinishReasonLength)) {
-		return flows.LLMResponse{}, flows.NewNodeError("FLOW_AI_OUTPUT_INVALID",
+		return flows.LLMResponse{}, flows.NewNodeError("FLOW_AI_OUTPUT_CUT",
 			"the answer was cut off at the limit of %d tokens; ask the model for a shorter answer", limit)
 	}
 	out := flows.LLMResponse{Model: resp.Model, InputTokens: resp.Usage.PromptTokens, OutputTokens: resp.Usage.CompletionTokens,
