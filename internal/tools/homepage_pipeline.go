@@ -48,7 +48,12 @@ type homepageVerifyResult struct {
 	URL           string   `json:"url,omitempty"`
 	HTTPStatus    int      `json:"http_status,omitempty"`
 	CheckedAssets []string `json:"checked_assets,omitempty"`
+	SkippedAssets []string `json:"skipped_assets,omitempty"`
 }
+
+// homepageMaxSkippedAssets bounds the recorded skip reasons of a deployment
+// verification.
+const homepageMaxSkippedAssets = 10
 
 var homepageVerifyHTTPClient = security.NewSSRFProtectedHTTPClient(12 * time.Second)
 
@@ -170,13 +175,21 @@ func homepagePrepareDependencies(cfg HomepageConfig, project homepageProjectInfo
 	}
 	raw := homepageDockerExecFunc(DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}, homepageContainerName, fmt.Sprintf("cd /workspace/%s && %s", project.ProjectDir, cmd), "")
 	var parsed struct {
-		ExitCode int    `json:"exit_code"`
+		ExitCode *int   `json:"exit_code"`
 		Output   string `json:"output"`
 		Status   string `json:"status"`
 		Message  string `json:"message"`
 	}
-	_ = json.Unmarshal([]byte(raw), &parsed)
-	if parsed.ExitCode != 0 || parsed.Status == "error" {
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		return homepagePrepareResult{
+			Status:         "error",
+			Message:        "dependency install returned an unreadable answer: " + truncateStr(strings.TrimSpace(raw), 300),
+			PackageManager: pm,
+			InstallCommand: cmd,
+			InstallRan:     true,
+		}
+	}
+	if parsed.ExitCode == nil || *parsed.ExitCode != 0 || parsed.Status == "error" {
 		msg := strings.TrimSpace(parsed.Message)
 		if msg == "" {
 			msg = strings.TrimSpace(parsed.Output)
@@ -320,19 +333,33 @@ func homepageVerifyDeploymentURL(rawURL string, contexts ...context.Context) hom
 	}
 	assets := homepageExtractCriticalAssets(body, parsedURL)
 	checked := []string{}
+	skipped := []string{}
 	for _, asset := range assets {
-		req, _ := newToolHTTPRequest(nativeHTTPContext(contexts...), http.MethodGet, asset, nil)
+		req, reqErr := newToolHTTPRequest(nativeHTTPContext(contexts...), http.MethodGet, asset, nil)
+		if reqErr != nil {
+			// A malformed asset URL is recorded and skipped; it must never
+			// dereference a nil request.
+			if len(skipped) < homepageMaxSkippedAssets {
+				skipped = append(skipped, fmt.Sprintf("%s (%v)", asset, reqErr))
+			}
+			continue
+		}
 		assetResp, err := homepageVerifyHTTPClient.Do(req)
 		if err != nil {
-			return homepageVerifyResult{Status: "error", Message: fmt.Sprintf("asset request failed for %s: %v", asset, err), URL: parsedURL.String(), HTTPStatus: resp.StatusCode, CheckedAssets: checked}
+			return homepageVerifyResult{Status: "error", Message: fmt.Sprintf("asset request failed for %s: %v", asset, err), URL: parsedURL.String(), HTTPStatus: resp.StatusCode, CheckedAssets: checked, SkippedAssets: skipped}
 		}
+		// Drain the body so the connection can be reused.
+		_, _ = io.Copy(io.Discard, io.LimitReader(assetResp.Body, 512*1024))
 		_ = assetResp.Body.Close()
 		checked = append(checked, asset)
 		if assetResp.StatusCode >= 400 {
-			return homepageVerifyResult{Status: "error", Message: fmt.Sprintf("asset %s returned HTTP %d", asset, assetResp.StatusCode), URL: parsedURL.String(), HTTPStatus: resp.StatusCode, CheckedAssets: checked}
+			return homepageVerifyResult{Status: "error", Message: fmt.Sprintf("asset %s returned HTTP %d", asset, assetResp.StatusCode), URL: parsedURL.String(), HTTPStatus: resp.StatusCode, CheckedAssets: checked, SkippedAssets: skipped}
 		}
 	}
-	return homepageVerifyResult{Status: "ok", Message: "Deployment URL verified", URL: parsedURL.String(), HTTPStatus: resp.StatusCode, CheckedAssets: checked}
+	if len(checked) == 0 && len(skipped) > 0 {
+		return homepageVerifyResult{Status: "error", Message: fmt.Sprintf("no asset could be checked: %s", truncateStr(strings.Join(skipped, "; "), 300)), URL: parsedURL.String(), HTTPStatus: resp.StatusCode, SkippedAssets: skipped}
+	}
+	return homepageVerifyResult{Status: "ok", Message: "Deployment URL verified", URL: parsedURL.String(), HTTPStatus: resp.StatusCode, CheckedAssets: checked, SkippedAssets: skipped}
 }
 
 func homepageExtractCriticalAssets(html string, base *url.URL) []string {

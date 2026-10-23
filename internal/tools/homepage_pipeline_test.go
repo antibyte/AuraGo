@@ -62,6 +62,114 @@ func TestHomepagePrepareDependenciesInstallsMissingNodeModules(t *testing.T) {
 	}
 }
 
+// ─── Pipeline errors surface ─────────────────────────────────────────────
+
+// TestHomepagePrepareDependenciesFailsOnUnreadableAnswer proves a dependency
+// install that answers with something other than a DockerExec result fails
+// the pipeline instead of being treated as a success.
+func TestHomepagePrepareDependenciesFailsOnUnreadableAnswer(t *testing.T) {
+	dir := t.TempDir()
+	projectRoot := filepath.Join(dir, "vite-site")
+	if err := os.MkdirAll(projectRoot, 0o755); err != nil {
+		t.Fatalf("mkdir project: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "package.json"), []byte(`{"scripts":{"build":"vite"},"dependencies":{"@vitejs/plugin-react":"latest"}}`), 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "package-lock.json"), []byte(`{"lockfileVersion":3}`), 0o644); err != nil {
+		t.Fatalf("write package-lock.json: %v", err)
+	}
+
+	oldExec := homepageDockerExecFunc
+	defer func() { homepageDockerExecFunc = oldExec }()
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		if strings.Contains(command, "npm ci") {
+			return "npm ci failed: ENOENT"
+		}
+		return `{"status":"ok","exit_code":0,"output":"installed"}`
+	}
+
+	project, err := homepageResolveProject(HomepageConfig{WorkspacePath: dir}, "vite-site")
+	if err != nil {
+		t.Fatalf("resolve project: %v", err)
+	}
+	result := homepagePrepareDependencies(HomepageConfig{WorkspacePath: dir}, project, slogDiscard())
+	if result.Status != "error" {
+		t.Fatalf("expected an unreadable install answer to fail, got %+v", result)
+	}
+	if !strings.Contains(result.Message, "unreadable answer") {
+		t.Fatalf("expected an unreadable answer message, got %q", result.Message)
+	}
+}
+
+// TestHomepagePrepareDependenciesFailsOnMissingExitCode proves an install
+// answer without an exit code is a failure.
+func TestHomepagePrepareDependenciesFailsOnMissingExitCode(t *testing.T) {
+	dir := t.TempDir()
+	projectRoot := filepath.Join(dir, "vite-site")
+	if err := os.MkdirAll(projectRoot, 0o755); err != nil {
+		t.Fatalf("mkdir project: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "package.json"), []byte(`{"scripts":{"build":"vite"},"dependencies":{"@vitejs/plugin-react":"latest"}}`), 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "package-lock.json"), []byte(`{"lockfileVersion":3}`), 0o644); err != nil {
+		t.Fatalf("write package-lock.json: %v", err)
+	}
+
+	oldExec := homepageDockerExecFunc
+	defer func() { homepageDockerExecFunc = oldExec }()
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		if strings.Contains(command, "npm ci") {
+			return `{"status":"ok","output":"installed"}`
+		}
+		return `{"status":"ok","exit_code":0,"output":"installed"}`
+	}
+
+	project, err := homepageResolveProject(HomepageConfig{WorkspacePath: dir}, "vite-site")
+	if err != nil {
+		t.Fatalf("resolve project: %v", err)
+	}
+	result := homepagePrepareDependencies(HomepageConfig{WorkspacePath: dir}, project, slogDiscard())
+	if result.Status != "error" {
+		t.Fatalf("expected a missing exit code to fail, got %+v", result)
+	}
+}
+
+// TestHomepageVerifyDeploymentURLBoundsAssetFailure proves a failing asset
+// request yields a bounded error instead of a panic, and that a malformed
+// asset reference is never requested.
+func TestHomepageVerifyDeploymentURLBoundsAssetFailure(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "true")
+
+	requested := []string{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requested = append(requested, r.URL.Path)
+		if r.URL.Path == "/" {
+			_, _ = io.WriteString(w, `<html><script src="/assets/app.js"></script><script src="http://[::1/broken.js"></script></html>`)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	result := homepageVerifyDeploymentURL(server.URL + "/")
+	if result.Status != "error" {
+		t.Fatalf("expected a failing asset to fail the verification, got %+v", result)
+	}
+	if len(result.Message) > 400 {
+		t.Fatalf("expected a bounded error message, got %d characters: %s", len(result.Message), result.Message)
+	}
+	if !strings.Contains(result.Message, "/assets/app.js") {
+		t.Fatalf("expected the failing asset in the message, got %q", result.Message)
+	}
+	for _, path := range requested {
+		if strings.Contains(path, "broken.js") {
+			t.Fatalf("a malformed asset reference must never be requested, got %s", path)
+		}
+	}
+}
+
 func TestHomepageDetectDeployCandidateRejectsPublicWithoutIndex(t *testing.T) {
 	dir := t.TempDir()
 	projectRoot := filepath.Join(dir, "app")

@@ -286,6 +286,9 @@ func RegisterProject(db *sql.DB, p HomepageProject) (int64, bool, error) {
 		if err == nil {
 			return existingID, true, nil
 		}
+		if err != sql.ErrNoRows {
+			return 0, false, fmt.Errorf("failed to check homepage project directory: %w", err)
+		}
 	}
 
 	if p.Name != "" {
@@ -293,6 +296,10 @@ func RegisterProject(db *sql.DB, p HomepageProject) (int64, bool, error) {
 		var existingProjectDir string
 		err := db.QueryRow("SELECT id, project_dir FROM homepage_projects WHERE name = ?", p.Name).Scan(&existingID, &existingProjectDir)
 		if err == nil {
+			// The same project directory registered again is the same project.
+			if existingProjectDir != "" && existingProjectDir == p.ProjectDir {
+				return existingID, true, nil
+			}
 			return 0, false, fmt.Errorf("homepage project name %q already exists with project_dir %q; refusing to register project_dir %q", p.Name, existingProjectDir, p.ProjectDir)
 		}
 		if err != sql.ErrNoRows {
@@ -316,10 +323,28 @@ func RegisterProject(db *sql.DB, p HomepageProject) (int64, bool, error) {
 		p.DeployHost, p.ProjectDir, p.Status, string(tagsJSON), p.Notes,
 	)
 	if err != nil {
+		// A concurrent registration may have claimed the project directory in
+		// the meantime. Re-read the existing row instead of failing.
+		if p.ProjectDir != "" && homepageIsUniqueViolation(err) {
+			var existingID int64
+			if readErr := db.QueryRow("SELECT id FROM homepage_projects WHERE project_dir = ? AND project_dir != ''", p.ProjectDir).Scan(&existingID); readErr == nil {
+				return existingID, true, nil
+			}
+		}
 		return 0, false, fmt.Errorf("failed to insert homepage project: %w", err)
 	}
 	id, _ := res.LastInsertId()
 	return id, false, nil
+}
+
+// homepageIsUniqueViolation reports whether err is a unique-constraint failure.
+func homepageIsUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "unique constraint failed") ||
+		strings.Contains(message, "constraint failed: unique")
 }
 
 func invalidateHomepageRevisionStateCache(projectDir string) {

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"aurago/internal/security"
 )
 
 // Archives avoid DockerExec's output truncation and the shell's argument limit.
@@ -40,6 +43,26 @@ func homepageReadDockerFile(cfg DockerConfig, relPath string) (string, error) {
 	return string(content), nil
 }
 
+// homepageDockerExecFailure turns a DockerExec result into an error when the
+// command did not succeed. A non-zero exit code or an error status aborts the
+// caller. The container message is scrubbed before it leaves the process.
+func homepageDockerExecFailure(result string) error {
+	status := ""
+	var resp map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &resp); err == nil {
+		status, _ = resp["status"].(string)
+	}
+	exitCode, _ := homepageDockerExecResult(result)
+	if status != "error" && exitCode == 0 {
+		return nil
+	}
+	message := homepageDockerExecErrorMessage(result)
+	if message == "" {
+		message = fmt.Sprintf("docker exec failed with exit code %d", exitCode)
+	}
+	return errors.New(security.Scrub(message))
+}
+
 func homepageWriteDockerFile(cfg DockerConfig, relPath, content string) error {
 	if len(content) > maxHomepageWriteFileSize {
 		return fmt.Errorf("content too large: %d bytes exceeds maximum of %d bytes", len(content), maxHomepageWriteFileSize)
@@ -50,15 +73,9 @@ func homepageWriteDockerFile(cfg DockerConfig, relPath, content string) error {
 		return err
 	}
 	dir := "/workspace/" + path.Dir(relPath)
-	result := homepageDockerExecFunc(cfg, homepageContainerName, "mkdir -p "+dir, "")
-	var status struct {
-		Status string `json:"status"`
-	}
-	if err := json.Unmarshal([]byte(result), &status); err != nil || status.Status != "ok" {
-		return fmt.Errorf("create file directory: %s", homepageDockerExecErrorMessage(result))
-	}
-	if message := homepageDockerExecErrorMessage(result); message != "" {
-		return fmt.Errorf("create file directory: %s", message)
+	execResult := homepageDockerExecFunc(cfg, homepageContainerName, "mkdir -p "+shellSingleQuote(dir), "")
+	if err := homepageDockerExecFailure(execResult); err != nil {
+		return fmt.Errorf("create file directory: %w", err)
 	}
 	var archive bytes.Buffer
 	writer := tar.NewWriter(&archive)

@@ -278,7 +278,7 @@ func TestHomepageReviewURIUpgradeBacksUpTheUnderlyingFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	backups, err := filepath.Glob(path + ".homepage-v1-*.bak")
+	backups, err := filepath.Glob(path + ".homepage-v*-*.bak")
 	if err != nil || len(backups) != 1 {
 		t.Fatalf("underlying database backup missing: %v %v", backups, err)
 	}
@@ -318,7 +318,7 @@ func TestHomepageReviewRegisteredSecretSnapshotKeepsOnlyFingerprint(t *testing.T
 	if err := os.WriteFile(filepath.Join(dir, "index.js"), []byte(secret), 0644); err != nil {
 		t.Fatal(err)
 	}
-	files, err := enumerateProjectFiles(dir, slog.Default())
+	files, _, err := enumerateProjectFiles(dir, slog.Default())
 	if err != nil || len(files) != 1 || len(files[0].Data) != 0 || files[0].Hash != hashContent([]byte(secret)) {
 		t.Fatalf("registered secret persisted in revision payload: count=%d error=%v", len(files), err)
 	}

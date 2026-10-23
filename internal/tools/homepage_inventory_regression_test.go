@@ -33,7 +33,7 @@ func TestHomepageLegacyMigrationBacksUpAndPreservesTargetLinks(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	backups, _ := filepath.Glob(path + ".homepage-v1-*.bak")
+	backups, _ := filepath.Glob(path + ".homepage-v*-*.bak")
 	if len(backups) != 1 {
 		t.Fatalf("missing migration backup: %v", backups)
 	}

@@ -4,8 +4,26 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
+
+// vercelServerConfig builds the tool configuration from saved settings and the
+// stored token. The token is registered for scrubbing before any network call.
+func vercelServerConfig(s *Server, token string) tools.VercelConfig {
+	security.RegisterSensitive(token)
+	return tools.VercelConfig{
+		Token:                  token,
+		DefaultProjectID:       s.Cfg.Vercel.DefaultProjectID,
+		TeamID:                 s.Cfg.Vercel.TeamID,
+		TeamSlug:               s.Cfg.Vercel.TeamSlug,
+		ReadOnly:               s.Cfg.Vercel.ReadOnly,
+		AllowDeploy:            s.Cfg.Vercel.AllowDeploy,
+		AllowProjectManagement: s.Cfg.Vercel.AllowProjectManagement,
+		AllowEnvManagement:     s.Cfg.Vercel.AllowEnvManagement,
+		AllowDomainManagement:  s.Cfg.Vercel.AllowDomainManagement,
+	}
+}
 
 // handleVercelStatus returns the current Vercel connection status.
 func handleVercelStatus(s *Server) http.HandlerFunc {
@@ -34,17 +52,7 @@ func handleVercelStatus(s *Server) http.HandlerFunc {
 			return
 		}
 
-		vcfg := tools.VercelConfig{
-			Token:                  token,
-			DefaultProjectID:       s.Cfg.Vercel.DefaultProjectID,
-			TeamID:                 s.Cfg.Vercel.TeamID,
-			TeamSlug:               s.Cfg.Vercel.TeamSlug,
-			ReadOnly:               s.Cfg.Vercel.ReadOnly,
-			AllowDeploy:            s.Cfg.Vercel.AllowDeploy,
-			AllowProjectManagement: s.Cfg.Vercel.AllowProjectManagement,
-			AllowEnvManagement:     s.Cfg.Vercel.AllowEnvManagement,
-			AllowDomainManagement:  s.Cfg.Vercel.AllowDomainManagement,
-		}
+		vcfg := vercelServerConfig(s, token)
 
 		result := tools.VercelCheckConnection(vcfg)
 		var parsed map[string]interface{}
@@ -89,17 +97,7 @@ func handleVercelTestConnection(s *Server) http.HandlerFunc {
 			return
 		}
 
-		vcfg := tools.VercelConfig{
-			Token:                  token,
-			DefaultProjectID:       s.Cfg.Vercel.DefaultProjectID,
-			TeamID:                 s.Cfg.Vercel.TeamID,
-			TeamSlug:               s.Cfg.Vercel.TeamSlug,
-			ReadOnly:               s.Cfg.Vercel.ReadOnly,
-			AllowDeploy:            s.Cfg.Vercel.AllowDeploy,
-			AllowProjectManagement: s.Cfg.Vercel.AllowProjectManagement,
-			AllowEnvManagement:     s.Cfg.Vercel.AllowEnvManagement,
-			AllowDomainManagement:  s.Cfg.Vercel.AllowDomainManagement,
-		}
+		vcfg := vercelServerConfig(s, token)
 
 		diagResult := tools.VercelCheckConnection(vcfg)
 		var diag map[string]interface{}

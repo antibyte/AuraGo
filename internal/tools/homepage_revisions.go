@@ -63,13 +63,18 @@ type revisionDelta struct {
 	Deleted  []fileEntry
 }
 
-func enumerateProjectFiles(basePath string, logger *slog.Logger) ([]fileEntry, error) {
+// enumerateProjectFiles lists the regular files of a project. Symlinks and
+// special files are skipped instead of failing the inventory: their target is
+// outside the project and must never enter a revision. The skipped relative
+// paths are returned so the caller can record them.
+func enumerateProjectFiles(basePath string, logger *slog.Logger) ([]fileEntry, []string, error) {
 	root, err := os.OpenRoot(basePath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer root.Close()
 	var entries []fileEntry
+	var skipped []string
 	contentBytes := 0
 	err = filepath.Walk(basePath, func(p string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil {
@@ -93,7 +98,13 @@ func enumerateProjectFiles(basePath string, logger *slog.Logger) ([]fileEntry, e
 			return nil
 		}
 		if !info.Mode().IsRegular() {
-			return fmt.Errorf("unsupported project file %q", rel)
+			// Lstat semantics: a symlink is never a regular file, so its
+			// target is never read. The same rule the Netlify ZIP applies.
+			skipped = append(skipped, rel)
+			if logger != nil {
+				logger.Info("[Homepage] Skipped non-regular project file", "path", rel)
+			}
+			return nil
 		}
 		f, err := root.Open(rel)
 		if err != nil {
@@ -123,7 +134,10 @@ func enumerateProjectFiles(basePath string, logger *slog.Logger) ([]fileEntry, e
 		entries = append(entries, fileEntry{Path: rel, Data: data, Size: info.Size(), Hash: hex.EncodeToString(h.Sum(nil)), IsBinary: binary, ModTime: info.ModTime(), Mode: info.Mode().Perm()})
 		return nil
 	})
-	return entries, err
+	if err != nil {
+		return nil, skipped, err
+	}
+	return entries, skipped, nil
 }
 
 func isBinaryContent(data []byte) bool {
@@ -194,7 +208,7 @@ func computeUnifiedDelta(db *sql.DB, projectDir, basePath string, baseRevID int6
 	if err != nil {
 		return nil, err
 	}
-	currentFiles, err := enumerateProjectFiles(basePath, logger)
+	currentFiles, _, err := enumerateProjectFiles(basePath, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -375,7 +389,7 @@ func HomepageSaveRevision(cfg HomepageConfig, db *sql.DB, projectDir, message, r
 	if err := sanitizeProjectDir(projectDir); err != nil {
 		return ErrorJSON(err.Error())
 	}
-	current, err := enumerateProjectFiles(homepageLocalRoot(cfg, projectDir), logger)
+	current, skipped, err := enumerateProjectFiles(homepageLocalRoot(cfg, projectDir), logger)
 	if err != nil {
 		return ErrorJSONf("enumerate project files: %v", err)
 	}
@@ -408,7 +422,15 @@ func HomepageSaveRevision(cfg HomepageConfig, db *sql.DB, projectDir, message, r
 			complete = false
 		}
 	}
-	metadata, _ := json.Marshal(map[string]int{"added": len(delta.Added), "modified": len(delta.Modified), "deleted": len(delta.Deleted)})
+	metadataFields := map[string]interface{}{
+		"added":    len(delta.Added),
+		"modified": len(delta.Modified),
+		"deleted":  len(delta.Deleted),
+	}
+	if len(skipped) > 0 {
+		metadataFields["skipped"] = skipped
+	}
+	metadata, _ := json.Marshal(metadataFields)
 	tx, err := db.Begin()
 	if err != nil {
 		return ErrorJSON(err.Error())
@@ -598,7 +620,7 @@ func HomepageRestoreRevision(cfg HomepageConfig, db *sql.DB, revisionID int64, p
 	if err != nil {
 		return ErrorJSON(err.Error())
 	}
-	current, err := enumerateProjectFiles(homepageLocalRoot(cfg, rev.ProjectDir), logger)
+	current, _, err := enumerateProjectFiles(homepageLocalRoot(cfg, rev.ProjectDir), logger)
 	if err != nil {
 		return ErrorJSON(err.Error())
 	}

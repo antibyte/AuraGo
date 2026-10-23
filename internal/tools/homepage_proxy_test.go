@@ -1,15 +1,21 @@
 package tools
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
 func TestLoadProxyRoutesEmpty(t *testing.T) {
 	dir := t.TempDir()
-	routes := loadProxyRoutes(dir)
+	routes, err := loadProxyRoutes(dir)
+	if err != nil {
+		t.Fatalf("expected no error for a missing file, got: %v", err)
+	}
 	if routes != nil {
 		t.Fatalf("expected nil for missing file, got %v", routes)
 	}
@@ -24,7 +30,10 @@ func TestSaveAndLoadProxyRoutes(t *testing.T) {
 	if err := saveProxyRoutes(dir, expected); err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	loaded := loadProxyRoutes(dir)
+	loaded, err := loadProxyRoutes(dir)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
 	if len(loaded) != 2 {
 		t.Fatalf("expected 2 routes, got %d", len(loaded))
 	}
@@ -41,7 +50,10 @@ func TestRegisterProxyRouteAddsNew(t *testing.T) {
 	if err := RegisterProxyRoute(dir, ProxyRoute{Path: "/app1", Port: 3000}); err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	routes := loadProxyRoutes(dir)
+	routes, err := loadProxyRoutes(dir)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
 	if len(routes) != 1 || routes[0].Path != "/app1" {
 		t.Fatalf("expected 1 route /app1, got %+v", routes)
 	}
@@ -55,7 +67,10 @@ func TestRegisterProxyRouteReplacesExisting(t *testing.T) {
 	if err := RegisterProxyRoute(dir, ProxyRoute{Path: "/app", Port: 4000}); err != nil {
 		t.Fatalf("register 2: %v", err)
 	}
-	routes := loadProxyRoutes(dir)
+	routes, err := loadProxyRoutes(dir)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
 	if len(routes) != 1 {
 		t.Fatalf("expected 1 route (replaced), got %d", len(routes))
 	}
@@ -71,9 +86,152 @@ func TestRemoveProxyRoute(t *testing.T) {
 	if err := RemoveProxyRoute(dir, "/remove"); err != nil {
 		t.Fatalf("remove: %v", err)
 	}
-	routes := loadProxyRoutes(dir)
+	routes, err := loadProxyRoutes(dir)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
 	if len(routes) != 1 || routes[0].Path != "/keep" {
 		t.Fatalf("expected only /keep, got %+v", routes)
+	}
+}
+
+// ─── Damaged route files and atomic writes ───────────────────────────────
+
+// TestLoadProxyRoutesReportsParseError proves a damaged route file is an
+// error, never a silently empty route set.
+func TestLoadProxyRoutesReportsParseError(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(proxyRoutesPath(dir), []byte("{not json"), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	routes, err := loadProxyRoutes(dir)
+	if err == nil {
+		t.Fatalf("expected a parse error for a damaged route file, got routes %+v", routes)
+	}
+	if routes != nil {
+		t.Fatalf("expected no routes for a damaged route file, got %+v", routes)
+	}
+}
+
+// TestRegisterProxyRouteKeepsDamagedRouteFile proves a route file that cannot
+// be read is never overwritten.
+func TestRegisterProxyRouteKeepsDamagedRouteFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(proxyRoutesPath(dir), []byte("{not json"), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if err := RegisterProxyRoute(dir, ProxyRoute{Path: "/app", Port: 3000}); err == nil {
+		t.Fatal("expected registering a route to fail on a damaged route file")
+	}
+	data, err := os.ReadFile(proxyRoutesPath(dir))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if string(data) != "{not json" {
+		t.Fatalf("damaged route file was overwritten: %s", data)
+	}
+}
+
+// TestSaveProxyRoutesKeepsPreviousContentWhenWriteFails proves a failed write
+// leaves the previously persisted routes intact.
+func TestSaveProxyRoutesKeepsPreviousContentWhenWriteFails(t *testing.T) {
+	dir := t.TempDir()
+	original := []ProxyRoute{{Path: "/keep", Port: 3000}}
+	if err := saveProxyRoutes(dir, original); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	before, err := os.ReadFile(proxyRoutesPath(dir))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+
+	// The parent of the routes file is a regular file, so the temporary file
+	// for the atomic write cannot be created and the write must fail.
+	blocked := filepath.Join(t.TempDir(), "blocked")
+	if err := os.WriteFile(blocked, []byte("not a directory"), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if err := saveProxyRoutes(blocked, []ProxyRoute{{Path: "/new", Port: 4000}}); err == nil {
+		t.Fatal("expected the blocked write to fail")
+	}
+
+	after, err := os.ReadFile(proxyRoutesPath(dir))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatalf("previous route content changed after a failed write:\nbefore %s\nafter %s", before, after)
+	}
+}
+
+// ─── One proxy-route writer ──────────────────────────────────────────────
+
+// TestRegisterProxyRouteConcurrentRegistrations proves concurrent
+// registrations never lose a route.
+func TestRegisterProxyRouteConcurrentRegistrations(t *testing.T) {
+	dir := t.TempDir()
+	const count = 50
+	var wg sync.WaitGroup
+	errs := make(chan error, count)
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			if err := RegisterProxyRoute(dir, ProxyRoute{Path: fmt.Sprintf("/app-%d", i), Port: 3000 + i}); err != nil {
+				errs <- err
+			}
+		}(i)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatalf("register: %v", err)
+	}
+	routes, err := loadProxyRoutes(dir)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(routes) != count {
+		t.Fatalf("expected %d routes, got %d", count, len(routes))
+	}
+}
+
+// TestRegisterAndRemoveProxyRouteConcurrent proves a concurrent registration
+// is never lost by a concurrent removal: the whole load → modify → save
+// sequence runs under one lock.
+func TestRegisterAndRemoveProxyRouteConcurrent(t *testing.T) {
+	dir := t.TempDir()
+	if err := RegisterProxyRoute(dir, ProxyRoute{Path: "/keep", Port: 3000}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		if err := RegisterProxyRoute(dir, ProxyRoute{Path: "/new", Port: 4000}); err != nil {
+			t.Errorf("register: %v", err)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		if err := RemoveProxyRoute(dir, "/keep"); err != nil {
+			t.Errorf("remove: %v", err)
+		}
+	}()
+	wg.Wait()
+
+	routes, err := loadProxyRoutes(dir)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	found := false
+	for _, route := range routes {
+		if route.Path == "/new" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("the concurrent registration was lost, got routes %+v", routes)
 	}
 }
 

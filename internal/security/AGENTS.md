@@ -29,6 +29,7 @@ This package owns reusable primitives; server owns session and HTTP policy.
 - Imported backup metadata cannot grant agent readability. Retain existing local grants only under the Vault's matching-value rules; new imported secrets default hidden.
 - Token files use synced private temporary files and `fileutil` replacement. Cast media tickets expire, bind one path and invalidate after process restart; they grant GET/HEAD media reads only.
 - Only the stored scope set `["cyd"]`, compared exactly like `Validate`, gets the short on-glass token (`scopesExactlyCYD`); any other set, including `cyd` mixed with another scope, gets a full-entropy token. A short token's stored prefix is `aura_...` and reveals no body characters. Verify `TestCreateMixedScopesNeverUsesShortToken` and `TestCYDTokenPrefixHidesBody`.
+- `RegisterSensitive` is the only way a Vault-read credential becomes scrubbable, so every integration registers a provider token at its read site before the first network call. The Netlify and Vercel integration tokens are permanent registrations: a token echoed back by a provider, a container or a log is redacted. Registration is per read site, not once at startup, because a re-read or rotated token must be registered again. Verify `TestDispatchServicesRegistersVercelTokenForScrubbing` and `TestHomepageDeployVercelScrubsTokenFromDeployOutput`.
 
 ## Work Guidance
 

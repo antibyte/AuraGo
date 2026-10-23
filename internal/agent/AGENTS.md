@@ -189,6 +189,12 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 - `huggingface` results use `externalToolOutput` before the model sees them.
   Dispatch registers the resolved Vault token with `security.RegisterSensitive`
   first. `RunHuggingFace` still returns the raw JSON for non-model callers.
+- Provider tokens read from the Vault are registered with `security.RegisterSensitive`
+  at the read site, before the first network call. The Netlify and Vercel deploy
+  paths register `netlify_token` and `vercel_token` this way, so a token echoed by
+  a provider or a container never survives scrubbing. A homepage mutation also
+  requires a reason, so a dispatch that stops before the token read never proves
+  the registration. Verify `TestDispatchServicesRegistersVercelTokenForScrubbing`.
 - `ruview` has one dispatch path, `Manager.Read`. `status` only probes the service. `nodes`, `sensing`, `model_info`, and `recordings` stay live reads. `presence` is the only operation that adds this receiver's saved offline board IDs. A successful payload is returned when the following status probe fails. Field rules live in `internal/ruview/AGENTS.md`.
 
 - Tool-result inline budget: the primary output vault archives a successful

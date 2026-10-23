@@ -637,6 +637,7 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if tokenErr != nil || token == "" {
 				return `Tool Output: {"status":"error","message":"Vercel token not found in vault. Store it with key 'vercel_token' via the Config UI."}`
 			}
+			security.RegisterSensitive(token)
 			vcfg := tools.VercelConfig{Context: ctx,
 				Token:                  token,
 				DefaultProjectID:       cfg.Vercel.DefaultProjectID,

@@ -8,6 +8,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"aurago/internal/fileutil"
 )
 
 // ─── File Operations ──────────────────────────────────────────────────────
@@ -22,6 +24,9 @@ func HomepageListFiles(cfg HomepageConfig, path string, logger *slog.Logger) str
 			return errJSON("%v", err)
 		}
 	}
+	if err := validateHomepagePathSegment(path); err != nil {
+		return errJSON("%v", err)
+	}
 	logger.Info("[Homepage] ListFiles", "path", path)
 
 	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
@@ -32,12 +37,22 @@ func HomepageListFiles(cfg HomepageConfig, path string, logger *slog.Logger) str
 	}
 
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
+	containerPath := shellSingleQuote(homepageWorkspaceMount + "/" + path)
 	// Warm up the kernel directory entry cache inside the container before listing.
 	// When files are written to the bind-mounted workspace by the host process, the
 	// container's view of that directory can occasionally lag until an inode lookup is
-	// forced — stat on the target path triggers that lookup reliably.
-	DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("stat /workspace/%s > /dev/null 2>&1 || true", path), "")
-	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("find /workspace/%s -maxdepth 2 -not -path '*/node_modules/*' -not -path '*/.next/*' -not -path '*/.git/*' | head -200", path), "")
+	// forced — stat on the target path triggers that lookup reliably. A failing stat
+	// means the directory cannot be listed, so the listing fails instead of returning
+	// an empty result.
+	statResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("stat %s > /dev/null", containerPath), "")
+	if err := homepageDockerExecFailure(statResult); err != nil {
+		return errJSON("list files failed for %s: %v", path, err)
+	}
+	listResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("find %s -maxdepth 2 -not -path '*/node_modules/*' -not -path '*/.next/*' -not -path '*/.git/*' | head -200", containerPath), "")
+	if err := homepageDockerExecFailure(listResult); err != nil {
+		return errJSON("list files failed for %s: %v", path, err)
+	}
+	return listResult
 }
 
 // homepageListFilesLocal performs the local (non-Docker) directory listing.
@@ -138,6 +153,9 @@ func HomepageReadFile(cfg HomepageConfig, path string, logger *slog.Logger) stri
 	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
 		return errJSON("%v", err)
 	}
+	if err := validateHomepagePathSegment(path); err != nil {
+		return errJSON("%v", err)
+	}
 	logger.Info("[Homepage] ReadFile", "path", path)
 
 	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
@@ -199,6 +217,9 @@ func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Lo
 	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
 		return errJSON("%v", err)
 	}
+	if err := validateHomepagePathSegment(path); err != nil {
+		return errJSON("%v", err)
+	}
 	if err := validateHomepageSourceEditPath(path); err != nil {
 		return errJSON("%v", err)
 	}
@@ -224,7 +245,7 @@ func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Lo
 		if mkErr := os.MkdirAll(filepath.Dir(fullPath), 0755); mkErr != nil {
 			return errJSON("Failed to create directory: %v", mkErr)
 		}
-		if writeErr := os.WriteFile(fullPath, []byte(content), 0644); writeErr != nil {
+		if writeErr := fileutil.WriteFileContext(nativeHTTPContext(cfg.Context), fullPath, []byte(content), 0644); writeErr != nil {
 			return errJSON("Failed to write file: %v", writeErr)
 		}
 		out, _ := json.Marshal(map[string]interface{}{"status": "ok", "path": path, "size": len(content)})
@@ -263,6 +284,9 @@ func pathpkgDir(relPath string) string {
 // It reads the file, applies the edit in Go, then writes back.
 func HomepageEditFile(cfg HomepageConfig, path, operation, old, new_, marker, content string, startLine, endLine int, logger *slog.Logger) string {
 	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
+		return errJSON("%v", err)
+	}
+	if err := validateHomepagePathSegment(path); err != nil {
 		return errJSON("%v", err)
 	}
 	if err := validateHomepageSourceEditPath(path); err != nil {

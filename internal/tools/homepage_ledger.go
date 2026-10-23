@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"aurago/internal/security"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -19,6 +18,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"aurago/internal/fileutil"
+	"aurago/internal/security"
 )
 
 const homepageArtifactManifestName = ".aurago-site-manifest.json"
@@ -261,7 +263,7 @@ func SnapshotHomepageFileState(cfg HomepageConfig, db *sql.DB, projectID int64, 
 		return err
 	}
 	basePath := homepageLocalRoot(cfg, canonical)
-	files, err := enumerateProjectFiles(basePath, logger)
+	files, _, err := enumerateProjectFiles(basePath, logger)
 	if err != nil {
 		return fmt.Errorf("enumerate project files: %w", err)
 	}
@@ -622,7 +624,7 @@ func BuildHomepageArtifactManifest(cfg HomepageConfig, projectID int64, projectD
 		return HomepageArtifactManifest{}, err
 	}
 	root := filepath.Join(homepageLocalRoot(cfg, canonical), filepath.FromSlash(buildDir))
-	files, err := enumerateProjectFiles(root, nil)
+	files, _, err := enumerateProjectFiles(root, nil)
 	if err != nil {
 		return HomepageArtifactManifest{}, err
 	}
@@ -664,7 +666,10 @@ func WriteHomepageArtifactManifest(cfg HomepageConfig, manifest HomepageArtifact
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(manifest.ManifestPath, b, 0644)
+	if err := fileutil.WriteFileContext(context.Background(), manifest.ManifestPath, b, 0644); err != nil {
+		return fmt.Errorf("write artifact manifest: %w", err)
+	}
+	return nil
 }
 
 // ReconcileHomepageProject updates local state and drift based on current files.
@@ -681,7 +686,7 @@ func ReconcileHomepageProject(cfg HomepageConfig, db *sql.DB, projectDir string,
 	if err != nil {
 		return HomepageProjectState{}, err
 	}
-	current, err := enumerateProjectFiles(homepageLocalRoot(cfg, proj.ProjectDir), logger)
+	current, _, err := enumerateProjectFiles(homepageLocalRoot(cfg, proj.ProjectDir), logger)
 	if err != nil {
 		return HomepageProjectState{}, err
 	}

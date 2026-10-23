@@ -1,12 +1,122 @@
 package tools
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	_ "modernc.org/sqlite"
 )
+
+// TestHomepageRevisionSkipsSymlinkEntries proves a project that contains a
+// symlink produces a revision that omits the symlink instead of failing the
+// whole revision, and that the skipped entry is recorded in the metadata.
+func TestHomepageRevisionSkipsSymlinkEntries(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test_registry.db")
+	db, err := InitHomepageRegistryDB(dbPath)
+	if err != nil {
+		t.Fatalf("failed to init DB: %v", err)
+	}
+	defer db.Close()
+
+	projectDir := "linked-site"
+	projectPath := filepath.Join(tmpDir, projectDir)
+	if err := os.MkdirAll(projectPath, 0755); err != nil {
+		t.Fatalf("failed to create project dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectPath, "index.html"), []byte("<h1>Hello</h1>"), 0644); err != nil {
+		t.Fatalf("failed to write index.html: %v", err)
+	}
+
+	outside := filepath.Join(tmpDir, "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret"), 0644); err != nil {
+		t.Fatalf("failed to write outside file: %v", err)
+	}
+	if err := os.Symlink(outside, filepath.Join(projectPath, "link.txt")); err != nil {
+		t.Skipf("symlinks are not available on this host: %v", err)
+	}
+
+	entries, skipped, err := enumerateProjectFiles(projectPath, nil)
+	if err != nil {
+		t.Fatalf("enumerateProjectFiles failed: %v", err)
+	}
+	for _, entry := range entries {
+		if entry.Path == "link.txt" {
+			t.Fatalf("the symlink must not enter the revision inventory")
+		}
+	}
+	if len(entries) != 1 || entries[0].Path != "index.html" {
+		t.Fatalf("expected only index.html, got %+v", entries)
+	}
+	found := false
+	for _, path := range skipped {
+		if path == "link.txt" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected the skipped symlink to be recorded, got %v", skipped)
+	}
+}
+
+// TestHomepageSaveRevisionRecordsSkippedSymlinks proves the skipped entries
+// reach the revision metadata.
+func TestHomepageSaveRevisionRecordsSkippedSymlinks(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test_registry.db")
+	db, err := InitHomepageRegistryDB(dbPath)
+	if err != nil {
+		t.Fatalf("failed to init DB: %v", err)
+	}
+	defer db.Close()
+
+	projectDir := "linked-site"
+	projectPath := filepath.Join(tmpDir, projectDir)
+	if err := os.MkdirAll(projectPath, 0755); err != nil {
+		t.Fatalf("failed to create project dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectPath, "index.html"), []byte("<h1>Hello</h1>"), 0644); err != nil {
+		t.Fatalf("failed to write index.html: %v", err)
+	}
+	outside := filepath.Join(tmpDir, "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret"), 0644); err != nil {
+		t.Fatalf("failed to write outside file: %v", err)
+	}
+	if err := os.Symlink(outside, filepath.Join(projectPath, "link.txt")); err != nil {
+		t.Skipf("symlinks are not available on this host: %v", err)
+	}
+
+	if _, _, err := RegisterProject(db, HomepageProject{Name: projectDir, ProjectDir: projectDir, Framework: "html", Status: "active"}); err != nil {
+		t.Fatalf("RegisterProject failed: %v", err)
+	}
+
+	cfg := HomepageConfig{WorkspacePath: tmpDir}
+	result := HomepageSaveRevision(cfg, db, projectDir, "test reason", "testing", slogDiscard())
+	if strings.Contains(result, `"status":"error"`) {
+		t.Fatalf("expected the revision to succeed, got %s", result)
+	}
+
+	revisions, _, err := ListHomepageRevisions(db, projectDir, 20, 0)
+	if err != nil {
+		t.Fatalf("ListHomepageRevisions failed: %v", err)
+	}
+	if len(revisions) == 0 {
+		t.Fatalf("expected at least one revision")
+	}
+	var metadata struct {
+		Added   int      `json:"added"`
+		Skipped []string `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(revisions[0].MetadataJSON), &metadata); err != nil {
+		t.Fatalf("revision metadata is not valid JSON: %v", err)
+	}
+	if len(metadata.Skipped) != 1 || metadata.Skipped[0] != "link.txt" {
+		t.Fatalf("expected the skipped symlink in the revision metadata, got %v", metadata.Skipped)
+	}
+}
 
 func TestHomepageRevisionLifecycle(t *testing.T) {
 	tmpDir := t.TempDir()

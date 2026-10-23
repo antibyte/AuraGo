@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -395,5 +396,191 @@ func TestListProjects(t *testing.T) {
 	active, _, _ := ListProjects(db, "active", 100, 0)
 	if len(active) != 2 {
 		t.Errorf("expected 2 active projects, got %d", len(active))
+	}
+}
+
+// ─── One registry row per project directory ───────────────────────────────
+
+// TestRegisterProjectSameDirectoryKeepsOneRow proves a project directory maps
+// to exactly one registry row.
+func TestRegisterProjectSameDirectoryKeepsOneRow(t *testing.T) {
+	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	first, duplicate, err := RegisterProject(db, HomepageProject{Name: "Site", ProjectDir: "site-a", Status: "active"})
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	if duplicate {
+		t.Fatalf("the first registration must not be a duplicate")
+	}
+	second, duplicate, err := RegisterProject(db, HomepageProject{Name: "Site", ProjectDir: "site-a", Status: "active"})
+	if err != nil {
+		t.Fatalf("register again: %v", err)
+	}
+	if !duplicate || second != first {
+		t.Fatalf("expected the same row %d, got %d (duplicate=%v)", first, second, duplicate)
+	}
+
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM homepage_projects WHERE project_dir = 'site-a'").Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 row for the project directory, got %d", count)
+	}
+}
+
+// TestRegisterProjectConcurrentRegistrationsKeepOneRow proves concurrent
+// registrations of the same project directory create exactly one row.
+func TestRegisterProjectConcurrentRegistrationsKeepOneRow(t *testing.T) {
+	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	const workers = 8
+	var wg sync.WaitGroup
+	ids := make(chan int64, workers)
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			id, _, err := RegisterProject(db, HomepageProject{Name: "Site", ProjectDir: "site-a", Status: "active"})
+			if err != nil {
+				errs <- err
+				return
+			}
+			ids <- id
+		}()
+	}
+	wg.Wait()
+	close(ids)
+	close(errs)
+	for err := range errs {
+		t.Fatalf("register: %v", err)
+	}
+	first := int64(0)
+	for id := range ids {
+		if first == 0 {
+			first = id
+			continue
+		}
+		if id != first {
+			t.Fatalf("expected every registration to return row %d, got %d", first, id)
+		}
+	}
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM homepage_projects WHERE project_dir = 'site-a'").Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 row for the project directory, got %d", count)
+	}
+}
+
+// TestHomepageRegistryMigrationMergesDuplicateProjectDirs proves a registry
+// with duplicate project directories migrates to a single row and keeps every
+// child row.
+func TestHomepageRegistryMigrationMergesDuplicateProjectDirs(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "registry.db")
+
+	db, err := InitHomepageRegistryDB(dbPath)
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	// Downgrade the schema and drop the unique index so the migration runs
+	// again on the next open.
+	if _, err := db.Exec("DROP INDEX IF EXISTS idx_hp_project_dir_unique"); err != nil {
+		t.Fatalf("drop index: %v", err)
+	}
+	if _, err := db.Exec("PRAGMA user_version=1"); err != nil {
+		t.Fatalf("downgrade schema: %v", err)
+	}
+
+	older, err := db.Exec(`INSERT INTO homepage_projects (name, project_dir, status, updated_at)
+		VALUES ('Older', 'site-a', 'active', '2024-01-01 00:00:00')`)
+	if err != nil {
+		t.Fatalf("insert older: %v", err)
+	}
+	olderID, _ := older.LastInsertId()
+	newer, err := db.Exec(`INSERT INTO homepage_projects (name, project_dir, status, updated_at)
+		VALUES ('Newer', 'site-a', 'active', '2025-01-01 00:00:00')`)
+	if err != nil {
+		t.Fatalf("insert newer: %v", err)
+	}
+	newerID, _ := newer.LastInsertId()
+
+	childInserts := []string{
+		`INSERT INTO homepage_site_events (project_id, event_type, summary) VALUES (?, 'note', 'older event')`,
+		`INSERT INTO homepage_revisions (project_id, project_dir) VALUES (?, 'site-a')`,
+		`INSERT INTO homepage_remote_observations (project_id, provider) VALUES (?, 'netlify')`,
+		`INSERT INTO homepage_deploy_targets (project_id, provider, target_key) VALUES (?, 'netlify', 'legacy:1')`,
+		`INSERT INTO homepage_history (project_id, content) VALUES (?, 'older note')`,
+	}
+	for _, statement := range childInserts {
+		if _, err := db.Exec(statement, olderID); err != nil {
+			t.Fatalf("insert child row: %v", err)
+		}
+	}
+
+	// Downgrade the schema so the migration runs again on the next open.
+	if err := db.Close(); err != nil {
+		t.Fatalf("close db: %v", err)
+	}
+
+	migrated, err := InitHomepageRegistryDB(dbPath)
+	if err != nil {
+		t.Fatalf("migrate db: %v", err)
+	}
+	defer migrated.Close()
+
+	var count int
+	if err := migrated.QueryRow("SELECT COUNT(*) FROM homepage_projects WHERE project_dir = 'site-a'").Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 row for the project directory after the migration, got %d", count)
+	}
+
+	var survivor int64
+	if err := migrated.QueryRow("SELECT id FROM homepage_projects WHERE project_dir = 'site-a'").Scan(&survivor); err != nil {
+		t.Fatalf("read survivor: %v", err)
+	}
+	if survivor != newerID {
+		t.Fatalf("expected the newest row %d to survive, got %d", newerID, survivor)
+	}
+
+	childCounts := map[string]string{
+		"homepage_site_events":         "SELECT COUNT(*) FROM homepage_site_events WHERE project_id = ? AND event_type = 'note'",
+		"homepage_revisions":           "SELECT COUNT(*) FROM homepage_revisions WHERE project_id = ?",
+		"homepage_remote_observations": "SELECT COUNT(*) FROM homepage_remote_observations WHERE project_id = ?",
+		"homepage_deploy_targets":      "SELECT COUNT(*) FROM homepage_deploy_targets WHERE project_id = ?",
+		"homepage_history":             "SELECT COUNT(*) FROM homepage_history WHERE project_id = ?",
+	}
+	for table, query := range childCounts {
+		var childCount int
+		if err := migrated.QueryRow(query, survivor).Scan(&childCount); err != nil {
+			t.Fatalf("count %s: %v", table, err)
+		}
+		if childCount != 1 {
+			t.Fatalf("expected the %s child row to survive the merge, got %d", table, childCount)
+		}
+	}
+
+	var mergeEvents int
+	if err := migrated.QueryRow("SELECT COUNT(*) FROM homepage_site_events WHERE event_type = 'project_dir_merged'").Scan(&mergeEvents); err != nil {
+		t.Fatalf("count merge events: %v", err)
+	}
+	if mergeEvents != 1 {
+		t.Fatalf("expected 1 recorded merge, got %d", mergeEvents)
 	}
 }

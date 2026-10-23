@@ -1154,13 +1154,18 @@ func HomepageInstallDeps(cfg HomepageConfig, projectDir string, packages []strin
 	}
 	cmd := "npm install"
 	if len(packages) > 0 {
-		// Validate package names to prevent injection
+		// Accept package requirements only: every name is validated against the
+		// dependency allowlist and quoted before it reaches the container shell.
 		for _, p := range packages {
-			if strings.ContainsAny(p, ";|&`$(){}") {
-				return errJSON("Invalid package name: %s", p)
+			if err := validateHomepagePackageName(p); err != nil {
+				return errJSON("%v", err)
 			}
 		}
-		cmd += " " + strings.Join(packages, " ")
+		quoted := make([]string, 0, len(packages))
+		for _, p := range packages {
+			quoted = append(quoted, shellSingleQuote(p))
+		}
+		cmd += " " + strings.Join(quoted, " ")
 	}
 	logger.Info("[Homepage] Install deps", "project_dir", projectDir, "packages", packages)
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
