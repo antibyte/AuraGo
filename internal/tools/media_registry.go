@@ -245,6 +245,24 @@ func cleanupTTSMediaEntries(db *sql.DB) error {
 	return nil
 }
 
+// MediaDataLocation returns the media data subdirectory and the web path prefix
+// that serve a media type. The server uses it to resolve a web path back to a
+// local file, and the media tools use it to place a generated file.
+func MediaDataLocation(mediaType string) (subdir string, prefix string, ok bool) {
+	switch strings.ToLower(strings.TrimSpace(mediaType)) {
+	case "image":
+		return "generated_images", "/files/generated_images/", true
+	case "video":
+		return "generated_videos", "/files/generated_videos/", true
+	case "audio", "music":
+		return "audio", "/files/audio/", true
+	case "document":
+		return "documents", "/files/documents/", true
+	default:
+		return "", "", false
+	}
+}
+
 // RegisterMedia inserts a new media item. Returns the ID. Uses ON CONFLICT for hash deduplication.
 func RegisterMedia(db *sql.DB, item MediaItem) (int64, bool, error) {
 	if item.MediaType == "image" && strings.TrimSpace(item.Description) == "" {

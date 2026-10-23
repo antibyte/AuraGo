@@ -150,13 +150,22 @@ func mediaConversionJSON(r mediaConversionResult) string {
 	return string(b)
 }
 
+// MediaConversionDeps carries the runtime dependencies of a conversion.
+type MediaConversionDeps struct {
+	// DataDir is the media data directory. A converted file is copied there so
+	// that the media registry entry points at a file the server can serve.
+	DataDir string
+	// RegistryDB is the media registry. A nil database skips the registration.
+	RegistryDB *sql.DB
+}
+
 // ExecuteMediaConversion runs one media conversion. The caller context is the
 // parent of the conversion deadline: cancelling the agent turn stops the
 // converter instead of leaving it running until the timeout.
 //
 // The converted file is registered in the media registry when a registry
-// database is supplied, so the media UI and the send_* tools can find it.
-func ExecuteMediaConversion(ctx context.Context, workspaceDir string, cfg *config.MediaConversionConfig, registryDB *sql.DB, req MediaConversionRequest) string {
+// database is supplied, so the media view and the send_* tools can find it.
+func ExecuteMediaConversion(ctx context.Context, workspaceDir string, cfg *config.MediaConversionConfig, deps MediaConversionDeps, req MediaConversionRequest) string {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -195,6 +204,8 @@ func ExecuteMediaConversion(ctx context.Context, workspaceDir string, cfg *confi
 	if strings.TrimSpace(req.FilePath) == "" {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: "file_path is required", Operation: op})
 	}
+	// Keep the source name: the request path is replaced by the staged copy below.
+	sourceName := filepath.Base(req.FilePath)
 	// External converters receive only private staged files. A workspace path can
 	// otherwise be swapped for a symlink after validation but before they open it.
 	input, err := rootedToolOpen(req.FilePath)
@@ -279,8 +290,8 @@ func ExecuteMediaConversion(ctx context.Context, workspaceDir string, cfg *confi
 			converted.DurationSeconds = meta.DurationSeconds
 		}
 	}
-	if registryDB != nil {
-		if err := registerConvertedMedia(registryDB, target, converted, req); err != nil {
+	if deps.RegistryDB != nil {
+		if err := registerConvertedMedia(deps, target, converted, sourceName); err != nil {
 			// The file is already written; a registry failure must not lose it.
 			converted.Message += fmt.Sprintf(" (media registry update failed: %v)", err)
 		}
@@ -312,25 +323,104 @@ func mediaConversionOutputMetadata(ctx context.Context, cfg *config.MediaConvers
 	}
 }
 
-// registerConvertedMedia records the converted file in the media registry.
-func registerConvertedMedia(db *sql.DB, target conversionTarget, result mediaConversionResult, req MediaConversionRequest) error {
-	hash, _ := ComputeMediaFileHash(target.Destination)
+// registerConvertedMedia copies the converted file into the media data directory
+// and registers that copy. The registry only serves files that live in the media
+// data directory, so registering the workspace file directly would create an
+// invisible entry without a usable media URL.
+func registerConvertedMedia(deps MediaConversionDeps, target conversionTarget, result mediaConversionResult, sourceName string) error {
 	mediaType := result.MediaType
 	if mediaType == "" {
-		mediaType = mediaTypeForOperation(req.Operation)
+		mediaType = mediaTypeForOperation(result.Operation)
 	}
-	_, _, err := RegisterMedia(db, MediaItem{
+	subdir, prefix, ok := MediaDataLocation(mediaType)
+	if !ok {
+		return fmt.Errorf("media type %q has no media data location", mediaType)
+	}
+	if strings.TrimSpace(deps.DataDir) == "" {
+		return fmt.Errorf("media data directory is not configured")
+	}
+	hash, hashErr := ComputeMediaFileHash(target.Destination)
+	if hashErr != nil {
+		hash = ""
+	}
+	filename := mediaRegistryFilename(filepath.Base(target.Destination), hash)
+	mediaPath := filepath.Join(deps.DataDir, subdir, filename)
+	if err := copyMediaFile(target.Destination, mediaPath); err != nil {
+		return fmt.Errorf("cannot place the converted file in the media directory: %w", err)
+	}
+	_, _, err := RegisterMedia(deps.RegistryDB, MediaItem{
 		MediaType:   mediaType,
 		SourceTool:  "media_conversion",
-		Filename:    filepath.Base(target.Destination),
-		FilePath:    target.Destination,
+		Filename:    filename,
+		FilePath:    mediaPath,
+		WebPath:     prefix + filename,
 		FileSize:    result.OutputSizeBytes,
 		Format:      target.Format,
 		Hash:        hash,
 		DurationMs:  int64(result.DurationSeconds * 1000),
-		Description: fmt.Sprintf("%s converted to %s", filepath.Base(req.FilePath), target.Format),
+		Description: fmt.Sprintf("%s converted to %s", sourceName, target.Format),
 	})
 	return err
+}
+
+// mediaRegistryFilename builds a collision-free media file name from the result
+// name and the content hash.
+func mediaRegistryFilename(base, hash string) string {
+	ext := filepath.Ext(base)
+	stem := strings.TrimSuffix(base, ext)
+	var cleaned strings.Builder
+	for _, r := range stem {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_':
+			cleaned.WriteRune(r)
+		default:
+			cleaned.WriteRune('_')
+		}
+	}
+	name := cleaned.String()
+	if name == "" {
+		name = "media"
+	}
+	if len(name) > 64 {
+		name = name[:64]
+	}
+	if len(hash) >= 8 {
+		name += "_" + hash[:8]
+	}
+	return name + ext
+}
+
+// copyMediaFile copies a file into the media data directory. The copy is
+// written through a temporary file so that a reader never sees a partial file.
+func copyMediaFile(source, destination string) error {
+	in, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	dir := filepath.Dir(destination)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(dir, ".media-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := io.Copy(tmp, in); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmp.Name(), 0o640); err != nil {
+		return err
+	}
+	if err := os.Remove(destination); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return os.Rename(tmp.Name(), destination)
 }
 
 func MediaConversionHealth(ctx context.Context, cfg *config.MediaConversionConfig) map[string]interface{} {
@@ -728,7 +818,7 @@ func resolveConversionTarget(stagingDir, inputFile, outputFile, outputFormat, me
 		return conversionTarget{}, err
 	}
 	// Prevent accidental in-place overwrite which would destroy the source file
-	if filepath.Clean(inputFile) == filepath.Clean(destination) {
+	if mediaConversionSameFile(inputFile, destination) {
 		return conversionTarget{}, fmt.Errorf("output file must be different from input file")
 	}
 	return conversionTarget{
@@ -736,6 +826,21 @@ func resolveConversionTarget(stagingDir, inputFile, outputFile, outputFormat, me
 		StagedPath:  filepath.Join(stagingDir, "output."+preferredExtension(format)),
 		Format:      format,
 	}, nil
+}
+
+// mediaConversionSameFile reports whether two paths name the same file. On a
+// case-insensitive filesystem "Input.mp3" and "input.mp3" are the same file, so
+// the comparison ignores the case there and keeps it everywhere else.
+func mediaConversionSameFile(left, right string) bool {
+	cleanedLeft := filepath.Clean(left)
+	cleanedRight := filepath.Clean(right)
+	if cleanedLeft == cleanedRight {
+		return true
+	}
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+		return strings.EqualFold(cleanedLeft, cleanedRight)
+	}
+	return false
 }
 
 // mediaConversionDemuxerForPath returns the ffmpeg demuxer for a known input
