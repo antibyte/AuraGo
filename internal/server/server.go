@@ -1245,43 +1245,8 @@ func Start(opts StartOptions) error {
 				}
 				callbackCtx = owner
 			}
-			recordMissionIssue := func(title, detail string) {
-				if s.PlannerDB == nil {
-					return
-				}
-				missionLabel := missionID
-				if mission, ok := s.MissionManagerV2.Get(missionID); ok && strings.TrimSpace(mission.Name) != "" {
-					missionLabel = strings.TrimSpace(mission.Name)
-				}
-				if title == "" {
-					title = fmt.Sprintf("Mission %s failed", missionLabel)
-				}
-				issue := planner.OperationalIssue{
-					Source:      "mission",
-					Context:     missionID,
-					Title:       title,
-					Detail:      detail,
-					Severity:    "error",
-					Reference:   missionID,
-					Fingerprint: "mission|" + missionID,
-					OccurredAt:  time.Now(),
-				}
-				if issueID, err := planner.RecordOperationalIssue(s.PlannerDB, issue); err != nil {
-					logger.Warn("[MissionV2] Failed to record internal operational issue", "mission_id", missionID, "error", err)
-				} else if s.MissionManagerV2 != nil {
-					s.MissionManagerV2.NotifyPlannerOperationalIssue(issueID, issue.Source, issue.Severity, issue.Title)
-				}
-			}
 			setMissionError := func(title, detail string) {
-				if s.missionRunTracker().consumeCancelled(missionID) {
-					logger.Info("[MissionV2] Mission run cancelled by user", "mission_id", missionID)
-					s.MissionManagerV2.SetResult(missionID, "error", tools.MissionCancelledOutput)
-					broadcastMissionState(s)
-					return
-				}
-				recordMissionIssue(title, detail)
-				s.MissionManagerV2.SetResult(missionID, "error", detail)
-				broadcastMissionState(s)
+				s.setMissionError(callbackCtx, missionID, title, detail)
 			}
 
 			defer func() {
@@ -1314,7 +1279,9 @@ func Start(opts StartOptions) error {
 			client := NewInternalHTTPClient(35 * time.Minute) // Must exceed the 30-minute agent loop timeout
 			resp, err := DoInternalRequestWithStartupRetry(callbackCtx, client, http.MethodPost, url, body, headers, 15*time.Second)
 			if err != nil {
-				logger.Error("[MissionV2] Execution failed", "error", err, "mission_id", missionID)
+				if callbackCtx.Err() != context.Canceled {
+					logger.Error("[MissionV2] Execution failed", "error", err, "mission_id", missionID)
+				}
 				setMissionError("", err.Error())
 				return
 			}
@@ -1322,8 +1289,14 @@ func Start(opts StartOptions) error {
 
 			respBody, err := io.ReadAll(resp.Body)
 			if err != nil {
-				logger.Error("[MissionV2] Failed to read response body", "error", err, "mission_id", missionID)
+				if callbackCtx.Err() != context.Canceled {
+					logger.Error("[MissionV2] Failed to read response body", "error", err, "mission_id", missionID)
+				}
 				setMissionError("", fmt.Sprintf("failed to read response: %v", err))
+				return
+			}
+			if callbackCtx.Err() == context.Canceled {
+				setMissionError("", callbackCtx.Err().Error())
 				return
 			}
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {

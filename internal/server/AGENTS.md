@@ -747,6 +747,7 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
 ### Mission and Home Assistant Lifetimes
 - Mission manager StartContext inherits the server lifetime; repeated Start is idempotent. Stop is terminal, refuses further work, and waits for the queue, invocation callbacks, timeout guards and completion work. Invocation callbacks must use the manager Context and must not detach their work.
 - Mission HTTP handlers remain independent of a caller disconnect, but inherit server shutdown. Their registry cancels and drains every generation before database closure, including replaced runs. History completion finishes within the tracked invocation.
+- Mission owner cancellation (including shutdown) records an interrupted run without creating, incrementing or resolving its operational issue. Explicit user cancellation retains its separate output; real deadlines and execution failures still record errors. Verify `TestMissionFailureCancellationPreservesOperationalIssues`.
 - Home Assistant polling owns one cancellable generation. Publish changed credentials/URL/enablement before draining outside config locks and starting a replacement. Shutdown drains polling before closing mission databases. Entity IDs use the shared path encoder and credentials cannot follow a foreign-origin redirect.
 - Verify mission lifecycle and Home Assistant regression tests in tools and server; run Linux CGO race tests for concurrent cancellation.
 
