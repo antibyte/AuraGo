@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -95,8 +96,13 @@ func handleEmbeddingsBenchmark(s *Server) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Minute)
 		defer cancel()
 		if err := runtime.RebenchmarkEmbeddings(ctx); err != nil {
+			code := http.StatusBadRequest
+			if errors.Is(err, embeddings.ErrRestartRequired) {
+				// A scheduled reindex waits for a restart; retrying will not help.
+				code = http.StatusConflict
+			}
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
+			w.WriteHeader(code)
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": err.Error(),

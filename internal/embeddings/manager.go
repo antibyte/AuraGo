@@ -61,6 +61,7 @@ type Manager struct {
 	currentBenchmark  *benchmarkRun
 	nextAutoBenchmark time.Time
 	setupOverride     func(context.Context, bool) error
+	startOverride     func(context.Context, candidate) (Embedder, error)
 	ready             chan struct{}
 	readyOnce         sync.Once
 }
@@ -115,6 +116,9 @@ func NewLocalGranite(options LocalOptions) (*Manager, error) {
 }
 
 func (manager *Manager) Embed(ctx context.Context, texts []string) ([][]float32, error) {
+	if len(texts) == 0 {
+		return nil, fmt.Errorf("%w: at least one text is required", ErrInvalidInput)
+	}
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -149,6 +153,12 @@ func (manager *Manager) Embed(ctx context.Context, texts []string) ([][]float32,
 		manager.failures = 0
 		manager.mu.Unlock()
 		return vectors, nil
+	}
+	if isCallerError(ctx, err) {
+		// The caller gave up or sent a bad request; the backend is not at fault.
+		// Counting it would degrade a healthy backend, burn the fallback and
+		// eventually trigger a full re-benchmark.
+		return nil, err
 	}
 	manager.logger.Warn("Selected local embedding backend failed", "backend", active.Status().Backend, "runtime", active.Status().Runtime, "error", err)
 	failures := manager.recordBackendFailure(active, err)
@@ -299,6 +309,9 @@ func (manager *Manager) Close() error {
 	return errors.Join(closeErrors...)
 }
 
+// Rebenchmark reruns the backend selection and waits for it. It returns
+// ErrRestartRequired without starting anything while a scheduled reindex waits
+// for a process restart.
 func (manager *Manager) Rebenchmark(ctx context.Context) error {
 	run, _, err := manager.launchBenchmark(true, false, false)
 	if err != nil {
@@ -522,6 +535,9 @@ func (manager *Manager) probeCandidate(ctx context.Context, current candidate, r
 }
 
 func (manager *Manager) startCandidate(ctx context.Context, current candidate) (Embedder, error) {
+	if manager.startOverride != nil {
+		return manager.startOverride(ctx, current)
+	}
 	if !current.HasAsset {
 		return nil, fmt.Errorf("candidate %s has no pinned runtime asset", current.ID)
 	}
@@ -624,19 +640,24 @@ func (manager *Manager) activateCandidate(ctx context.Context, selected candidat
 	manager.fallback = fallback
 	manager.failures = 0
 	activeStatus := active.Status()
-	manager.status.State = "ready"
 	manager.status.Backend = activeStatus.Backend
 	manager.status.Runtime = activeStatus.Runtime
 	manager.status.RuntimeBuild = activeStatus.RuntimeBuild
 	manager.status.GPU = activeStatus.GPU
 	manager.status.GPUVerified = activeStatus.GPUVerified
 	manager.status.Benchmark = append([]BenchmarkResult(nil), results...)
-	manager.status.FallbackReason = ""
 	manager.status.Error = ""
-	manager.status.RestartRequired = false
-	manager.status.Fingerprint = active.Fingerprint()
 	manager.status.Cached = cached
 	manager.status.UpdatedAt = time.Now().UTC()
+	// A scheduled reindex is only applied by a process restart, which creates a
+	// new Manager. Until then the restart lock, its state and the fingerprint
+	// of the vector space still stored on disk must survive any activation;
+	// otherwise vectors of two spaces would be mixed.
+	if !manager.status.RestartRequired {
+		manager.status.State = "ready"
+		manager.status.FallbackReason = ""
+		manager.status.Fingerprint = active.Fingerprint()
+	}
 	manager.mu.Unlock()
 	if oldActive != nil && oldActive != active {
 		_ = oldActive.Close()
@@ -803,12 +824,17 @@ func candidateRuntimeFromID(candidateID string) string {
 
 func (manager *Manager) triggerBackgroundBenchmark() {
 	_, _, err := manager.launchBenchmark(true, true, false)
-	if err != nil && !errors.Is(err, context.Canceled) && manager.logger != nil {
+	if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, ErrRestartRequired) && manager.logger != nil {
 		manager.logger.Warn("Could not start automatic local embedding re-benchmark", "error", err)
 	}
 }
 
 func (manager *Manager) launchBenchmark(forceBenchmark, automatic, initial bool) (*benchmarkRun, bool, error) {
+	// Checked before lifecycleMu is taken: runBenchmarkTask holds mu while it
+	// takes lifecycleMu, so the opposite nesting could deadlock.
+	if !initial && manager.restartPending() {
+		return nil, false, ErrRestartRequired
+	}
 	manager.lifecycleMu.Lock()
 	defer manager.lifecycleMu.Unlock()
 	if manager.closed {
@@ -885,6 +911,12 @@ func (manager *Manager) runSetup(ctx context.Context, forceBenchmark bool) error
 		return manager.setupOverride(ctx, forceBenchmark)
 	}
 	return manager.setup(ctx, forceBenchmark)
+}
+
+func (manager *Manager) restartPending() bool {
+	manager.mu.RLock()
+	defer manager.mu.RUnlock()
+	return manager.status.RestartRequired
 }
 
 func (manager *Manager) isClosed() bool {

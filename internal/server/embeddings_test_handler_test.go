@@ -114,6 +114,23 @@ func TestEmbeddingsBenchmarkReportsRuntimeError(t *testing.T) {
 	}
 }
 
+func TestEmbeddingsBenchmarkReportsPendingRestartAsConflict(t *testing.T) {
+	runtime := &fakeActiveEmbeddingVectorDB{
+		status:       embeddings.Status{State: "restart_required", Provider: embeddings.LocalGraniteProvider, RestartRequired: true},
+		benchmarkErr: embeddings.ErrRestartRequired,
+	}
+	server := &Server{
+		LongTermMem: runtime,
+		Logger:      slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/embeddings/benchmark", nil)
+	response := httptest.NewRecorder()
+	handleEmbeddingsBenchmark(server).ServeHTTP(response, request)
+	if response.Code != http.StatusConflict || runtime.benchmarkCalls != 1 {
+		t.Fatalf("status = %d, benchmark calls = %d, body = %s", response.Code, runtime.benchmarkCalls, response.Body.String())
+	}
+}
+
 func TestLocalGraniteRejectsMultimodalConfiguration(t *testing.T) {
 	var cfg config.Config
 	cfg.Embeddings.Provider = embeddings.LocalGraniteProvider

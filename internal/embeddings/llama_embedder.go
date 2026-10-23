@@ -36,7 +36,7 @@ type llamaEmbedder struct {
 	command      *exec.Cmd
 	stderr       *limitedBuffer
 	client       *http.Client
-	restarts     int
+	restarts     *restartBudget
 	closed       bool
 }
 
@@ -67,6 +67,7 @@ func newLlamaEmbedder(
 		batchSize:    batchSize,
 		apiKey:       apiKey,
 		client:       &http.Client{Timeout: 2 * time.Minute},
+		restarts:     newRestartBudget(maxProcessRestarts, processRestartWindow),
 	}
 	if err := embedder.startLocked(ctx); err != nil {
 		return nil, err
@@ -76,41 +77,37 @@ func newLlamaEmbedder(
 
 func (embedder *llamaEmbedder) Embed(ctx context.Context, texts []string) ([][]float32, error) {
 	if len(texts) == 0 {
-		return nil, fmt.Errorf("at least one text is required")
+		return nil, fmt.Errorf("%w: at least one text is required", ErrInvalidInput)
 	}
 	embedder.mu.Lock()
 	defer embedder.mu.Unlock()
 	if embedder.closed {
 		return nil, fmt.Errorf("llama.cpp embedder is closed")
 	}
-	var lastErr error
-	for attempt := 0; attempt < 2; attempt++ {
-		if embedder.command == nil || embedder.command.Process == nil {
-			if embedder.restarts >= 2 {
-				return nil, fmt.Errorf("llama-server restart limit reached: %w", lastErr)
-			}
-			embedder.restarts++
-			if err := embedder.startLocked(ctx); err != nil {
-				lastErr = err
-				continue
-			}
-		}
-		vectors, err := embedder.embedLocked(ctx, texts)
-		if err == nil {
-			for i := range vectors {
-				if err := l2Normalize(vectors[i]); err != nil {
-					return nil, fmt.Errorf("normalize llama.cpp vector %d: %w", i, err)
-				}
-				if err := validateGraniteVector(vectors[i]); err != nil {
-					return nil, fmt.Errorf("validate llama.cpp vector %d: %w", i, err)
-				}
-			}
-			return vectors, nil
-		}
-		lastErr = err
-		_ = embedder.stopLocked()
+	if embedder.restarts == nil {
+		embedder.restarts = newRestartBudget(maxProcessRestarts, processRestartWindow)
 	}
-	return nil, fmt.Errorf("llama.cpp embedding failed after restart: %w", lastErr)
+	vectors, err := embedWithRestarts(ctx, embedder.restarts, llamaServerOps{
+		name: "llama-server",
+		running: func() bool {
+			return embedder.command != nil && embedder.command.Process != nil
+		},
+		start: embedder.startLocked,
+		embed: embedder.embedLocked,
+		stop:  func() { _ = embedder.stopLocked() },
+	}, texts)
+	if err != nil {
+		return nil, err
+	}
+	for i := range vectors {
+		if err := l2Normalize(vectors[i]); err != nil {
+			return nil, fmt.Errorf("normalize llama.cpp vector %d: %w", i, err)
+		}
+		if err := validateGraniteVector(vectors[i]); err != nil {
+			return nil, fmt.Errorf("validate llama.cpp vector %d: %w", i, err)
+		}
+	}
+	return vectors, nil
 }
 
 func (embedder *llamaEmbedder) embedLocked(ctx context.Context, texts []string) ([][]float32, error) {
