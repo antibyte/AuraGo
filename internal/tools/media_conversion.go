@@ -148,7 +148,13 @@ func mediaConversionJSON(r mediaConversionResult) string {
 	return string(b)
 }
 
-func ExecuteMediaConversion(workspaceDir string, cfg *config.MediaConversionConfig, req MediaConversionRequest) string {
+// ExecuteMediaConversion runs one media conversion. The caller context is the
+// parent of the conversion deadline: cancelling the agent turn stops the
+// converter instead of leaving it running until the timeout.
+func ExecuteMediaConversion(ctx context.Context, workspaceDir string, cfg *config.MediaConversionConfig, req MediaConversionRequest) string {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if cfg == nil || !cfg.Enabled {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: "media conversion is disabled"})
 	}
@@ -162,6 +168,9 @@ func ExecuteMediaConversion(workspaceDir string, cfg *config.MediaConversionConf
 	}
 	if strings.TrimSpace(workspaceDir) == "" {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: "workspace directory is required", Operation: op})
+	}
+	if err := ctx.Err(); err != nil {
+		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: "media conversion was cancelled", Operation: op})
 	}
 
 	if workspaceDir != "" && req.FilePath != "" {
@@ -201,7 +210,7 @@ func ExecuteMediaConversion(workspaceDir string, cfg *config.MediaConversionConf
 	if err != nil {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("cannot stage input: %v", err), Operation: op})
 	}
-	_, copyErr := io.Copy(staged, input)
+	_, copyErr := io.Copy(staged, mediaConversionContextReader{ctx: ctx, r: input})
 	closeErr := staged.Close()
 	if copyErr != nil || closeErr != nil {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("cannot stage input: %v", errors.Join(copyErr, closeErr)), Operation: op})
@@ -224,13 +233,13 @@ func ExecuteMediaConversion(workspaceDir string, cfg *config.MediaConversionConf
 	var result string
 	switch op {
 	case "audio_convert":
-		result = executeFFmpegConversion(cfg, req, target, "audio")
+		result = executeFFmpegConversion(ctx, cfg, req, target, "audio")
 	case "video_convert":
-		result = executeFFmpegConversion(cfg, req, target, "video")
+		result = executeFFmpegConversion(ctx, cfg, req, target, "video")
 	case "image_convert":
-		result = executeImageMagickConversion(cfg, req, target)
+		result = executeImageMagickConversion(ctx, cfg, req, target)
 	case "info":
-		return executeMediaInfo(cfg, req)
+		return executeMediaInfo(ctx, cfg, req)
 	default:
 		return mediaConversionJSON(mediaConversionResult{
 			Status:    "error",
@@ -288,7 +297,7 @@ func MediaConversionHealth(ctx context.Context, cfg *config.MediaConversionConfi
 	return out
 }
 
-func executeFFmpegConversion(cfg *config.MediaConversionConfig, req MediaConversionRequest, target conversionTarget, mediaType string) string {
+func executeFFmpegConversion(ctx context.Context, cfg *config.MediaConversionConfig, req MediaConversionRequest, target conversionTarget, mediaType string) string {
 	if strings.TrimSpace(req.FilePath) == "" {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: "file_path is required", Operation: req.Operation})
 	}
@@ -349,17 +358,12 @@ func executeFFmpegConversion(cfg *config.MediaConversionConfig, req MediaConvers
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: req.Operation})
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), mediaConversionTimeout(cfg))
+	ctx, cancel := context.WithTimeout(ctx, mediaConversionTimeout(cfg))
 	defer cancel()
 
 	output, runErr := mediaConversionRunCommand(ctx, ffmpegPath, args)
 	if runErr != nil {
-		return mediaConversionJSON(mediaConversionResult{
-			Status:    "error",
-			Message:   trimCommandOutput(runErr, output),
-			Operation: req.Operation,
-			Tool:      "ffmpeg",
-		})
+		return mediaConversionRunError(ctx, cfg, runErr, output, req.Operation, "ffmpeg")
 	}
 
 	return mediaConversionJSON(mediaConversionResult{
@@ -373,7 +377,7 @@ func executeFFmpegConversion(cfg *config.MediaConversionConfig, req MediaConvers
 	})
 }
 
-func executeImageMagickConversion(cfg *config.MediaConversionConfig, req MediaConversionRequest, target conversionTarget) string {
+func executeImageMagickConversion(ctx context.Context, cfg *config.MediaConversionConfig, req MediaConversionRequest, target conversionTarget) string {
 	if strings.TrimSpace(req.FilePath) == "" {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: "file_path is required", Operation: req.Operation})
 	}
@@ -401,16 +405,11 @@ func executeImageMagickConversion(cfg *config.MediaConversionConfig, req MediaCo
 	}
 	args = append(args, target.StagedPath)
 
-	ctx, cancel := context.WithTimeout(context.Background(), mediaConversionTimeout(cfg))
+	ctx, cancel := context.WithTimeout(ctx, mediaConversionTimeout(cfg))
 	defer cancel()
 	output, runErr := mediaConversionRunCommand(ctx, imageMagickPath, args)
 	if runErr != nil {
-		return mediaConversionJSON(mediaConversionResult{
-			Status:    "error",
-			Message:   trimCommandOutput(runErr, output),
-			Operation: req.Operation,
-			Tool:      imageMagickToolName(imageMagickPath),
-		})
+		return mediaConversionRunError(ctx, cfg, runErr, output, req.Operation, imageMagickToolName(imageMagickPath))
 	}
 
 	return mediaConversionJSON(mediaConversionResult{
@@ -424,7 +423,7 @@ func executeImageMagickConversion(cfg *config.MediaConversionConfig, req MediaCo
 	})
 }
 
-func executeMediaInfo(cfg *config.MediaConversionConfig, req MediaConversionRequest) string {
+func executeMediaInfo(ctx context.Context, cfg *config.MediaConversionConfig, req MediaConversionRequest) string {
 	if strings.TrimSpace(req.FilePath) == "" {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: "file_path is required", Operation: req.Operation})
 	}
@@ -437,7 +436,7 @@ func executeMediaInfo(cfg *config.MediaConversionConfig, req MediaConversionRequ
 	case ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp":
 		return imageInfoResult(req)
 	default:
-		return ffprobeInfoResult(cfg, req)
+		return ffprobeInfoResult(ctx, cfg, req)
 	}
 }
 
@@ -465,13 +464,13 @@ func imageInfoResult(req MediaConversionRequest) string {
 	})
 }
 
-func ffprobeInfoResult(cfg *config.MediaConversionConfig, req MediaConversionRequest) string {
+func ffprobeInfoResult(ctx context.Context, cfg *config.MediaConversionConfig, req MediaConversionRequest) string {
 	ffprobePath, err := resolveFFprobeBinary(cfg)
 	if err != nil {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: req.Operation})
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), mediaConversionTimeout(cfg))
+	ctx, cancel := context.WithTimeout(ctx, mediaConversionTimeout(cfg))
 	defer cancel()
 	args := []string{"-hide_banner", "-nostdin", "-v", "error", "-protocol_whitelist", mediaConversionProtocols}
 	if demuxer := mediaConversionDemuxerForPath(req.FilePath); demuxer != "" {
@@ -480,12 +479,7 @@ func ffprobeInfoResult(cfg *config.MediaConversionConfig, req MediaConversionReq
 	args = append(args, "-print_format", "json", "-show_format", "-show_streams", req.FilePath)
 	output, runErr := mediaConversionRunCommand(ctx, ffprobePath, args)
 	if runErr != nil {
-		return mediaConversionJSON(mediaConversionResult{
-			Status:    "error",
-			Message:   trimCommandOutput(runErr, output),
-			Operation: req.Operation,
-			Tool:      "ffprobe",
-		})
+		return mediaConversionRunError(ctx, cfg, runErr, output, req.Operation, "ffprobe")
 	}
 
 	var probe ffprobeOutput
@@ -787,6 +781,39 @@ func ensureParentDir(path string) error {
 		return fmt.Errorf("cannot create output directory: %w", err)
 	}
 	return nil
+}
+
+// mediaConversionContextReader stops a staging copy as soon as the caller
+// context ends, so a cancelled agent turn does not keep copying.
+type mediaConversionContextReader struct {
+	ctx context.Context
+	r   io.Reader
+}
+
+func (r mediaConversionContextReader) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.r.Read(p)
+}
+
+// mediaConversionRunError renders a failed converter run. An expired deadline
+// is reported as a timeout so that the agent can tell it apart from a codec
+// error, and a cancelled run is reported as a cancellation.
+func mediaConversionRunError(ctx context.Context, cfg *config.MediaConversionConfig, runErr error, output []byte, operation, tool string) string {
+	message := trimCommandOutput(runErr, output)
+	switch {
+	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+		message = fmt.Sprintf("conversion timed out after %s", mediaConversionTimeout(cfg))
+	case errors.Is(ctx.Err(), context.Canceled):
+		message = "conversion was cancelled"
+	}
+	return mediaConversionJSON(mediaConversionResult{
+		Status:    "error",
+		Message:   message,
+		Operation: operation,
+		Tool:      tool,
+	})
 }
 
 func trimCommandOutput(runErr error, output []byte) string {
