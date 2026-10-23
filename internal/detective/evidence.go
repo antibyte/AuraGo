@@ -18,7 +18,7 @@ import (
 func canonicalURL(raw string) (string, error) {
 	u, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil {
-		return "", errors.New("source must use a public HTTP(S) URL without credentials")
+		return "", errors.New("source must be an HTTP(S) URL without credentials; the tool layer decides reachability")
 	}
 	u.Fragment = ""
 	q := u.Query()

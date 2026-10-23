@@ -622,3 +622,46 @@ func TestDesktopDetectiveOpensTheNotifiedCase(t *testing.T) {
 		}
 	}
 }
+
+// The Detective surface follows the shell's accessibility contract: one h1 per view,
+// real tab semantics, a live region around the status line only, and no window.confirm
+// fallback (audit 4.21/4.22).
+func TestDesktopDetectiveAccessibilityMarkers(t *testing.T) {
+	read := func(path string) string {
+		t.Helper()
+		b, err := os.ReadFile(filepath.Join("js", "desktop", "apps", path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	app := read("detective.js")
+	for _, want := range []string{
+		"<h1>${e(c.request.topic)}</h1>",
+		"<div aria-live=\"polite\">",
+		"<section class=\"dt-status\">",
+		"role=\"tab\"",
+		"aria-selected=\"${state.tab === tab}\"",
+		"aria-controls=\"dt-panel\"",
+		"role=\"tablist\"",
+		"role=\"tabpanel\" id=\"dt-panel\"",
+		"typeof ctx.confirmDialog === 'function'",
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("detective.js lacks %q", want)
+		}
+	}
+	if strings.Contains(app, "window.confirm") {
+		t.Fatal("detective.js still falls back to window.confirm")
+	}
+	if strings.Contains(app, "aria-pressed=\"${state.tab === tab}\"") {
+		t.Fatal("tabs still use aria-pressed instead of aria-selected")
+	}
+	views := read("detective-views.js")
+	if !strings.Contains(views, "<h2>${esc(r.title)}</h2>") {
+		t.Fatal("the report title is not an h2")
+	}
+	if !strings.Contains(views, "<h3>${esc(b.text)}</h3>") {
+		t.Fatal("report block headings are not h3")
+	}
+}

@@ -4997,7 +4997,9 @@ function testDetectiveStopFollowsEnabledNotReady() {
   const app = read('ui/js/desktop/apps/detective.js');
   assert.match(app, /const canStop = v\.canStop\(caps\)/);
   assert.doesNotMatch(app, /const canStop = !!caps\.enabled && !!caps\.ready/);
-  assert.match(app, /const blockText = \(\) => \{ const reason = \(state\.caps \|\| \{\}\)\.block_reason/);
+  assert.match(app, /const blockText = \(\) => \{/, 'the block reason is derived at render time');
+  assert.match(app, /caps\.initialization_error\) return/, 'a store failure wins over the generic block reason');
+  assert.match(app, /tr\('block_' \+ reason\)/);
   assert.match(app, /role="status">\$\{e\(tr\('unavailable'\)\)\}/);
 }
 

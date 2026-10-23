@@ -135,6 +135,10 @@ func (s *Service) startLocked(key, action, effort, requestKey string, answers ..
 	if err = tx.Commit(); err != nil {
 		return c, err
 	}
+	// Idempotency keys only matter for recent retries; cap the table per case (audit 4.23).
+	if _, err := s.db.Exec(`DELETE FROM detective_keys WHERE case_id=? AND rowid NOT IN (SELECT rowid FROM detective_keys WHERE case_id=? ORDER BY rowid DESC LIMIT 50)`, key, key); err != nil {
+		s.log().Warn("detective key retention failed", "error", err)
+	}
 	s.eventLocked(&c, "status", "queued")
 	s.wake()
 	return c, nil

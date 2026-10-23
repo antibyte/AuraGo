@@ -4847,4 +4847,11 @@ registration lives in `internal/desktop/types.go`.
   `openApp` calls `window.DetectiveApp.open(existing.id, context)` (window-shell-runtime.js,
   main bundle) and `selectCase` loads that case, resets the archive and opens the report
   tab; a fresh window takes `ctx.context.case_id`/`ctx.launch.case_id`. Test:
-  `TestDesktopDetectiveOpensTheNotifiedCase`.
+  `TestDesktopDetectiveOpensTheNotifiedCase`.- Accessibility: the case title is the view's `h1`, the report title `h2` and report
+  blocks `h3`. Tabs are a real `role="tablist"` with `role="tab"`, `aria-selected` and
+  `aria-controls="dt-panel"`; the content area is the single `role="tabpanel"`. Only the
+  status/phase line (`<div aria-live="polite">`) is a live region, not the whole status
+  section. Deletion requires `ctx.confirmDialog`; there is no `window.confirm` fallback.
+  The built-in icon stays `search`: it already denotes research, and a distinct glyph
+  would need new artwork in both icon families for a cosmetic change (audit 4.23 kept
+  the shared key deliberately). `TestDesktopDetectiveAccessibilityMarkers` pins all of it.
