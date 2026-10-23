@@ -11,24 +11,61 @@ import (
 	_ "image/png"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/mediabins"
 
 	_ "golang.org/x/image/bmp"
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"
 )
 
-var mediaConversionLookPath = exec.LookPath
+// mediaConversionLookPath is the executable lookup seam. Tests replace it to
+// simulate a missing or present converter binary.
+var mediaConversionLookPath = mediabins.LookPath
 
+// mediaConversionRunCommand is the converter execution seam. Tests replace it
+// to capture the argument vector without starting a real converter.
 var mediaConversionRunCommand = func(ctx context.Context, name string, args []string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).CombinedOutput()
+	return mediabins.Run(ctx, name, args, mediabins.DefaultOutputLimit)
+}
+
+const (
+	// mediaConversionProtocols restricts ffmpeg and ffprobe to local sources.
+	// A converter must never follow a remote reference that a staged playlist
+	// or concat list points at.
+	mediaConversionProtocols = "file,pipe"
+	// mediaConversionOutputLimit caps the retained converter output per stream.
+	mediaConversionOutputLimit = 4 << 20
+)
+
+// mediaConversionDemuxers maps a known input extension to the ffmpeg demuxer
+// that reads it. The format whitelist is only applied for known extensions so
+// that unusual but legitimate local inputs keep working.
+var mediaConversionDemuxers = map[string]string{
+	"mp3": "mp3", "wav": "wav", "aac": "aac", "m4a": "mov", "m4b": "mov",
+	"ogg": "ogg", "oga": "ogg", "opus": "ogg", "flac": "flac", "aiff": "aiff",
+	"aif": "aiff", "wma": "asf", "amr": "amr", "au": "au", "ape": "ape",
+	"mp4": "mov", "m4v": "mov", "mov": "mov", "mkv": "matroska", "webm": "matroska,webm",
+	"avi": "avi", "flv": "flv", "mpeg": "mpeg", "mpg": "mpeg", "ts": "mpegts",
+	"mxf": "mxf", "3gp": "3gp", "asf": "asf", "rm": "rm", "rv": "rv",
+	"png": "png_pipe,image2", "jpg": "jpeg_pipe,image2", "jpeg": "jpeg_pipe,image2",
+	"webp": "webp_pipe,image2", "gif": "gif", "tiff": "tiff_pipe,image2",
+	"tif": "tiff_pipe,image2", "bmp": "bmp_pipe,image2",
+}
+
+// conversionFormatAllowlist lists the target formats per media type. A request
+// outside the list is rejected with the supported formats in the message.
+var conversionFormatAllowlist = map[string][]string{
+	"audio": {"mp3", "wav", "aac", "m4a", "ogg", "flac", "opus", "aiff", "wma"},
+	"video": {"mp4", "webm", "mkv", "mov", "avi", "m4v", "mpeg", "ts"},
+	"image": {"png", "jpg", "jpeg", "webp", "gif", "tiff", "tif", "bmp"},
 }
 
 type MediaConversionRequest struct {
@@ -45,6 +82,15 @@ type MediaConversionRequest struct {
 	FPS          int
 	SampleRate   int
 	QualityPct   int
+}
+
+// conversionTarget is the single resolved description of one conversion. The
+// staged file name always derives from Format, never from the destination file
+// name, so the converter always receives an input it can interpret.
+type conversionTarget struct {
+	Destination string // absolute path the result is written to
+	StagedPath  string // private staging file the converter writes
+	Format      string // normalized target format
 }
 
 type mediaConversionResult struct {
@@ -160,30 +206,29 @@ func ExecuteMediaConversion(workspaceDir string, cfg *config.MediaConversionConf
 	if copyErr != nil || closeErr != nil {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("cannot stage input: %v", errors.Join(copyErr, closeErr)), Operation: op})
 	}
-	var destination string
+	var target conversionTarget
 	if op != "info" {
-		destination, _, err = resolveConversionOutput(req.FilePath, req.OutputFile, req.OutputFormat)
+		target, err = resolveConversionTarget(stagingDir, req.FilePath, req.OutputFile, req.OutputFormat, mediaTypeForOperation(op))
 		if err != nil {
 			return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: op})
 		}
-		if destination, err = secureResolve(workspaceDir, destination); err != nil {
+		if target.Destination, err = secureResolve(workspaceDir, target.Destination); err != nil {
 			return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("invalid output path: %v", err), Operation: op})
 		}
-		if err = requireUnprotectedNotesPath(destination, true); err != nil {
+		if err = requireUnprotectedNotesPath(target.Destination, true); err != nil {
 			return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: op})
 		}
-		req.OutputFile = filepath.Join(stagingDir, "output"+filepath.Ext(destination))
 	}
 	req.FilePath = stagedInput
 
 	var result string
 	switch op {
 	case "audio_convert":
-		result = executeFFmpegConversion(cfg, req, "audio")
+		result = executeFFmpegConversion(cfg, req, target, "audio")
 	case "video_convert":
-		result = executeFFmpegConversion(cfg, req, "video")
+		result = executeFFmpegConversion(cfg, req, target, "video")
 	case "image_convert":
-		result = executeImageMagickConversion(cfg, req)
+		result = executeImageMagickConversion(cfg, req, target)
 	case "info":
 		return executeMediaInfo(cfg, req)
 	default:
@@ -197,15 +242,15 @@ func ExecuteMediaConversion(workspaceDir string, cfg *config.MediaConversionConf
 	if err := json.Unmarshal([]byte(result), &converted); err != nil || converted.Status != "success" {
 		return result
 	}
-	output, err := os.Open(req.OutputFile)
+	output, err := os.Open(target.StagedPath)
 	if err != nil {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("cannot open converted output: %v", err), Operation: op})
 	}
 	defer output.Close()
-	if err := rootedToolWriteFromReaderAtomic(destination, output); err != nil {
+	if err := rootedToolWriteFromReaderAtomic(target.Destination, output); err != nil {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("cannot save converted output: %v", err), Operation: op})
 	}
-	converted.File = destination
+	converted.File = target.Destination
 	return mediaConversionJSON(converted)
 }
 
@@ -243,7 +288,7 @@ func MediaConversionHealth(ctx context.Context, cfg *config.MediaConversionConfi
 	return out
 }
 
-func executeFFmpegConversion(cfg *config.MediaConversionConfig, req MediaConversionRequest, mediaType string) string {
+func executeFFmpegConversion(cfg *config.MediaConversionConfig, req MediaConversionRequest, target conversionTarget, mediaType string) string {
 	if strings.TrimSpace(req.FilePath) == "" {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: "file_path is required", Operation: req.Operation})
 	}
@@ -259,15 +304,16 @@ func executeFFmpegConversion(cfg *config.MediaConversionConfig, req MediaConvers
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: req.Operation})
 	}
 
-	outputFile, outputFormat, err := resolveConversionOutput(req.FilePath, req.OutputFile, req.OutputFormat)
-	if err != nil {
-		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: req.Operation})
+	args := []string{"-hide_banner", "-nostdin", "-loglevel", "error", "-protocol_whitelist", mediaConversionProtocols}
+	if demuxer := mediaConversionDemuxerForPath(req.FilePath); demuxer != "" {
+		args = append(args, "-format_whitelist", demuxer)
 	}
-	req.OutputFile = outputFile
-
-	args := []string{"-y", "-i", req.FilePath}
+	args = append(args, "-y", "-i", req.FilePath)
 	switch mediaType {
 	case "audio":
+		// The result of an audio conversion is an audio file, never a container
+		// that still carries the source video track.
+		args = append(args, "-vn")
 		if req.AudioCodec != "" {
 			args = append(args, "-c:a", req.AudioCodec)
 		}
@@ -297,9 +343,9 @@ func executeFFmpegConversion(cfg *config.MediaConversionConfig, req MediaConvers
 			args = append(args, "-r", strconv.Itoa(req.FPS))
 		}
 	}
-	args = append(args, req.OutputFile)
+	args = append(args, target.StagedPath)
 
-	if err := ensureParentDir(req.OutputFile); err != nil {
+	if err := ensureParentDir(target.StagedPath); err != nil {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: req.Operation})
 	}
 
@@ -320,14 +366,14 @@ func executeFFmpegConversion(cfg *config.MediaConversionConfig, req MediaConvers
 		Status:       "success",
 		Message:      fmt.Sprintf("%s converted successfully", mediaType),
 		Operation:    req.Operation,
-		File:         req.OutputFile,
+		File:         target.StagedPath,
 		Tool:         "ffmpeg",
 		MediaType:    mediaType,
-		OutputFormat: outputFormat,
+		OutputFormat: target.Format,
 	})
 }
 
-func executeImageMagickConversion(cfg *config.MediaConversionConfig, req MediaConversionRequest) string {
+func executeImageMagickConversion(cfg *config.MediaConversionConfig, req MediaConversionRequest, target conversionTarget) string {
 	if strings.TrimSpace(req.FilePath) == "" {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: "file_path is required", Operation: req.Operation})
 	}
@@ -343,16 +389,6 @@ func executeImageMagickConversion(cfg *config.MediaConversionConfig, req MediaCo
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: req.Operation})
 	}
 
-	outputFile, outputFormat, err := resolveConversionOutput(req.FilePath, req.OutputFile, req.OutputFormat)
-	if err != nil {
-		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: req.Operation})
-	}
-	req.OutputFile = outputFile
-
-	if err := ensureParentDir(req.OutputFile); err != nil {
-		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: req.Operation})
-	}
-
 	args := []string{req.FilePath}
 	if geometry := imageMagickResizeArg(req.Width, req.Height); geometry != "" {
 		args = append(args, "-resize", geometry)
@@ -363,7 +399,7 @@ func executeImageMagickConversion(cfg *config.MediaConversionConfig, req MediaCo
 		}
 		args = append(args, "-quality", strconv.Itoa(req.QualityPct))
 	}
-	args = append(args, req.OutputFile)
+	args = append(args, target.StagedPath)
 
 	ctx, cancel := context.WithTimeout(context.Background(), mediaConversionTimeout(cfg))
 	defer cancel()
@@ -381,10 +417,10 @@ func executeImageMagickConversion(cfg *config.MediaConversionConfig, req MediaCo
 		Status:       "success",
 		Message:      "image converted successfully",
 		Operation:    req.Operation,
-		File:         req.OutputFile,
+		File:         target.StagedPath,
 		Tool:         imageMagickToolName(imageMagickPath),
 		MediaType:    "image",
-		OutputFormat: outputFormat,
+		OutputFormat: target.Format,
 	})
 }
 
@@ -437,13 +473,12 @@ func ffprobeInfoResult(cfg *config.MediaConversionConfig, req MediaConversionReq
 
 	ctx, cancel := context.WithTimeout(context.Background(), mediaConversionTimeout(cfg))
 	defer cancel()
-	output, runErr := mediaConversionRunCommand(ctx, ffprobePath, []string{
-		"-v", "quiet",
-		"-print_format", "json",
-		"-show_format",
-		"-show_streams",
-		req.FilePath,
-	})
+	args := []string{"-hide_banner", "-nostdin", "-v", "error", "-protocol_whitelist", mediaConversionProtocols}
+	if demuxer := mediaConversionDemuxerForPath(req.FilePath); demuxer != "" {
+		args = append(args, "-format_whitelist", demuxer)
+	}
+	args = append(args, "-print_format", "json", "-show_format", "-show_streams", req.FilePath)
+	output, runErr := mediaConversionRunCommand(ctx, ffprobePath, args)
 	if runErr != nil {
 		return mediaConversionJSON(mediaConversionResult{
 			Status:    "error",
@@ -537,32 +572,11 @@ func inspectImageMagickBinary(ctx context.Context, configuredPath string) mediaC
 }
 
 func resolveConfiguredBinary(configuredPath string, candidates []string) (string, error) {
-	if strings.TrimSpace(configuredPath) != "" {
-		path := strings.TrimSpace(configuredPath)
-		if filepath.IsAbs(path) {
-			if _, err := os.Stat(path); err == nil {
-				return path, nil
-			}
-		}
-		if found, err := mediaConversionLookPath(path); err == nil {
-			return found, nil
-		}
-		return "", fmt.Errorf("binary %q was not found", path)
-	}
-	for _, candidate := range candidates {
-		if found, err := mediaConversionLookPath(candidate); err == nil {
-			return found, nil
-		}
-	}
-	return "", fmt.Errorf("required binary was not found: %s", strings.Join(candidates, ", "))
+	return mediabins.ResolveWith(mediaConversionLookPath, configuredPath, candidates)
 }
 
 func resolveConfiguredImageMagick(configuredPath string) (string, error) {
-	candidates := []string{"magick", "convert"}
-	if runtime.GOOS == "windows" {
-		candidates = []string{"magick", "magick.exe", "convert"}
-	}
-	return resolveConfiguredBinary(configuredPath, candidates)
+	return mediabins.ResolveImageMagickWith(mediaConversionLookPath, configuredPath)
 }
 
 func resolveFFprobeBinary(cfg *config.MediaConversionConfig) (string, error) {
@@ -590,28 +604,73 @@ func resolveFFprobeBinary(cfg *config.MediaConversionConfig) (string, error) {
 	return resolveConfiguredBinary("", candidates)
 }
 
-func resolveConversionOutput(inputFile, outputFile, outputFormat string) (string, string, error) {
+// mediaTypeForOperation maps a conversion operation to its media type. An empty
+// result means the operation has no format allowlist.
+func mediaTypeForOperation(op string) string {
+	switch strings.ToLower(strings.TrimSpace(op)) {
+	case "audio_convert":
+		return "audio"
+	case "video_convert":
+		return "video"
+	case "image_convert":
+		return "image"
+	default:
+		return ""
+	}
+}
+
+// resolveConversionTarget resolves one conversion into a destination, a staged
+// file and a target format. It is the only place that decides which file the
+// converter writes and which format is produced.
+func resolveConversionTarget(stagingDir, inputFile, outputFile, outputFormat, mediaType string) (conversionTarget, error) {
 	format := normalizedOutputFormat(outputFormat)
-	if outputFile == "" {
-		if format == "" {
-			return "", "", fmt.Errorf("output_file or output_format is required")
+	outputFile = strings.TrimSpace(outputFile)
+
+	if outputFile != "" {
+		ext := normalizedOutputFormat(strings.TrimPrefix(filepath.Ext(outputFile), "."))
+		switch {
+		case format == "":
+			format = ext
+		case ext != "" && ext != format:
+			return conversionTarget{}, fmt.Errorf("output_file %q conflicts with output_format %q: use one consistent target format", outputFile, format)
 		}
-		outputFile = strings.TrimSuffix(inputFile, filepath.Ext(inputFile)) + "." + preferredExtension(format)
 	}
 	if format == "" {
-		format = normalizedOutputFormat(strings.TrimPrefix(filepath.Ext(outputFile), "."))
+		return conversionTarget{}, fmt.Errorf("output_file or output_format is required")
 	}
-	if format == "" {
-		return "", "", fmt.Errorf("could not determine output format")
+	if mediaType != "" {
+		supported := conversionFormatAllowlist[mediaType]
+		if !slices.Contains(supported, format) {
+			return conversionTarget{}, fmt.Errorf("output format %q is not supported for %s conversion (supported: %s)", format, mediaType, strings.Join(supported, ", "))
+		}
 	}
-	if err := validateMediaConversionOutputFile(outputFile); err != nil {
-		return "", "", err
+
+	destination := outputFile
+	if destination == "" {
+		destination = strings.TrimSuffix(inputFile, filepath.Ext(inputFile)) + "." + preferredExtension(format)
+	} else if filepath.Ext(destination) == "" {
+		destination += "." + preferredExtension(format)
+	}
+	if err := validateMediaConversionOutputFile(destination); err != nil {
+		return conversionTarget{}, err
 	}
 	// Prevent accidental in-place overwrite which would destroy the source file
-	if filepath.Clean(inputFile) == filepath.Clean(outputFile) {
-		return "", "", fmt.Errorf("output file must be different from input file")
+	if filepath.Clean(inputFile) == filepath.Clean(destination) {
+		return conversionTarget{}, fmt.Errorf("output file must be different from input file")
 	}
-	return outputFile, format, nil
+	return conversionTarget{
+		Destination: destination,
+		StagedPath:  filepath.Join(stagingDir, "output."+preferredExtension(format)),
+		Format:      format,
+	}, nil
+}
+
+// mediaConversionDemuxerForPath returns the ffmpeg demuxer for a known input
+// extension. An unknown extension yields no format whitelist, so that unusual
+// but legitimate local inputs keep working.
+func mediaConversionDemuxerForPath(path string) string {
+	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(path), "."))
+	return mediaConversionDemuxers[ext]
 }
 
 func validateMediaConversionOutputFile(outputFile string) error {

@@ -28,6 +28,16 @@ func mediaConversionTestConfig(enabled bool) *config.MediaConversionConfig {
 	}
 }
 
+// mediaConversionArgValue returns the value that follows the given flag.
+func mediaConversionArgValue(args []string, flag string) string {
+	for i, arg := range args {
+		if arg == flag && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+	return ""
+}
+
 func TestExecuteMediaConversionDisabled(t *testing.T) {
 	result := decodeMediaConversionResult(t, ExecuteMediaConversion(t.TempDir(), &config.MediaConversionConfig{}, MediaConversionRequest{
 		Operation: "info",
@@ -87,8 +97,11 @@ func TestExecuteMediaConversionStagesExternalProcessIO(t *testing.T) {
 	})
 	mediaConversionLookPath = func(string) (string, error) { return "ffmpeg", nil }
 	mediaConversionRunCommand = func(_ context.Context, _ string, args []string) ([]byte, error) {
-		input := args[2]
+		input := mediaConversionArgValue(args, "-i")
 		output := args[len(args)-1]
+		if input == "" {
+			t.Fatalf("converter received no input argument: %v", args)
+		}
 		if strings.HasPrefix(input, workspaceDir) || strings.HasPrefix(output, workspaceDir) {
 			t.Fatalf("converter received a workspace path: %q %q", input, output)
 		}
@@ -108,6 +121,77 @@ func TestExecuteMediaConversionStagesExternalProcessIO(t *testing.T) {
 	if err != nil || string(data) != "converted" {
 		t.Fatalf("saved output: %q, %v", data, err)
 	}
+}
+
+func TestExecuteMediaConversionAddsProtocolWhitelist(t *testing.T) {
+	workspaceDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workspaceDir, "input.wav"), []byte("source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	oldLookPath, oldRunCommand := mediaConversionLookPath, mediaConversionRunCommand
+	t.Cleanup(func() {
+		mediaConversionLookPath, mediaConversionRunCommand = oldLookPath, oldRunCommand
+	})
+	mediaConversionLookPath = func(string) (string, error) { return "ffmpeg", nil }
+	var captured []string
+	mediaConversionRunCommand = func(_ context.Context, _ string, args []string) ([]byte, error) {
+		captured = args
+		return nil, os.WriteFile(args[len(args)-1], []byte("converted"), 0o600)
+	}
+
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(workspaceDir, mediaConversionTestConfig(true), MediaConversionRequest{
+		Operation: "audio_convert", FilePath: "input.wav", OutputFormat: "mp3",
+	}))
+	if result["status"] != "success" {
+		t.Fatalf("conversion result: %#v", result)
+	}
+	if got := mediaConversionArgValue(captured, "-protocol_whitelist"); got != mediaConversionProtocols {
+		t.Fatalf("-protocol_whitelist = %q, want %q (args: %v)", got, mediaConversionProtocols, captured)
+	}
+	if got := mediaConversionArgValue(captured, "-format_whitelist"); got != "wav" {
+		t.Fatalf("-format_whitelist = %q, want wav (args: %v)", got, captured)
+	}
+	for _, flag := range []string{"-nostdin", "-hide_banner", "-loglevel"} {
+		if !slicesContains(captured, flag) {
+			t.Fatalf("converter arguments miss %q: %v", flag, captured)
+		}
+	}
+}
+
+func TestExecuteMediaConversionAudioDropsVideoStream(t *testing.T) {
+	workspaceDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workspaceDir, "input.mp4"), []byte("source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	oldLookPath, oldRunCommand := mediaConversionLookPath, mediaConversionRunCommand
+	t.Cleanup(func() {
+		mediaConversionLookPath, mediaConversionRunCommand = oldLookPath, oldRunCommand
+	})
+	mediaConversionLookPath = func(string) (string, error) { return "ffmpeg", nil }
+	var captured []string
+	mediaConversionRunCommand = func(_ context.Context, _ string, args []string) ([]byte, error) {
+		captured = args
+		return nil, os.WriteFile(args[len(args)-1], []byte("converted"), 0o600)
+	}
+
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(workspaceDir, mediaConversionTestConfig(true), MediaConversionRequest{
+		Operation: "audio_convert", FilePath: "input.mp4", OutputFormat: "mp3",
+	}))
+	if result["status"] != "success" {
+		t.Fatalf("conversion result: %#v", result)
+	}
+	if !slicesContains(captured, "-vn") {
+		t.Fatalf("audio conversion must drop the video stream: %v", captured)
+	}
+}
+
+func slicesContains(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestExecuteMediaConversionImageInfo(t *testing.T) {
@@ -155,8 +239,8 @@ func TestExecuteMediaConversionInfoMissingFile(t *testing.T) {
 	}
 }
 
-func TestResolveConversionOutputRejectsSameFile(t *testing.T) {
-	_, _, err := resolveConversionOutput("/tmp/input.mp3", "/tmp/input.mp3", "")
+func TestResolveConversionTargetRejectsSameFile(t *testing.T) {
+	_, err := resolveConversionTarget(t.TempDir(), "/tmp/input.mp3", "/tmp/input.mp3", "", "audio")
 	if err == nil {
 		t.Fatal("expected error when input and output are the same file")
 	}
@@ -165,7 +249,7 @@ func TestResolveConversionOutputRejectsSameFile(t *testing.T) {
 	}
 }
 
-func TestResolveConversionOutputRejectsImageMagickPseudoProtocols(t *testing.T) {
+func TestResolveConversionTargetRejectsImageMagickPseudoProtocols(t *testing.T) {
 	for _, output := range []string{
 		"|sh -c whoami",
 		"@payload.txt",
@@ -174,10 +258,109 @@ func TestResolveConversionOutputRejectsImageMagickPseudoProtocols(t *testing.T) 
 		"https://example.com/out.png",
 		"caption:hello",
 	} {
-		_, _, err := resolveConversionOutput("input.png", output, "png")
+		_, err := resolveConversionTarget(t.TempDir(), "input.png", output, "png", "image")
 		if err == nil {
 			t.Fatalf("expected output %q to be rejected", output)
 		}
+	}
+}
+
+func TestResolveConversionTargetDerivesStagedExtensionFromFormat(t *testing.T) {
+	staging := t.TempDir()
+	target, err := resolveConversionTarget(staging, "/ws/input.wav", "out", "mp3", "audio")
+	if err != nil {
+		t.Fatalf("resolveConversionTarget: %v", err)
+	}
+	if filepath.Ext(target.StagedPath) != ".mp3" {
+		t.Fatalf("staged path = %q, want a .mp3 suffix", target.StagedPath)
+	}
+	if filepath.Base(target.Destination) != "out.mp3" {
+		t.Fatalf("destination = %q, want out.mp3", target.Destination)
+	}
+	if target.Format != "mp3" {
+		t.Fatalf("format = %q, want mp3", target.Format)
+	}
+}
+
+func TestResolveConversionTargetRejectsFormatConflict(t *testing.T) {
+	_, err := resolveConversionTarget(t.TempDir(), "/ws/in.mp4", "out.mp4", "mp3", "audio")
+	if err == nil {
+		t.Fatal("expected a conflict error")
+	}
+	if !strings.Contains(err.Error(), "out.mp4") || !strings.Contains(err.Error(), "mp3") {
+		t.Fatalf("error must name both values, got %q", err)
+	}
+}
+
+func TestResolveConversionTargetRejectsUnsupportedFormat(t *testing.T) {
+	_, err := resolveConversionTarget(t.TempDir(), "/ws/in.wav", "", "txt", "audio")
+	if err == nil {
+		t.Fatal("expected an allowlist error")
+	}
+	if !strings.Contains(err.Error(), "mp3") {
+		t.Fatalf("error must list the supported formats, got %q", err)
+	}
+}
+
+func TestResolveConversionTargetDerivesFormatFromOutputFile(t *testing.T) {
+	target, err := resolveConversionTarget(t.TempDir(), "/ws/in.wav", "song.mp3", "", "audio")
+	if err != nil {
+		t.Fatalf("resolveConversionTarget: %v", err)
+	}
+	if target.Format != "mp3" {
+		t.Fatalf("format = %q, want mp3", target.Format)
+	}
+	if filepath.Ext(target.StagedPath) != ".mp3" {
+		t.Fatalf("staged path = %q, want a .mp3 suffix", target.StagedPath)
+	}
+}
+
+func TestExecuteMediaConversionOutputWithoutExtension(t *testing.T) {
+	workspaceDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workspaceDir, "input.wav"), []byte("source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	oldLookPath, oldRunCommand := mediaConversionLookPath, mediaConversionRunCommand
+	t.Cleanup(func() {
+		mediaConversionLookPath, mediaConversionRunCommand = oldLookPath, oldRunCommand
+	})
+	mediaConversionLookPath = func(string) (string, error) { return "ffmpeg", nil }
+	var stagedOutput string
+	mediaConversionRunCommand = func(_ context.Context, _ string, args []string) ([]byte, error) {
+		stagedOutput = args[len(args)-1]
+		if filepath.Ext(stagedOutput) == "" {
+			t.Fatalf("converter received an output without an extension: %v", args)
+		}
+		return nil, os.WriteFile(stagedOutput, []byte("converted"), 0o600)
+	}
+
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(workspaceDir, mediaConversionTestConfig(true), MediaConversionRequest{
+		Operation: "audio_convert", FilePath: "input.wav", OutputFile: "out", OutputFormat: "mp3",
+	}))
+	if result["status"] != "success" {
+		t.Fatalf("conversion result: %#v", result)
+	}
+	if result["file"] != filepath.Join(workspaceDir, "out.mp3") {
+		t.Fatalf("file = %v, want out.mp3", result["file"])
+	}
+	if got, _ := result["output_format"].(string); got != "mp3" {
+		t.Fatalf("output_format = %q, want mp3", got)
+	}
+}
+
+func TestExecuteMediaConversionRejectsFormatConflict(t *testing.T) {
+	workspaceDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workspaceDir, "input.wav"), []byte("source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(workspaceDir, mediaConversionTestConfig(true), MediaConversionRequest{
+		Operation: "audio_convert", FilePath: "input.wav", OutputFile: "out.mp4", OutputFormat: "mp3",
+	}))
+	if got, _ := result["status"].(string); got != "error" {
+		t.Fatalf("status = %q, want error", got)
+	}
+	if !strings.Contains(result["message"].(string), "conflicts") {
+		t.Fatalf("message = %q, want a conflict error", result["message"])
 	}
 }
 
@@ -208,16 +391,24 @@ func TestExecuteMediaConversionRejectsOversizedFile(t *testing.T) {
 		t.Fatalf("unlimited size: status = %q, want success", got)
 	}
 
-	cfg.MaxFileSizeMB = 0 // 0 means unlimited
+	// A file above the cap must be rejected with the limit in the message.
+	oversized := filepath.Join(workspaceDir, "big.png")
+	big := make([]byte, 2*1024*1024)
+	if err := os.WriteFile(oversized, big, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg.MaxFileSizeMB = 1
 	result = decodeMediaConversionResult(t, ExecuteMediaConversion(workspaceDir, cfg, MediaConversionRequest{
 		Operation: "info",
-		FilePath:  "sample.png",
+		FilePath:  "big.png",
 	}))
-	if got, _ := result["status"].(string); got != "success" {
-		t.Fatalf("zero limit means unlimited: status = %q, want success", got)
+	if got, _ := result["status"].(string); got != "error" {
+		t.Fatalf("oversized file: status = %q, want error", got)
+	}
+	if !strings.Contains(result["message"].(string), "1 MB") {
+		t.Fatalf("message = %q, want the size limit", result["message"])
 	}
 
-	// Test checkMediaFileSize logic directly for rejection and acceptance
 	if err := checkMediaFileSize(&config.MediaConversionConfig{MaxFileSizeMB: 1}, imagePath); err != nil {
 		t.Fatalf("67 byte PNG should pass 1 MB limit: %v", err)
 	}
