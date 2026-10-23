@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -53,6 +54,52 @@ func TestValidateMediaConversionBinaryPath(t *testing.T) {
 				t.Fatalf("error = %q, want it to mention %q", err, tc.wantErr)
 			}
 		})
+	}
+}
+
+func TestValidateMediaConversionBinaryPathAcceptsBareNameOnPath(t *testing.T) {
+	// A bare name is resolved on PATH exactly like the tool resolves it, so the
+	// documented default must not be refused. t.Setenv forbids t.Parallel.
+	binDir := t.TempDir()
+	for _, name := range []string{"ffmpeg", "ffmpeg.exe"} {
+		if err := os.WriteFile(filepath.Join(binDir, name), []byte("binary"), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("Path", binDir+string(os.PathListSeparator)+os.Getenv("Path"))
+
+	if err := validateMediaConversionBinaryPath("ffmpeg"); err != nil {
+		t.Fatalf("a converter on PATH must be accepted: %v", err)
+	}
+}
+
+func TestValidateMediaConversionBinaryPathAcceptsVersionedName(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	versioned := filepath.Join(dir, "ffmpeg-7.0.exe")
+	if err := os.WriteFile(versioned, []byte("binary"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateMediaConversionBinaryPath(versioned); err != nil {
+		t.Fatalf("a versioned ffmpeg must be accepted: %v", err)
+	}
+}
+
+func TestValidateMediaConversionBinaryPathRejectsWindowsSystemConvert(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("the convert.exe trap only exists on Windows")
+	}
+	t.Parallel()
+
+	dir := t.TempDir()
+	convert := filepath.Join(dir, "convert.exe")
+	if err := os.WriteFile(convert, []byte("binary"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateMediaConversionBinaryPath(convert); err == nil {
+		t.Fatal("the Windows system convert.exe must be refused")
 	}
 }
 

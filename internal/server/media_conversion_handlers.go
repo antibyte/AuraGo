@@ -6,23 +6,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
+	"aurago/internal/mediabins"
 	"aurago/internal/tools"
 )
-
-// mediaConversionApprovedBinaries lists the converter base names the health
-// probe may execute. An operator may point the probe at a converter installed
-// anywhere, but never at an arbitrary program.
-var mediaConversionApprovedBinaries = map[string]bool{
-	"ffmpeg":  true,
-	"ffprobe": true,
-	"magick":  true,
-}
 
 func handleMediaConversionTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -96,10 +87,14 @@ func handleMediaConversionTest(s *Server) http.HandlerFunc {
 	}
 }
 
-// validateMediaConversionBinaryPath accepts only an existing regular file whose
-// base name is an approved media converter. On Windows the bare name "convert"
-// is refused as well, because C:\Windows\System32\convert.exe is the built-in
-// FAT converter and not ImageMagick.
+// validateMediaConversionBinaryPath accepts only a converter that resolves to an
+// approved media tool.
+//
+// The configured value is resolved exactly like the tool resolves it, so a bare
+// name such as "ffmpeg" is looked up on PATH and a valid configuration is never
+// refused. The approved converter is then identified by the base name of the
+// resolved file. On Windows the legacy name "convert" is refused, because
+// C:\Windows\System32\convert.exe is the built-in FAT converter and not ImageMagick.
 func validateMediaConversionBinaryPath(path string) error {
 	trimmed := strings.TrimSpace(path)
 	if trimmed == "" {
@@ -111,19 +106,38 @@ func validateMediaConversionBinaryPath(path string) error {
 	if strings.ContainsAny(trimmed, "\x00\r\n") {
 		return fmt.Errorf("binary path contains control characters")
 	}
-	info, err := os.Stat(trimmed)
+	resolved, err := mediabins.Resolve(trimmed, nil)
 	if err != nil {
-		return fmt.Errorf("binary %q was not found", trimmed)
+		return err
 	}
-	if !info.Mode().IsRegular() {
-		return fmt.Errorf("binary %q is not a regular file", trimmed)
+	stem := strings.ToLower(strings.TrimSuffix(filepath.Base(resolved), filepath.Ext(resolved)))
+	if !approvedMediaConverterStem(stem) {
+		return fmt.Errorf("binary %q is not an approved media converter (allowed: ffmpeg, ffprobe, magick)", trimmed)
 	}
-	base := strings.ToLower(strings.TrimSuffix(filepath.Base(trimmed), filepath.Ext(trimmed)))
-	if mediaConversionApprovedBinaries[base] {
-		return nil
+	return nil
+}
+
+// approvedMediaConverterStem accepts the converter names and their versioned
+// spellings (ffmpeg, ffmpeg.exe, ffmpeg-7.0, ffmpeg7). The legacy ImageMagick
+// name "convert" is approved outside Windows only.
+func approvedMediaConverterStem(stem string) bool {
+	if stem == "convert" && runtime.GOOS != "windows" {
+		return true
 	}
-	if base == "convert" && runtime.GOOS != "windows" {
-		return nil
+	for _, name := range []string{"ffmpeg", "ffprobe", "magick"} {
+		if stem == name {
+			return true
+		}
+		if len(stem) <= len(name) || stem[:len(name)] != name {
+			continue
+		}
+		rest := stem[len(name):]
+		if rest[0] >= '0' && rest[0] <= '9' {
+			return true
+		}
+		if (rest[0] == '-' || rest[0] == '_' || rest[0] == '.') && len(rest) > 1 && rest[1] >= '0' && rest[1] <= '9' {
+			return true
+		}
 	}
-	return fmt.Errorf("binary %q is not an approved media converter (allowed: ffmpeg, ffprobe, magick)", trimmed)
+	return false
 }
