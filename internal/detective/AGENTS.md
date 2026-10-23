@@ -110,9 +110,3 @@ lazy excerpt and the provisional marking are covered without a DOM by the node s
 
 ## Child DOX Index
 None.
-- Verification: `TestMigrateV2ToV4KeepsCasesAndBacksUp` runs the whole v2 -> v3 -> v4 path
-  (backup, summary equality, second open does not migrate again), `TestSetAutoUpdateMatrix`
-  pins the scheduling rule per status, and `TestLiveUnderAutomaticUpdate` asserts the live
-  transitions queued/running/completed and that `no_changes` changes neither revision nor
-  report. The opt-in browser fixture stays focused on rendering; the revision switch,
-  lazy excerpt and provisional marking are covered without a DOM by the node suite.
