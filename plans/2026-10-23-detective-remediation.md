@@ -775,6 +775,7 @@ Notes for the following waves:
 | D6 | `4f9a54c93` | `TestMigrateV3ToV4BackfillsSummary`, `TestLiveReadsSummaryOnly`, `TestCaseSummaryMatchesProjectionOnEverySave`, the existing v1/v2 migration tests | **DD2 changed**: the summary became its own table (`detective_summaries`) **and** the migration rebuilds the case row with `body` last. Reason: SQLite walks the overflow chain of a large value for every column stored after it, so a summary *column* behind the 4 MB body still cost 8.4 ms per read; with the split plus the new column order the same read costs 69 µs. `LiveView.reports` was removed (it held `latest_revision`, not a count) |
 | D7 | `13ee44b65` | `TestRecordSourceKeepsExcerptInArchiveOnly`, `TestCaseBodyStaysBounded`, `TestDetectiveCaseResponseStaysBounded`, node `Detective source text loads on expand` | `TestActiveTimeSurvivesRestart` stayed unchanged: it seeds the working set directly, so it still proves that a save/load cycle keeps whatever the store is given. The UI fetches a source excerpt on first expand instead of the case payload carrying it |
 | D8 | `18e2a6204` | `BenchmarkCaseHotPaths`, full package | DD3 decision recorded: the single mutex and `synchronous=FULL` stay, because reads are in the microseconds; a read/write lock only above ~5 ms per read |
+| D9 | `ba4fa02e7` | `TestDetectiveStateEndpointMatchesLiveAndEvents`, node `Detective polling backs off and pauses when hidden` | `/live` and `/events` stay as separate routes; the app polls `/state?after=` plus the case list (two requests), never the list while the form is open |
 
 Measurements after D6/D7 (200 sources, 20 KB excerpt each, ~4 MB of evidence):
 
@@ -795,3 +796,9 @@ Notes for the following waves:
   and the unavailable `-race` run are unchanged from wave 1.
 - The plan's DD2 wording ("summary column") is superseded by the table in D6; the reason is the
   SQLite row layout, not a preference.
+
+### Wave 3 — D10–D14 (2026-10-23)
+
+| Task | Commit | Tests | Deviations |
+| --- | --- | --- | --- |
+| D10 | `c285c1b3b` | `TestDetectiveCaptureAppendsBoundedReceipt`, existing capture test | The receipt keeps a 400-rune preview instead of no excerpt at all: the model can quote from the tool output it already saw, and the server still validates against the full stored excerpt. Both append sites (MCP receipts and the final block) share `detectiveSourcesAppend` |
