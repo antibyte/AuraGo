@@ -3,7 +3,16 @@
     const instances = new Map();
     const base = '/api/desktop/detective';
     const active = c => ['queued', 'running'].includes(c?.run?.status);
-    const key = () => window.crypto.randomUUID();
+    // crypto.randomUUID only exists in a secure context, which a plain-HTTP LAN install is not.
+    // The server caps the idempotency key at 128 characters (internal/detective/jobs.go).
+    const key = () => {
+        const c = window.crypto;
+        if (c && typeof c.randomUUID === 'function') return c.randomUUID();
+        const bytes = new Uint8Array(16);
+        if (c && typeof c.getRandomValues === 'function') c.getRandomValues(bytes);
+        else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+        return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    };
     function render(host, windowId, context) {
         dispose(windowId);
         const ctx = context || {}, v = window.DetectiveViews, e = v.esc;

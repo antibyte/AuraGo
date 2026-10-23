@@ -4958,6 +4958,28 @@ function testDetectiveRevisionSelectionSurvivesCaseSwitch() {
   assert.match(app, /state\.tab = 'report';/, 'a created case opens on the report tab');
 }
 
+// Detective: Start/Continue needs an idempotency key on plain-HTTP LAN installs too, where
+// crypto.randomUUID does not exist (audit finding 4.10).
+function testDetectiveIdempotencyKeyWithoutSecureContext() {
+  const source = read('ui/js/desktop/apps/detective.js');
+  const helper = sourceBetween(source, 'const key = () =>', 'function render(');
+  const build = cryptoObject => {
+    const context = { window: { crypto: cryptoObject }, Uint8Array, Math, Array, String, Number };
+    vm.createContext(context);
+    vm.runInContext(`${helper}; globalThis.key = key;`, context);
+    return context.key();
+  };
+
+  assert.equal(build({ randomUUID: () => 'uuid-1' }), 'uuid-1', 'a secure context keeps randomUUID');
+  const supplied = build({ getRandomValues: bytes => { bytes.fill(0xab); return bytes; } });
+  assert.equal(supplied, 'ab'.repeat(16), 'the fallback uses getRandomValues');
+  const insecure = build(undefined);
+  assert.match(insecure, /^[0-9a-f]{32}$/, 'a missing crypto object still yields a hex id');
+  assert.ok(insecure.length <= 128, 'the key fits the server limit');
+  assert.notEqual(build(undefined), build(undefined), 'fallback keys differ');
+  assert.match(source, /typeof c\.randomUUID === 'function'/, 'randomUUID is no longer called unguarded');
+}
+
 const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
@@ -5028,6 +5050,7 @@ const tests = [
   ['EasyDrag notifications keep only server-shaped flow and run ids', testEasyDragNotificationContextKeepsOnlyServerIds],
   ['Network Cameras notifications keep the detection event id', testNetworkCamerasNotificationContextKeepsEventIds],
   ['Detective revision selection survives a case switch', testDetectiveRevisionSelectionSurvivesCaseSwitch],
+  ['Detective idempotency keys work without a secure context', testDetectiveIdempotencyKeyWithoutSecureContext],
   ['EasyDrag session keeps only valid flow ids', testEasyDragSessionKeepsOnlyValidFlowIds],
   ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
   ['Desktop event delivered over WebSocket and SSE is handled once', testDesktopEventDeliveredTwiceIsHandledOnce],

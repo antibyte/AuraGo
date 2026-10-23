@@ -483,6 +483,10 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   clears `state.revision` (case switch, "New", and after creating a case, which also
   opens the report tab), so a stale selection can never leave the export bar without
   a report. Test it without a DOM in `scripts/test-ui-regressions.mjs`.
+- Idempotency keys use `crypto.randomUUID` in a secure context and fall back to
+  `crypto.getRandomValues` on a plain-HTTP LAN install (`Math.random` only without
+  any crypto object), so Start/Continue never throw; the key stays under the
+  server's 128-character limit.
 - Export links name the revision on screen. A live poll rebuilds the export bar
   when the visible revision changes or when the revision set grows or shrinks,
   even if the chosen number stays the same. A poll that leaves both unchanged
