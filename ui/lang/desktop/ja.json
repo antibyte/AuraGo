@@ -5090,6 +5090,7 @@
   "desktop.detective_unavailable": "Detective を利用できません。プロバイダー、検証済みスキル、権限を確認してください。",
   "desktop.detective_block_disabled": "Detective は無効です。",
   "desktop.detective_block_read_only": "Detective は読み取り専用です。",
+  "desktop.detective_init_failed": "Detective は研究ストアを開けませんでした",
   "desktop.detective_block_initializing": "Detective を起動しています。",
   "desktop.detective_permission_revoked": "調査権限が取り消されました。",
   "desktop.detective_start": "調査を開始",

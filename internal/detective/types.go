@@ -16,6 +16,8 @@ var (
 	ErrPermission = errors.New("research permission revoked")
 	// Export failures keep a stable identity so the API can name the reason with a
 	// code the app translates instead of forwarding an English sentence.
+	// ErrSchemaTooNew means a newer AuraGo wrote the store; refuse to open it.
+	ErrSchemaTooNew   = errors.New("unsupported Detective database version")
 	ErrExportFormat   = errors.New("unsupported export format")
 	ErrExportTooLarge = errors.New("export exceeds 32 MiB")
 	ErrPDFFont        = errors.New("built-in PDF font cannot render")

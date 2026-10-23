@@ -1651,6 +1651,10 @@ func Load(path string) (*Config, error) {
 	if cfg.SQLite.GameMakerPath == "" {
 		cfg.SQLite.GameMakerPath = "./data/game_maker.db"
 	}
+	if cfg.SQLite.DetectivePath == "" {
+		cfg.SQLite.DetectivePath = "./data/detective.db"
+	}
+	cfg.SQLite.DetectivePath = resolvePath(configDir, cfg.SQLite.DetectivePath)
 	cfg.SQLite.GameMakerPath = resolvePath(configDir, cfg.SQLite.GameMakerPath)
 	if cfg.SQLite.CYDCreatorPath == "" {
 		cfg.SQLite.CYDCreatorPath = "./data/cyd_creator.db"

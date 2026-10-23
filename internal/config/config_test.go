@@ -4384,3 +4384,35 @@ func TestLoadGrandfathersMeshCentralPowerOnlyWhenEnabledAndWritable(t *testing.T
 		})
 	}
 }
+
+// The Detective store path has its own default and is resolved like the other SQLite
+// paths instead of deriving from the Game Maker database (audit 4.20).
+func TestDetectivePathDefaultAndResolve(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(""), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !filepath.IsAbs(cfg.SQLite.DetectivePath) {
+		t.Fatalf("path %q is not resolved", cfg.SQLite.DetectivePath)
+	}
+	if filepath.Base(cfg.SQLite.DetectivePath) != "detective.db" {
+		t.Fatalf("path = %q", cfg.SQLite.DetectivePath)
+	}
+
+	custom := filepath.Join(dir, "custom", "research.db")
+	if err := os.WriteFile(configPath, []byte("sqlite:\n  detective_path: "+custom+"\n"), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	cfg, err = Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.SQLite.DetectivePath != custom {
+		t.Fatalf("override = %q, want %q", cfg.SQLite.DetectivePath, custom)
+	}
+}

@@ -5090,6 +5090,7 @@
   "desktop.detective_unavailable": "Detective est indisponible. Vérifiez le fournisseur, la compétence vérifiée et les autorisations.",
   "desktop.detective_block_disabled": "Detective est désactivé.",
   "desktop.detective_block_read_only": "Detective est en lecture seule.",
+  "desktop.detective_init_failed": "Detective n'a pas pu ouvrir son stockage de recherche",
   "desktop.detective_block_initializing": "Detective démarre.",
   "desktop.detective_permission_revoked": "Autorisations de recherche révoquées.",
   "desktop.detective_start": "Lancer la recherche",

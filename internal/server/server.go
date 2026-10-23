@@ -270,6 +270,7 @@ type Server struct {
 	agodeskDesktop            *agodeskDesktopBroker
 	agodeskDevToken           string                 // loopback-only AgoDesk development opt-in; never exposed to clients
 	detectiveNotify           detectiveNotifyLimiter // one Desktop notification per case per minute
+	detectiveInitErr          string                 // stable code of the last store initialization failure
 	ProxyManager              *proxy.Manager
 	TsNetManager              *tsnetnode.Manager
 	tsNetHandler              http.Handler                         // stored so the UI can restart tsnet without a full server restart

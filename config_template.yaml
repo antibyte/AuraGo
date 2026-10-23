@@ -881,6 +881,9 @@ sqlite:
     media_registry_path: ./data/media_registry.db
     homepage_registry_path: ./data/homepage_registry.db
     game_maker_path: ./data/game_maker.db
+    # Detective research store. Empty keeps the legacy file next to the Game Maker
+    # database when it already exists, otherwise ./data/detective.db.
+    detective_path: ./data/detective.db
     cyd_creator_path: ./data/cyd_creator.db
     contacts_path: ./data/contacts.db
     planner_path: ./data/planner.db

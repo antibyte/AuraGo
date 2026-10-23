@@ -174,7 +174,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		if s.Detective != nil {
 			profiles = s.Detective.Profiles()
 		}
-		detectiveJSON(w, 200, map[string]any{"enabled": cfg.Detective.Enabled, "ready": ready, "block_reason": detectiveBlockReason(cfg, ready), "read_only": cfg.Detective.ReadOnly || cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl, "pdf_backend": pdfBackend, "pdf_scripts": pdfScripts, "profiles": profiles, "tools": tools, "private_sources": private, "providers": providers, "provider_id": cfg.LLM.Provider, "model": cfg.LLM.Model})
+		detectiveJSON(w, 200, map[string]any{"enabled": cfg.Detective.Enabled, "ready": ready, "block_reason": detectiveBlockReason(cfg, ready), "read_only": cfg.Detective.ReadOnly || cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl, "pdf_backend": pdfBackend, "pdf_scripts": pdfScripts, "initialization_error": s.detectiveInitErr, "profiles": profiles, "tools": tools, "private_sources": private, "providers": providers, "provider_id": cfg.LLM.Provider, "model": cfg.LLM.Model})
 		return
 	}
 	if s.Detective == nil || !cfg.Detective.Enabled {

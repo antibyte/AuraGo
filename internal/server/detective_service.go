@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"unicode/utf8"
 
 	"aurago/internal/agent"
@@ -20,6 +22,36 @@ import (
 
 	openai "github.com/sashabaranov/go-openai"
 )
+
+// detectiveStorePath prefers the configured SQLite path. Without one it keeps the
+// legacy location next to the Game Maker database only while that file already exists,
+// so an upgrade does not lose its cases and a fresh install uses the data directory.
+func detectiveStorePath(cfg *config.Config) string {
+	if p := strings.TrimSpace(cfg.SQLite.DetectivePath); p != "" {
+		return p
+	}
+	legacy := filepath.Join(filepath.Dir(cfg.SQLite.GameMakerPath), "detective.db")
+	if _, err := os.Stat(legacy); err == nil {
+		return legacy
+	}
+	return "data/detective.db"
+}
+
+// detectiveInitCode maps a store initialization failure onto a small, stable set of codes;
+// the raw error stays in the log so no path or SQL text reaches the UI.
+func detectiveInitCode(err error) string {
+	switch {
+	case err == nil:
+		return ""
+	case errors.Is(err, detective.ErrSchemaTooNew):
+		return "schema_too_new"
+	case errors.Is(err, fs.ErrPermission):
+		return "permission_denied"
+	case errors.Is(err, os.ErrNotExist):
+		return "path_missing"
+	}
+	return "store_failed"
+}
 
 func (s *Server) initDetective() {
 	if s.Cfg == nil || !s.Cfg.VirtualDesktop.Enabled {
@@ -39,10 +71,7 @@ func (s *Server) initDetective() {
 		}
 		profiles[k] = detective.Profile{Seconds: v.Seconds, Tools: v.Tools, Iterations: v.Iterations, Tokens: v.Tokens}
 	}
-	path := filepath.Join(filepath.Dir(s.Cfg.SQLite.GameMakerPath), "detective.db")
-	if s.Cfg.SQLite.GameMakerPath == "" {
-		path = "data/detective.db"
-	}
+	path := detectiveStorePath(s.Cfg)
 	service, err := detective.New(detective.Options{Path: path, Profiles: profiles, Logger: s.Logger, Notify: s.notifyDetective, Allowed: func() bool { return detectiveResearchAllowed(s.ConfigSnapshot()) }, PDF: func(ctx context.Context, report detective.Report) ([]byte, error) {
 		cfg := s.ConfigSnapshot()
 		if cfg != nil && cfg.Tools.DocumentCreator.Enabled && cfg.Tools.DocumentCreator.Backend == "gotenberg" {
@@ -52,9 +81,12 @@ func (s *Server) initDetective() {
 		return a.Data, err
 	}})
 	if err != nil {
-		s.Logger.Error("Detective initialization failed", "error", err)
+		s.detectiveInitErr = detectiveInitCode(err)
+		s.Logger.Error("Detective initialization failed", "code", s.detectiveInitErr, "error", err)
 		return
 	}
+	s.detectiveInitErr = ""
+	s.Logger.Info("Detective store ready", "path", path)
 	s.Detective = service
 	if err = s.installDetectiveSkill(); err != nil {
 		s.Logger.Error("Detective skill verification failed", "error", err)

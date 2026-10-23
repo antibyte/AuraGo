@@ -28,7 +28,12 @@
         const draftKey = () => state.current?.id || 'new';
         function resetArchive() { selectedReport = null; reportParts = []; history = []; historyNext = 0; historyLoaded = false; archiveSources = []; sourceNext = 0; sourcesLoaded = false; excerpts.clear(); state.revision = 0; viewGeneration++; }
         const readOnly = () => { const caps = state.caps || {}; return !!(ctx.readonly || caps.read_only || !caps.enabled || !caps.ready || state.current?.auto_update?.outcome === 'permission_blocked'); };
-        const blockText = () => { const reason = (state.caps || {}).block_reason; return reason ? tr('block_' + reason) : ''; };
+        const blockText = () => {
+            const caps = state.caps || {};
+            if (caps.initialization_error) return `${tr('init_failed')} (${caps.initialization_error})`;
+            const reason = caps.block_reason;
+            return reason ? tr('block_' + reason) : '';
+        };
         const request = async (path, options = {}) => {
             const opts = {...options, signal: controller.signal};
             if (opts.body) { opts.headers = {'Content-Type': 'application/json'}; opts.body = JSON.stringify(opts.body); }

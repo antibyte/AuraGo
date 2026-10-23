@@ -5090,6 +5090,7 @@
   "desktop.detective_unavailable": "Detective 不可用。请检查提供商、已验证技能及权限。",
   "desktop.detective_block_disabled": "Detective 已停用。",
   "desktop.detective_block_read_only": "Detective 为只读。",
+  "desktop.detective_init_failed": "Detective 无法打开研究存储",
   "desktop.detective_block_initializing": "Detective 正在启动。",
   "desktop.detective_permission_revoked": "研究权限已撤销。",
   "desktop.detective_start": "开始研究",

@@ -78,7 +78,7 @@ func New(opts Options) (*Service, error) {
 	var schemaVersion int
 	if err = db.QueryRow("PRAGMA user_version").Scan(&schemaVersion); err != nil || schemaVersion > SchemaVersion {
 		db.Close()
-		return nil, fmt.Errorf("unsupported Detective database version %d: %v", schemaVersion, err)
+		return nil, fmt.Errorf("%w %d: %v", ErrSchemaTooNew, schemaVersion, err)
 	}
 	if err = backupBeforeMigration(db, opts.Path, schemaVersion, SchemaVersion); err != nil {
 		db.Close()

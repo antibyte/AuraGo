@@ -168,8 +168,12 @@ the click: `GET /api/desktop/detective/capabilities` reports `pdf_backend`
 bar orders Word and Markdown first and names the limit next to the PDF link. Report
 HTML has no scripts, remote images or external stylesheets.
 
-Cases live in `detective.db` beside the configured Game Maker SQLite database
-(default `data/detective.db`). The store includes private continuation, so protect
+Cases live in the configured `sqlite.detective_path` (default `data/detective.db`).
+Older installs keep their file next to the Game Maker database while that
+`detective.db` exists and no path is configured. When the store cannot be opened,
+`GET /api/desktop/detective/capabilities` reports a stable `initialization_error`
+(`schema_too_new`, `permission_denied`, `path_missing`, `store_failed`) and the app
+names it; the raw error stays in the server log. The store includes private continuation, so protect
 it like other application data. Deleting a case removes its evidence,
 continuation, revisions, events and cached artifacts. Up to 100 cases are allowed.
 The working set remains bounded to 400 sources and 200 findings; those limits and

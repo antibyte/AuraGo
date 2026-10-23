@@ -1199,6 +1199,7 @@ type Config struct {
 		MediaRegistryPath    string `yaml:"media_registry_path"`
 		HomepageRegistryPath string `yaml:"homepage_registry_path"`
 		GameMakerPath        string `yaml:"game_maker_path"`
+		DetectivePath        string `yaml:"detective_path"`
 		CYDCreatorPath       string `yaml:"cyd_creator_path"`
 		ContactsPath         string `yaml:"contacts_path"`
 		PlannerPath          string `yaml:"planner_path"`

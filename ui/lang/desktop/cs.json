@@ -5090,6 +5090,7 @@
   "desktop.detective_unavailable": "Detective není dostupný. Ověřte poskytovatele, ověřenou dovednost a oprávnění.",
   "desktop.detective_block_disabled": "Detective je vypnutý.",
   "desktop.detective_block_read_only": "Detective je jen pro čtení.",
+  "desktop.detective_init_failed": "Detective nemohl otevřít své úložiště výzkumu",
   "desktop.detective_block_initializing": "Detective se spouští.",
   "desktop.detective_permission_revoked": "Oprávnění k výzkumu byla odebrána.",
   "desktop.detective_start": "Zahájit průzkum",
