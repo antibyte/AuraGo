@@ -88,9 +88,13 @@ type Link struct {
 
 type Placements map[View]Placement
 
+// Placement is one view position. W and H size a place region (sites, rooms,
+// racks and groups only); zero means the client default size.
 type Placement struct {
 	X      float64 `json:"x"`
 	Y      float64 `json:"y"`
+	W      float64 `json:"w,omitempty"`
+	H      float64 `json:"h,omitempty"`
 	Pinned bool    `json:"pinned"`
 }
 

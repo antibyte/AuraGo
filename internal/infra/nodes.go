@@ -166,6 +166,9 @@ func (s *Store) UpdateNode(ctx context.Context, node Node) (Node, error) {
 	if node.Version <= 0 {
 		return Node{}, fmt.Errorf("%w: node id and current version are required", ErrValidation)
 	}
+	// Stored placements replace the caller's below. Dropping a size the new kind
+	// cannot carry keeps a place-to-device kind change valid.
+	node.Placements = placementsForKind(node.Kind, node.Placements)
 	if err := validateNode(&node); err != nil {
 		return Node{}, err
 	}
@@ -196,7 +199,7 @@ func (s *Store) UpdateNode(ctx context.Context, node Node) (Node, error) {
 	node.RegistryID = previous.RegistryID
 	node.Sources = previous.Sources
 	node.Version++
-	node.Placements = previous.Placements
+	node.Placements = placementsForKind(node.Kind, previous.Placements)
 	if err := updateNodeTx(ctx, tx, node, previous.Version); err != nil {
 		return Node{}, err
 	}

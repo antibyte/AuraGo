@@ -868,3 +868,46 @@ func TestSchemaV3MigrationKeepsV2RowsAndAddsIgnoreAndSourceHosts(t *testing.T) {
 		t.Fatalf("reopening a v3 schema: %v", err)
 	}
 }
+
+func TestPlacementSizeIsBoundedAndOnlyForPlaces(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	room := testNode(NodeRoom, "Living room", "room")
+	room.Placements = Placements{ViewAtlas: {X: 10, Y: 20, W: 360, H: 240}}
+	created, err := store.CreateNode(ctx, room)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := store.GetNode(ctx, created.ID)
+	if err != nil || loaded.Placements[ViewAtlas].W != 360 || loaded.Placements[ViewAtlas].H != 240 {
+		t.Fatalf("stored place size = %#v, %v", loaded.Placements, err)
+	}
+	for _, tc := range []struct {
+		name      string
+		kind      NodeKind
+		placement Placement
+	}{
+		{"device with size", NodeDevice, Placement{W: 360, H: 240}},
+		{"too small", NodeRoom, Placement{W: 119, H: 240}},
+		{"too large", NodeRack, Placement{W: 360, H: 20001}},
+		{"width only", NodeGroup, Placement{W: 360}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			node := testNode(tc.kind, "Sized", "group")
+			node.Placements = Placements{ViewAtlas: tc.placement}
+			if _, err := store.CreateNode(ctx, node); !errors.Is(err, ErrValidation) {
+				t.Fatalf("CreateNode error = %v; want validation error", err)
+			}
+		})
+	}
+	// A sized place that becomes a device keeps its position and loses its size.
+	loaded.Kind = NodeDevice
+	loaded.Icon = "generic-device"
+	changed, err := store.UpdateNode(ctx, loaded)
+	if err != nil {
+		t.Fatalf("kind change of a sized place: %v", err)
+	}
+	if got := changed.Placements[ViewAtlas]; got.W != 0 || got.H != 0 || got.X != 10 || got.Y != 20 {
+		t.Fatalf("placement after kind change = %#v; want position kept and size dropped", got)
+	}
+}
