@@ -14,7 +14,8 @@
     const PREFS_KEY = 'infra.layout.v1';
     const INSPECTOR_MIN = 320, INSPECTOR_MAX = 520, INSPECTOR_STEP = 16;
     const WRITE_ACTIONS = ['add', 'add-menu', 'add-place', 'import', 'add-empty', 'import-empty'];
-    const MENU_TRIGGERS = { add: '[data-action="add-menu"]', more: '[data-action="more"]', filters: '[data-action="filters"]' };
+    const MENU_TRIGGERS = { add: '[data-action="add-menu"]', more: '[data-action="more"]', legend: '[data-action="more"]', filters: '[data-action="filters"]' };
+    const FILTER_SELECTS = { kind: '[data-kind-filter]', source: '[data-source-filter]', power: '[data-power-filter]' };
     const clampInspector = value => Math.min(INSPECTOR_MAX, Math.max(INSPECTOR_MIN, Math.round(Number.isFinite(Number(value)) ? Number(value) : 360)));
 
     function render(host, windowId, context = {}) {
@@ -43,6 +44,7 @@
       <kbd class="infra-search-kbd" aria-hidden="true">Ctrl K</kbd>
       <button type="button" class="infra-cmd-icon" data-action="filters" aria-haspopup="true" aria-expanded="false" aria-controls="infra-filters-${esc(S)}" aria-label="${esc(t('desktop.infra_filters'))}" title="${esc(t('desktop.infra_filters'))}">${glyph('filter')}<span class="infra-filter-dot" data-filter-dot hidden></span></button>
     </div>
+    <div class="infra-filter-chips" data-filter-chips role="group" aria-label="${esc(t('desktop.infra_active_filters'))}" hidden></div>
     <div class="infra-live-status" data-live data-sync="syncing" data-refreshed-at="0" title=""><i aria-hidden="true"></i><span class="infra-sync-label">${esc(t('desktop.infra_sync_syncing'))}</span></div>
     <div class="infra-history" role="group">
       <button type="button" class="infra-cmd-icon" data-action="undo" aria-disabled="true" aria-keyshortcuts="Control+Z" aria-label="${esc(t('desktop.infra_undo'))}" title="${esc(t('desktop.infra_undo_none'))}">${glyph('undo')}</button>
@@ -66,6 +68,8 @@
     <div class="infra-menu" id="infra-more-menu-${esc(S)}" data-menu="more" role="menu" hidden>
       <button type="button" role="menuitem" data-action="refresh">${esc(t('desktop.infra_refresh'))}</button>
       <button type="button" role="menuitem" data-action="arrange" disabled>${esc(t('desktop.infra_arrange'))}</button>
+      <button type="button" role="menuitem" data-action="shortcuts" aria-keyshortcuts="Shift+?">${esc(t('desktop.infra_shortcuts'))}</button>
+      <button type="button" role="menuitem" data-action="legend" aria-haspopup="dialog">${esc(t('desktop.infra_legend'))}</button>
       <button type="button" role="menuitem" data-action="history-undo" data-overflow-only>${esc(t('desktop.infra_undo'))}</button>
       <button type="button" role="menuitem" data-action="history-redo" data-overflow-only>${esc(t('desktop.infra_redo'))}</button>
     </div>
@@ -73,7 +77,9 @@
       <label class="infra-select-label"><span>${esc(t('desktop.infra_type'))}</span><select data-kind-filter aria-label="${esc(t('desktop.infra_type_filter'))}"><option value="">${esc(t('desktop.infra_all_types'))}</option>${KINDS.map(kind => option(kind, t(`desktop.infra_kind_${kind}`))).join('')}</select></label>
       <label class="infra-select-label"><span>${esc(t('desktop.infra_source'))}</span><select data-source-filter aria-label="${esc(t('desktop.infra_source_filter'))}"><option value="">${esc(t('desktop.infra_all_sources'))}</option>${SOURCE_KINDS.map(kind => option(kind, t(`desktop.infra_source_${kind}`))).join('')}</select></label>
       <label class="infra-select-label"><span>${esc(t('desktop.infra_power_filter'))}</span><select data-power-filter aria-label="${esc(t('desktop.infra_power_filter'))}"><option value="">${esc(t('desktop.infra_power_all'))}</option>${POWER_VALUES.map(value => option(value, t(`desktop.infra_power_${value}`))).join('')}</select></label>
+      <button type="button" class="infra-button" data-action="clear-filters" disabled>${esc(t('desktop.infra_clear_filters'))}</button>
     </div>
+    <div class="infra-popover infra-legend" id="infra-legend-${esc(S)}" data-popover="legend" role="dialog" aria-label="${esc(t('desktop.infra_legend'))}" tabindex="-1" hidden></div>
   </div>
   <div class="infra-toasts" data-toasts></div>
   <div class="infra-sr-only" data-announce aria-live="polite" aria-atomic="true"></div>
@@ -85,7 +91,8 @@
         const body = q('[data-body]'), scrim = q('[data-scrim]'), inspectorSplitter = q('[data-splitter="inspector"]');
         const toggleLibraryButton = q('[data-action="toggle-library"]');
         const searchInput = q('[data-search]'), liveEl = q('[data-live]'), filterDot = q('[data-filter-dot]');
-        let disposed = false, deferred = false, searchFrame = 0, searchValue = '', announceTimer = 0, prefsTimer = 0, openMenuName = '', resizeFrame = 0, unsubscribe = null, resizeObserver = null;
+        const chipsEl = q('[data-filter-chips]'), clearFiltersButton = q('[data-action="clear-filters"]');
+        let chipsKey = '', disposed = false, deferred = false, searchFrame = 0, searchValue = '', announceTimer = 0, prefsTimer = 0, openMenuName = '', resizeFrame = 0, unsubscribe = null, resizeObserver = null;
         const toastTimers = new Map();
 
         // ---- preferences ---------------------------------------------------------------
@@ -151,8 +158,10 @@
         app.inspector = window.InfraAppInspector.create(app);
         app.dialogs = window.InfraAppDialogs.create(app);
         app.importer = window.InfraAppImport.create(app);
+        app.menus = window.InfraAppMenus.create(app);
         app.gestures = window.InfraAppGestures.create(app);
-        const { canvas, table, library, inspector, dialogs, importer, gestures } = app;
+        const { canvas, table, library, inspector, dialogs, importer, menus, gestures } = app;
+        q('[data-popover="legend"]').innerHTML = menus.legendHTML();
         inspector.el.id = `infra-inspector-${S}`;
         inspector.el.tabIndex = -1;
         scrim.before(library.el, library.splitter, canvas.el, table.el);
@@ -246,6 +255,23 @@
             const sources = counted.length ? model.fill(counted.length === 1 ? t('desktop.infra_sources_count_one') : t('desktop.infra_sources_count'), { current, total: counted.length }) : t('desktop.infra_sources_waiting');
             liveEl.title = updated ? `${updated} · ${sources}` : sources;
             filterDot.hidden = !(state.filters.kind || state.filters.source || state.filters.power);
+            paintFilterChips();
+        }
+        // One removable chip per active filter (wide windows only; the dot on the filter button says the same below that).
+        function paintFilterChips() {
+            const { kind, source, power } = state.filters, key = [kind, source, power].join('\x1f');
+            if (key === chipsKey) return;
+            chipsKey = key;
+            const chips = [];
+            if (kind) chips.push(['kind', `${t('desktop.infra_type')}: ${app.labelForKind(kind)}`]);
+            if (source) chips.push(['source', `${t('desktop.infra_source')}: ${t(`desktop.infra_source_${source}`)}`]);
+            if (power) chips.push(['power', `${t('desktop.infra_power_filter')}: ${power === 'none' ? t('desktop.infra_power_none') : t(model.powerLabel(power))}`]);
+            chipsEl.innerHTML = chips.map(([name, label]) => {
+                const remove = esc(model.fill(t('desktop.infra_remove_filter'), { filter: label }));
+                return `<button type="button" class="infra-filter-chip" data-remove-filter="${name}" aria-label="${remove}" title="${remove}"><span>${esc(label)}</span>${glyph('close')}</button>`;
+            }).join('');
+            chipsEl.hidden = !chips.length;
+            clearFiltersButton.disabled = !chips.length;
         }
         const renderTable = () => { if (state.view === 'table') table.render(); };
         function renderData() { canvas.render(); library.render(); renderTable(); }
@@ -291,7 +317,8 @@
             trigger.setAttribute('aria-expanded', 'true');
             openMenuName = name;
             document.addEventListener('pointerdown', onMenuOutside, true);
-            el.querySelector('[role="menuitem"]:not(:disabled), select')?.focus();
+            // A popover without items (the legend) takes the focus itself.
+            (el.querySelector('[role="menuitem"]:not(:disabled), select, button:not(:disabled)') || (el.hasAttribute('tabindex') ? el : null))?.focus();
         }
         const onLayerKeydown = event => {
             if (!openMenuName) return;
@@ -328,8 +355,20 @@
             if (open) inspector.close({ restoreFocus: false });
             setLibrarySheet(open);
         }
+        // Resetting a filter also resets its select, which the filters popover keeps in step by hand.
+        function resetFilters(keys) {
+            for (const key of keys) q(FILTER_SELECTS[key]).value = '';
+            store.setFilters(Object.fromEntries(keys.map(key => [key, ''])));
+        }
+        function removeFilter(key) {
+            const index = [...chipsEl.querySelectorAll('[data-remove-filter]')].findIndex(chip => chip.dataset.removeFilter === key);
+            resetFilters([key]);
+            (chipsEl.querySelectorAll('[data-remove-filter]')[index] || searchInput).focus();
+        }
         const onRootClick = event => {
             if (event.target.closest(OWN_CLICKS)) return;
+            const chip = event.target.closest('[data-remove-filter]');
+            if (chip) { removeFilter(chip.dataset.removeFilter); return; }
             const viewButton = event.target.closest('.infra-view-switch [data-view]');
             if (viewButton) { store.setView(viewButton.dataset.view); return; }
             const button = event.target.closest('[data-action]');
@@ -346,6 +385,9 @@
                 // The sheet remembers the focused element: take the focus back to the trigger first.
                 case 'import': case 'import-empty': if (menuItem) closeMenus({ restoreFocus: true }); importer.open(); return;
                 case 'arrange': gestures.arrange(); break;
+                case 'clear-filters': resetFilters(Object.keys(FILTER_SELECTS)); return;
+                case 'shortcuts': if (menuItem) closeMenus({ restoreFocus: true }); menus.openShortcuts(); return;
+                case 'legend': if (menuItem) closeMenus(); openMenu('legend'); return;
                 case 'undo': case 'history-undo': if (store.canUndo(view)) void store.undo(view); break;
                 case 'redo': case 'history-redo': if (store.canRedo(view)) void store.redo(view); break;
                 case 'toggle-library': toggleLibrary(); return;
@@ -441,6 +483,8 @@
         unsubscribe = store.subscribe(route);
 
         // ---- window wiring ---------------------------------------------------------------------------
+        if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(root, { onContextMenu: event => menus.onContextMenu(event) });
+        else root.addEventListener('contextmenu', event => { if (menus.onContextMenu(event)) { event.preventDefault(); event.stopPropagation(); } });
         root.addEventListener('focusout', () => inspector.flushStale());
         root.addEventListener('keydown', event => gestures.onRootKeydown(event));
         if (typeof ResizeObserver === 'function') {
@@ -470,7 +514,7 @@
                 closeMenus();
                 app.picker.dispose();
                 app.cleanup.dispose();
-                gestures.dispose(); canvas.dispose(); library.dispose(); inspector.dispose(); dialogs.dispose(); importer.dispose(); table.dispose();
+                gestures.dispose(); menus.dispose(); canvas.dispose(); library.dispose(); inspector.dispose(); dialogs.dispose(); importer.dispose(); table.dispose();
                 for (const element of [...toastTimers.keys()]) removeToast(element);
                 clearTimeout(announceTimer); cancelAnimationFrame(searchFrame); cancelAnimationFrame(resizeFrame);
                 resizeObserver?.disconnect();

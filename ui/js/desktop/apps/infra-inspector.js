@@ -311,7 +311,7 @@ ${panel('overview', overviewHTML(node))}${panel('details', forms.detailsHTML(nod
                 case 'rename': startRename(); break;
                 case 'pick-icon': forms.openIconPicker(button); break;
                 case 'edit-details': showTab('details', { persist: true }); $('[data-node-field="kind"]')?.focus(); break;
-                case 'node-more': if (app.menus) app.menus.openNodeMenu(id, button); else app.dialogs.openNodeActions(id); break;
+                case 'node-more': app.menus.openNodeMenu(id, button); break;
                 case 'place-selected': void app.gestures.placeAtCenter([id], { moveMode: true }); break;
                 case 'add-edge': app.picker.openAssetPicker({ anchor: button, label: t('desktop.infra_connect_to'), accept: other => other.id !== id, onPick: option => app.dialogs.openEdgeDialog('', id, option.id) }); break;
                 case 'delete-edge': void app.dialogs.removeEdge(state.selectedEdge); break;

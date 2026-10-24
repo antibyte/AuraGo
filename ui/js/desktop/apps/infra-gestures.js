@@ -844,7 +844,15 @@
                 void (redo ? store.redo(view) : store.undo(view)).then(ok => { if (ok) app.announce(redo ? t('desktop.infra_redone') : t('desktop.infra_undone')); });
                 return;
             }
-            if (event.key === 'Escape' && event.target.closest?.('[data-inspector]') && !isTyping(event.target)) { event.preventDefault(); app.inspector?.close(); }
+            if (event.key === 'Escape' && event.target.closest?.('[data-inspector]') && !isTyping(event.target)) { event.preventDefault(); app.inspector?.close(); return; }
+            if (mod || event.altKey) return;
+            // Text fields keep their keys; a checkbox still opens the menu of its row.
+            const entering = !!event.target.closest?.('textarea, select, [contenteditable="true"], [contenteditable=""], input:not([type="checkbox"]):not([type="radio"])');
+            if (entering) return;
+            if (event.key === '?') { event.preventDefault(); app.menus.openShortcuts(); return; }
+            if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+                if (app.menus.openForElement(document.activeElement)) event.preventDefault();
+            }
         }
         function cancel() {
             gesture?.abort();
