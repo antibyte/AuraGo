@@ -468,7 +468,7 @@ button.infra-head-name:hover { border-color: var(--vd-theme-border); }
 @keyframes infra-sheet-in { from { opacity: 0; transform: translateX(-12px); } }
 /* ---- Plan C: List view ---- */
 .infra-table-scroll { min-height: 0; flex: 1; margin: 0 var(--ds-space-3) var(--ds-space-3); overflow: auto; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-md); background: var(--vd-theme-panel-bg); }
-.infra-table { width: 100%; min-width: 980px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+.infra-table { width: 100%; min-width: 900px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 14px; }
 .infra-table thead th { position: sticky; top: 0; z-index: 1; height: 40px; padding: 0 var(--ds-space-2); border-bottom: 1px solid var(--vd-theme-border); background: var(--vd-theme-panel-bg-strong); color: var(--vd-theme-muted); font-size: 13px; font-weight: 600; text-align: left; white-space: nowrap; }
 .infra-table th[data-sort-col="name"] { width: 24%; }
 .infra-table th[data-sort-col="kind"] { width: 9%; }
