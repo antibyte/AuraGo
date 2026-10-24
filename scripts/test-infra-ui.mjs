@@ -618,6 +618,193 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     assert.notEqual(model.snapshotStamp([{ ...base.nodes[0], sources: [{ ...base.sources[0] }] }], base.edges, base.sources, base.caps), model.snapshotStamp([{ ...base.nodes[0], sources: [{ ...base.sources[0], ignored: true }] }], base.edges, base.sources, base.caps), 'a linked source flips with its ignored flag');
 }
 
+// ---- store: ignore, batch import, removal, parents, unplace undo ------------------
+{
+    const InfraStore = window.InfraAppStore;
+    const node = (id, extra = {}) => ({ id, version: 1, kind: 'device', name: id, icon: 'router', profile: {}, placements: { atlas: { x: 0, y: 0, pinned: true } }, sources: [], ...extra });
+    const recorder = routes => {
+        const calls = [];
+        const api = async (url, options = {}) => {
+            const [pathPart, query = ''] = String(url).replace('/api/desktop/infra', '').split('?');
+            const method = options.method || 'GET';
+            const body = typeof options.body === 'string' ? JSON.parse(options.body) : undefined;
+            calls.push({ route: `${method} ${pathPart}`, query, body });
+            const handler = routes[`${method} ${pathPart}`] || routes[`${method} ${pathPart.replace(/\/nodes\/[^/]+$/, '/nodes/:id')}`];
+            if (!handler) throw Object.assign(new Error('not_found'), { status: 404, body: { error: 'not_found' } });
+            return handler(body, { query, path: pathPart });
+        };
+        return { api, calls };
+    };
+    const snap = (nodes, extra = {}) => ({ nodes, edges: [], sources: [], source_hosts: [], capabilities: { write: true }, ...extra });
+    const newStore = (api, ctx = {}) => InfraStore.create({ ctx: { api, ...ctx }, t: key => key });
+    {
+        const { api, calls } = recorder({ 'GET /snapshot': () => snap([node('a')], { sources: [{ kind: 'registry', instance: 'inventory', key: 'k1', name: 'TV', state: 'current', ignored: true }] }) });
+        const store = newStore(api);
+        assert.equal(await store.reloadSnapshot(), true);
+        assert.match(calls[0].query, /(^|&)include_ignored=1(&|$)/, 'snapshots ask for ignored sources');
+        assert.equal(store.state.sources[0].ignored, true);
+        assert.equal(store.features.unplace, true);
+        store.applySnapshot(snap([node('a')], { source_hosts: undefined }));
+        assert.equal(store.features.unplace, false, 'a server without source_hosts has no unplace either');
+        store.dispose();
+    }
+    {
+        const identity = { kind: 'registry', instance: 'inventory', key: 'k1' };
+        const { api, calls } = recorder({ 'PUT /sources/ignore': body => ({ sources: body.sources.map(item => ({ ...item, name: 'TV', state: 'current', ignored: body.ignored })) }) });
+        const store = newStore(api);
+        store.applySnapshot(snap([node('a')]));
+        store.state.candidates = [{ id: 'cand-1', source: { ...identity, state: 'current' }, node: { kind: 'device', name: 'TV' } }];
+        const events = [];
+        store.subscribe(change => events.push(change.type));
+        assert.equal(await store.setSourcesIgnored([identity], true), true);
+        assert.deepEqual(plain(calls[0].body), { sources: [identity], ignored: true });
+        assert.equal(store.state.candidates.length, 0);
+        assert.equal(store.state.sources.find(source => source.key === 'k1').ignored, true);
+        assert.ok(events.includes('sources') && events.includes('candidates'));
+        assert.equal(await store.setSourcesIgnored([identity], false), true);
+        assert.equal(store.state.sources.find(source => source.key === 'k1').ignored, false, 'restoring updates the same row');
+        assert.equal(store.state.sources.length, 1);
+        store.dispose();
+    }
+    {
+        const { api, calls } = recorder({ 'POST /import/batch': body => ({ nodes: [node('imported-1', { parent_id: 'room', placements: { atlas: { x: 48, y: 72, pinned: true } } })], errors: [{ candidate_id: body.items[1].candidate_id, error: 'source_stale', message: 'x' }] }) });
+        const store = newStore(api);
+        store.applySnapshot(snap([node('room', { kind: 'room' })]));
+        store.state.candidates = [{ id: 'c1', source: {}, node: {} }, { id: 'c2', source: {}, node: {} }];
+        const result = await store.importBatch([{ candidate_id: 'c1', parent_id: 'room', placement: { view: 'atlas', x: 48, y: 72 } }, { candidate_id: 'c2' }]);
+        assert.deepEqual(plain(calls[0].body.items[0]), { candidate_id: 'c1', parent_id: 'room', placement: { view: 'atlas', x: 48, y: 72 } });
+        assert.deepEqual(plain(result.nodes.map(item => item.id)), ['imported-1']);
+        assert.deepEqual(plain(result.errors.map(item => [item.candidate_id, item.error])), [['c2', 'source_stale']]);
+        assert.equal(store.nodeById('imported-1').parent_id, 'room');
+        assert.deepEqual(plain(store.state.candidates.map(item => item.id)), ['c2'], 'a failed discovery stays');
+        store.dispose();
+    }
+    { // an unconfirmed import reloads, tells the user and reports uncertain
+        const { api, calls } = recorder({ 'POST /import/batch': () => { throw Object.assign(new Error('boom'), { status: 502 }); }, 'GET /snapshot': () => snap([node('a')]) });
+        const store = newStore(api);
+        store.applySnapshot(snap([node('a')]));
+        store.state.candidates = [{ id: 'c1', source: {}, node: {} }];
+        const notices = [];
+        store.subscribe(change => { if (change.type === 'notice') notices.push(change.message); });
+        const result = await store.importBatch([{ candidate_id: 'c1' }]);
+        assert.equal(result.uncertain, true);
+        assert.deepEqual(notices, ['desktop.infra_write_outcome_unknown']);
+        assert.equal(calls.filter(call => call.route === 'GET /snapshot').length, 1, 'the latest state is reloaded');
+        assert.equal(store.state.candidates.length, 1, 'nothing is assumed imported');
+        store.dispose();
+    }
+    {
+        const source = { kind: 'registry', instance: 'inventory', key: 'k9', name: 'Old NAS', state: 'current' };
+        const { api, calls } = recorder({ 'DELETE /nodes/:id': (_, { path }) => ({ status: 'deleted', id: path.split('/').pop(), ignored: [{ kind: 'registry', instance: 'inventory', key: 'k9' }] }) });
+        const store = newStore(api);
+        store.applySnapshot(snap([node('nas', { version: 3, sources: [source] }), node('other')]));
+        assert.deepEqual(plain(await store.removeNodes(['nas'], { ignoreSources: true })), ['nas']);
+        assert.equal(calls[0].route, 'DELETE /nodes/nas');
+        assert.equal(calls[0].query, 'version=3&ignore_sources=1');
+        assert.equal(store.nodeById('nas'), undefined);
+        assert.deepEqual(plain(store.state.sources.filter(item => item.ignored).map(item => [item.key, item.name])), [['k9', 'Old NAS']]);
+        store.dispose();
+    }
+    { // removal stops at the first refusal and keeps what it removed
+        const { api, calls } = recorder({ 'DELETE /nodes/:id': (_, { path }) => { if (path.endsWith('/b')) throw Object.assign(new Error('conflict'), { status: 409, body: { error: 'conflict' } }); return { status: 'deleted', id: path.split('/').pop() }; } });
+        const store = newStore(api);
+        store.applySnapshot(snap([node('a'), node('b'), node('c')]));
+        assert.deepEqual(plain(await store.removeNodes(['a', 'b', 'c'])), ['a']);
+        assert.equal(calls.length, 2, 'c is never tried');
+        assert.deepEqual(plain(store.state.nodes.map(item => item.id)), ['b', 'c']);
+        store.dispose();
+    }
+    {
+        const puts = [];
+        const { api } = recorder({ 'PUT /nodes/:id': body => { puts.push([body.id, body.parent_id, body.version]); return { node: { ...body, version: body.version + 1 } }; } });
+        const store = newStore(api);
+        store.applySnapshot(snap([node('a', { placements: {} }), node('room', { kind: 'room' })]));
+        store.state.drafts.set('a', { ...store.nodeById('a'), name: 'Draft' });
+        store.state.dirty.add('a');
+        assert.equal(await store.dispatch(InfraStore.commands.setParent([{ id: 'a', before: '', after: 'room' }], 'moved')), true);
+        assert.equal(store.nodeById('a').parent_id, 'room');
+        assert.equal(store.state.drafts.get('a').version, 2, 'a dirty draft follows the version');
+        assert.equal(store.state.drafts.get('a').parent_id, 'room');
+        assert.equal(store.state.drafts.get('a').name, 'Draft');
+        assert.equal(await store.undo('atlas'), true);
+        assert.equal(store.nodeById('a').parent_id, '');
+        assert.deepEqual(puts, [['a', 'room', 1], ['a', '', 2]]);
+        store.dispose();
+    }
+    {
+        const { api, calls } = recorder({ 'PUT /layout': body => ({ nodes: body.nodes.map(item => node(item.id, { version: item.version + 1, placements: item.unplace ? {} : { atlas: { x: item.x, y: item.y, pinned: true } } })) }) });
+        const store = newStore(api);
+        store.applySnapshot(snap([node('a', { placements: {} })]));
+        const after = new Map([['a', { x: 96, y: 48, pinned: true }]]);
+        const command = InfraStore.commands.placeFromLibrary('atlas', after, 'placed', new Map([['a', { unplace: true }]]));
+        assert.equal(command.undoable, true, 'a caller that states the previous intents gets an undoable command');
+        await store.dispatch(command);
+        await store.whenLayoutIdle('atlas');
+        assert.equal(store.effectivePlacement('a', 'atlas').x, 96);
+        assert.equal(await store.undo('atlas'), true);
+        assert.equal(store.effectivePlacement('a', 'atlas'), null, 'undo hides the card at once');
+        await store.whenLayoutIdle('atlas');
+        assert.equal(store.nodeById('a').placements.atlas, undefined);
+        assert.deepEqual(plain(calls.map(call => call.body.nodes[0])), [{ id: 'a', version: 1, x: 96, y: 48, pinned: true }, { id: 'a', version: 2, unplace: true }]);
+        assert.equal(InfraStore.commands.placeFromLibrary('atlas', after, '', new Map()).undoable, false);
+        store.dispose();
+    }
+    { // an old server (no source_hosts) never gets an unplace, even when the caller states one
+        const { api } = recorder({ 'PUT /layout': body => ({ nodes: body.nodes.map(item => node(item.id, { version: item.version + 1, placements: { atlas: { x: item.x, y: item.y, pinned: true } } })) }) });
+        const store = newStore(api);
+        store.applySnapshot(snap([node('a', { placements: {} })], { source_hosts: undefined }));
+        await store.dispatch(InfraStore.commands.placeFromLibrary('atlas', new Map([['a', { x: 96, y: 48, pinned: true }]]), 'placed', new Map([['a', { unplace: true }]])));
+        await store.whenLayoutIdle('atlas');
+        assert.equal(store.canUndo('atlas'), false);
+        store.dispose();
+    }
+    { // the unplace command takes assets off the map and undo puts them back where they were
+        const { api, calls } = recorder({ 'PUT /layout': body => ({ nodes: body.nodes.map(item => node(item.id, { version: item.version + 1, placements: item.unplace ? {} : { atlas: { x: item.x, y: item.y, pinned: true } } })) }) });
+        const store = newStore(api);
+        store.applySnapshot(snap([node('a', { placements: { atlas: { x: 96, y: 48, pinned: true } } })]));
+        const before = new Map([['a', store.currentIntent('a', 'atlas', false)]]);
+        await store.dispatch(InfraStore.commands.unplace('atlas', before, 'removed'));
+        assert.equal(store.effectivePlacement('a', 'atlas'), null);
+        await store.whenLayoutIdle('atlas');
+        assert.equal(store.nodeById('a').placements.atlas, undefined);
+        assert.equal(await store.undo('atlas'), true);
+        assert.equal(store.effectivePlacement('a', 'atlas').x, 96);
+        await store.whenLayoutIdle('atlas');
+        assert.deepEqual(plain(calls.map(call => call.body.nodes[0])), [{ id: 'a', version: 1, unplace: true }, { id: 'a', version: 2, x: 96, y: 48, pinned: true }]);
+        store.dispose();
+    }
+    {
+        const { api, calls } = recorder({
+            'PUT /source-hosts': body => ({ source_host: { ...body, version: body.version + 1 } }),
+            'GET /snapshot': () => snap([node('ct', { kind: 'container', host_id: 'host' }), node('host')], { source_hosts: [{ kind: 'docker', instance: 'engine-a', node_id: 'host', version: 5 }] }),
+        });
+        const store = newStore(api);
+        store.applySnapshot(snap([node('ct', { kind: 'container' }), node('host')], { source_hosts: [{ kind: 'docker', instance: 'engine-a', node_id: '', version: 4, inferred_node_id: '' }] }));
+        assert.equal(await store.setSourceHost('engine-a', 'host'), true);
+        assert.deepEqual(plain(calls[0].body), { kind: 'docker', instance: 'engine-a', node_id: 'host', version: 4 });
+        assert.equal(store.guests().hostOf.get('ct'), 'host');
+        store.dispose();
+    }
+    { // a stale engine host version reloads and tells the user; read-only stores never write
+        const { api, calls } = recorder({ 'PUT /source-hosts': () => { throw Object.assign(new Error('conflict'), { status: 409, body: { error: 'conflict' } }); }, 'GET /snapshot': () => snap([node('a')]) });
+        const store = newStore(api);
+        store.applySnapshot(snap([node('a')], { source_hosts: [{ kind: 'docker', instance: 'engine-a', node_id: '', version: 1 }] }));
+        assert.equal(await store.setSourceHost('engine-a', 'a'), false);
+        assert.equal(calls.filter(call => call.route === 'GET /snapshot').length, 1);
+        store.dispose();
+        const readonly = recorder({});
+        const locked = newStore(readonly.api, { readonly: true });
+        locked.applySnapshot(snap([node('a')]));
+        assert.equal(await locked.setSourceHost('engine-a', 'a'), false);
+        assert.equal(await locked.setSourcesIgnored([{ kind: 'registry', instance: 'i', key: 'k' }], true), false);
+        assert.deepEqual(plain(await locked.removeNodes(['a'])), []);
+        assert.equal((await locked.importBatch([{ candidate_id: 'c1' }])).nodes.length, 0);
+        assert.equal(await locked.updateParents([['a', 'room']]), false);
+        assert.equal(readonly.calls.length, 0, 'a read-only desktop sends nothing');
+        locked.dispose();
+    }
+}
+
 for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     const css = fs.readFileSync(path.join(root, 'ui/css', file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     const outsideMixes = css.replace(/color-mix\((?:[^()]|\([^()]*\))*\)/g, '');

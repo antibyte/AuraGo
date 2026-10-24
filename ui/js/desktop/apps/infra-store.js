@@ -20,23 +20,27 @@
     });
     // placeFromLibrary puts assets on a view that had no placement for them.
     // Undoing it queues {unplace: true} intents, which only a server with
-    // layout-parent support understands; dispatch() calls prepare() so the
-    // command knows that server and the previous state of every asset. A drop
-    // that changed an asset's parent unplaces it with its previous parent_id.
-    // Against an older server the command stays out of history.
-    const placeFromLibrary = (view, after, label = '') => {
-        const command = layoutCommand('PlaceFromLibrary', view, new Map(), after, label);
-        command.undoable = false;
+    // unplace support understands; dispatch() calls prepare() so the command
+    // knows that server and the previous state of every asset. A drop that
+    // changed an asset's parent unplaces it with its previous parent_id.
+    // Against an older server the command stays out of history. A caller may
+    // pass the previous intents itself (`before`); they win per id, and the
+    // rest is derived at dispatch.
+    const placeFromLibrary = (view, after, label = '', before = null) => {
+        const command = layoutCommand('PlaceFromLibrary', view, before || new Map(), after, label);
+        command.undoable = !!before && after.size > 0 && [...after.keys()].every(id => !!before.get(id));
         command.prepare = store => {
-            const before = new Map();
+            const prior = new Map();
             for (const [id, intent] of after) {
+                const given = before?.get(id);
+                if (given) { prior.set(id, given); continue; }
                 const previous = store.currentIntent(id, view, store.features.layoutParent);
-                if (previous) { before.set(id, previous); continue; }
+                if (previous) { prior.set(id, previous); continue; }
                 const parent = store.effectiveParent(id, view);
-                before.set(id, intent.parent_id !== undefined && intent.parent_id !== parent ? { unplace: true, parent_id: parent } : { unplace: true });
+                prior.set(id, intent.parent_id !== undefined && intent.parent_id !== parent ? { unplace: true, parent_id: parent } : { unplace: true });
             }
-            command.before = before;
-            command.undoable = store.features.layoutParent === true;
+            command.before = prior;
+            command.undoable = store.features.unplace === true;
         };
         command.revert = store => store.queueLayout(view, command.before);
         return command;
@@ -48,6 +52,14 @@
         reparent: (view, before, after, label = '') => layoutCommand('Reparent', view, before, after, label),
         resizePlace: (view, before, after, label = '') => layoutCommand('ResizePlace', view, before, after, label),
         placeFromLibrary,
+        // unplace takes assets off the map; `before` holds their current intents so undo puts them back.
+        unplace: (view, before, label = '') => layoutCommand('Unplace', view, before, new Map([...before.keys()].map(id => [id, { unplace: true }])), label),
+        // setParent changes parent_id through the node PUT (assets that are not drawn inside the new place).
+        setParent: (changes, label = '') => ({
+            type: 'SetParent', label, undoable: true, changes: changes.map(change => ({ id: change.id, before: change.before || '', after: change.after || '' })),
+            async apply(store) { return store.updateParents(this.changes.map(change => [change.id, change.after])); },
+            async revert(store) { return store.updateParents(this.changes.map(change => [change.id, change.before])); },
+        }),
         createEdge: fields => ({
             type: 'CreateEdge', fields: { ...fields }, edgeId: '', undoable: true,
             async apply(store) { const edge = await store.createEdge(this.fields); this.edgeId = edge?.id || ''; return !!this.edgeId; },
@@ -64,7 +76,7 @@
         const model = window.InfraAppModel;
         const t = translate || (key => ctx.t?.(key) || key);
         const listeners = new Set();
-        const features = { layoutParent: false };
+        const features = { layoutParent: false, unplace: false };
         const lanes = {}, histories = {};
         for (const view of VIEWS) {
             lanes[view] = { pending: new Map(), inflight: null, unsaved: new Map(), waiters: [], scheduled: false };
@@ -87,6 +99,10 @@
         };
         let detach = () => {};
         let win = null;
+        // Events: notice, busy, snapshot, caps, sync, selection, view, filters, tool, expanded, interaction-end,
+        // layout, layout-status, history, nodes, edges, targets, manifest, credentials, and (Plan C) sources,
+        // candidates, source-hosts. `sources` follows an ignore, restore or removal that ignored sources;
+        // `candidates` a changed discovery list; `source-hosts` a changed engine host mapping.
         const emit = change => { if (!state.disposed) for (const fn of [...listeners]) fn(change); };
         const subscribe = fn => { listeners.add(fn); return () => listeners.delete(fn); };
         const notify = (message, kind = 'info') => emit({ type: 'notice', message, kind });
@@ -216,6 +232,7 @@
             state.edges = Array.isArray(data.edges) ? data.edges : [];
             state.sources = Array.isArray(data.sources) ? data.sources : [];
             features.layoutParent = Array.isArray(data.source_hosts);
+            features.unplace = features.layoutParent;
             state.sourceHosts = features.layoutParent ? data.source_hosts : [];
             state.caps = { write: false, source_edit: false, control: false, ...(data.capabilities || {}) };
             for (const node of state.nodes) {
@@ -223,7 +240,7 @@
                 if (!state.dirty.has(node.id)) state.drafts.set(node.id, model.clone(node));
             }
             pruneSelection();
-            const stamp = model.snapshotStamp(state.nodes, state.edges, state.sources, state.caps);
+            const stamp = model.snapshotStamp(state.nodes, state.edges, state.sources, state.caps) + '\x1d' + JSON.stringify(state.sourceHosts);
             const structural = stamp !== state.stamp;
             state.stamp = stamp;
             state.refreshAt = Date.now();
@@ -235,7 +252,7 @@
             const generation = state.epoch;
             setBusy('snapshot', true);
             try {
-                const data = await request(`/snapshot${explicit ? '?refresh=1' : ''}`, {}, generation);
+                const data = await request(`/snapshot?${explicit ? 'refresh=1&' : ''}include_ignored=1`, {}, generation);
                 state.pollPaused = false;
                 applySnapshot(data, { explicit });
                 setSync('live');
@@ -251,7 +268,7 @@
             } finally { setBusy('snapshot', false); }
         }
         async function refreshSnapshot() {
-            try { applySnapshot(await request('/snapshot')); return true; }
+            try { applySnapshot(await request('/snapshot?include_ignored=1')); return true; }
             catch (error) { if (error?.name !== 'AbortError') notify(messageFor(error), 'error'); return false; }
         }
         async function loadTargets(force = false) {
@@ -504,6 +521,150 @@
             return true;
         }
 
+        // ---- sources, discoveries, removal and parents (Plan C) ---------------------
+        const identityKey = source => `${source?.kind || ''}\x00${source?.instance || ''}\x00${source?.key || ''}`;
+        function mergeSources(rows) {
+            const byKey = new Map(state.sources.map(source => [identityKey(source), source]));
+            for (const row of rows) byKey.set(identityKey(row), { ...(byKey.get(identityKey(row)) || {}), ...row });
+            state.sources = [...byKey.values()];
+        }
+        const uncertainReload = async error => { await refreshSnapshot(); notify(t('desktop.infra_write_outcome_unknown'), 'error'); return error; };
+        function replaceNodes(list) {
+            const at = new Map(state.nodes.map((node, index) => [node.id, index])), nodes = state.nodes.slice(), out = [];
+            for (const raw of list || []) {
+                if (!raw?.id) continue;
+                const normalized = model.normalizeNode(raw);
+                if (at.has(normalized.id)) nodes[at.get(normalized.id)] = normalized; else { at.set(normalized.id, nodes.length); nodes.push(normalized); }
+                if (!state.dirty.has(normalized.id)) state.drafts.set(normalized.id, model.clone(normalized));
+                out.push(normalized);
+            }
+            if (out.length) { state.nodes = nodes; emit({ type: 'nodes' }); }
+            return out;
+        }
+        // setSourcesIgnored ignores (or restores) sources in chunks of 1000 and
+        // drops ignored discoveries from the import sheet.
+        async function setSourcesIgnored(identities, ignored) {
+            const items = (identities || []).filter(item => item?.kind && item.key).map(item => ({ kind: item.kind, instance: item.instance || '', key: item.key }));
+            if (!items.length || !canWrite()) return false;
+            setBusy('ignore', true);
+            try {
+                for (let start = 0; start < items.length; start += 1000) {
+                    const chunk = items.slice(start, start + 1000);
+                    const result = await request('/sources/ignore', { method: 'PUT', body: { sources: chunk, ignored: !!ignored } });
+                    mergeSources(Array.isArray(result?.sources) ? result.sources : chunk.map(item => ({ ...item, ignored: !!ignored })));
+                }
+                const gone = new Set(items.map(identityKey));
+                if (ignored) state.candidates = state.candidates.filter(candidate => !gone.has(identityKey(candidate.source)));
+                emit({ type: 'sources' }); emit({ type: 'candidates' });
+                return true;
+            } catch (error) {
+                if (error?.name === 'AbortError') return false;
+                if (uncertainMutation(error)) await uncertainReload(error); else notify(messageFor(error), 'error');
+                return false;
+            } finally { setBusy('ignore', false); }
+        }
+        // setSourceHost assigns ('' clears) the device that runs a Docker engine
+        // with the stored version, then reloads because host_id is a projection.
+        async function setSourceHost(instance, nodeId) {
+            const key = `source-host-${instance}`;
+            if (!canWrite() || !instance || state.busy.has(key)) return false;
+            const entry = state.sourceHosts.find(item => item.kind === 'docker' && item.instance === instance);
+            setBusy(key, true);
+            try {
+                const result = await request('/source-hosts', { method: 'PUT', body: { kind: 'docker', instance, node_id: nodeId || '', version: Number(entry?.version) || 0 } });
+                const saved = result?.source_host;
+                if (saved?.instance) { state.sourceHosts = [...state.sourceHosts.filter(item => !(item.kind === saved.kind && item.instance === saved.instance)), { ...(entry || {}), ...saved }]; emit({ type: 'source-hosts' }); }
+                await refreshSnapshot();
+                return true;
+            } catch (error) {
+                if (error?.name === 'AbortError') return false;
+                if (error?.status === 409) { await refreshSnapshot(); notify(messageFor(error), 'error'); }
+                else if (uncertainMutation(error)) await uncertainReload(error);
+                else notify(messageFor(error), 'error');
+                return false;
+            } finally { setBusy(key, false); }
+        }
+        // importBatch posts items in chunks of 500 and answers {nodes, errors,
+        // uncertain}; imported discoveries leave state.candidates.
+        async function importBatch(items) {
+            const result = { nodes: [], errors: [], uncertain: false };
+            if (!canWrite() || !items?.length) return result;
+            setBusy('import', true);
+            try {
+                for (let start = 0; start < items.length; start += 500) {
+                    const chunk = items.slice(start, start + 500);
+                    let answer;
+                    try { answer = await request('/import/batch', { method: 'POST', body: { items: chunk } }); }
+                    catch (error) {
+                        if (state.disposed) return result;
+                        if (uncertainMutation(error)) { result.uncertain = true; await uncertainReload(error); return result; }
+                        for (const item of chunk) result.errors.push({ candidate_id: item.candidate_id, error: String(error?.body?.error || 'infra_error'), message: messageFor(error) });
+                        continue;
+                    }
+                    result.nodes.push(...replaceNodes(Array.isArray(answer?.nodes) ? answer.nodes : []));
+                    for (const failure of Array.isArray(answer?.errors) ? answer.errors : []) result.errors.push({ candidate_id: String(failure.candidate_id || ''), error: String(failure.error || 'infra_error'), message: messageFor({ body: { error: failure.error } }) });
+                }
+                const failed = new Set(result.errors.map(item => item.candidate_id));
+                const done = new Set(items.map(item => item.candidate_id).filter(id => !failed.has(id)));
+                state.candidates = state.candidates.filter(candidate => !done.has(candidate.id));
+                emit({ type: 'candidates' });
+                return result;
+            } finally { setBusy('import', false); }
+        }
+        // removeNodes deletes one by one (each with its version) and stops at the
+        // first refusal; ignoreSources also ignores the linked sources.
+        async function removeNodes(ids, { ignoreSources = false } = {}) {
+            const removed = [];
+            if (!canWrite()) return removed;
+            setBusy('remove', true);
+            try {
+                for (const id of ids || []) {
+                    const node = nodeById(id);
+                    if (!node) continue;
+                    const linked = new Map((node.sources || []).map(source => [identityKey(source), source]));
+                    try {
+                        const result = await request(`/nodes/${encodeURIComponent(id)}?version=${encodeURIComponent(node.version)}${ignoreSources ? '&ignore_sources=1' : ''}`, { method: 'DELETE' });
+                        if (ignoreSources) mergeSources((Array.isArray(result?.ignored) ? result.ignored : []).map(identity => ({ ...(linked.get(identityKey(identity)) || {}), ...identity, ignored: true })));
+                        removeNode(id);
+                        removed.push(id);
+                    } catch (error) {
+                        if (state.disposed) break;
+                        if (uncertainMutation(error)) await uncertainReload(error); else notify(messageFor(error), 'error');
+                        break;
+                    }
+                }
+                if (ignoreSources && removed.length) emit({ type: 'sources' });
+                return removed;
+            } finally { setBusy('remove', false); }
+        }
+        // updateNodeFields writes top-level fields of the stored node (not the
+        // draft); one 409 reloads and retries; a dirty draft follows the version.
+        async function updateNodeFields(id, patch) {
+            for (let attempt = 0; attempt < 2; attempt += 1) {
+                const node = nodeById(id);
+                if (!node || !canWrite()) return false;
+                try {
+                    const result = await request(`/nodes/${encodeURIComponent(id)}`, { method: 'PUT', body: { ...model.clone(node), ...patch, id } });
+                    const updated = result?.node || result;
+                    if (!updated?.id) { await refreshSnapshot(); return true; }
+                    const draft = state.drafts.get(id), dirty = state.dirty.has(id);
+                    replaceNode(updated);
+                    if (dirty && draft && draft.version === node.version) {
+                        draft.version = updated.version;
+                        for (const key of Object.keys(patch)) if (JSON.stringify(draft[key]) === JSON.stringify(node[key])) draft[key] = updated[key] ?? patch[key];
+                    }
+                    return true;
+                } catch (error) {
+                    if (error?.status === 409 && attempt === 0 && await refreshSnapshot()) continue;
+                    if (error?.name === 'AbortError') return false;
+                    if (uncertainMutation(error)) await uncertainReload(error); else notify(messageFor(error), 'error');
+                    return false;
+                }
+            }
+            return false;
+        }
+        async function updateParents(pairs) { for (const [id, parent] of pairs) if (!await updateNodeFields(id, { parent_id: parent || '' })) return false; return true; }
+
         // ---- history ---------------------------------------------------------------
         async function dispatch(command) {
             if (!command || !canWrite()) return false;
@@ -602,6 +763,7 @@
             select, selectEdge, clearSelection, setView, setFilters, setTool, toggleHost, beginInteraction, endInteraction,
             effectivePlacement, effectiveParent, currentIntent, layoutState, unsavedCount, queueLayout, whenLayoutIdle, retryLayout,
             createEdge, updateEdge, deleteEdgeById, dispatch, undo: view => step(view, 'undo'), redo: view => step(view, 'redo'),
+            reloadSnapshot: refreshSnapshot, replaceNodes, setSourcesIgnored, setSourceHost, importBatch, removeNodes, updateNodeFields, updateParents, identityKey,
             canUndo, canRedo, hasUnsavedWork, attach, abortRequests, dispose,
         };
         return api;
