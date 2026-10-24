@@ -519,8 +519,8 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 
 | Block | Zweck | YAML-Kurzbeispiel |
 |-------|-------|-------------------|
-| `telegram` | Telegram Bot | `telegram:`<br>`  bot_token: "..."`<br>`  telegram_user_id: 12345678` |
-| `discord` | Discord Bot | `discord:`<br>`  enabled: true`<br>`  bot_token: "..."`<br>`  guild_id: "..."` |
+| `telegram` | Telegram Bot | `telegram:`<br>`  bot_token: "..."`<br>`  telegram_user_id: 12345678`<br>`  readonly: false` |
+| `discord` | Discord Bot | `discord:`<br>`  enabled: true`<br>`  bot_token: "..."`<br>`  guild_id: "..."`<br>`  allowed_channel_ids: []` |
 | `email_accounts` | E-Mail IMAP/SMTP (Array) | `email_accounts:`<br>`  - id: personal`<br>`    name: Personal`<br>`    imap_host: imap.gmail.com`<br>`    smtp_host: smtp.gmail.com` |
 | `email` | *(Legacy)* E-Mail IMAP/SMTP | `email:`<br>`  enabled: true`<br>`  imap_host: imap.gmail.com`<br>`  smtp_host: smtp.gmail.com` |
 | `home_assistant` | Home Assistant | `home_assistant:`<br>`  enabled: true`<br>`  url: "http://homeassistant.local:8123"` |

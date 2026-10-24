@@ -250,6 +250,33 @@ func normalizeDograhDefaultImage(raw, currentDefault, legacyDefault string) stri
 	return image
 }
 
+// normalizeChannelIDs trims, drops empty entries and removes duplicates so an
+// empty allowlist always normalizes to nil. A nil slice keeps configuration
+// comparisons stable: an absent key and an explicitly empty list are the same
+// configuration.
+func normalizeChannelIDs(ids []string) []string {
+	if len(ids) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(ids))
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		trimmed := strings.TrimSpace(id)
+		if trimmed == "" {
+			continue
+		}
+		if _, duplicate := seen[trimmed]; duplicate {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		out = append(out, trimmed)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 func normalizeSpaceAgentURLAndPort(publicURL string, port int, runningInDocker bool) (string, int) {
 	const oldConflictingPort = 3000
 	const defaultSpaceAgentPort = 3100
@@ -2320,6 +2347,12 @@ func Load(path string) (*Config, error) {
 	if cfg.Telegram.MaxConcurrentWorkers <= 0 {
 		cfg.Telegram.MaxConcurrentWorkers = 5
 	}
+
+	// Discord defaults — mirror the Telegram worker limit so both channels behave alike.
+	if cfg.Discord.MaxConcurrentWorkers <= 0 {
+		cfg.Discord.MaxConcurrentWorkers = 5
+	}
+	cfg.Discord.AllowedChannelIDs = normalizeChannelIDs(cfg.Discord.AllowedChannelIDs)
 
 	// Telnyx defaults
 	if cfg.Telnyx.WebhookPath == "" {

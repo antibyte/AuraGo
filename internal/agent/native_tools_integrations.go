@@ -1323,14 +1323,14 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.DiscordEnabled {
 		tools = append(tools,
 			tool("send_discord",
-				"Send a message to a Discord channel.",
+				"Send a message to a Discord channel. Only channels released by the operator are usable (discord.allowed_channel_ids, plus the default channel); other channels are refused.",
 				schema(map[string]interface{}{
 					"message":    prop("string", "Message text to send"),
 					"channel_id": prop("string", "Discord channel ID (uses default_channel_id from config if omitted)"),
 				}, "message"),
 			),
 			tool("fetch_discord",
-				"Fetch recent messages from a Discord channel.",
+				"Fetch recent messages from a Discord channel. Only channels released by the operator are usable (discord.allowed_channel_ids, plus the default channel); other channels are refused.",
 				schema(map[string]interface{}{
 					"channel_id": prop("string", "Discord channel ID (uses default from config if omitted)"),
 					"limit":      map[string]interface{}{"type": "integer", "description": "Number of messages to fetch (default: 10)"},

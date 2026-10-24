@@ -185,6 +185,8 @@ agent:
 |---|---|---|
 | `bot_token` | `""` | Telegram bot token from [@BotFather](https://t.me/botfather). Leave empty to disable Telegram. |
 | `telegram_user_id` | `0` | Numeric Telegram user ID of the allowed user. `0` = silent discovery mode (first message sender becomes the owner). |
+| `max_concurrent_workers` | `5` | How many Telegram messages may run an agent loop at the same time. Values ≤ 0 fall back to 5. |
+| `readonly` | `false` | When `true`, the bot still answers incoming messages, but the agent may not send on its own (blocks `send_telegram` and the `telegram` notification channel). |
 
 See [telegram_setup.md](telegram_setup.md) for full setup instructions.
 
@@ -195,11 +197,15 @@ See [telegram_setup.md](telegram_setup.md) for full setup instructions.
 | Key | Default | Description |
 |---|---|---|
 | `enabled` | `false` | Enable Discord bot integration. |
-| `read_only` | `false` | When `true`, the agent can only read Discord messages but cannot send them. |
+| `readonly` | `false` | When `true`, the agent can only read Discord messages but cannot send them. (The status API reports this flag as `read_only`.) |
 | `bot_token` | `""` | Bot token from the [Discord Developer Portal](https://discord.com/developers/applications). |
 | `guild_id` | `""` | Server (guild) ID for channel listing commands. |
 | `allowed_user_id` | `""` | Required Discord user ID for inbound control. Leave empty to block user messages. |
 | `default_channel_id` | `""` | Default channel for outbound agent messages when no channel is specified. |
+| `allowed_channel_ids` | `[]` | Channels the agent may read from and write to. **Empty keeps the previous behaviour** (every channel the bot can reach) and only logs a hint at startup. When set, only these channels plus `default_channel_id` are usable; the agent is told which key to change. |
+| `max_concurrent_workers` | `5` | How many Discord messages may run an agent loop at the same time. Values ≤ 0 fall back to 5. |
+
+See [discord_setup.md](discord_setup.md) for full setup instructions.
 
 ---
 

@@ -1027,8 +1027,8 @@ The following blocks can also be configured through the Web UI or additionally i
 
 | Block | Purpose | YAML quick example |
 |-------|---------|--------------------|
-| `telegram` | Telegram bot | `telegram:`<br>`  bot_token: "..."`<br>`  telegram_user_id: 12345678` |
-| `discord` | Discord bot | `discord:`<br>`  enabled: true`<br>`  bot_token: "..."`<br>`  guild_id: "..."` |
+| `telegram` | Telegram bot | `telegram:`<br>`  bot_token: "..."`<br>`  telegram_user_id: 12345678`<br>`  readonly: false` |
+| `discord` | Discord bot | `discord:`<br>`  enabled: true`<br>`  bot_token: "..."`<br>`  guild_id: "..."`<br>`  allowed_channel_ids: []` |
 | `email_accounts` | Email IMAP/SMTP (array) | `email_accounts:`<br>`  - id: personal`<br>`    name: Personal`<br>`    imap_host: imap.gmail.com`<br>`    smtp_host: smtp.gmail.com` |
 | `email` | *(legacy)* Email IMAP/SMTP | `email:`<br>`  enabled: true`<br>`  imap_host: imap.gmail.com`<br>`  smtp_host: smtp.gmail.com` |
 | `home_assistant` | Home Assistant | `home_assistant:`<br>`  enabled: true`<br>`  url: "http://homeassistant.local:8123"` |

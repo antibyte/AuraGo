@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,21 +20,75 @@ import (
 type UpdateOffsets struct {
 	mu    sync.Mutex
 	byBot map[int64]int
+	store OffsetStore
 }
 
-func (o *UpdateOffsets) get(botID int64) int {
+// SetStore attaches a persistent cursor store. The in-memory cache stays the
+// fast path; the store only adds durability across restarts.
+func (o *UpdateOffsets) SetStore(store OffsetStore) {
+	if o == nil {
+		return
+	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	return o.byBot[botID]
+	o.store = store
 }
 
-func (o *UpdateOffsets) set(botID int64, offset int) {
+// Store returns the attached cursor store, if any.
+func (o *UpdateOffsets) Store() OffsetStore {
+	if o == nil {
+		return nil
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.store
+}
+
+// Load returns the cursor for botID. The in-memory cache wins; a stored
+// cursor is read once and cached afterwards.
+func (o *UpdateOffsets) Load(botID int64) (int, bool) {
+	if o == nil {
+		return 0, false
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if offset, ok := o.byBot[botID]; ok {
+		return offset, true
+	}
+	if o.store == nil {
+		return 0, false
+	}
+	offset, ok := o.store.Load(botID)
+	if ok {
+		if o.byBot == nil {
+			o.byBot = make(map[int64]int)
+		}
+		o.byBot[botID] = offset
+	}
+	return offset, ok
+}
+
+// Save stores the cursor for botID in the cache and, when a store is
+// attached, persists it.
+func (o *UpdateOffsets) Save(botID int64, offset int) error {
+	if o == nil {
+		return nil
+	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.byBot == nil {
 		o.byBot = make(map[int64]int)
 	}
 	o.byBot[botID] = offset
+	if o.store == nil {
+		return nil
+	}
+	return o.store.Save(botID, offset)
+}
+
+func (o *UpdateOffsets) get(botID int64) int {
+	offset, _ := o.Load(botID)
+	return offset
 }
 
 type Bot struct {
@@ -77,6 +132,7 @@ func startLongPolling(parent context.Context, cfg *config.Config, logger *slog.L
 		offsets = &UpdateOffsets{}
 	}
 	cfg = cfg.Clone()
+	attachTelegramOffsetStore(offsets, cfg, logger)
 	security.RegisterSensitive(cfg.Telegram.BotToken)
 	integrationstatus.SetTelegramConfigured(true, cfg.Telegram.UserID != 0)
 	ctx, cancel := context.WithCancel(parent)
@@ -133,8 +189,46 @@ func startLongPolling(parent context.Context, cfg *config.Config, logger *slog.L
 				handle(ctx, bot, update)
 			}()
 			return true
+		}, func(offset int) {
+			persistTelegramOffset(offsets, bot.Self.ID, offset, logger)
 		})
-		offsets.set(bot.Self.ID, offset)
+		persistTelegramOffset(offsets, bot.Self.ID, offset, logger)
 	}()
 	return b
+}
+
+// persistTelegramOffset writes the cursor to the cache and, when a store is
+// attached, to disk. A failing store must never stop the poller.
+func persistTelegramOffset(offsets *UpdateOffsets, botID int64, offset int, logger *slog.Logger) {
+	if offsets == nil {
+		return
+	}
+	if err := offsets.Save(botID, offset); err != nil && logger != nil {
+		logger.Warn("Failed to persist Telegram cursor", "error", security.Scrub(err.Error()))
+	}
+}
+
+// attachTelegramOffsetStore binds a persistent cursor store when the data
+// directory is configured. An empty data directory keeps the in-memory cursor,
+// and a failing store only degrades durability.
+func attachTelegramOffsetStore(offsets *UpdateOffsets, cfg *config.Config, logger *slog.Logger) {
+	if offsets == nil || offsets.Store() != nil || cfg == nil {
+		return
+	}
+	dataDir := strings.TrimSpace(cfg.Directories.DataDir)
+	if dataDir == "" {
+		return
+	}
+	store, err := NewFileOffsetStore(dataDir)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("Telegram cursor persistence disabled", "error", security.Scrub(err.Error()))
+		}
+		return
+	}
+	if store == nil {
+		return
+	}
+	store.SetLogger(logger)
+	offsets.SetStore(store)
 }

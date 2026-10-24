@@ -101,6 +101,10 @@ func SendNotificationContext(ctx context.Context, cfg *config.Config, logger *sl
 		case ChannelPushover:
 			err = sendPushover(cfg, title, message, priority, ctx)
 		case ChannelTelegram:
+			if cfg.Telegram.ReadOnly {
+				err = fmt.Errorf("telegram is in read-only mode")
+				break
+			}
 			err = sendTelegramNotification(cfg, title, message, ctx)
 		case ChannelDiscord:
 			if cfg.Discord.ReadOnly {
@@ -287,10 +291,20 @@ func sendPushover(cfg *config.Config, title, message, priority string, contexts 
 
 // ── Telegram (standalone HTTP, no dependency on telegram package state) ──────
 
+// telegramSendMaxAttempts bounds how often a flood-limited send is repeated.
+const telegramSendMaxAttempts = 3
+
+// telegramSendRetryCap caps the wait between two send attempts.
+const telegramSendRetryCap = 30 * time.Second
+
 // sendTelegramNotification sends title and message as one MarkdownV2 message. It counts as
 // sent only when the Bot API answers 2xx with ok:true (checkTelegramReply); a redirect is
 // not followed. Its errors never carry the bot token, and a failed request keeps its cause
 // (telegramError), so a deadline or cancellation can be told apart.
+//
+// A message that exceeds Telegram's length limit is rejected here with the measured size
+// instead of at the API. Only flood control is retried: that answer states that the message
+// was not accepted, so repeating it cannot duplicate a delivered message.
 func sendTelegramNotification(cfg *config.Config, title, message string, contexts ...context.Context) error {
 	botToken := cfg.Telegram.BotToken
 	chatID := cfg.Telegram.UserID
@@ -299,6 +313,11 @@ func sendTelegramNotification(cfg *config.Config, title, message string, context
 	}
 
 	text := fmt.Sprintf("*%s*\n%s", escapeMarkdownV2(title), escapeMarkdownV2(message))
+	// Telegram counts a message after its entities are parsed: the escapes and the
+	// bold markers are not part of the count, so the raw title and text decide.
+	if parsed := utf16Units(title) + 1 + utf16Units(message); parsed > telegramMaxMessageUnits {
+		return fmt.Errorf("telegram message is too long: %d characters after parsing, the limit is %d — shorten the message", parsed, telegramMaxMessageUnits)
+	}
 
 	payload, _ := json.Marshal(map[string]interface{}{
 		"chat_id":    chatID,
@@ -306,13 +325,50 @@ func sendTelegramNotification(cfg *config.Config, title, message string, context
 		"parse_mode": "MarkdownV2",
 	})
 
+	ctx := nativeHTTPContext(contexts...)
 	endpoint := telegramAPIBase + "/bot" + url.PathEscape(botToken) + "/sendMessage"
-	resp, err := postToolHTTP(nativeHTTPContext(contexts...), telegramMessageClient, endpoint, "application/json", bytes.NewReader(payload))
-	if err != nil {
-		return telegramRequestError(err, botToken)
+
+	var lastErr error
+	for attempt := 1; attempt <= telegramSendMaxAttempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		resp, err := postToolHTTP(ctx, telegramMessageClient, endpoint, "application/json", bytes.NewReader(payload))
+		if err != nil {
+			return telegramRequestError(err, botToken)
+		}
+		err = checkTelegramReply(resp, botToken, "message")
+		resp.Body.Close()
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		// Only flood control is retried: that answer states that the message was
+		// not accepted, so a repeat cannot duplicate a delivered message.
+		var statusErr *telegramStatusError
+		if !errors.As(err, &statusErr) || statusErr.status != http.StatusTooManyRequests || attempt == telegramSendMaxAttempts {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(telegramRetryWait(statusErr.retryAfter, attempt)):
+		}
 	}
-	defer resp.Body.Close()
-	return checkTelegramReply(resp, botToken, "message")
+	return lastErr
+}
+
+// telegramRetryWait turns a flood-control answer into a wait time: the retry_after the
+// API reports wins, otherwise the attempt number drives a bounded backoff.
+func telegramRetryWait(retryAfter int, attempt int) time.Duration {
+	if retryAfter > 0 {
+		wait := time.Duration(retryAfter) * time.Second
+		if wait > telegramSendRetryCap {
+			wait = telegramSendRetryCap
+		}
+		return wait
+	}
+	return time.Duration(attempt) * time.Second
 }
 
 // escapeMarkdownV2 escapes special characters for Telegram MarkdownV2 format.

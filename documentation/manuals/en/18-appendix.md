@@ -196,6 +196,7 @@ telegram:
   bot_token: ""               # Bot token from @BotFather
   telegram_user_id: 0         # Your numeric user ID
   max_concurrent_workers: 5   # Message processing workers
+  readonly: false             # true = the bot answers, but the agent may not send
 
 # Discord Integration
 # -------------------
@@ -205,6 +206,8 @@ discord:
   guild_id: ""                # Server ID
   default_channel_id: ""      # Default channel
   allowed_user_id: ""         # Restrict to specific user
+  allowed_channel_ids: []     # Channels the agent may use (empty = unrestricted)
+  max_concurrent_workers: 5   # Parallel agent runs per message burst
 
 # Email Integration
 # -----------------

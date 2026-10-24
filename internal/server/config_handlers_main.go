@@ -959,7 +959,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Server (Host/Port)")
 			}
-			if oldCfg.Discord != newCfg.Discord {
+			// reflect.DeepEqual instead of == : the Discord section carries a
+			// []string (allowed_channel_ids), which makes the struct non-comparable.
+			if !reflect.DeepEqual(oldCfg.Discord, newCfg.Discord) {
 				discordChanged = true
 			}
 			if oldCfg.AgentMail != newCfg.AgentMail || oldCfg.LLMGuardian.ScanEmails != newCfg.LLMGuardian.ScanEmails || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled {

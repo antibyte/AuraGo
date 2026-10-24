@@ -182,6 +182,7 @@ maintenance:
 telegram:
   bot_token: ""
   telegram_user_id: 0
+  readonly: false
 
 discord:
   enabled: false
@@ -190,6 +191,7 @@ discord:
   guild_id: ""
   allowed_user_id: ""
   default_channel_id: ""
+  allowed_channel_ids: []
 
 email:
   enabled: false

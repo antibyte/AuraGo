@@ -7,8 +7,11 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -231,4 +234,175 @@ func TestTelegramInvalidTokenIsUnavailableAndDisabledConfigStartsNothing(t *test
 			t.Fatal("disabled config started bot")
 		}
 	}
+}
+
+func TestTelegramOffsetSurvivesRestartWithPersistentStore(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewFileOffsetStore(dir)
+	if err != nil || store == nil {
+		t.Fatalf("NewFileOffsetStore = %v, %v", store, err)
+	}
+	offsets := &UpdateOffsets{}
+	offsets.SetStore(store)
+	if err := offsets.Save(11, 42); err != nil {
+		t.Fatalf("save cursor: %v", err)
+	}
+
+	// A restarted process reads the cursor back from the same data directory.
+	restarted, err := NewFileOffsetStore(dir)
+	if err != nil || restarted == nil {
+		t.Fatalf("NewFileOffsetStore = %v, %v", restarted, err)
+	}
+	fresh := &UpdateOffsets{}
+	fresh.SetStore(restarted)
+	offset, ok := fresh.Load(11)
+	if !ok || offset != 42 {
+		t.Fatalf("restored cursor = %d (%t), want 42", offset, ok)
+	}
+	if got := fresh.get(11); got != 42 {
+		t.Fatalf("cached cursor = %d, want 42", got)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, telegramOffsetsFileName))
+	if err != nil {
+		t.Fatalf("read cursor file: %v", err)
+	}
+	var document struct {
+		Offsets map[string]int `json:"offsets"`
+	}
+	if err := json.Unmarshal(data, &document); err != nil {
+		t.Fatalf("parse cursor file: %v", err)
+	}
+	if document.Offsets["11"] != 42 {
+		t.Fatalf("cursor document = %#v, want 42 for bot 11", document.Offsets)
+	}
+}
+
+func TestTelegramCorruptedCursorFileStartsAtZero(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, telegramOffsetsFileName), []byte("{not-json"), 0o600); err != nil {
+		t.Fatalf("write cursor file: %v", err)
+	}
+	store, err := NewFileOffsetStore(dir)
+	if err != nil || store == nil {
+		t.Fatalf("NewFileOffsetStore = %v, %v", store, err)
+	}
+	offsets := &UpdateOffsets{}
+	offsets.SetStore(store)
+	offset, ok := offsets.Load(11)
+	if ok || offset != 0 {
+		t.Fatalf("cursor = %d (%t), want 0 for a corrupted cursor file", offset, ok)
+	}
+	// The store must recover on the next write.
+	if err := offsets.Save(11, 5); err != nil {
+		t.Fatalf("save cursor after corruption: %v", err)
+	}
+	if got := offsets.get(11); got != 5 {
+		t.Fatalf("cursor = %d, want 5", got)
+	}
+}
+
+func TestTelegramEmptyDataDirKeepsInMemoryCursor(t *testing.T) {
+	store, err := NewFileOffsetStore("   ")
+	if err != nil {
+		t.Fatalf("NewFileOffsetStore: %v", err)
+	}
+	if store != nil {
+		t.Fatal("an empty data directory must not create a cursor store")
+	}
+	offsets := &UpdateOffsets{}
+	if err := offsets.Save(11, 5); err != nil {
+		t.Fatalf("in-memory save: %v", err)
+	}
+	if offset, ok := offsets.Load(11); !ok || offset != 5 {
+		t.Fatalf("cursor = %d (%t), want 5", offset, ok)
+	}
+}
+
+func TestTelegramBotStartsWithZeroOffsetWhenCursorFileIsCorrupted(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, telegramOffsetsFileName), []byte("{not-json"), 0o600); err != nil {
+		t.Fatalf("write cursor file: %v", err)
+	}
+	offsets := make(chan int, 4)
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			return
+		}
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/getMe"):
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "result": map[string]any{"id": 11, "is_bot": true, "username": "fixture"}})
+		case strings.HasSuffix(r.URL.Path, "/deleteWebhook"):
+			_, _ = io.WriteString(w, `{"ok":true,"result":true}`)
+		case strings.HasSuffix(r.URL.Path, "/getUpdates"):
+			offset, _ := strconv.Atoi(r.Form.Get("offset"))
+			offsets <- offset
+			<-r.Context().Done()
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	t.Cleanup(remote.Close)
+	cfg := &config.Config{}
+	cfg.Telegram.BotToken, cfg.Telegram.UserID = "fixture", 7
+	cfg.Directories.DataDir = dir
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	b := startLongPolling(context.Background(), cfg, logger, nil, nil, remote.URL+"/bot%s/%s", remote.Client(), nil)
+	t.Cleanup(b.Stop)
+	if got := awaitTelegram(t, offsets); got != 0 {
+		t.Fatalf("polling offset = %d, want 0 after a corrupted cursor file", got)
+	}
+}
+
+type telegramBatchPoller struct {
+	batch   []tgbotapi.Update
+	served  bool
+	release chan struct{}
+}
+
+func (p *telegramBatchPoller) GetUpdates(tgbotapi.UpdateConfig) ([]tgbotapi.Update, error) {
+	if !p.served {
+		p.served = true
+		return p.batch, nil
+	}
+	<-p.release
+	return nil, nil
+}
+
+func TestTelegramCursorIsPersistedWhilePolling(t *testing.T) {
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	releaseAll := func() { releaseOnce.Do(func() { close(release) }) }
+	t.Cleanup(releaseAll)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	batch := make([]tgbotapi.Update, 0, 12)
+	for i := 1; i <= 12; i++ {
+		batch = append(batch, tgbotapi.Update{UpdateID: i})
+	}
+	poller := &telegramBatchPoller{batch: batch, release: release}
+	persisted := make(chan int, 4)
+	done := make(chan int, 1)
+	go func() {
+		done <- runPollingLoop(ctx, poller, tgbotapi.NewUpdate(0), nil, nil, func(tgbotapi.Update) bool { return true }, func(offset int) {
+			select {
+			case persisted <- offset:
+			default:
+			}
+		})
+	}()
+	select {
+	case offset := <-persisted:
+		// The cursor advances past the handed-out update, so ten handled
+		// updates persist the next expected update id.
+		if offset != 11 {
+			t.Fatalf("persisted cursor = %d, want 11", offset)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("cursor was not persisted while polling")
+	}
+	cancel()
+	releaseAll()
+	awaitTelegram(t, done)
 }

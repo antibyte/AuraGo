@@ -408,6 +408,12 @@ discord:
     default_channel_id: ""
     enabled: false
     guild_id: ""
+    # Channels the agent may read from and write to. Empty keeps the previous
+    # behaviour (every channel the bot can reach). When set, only these channels
+    # plus default_channel_id are usable; the agent gets a hint naming this key.
+    allowed_channel_ids: []
+    # Parallel agent runs per Discord message burst. 0 or less restores the default of 5.
+    max_concurrent_workers: 5
 docker:
     enabled: false
     host: ""
@@ -931,6 +937,8 @@ telegram:
     bot_token: ""
     telegram_user_id: 0
     max_concurrent_workers: 5
+    # Read-only mode: the bot still answers, but the agent may not send on its own.
+    readonly: false
 tts:
     cache_max_files: 500
     cache_retention_hours: 168

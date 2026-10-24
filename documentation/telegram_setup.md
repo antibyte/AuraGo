@@ -38,16 +38,33 @@ The non-secret settings in `config.yaml` look like this:
 telegram:
   telegram_user_id: 987654321  # Your numeric ID
   max_concurrent_workers: 5
+  readonly: false              # true = the bot answers, but the agent may not send
 ```
 Saving Telegram settings takes effect without restarting AuraGo. Token, user ID
 and worker-limit changes cancel the old poller and its active messages before a
 replacement starts. Active messages are not automatically replayed. The update
-cursor is preserved for the same verified bot during this server process;
-switching to a different bot starts its own cursor.
+cursor is preserved for the same verified bot — during this server process, and
+across restarts through a cursor file in the data directory (`telegram_offsets.json`).
+Switching to a different bot starts its own cursor.
 
 Removing the token or enabling Egg Mode stops Telegram. An invalid replacement
 token appears as unavailable in the existing integration status; AuraGo does not
 reactivate the previous token. Correct the token in Configuration and save again.
+
+## Read-only mode
+
+With `telegram.readonly: true` the bot still answers incoming messages, but the
+agent may not send on its own: `send_telegram` and the `telegram` notification
+channel are refused with a clear message. This is the counterpart of
+`discord.readonly`.
+
+## Message length
+
+Telegram accepts 4096 characters per message, counted after the Markdown
+formatting is parsed. A longer message is refused before it is sent, with the
+measured length — shorten the text instead of retrying. If Telegram reports
+flood control (HTTP 429), AuraGo waits for the announced time and repeats the
+send at most twice; a message that was accepted is never sent twice.
 
 ## Step 4: Usage
 

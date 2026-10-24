@@ -1443,6 +1443,7 @@ type Config struct {
 		UserID               int64  `yaml:"telegram_user_id"`
 		BotToken             string `yaml:"-" vault:"bot_token"` // vault-only
 		MaxConcurrentWorkers int    `yaml:"max_concurrent_workers"`
+		ReadOnly             bool   `yaml:"readonly"` // true = inbound only, block outbound sends
 	} `yaml:"telegram"`
 	Whisper struct {
 		Provider     string `yaml:"provider"`          // provider entry ID
@@ -1590,12 +1591,14 @@ type Config struct {
 		EnablePromptLog bool   `yaml:"enable_prompt_log"`
 	} `yaml:"logging"`
 	Discord struct {
-		Enabled          bool   `yaml:"enabled"`
-		ReadOnly         bool   `yaml:"readonly"`            // true = only fetch/list, block send
-		BotToken         string `yaml:"-" vault:"bot_token"` // vault-only
-		GuildID          string `yaml:"guild_id"`
-		AllowedUserID    string `yaml:"allowed_user_id"`
-		DefaultChannelID string `yaml:"default_channel_id"`
+		Enabled              bool     `yaml:"enabled"`
+		ReadOnly             bool     `yaml:"readonly"`            // true = only fetch/list, block send
+		BotToken             string   `yaml:"-" vault:"bot_token"` // vault-only
+		GuildID              string   `yaml:"guild_id"`
+		AllowedUserID        string   `yaml:"allowed_user_id"`
+		DefaultChannelID     string   `yaml:"default_channel_id"`
+		AllowedChannelIDs    []string `yaml:"allowed_channel_ids"` // empty = no channel restriction (legacy)
+		MaxConcurrentWorkers int      `yaml:"max_concurrent_workers"`
 	} `yaml:"discord"`
 	Email struct {
 		Enabled           bool   `yaml:"enabled"`

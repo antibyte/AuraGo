@@ -262,6 +262,10 @@
     "telegram_user_id": {
       "title": "Authorized User ID",
       "description": "Your Telegram numeric user ID. The bot will only respond to this user."
+    },
+    "readonly": {
+      "title": "Read-only",
+      "description": "The bot still answers incoming messages, but the agent may not send on its own."
     }
   },
   "discord": {
@@ -272,6 +276,14 @@
     "guild_id": {
       "title": "Server ID (Guild)",
       "description": "The Discord server ID where the bot operates."
+    },
+    "allowed_channel_ids": {
+      "title": "Allowed Channel IDs",
+      "description": "Channels the agent may read from and write to. Empty keeps the previous behaviour; when set, only these channels plus the default channel are usable."
+    },
+    "max_concurrent_workers": {
+      "title": "Max Concurrent Workers",
+      "description": "How many Discord messages may run an agent loop at the same time. 0 falls back to 5."
     }
   },
   "email": {
