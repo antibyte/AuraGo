@@ -45,6 +45,8 @@ and worker-limit changes cancel the old poller and its active messages before a
 replacement starts. Active messages are not automatically replayed. The update
 cursor is preserved for the same verified bot — during this server process, and
 across restarts through a cursor file in the data directory (`telegram_offsets.json`).
+The cursor is written after every message that was handed to the agent, so a
+restart continues with the next expected message and does not repeat a batch.
 Switching to a different bot starts its own cursor.
 
 Removing the token or enabling Egg Mode stops Telegram. An invalid replacement
@@ -64,7 +66,9 @@ Telegram accepts 4096 characters per message, counted after the Markdown
 formatting is parsed. A longer message is refused before it is sent, with the
 measured length — shorten the text instead of retrying. If Telegram reports
 flood control (HTTP 429), AuraGo waits for the announced time and repeats the
-send at most twice; a message that was accepted is never sent twice.
+send at most twice; a message that was accepted is never sent twice. The whole
+send — request and flood-control waits — stays inside 30 seconds, so a
+throttled Bot API never blocks the caller for minutes.
 
 ## Step 4: Usage
 
