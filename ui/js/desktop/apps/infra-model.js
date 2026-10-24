@@ -140,7 +140,7 @@
         });
         return changes;
     };
-    const sourceStamp = source => [source?.kind || '', source?.instance || '', source?.key || '', source?.state || '', source?.observed?.power || ''].join('\u001f');
+    const sourceStamp = source => [source?.kind || '', source?.instance || '', source?.key || '', source?.state || '', source?.observed?.power || '', source?.ignored ? 'ignored' : ''].join('\x1f');
     // The layout endpoint answers with the nodes it changed. Only an explicit
     // snapshot replaces the atlas; a bare node list is a patch.
     const layoutSnapshot = result => (result && result.snapshot && Array.isArray(result.snapshot.nodes)) ? result.snapshot : null;
@@ -161,11 +161,11 @@
         return nodes;
     };
     const snapshotStamp = (nodes, edges, sources, caps) => {
-        const nodePart = (nodes || []).map(node => [node.id, node.version, node.kind, node.name, node.parent_id || '', node.host_id || '', node.power || '', JSON.stringify(node.placements || {}), (node.sources || []).map(sourceStamp).join('\u001f')].join('\u001f')).join('\u001e');
-        const edgePart = (edges || []).map(edge => [edge.id, edge.version, edge.from, edge.to, edge.kind].join('\u001f')).join('\u001e');
-        const sourcePart = (sources || []).map(sourceStamp).join('\u001e');
-        const capPart = [!!caps?.write, !!caps?.source_edit, !!caps?.control].join('\u001f');
-        return [nodePart, edgePart, sourcePart, capPart].join('\u001d');
+        const nodePart = (nodes || []).map(node => [node.id, node.version, node.kind, node.name, node.parent_id || '', node.host_id || '', node.power || '', JSON.stringify(node.placements || {}), (node.sources || []).map(sourceStamp).join('\x1f')].join('\x1f')).join('\x1e');
+        const edgePart = (edges || []).map(edge => [edge.id, edge.version, edge.from, edge.to, edge.kind].join('\x1f')).join('\x1e');
+        const sourcePart = (sources || []).map(sourceStamp).join('\x1e');
+        const capPart = [!!caps?.write, !!caps?.source_edit, !!caps?.control].join('\x1f');
+        return [nodePart, edgePart, sourcePart, capPart].join('\x1d');
     };
 
     // ---- canvas world -------------------------------------------------------
@@ -665,6 +665,151 @@
         return [...duplicates, ...engineHosts, ...guestHosts, ...opaque].filter(item => !dismissed.has(item.id));
     };
 
+    // ---- List view, inspector and picker helpers -------------------------------
+    const TABLE_SORTS = ['name', 'kind', 'place', 'address', 'source', 'status', 'power'];
+    const STATUS_ORDER = { removed: 0, stale: 1, unknown: 2, current: 3, manual: 4 };
+    const POWER_ORDER = { running: 0, paused: 1, stopped: 2, unknown: 3 };
+    const ipv4Number = value => { const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(String(value ?? '').trim()); return match ? match.slice(1).reduce((sum, part) => sum * 256 + Number(part), 0) : null; };
+    const compareAddress = (a, b) => { const x = ipv4Number(a), y = ipv4Number(b); if (x !== null && y !== null) return x - y; if (x !== null) return -1; if (y !== null) return 1; return naturalCompare(a, b); };
+    const tableSortValue = (node, key, ctx) => {
+        if (key === 'kind') return ctx.labelOf(node.kind);
+        if (key === 'place') return ctx.placeOf(node.id);
+        if (key === 'address') return node.profile?.ip_address || node.profile?.mac_address || '';
+        if (key === 'source') return ctx.sourceOf(node);
+        if (key === 'status') return STATUS_ORDER[sourceState(node)];
+        if (key === 'power') return Object.prototype.hasOwnProperty.call(POWER_ORDER, node.power || '') ? POWER_ORDER[node.power] : null;
+        return node.name;
+    };
+    // tableComparator: empty values last in both directions; ties by name, then id.
+    const tableComparator = (key = 'name', dir = 'asc', ctx = {}) => {
+        const sign = dir === 'desc' ? -1 : 1;
+        const context = { labelOf: kind => kind, placeOf: () => '', sourceOf: node => (node.sources || []).map(source => source.kind).join(','), ...ctx };
+        const empty = value => value === null || value === undefined || value === '';
+        return (a, b) => {
+            const x = tableSortValue(a, key, context), y = tableSortValue(b, key, context);
+            if (empty(x) || empty(y)) { if (empty(x) && empty(y)) return naturalCompare(a.name, b.name) || String(a.id).localeCompare(String(b.id)); return empty(x) ? 1 : -1; }
+            const primary = key === 'address' ? compareAddress(x, y) : typeof x === 'number' && typeof y === 'number' ? x - y : naturalCompare(x, y);
+            return primary * sign || naturalCompare(a.name, b.name) || String(a.id).localeCompare(String(b.id));
+        };
+    };
+    // tableRows flattens List rows: top-level assets sorted, guests below their
+    // host when expanded. While filtering, a non-matching host above a match is
+    // a context row and opens automatically.
+    const tableRows = (nodes, { hostOf = new Map(), guestsOf = new Map(), compare = () => 0, matches = () => true, expanded = new Set(), filtering = false } = {}) => {
+        const byId = new Map((nodes || []).map(node => [node.id, node])), memo = new Map();
+        const visible = (id, trail = new Set()) => {
+            if (memo.has(id)) return memo.get(id);
+            if (trail.has(id)) return false;
+            trail.add(id);
+            const node = byId.get(id);
+            const result = !!node && (matches(node) || (guestsOf.get(id) || []).some(guest => visible(guest, trail)));
+            trail.delete(id); memo.set(id, result);
+            return result;
+        };
+        const rows = [], emitted = new Set();
+        const emit = (node, depth) => {
+            if (emitted.has(node.id)) return;
+            emitted.add(node.id);
+            const guests = (guestsOf.get(node.id) || []).map(id => byId.get(id)).filter(Boolean);
+            const shown = filtering ? guests.filter(guest => visible(guest.id)) : guests;
+            const open = guests.length > 0 && (expanded.has(node.id) || (filtering && shown.length > 0));
+            rows.push({ id: node.id, depth, guests: guests.length, expanded: open, context: filtering && !matches(node) });
+            if (open) for (const guest of shown.slice().sort(compare)) emit(guest, depth + 1);
+        };
+        for (const node of (nodes || []).filter(item => !byId.has(hostOf.get(item.id))).sort(compare)) if (!filtering || visible(node.id)) emit(node, 0);
+        return rows;
+    };
+    const INSPECTOR_TABS = ['overview', 'details', 'sources', 'connections'];
+    const parseJSON = raw => { try { const data = raw ? JSON.parse(raw) : {}; return data && typeof data === 'object' ? data : {}; } catch (_) { return {}; } };
+    const readTablePrefs = raw => { const data = parseJSON(raw); return { sort: TABLE_SORTS.includes(data.sort) ? data.sort : 'name', dir: data.dir === 'desc' ? 'desc' : 'asc' }; };
+    const readInspectorPrefs = raw => {
+        const data = parseJSON(raw), tabs = {};
+        if (data.tabs && typeof data.tabs === 'object') for (const [kind, tab] of Object.entries(data.tabs)) if (/^[a-z]{1,16}$/.test(kind) && INSPECTOR_TABS.includes(tab)) tabs[kind] = tab;
+        return { tabs };
+    };
+    const inspectorTab = (prefs, kind) => (INSPECTOR_TABS.includes(prefs?.tabs?.[kind]) ? prefs.tabs[kind] : 'overview');
+    const withInspectorTab = (prefs, kind, tab) => ({ tabs: { ...(prefs?.tabs || {}), ...(INSPECTOR_TABS.includes(tab) && /^[a-z]{1,16}$/.test(kind) ? { [kind]: tab } : {}) } });
+    const readDismissed = raw => { let list; try { list = JSON.parse(raw || '[]'); } catch (_) { list = []; } return new Set((Array.isArray(list) ? list : []).filter(item => typeof item === 'string').slice(-500)); };
+    const blankValue = value => value === undefined || value === null || value === '' || value === 0 || (Array.isArray(value) && !value.length) || (typeof value === 'object' && value !== null && !Array.isArray(value) && !Object.keys(value).length);
+    const sameValue = (a, b) => (blankValue(a) && blankValue(b)) || JSON.stringify(a) === JSON.stringify(b);
+    // draftDiff lists changed fields: name, kind, icon, parent_id, profile.<key>.
+    const draftDiff = (node, draft) => {
+        const changed = new Set();
+        if (!node || !draft) return changed;
+        for (const key of ['name', 'kind', 'icon', 'parent_id']) if (!sameValue(node[key], draft[key])) changed.add(key);
+        for (const key of new Set([...Object.keys(node.profile || {}), ...Object.keys(draft.profile || {})])) if (!sameValue(node.profile?.[key], draft.profile?.[key])) changed.add(`profile.${key}`);
+        return changed;
+    };
+    const FORM_GROUPS = {
+        identity: ['name', 'kind', 'icon', 'parent_id', 'profile.role', 'profile.tags'],
+        network: ['profile.ip_address', 'profile.mac_address', 'profile.cidr', 'profile.vlan', 'profile.interfaces'],
+        hardware: ['profile.vendor', 'profile.model', 'profile.serial', 'profile.os', 'profile.firmware', 'profile.cpu', 'profile.ram', 'profile.storage', 'profile.rack_position'],
+        links: ['profile.links', 'profile.app_bindings'],
+        notes: ['profile.notes'],
+        custom: ['profile.custom'],
+    };
+    const fieldValue = (node, path) => (path.startsWith('profile.') ? node?.profile?.[path.slice(8)] : node?.[path]);
+    const formGroupFill = node => Object.fromEntries(Object.entries(FORM_GROUPS).map(([group, fields]) => [group, group === 'identity' || fields.some(path => !blankValue(fieldValue(node, path)))]));
+    const groupOfField = path => Object.entries(FORM_GROUPS).find(([, fields]) => fields.includes(path))?.[0] || (path.startsWith('profile.') ? 'custom' : 'identity');
+    const MESH_ICONS = new Set(['mesh-node', 'radio-gateway']);
+    const APP_ORDER = ['network-cameras', 'software-store', 'meshcore'];
+    const isMeshAsset = node => MESH_ICONS.has(node?.icon) || /mesh/i.test(String(node?.profile?.role || '')) || (node?.profile?.tags || []).some(tag => /mesh/i.test(String(tag)));
+    const tokensOf = value => new Set(String(value || '').toLocaleLowerCase().split(/[^\p{L}\p{N}]+/u).filter(token => token.length >= 3));
+    const targetScore = (node, target) => {
+        const label = String(target.label || '').toLocaleLowerCase(), id = String(target.target_id || '').toLocaleLowerCase();
+        const ip = String(node?.profile?.ip_address || '').trim().toLocaleLowerCase();
+        let score = ip && (label.includes(ip) || id.includes(ip)) ? 3 : 0;
+        const theirs = tokensOf(target.label);
+        for (const token of tokensOf(node?.name)) if (theirs.has(token)) score += 2;
+        return score;
+    };
+    // appTargetOptions: unbound targets matching the query, suggestions first,
+    // then one group per app. MeshCore only for radio/mesh assets or a query of
+    // two characters or more.
+    const appTargetOptions = (node, targets, query = '', { limit = 50 } = {}) => {
+        const q = String(query || '').trim().toLocaleLowerCase();
+        const bound = new Set((node?.profile?.app_bindings || []).map(item => `${item.app}\x00${item.target_id}`));
+        const meshAllowed = isMeshAsset(node) || q.length >= 2;
+        let hiddenMesh = 0;
+        const pool = [];
+        for (const target of targets || []) {
+            if (!target?.app || !target.target_id || bound.has(`${target.app}\x00${target.target_id}`)) continue;
+            if (target.app === 'meshcore' && !meshAllowed) { hiddenMesh += 1; continue; }
+            const label = String(target.label || target.target_id);
+            if (q && !label.toLocaleLowerCase().includes(q) && !String(target.target_id).toLocaleLowerCase().includes(q)) continue;
+            pool.push({ app: target.app, target_id: String(target.target_id), label, score: targetScore(node, target) });
+        }
+        const byLabel = (a, b) => naturalCompare(a.label, b.label) || a.target_id.localeCompare(b.target_id);
+        const suggested = pool.filter(option => option.score > 0).sort((a, b) => b.score - a.score || byLabel(a, b)).slice(0, 5);
+        const taken = new Set(suggested.map(option => `${option.app}\x00${option.target_id}`));
+        const groups = suggested.length ? [{ id: 'suggested', options: suggested }] : [];
+        for (const app of APP_ORDER) {
+            const list = pool.filter(option => option.app === app && !taken.has(`${option.app}\x00${option.target_id}`)).sort(byLabel);
+            if (list.length) groups.push({ id: app, options: list.slice(0, limit), more: Math.max(0, list.length - limit) });
+        }
+        return { groups, hiddenMesh };
+    };
+    const appLinkContext = link => ({ 'quick-connect': { device_id: link?.target_id }, 'network-cameras': { camera_id: link?.target_id }, 'software-store': { app_id: link?.target_id }, meshcore: { conversation_id: link?.target_id } }[link?.app] || { target_id: link?.target_id });
+    // placePath: place names from the outermost place down to id's parent (or id).
+    const placePath = (id, nodeById, { includeSelf = false } = {}) => {
+        const path = [], seen = new Set();
+        let current = includeSelf ? id : nodeById(id)?.parent_id || '';
+        while (current && !seen.has(current)) { seen.add(current); const node = nodeById(current); if (!node) break; path.unshift({ id: node.id, name: node.name }); current = node.parent_id || ''; }
+        return path;
+    };
+    const isDescendant = (id, ancestorId, parentOf) => { const seen = new Set(); for (let current = parentOf(id); current && !seen.has(current); current = parentOf(current)) { if (current === ancestorId) return true; seen.add(current); } return false; };
+    const ATTENTION_STATES = new Set(['stale', 'unknown', 'removed']);
+    // attentionItems: any linked source that is not current, and unfinished writes.
+    const attentionItems = (nodes = [], { unsaved = new Set(), reviews = new Set(), sourceBlocked = new Set(), actionBlocked = new Set() } = {}) => (nodes || []).map(node => {
+        const reasons = [];
+        for (const source of node.sources || []) if (!source.ignored && ATTENTION_STATES.has(source.state)) reasons.push({ code: `source_${source.state}`, source: source.kind });
+        if (unsaved.has(node.id)) reasons.push({ code: 'layout_unsaved' });
+        if (reviews.has(node.id)) reasons.push({ code: 'draft_conflict' });
+        if (sourceBlocked.has(node.id)) reasons.push({ code: 'source_review' });
+        if (actionBlocked.has(node.id)) reasons.push({ code: 'action_review' });
+        return { node, reasons };
+    }).filter(item => item.reasons.length).sort((a, b) => naturalCompare(a.node.name, b.node.name) || String(a.node.id).localeCompare(String(b.node.id))).map(item => ({ id: item.node.id, reasons: item.reasons }));
+
     window.InfraAppModel = {
         esc, clone, iconId, iconURL, assetURL, iconLabelKey, sourceActions, sourceIdentity, virtualSlice, sourceState,
         visibleByCollapsed, isPlaced, validCIDR, validHTTPLink, iconIds: () => [...ICON_LIST],
@@ -677,5 +822,7 @@
         spatialNeighbour, compactGrid, defaultEdgeKind, guestIndex, matchesFilters, filtersActive, buildScene,
         mergeIntent, layoutItems, rebaseLayout, createHistory, readLayoutPrefs, fill, normalizeNode, minimapTransform, glyph,
         naturalCompare, isOpaqueName, addressesOf, isGenericDiscovery, compareSpecificity, relevanceIndex, discoveryRelevance, groupDiscoveries, bindableFor, linkSuggestions, infraCleanup,
+        TABLE_SORTS, tableComparator, tableRows, readTablePrefs, readInspectorPrefs, inspectorTab, withInspectorTab, readDismissed, draftDiff, formGroupFill, groupOfField,
+        isMeshAsset, appTargetOptions, appLinkContext, placePath, isDescendant, attentionItems,
     };
 })();

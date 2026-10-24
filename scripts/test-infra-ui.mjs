@@ -545,6 +545,79 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     assert.ok(!plain(model.infraCleanup(cleanupNodes, [], [], { edges: [{ id: 'e', kind: 'runs_on', from: 'vm-1', to: 'host' }] })).some(item => item.id === 'guest-host:vm-1'), 'a runs_on edge gives a guest its host');
 }
 
+// ---- List view, inspector and picker helpers -------------------------------------
+{
+    const rows = [
+        { id: 'b', name: 'Beta', kind: 'device', power: 'running', profile: { ip_address: '192.168.6.10' }, sources: [{ kind: 'registry', state: 'current' }] },
+        { id: 'a', name: 'alpha', kind: 'vm', power: 'stopped', profile: { ip_address: '192.168.6.9' }, sources: [] },
+        { id: 'c', name: 'Gamma 10', kind: 'device', profile: {}, sources: [{ kind: 'docker', state: 'stale' }] },
+        { id: 'd', name: 'Gamma 9', kind: 'device', profile: { mac_address: 'aa:bb:cc:dd:ee:ff' }, sources: [{ kind: 'fritzbox', state: 'removed' }] },
+    ];
+    const ids = (key, dir, ctx) => plain(rows.slice().sort(model.tableComparator(key, dir, ctx)).map(row => row.id));
+    assert.deepEqual(ids('name', 'asc'), ['a', 'b', 'd', 'c'], 'names sort naturally, case-insensitive');
+    assert.deepEqual(ids('name', 'desc'), ['c', 'd', 'b', 'a']);
+    assert.deepEqual(ids('address', 'asc'), ['a', 'b', 'd', 'c'], 'IPv4 numerically, other addresses after, empty last');
+    assert.deepEqual(ids('address', 'desc'), ['d', 'b', 'a', 'c'], 'empty stays last in both directions');
+    assert.deepEqual(ids('status', 'asc'), ['d', 'c', 'b', 'a'], 'problems first');
+    assert.deepEqual(ids('power', 'asc'), ['b', 'a', 'd', 'c']);
+    assert.deepEqual(ids('kind', 'asc'), ['b', 'd', 'c', 'a']);
+    assert.deepEqual(ids('place', 'asc', { placeOf: id => ({ c: 'Basement', a: 'Attic' })[id] || '' }), ['a', 'c', 'b', 'd']);
+    const tree = [{ id: 'host', name: 'Host', kind: 'device' }, { id: 'g2', name: 'web', kind: 'container' }, { id: 'g1', name: 'db', kind: 'container' }, { id: 'solo', name: 'Alone', kind: 'device' }, { id: 'nested', name: 'inner', kind: 'service' }];
+    const hostOf = new Map([['g1', 'host'], ['g2', 'host'], ['nested', 'g1']]), guestsOf = new Map([['host', ['g2', 'g1']], ['g1', ['nested']]]);
+    const flat = opts => plain(model.tableRows(tree, { hostOf, guestsOf, compare: model.tableComparator('name', 'asc'), ...opts }).map(row => `${row.id}:${row.depth}${row.expanded ? '+' : ''}${row.context ? '~' : ''}`));
+    assert.deepEqual(flat({}), ['solo:0', 'host:0'], 'guests stay folded under their host');
+    assert.deepEqual(flat({ expanded: new Set(['host']) }), ['solo:0', 'host:0+', 'g1:1', 'g2:1']);
+    assert.deepEqual(flat({ expanded: new Set(['host', 'g1']) }), ['solo:0', 'host:0+', 'g1:1+', 'nested:2', 'g2:1']);
+    assert.deepEqual(flat({ matches: node => node.id === 'nested', filtering: true }), ['host:0+~', 'g1:1+~', 'nested:2'], 'a matching guest shows its hosts as context rows');
+    const targets = [
+        { app: 'network-cameras', target_id: 'stream-front-door', label: 'Front door camera' },
+        { app: 'software-store', target_id: 'net-tools', label: 'Network Tools' },
+        { app: 'meshcore', target_id: 'conv-ipt', label: 'Iptingen Room Server' },
+        { app: 'meshcore', target_id: 'conv-lab', label: 'Lab mesh conversation' },
+    ];
+    const options = (node, query) => { const result = model.appTargetOptions(node, targets, query); return plain({ groups: result.groups.map(group => [group.id, group.options.map(option => option.target_id)]), hiddenMesh: result.hiddenMesh }); };
+    const tv = { id: 'tv', name: 'Living room TV', icon: 'tv', profile: { app_bindings: [] } };
+    assert.deepEqual(options(tv, ''), { groups: [['network-cameras', ['stream-front-door']], ['software-store', ['net-tools']]], hiddenMesh: 2 }, 'a TV never sees MeshCore by default');
+    assert.deepEqual(options(tv, 'ip'), { groups: [['suggested', ['conv-ipt']]], hiddenMesh: 0 }, 'two typed characters search MeshCore too');
+    const relay = { id: 'relay', name: 'Garden relay', icon: 'mesh-node', profile: { app_bindings: [{ app: 'meshcore', target_id: 'conv-lab' }] } };
+    assert.deepEqual(options(relay, ''), { groups: [['network-cameras', ['stream-front-door']], ['software-store', ['net-tools']], ['meshcore', ['conv-ipt']]], hiddenMesh: 0 }, 'mesh devices see MeshCore; bound targets are not offered again');
+    assert.equal(model.appTargetOptions({ name: 'Node', icon: 'router', profile: { tags: ['Mesh backbone'] } }, targets, '').hiddenMesh, 0);
+    assert.equal(model.isMeshAsset({ icon: 'radio-gateway', profile: {} }), true);
+    assert.equal(model.isMeshAsset({ icon: 'tv', profile: { role: 'chromecast' } }), false);
+    assert.equal(model.appTargetOptions({ name: 'Front door', icon: 'camera', profile: {} }, targets, '').groups[0].id, 'suggested');
+    const prefs = model.readInspectorPrefs('{"tabs":{"device":"details","vm":"nope","Bad Kind":"sources"}}');
+    assert.deepEqual(plain(prefs), { tabs: { device: 'details' } });
+    assert.equal(model.inspectorTab(prefs, 'device'), 'details');
+    assert.equal(model.inspectorTab(prefs, 'room'), 'overview');
+    assert.deepEqual(plain(model.withInspectorTab(prefs, 'room', 'connections')), { tabs: { device: 'details', room: 'connections' } });
+    assert.deepEqual(plain(model.readInspectorPrefs('not json')), { tabs: {} });
+    assert.deepEqual(plain(model.readTablePrefs('{"sort":"address","dir":"desc"}')), { sort: 'address', dir: 'desc' });
+    assert.deepEqual(plain(model.readTablePrefs('{"sort":"secret"}')), { sort: 'name', dir: 'asc' });
+    assert.deepEqual([...model.readDismissed('["a",3,"b"]')], ['a', 'b']);
+    const stored = { id: 'n', name: 'NAS', kind: 'device', icon: 'nas', parent_id: '', profile: { vendor: '', vlan: 0, interfaces: [], tags: ['lab'], custom: {} } };
+    const draft = { ...model.clone(stored), name: 'Big NAS', profile: { ...model.clone(stored.profile), vendor: 'Synology', vlan: '', interfaces: [{ name: 'eth0' }] } };
+    assert.deepEqual([...model.draftDiff(stored, draft)].sort(), ['name', 'profile.interfaces', 'profile.vendor'], 'blank values compare equal');
+    assert.deepEqual(plain(model.formGroupFill(stored)), { identity: true, network: false, hardware: false, links: false, notes: false, custom: false });
+    assert.deepEqual(plain(model.formGroupFill(draft)), { identity: true, network: true, hardware: true, links: false, notes: false, custom: false });
+    assert.equal(model.groupOfField('profile.mac_address'), 'network');
+    assert.deepEqual(plain(model.attentionItems([
+        { id: 'ok', name: 'Fine', sources: [{ kind: 'docker', state: 'current' }] },
+        { id: 'stale', name: 'Old', sources: [{ kind: 'docker', state: 'current' }, { kind: 'proxmox', state: 'stale' }] },
+        { id: 'moved', name: 'Moved', sources: [] },
+        { id: 'quiet', name: 'Quiet', sources: [{ kind: 'docker', state: 'removed', ignored: true }] },
+    ], { unsaved: new Set(['moved']) })), [{ id: 'moved', reasons: [{ code: 'layout_unsaved' }] }, { id: 'stale', reasons: [{ code: 'source_stale', source: 'proxmox' }] }], 'any non-current source counts; an ignored source does not');
+    const places = { home: { id: 'home', name: 'Home', parent_id: '' }, base: { id: 'base', name: 'Basement', parent_id: 'home' }, rack: { id: 'rack', name: 'Rack 1', parent_id: 'base' } };
+    assert.deepEqual(plain(model.placePath('rack', id => places[id]).map(item => item.name)), ['Home', 'Basement']);
+    assert.deepEqual(plain(model.placePath('rack', id => places[id], { includeSelf: true }).map(item => item.name)), ['Home', 'Basement', 'Rack 1']);
+    assert.equal(model.isDescendant('rack', 'home', id => places[id]?.parent_id || ''), true);
+    assert.equal(model.isDescendant('home', 'rack', id => places[id]?.parent_id || ''), false);
+    assert.deepEqual(plain(model.appLinkContext({ app: 'meshcore', target_id: 'c1' })), { conversation_id: 'c1' });
+    // Plan B already pins mergeIntent, layoutItems and applyLayoutPatch for unplace intents; the stamp is new.
+    const ignoredStamp = model.snapshotStamp(base.nodes, base.edges, [{ ...base.sources[0], ignored: true }], base.caps);
+    assert.notEqual(same, ignoredStamp, 'ignoring or restoring a source is a structural change');
+    assert.notEqual(model.snapshotStamp([{ ...base.nodes[0], sources: [{ ...base.sources[0] }] }], base.edges, base.sources, base.caps), model.snapshotStamp([{ ...base.nodes[0], sources: [{ ...base.sources[0], ignored: true }] }], base.edges, base.sources, base.caps), 'a linked source flips with its ignored flag');
+}
+
 for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     const css = fs.readFileSync(path.join(root, 'ui/css', file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     const outsideMixes = css.replace(/color-mix\((?:[^()]|\([^()]*\))*\)/g, '');
