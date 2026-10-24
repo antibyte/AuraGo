@@ -454,7 +454,8 @@ directories:
 indexing:
   enabled: true
   directories:
-    - ./knowledge
+    - path: ./knowledge
+      allow_media_analysis: false   # true erlaubt Bilder, Audio und gescannte PDFs (siehe unten)
   poll_interval_seconds: 60
   extensions:
     - .txt
@@ -559,8 +560,8 @@ AuraGo kann lokale Dateien automatisch indexieren für schnellen Zugriff.
 ### Konfiguration
 
 ### Einrichtung in der Web-UI
-1. Öffne **Config → Server → Indexierung**.
-2. Aktiviere die Indexierung, wähle Verzeichnisse und Dateitypen.
+1. Öffne **Config → Indexierung**.
+2. Aktiviere die Indexierung, wähle Verzeichnisse und Dateitypen. Die Medienfreigabe erteilst du pro Ordner (siehe unten).
 3. Speichern.
 
 ### YAML-Referenz
@@ -569,7 +570,8 @@ AuraGo kann lokale Dateien automatisch indexieren für schnellen Zugriff.
 indexing:
   enabled: true
   directories:
-    - "./knowledge"           # Zu indexierende Verzeichnisse
+    - path: "./knowledge"     # Zu indexierende Verzeichnisse
+      allow_media_analysis: false   # true erlaubt Bilder, Audio und gescannte PDFs (siehe unten)
   poll_interval_seconds: 60   # Prüfintervall für Änderungen
   extensions:                 # Zu indexierende Dateitypen
     - .txt
@@ -580,6 +582,13 @@ indexing:
     - .yaml
     - .yml
 ```
+
+### Medien pro Ordner
+
+Bilder, Audio und gescannte PDFs ohne Textebene werden nur an ein Modell geschickt, wenn der Ordner mit `allow_media_analysis: true` freigegeben ist (Standard: `false`). Bei `embeddings.multimodal: false` gehen Bilder an das Vision-LLM, sofern zusätzlich `indexing.index_images: true` gesetzt ist. Bei `embeddings.multimodal: true` gehen Bilder und Audio stattdessen an den multimodalen Embedding-Provider; das Vision-LLM wird dafür nicht genutzt. Gescannte PDFs ohne Textebene nutzen ihn in diesem Fall als Fallback. Ohne Freigabe werden solche Dateien nicht indexiert. Bilder und Audio, die aus diesem Ordner bereits indexiert wurden, werden lokal aus dem Index entfernt; es wird nichts gesendet. Gescannte PDFs, die eine frühere Version über den Fallback indexiert hat, werden nicht automatisch entfernt und bleiben, bis sich die Datei ändert. Um sie sofort zu entfernen, entferne den Ordner aus der Liste und füge ihn erneut hinzu; die Dateien werden dann ohne Fallback neu indexiert. Die Freigabe schaltest du in **Config → Indexierung** pro Ordner ein; beim Einschalten fragt AuraGo zur Bestätigung nach. Bei verschachtelten Ordnern entscheidet der tiefste konfigurierte Ordner, der die Datei enthält: Ein Unterordner kann Medien also verweigern, auch wenn der übergeordnete Ordner sie freigibt, und umgekehrt. Per API geht das mit `PATCH /api/indexing/directories` und dem Body `{"path": "...", "allow_media_analysis": true}`. Medien können den Host verlassen, wenn der Provider extern ist.
+
+> [!NOTE]
+> **Upgrade-Hinweis:** Bestehende Installationen müssen die Medienfreigabe pro Ordner erneut setzen. Bisher galten `index_images` und `multimodal` für alle Ordner.
 
 ### Verwendung
 

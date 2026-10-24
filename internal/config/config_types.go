@@ -42,6 +42,12 @@ type OAuthToken struct {
 type IndexingDirectory struct {
 	Path       string `yaml:"path"`
 	Collection string `yaml:"collection"` // optional; empty = default "file_index"
+	// AllowMediaAnalysis is the per-folder opt-in for sending this folder's
+	// images, audio and scanned PDFs to the Vision LLM or the multimodal
+	// embedding provider. It is an additional, required gate next to the global
+	// capability switches indexing.index_images and embeddings.multimodal, and
+	// stays off unless the user enables it for the folder.
+	AllowMediaAnalysis bool `yaml:"allow_media_analysis,omitempty" json:"allow_media_analysis"`
 }
 
 type IndexingChunkingConfig struct {

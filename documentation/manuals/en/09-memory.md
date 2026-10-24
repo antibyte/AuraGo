@@ -443,7 +443,8 @@ directories:
 indexing:
   enabled: true                        # Enable automatic file indexing
   directories:                         # Directories to monitor and index
-    - ./knowledge
+    - path: ./knowledge
+      allow_media_analysis: false      # true allows images, audio, and scanned PDFs (see below)
   poll_interval_seconds: 60            # How often to check for changes
   extensions:                          # File types to index
     - .txt
@@ -602,8 +603,8 @@ AuraGo can automatically index local files for fast retrieval.
 ### Configuration
 
 ### Web UI Setup
-1. Open **Config → Server → Indexing**.
-2. Enable indexing, choose directories and file types.
+1. Open **Config → Indexing**.
+2. Enable indexing, choose directories and file types. Allow media per folder (see below).
 3. Save.
 
 ### YAML Reference
@@ -612,7 +613,8 @@ AuraGo can automatically index local files for fast retrieval.
 indexing:
   enabled: true
   directories:
-    - "./knowledge"           # Directories to index
+    - path: "./knowledge"     # Directories to index
+      allow_media_analysis: false   # true allows images, audio, and scanned PDFs (see below)
   poll_interval_seconds: 60   # Change-check interval
   extensions:                 # File types to index
     - .txt
@@ -623,6 +625,13 @@ indexing:
     - .yaml
     - .yml
 ```
+
+### Media per Folder
+
+Images, audio, and scanned PDFs without a text layer are only sent to a model if their folder is set to `allow_media_analysis: true` (default: `false`). With `embeddings.multimodal: false`, images go to the Vision LLM if `indexing.index_images: true` is also set. With `embeddings.multimodal: true`, images and audio go to the multimodal embedding provider instead, and the Vision LLM is not used for them. Scanned PDFs without a text layer use that provider as a fallback in this case. Without permission, such files are not indexed. Images and audio already indexed from that folder are removed from the index locally; nothing is sent. Scanned PDFs that an earlier version indexed through the fallback are not removed automatically; they stay until the file changes. To remove them right away, remove the folder from the list and add it again; the files are then re-indexed without the fallback. Turn the permission on per folder under **Config → Indexing**; AuraGo asks for confirmation when you switch it on. For nested folders, the deepest configured folder that contains a file decides: a subfolder can deny media even when its parent allows it, and vice versa. The API is `PATCH /api/indexing/directories` with the body `{"path": "...", "allow_media_analysis": true}`. Media can leave the host if the provider is external.
+
+> [!NOTE]
+> **Upgrade note:** Existing installations must enable media sharing per folder again. Previously, `index_images` and `multimodal` applied to all folders.
 
 ### Usage
 

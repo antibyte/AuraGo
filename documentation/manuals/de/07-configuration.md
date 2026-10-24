@@ -546,7 +546,7 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | `egg_mode` | Worker-Mode | `egg_mode:`<br>`  enabled: false`<br>`  master_url: ""`<br>`  egg_id: ""`<br>`  nest_id: ""`<br>`  tls_pin_sha256: ""`<br>`  tls_skip_verify: false` |
 | `invasion_control` | Remote Deployment | `invasion_control:`<br>`  enabled: false`<br>`  readonly: false` |
 | `security_proxy` | Reverse Proxy | `security_proxy:`<br>`  enabled: false`<br>`  domain: ""`<br>`  rate_limiting:`<br>`    enabled: true` |
-| `indexing` | Datei-Indexierung | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false` |
+| `indexing` | Datei-Indexierung; Medien je Ordner per `allow_media_analysis` freigeben | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false` |
 | `a2a` | Agent-to-Agent | `a2a:`<br>`  server:`<br>`    enabled: false`<br>`    port: 0`<br>`  client:`<br>`    enabled: false` |
 | `realtime_speech` | Live-Sprachsessions | `realtime_speech:`<br>`  enabled: false`<br>`  default_profile: ""` |
 | `virtual_computers` | Verwaltete virtuelle Computer | `virtual_computers:`<br>`  enabled: false`<br>`  auto_setup: false`<br>`  readonly: false` |

@@ -111,10 +111,16 @@ func (fi *FileIndexer) Start(ctx context.Context) {
 	fi.runToken = runToken
 	fi.lifecycleMu.Unlock()
 
+	// fi.cfg can be replaced by ReplaceConfigLocked, so it is only read under cfgMu.
+	fi.cfgMu.RLock()
+	startDirs := append([]config.IndexingDirectory(nil), fi.cfg.Indexing.Directories...)
+	startPoll := fi.cfg.Indexing.PollIntervalSeconds
+	startExtensions := append([]string(nil), fi.cfg.Indexing.Extensions...)
+	fi.cfgMu.RUnlock()
 	fi.logger.Info("[Indexer] Starting file indexer",
-		"directories", fi.cfg.Indexing.Directories,
-		"poll_interval", fi.cfg.Indexing.PollIntervalSeconds,
-		"extensions", fi.cfg.Indexing.Extensions)
+		"directories", startDirs,
+		"poll_interval", startPoll,
+		"extensions", startExtensions)
 
 	dirs := fi.indexingDirectoriesSnapshot()
 	fi.mu.Lock()
@@ -242,6 +248,12 @@ func (fi *FileIndexer) IndexFile(ctx context.Context, directory config.IndexingD
 		return FileIngestResult{}, fmt.Errorf("indexed path must be a regular file")
 	}
 	collection := getDirCollection(directory)
+	// Decide the media permission before anything is stored for the file: a denied
+	// image or audio file must not leave a metadata row behind. A file the index
+	// already tracks is removed by the next scan, which the permission change triggers.
+	if ext := strings.ToLower(filepath.Ext(info.Name())); (IsImageFile(ext) || IsAudioFile(ext)) && !fi.mediaAnalysisAllowedForFile(target) {
+		return FileIngestResult{}, ErrNoIndexableContent
+	}
 	if err := fi.stm.UpsertFileIndexMetadata(target, collection, metadata); err != nil {
 		return FileIngestResult{}, err
 	}
@@ -392,6 +404,11 @@ func (fi *FileIndexer) countIndexableFiles(ctx context.Context, dir string) (int
 		return 0, nil
 	}
 
+	fi.cfgMu.RLock()
+	indexImages := fi.cfg.Indexing.IndexImages
+	multimodal := fi.cfg.Embeddings.Multimodal
+	fi.cfgMu.RUnlock()
+
 	var total int
 	var errors []string
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -413,15 +430,14 @@ func (fi *FileIndexer) countIndexableFiles(ctx context.Context, dir string) (int
 			return nil
 		}
 		ext := strings.ToLower(filepath.Ext(info.Name()))
-		isImage := IsImageFile(ext)
-		isAudio := IsAudioFile(ext)
 
-		fi.cfgMu.RLock()
-		indexImages := fi.cfg.Indexing.IndexImages
-		multimodal := fi.cfg.Embeddings.Multimodal
-		fi.cfgMu.RUnlock()
-
-		if fi.extensions[ext] || (isImage && (indexImages || multimodal)) || (isAudio && multimodal) {
+		// The permission belongs to the file, not to the scan root: a configured
+		// subfolder can deny what its parent entry allows.
+		allowMedia := false
+		if IsImageFile(ext) || IsAudioFile(ext) {
+			allowMedia = fi.mediaAnalysisAllowedForFile(path)
+		}
+		if fi.acceptsExtension(ext, allowMedia, indexImages, multimodal) {
 			if skip, reason := shouldSkipIndexingFile(info); skip {
 				errors = append(errors, fmt.Sprintf("skip %s: %s", path, reason))
 				return nil
@@ -526,15 +542,33 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 	isImage := IsImageFile(ext)
 	isAudio := IsAudioFile(ext)
 
+	// cfg is read once under the lock: ReplaceConfigLocked can swap fi.cfg while
+	// a file is being indexed, and this file must use one consistent snapshot.
 	fi.cfgMu.RLock()
-	indexImages := fi.cfg.Indexing.IndexImages
-	multimodal := fi.cfg.Embeddings.Multimodal
+	cfg := fi.cfg
+	indexImages := cfg.Indexing.IndexImages
+	multimodal := cfg.Embeddings.Multimodal
 	fi.cfgMu.RUnlock()
 
-	accepted := fi.extensions[ext] ||
-		(isImage && (indexImages || multimodal)) ||
-		(isAudio && multimodal)
-	if !accepted {
+	// Images, audio and scanned PDFs only go to a provider from a folder that
+	// enabled allow_media_analysis; the global switches are capabilities on top.
+	// The deepest configured directory containing the file decides, not the scan
+	// root dir, because a parent entry also walks its configured subfolders.
+	allowMedia := false
+	permissionDir := dir
+	if isImage || isAudio || ext == ".pdf" {
+		var decidingDir string
+		allowMedia, decidingDir = fi.mediaAnalysisDecisionForFile(path)
+		if decidingDir != "" {
+			permissionDir = decidingDir
+		}
+	}
+	if !fi.acceptsExtension(ext, allowMedia, indexImages, multimodal) {
+		if (isImage || isAudio) && !allowMedia {
+			// Only worth mentioning when a provider capability would have used the file.
+			wouldSend := (isImage && (indexImages || multimodal)) || (isAudio && multimodal)
+			return fi.skipUnpermittedMedia(permissionDir, collection, path, wouldSend)
+		}
 		return fileIndexOutcome{noContent: true}
 	}
 	if skip, reason := shouldSkipIndexingFile(info); skip {
@@ -558,7 +592,7 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 		outcome.err = fmt.Errorf("hash error %s: %v", path, hashErr)
 		return outcome
 	}
-	indexFingerprint := fi.indexFingerprintForMode(indexMode)
+	indexFingerprint := fi.indexFingerprintForMode(indexMode, allowMedia)
 	indexState, stateErr := fi.stm.GetFileIndexState(path, collection)
 	if stateErr != nil {
 		outcome.err = fmt.Errorf("get file index %s: %v", path, stateErr)
@@ -601,7 +635,7 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 		}
 		content = fmt.Sprintf("%s-Datei: %s (Pfad: %s)", kind, info.Name(), relPath)
 	} else if isImage {
-		if tools.VisionRequiresPublicImageURL(fi.cfg) {
+		if tools.VisionRequiresPublicImageURL(cfg) {
 			fi.logger.Debug("[Indexer] Skipping local image because the Vision provider requires a public URL", "path", relPath, "provider", "agnes")
 			if err := fi.removeTrackedFile(path, collection); err != nil {
 				outcome.err = fmt.Errorf("cleanup unsupported local image %s: %v", path, err)
@@ -615,7 +649,7 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 		var visionErr error
 		for attempt := 1; attempt <= indexingRetryMaxAttempts; attempt++ {
 			var width, height int
-			analysis, width, height, visionErr = tools.AnalyzeImageWithPromptContext(ctx, path, prompt, fi.cfg)
+			analysis, width, height, visionErr = tools.AnalyzeImageWithPromptContext(ctx, path, prompt, cfg)
 			_ = width
 			_ = height
 			if visionErr == nil {
@@ -641,9 +675,11 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 		}
 		content = fmt.Sprintf("Bildanalyse von %s (Pfad: %s):\n%s", info.Name(), relPath, analysis)
 	} else if IsDocumentFile(ext) {
+		// The scanned-PDF fallback sends the whole file to the multimodal provider.
+		pdfFallback := multimodal && allowMedia && ext == ".pdf"
 		extracted, extractErr := ExtractText(path)
 		if extractErr != nil {
-			if multimodal && ext == ".pdf" {
+			if pdfFallback {
 				fallbackContent, vec, fallbackErr := fi.indexPDFWithMultimodalFallback(ctx, path, relPath, info.Name())
 				if fallbackErr == nil {
 					content = fallbackContent
@@ -655,13 +691,21 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 			}
 			if precomputedEmbedding == nil {
 				fi.logger.Warn("[Indexer] Text extraction failed, skipping document", "path", path, "error", scrubIndexingError(extractErr))
+				if multimodal && !allowMedia && ext == ".pdf" && fileIndexStateTracked(indexState) {
+					// The folder has no media permission: a scanned PDF an earlier run
+					// indexed through the provider is dropped locally.
+					if err := fi.removeTrackedFile(path, collection); err != nil {
+						outcome.err = fmt.Errorf("cleanup unpermitted scanned PDF %s: %v", path, err)
+						return outcome
+					}
+				}
 				outcome.err = fmt.Errorf("text extraction error %s: %v", path, extractErr)
 				return outcome
 			}
 		} else {
 			content = extracted
 		}
-		if multimodal && ext == ".pdf" && precomputedEmbedding == nil && len(strings.TrimSpace(content)) < 10 {
+		if pdfFallback && precomputedEmbedding == nil && len(strings.TrimSpace(content)) < 10 {
 			fallbackContent, vec, fallbackErr := fi.indexPDFWithMultimodalFallback(ctx, path, relPath, info.Name())
 			if fallbackErr == nil {
 				content = fallbackContent
@@ -833,7 +877,12 @@ func (fi *FileIndexer) indexModeForFile(ext string, isImage, isAudio, multimodal
 	}
 }
 
-func (fi *FileIndexer) indexFingerprintForMode(mode string) string {
+// indexFingerprintForMode builds the change-detection fingerprint stored with an
+// indexed file. allowMedia is the folder's media opt-in; it only matters for
+// PDFs on a multimodal setup, where it decides whether scanned PDFs are sent to
+// the provider. Every other combination keeps the fingerprint byte-identical to
+// the one stored before the opt-in existed, so default installs do not reindex.
+func (fi *FileIndexer) indexFingerprintForMode(mode string, allowMedia bool) string {
 	parts := []string{fileIndexerFingerprint, "mode=" + mode}
 	if fp, ok := fi.vectorDB.(embeddingFingerprinter); ok {
 		if embeddingFingerprint := strings.TrimSpace(fp.EmbeddingFingerprint()); embeddingFingerprint != "" {
@@ -855,17 +904,24 @@ func (fi *FileIndexer) indexFingerprintForMode(mode string) string {
 			fingerprintProvider("embeddings", fi.cfg.Embeddings.Provider, fi.cfg.Embeddings.ProviderType, fi.cfg.Embeddings.BaseURL, fi.cfg.Embeddings.Model, fi.cfg.Embeddings.APIKey),
 			"multimodal_format="+strings.TrimSpace(fi.cfg.Embeddings.MultimodalFormat),
 		)
+		if mode == fileIndexModePDF && allowMedia && fi.cfg.Embeddings.Multimodal {
+			parts = append(parts, "media=allowed")
+		}
 	}
 	return strings.Join(parts, "|")
 }
 
 func (fi *FileIndexer) chunkingOptionsSnapshot() chunking.Options {
-	if fi == nil || fi.cfg == nil {
+	if fi == nil {
 		return chunking.NormalizeOptions(chunking.Options{})
 	}
 	if fi.cfgMu != nil {
 		fi.cfgMu.RLock()
 		defer fi.cfgMu.RUnlock()
+	}
+	// fi.cfg is only checked under the lock: ReplaceConfigLocked can swap it.
+	if fi.cfg == nil {
+		return chunking.NormalizeOptions(chunking.Options{})
 	}
 	cfg := fi.cfg.Indexing.Chunking
 	return chunking.NormalizeOptionsWithDefaults(chunking.Options{

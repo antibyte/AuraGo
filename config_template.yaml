@@ -1324,6 +1324,7 @@ indexing:
     directories:
         - path: ./knowledge
           collection: ""                        # optional; empty = default collection "file_index"
+          allow_media_analysis: false           # send images, audio and scanned PDFs of this folder to the Vision/multimodal provider
     poll_interval_seconds: 60
     chunking:
         strategy: recursive                         # recursive (default) or legacy; changes trigger a clean reindex
@@ -1346,7 +1347,7 @@ indexing:
         - .ods
         - .odp
         - .rtf
-    index_images: false                         # send images to Vision LLM for analysis and index results
+    index_images: false                         # send images to Vision LLM for analysis and index results (only for directories with allow_media_analysis)
 learnings:
   enabled: false # Evidence-based insights; requires enabled, writable memory for learning.
 

@@ -2635,6 +2635,8 @@ func Load(path string) (*Config, error) {
 		cfg.Indexing.Extensions = append([]string(nil), defaultIndexingExtensions...)
 	}
 	if len(cfg.Indexing.Directories) == 0 {
+		// Media analysis (AllowMediaAnalysis) stays off for the default folder, like
+		// for legacy bare-string entries, until the user enables it per folder.
 		cfg.Indexing.Directories = []IndexingDirectory{{Path: "./knowledge"}}
 	}
 	cfg.Indexing.Chunking = normalizeIndexingChunkingConfig(cfg.Indexing.Chunking)

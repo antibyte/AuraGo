@@ -151,7 +151,7 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/cron", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session-admin", Category: "dashboard", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/cron/", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session-admin", Category: "dashboard", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/dashboard/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "dashboard"},
-		{Pattern: "/api/indexing/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "knowledge"},
+		{Pattern: "/api/indexing/", Methods: []string{"GET", "POST", "PATCH", "DELETE"}, Auth: "session", Category: "knowledge"},
 		{Pattern: "/api/plans", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "planner", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/todos", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "planner", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/devices", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "inventory", ContentTypes: []string{"application/json"}},

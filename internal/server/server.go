@@ -606,6 +606,12 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	RegisterLLMSecrets(cfg, s.Vault)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	if fi := s.fileIndexer(); fi != nil {
+		// The running indexer keeps the pointer it was created with. Every caller
+		// publishes under CfgMu (write), the lock the indexer reads its config under,
+		// so a revoked folder permission applies to its next file.
+		fi.ReplaceConfigLocked(cfg)
+	}
 	s.bumpProviderRevision()
 	if cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.BookshelfEnabled &&
 		(previous == nil || !previous.VirtualDesktop.Enabled || !previous.VirtualDesktop.BookshelfEnabled) {

@@ -792,7 +792,7 @@ func TestFileIndexerSkipsUnchangedImageBeforeVisionCall(t *testing.T) {
 
 	cfg := &config.Config{}
 	cfg.Directories.WorkspaceDir = dir
-	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir, AllowMediaAnalysis: true}}
 	cfg.Indexing.Extensions = []string{".jpg"}
 	cfg.Indexing.IndexImages = true
 	cfg.Vision.BaseURL = visionSrv.URL
@@ -840,7 +840,7 @@ func TestFileIndexerSkipsLocalImagesForAgnesVision(t *testing.T) {
 
 	cfg := &config.Config{}
 	cfg.Directories.WorkspaceDir = dir
-	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir, AllowMediaAnalysis: true}}
 	cfg.Indexing.Extensions = []string{".jpg"}
 	cfg.Indexing.IndexImages = true
 	cfg.Vision.ProviderType = "agnes"
@@ -1416,7 +1416,7 @@ func TestFileIndexerScanDirectoryScrubsCollectedErrors(t *testing.T) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	cfg := &config.Config{}
-	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir, AllowMediaAnalysis: true}}
 	cfg.Indexing.PollIntervalSeconds = 60
 	cfg.Embeddings.Multimodal = true
 	// An endpoint that cannot be used makes the multimodal embedding of the image fail.

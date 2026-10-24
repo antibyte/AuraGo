@@ -1054,7 +1054,7 @@ The following blocks can also be configured through the Web UI or additionally i
 | `egg_mode` | Worker mode | `egg_mode:`<br>`  enabled: false`<br>`  master_url: ""`<br>`  egg_id: ""`<br>`  nest_id: ""`<br>`  tls_pin_sha256: ""`<br>`  tls_skip_verify: false` |
 | `invasion_control` | Remote deployment | `invasion_control:`<br>`  enabled: false`<br>`  readonly: false` |
 | `security_proxy` | Reverse proxy | `security_proxy:`<br>`  enabled: false`<br>`  domain: ""`<br>`  rate_limiting:`<br>`    enabled: true` |
-| `indexing` | File indexing | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false` |
+| `indexing` | File indexing; media per folder via `allow_media_analysis` | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false` |
 | `a2a` | Agent-to-agent | `a2a:`<br>`  server:`<br>`    enabled: false`<br>`    port: 0`<br>`  client:`<br>`    enabled: false` |
 | `realtime_speech` | Live speech sessions | `realtime_speech:`<br>`  enabled: false`<br>`  default_profile: ""` |
 | `virtual_computers` | Managed virtual computers | `virtual_computers:`<br>`  enabled: false`<br>`  auto_setup: false`<br>`  readonly: false` |
@@ -1327,7 +1327,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `music_generation` | AI music generation. | `music_generation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  model: ""`<br>`  max_daily: 0` |
 | `security_proxy` | Public-facing protection layer. `geo_blocking` is not implemented yet; the proxy ignores it. | `security_proxy:`<br>`  enabled: false`<br>`  domain: ""`<br>`  rate_limiting:`<br>`    enabled: true`<br>`    requests_per_second: 10`<br>`  ip_filter:`<br>`    enabled: false`<br>`    mode: blocklist`<br>`  geo_blocking:`<br>`    enabled: false` |
 | `egg_mode` | Distributed cluster worker. | `egg_mode:`<br>`  enabled: false`<br>`  master_url: ""`<br>`  egg_id: ""`<br>`  nest_id: ""`<br>`  tls_pin_sha256: ""`<br>`  tls_skip_verify: false` |
-| `indexing` | File indexing for RAG. | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false`<br>`  directories: []` |
+| `indexing` | File indexing for RAG. Media per folder: `allow_media_analysis` on each `directories` entry. | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false`<br>`  directories: []` |
 | `co_agents` | Parallel sub-agents. | `co_agents:`<br>`  enabled: false`<br>`  max_concurrent: 3`<br>`  budget_quota_percent: 0`<br>`  llm:`<br>`    provider: ""`<br>`  retry_policy:`<br>`    max_retries: 1`<br>`  specialists:`<br>`    researcher:`<br>`      enabled: true` |
 | `tools.daemon_skills` | Background daemon tools. | `tools:`<br>`  daemon_skills:`<br>`    enabled: false`<br>`    max_concurrent_daemons: 5` |
 | `journal` | Auto journal entries. | `journal:`<br>`  auto_entries: true`<br>`  daily_summary: true` |
