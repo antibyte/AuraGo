@@ -179,9 +179,17 @@
             if (host && !state.expandedHosts.has(host)) store.toggleHost(host);
             app.canvas?.ensureVisible(id);
         }
+        // A library drag captures the pointer on the panel, which retargets the click that follows
+        // to the panel itself; look for the row under the pointer instead.
+        function clickTarget(event) {
+            if (event.target !== el || event.detail === 0) return event.target;
+            const hit = document.elementFromPoint(event.clientX, event.clientY);
+            return hit && el.contains(hit) ? hit : event.target;
+        }
         const onClick = event => {
             if (suppressClick) { suppressClick = false; return; }
-            const toggle = event.target.closest('[data-section-toggle]');
+            const target = clickTarget(event);
+            const toggle = target.closest('[data-section-toggle]');
             if (toggle) {
                 const id = toggle.dataset.sectionToggle;
                 if (collapsedSections.has(id)) collapsedSections.delete(id); else collapsedSections.add(id);
@@ -190,18 +198,18 @@
                 applyRoving();
                 return;
             }
-            const place = event.target.closest('[data-place]');
+            const place = target.closest('[data-place]');
             if (place) { if (!place.disabled) void app.gestures.placeAtCenter([place.dataset.place], { moveMode: true }); return; }
-            const expand = event.target.closest('[data-library-expand]');
+            const expand = target.closest('[data-library-expand]');
             if (expand) {
                 const id = expand.dataset.libraryExpand;
                 if (expandedHosts.has(id)) expandedHosts.delete(id); else expandedHosts.add(id);
                 renderNow();
                 return;
             }
-            const select = event.target.closest('[data-library-select]');
+            const select = target.closest('[data-library-select]');
             if (select) { selectRow(select, event); return; }
-            if (event.target.closest('[data-action="expand-library"]')) app.setLibraryCollapsed?.(false);
+            if (target.closest('[data-action="expand-library"]')) app.setLibraryCollapsed?.(false);
         };
         const onPointerDown = event => {
             if (event.button !== 0 || event.target.closest('[data-place]')) return;
