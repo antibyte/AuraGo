@@ -911,3 +911,80 @@ func TestPlacementSizeIsBoundedAndOnlyForPlaces(t *testing.T) {
 		t.Fatalf("placement after kind change = %#v; want position kept and size dropped", got)
 	}
 }
+
+func TestLayoutBatchChangesParentAndPlaceSize(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	room, err := store.CreateNode(ctx, testNode(NodeRoom, "Office", "room"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rackNode := testNode(NodeRack, "Rack", "rack")
+	rackNode.ParentID = room.ID
+	rack, err := store.CreateNode(ctx, rackNode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	device, err := store.CreateNode(ctx, testNode(NodeDevice, "Switch", "switch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := store.CreateNode(ctx, testNode(NodeDevice, "NAS", "nas"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := func(value string) *string { return &value }
+	size := func(value float64) *float64 { return &value }
+
+	updated, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: room.ID, Version: room.Version, X: 0, Y: 0, W: size(600), H: size(400)},
+		{ID: device.ID, Version: device.Version, X: 48, Y: 72, ParentID: text(room.ID)},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated[0].Placements[ViewAtlas].W != 600 || updated[0].Placements[ViewAtlas].H != 400 || updated[1].ParentID != room.ID {
+		t.Fatalf("layout result = %#v", updated)
+	}
+	// Absent w/h keep the stored size; absent parent_id keeps the parent.
+	moved, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: room.ID, Version: updated[0].Version, X: 24, Y: 24},
+		{ID: device.ID, Version: updated[1].Version, X: 96, Y: 96},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if moved[0].Placements[ViewAtlas].H != 400 || moved[1].ParentID != room.ID {
+		t.Fatalf("absent layout fields changed state: %#v", moved)
+	}
+	for _, tc := range []struct {
+		name string
+		item LayoutItem
+	}{
+		{"cycle", LayoutItem{ID: room.ID, Version: moved[0].Version, ParentID: text(rack.ID)}},
+		{"non-container parent", LayoutItem{ID: other.ID, Version: other.Version, ParentID: text(device.ID)}},
+		{"missing parent", LayoutItem{ID: other.ID, Version: other.Version, ParentID: text("missing")}},
+		{"size on a device", LayoutItem{ID: other.ID, Version: other.Version, W: size(300), H: size(200)}},
+		{"place too small", LayoutItem{ID: rack.ID, Version: rack.Version, W: size(100), H: size(200)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// The valid first item proves the batch stays atomic.
+			_, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+				{ID: device.ID, Version: moved[1].Version, X: 500, Y: 500}, tc.item,
+			}})
+			if !errors.Is(err, ErrValidation) {
+				t.Fatalf("SaveLayout error = %v; want validation error", err)
+			}
+			unchanged, err := store.GetNode(ctx, device.ID)
+			if err != nil || unchanged.Version != moved[1].Version {
+				t.Fatalf("rejected batch committed its valid item: %#v, %v", unchanged, err)
+			}
+		})
+	}
+	cleared, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: device.ID, Version: moved[1].Version, X: 900, Y: 900, ParentID: text("")},
+	}})
+	if err != nil || cleared[0].ParentID != "" {
+		t.Fatalf("clearing the parent = %#v, %v", cleared, err)
+	}
+}

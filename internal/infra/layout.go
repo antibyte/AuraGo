@@ -3,8 +3,12 @@ package infra
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
+// SaveLayout atomically stores one view's positions. Items may also move a node
+// into or out of a place (ParentID: nil keeps the parent, "" clears it) and size
+// a place (W, H: nil keeps the stored size).
 func (s *Store) SaveLayout(ctx context.Context, request LayoutRequest) ([]Node, error) {
 	if request.View != ViewAtlas && request.View != ViewTopology {
 		return nil, fmt.Errorf("%w: unsupported layout view", ErrValidation)
@@ -19,6 +23,11 @@ func (s *Store) SaveLayout(ctx context.Context, request LayoutRequest) ([]Node, 
 		}
 		if item.Version <= 0 || !validCoordinate(item.X) || !validCoordinate(item.Y) {
 			return nil, fmt.Errorf("%w: layout item needs a version and bounded coordinates", ErrValidation)
+		}
+		if item.ParentID != nil {
+			if err := validateText("layout parent id", *item.ParentID, 128, false); err != nil {
+				return nil, err
+			}
 		}
 		if _, exists := seen[item.ID]; exists {
 			return nil, fmt.Errorf("%w: duplicate node in layout update", ErrValidation)
@@ -38,9 +47,31 @@ func (s *Store) SaveLayout(ctx context.Context, request LayoutRequest) ([]Node, 
 		if node.Version != item.Version {
 			return nil, ErrConflict
 		}
+		placement := Placement{X: item.X, Y: item.Y, Pinned: item.Pinned}
+		if current, ok := node.Placements[request.View]; ok {
+			placement.W, placement.H = current.W, current.H
+		}
+		if item.W != nil {
+			placement.W = *item.W
+		}
+		if item.H != nil {
+			placement.H = *item.H
+		}
+		if err := validatePlacement(node.Kind, placement); err != nil {
+			return nil, err
+		}
+		if item.ParentID != nil {
+			parentID := strings.TrimSpace(*item.ParentID)
+			// Earlier items are already written in this transaction, so a cycle
+			// built across several items of one batch is detected as well.
+			if err := validateParent(ctx, tx, node.ID, parentID); err != nil {
+				return nil, err
+			}
+			node.ParentID = parentID
+		}
 		previous := node.Version
 		node.Version++
-		node.Placements[request.View] = Placement{X: item.X, Y: item.Y, Pinned: item.Pinned}
+		node.Placements[request.View] = placement
 		if err := updateNodeTx(ctx, tx, node, previous); err != nil {
 			return nil, err
 		}

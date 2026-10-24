@@ -189,12 +189,17 @@ type Edge struct {
 	Source   *SourceIdentity `json:"source,omitempty"`
 }
 
+// LayoutItem moves one node. ParentID nil keeps the parent and "" clears it;
+// W/H nil keep the stored place size.
 type LayoutItem struct {
-	ID      string  `json:"id"`
-	Version int64   `json:"version"`
-	X       float64 `json:"x"`
-	Y       float64 `json:"y"`
-	Pinned  bool    `json:"pinned"`
+	ID       string   `json:"id"`
+	Version  int64    `json:"version"`
+	X        float64  `json:"x"`
+	Y        float64  `json:"y"`
+	Pinned   bool     `json:"pinned"`
+	ParentID *string  `json:"parent_id,omitempty"`
+	W        *float64 `json:"w,omitempty"`
+	H        *float64 `json:"h,omitempty"`
 }
 
 type LayoutRequest struct {
