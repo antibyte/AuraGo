@@ -87,6 +87,9 @@
             return hit && viewport.contains(hit) ? hit : target;
         }
 
+        // previousIntent: what undo puts back. A card Topology lays out by itself has no stored placement, so
+        // undoing its first move hands it back to the automatic layout (unplace, when the server knows it).
+        const previousIntent = (id, view, withParent) => store.currentIntent(id, view, withParent) || (view === 'topology' && store.features.unplace ? { unplace: true } : null);
         // ---- drop planning ----------------------------------------------------------------
         // planDrop turns wanted card centres into before/after intents: optional
         // overlap nudge, drop parent (Map view, server support) and region growth.
@@ -107,7 +110,7 @@
                 if (parent.parent_id) hitRegion = parent.parent_id;
                 const parentChange = parentAware && 'parent_id' in parent ? parent : {};
                 after.set(id, { x: Math.round(pos.x), y: Math.round(pos.y), pinned: true, ...parentChange });
-                before.set(id, store.currentIntent(id, view, 'parent_id' in parentChange));
+                before.set(id, previousIntent(id, view, 'parent_id' in parentChange));
                 moves.push({ id, from: current, to: 'parent_id' in parentChange ? parentChange.parent_id : current });
                 const target = 'parent_id' in parentChange ? parentChange.parent_id : current;
                 if (!parentAware || !target || !ids.has(target)) continue;
@@ -118,19 +121,33 @@
             }
             return { before, after, moves, hitRegion, parentAware };
         }
-        const unchanged = plan => [...plan.after].every(([id, next]) => { const prev = plan.before.get(id); return !!prev && Object.keys(next).every(key => prev[key] === next[key]); });
+        // A card that is still auto-laid counts as unchanged when it stays where it is drawn: no drag pins it by accident.
+        const unchanged = plan => [...plan.after].every(([id, next]) => {
+            const prev = plan.before.get(id);
+            if (prev?.unplace) { const card = canvas.sceneData().cardById.get(id); return !!card && card.x === next.x && card.y === next.y; }
+            return !!prev && Object.keys(next).every(key => prev[key] === next[key]);
+        });
         function commitPlan(view, plan, kind) {
             if (kind !== 'place' && unchanged(plan)) return;
             const name = id => store.nodeById(id)?.name || id;
             const changed = plan.moves.filter(move => move.to !== move.from);
-            const label = kind === 'place'
+            // A single card dragged into another Topology lane says so.
+            const laneMove = (() => {
+                if (view !== 'topology' || kind !== 'move' || plan.moves.length !== 1) return null;
+                const id = plan.moves[0].id, card = canvas.sceneData().cardById.get(id), to = plan.after.get(id);
+                if (!card || !to || model.laneAt(card.y) === model.laneAt(to.y)) return null;
+                return model.fill(t('desktop.infra_moved_to_lane'), { name: name(id), lane: app.laneLabel(model.topologyLanes()[model.laneAt(to.y)]) });
+            })();
+            const label = laneMove || (kind === 'place'
                 ? (plan.moves.length === 1 ? t('desktop.infra_placed').replace('{name}', name(plan.moves[0].id)) : t('desktop.infra_placed_many').replace('{count}', plan.moves.length))
                 : changed.length === 1 && plan.moves.length === 1
                     ? (changed[0].to ? t('desktop.infra_moved_into').replace('{name}', name(changed[0].id)).replace('{place}', name(changed[0].to)) : t('desktop.infra_moved_out').replace('{name}', name(changed[0].id)))
-                    : movedLabel(plan.moves.length);
+                    : movedLabel(plan.moves.length));
             const { commands: factory } = window.InfraAppStore;
             const command = kind === 'place' ? factory.placeFromLibrary(view, plan.after, label)
                 : changed.length ? factory.reparent(view, plan.before, plan.after, label) : factory.moveNodes(view, plan.before, plan.after, label);
+            // Without unplace support there is nothing to put an auto-laid card back to, so the move cannot be undone.
+            if (kind !== 'place' && [...plan.before.values()].some(intent => !intent)) command.undoable = false;
             void store.dispatch(command);
             app.announce(label);
             if (plan.hitRegion && !plan.parentAware) store.notify(t('desktop.infra_parent_unsupported'), 'info');
@@ -251,6 +268,7 @@
                 if (!started) return;
                 canvas.moveTemp(positions);
                 canvas.setDropTarget(view === 'atlas' ? model.regionAt(positions.get(id), scene.regionRects, scene.regionDepth) : '');
+                if (view === 'topology') canvas.setLaneTarget(model.laneAt(positions.get(id).y));
             });
             begin(event, ev => {
                 if (!started) {
@@ -273,7 +291,7 @@
                     commitPlan(view, planDrop(view, positions, { nudge: true }), 'move');
                     canvas.renderNow();
                 } else app.announce(t('desktop.infra_move_cancelled'));
-                canvas.clearTemp(); canvas.setDropTarget('');
+                canvas.clearTemp(); canvas.setDropTarget(''); canvas.setLaneTarget(-1);
                 root.classList.remove('is-dragging');
                 store.endInteraction();
                 holdClick();
@@ -588,6 +606,7 @@
             const positions = new Map(moveMode.ids.map(id => [id, { x: moveMode.origin.get(id).x + moveMode.dx, y: moveMode.origin.get(id).y + moveMode.dy }]));
             canvas.moveTemp(positions);
             if (moveMode.view === 'atlas') canvas.setDropTarget(model.regionAt(positions.get(moveMode.ids[0]), scene.regionRects, scene.regionDepth));
+            else if (moveMode.view === 'topology') canvas.setLaneTarget(model.laneAt(positions.get(moveMode.ids[0]).y));
         }
         // enterMoveMode starts the keyboard move of assets, or of one place with everything inside it.
         function enterMoveMode(ids) {
@@ -625,7 +644,7 @@
                 commitPlan(mode.view, planDrop(mode.view, wants, { nudge: false }), 'move');
                 canvas.renderNow();
             }
-            canvas.clearTemp(); canvas.setDropTarget('');
+            canvas.clearTemp(); canvas.setDropTarget(''); canvas.setLaneTarget(-1);
             store.endInteraction();
         }
         // cancelMoveMode puts everything back and says so. Only Enter keeps a keyboard move.
@@ -783,7 +802,9 @@
             const view = app.mapView(), before = new Map();
             for (const id of ids) { const intent = store.currentIntent(id, view, false); if (intent) before.set(id, intent); }
             if (!before.size || !store.canWrite() || !store.features.unplace) return Promise.resolve(false);
-            const label = model.countText(before.size, t('desktop.infra_removed_from_map_one'), t('desktop.infra_removed_from_map'));
+            const label = view === 'topology'
+                ? model.countText(before.size, t('desktop.infra_topology_auto_placed_one'), t('desktop.infra_topology_auto_placed'))
+                : model.countText(before.size, t('desktop.infra_removed_from_map_one'), t('desktop.infra_removed_from_map'));
             app.announce(label);
             return store.dispatch(commands().unplace(view, before, label));
         }
@@ -807,12 +828,13 @@
         function arrange() {
             if (!store.canWrite()) return;
             const view = app.mapView(), scene = canvas.sceneData();
+            if (view === 'topology') { arrangeTopology(); return; }
             const selected = [...state.selection].filter(id => scene.cardById.has(id));
             const targets = selected.length ? selected : scene.cards.filter(card => !scene.regionRects.has(store.effectiveParent(card.id, view))).map(card => card.id);
             const targetSet = new Set(targets);
             const nodes = targets.map(id => store.nodeById(id)).filter(Boolean);
             const obstacles = scene.cards.filter(card => !targetSet.has(card.id)).map(card => ({ x: card.x, y: card.y }));
-            const positions = view === 'topology' ? model.topologyPositions(nodes, obstacles) : model.gridPositions(nodes, obstacles, state.nodes.length);
+            const positions = model.gridPositions(nodes, obstacles, state.nodes.length);
             if (!positions.size) return;
             const before = new Map(), after = new Map();
             for (const [id, position] of positions) {
@@ -824,6 +846,27 @@
             if (!after.size) return;
             const label = t('desktop.infra_arranged');
             void store.dispatch(commands().moveNodes(view, before, after, label));
+            app.announce(label);
+        }
+        // arrangeTopology re-runs the lane layout for the selection or every card as one undoable layout save;
+        // cards Infra laid out before are undone back to the automatic layout (unplace).
+        function arrangeTopology() {
+            if (!store.canWrite()) return;
+            const view = 'topology', scene = canvas.sceneData();
+            const positions = model.topologyArrange({ cards: scene.cards, selection: state.selection, nodeById: store.nodeById, edges: state.edges, guestsOf: store.guests().guestsOf, placementOf: id => store.effectivePlacement(id, view) });
+            if (!positions.size) return;
+            const before = new Map(), after = new Map();
+            let undoable = true;
+            for (const [id, position] of positions) {
+                const intent = previousIntent(id, view, false);
+                if (!intent) undoable = false;
+                before.set(id, intent);
+                after.set(id, { x: Math.round(position.x), y: Math.round(position.y), pinned: position.pinned === true });
+            }
+            const label = t('desktop.infra_arranged');
+            const command = commands().moveNodes(view, before, after, label);
+            command.undoable = undoable;
+            void store.dispatch(command);
             app.announce(label);
         }
 

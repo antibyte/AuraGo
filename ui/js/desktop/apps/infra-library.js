@@ -52,13 +52,15 @@
         // ---- sections -------------------------------------------------------------------------
         function computeSections() {
             const view = app.mapView(), guests = store.guests(), filtersOn = model.filtersActive(state.filters);
-            const placementOf = id => store.effectivePlacement(id, view);
+            // Topology draws every placeable asset at an automatic slot, so they count as on the map there.
+            const auto = view === 'topology' ? app.canvas.autoPositions() : null;
+            const placementOf = id => store.effectivePlacement(id, view) || auto?.get(id) || null;
             const parentOf = id => store.effectiveParent(id, view);
             const toPlace = [];
-            for (const node of state.nodes) {
+            if (view !== 'topology') for (const node of state.nodes) { // nothing is left to place in Topology
                 if (guests.hostOf.has(node.id) || placementOf(node.id) || !store.matches(node)) continue;
                 if (node.kind === 'vm' || node.kind === 'container') continue; // a guest without a host is a Cleanup suggestion
-                if (view !== 'topology' || !model.isContainer(node.kind)) toPlace.push(node);
+                toPlace.push(node);
             }
             toPlace.sort(byName);
             const scene = model.buildScene({ nodes: state.nodes, edges: state.edges, view, placementOf, parentOf, guests });

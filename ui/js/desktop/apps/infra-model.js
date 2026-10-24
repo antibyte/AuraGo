@@ -10,7 +10,6 @@
     // A card is 216×64 world px (Plan D amendment A2); its placement is the centre.
     const CARD_W = 216, CARD_H = 64;
     const CARD_HALF = { w: CARD_W / 2, h: CARD_H / 2 };
-    const TOPOLOGY_LAYER = { network: 0, site: 0, room: 0, rack: 0, device: 1, group: 1, vm: 2, container: 2, service: 3 };
 
     const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
     const clone = value => JSON.parse(JSON.stringify(value));
@@ -120,34 +119,6 @@
             }
             if (position) changes.set(node.id, position);
         }
-        return changes;
-    };
-    const topologyPositions = (nodes, obstacles) => {
-        const layers = [[], [], [], []];
-        for (const node of nodes) {
-            const layer = TOPOLOGY_LAYER[node.kind];
-            if (layer == null) continue;
-            layers[layer].push(node);
-        }
-        const changes = new Map();
-        const occupied = obstacles || [];
-        const blocked = blockedGrid(occupied);
-        layers.forEach((layerNodes, layer) => {
-            const ordered = [...layerNodes].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-            let column = 0;
-            for (const node of ordered) {
-                let position;
-                for (let guard = 0; guard < 20000 && !position; guard += 1) {
-                    const candidate = { x: ARRANGE_X0 + column * ARRANGE_DX, y: ARRANGE_Y0 + layer * 180 };
-                    column += 1;
-                    const key = gridKey(candidate.x, candidate.y);
-                    if (blocked.has(key) || occupied.some(pos => overlaps(pos, candidate))) continue;
-                    position = { ...candidate, pinned: false };
-                    blocked.add(key);
-                }
-                if (position) changes.set(node.id, position);
-            }
-        });
         return changes;
     };
     const sourceStamp = source => [source?.kind || '', source?.instance || '', source?.key || '', source?.state || '', source?.observed?.power || '', source?.ignored ? 'ignored' : ''].join('\x1f');
@@ -1012,7 +983,7 @@
         esc, clone, iconId, iconURL, assetURL, iconLabelKey, sourceActions, sourceIdentity, virtualSlice, sourceState,
         visibleByCollapsed, isPlaced, validCIDR, validHTTPLink, iconIds: () => [...ICON_LIST],
         acceptsIcon, rememberIcon, versionedAsset, containerKinds: () => [...CONTAINER_KINDS], isContainer, powerLabel,
-        edgeSegment, edgeCaption, edgeLabelClash, gridPositions, topologyPositions, snapshotStamp,
+        edgeSegment, edgeCaption, edgeLabelClash, gridPositions, snapshotStamp,
         layoutSnapshot, applyLayoutPatch,
         CARD_W, CARD_H, GRID, MIN_ZOOM, MAX_ZOOM, REGION_W, REGION_H, REGION_PAD, REGION_MIN_W, REGION_MIN_H,
         clampZoom, zoomLevels, labelScale, toWorld, toScreen, zoomAt, fitView, viewCenter, viewFromCenter, snap, cardRect, intersects, containsPoint,

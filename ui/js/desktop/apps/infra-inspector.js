@@ -45,7 +45,7 @@
                 + row(t('desktop.infra_fact_hardware'), esc([profile.vendor, profile.model].filter(Boolean).join(' · ') || none))
                 + row(t('desktop.infra_place'), esc(place));
             // The Overview only says whether the asset is on the map; the coordinates are in the Details tab.
-            if (!hostId) facts += row(t('desktop.infra_placement'), esc(placement ? t('desktop.infra_on_map') : t('desktop.infra_unplaced')));
+            if (!hostId) facts += row(t('desktop.infra_placement'), esc(app.canvas.isAutoPlaced(node.id) ? t('desktop.infra_topology_auto') : placement ? t('desktop.infra_on_map') : t('desktop.infra_unplaced')));
             if (hostId && store.nodeById(hostId)) facts += row(t('desktop.infra_fact_host'), `${selectButton(hostId)}${node.host_inferred ? ` <small>· ${esc(t('desktop.infra_host_inferred'))}</small>` : ''}`);
             if (guests.length) {
                 const more = guests.length > LIST_LIMIT ? `<li><button type="button" data-guest-more="${esc(node.id)}">${esc(model.fill(t('desktop.infra_more_guests'), { count: guests.length - LIST_LIMIT }))}</button></li>` : '';
@@ -55,7 +55,8 @@
                 + row(t('desktop.infra_fact_last_seen'), esc(seen ? new Date(seen).toLocaleString() : t('desktop.infra_no_observation')));
             const links = (node.app_links || []).filter(link => model.APP_LINK_TARGETS.has(link.app));
             const apps = links.length ? `<div class="infra-form-section"><h3>${esc(t('desktop.infra_fact_apps'))}</h3><div class="infra-app-links">${links.map(link => `<button type="button" class="infra-app-link" data-open-app="${esc(link.app)}" data-target-id="${esc(link.target_id)}">${esc(appLabel(link.app))}<span aria-hidden="true">↗</span></button>`).join('')}</div></div>` : '';
-            const canPlace = !placement && !hostId && canWrite();
+            // Topology lays assets out by itself; only a guest without a host is placed by hand there, places are not drawn.
+            const canPlace = !placement && !hostId && canWrite() && (app.mapView() !== 'topology' || node.kind === 'vm' || node.kind === 'container');
             const logical = node.kind === 'service' ? edgesOf(node).filter(edge => ['runs_on', 'depends_on', 'powered_by'].includes(edge.kind)) : [];
             const components = logical.length ? `<details class="infra-service-components"><summary>${esc(t('desktop.infra_service_components'))} (${logical.length})</summary><div class="infra-component-list">${logical.map(edge => {
                 const other = store.nodeById(edge.from === node.id ? edge.to : edge.from);

@@ -227,7 +227,8 @@
         applyLibraryCollapsed(prefs.libraryCollapsed);
 
         // ---- shell painting ----------------------------------------------------------------
-        const hasPlacedCards = () => { const view = mapView(); return state.nodes.some(node => store.effectivePlacement(node.id, view)); };
+        // Arrange needs a card to arrange; Topology draws one for every placeable asset (autoPositions), placed or not.
+        const hasPlacedCards = () => { const view = mapView(), auto = canvas.autoPositions(); return state.nodes.some(node => store.effectivePlacement(node.id, view) || auto.has(node.id)); };
         function paintShell() {
             if (disposed || !root.isConnected) return;
             const write = store.canWrite(), view = state.view, history = mapView();

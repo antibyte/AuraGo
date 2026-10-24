@@ -162,7 +162,7 @@
         // placementReadout shows where the asset sits on the map as read-only text, for power users.
         function placementReadout(node) {
             const placement = store.effectivePlacement(node.id, app.mapView());
-            const value = placement ? model.fill(t('desktop.infra_position'), { x: Math.round(placement.x), y: Math.round(placement.y) }) : t('desktop.infra_unplaced');
+            const value = placement ? model.fill(t('desktop.infra_position'), { x: Math.round(placement.x), y: Math.round(placement.y) }) : app.canvas.isAutoPlaced(node.id) ? t('desktop.infra_topology_auto') : t('desktop.infra_unplaced');
             return `<dl class="infra-facts infra-placement-facts" data-placement-readout><dt>${esc(t('desktop.infra_placement'))}</dt><dd>${esc(value)}</dd></dl>`;
         }
         function groupBody(group, node, draft) {

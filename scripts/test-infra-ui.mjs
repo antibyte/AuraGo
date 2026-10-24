@@ -153,21 +153,6 @@ assert.equal(model.edgeCaption({ from_port: 'ge-0/0/1', to_port: 'eth0', speed: 
     assert.equal(model.edgeLabelClash(far, { w: 120, h: 17 }, []), false);
 }
 
-const topology = model.topologyPositions([
-    { id: 'lan', kind: 'network', name: 'LAN' },
-    { id: 'nas', kind: 'device', name: 'NAS' },
-    { id: 'backup', kind: 'service', name: 'Backup' },
-], [{ x: 126, y: 280 }]);
-const placedAt = (id, x, y) => {
-    const position = topology.get(id);
-    assert.equal(position.x, x);
-    assert.equal(position.y, y);
-    assert.equal(position.pinned, false);
-};
-placedAt('lan', 126, 100);
-placedAt('nas', 378, 280);
-placedAt('backup', 126, 640);
-
 const base = { nodes: [{ id: 'n', version: 1, kind: 'device', name: 'NAS', power: 'running', placements: { atlas: { x: 1, y: 2 } }, sources: [] }], edges: [], sources: [{ kind: 'docker', instance: 'engine', key: 'abc', state: 'current', observed: { power: 'running' }, fetched_at: '2026-01-01T00:00:00Z' }], caps: { write: true, source_edit: false, control: false } };
 const same = model.snapshotStamp(base.nodes, base.edges, base.sources, base.caps);
 const later = model.snapshotStamp(base.nodes, base.edges, [{ ...base.sources[0], fetched_at: '2026-01-02T00:00:00Z' }], base.caps);
@@ -1254,21 +1239,25 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
             elements.add(el);
             return el;
         };
-        const scene = () => gm.buildScene({ nodes: store.state.nodes, edges: [], view, placementOf: id => store.effectivePlacement(id, view), parentOf: id => store.effectiveParent(id, view), guests: store.guests() });
+        // Topology draws unplaced assets at computed slots, as the canvas does.
+        const scene = () => {
+            const auto = view === 'topology' ? gm.topologyAutoPositions(store.state.nodes, store.state.edges, { placementOf: id => store.effectivePlacement(id, view), guests: store.guests() }) : new Map();
+            return gm.buildScene({ nodes: store.state.nodes, edges: [], view, placementOf: id => store.effectivePlacement(id, view) || auto.get(id) || null, parentOf: id => store.effectiveParent(id, view), guests: store.guests() });
+        };
         const first = scene();
         for (const card of first.cards) cardEls.set(card.id, element(card.id, 'card'));
         for (const id of first.regionRects.keys()) headerEls.set(id, element(id, 'region'));
-        const temps = [];
+        const temps = [], laneTargets = [];
         let cleared = 0;
-        const canvas = { viewport, sceneData: scene, cardEl: id => cardEls.get(id), regionEl: id => (headerEls.has(id) ? { querySelector: () => headerEls.get(id) } : null), moveTemp: (cards, regions = new Map()) => temps.push({ cards: new Map(cards), regions: new Map(regions) }), clearTemp: () => { cleared += 1; }, setDropTarget() {}, renderNow() {}, getView: () => ({ x: 0, y: 0, zoom: 1 }) };
+        const canvas = { viewport, sceneData: scene, cardEl: id => cardEls.get(id), regionEl: id => (headerEls.has(id) ? { querySelector: () => headerEls.get(id) } : null), moveTemp: (cards, regions = new Map()) => temps.push({ cards: new Map(cards), regions: new Map(regions) }), clearTemp: () => { cleared += 1; }, setDropTarget() {}, setLaneTarget: index => laneTargets.push(index), renderNow() {}, getView: () => ({ x: 0, y: 0, zoom: 1 }) };
         const announced = [];
-        const app = { store, state: store.state, t: key => key, model: gm, root: { classList: { add() {}, remove() {}, toggle() {} } }, canvas, mapView: () => view, announce: text => announced.push(text), ensureMapView() {}, q: () => null, dialogs: {} };
+        const app = { store, state: store.state, t: key => key, model: gm, root: { classList: { add() {}, remove() {}, toggle() {} } }, canvas, mapView: () => view, announce: text => announced.push(text), laneLabel: lane => lane, ensureMapView() {}, q: () => null, dialogs: {} };
         const gestures = InfraAppGestures.create(app);
         gestures.attach();
         if (focus) (cardEls.get(focus) || headerEls.get(focus)).focus();
         const target = () => sandbox.document.activeElement || viewport;
         const press = (key, mods = {}) => { const event = { key, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false, ...mods, target: target(), defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }; listeners.get('keydown')(event); return event; };
-        return { store, gm, puts, temps, announced, press, cleared: () => cleared, ctx, fire: (type, event) => listeners.get(type)({ target: target(), ...event }), FakeElement, gestures };
+        return { store, gm, puts, temps, announced, laneTargets, press, cleared: () => cleared, ctx, fire: (type, event) => listeners.get(type)({ target: target(), ...event }), FakeElement, gestures };
     };
     const card = (id, x, y, extra = {}) => ({ id, version: 1, kind: 'device', name: id, icon: 'router', profile: {}, placements: { atlas: { x, y, pinned: true } }, sources: [], ...extra });
     const room = (x, y, w, h) => card('room', x, y, { kind: 'room', placements: { atlas: { x, y, w, h, pinned: true } } });
@@ -1313,6 +1302,37 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
         assert.deepEqual(plain(locked.announced), ['desktop.infra_error_infra_readonly']);
         assert.equal(locked.store.state.interacting, 0);
         locked.store.dispose();
+    }
+    { // Topology: an auto-laid card moves between lanes, pins where it lands and undoes back to the automatic layout
+        const topo = [card('router', 0, 0, { placements: {} }), card('laptop', 0, 0, { icon: 'laptop', name: 'Laptop', placements: {} })];
+        const w = world({ nodes: topo, selection: ['laptop'], focus: 'laptop', view: 'topology', sourceHosts: [] });
+        assert.deepEqual(plain(w.gm.topologyAutoPositions(w.store.state.nodes, [], { placementOf: () => null, guests: w.store.guests() }).get('laptop')), { x: 0, y: 1536, pinned: false }, 'the laptop starts in the clients lane');
+        w.press('m');
+        for (let step = 0; step < 5; step += 1) w.press('ArrowUp');
+        assert.equal(w.temps.at(-1).cards.get('laptop').y, 1416, 'the move starts from the drawn slot, not from a stored placement');
+        assert.equal(w.laneTargets.at(-1), 2, 'the lane the card would land in is highlighted');
+        w.press('Enter');
+        assert.equal(w.laneTargets.at(-1), -1, 'the highlight is cleared');
+        assert.equal(w.announced.at(-1), 'desktop.infra_moved_to_lane', 'a lane change is announced');
+        await sleep(30);
+        assert.deepEqual(plain(itemOf(w.puts[0], 'laptop')), { id: 'laptop', version: 1, x: 0, y: 1416, pinned: true });
+        assert.equal(w.store.effectivePlacement('laptop', 'topology').pinned, true);
+        assert.equal(w.store.canUndo('topology'), true, 'the first move of an auto-laid card is undoable');
+        await w.store.undo('topology');
+        await sleep(30);
+        assert.equal(w.puts.at(-1).nodes[0].unplace, true, 'undo hands the card back to the automatic layout');
+        // a drag that ends where the card is drawn pins nothing
+        const still = world({ nodes: topo, selection: ['laptop'], focus: 'laptop', view: 'topology', sourceHosts: [] });
+        still.press('m'); still.press('ArrowUp'); still.press('ArrowDown'); still.press('Enter');
+        await sleep(30);
+        assert.equal(still.puts.length, 0, 'a move that returns to the drawn slot saves nothing');
+        // an older server has no unplace: the move still works but cannot be undone
+        const old = world({ nodes: topo, selection: ['laptop'], focus: 'laptop', view: 'topology', sourceHosts: null });
+        old.press('m'); old.press('ArrowUp'); old.press('Enter');
+        await sleep(30);
+        assert.equal(old.puts.length, 1);
+        assert.equal(old.store.canUndo('topology'), false, 'without unplace support the move stays out of the history');
+        for (const item of [w, still, old]) item.store.dispose();
     }
     { // a place moves with everything inside it
         const nodes = [room(400, 120, 480, 320), card('inside', 640, 300, { parent_id: 'room' }), card('outside', 160, 200)];
