@@ -60,6 +60,9 @@ network access. `--pack` produces `deploy/phonon-model.dat` and five
 `deploy/phonon-runtime_<os>_<arch>.dat` archives. Release builders require these
 verified resources before publication and include them in the release checksums.
 Only manifest-listed files and required notices enter the packages.
+Windows release builders require Python 3.10+ for packaging only. They resolve
+the installed interpreter through `py -3`, then `python` or `python3`, before
+cleaning generated artifacts; the selected interpreter need not be on `PATH`.
 Release cleanup retains the prepared `deploy/phonon` directory. When building in
 a clean worktree, copy that ignored directory from the prepared checkout first;
 the builder verifies it again before packaging.

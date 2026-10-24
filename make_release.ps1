@@ -1,6 +1,6 @@
 # SECURITY: This script handles sensitive data. Do not echo secrets.
 # make_release.ps1 — Build all release artifacts and publish to GitHub Releases
-# Requires: PowerShell 5.1+, Go 1.27.2+, GitHub CLI (gh), tar
+# Requires: PowerShell 5.1+, Go 1.27.2+, GitHub CLI (gh), tar, Python 3.10+
 
 param(
     [string]$Version
@@ -55,6 +55,9 @@ try {
     exit 1
 }
 
+$releasePython = & (Join-Path $PSScriptRoot 'scripts\find-release-python.ps1')
+Write-Host "    Python: $releasePython" -ForegroundColor Green
+
 Write-Host ""
 
 # ── Version tag ──────────────────────────────────────────────────────────
@@ -90,7 +93,7 @@ if (-not (Test-Path "bin")) {
 
 # ── Step 1: Pack resources.dat ───────────────────────────────────────────
 Write-Host "[1/5] Packing resources.dat ..." -ForegroundColor Yellow
-& python (Join-Path $scriptDir 'scripts\prepare-phonon.py') --pack
+& $releasePython (Join-Path $scriptDir 'scripts\prepare-phonon.py') --pack
 if ($LASTEXITCODE -ne 0) { throw 'Pinned Phonon resources are missing or invalid; nothing was published.' }
 $phononManifest = Get-Content -LiteralPath (Join-Path $scriptDir 'internal\phonon\manifest.json') -Raw | ConvertFrom-Json
 $phononPackages = @('deploy\phonon-model.dat') + @($phononManifest.runtimes | ForEach-Object { 'deploy\phonon-runtime_' + $_.target + '.dat' })

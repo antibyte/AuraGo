@@ -10,6 +10,7 @@ REM Prerequisites:
 REM   - Go 1.27.2+  (https://go.dev)
 REM   - gh CLI    (https://cli.github.com) -- run "gh auth login" once
 REM   - tar       (built-in Windows 10 Build 17063+)
+REM   - Python 3.10+ (py launcher, python or python3)
 
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
@@ -54,6 +55,13 @@ if errorlevel 1 (
     exit /b 1
 )
 echo     tar: OK
+set "RELEASE_PYTHON="
+for /f "delims=" %%P in ('powershell -nologo -noprofile -ExecutionPolicy Bypass -File "%~dp0scripts\find-release-python.ps1"') do set "RELEASE_PYTHON=%%P"
+if not defined RELEASE_PYTHON (
+    echo [ERROR] Python 3.10+ is required to prepare Phonon release resources.
+    exit /b 1
+)
+echo     Python: !RELEASE_PYTHON!
 where node >nul 2>&1
 if errorlevel 1 (
     echo     Node.js: not found; skipping CodeMirror bundle build
@@ -121,7 +129,7 @@ if not exist bin mkdir bin
 
 REM -- [1/5] Pack resources.dat
 echo [1/5] Packing resources.dat ...
-python scripts\prepare-phonon.py --pack
+"!RELEASE_PYTHON!" scripts\prepare-phonon.py --pack
 if errorlevel 1 (
     echo [ERROR] Pinned Phonon resources are missing or invalid. Nothing was published.
     exit /b 1
