@@ -225,8 +225,11 @@ ${panel('overview', overviewHTML(node))}${panel('details', forms.detailsHTML(nod
             if (event.key === 'Enter') { event.preventDefault(); endRename(); }
             else if (event.key === 'Escape') {
                 event.preventDefault(); event.stopPropagation();
-                event.target.value = renameBefore;
-                event.target.dispatchEvent(new Event('input', { bubbles: true }));
+                // Cancelling without typing must not mark the draft as changed.
+                if (event.target.value !== renameBefore) {
+                    event.target.value = renameBefore;
+                    event.target.dispatchEvent(new Event('input', { bubbles: true }));
+                }
                 endRename();
             }
         }
