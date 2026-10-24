@@ -165,7 +165,7 @@ func newTimerService(store *Store, clock Clock, fire timerHandleFunc, missed Tim
 		store: store, clock: clock, fire: fire, missed: handled(missed), logger: logger,
 		grace: MissedTimerGrace, retryDelay: timerRetryDelay, maxRetryDelay: timerMaxRetryDelay,
 		maxRetryLateness: timerMaxRetryLateness,
-		reload: make(chan struct{}, 1), stop: make(chan struct{}), done: make(chan struct{}),
+		reload:           make(chan struct{}, 1), stop: make(chan struct{}), done: make(chan struct{}),
 		unsettled: make(map[timerKey]struct{}), retrying: make(map[timerKey]timerRetry),
 	}
 }

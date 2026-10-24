@@ -544,7 +544,6 @@ func (s *Store) ListVersions(ctx context.Context, id string) ([]FlowVersionSumma
 	return out, rows.Err()
 }
 
-
 // SetMissionID links the flow to its mission.
 func (s *Store) SetMissionID(ctx context.Context, id, missionID string) error {
 	res, err := s.db.ExecContext(ctx, `UPDATE flows SET mission_id = ? WHERE id = ?`, missionID, id)
