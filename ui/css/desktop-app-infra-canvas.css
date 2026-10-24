@@ -18,7 +18,7 @@
 .infra-edge[data-kind="depends_on"] .infra-edge-line, .infra-edge[data-kind="member_of"] .infra-edge-line { stroke-dasharray: 1.5 4; stroke-linecap: round; }
 .infra-edge[data-kind="powered_by"] .infra-edge-line { stroke: var(--ds-color-warning-fg); }
 .infra-edge:hover .infra-edge-line, .infra-edge.is-selected .infra-edge-line { stroke: var(--vd-accent); stroke-width: 3px; }
-.infra-edge-label { font: 600 12px/1 var(--vd-font-ui); fill: var(--vd-theme-muted); paint-order: stroke; stroke: var(--vd-theme-app-bg); stroke-width: 4px; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+.infra-edge-label { font: 600 14px/1 var(--vd-font-ui); fill: var(--vd-theme-muted); paint-order: stroke; stroke: var(--vd-theme-app-bg); stroke-width: 4px; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
 .infra-viewport.is-zoom-low .infra-edge-label { display: none; }
 .infra-viewport.is-zoom-low .infra-edge:hover .infra-edge-label { display: inline; }
 .infra-edge-preview { fill: none; stroke: var(--vd-accent); stroke-width: 2px; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
@@ -109,6 +109,10 @@
 .infra-drag-ghost[data-drop-label]:not([data-drop-label=""])::after { content: attr(data-drop-label); position: absolute; left: 0; top: calc(100% + 6px); padding: 2px 8px; border-radius: var(--ds-radius-full); background: var(--vd-accent); color: var(--vd-accent-contrast); font: 600 13px/1.6 var(--vd-font-ui); white-space: nowrap; }
 .infra-drag-ghost.is-invalid { border-color: var(--ds-color-danger-fg); }
 .infra-drag-ghost.is-invalid::after { background: var(--ds-color-danger-fg); }
+.infra-connect-popover { position: absolute; z-index: 30; width: 300px; display: grid; gap: var(--ds-space-2); padding: var(--ds-space-3); border: 1px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: var(--vd-theme-panel-bg-strong); box-shadow: var(--vd-theme-shadow-modal); }
+.infra-connect-popover h3 { margin: 0; font-size: 15px; font-weight: 650; }
+.infra-connect-ends { margin: 0; color: var(--vd-theme-muted); font-size: 14px; }
+.infra-connect-error { margin: 0; color: var(--ds-color-danger-fg); font-size: 14px; }
 .infra-app.is-dragging, .infra-app.is-dragging * { cursor: grabbing !important; }
 .infra-app.is-drag-invalid, .infra-app.is-drag-invalid * { cursor: not-allowed !important; }
 @media (prefers-reduced-motion: no-preference) {
