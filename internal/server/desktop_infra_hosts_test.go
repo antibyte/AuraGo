@@ -202,3 +202,54 @@ func TestDesktopInfraHostProjectionUsesProxmoxEdgesDockerMappingAndInference(t *
 		t.Fatalf("write response host = %q inferred=%v; want %q", written[0].HostID, written[0].HostInferred, nas.ID)
 	}
 }
+
+func TestDesktopInfraHostProjectionDropsAMappedHostThatStopsBeingADevice(t *testing.T) {
+	_, cfg, store, _ := newDesktopInfraRefreshFixture(t)
+	ctx := context.Background()
+	instance := desktopInfraDockerInstance(cfg)
+	identity := infra.SourceIdentity{Kind: "docker", Instance: instance, Key: "c0ffee"}
+	if err := store.UpsertObservation(ctx, infra.SourceObservation{Identity: identity, Name: "radarr", Observed: infra.SourceObserved{
+		Kind: infra.NodeContainer, Name: "radarr", Icon: "container", Tags: []string{}, Interfaces: []infra.NetworkInterface{},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	candidate, err := store.GetCandidate(ctx, infra.CandidateID(identity))
+	if err != nil {
+		t.Fatal(err)
+	}
+	container, err := store.CreateImportedNode(ctx, candidate.Node, identity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nas, err := store.CreateNode(ctx, infra.Node{Kind: infra.NodeDevice, Name: "NAS", Icon: "nas"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SetSourceHost(ctx, infra.SourceHost{Kind: "docker", Instance: instance, NodeID: nas.ID}); err != nil {
+		t.Fatal(err)
+	}
+	hostOf := func() string {
+		t.Helper()
+		snapshot, err := desktopInfraHostedSnapshot(ctx, store, cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, node := range snapshot.Nodes {
+			if node.ID == container.ID {
+				return node.HostID
+			}
+		}
+		t.Fatal("container missing from the snapshot")
+		return ""
+	}
+	if got := hostOf(); got != nas.ID {
+		t.Fatalf("mapped guest host = %q; want %q", got, nas.ID)
+	}
+	nas.Kind, nas.Icon = infra.NodeGroup, "group"
+	if _, err := store.UpdateNode(ctx, nas); err != nil {
+		t.Fatal(err)
+	}
+	if got := hostOf(); got != "" {
+		t.Fatalf("guest host after the mapped device became a group = %q; want none", got)
+	}
+}

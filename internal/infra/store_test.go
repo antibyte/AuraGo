@@ -695,6 +695,75 @@ func TestUpdateNodeRefusesANonContainerKindWithChildren(t *testing.T) {
 	}
 }
 
+func TestUpdateNodeLeavingDeviceKindDropsItsEngineMappings(t *testing.T) {
+	store, db, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	host, err := store.CreateNode(ctx, testNode(NodeDevice, "TheBrain", "tower-server"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := store.CreateNode(ctx, testNode(NodeDevice, "NAS", "nas"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, instance := range []string{"docker_engine", "docker_other"} {
+		identity := SourceIdentity{Kind: "docker", Instance: instance, Key: "web"}
+		if err := store.ObserveSources(ctx, identity.Kind, identity.Instance, []SourceObservation{{
+			Identity: identity, Name: "web", Observed: SourceObserved{Kind: NodeContainer, Name: "web", Icon: "container"},
+		}}, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := store.SetSourceHost(ctx, SourceHost{Kind: "docker", Instance: "docker_engine", NodeID: host.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SetSourceHost(ctx, SourceHost{Kind: "docker", Instance: "docker_other", NodeID: other.ID}); err != nil {
+		t.Fatal(err)
+	}
+	mappingsOf := func(nodeID string) int {
+		t.Helper()
+		var count int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM infra_source_hosts WHERE node_id=?`, nodeID).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		return count
+	}
+
+	// A rename keeps the device kind, so the mapping stays.
+	host.Name = "TheBrain 2"
+	renamed, err := store.UpdateNode(ctx, host)
+	if err != nil || mappingsOf(host.ID) != 1 {
+		t.Fatalf("rename = %#v, %v with %d mappings; want the mapping kept", renamed, err, mappingsOf(host.ID))
+	}
+
+	renamed.Kind, renamed.Icon = NodeGroup, "group"
+	regrouped, err := store.UpdateNode(ctx, renamed)
+	if err != nil || regrouped.Kind != NodeGroup {
+		t.Fatalf("kind change = %#v, %v; want it saved", regrouped, err)
+	}
+	if got := mappingsOf(host.ID); got != 0 {
+		t.Fatalf("%d mappings remain on a node that is no longer a device", got)
+	}
+	snapshot, err := store.Snapshot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]SourceHost{}
+	for _, entry := range snapshot.SourceHosts {
+		seen[entry.Instance] = entry
+	}
+	if entry := seen["docker_engine"]; entry.NodeID != "" || entry.Version != 0 {
+		t.Fatalf("engine of the regrouped device = %#v; want an unassigned observed engine", entry)
+	}
+	if entry := seen["docker_other"]; entry.NodeID != other.ID || entry.Version != 1 {
+		t.Fatalf("engine of another device = %#v; want its mapping untouched", entry)
+	}
+	// The engine can be mapped again, now to a device, from version 0.
+	if _, err := store.SetSourceHost(ctx, SourceHost{Kind: "docker", Instance: "docker_engine", NodeID: other.ID}); err != nil {
+		t.Fatalf("remapping the engine: %v", err)
+	}
+}
+
 func TestSnapshotOmitsUnlinkedRemovedSources(t *testing.T) {
 	store, _, _ := openInfraTestStore(t)
 	ctx := context.Background()

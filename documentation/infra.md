@@ -177,7 +177,9 @@ only device whose address matches the configured engine: the IP of a TCP
 endpoint, or one of this server's own addresses for a local socket, pipe or
 loopback endpoint. Host names are never resolved. Each `source_hosts` entry
 (`kind`, `instance`, `node_id`, `version`, `inferred_node_id`) covers a stored
-mapping or an observed Docker engine. Ignored sources stay stored, survive
+mapping or an observed Docker engine. Only devices can host an engine, so changing a
+device into another kind deletes its mappings in the same save and its guests
+fall back to the inferred host. Ignored sources stay stored, survive
 refreshes and the removal retention, and never appear as candidates by default;
 importing or linking one clears the flag.
 

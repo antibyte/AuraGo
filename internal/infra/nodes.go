@@ -203,6 +203,14 @@ func (s *Store) UpdateNode(ctx context.Context, node Node) (Node, error) {
 	if err := updateNodeTx(ctx, tx, node, previous.Version); err != nil {
 		return Node{}, err
 	}
+	// Only devices can run a Docker engine (SetSourceHost). A device that
+	// becomes another kind drops its mappings so the projection falls back to
+	// inference instead of placing guests on a node that cannot host them.
+	if previous.Kind == NodeDevice && node.Kind != NodeDevice {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM infra_source_hosts WHERE node_id=?`, node.ID); err != nil {
+			return Node{}, fmt.Errorf("drop infra source hosts of a node that is no longer a device: %w", err)
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return Node{}, fmt.Errorf("commit infra node update: %w", err)
 	}
