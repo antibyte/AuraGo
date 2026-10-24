@@ -11,7 +11,20 @@ import (
 	"time"
 )
 
-const schemaVersion = 2
+const schemaVersion = 3
+
+// infraSourceHostsSchema is shared by the full schema and the v2 -> v3 step.
+const infraSourceHostsSchema = `
+	CREATE TABLE IF NOT EXISTS infra_source_hosts (
+		kind TEXT NOT NULL,
+		instance TEXT NOT NULL,
+		node_id TEXT REFERENCES infra_nodes(id) ON DELETE CASCADE,
+		version INTEGER NOT NULL CHECK (version > 0),
+		updated_at TEXT NOT NULL,
+		PRIMARY KEY(kind, instance)
+	);
+	CREATE INDEX IF NOT EXISTS idx_infra_source_hosts_node ON infra_source_hosts(node_id);
+`
 
 const timeLayout = "2006-01-02T15:04:05.000000000Z"
 
@@ -61,8 +74,14 @@ func migrate(db *sql.DB) error {
 	if err := backupExistingDatabase(db, schemaVersion); err != nil {
 		return err
 	}
-	if version == 1 {
-		return migrateActionLedgerV2(db)
+	switch version {
+	case 1:
+		if err := migrateActionLedgerV2(db); err != nil {
+			return err
+		}
+		return migrateSourceIgnoreV3(db)
+	case 2:
+		return migrateSourceIgnoreV3(db)
 	}
 	tx, err := db.Begin()
 	if err != nil {
@@ -100,6 +119,7 @@ func migrate(db *sql.DB) error {
 			fetched_at TEXT NOT NULL DEFAULT '',
 			removed_at TEXT NOT NULL DEFAULT '',
 			observed_json TEXT NOT NULL,
+			ignored_at TEXT NOT NULL DEFAULT '',
 			PRIMARY KEY(kind, instance, source_key),
 			FOREIGN KEY(node_id) REFERENCES infra_nodes(id) ON DELETE SET NULL
 		);
@@ -135,10 +155,13 @@ func migrate(db *sql.DB) error {
 			updated_at TEXT NOT NULL
 		);
 		CREATE INDEX IF NOT EXISTS idx_infra_actions_updated ON infra_action_requests(updated_at);
-		INSERT INTO infra_meta(id, version) VALUES(1, 2)
+		INSERT INTO infra_meta(id, version) VALUES(1, 3)
 			ON CONFLICT(id) DO UPDATE SET version=excluded.version;
 	`); err != nil {
 		return fmt.Errorf("create infra schema: %w", err)
+	}
+	if _, err := tx.Exec(infraSourceHostsSchema); err != nil {
+		return fmt.Errorf("create infra source host schema: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit infra migration: %w", err)
@@ -177,6 +200,36 @@ func migrateActionLedgerV2(db *sql.DB) error {
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit infra action ledger migration: %w", err)
+	}
+	return nil
+}
+
+// migrateSourceIgnoreV3 adds the persisted ignore decision and the engine host
+// mapping. Both parts are idempotent: a database whose action ledger was rolled
+// back to v1 may already carry the v3 column and table.
+func migrateSourceIgnoreV3(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin infra source ignore migration: %w", err)
+	}
+	defer tx.Rollback()
+	var hasIgnored bool
+	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM pragma_table_info('infra_sources') WHERE name='ignored_at')`).Scan(&hasIgnored); err != nil {
+		return fmt.Errorf("inspect infra source columns: %w", err)
+	}
+	if !hasIgnored {
+		if _, err := tx.Exec(`ALTER TABLE infra_sources ADD COLUMN ignored_at TEXT NOT NULL DEFAULT ''`); err != nil {
+			return fmt.Errorf("add infra source ignore column: %w", err)
+		}
+	}
+	if _, err := tx.Exec(infraSourceHostsSchema); err != nil {
+		return fmt.Errorf("create infra source host schema: %w", err)
+	}
+	if _, err := tx.Exec(`UPDATE infra_meta SET version=3 WHERE id=1`); err != nil {
+		return fmt.Errorf("record infra schema version 3: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit infra source ignore migration: %w", err)
 	}
 	return nil
 }

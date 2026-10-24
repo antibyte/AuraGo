@@ -48,7 +48,7 @@ func TestMigrationBacksUpInventoryBeforeAddingInfraSchema(t *testing.T) {
 	if _, err := New(db); err != nil {
 		t.Fatal(err)
 	}
-	backups, err := filepath.Glob(path + ".infra-v2-*.bak")
+	backups, err := filepath.Glob(path + ".infra-v3-*.bak")
 	if err != nil || len(backups) != 1 {
 		t.Fatalf("migration backups = %v, %v; want one pre-migration backup", backups, err)
 	}
@@ -634,7 +634,7 @@ func TestActionLedgerV1UpgradePreservesResultsAndMakesPendingUnknown(t *testing.
 	if pendingStatus != ActionUnknown || doneStatus != ActionCompleted || upid != "UPID:x" {
 		t.Fatalf("migrated statuses pending=%q done=%q upid=%q", pendingStatus, doneStatus, upid)
 	}
-	backups, err := filepath.Glob(path + ".infra-v2-*.bak")
+	backups, err := filepath.Glob(path + ".infra-v3-*.bak")
 	if err != nil || len(backups) != 2 {
 		t.Fatalf("backups after fresh init and schema upgrade = %v, %v; want both pre-migration copies", backups, err)
 	}
@@ -818,5 +818,53 @@ func TestMigrationBackupRetentionKeepsTheNewestCopies(t *testing.T) {
 		if _, err := os.Stat(removed); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("old backup %s was not pruned: %v", removed, err)
 		}
+	}
+}
+
+func TestSchemaV3MigrationKeepsV2RowsAndAddsIgnoreAndSourceHosts(t *testing.T) {
+	store, db, path := openInfraTestStore(t)
+	ctx := context.Background()
+	node, err := store.CreateNode(ctx, testNode(NodeDevice, "Docker host", "server"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := SourceIdentity{Kind: "docker", Instance: "docker_engine", Key: "container-1"}
+	if err := store.ObserveSources(ctx, identity.Kind, identity.Instance, []SourceObservation{{
+		Identity: identity, Name: "web", Observed: SourceObserved{Kind: NodeContainer, Name: "web", Icon: "container"},
+	}}, true); err != nil {
+		t.Fatal(err)
+	}
+	// Recreate the exact v2 shape with rows: no ignore column, no source host table.
+	if _, err := db.Exec(`
+		DROP TABLE infra_source_hosts;
+		ALTER TABLE infra_sources DROP COLUMN ignored_at;
+		UPDATE infra_meta SET version=2 WHERE id=1;
+	`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := New(db); err != nil {
+		t.Fatal(err)
+	}
+	var version int
+	if err := db.QueryRow(`SELECT version FROM infra_meta WHERE id=1`).Scan(&version); err != nil || version != 3 {
+		t.Fatalf("schema version = %d, %v; want 3", version, err)
+	}
+	var ignoredAt string
+	if err := db.QueryRow(`SELECT ignored_at FROM infra_sources WHERE kind=? AND instance=? AND source_key=?`,
+		identity.Kind, identity.Instance, identity.Key).Scan(&ignoredAt); err != nil || ignoredAt != "" {
+		t.Fatalf("migrated source ignored_at = %q, %v; want empty", ignoredAt, err)
+	}
+	if _, err := db.Exec(`INSERT INTO infra_source_hosts(kind, instance, node_id, version, updated_at) VALUES('docker','docker_engine',?,1,'now')`, node.ID); err != nil {
+		t.Fatalf("source host table after migration: %v", err)
+	}
+	if loaded, err := store.GetNode(ctx, node.ID); err != nil || loaded.Name != "Docker host" {
+		t.Fatalf("migrated node = %#v, %v", loaded, err)
+	}
+	backups, err := filepath.Glob(path + ".infra-v3-*.bak")
+	if err != nil || len(backups) != 2 {
+		t.Fatalf("backups = %v, %v; want the fresh-init and the v2 upgrade copies", backups, err)
+	}
+	if _, err := New(db); err != nil {
+		t.Fatalf("reopening a v3 schema: %v", err)
 	}
 }
