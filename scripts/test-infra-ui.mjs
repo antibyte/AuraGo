@@ -1679,4 +1679,65 @@ for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     assert.deepEqual(plain([...forward].sort((x, y) => x[0].localeCompare(y[0]))), plain([...backward].sort((x, y) => x[0].localeCompare(y[0]))));
 }
 
+// ---- A28: same-lane connections between cards that are not direct neighbours are arcs above the row -------------
+// The third argument lists every drawn card id: a card whose box (plus 4 px) touches the straight segment between two
+// cards of one lane is in the way. Then the connection leaves the top edge of both cards, rises clamp(24 + 0.12 dx, 32, 56) px
+// and comes down again, with the slots of the A19 spread on the top edges: arcs to the left, curves arriving from the
+// lane above, arcs to the right (each group ordered by the other end's x).
+{
+    const cardsAt = list => new Map(list.map(([id, x, y]) => [id, { id, x, y }]));
+    const draw = (list, wires) => {
+        const at = cardsAt(list);
+        return lanes.topologyPaths(wires.map(([id, from, to]) => ({ id, from, to })), id => at.get(id), at.keys());
+    };
+    const shape = path => plain({ arc: path.arc, curve: path.curve, d: path.d, ends: [path.x1, path.y1, path.x2, path.y2], mid: [path.mx, path.my] });
+    const row = (...xs) => xs.map((x, i) => [`c${i}`, x, 480]);
+
+    // direct neighbours (a 24 px gap) keep the straight segment, whether or not they have other neighbours
+    const near = draw(row(-240, 0, 240), [['x', 'c0', 'c1'], ['y', 'c1', 'c2']]);
+    assert.deepEqual(shape(near.get('x')), { arc: false, curve: false, d: 'M-132 480L-108 480', ends: [-132, 480, -108, 480], mid: [-120, 480] });
+    assert.equal(near.get('y').curve, false);
+    // a gap: c0 to c2 would run behind c1, so it leaves the top edges (y 448) and rises 56 px (dx 480 clamps to 56)
+    const gap = draw(row(-240, 0, 240), [['x', 'c0', 'c2']]);
+    assert.deepEqual(shape(gap.get('x')), { arc: true, curve: true, d: 'M-240 448C-240 392 240 392 240 448', ends: [-240, 448, 240, 448], mid: [0, 406] }, 'the label anchor is the top of the arc: 448 - 0.75 * 56');
+    assert.equal(draw(row(-240, 0, 240), [['x', 'c2', 'c0']]).get('x').d, gap.get('x').d, 'the direction of the connection does not matter');
+    // the same pair without the card in between is straight again
+    assert.equal(draw([['c0', -240, 480], ['c2', 240, 480]], [['x', 'c0', 'c2']]).get('x').curve, false, 'nothing in the way');
+    // the height follows the distance: dx 240 is 52.8; the 32 px floor and 56 px ceiling bound it
+    const mid = draw([...row(-240, 0), ['in', -120, 480]], [['x', 'c0', 'c1']]);
+    assert.equal(mid.get('x').d, 'M-240 448C-240 395.2 0 395.2 0 448', 'a pinned card sitting in the gap makes the pair an arc of 24 + 0.12 * 240');
+    assert.equal(draw([['a', 0, 480], ['b', 40, 480], ['in', 20, 480]], [['x', 'a', 'b']]).get('x').d, 'M0 448C0 416 40 416 40 448', 'a tiny distance rises 32');
+    // pinned cards decide by position: one that sits off the straight segment is no obstacle, one on it is
+    assert.equal(draw([...row(-240, 240), ['p', 0, 560]], [['x', 'c0', 'c1']]).get('x').curve, false, 'a card 80 px below the line');
+    assert.equal(draw([...row(-240, 240), ['p', 0, 500]], [['x', 'c0', 'c1']]).get('x').arc, true, 'a card whose box reaches the line');
+    assert.equal(draw([...row(-240, 240), ['p', 0, 446]], [['x', 'c0', 'c1']]).get('x').arc, true, 'the 4 px pad counts: the box ends at 478, 2 px short of the line');
+    assert.equal(draw([...row(-240, 240), ['p', 0, 440]], [['x', 'c0', 'c1']]).get('x').arc, false, 'a box 8 px short of the line is clear');
+    assert.equal(draw([...row(-240, 240), ['p', 0, 520]], [['x', 'c0', 'c1']]).get('x').arc, false, 'and so is one that starts 8 px below it');
+    // cards in different rows of one lane: the diagonal is straight while it is clear and an arc when a card is on it
+    const rows = draw([['top', -240, 480], ['low', 240, 624]], [['x', 'top', 'low']]);
+    assert.equal(rows.get('x').curve, false, 'two rows without a card between');
+    assert.equal(draw([['top', -240, 480], ['low', 240, 624], ['in', 0, 552]], [['x', 'top', 'low']]).get('x').arc, true, 'a card on the diagonal');
+    // slots on a top edge: two arcs to the right take slots by the other end's x, the nearer first
+    const fan = draw(row(-360, -120, 120, 360), [['far', 'c0', 'c3'], ['near', 'c0', 'c2']]);
+    assert.equal(fan.get('near').d, 'M-392.4 448C-392.4 392 120 392 120 448', 'the nearer target takes the left slot: equal heights then never cross');
+    assert.equal(fan.get('far').d, 'M-327.6 448C-327.6 392 360 392 360 448');
+    // an arriving curve from the lane above sits between the arcs to the left and the arcs to the right
+    const mixed = draw([['up', 600, 96], ...row(-240, 0, 240)], [['arc', 'c0', 'c2'], ['in', 'up', 'c0']]);
+    assert.equal(mixed.get('in').d.startsWith('M600 128C600 288 -272.4 288'), true, 'the curve from above takes the left slot of c0 although its source is to the right');
+    assert.equal(mixed.get('arc').d, 'M-207.6 448C-207.6 392 240 392 240 448', 'the arc to the right takes the right slot');
+    const both = draw(row(-480, -240, 0, 240, 480), [['l', 'c2', 'c0'], ['r', 'c2', 'c4'], ['d', 'c2', 'c1']]);
+    assert.equal(both.get('l').d, 'M-480 448C-480 392 -32.4 392 -32.4 448', 'an arc always runs from its left card; the one to the left takes the left slot');
+    assert.equal(both.get('r').d, 'M32.4 448C32.4 392 480 392 480 448', 'and the one to the right the right slot');
+    assert.equal(both.get('d').curve, false, 'the neighbour stays straight and takes no slot');
+    // the answer never depends on the order of the connections or of the cards
+    const wires = [['p', 'c0', 'c2'], ['q', 'c0', 'c3'], ['r', 'c1', 'c3'], ['s', 'c2', 'c3']];
+    const cards = row(-360, -120, 120, 360);
+    assert.deepEqual(plain([...draw(cards, wires)].sort((x, y) => x[0].localeCompare(y[0]))), plain([...draw(cards.slice().reverse(), wires.slice().reverse())].sort((x, y) => x[0].localeCompare(y[0]))));
+    // a connection without the list of cards has nothing in its way (the Map and old callers)
+    assert.equal(lanes.topologyPaths([{ id: 'x', from: 'c0', to: 'c2' }], id => cardsAt(row(-240, 0, 240)).get(id)).get('x').curve, false);
+    // the label clash rule reads the path's own midpoint (the top of an arc), not the midpoint of its ends
+    assert.equal(model.edgeLabelClash({ x1: 0, y1: 0, x2: 100, y2: 0, mx: 50, my: -40 }, { w: 20, h: 10 }, [{ x: 40, y: -45, w: 20, h: 10 }]), true);
+    assert.equal(model.edgeLabelClash({ x1: 0, y1: 0, x2: 100, y2: 0 }, { w: 20, h: 10 }, [{ x: 40, y: -45, w: 20, h: 10 }]), false);
+}
+
 console.log(`Infra UI model, grouped virtualization, and ${required.size} translation keys passed for ${locales.length} locales.`);

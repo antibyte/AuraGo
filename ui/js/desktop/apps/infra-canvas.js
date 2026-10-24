@@ -457,8 +457,8 @@
             return () => rects || (rects = last.cards.map(card => model.cardRect(tempCards?.get(card.id) || card)));
         }
         // applyLine draws a connection from seg: the straight segment of the scene or, in Topology, a path from
-        // lanes.topologyPaths (a curve between lanes). The label sits at the midpoint of the ends, which is also the
-        // midpoint of the curve, so the same A5 clash rule serves both. The hit area and the highlight share d.
+        // lanes.topologyPaths (a curve between lanes, an arc above a row). The label sits at the path's own midpoint
+        // (seg.mx, seg.my), so the same A5 clash rule serves every shape. The hit area and the highlight share d.
         function applyLine(entry, seg, rectsOf) {
             const d = seg.d || `M${round1(seg.x1)} ${round1(seg.y1)}L${round1(seg.x2)} ${round1(seg.y2)}`;
             if (d !== entry.d) {
@@ -466,7 +466,7 @@
                 entry.d = d;
             }
             if (!entry.label) return;
-            const mx = round1((seg.x1 + seg.x2) / 2), my = round1((seg.y1 + seg.y2) / 2);
+            const mx = round1(seg.mx ?? (seg.x1 + seg.x2) / 2), my = round1(seg.my ?? (seg.y1 + seg.y2) / 2);
             if (entry.lx !== mx || entry.ly !== my) { entry.label.setAttribute('x', mx); entry.label.setAttribute('y', my); entry.lx = mx; entry.ly = my; }
             entry.seg = seg;
             if (rectsOf) paintClash(entry, rectsOf);
@@ -486,7 +486,7 @@
         // topologyPathsAt: the curves of every connection with the cards in `cards` (a map of dragged positions) moved.
         // The slots on a card edge depend on the other ends' x, so a move redraws all of them; only changed paths
         // touch the DOM.
-        const topologyPathsAt = cards => lanes.topologyPaths(last.lines, id => cards?.get(id) || last.cardById.get(id));
+        const topologyPathsAt = cards => lanes.topologyPaths(last.lines, id => cards?.get(id) || last.cardById.get(id), last.cardById.keys());
         function redrawLine(lineId, cards, regions, rectsOf, paths) {
             const geom = lineGeom.get(lineId), entry = lineEls.get(lineId);
             if (!geom || !entry) return;

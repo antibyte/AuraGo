@@ -82,8 +82,10 @@
         return { x1: start.x, y1: start.y, x2: end.x, y2: end.y };
     };
     // edgeLabelClash: would a label of size {w, h}, centred on the segment's midpoint and padded by pad, touch any of rects?
+    // A path from InfraAppLanes.topologyPaths names its own label anchor (mx, my): the top of an arc is not the midpoint of its ends.
     const edgeLabelClash = (seg, size, rects, pad = 4) => {
-        const box = { x: (seg.x1 + seg.x2) / 2 - size.w / 2 - pad, y: (seg.y1 + seg.y2) / 2 - size.h / 2 - pad, w: size.w + pad * 2, h: size.h + pad * 2 };
+        const cx = seg.mx ?? (seg.x1 + seg.x2) / 2, cy = seg.my ?? (seg.y1 + seg.y2) / 2;
+        const box = { x: cx - size.w / 2 - pad, y: cy - size.h / 2 - pad, w: size.w + pad * 2, h: size.h + pad * 2 };
         return (rects || []).some(rect => intersects(box, rect));
     };
     const edgeCaption = edge => {

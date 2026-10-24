@@ -194,11 +194,17 @@ after the built-in installers and before the markup exists. DOM work belongs in 
     `isAutoPlaced(id)`); the library tree and the inspector read it. In Topology the library has no To place section and the
     placed one is titled "In topology". Cards the auto layout moves glide (`is-gliding`, `startGlide`) only while
     `app.animationsEnabled()`.
-  - Connections (A19): `topologyPaths(lines, cardAt)` is the one source of every Topology path: a cubic from the bottom
-    edge of the upper card to the top edge of the lower one (control offset max(48, dy / 2)), the connections on one card edge
-    spread over the middle 60% in slots ordered by the other end's x, same-lane ones straight. The canvas draws it for the line,
-    the hit area and the selection, redraws all of them while a card is dragged, and evaluates the A5 label clash at the
-    midpoint of the path's ends (= the curve's midpoint). The Map view stays straight.
+  - Connections (A19, A28): `topologyPaths(lines, cardAt, ids)` is the one source of every Topology path. Between lanes it is a
+    cubic from the bottom edge of the upper card to the top edge of the lower one (control offset max(48, dy / 2)). Inside a
+    lane it is the straight segment between the facing sides while no other card is in the way (a drawn card whose box, padded
+    by 4 px, touches the segment; `ids` lists every drawn card, so pinned cards count by position and direct neighbours
+    stay straight); otherwise it is an arc above the row from the top edge of the left card to that of the right one, rising
+    clamp(24 + 0.12 dx, 32, 56) px. The connections on one card edge spread over the middle 60% in slots; on a top edge the
+    arcs to the left come first, then the curves arriving from the lane above, then the arcs to the right (each group by the
+    other end's x), so arcs never cross arrivals. A slot is kept for every connection of the view, so nothing moves when a
+    hidden one appears (A29). The result carries the label anchor `mx, my` (the path's midpoint; `edgeLabelClash` reads it)
+    for the A5 clash rule. The canvas draws it for the line, the hit area and the selection, and redraws all of them while a
+    card is dragged. Cross-lane curves do not avoid cards of the lanes between. The Map view stays straight.
   - Gestures: a drag or keyboard move highlights its lane (`setLaneTarget`) and announces a lane change. The first move of
     an auto-laid card undoes back to the automatic layout (`{unplace: true}` in `previousIntent`; without unplace support it
     is not undoable). Arrange in Topology (A22) is no layout: it hands the selection, or every card with a saved pin, back to the

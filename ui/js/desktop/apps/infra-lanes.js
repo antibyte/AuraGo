@@ -162,53 +162,81 @@
         }
         return out;
     };
-    // ---- connection paths (A19) ----------------------------------------------------------------------------
+    // ---- connection paths (A19, A28) -----------------------------------------------------------------------
     // topologyPaths draws every connection of the Topology view. A connection between two lanes is a cubic curve
     // from the bottom edge of the upper card to the top edge of the lower one with vertical tangents (control
-    // offset max(48, dy / 2)). Connections that share a card edge spread over the middle 60% of it in equal slots,
-    // ordered by the other end's x (then its id, then the connection's id), so the answer never depends on the
-    // input order. A connection inside one lane stays a straight line between the facing sides, and so does one
-    // whose cards leave no room (dy under 16) for a curve. lines are {id, from, to} with card ids; cardAt(id) is
-    // {x, y} (the centre) or nothing. The answer maps a connection id to {curve, d, x1, y1, x2, y2}: the ends of
-    // the path, whose midpoint is also the midpoint of the curve (the label anchor of the A5 clash rule). The
-    // same path serves the visible line, its hit area and the selection highlight.
-    const SPREAD = 0.6, MIN_CONTROL = 48, MIN_DROP = 16;
+    // offset max(48, dy / 2)). A connection inside one lane is the straight segment between the facing sides while no
+    // other card is in its way; otherwise (A28) it is an arc above the row: it leaves the top edge of both cards
+    // and rises clamp(24 + 0.12 dx, 32, 56) px, so it never runs behind a card in between. A card is in the way when
+    // its box, padded by 4 px, touches the straight segment, wherever it sits (pinned cards can be anywhere).
+    // Connections that share a card edge spread over the middle 60% of it in equal slots. On a top edge the arcs to
+    // the left come first, then the curves arriving from the lane above, then the arcs to the right, each group
+    // ordered by the other end's x (then its id, then the connection's id), so the answer never depends on the input
+    // order and an arc never crosses a curve that arrives on the same card. A connection whose cards leave no room
+    // (dy under 16) for a curve is straight. lines are {id, from, to} with card ids; cardAt(id) is {x, y} (the
+    // centre) or nothing; ids lists every drawn card (the obstacles; without it nothing is in the way). The answer
+    // maps a connection id to {curve, arc, d, x1, y1, x2, y2, mx, my}: the ends of the path and its label anchor,
+    // which is the midpoint of the path (the A5 clash rule). The same path serves the visible line, its hit area and
+    // the selection highlight.
+    const SPREAD = 0.6, MIN_CONTROL = 48, MIN_DROP = 16, BLOCK_PAD = 4, ARC_MIN = 32, ARC_MAX = 56;
     const tenth = value => Math.round(value * 10) / 10;
-    const topologyPaths = (lines, cardAt) => {
-        const out = new Map(), half = { w: CARD_W / 2, h: CARD_H / 2 }, pending = [], bottoms = new Map(), tops = new Map();
-        const join = (map, key, entry) => { const list = map.get(key); if (list) list.push(entry); else map.set(key, [entry]); };
+    // blocks: does the segment touch the box of a card centred on c (padded)? Slab test, so a horizontal line is no special case.
+    const blocks = (seg, c) => {
+        const box = [[seg.x1, seg.x2 - seg.x1, c.x - CARD_W / 2 - BLOCK_PAD, c.x + CARD_W / 2 + BLOCK_PAD], [seg.y1, seg.y2 - seg.y1, c.y - CARD_H / 2 - BLOCK_PAD, c.y + CARD_H / 2 + BLOCK_PAD]];
+        let from = 0, to = 1;
+        for (const [start, delta, low, high] of box) {
+            if (delta === 0) { if (start < low || start > high) return false; continue; }
+            const a = (low - start) / delta, b = (high - start) / delta;
+            from = Math.max(from, Math.min(a, b)); to = Math.min(to, Math.max(a, b));
+            if (from > to) return false;
+        }
+        return true;
+    };
+    const topologyPaths = (lines, cardAt, ids) => {
+        const out = new Map(), half = { w: CARD_W / 2, h: CARD_H / 2 }, pending = [], edges = new Map();
+        const obstacles = [];
+        for (const id of ids || []) { const card = cardAt(id); if (card) obstacles.push({ id, x: card.x, y: card.y }); }
+        const join = (key, entry) => { const list = edges.get(key); if (list) list.push(entry); else edges.set(key, [entry]); };
+        const straight = (line, seg) => out.set(line.id, { curve: false, arc: false, d: `M${tenth(seg.x1)} ${tenth(seg.y1)}L${tenth(seg.x2)} ${tenth(seg.y2)}`, x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2, mx: (seg.x1 + seg.x2) / 2, my: (seg.y1 + seg.y2) / 2 });
         for (const line of lines || []) {
             const a = cardAt(line.from), b = cardAt(line.to);
             if (!a || !b || line.from === line.to) continue;
             const la = laneAt(a.y), lb = laneAt(b.y);
             const upper = la <= lb ? { id: line.from, card: a } : { id: line.to, card: b }, lower = upper.id === line.from ? { id: line.to, card: b } : { id: line.from, card: a };
-            if (la === lb || lower.card.y - half.h - (upper.card.y + half.h) < MIN_DROP) {
+            let first = upper, second = lower, arc = false;
+            if (la === lb) {
                 const seg = edgeSegment(a, b, half, half);
-                out.set(line.id, { curve: false, d: `M${tenth(seg.x1)} ${tenth(seg.y1)}L${tenth(seg.x2)} ${tenth(seg.y2)}`, x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 });
+                if (!obstacles.some(card => card.id !== line.from && card.id !== line.to && blocks(seg, card))) { straight(line, seg); continue; }
+                // an arc always runs from its left card to its right one
+                arc = true;
+                [first, second] = a.x < b.x || (a.x === b.x && String(line.from) <= String(line.to)) ? [{ id: line.from, card: a }, { id: line.to, card: b }] : [{ id: line.to, card: b }, { id: line.from, card: a }];
+            } else if (lower.card.y - half.h - (upper.card.y + half.h) < MIN_DROP) {
+                straight(line, edgeSegment(a, b, half, half));
                 continue;
             }
-            const entry = { line, upper, lower };
-            join(bottoms, upper.id, entry); join(tops, lower.id, entry);
+            const entry = { line, arc, ends: [first, second] };
+            join(`${first.id}|${arc ? 'top' : 'bottom'}`, { entry, end: 0 }); join(`${second.id}|top`, { entry, end: 1 });
             pending.push(entry);
         }
-        const offsets = new Map(); // connection id → [start offset, end offset]
-        const spread = (map, slot, otherOf) => {
-            for (const list of map.values()) {
-                list.sort((p, q) => otherOf(p).card.x - otherOf(q).card.x || naturalCompare(otherOf(p).id, otherOf(q).id) || naturalCompare(p.line.id, q.line.id));
-                list.forEach((entry, i) => {
-                    const pair = offsets.get(entry.line.id) || [0, 0];
-                    pair[slot] = tenth(((i + 0.5) / list.length - 0.5) * SPREAD * CARD_W);
-                    offsets.set(entry.line.id, pair);
-                });
+        // slot order on one card edge: arcs to the left, arrivals from above, arcs to the right; then the other end's x
+        const groupOf = (item, other) => (item.entry.arc ? (other.card.x < item.entry.ends[item.end].card.x ? -1 : 1) : 0);
+        for (const list of edges.values()) {
+            const keyed = list.map(item => { const other = item.entry.ends[1 - item.end]; return { item, other, group: groupOf(item, other) }; });
+            keyed.sort((p, q) => p.group - q.group || p.other.card.x - q.other.card.x || naturalCompare(p.other.id, q.other.id) || naturalCompare(p.item.entry.line.id, q.item.entry.line.id));
+            keyed.forEach(({ item }, i) => {
+                const offsets = item.entry.offsets || (item.entry.offsets = [0, 0]);
+                offsets[item.end] = tenth(((i + 0.5) / keyed.length - 0.5) * SPREAD * CARD_W);
+            });
+        }
+        for (const { line, arc, ends, offsets } of pending) {
+            const [first, second] = ends, x1 = tenth(first.card.x + offsets[0]), x2 = tenth(second.card.x + offsets[1]);
+            if (arc) {
+                const y1 = first.card.y - half.h, y2 = second.card.y - half.h, rise = Math.min(ARC_MAX, Math.max(ARC_MIN, 24 + 0.12 * Math.abs(second.card.x - first.card.x)));
+                out.set(line.id, { curve: true, arc: true, d: `M${x1} ${tenth(y1)}C${x1} ${tenth(y1 - rise)} ${x2} ${tenth(y2 - rise)} ${x2} ${tenth(y2)}`, x1, y1, x2, y2, mx: (x1 + x2) / 2, my: (y1 + y2) / 2 - 0.75 * rise });
+                continue;
             }
-        };
-        spread(bottoms, 0, entry => entry.lower);
-        spread(tops, 1, entry => entry.upper);
-        for (const { line, upper, lower } of pending) {
-            const [from, to] = offsets.get(line.id);
-            const x1 = tenth(upper.card.x + from), y1 = upper.card.y + half.h, x2 = tenth(lower.card.x + to), y2 = lower.card.y - half.h;
-            const control = Math.max(MIN_CONTROL, (y2 - y1) / 2);
-            out.set(line.id, { curve: true, d: `M${x1} ${tenth(y1)}C${x1} ${tenth(y1 + control)} ${x2} ${tenth(y2 - control)} ${x2} ${tenth(y2)}`, x1, y1, x2, y2 });
+            const y1 = first.card.y + half.h, y2 = second.card.y - half.h, control = Math.max(MIN_CONTROL, (y2 - y1) / 2);
+            out.set(line.id, { curve: true, arc: false, d: `M${x1} ${tenth(y1)}C${x1} ${tenth(y1 + control)} ${x2} ${tenth(y2 - control)} ${x2} ${tenth(y2)}`, x1, y1, x2, y2, mx: (x1 + x2) / 2, my: (y1 + y2) / 2 });
         }
         return out;
     };

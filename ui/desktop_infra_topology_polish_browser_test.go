@@ -122,8 +122,9 @@ func TestDesktopInfraTopologyLanesBrowser(t *testing.T) {
 
 // TestDesktopInfraTopologyCurvesBrowser covers amendment A19: a connection between two lanes is a cubic curve from the
 // bottom edge of the upper card to the top edge of the lower card, connections that share a card edge take separate
-// slots on it, and a connection inside a lane stays straight. The hit area and the selection highlight use the same
-// path, and the curves follow a card that is being dragged. The Map view keeps straight lines.
+// slots on it, and a connection inside a lane stays straight while no card is in its way and becomes an arc above the row
+// (A28) when one is. The hit area and the selection highlight use the same path, and the curves follow a card that is being
+// dragged. The Map view keeps straight lines.
 //
 // The cards sit at the automatic slots: inet -120,96  ont 120,96  switch -240,480  router 0,480  ap 240,480
 // nas -120,864  pve 120,864  tv -120,1248  laptop 120,1248 (see TestDesktopInfraTopologyBrowser).
@@ -146,12 +147,13 @@ func TestDesktopInfraTopologyCurvesBrowser(t *testing.T) {
 
 	// Hand computed: ont (120,96) to router (0,480): bottom centre 120,128 to top centre 0,448, offset 160; the switch (-240,480)
 	// has three connections on its bottom edge in slots -43.2 (nas), 0 (tv, same x, later id) and 43.2 (pve); tv has two on its
-	// top edge, -32.4 (switch) and 32.4 (nas); lane-internal ones are straight between the facing sides.
+	// top edge, -32.4 (switch) and 32.4 (nas) (the hidden power and dependency connections keep their slots, A29); lane-internal
+// ones are straight between the facing sides, except e4: the router sits between switch and ap, so e4 is an arc over it.
 	want := map[string]string{
 		"e1": "M-12 96L12 96",
 		"e2": "M120 128C120 288 0 288 0 448",
 		"e3": "M-108 480L-132 480",
-		"e4": "M-132 480L132 480",
+		"e4": "M-240 448C-240 392 240 392 240 448",
 		"e5": "M-283.2 512C-283.2 672 -120 672 -120 832",
 		"e6": "M-196.8 512C-196.8 672 120 672 120 832",
 		"e7": "M240 512C240 864 120 864 120 1216",
@@ -176,6 +178,20 @@ func TestDesktopInfraTopologyCurvesBrowser(t *testing.T) {
 	}
 	if t.Failed() {
 		t.FailNow()
+	}
+	// A28: no straight connection runs behind a card (nine points along each one stay outside every card box).
+	if got := page.MustEval(`()=>{
+		const cards=[...document.querySelectorAll('[data-nodes] [data-node]')].map(el=>({x:parseFloat(el.style.left),y:parseFloat(el.style.top)}));
+		const behind=[];
+		for(const g of document.querySelectorAll('.infra-edge')){
+			const m=/^M(-?[\d.]+) (-?[\d.]+)L(-?[\d.]+) (-?[\d.]+)$/.exec(g.querySelector('.infra-edge-line').getAttribute('d')||'');
+			if(!m)continue;
+			const [x1,y1,x2,y2]=m.slice(1).map(Number);
+			for(let i=1;i<=9;i++){const x=x1+(x2-x1)*i/10,y=y1+(y2-y1)*i/10;if(cards.some(c=>Math.abs(x-c.x)<108&&Math.abs(y-c.y)<32))behind.push(g.dataset.edge);}
+		}
+		return JSON.stringify([...new Set(behind)]);
+	}`).Str(); got != `[]` {
+		t.Fatalf("straight connections run behind cards: %s", got)
 	}
 
 	// Clicking the curve selects it, and the highlighted line is that same path. e5 passes through free space at its midpoint.
