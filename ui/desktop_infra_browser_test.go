@@ -36,6 +36,7 @@ type infraAppBrowserFixture struct {
 	ignoreCalls       []map[string]any          // every PUT /sources/ignore body, in order
 	nodePuts          []map[string]any          // every PUT /nodes/{id} body, in order
 	targets           []map[string]any          // GET /targets answer (app link candidates)
+	candidateSources  []any                     // GET /candidates "sources" answer; nil = one registry and one Docker source
 }
 
 func newInfraAppBrowserFixture() *infraAppBrowserFixture {
@@ -190,7 +191,11 @@ func (f *infraAppBrowserFixture) ServeHTTP(w http.ResponseWriter, r *http.Reques
 				candidates = append(candidates, candidate)
 			}
 		}
-		write(http.StatusOK, map[string]any{"candidates": candidates, "sources": []any{f.source("registry", "local", "registry", "Device registry"), f.source("docker", "engine-a", "engine-a", "Docker Engine")}})
+		sources := []any{f.source("registry", "local", "registry", "Device registry"), f.source("docker", "engine-a", "engine-a", "Docker Engine")}
+		if f.candidateSources != nil {
+			sources = f.candidateSources
+		}
+		write(http.StatusOK, map[string]any{"candidates": candidates, "sources": sources})
 	case path == "/nodes" && r.Method == http.MethodPost:
 		var node map[string]any
 		if !decode(&node) {

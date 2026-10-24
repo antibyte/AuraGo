@@ -195,3 +195,47 @@ func TestDesktopInfraImportSheetBrowser(t *testing.T) {
 	closeInfraBrowserWindow(t, page)
 	requireInfraBrowserClean(t, page)
 }
+
+// TestDesktopInfraImportSourceChipsBrowser covers how the import sheet names sources: the kind only while a kind
+// has one instance, the instance as well once it has several, and one chip per source however many rows it has.
+func TestDesktopInfraImportSourceChipsBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	fixture := newInfraAppBrowserFixture()
+	fixture.failCandidateOnce = ""
+	fixture.nodes = []map[string]any{infraCanvasFixtureNode("dev-a", "device", "Edge router", "router", map[string]any{"x": 160, "y": 200, "pinned": true}, "")}
+	src := func(kind, instance, key, name string) map[string]any {
+		return map[string]any{"kind": kind, "instance": instance, "key": key, "name": name, "state": "current"}
+	}
+	fixture.candidates = []map[string]any{
+		infraImportFixtureCandidate("reg-printer", "device", "Studio printer", "printer", src("registry", "inventory", "reg-printer", "Studio printer"), map[string]any{"ip_address": "192.0.2.50", "interfaces": []any{}}),
+		infraImportFixtureCandidate("web-a", "container", "web-front", "container", src("docker", "engine-a", "web-1", "web-front"), map[string]any{"model": "nginx:stable", "interfaces": []any{}}),
+	}
+	stale := src("docker", "engine-b", "db-1", "db")
+	stale["state"] = "stale"
+	fixture.candidateSources = []any{
+		src("registry", "inventory", "reg-printer", "Studio printer"), src("registry", "inventory", "reg-tv", "Living room TV"), src("registry", "inventory", "reg-nas", "NAS"),
+		src("docker", "engine-a", "web-1", "web-front"), src("docker", "engine-a", "web-2", "web-back"), stale,
+	}
+	page := infraBrowserPageWithFixture(t, fixture)
+	defer page.Close()
+	page.MustSetViewport(1920, 1200, 1, false)
+	openInfraBrowserApp(page)
+	page.MustWait(`()=>!!document.querySelector('[data-node="dev-a"]')`)
+	page.MustEval(`()=>{const win=document.querySelector('.vd-window[data-app-id="infra"]');win.classList.remove('maximized','vd-mobile-forced-maximized');win.style.right='auto';win.style.width='1500px';win.style.height='970px';win.style.left='210px';win.style.top='70px';window.w=(key,vars={})=>Object.entries(vars).reduce((s,[k,v])=>s.replaceAll('{'+k+'}',v),window.fixtureWords[key]);}`)
+	page.MustWait(`()=>document.querySelector('.infra-app').clientWidth>1000`)
+	page.MustEval(`()=>document.querySelector('[data-action="add-menu"]').click()`)
+	page.MustEval(`()=>document.querySelector('[data-menu="add"] [data-action="import"]').click()`)
+	page.MustWait(`()=>document.querySelectorAll('[data-candidate-row]').length===2&&document.querySelectorAll('.infra-source-chip').length===3`)
+	got := page.MustEval(`()=>JSON.stringify({
+		chips:[...document.querySelectorAll('.infra-source-chip')].map(chip=>chip.textContent+':'+chip.dataset.state),
+		rows:[...document.querySelectorAll('[data-candidate-row]')].map(row=>row.dataset.candidateRow+'='+row.querySelector('.infra-candidate-copy > span').textContent),
+	})`).Str()
+	registry := page.MustEval(`()=>window.fixtureWords['desktop.infra_source_registry']`).Str()
+	docker := page.MustEval(`()=>window.fixtureWords['desktop.infra_source_docker']`).Str()
+	want := fmt.Sprintf(`{"chips":["%s:current","%s · engine-a:current","%s · engine-b:stale"],"rows":["reg-printer=%s","web-a=%s · engine-a"]}`, registry, docker, docker, registry, docker)
+	if got != want {
+		t.Fatalf("import sources = %s; want %s", got, want)
+	}
+	closeInfraBrowserWindow(t, page)
+	requireInfraBrowserClean(t, page)
+}

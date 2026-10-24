@@ -40,10 +40,32 @@
         const checkOf = Object.fromEntries(GROUPS.map(group => [group, $(`[data-import-check-group="${group}"]`)]));
         const toggleOf = Object.fromEntries(GROUPS.map(group => [group, $(`[data-import-group-toggle="${group}"]`)]));
         const errors = new Map(), collapsed = new Set(['unlikely']);
-        let owner = '', opener = null, loading = false, sources = [], searchFrame = 0, suppressClick = false, suppressTimer = 0, disposed = false;
+        let owner = '', opener = null, loading = false, sources = [], severalInstances = new Set(), searchFrame = 0, suppressClick = false, suppressTimer = 0, disposed = false;
         let memoKey = null, memo = null, byIdKey = null, byIdMap = new Map(), suggestKey = null, suggestions = new Map(), pendingFocus = null;
 
         // ---- data ----------------------------------------------------------------------------------
+        // A source is named by its kind; the instance only tells sources of one kind apart when there are several.
+        const instancesOfKind = list => {
+            const seen = new Map();
+            for (const source of list) if (!source.ignored) seen.set(source.kind, (seen.get(source.kind) || new Set()).add(source.instance || ''));
+            return new Set([...seen].filter(([, instances]) => instances.size > 1).map(([kind]) => kind));
+        };
+        function sourceText(source) {
+            const label = t(`desktop.infra_source_${source.kind}`);
+            return severalInstances.has(source.kind) && source.instance ? `${label} · ${source.instance}` : label;
+        }
+        // One chip per source (kind, and instance when a kind has several); the stalest row names its state.
+        function sourceChips() {
+            const rank = { stale: 3, unknown: 2, current: 1, removed: 0 }, chips = new Map();
+            for (const source of sources) {
+                if (source.ignored) continue;
+                const key = severalInstances.has(source.kind) ? `${source.kind}\x1f${source.instance || ''}` : source.kind, state = source.state || 'unknown';
+                const chip = chips.get(key);
+                if (!chip) chips.set(key, { source, state });
+                else if ((rank[state] ?? 2) > (rank[chip.state] ?? 2)) chip.state = state;
+            }
+            return [...chips.values()].map(chip => `<span class="infra-source-chip" data-state="${esc(chip.state)}"><i></i>${esc(sourceText(chip.source))}</span>`).join('');
+        }
         function groups() {
             if (!memoKey || memoKey[0] !== state.candidates || memoKey[1] !== state.nodes || memoKey[2] !== state.sourceHosts) {
                 memo = model.groupDiscoveries(state.candidates, state.nodes, { sourceHosts: state.sourceHosts });
@@ -98,7 +120,7 @@
             const reasons = reasonTexts(candidate, relevance), detail = [node.profile?.vendor, node.profile?.model, node.profile?.ip_address].filter(Boolean).join(' · ');
             const disabled = write && !busy ? '' : ' disabled';
             return `<li class="infra-candidate" data-candidate-row="${id}" data-group="${group}"${draggable}><label class="infra-candidate-check"><input type="checkbox" data-candidate="${id}" aria-label="${esc(model.fill(t('desktop.infra_select_candidate'), { name }))}"${state.importSelection.has(candidate.id) ? ' checked' : ''}><span class="infra-checkbox-mark"></span></label>`
-                + `<div class="infra-candidate-icon">${app.icon(node.icon)}</div><div class="infra-candidate-copy"><strong title="${esc(name)}">${esc(name)}</strong><span>${esc(t(`desktop.infra_source_${source.kind}`))} · ${esc(source.name || source.instance || '')}</span><small>${esc(detail)}</small>${reasons ? `<small class="infra-candidate-reason" data-candidate-reason>${esc(reasons)}</small>` : ''}</div>`
+                + `<div class="infra-candidate-icon">${app.icon(node.icon)}</div><div class="infra-candidate-copy"><strong title="${esc(name)}">${esc(name)}</strong><span>${esc(sourceText(source))}</span><small>${esc(detail)}</small>${reasons ? `<small class="infra-candidate-reason" data-candidate-reason>${esc(reasons)}</small>` : ''}</div>`
                 + `<label class="infra-field infra-bind-field"><span>${esc(t('desktop.infra_link_existing'))}</span><select data-bind="${id}"${write ? '' : ' disabled'}><option value="">${esc(t('desktop.infra_import_new'))}</option>${suggested.length ? `<optgroup label="${esc(t('desktop.infra_link_suggested'))}">${suggested.map(nodeId => optionHTML(nodeId, nodeId === bound)).join('')}</optgroup>` : ''}</select></label>`
                 + `<div class="infra-candidate-actions"><button type="button" class="infra-button" data-import-one="${id}"${disabled}>${esc(t('desktop.infra_import_one'))}</button><button type="button" class="infra-button" data-ignore-candidate="${id}"${disabled}>${esc(t('desktop.infra_ignore'))}</button></div>`
                 + `<p class="infra-candidate-error" data-candidate-error role="alert"${error ? '' : ' hidden'}>${esc(error)}</p></li>`;
@@ -146,7 +168,7 @@
                 listEl[group].hidden = collapsed.has(group);
                 toggleOf[group].setAttribute('aria-expanded', String(!collapsed.has(group)));
             }
-            sourcesEl.innerHTML = sources.filter(source => !source.ignored).map(source => `<span class="infra-source-chip" data-state="${esc(source.state || 'unknown')}"><i></i>${esc(t(`desktop.infra_source_${source.kind}`))} · ${esc(source.name || source.instance || source.kind)}</span>`).join('');
+            sourcesEl.innerHTML = sourceChips();
             loadingEl.hidden = !loading;
             emptyEl.hidden = loading || shown > 0;
             syncGroupChecks();
@@ -163,6 +185,7 @@
                 if (disposed || !mine || owner !== mine) return;
                 state.candidates = Array.isArray(result?.candidates) ? result.candidates : [];
                 sources = Array.isArray(result?.sources) ? result.sources : [];
+                severalInstances = instancesOfKind(sources);
                 const grouped = groups();
                 state.importSelection.clear();
                 for (const candidate of preserve ? state.candidates.filter(item => keep.has(item.id)) : grouped.recommended) state.importSelection.add(candidate.id);
@@ -182,7 +205,7 @@
             state.importOpen = true;
             state.importDialogOwner = owner = `sheet-${++state.dialogGeneration}`;
             state.candidates = []; state.importSelection.clear(); state.importBindings.clear();
-            errors.clear(); sources = []; search.value = ''; loading = true;
+            errors.clear(); sources = []; severalInstances = new Set(); search.value = ''; loading = true;
             el.hidden = false;
             root.dataset.importOpen = 'true';
             render();
