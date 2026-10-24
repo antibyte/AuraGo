@@ -130,6 +130,27 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - Verify `node scripts/test-infra-ui.mjs`, the UI line budget, the i18n and asset guards and
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopInfra`. The browser fixture answers `/layout` like the
   server (version CAS, patch reply); never return a full snapshot there.
+- Full load order: `infra-model.js`, `infra-store.js`, `infra-picker.js`, `infra-canvas.js`, `infra-gestures.js`,
+  `infra-library.js`, `infra-cleanup.js`, `infra-inspector-forms.js`, `infra-inspector.js`, `infra-table.js`,
+  `infra-dialogs.js`, `infra-import.js`, `infra-menus.js`, `infra.js`. The module-loader list and the file list of
+  `scripts/test-infra-ui.mjs` must match it.
+- Plan C modules: `infra-picker.js` (ARIA combobox, popover and inline; options carry `data-app-target`,
+  `data-node-option`, `data-place-option`), `infra-cleanup.js` (Cleanup/Ignored from `InfraAppModel.infraCleanup`,
+  dismissals in `infra.dismissed.v1`), `infra-inspector-forms.js` (Details/Sources forms; all four tab panels are
+  rendered and inactive ones hidden; app bindings live in the draft), `infra-import.js` (non-modal import sheet,
+  `POST /import/batch`, `discoveryRelevance` groups), `infra-menus.js` (context menus through `ctx.showContextMenu`,
+  the inspector's more menu, the shortcut sheet and the legend).
+- Snapshots always ask `?include_ignored=1`; ignored sources never count in the ledger and appear only under
+  Ignored. Ignore, remove-and-ignore, engine hosts and batch import go through the store, which reloads the
+  snapshot and says so on an uncertain outcome. `unplace` intents make library placing undoable (only when the
+  snapshot has `source_hosts`). Inspector tab per kind persists in `infra.inspector.v1`, List sort in `infra.table.v1`.
+- Menus: items are built when the menu opens, writes carry `disabledHint` in read-only windows, and every item hands
+  the focus back to its anchor before it acts (the import sheet remembers that element). Shift+F10 and the
+  context-menu key open the same menu; `?` (shortcut sheet) and those keys ignore text fields. Do not add global
+  Delete or Ctrl A handlers: the table and the import sheet keep their own.
+- Selections made with the List checkboxes carry `state.selectionOrigin === 'check'`: in the List view the inspector
+  stays closed for them and the bulk bar is the surface (below 1100 px the inspector is an overlay whose scrim would
+  cover it). Every other `store.select` resets the origin. Clicking an asset's name still opens its panel.
 
 ## Synth Studio
 
