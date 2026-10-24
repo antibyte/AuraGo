@@ -235,8 +235,16 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     assert.equal(model.defaultEdgeKind({ kind: 'device', icon: 'router' }, { kind: 'device', icon: 'nas' }), 'ethernet');
     assert.equal(model.defaultEdgeKind({ kind: 'device', icon: 'access-point' }, { kind: 'device', icon: 'laptop' }), 'wifi');
     assert.equal(model.defaultEdgeKind({ kind: 'service', icon: 'web-service' }, { kind: 'device', icon: 'nas' }), 'depends_on');
-    const mini = model.minimapTransform({ x: 0, y: 0, w: 1000, h: 500 }, { w: 200, h: 130 });
-    assert.ok(Math.abs(mini.scale - 0.188) < 1e-9 && Math.abs(mini.x - 6) < 1e-9 && Math.abs(mini.y - 18) < 1e-9, 'the minimap centres the world');
+    const mini = model.minimapTransform({ x: 0, y: 0, w: 1000, h: 500 }, { w: 160, h: 104 });
+    assert.ok(Math.abs(mini.scale - 0.148) < 1e-9 && Math.abs(mini.x - 6) < 1e-9 && Math.abs(mini.y - 15) < 1e-9, 'the 160x104 minimap centres the world');
+    // The minimap hides itself while the whole scene is inside the viewport (A3).
+    const scene = { x: 0, y: 0, w: 800, h: 400 }, screen = { w: 1000, h: 600 };
+    assert.equal(model.sceneFits(scene, { x: 100, y: 100, zoom: 1 }, screen), true, 'a scene inside the viewport fits');
+    assert.equal(model.sceneFits(scene, { x: 100, y: 100, zoom: 2 }, screen), false, 'zoomed in, the scene overflows');
+    assert.equal(model.sceneFits(scene, { x: -50, y: 100, zoom: 1 }, screen), false, 'a scene scrolled partly out of view does not fit');
+    assert.equal(model.sceneFits(scene, model.fitView(scene, screen), screen), true, 'the fit view always fits');
+    assert.equal(model.sceneFits(null, { x: 0, y: 0, zoom: 1 }, screen), true, 'an empty scene needs no minimap');
+    assert.equal(model.sceneFits(scene, { x: 0, y: 0, zoom: 1 }, { w: 0, h: 0 }), true, 'an unmeasured viewport hides it too');
 }
 
 // ---- semantic zoom (A1) ------------------------------------------------------

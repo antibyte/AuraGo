@@ -588,7 +588,7 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 	}`)
 	assertReadableLayout := func(label string) {
 		got := page.MustEval(`()=>{
-			const sizes=[['brand','.infra-brand-name',14],['view switch','.infra-view-switch button',14],['search','.infra-search input',14],['library title','.infra-library-title',13],['library row','.infra-library-row-name',14],['library meta','.infra-library-row-meta',14],['zoom','.infra-zoom-value',14],['visible count','[data-visible-count]',14]];
+			const sizes=[['brand','.infra-brand-name',14],['view switch','.infra-view-switch button',14],['search','.infra-search input',14],['library title','.infra-library-title',13],['library row','.infra-library-row-name',14],['library meta','.infra-library-row-meta',14],['zoom','.infra-zoom-value',14]];
 			const small=sizes.filter(([,selector,min])=>{const el=document.querySelector(selector);return !el||parseFloat(getComputedStyle(el).fontSize)<min;}).map(([name])=>name);
 			const overflow=['.infra-commandbar','.infra-library','.infra-inspector'].filter(selector=>{const el=document.querySelector(selector);return el&&getComputedStyle(el).display!=='none'&&el.scrollWidth>el.clientWidth+1;});
 			return JSON.stringify({small,overflow});
@@ -633,7 +633,7 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 		fixture.mu.Unlock()
 		page.MustEval(`()=>document.querySelector('[data-action="refresh"]').click()`)
 		expectedVisible := map[int]int{25: 23, 250: 248, 1000: 998}[size]
-		page.MustWait(fmt.Sprintf(`()=>document.querySelector('[data-visible-count]').textContent.includes('%d')`, expectedVisible))
+		page.MustWait(fmt.Sprintf(`()=>document.querySelector('[data-tools]').getAttribute('aria-description').includes('%d')`, expectedVisible))
 		if size == 25 {
 			page.MustWait(`()=>{const images=[...document.querySelectorAll('[data-nodes] img')];return images.length>0&&images.every(image=>image.complete&&image.naturalWidth>0);}`)
 			if got := page.MustEval(`()=>JSON.stringify({cards:document.querySelectorAll('[data-nodes] [data-node]').length,guestCard:!!document.querySelector('[data-node="fixture-node-0001"]'),region:!!document.querySelector('[data-regions] [data-region="fixture-group"]'),viewBox:document.querySelector('[data-edges]').getAttribute('viewBox').slice(0,4),transform:document.querySelector('[data-scene]').style.transform.slice(0,10)})`).Str(); got != `{"cards":23,"guestCard":false,"region":true,"viewBox":"0 0 ","transform":"translate("}` {

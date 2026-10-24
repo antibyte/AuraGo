@@ -9,7 +9,8 @@
 //    layout-status and filters events, render({force: true}) on view, caps and
 //    manifest events, and applyTool() on tool events;
 //  - this module handles its own [data-tool], zoom-in/out/reset, fit and
-//    toggle-minimap clicks; infra.js must not act on the zoom, fit and
+//    toggle-minimap clicks (the toggle sits in the tools cluster, the minimap
+//    hides itself while the whole scene fits); infra.js must not act on the zoom, fit and
 //    minimap actions, and handles import-empty, add-empty, clear-search and
 //    retry-layout itself;
 //  - app.setPref('minimap', bool) is called after the minimap toggle changes,
@@ -21,7 +22,7 @@
     const CONNECT_HANDLES = ['n', 'e', 's', 'w'];
     const RESIZE_HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
     const MAX_CHIPS = 8;
-    const MM = { w: 200, h: 130 };
+    const MM = { w: 160, h: 104 };
     const px = value => `${value}px`;
     const round1 = value => Math.round(value * 10) / 10;
     const emptyScene = () => ({ cards: [], cardById: new Map(), regions: [], regionRects: new Map(), regionDepth: new Map(), lines: [], bounds: null });
@@ -70,10 +71,10 @@
     <button type="button" class="infra-zoom-value" data-action="zoom-reset" tabindex="-1" title="${esc(t('desktop.infra_zoom_reset'))}"><span data-zoom>100%</span></button>
     <button type="button" data-action="zoom-in" tabindex="-1" aria-label="${esc(t('desktop.infra_zoom_in'))}" title="${esc(t('desktop.infra_zoom_in'))}">${model.glyph('plus')}</button>
     <button type="button" data-action="fit" tabindex="-1" aria-label="${esc(t('desktop.infra_zoom_fit'))}" title="${esc(t('desktop.infra_zoom_fit'))}">${model.glyph('fit')}</button>
+    <span class="infra-tools-sep" data-minimap-sep aria-hidden="true"></span>
+    <button type="button" data-action="toggle-minimap" aria-pressed="true" tabindex="-1" aria-label="${esc(t('desktop.infra_minimap'))}" title="${esc(t('desktop.infra_minimap'))}">${model.glyph('minimap')}</button>
   </div>
-  <figure class="infra-minimap" data-minimap>
-    <figcaption class="infra-minimap-caption"><span data-visible-count></span>
-      <button type="button" class="infra-cmd-icon" data-action="toggle-minimap" aria-pressed="true" aria-label="${esc(t('desktop.infra_minimap'))}" title="${esc(t('desktop.infra_minimap'))}">${model.glyph('minimap')}</button></figcaption>
+  <figure class="infra-minimap" data-minimap hidden>
     <svg class="infra-minimap-map" data-minimap-map viewBox="0 0 ${MM.w} ${MM.h}" role="img" aria-label="${esc(t('desktop.infra_minimap'))}"><g data-minimap-regions></g><g data-minimap-cards></g><rect class="infra-minimap-view" data-minimap-view rx="2"></rect></svg>
   </figure>
   <p class="infra-sr-only" id="infra-canvas-help-${S}">${esc(t('desktop.infra_map_keys'))}</p>
@@ -87,7 +88,7 @@
         const toolsEl = q('[data-tools]'), zoomText = q('[data-zoom]'), zoomButton = q('[data-action="zoom-reset"]');
         const minimapEl = q('[data-minimap]'), minimapSvg = q('[data-minimap-map]'), minimapView = q('[data-minimap-view]');
         const minimapRegions = q('[data-minimap-regions]'), minimapCards = q('[data-minimap-cards]');
-        const visibleCount = q('[data-visible-count]'), minimapToggle = q('[data-action="toggle-minimap"]');
+        const minimapToggle = q('[data-action="toggle-minimap"]');
         const retryButton = q('[data-action="retry-layout"]');
 
         const views = { atlas: null, topology: null }, initialized = { atlas: false, topology: false };
@@ -492,7 +493,10 @@
         }
         function paintOverlays(shown) {
             const filtersOn = model.filtersActive(store.state.filters), view = app.mapView(), canWrite = store.canWrite();
-            visibleCount.textContent = t('desktop.infra_visible_count').replace('{count}', shown);
+            // How many assets are shown lives in the toggle's tooltip and the cluster's description, not on the map.
+            const shownText = t('desktop.infra_visible_count').replace('{count}', shown);
+            toolsEl.setAttribute('aria-description', shownText);
+            minimapToggle.title = `${t('desktop.infra_minimap')} · ${shownText}`;
             emptyEl.hidden = !(store.state.refreshAt && !last.cards.length && !last.regions.length);
             for (const button of emptyEl.querySelectorAll('button')) button.disabled = !canWrite;
             noMatchEl.hidden = !(filtersOn && last.cards.length && shown === 0);
@@ -528,8 +532,12 @@
             drawnRevision = revision;
         }
         function drawMinimap() {
-            if (disposed || !minimapOn() || store.state.view === 'table') return;
+            if (disposed || store.state.view === 'table') return;
             const v = getView(), sz = size();
+            // The minimap shows only while it is switched on and the scene does not fit the viewport.
+            const show = minimapOn() && !model.sceneFits(last.bounds, v, sz);
+            if (minimapEl.hidden === show) minimapEl.hidden = !show;
+            if (!show) return;
             const visible = sz.w > 0 && sz.h > 0 ? { x: -v.x / v.zoom, y: -v.y / v.zoom, w: sz.w / v.zoom, h: sz.h / v.zoom } : null;
             if (drawnRevision !== revision) rebuildMinimap();
             const tr = mmDragging && mmFrozen ? mmFrozen : model.minimapTransform(model.unionRects([last.bounds, visible]), MM);
@@ -566,9 +574,8 @@
         minimapSvg.addEventListener('lostpointercapture', onMinimapEnd);
         function setMinimapVisible(on) {
             minimapToggle.setAttribute('aria-pressed', on ? 'true' : 'false');
-            if (on) minimapSvg.removeAttribute('hidden'); else minimapSvg.setAttribute('hidden', '');
-            minimapEl.classList.toggle('is-collapsed', !on);
-            if (on) { drawnRevision = -1; minimapFrame.request(); }
+            drawnRevision = -1;
+            minimapFrame.request();
         }
         if (app.prefs && app.prefs.minimap === false) setMinimapVisible(false);
 
@@ -603,7 +610,7 @@
         // rovePrimary makes button the toolbar's one tab stop.
         const rovePrimary = target => { for (const button of toolsEl.querySelectorAll('button')) button.tabIndex = button === target ? 0 : -1; };
         const onToolsKey = event => {
-            const buttons = [...toolsEl.querySelectorAll('button:not(:disabled)')], index = buttons.indexOf(event.target);
+            const buttons = [...toolsEl.querySelectorAll('button:not(:disabled)')].filter(button => button.offsetParent !== null), index = buttons.indexOf(event.target);
             if (index < 0) return;
             const next = { ArrowRight: (index + 1) % buttons.length, ArrowLeft: (index + buttons.length - 1) % buttons.length, Home: 0, End: buttons.length - 1 }[event.key];
             if (next === undefined) return;

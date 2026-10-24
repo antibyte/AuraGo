@@ -100,10 +100,12 @@
 .infra-tools button:disabled { opacity: .45; cursor: not-allowed; }
 .infra-tools .infra-zoom-value { width: auto; min-width: 56px; padding: 0 6px; font: 600 14px/1 var(--vd-font-ui); font-variant-numeric: tabular-nums; }
 .infra-tools-sep { width: 1px; height: 24px; margin: 0 4px; background: var(--vd-theme-border); }
-.infra-minimap { position: absolute; right: var(--ds-space-3); bottom: var(--ds-space-3); z-index: 6; margin: 0; padding: 6px; border: 1px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: var(--vd-theme-panel-bg-strong); box-shadow: var(--vd-theme-shadow-panel); }
-.infra-minimap-caption { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-2); color: var(--vd-theme-muted); font-size: 14px; }
-.infra-minimap-map { display: block; width: 200px; height: 130px; margin-top: 4px; cursor: pointer; touch-action: none; }
-.infra-minimap-map .region { fill: none; stroke: var(--vd-theme-accent-border); vector-effect: non-scaling-stroke; }
+.infra-tools button[data-action="toggle-minimap"][aria-pressed="true"] { background: transparent; box-shadow: none; }
+.infra-tools button[data-action="toggle-minimap"][aria-pressed="false"] { color: var(--vd-theme-muted); opacity: .7; }
+/* A3: a 168x112 overview with no text in it; the shown count is in the toggle's tooltip. It hides itself while the whole scene fits. */
+.infra-minimap { position: absolute; right: var(--ds-space-3); bottom: var(--ds-space-3); z-index: 6; box-sizing: border-box; width: 168px; height: 112px; margin: 0; padding: 3px; border: 1px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: var(--vd-theme-overlay-bg); -webkit-backdrop-filter: var(--vd-theme-blur, blur(12px)); backdrop-filter: var(--vd-theme-blur, blur(12px)); box-shadow: var(--vd-theme-shadow-panel); }
+.infra-minimap-map { display: block; width: 160px; height: 104px; cursor: pointer; touch-action: none; }
+.infra-minimap-map .region { fill: none; stroke: var(--vd-theme-border-strong); vector-effect: non-scaling-stroke; }
 .infra-minimap-map .card { fill: var(--vd-theme-muted); }
 .infra-minimap-map .card.is-selected { fill: var(--vd-accent); }
 .infra-minimap-view { fill: var(--vd-theme-accent-soft); stroke: var(--vd-accent); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
@@ -134,4 +136,4 @@
   body:not([data-animations="false"]) .infra-scene.is-animating { transition: transform var(--ds-motion-duration-base) var(--ds-motion-ease-decel); }
 }
 @media (pointer: coarse) { .infra-card-handle { width: 16px; height: 16px; } .infra-tools button { width: 44px; height: 44px; } }
-@container infra (max-width: 759px) { .infra-minimap-map { display: none; } .infra-tools [data-tool="hand"] { display: none; } }
+@container infra (max-width: 759px) { .infra-minimap, .infra-tools [data-action="toggle-minimap"], .infra-tools [data-minimap-sep] { display: none; } .infra-tools [data-tool="hand"] { display: none; } }

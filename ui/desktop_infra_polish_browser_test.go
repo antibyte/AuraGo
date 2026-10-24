@@ -112,3 +112,56 @@ func TestDesktopInfraSemanticZoomBrowser(t *testing.T) {
 	}
 	requireInfraBrowserClean(t, page)
 }
+
+// TestDesktopInfraMinimapBrowser covers amendment A3: a 168x112 overview with no text inside, filled with the theme
+// overlay colour and blur, that hides itself while the whole scene fits and never covers a card at fit. The shown
+// count lives in the toggle's tooltip and the cluster's description, and the toggle works in every state.
+func TestDesktopInfraMinimapBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	fixture := newInfraAppBrowserFixture()
+	fixture.world(25)
+	page := infraPolishOpen(t, fixture, 1000, 700)
+	defer page.Close()
+	page.MustEval(`()=>{
+		window.infraZoomOf=()=>Number(/scale\(([^)]+)\)/.exec(document.querySelector('[data-scene]').style.transform)[1]);
+		window.infraMinimapState=()=>{const map=document.querySelector('[data-minimap]'),toggle=document.querySelector('[data-action="toggle-minimap"]');return JSON.stringify({shown:!map.hidden&&map.offsetParent!==null,pressed:toggle.getAttribute('aria-pressed')});};
+	}`)
+
+	// At fit everything is in view: the overview is hidden, so it cannot cover a card.
+	if got := page.MustEval(`()=>infraMinimapState()`).Str(); got != `{"shown":false,"pressed":"true"}` {
+		t.Fatalf("the minimap must hide itself while the whole scene fits: %s", got)
+	}
+	// The count is in the tooltip and the description, never as text on the map.
+	if got := page.MustEval(`()=>{const toggle=document.querySelector('[data-action="toggle-minimap"]'),tools=document.querySelector('[data-tools]'),words=window.fixtureWords;
+		const shown=words['desktop.infra_visible_count'].replace('{count}','23');
+		return JSON.stringify({title:toggle.title===words['desktop.infra_minimap']+' · '+shown,description:tools.getAttribute('aria-description')===shown,inCluster:!!toggle.closest('[data-tools]'),legacyCount:!!document.querySelector('[data-visible-count]'),text:document.querySelector('[data-minimap]').textContent.trim()});}`).Str(); got != `{"title":true,"description":true,"inCluster":true,"legacyCount":false,"text":""}` {
+		t.Fatalf("the shown count must move into the toggle tooltip and the cluster description: %s", got)
+	}
+
+	// Zoomed in the scene overflows: the overview appears at 168x112 over the theme overlay colour with the theme blur.
+	page.MustEval(`()=>document.querySelector('[data-action="zoom-reset"]').click()`)
+	page.MustWait(`()=>infraZoomOf()===1&&!document.querySelector('[data-minimap]').hidden`)
+	if got := page.MustEval(`()=>{
+		const map=document.querySelector('[data-minimap]'),r=map.getBoundingClientRect(),cs=getComputedStyle(map);
+		const probe=document.createElement('i');probe.style.cssText='background:var(--vd-theme-overlay-bg);backdrop-filter:var(--vd-theme-blur, blur(12px))';document.body.appendChild(probe);
+		const want=getComputedStyle(probe);const result={size:[Math.round(r.width),Math.round(r.height)],background:cs.backgroundColor===want.backgroundColor,blur:cs.backdropFilter===want.backdropFilter,text:map.textContent.trim()};probe.remove();
+		return JSON.stringify(result);
+	}`).Str(); got != `{"size":[168,112],"background":true,"blur":true,"text":""}` {
+		t.Fatalf("the minimap must be 168x112, filled with the overlay colour and blur and hold no text: %s", got)
+	}
+
+	// The toggle switches it off even while the scene overflows, and on again.
+	page.MustEval(`()=>document.querySelector('[data-action="toggle-minimap"]').click()`)
+	page.MustWait(`()=>document.querySelector('[data-action="toggle-minimap"]').getAttribute('aria-pressed')==='false'&&document.querySelector('[data-minimap]').hidden`)
+	page.MustEval(`()=>document.querySelector('[data-action="toggle-minimap"]').click()`)
+	page.MustWait(`()=>document.querySelector('[data-action="toggle-minimap"]').getAttribute('aria-pressed')==='true'&&!document.querySelector('[data-minimap]').hidden`)
+
+	// Fitting hides it again; the toggle still reads "on".
+	page.MustEval(`()=>document.querySelector('[data-action="fit"]').click()`)
+	infraPolishSettle(page)
+	if got := page.MustEval(`()=>infraMinimapState()`).Str(); got != `{"shown":false,"pressed":"true"}` {
+		t.Fatalf("fitting the map must hide the minimap again: %s", got)
+	}
+	// Whenever it is shown it never sits on a card at fit: at fit it is hidden, at 100 % it is the user's own pan.
+	requireInfraBrowserClean(t, page)
+}

@@ -502,6 +502,12 @@
     // send: node PUT bodies are clones of these objects and the server rejects
     // unknown fields.
     const normalizeNode = node => ({ ...node, icon: iconId(node.icon), parent_id: node.parent_id || '', profile: { tags: [], interfaces: [], links: [], app_bindings: [], custom: {}, ...(node.profile || {}) }, placements: node.placements || {}, sources: node.sources || [], app_links: node.app_links || [], available_actions: node.available_actions || [] });
+    // sceneFits: the whole scene lies inside the visible part of the world (the minimap has nothing to show then).
+    const sceneFits = (bounds, view, size) => {
+        if (!bounds || !(size.w > 0 && size.h > 0) || !(view.zoom > 0)) return true;
+        const left = -view.x / view.zoom, top = -view.y / view.zoom, right = left + size.w / view.zoom, bottom = top + size.h / view.zoom;
+        return bounds.x >= left - 1 && bounds.y >= top - 1 && bounds.x + bounds.w <= right + 1 && bounds.y + bounds.h <= bottom + 1;
+    };
     const minimapTransform = (bounds, size, pad = 6) => {
         if (!bounds) return { scale: 1, x: 0, y: 0 };
         const scale = Math.min((size.w - pad * 2) / Math.max(bounds.w, 1), (size.h - pad * 2) / Math.max(bounds.h, 1));
@@ -877,7 +883,7 @@
         clampZoom, zoomLevels, labelScale, toWorld, toScreen, zoomAt, fitView, viewCenter, viewFromCenter, snap, cardRect, intersects, containsPoint,
         normalizeRect, padRect, unionRects, freeSlot, regionRect, regionLayout, regionAt, dropParent, growRegions,
         spatialNeighbour, compactGrid, defaultEdgeKind, guestIndex, matchesFilters, filtersActive, buildScene,
-        mergeIntent, layoutItems, rebaseLayout, createHistory, readLayoutPrefs, fill, countText, normalizeNode, minimapTransform, glyph,
+        mergeIntent, layoutItems, rebaseLayout, createHistory, readLayoutPrefs, fill, countText, normalizeNode, minimapTransform, sceneFits, glyph,
         naturalCompare, isOpaqueName, addressesOf, isGenericDiscovery, compareSpecificity, relevanceIndex, discoveryRelevance, groupDiscoveries, bindableFor, linkSuggestions, infraCleanup, sourceLabels,
         TABLE_SORTS, tableComparator, tableRows, readTablePrefs, readInspectorPrefs, inspectorTab, withInspectorTab, readDismissed, listEntryText, draftDiff, formGroupFill, groupOfField,
         isMeshAsset, appTargetOptions, appLinkContext, placePath, isDescendant, attentionItems, APP_LINK_TARGETS,
