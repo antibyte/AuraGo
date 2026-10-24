@@ -852,12 +852,13 @@
         // automatic layout: one undoable PUT /layout of unplace operations, and undo restores the previous placements
         // (pinned ones included). Cards that are already automatic have nothing to hand back; a server that cannot
         // unplace cannot arrange here at all. arrangeIds lists the cards Arrange would act on.
-        function arrangeIds() {
+        function arrangePool() {
             const guests = store.guests(), drawn = node => !!node && !model.isContainer(node.kind) && !guests.hostOf.has(node.id);
             const picked = [...state.selection].filter(id => drawn(store.nodeById(id)));
-            return (picked.length ? picked : state.nodes.filter(drawn).map(node => node.id)).filter(id => store.effectivePlacement(id, 'topology'));
+            return picked.length ? picked : state.nodes.filter(drawn).map(node => node.id);
         }
-        const canArrangeTopology = () => store.canWrite() && store.features.unplace === true && arrangeIds().length > 0;
+        const arrangeIds = () => arrangePool().filter(id => store.effectivePlacement(id, 'topology'));
+        const canArrangeTopology = () => store.canWrite() && store.features.unplace === true && arrangePool().some(id => store.effectivePlacement(id, 'topology'));
         function arrangeTopology() {
             if (!canArrangeTopology()) return Promise.resolve(false);
             return removeFromMap(arrangeIds());
