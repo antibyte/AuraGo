@@ -264,6 +264,15 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
         assert.ok(zoom * 16 * 1 < 12 || levels.name === 1, 'a label that is large enough is not scaled');
         assert.ok(1.6 <= zoom * levels.ring, `the status ring stays at least 1.6 px at ${zoom}`);
     }
+    // A24: the compact icon (its 24 px image) is counter-scaled to min(20 px, 0.8 x the 64 px card height) on screen, in steps of 0.05, at most 2.1.
+    assert.deepEqual([0.25, 0.4, 0.44, 0.5, 0.64].map(zoom => model.zoomLevels(zoom).icon), [2.1, 2.1, 1.9, 1.7, 1.35], 'hand computed: 20 / (24 zoom) rounded up to 0.05 and capped at 2.1');
+    for (const zoom of [0.25, 0.3, 0.39, 0.44, 0.5, 0.6, 0.64]) {
+        const levels = model.zoomLevels(zoom), shown = 24 * levels.icon * zoom, wanted = Math.min(20, 0.8 * 64 * zoom);
+        assert.ok(shown >= wanted - 0.5 && shown <= wanted + 24 * 0.05 * zoom + 1e-9, `the compact icon is about ${wanted.toFixed(1)} px on screen at ${zoom}, not ${shown.toFixed(1)}`);
+        assert.ok(shown >= 18 || zoom < 0.4, 'from zoom 0.4 on the icon is at least 18 px');
+        assert.ok(levels.iconRing * levels.icon * zoom >= 1.6, `the status ring of the scaled icon stays at least 1.6 px at ${zoom}`);
+    }
+    assert.equal(model.zoomLevels(1).icon, 1, 'the icon is never scaled below 1');
     assert.equal(model.zoomLevels(1).name, 1, 'at 100 % labels are not scaled');
     assert.equal(model.zoomLevels(2).header, 1, 'above 1.0 labels scale with the scene');
     assert.ok(Math.abs(model.labelScale(0.3, 16, 12) * 20 - Math.round(model.labelScale(0.3, 16, 12) * 20)) < 1e-9, 'the counter-scale moves in steps of 0.05');

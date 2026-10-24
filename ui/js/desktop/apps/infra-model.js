@@ -184,12 +184,21 @@
         const z = Number.isFinite(zoom) && zoom > 0 ? zoom : 1, raw = floorPx / (basePx * z);
         return raw <= 1 ? 1 : Math.ceil(raw * 20) / 20;
     };
+    // The compact icon (A24): its 24 px image is scaled to min(20 px, 0.8 x the card's on-screen height) so it never
+    // reads as a speck, in steps of 0.05 and at most 2.1 so it stays inside the 64 px box; geometry does not change.
+    const iconScale = zoom => {
+        const z = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+        return Math.max(1, Math.min(2.1, Math.ceil(Math.min(20, 0.8 * CARD_H * z) / (24 * z) * 20) / 20));
+    };
     const zoomLevels = (zoom, previousForm = 'full') => ({
         form: zoom < COMPACT_BELOW || (previousForm === 'compact' && zoom < COMPACT_RELEASE) ? 'compact' : 'full',
         tiny: zoom < TINY_BELOW, handles: zoom >= HANDLES_FROM, edgeLabels: zoom >= EDGE_LABELS_FROM,
         // the status ring of a compact icon stays at least 1.6 px on screen
         ring: Math.max(2, Math.ceil(1.6 / (Number.isFinite(zoom) && zoom > 0 ? zoom : 1) * 2) / 2),
         name: labelScale(zoom, ...LABEL_FLOOR.name), header: labelScale(zoom, ...LABEL_FLOOR.header), lane: labelScale(zoom, ...LABEL_FLOOR.lane),
+        icon: iconScale(zoom),
+        // the status ring of the scaled compact icon stays at least 1.6 px on screen
+        iconRing: Math.max(1, Math.ceil(1.6 / ((Number.isFinite(zoom) && zoom > 0 ? zoom : 1) * iconScale(zoom)) * 2) / 2),
     });
     // A stored viewport is its world centre and zoom, so it suits any window size.
     const viewCenter = (view, size) => ({ cx: (size.w / 2 - view.x) / view.zoom, cy: (size.h / 2 - view.y) / view.zoom, zoom: view.zoom });

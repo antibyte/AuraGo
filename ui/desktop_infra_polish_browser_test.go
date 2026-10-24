@@ -59,6 +59,8 @@ func TestDesktopInfraSemanticZoomBrowser(t *testing.T) {
 		window.infraZoomOf=()=>Number(/scale\(([^)]+)\)/.exec(document.querySelector('[data-scene]').style.transform)[1]);
 		// The on-screen size of a label: its font size times its own counter-scale times the scene zoom.
 		window.infraOnScreen=el=>parseFloat(getComputedStyle(el).fontSize)*new DOMMatrix(getComputedStyle(el).transform).a*infraZoomOf();
+		// A24: the on-screen width of a compact card's icon image.
+		window.infraIconPx=card=>card.querySelector('.infra-card-icon img').getBoundingClientRect().width;
 	}`)
 
 	page.MustEval(`()=>document.querySelector('[data-action="zoom-reset"]').click()`)
@@ -83,8 +85,8 @@ func TestDesktopInfraSemanticZoomBrowser(t *testing.T) {
 		let overlaps=0;
 		for(let i=0;i<rects.length;i++)for(let j=i+1;j<rects.length;j++){const a=rects[i],b=rects[j];if(a.left<b.right-1&&a.right>b.left+1&&a.top<b.bottom-1&&a.bottom>b.top+1)overlaps++;}
 		return JSON.stringify({compact:stage.classList.contains('is-compact'),tiny:stage.classList.contains('is-tiny'),handles:getComputedStyle(card.querySelector('.infra-card-handle')).display,
-			name:Math.min(...names.map(infraOnScreen))>=12,header:infraOnScreen(header)>=13,meta:getComputedStyle(card.querySelector('.infra-card-meta')).display,box:[card.offsetWidth,card.offsetHeight],overlaps});
-	}`).Str(); got != `{"compact":true,"tiny":true,"handles":"none","name":true,"header":true,"meta":"none","box":[216,64],"overlaps":0}` {
+			name:Math.min(...names.map(infraOnScreen))>=12,header:infraOnScreen(header)>=13,meta:getComputedStyle(card.querySelector('.infra-card-meta')).display,box:[card.offsetWidth,card.offsetHeight],overlaps,icon:infraIconPx(card)>=0.75*card.getBoundingClientRect().height-0.5});
+	}`).Str(); got != `{"compact":true,"tiny":true,"handles":"none","name":true,"header":true,"meta":"none","box":[216,64],"overlaps":0,"icon":true}` {
 		t.Fatalf("at about 28%% the cards must be compact with legible, non-overlapping labels and the same geometry: %s", got)
 	}
 	// Zoom back in: 0.58 is still compact (below 0.65), the full form returns from 0.68 on.
@@ -93,10 +95,10 @@ func TestDesktopInfraSemanticZoomBrowser(t *testing.T) {
 	infraPolishSettle(page)
 	if got := page.MustEval(`()=>{
 		const stage=document.querySelector('[data-stage]'),card=document.querySelector('[data-node="fixture-node-0002"]');
-		return JSON.stringify({compact:stage.classList.contains('is-compact'),tiny:stage.classList.contains('is-tiny'),handles:getComputedStyle(card.querySelector('.infra-card-handle')).display!=='none',lines:getComputedStyle(card.querySelector('.infra-card-name')).webkitLineClamp});
-	}`).Str(); got != `{"compact":true,"tiny":false,"handles":false,"lines":"2"}` {
+		return JSON.stringify({compact:stage.classList.contains('is-compact'),tiny:stage.classList.contains('is-tiny'),handles:getComputedStyle(card.querySelector('.infra-card-handle')).display!=='none',lines:getComputedStyle(card.querySelector('.infra-card-name')).webkitLineClamp,icon:infraIconPx(card)>=18,ring:infraIconPx(card)<=21});
+	}`).Str(); got != `{"compact":true,"tiny":false,"handles":false,"lines":"2","icon":true,"ring":true}` {
 		// 0.28 * 1.2^3 = 0.48: below 0.5 the handles are still hidden.
-		t.Fatalf("at about 48%% the compact form shows two-line names and still no handles: %s", got)
+		t.Fatalf("at about 48%% the compact form shows two-line names, still no handles and an icon of 18 to 21 px: %s", got)
 	}
 	page.MustEval(`()=>{for(let i=0;i<3;i++)document.querySelector('[data-action="zoom-in"]').click();}`)
 	page.MustWait(`()=>infraZoomOf()>0.8`)

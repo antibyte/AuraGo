@@ -160,7 +160,7 @@
         // paintLevels applies the semantic zoom (A1): the card form, the labels' counter-scale and the handles. It
         // runs once per change of a level, not once per frame; the form switch fades the card content in.
         function paintLevels(zoom) {
-            const levels = model.zoomLevels(zoom, cardForm), key = [levels.form, levels.tiny, levels.handles, levels.edgeLabels, levels.name, levels.header, levels.lane, levels.ring].join('|');
+            const levels = model.zoomLevels(zoom, cardForm), key = [levels.form, levels.tiny, levels.handles, levels.edgeLabels, levels.name, levels.header, levels.lane, levels.ring, levels.icon, levels.iconRing].join('|');
             if (key === levelsKey) return;
             levelsKey = key;
             const switched = levels.form !== cardForm;
@@ -171,6 +171,8 @@
             viewport.classList.toggle('is-zoom-low', !levels.edgeLabels);
             for (const [name, value] of [['name', levels.name], ['header', levels.header], ['lane', levels.lane]]) scene.style.setProperty(`--infra-${name}-k`, String(value));
             scene.style.setProperty('--infra-ring', `${levels.ring}px`);
+            scene.style.setProperty('--infra-icon-k', String(levels.icon));
+            scene.style.setProperty('--infra-icon-ring', `${levels.iconRing}px`);
             if (switched && app.animationsEnabled()) {
                 viewport.classList.add('is-form-switching');
                 clearTimeout(formTimer);

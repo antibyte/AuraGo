@@ -48,9 +48,9 @@
 .infra-card.is-saving { border-style: dashed; }
 .infra-card.is-unsaved { border: 1px dashed var(--ds-color-warning-fg); }
 .infra-card.is-connect-target { outline: 2px dashed var(--vd-accent); outline-offset: 3px; }
-/* Compact card (zoom below 0.65): the box and its hit area stay 216x64; it shows the icon (28 px, status ring kept) and the name under it, which is two lines from zoom 0.4 and one line below. */
+/* Compact card (zoom below 0.65): the box and its hit area stay 216x64; it shows the icon (28 px, counter-scaled by --infra-icon-k to about 20 px on screen, A24; status ring kept) and the name under it, which is two lines from zoom 0.4 and one line below. */
 .infra-viewport.is-compact .infra-card { grid-template-columns: minmax(0, 1fr); justify-items: center; padding: 0; }
-.infra-viewport.is-compact .infra-card-icon { width: 28px; height: 28px; box-shadow: 0 0 0 var(--infra-ring, 2px) var(--infra-state); }
+.infra-viewport.is-compact .infra-card-icon { width: 28px; height: 28px; box-shadow: 0 0 0 var(--infra-icon-ring, 2px) var(--infra-state); transform: scale(var(--infra-icon-k, 1)); }
 .infra-viewport.is-compact .infra-card-icon img { width: 24px; height: 24px; }
 .infra-viewport.is-compact .infra-card-meta, .infra-viewport.is-compact .infra-card-status, .infra-viewport.is-compact .infra-card-badge { display: none; }
 .infra-viewport.is-compact .infra-card-text { position: absolute; left: 50%; top: calc(100% + 4px); width: 240px; transform: translateX(-50%); text-align: center; }
