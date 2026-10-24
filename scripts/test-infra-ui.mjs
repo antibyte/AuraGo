@@ -349,6 +349,17 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     assert.equal(model.sourceLabels([{ kind: 'docker', instance: 'solo' }], kindLabel).of({ kind: 'docker', instance: 'solo' }).text, 'Docker', 'a single instance is not numbered');
 }
 
+// ---- canvas CSS rules (A9) -----------------------------------------------------
+const canvasCSS = fs.readFileSync(path.join(root, 'ui/css/desktop-app-infra-canvas.css'), 'utf8');
+const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); return at < 0 ? '' : canvasCSS.slice(at, canvasCSS.indexOf('}', at)); };
+{
+    const focus = cssRule('.infra-app .infra-viewport[data-stage]:focus-visible');
+    assert.ok(focus, 'the canvas has its own keyboard focus rule');
+    assert.ok(/box-shadow: inset 0 0 0 1px var\(--vd-theme-accent-border\)/.test(focus), 'the canvas focus is a 1px inset accent hairline');
+    assert.ok(/outline: var\(--ds-focus-ring-width\) solid/.test(focus) && focus.includes('--ds-color-border-focus'), 'keyboard focus keeps the standard ring tokens');
+    assert.ok(!/\.infra-viewport:focus\s*\{/.test(canvasCSS), 'pointer focus draws nothing on the canvas');
+}
+
 // ---- store: layout queue, rebase, undo --------------------------------------
 {
     const InfraStore = window.InfraAppStore;
