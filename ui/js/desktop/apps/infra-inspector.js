@@ -40,12 +40,13 @@
             const profile = node.profile || {}, none = '—';
             const place = model.placePath(node.id, store.nodeById).map(item => item.name).join(' › ') || t('desktop.infra_no_place');
             const placement = store.effectivePlacement(node.id, app.mapView());
-            const where = placement ? model.fill(t('desktop.infra_position'), { x: Math.round(placement.x), y: Math.round(placement.y) }) : t('desktop.infra_unplaced');
             const seen = (node.sources || []).map(source => Date.parse(source.fetched_at)).filter(Number.isFinite).sort((a, b) => b - a)[0];
             const row = (label, value) => `<dt>${esc(label)}</dt><dd>${value}</dd>`;
             let facts = row(t('desktop.infra_address'), esc(profile.ip_address || none)) + row(t('desktop.infra_field_mac_address'), esc(profile.mac_address || none))
                 + row(t('desktop.infra_fact_hardware'), esc([profile.vendor, profile.model].filter(Boolean).join(' · ') || none))
-                + row(t('desktop.infra_place'), esc(place)) + row(t('desktop.infra_placement'), esc(where));
+                + row(t('desktop.infra_place'), esc(place));
+            // The Overview only says whether the asset is on the map; the coordinates are in the Details tab.
+            if (!hostId) facts += row(t('desktop.infra_placement'), esc(placement ? t('desktop.infra_on_map') : t('desktop.infra_unplaced')));
             if (hostId && store.nodeById(hostId)) facts += row(t('desktop.infra_fact_host'), `${selectButton(hostId)}${node.host_inferred ? ` <small>· ${esc(t('desktop.infra_host_inferred'))}</small>` : ''}`);
             if (guests.length) {
                 const more = guests.length > LIST_LIMIT ? `<li><button type="button" data-guest-more="${esc(node.id)}">${esc(model.fill(t('desktop.infra_more_guests'), { count: guests.length - LIST_LIMIT }))}</button></li>` : '';

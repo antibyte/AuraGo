@@ -268,6 +268,7 @@
 .infra-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px var(--ds-space-3); margin: 0; font-size: 14px; }
 .infra-facts dt { color: var(--vd-theme-muted); }
 .infra-facts dd { margin: 0; overflow-wrap: anywhere; }
+.infra-placement-facts { padding-top: var(--ds-space-1); font-variant-numeric: tabular-nums; }
 .infra-selection-kinds { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 14px; }
 .infra-selection-kinds b { font-variant-numeric: tabular-nums; }
 .infra-field-hint { color: var(--infra-warn); font-size: 14px; }

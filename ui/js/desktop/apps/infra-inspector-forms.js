@@ -159,13 +159,19 @@
             const stale = draft.parent_id && !places.some(item => item.place.id === draft.parent_id) ? `<option value="${esc(draft.parent_id)}" selected>${esc(store.nodeById(draft.parent_id)?.name || draft.parent_id)}</option>` : '';
             return `<option value="">${esc(t('desktop.infra_no_place'))}</option>${stale}${places.map(item => `<option value="${esc(item.place.id)}" ${draft.parent_id === item.place.id ? 'selected' : ''}>${esc(item.path)}</option>`).join('')}`;
         }
+        // placementReadout shows where the asset sits on the map as read-only text, for power users.
+        function placementReadout(node) {
+            const placement = store.effectivePlacement(node.id, app.mapView());
+            const value = placement ? model.fill(t('desktop.infra_position'), { x: Math.round(placement.x), y: Math.round(placement.y) }) : t('desktop.infra_unplaced');
+            return `<dl class="infra-facts infra-placement-facts" data-placement-readout><dt>${esc(t('desktop.infra_placement'))}</dt><dd>${esc(value)}</dd></dl>`;
+        }
         function groupBody(group, node, draft) {
             if (group === 'identity') {
                 return `<div class="infra-field-row"><label class="infra-field" data-field="kind"><span>${esc(t('desktop.infra_type'))}</span><select data-node-field="kind" ${disabledAttr()}>${KINDS.map(kind => `<option value="${kind}" ${draft.kind === kind ? 'selected' : ''}>${esc(app.labelForKind(kind))}</option>`).join('')}</select></label>`
                     + `<label class="infra-field" data-field="icon"><span>${esc(t('desktop.infra_icon'))}</span><select data-node-field="icon" ${disabledAttr()}>${ICON_LIST.map(key => `<option value="${key}" ${iconId(draft.icon) === key ? 'selected' : ''}>${esc(t(iconLabelKey(key)))}</option>`).join('')}</select></label></div>`
                     + `<label class="infra-field" data-field="parent_id"><span>${esc(t('desktop.infra_place'))}</span><select data-node-field="parent_id" ${disabledAttr()}>${placeOptions(node, draft)}</select></label>`
                     + field(draft, 'role', 'role')
-                    + `<label class="infra-field" data-field="profile.tags"><span>${esc(t('desktop.infra_tags'))}</span><input data-profile="tags" value="${esc((draft.profile?.tags || []).join(', '))}" placeholder="${esc(t('desktop.infra_tags_hint'))}" ${readonlyAttr()} autocomplete="off"></label>`;
+                    + `<label class="infra-field" data-field="profile.tags"><span>${esc(t('desktop.infra_tags'))}</span><input data-profile="tags" value="${esc((draft.profile?.tags || []).join(', '))}" placeholder="${esc(t('desktop.infra_tags_hint'))}" ${readonlyAttr()} autocomplete="off"></label>` + placementReadout(node);
             }
             if (group === 'network') {
                 const segment = draft.kind === 'network' ? `<section class="infra-network-segment"><h4>${esc(t('desktop.infra_network_segment'))}</h4><div class="infra-field-row"><label class="infra-field" data-field="profile.cidr"><span>${esc(t('desktop.infra_cidr'))}</span><input data-profile="cidr" type="text" value="${esc(draft.profile?.cidr || '')}" placeholder="192.168.10.0/24" ${readonlyAttr()}></label><label class="infra-field" data-field="profile.vlan"><span>${esc(t('desktop.infra_vlan'))}</span><input data-profile="vlan" type="number" min="1" max="4094" value="${esc(draft.profile?.vlan || '')}" placeholder="${esc(t('desktop.infra_unknown'))}" ${readonlyAttr()}></label></div><p class="infra-hint">${esc(t('desktop.infra_cidr_hint'))}</p></section>` : '';
