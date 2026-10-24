@@ -479,7 +479,10 @@
                 }
                 if ((state.sourceRevision.get(id) || 0) === revision) {
                     clearSourceState(id);
-                    await store.loadSnapshot(); store.notify(t('desktop.infra_source_saved'), 'success');
+                    await store.loadSnapshot();
+                    // The saved draft is gone, so the edit form must close even when the snapshot did not change.
+                    paint();
+                    store.notify(t('desktop.infra_source_saved'), 'success');
                 } else {
                     const latest = await store.request(path);
                     const newer = state.sourceDrafts.get(id);
