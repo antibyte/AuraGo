@@ -54,6 +54,10 @@ func (s *Server) registerToolAPIRoutes(mux *http.ServeMux) {
 				handleVerifySkill(s)(w, r)
 				return
 			}
+			if strings.HasSuffix(r.URL.Path, "/approve-warning") {
+				handleApprovePythonSkillWarning(s)(w, r)
+				return
+			}
 			if strings.HasSuffix(r.URL.Path, "/versions") {
 				handleGetSkillVersions(s)(w, r)
 				return

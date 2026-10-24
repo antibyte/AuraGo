@@ -598,7 +598,8 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			// Enrich each entry with has_documentation so the agent knows which
 			// skills carry a Markdown manual it should consult before calling.
 			docFlags := map[string]bool{}
-			if mgr := tools.DefaultSkillManager(); mgr != nil {
+			mgr := tools.DefaultSkillManager()
+			if mgr != nil {
 				if entries, listErr := mgr.ListSkillsFiltered("", "", "", nil); listErr == nil {
 					for _, e := range entries {
 						docFlags[e.Name] = e.HasDocumentation
@@ -607,11 +608,22 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			type listed struct {
 				tools.SkillManifest
-				HasDocumentation bool `json:"has_documentation"`
+				HasDocumentation bool   `json:"has_documentation"`
+				Enabled          *bool  `json:"enabled,omitempty"`
+				SecurityStatus   string `json:"security_status,omitempty"`
+				Executable       *bool  `json:"executable,omitempty"`
 			}
 			out := make([]listed, len(availableSkills))
 			for i, sk := range availableSkills {
-				out[i] = listed{SkillManifest: sk, HasDocumentation: docFlags[sk.Name]}
+				item := listed{SkillManifest: sk, HasDocumentation: docFlags[sk.Name]}
+				if mgr != nil {
+					if enabled, status, executable, found := mgr.SkillExecutionListing(sk.Name); found {
+						item.Enabled = &enabled
+						item.SecurityStatus = string(status)
+						item.Executable = &executable
+					}
+				}
+				out[i] = item
 			}
 			b, err := json.MarshalIndent(out, "", "  ")
 			if err != nil {

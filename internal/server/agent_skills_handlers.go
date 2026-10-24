@@ -645,7 +645,8 @@ func handleRunAgentSkillScript(s *Server) http.HandlerFunc {
 			})
 			return
 		}
-		output, err := s.AgentSkillManager.RunAgentSkillScript(r.Context(), id, req.Script, req.Args)
+		requireSandbox := s.Cfg != nil && s.Cfg.Tools.SkillManager.RequireSandbox
+		output, err := s.AgentSkillManager.RunAgentSkillScript(r.Context(), id, req.Script, req.Args, requireSandbox)
 		_ = s.AgentSkillManager.RecordAgentSkillUsage(id, err == nil)
 		status := "ok"
 		message := ""

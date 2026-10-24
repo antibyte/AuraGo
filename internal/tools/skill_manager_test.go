@@ -522,6 +522,32 @@ func TestGetExecutableSkillByNameBlocksDisabledAndPending(t *testing.T) {
 	if _, err := mgr.GetExecutableSkillByName("exec_guard"); err != nil {
 		t.Fatalf("clean enabled skill: %v", err)
 	}
+	if _, err := mgr.db.Exec("UPDATE skills_registry SET security_status = ?, warning_approved = 0 WHERE id = ?", string(SecurityWarning), created.ID); err != nil {
+		t.Fatalf("update warning: %v", err)
+	}
+	if _, err := mgr.GetExecutableSkillByName("exec_guard"); err == nil || !strings.Contains(err.Error(), "requires approval") {
+		t.Fatalf("unapproved warning err = %v", err)
+	}
+	if err := mgr.ApprovePythonSkillWarning(created.ID, "test"); err != nil {
+		t.Fatalf("ApprovePythonSkillWarning: %v", err)
+	}
+	enabled, status, executable, found := mgr.SkillExecutionListing("exec_guard")
+	if !found || !enabled || status != SecurityWarning || !executable {
+		t.Fatalf("listing = enabled:%t status:%s executable:%t found:%t", enabled, status, executable, found)
+	}
+	if err := mgr.UpdateSkillSecurity(created.ID, SecurityWarning, &SecurityReport{}); err != nil {
+		t.Fatalf("UpdateSkillSecurity: %v", err)
+	}
+	rescanned, err := mgr.GetSkill(created.ID)
+	if err != nil {
+		t.Fatalf("GetSkill: %v", err)
+	}
+	if rescanned.WarningApproved {
+		t.Fatal("rescan kept warning approval")
+	}
+	if _, err := mgr.GetExecutableSkillByName("exec_guard"); err == nil {
+		t.Fatal("rescanned warning skill remained executable")
+	}
 }
 
 func TestSyncFromDiskNewPythonSkillDisabledByDefault(t *testing.T) {

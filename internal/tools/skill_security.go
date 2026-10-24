@@ -563,6 +563,19 @@ func DetermineSecurityStatus(report *SecurityReport) SecurityStatus {
 	return SecurityClean
 }
 
+// applyVirusTotalReport stores the lookup and raises the score only when the
+// structured malicious, suspicious or positives count is above zero.
+func applyVirusTotalReport(report *SecurityReport, raw string) {
+	if report == nil {
+		return
+	}
+	report.VirusTotalReport = raw
+	clean, err := virusTotalMaintenanceResultClean(raw)
+	if err == nil && !clean {
+		report.VirusTotalScore = 1.0
+	}
+}
+
 // ScanSkill runs all configured security scans on a skill.
 func (m *SkillManager) ScanSkill(ctx context.Context, id string, vtAPIKey string, guardian *security.LLMGuardian, useVT, useGuardian bool, skillSpector ...SkillSpectorConfig) (*SecurityReport, SecurityStatus, error) {
 	skill, err := m.GetSkill(id)
@@ -585,13 +598,7 @@ func (m *SkillManager) ScanSkill(ctx context.Context, id string, vtAPIKey string
 	if useVT && vtAPIKey != "" {
 		h := sha256.Sum256([]byte(code))
 		fileHash := hex.EncodeToString(h[:])
-		vtResult := ExecuteVirusTotalScan(vtAPIKey, fileHash)
-		if strings.Contains(strings.ToLower(vtResult), "positives") || strings.Contains(vtResult, "detected") {
-			report.VirusTotalScore = 1.0
-			report.VirusTotalReport = vtResult
-		} else {
-			report.VirusTotalReport = vtResult
-		}
+		applyVirusTotalReport(report, ExecuteVirusTotalScan(vtAPIKey, fileHash))
 	}
 
 	// 3. LLM Guardian code review (Further Consideration #1 — opt-in)

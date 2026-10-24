@@ -60,6 +60,7 @@ type SkillRegistryEntry struct {
 	LastQualityConfidence float64                `json:"last_quality_confidence"`
 	LastQualityHash       string                 `json:"-"`
 	Enabled               bool                   `json:"enabled"`
+	WarningApproved       bool                   `json:"warning_approved"`
 	SecurityStatus        SecurityStatus         `json:"security_status"`
 	SecurityReport        *SecurityReport        `json:"security_report,omitempty"`
 	LastScanAt            *time.Time             `json:"last_scan_at,omitempty"`
@@ -237,6 +238,7 @@ func InitSkillsDB(dbPath string) (*sql.DB, error) {
 		"ALTER TABLE skills_registry ADD COLUMN documentation_path TEXT DEFAULT ''",
 		"ALTER TABLE skills_registry ADD COLUMN documentation_hash TEXT DEFAULT ''",
 		"ALTER TABLE skills_registry ADD COLUMN cheatsheet_ids TEXT DEFAULT ''",
+		"ALTER TABLE skills_registry ADD COLUMN warning_approved INTEGER DEFAULT 0",
 	}
 	for _, stmt := range migrations {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
@@ -429,7 +431,7 @@ func (m *SkillManager) SyncFromDiskWithOrigins(origins map[string]SkillOrigin) e
 					string(SkillTypeBuiltIn), fileHash, existingID)
 			} else {
 				if existingHash != fileHash && fileHash != "" {
-					m.db.Exec("UPDATE skills_registry SET file_hash = ?, security_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+					m.db.Exec("UPDATE skills_registry SET file_hash = ?, security_status = ?, warning_approved = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
 						fileHash, string(SecurityPending), existingID)
 					if readErr == nil && len(codeBytes) > 0 {
 						m.runStaticScan(existingID, string(codeBytes))
@@ -507,7 +509,7 @@ func detectSkillType(name string, skillsDir string) SkillType {
 // ListSkillsFiltered returns skills from the registry with optional filters.
 func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enabledFilter *bool) ([]SkillRegistryEntry, error) {
 	query := "SELECT id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, internal_tools, " +
-		"created_at, updated_at, created_by, enabled, security_status, security_report, last_scan_at, " +
+		"created_at, updated_at, created_by, enabled, COALESCE(warning_approved,0), security_status, security_report, last_scan_at, " +
 		"file_path, file_hash, COALESCE(documentation_path,''), COALESCE(documentation_hash,''), COALESCE(cheatsheet_ids,''), " +
 		"COALESCE(origin,'legacy_unknown'), COALESCE(usage_count,0), COALESCE(success_count,0), COALESCE(failure_count,0), last_used_at, last_quality_review_at, COALESCE(last_quality_verdict,''), COALESCE(last_quality_confidence,0), COALESCE(last_quality_hash,'') " +
 		"FROM skills_registry WHERE 1=1"
@@ -551,14 +553,14 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 		var s SkillRegistryEntry
 		var params, deps, vaultKeys, internalToolsRaw, secReport, tags, cheatsheetIDs sql.NullString
 		var lastScan, lastUsed, lastReview sql.NullTime
-		var enabled int
+		var enabled, warningApproved int
 		var rawOrigin string
 		var attempts, successes, failures int64
 		var docPath, docHash string
 
 		err := rows.Scan(&s.ID, &s.Name, &s.Type, &s.Description, &s.Executable, &s.Category, &tags,
 			&params, &deps, &vaultKeys, &internalToolsRaw,
-			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled,
+			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled, &warningApproved,
 			&s.SecurityStatus, &secReport, &lastScan,
 			&s.FilePath, &s.FileHash, &docPath, &docHash, &cheatsheetIDs,
 			&rawOrigin, &attempts, &successes, &failures, &lastUsed, &lastReview, &s.LastQualityVerdict, &s.LastQualityConfidence, &s.LastQualityHash)
@@ -566,6 +568,7 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 			m.logger.Warn("Failed to scan skill row", "error", err)
 			continue
 		}
+		s.WarningApproved = warningApproved != 0
 		s.DocumentationPath = docPath
 		s.DocumentationHash = docHash
 		s.HasDocumentation = docPath != ""
@@ -605,20 +608,20 @@ func (m *SkillManager) GetSkill(id string) (*SkillRegistryEntry, error) {
 	var s SkillRegistryEntry
 	var params, deps, vaultKeys, internalToolsRaw, secReport, tags sql.NullString
 	var lastScan, lastUsed, lastReview sql.NullTime
-	var enabled int
+	var enabled, warningApproved int
 	var rawOrigin string
 	var attempts, successes, failures int64
 
 	var cheatsheetIDs sql.NullString
 	var docPath, docHash string
 	err := m.db.QueryRow(`SELECT id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, internal_tools,
-		created_at, updated_at, created_by, enabled, security_status, security_report, last_scan_at,
+		created_at, updated_at, created_by, enabled, COALESCE(warning_approved,0), security_status, security_report, last_scan_at,
 		file_path, file_hash, COALESCE(documentation_path,''), COALESCE(documentation_hash,''), COALESCE(cheatsheet_ids,''),
 		COALESCE(origin,'legacy_unknown'), COALESCE(usage_count,0), COALESCE(success_count,0), COALESCE(failure_count,0), last_used_at, last_quality_review_at,
 		COALESCE(last_quality_verdict,''), COALESCE(last_quality_confidence,0), COALESCE(last_quality_hash,'') FROM skills_registry WHERE id = ?`, id).
 		Scan(&s.ID, &s.Name, &s.Type, &s.Description, &s.Executable, &s.Category, &tags,
 			&params, &deps, &vaultKeys, &internalToolsRaw,
-			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled,
+			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled, &warningApproved,
 			&s.SecurityStatus, &secReport, &lastScan,
 			&s.FilePath, &s.FileHash, &docPath, &docHash, &cheatsheetIDs,
 			&rawOrigin, &attempts, &successes, &failures, &lastUsed, &lastReview, &s.LastQualityVerdict, &s.LastQualityConfidence, &s.LastQualityHash)
@@ -629,6 +632,7 @@ func (m *SkillManager) GetSkill(id string) (*SkillRegistryEntry, error) {
 		return nil, fmt.Errorf("querying skill: %w", err)
 	}
 
+	s.WarningApproved = warningApproved != 0
 	s.DocumentationPath = docPath
 	s.DocumentationHash = docHash
 	s.HasDocumentation = docPath != ""
@@ -653,20 +657,20 @@ func (m *SkillManager) GetSkillByName(name string) (*SkillRegistryEntry, error) 
 	var s SkillRegistryEntry
 	var params, deps, vaultKeys, internalToolsRaw, secReport, tags sql.NullString
 	var lastScan, lastUsed, lastReview sql.NullTime
-	var enabled int
+	var enabled, warningApproved int
 	var rawOrigin string
 	var attempts, successes, failures int64
 
 	var cheatsheetIDs sql.NullString
 	var docPath, docHash string
 	err := m.db.QueryRow(`SELECT id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, internal_tools,
-		created_at, updated_at, created_by, enabled, security_status, security_report, last_scan_at,
+		created_at, updated_at, created_by, enabled, COALESCE(warning_approved,0), security_status, security_report, last_scan_at,
 		file_path, file_hash, COALESCE(documentation_path,''), COALESCE(documentation_hash,''), COALESCE(cheatsheet_ids,''),
 		COALESCE(origin,'legacy_unknown'), COALESCE(usage_count,0), COALESCE(success_count,0), COALESCE(failure_count,0), last_used_at, last_quality_review_at,
 		COALESCE(last_quality_verdict,''), COALESCE(last_quality_confidence,0), COALESCE(last_quality_hash,'') FROM skills_registry WHERE name = ?`, name).
 		Scan(&s.ID, &s.Name, &s.Type, &s.Description, &s.Executable, &s.Category, &tags,
 			&params, &deps, &vaultKeys, &internalToolsRaw,
-			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled,
+			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled, &warningApproved,
 			&s.SecurityStatus, &secReport, &lastScan,
 			&s.FilePath, &s.FileHash, &docPath, &docHash, &cheatsheetIDs,
 			&rawOrigin, &attempts, &successes, &failures, &lastUsed, &lastReview, &s.LastQualityVerdict, &s.LastQualityConfidence, &s.LastQualityHash)
@@ -677,6 +681,7 @@ func (m *SkillManager) GetSkillByName(name string) (*SkillRegistryEntry, error) 
 		return nil, fmt.Errorf("querying skill: %w", err)
 	}
 
+	s.WarningApproved = warningApproved != 0
 	s.DocumentationPath = docPath
 	s.DocumentationHash = docHash
 	s.HasDocumentation = docPath != ""
@@ -710,6 +715,9 @@ func (m *SkillManager) GetExecutableSkillByName(name string) (*SkillRegistryEntr
 	}
 	switch skill.SecurityStatus {
 	case SecurityClean, SecurityWarning:
+		if skill.SecurityStatus == SecurityWarning && !skill.WarningApproved {
+			return nil, fmt.Errorf("skill %q warning status requires approval", skill.Name)
+		}
 		code, readErr := m.GetSkillCode(skill.ID)
 		if readErr != nil {
 			return nil, fmt.Errorf("skill %q source cannot be verified: %w", skill.Name, readErr)
@@ -728,6 +736,45 @@ func (m *SkillManager) GetExecutableSkillByName(name string) (*SkillRegistryEntr
 	default:
 		return nil, fmt.Errorf("skill %q security status %s cannot execute", skill.Name, skill.SecurityStatus)
 	}
+}
+
+// SkillExecutionListing reports the registry gate the agent should see before execute_skill.
+func (m *SkillManager) SkillExecutionListing(name string) (enabled bool, status SecurityStatus, executable bool, found bool) {
+	if m == nil {
+		return false, "", false, false
+	}
+	skill, err := m.GetSkillByName(name)
+	if err != nil {
+		return false, "", false, false
+	}
+	_, execErr := m.GetExecutableSkillByName(name)
+	return skill.Enabled, skill.SecurityStatus, execErr == nil, true
+}
+
+// ApprovePythonSkillWarning records an operator acceptance of a warning status.
+// A later scan or a changed file hash clears it.
+func (m *SkillManager) ApprovePythonSkillWarning(id, actor string) error {
+	skill, err := m.GetSkill(id)
+	if err != nil {
+		return err
+	}
+	if skill.SecurityStatus != SecurityWarning {
+		return fmt.Errorf("only warning skills can be approved")
+	}
+	result, err := m.db.Exec(`UPDATE skills_registry SET warning_approved = 1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ? AND security_status = ? AND file_hash = ?`, id, string(SecurityWarning), skill.FileHash)
+	if err != nil {
+		return fmt.Errorf("approving skill warning: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("checking skill warning approval: %w", err)
+	}
+	if changed != 1 {
+		return fmt.Errorf("skill changed during warning approval; review its current state before approving")
+	}
+	m.recordSkillAudit(id, skill.Name, "approve_warning", actor, "")
+	return nil
 }
 
 // GetSkillCode reads the Python source code of a skill.
@@ -945,7 +992,7 @@ func (m *SkillManager) UpdateSkillSecurity(id string, status SecurityStatus, rep
 	reportJSON, _ := json.Marshal(report)
 
 	_, err := m.db.Exec(`UPDATE skills_registry 
-		SET security_status = ?, security_report = ?, last_scan_at = ?, updated_at = CURRENT_TIMESTAMP 
+		SET security_status = ?, security_report = ?, last_scan_at = ?, warning_approved = 0, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?`, string(status), string(reportJSON), now, id)
 	if err != nil {
 		return fmt.Errorf("updating skill security: %w", err)

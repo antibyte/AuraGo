@@ -245,7 +245,9 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   non-callable entry. Live Python revocation disables the captured catalog and
   denies direct/wrapped dispatch before hooks. Hook gate comparisons, like gate
   intersection, skip private config bookkeeping. execute_skill retains its Go
-  built-ins independently of Python. Verify TestRunTool* and
+  built-ins independently of Python. `list_skills` adds `enabled`,
+  `security_status` and `executable` when the Skill Manager has that skill.
+  Verify TestRunTool* and
   TestExecuteSkillGoBuiltinStillWorksWithoutPython.
 
 - Non-displacing tools (`prompts.NonDisplacingTools`, today local_wikipedia)

@@ -48,9 +48,9 @@ func ValidateAgentSkillScriptPolicy(cfg *config.Config, scriptPath string) error
 		if !cfg.Agent.AllowPython {
 			return fmt.Errorf("Python scripts require agent.allow_python to be enabled in Danger Zone settings")
 		}
-		if !cfg.Agent.AllowUnsafeHostExecution {
-			return fmt.Errorf("Python scripts require agent.allow_unsafe_host_execution to be enabled in Danger Zone settings")
-		}
+		// The runner sandboxes the script unless the unsafe-host grant is on and
+		// tools.skill_manager.require_sandbox is off. The host path checks that
+		// grant again. A missing grant is the container path, not a denial.
 	case "bash":
 		if !cfg.Agent.AllowShell {
 			return fmt.Errorf("Bash scripts require agent.allow_shell to be enabled in Danger Zone settings")

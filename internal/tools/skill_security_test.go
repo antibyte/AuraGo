@@ -206,6 +206,24 @@ func TestDetermineSecurityStatus_VTFlagged(t *testing.T) {
 	}
 }
 
+func TestApplyVirusTotalReportUsesEngineCounts(t *testing.T) {
+	quiet := &SecurityReport{}
+	applyVirusTotalReport(quiet, `{"data":{"attributes":{"last_analysis_stats":{"undetected":70,"harmless":2,"malicious":0}}}}`)
+	if quiet.VirusTotalScore != 0 {
+		t.Fatalf("undetected report score = %v", quiet.VirusTotalScore)
+	}
+	flagged := &SecurityReport{}
+	applyVirusTotalReport(flagged, `{"data":{"attributes":{"last_analysis_stats":{"malicious":1,"undetected":10}}}}`)
+	if flagged.VirusTotalScore != 1 {
+		t.Fatalf("malicious report score = %v", flagged.VirusTotalScore)
+	}
+	broken := &SecurityReport{}
+	applyVirusTotalReport(broken, "VirusTotal HTTP Error 404: not detected")
+	if broken.VirusTotalScore != 0 {
+		t.Fatalf("error text score = %v", broken.VirusTotalScore)
+	}
+}
+
 // TestDetermineSecurityStatus_GuardianBlock returns dangerous when guardian blocks.
 func TestDetermineSecurityStatus_GuardianBlock(t *testing.T) {
 	report := &SecurityReport{

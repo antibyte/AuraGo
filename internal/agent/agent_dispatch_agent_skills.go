@@ -150,7 +150,8 @@ func dispatchRunAgentSkillScript(ctx context.Context, tc ToolCall, dc *DispatchC
 			args = nested
 		}
 	}
-	output, err := mgr.RunAgentSkillScript(ctx, entry.ID, script, args)
+	requireSandbox := cfg != nil && cfg.Tools.SkillManager.RequireSandbox
+	output, err := mgr.RunAgentSkillScript(ctx, entry.ID, script, args, requireSandbox)
 	_ = mgr.RecordAgentSkillUsage(entry.ID, err == nil)
 	status := "ok"
 	message := ""

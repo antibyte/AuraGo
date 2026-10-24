@@ -376,7 +376,7 @@ func TestAgentSkillManagerRejectsStalePackageBeforeEnableAndRun(t *testing.T) {
 		t.Fatalf("GetAgentSkill: %v", err)
 	}
 	writeAgentSkillFile(t, toRun.Directory, "scripts/echo.py", "print('mutated')\n")
-	out, err := mgr.RunAgentSkillScript(context.Background(), toRun.ID, "scripts/echo.py", nil)
+	out, err := mgr.RunAgentSkillScript(context.Background(), toRun.ID, "scripts/echo.py", nil, false)
 	if err == nil || !strings.Contains(err.Error(), "changed since last verification") {
 		t.Fatalf("RunAgentSkillScript output=%q error=%v, want stale package error", out, err)
 	}
@@ -422,7 +422,7 @@ print(json.dumps({"cwd": os.path.basename(os.getcwd()), "value": args.get("value
 	if err := mgr.EnableAgentSkill(entry.ID, true, "user"); err != nil {
 		t.Fatalf("EnableAgentSkill: %v", err)
 	}
-	out, err := mgr.RunAgentSkillScript(context.Background(), entry.ID, "scripts/echo.py", map[string]interface{}{"value": "hello"})
+	out, err := mgr.RunAgentSkillScript(context.Background(), entry.ID, "scripts/echo.py", map[string]interface{}{"value": "hello"}, false)
 	if err != nil {
 		t.Fatalf("RunAgentSkillScript: %v", err)
 	}
@@ -471,7 +471,7 @@ print(json.dumps({
 	if err := mgr.EnableAgentSkill(entry.ID, true, "user"); err != nil {
 		t.Fatalf("EnableAgentSkill: %v", err)
 	}
-	out, err := mgr.RunAgentSkillScript(context.Background(), entry.ID, "scripts/env.py", nil)
+	out, err := mgr.RunAgentSkillScript(context.Background(), entry.ID, "scripts/env.py", nil, false)
 	if err != nil {
 		t.Fatalf("RunAgentSkillScript: %v output=%s", err, out)
 	}
@@ -480,6 +480,51 @@ print(json.dumps({
 	}
 	if !strings.Contains(out, `"safe": "visible"`) && !strings.Contains(out, `"safe":"visible"`) {
 		t.Fatalf("script did not inherit safe environment value: %s", out)
+	}
+}
+
+func TestAgentSkillScriptUsesHostFollowsSandboxAndUnsafeGrant(t *testing.T) {
+	ctx := context.Background()
+	if !agentSkillScriptUsesHost(ctx, false, false) {
+		t.Fatal("unsafe host grant without require_sandbox should use the host")
+	}
+	if agentSkillScriptUsesHost(ctx, true, false) || agentSkillScriptUsesHost(ctx, true, true) {
+		t.Fatal("require_sandbox should keep Python and shell scripts off the host")
+	}
+	perms := defaultRuntimePermissionsForTests()
+	perms.AllowUnsafeHostExecution = false
+	ConfigureRuntimePermissions(perms)
+	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
+	if agentSkillScriptUsesHost(context.Background(), false, false) {
+		t.Fatal("missing unsafe host grant should use the sandbox")
+	}
+}
+
+func TestAgentSkillScriptRequireSandboxDoesNotUseHost(t *testing.T) {
+	t.Setenv("SAFE_SKILL_ENV_TEST", "host-only")
+	tmp := t.TempDir()
+	db, err := InitAgentSkillsDB(filepath.Join(tmp, "agent_skills.db"))
+	if err != nil {
+		t.Fatalf("InitAgentSkillsDB: %v", err)
+	}
+	defer db.Close()
+	mgr := NewAgentSkillManager(db, filepath.Join(tmp, "agent_skills"), filepath.Join(tmp, "workspace"), slog.Default())
+	entry, err := mgr.CreateAgentSkill(context.Background(), "sandbox-script", "Sandbox script test. Use when testing sandbox.", "# Sandbox\nRun scripts/env.py.", "user", nil, false)
+	if err != nil {
+		t.Fatalf("CreateAgentSkill: %v", err)
+	}
+	if err := mgr.WriteAgentSkillFile(context.Background(), entry.ID, "scripts/env.py", "import os\nprint(os.environ.get('SAFE_SKILL_ENV_TEST', ''))\n", "user", nil, false); err != nil {
+		t.Fatalf("WriteAgentSkillFile: %v", err)
+	}
+	if err := mgr.EnableAgentSkill(entry.ID, true, "user"); err != nil {
+		t.Fatalf("EnableAgentSkill: %v", err)
+	}
+	out, err := mgr.RunAgentSkillScript(context.Background(), entry.ID, "scripts/env.py", nil, true)
+	if strings.Contains(out, "host-only") {
+		t.Fatalf("require_sandbox ran on the host: %s", out)
+	}
+	if err == nil && strings.TrimSpace(out) == "host-only" {
+		t.Fatal("require_sandbox returned the host environment")
 	}
 }
 
