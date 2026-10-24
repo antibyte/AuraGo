@@ -834,8 +834,8 @@
             const mod = isMod(event), key = String(event.key || '').toLowerCase();
             if (mod && key === 's') { event.preventDefault(); app.inspector?.saveDraft(); return; }
             if (mod && key === 'k') {
-                const search = app.q('[data-search]');
-                if (search) { event.preventDefault(); search.focus(); search.select?.(); }
+                // The desktop's own Ctrl K (Spotlight) listens on the document; this window's search takes the shortcut.
+                if (app.q('[data-search]')) { event.preventDefault(); event.stopPropagation(); app.focusSearch(); }
                 return;
             }
             if (mod && !event.altKey && (key === 'z' || key === 'y') && !isTyping(event.target)) {

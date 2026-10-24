@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -261,6 +262,66 @@ func TestDesktopInfraFilterChipsBrowser(t *testing.T) {
 		t.Logf("%d px window: %s", width, state())
 		if !page.MustEval(`()=>{const b=infraBar();return !b.overflow&&!b.chipsOverflow&&b.search>=220&&b.clipped===0&&(b.app<1100||b.shown+(b.more?Number(b.more.slice(1)):0)===3);}`).Bool() {
 			t.Fatalf("at a %d px window the bar overflows, clips a chip or squeezes the search below 220 px: %s", width, state())
+		}
+	}
+	requireInfraBrowserClean(t, page)
+}
+
+// TestDesktopInfraSearchCollapseBrowser covers amendment A8: below 560 px the search is an icon button that opens
+// the field over the command bar until the focus leaves it or Escape is pressed; Ctrl K opens it too, a query
+// or filter that is still applied shows as a dot on the icon, and nothing overflows down to the 360 px minimum.
+func TestDesktopInfraSearchCollapseBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	fixture := newInfraAppBrowserFixture()
+	fixture.world(25)
+	page := infraPolishOpen(t, fixture, 1500, 970)
+	defer page.Close()
+	page.MustEval(`()=>{
+		window.infraSearch=()=>{
+			const app=document.querySelector('.infra-app'),bar=document.querySelector('.infra-commandbar'),input=document.querySelector('[data-search]'),open=document.querySelector('[data-action="open-search"]'),group=document.querySelector('.infra-search');
+			return {app:app.clientWidth,overflow:bar.scrollWidth>bar.clientWidth+1,field:input.offsetParent!==null,button:open.offsetParent!==null,opened:app.dataset.searchOpen,expanded:open.getAttribute('aria-expanded'),
+				focus:document.activeElement===input?'input':document.activeElement===open?'button':'other',dot:!document.querySelector('[data-search-dot]').hidden,width:Math.round(group.getBoundingClientRect().width),
+				covers:group.getBoundingClientRect().width>=bar.clientWidth-16};
+		};
+	}`)
+	state := func() string { return page.MustEval(`()=>JSON.stringify(infraSearch())`).Str() }
+	if !page.MustEval(`()=>{const s=infraSearch();return s.field&&!s.button&&!s.overflow;}`).Bool() {
+		t.Fatalf("a wide window keeps the search field and no icon button: %s", state())
+	}
+
+	infraPolishResize(page, 430, 700)
+	if !page.MustEval(`()=>{const s=infraSearch();return s.app<560&&!s.field&&s.button&&!s.overflow&&s.width<110&&s.opened==='false';}`).Bool() {
+		t.Fatalf("at 430 px the search must be an icon button and nothing may overflow: %s", state())
+	}
+	page.MustElement(`[data-action="open-search"]`).MustClick()
+	page.MustWait(`()=>{const s=infraSearch();return s.opened==='true'&&s.field&&s.focus==='input'&&s.covers&&!s.button&&s.expanded==='true';}`)
+	if !page.MustEval(`()=>{const s=infraSearch(),bar=document.querySelector('.infra-commandbar').getBoundingClientRect(),group=document.querySelector('.infra-search').getBoundingClientRect(),filters=document.querySelector('[data-action="filters"]').getBoundingClientRect();
+		return !s.overflow&&group.left>=bar.left&&group.right<=bar.right&&filters.right<=group.right&&filters.left>=group.left;}`).Bool() {
+		t.Fatalf("the open field must sit over the command bar, keep the filter button and overflow nothing: %s", state())
+	}
+	page.MustElement(`[data-search]`).MustInput("Cold-store")
+	page.MustWait(`()=>document.querySelector('[data-search]').value==="Cold-store"&&document.querySelectorAll('[data-nodes] [data-node]:not(.is-dimmed)').length>0&&document.querySelectorAll('[data-nodes] .is-dimmed').length>0`)
+
+	// Escape closes it, hands the focus to the icon and leaves a dot because the query is still applied.
+	page.Keyboard.MustType(input.Escape)
+	page.MustWait(`()=>{const s=infraSearch();return s.opened==='false'&&!s.field&&s.button&&s.focus==='button'&&s.dot&&s.expanded==='false';}`)
+	if got := page.MustEval(`()=>document.querySelector('[data-search]').value`).Str(); got != "Cold-store" {
+		t.Fatalf("Escape must keep the query that is applied; the field says %q", got)
+	}
+
+	// Ctrl K opens it from anywhere in the window; moving the focus away closes it.
+	page.MustEval(`()=>document.querySelector('[data-stage]').focus()`)
+	page.KeyActions().Press(input.ControlLeft).Type(input.KeyK).Release(input.ControlLeft).MustDo()
+	page.MustWait(`()=>{const s=infraSearch();return s.opened==='true'&&s.focus==='input';}`)
+	page.MustEval(`()=>document.querySelector('[data-action="toggle-library"]').focus()`)
+	page.MustWait(`()=>infraSearch().opened==='false'`)
+
+	// At 560 px and wider the field is back, and the bar still holds everything.
+	for _, width := range []int{620, 360} {
+		infraPolishResize(page, width, 700)
+		want := width >= 560
+		if !page.MustEval(`(want)=>{const s=infraSearch();return s.field===want&&s.button===!want&&!s.overflow;}`, want).Bool() {
+			t.Fatalf("at %d px the search must be %v and the bar must not overflow: %s", width, map[bool]string{true: "a field", false: "an icon button"}[want], state())
 		}
 	}
 	requireInfraBrowserClean(t, page)

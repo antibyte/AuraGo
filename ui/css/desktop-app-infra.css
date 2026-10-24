@@ -25,6 +25,7 @@
 .infra-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--vd-text); font-size: 14px; }
 .infra-search .infra-cmd-icon { width: 30px; height: 30px; }
 .infra-search-icon { display: inline-grid; place-items: center; }
+.infra-search-open { display: none; }
 .infra-search-kbd { padding: 3px 5px; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-xs); color: var(--vd-theme-muted); font: 600 12px/1 var(--vd-font-ui); }
 .infra-filter-dot { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--vd-accent); }
 .infra-live-status { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; color: var(--vd-theme-muted); font-size: 14px; }
@@ -315,9 +316,16 @@
   .infra-commandbar { gap: 4px; padding: 0 6px; }
   .infra-cmd-icon { width: 32px; height: 32px; }
   .infra-view-switch button { padding: 0 5px; }
-  .infra-search-icon { display: none; }
-  .infra-search { padding-left: 8px; }
+  /* A8: the search is one icon button (a dot says a query or filter is applied); it opens over the whole command bar, with the filter button inside. */
+  .infra-search { flex: 0 0 auto; gap: 0; padding: 0; border-color: transparent; background: transparent; }
+  .infra-search input, .infra-search-icon, .infra-search-kbd, .infra-search [data-action="filters"] { display: none; }
+  .infra-search-open { display: inline-grid; }
+  .infra-app[data-search-open="true"] .infra-search { position: absolute; z-index: 12; top: 5px; left: 6px; right: 6px; height: 34px; padding: 0 2px 0 var(--ds-space-2); border-color: var(--vd-theme-border); background: var(--vd-theme-panel-bg-strong); box-shadow: var(--vd-theme-shadow-panel); }
+  .infra-app[data-search-open="true"] .infra-search-icon, .infra-app[data-search-open="true"] .infra-search [data-action="filters"] { display: inline-grid; }
+  .infra-app[data-search-open="true"] .infra-search input { display: block; }
+  .infra-app[data-search-open="true"] .infra-search-open { display: none; }
 }
+@container infra (max-width: 419px) { .infra-commandbar { gap: 3px; padding: 0 4px; } }
 @media (prefers-reduced-motion: no-preference) { body:not([data-animations="false"]) .infra-inspector { animation: infra-panel-in var(--ds-motion-duration-base) var(--ds-motion-ease-decel); } }
 @keyframes infra-panel-in { from { opacity: 0; transform: translateX(12px); } }
 @media (pointer: coarse) { .infra-cmd-icon, .infra-view-switch button { min-height: 40px; } .infra-button, .infra-library-row-main, .infra-library-place { min-height: 44px; } }

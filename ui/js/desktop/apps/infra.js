@@ -13,7 +13,7 @@
     const POWER_VALUES = ['running', 'stopped', 'paused', 'unknown', 'none'];
     const PREFS_KEY = 'infra.layout.v1';
     const INSPECTOR_MIN = 320, INSPECTOR_MAX = 520, INSPECTOR_STEP = 16;
-    const SEARCH_MIN = 220, CHIP_GAP = 4;
+    const SEARCH_MIN = 220, CHIP_GAP = 4, SEARCH_COLLAPSE = 560;
     const WRITE_ACTIONS = ['add', 'add-menu', 'add-place', 'import', 'add-empty', 'import-empty'];
     const MENU_TRIGGERS = { add: '[data-action="add-menu"]', more: '[data-action="more"]', legend: '[data-action="more"]', filters: '[data-action="filters"]' };
     const FILTER_SELECTS = { kind: '[data-kind-filter]', source: '[data-source-filter]', power: '[data-power-filter]' };
@@ -30,7 +30,7 @@
         const S = String(windowId).replace(/[^a-zA-Z0-9_-]/g, '');
         const glyph = name => model.glyph(name);
         const option = (value, label) => `<option value="${esc(value)}">${esc(label)}</option>`;
-        host.innerHTML = `<section class="infra-app" data-infra-app="${esc(S)}" aria-label="${esc(t('desktop.app_infra'))}" data-inspector-open="false" data-library-collapsed="false" data-library-sheet="closed" data-readonly="false">
+        host.innerHTML = `<section class="infra-app" data-infra-app="${esc(S)}" aria-label="${esc(t('desktop.app_infra'))}" data-inspector-open="false" data-library-collapsed="false" data-library-sheet="closed" data-search-open="false" data-readonly="false">
   <header class="infra-commandbar" aria-label="${esc(t('desktop.infra_actions'))}">
     <div class="infra-brand"><img class="infra-brand-mark" src="${esc(model.assetURL('icon'))}" alt="" draggable="false"><span class="infra-brand-name">${esc(t('desktop.app_infra'))}</span></div>
     <button type="button" class="infra-cmd-icon" data-action="toggle-library" aria-controls="infra-library-${esc(S)}" aria-expanded="true" aria-label="${esc(t('desktop.infra_library'))}" title="${esc(t('desktop.infra_library'))}">${glyph('library')}</button>
@@ -40,6 +40,7 @@
       <button type="button" data-view="table" aria-pressed="false">${esc(t('desktop.infra_view_list'))}</button>
     </div>
     <div class="infra-search">
+      <button type="button" class="infra-cmd-icon infra-search-open" data-action="open-search" aria-expanded="false" aria-label="${esc(t('desktop.infra_search'))}" title="${esc(t('desktop.infra_search'))}">${glyph('search')}<span class="infra-filter-dot" data-search-dot hidden></span></button>
       <span class="infra-search-icon" aria-hidden="true">${glyph('search')}</span>
       <input type="search" data-search aria-label="${esc(t('desktop.infra_search'))}" placeholder="${esc(t('desktop.infra_search_jump'))}" autocomplete="off" aria-keyshortcuts="Control+K">
       <kbd class="infra-search-kbd" aria-hidden="true">Ctrl K</kbd>
@@ -92,6 +93,7 @@
         const body = q('[data-body]'), scrim = q('[data-scrim]'), inspectorSplitter = q('[data-splitter="inspector"]');
         const toggleLibraryButton = q('[data-action="toggle-library"]');
         const searchInput = q('[data-search]'), liveEl = q('[data-live]'), filterDot = q('[data-filter-dot]');
+        const searchGroup = q('.infra-search'), searchOpenButton = q('[data-action="open-search"]'), searchDot = q('[data-search-dot]');
         const chipsEl = q('[data-filter-chips]'), clearFiltersButton = q('[data-action="clear-filters"]');
         let chipsKey = '', chipsFrame = 0, disposed = false, deferred = false, searchFrame = 0, searchValue = '', announceTimer = 0, prefsTimer = 0, openMenuName = '', resizeFrame = 0, unsubscribe = null, resizeObserver = null;
         const toastTimers = new Map();
@@ -145,7 +147,7 @@
             glyph,
             labelForKind: kind => t(`desktop.infra_kind_${kind}`),
             statusLabel: status => t(`desktop.infra_state_${status}`),
-            mapView, ensureMapView, toast, announce, animationsEnabled,
+            mapView, ensureMapView, toast, announce, animationsEnabled, focusSearch: () => focusSearch(),
             setLibraryCollapsed: on => setLibraryCollapsed(on),
             readStorage, writeStorage,
             openAppLink: link => ctx.openApp?.(link.app, model.appLinkContext(link)),
@@ -256,6 +258,7 @@
             const sources = counted.length ? model.fill(counted.length === 1 ? t('desktop.infra_sources_count_one') : t('desktop.infra_sources_count'), { current, total: counted.length }) : t('desktop.infra_sources_waiting');
             liveEl.title = updated ? `${updated} · ${sources}` : sources;
             filterDot.hidden = !(state.filters.kind || state.filters.source || state.filters.power);
+            searchDot.hidden = !(String(state.filters.query || '').trim() || state.filters.kind || state.filters.source || state.filters.power);
             paintFilterChips();
             scheduleChipFit();
         }
@@ -415,6 +418,7 @@
                 case 'refresh': void store.loadSnapshot(true); break;
                 case 'add': case 'add-empty': dialogs.openNodeDialog('device'); break;
                 case 'add-place': dialogs.openNodeDialog('room', { title: t('desktop.infra_new_place') }); break;
+                case 'open-search': focusSearch(); return;
                 case 'add-menu': openMenu('add'); return;
                 case 'more': openMenu('more'); return;
                 case 'filters': openMenu('filters'); return;
@@ -438,6 +442,26 @@
         scrim.addEventListener('click', () => { inspector.close({ restoreFocus: false }); setLibrarySheet(false); });
 
         // ---- search ---------------------------------------------------------------------------------
+        // Below SEARCH_COLLAPSE px the search is one icon button; it expands over the command bar until the focus
+        // leaves it or Escape is pressed (the dot on the icon says a query is still applied).
+        const searchCollapsed = () => root.clientWidth < SEARCH_COLLAPSE;
+        function setSearchOpen(open, { restoreFocus = false } = {}) {
+            const on = !!open && searchCollapsed();
+            root.dataset.searchOpen = String(on);
+            searchOpenButton.setAttribute('aria-expanded', String(on));
+            if (!on && restoreFocus) searchOpenButton.focus();
+        }
+        function focusSearch() {
+            setSearchOpen(true);
+            searchInput.focus();
+            searchInput.select?.();
+        }
+        root.addEventListener('focusout', event => {
+            if (root.dataset.searchOpen !== 'true') return;
+            const next = event.relatedTarget;
+            if (next && (searchGroup.contains(next) || q('[data-popover="filters"]')?.contains(next))) return;
+            setSearchOpen(false);
+        });
         function firstMatchId() {
             const matching = node => !!node && store.matches(node);
             if (state.view === 'table') return state.nodes.filter(matching).sort((a, b) => a.name.localeCompare(b.name))[0]?.id || '';
@@ -473,6 +497,7 @@
         });
         searchInput.addEventListener('keydown', event => {
             if (event.key === 'Enter') { event.preventDefault(); jumpToSearchMatch(); }
+            else if (event.key === 'Escape' && root.dataset.searchOpen === 'true') { event.preventDefault(); event.stopPropagation(); setSearchOpen(false, { restoreFocus: true }); }
             else if (event.key === 'Escape' && searchInput.value) { event.preventDefault(); event.stopPropagation(); clearSearch(); }
         });
 
@@ -529,6 +554,7 @@
                 resizeFrame = requestAnimationFrame(() => {
                     resizeFrame = 0;
                     if (disposed) return;
+                    if (root.dataset.searchOpen === 'true' && !searchCollapsed()) setSearchOpen(false);
                     fitFilterChips();
                     if (!isNarrow() && root.dataset.librarySheet === 'open') root.dataset.librarySheet = 'closed';
                     syncLibraryToggle();
