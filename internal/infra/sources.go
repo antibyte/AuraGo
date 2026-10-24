@@ -248,12 +248,22 @@ func (s *Store) MarkSourcesStale(ctx context.Context, kind, instance string) err
 	return nil
 }
 
+// LinkSource links an observed source to an existing node.
 func (s *Store) LinkSource(ctx context.Context, nodeID string, identity SourceIdentity) (Node, error) {
+	return s.LinkSourceWithLayout(ctx, nodeID, identity, ImportLayout{})
+}
+
+// LinkSourceWithLayout links a source and, in the same transaction and version
+// step, applies an optional parent and view placement to the node.
+func (s *Store) LinkSourceWithLayout(ctx context.Context, nodeID string, identity SourceIdentity, layout ImportLayout) (Node, error) {
 	if err := validateIdentity(identity); err != nil {
 		return Node{}, err
 	}
 	if err := validateText("node id", nodeID, 128, true); err != nil {
 		return Node{}, err
+	}
+	if layout.Placement != nil && layout.Placement.View != ViewAtlas && layout.Placement.View != ViewTopology {
+		return Node{}, fmt.Errorf("%w: unsupported placement view", ErrValidation)
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -310,10 +320,28 @@ func (s *Store) LinkSource(ctx context.Context, nodeID string, identity SourceId
 		}
 		node.RegistryID = identity.Key
 	}
+	if layout.ParentID != nil {
+		parentID := strings.TrimSpace(*layout.ParentID)
+		if err := validateParent(ctx, tx, node.ID, parentID); err != nil {
+			return Node{}, err
+		}
+		node.ParentID = parentID
+	}
+	if layout.Placement != nil {
+		placement := layout.Placement.AsPlacement()
+		if err := validatePlacement(node.Kind, placement); err != nil {
+			return Node{}, err
+		}
+		node.Placements[layout.Placement.View] = placement
+	}
+	placementsJSON, err := json.Marshal(node.Placements)
+	if err != nil {
+		return Node{}, fmt.Errorf("encode infra node placements: %w", err)
+	}
 	previous := node.Version
 	node.Version++
-	res, err := tx.ExecContext(ctx, `UPDATE infra_nodes SET registry_id=?, version=?, updated_at=? WHERE id=? AND version=?`,
-		node.RegistryID, node.Version, formatTime(time.Now().UTC()), node.ID, previous)
+	res, err := tx.ExecContext(ctx, `UPDATE infra_nodes SET registry_id=?, parent_id=?, placements_json=?, version=?, updated_at=? WHERE id=? AND version=?`,
+		node.RegistryID, nullIfEmpty(node.ParentID), string(placementsJSON), node.Version, formatTime(time.Now().UTC()), node.ID, previous)
 	if err != nil {
 		return Node{}, fmt.Errorf("advance infra node version for source link: %w", err)
 	}

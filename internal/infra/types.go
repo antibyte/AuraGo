@@ -256,3 +256,25 @@ type ActionRecord struct {
 	Status    string `json:"status"`
 	UPID      string `json:"upid,omitempty"`
 }
+
+// ViewPlacement positions a node in one view (batch import and link).
+type ViewPlacement struct {
+	View   View    `json:"view"`
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	W      float64 `json:"w,omitempty"`
+	H      float64 `json:"h,omitempty"`
+	Pinned bool    `json:"pinned,omitempty"`
+}
+
+// AsPlacement returns the stored form of the position.
+func (p ViewPlacement) AsPlacement() Placement {
+	return Placement{X: p.X, Y: p.Y, W: p.W, H: p.H, Pinned: p.Pinned}
+}
+
+// ImportLayout optionally places a node while a source is linked to it.
+// ParentID nil keeps the parent and "" clears it.
+type ImportLayout struct {
+	ParentID  *string
+	Placement *ViewPlacement
+}
