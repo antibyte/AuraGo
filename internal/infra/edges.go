@@ -51,12 +51,19 @@ func (s *Store) CreateEdge(ctx context.Context, edge Edge) (Edge, error) {
 	return edge, nil
 }
 
+// UpdateEdge saves a manual edge under the same rules as CreateEdge: no
+// self-loop, and no (from, to, kind) triple that another edge already has. An
+// edge that keeps its triple stays editable even if an older duplicate of it
+// exists, so legacy duplicates can still be relabelled or removed.
 func (s *Store) UpdateEdge(ctx context.Context, edge Edge) (Edge, error) {
 	if edge.ID == "" || edge.Version <= 0 || edge.Source != nil {
 		return Edge{}, fmt.Errorf("%w: manual edge id and version are required and provider sources are read-only", ErrValidation)
 	}
 	if err := validateEdge(&edge); err != nil {
 		return Edge{}, err
+	}
+	if edge.From == edge.To {
+		return Edge{}, fmt.Errorf("%w: a connection needs two different nodes", ErrValidation)
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -75,6 +82,16 @@ func (s *Store) UpdateEdge(ctx context.Context, edge Edge) (Edge, error) {
 	}
 	if err := validateEdgeEndpoints(ctx, tx, edge); err != nil {
 		return Edge{}, err
+	}
+	if edge.From != current.From || edge.To != current.To || edge.Kind != current.Kind {
+		var duplicate bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM infra_edges WHERE from_id=? AND to_id=? AND kind=? AND id<>?)`,
+			edge.From, edge.To, edge.Kind, edge.ID).Scan(&duplicate); err != nil {
+			return Edge{}, fmt.Errorf("check duplicate infra edge: %w", err)
+		}
+		if duplicate {
+			return Edge{}, ErrEdgeExists
+		}
 	}
 	previous := edge.Version
 	edge.Version++

@@ -1014,6 +1014,75 @@ func TestCreateEdgeRejectsSelfLoopsAndDuplicates(t *testing.T) {
 	}
 }
 
+func TestUpdateEdgeRefusesSelfLoopsAndDuplicatesButKeepsLegacyDuplicatesEditable(t *testing.T) {
+	store, db, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	node := func(name string) Node {
+		created, err := store.CreateNode(ctx, testNode(NodeDevice, name, "generic-device"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return created
+	}
+	router, access, spare := node("Router"), node("Switch"), node("Spare")
+	wired, err := store.CreateEdge(ctx, Edge{From: router.ID, To: access.ID, Kind: EdgeEthernet})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wireless, err := store.CreateEdge(ctx, Edge{From: router.ID, To: access.ID, Kind: EdgeWiFi})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	selfLoop := wired
+	selfLoop.To = selfLoop.From
+	if _, err := store.UpdateEdge(ctx, selfLoop); !errors.Is(err, ErrValidation) {
+		t.Fatalf("self-loop update error = %v; want validation error", err)
+	}
+	intoDuplicate := wireless
+	intoDuplicate.Kind = EdgeEthernet
+	if _, err := store.UpdateEdge(ctx, intoDuplicate); !errors.Is(err, ErrEdgeExists) {
+		t.Fatalf("update into an existing triple error = %v; want ErrEdgeExists", err)
+	}
+	reversed := wireless
+	reversed.From, reversed.To, reversed.Kind = access.ID, router.ID, EdgeEthernet
+	if _, err := store.UpdateEdge(ctx, reversed); err != nil {
+		t.Fatalf("update into a free triple: %v", err)
+	}
+	stored, err := store.Snapshot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, edge := range stored.Edges {
+		if edge.ID == wireless.ID && (edge.Version != 2 || edge.From != access.ID || edge.Kind != EdgeEthernet) {
+			t.Fatalf("rejected updates must not change the stored edge: %#v", edge)
+		}
+		if edge.ID == wired.ID && edge.Version != 1 {
+			t.Fatalf("rejected updates bumped another edge: %#v", edge)
+		}
+	}
+
+	// A duplicate that predates the check stays editable while its triple is unchanged.
+	if _, err := db.Exec(`INSERT INTO infra_edges(id, version, from_id, to_id, kind, label, updated_at) VALUES('legacy', 1, ?, ?, ?, '', 'now')`,
+		router.ID, access.ID, EdgeEthernet); err != nil {
+		t.Fatal(err)
+	}
+	legacy := Edge{ID: "legacy", Version: 1, From: router.ID, To: access.ID, Kind: EdgeEthernet, Label: "uplink"}
+	updated, err := store.UpdateEdge(ctx, legacy)
+	if err != nil || updated.Version != 2 || updated.Label != "uplink" {
+		t.Fatalf("legacy duplicate relabel = %#v, %v; want it saved", updated, err)
+	}
+	// Moving it into another taken triple is still refused, moving it to a free one works.
+	legacy.Version, legacy.To = 2, spare.ID
+	if moved, err := store.UpdateEdge(ctx, legacy); err != nil || moved.To != spare.ID {
+		t.Fatalf("legacy duplicate move to a free triple = %#v, %v", moved, err)
+	}
+	legacy.Version, legacy.To = 3, access.ID
+	if _, err := store.UpdateEdge(ctx, legacy); !errors.Is(err, ErrEdgeExists) {
+		t.Fatalf("legacy duplicate move into a taken triple error = %v; want ErrEdgeExists", err)
+	}
+}
+
 func TestIgnoredSourcesLeaveDiscoveriesAndSurviveRefresh(t *testing.T) {
 	store, _, _ := openInfraTestStore(t)
 	ctx := context.Background()

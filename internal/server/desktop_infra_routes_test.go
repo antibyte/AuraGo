@@ -208,6 +208,51 @@ func TestDesktopInfraImportCreatesANodeFromARegistryCandidate(t *testing.T) {
 	}
 }
 
+func TestDesktopInfraEdgeUpdateRouteRefusesSelfLoopsAndDuplicates(t *testing.T) {
+	_, _, store, _ := newDesktopInfraRefreshFixture(t)
+	ctx := context.Background()
+	node := func(name string) infra.Node {
+		created, err := store.CreateNode(ctx, infra.Node{Kind: infra.NodeDevice, Name: name, Icon: "generic-device"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return created
+	}
+	router, access := node("router"), node("switch")
+	if _, err := store.CreateEdge(ctx, infra.Edge{From: router.ID, To: access.ID, Kind: infra.EdgeEthernet}); err != nil {
+		t.Fatal(err)
+	}
+	wireless, err := store.CreateEdge(ctx, infra.Edge{From: router.ID, To: access.ID, Kind: infra.EdgeWiFi})
+	if err != nil {
+		t.Fatal(err)
+	}
+	put := func(edge infra.Edge) *httptest.ResponseRecorder {
+		t.Helper()
+		body, err := json.Marshal(edge)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response := httptest.NewRecorder()
+		desktopInfraEdgeRoute(response, httptest.NewRequest(http.MethodPut, desktopInfraBasePath+"/edges/"+edge.ID, strings.NewReader(string(body))), store, edge.ID)
+		return response
+	}
+	selfLoop := wireless
+	selfLoop.To = selfLoop.From
+	if response := put(selfLoop); response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "invalid_request") {
+		t.Fatalf("self-loop update = %d %s; want 400 invalid_request", response.Code, response.Body.String())
+	}
+	duplicate := wireless
+	duplicate.Kind = infra.EdgeEthernet
+	if response := put(duplicate); response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), "edge_exists") {
+		t.Fatalf("duplicate update = %d %s; want 409 edge_exists", response.Code, response.Body.String())
+	}
+	relabelled := wireless
+	relabelled.Label = "guest"
+	if response := put(relabelled); response.Code != http.StatusOK {
+		t.Fatalf("relabel update = %d %s; want 200", response.Code, response.Body.String())
+	}
+}
+
 func TestDesktopInfraStoreErrorMapsEverySentinel(t *testing.T) {
 	cases := []struct {
 		err    error

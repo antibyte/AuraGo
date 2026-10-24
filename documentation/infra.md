@@ -158,7 +158,7 @@ bodies are limited to 256 KiB and unknown JSON fields are rejected.
 | `POST /api/desktop/infra/import/batch` | Import or link 1–500 `items` (`candidate_id`, optional `node_id`, `parent_id`, `placement {view, x, y, w, h, pinned}`); one forced refresh per provider, one transaction per item; answers `nodes` and per-item `errors` (`candidate_id`, `error`, `message`) |
 | `PUT /api/desktop/infra/sources/ignore` | Ignore or restore 1–1000 sources: `{sources: [{kind, instance, key}], ignored}`; a linked source answers 409 `source_linked` |
 | `PUT /api/desktop/infra/source-hosts` | Assign (`node_id`) or clear (`""`) the device that runs a Docker engine: `{kind: "docker", instance, node_id, version}`, version 0 creates; answers `source_host` |
-| `POST /api/desktop/infra/edges`, `PUT`/`DELETE /edges/{id}` | Manual relationships (provider edges are read-only); a self-loop is invalid and a second `(from, to, kind)` answers 409 `edge_exists` |
+| `POST /api/desktop/infra/edges`, `PUT`/`DELETE /edges/{id}` | Manual relationships (provider edges are read-only); a self-loop is invalid (create and update) and a second `(from, to, kind)` answers 409 `edge_exists` (create, or an update that changes from, to or kind; an update that keeps them stays allowed beside a legacy duplicate) |
 | `PUT /api/desktop/infra/layout` | Atomic layout batch; items may set `parent_id` (absent keeps it, `""` clears it) and `w`/`h` for places (120–20000), or `unplace: true` (with `id`, `version` and optionally `parent_id`, never a position or size) to drop the node's placement in the request's `view`; answers the changed nodes only |
 
 An `unplace` item removes just that view's placement and advances the node's
