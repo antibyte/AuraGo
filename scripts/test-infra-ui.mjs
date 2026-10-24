@@ -1405,4 +1405,103 @@ for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     assert.ok(!/copper/i.test(css), `${file} still uses the copper accent`);
 }
 
+// ---- topology lanes and auto layout (spec §6) ------------------------------------
+// Cards are 216x64, so auto columns sit 240 px apart (LANE_CELL_W): two cards are centred at -120/120, three at -240/0/240.
+{
+    const lane = (icon, extra = {}, opts) => model.topologyLane({ kind: 'device', icon, profile: {}, ...extra }, opts);
+    assert.deepEqual(plain(model.topologyLanes()), ['internet', 'network', 'compute', 'clients']);
+    assert.equal(model.topologyLane({ kind: 'network', icon: 'generic-device', profile: {} }), 'network', 'the network kind is always in the network lane');
+    for (const icon of ['internet', 'modem-ont']) assert.equal(lane(icon), 'internet', icon);
+    for (const icon of ['router', 'firewall', 'managed-switch', 'switch', 'access-point', 'mesh-node', 'patch-panel', 'lan']) assert.equal(lane(icon), 'network', icon);
+    for (const icon of ['rack-server', 'tower-server', 'mini-pc', 'sbc', 'nas', 'hypervisor', 'kubernetes']) assert.equal(lane(icon), 'compute', icon);
+    assert.equal(lane('generic-device', { profile: { role: 'InternetGatewayDevice' } }), 'network', 'role words split camel case');
+    assert.equal(lane('generic-device', { profile: { role: 'DSL modem' } }), 'internet');
+    assert.equal(lane('generic-device', { profile: { role: 'MediaServer' } }), 'compute');
+    assert.equal(lane('workstation', {}, { hasGuests: true }), 'compute', 'a device that runs guests is compute');
+    assert.equal(lane('router', {}, { hasGuests: true }), 'network', 'an explicit icon wins over guests');
+    assert.equal(lane('generic-device', { profile: { role: 'mdns-device' } }), 'clients');
+    assert.equal(lane('tv', { profile: { role: 'chromecast' } }), 'clients');
+    assert.equal(model.topologyLane({ kind: 'service', icon: 'web-service', profile: {} }), 'clients', 'everything else is a client');
+    assert.equal(model.topologyLaneIndex('compute'), 2);
+    assert.deepEqual([-50, 0, 479, 480, 1919, 5000, 'x'].map(y => model.laneAt(y)), [0, 0, 0, 1, 3, 3, 3]);
+    assert.deepEqual(plain(model.laneBands({ x: -404, y: 66, w: 832, h: 1500 })), [
+        { id: 'internet', index: 0, rect: { x: -696, y: 0, w: 1440, h: 480 } },
+        { id: 'network', index: 1, rect: { x: -696, y: 480, w: 1440, h: 480 } },
+        { id: 'compute', index: 2, rect: { x: -696, y: 960, w: 1440, h: 480 } },
+        { id: 'clients', index: 3, rect: { x: -696, y: 1440, w: 1440, h: 480 } },
+    ], 'lanes span the cards with 240 px to spare and are at least 1440 px wide');
+
+    const topo = [
+        { id: 'inet', kind: 'device', name: 'Internet', icon: 'internet', profile: {} },
+        { id: 'ont', kind: 'device', name: 'Fiber ONT', icon: 'modem-ont', profile: {} },
+        { id: 'router', kind: 'device', name: 'Edge router', icon: 'router', profile: {} },
+        { id: 'switch', kind: 'device', name: 'Core switch', icon: 'managed-switch', profile: {} },
+        { id: 'ap', kind: 'device', name: 'Attic access point', icon: 'access-point', profile: {} },
+        { id: 'nas', kind: 'device', name: 'Basement NAS', icon: 'nas', profile: {} },
+        { id: 'pve', kind: 'device', name: 'Proxmox host', icon: 'generic-device', profile: {} },
+        { id: 'laptop', kind: 'device', name: 'Admin laptop', icon: 'laptop', profile: {} },
+        { id: 'tv', kind: 'device', name: 'Living room TV', icon: 'tv', profile: {} },
+    ];
+    const topoEdges = [
+        { id: 'e1', kind: 'ethernet', from: 'inet', to: 'ont' }, { id: 'e2', kind: 'fiber', from: 'ont', to: 'router' },
+        { id: 'e3', kind: 'ethernet', from: 'router', to: 'switch' }, { id: 'e4', kind: 'ethernet', from: 'switch', to: 'ap' },
+        { id: 'e5', kind: 'ethernet', from: 'switch', to: 'nas' }, { id: 'e6', kind: 'ethernet', from: 'pve', to: 'switch' },
+        { id: 'e7', kind: 'wifi', from: 'ap', to: 'laptop' }, { id: 'e8', kind: 'ethernet', from: 'switch', to: 'tv' },
+        { id: 'e9', kind: 'depends_on', from: 'tv', to: 'nas' },
+    ];
+    const guestsOf = new Map([['pve', ['vm1']]]);
+    const laneOf = node => model.topologyLaneIndex(model.topologyLane(node, { hasGuests: (guestsOf.get(node.id) || []).length > 0 }));
+    const asObject = map => Object.fromEntries(plain([...map]));
+    const layout = model.topologyLayout(topo, topoEdges, { laneOf });
+    assert.deepEqual(asObject(layout), {
+        inet: { x: -120, y: 96, pinned: false }, ont: { x: 120, y: 96, pinned: false },
+        router: { x: -240, y: 576, pinned: false }, switch: { x: 0, y: 576, pinned: false }, ap: { x: 240, y: 576, pinned: false },
+        nas: { x: -120, y: 1056, pinned: false }, pve: { x: 120, y: 1056, pinned: false },
+        tv: { x: -120, y: 1536, pinned: false }, laptop: { x: 120, y: 1536, pinned: false },
+    }, 'lanes in connection order, parents before children, rows centred');
+    assert.deepEqual(asObject(model.topologyLayout(topo.slice().reverse(), topoEdges.slice().reverse(), { laneOf })), asObject(layout), 'input order does not change the layout');
+    assert.deepEqual(asObject(model.topologyLayout(topo, topoEdges.slice(0, 8), { laneOf })), asObject(layout), 'dependencies do not order the layout; only Ethernet, fiber and Wi-Fi do');
+    const overridden = model.topologyLayout(topo, topoEdges, { laneOf: node => (node.id === 'tv' ? 1 : laneOf(node)) });
+    assert.deepEqual(plain(overridden.get('tv')), { x: 360, y: 576, pinned: false }, 'a lane override moves the card and keeps its connection order');
+    assert.deepEqual(plain(overridden.get('router')), { x: -360, y: 576, pinned: false });
+    assert.deepEqual(plain(overridden.get('laptop')), { x: 0, y: 1536, pinned: false });
+    const clients = Array.from({ length: 10 }, (_, i) => ({ id: `c${i}`, kind: 'device', name: `Client ${String(i).padStart(2, '0')}`, icon: 'laptop', profile: {} }));
+    const wrapped = model.topologyLayout(clients, []);
+    assert.deepEqual(plain(wrapped.get('c4')), { x: 480, y: 1536, pinned: false });
+    assert.deepEqual(plain(wrapped.get('c5')), { x: -480, y: 1632, pinned: false }, 'ten cards wrap into two centred rows of five');
+    for (const pos of layout.values()) assert.ok(pos.x % model.GRID === 0 && pos.y % model.GRID === 0, 'auto slots are grid points');
+    const nudged = model.topologyLayout(topo.slice(0, 2), [topoEdges[0]], { laneOf, obstacles: [model.cardRect({ x: -120, y: 96 })] });
+    assert.deepEqual(asObject(nudged), { inet: { x: -120, y: 24, pinned: false }, ont: { x: 120, y: 96, pinned: false } }, 'a slot under a card that stays moves to the nearest free grid point');
+    assert.deepEqual(asObject(model.topologyLayout(topo.slice(0, 2), [topoEdges[0]], { laneOf, centerX: 480 })), { inet: { x: 360, y: 96, pinned: false }, ont: { x: 600, y: 96, pinned: false } });
+
+    const autoNodes = [...topo.slice(0, 3),
+        { id: 'room', kind: 'room', name: 'Living room', icon: 'room', profile: {} },
+        { id: 'vm1', kind: 'vm', name: 'Lab VM', icon: 'vm', host_id: 'router', profile: {} },
+        { id: 'ct', kind: 'container', name: 'orphan', icon: 'container', profile: {} }];
+    const autoGuests = model.guestIndex(autoNodes, []);
+    const far = { ont: { x: 2000, y: 96, pinned: true } };
+    const auto = model.topologyAutoPositions(autoNodes, topoEdges.slice(0, 2), { placementOf: id => far[id] || null, guests: autoGuests });
+    assert.deepEqual(asObject(auto), { inet: { x: -120, y: 96, pinned: false }, router: { x: 0, y: 576, pinned: false } }, 'placed assets, places, guests and hostless containers get no auto slot');
+    const onSlot = { ont: { x: -120, y: 96, pinned: true } };
+    assert.deepEqual(plain(model.topologyAutoPositions(autoNodes, topoEdges.slice(0, 2), { placementOf: id => onSlot[id] || null, guests: autoGuests }).get('inet')), { x: -120, y: 24, pinned: false }, 'an auto slot under a placed card moves aside');
+    const sceneTopo = model.buildScene({ nodes: autoNodes, edges: topoEdges.slice(0, 2), view: 'topology', placementOf: id => far[id] || auto.get(id) || null, parentOf: () => '', guests: autoGuests });
+    assert.deepEqual(plain(sceneTopo.cards.map(card => card.id)), ['inet', 'ont', 'router']);
+    assert.deepEqual(plain(sceneTopo.lanes.map(item => item.id)), ['internet', 'network', 'compute', 'clients']);
+    assert.deepEqual(plain(sceneTopo.lanes[1].rect), { x: -480, y: 480, w: 2832, h: 480 }, 'cards span x -228..2108 (2336 wide); 240 px to spare each side, rounded up to the 24 px grid');
+    assert.deepEqual(plain(sceneTopo.bounds), { x: -480, y: 0, w: 2832, h: 1920 }, 'topology bounds include the lanes');
+    assert.deepEqual(plain(model.buildScene({ nodes: autoNodes, edges: [], view: 'atlas', placementOf: () => null, parentOf: () => '', guests: autoGuests }).lanes), [], 'the Map view has no lanes');
+
+    const cards = [...layout].map(([id, pos]) => ({ id, x: pos.x, y: id === 'tv' ? 720 : pos.y }));
+    const stored = { tv: { x: -120, y: 720, pinned: true }, nas: { x: -120, y: 1056, pinned: false } };
+    const nodeById = id => topo.find(node => node.id === id);
+    const arranged = model.topologyArrange({ cards, nodeById, edges: topoEdges, guestsOf, placementOf: id => stored[id] || null });
+    assert.equal(arranged.size, 9, 'without a selection every card is arranged');
+    assert.deepEqual(plain(arranged.get('tv')), { x: 360, y: 576, pinned: true }, 'a dragged card keeps its lane and stays pinned');
+    assert.deepEqual(plain(arranged.get('router')), { x: -360, y: 576, pinned: false });
+    assert.deepEqual(plain(arranged.get('laptop')), { x: 0, y: 1536, pinned: false });
+    assert.deepEqual(plain(arranged.get('nas')), { x: -120, y: 1056, pinned: false }, 'an arranged, unpinned card follows its type');
+    const selected = model.topologyArrange({ cards, selection: new Set(['tv', 'laptop']), nodeById, edges: topoEdges, guestsOf, placementOf: id => stored[id] || null });
+    assert.deepEqual(asObject(selected), { tv: { x: 0, y: 504, pinned: true }, laptop: { x: 0, y: 1536, pinned: false } }, 'a selection is arranged around its mean x and around the other cards (switch sits at 0,576)');
+}
+
 console.log(`Infra UI model, grouped virtualization, and ${required.size} translation keys passed for ${locales.length} locales.`);
