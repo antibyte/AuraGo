@@ -197,7 +197,7 @@ func TestDesktopInfraImportSheetBrowser(t *testing.T) {
 }
 
 // TestDesktopInfraImportSourceChipsBrowser covers how the import sheet names sources: the kind only while a kind
-// has one instance, the instance as well once it has several, and one chip per source however many rows it has.
+// has one instance, a numbered name ("Docker 1") once it has several, and one chip per source however many rows it has.
 func TestDesktopInfraImportSourceChipsBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	fixture := newInfraAppBrowserFixture()
@@ -232,9 +232,14 @@ func TestDesktopInfraImportSourceChipsBrowser(t *testing.T) {
 	})`).Str()
 	registry := page.MustEval(`()=>window.fixtureWords['desktop.infra_source_registry']`).Str()
 	docker := page.MustEval(`()=>window.fixtureWords['desktop.infra_source_docker']`).Str()
-	want := fmt.Sprintf(`{"chips":["%s:current","%s · engine-a:current","%s · engine-b:stale"],"rows":["reg-printer=%s","web-a=%s · engine-a"]}`, registry, docker, docker, registry, docker)
+	want := fmt.Sprintf(`{"chips":["%s:current","%s 1:current","%s 2:stale"],"rows":["reg-printer=%s","web-a=%s 1"]}`, registry, docker, docker, registry, docker)
 	if got != want {
 		t.Fatalf("import sources = %s; want %s", got, want)
+	}
+	// The opaque instance id never shows in the text; it only goes into the tooltip.
+	titles := page.MustEval(`()=>JSON.stringify([...document.querySelectorAll('.infra-source-chip')].map(chip=>chip.title))`).Str()
+	if wantTitles := fmt.Sprintf(`["%s · inventory","%s · engine-a","%s · engine-b"]`, registry, docker, docker); titles != wantTitles {
+		t.Fatalf("source chip tooltips = %s; want %s", titles, wantTitles)
 	}
 	closeInfraBrowserWindow(t, page)
 	requireInfraBrowserClean(t, page)

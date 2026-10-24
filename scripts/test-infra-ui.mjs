@@ -327,6 +327,28 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     assert.notEqual(same, hostedStamp, 'a new host is a structural change');
 }
 
+// ---- source labels (A15): never the opaque instance id -----------------------
+{
+    const kindLabel = kind => ({ docker: 'Docker', registry: 'Registry' })[kind] || kind;
+    const sources = [
+        { kind: 'docker', instance: 'b9f3c2d1e8a74f6b', key: 'c1' }, { kind: 'registry', instance: 'inventory', key: 'r1' },
+        { kind: 'docker', instance: '0a1b2c3d4e5f6071', key: 'c2' }, { kind: 'docker', instance: 'b9f3c2d1e8a74f6b', key: 'c3' },
+    ];
+    const labels = model.sourceLabels(sources, kindLabel);
+    assert.deepEqual(plain([...labels.several]), ['docker'], 'only a kind with several instances is numbered');
+    assert.equal(labels.of(sources[2]).text, 'Docker 1', 'instances are numbered in instance order, not in arrival order');
+    assert.equal(labels.of(sources[0]).text, 'Docker 2');
+    assert.equal(labels.of(sources[3]).text, 'Docker 2', 'every row of one instance shares its number');
+    assert.equal(labels.of(sources[1]).text, 'Registry', 'a kind with one instance keeps its plain name');
+    for (const source of sources) assert.ok(!labels.of(source).text.includes(source.instance), 'the instance id never shows in the visible text');
+    assert.equal(labels.of(sources[0]).title, 'Docker · b9f3c2d1e8a74f6b', 'the instance id only goes into the tooltip');
+    const reordered = model.sourceLabels([...sources].reverse(), kindLabel);
+    assert.equal(reordered.of(sources[2]).text, 'Docker 1', 'the numbering survives a different poll order');
+    const ignored = model.sourceLabels([...sources, { kind: 'docker', instance: 'zzzz', key: 'c9', ignored: true }], kindLabel);
+    assert.equal(ignored.of(sources[0]).text, 'Docker 2', 'an ignored instance takes no number');
+    assert.equal(model.sourceLabels([{ kind: 'docker', instance: 'solo' }], kindLabel).of({ kind: 'docker', instance: 'solo' }).text, 'Docker', 'a single instance is not numbered');
+}
+
 // ---- store: layout queue, rebase, undo --------------------------------------
 {
     const InfraStore = window.InfraAppStore;

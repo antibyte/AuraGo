@@ -629,6 +629,24 @@
         }
         return scored.sort((a, b) => b.score - a.score || naturalCompare(a.name, b.name)).slice(0, limit).map(item => item.id);
     };
+    // sourceLabels names sources of one kind apart without ever showing the opaque instance id. A kind with
+    // several instances is numbered in instance order ("Docker 1", "Docker 2", stable across polls); the id only
+    // goes into the title. of(source) is {text, title}; several is the set of kinds that were numbered.
+    const sourceLabels = (sources, kindLabel) => {
+        const instances = new Map();
+        for (const source of sources || []) {
+            if (!source || source.ignored) continue;
+            instances.set(source.kind, (instances.get(source.kind) || new Set()).add(String(source.instance || '')));
+        }
+        const order = new Map([...instances].filter(([, set]) => set.size > 1).map(([kind, set]) => [kind, [...set].sort(naturalCompare)]));
+        return {
+            several: new Set(order.keys()),
+            of(source) {
+                const base = kindLabel(source?.kind), instance = String(source?.instance || ''), rank = (order.get(source?.kind) || []).indexOf(instance);
+                return { text: rank >= 0 ? `${base} ${rank + 1}` : base, title: instance ? `${base} · ${instance}` : base };
+            },
+        };
+    };
     const bestSourceKind = node => (node.sources || []).map(source => source.kind).sort((a, b) => (SOURCE_RANK[a] ?? 9) - (SOURCE_RANK[b] ?? 9))[0] || '';
     // A placed, connected, grouped or manual asset is the one a user invested in.
     const investment = (node, edgeCount) => Object.keys(node.placements || {}).length * 2 + (edgeCount.get(node.id) || 0) + (node.parent_id ? 1 : 0) + ((node.sources || []).length ? 0 : 3);
@@ -842,7 +860,7 @@
         normalizeRect, padRect, unionRects, freeSlot, regionRect, regionLayout, regionAt, dropParent, growRegions,
         spatialNeighbour, compactGrid, defaultEdgeKind, guestIndex, matchesFilters, filtersActive, buildScene,
         mergeIntent, layoutItems, rebaseLayout, createHistory, readLayoutPrefs, fill, countText, normalizeNode, minimapTransform, glyph,
-        naturalCompare, isOpaqueName, addressesOf, isGenericDiscovery, compareSpecificity, relevanceIndex, discoveryRelevance, groupDiscoveries, bindableFor, linkSuggestions, infraCleanup,
+        naturalCompare, isOpaqueName, addressesOf, isGenericDiscovery, compareSpecificity, relevanceIndex, discoveryRelevance, groupDiscoveries, bindableFor, linkSuggestions, infraCleanup, sourceLabels,
         TABLE_SORTS, tableComparator, tableRows, readTablePrefs, readInspectorPrefs, inspectorTab, withInspectorTab, readDismissed, listEntryText, draftDiff, formGroupFill, groupOfField,
         isMeshAsset, appTargetOptions, appLinkContext, placePath, isDescendant, attentionItems, APP_LINK_TARGETS,
     };
