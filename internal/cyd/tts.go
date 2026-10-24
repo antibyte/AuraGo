@@ -17,6 +17,7 @@ import (
 
 	mp3 "github.com/hajimehoshi/go-mp3"
 
+	"aurago/internal/i18n"
 	"aurago/internal/sanotts"
 )
 
@@ -102,10 +103,19 @@ func (s *Speaker) SetSynth(fn SpeechSynth, ready func() bool) {
 }
 
 func (s *Speaker) Queue(id, title, body string) {
+	s.QueueText(id, SpeakLine(title, body))
+}
+
+// QueueText speaks line as written. Mesh alerts use it so the glass does not
+// read the channel name or the message.
+func (s *Speaker) QueueText(id, text string) {
 	if !s.Available() || id == "" || inGoTest() {
 		return
 	}
-	text := SpeakLine(title, body)
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return
+	}
 	go s.render(id, text)
 }
 
@@ -167,9 +177,9 @@ func (s *Speaker) render(id, text string) {
 	}
 }
 
-// MeshSpeakParts is the glass overlay (and TTS line) for an incoming MeshCore
-// message. Title keeps a Mesh prefix so firmware plays the mesh chime.
-// Protected bodies stay "locked"; radio node keys are not spoken.
+// MeshSpeakParts is the glass overlay for an incoming MeshCore message.
+// Title keeps a Mesh prefix so firmware plays the mesh chime. The spoken
+// line is MeshAnnounce, not this preview. Protected bodies stay "locked".
 func MeshSpeakParts(name, kind, preview string, protected bool) (title, body string) {
 	from := strings.TrimSpace(name)
 	if from == "" || looksLikeNodeKey(from) {
@@ -205,7 +215,50 @@ func looksLikeNodeKey(s string) bool {
 	return true
 }
 
-// SpeakLine is the English sentence the model hears.
+// MeshAnnounce is the only sentence spoken for a MeshCore message.
+// lang is the system language (Deutsch, de, en, …). Unknown languages use English.
+func MeshAnnounce(lang string) string {
+	lang = strings.TrimSpace(lang)
+	if i := strings.IndexAny(lang, "-_"); i > 0 {
+		lang = lang[:i]
+	}
+	switch i18n.NormalizeLang(lang) {
+	case "de":
+		return "Neue Nachricht auf MeshCore"
+	case "es":
+		return "Nuevo mensaje en MeshCore"
+	case "fr":
+		return "Nouveau message sur MeshCore"
+	case "pl":
+		return "Nowa wiadomość w MeshCore"
+	case "zh":
+		return "MeshCore 有新消息"
+	case "hi":
+		return "MeshCore पर नया संदेश"
+	case "nl":
+		return "Nieuw bericht op MeshCore"
+	case "it":
+		return "Nuovo messaggio su MeshCore"
+	case "pt":
+		return "Nova mensagem no MeshCore"
+	case "da":
+		return "Ny besked på MeshCore"
+	case "ja":
+		return "MeshCoreに新しいメッセージ"
+	case "sv":
+		return "Nytt meddelande på MeshCore"
+	case "no":
+		return "Ny melding på MeshCore"
+	case "cs":
+		return "Nová zpráva na MeshCore"
+	case "el":
+		return "Νέο μήνυμα στο MeshCore"
+	default:
+		return "New message on MeshCore"
+	}
+}
+
+// SpeakLine is the sentence spoken for alerts other than MeshCore.
 func SpeakLine(title, body string) string {
 	t := asciiEnglish(strings.TrimSpace(title))
 	b := asciiEnglish(strings.TrimSpace(body))

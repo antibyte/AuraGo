@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"aurago/internal/sanotts"
@@ -61,6 +62,27 @@ func TestSpeakerUsesActiveSynth(t *testing.T) {
 	s.render("ntf_active", "Hallo. Tür")
 	if got := s.Get("ntf_active"); len(got) < 16 {
 		t.Fatalf("pcm len %d", len(got))
+	}
+}
+
+func TestMeshAnnounceFollowsSystemLanguage(t *testing.T) {
+	if got := MeshAnnounce("Deutsch"); got != "Neue Nachricht auf MeshCore" {
+		t.Fatalf("de %q", got)
+	}
+	if got := MeshAnnounce("de-DE"); got != "Neue Nachricht auf MeshCore" {
+		t.Fatalf("de-DE %q", got)
+	}
+	if got := MeshAnnounce("en"); got != "New message on MeshCore" {
+		t.Fatalf("en %q", got)
+	}
+	if got := MeshAnnounce("fr"); got != "Nouveau message sur MeshCore" {
+		t.Fatalf("fr %q", got)
+	}
+	if strings.Contains(MeshAnnounce("Deutsch"), ".") || strings.Contains(MeshAnnounce(""), ".") {
+		t.Fatal("announce must not contain a period")
+	}
+	if MeshAnnounce("") != "New message on MeshCore" || MeshAnnounce("klingon") != "New message on MeshCore" {
+		t.Fatal("unknown language should fall back to English")
 	}
 }
 

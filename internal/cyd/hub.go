@@ -128,6 +128,15 @@ func NewNotifyID() string {
 }
 
 func (h *Hub) Notify(title, body, priority string, ttl int) Notify {
+	return h.notify(title, body, "", priority, ttl)
+}
+
+// NotifySpeech shows title and body on the glass and speaks line instead.
+func (h *Hub) NotifySpeech(title, body, line, priority string, ttl int) Notify {
+	return h.notify(title, body, line, priority, ttl)
+}
+
+func (h *Hub) notify(title, body, line, priority string, ttl int) Notify {
 	n := Notify{
 		ID:       NewNotifyID(),
 		Title:    Truncate(title, TitleMax),
@@ -150,7 +159,11 @@ func (h *Hub) Notify(title, body, priority string, ttl int) Notify {
 	if h.speak != nil && h.speak.Available() && !inGoTest() {
 		copyN.Speak = true
 		n.Speak = true
-		h.speak.Queue(n.ID, n.Title, n.Body)
+		if strings.TrimSpace(line) != "" {
+			h.speak.QueueText(n.ID, line)
+		} else {
+			h.speak.Queue(n.ID, n.Title, n.Body)
+		}
 	} else if !inGoTest() {
 		h.speak.warnUnavailable()
 	}
