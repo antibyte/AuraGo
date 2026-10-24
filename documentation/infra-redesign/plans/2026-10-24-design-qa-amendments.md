@@ -16,3 +16,13 @@ of Task 10 runs, so the QA screenshots already show them.
 | A7 | Host badge reads "▣ 1 · 0 laufen". | Badge copy "{count} guests · {running} running" with singular keys, and "{count} guests · stopped" when none run; tooltip lists the first five guest names. | i18n keys in 16 locales; browser test checks the singular form. |
 | A8 | Below ~560 px the search field shrinks to ~50 px. | Below 560 px container width the search collapses to an icon button (`data-action="open-search"`) that expands the field over the command bar until blur/Escape. | 430×700 screenshot: search usable, nothing overflows (existing overflow guard). |
 | A9 | The canvas focus ring is heavy in dark themes. | Viewport focus uses an inset 1px `--vd-theme-accent-border` ring plus the standard `--ds-focus-ring-*` only on keyboard focus (`:focus-visible`). Card focus keeps the standard ring. | Visual check; keyboard focus still visible (Plan D a11y test). |
+
+## After Plan C Tasks 5–10 (2026-10-24)
+
+Owned by Plan C (Tasks 11–17 executor), because they touch panel copy and styling:
+
+| id | finding | required change | acceptance |
+|---|---|---|---|
+| A10 | Cleanup suggestion cards each carry a full-width accent-filled button ("Duplikat entfernen und ignorieren", "Engine-Host zuweisen", "Host wählen…"); a list of loud primaries violates the one-accent-per-view rule. | Suggestion actions become compact secondary buttons (`.infra-button` secondary style, accent text on hover only); "Dismiss" becomes a ghost icon button with a tooltip. The only accent-filled control in the view stays the command bar's Add button. | Screenshot of the Cleanup section: no accent-filled buttons inside the library. |
+| A11 | Overview shows "1 Verbindungen". | Singular/plural keys for the connection count (and any other count rendered in the inspector or library: guests, sources, assets in a place). | Node i18n test lists the `_one` keys; browser assertion for "1 connection" in en. |
+| A12 | Overview shows raw coordinates ("Platzierung x 330, y 100"). | Overview never shows coordinates. Show "On the map" / "Not placed" (and the place breadcrumb, already present). Coordinates stay available only in the Details tab's placement group for power users (read-only text). | Overview screenshot without coordinates. |
