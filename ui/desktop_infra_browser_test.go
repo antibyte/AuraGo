@@ -507,6 +507,9 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 	page.MustWait(`()=>document.querySelector('.infra-app').clientWidth<500&&!!document.querySelector('[data-action="close-inspector"]')`)
 	page.MustEval(`()=>document.querySelector('[data-action="close-inspector"]').click()`)
 	page.MustWait(`()=>getComputedStyle(document.querySelector('[data-inspector]')).display==='none'&&getComputedStyle(document.querySelector('.infra-library')).display==='none'`)
+	if !page.MustEval(`()=>{const app=document.querySelector('.infra-app'),canvas=document.querySelector('[data-canvas]');return canvas.getBoundingClientRect().width>=app.clientWidth*0.95;}`).Bool() {
+		t.Fatal("below 760px the canvas must span the whole window")
+	}
 	page.MustEval(`()=>document.querySelector('[data-action="toggle-library"]').click()`)
 	page.MustWait(`()=>{const place=document.querySelector('[data-place="manual-1"]');return getComputedStyle(document.querySelector('.infra-library')).display!=='none'&&!!place&&place.offsetParent!==null;}`)
 	assertReadableLayout("430px")
