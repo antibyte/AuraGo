@@ -144,7 +144,7 @@ reusing stale `deploy/web-assets.ldflags`, or selecting an installed directory
 by date cannot repair the executable's missing pin.
 
 `node scripts/check-web-assets.mjs <stripped-binary>...` enforces a
-130 MB (130,000,000 bytes) executable ceiling, a 10 MB first-party embed budget and a 1 MB bootstrap
+200 MB (200,000,000 bytes) executable ceiling, a 10 MB first-party embed budget and a 1 MB bootstrap
 limit. The packaging CI checks Windows and Linux. Production assets are never
 committed as generated archives; source files and the inclusion manifest are.
 

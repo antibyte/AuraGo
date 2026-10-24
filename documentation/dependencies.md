@@ -3,7 +3,7 @@
 AuraGo pins Go 1.27.2 in `go.mod`, container builders, installers and release
 scripts. `GOTOOLCHAIN=auto` downloads that compiler when the host has an older Go.
 Release scripts select the exact compiler explicitly. The stripped executable
-budget is 130 MB (130,000,000 bytes); first-party embeds remain capped at 10 MB and recovery at 1 MB.
+budget is 200 MB (200,000,000 bytes); first-party embeds remain capped at 10 MB and recovery at 1 MB.
 The model/provider catalog embeds deterministic gzip copies of its JSON sources.
 `go run scripts/sync_ohmypi_catalog.go --write` regenerates both forms; `--check`
 checks both. Catalog tests verify byte equality after decompression, preserving
