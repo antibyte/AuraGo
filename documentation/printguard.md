@@ -27,6 +27,13 @@ the existing MCP client. Installing the Store entry does not enable agent access
 5. Open PrintGuard and configure printers, network cameras, monitors and failure
    responses in its own Settings. Pulling camera streams needs no input port.
 
+Install is disabled while deployment prerequisites are missing. The setup dialog
+links to **Configuration → Server**; after saving, use **Try again** to rerun the
+checks. A user-defined Docker network can be selected directly in the dialog.
+HTTPS with only an IP address or a wildcard bind such as `0.0.0.0` is insufficient:
+the primary DNS hostname and the separate app-preview domain must both be set,
+and the generated app hostname must pass the HTTPS reachability check.
+
 All Store, Desktop, start-menu and Launchpad opens use the isolated HTTPS preview
 gateway, including when the global preview preference is off. There is no direct
 LAN or Tailscale fallback for this app. Only container port 8000 is published,

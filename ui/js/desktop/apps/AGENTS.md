@@ -1389,6 +1389,9 @@ buttons and menu popovers remain excluded from those gestures.
   control grants. Never prefill tokens or test unsaved drafts. Clear credentials
   and ignore late requests on close/disposal; preserve focus trapping and status
   announcements. Show active compute, CPU fallback and pending runtime changes.
+  Missing deployment prerequisites disable Install and block form submission.
+  Keep their messages visible during edits, link to Server config and allow a
+  fresh check. A valid network choice clears only the network prerequisite.
   Keep all `desktop.store.pg_*` texts in sixteen locales and the upstream icon /
   license under `img/desktop/store/`. Verify `TestPrintGuard*` and bundle `--check`.
 

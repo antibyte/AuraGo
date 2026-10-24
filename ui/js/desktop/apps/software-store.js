@@ -568,6 +568,8 @@
                 overlay.className = 'vd-modal-backdrop';
                 const networks = Array.isArray(config.networks) ? config.networks : [];
                 const currentNetwork = config.docker_network || (networks.length === 1 ? networks[0] : '');
+                const prerequisites = Array.isArray(config.prerequisites) ? config.prerequisites : [];
+                const statusId = 'vd-pg-status-' + windowId;
                 overlay.innerHTML = `<form class="vd-modal vd-store-modal vd-pg-config" role="dialog" aria-modal="true" aria-label="${esc(t('desktop.store.pg_setup'))}">
                     <div class="vd-modal-title">PrintGuard · ${esc(t('desktop.store.pg_setup'))}</div>
                     <p class="vd-store-modal-copy">${esc(t('desktop.store.pg_intro'))}</p>
@@ -582,10 +584,12 @@
                     <label class="vd-store-field"><span>${esc(t('desktop.store.pg_token'))}${config.token_configured ? ' · ' + esc(t('desktop.store.pg_token_set')) : ''}</span><input type="password" name="api_token" autocomplete="new-password" maxlength="4096"></label>
                     <label class="vd-store-choice"><input type="checkbox" name="clear_api_token"><span>${esc(t('desktop.store.pg_remove_token'))}</span></label>` : ''}
                     ${config.cpu_fallback ? `<p class="vd-store-card-warning">${esc(t('desktop.store.pg_cpu_fallback'))}</p>` : ''}
-                    <p role="status" aria-live="polite" class="vd-store-card-warning" data-pg-status>${esc((config.prerequisites || []).map(code => printGuardMessage(code)).join(' '))}${config.pending ? ' ' + esc(t('desktop.store.pg_pending')) : ''}</p>
+                    <p id="${esc(statusId)}" role="status" aria-live="polite" class="vd-store-card-warning" data-pg-status>${esc(prerequisites.map(code => printGuardMessage(code)).join(' '))}${config.pending ? ' ' + esc(t('desktop.store.pg_pending')) : ''}</p>
+                    ${installing && prerequisites.some(code => code === 'printguard_gateway' || code === 'printguard_auth') ? `<p class="vd-store-modal-copy"><a href="/config#server" target="_blank" rel="noopener noreferrer">${esc(t('desktop.open_config'))}</a></p>` : ''}
                     <div class="vd-modal-actions"><button type="button" class="vd-button" data-action="cancel">${esc(t('desktop.cancel'))}</button>
+                    ${installing && prerequisites.length ? `<button type="button" class="vd-button" data-action="recheck">${esc(t('desktop.retry'))}</button>` : ''}
                     ${!installing ? `<button type="button" class="vd-button" data-action="test" ${!config.token_configured || config.agent_mode === 'off' || config.pending ? 'disabled' : ''}>${esc(t('desktop.store.pg_test'))}</button>` : ''}
-                    <button type="submit" class="vd-button vd-button-primary">${esc(t(installing ? 'desktop.store.install' : 'desktop.save'))}</button></div>
+                    <button type="submit" class="vd-button vd-button-primary" aria-describedby="${esc(statusId)}">${esc(t(installing ? 'desktop.store.install' : 'desktop.save'))}</button></div>
                 </form>`;
                 const form = overlay.querySelector('form');
                 form.elements.acceleration.value = installing ? 'cpu' : config.acceleration;
@@ -593,7 +597,7 @@
                 if (form.elements.agent_mode) form.elements.agent_mode.value = config.agent_mode || 'off';
                 const previousFocus = document.activeElement;
                 const controller = new AbortController();
-                let submitting = false, draftChanged = false;
+                let submitting = false, draftChanged = false, installBlocked = false;
                 const alive = () => !instance.disposed && overlay.isConnected;
                 const close = () => {
                     controller.abort();
@@ -603,19 +607,34 @@
                 };
                 instance.closeConfig = close;
                 const test = form.querySelector('[data-action="test"]');
+                const updateInstallState = () => {
+                    if (!installing) return;
+                    const networkReady = !config.containerized || networks.includes(form.elements.docker_network.value);
+                    const issues = prerequisites.filter(code => code !== 'printguard_network' || !networkReady);
+                    if (!networkReady && !issues.includes('printguard_network')) issues.push('printguard_network');
+                    installBlocked = issues.length > 0;
+                    form.querySelector('[type="submit"]').disabled = submitting || installBlocked;
+                    form.querySelector('[data-pg-status]').textContent = issues.map(code => printGuardMessage(code)).join(' ');
+                };
+                updateInstallState();
                 const markDraft = () => {
                     draftChanged = true;
                     if (test) test.disabled = true;
-                    form.querySelector('[data-pg-status]').textContent = '';
+                    if (installing) updateInstallState();
+                    else form.querySelector('[data-pg-status]').textContent = '';
                 };
                 form.addEventListener('input', markDraft);
                 form.addEventListener('change', markDraft);
                 form.querySelector('[data-action="cancel"]').addEventListener('click', close);
+                form.querySelector('[data-action="recheck"]')?.addEventListener('click', () => {
+                    close();
+                    openPrintGuardModal(true);
+                });
                 overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
                 overlay.addEventListener('keydown', event => {
                     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); }
                     if (event.key === 'Tab') {
-                        const controls = [...form.querySelectorAll('input, select, button')].filter(el => !el.disabled);
+                        const controls = [...form.querySelectorAll('input, select, a[href], button')].filter(el => !el.disabled);
                         const first = controls[0], last = controls[controls.length - 1];
                         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
                         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
@@ -633,7 +652,7 @@
                 });
                 form.addEventListener('submit', async event => {
                     event.preventDefault();
-                    if (submitting) return;
+                    if (submitting || installBlocked) return;
                     submitting = true;
                     const payload = installing ? {app_id: appId, bind_mode: 'local', tailscale_enabled: false, docker_network: form.elements.docker_network ? form.elements.docker_network.value : ''} : {
                         acceleration: form.elements.acceleration.value,
@@ -653,11 +672,11 @@
                         delete payload.api_token;
                         if (form.elements.api_token) form.elements.api_token.value = '';
                         submitting = false;
-                        if (alive()) form.querySelector('[type="submit"]').disabled = false;
+                        if (alive()) form.querySelector('[type="submit"]').disabled = installBlocked;
                     }
                 });
                 trackOverlay(overlay);
-                form.querySelector('select:not([disabled]), button').focus();
+                form.querySelector('select:not([disabled]), a[href], button').focus();
             } catch (error) { if (!instance.disposed && instance.printGuardLoadId === loadId) notify({title: t('desktop.store.title'), message: printGuardMessage(error)}); }
         }
 
