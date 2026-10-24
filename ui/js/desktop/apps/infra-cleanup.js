@@ -1,7 +1,8 @@
 // Infra cleanup: the bodies of the library's Cleanup and Ignored sections.
 // Cleanup lists the suggestions model.infraCleanup computes (duplicates, Docker
-// engines and guests without a host, unreadable names); each has one primary
-// action and a dismissal that is remembered in localStorage. Ignored lists the
+// engines and guests without a host, unreadable names); each has one compact
+// secondary action (no accent fill: the Add button owns the accent) and a
+// dismissal, a ghost icon, that is remembered in localStorage. Ignored lists the
 // ignored sources with Restore. infra-library.js owns the section shells and
 // calls render* and onClick; every write goes through the store.
 (function () {
@@ -58,7 +59,7 @@
             }
             const readOnly = write ? '' : ` disabled title="${esc(t('desktop.infra_read_only'))}"`;
             return `<li class="infra-cleanup-item" data-cleanup="${id}" data-cleanup-type="${esc(item.type)}"><p class="infra-cleanup-text">${esc(info.text)}</p>${info.meta ? `<p class="infra-cleanup-meta">${esc(info.meta)}</p>` : ''}${guests}`
-                + `<div class="infra-cleanup-actions"><button type="button" class="infra-button infra-button-primary" data-cleanup-action="${id}"${info.dialog ? ' aria-haspopup="dialog"' : ''}${readOnly}>${esc(info.primary)}</button><button type="button" class="infra-button" data-cleanup-dismiss="${id}">${esc(t('desktop.infra_dismiss'))}</button></div></li>`;
+                + `<div class="infra-cleanup-actions"><button type="button" class="infra-button infra-cleanup-action" data-cleanup-action="${id}"${info.dialog ? ' aria-haspopup="dialog"' : ''}${readOnly}>${esc(info.primary)}</button><button type="button" class="infra-cmd-icon infra-cleanup-dismiss" data-cleanup-dismiss="${id}" aria-label="${esc(t('desktop.infra_dismiss'))}" title="${esc(t('desktop.infra_dismiss'))}">${app.glyph('close')}</button></div></li>`;
         }
         function renderCleanup({ section, list, count, reset }) {
             const rows = visible(), hiddenCount = dismissedCount();

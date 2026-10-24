@@ -44,6 +44,10 @@ func TestDesktopInfraLibrarySectionsBrowser(t *testing.T) {
 	openInfraBrowserApp(page)
 	page.MustWait(`()=>!!document.querySelector('[data-cleanup^="duplicate:"]')&&!!document.querySelector('[data-library-item="old-switch"][data-section="attention"]')`)
 
+	// The Add button owns the accent: cleanup actions are compact secondary buttons and Dismiss is a ghost icon.
+	if !page.MustEval(`()=>{const library=document.querySelector('.infra-library'),accent=getComputedStyle(document.querySelector('[data-action="add"]')).backgroundColor,actions=[...library.querySelectorAll('[data-cleanup-action]')];return !library.querySelector('.infra-button-primary')&&actions.length>0&&actions.every(button=>getComputedStyle(button).backgroundColor!==accent)&&[...library.querySelectorAll('[data-cleanup-dismiss]')].every(button=>!!button.querySelector('svg')&&button.title!==''&&button.textContent.trim()==='');}`).Bool() {
+		t.Fatal("the library must hold no accent-filled button; Dismiss is an icon button with a tooltip")
+	}
 	// An attention row opens the asset on the tab that explains the problem.
 	page.MustEval(`()=>document.querySelector('[data-library-item="old-switch"][data-section="attention"] [data-library-select]').click()`)
 	page.MustWait(`()=>document.querySelector('[data-inspector] h2')?.textContent==='Garage switch'&&document.querySelector('[data-inspector-tab="sources"]').getAttribute('aria-selected')==='true'`)

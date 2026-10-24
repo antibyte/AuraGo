@@ -350,8 +350,11 @@
 .infra-cleanup-item { display: grid; gap: var(--ds-space-2); padding: var(--ds-space-2) var(--ds-space-3); border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-md); background: var(--vd-theme-panel-bg-strong); }
 .infra-cleanup-text, .infra-cleanup-meta { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
 .infra-cleanup-meta { color: var(--vd-theme-muted); }
-.infra-cleanup-actions { display: flex; flex-wrap: wrap; gap: var(--ds-space-2); }
-.infra-cleanup-actions .infra-button { height: auto; min-height: 32px; padding-block: 4px; white-space: normal; }
+.infra-cleanup-actions { display: flex; align-items: flex-start; gap: var(--ds-space-2); }
+.infra-cleanup-actions .infra-cleanup-action { height: auto; min-height: 30px; padding-block: 4px; white-space: normal; text-align: left; }
+.infra-cleanup-actions .infra-cleanup-action:hover:not(:disabled) { color: var(--vd-accent); }
+.infra-cleanup-actions .infra-cleanup-dismiss { width: 30px; height: 30px; margin-left: auto; color: var(--vd-theme-muted); }
+.infra-cleanup-actions .infra-cleanup-dismiss:hover { color: var(--vd-text); }
 .infra-library-disclosure.infra-cleanup-toggle { width: auto; justify-self: start; display: inline-flex; gap: var(--ds-space-1); padding: 0 var(--ds-space-2); font-size: 14px; }
 .infra-ignored-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-2); min-height: 44px; padding: 2px var(--ds-space-2); }
 .infra-ignored-copy { display: grid; min-width: 0; }
