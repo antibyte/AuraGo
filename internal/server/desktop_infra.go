@@ -505,6 +505,7 @@ func desktopInfraNodeRoute(w http.ResponseWriter, r *http.Request, s *Server, cf
 			return
 		}
 		updated = desktopInfraDecorateNode(r.Context(), s, cfg, updated)
+		updated = desktopInfraApplyHosts(r.Context(), store, cfg, []infra.Node{updated})[0]
 		desktopInfraJSON(w, http.StatusOK, updated)
 	case http.MethodDelete:
 		version, ok := desktopInfraVersionQuery(w, r)
@@ -604,6 +605,7 @@ func desktopInfraImport(w http.ResponseWriter, r *http.Request, s *Server, cfg *
 		_ = desktopInfraReconcileProxmoxEdges(r.Context(), store, candidate.Source.Instance)
 	}
 	node = desktopInfraDecorateNode(r.Context(), s, cfg, node)
+	node = desktopInfraApplyHosts(r.Context(), store, cfg, []infra.Node{node})[0]
 	desktopInfraJSON(w, http.StatusCreated, node)
 }
 
@@ -670,6 +672,7 @@ func desktopInfraSaveLayout(w http.ResponseWriter, r *http.Request, s *Server, c
 		updated = []infra.Node{}
 	}
 	updated = desktopInfraProjectNodes(r.Context(), s, cfg, updated)
+	updated = desktopInfraApplyHosts(r.Context(), store, cfg, updated)
 	desktopInfraJSON(w, http.StatusOK, map[string]any{"nodes": updated})
 }
 

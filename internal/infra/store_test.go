@@ -1220,3 +1220,16 @@ func TestSourceHostMappingUsesVersionCAS(t *testing.T) {
 		t.Fatalf("source hosts after deleting the host = %#v, %v; want an unassigned observed engine", snapshot.SourceHosts, err)
 	}
 }
+
+func TestHostProjectionFieldsAreRuntimeOnly(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	node := testNode(NodeContainer, "web", "container")
+	node.HostID, node.HostInferred = "forged-host", true
+	created, err := store.CreateNode(context.Background(), node)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.HostID != "" || created.HostInferred {
+		t.Fatalf("caller-supplied host projection survived: %#v", created)
+	}
+}

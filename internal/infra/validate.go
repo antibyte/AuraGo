@@ -55,6 +55,8 @@ func normalizeNodeRuntime(node *Node) {
 	node.ActionReasons = nil
 	node.SourceActions = nil
 	node.SourceActionReasons = nil
+	node.HostID = ""
+	node.HostInferred = false
 }
 
 func validateProfile(profile *Profile) error {

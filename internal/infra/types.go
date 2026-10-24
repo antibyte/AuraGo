@@ -41,6 +41,10 @@ type Node struct {
 	ActionReasons       map[string]string            `json:"action_reasons,omitempty"`
 	SourceActions       map[string][]string          `json:"source_actions,omitempty"`
 	SourceActionReasons map[string]map[string]string `json:"source_action_reasons,omitempty"`
+	// HostID and HostInferred are runtime projections for VMs and containers:
+	// the device running the guest, and whether that host was inferred.
+	HostID       string `json:"host_id,omitempty"`
+	HostInferred bool   `json:"host_inferred,omitempty"`
 }
 
 // AppLink names a local application target. Profile.AppBindings persists explicit
