@@ -359,6 +359,14 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
     assert.ok(/outline: var\(--ds-focus-ring-width\) solid/.test(focus) && focus.includes('--ds-color-border-focus'), 'keyboard focus keeps the standard ring tokens');
     assert.ok(!/\.infra-viewport:focus\s*\{/.test(canvasCSS), 'pointer focus draws nothing on the canvas');
 }
+// A4: regions are neutral; only the drop target, the selection and the hovered header carry the accent.
+{
+    const region = cssRule('.infra-region');
+    assert.ok(region.includes('border: 1.5px solid var(--vd-theme-border)'), 'a region is outlined with the theme border');
+    assert.ok(region.includes('background: color-mix(in srgb, var(--vd-theme-panel-bg) 45%, transparent)'), 'a region is filled with a neutral panel tint');
+    assert.ok(!/var\(--vd-accent\)/.test(region) && !/\.infra-region\[data-depth/.test(canvasCSS), 'the accent never tints a plain region');
+    for (const selector of ['.infra-region.is-selected', '.infra-region.is-drop-target', '.infra-region-header:hover']) assert.ok(/accent/.test(cssRule(selector)), `${selector} keeps the accent`);
+}
 
 // ---- store: layout queue, rebase, undo --------------------------------------
 {

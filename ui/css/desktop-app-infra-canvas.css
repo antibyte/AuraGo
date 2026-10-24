@@ -59,10 +59,10 @@
 .infra-guest-chip i { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--vd-theme-muted); }
 .infra-guest-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .infra-guest-chip.is-selected { border-color: var(--vd-accent); background: var(--vd-theme-accent-soft); }
-.infra-region { position: absolute; border: 1.5px solid color-mix(in srgb, var(--vd-accent) 35%, var(--vd-theme-border)); border-radius: var(--vd-theme-radius-panel); background: color-mix(in srgb, var(--vd-accent) 5%, transparent); pointer-events: none; }
-.infra-region[data-depth="1"], .infra-region[data-depth="2"] { background: color-mix(in srgb, var(--vd-accent) 8%, transparent); }
+/* A4: a place is a neutral surface with a theme border. The accent only marks the drop target, the selection and a hovered header; nested places stack their fills, so the nesting shows without tinting. */
+.infra-region { position: absolute; border: 1.5px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: color-mix(in srgb, var(--vd-theme-panel-bg) 45%, transparent); pointer-events: none; }
 .infra-region-header { position: absolute; left: 8px; top: 8px; max-width: calc(100% - 16px); height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px 0 6px; border: 0; border-radius: var(--ds-radius-sm); background: transparent; color: var(--vd-text); font: 600 16px/1 var(--vd-font-ui); pointer-events: auto; cursor: grab; }
-.infra-region-header:hover { background: var(--vd-theme-control-hover); }
+.infra-region-header:hover { background: var(--vd-theme-accent-soft); }
 .infra-region-icon { width: 22px; height: 22px; object-fit: contain; }
 .infra-region-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .infra-region-count { color: var(--vd-theme-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
