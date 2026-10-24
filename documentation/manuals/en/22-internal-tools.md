@@ -929,7 +929,7 @@ Monitor uptime via Uptime Kuma (status pages, heartbeats).
 Query LDAP directory (users, groups, search).
 
 ### `paperless_ngx`
-Manage Paperless-ngx documents (search, upload, tags, correspondents).
+Manage Paperless-ngx documents: search, get, download, upload, update, delete, list_tags, list_correspondents, list_document_types. `correspondent` and `name` are the same field (`correspondent` wins). `document_type` and `category` are the same field (`document_type` wins). Tag search is an exact AND. Upload is text and returns a task id while processing continues. Update adds tags and skips a write when they are already present. Get and download clip OCR text at 8000 characters and report the cut. Vault key `paperless_ngx_api_token` applies on vault save; URL and toggles apply on config save. `readonly` blocks upload, update, and delete.
 
 ### `adguard`
 Manage AdGuard Home DNS server.

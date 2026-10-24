@@ -35,7 +35,7 @@
 		'treg-test-btn': { credentialPaths: ['treg.token'] },
         'obsidian-test-btn': { requiredPaths: ['obsidian.host'], credentialPaths: ['obsidian.api_key'] },
         'omniroute-test-btn': { requiredPaths: ['omniroute.mode'] },
-        'paperless-test-btn': { requiredPaths: ['paperless_ngx.url'], credentialPaths: ['paperless_ngx.token'] },
+        'paperless-test-btn': { requiredPaths: ['paperless_ngx.url'], credentialPaths: ['paperless_ngx.api_token'] },
         'integration-ansible-test-btn': { requiredPaths: ['ansible.url'], credentialPaths: ['ansible.token'] },
         'integration-discord-test-btn': { credentialPaths: ['discord.bot_token'] },
         'integration-frigate-test-btn': { requiredPaths: ['frigate.url'] },

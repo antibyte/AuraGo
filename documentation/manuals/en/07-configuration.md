@@ -1048,7 +1048,7 @@ The following blocks can also be configured through the Web UI or additionally i
 | `meshcentral` | Control WebSocket for devices, wake, power, and MeshAgent commands | `enabled: false`, `readonly: true`, `allow_power_actions: false` |
 | `github` | GitHub API | `github:`<br>`  enabled: false`<br>`  owner: ""` |
 | `s3` / `onedrive` / `webdav` / `koofr` | Cloud storage | Each `enabled: false`, endpoint/credentials in UI/Vault |
-| `paperless_ngx` | Document workflow | `paperless_ngx:`<br>`  enabled: false`<br>`  url: ""` |
+| `paperless_ngx` | Document workflow | `paperless_ngx:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""` |
 | `telnyx` / `rocketchat` | Telephony/chat | `enabled: false`, details via Web UI |
 | `google_workspace` | Google APIs | `google_workspace:`<br>`  enabled: false`<br>`  gmail: false`<br>`  drive: false` |
 | `egg_mode` | Worker mode | `egg_mode:`<br>`  enabled: false`<br>`  master_url: ""`<br>`  egg_id: ""`<br>`  nest_id: ""`<br>`  tls_pin_sha256: ""`<br>`  tls_skip_verify: false` |

@@ -2444,21 +2444,21 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.PaperlessNGXEnabled {
 		tools = append(tools, tool("paperless_ngx",
-			"Manage documents in Paperless-ngx. Search, read, upload, update metadata, delete documents, and list tags/correspondents/document types.",
+			"Manage documents in Paperless-ngx. Search, read, upload, update metadata, delete documents, and list tags/correspondents/document types. Get and download clip OCR text at 8000 characters and report the cut.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
 					"enum":        []string{"search", "get", "download", "upload", "update", "delete", "list_tags", "list_correspondents", "list_document_types"},
 				},
-				"document_id":   prop("string", "Document ID (required for get, download, update, delete)"),
-				"query":         prop("string", "Search query for full-text document search"),
-				"title":         prop("string", "Document title (for upload or update)"),
-				"content":       prop("string", "Document content text (for upload)"),
-				"tags":          prop("string", "Comma-separated tag names (for search filter, upload, or update)"),
-				"correspondent": prop("string", "Correspondent name (for search filter, upload, or update)"),
-				"document_type": prop("string", "Document type name (for search filter, upload, or update)"),
-				"limit":         map[string]interface{}{"type": "integer", "description": "Maximum number of search results (default: 25)"},
+				"document_id":   prop("string", "Positive document ID (required for get, download, update, delete). A JSON number is accepted."),
+				"query":         prop("string", "Full-text search query. Used only for search; content is not a search fallback."),
+				"title":         prop("string", "Document title (for upload or update). Title replaces the current title."),
+				"content":       prop("string", "Plain text uploaded as a .txt document. A successful upload returns a task id while processing is still running."),
+				"tags":          prop("string", "Comma-separated exact tag names or positive IDs. Search requires every tag (AND). Upload sets them. Update adds them and keeps existing tags. Tags that are already present are not written again."),
+				"correspondent": prop("string", "Exact correspondent name or positive ID. Same field as name; correspondent wins when both are set. Resolved to an ID."),
+				"document_type": prop("string", "Exact document type name or positive ID. Same field as category; document_type wins when both are set. Resolved to an ID."),
+				"limit":         map[string]interface{}{"type": "integer", "description": "Maximum number of search results (default 25, capped at 50)"},
 			}, "operation"),
 		))
 	}

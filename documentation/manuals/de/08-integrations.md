@@ -1900,15 +1900,22 @@ sql_connections:
 
 ### Paperless NGX
 
-Dokumentenmanagement und Durchsuchung.
+Dokumentenverwaltung und Suche.
 
-**Web-UI:** Config → Integrationen → Paperless NGX → URL eingeben. API-Key im Vault speichern.
+**Web-UI:** Config → Integrationen → Paperless NGX.
+
+1. Schalte die Integration ein. Mit `readonly` darf der Agent nur suchen und lesen.
+2. Trag die URL ein, zum Beispiel `https://paperless.example.com`, und speichere die Konfiguration. URL und Schalter gelten nach dem Speichern der Konfiguration.
+3. Speichere den API-Token im Vault unter `paperless_ngx_api_token`. Der Token gilt sofort nach dem Speichern im Vault.
+
+Das Werkzeug nimmt `correspondent` oder `name` und `document_type` oder `category`. Wenn beide Namen gesetzt sind, gewinnen `correspondent` und `document_type`. Die Tag-Suche verlangt exakte Namen und verknüpft sie mit UND. Der Upload sendet Text und liefert eine Task-ID, während Paperless noch verarbeitet. Das Update fügt Tags hinzu und behält vorhandene. Tags, die schon am Dokument stehen, werden nicht erneut geschrieben. Fehlt die Tag-Liste in der Antwort, bleiben die Tags unverändert. Get und Download liefern OCR-Text, gekürzt bei 8000 Zeichen, und sagen das, wenn Text gekürzt wurde. `readonly` sperrt Upload, Update und Löschen.
 
 #### YAML-Referenz
 ```yaml
 paperless_ngx:
   enabled: true
-  url: "https://paperless.local"
+  readonly: false
+  url: "https://paperless.example.com"
 ```
 
 ### Obsidian Integration

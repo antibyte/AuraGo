@@ -540,7 +540,7 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | `meshcentral` | Control-WebSocket für Geräte, Wake, Strom und MeshAgent-Befehle | `enabled: false`, `readonly: true`, `allow_power_actions: false` |
 | `github` | GitHub API | `github:`<br>`  enabled: false`<br>`  owner: ""` |
 | `s3` / `onedrive` / `webdav` / `koofr` | Cloud-Speicher | Jeweils `enabled: false`, Endpoint/Credentials in UI/Vault |
-| `paperless_ngx` | Dokumentenworkflow | `paperless_ngx:`<br>`  enabled: false`<br>`  url: ""` |
+| `paperless_ngx` | Dokumentenworkflow | `paperless_ngx:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""` |
 | `telnyx` / `rocketchat` | Telefonie/Chat | `enabled: false`, Details über Web-UI |
 | `google_workspace` | Google APIs | `google_workspace:`<br>`  enabled: false`<br>`  gmail: false`<br>`  drive: false` |
 | `egg_mode` | Worker-Mode | `egg_mode:`<br>`  enabled: false`<br>`  master_url: ""`<br>`  egg_id: ""`<br>`  nest_id: ""`<br>`  tls_pin_sha256: ""`<br>`  tls_skip_verify: false` |

@@ -985,13 +985,20 @@ LDAP/Active Directory Server durchsuchen und Authentifizierung durchführen.
 | `attributes` | array | Zurückzugebende Attribute |
 
 ### `paperless_ngx`
-Paperless-ngx Dokumentenverwaltung (Suche, Upload, Metadaten, Tags).
+Paperless-ngx Dokumentenverwaltung.
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `operation` | enum | search, download, upload, list_tags, list_correspondents, get_document, update_metadata, delete |
-| `query` | string | Suchbegriff |
-| `document_id` | integer | Dokument-ID |
+| `operation` | enum | search, get, download, upload, update, delete, list_tags, list_correspondents, list_document_types |
+| `query` | string | Volltextsuche. `content` ist kein Ersatz. |
+| `document_id` | string | Positive Dokument-ID für get, download, update, delete |
+| `tags` | string | Exakte Tag-Namen, kommagetrennt. Suche verknüpft sie mit UND. Update fügt sie hinzu. |
+| `name` / `correspondent` | string | Exakter Korrespondent oder positive ID. `correspondent` gewinnt. |
+| `category` / `document_type` | string | Exakter Dokumenttyp oder positive ID. `document_type` gewinnt. |
+| `content` | string | Text-Upload als `.txt`. Die Antwort enthält eine Task-ID; die Verarbeitung läuft noch. |
+| `limit` | integer | Suchtreffer, Standard 25, höchstens 50 |
+
+Das Update fügt Tags hinzu und schreibt sie nicht erneut, wenn sie schon vorhanden sind. Get und Download kürzen OCR-Text bei 8000 Zeichen und melden die Kürzung. Der Vault-Schlüssel `paperless_ngx_api_token` gilt sofort nach dem Speichern im Vault. URL und Schalter gelten nach dem Speichern der Konfiguration. `readonly` sperrt Upload, Update und Löschen.
 
 ### `yepapi_seo`
 SEO-Analyse über YepAPI: Keyword-Recherche, Domain-Übersicht, Wettbewerbsanalyse, Backlink-Zusammenfassung und On-Page-Audits.

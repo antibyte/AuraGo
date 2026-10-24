@@ -55,6 +55,7 @@ func handlePaperlessTest(s *Server) http.HandlerFunc {
 		}
 
 		result := tools.PaperlessTestConnection(tools.PaperlessConfig{
+			Context:  r.Context(),
 			URL:      cfg.URL,
 			APIToken: apiToken,
 		})
