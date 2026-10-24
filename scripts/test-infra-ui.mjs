@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['infra-model.js', 'infra-store.js', 'infra-views.js', 'infra.js'];
+const files = ['infra-model.js', 'infra-store.js', 'infra-canvas.js', 'infra-views.js', 'infra.js'];
 for (const file of files) {
     const text = fs.readFileSync(path.join(root, 'ui/js/desktop/apps', file), 'utf8');
     const lines = text.split('\n').length;
@@ -458,6 +458,15 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
         assert.deepEqual(plain(calls.filter(call => call.route === 'PUT /layout').map(call => call.body.nodes)), [[{ id: 'a', version: 1, x: 48, y: 48, pinned: true }]]);
         store.dispose();
     }
+}
+
+for (const file of ['desktop-app-infra-canvas.css']) {
+    const css = fs.readFileSync(path.join(root, 'ui/css', file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const outsideMixes = css.replace(/color-mix\((?:[^()]|\([^()]*\))*\)/g, '');
+    assert.deepEqual(outsideMixes.match(/#[0-9a-fA-F]{3,8}\b/g) || [], [], `${file} uses hex colours outside color-mix()`);
+    assert.deepEqual(outsideMixes.match(/rgba?\(\s*\d/g) || [], [], `${file} uses literal rgb() colours instead of tokens`);
+    assert.ok(!/var\(--vd-font[,)]/.test(css), `${file} uses --vd-font instead of --vd-font-ui`);
+    assert.ok(!/copper/i.test(css), `${file} still uses the copper accent`);
 }
 
 console.log(`Infra UI model, grouped virtualization, and ${required.size} translation keys passed for ${locales.length} locales.`);
