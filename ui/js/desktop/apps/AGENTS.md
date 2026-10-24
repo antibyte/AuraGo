@@ -111,7 +111,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `infra-library.js`, `infra-inspector.js`, `infra-table.js`, `infra-dialogs.js`, then `infra.js` (composition root).
   Styles: `desktop-app-infra.css` (shell, panels, dialogs) and `desktop-app-infra-canvas.css` (map). Every file stays
   below 1100 lines and no file touches the DOM at load time (the Node test runs them in a vm).
-- World coordinates: an asset placement is the centre of its 184×60 card; a place placement is the top-left of its
+- World coordinates: an asset placement is the centre of its 216×64 card; a place placement is the top-left of its
   region plus `w`/`h`. Cards sit at `left`/`top` world px inside `[data-scene]`, which carries the only transform
   (`translate(x, y) scale(z)`, zoom 0.25–2).
 - Every position, parent or size change goes through `store.dispatch` with an `InfraAppStore.commands` object. The

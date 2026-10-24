@@ -7,6 +7,9 @@
     const ICON_ASSETS = new Map();
     const CONTAINER_KINDS = ['site', 'room', 'rack', 'group'];
     const POWERS = new Set(['running', 'stopped', 'paused', 'unknown']);
+    // A card is 216×64 world px (Plan D amendment A2); its placement is the centre.
+    const CARD_W = 216, CARD_H = 64;
+    const CARD_HALF = { w: CARD_W / 2, h: CARD_H / 2 };
     const TOPOLOGY_LAYER = { network: 0, site: 0, room: 0, rack: 0, device: 1, group: 1, vm: 2, container: 2, service: 3 };
 
     const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
@@ -72,7 +75,7 @@
         const scale = Math.min(dx ? half.w / Math.abs(dx) : Infinity, dy ? half.h / Math.abs(dy) : Infinity);
         return { x: from.x + dx * scale, y: from.y + dy * scale };
     };
-    const edgeSegment = (a, b, halfA = { w: 92, h: 30 }, halfB = { w: 92, h: 30 }) => {
+    const edgeSegment = (a, b, halfA = CARD_HALF, halfB = CARD_HALF) => {
         const x1 = Number(a.x), y1 = Number(a.y), x2 = Number(b.x), y2 = Number(b.y);
         const start = borderPoint({ x: x1, y: y1 }, { x: x2, y: y2 }, halfA);
         const end = borderPoint({ x: x2, y: y2 }, { x: x1, y: y1 }, halfB);
@@ -84,10 +87,12 @@
         const ports = from && to ? `${from} → ${to}` : (from || to);
         return [ports, speed].filter(Boolean).join(' · ');
     };
-    const overlaps = (left, right) => Math.abs(Number(left.x) - Number(right.x)) < 160 && Math.abs(Number(left.y) - Number(right.y)) < 110;
+    // Arrange and the Topology fallback lay cards out on a 252×160 pitch from (126, 100).
+    const ARRANGE_X0 = 126, ARRANGE_Y0 = 100, ARRANGE_DX = 252, ARRANGE_DY = 160;
+    const overlaps = (left, right) => Math.abs(Number(left.x) - Number(right.x)) < CARD_W - 24 && Math.abs(Number(left.y) - Number(right.y)) < CARD_H + 48;
     // Grid cells make the placement search linear: generated positions are exact
     // grid points, so a Set replaces the per-attempt array scan.
-    const gridKey = (x, y) => `${Math.round((Number(x) - 110) / 220)},${Math.round((Number(y) - 100) / 155)}`;
+    const gridKey = (x, y) => `${Math.round((Number(x) - ARRANGE_X0) / ARRANGE_DX)},${Math.round((Number(y) - ARRANGE_Y0) / ARRANGE_DY)}`;
     const blockedGrid = obstacles => {
         const blocked = new Set();
         for (const pos of obstacles || []) blocked.add(gridKey(pos.x, pos.y));
@@ -102,7 +107,7 @@
         for (const node of nodes) {
             let position;
             for (let attempts = 0; attempts < 20000 && !position; attempts += 1, index += 1) {
-                const candidate = { x: 110 + (index % columns) * 220, y: 100 + Math.floor(index / columns) * 155 };
+                const candidate = { x: ARRANGE_X0 + (index % columns) * ARRANGE_DX, y: ARRANGE_Y0 + Math.floor(index / columns) * ARRANGE_DY };
                 const key = gridKey(candidate.x, candidate.y);
                 if (blocked.has(key) || occupied.some(pos => overlaps(pos, candidate))) continue;
                 position = { ...candidate, pinned: false };
@@ -128,7 +133,7 @@
             for (const node of ordered) {
                 let position;
                 for (let guard = 0; guard < 20000 && !position; guard += 1) {
-                    const candidate = { x: 110 + column * 220, y: 100 + layer * 180 };
+                    const candidate = { x: ARRANGE_X0 + column * ARRANGE_DX, y: ARRANGE_Y0 + layer * 180 };
                     column += 1;
                     const key = gridKey(candidate.x, candidate.y);
                     if (blocked.has(key) || occupied.some(pos => overlaps(pos, candidate))) continue;
@@ -170,11 +175,10 @@
 
     // ---- canvas world -------------------------------------------------------
     // World coordinates are CSS pixels at zoom 1. An asset placement (x, y) is
-    // the centre of its 184×60 card; a place placement (x, y) is the top-left
+    // the centre of its 216×64 card; a place placement (x, y) is the top-left
     // corner of its region and (w, h) its size (default 360×240).
-    const CARD_W = 184, CARD_H = 60, GRID = 24, MIN_ZOOM = 0.25, MAX_ZOOM = 2;
+    const GRID = 24, MIN_ZOOM = 0.25, MAX_ZOOM = 2;
     const REGION_W = 360, REGION_H = 240, REGION_PAD = 48, REGION_MIN_W = 200, REGION_MIN_H = 140;
-    const CARD_HALF = { w: CARD_W / 2, h: CARD_H / 2 };
     const HOSTED_KINDS = new Set(['vm', 'container', 'service']);
     const WIRELESS_ICONS = new Set(['access-point', 'mesh-node']);
     const finite = value => (value === null || value === undefined || value === '' || !Number.isFinite(Number(value)) ? null : Number(value));
@@ -216,8 +220,9 @@
         return minX === Infinity ? null : { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
     };
     // freeSlot returns want when the card fits there, else the grid point of the
-    // nearest ring around it whose card (plus gap) overlaps no obstacle rect.
-    const freeSlot = (want, obstacles, { grid = GRID, gap = 12, maxRing = 40 } = {}) => {
+    // nearest ring around it whose card (plus gap) overlaps no obstacle rect. The
+    // 8 px gap makes a stacked card land one card height plus gap = 72 px (3 cells) away.
+    const freeSlot = (want, obstacles, { grid = GRID, gap = 8, maxRing = 40 } = {}) => {
         const reach = (maxRing + 2) * grid + CARD_W;
         const near = (obstacles || []).filter(o => Math.abs(o.x + o.w / 2 - want.x) < reach + o.w / 2 && Math.abs(o.y + o.h / 2 - want.y) < reach + o.h / 2).map(o => padRect(o, gap / 2));
         const blocked = point => { const rect = padRect(cardRect(point), gap / 2); return near.some(o => intersects(rect, o)); };
@@ -323,10 +328,10 @@
         return best;
     };
     // compactGrid lays count cards out around centre in rows of ceil(sqrt(count)),
-    // 216×96 apart (both multiples of the 24 px grid).
+    // 240×96 apart (both multiples of the 24 px grid).
     const compactGrid = (count, centre) => {
         const cols = Math.max(1, Math.ceil(Math.sqrt(count))), rows = Math.ceil(count / cols);
-        const cellW = CARD_W + 32, cellH = CARD_H + 36;
+        const cellW = CARD_W + 24, cellH = CARD_H + 32;
         const x0 = snap(centre.x - (cols - 1) * cellW / 2), y0 = snap(centre.y - (rows - 1) * cellH / 2);
         return Array.from({ length: count }, (_, i) => ({ x: x0 + (i % cols) * cellW, y: y0 + Math.floor(i / cols) * cellH }));
     };

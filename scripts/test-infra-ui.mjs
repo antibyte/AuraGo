@@ -131,8 +131,8 @@ const rack = { id: 'rack', kind: 'rack', parent_id: 'room' };
 const host = { id: 'host', kind: 'device', parent_id: 'rack' };
 assert.equal(model.visibleByCollapsed([room, rack, host], new Set(['room'])).length, 1);
 
-assert.deepEqual(plain(model.edgeSegment({ x: 0, y: 0 }, { x: 400, y: 0 })), { x1: 92, y1: 0, x2: 308, y2: 0 }, 'connections start and end at the card border');
-assert.deepEqual(plain(model.edgeSegment({ x: 0, y: 0 }, { x: 0, y: 300 })), { x1: 0, y1: 30, x2: 0, y2: 270 });
+assert.deepEqual(plain(model.edgeSegment({ x: 0, y: 0 }, { x: 400, y: 0 })), { x1: 108, y1: 0, x2: 292, y2: 0 }, 'connections start and end at the 216×64 card border');
+assert.deepEqual(plain(model.edgeSegment({ x: 0, y: 0 }, { x: 0, y: 300 })), { x1: 0, y1: 32, x2: 0, y2: 268 });
 assert.deepEqual(plain(model.edgeSegment({ x: 0, y: 0 }, { x: 100, y: 0 })), { x1: 0, y1: 0, x2: 100, y2: 0 }, 'overlapping cards keep the centre line');
 assert.equal(model.edgeSegment({ x: 0, y: 0 }, { x: 1000, y: 0 }, undefined, { w: 300, h: 100 }).x2, 700, 'a region end stops at its own border');
 assert.equal(model.edgeCaption({ from_port: 'ge-0/0/1', to_port: 'eth0', speed: '1G' }), 'ge-0/0/1 → eth0 · 1G');
@@ -141,16 +141,16 @@ const topology = model.topologyPositions([
     { id: 'lan', kind: 'network', name: 'LAN' },
     { id: 'nas', kind: 'device', name: 'NAS' },
     { id: 'backup', kind: 'service', name: 'Backup' },
-], [{ x: 110, y: 280 }]);
+], [{ x: 126, y: 280 }]);
 const placedAt = (id, x, y) => {
     const position = topology.get(id);
     assert.equal(position.x, x);
     assert.equal(position.y, y);
     assert.equal(position.pinned, false);
 };
-placedAt('lan', 110, 100);
-placedAt('nas', 330, 280);
-placedAt('backup', 110, 640);
+placedAt('lan', 126, 100);
+placedAt('nas', 378, 280);
+placedAt('backup', 126, 640);
 
 const base = { nodes: [{ id: 'n', version: 1, kind: 'device', name: 'NAS', power: 'running', placements: { atlas: { x: 1, y: 2 } }, sources: [] }], edges: [], sources: [{ kind: 'docker', instance: 'engine', key: 'abc', state: 'current', observed: { power: 'running' }, fetched_at: '2026-01-01T00:00:00Z' }], caps: { write: true, source_edit: false, control: false } };
 const same = model.snapshotStamp(base.nodes, base.edges, base.sources, base.caps);
@@ -200,19 +200,19 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
 // ---- geometry, regions and drops --------------------------------------------
 {
     const a = model.cardRect({ x: 0, y: 0 });
-    assert.deepEqual(plain(a), { x: -92, y: -30, w: 184, h: 60 });
+    assert.deepEqual(plain(a), { x: -108, y: -32, w: 216, h: 64 }, 'a card is 216×64 around its centre');
     const slot = model.freeSlot({ x: 0, y: 0 }, [a]);
     assert.ok(!model.intersects(model.cardRect(slot), a), 'the nudged card no longer overlaps');
-    assert.equal(Math.hypot(slot.x, slot.y), 72, 'the nearest free slot is one card height plus the gap away');
+    assert.equal(Math.hypot(slot.x, slot.y), 72, 'the nearest free slot is one card height plus the 8 px gap away (3 grid cells)');
     assert.ok(Number.isInteger(slot.x / 24) && Number.isInteger(slot.y / 24), 'a nudged card lands on the grid');
     assert.deepEqual(plain(model.freeSlot({ x: 500, y: 501 }, [a])), { x: 500, y: 501 }, 'a free drop keeps its exact point');
     assert.deepEqual(plain(model.regionRect({ x: 0, y: 0 })), { x: 0, y: 0, w: 360, h: 240 }, 'a place without size gets 360×240');
-    assert.deepEqual(plain(model.regionRect({ x: 0, y: 0, w: 200, h: 140 }, [model.cardRect({ x: 400, y: 100 })])), { x: 0, y: 0, w: 540, h: 178 }, 'children grow the region by the 48 px frame padding');
+    assert.deepEqual(plain(model.regionRect({ x: 0, y: 0, w: 200, h: 140 }, [model.cardRect({ x: 400, y: 100 })])), { x: 0, y: 0, w: 556, h: 180 }, 'children grow the region by the 48 px frame padding');
     const placements = { site: { x: 0, y: 0, w: 200, h: 140 }, rack: { x: 300, y: 300, w: 200, h: 140 } };
     const parentOf = id => ({ rack: 'site' })[id] || '';
     const layout = model.regionLayout(['site', 'rack'], { parentOf, placementOf: id => placements[id], cardRectsByParent: new Map([['rack', [model.cardRect({ x: 400, y: 380 })]]]) });
-    assert.deepEqual(plain(layout.rects.get('rack')), { x: 260, y: 300, w: 280, h: 158 });
-    assert.deepEqual(plain(layout.rects.get('site')), { x: 0, y: 0, w: 588, h: 506 }, 'a nested place grows its parent');
+    assert.deepEqual(plain(layout.rects.get('rack')), { x: 244, y: 300, w: 312, h: 160 });
+    assert.deepEqual(plain(layout.rects.get('site')), { x: 0, y: 0, w: 604, h: 508 }, 'a nested place grows its parent');
     assert.equal(layout.depth.get('rack'), 1);
     assert.equal(model.regionAt({ x: 400, y: 380 }, layout.rects, layout.depth), 'rack', 'hit-testing returns the innermost region');
     assert.equal(model.regionAt({ x: 50, y: 50 }, layout.rects, layout.depth), 'site');
@@ -223,13 +223,13 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     assert.deepEqual(plain(model.dropParent('rack', { x: 5000, y: 5000 }, layout.rects, layout.depth)), { parent_id: '' }, 'leaving every region clears the parent');
     assert.deepEqual(plain(model.dropParent('hidden-room', { x: 5000, y: 5000 }, layout.rects, layout.depth)), {}, 'a parent that is not drawn here is never cleared');
     const growth = model.growRegions('rack', model.cardRect({ x: 700, y: 380 }), { ids: new Set(['site', 'rack']), parentOf, placementOf: id => placements[id] });
-    assert.deepEqual(plain(growth.get('rack')), { x: 300, y: 300, w: 540, h: 158 });
-    assert.deepEqual(plain(growth.get('site')), { x: 0, y: 0, w: 888, h: 506 }, 'growth propagates to the ancestors');
+    assert.deepEqual(plain(growth.get('rack')), { x: 300, y: 300, w: 556, h: 160 });
+    assert.deepEqual(plain(growth.get('site')), { x: 0, y: 0, w: 904, h: 508 }, 'growth propagates to the ancestors');
     const items = [{ id: 'c', x: 0, y: 0 }, { id: 'r', x: 220, y: 10 }, { id: 'far', x: 600, y: 0 }, { id: 'd', x: 0, y: 155 }, { id: 'diag', x: 150, y: 150 }];
     assert.equal(model.spatialNeighbour(items[0], items, 'right'), 'r');
     assert.equal(model.spatialNeighbour(items[0], items, 'down'), 'd');
     assert.equal(model.spatialNeighbour(items[0], items, 'left'), '');
-    assert.deepEqual(plain(model.compactGrid(4, { x: 0, y: 0 })), [{ x: -96, y: -48 }, { x: 120, y: -48 }, { x: -96, y: 48 }, { x: 120, y: 48 }]);
+    assert.deepEqual(plain(model.compactGrid(4, { x: 0, y: 0 })), [{ x: -120, y: -48 }, { x: 120, y: -48 }, { x: -120, y: 48 }, { x: 120, y: 48 }], 'a compact grid keeps 240×96 cells on the 24 px grid');
     assert.equal(model.defaultEdgeKind({ kind: 'device', icon: 'router' }, { kind: 'device', icon: 'nas' }), 'ethernet');
     assert.equal(model.defaultEdgeKind({ kind: 'device', icon: 'access-point' }, { kind: 'device', icon: 'laptop' }), 'wifi');
     assert.equal(model.defaultEdgeKind({ kind: 'service', icon: 'web-service' }, { kind: 'device', icon: 'nas' }), 'depends_on');

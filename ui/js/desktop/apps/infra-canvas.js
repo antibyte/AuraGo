@@ -221,10 +221,10 @@
                 guestList.length ? model.countText(guestList.length, t('desktop.infra_guest_count_one'), t('desktop.infra_guest_count')) : ''].filter(Boolean).join(', ');
             const handles = store.canWrite() ? CONNECT_HANDLES.map(side => `<span class="infra-card-handle" data-connect-handle="${side}" aria-hidden="true"></span>`).join('') : '';
             let html = `<button type="button" class="infra-card" data-node="${id}" data-kind="${esc(node.kind)}" data-state="${esc(state)}"${power ? ` data-power="${power}"` : ''} tabindex="-1" aria-pressed="false" aria-label="${esc(label)}" title="${name}">`
-                + `<span class="infra-card-icon">${app.icon(node.icon)}</span>`
+                // The status glyph and the power dot ride on the icon, so the name keeps the whole text column.
+                + `<span class="infra-card-icon">${app.icon(node.icon)}${STATUS_GLYPH[state] ? `<span class="infra-card-status" aria-hidden="true">${STATUS_GLYPH[state]}</span>` : ''}${power ? `<i class="infra-card-power" data-power="${power}" aria-hidden="true"></i>` : ''}</span>`
                 + `<span class="infra-card-text"><strong class="infra-card-name">${name}</strong><small class="infra-card-meta">${esc(cardMeta(node))}</small></span>`
-                + `<span class="infra-card-status" aria-hidden="true">${STATUS_GLYPH[state] || ''}</span>`
-                + (power ? `<i class="infra-card-power" data-power="${power}" aria-hidden="true"></i>` : '') + handles + '</button>';
+                + handles + '</button>';
             if (!guestList.length) return html;
             const running = guestList.filter(guest => guest.power === 'running').length;
             const toggleLabel = expanded ? t('desktop.infra_hide_guests') : t('desktop.infra_show_guests');

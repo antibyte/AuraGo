@@ -69,7 +69,7 @@ cd "/c/Users/Andi/Documents/repo/AuraGo/.worktrees/infra-redesign-ui" && git add
 - Size: every JS file stays below 1100 lines.
 
 **Coordinate contract (Plan B, unchanged):**
-- An asset placement `(x, y)` is the centre of its 184×60 card.
+- An asset placement `(x, y)` is the centre of its 216×64 card (design QA A2; it was 184×60 when this plan was written).
 - A place placement `(x, y)` is the top-left corner of its region and `(w, h)` its size: default 360×240, minimum 200×140.
 - The drawn region is the stored rectangle grown to contain its children plus 48 px.
 
@@ -78,7 +78,7 @@ cd "/c/Users/Andi/Documents/repo/AuraGo/.worktrees/infra-redesign-ui" && git add
 - **Lane of a card:**
   - A card with a topology placement saved `pinned: true` is in lane `laneAt(y) = clamp(floor(y / 480), 0, 3)`.
   - Any other card (no topology placement, or saved `pinned: false` by Arrange) is in lane `topologyLane(node)`.
-- **Auto rows:** auto-laid rows sit at lane top + 96 + row × 96, with columns 216 px apart, centred.
+- **Auto rows:** auto-laid rows sit at lane top + 96 + row × 96, with columns 240 px apart (`LANE_CELL_W = 240`, card width 216 plus one 24 px grid cell), centred.
 - **Auto layout never writes:** assets without a topology placement are drawn at computed slots. Nothing is saved until a card is dragged, moved with the keyboard, or arranged.
 
 **Plan A dependency:**

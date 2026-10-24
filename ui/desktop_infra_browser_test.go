@@ -143,8 +143,8 @@ func (f *infraAppBrowserFixture) world(size int) {
 			extra := index - 25
 			column, row = 5+extra%20, extra/20
 		}
-		x := 110 + column*220
-		y := 100 + row*155
+		x := 126 + column*252 // a 216×64 card on a 252×160 pitch
+		y := 100 + row*160
 		if i == 3 {
 			x = -10 // Retain a negative saved coordinate outside the group marker.
 		}
@@ -700,7 +700,7 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 			if count := page.MustEval(`()=>document.querySelectorAll('[data-nodes] [data-node]').length`).Int(); count != 248 {
 				t.Fatalf("map has %d cards; want 248 (249 assets minus one guest)", count)
 			}
-			if left := page.MustEval(`()=>document.querySelector('[data-node="fixture-node-0045"]').style.left`).Str(); left != "5390px" {
+			if left := page.MustEval(`()=>document.querySelector('[data-node="fixture-node-0045"]').style.left`).Str(); left != "6174px" {
 				t.Fatalf("a far saved world coordinate changed: %s", left)
 			}
 		} else {

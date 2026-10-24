@@ -17,6 +17,11 @@ of Task 10 runs, so the QA screenshots already show them.
 | A8 | Below ~560 px the search field shrinks to ~50 px. | Below 560 px container width the search collapses to an icon button (`data-action="open-search"`) that expands the field over the command bar until blur/Escape. | 430×700 screenshot: search usable, nothing overflows (existing overflow guard). |
 | A9 | The canvas focus ring is heavy in dark themes. | Viewport focus uses an inset 1px `--vd-theme-accent-border` ring plus the standard `--ds-focus-ring-*` only on keyboard focus (`:focus-visible`). Card focus keeps the standard ring. | Visual check; keyboard focus still visible (Plan D a11y test). |
 
+## Consequences of A2 for the rest of Plan D (D-fix-1)
+
+The card is 216×64 and the model constants moved with it: `CARD_W = 216`, `CARD_H = 64`, `freeSlot` gap 8 (a stacked card lands 72 px away), `compactGrid` cells 240×96, Arrange grid 252×160 from (126, 100).
+Plan D Task 1 was written for 184×60 cards: its `LANE_CELL_W = 216` leaves no gap between neighbours. Use `LANE_CELL_W = 240`; `LANE_ROW_H = 96` stays (64 plus 32). Every pinned x in the Task 1 and Task 4 tests that assumes a 216 px column pitch changes accordingly (centre ± 120 for two cards, 240 apart for a row).
+
 ## After Plan C Tasks 5–10 (2026-10-24)
 
 Owned by Plan C (Tasks 11–17 executor), because they touch panel copy and styling:

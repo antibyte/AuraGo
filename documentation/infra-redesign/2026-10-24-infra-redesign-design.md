@@ -96,7 +96,7 @@ height the canvas is ≈ 700 px (was ≈ 260 px).
 - World coordinates in px; one CSS transform `translate(x,y) scale(z)` on `[data-scene]`; zoom 0.25–2.0.
   Initial view: fit all placed assets with 48 px margin, capped at 1.0. Viewport per view persists in
   `localStorage` (`infra.viewport.v1.<view>`).
-- Asset card (`[data-node]`, native `<button>`): 184×60, icon 36 px, name 16 px/600 (test floor 16 px), meta
+- Asset card (`[data-node]`, native `<button>`): 216×64 (A2; was 184×60), icon 36 px, name 16 px/600 (test floor 16 px), meta
   line 14 px tabular (IP, else role), status ring colour plus a status glyph for non-colour users, power dot.
   Full name in `title` and aria-label. Selected: accent outline 2 px + soft shadow. Hover: raise + show
   connection handles (4 small dots on the card edges).
