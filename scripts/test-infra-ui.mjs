@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['infra-model.js', 'infra-views.js', 'infra.js'];
+const files = ['infra-model.js', 'infra-store.js', 'infra-views.js', 'infra.js'];
 for (const file of files) {
     const text = fs.readFileSync(path.join(root, 'ui/js/desktop/apps', file), 'utf8');
     const lines = text.split('\n').length;
@@ -320,6 +320,144 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     assert.equal('atlas' in full[0].placements, false, 'a full node without this view has been unplaced there');
     const hostedStamp = model.snapshotStamp([{ ...base.nodes[0], host_id: 'h' }], base.edges, base.sources, base.caps);
     assert.notEqual(same, hostedStamp, 'a new host is a structural change');
+}
+
+// ---- store: layout queue, rebase, undo --------------------------------------
+{
+    const InfraStore = window.InfraAppStore;
+    const storeNode = (id, extra = {}) => ({ id, version: 1, kind: 'device', name: id, icon: 'router', profile: {}, placements: { atlas: { x: 0, y: 0, pinned: true } }, sources: [], ...extra });
+    const conflict = () => Object.assign(new Error('conflict'), { status: 409, body: { error: 'conflict' } });
+    const fakeApi = routes => {
+        const calls = [];
+        const api = async (url, options = {}) => {
+            const route = `${options.method || 'GET'} ${String(url).replace('/api/desktop/infra', '').split('?')[0]}`;
+            const body = typeof options.body === 'string' ? JSON.parse(options.body) : undefined;
+            calls.push({ route, body });
+            const handler = routes[route];
+            if (!handler) throw Object.assign(new Error('not_found'), { status: 404, body: { error: 'not_found' } });
+            return handler(body);
+        };
+        return { api, calls };
+    };
+    const newStore = api => InfraStore.create({ ctx: { api }, t: key => key });
+    const echo = body => ({ nodes: body.nodes.map(item => storeNode(item.id, { version: item.version + 1, ...(item.parent_id !== undefined ? { parent_id: item.parent_id } : {}), placements: item.unplace ? {} : { atlas: { x: item.x, y: item.y, pinned: true } } })) });
+
+    { // coalescing; an old server never receives parent_id
+        const { api, calls } = fakeApi({ 'PUT /layout': echo });
+        const store = newStore(api);
+        store.applySnapshot({ nodes: [storeNode('a'), storeNode('room', { kind: 'room' })], edges: [], sources: [], capabilities: { write: true } });
+        store.queueLayout('atlas', new Map([['a', { x: 24, y: 24 }]]));
+        const done = store.queueLayout('atlas', new Map([['a', { x: 48, y: 48, parent_id: 'room' }]]));
+        assert.equal(store.effectivePlacement('a', 'atlas').x, 48, 'a queued move shows at once');
+        assert.equal(await done, true);
+        const puts = calls.filter(call => call.route === 'PUT /layout');
+        assert.equal(puts.length, 1, 'moves made in the same tick coalesce into one save');
+        assert.deepEqual(plain(puts[0].body.nodes), [{ id: 'a', version: 1, x: 48, y: 48, pinned: true }], 'a server without source_hosts never receives parent_id');
+        assert.equal(store.nodeById('a').version, 2);
+        store.dispose();
+    }
+    { // one conflict: reload, reapply onto the fresh version, resend once
+        let serverVersion = 1, puts = 0;
+        const snapshot = () => ({ nodes: [storeNode('a', { version: serverVersion }), storeNode('room', { kind: 'room' })], edges: [], sources: [], source_hosts: [], capabilities: { write: true } });
+        const { api, calls } = fakeApi({
+            'GET /snapshot': snapshot,
+            'PUT /layout': body => { puts += 1; if (puts === 1) { serverVersion = 5; throw conflict(); } return echo(body); },
+        });
+        const store = newStore(api);
+        store.applySnapshot(snapshot());
+        await store.dispatch(InfraStore.commands.reparent('atlas', new Map([['a', { x: 0, y: 0, pinned: true, parent_id: '' }]]), new Map([['a', { x: 96, y: 0, pinned: true, parent_id: 'room' }]])));
+        await store.whenLayoutIdle('atlas');
+        const sent = calls.filter(call => call.route === 'PUT /layout').map(call => call.body.nodes[0]);
+        assert.equal(sent.length, 2, 'a conflict is retried exactly once');
+        assert.deepEqual(plain(sent[1]), { id: 'a', version: 5, x: 96, y: 0, pinned: true, parent_id: 'room' }, 'the retry reapplies the intent onto the fresh version');
+        assert.equal(calls.filter(call => call.route === 'GET /snapshot').length, 1);
+        assert.equal(store.nodeById('a').parent_id, 'room');
+        assert.equal(store.unsavedCount('atlas'), 0);
+        assert.equal(store.canUndo('atlas'), false, 'a structural conflict clears the view history');
+        store.dispose();
+    }
+    { // a second conflict leaves the position unsaved until Retry
+        let fail = true;
+        const { api, calls } = fakeApi({
+            'GET /snapshot': () => ({ nodes: [storeNode('a')], edges: [], sources: [], source_hosts: [], capabilities: { write: true } }),
+            'PUT /layout': body => { if (fail) throw conflict(); return echo(body); },
+        });
+        const store = newStore(api);
+        store.applySnapshot({ nodes: [storeNode('a')], edges: [], sources: [], source_hosts: [], capabilities: { write: true } });
+        assert.equal(await store.queueLayout('atlas', new Map([['a', { x: 48, y: 0 }]])), false);
+        assert.equal(calls.filter(call => call.route === 'PUT /layout').length, 2);
+        assert.equal(store.unsavedCount('atlas'), 1, 'a second conflict keeps the position as unsaved');
+        assert.equal(store.effectivePlacement('a', 'atlas').x, 48, 'the unsaved position stays visible');
+        assert.equal(store.hasUnsavedWork(), true);
+        fail = false;
+        assert.equal(await store.retryLayout('atlas'), true);
+        assert.equal(store.unsavedCount('atlas'), 0);
+        store.dispose();
+    }
+    { // undo/redo and draft alignment
+        const { api, calls } = fakeApi({ 'PUT /layout': echo });
+        const store = newStore(api);
+        store.applySnapshot({ nodes: [storeNode('a')], edges: [], sources: [], capabilities: { write: true } });
+        store.state.drafts.set('a', { ...store.nodeById('a'), name: 'Draft name' });
+        store.state.dirty.add('a');
+        await store.dispatch(InfraStore.commands.moveNodes('atlas', new Map([['a', { x: 0, y: 0, pinned: true }]]), new Map([['a', { x: 96, y: 0, pinned: true }]])));
+        assert.equal(store.state.drafts.get('a').version, 2, 'our own layout save moves a dirty draft onto the new version');
+        assert.equal(store.state.drafts.get('a').name, 'Draft name');
+        assert.equal(await store.undo('atlas'), true);
+        await store.whenLayoutIdle('atlas');
+        assert.equal(store.effectivePlacement('a', 'atlas').x, 0);
+        assert.equal(await store.redo('atlas'), true);
+        await store.whenLayoutIdle('atlas');
+        assert.equal(store.effectivePlacement('a', 'atlas').x, 96);
+        assert.deepEqual(plain(calls.map(call => call.body.nodes[0].x)), [96, 0, 96]);
+        store.dispose();
+    }
+    { // placing from the library is undone by unplacing when the server supports it
+        const { api, calls } = fakeApi({ 'PUT /layout': echo });
+        const store = newStore(api);
+        store.applySnapshot({ nodes: [storeNode('a', { placements: {} }), storeNode('b'), storeNode('room', { kind: 'room' })], edges: [], sources: [], source_hosts: [], capabilities: { write: true } });
+        assert.equal(store.effectivePlacement('a', 'atlas'), null);
+        const placed = new Map([['a', { x: 96, y: 48, pinned: true, parent_id: 'room' }], ['b', { x: 240, y: 48, pinned: true }]]);
+        await store.dispatch(InfraStore.commands.placeFromLibrary('atlas', placed, 'place'));
+        await store.whenLayoutIdle('atlas');
+        assert.equal(store.effectivePlacement('a', 'atlas').x, 96);
+        assert.equal(store.canUndo('atlas'), true, 'a library placement is undoable against a server with unplace support');
+        assert.equal(await store.undo('atlas'), true);
+        assert.equal(store.effectivePlacement('a', 'atlas'), null, 'the undo takes the asset off the map at once');
+        assert.equal(store.currentIntent('a', 'atlas'), null);
+        await store.whenLayoutIdle('atlas');
+        const puts = calls.filter(call => call.route === 'PUT /layout').map(call => call.body.nodes);
+        assert.deepEqual(plain(puts[1]), [{ id: 'a', version: 2, unplace: true }, { id: 'b', version: 2, x: 0, y: 0, pinned: true, parent_id: '' }], 'unplace carries no coordinates; an asset that was placed before goes back to where it was');
+        assert.equal(store.nodeById('a').placements.atlas, undefined, 'the saved asset is unplaced afterwards');
+        assert.equal(store.layoutState('a', 'atlas'), '');
+        assert.equal(await store.redo('atlas'), true);
+        await store.whenLayoutIdle('atlas');
+        assert.equal(store.effectivePlacement('a', 'atlas').x, 96, 'redo places it again');
+        assert.deepEqual(plain(calls.filter(call => call.route === 'PUT /layout')[2].body.nodes[0]), { id: 'a', version: 3, x: 96, y: 48, pinned: true, parent_id: 'room' });
+        store.dispose();
+    }
+    { // against a server without source_hosts a library placement stays out of history
+        const { api } = fakeApi({ 'PUT /layout': echo });
+        const store = newStore(api);
+        store.applySnapshot({ nodes: [storeNode('a', { placements: {} })], edges: [], sources: [], capabilities: { write: true } });
+        assert.equal(await store.dispatch(InfraStore.commands.placeFromLibrary('atlas', new Map([['a', { x: 96, y: 48, pinned: true }]]), 'place')), true);
+        assert.equal(store.effectivePlacement('a', 'atlas').x, 96);
+        assert.equal(store.canUndo('atlas'), false, 'an older server cannot remove a placement');
+        store.dispose();
+    }
+    { // an unplace and a placement queued in the same tick resolve to the last one
+        const { api, calls } = fakeApi({ 'PUT /layout': echo });
+        const store = newStore(api);
+        store.applySnapshot({ nodes: [storeNode('a', { placements: {} })], edges: [], sources: [], source_hosts: [], capabilities: { write: true } });
+        store.queueLayout('atlas', new Map([['a', { x: 24, y: 24, pinned: true }]]));
+        store.queueLayout('atlas', new Map([['a', { unplace: true }]]));
+        assert.equal(store.effectivePlacement('a', 'atlas'), null);
+        store.queueLayout('atlas', new Map([['a', { x: 48, y: 48, pinned: true }]]));
+        assert.equal(store.effectivePlacement('a', 'atlas').x, 48);
+        await store.whenLayoutIdle('atlas');
+        assert.deepEqual(plain(calls.filter(call => call.route === 'PUT /layout').map(call => call.body.nodes)), [[{ id: 'a', version: 1, x: 48, y: 48, pinned: true }]]);
+        store.dispose();
+    }
 }
 
 console.log(`Infra UI model, grouped virtualization, and ${required.size} translation keys passed for ${locales.length} locales.`);
