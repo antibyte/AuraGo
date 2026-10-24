@@ -142,26 +142,47 @@ the affected sources stay stale; provider error text is never forwarded.
 
 All routes require a Desktop administrator session or an admin bearer token and
 answer `no-store` JSON. Writes additionally require the Desktop write
-permission and a configuration that is enabled and not read-only.
+permission and a configuration that is enabled and not read-only. Request
+bodies are limited to 256 KiB and unknown JSON fields are rejected.
 
 | Route | Purpose |
 | --- | --- |
-| `GET /api/desktop/infra/snapshot` | Stored graph plus `capabilities` and optional `source_errors`; `?refresh=1` waits for providers |
-| `GET /api/desktop/infra/candidates` | Import preview for configured sources |
+| `GET /api/desktop/infra/snapshot` | Stored graph plus `capabilities`, `source_hosts` and optional `source_errors`; `?refresh=1` waits for providers, `?include_ignored=1` adds ignored sources (`ignored: true`) |
+| `GET /api/desktop/infra/candidates` | Import preview for configured sources; ignored sources only with `?include_ignored=1`, flagged `ignored: true` |
 | `GET /api/desktop/infra/targets` | Selectable app targets (camera, Store app, MeshCore conversation) |
 | `POST /api/desktop/infra/nodes` | Create a node (manual devices also create a `protocol: none` registry row) |
-| `PUT`/`DELETE /api/desktop/infra/nodes/{id}` | Update (version CAS) or delete a node; `?version=` required for delete |
+| `PUT`/`DELETE /api/desktop/infra/nodes/{id}` | Update (version CAS) or delete a node; `?version=` required for delete; `?ignore_sources=1` also ignores every linked source in the same transaction and answers `ignored` |
 | `GET`/`PUT /api/desktop/infra/nodes/{id}/source-edit` | Read or write the source's own metadata |
 | `POST /api/desktop/infra/nodes/{id}/actions` | Reserved power action with `request_id` and optional `confirmed` |
 | `POST /api/desktop/infra/import` | Import a candidate or link it to `node_id` |
-| `POST /api/desktop/infra/edges`, `PUT`/`DELETE /edges/{id}` | Manual relationships (provider edges are read-only) |
-| `PUT /api/desktop/infra/layout` | Atomic layout batch; answers the changed nodes only |
+| `POST /api/desktop/infra/import/batch` | Import or link 1–500 `items` (`candidate_id`, optional `node_id`, `parent_id`, `placement {view, x, y, w, h, pinned}`); one forced refresh per provider, one transaction per item; answers `nodes` and per-item `errors` (`candidate_id`, `error`, `message`) |
+| `PUT /api/desktop/infra/sources/ignore` | Ignore or restore 1–1000 sources: `{sources: [{kind, instance, key}], ignored}`; a linked source answers 409 `source_linked` |
+| `PUT /api/desktop/infra/source-hosts` | Assign (`node_id`) or clear (`""`) the device that runs a Docker engine: `{kind: "docker", instance, node_id, version}`, version 0 creates; answers `source_host` |
+| `POST /api/desktop/infra/edges`, `PUT`/`DELETE /edges/{id}` | Manual relationships (provider edges are read-only); a self-loop is invalid and a second `(from, to, kind)` answers 409 `edge_exists` |
+| `PUT /api/desktop/infra/layout` | Atomic layout batch; items may set `parent_id` (absent keeps it, `""` clears it) and `w`/`h` for places (120–20000), or `unplace: true` (with `id` and `version` only) to drop the node's placement in the request's `view`; answers the changed nodes only |
+
+An `unplace` item removes just that view's placement and advances the node's
+version. A node without a placement in that view is left untouched (its version
+is still checked and does not advance). Like every layout item it is
+version-checked, and the whole batch stays atomic.
+
+VMs and containers carry the runtime-only `host_id`, with `host_inferred: true`
+when the host was guessed. A Proxmox guest uses its provider `runs_on` edge, a
+Docker container uses its engine's `source_hosts` mapping, and otherwise the
+only device whose address matches the configured engine: the IP of a TCP
+endpoint, or one of this server's own addresses for a local socket, pipe or
+loopback endpoint. Host names are never resolved. Each `source_hosts` entry
+(`kind`, `instance`, `node_id`, `version`, `inferred_node_id`) covers a stored
+mapping or an observed Docker engine. Ignored sources stay stored, survive
+refreshes and the removal retention, and never appear as candidates by default;
+importing or linking one clears the flag.
 
 Stable error codes include `infra_disabled`, `infra_readonly`,
 `infra_policy_changed`, `invalid_request`, `request_too_large` (413),
-`not_found`, `conflict`, `has_children`, `source_unavailable`,
-`source_readonly`, `source_edit_disabled`, `confirmation_required`,
-`request_id_conflict`, `action_disabled` and `provider_unavailable`.
+`not_found`, `conflict`, `has_children`, `edge_exists`, `source_unavailable`,
+`source_linked`, `source_stale`, `source_readonly`, `source_edit_disabled`,
+`confirmation_required`, `request_id_conflict`, `action_disabled`,
+`invalid_candidate_id`, `invalid_node_id` and `provider_unavailable`.
 
 Infra is an operator surface: the agent has no tool that reads or writes the
 atlas. The registry it links to stays reachable through the existing inventory
