@@ -1,4 +1,4 @@
-// Pure Infra map helpers. Loaded before infra-views.js and infra.js.
+// Pure Infra helpers. Loaded first; every other infra-*.js file reads window.InfraAppModel.
 (function () {
     'use strict';
 
@@ -93,12 +93,21 @@
         const pad = 48;
         return { id: container.id, x: minX - pad, y: minY - pad, width: (maxX - minX) + pad * 2, height: (maxY - minY) + pad * 2 };
     };
-    const edgeSegment = (a, b) => {
+    // edgeSegment joins two shapes at their borders: each end leaves its centre
+    // towards the other and stops at its half-size rectangle. Overlapping shapes
+    // keep the centre-to-centre line.
+    const borderPoint = (from, to, half) => {
+        const dx = to.x - from.x, dy = to.y - from.y;
+        if (!dx && !dy) return { x: from.x, y: from.y };
+        const scale = Math.min(dx ? half.w / Math.abs(dx) : Infinity, dy ? half.h / Math.abs(dy) : Infinity);
+        return { x: from.x + dx * scale, y: from.y + dy * scale };
+    };
+    const edgeSegment = (a, b, halfA = { w: 92, h: 30 }, halfB = { w: 92, h: 30 }) => {
         const x1 = Number(a.x), y1 = Number(a.y), x2 = Number(b.x), y2 = Number(b.y);
-        const dx = x2 - x1, dy = y2 - y1, length = Math.hypot(dx, dy);
-        if (!(length > 160)) return { x1, y1, x2, y2 };
-        const ux = dx / length, uy = dy / length;
-        return { x1: x1 + ux * 78, y1: y1 + uy * 78, x2: x2 - ux * 78, y2: y2 - uy * 78 };
+        const start = borderPoint({ x: x1, y: y1 }, { x: x2, y: y2 }, halfA);
+        const end = borderPoint({ x: x2, y: y2 }, { x: x1, y: y1 }, halfB);
+        if ((end.x - start.x) * (x2 - x1) + (end.y - start.y) * (y2 - y1) <= 0) return { x1, y1, x2, y2 };
+        return { x1: start.x, y1: start.y, x2: end.x, y2: end.y };
     };
     const edgeCaption = edge => {
         const from = String(edge?.from_port || '').trim(), to = String(edge?.to_port || '').trim(), speed = String(edge?.speed || '').trim();
@@ -172,17 +181,350 @@
             if (!node) continue;
             node.version = row.version ?? node.version;
             node.placements = node.placements || {};
-            node.placements[view] = row.placements?.[view] || { x: row.x, y: row.y, pinned: !!row.pinned };
+            if (row.placements && typeof row.placements === 'object') {
+                // A full node states its placements: a view it lacks was unplaced.
+                if (row.placements[view]) node.placements[view] = row.placements[view]; else delete node.placements[view];
+                // The server omits an empty parent_id, so absence means "no parent".
+                node.parent_id = row.parent_id || '';
+            } else node.placements[view] = { x: row.x, y: row.y, pinned: !!row.pinned };
         }
         return nodes;
     };
     const snapshotStamp = (nodes, edges, sources, caps) => {
-        const nodePart = (nodes || []).map(node => [node.id, node.version, node.kind, node.name, node.parent_id || '', node.power || '', JSON.stringify(node.placements || {}), (node.sources || []).map(sourceStamp).join('\u001f')].join('\u001f')).join('\u001e');
+        const nodePart = (nodes || []).map(node => [node.id, node.version, node.kind, node.name, node.parent_id || '', node.host_id || '', node.power || '', JSON.stringify(node.placements || {}), (node.sources || []).map(sourceStamp).join('\u001f')].join('\u001f')).join('\u001e');
         const edgePart = (edges || []).map(edge => [edge.id, edge.version, edge.from, edge.to, edge.kind].join('\u001f')).join('\u001e');
         const sourcePart = (sources || []).map(sourceStamp).join('\u001e');
         const capPart = [!!caps?.write, !!caps?.source_edit, !!caps?.control].join('\u001f');
         return [nodePart, edgePart, sourcePart, capPart].join('\u001d');
     };
+
+    // ---- canvas world -------------------------------------------------------
+    // World coordinates are CSS pixels at zoom 1. An asset placement (x, y) is
+    // the centre of its 184×60 card; a place placement (x, y) is the top-left
+    // corner of its region and (w, h) its size (default 360×240).
+    const CARD_W = 184, CARD_H = 60, GRID = 24, MIN_ZOOM = 0.25, MAX_ZOOM = 2;
+    const REGION_W = 360, REGION_H = 240, REGION_PAD = 48, REGION_MIN_W = 200, REGION_MIN_H = 140;
+    const CARD_HALF = { w: CARD_W / 2, h: CARD_H / 2 };
+    const HOSTED_KINDS = new Set(['vm', 'container', 'service']);
+    const WIRELESS_ICONS = new Set(['access-point', 'mesh-node']);
+    const finite = value => (value === null || value === undefined || value === '' || !Number.isFinite(Number(value)) ? null : Number(value));
+    const clampZoom = zoom => (typeof zoom === 'number' && Number.isFinite(zoom) ? Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom)) : 1);
+    const toWorld = (view, p) => ({ x: (p.x - view.x) / view.zoom, y: (p.y - view.y) / view.zoom });
+    const toScreen = (view, p) => ({ x: p.x * view.zoom + view.x, y: p.y * view.zoom + view.y });
+    // zoomAt changes the zoom and keeps the world point under screen fixed.
+    const zoomAt = (view, zoom, screen) => {
+        const z = clampZoom(zoom);
+        const wx = (screen.x - view.x) / view.zoom, wy = (screen.y - view.y) / view.zoom;
+        return { x: screen.x - wx * z, y: screen.y - wy * z, zoom: z };
+    };
+    // fitView shows box inside size with padding, never above maxZoom.
+    const fitView = (box, size, padding = 48, maxZoom = 1) => {
+        if (!box) return { x: size.w / 2, y: size.h / 2, zoom: 1 };
+        const zoom = clampZoom(Math.min((size.w - padding * 2) / Math.max(box.w, 1), (size.h - padding * 2) / Math.max(box.h, 1), maxZoom));
+        return { x: (size.w - box.w * zoom) / 2 - box.x * zoom, y: (size.h - box.h * zoom) / 2 - box.y * zoom, zoom };
+    };
+    // A stored viewport is its world centre and zoom, so it suits any window size.
+    const viewCenter = (view, size) => ({ cx: (size.w / 2 - view.x) / view.zoom, cy: (size.h / 2 - view.y) / view.zoom, zoom: view.zoom });
+    const viewFromCenter = (stored, size) => {
+        if (!stored || typeof stored !== 'object' || !Number.isFinite(stored.cx) || !Number.isFinite(stored.cy)) return null;
+        const zoom = clampZoom(stored.zoom);
+        return { x: size.w / 2 - stored.cx * zoom, y: size.h / 2 - stored.cy * zoom, zoom };
+    };
+    const snap = (value, grid = GRID) => Math.round(value / grid) * grid;
+    const cardRect = pos => ({ x: Number(pos.x) - CARD_W / 2, y: Number(pos.y) - CARD_H / 2, w: CARD_W, h: CARD_H });
+    const intersects = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    const containsPoint = (r, p) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+    const normalizeRect = (a, b) => ({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) });
+    const padRect = (r, pad) => ({ x: r.x - pad, y: r.y - pad, w: r.w + pad * 2, h: r.h + pad * 2 });
+    const unionRects = rects => {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const r of rects || []) {
+            if (!r) continue;
+            minX = Math.min(minX, r.x); minY = Math.min(minY, r.y);
+            maxX = Math.max(maxX, r.x + r.w); maxY = Math.max(maxY, r.y + r.h);
+        }
+        return minX === Infinity ? null : { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+    };
+    // freeSlot returns want when the card fits there, else the grid point of the
+    // nearest ring around it whose card (plus gap) overlaps no obstacle rect.
+    const freeSlot = (want, obstacles, { grid = GRID, gap = 12, maxRing = 40 } = {}) => {
+        const reach = (maxRing + 2) * grid + CARD_W;
+        const near = (obstacles || []).filter(o => Math.abs(o.x + o.w / 2 - want.x) < reach + o.w / 2 && Math.abs(o.y + o.h / 2 - want.y) < reach + o.h / 2).map(o => padRect(o, gap / 2));
+        const blocked = point => { const rect = padRect(cardRect(point), gap / 2); return near.some(o => intersects(rect, o)); };
+        if (!blocked(want)) return { x: want.x, y: want.y };
+        const base = { x: snap(want.x, grid), y: snap(want.y, grid) };
+        for (let ring = 0; ring <= maxRing; ring += 1) {
+            let best = null, bestDistance = Infinity;
+            for (let dy = -ring; dy <= ring; dy += 1) for (let dx = -ring; dx <= ring; dx += 1) {
+                if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
+                const point = { x: base.x + dx * grid, y: base.y + dy * grid };
+                if (blocked(point)) continue;
+                const distance = Math.hypot(point.x - want.x, point.y - want.y);
+                if (distance < bestDistance) { best = point; bestDistance = distance; }
+            }
+            if (best) return best;
+        }
+        return { x: want.x, y: want.y };
+    };
+    // regionRect is the drawn rectangle of a place: its stored rectangle grown to
+    // contain childRects plus the 48 px frame padding.
+    const regionRect = (placement, childRects = []) => {
+        if (!placement || finite(placement.x) == null || finite(placement.y) == null) return null;
+        const base = { x: Number(placement.x), y: Number(placement.y), w: finite(placement.w) || REGION_W, h: finite(placement.h) || REGION_H };
+        return unionRects([base, ...childRects.filter(Boolean).map(r => padRect(r, REGION_PAD))]);
+    };
+    // regionLayout draws placed places bottom-up so nested places grow their parents.
+    const regionLayout = (placeIds, { parentOf, placementOf, cardRectsByParent = new Map() }) => {
+        const ids = new Set(placeIds), rects = new Map(), depth = new Map(), visiting = new Set(), nested = new Map();
+        for (const id of ids) {
+            const parent = parentOf(id);
+            if (parent !== id && ids.has(parent)) { const list = nested.get(parent) || []; list.push(id); nested.set(parent, list); }
+        }
+        const depthOf = id => {
+            let level = 0;
+            const seen = new Set([id]);
+            for (let parent = parentOf(id); ids.has(parent) && !seen.has(parent); parent = parentOf(parent)) { seen.add(parent); level += 1; }
+            return level;
+        };
+        const visit = id => {
+            if (rects.has(id)) return rects.get(id);
+            if (visiting.has(id)) return null;
+            visiting.add(id);
+            const inner = (nested.get(id) || []).map(visit).filter(Boolean);
+            const rect = regionRect(placementOf(id), [...(cardRectsByParent.get(id) || []), ...inner]);
+            visiting.delete(id);
+            if (rect) { rects.set(id, rect); depth.set(id, depthOf(id)); }
+            return rect;
+        };
+        for (const id of ids) visit(id);
+        return { rects, depth };
+    };
+    // regionAt returns the innermost region containing point: deepest first,
+    // then the smallest area. exclude holds ids that cannot be targets.
+    const regionAt = (point, rects, depth, exclude = new Set()) => {
+        let best = '', bestDepth = -1, bestArea = Infinity;
+        for (const [id, r] of rects) {
+            if (exclude.has(id) || !containsPoint(r, point)) continue;
+            const level = depth.get(id) || 0, area = r.w * r.h;
+            if (level > bestDepth || (level === bestDepth && area < bestArea)) { best = id; bestDepth = level; bestArea = area; }
+        }
+        return best;
+    };
+    // dropParent says what a drop does to parent_id: {} when it stays, else
+    // {parent_id}. A parent that is not drawn in this view is never cleared.
+    const dropParent = (current, point, rects, depth, exclude = new Set()) => {
+        const target = regionAt(point, rects, depth, exclude);
+        const parent = current || '';
+        if (target === parent) return {};
+        if (!target && parent && !rects.has(parent)) return {};
+        return { parent_id: target };
+    };
+    // growRegions returns stored rectangles that must grow so region id (and its
+    // ancestors) contain rect plus REGION_PAD.
+    const growRegions = (id, rect, { ids, parentOf, placementOf }) => {
+        const changes = new Map(), seen = new Set();
+        let target = rect, current = id;
+        while (current && ids.has(current) && !seen.has(current)) {
+            seen.add(current);
+            const p = placementOf(current);
+            if (!p) break;
+            const base = { x: Number(p.x), y: Number(p.y), w: finite(p.w) || REGION_W, h: finite(p.h) || REGION_H };
+            const grown = unionRects([base, padRect(target, REGION_PAD)]);
+            if (grown.x === base.x && grown.y === base.y && grown.w === base.w && grown.h === base.h) break;
+            changes.set(current, grown);
+            target = grown;
+            current = parentOf(current);
+        }
+        return changes;
+    };
+    // spatialNeighbour picks the nearest item in direction dir (left/right/up/down);
+    // the off-axis distance counts twice.
+    const spatialNeighbour = (from, items, dir) => {
+        const axis = dir === 'left' || dir === 'right' ? 'x' : 'y', other = axis === 'x' ? 'y' : 'x';
+        const sign = dir === 'right' || dir === 'down' ? 1 : -1;
+        let best = '', bestScore = Infinity;
+        for (const item of items || []) {
+            if (item.id === from.id) continue;
+            const primary = (item[axis] - from[axis]) * sign;
+            if (primary <= 0) continue;
+            const score = primary + Math.abs(item[other] - from[other]) * 2;
+            if (score < bestScore || (score === bestScore && String(item.id) < String(best))) { best = item.id; bestScore = score; }
+        }
+        return best;
+    };
+    // compactGrid lays count cards out around centre in rows of ceil(sqrt(count)),
+    // 216×96 apart (both multiples of the 24 px grid).
+    const compactGrid = (count, centre) => {
+        const cols = Math.max(1, Math.ceil(Math.sqrt(count))), rows = Math.ceil(count / cols);
+        const cellW = CARD_W + 32, cellH = CARD_H + 36;
+        const x0 = snap(centre.x - (cols - 1) * cellW / 2), y0 = snap(centre.y - (rows - 1) * cellH / 2);
+        return Array.from({ length: count }, (_, i) => ({ x: x0 + (i % cols) * cellW, y: y0 + Math.floor(i / cols) * cellH }));
+    };
+    const defaultEdgeKind = (a, b) => {
+        if ([a, b].some(node => WIRELESS_ICONS.has(node?.icon))) return 'wifi';
+        if ([a, b].some(node => node?.kind === 'service')) return 'depends_on';
+        return 'ethernet';
+    };
+    // guestIndex: a vm, container or service belongs to the node named by
+    // host_id (server projection, Plan A) or else to the first target of its
+    // runs_on edges. Mutual hosting is broken in favour of the smaller id.
+    const guestIndex = (nodes, edges) => {
+        const byId = new Map((nodes || []).map(node => [node.id, node]));
+        const runsOn = new Map();
+        for (const edge of edges || []) {
+            if (edge.kind !== 'runs_on' || edge.from === edge.to || !byId.has(edge.to)) continue;
+            const list = runsOn.get(edge.from) || []; list.push(edge.to); runsOn.set(edge.from, list);
+        }
+        const hostOf = new Map(), guestsOf = new Map();
+        for (const node of nodes || []) {
+            if (!HOSTED_KINDS.has(node.kind)) continue;
+            const declared = typeof node.host_id === 'string' && node.host_id !== node.id && byId.has(node.host_id) ? node.host_id : '';
+            const host = declared || (runsOn.get(node.id) || []).slice().sort()[0] || '';
+            if (host) hostOf.set(node.id, host);
+        }
+        for (const [guest, host] of [...hostOf]) if (hostOf.get(host) === guest && guest > host) hostOf.delete(guest);
+        for (const [guest, host] of hostOf) { const list = guestsOf.get(host) || []; list.push(guest); guestsOf.set(host, list); }
+        return { hostOf, guestsOf };
+    };
+    // matchesFilters is the single filter predicate (search text, type, source, power).
+    const matchesFilters = (node, filters = {}, textOf = () => '') => {
+        if (filters.kind && node.kind !== filters.kind) return false;
+        if (filters.source && !(node.sources || []).some(source => source.kind === filters.source)) return false;
+        if (filters.power === 'none' && node.power) return false;
+        if (filters.power && filters.power !== 'none' && node.power !== filters.power) return false;
+        const query = String(filters.query || '').trim().toLocaleLowerCase();
+        return !query || textOf(node).includes(query);
+    };
+    const filtersActive = filters => !!(filters && (filters.kind || filters.source || filters.power || String(filters.query || '').trim()));
+    // buildScene computes what the canvas draws for one view: asset cards (a
+    // guest rides in its host's card instead), regions for placed places (Map
+    // view only) and connection lines between shape borders. runs_on lines that
+    // repeat the nesting are left out; a line ending at a guest attaches to the host.
+    const buildScene = ({ nodes, edges, view, placementOf, parentOf, guests }) => {
+        const atlas = view === 'atlas';
+        const cards = [], placeIds = [];
+        for (const node of nodes || []) {
+            if (guests.hostOf.has(node.id)) continue;
+            const p = placementOf(node.id);
+            if (!p || finite(p.x) == null || finite(p.y) == null) continue;
+            if (isContainer(node.kind)) { if (atlas) placeIds.push(node.id); continue; }
+            cards.push({ id: node.id, x: Number(p.x), y: Number(p.y), guests: guests.guestsOf.get(node.id) || [] });
+        }
+        const cardById = new Map(cards.map(card => [card.id, card]));
+        const cardRectsByParent = new Map();
+        if (atlas) for (const card of cards) {
+            const parent = parentOf(card.id);
+            if (!parent) continue;
+            const list = cardRectsByParent.get(parent) || []; list.push(cardRect(card)); cardRectsByParent.set(parent, list);
+        }
+        const { rects, depth } = atlas ? regionLayout(placeIds, { parentOf, placementOf, cardRectsByParent }) : { rects: new Map(), depth: new Map() };
+        const endpoint = id => (cardById.has(id) || rects.has(id) ? id : (cardById.has(guests.hostOf.get(id)) ? guests.hostOf.get(id) : ''));
+        const shape = id => {
+            const card = cardById.get(id);
+            if (card) return { x: card.x, y: card.y, half: CARD_HALF };
+            const r = rects.get(id);
+            return { x: r.x + r.w / 2, y: r.y + r.h / 2, half: { w: r.w / 2, h: r.h / 2 } };
+        };
+        const lines = [];
+        for (const edge of edges || []) {
+            if (edge.kind === 'runs_on' && guests.hostOf.get(edge.from) === edge.to) continue;
+            const from = endpoint(edge.from), to = endpoint(edge.to);
+            if (!from || !to || from === to) continue;
+            const a = shape(from), b = shape(to);
+            lines.push({ id: edge.id, kind: edge.kind, from, to, ...edgeSegment(a, b, a.half, b.half) });
+        }
+        const regions = [...rects].map(([id, rect]) => ({ id, rect, depth: depth.get(id) || 0 })).sort((a, b) => a.depth - b.depth || String(a.id).localeCompare(String(b.id)));
+        return { cards, cardById, regions, regionRects: rects, regionDepth: depth, lines, bounds: unionRects([...cards.map(cardRect), ...rects.values()]) };
+    };
+    // ---- layout intents and history -----------------------------------------
+    // mergeIntent lays a later intent over an earlier one. An unplace intent
+    // ({unplace: true}) replaces everything before it; a later placement lifts it.
+    const mergeIntent = (earlier, later) => {
+        if (later && later.unplace) return { unplace: true };
+        const merged = { ...(earlier || {}), ...(later || {}) };
+        delete merged.unplace;
+        return merged;
+    };
+    // layoutItems builds PUT /layout items with the node versions of nodesById.
+    // parent_id, w/h and unplace go out only when the server supports them (parent).
+    const layoutItems = (intents, nodesById, { parent = false, view = 'atlas' } = {}) => {
+        const items = [], missing = [];
+        for (const [id, intent] of intents) {
+            const node = nodesById.get(id);
+            if (!node) { missing.push(id); continue; }
+            if (intent.unplace) { if (parent) items.push({ id, version: node.version, unplace: true }); continue; }
+            const item = { id, version: node.version, x: Math.round(Number(intent.x)), y: Math.round(Number(intent.y)), pinned: intent.pinned !== false };
+            if (parent && intent.parent_id !== undefined) item.parent_id = String(intent.parent_id);
+            if (parent && isContainer(node.kind)) {
+                const stored = node.placements?.[view] || {};
+                const w = finite(intent.w) ?? finite(stored.w), h = finite(intent.h) ?? finite(stored.h);
+                if (w != null && h != null) { item.w = Math.round(w); item.h = Math.round(h); }
+            }
+            items.push(item);
+        }
+        return { items, missing };
+    };
+    // rebaseLayout keeps a conflicted batch for nodes that still exist; a parent
+    // that vanished or is no longer a place is dropped from the intent.
+    const rebaseLayout = (intents, nodesById) => {
+        const kept = new Map(), dropped = [];
+        for (const [id, intent] of intents) {
+            if (!nodesById.has(id)) { dropped.push(id); continue; }
+            const next = { ...intent };
+            if (next.parent_id) { const parent = nodesById.get(next.parent_id); if (!parent || !isContainer(parent.kind)) delete next.parent_id; }
+            kept.set(id, next);
+        }
+        return { kept, dropped };
+    };
+    const createHistory = (limit = 50) => {
+        let undo = [], redo = [];
+        const cap = list => (list.length > limit ? list.slice(list.length - limit) : list);
+        return {
+            push(entry) { undo = cap([...undo, entry]); redo = []; },
+            pushUndo(entry) { undo = cap([...undo, entry]); },
+            pushRedo(entry) { redo = cap([...redo, entry]); },
+            takeUndo: () => undo.pop() ?? null,
+            takeRedo: () => redo.pop() ?? null,
+            canUndo: () => undo.length > 0,
+            canRedo: () => redo.length > 0,
+            clear() { undo = []; redo = []; },
+        };
+    };
+    // ---- small utilities -----------------------------------------------------
+    const clampNumber = (value, min, max, fallback) => { const n = Number(value); return value !== null && value !== '' && Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback; };
+    const readLayoutPrefs = raw => {
+        let data = {};
+        try { data = raw ? JSON.parse(raw) : {}; } catch (_) { data = {}; }
+        if (!data || typeof data !== 'object') data = {};
+        return { libraryWidth: clampNumber(data.libraryWidth, 220, 400, 264), libraryCollapsed: data.libraryCollapsed === true, inspectorWidth: clampNumber(data.inspectorWidth, 320, 520, 360), minimap: data.minimap !== false };
+    };
+    const fill = (text, vars = {}) => Object.entries(vars).reduce((out, [key, value]) => out.replaceAll(`{${key}}`, String(value)), String(text));
+    // normalizeNode fills UI defaults. It never adds fields the snapshot did not
+    // send: node PUT bodies are clones of these objects and the server rejects
+    // unknown fields.
+    const normalizeNode = node => ({ ...node, icon: iconId(node.icon), parent_id: node.parent_id || '', profile: { tags: [], interfaces: [], links: [], app_bindings: [], custom: {}, ...(node.profile || {}) }, placements: node.placements || {}, sources: node.sources || [], app_links: node.app_links || [], available_actions: node.available_actions || [] });
+    const minimapTransform = (bounds, size, pad = 6) => {
+        if (!bounds) return { scale: 1, x: 0, y: 0 };
+        const scale = Math.min((size.w - pad * 2) / Math.max(bounds.w, 1), (size.h - pad * 2) / Math.max(bounds.h, 1));
+        return { scale, x: (size.w - bounds.w * scale) / 2 - bounds.x * scale, y: (size.h - bounds.h * scale) / 2 - bounds.y * scale };
+    };
+    const GLYPHS = {
+        select: '<path d="M3.5 2.5l9 5.2-4.1 1.1-1.9 3.9z" fill="currentColor" stroke="none"/>',
+        hand: '<path d="M5.5 8.5V4.2a1 1 0 0 1 2 0v3.3M7.5 7V3.2a1 1 0 0 1 2 0V7m0-.3V4a1 1 0 0 1 2 0v4.2m0-1.6a1 1 0 0 1 2 0v2.6a4.8 4.8 0 0 1-4.8 4.8H8.4a4 4 0 0 1-3.2-1.6L3 9.6a1 1 0 0 1 1.5-1.2l1 1"/>',
+        connect: '<circle cx="4" cy="4" r="2"/><circle cx="12" cy="12" r="2"/><path d="M5.6 5.6l4.8 4.8"/>',
+        minus: '<path d="M3 8h10"/>', plus: '<path d="M8 3v10M3 8h10"/>',
+        fit: '<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/>',
+        undo: '<path d="M5.5 3L2.5 6l3 3"/><path d="M2.5 6h7a3.5 3.5 0 0 1 0 7H6"/>',
+        redo: '<path d="M10.5 3l3 3-3 3"/><path d="M13.5 6h-7a3.5 3.5 0 0 0 0 7H10"/>',
+        library: '<rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M6 3v10"/>',
+        more: '<circle cx="3.5" cy="8" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="12.5" cy="8" r="1.1" fill="currentColor"/>',
+        search: '<circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4L14 14"/>',
+        filter: '<path d="M2.5 3h11l-4.2 5.2V13l-2.6-1.3V8.2z"/>',
+        minimap: '<rect x="2" y="2" width="12" height="12" rx="1.5"/><rect x="8" y="8" width="4" height="4"/>',
+        chevron: '<path d="M4.5 6.5L8 10l3.5-3.5"/>',
+        close: '<path d="M4 4l8 8M12 4l-8 8"/>',
+    };
+    const glyph = name => `<svg class="infra-glyph" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${GLYPHS[name] || ''}</svg>`;
 
     window.InfraAppModel = {
         esc, clone, iconId, iconURL, assetURL, iconLabelKey, sourceActions, sourceIdentity, virtualSlice, sourceState,
@@ -190,5 +532,10 @@
         acceptsIcon, rememberIcon, versionedAsset, containerKinds: () => [...CONTAINER_KINDS], isContainer, powerLabel,
         containerFrame, edgeSegment, edgeCaption, gridPositions, topologyPositions, snapshotStamp,
         layoutSnapshot, applyLayoutPatch,
+        CARD_W, CARD_H, GRID, MIN_ZOOM, MAX_ZOOM, REGION_W, REGION_H, REGION_PAD, REGION_MIN_W, REGION_MIN_H,
+        clampZoom, toWorld, toScreen, zoomAt, fitView, viewCenter, viewFromCenter, snap, cardRect, intersects, containsPoint,
+        normalizeRect, padRect, unionRects, freeSlot, regionRect, regionLayout, regionAt, dropParent, growRegions,
+        spatialNeighbour, compactGrid, defaultEdgeKind, guestIndex, matchesFilters, filtersActive, buildScene,
+        mergeIntent, layoutItems, rebaseLayout, createHistory, readLayoutPrefs, fill, normalizeNode, minimapTransform, glyph,
     };
 })();

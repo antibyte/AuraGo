@@ -13,8 +13,9 @@ for (const file of files) {
 }
 const source = files.map(file => fs.readFileSync(path.join(root, 'ui/js/desktop/apps', file), 'utf8')).join('\n');
 const window = { BUILD_VERSION: 'test-build', btoa: value => Buffer.from(value, 'binary').toString('base64') };
-vm.runInNewContext(source, { window, console, setTimeout, clearTimeout, DOMException, TextEncoder, Map, Set, JSON, Math, Date, URL });
+vm.runInNewContext(source, { window, console, setTimeout, clearTimeout, DOMException, TextEncoder, Map, Set, JSON, Math, Date, URL, AbortController });
 const model = window.InfraAppModel;
+const plain = value => JSON.parse(JSON.stringify(value));
 
 assert.equal(model.iconURL('rack-server'), '/img/infra/rack-server.webp?v=test-build');
 assert.equal(model.iconURL('../secret'), '/img/infra/generic-device.webp?v=test-build');
@@ -130,16 +131,10 @@ assert.equal(frame.width, 220 + 96);
 assert.equal(frame.height, 60 + 96);
 assert.equal(model.containerFrame(placedContainer, [{ id: 'loose' }], () => null), null);
 
-const segment = model.edgeSegment({ x: 0, y: 0 }, { x: 400, y: 0 });
-assert.equal(segment.x1, 78);
-assert.equal(segment.y1, 0);
-assert.equal(segment.x2, 322);
-assert.equal(segment.y2, 0);
-const short = model.edgeSegment({ x: 0, y: 0 }, { x: 100, y: 0 });
-assert.equal(short.x1, 0);
-assert.equal(short.y1, 0);
-assert.equal(short.x2, 100);
-assert.equal(short.y2, 0);
+assert.deepEqual(plain(model.edgeSegment({ x: 0, y: 0 }, { x: 400, y: 0 })), { x1: 92, y1: 0, x2: 308, y2: 0 }, 'connections start and end at the card border');
+assert.deepEqual(plain(model.edgeSegment({ x: 0, y: 0 }, { x: 0, y: 300 })), { x1: 0, y1: 30, x2: 0, y2: 270 });
+assert.deepEqual(plain(model.edgeSegment({ x: 0, y: 0 }, { x: 100, y: 0 })), { x1: 0, y1: 0, x2: 100, y2: 0 }, 'overlapping cards keep the centre line');
+assert.equal(model.edgeSegment({ x: 0, y: 0 }, { x: 1000, y: 0 }, undefined, { w: 300, h: 100 }).x2, 700, 'a region end stops at its own border');
 assert.equal(model.edgeCaption({ from_port: 'ge-0/0/1', to_port: 'eth0', speed: '1G' }), 'ge-0/0/1 → eth0 · 1G');
 
 const topology = model.topologyPositions([
@@ -178,5 +173,153 @@ assert.equal(patchedNodes[0].placements.atlas.y, 20);
 assert.equal(patchedNodes[0].placements.atlas.pinned, true);
 assert.equal(patchedNodes[1].version, 1);
 assert.equal(patchedNodes[1].placements.atlas, undefined);
+
+// ---- canvas viewport --------------------------------------------------------
+{
+    const view = { x: 40, y: -20, zoom: 0.5 };
+    const world = model.toWorld(view, { x: 140, y: 80 });
+    assert.deepEqual(plain(world), { x: 200, y: 200 });
+    assert.deepEqual(plain(model.toScreen(view, world)), { x: 140, y: 80 });
+    const zoomed = model.zoomAt(view, 1, { x: 140, y: 80 });
+    assert.equal(zoomed.zoom, 1);
+    assert.deepEqual(plain(model.toWorld(zoomed, { x: 140, y: 80 })), { x: 200, y: 200 }, 'zoomAt keeps the world point under the pointer');
+    assert.equal(model.clampZoom(9), 2);
+    assert.equal(model.clampZoom(0.01), 0.25);
+    assert.equal(model.clampZoom(NaN), 1);
+    const fitted = model.fitView({ x: 0, y: 0, w: 400, h: 200 }, { w: 1000, h: 800 });
+    assert.deepEqual(plain(fitted), { x: 300, y: 300, zoom: 1 }, 'fit never zooms beyond 100 %');
+    assert.equal(model.fitView({ x: 0, y: 0, w: 1808, h: 200 }, { w: 1000, h: 800 }).zoom, 0.5, 'fit keeps a 48 px margin');
+    const stored = model.viewCenter({ x: 100, y: 50, zoom: 2 }, { w: 800, h: 600 });
+    assert.deepEqual(plain(model.viewFromCenter(stored, { w: 800, h: 600 })), { x: 100, y: 50, zoom: 2 });
+    assert.equal(model.viewFromCenter({ cx: 'x' }, { w: 1, h: 1 }), null);
+    assert.equal(model.snap(35), 24);
+    assert.equal(model.snap(37), 48);
+    assert.equal(model.snap(-13), -24);
+}
+
+// ---- geometry, regions and drops --------------------------------------------
+{
+    const a = model.cardRect({ x: 0, y: 0 });
+    assert.deepEqual(plain(a), { x: -92, y: -30, w: 184, h: 60 });
+    const slot = model.freeSlot({ x: 0, y: 0 }, [a]);
+    assert.ok(!model.intersects(model.cardRect(slot), a), 'the nudged card no longer overlaps');
+    assert.equal(Math.hypot(slot.x, slot.y), 72, 'the nearest free slot is one card height plus the gap away');
+    assert.ok(Number.isInteger(slot.x / 24) && Number.isInteger(slot.y / 24), 'a nudged card lands on the grid');
+    assert.deepEqual(plain(model.freeSlot({ x: 500, y: 501 }, [a])), { x: 500, y: 501 }, 'a free drop keeps its exact point');
+    assert.deepEqual(plain(model.regionRect({ x: 0, y: 0 })), { x: 0, y: 0, w: 360, h: 240 }, 'a place without size gets 360×240');
+    assert.deepEqual(plain(model.regionRect({ x: 0, y: 0, w: 200, h: 140 }, [model.cardRect({ x: 400, y: 100 })])), { x: 0, y: 0, w: 540, h: 178 }, 'children grow the region by the 48 px frame padding');
+    const placements = { site: { x: 0, y: 0, w: 200, h: 140 }, rack: { x: 300, y: 300, w: 200, h: 140 } };
+    const parentOf = id => ({ rack: 'site' })[id] || '';
+    const layout = model.regionLayout(['site', 'rack'], { parentOf, placementOf: id => placements[id], cardRectsByParent: new Map([['rack', [model.cardRect({ x: 400, y: 380 })]]]) });
+    assert.deepEqual(plain(layout.rects.get('rack')), { x: 260, y: 300, w: 280, h: 158 });
+    assert.deepEqual(plain(layout.rects.get('site')), { x: 0, y: 0, w: 588, h: 506 }, 'a nested place grows its parent');
+    assert.equal(layout.depth.get('rack'), 1);
+    assert.equal(model.regionAt({ x: 400, y: 380 }, layout.rects, layout.depth), 'rack', 'hit-testing returns the innermost region');
+    assert.equal(model.regionAt({ x: 50, y: 50 }, layout.rects, layout.depth), 'site');
+    assert.equal(model.regionAt({ x: 5000, y: 50 }, layout.rects, layout.depth), '');
+    assert.equal(model.regionAt({ x: 400, y: 380 }, layout.rects, layout.depth, new Set(['rack'])), 'site', 'excluded regions are skipped');
+    assert.deepEqual(plain(model.dropParent('', { x: 400, y: 380 }, layout.rects, layout.depth)), { parent_id: 'rack' });
+    assert.deepEqual(plain(model.dropParent('rack', { x: 400, y: 380 }, layout.rects, layout.depth)), {}, 'staying in the same place leaves parent_id unchanged');
+    assert.deepEqual(plain(model.dropParent('rack', { x: 5000, y: 5000 }, layout.rects, layout.depth)), { parent_id: '' }, 'leaving every region clears the parent');
+    assert.deepEqual(plain(model.dropParent('hidden-room', { x: 5000, y: 5000 }, layout.rects, layout.depth)), {}, 'a parent that is not drawn here is never cleared');
+    const growth = model.growRegions('rack', model.cardRect({ x: 700, y: 380 }), { ids: new Set(['site', 'rack']), parentOf, placementOf: id => placements[id] });
+    assert.deepEqual(plain(growth.get('rack')), { x: 300, y: 300, w: 540, h: 158 });
+    assert.deepEqual(plain(growth.get('site')), { x: 0, y: 0, w: 888, h: 506 }, 'growth propagates to the ancestors');
+    const items = [{ id: 'c', x: 0, y: 0 }, { id: 'r', x: 220, y: 10 }, { id: 'far', x: 600, y: 0 }, { id: 'd', x: 0, y: 155 }, { id: 'diag', x: 150, y: 150 }];
+    assert.equal(model.spatialNeighbour(items[0], items, 'right'), 'r');
+    assert.equal(model.spatialNeighbour(items[0], items, 'down'), 'd');
+    assert.equal(model.spatialNeighbour(items[0], items, 'left'), '');
+    assert.deepEqual(plain(model.compactGrid(4, { x: 0, y: 0 })), [{ x: -96, y: -48 }, { x: 120, y: -48 }, { x: -96, y: 48 }, { x: 120, y: 48 }]);
+    assert.equal(model.defaultEdgeKind({ kind: 'device', icon: 'router' }, { kind: 'device', icon: 'nas' }), 'ethernet');
+    assert.equal(model.defaultEdgeKind({ kind: 'device', icon: 'access-point' }, { kind: 'device', icon: 'laptop' }), 'wifi');
+    assert.equal(model.defaultEdgeKind({ kind: 'service', icon: 'web-service' }, { kind: 'device', icon: 'nas' }), 'depends_on');
+    const mini = model.minimapTransform({ x: 0, y: 0, w: 1000, h: 500 }, { w: 200, h: 130 });
+    assert.ok(Math.abs(mini.scale - 0.188) < 1e-9 && Math.abs(mini.x - 6) < 1e-9 && Math.abs(mini.y - 18) < 1e-9, 'the minimap centres the world');
+}
+
+// ---- guests, filters and the scene ------------------------------------------
+{
+    const guestNodes = [{ id: 'host', kind: 'device' }, { id: 'vm', kind: 'vm', host_id: 'host' }, { id: 'svc', kind: 'service' }, { id: 'ct', kind: 'container', host_id: 'gone' }, { id: 'dev', kind: 'device', host_id: 'host' }];
+    const guests = model.guestIndex(guestNodes, [{ id: 'e1', kind: 'runs_on', from: 'svc', to: 'vm' }]);
+    assert.equal(guests.hostOf.get('vm'), 'host', 'host_id wins');
+    assert.equal(guests.hostOf.get('svc'), 'vm', 'without host_id a runs_on edge names the host');
+    assert.equal(guests.hostOf.has('ct'), false, 'an unknown host leaves the guest hostless');
+    assert.equal(guests.hostOf.has('dev'), false, 'devices are never guests');
+    assert.deepEqual(plain(guests.guestsOf.get('host')), ['vm']);
+    const textOf = node => String(node.name).toLocaleLowerCase();
+    const nas = { name: 'Cold NAS', kind: 'device', power: 'running', sources: [{ kind: 'docker' }] };
+    assert.equal(model.matchesFilters(nas, { query: 'cold' }, textOf), true);
+    assert.equal(model.matchesFilters(nas, { query: 'warm' }, textOf), false);
+    assert.equal(model.matchesFilters(nas, { kind: 'vm' }, textOf), false);
+    assert.equal(model.matchesFilters(nas, { source: 'docker', power: 'running' }, textOf), true);
+    assert.equal(model.matchesFilters(nas, { power: 'none' }, textOf), false);
+    assert.equal(model.filtersActive({ query: '  ' }), false);
+    assert.equal(model.filtersActive({ kind: 'vm' }), true);
+    const sceneNodes = [
+        { id: 'room', kind: 'room', placements: { atlas: { x: 0, y: 0, w: 600, h: 300 } } },
+        { id: 'host', kind: 'device', parent_id: 'room', placements: { atlas: { x: 200, y: 150 } } },
+        { id: 'svc', kind: 'service', placements: { atlas: { x: 900, y: 900 } } },
+        { id: 'nas', kind: 'device', placements: { atlas: { x: 900, y: 150 } } },
+        { id: 'loose', kind: 'device', placements: {} },
+    ];
+    const sceneEdges = [{ id: 'r', kind: 'runs_on', from: 'svc', to: 'host' }, { id: 'l', kind: 'ethernet', from: 'svc', to: 'nas' }];
+    const byId = new Map(sceneNodes.map(node => [node.id, node]));
+    const input = { nodes: sceneNodes, edges: sceneEdges, placementOf: id => byId.get(id).placements.atlas, parentOf: id => byId.get(id)?.parent_id || '', guests: model.guestIndex(sceneNodes, sceneEdges) };
+    const scene = model.buildScene({ ...input, view: 'atlas' });
+    assert.deepEqual(plain(scene.cards.map(card => card.id)), ['host', 'nas'], 'guests and unplaced assets are not cards; places are regions');
+    assert.deepEqual(plain(scene.cards[0].guests), ['svc']);
+    assert.deepEqual(plain(scene.regions.map(region => region.id)), ['room']);
+    assert.deepEqual(plain(scene.lines.map(line => [line.id, line.from, line.to])), [['l', 'host', 'nas']], 'runs_on is implied by nesting and a guest line attaches to its host');
+    assert.equal(model.buildScene({ ...input, view: 'topology' }).regions.length, 0, 'topology hides regions');
+    const normalized = model.normalizeNode({ id: 'n', icon: 'nope' });
+    assert.equal(normalized.icon, 'generic-device');
+    assert.equal(normalized.parent_id, '');
+    assert.equal('host_id' in normalized, false, 'a node never gains fields the node PUT would reject');
+}
+
+// ---- layout intents, history and prefs --------------------------------------
+{
+    assert.deepEqual(plain(model.mergeIntent({ x: 1, y: 1, parent_id: 'room' }, { x: 5, y: 6, pinned: true })), { x: 5, y: 6, parent_id: 'room', pinned: true });
+    assert.deepEqual(plain(model.mergeIntent({ x: 1, y: 1, parent_id: 'room' }, { unplace: true })), { unplace: true }, 'an unplace replaces every earlier intent');
+    assert.deepEqual(plain(model.mergeIntent({ unplace: true }, { x: 5, y: 6, pinned: true })), { x: 5, y: 6, pinned: true }, 'a later placement lifts an unplace');
+    const nodesById = new Map([['a', { id: 'a', kind: 'device', version: 3, placements: {} }], ['r', { id: 'r', kind: 'room', version: 7, placements: { atlas: { x: 0, y: 0, w: 400, h: 300 } } }]]);
+    const intents = new Map([['a', { x: 10.4, y: 20.6, parent_id: 'r' }], ['r', { x: 24, y: 48 }], ['gone', { x: 0, y: 0 }]]);
+    const legacy = model.layoutItems(intents, nodesById, { parent: false, view: 'atlas' });
+    assert.deepEqual(plain(legacy.items), [{ id: 'a', version: 3, x: 10, y: 21, pinned: true }, { id: 'r', version: 7, x: 24, y: 48, pinned: true }], 'without server support parent and size stay local');
+    assert.deepEqual(plain(legacy.missing), ['gone']);
+    const extended = model.layoutItems(intents, nodesById, { parent: true, view: 'atlas' });
+    assert.deepEqual(plain(extended.items), [{ id: 'a', version: 3, x: 10, y: 21, pinned: true, parent_id: 'r' }, { id: 'r', version: 7, x: 24, y: 48, pinned: true, w: 400, h: 300 }], 'a place always carries its size so the server never drops it');
+    const unplaceIntents = new Map([['a', { unplace: true }]]);
+    assert.deepEqual(plain(model.layoutItems(unplaceIntents, nodesById, { parent: true, view: 'atlas' }).items), [{ id: 'a', version: 3, unplace: true }], 'an unplace carries only id and version');
+    assert.deepEqual(plain(model.layoutItems(unplaceIntents, nodesById, { parent: false, view: 'atlas' }).items), [], 'a server without layout support never receives unplace');
+    const rebased = model.rebaseLayout(new Map([['a', { x: 1, y: 2, parent_id: 'gone' }], ['b', { x: 3, y: 4 }]]), nodesById);
+    assert.deepEqual(plain([...rebased.kept]), [['a', { x: 1, y: 2 }]], 'a vanished parent is dropped, the coordinates stay');
+    assert.deepEqual(plain(rebased.dropped), ['b']);
+    const history = model.createHistory(2);
+    history.push('one'); history.push('two'); history.push('three');
+    assert.equal(history.takeUndo(), 'three');
+    history.pushRedo('three');
+    assert.equal(history.canRedo(), true);
+    history.push('four');
+    assert.equal(history.canRedo(), false, 'a new action clears redo');
+    assert.equal(history.takeUndo(), 'four');
+    assert.equal(history.takeUndo(), 'two');
+    assert.equal(history.takeUndo(), null, 'depth is capped');
+    assert.deepEqual(plain(model.readLayoutPrefs('{"libraryWidth":9999,"inspectorWidth":"x","libraryCollapsed":true,"minimap":false}')), { libraryWidth: 400, libraryCollapsed: true, inspectorWidth: 360, minimap: false });
+    assert.deepEqual(plain(model.readLayoutPrefs('not json')), { libraryWidth: 264, libraryCollapsed: false, inspectorWidth: 360, minimap: true });
+    assert.equal(model.fill('{count} of {total}', { count: 2, total: 5 }), '2 of 5');
+    const full = [{ id: 'c', version: 1, parent_id: 'room', placements: {} }];
+    model.applyLayoutPatch(full, [{ id: 'c', version: 3, placements: { atlas: { x: 1, y: 2, pinned: true } } }], 'atlas');
+    assert.equal(full[0].parent_id, '', 'a full node without parent_id has left its place');
+    model.applyLayoutPatch(full, [{ id: 'c', version: 4, parent_id: 'rack', placements: { atlas: { x: 1, y: 2, pinned: true, w: 300, h: 200 } } }], 'atlas');
+    assert.equal(full[0].parent_id, 'rack');
+    assert.equal(full[0].placements.atlas.w, 300);
+    model.applyLayoutPatch(full, [{ id: 'c', version: 5, x: 3, y: 4, pinned: true }], 'atlas');
+    assert.equal(full[0].parent_id, 'rack', 'a bare position patch leaves the parent alone');
+    model.applyLayoutPatch(full, [{ id: 'c', version: 6, parent_id: 'rack', placements: { topology: { x: 7, y: 8, pinned: true } } }], 'atlas');
+    assert.equal('atlas' in full[0].placements, false, 'a full node without this view has been unplaced there');
+    const hostedStamp = model.snapshotStamp([{ ...base.nodes[0], host_id: 'h' }], base.edges, base.sources, base.caps);
+    assert.notEqual(same, hostedStamp, 'a new host is a structural change');
+}
 
 console.log(`Infra UI model, grouped virtualization, and ${required.size} translation keys passed for ${locales.length} locales.`);
