@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -424,6 +425,78 @@ func (p *telegramRestartPoller) GetUpdates(tgbotapi.UpdateConfig) ([]tgbotapi.Up
 	}
 	p.cancel()
 	return nil, nil
+}
+
+func TestTelegramDeliveryFailureCounterCountsEverySendPath(t *testing.T) {
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/getMe") {
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "result": map[string]any{"id": 11, "is_bot": true, "username": "fixture"}})
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = io.WriteString(w, `{"ok":false,"description":"boom"}`)
+	}))
+	t.Cleanup(remote.Close)
+	bot, err := tgbotapi.NewBotAPIWithClient("token", remote.URL+"/bot%s/%s", remote.Client())
+	if err != nil {
+		t.Fatalf("construct Telegram bot API: %v", err)
+	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	before := integrationstatus.TelegramStatus().DeliveryFailures
+	if err := deliverMessage(bot, 4711, "hello", "answer", logger); err == nil {
+		t.Fatal("deliverMessage must report the failed delivery")
+	}
+	if got := integrationstatus.TelegramStatus().DeliveryFailures; got != before+1 {
+		t.Fatalf("delivery failures = %d, want %d", got, before+1)
+	}
+
+	broker := &TelegramBroker{bot: bot, chatID: 4711, logger: logger}
+	broker.deliver("status")
+	if got := integrationstatus.TelegramStatus().DeliveryFailures; got != before+2 {
+		t.Fatalf("delivery failures = %d, want %d", got, before+2)
+	}
+	if status := integrationstatus.TelegramStatus(); status.LastDeliveryErrorAt == "" {
+		t.Fatal("the last delivery error must be timestamped")
+	}
+}
+
+// telegramFuncHeader matches a top level function declaration and captures its
+// name, with or without a receiver.
+var telegramFuncHeader = regexp.MustCompile(`^func (?:\([^)]*\)\s*)?([A-Za-z0-9_]+)\(`)
+
+// Every Telegram send has to run through deliverMessage or the broker, because
+// only there a lost message is counted. A direct send would stay invisible in
+// the delivery counter of the runtime status.
+func TestTelegramSendsAllPassThroughTheDeliveryCounter(t *testing.T) {
+	source, err := os.ReadFile("bot.go")
+	if err != nil {
+		t.Fatalf("read bot.go: %v", err)
+	}
+	counting := map[string]bool{"deliverMessage": true, "deliver": true}
+	seen := map[string]bool{}
+	current := ""
+	for _, line := range strings.Split(string(source), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if match := telegramFuncHeader.FindStringSubmatch(trimmed); match != nil {
+			current = match[1]
+		}
+		if !strings.Contains(line, "sendTelegramMessage(") {
+			continue
+		}
+		if telegramFuncHeader.MatchString(trimmed) {
+			continue // the helper itself
+		}
+		seen[current] = true
+	}
+	for name := range seen {
+		if !counting[name] {
+			t.Fatalf("bot.go sends through %q, which does not count the delivery", name)
+		}
+	}
+	if !seen["deliverMessage"] || !seen["deliver"] {
+		t.Fatalf("expected the sends inside deliverMessage and the broker, saw %v", seen)
+	}
 }
 
 func TestTelegramCursorSurvivesRestartWithoutReplay(t *testing.T) {

@@ -481,7 +481,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 			tools.CompleteQuestion(sessionID, response)
 			return
 		}
-		deliverMessage(bot, msg.From.ID, "Please reply with one of the listed numbers.", logger)
+		deliverMessage(bot, msg.From.ID, "Please reply with one of the listed numbers.", "reply prompt", logger)
 		return
 	}
 
@@ -509,17 +509,17 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 		cmdResult, isCmd, err := commands.Handle(msg.Text, cmdCtx)
 		if err != nil {
 			logger.Error("Telegram command execution failed", "error", err)
-			deliverMessage(bot, msg.From.ID, "⚠️ Fehler beim Ausführen des Befehls.", logger)
+			deliverMessage(bot, msg.From.ID, "⚠️ Fehler beim Ausführen des Befehls.", "command error notice", logger)
 			return
 		}
 		if isCmd {
-			deliverMessage(bot, msg.From.ID, cmdResult, logger)
+			deliverMessage(bot, msg.From.ID, cmdResult, "command result", logger)
 			return
 		}
 	}
 
 	if shouldBlockTelegramPromptInjection(inputText, guardian, logger, msg.From.ID) {
-		deliverMessage(bot, msg.From.ID, "Your message was blocked by the security guardian.", logger)
+		deliverMessage(bot, msg.From.ID, "Your message was blocked by the security guardian.", "security block notice", logger)
 		return
 	}
 	inputText = security.IsolateExternalData(inputText)
@@ -619,7 +619,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 
 	if err != nil {
 		logger.Error("Telegram agent loop failed", "error", err)
-		deliverMessage(bot, msg.From.ID, "⚠️ Sorry, I encountered an error processing your request.", logger)
+		deliverMessage(bot, msg.From.ID, "⚠️ Sorry, I encountered an error processing your request.", "error notice", logger)
 		return
 	}
 
@@ -692,20 +692,20 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 		}
 		cleanText = AppendMissingYouTubeLinks(cleanText, broker.YouTubeVideos)
 		if cleanText != "" {
-			deliverMessage(bot, msg.From.ID, cleanText, logger)
+			deliverMessage(bot, msg.From.ID, cleanText, "answer", logger)
 		}
 	}
 }
 
 // deliverMessage sends a message to the user and records a failed delivery. A
 // lost answer is invisible to the user, so it is logged and counted in the
-// runtime status.
-func deliverMessage(bot *tgbotapi.BotAPI, chatID int64, text string, logger *slog.Logger) error {
+// runtime status. The what label names the path in the log message.
+func deliverMessage(bot *tgbotapi.BotAPI, chatID int64, text string, what string, logger *slog.Logger) error {
 	err := sendTelegramMessage(bot, chatID, text)
 	if err != nil {
 		integrationstatus.MarkTelegramDeliveryFailure(time.Now())
 		if logger != nil {
-			logger.Error("Failed to send Telegram message", "error", security.Scrub(err.Error()))
+			logger.Error("Failed to send Telegram "+what, "error", security.Scrub(err.Error()))
 		}
 	}
 	return err
