@@ -99,7 +99,7 @@
         const ghosts = new Set();
         let last = emptyScene(), linesByEnd = new Map(), lineGeom = new Map();
         let forceNext = false, mapDirty = false, revision = 0, drawnRevision = -1;
-        let pctShown = '', rovingId = '', dropTargetId = '', connectTargetId = '', lastSize = null, animTimer = 0, persistTimer = 0, disposed = false;
+        let pctShown = '', levelsKey = '', cardForm = 'full', formTimer = 0, rovingId = '', dropTargetId = '', connectTargetId = '', lastSize = null, animTimer = 0, persistTimer = 0, disposed = false;
         const persistKeys = new Set();
         let mmTransform = null, mmFrozen = null, mmDragging = false, mmSelected = new Set();
         const mmCardEls = new Map();
@@ -127,7 +127,7 @@
             scene.style.transform = `translate(${v.x}px, ${v.y}px) scale(${v.zoom})`;
             gridEl.style.backgroundSize = `${model.GRID * v.zoom}px ${model.GRID * v.zoom}px`;
             gridEl.style.backgroundPosition = `${v.x}px ${v.y}px`;
-            viewport.classList.toggle('is-zoom-low', v.zoom < 0.75);
+            paintLevels(v.zoom);
             const pct = `${Math.round(v.zoom * 100)}%`;
             if (pctShown !== pct) {
                 pctShown = pct;
@@ -135,6 +135,26 @@
                 zoomButton.setAttribute('aria-label', `${t('desktop.infra_zoom_reset')} · ${pct}`);
             }
             drawMinimap();
+        }
+        // paintLevels applies the semantic zoom (A1): the card form, the labels' counter-scale and the handles. It
+        // runs once per change of a level, not once per frame; the form switch fades the card content in.
+        function paintLevels(zoom) {
+            const levels = model.zoomLevels(zoom, cardForm), key = [levels.form, levels.tiny, levels.handles, levels.edgeLabels, levels.name, levels.header, levels.lane, levels.ring].join('|');
+            if (key === levelsKey) return;
+            levelsKey = key;
+            const switched = levels.form !== cardForm;
+            cardForm = levels.form;
+            viewport.classList.toggle('is-compact', cardForm === 'compact');
+            viewport.classList.toggle('is-tiny', levels.tiny);
+            viewport.classList.toggle('is-no-handles', !levels.handles);
+            viewport.classList.toggle('is-zoom-low', !levels.edgeLabels);
+            for (const [name, value] of [['name', levels.name], ['header', levels.header], ['lane', levels.lane]]) scene.style.setProperty(`--infra-${name}-k`, String(value));
+            scene.style.setProperty('--infra-ring', `${levels.ring}px`);
+            if (switched && app.animationsEnabled()) {
+                viewport.classList.add('is-form-switching');
+                clearTimeout(formTimer);
+                formTimer = setTimeout(() => viewport.classList.remove('is-form-switching'), 220);
+            }
         }
         function persistNow() {
             clearTimeout(persistTimer); persistTimer = 0;
@@ -712,7 +732,7 @@
             disposed = true;
             observer?.disconnect();
             for (const f of [applyFrame, minimapFrame, renderFrame]) f.cancel();
-            clearTimeout(animTimer); clearTimeout(persistTimer);
+            clearTimeout(animTimer); clearTimeout(persistTimer); clearTimeout(formTimer);
             for (const ghost of ghosts) ghost.remove();
             ghosts.clear();
             cardEls.clear(); regionEls.clear(); lineEls.clear(); mmCardEls.clear();

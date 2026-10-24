@@ -197,6 +197,24 @@
         const zoom = clampZoom(Math.min((size.w - padding * 2) / Math.max(box.w, 1), (size.h - padding * 2) / Math.max(box.h, 1), maxZoom));
         return { x: (size.w - box.w * zoom) / 2 - box.x * zoom, y: (size.h - box.h * zoom) / 2 - box.y * zoom, zoom };
     };
+    // ---- semantic zoom (A1) --------------------------------------------------------
+    // Below COMPACT_BELOW cards draw in a compact form (icon and name only); once compact they stay so until
+    // COMPACT_RELEASE, so a pinch near the boundary does not flicker. Names, region headers and lane labels are
+    // counter-scaled so their on-screen size never falls below LABEL_FLOOR px; above 1.0 they scale with the scene.
+    const COMPACT_BELOW = 0.65, COMPACT_RELEASE = 0.68, HANDLES_FROM = 0.5, EDGE_LABELS_FROM = 0.75, TINY_BELOW = 0.4;
+    const LABEL_FLOOR = { name: [16, 12], header: [16, 13], lane: [14, 13] };
+    // labelScale is rounded up to 0.05, so the labels are laid out again only when the step changes.
+    const labelScale = (zoom, basePx, floorPx) => {
+        const z = Number.isFinite(zoom) && zoom > 0 ? zoom : 1, raw = floorPx / (basePx * z);
+        return raw <= 1 ? 1 : Math.ceil(raw * 20) / 20;
+    };
+    const zoomLevels = (zoom, previousForm = 'full') => ({
+        form: zoom < COMPACT_BELOW || (previousForm === 'compact' && zoom < COMPACT_RELEASE) ? 'compact' : 'full',
+        tiny: zoom < TINY_BELOW, handles: zoom >= HANDLES_FROM, edgeLabels: zoom >= EDGE_LABELS_FROM,
+        // the status ring of a compact icon stays at least 1.6 px on screen
+        ring: Math.max(2, Math.ceil(1.6 / (Number.isFinite(zoom) && zoom > 0 ? zoom : 1) * 2) / 2),
+        name: labelScale(zoom, ...LABEL_FLOOR.name), header: labelScale(zoom, ...LABEL_FLOOR.header), lane: labelScale(zoom, ...LABEL_FLOOR.lane),
+    });
     // A stored viewport is its world centre and zoom, so it suits any window size.
     const viewCenter = (view, size) => ({ cx: (size.w / 2 - view.x) / view.zoom, cy: (size.h / 2 - view.y) / view.zoom, zoom: view.zoom });
     const viewFromCenter = (stored, size) => {
@@ -856,7 +874,7 @@
         edgeSegment, edgeCaption, gridPositions, topologyPositions, snapshotStamp,
         layoutSnapshot, applyLayoutPatch,
         CARD_W, CARD_H, GRID, MIN_ZOOM, MAX_ZOOM, REGION_W, REGION_H, REGION_PAD, REGION_MIN_W, REGION_MIN_H,
-        clampZoom, toWorld, toScreen, zoomAt, fitView, viewCenter, viewFromCenter, snap, cardRect, intersects, containsPoint,
+        clampZoom, zoomLevels, labelScale, toWorld, toScreen, zoomAt, fitView, viewCenter, viewFromCenter, snap, cardRect, intersects, containsPoint,
         normalizeRect, padRect, unionRects, freeSlot, regionRect, regionLayout, regionAt, dropParent, growRegions,
         spatialNeighbour, compactGrid, defaultEdgeKind, guestIndex, matchesFilters, filtersActive, buildScene,
         mergeIntent, layoutItems, rebaseLayout, createHistory, readLayoutPrefs, fill, countText, normalizeNode, minimapTransform, glyph,

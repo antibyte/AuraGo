@@ -24,15 +24,16 @@
 .infra-viewport.is-zoom-low .infra-edge-label { display: none; }
 .infra-viewport.is-zoom-low .infra-edge:hover .infra-edge-label { display: inline; }
 .infra-edge-preview { fill: none; stroke: var(--vd-accent); stroke-width: 2px; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
-.infra-card { position: absolute; z-index: 1; width: 216px; height: 64px; transform: translate(-50%, -50%); display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 8px; padding: 0 8px; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-md); background: var(--vd-theme-panel-bg); color: var(--vd-text); box-shadow: var(--vd-theme-shadow-panel); font: inherit; text-align: left; cursor: default; --infra-state: transparent; }
+.infra-card { position: absolute; z-index: 1; width: 216px; height: 64px; transform: translate(-50%, -50%); display: grid; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 7px; padding: 0 4px 0 7px; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-md); background: var(--vd-theme-panel-bg); color: var(--vd-text); box-shadow: var(--vd-theme-shadow-panel); font: inherit; text-align: left; cursor: default; --infra-state: transparent; }
 .infra-card[data-state="current"] { --infra-state: var(--ds-color-success-fg); }
 .infra-card[data-state="stale"] { --infra-state: var(--ds-color-warning-fg); }
 .infra-card[data-state="removed"] { --infra-state: var(--ds-color-danger-fg); }
 .infra-card[data-state="unknown"] { --infra-state: var(--vd-theme-muted); }
-.infra-card-icon { position: relative; width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg); box-shadow: 0 0 0 2px var(--infra-state); }
-.infra-card-icon img { width: 32px; height: 32px; object-fit: contain; pointer-events: none; }
+.infra-card-icon { position: relative; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg); box-shadow: 0 0 0 2px var(--infra-state); }
+.infra-card-icon img { width: 28px; height: 28px; object-fit: contain; pointer-events: none; }
 .infra-card-text { display: grid; min-width: 0; }
-.infra-card-name { overflow: hidden; font-size: 16px; font-weight: 600; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+/* A1 semantic zoom: --infra-name-k / --infra-header-k / --infra-lane-k come from paintLevels (infra-canvas.js). A label is counter-scaled with a transform, never by font size, and its box shrinks by the same factor so it keeps the width it had in the card. */
+.infra-card-name { max-width: calc(100% / var(--infra-name-k, 1)); overflow: hidden; font-size: 16px; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; text-overflow: ellipsis; white-space: nowrap; transform: scale(var(--infra-name-k, 1)); transform-origin: 0 50%; }
 .infra-card-meta { overflow: hidden; color: var(--vd-theme-muted); font-size: 14px; line-height: 1.3; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
 .infra-card-status { position: absolute; right: -6px; top: -6px; width: 14px; height: 14px; display: grid; place-items: center; border-radius: 50%; background: var(--vd-theme-panel-bg); color: var(--infra-state); font-size: 10px; line-height: 1; }
 .infra-card-power { position: absolute; right: -4px; bottom: -4px; width: 11px; height: 11px; border: 2px solid var(--vd-theme-panel-bg); border-radius: 50%; background: var(--vd-theme-muted); }
@@ -46,6 +47,15 @@
 .infra-card.is-saving { border-style: dashed; }
 .infra-card.is-unsaved { border: 1px dashed var(--ds-color-warning-fg); }
 .infra-card.is-connect-target { outline: 2px dashed var(--vd-accent); outline-offset: 3px; }
+/* Compact card (zoom below 0.65): the box and its hit area stay 216x64; it shows the icon (28 px, status ring kept) and the name under it, which is two lines from zoom 0.4 and one line below. */
+.infra-viewport.is-compact .infra-card { grid-template-columns: minmax(0, 1fr); justify-items: center; padding: 0; }
+.infra-viewport.is-compact .infra-card-icon { width: 28px; height: 28px; box-shadow: 0 0 0 var(--infra-ring, 2px) var(--infra-state); }
+.infra-viewport.is-compact .infra-card-icon img { width: 24px; height: 24px; }
+.infra-viewport.is-compact .infra-card-meta, .infra-viewport.is-compact .infra-card-status, .infra-viewport.is-compact .infra-card-badge { display: none; }
+.infra-viewport.is-compact .infra-card-text { position: absolute; left: 50%; top: calc(100% + 4px); width: 240px; transform: translateX(-50%); text-align: center; }
+.infra-viewport.is-compact .infra-card-name { margin: 0 auto; white-space: normal; text-overflow: clip; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; transform-origin: 50% 0; text-shadow: 0 0 3px var(--vd-theme-app-bg), 0 0 3px var(--vd-theme-app-bg), 0 0 6px var(--vd-theme-app-bg); }
+.infra-viewport.is-compact.is-tiny .infra-card-name { -webkit-line-clamp: 1; white-space: nowrap; text-overflow: ellipsis; display: block; }
+.infra-viewport.is-no-handles .infra-card-handle { display: none; }
 .infra-card-handle { position: absolute; width: 10px; height: 10px; border: 2px solid var(--vd-theme-panel-bg); border-radius: 50%; background: var(--vd-accent); opacity: 0; cursor: crosshair; }
 .infra-card-handle[data-connect-handle="n"] { top: -6px; left: calc(50% - 5px); }
 .infra-card-handle[data-connect-handle="s"] { bottom: -6px; left: calc(50% - 5px); }
@@ -61,7 +71,7 @@
 .infra-guest-chip.is-selected { border-color: var(--vd-accent); background: var(--vd-theme-accent-soft); }
 /* A4: a place is a neutral surface with a theme border. The accent only marks the drop target, the selection and a hovered header; nested places stack their fills, so the nesting shows without tinting. */
 .infra-region { position: absolute; border: 1.5px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: color-mix(in srgb, var(--vd-theme-panel-bg) 45%, transparent); pointer-events: none; }
-.infra-region-header { position: absolute; left: 8px; top: 8px; max-width: calc(100% - 16px); height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px 0 6px; border: 0; border-radius: var(--ds-radius-sm); background: transparent; color: var(--vd-text); font: 600 16px/1 var(--vd-font-ui); pointer-events: auto; cursor: grab; }
+.infra-region > .infra-region-header { position: absolute; left: 8px; top: 8px; max-width: calc((100% - 16px) / var(--infra-header-k, 1)); height: 32px; transform: scale(var(--infra-header-k, 1)); transform-origin: 0 0; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px 0 6px; border: 0; border-radius: var(--ds-radius-sm); background: transparent; color: var(--vd-text); font: 600 16px/1 var(--vd-font-ui); pointer-events: auto; cursor: grab; }
 .infra-region-header:hover { background: var(--vd-theme-accent-soft); }
 .infra-region-icon { width: 22px; height: 22px; object-fit: contain; }
 .infra-region-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -117,7 +127,9 @@
 .infra-connect-error { margin: 0; color: var(--ds-color-danger-fg); font-size: 14px; }
 .infra-app.is-dragging, .infra-app.is-dragging * { cursor: grabbing !important; }
 .infra-app.is-drag-invalid, .infra-app.is-drag-invalid * { cursor: not-allowed !important; }
+@keyframes infra-form-in { from { opacity: .35; } }
 @media (prefers-reduced-motion: no-preference) {
+  body:not([data-animations="false"]) .infra-viewport.is-form-switching .infra-card-icon, body:not([data-animations="false"]) .infra-viewport.is-form-switching .infra-card-text { animation: infra-form-in var(--ds-motion-duration-fast) var(--ds-motion-ease-decel); }
   body:not([data-animations="false"]) .infra-card { transition: box-shadow var(--ds-motion-duration-fast) var(--ds-motion-ease-standard), border-color var(--ds-motion-duration-fast) var(--ds-motion-ease-standard), opacity var(--ds-motion-duration-fast) var(--ds-motion-ease-standard); }
   body:not([data-animations="false"]) .infra-scene.is-animating { transition: transform var(--ds-motion-duration-base) var(--ds-motion-ease-decel); }
 }

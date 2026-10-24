@@ -239,6 +239,30 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     assert.ok(Math.abs(mini.scale - 0.188) < 1e-9 && Math.abs(mini.x - 6) < 1e-9 && Math.abs(mini.y - 18) < 1e-9, 'the minimap centres the world');
 }
 
+// ---- semantic zoom (A1) ------------------------------------------------------
+{
+    assert.equal(model.zoomLevels(0.64).form, 'compact', 'below 0.65 cards are compact');
+    assert.equal(model.zoomLevels(0.65).form, 'full');
+    assert.equal(model.zoomLevels(0.67, 'compact').form, 'compact', 'a compact form is kept until 0.68 so a pinch does not flicker');
+    assert.equal(model.zoomLevels(0.68, 'compact').form, 'full');
+    assert.equal(model.zoomLevels(0.67, 'full').form, 'full');
+    assert.deepEqual([0.49, 0.5].map(zoom => model.zoomLevels(zoom).handles), [false, true], 'connection handles go below 0.5');
+    assert.deepEqual([0.74, 0.75].map(zoom => model.zoomLevels(zoom).edgeLabels), [false, true], 'edge labels go below 0.75');
+    assert.deepEqual([0.39, 0.4].map(zoom => model.zoomLevels(zoom).tiny), [true, false]);
+    for (const zoom of [0.25, 0.28, 0.3, 0.44, 0.5, 0.65, 0.74, 0.75, 0.8125, 1, 1.5, 2]) {
+        const levels = model.zoomLevels(zoom);
+        assert.ok(16 * zoom * levels.name >= 12, `a name is at least 12 px on screen at ${zoom}`);
+        assert.ok(16 * zoom * levels.header >= 13, `a region header is at least 13 px on screen at ${zoom}`);
+        assert.ok(14 * zoom * levels.lane >= 13, `a lane label is at least 13 px on screen at ${zoom}`);
+        assert.ok(zoom * 16 * 1 < 12 || levels.name === 1, 'a label that is large enough is not scaled');
+        assert.ok(1.6 <= zoom * levels.ring, `the status ring stays at least 1.6 px at ${zoom}`);
+    }
+    assert.equal(model.zoomLevels(1).name, 1, 'at 100 % labels are not scaled');
+    assert.equal(model.zoomLevels(2).header, 1, 'above 1.0 labels scale with the scene');
+    assert.ok(Math.abs(model.labelScale(0.3, 16, 12) * 20 - Math.round(model.labelScale(0.3, 16, 12) * 20)) < 1e-9, 'the counter-scale moves in steps of 0.05');
+    assert.equal(model.labelScale(NaN, 16, 12), 1, 'a broken zoom is not scaled');
+}
+
 // ---- guests, filters and the scene ------------------------------------------
 {
     const guestNodes = [{ id: 'host', kind: 'device' }, { id: 'vm', kind: 'vm', host_id: 'host' }, { id: 'svc', kind: 'service' }, { id: 'ct', kind: 'container', host_id: 'gone' }, { id: 'dev', kind: 'device', host_id: 'host' }];
