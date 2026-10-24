@@ -82,6 +82,11 @@
         if ((end.x - start.x) * (x2 - x1) + (end.y - start.y) * (y2 - y1) <= 0) return { x1, y1, x2, y2 };
         return { x1: start.x, y1: start.y, x2: end.x, y2: end.y };
     };
+    // edgeLabelClash: would a label of size {w, h}, centred on the segment's midpoint and padded by pad, touch any of rects?
+    const edgeLabelClash = (seg, size, rects, pad = 4) => {
+        const box = { x: (seg.x1 + seg.x2) / 2 - size.w / 2 - pad, y: (seg.y1 + seg.y2) / 2 - size.h / 2 - pad, w: size.w + pad * 2, h: size.h + pad * 2 };
+        return (rects || []).some(rect => intersects(box, rect));
+    };
     const edgeCaption = edge => {
         const from = String(edge?.from_port || '').trim(), to = String(edge?.to_port || '').trim(), speed = String(edge?.speed || '').trim();
         const ports = from && to ? `${from} → ${to}` : (from || to);
@@ -877,7 +882,7 @@
         esc, clone, iconId, iconURL, assetURL, iconLabelKey, sourceActions, sourceIdentity, virtualSlice, sourceState,
         visibleByCollapsed, isPlaced, validCIDR, validHTTPLink, iconIds: () => [...ICON_LIST],
         acceptsIcon, rememberIcon, versionedAsset, containerKinds: () => [...CONTAINER_KINDS], isContainer, powerLabel,
-        edgeSegment, edgeCaption, gridPositions, topologyPositions, snapshotStamp,
+        edgeSegment, edgeCaption, edgeLabelClash, gridPositions, topologyPositions, snapshotStamp,
         layoutSnapshot, applyLayoutPatch,
         CARD_W, CARD_H, GRID, MIN_ZOOM, MAX_ZOOM, REGION_W, REGION_H, REGION_PAD, REGION_MIN_W, REGION_MIN_H,
         clampZoom, zoomLevels, labelScale, toWorld, toScreen, zoomAt, fitView, viewCenter, viewFromCenter, snap, cardRect, intersects, containsPoint,

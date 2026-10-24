@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/proto"
 )
 
 // Design QA batch D-fix-1 (amendments A1, A3, A5, A8, A13). Every scenario is its own test function so the page
@@ -163,5 +164,54 @@ func TestDesktopInfraMinimapBrowser(t *testing.T) {
 		t.Fatalf("fitting the map must hide the minimap again: %s", got)
 	}
 	// Whenever it is shown it never sits on a card at fit: at fit it is hidden, at 100 % it is the user's own pan.
+	requireInfraBrowserClean(t, page)
+}
+
+// TestDesktopInfraEdgeLabelsBrowser covers amendment A5: a connection label sits at the midpoint of the visible
+// segment; when its box would touch a card it stays hidden until its connection is hovered, and no visible
+// label ever overlaps a card.
+func TestDesktopInfraEdgeLabelsBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	fixture := newInfraAppBrowserFixture()
+	fixture.world(25)
+	page := infraPolishOpen(t, fixture, 1500, 970)
+	defer page.Close()
+	page.MustEval(`()=>document.querySelector('[data-action="zoom-reset"]').click()`)
+	page.MustWait(`()=>Number(/scale\(([^)]+)\)/.exec(document.querySelector('[data-scene]').style.transform)[1])===1`)
+	infraPolishSettle(page)
+	// The LAN label would sit under the card between its ends, the Wi-Fi label does not fit the 36 px gap between
+	// neighbours, the fibre label has a clear stretch of line.
+	got := page.MustEval(`()=>{
+		const rect=el=>el.getBoundingClientRect(),cards=[...document.querySelectorAll('[data-nodes] [data-node]')].map(rect);
+		const rows=[...document.querySelectorAll('.infra-edge')].filter(edge=>edge.querySelector('.infra-edge-label')).map(edge=>{
+			const label=edge.querySelector('.infra-edge-label'),box=rect(label),visible=getComputedStyle(label).visibility==='visible';
+			return {id:edge.dataset.edge,clash:edge.classList.contains('is-label-clash'),visible,overlap:visible&&cards.some(card=>box.left<card.right&&box.right>card.left&&box.top<card.bottom&&box.bottom>card.top)};
+		}).sort((a,b)=>a.id.localeCompare(b.id));
+		return JSON.stringify(rows);
+	}`).Str()
+	if want := `[{"id":"fixture-edge-fiber","clash":false,"visible":true,"overlap":false},{"id":"fixture-edge-lan","clash":true,"visible":false,"overlap":false},{"id":"fixture-edge-wifi","clash":true,"visible":false,"overlap":false}]`; got != want {
+		t.Fatalf("edge labels: got %s; want %s", got, want)
+	}
+
+	// Hovering the LAN connection shows its label.
+	point := page.MustEval(`()=>{const r=document.querySelector('[data-edge="fixture-edge-lan"] .infra-edge-hit').getBoundingClientRect();return [r.left+r.width*0.12,r.top+r.height/2];}`).Arr()
+	page.Mouse.MustMoveTo(point[0].Num(), point[1].Num())
+	page.MustWait(`()=>getComputedStyle(document.querySelector('[data-edge="fixture-edge-lan"] .infra-edge-label')).visibility==='visible'`)
+	page.Mouse.MustMoveTo(5, 5)
+	page.MustWait(`()=>getComputedStyle(document.querySelector('[data-edge="fixture-edge-lan"] .infra-edge-label')).visibility==='hidden'`)
+
+	// Dragging the card off the line brings the label back while the card is still held: the clash is re-evaluated on a move.
+	centre := page.MustEval(`()=>{const r=document.querySelector('[data-node="fixture-node-0002"]').getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];}`).Arr()
+	cx, cy := centre[0].Num(), centre[1].Num()
+	page.Mouse.MustMoveTo(cx, cy).MustDown(proto.InputMouseButtonLeft)
+	page.Mouse.MustMoveTo(cx, cy+60)
+	page.Mouse.MustMoveTo(cx, cy+200)
+	page.MustWait(`()=>getComputedStyle(document.querySelector('[data-edge="fixture-edge-lan"] .infra-edge-label')).visibility==='visible'&&!document.querySelector('[data-edge="fixture-edge-lan"]').classList.contains('is-label-clash')`)
+	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	infraPolishSettle(page)
+	page.Mouse.MustMoveTo(5, 5)
+	if !page.MustEval(`()=>getComputedStyle(document.querySelector('[data-edge="fixture-edge-lan"] .infra-edge-label')).visibility==='visible'`).Bool() {
+		t.Fatal("after dropping the card off the line the LAN label must stay visible")
+	}
 	requireInfraBrowserClean(t, page)
 }

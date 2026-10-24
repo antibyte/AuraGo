@@ -138,6 +138,20 @@ assert.deepEqual(plain(model.edgeSegment({ x: 0, y: 0 }, { x: 0, y: 300 })), { x
 assert.deepEqual(plain(model.edgeSegment({ x: 0, y: 0 }, { x: 100, y: 0 })), { x1: 0, y1: 0, x2: 100, y2: 0 }, 'overlapping cards keep the centre line');
 assert.equal(model.edgeSegment({ x: 0, y: 0 }, { x: 1000, y: 0 }, undefined, { w: 300, h: 100 }).x2, 700, 'a region end stops at its own border');
 assert.equal(model.edgeCaption({ from_port: 'ge-0/0/1', to_port: 'eth0', speed: '1G' }), 'ge-0/0/1 → eth0 · 1G');
+// A5: a connection label sits at the midpoint of the visible segment and is hidden when its box would touch a card.
+{
+    const cards = [model.cardRect({ x: 0, y: 0 }), model.cardRect({ x: 252, y: 0 })];
+    const gap = model.edgeSegment({ x: 0, y: 0 }, { x: 252, y: 0 });
+    assert.deepEqual(plain(gap), { x1: 108, y1: 0, x2: 144, y2: 0 }, 'the visible segment between two neighbours is the 36 px gap');
+    assert.equal(model.edgeLabelClash(gap, { w: 90, h: 17 }, cards), true, 'a 90 px label does not fit in a 36 px gap');
+    assert.equal(model.edgeLabelClash(gap, { w: 20, h: 17 }, cards, 0), false, 'a 20 px label fits in the gap without padding');
+    assert.equal(model.edgeLabelClash(gap, { w: 20, h: 17 }, cards, 12), true, 'padding counts');
+    const far = model.edgeSegment({ x: 0, y: 0 }, { x: 800, y: 0 });
+    assert.equal(model.edgeLabelClash(far, { w: 120, h: 17 }, cards.slice(0, 1)), false, 'a long segment holds its label');
+    assert.equal(model.edgeLabelClash(far, { w: 120, h: 17 }, [model.cardRect({ x: 400, y: 0 })]), true, 'a card sitting on the midpoint blocks the label');
+    assert.equal(model.edgeLabelClash(far, { w: 120, h: 17 }, [model.cardRect({ x: 400, y: 200 })]), false, 'a card off the line does not');
+    assert.equal(model.edgeLabelClash(far, { w: 120, h: 17 }, []), false);
+}
 
 const topology = model.topologyPositions([
     { id: 'lan', kind: 'network', name: 'LAN' },

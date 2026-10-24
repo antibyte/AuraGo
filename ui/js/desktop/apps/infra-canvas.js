@@ -414,7 +414,12 @@
                 + (edge.kind === 'fiber' ? '<path class="infra-edge-line infra-edge-core" d=""/>' : '')
                 + (caption ? `<text class="infra-edge-label" x="0" y="0">${esc(caption)}</text>` : '') + `<title>${esc(title)}</title></g>`;
         }
-        function applyLine(entry, seg) {
+        // blockersOf lists the card rectangles a connection label must stay clear of; cards in tempCards are mid-drag.
+        function blockersOf(tempCards) {
+            let rects = null;
+            return () => rects || (rects = last.cards.map(card => model.cardRect(tempCards?.get(card.id) || card)));
+        }
+        function applyLine(entry, seg, rectsOf) {
             const d = `M${round1(seg.x1)} ${round1(seg.y1)}L${round1(seg.x2)} ${round1(seg.y2)}`;
             if (d !== entry.d) {
                 entry.hit.setAttribute('d', d); entry.line.setAttribute('d', d); entry.core?.setAttribute('d', d);
@@ -423,22 +428,30 @@
             if (!entry.label) return;
             const mx = round1((seg.x1 + seg.x2) / 2), my = round1((seg.y1 + seg.y2) / 2);
             if (entry.lx !== mx || entry.ly !== my) { entry.label.setAttribute('x', mx); entry.label.setAttribute('y', my); entry.lx = mx; entry.ly = my; }
+            entry.seg = seg;
+            if (rectsOf) paintClash(entry, rectsOf);
         }
+        // A5: a label that would sit on a card stays hidden until its connection is hovered or selected.
+        function paintClash(entry, rectsOf) {
+            setFlag(entry, 'clash', !!entry.labelBox && !!entry.seg && model.edgeLabelClash(entry.seg, entry.labelBox, rectsOf()), on => entry.g.classList.toggle('is-label-clash', on));
+        }
+        // A card that moves can cover or free the label of a connection it is not attached to.
+        function refreshClashes(rectsOf) { for (const entry of lineEls.values()) if (entry.label) paintClash(entry, rectsOf); }
         function shapeOf(id, cards, regions) {
             const card = cards?.get(id) || last.cardById.get(id);
             if (card) return { x: card.x, y: card.y, half: cardHalf };
             const r = regions?.get(id) || last.regionRects.get(id);
             return r ? { x: r.x + r.w / 2, y: r.y + r.h / 2, half: { w: r.w / 2, h: r.h / 2 } } : null;
         }
-        function redrawLine(lineId, cards, regions) {
+        function redrawLine(lineId, cards, regions, rectsOf) {
             const geom = lineGeom.get(lineId), entry = lineEls.get(lineId);
             if (!geom || !entry) return;
             const a = shapeOf(geom.from, cards, regions), b = shapeOf(geom.to, cards, regions);
-            if (a && b) applyLine(entry, model.edgeSegment(a, b, a.half, b.half));
+            if (a && b) applyLine(entry, model.edgeSegment(a, b, a.half, b.half), rectsOf || blockersOf(cards));
         }
         function patchLines(lines, force) {
             const edgeById = new Map(store.state.edges.map(edge => [edge.id, edge]));
-            const seen = new Set();
+            const seen = new Set(), applied = [];
             linesByEnd = new Map(); lineGeom = new Map();
             for (const line of lines) {
                 const edge = edgeById.get(line.id);
@@ -451,13 +464,17 @@
                 if (!entry || force || entry.sig !== sig) {
                     const g = parseLine(lineMarkup(edge, caption, title));
                     if (entry) entry.g.replaceWith(g); else edgeLayer.appendChild(g);
-                    entry = { g, hit: g.querySelector('.infra-edge-hit'), line: g.querySelector('.infra-edge-line:not(.infra-edge-core)'), core: g.querySelector('.infra-edge-core'), label: g.querySelector('.infra-edge-label'), sig, d: '', lx: null, ly: null, flags: {} };
+                    entry = { g, hit: g.querySelector('.infra-edge-hit'), line: g.querySelector('.infra-edge-line:not(.infra-edge-core)'), core: g.querySelector('.infra-edge-core'), label: g.querySelector('.infra-edge-label'), labelBox: null, sig, d: '', lx: null, ly: null, flags: {} };
                     lineEls.set(line.id, entry);
                 }
                 lineGeom.set(line.id, { from: line.from, to: line.to });
                 for (const end of [line.from, line.to]) (linesByEnd.get(end) || linesByEnd.set(end, new Set()).get(end)).add(line.id);
-                applyLine(entry, line);
+                applied.push([entry, line]);
             }
+            // Label boxes are measured once per label, all reads before any write.
+            for (const [entry] of applied) if (entry.label && !entry.labelBox) { const box = entry.label.getBBox(); if (box.width > 0) entry.labelBox = { w: box.width, h: box.height }; }
+            const rectsOf = blockersOf(null);
+            for (const [entry, line] of applied) applyLine(entry, line, rectsOf);
             for (const [id, entry] of lineEls) if (!seen.has(id)) { entry.g.remove(); lineEls.delete(id); }
         }
 
@@ -637,7 +654,9 @@
                 writeRegion(entry, rect); temp.regions.add(id); affected.add(id);
             }
             for (const id of affected) for (const lineId of linesByEnd.get(id) || []) lines.add(lineId);
-            for (const lineId of lines) { temp.lines.add(lineId); redrawLine(lineId, cards, regions); }
+            const rectsOf = blockersOf(cards);
+            for (const lineId of lines) { temp.lines.add(lineId); redrawLine(lineId, cards, regions, rectsOf); }
+            refreshClashes(rectsOf);
         }
         function clearTemp() {
             for (const id of temp.cards) {
@@ -648,7 +667,9 @@
                 const entry = regionEls.get(id), rect = last.regionRects.get(id);
                 if (entry && rect) writeRegion(entry, rect);
             }
-            for (const lineId of temp.lines) redrawLine(lineId);
+            const rectsOf = blockersOf(null);
+            for (const lineId of temp.lines) redrawLine(lineId, undefined, undefined, rectsOf);
+            refreshClashes(rectsOf);
             temp.cards.clear(); temp.regions.clear(); temp.lines.clear();
         }
         function applyDropTarget(id) {

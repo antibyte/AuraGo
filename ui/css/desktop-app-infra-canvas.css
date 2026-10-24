@@ -21,8 +21,9 @@
 .infra-edge[data-kind="powered_by"] .infra-edge-line { stroke: var(--ds-color-warning-fg); }
 .infra-edge:hover .infra-edge-line, .infra-edge.is-selected .infra-edge-line { stroke: var(--vd-accent); stroke-width: 3px; }
 .infra-edge-label { font: 600 14px/1 var(--vd-font-ui); fill: var(--vd-theme-muted); paint-order: stroke; stroke: var(--vd-theme-app-bg); stroke-width: 4px; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
-.infra-viewport.is-zoom-low .infra-edge-label { display: none; }
-.infra-viewport.is-zoom-low .infra-edge:hover .infra-edge-label { display: inline; }
+/* A5: a label is hidden (not removed, so it can be measured) below zoom 0.75 and while it would sit on a card; hovering or selecting its connection shows it. */
+.infra-viewport.is-zoom-low .infra-edge-label, .infra-edge.is-label-clash .infra-edge-label { visibility: hidden; }
+.infra-edge:hover .infra-edge-label, .infra-edge.is-selected .infra-edge-label { visibility: visible; }
 .infra-edge-preview { fill: none; stroke: var(--vd-accent); stroke-width: 2px; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
 .infra-card { position: absolute; z-index: 1; width: 216px; height: 64px; transform: translate(-50%, -50%); display: grid; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 7px; padding: 0 4px 0 7px; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-md); background: var(--vd-theme-panel-bg); color: var(--vd-text); box-shadow: var(--vd-theme-shadow-panel); font: inherit; text-align: left; cursor: default; --infra-state: transparent; }
 .infra-card[data-state="current"] { --infra-state: var(--ds-color-success-fg); }
