@@ -8010,6 +8010,7 @@
   "desktop.infra_move_mode": "移動モード：矢印キーで移動、Enterで保存、Escapeでキャンセルします。",
   "desktop.infra_move_cancelled": "移動をキャンセルしました",
   "desktop.infra_moved": "資産{count}件を移動しました",
+  "desktop.infra_moved_one": "資産1件を移動しました",
   "desktop.infra_moved_into": "{name}を{place}に移動しました",
   "desktop.infra_moved_out": "{name}を所属場所から外しました",
   "desktop.infra_placed": "{name}をマップに配置しました",

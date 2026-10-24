@@ -8010,6 +8010,7 @@
   "desktop.infra_move_mode": "स्थानांतरण मोड: ऐरो कीज़ से हिलाएँ, Enter से सहेजें, Escape से रद्द करें।",
   "desktop.infra_move_cancelled": "स्थानांतरण रद्द किया गया",
   "desktop.infra_moved": "{count} संसाधन स्थानांतरित किए गए",
+  "desktop.infra_moved_one": "1 संसाधन स्थानांतरित किया गया",
   "desktop.infra_moved_into": "{name} को {place} में ले जाया गया",
   "desktop.infra_moved_out": "{name} को उसके स्थान से बाहर ले जाया गया",
   "desktop.infra_placed": "{name} को मैप पर रखा गया",

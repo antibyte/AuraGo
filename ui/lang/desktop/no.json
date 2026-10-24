@@ -8010,6 +8010,7 @@
   "desktop.infra_move_mode": "Flyttemodus: piltastene flytter, Enter lagrer, Escape avbryter.",
   "desktop.infra_move_cancelled": "Flyttingen er avbrutt",
   "desktop.infra_moved": "{count} ressurser flyttet",
+  "desktop.infra_moved_one": "1 ressurs flyttet",
   "desktop.infra_moved_into": "{name} flyttet til {place}",
   "desktop.infra_moved_out": "{name} flyttet ut av stedet sitt",
   "desktop.infra_placed": "{name} plassert på kartet",

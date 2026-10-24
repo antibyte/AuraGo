@@ -9280,6 +9280,7 @@
   "desktop.infra_move_mode": "Move mode: arrow keys move, Enter saves, Escape cancels.",
   "desktop.infra_move_cancelled": "Move cancelled",
   "desktop.infra_moved": "{count} assets moved",
+  "desktop.infra_moved_one": "1 asset moved",
   "desktop.infra_moved_into": "{name} moved into {place}",
   "desktop.infra_moved_out": "{name} moved out of its place",
   "desktop.infra_placed": "{name} placed on the map",

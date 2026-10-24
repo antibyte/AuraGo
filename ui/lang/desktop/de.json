@@ -8010,6 +8010,7 @@
   "desktop.infra_move_mode": "Verschiebemodus: Pfeiltasten verschieben, Eingabe speichert, Escape bricht ab.",
   "desktop.infra_move_cancelled": "Verschieben abgebrochen",
   "desktop.infra_moved": "{count} Assets verschoben",
+  "desktop.infra_moved_one": "1 Asset verschoben",
   "desktop.infra_moved_into": "{name} nach {place} verschoben",
   "desktop.infra_moved_out": "{name} aus seinem Ort verschoben",
   "desktop.infra_placed": "{name} auf der Karte platziert",

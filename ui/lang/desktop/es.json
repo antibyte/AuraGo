@@ -8010,6 +8010,7 @@
   "desktop.infra_move_mode": "Modo de movimiento: las flechas mueven, Intro guarda y Escape cancela.",
   "desktop.infra_move_cancelled": "Movimiento cancelado",
   "desktop.infra_moved": "{count} activos movidos",
+  "desktop.infra_moved_one": "1 activo movido",
   "desktop.infra_moved_into": "{name} movido a {place}",
   "desktop.infra_moved_out": "{name} sacado de su lugar",
   "desktop.infra_placed": "{name} colocado en el mapa",

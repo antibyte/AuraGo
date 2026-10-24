@@ -8010,6 +8010,7 @@
   "desktop.infra_move_mode": "Režim přesunu: šipky přesouvají, Enter ukládá, Escape ruší.",
   "desktop.infra_move_cancelled": "Přesun zrušen",
   "desktop.infra_moved": "Přesunutá aktiva: {count}",
+  "desktop.infra_moved_one": "Přesunuto 1 aktivum",
   "desktop.infra_moved_into": "{name} přesunuto do místa {place}",
   "desktop.infra_moved_out": "{name} přesunuto mimo své místo",
   "desktop.infra_placed": "{name} umístěno na mapě",

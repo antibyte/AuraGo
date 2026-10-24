@@ -8010,6 +8010,7 @@
   "desktop.infra_move_mode": "Flyttläge: piltangenterna flyttar, Enter sparar, Escape avbryter.",
   "desktop.infra_move_cancelled": "Flyttningen avbröts",
   "desktop.infra_moved": "{count} tillgångar flyttade",
+  "desktop.infra_moved_one": "1 tillgång flyttad",
   "desktop.infra_moved_into": "{name} flyttades till {place}",
   "desktop.infra_moved_out": "{name} flyttades ut från sin plats",
   "desktop.infra_placed": "{name} placerades på kartan",

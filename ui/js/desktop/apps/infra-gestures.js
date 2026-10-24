@@ -67,6 +67,7 @@
 
         const nameOf = id => store.nodeById(id)?.name || id;
         const commands = () => window.InfraAppStore.commands;
+        const movedLabel = count => (count === 1 ? t('desktop.infra_moved_one') : t('desktop.infra_moved').replace('{count}', count));
         function holdClick() {
             suppressClick = true;
             clearTimeout(suppressTimer);
@@ -126,7 +127,7 @@
                 ? (plan.moves.length === 1 ? t('desktop.infra_placed').replace('{name}', name(plan.moves[0].id)) : t('desktop.infra_placed_many').replace('{count}', plan.moves.length))
                 : changed.length === 1 && plan.moves.length === 1
                     ? (changed[0].to ? t('desktop.infra_moved_into').replace('{name}', name(changed[0].id)).replace('{place}', name(changed[0].to)) : t('desktop.infra_moved_out').replace('{name}', name(changed[0].id)))
-                    : t('desktop.infra_moved').replace('{count}', plan.moves.length);
+                    : movedLabel(plan.moves.length);
             const { commands: factory } = window.InfraAppStore;
             const command = kind === 'place' ? factory.placeFromLibrary(view, plan.after, label)
                 : changed.length ? factory.reparent(view, plan.before, plan.after, label) : factory.moveNodes(view, plan.before, plan.after, label);
@@ -300,7 +301,7 @@
                         const plan = planRegionMove(regionId, delta, view, scene, family);
                         const label = plan.changed
                             ? (plan.to ? t('desktop.infra_moved_into').replace('{name}', nameOf(regionId)).replace('{place}', nameOf(plan.to)) : t('desktop.infra_moved_out').replace('{name}', nameOf(regionId)))
-                            : t('desktop.infra_moved').replace('{count}', plan.after.size);
+                            : movedLabel(plan.after.size);
                         void store.dispatch(plan.changed ? commands().reparent(view, plan.before, plan.after, label) : commands().moveNodes(view, plan.before, plan.after, label));
                         app.announce(label);
                         canvas.renderNow();

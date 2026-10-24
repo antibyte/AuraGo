@@ -8010,6 +8010,7 @@
   "desktop.infra_move_mode": "Modalità spostamento: le frecce spostano, Invio salva, Esc annulla.",
   "desktop.infra_move_cancelled": "Spostamento annullato",
   "desktop.infra_moved": "{count} risorse spostate",
+  "desktop.infra_moved_one": "1 risorsa spostata",
   "desktop.infra_moved_into": "{name} spostato in {place}",
   "desktop.infra_moved_out": "{name} spostato fuori dal suo luogo",
   "desktop.infra_placed": "{name} posizionato sulla mappa",

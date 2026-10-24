@@ -8010,6 +8010,7 @@
   "desktop.infra_move_mode": "Flyttetilstand: piletasterne flytter, Enter gemmer, Escape annullerer.",
   "desktop.infra_move_cancelled": "Flytning annulleret",
   "desktop.infra_moved": "{count} aktiver flyttet",
+  "desktop.infra_moved_one": "1 aktiv flyttet",
   "desktop.infra_moved_into": "{name} flyttet til {place}",
   "desktop.infra_moved_out": "{name} flyttet ud af sit sted",
   "desktop.infra_placed": "{name} placeret på kortet",

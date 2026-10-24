@@ -8010,6 +8010,7 @@
   "desktop.infra_move_mode": "Tryb przesuwania: strzałki przesuwają, Enter zapisuje, Escape anuluje.",
   "desktop.infra_move_cancelled": "Anulowano przesuwanie",
   "desktop.infra_moved": "Przesunięto zasoby: {count}",
+  "desktop.infra_moved_one": "Przesunięto 1 zasób",
   "desktop.infra_moved_into": "Przeniesiono {name} do miejsca {place}",
   "desktop.infra_moved_out": "Wyjęto {name} z jego miejsca",
   "desktop.infra_placed": "Umieszczono {name} na mapie",

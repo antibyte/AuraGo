@@ -8010,6 +8010,7 @@
   "desktop.infra_move_mode": "Λειτουργία μετακίνησης: τα βέλη μετακινούν, το Enter αποθηκεύει, το Escape ακυρώνει.",
   "desktop.infra_move_cancelled": "Η μετακίνηση ακυρώθηκε",
   "desktop.infra_moved": "Μετακινήθηκαν {count} στοιχεία",
+  "desktop.infra_moved_one": "Μετακινήθηκε 1 στοιχείο",
   "desktop.infra_moved_into": "Το {name} μετακινήθηκε στο {place}",
   "desktop.infra_moved_out": "Το {name} βγήκε από τον χώρο του",
   "desktop.infra_placed": "Το {name} τοποθετήθηκε στον χάρτη",

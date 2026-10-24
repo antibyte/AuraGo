@@ -8010,6 +8010,7 @@
   "desktop.infra_move_mode": "Modo de movimento: as setas movem, Enter salva e Esc cancela.",
   "desktop.infra_move_cancelled": "Movimento cancelado",
   "desktop.infra_moved": "{count} ativos movidos",
+  "desktop.infra_moved_one": "1 ativo movido",
   "desktop.infra_moved_into": "{name} movido para {place}",
   "desktop.infra_moved_out": "{name} retirado do seu local",
   "desktop.infra_placed": "{name} posicionado no mapa",

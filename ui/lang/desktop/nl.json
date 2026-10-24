@@ -8010,6 +8010,7 @@
   "desktop.infra_move_mode": "Verplaatsmodus: pijltjestoetsen verplaatsen, Enter slaat op, Escape annuleert.",
   "desktop.infra_move_cancelled": "Verplaatsen geannuleerd",
   "desktop.infra_moved": "{count} assets verplaatst",
+  "desktop.infra_moved_one": "1 asset verplaatst",
   "desktop.infra_moved_into": "{name} verplaatst naar {place}",
   "desktop.infra_moved_out": "{name} uit zijn plek verplaatst",
   "desktop.infra_placed": "{name} op de kaart geplaatst",

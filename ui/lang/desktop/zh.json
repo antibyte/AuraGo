@@ -8010,6 +8010,7 @@
   "desktop.infra_move_mode": "移动模式：方向键移动，Enter 保存，Esc 取消。",
   "desktop.infra_move_cancelled": "已取消移动",
   "desktop.infra_moved": "已移动 {count} 项资产",
+  "desktop.infra_moved_one": "已移动 1 项资产",
   "desktop.infra_moved_into": "已将 {name} 移入 {place}",
   "desktop.infra_moved_out": "已将 {name} 移出其位置",
   "desktop.infra_placed": "已将 {name} 放置到地图上",
