@@ -1,6 +1,11 @@
 {
   "model_repo": "gradium/phonon-40m-multilingual",
   "model_revision": "1537ce46c64f42903e0d608b132ccb073dac46d2",
+  "model_package": {
+    "url": "https://github.com/antibyte/s2s/releases/download/v0.2.19-speech-lab/phonon-model.dat",
+    "size": 66906184,
+    "sha256": "17eb0eeed83691e9c697baa1ee35dfc889a949ccd05e6a8ae0c16b216c93c352"
+  },
   "model_files": [
     {
       "name": "config.json",

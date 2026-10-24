@@ -128,6 +128,37 @@ class PhononPreparationTests(unittest.TestCase):
             finally:
                 prepare.STAGE, prepare.MANIFEST, prepare.fetch = original
 
+    def test_latest_uses_pinned_package_without_application_release_checksums(self):
+        content = b"pinned model config"
+        source = {"name": "config.json", "size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+        raw = io.BytesIO()
+        with tarfile.open(fileobj=raw, mode="w:gz") as archive:
+            entry = tarfile.TarInfo("phonon/" + prepare.BUNDLE_ID + "/model/config.json")
+            entry.size = len(content)
+            archive.addfile(entry, io.BytesIO(content))
+        payload = raw.getvalue()
+        package = {"url": "https://github.com/antibyte/s2s/releases/download/fixture/phonon-model.dat",
+                   "size": len(payload), "sha256": hashlib.sha256(payload).hexdigest()}
+        manifest = {"model_files": [source], "voices": [], "model_package": package}
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(prepare, "STAGE", Path(directory)), patch.object(prepare, "MANIFEST", manifest):
+            destination = prepare.STAGE / "model/config.json"
+            destination.parent.mkdir()
+            for label, data in (("size", payload[:-1]), ("checksum", b"x" * len(payload)), ("valid", payload)):
+                with self.subTest(label=label), patch.object(prepare, "fetch", return_value=data) as fetch:
+                    destination.write_bytes(b"previous resource")
+                    if label == "valid":
+                        prepare.release_model("latest")
+                        self.assertEqual(destination.read_bytes(), content)
+                    else:
+                        with self.assertRaises(ValueError):
+                            prepare.release_model("latest")
+                        self.assertEqual(destination.read_bytes(), b"previous resource")
+                    fetch.assert_called_once_with(package["url"], package["size"])
+            with patch.object(prepare, "fetch") as fetch:
+                prepare.release_model("latest")
+                fetch.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

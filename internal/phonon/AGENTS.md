@@ -11,6 +11,9 @@ UI owns the state-backed picker and explicit download action.
 
 ## Local Contracts
 - Keep `manifest.json`, `scripts/prepare-phonon.py`, licensing and `documentation/phonon.md` aligned.
+- `--from-release latest` uses the manifest-pinned model package URL, size and
+  SHA-256, not the latest AuraGo binary release. Explicit tags retain release
+  checksum verification; both paths verify the individual model/voice files.
 - Never bundle an HF token or download gated weights on a user's first utterance.
   Release builders require the prepared model and ten bundled voice embeddings.
 - Empty manual voice means a deterministic language/persona default. Unknown,

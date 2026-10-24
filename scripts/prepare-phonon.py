@@ -122,7 +122,7 @@ def prepare_runtime(runtime, download):
 
 
 def release_model(tag):
-    """Reuse the maintainer's published bundle without passing HF credentials to CI."""
+    """Use the source-pinned package for latest, or an explicit AuraGo release."""
     expected = [("model/" + file["name"], file) for file in MANIFEST["model_files"]]
     expected += [(voice["filename"], voice) for voice in MANIFEST["voices"] if voice["bundled"]]
     try:
@@ -134,15 +134,19 @@ def release_model(tag):
         return
     except (OSError, ValueError):
         pass
-    suffix = "latest/download" if tag == "latest" else "download/" + quote(tag, safe="")
-    base = "https://github.com/antibyte/AuraGo/releases/" + suffix + "/"
-    checksums = fetch(base + "SHA256SUMS", 4 << 20).decode("utf-8")
-    matches = [line.split()[0] for line in checksums.splitlines() if len(line.split()) == 2 and line.split()[1] == "phonon-model.dat"]
-    if len(matches) != 1:
-        raise ValueError("release has no unique Phonon model checksum")
-    data = fetch(base + "phonon-model.dat", 128 << 20)
-    if digest(data) != matches[0]:
-        raise ValueError("release Phonon model checksum mismatch")
+    if tag == "latest":
+        package = MANIFEST["model_package"]
+        data = fetch(package["url"], package["size"])
+        verify(data, package)
+    else:
+        base = "https://github.com/antibyte/AuraGo/releases/download/" + quote(tag, safe="") + "/"
+        checksums = fetch(base + "SHA256SUMS", 4 << 20).decode("utf-8")
+        matches = [line.split()[0] for line in checksums.splitlines() if len(line.split()) == 2 and line.split()[1] == "phonon-model.dat"]
+        if len(matches) != 1:
+            raise ValueError("release has no unique Phonon model checksum")
+        data = fetch(base + "phonon-model.dat", 128 << 20)
+        if digest(data) != matches[0]:
+            raise ValueError("release Phonon model checksum mismatch")
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
         members = archive.getmembers()
         if len(members) > 128 or len({member.name for member in members}) != len(members):

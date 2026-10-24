@@ -66,10 +66,13 @@ the builder verifies it again before packaging.
 The model/voice archive is about 67 MB compressed; adding one native runtime
 brings the installation download to about 75–77 MB, depending on the platform.
 The Docker publishing workflow reuses the model package from the corresponding
-AuraGo release (`--from-release TAG`; manual builds can use `latest`) and checks
-every resource against the source manifest. It needs no Hugging Face secret.
-Source installations and source updates reuse the matching published bundle through
-the same helper; no model approval or token is needed on the user's installation.
+AuraGo release (`--from-release TAG`). Source installations, source updates and
+manual Docker builds use `--from-release latest`: this selects `model_package`
+from the source manifest, with a fixed release URL, size and SHA-256, independently
+of the latest AuraGo binary release. The package is currently shared with Speech
+Lab v0.2.19. Both paths also verify every model and voice against the source
+manifest. No Hugging Face approval or token is needed on the user's installation
+or in CI. Existing verified resources can be reused offline.
 
 Packages install beside the executable under `phonon/<bundle-id>/`. The bundle ID
 includes runtime/model/catalog revisions, so rollback executables keep their own
