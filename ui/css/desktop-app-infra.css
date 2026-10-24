@@ -375,3 +375,34 @@
 .infra-ignored-copy small { color: var(--vd-theme-muted); }
 .infra-library-reset { justify-self: start; margin: var(--ds-space-1) var(--ds-space-2); padding: 0; border: 0; background: transparent; color: var(--vd-accent); font-size: 14px; text-decoration: underline; cursor: pointer; }
 .infra-library-reset[hidden] { display: none; }
+/* ---- Plan C: grouped details form, save bar, app links, icon picker ---- */
+.infra-form-group { border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-md); background: var(--vd-theme-panel-bg-strong); }
+.infra-form-group + .infra-form-group { margin-top: var(--ds-space-2); }
+.infra-form-group-head { display: flex; align-items: center; gap: var(--ds-space-2); min-height: 40px; padding: 0 var(--ds-space-3); font-size: 14px; font-weight: 600; list-style: none; cursor: pointer; }
+.infra-form-group-head::-webkit-details-marker { display: none; }
+.infra-form-group-head::before { content: ''; width: 7px; height: 7px; border-right: 2px solid var(--vd-theme-muted); border-bottom: 2px solid var(--vd-theme-muted); transform: rotate(-45deg); }
+.infra-form-group[open] > .infra-form-group-head::before { transform: rotate(45deg); }
+.infra-form-group-title { flex: 1; }
+.infra-form-group-add { display: inline-flex; align-items: center; gap: 4px; color: var(--vd-accent); }
+.infra-form-group-changed { color: var(--ds-color-warning-fg); font-size: 13px; }
+.infra-form-group-body { display: grid; gap: var(--ds-space-2); padding: 0 var(--ds-space-3) var(--ds-space-3); }
+.infra-field[data-dirty="true"] > span:first-child::before, .infra-list-editor[data-dirty="true"] .infra-list-heading > span:first-child::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--ds-color-warning-fg); vertical-align: middle; }
+.infra-field[data-dirty="true"] :is(input, select, textarea) { border-color: color-mix(in srgb, var(--ds-color-warning-fg) 60%, var(--vd-theme-border)); }
+.infra-savebar { position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; gap: var(--ds-space-2); margin: var(--ds-space-3) calc(-1 * var(--ds-space-3)) calc(-1 * var(--ds-space-3)); padding: var(--ds-space-2) var(--ds-space-3); border-top: 1px solid var(--vd-theme-border); background: var(--vd-theme-panel-bg-strong); box-shadow: var(--vd-theme-shadow-panel); }
+.infra-savebar .infra-draft-banner { margin: 0; }
+.infra-app-chips { display: grid; gap: var(--ds-space-1); margin: 0; padding: 0; list-style: none; }
+.infra-app-chip { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--ds-space-1); min-height: 40px; padding: 2px 4px 2px var(--ds-space-2); border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-full); background: var(--vd-theme-control-bg); }
+.infra-app-chip.is-unavailable { border-style: dashed; }
+.infra-app-chip-text { display: grid; min-width: 0; }
+.infra-app-chip-text strong, .infra-app-chip-text small { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.infra-app-chip-text small { color: var(--vd-theme-muted); font-size: 13px; }
+.infra-app-chip button { height: 30px; padding: 0 var(--ds-space-2); border: 0; border-radius: var(--ds-radius-full); background: transparent; font-size: 14px; cursor: pointer; }
+.infra-app-chip button:hover { background: var(--vd-theme-control-hover); }
+.infra-app-picker { margin-top: var(--ds-space-1); }
+.infra-icon-picker { display: grid; gap: var(--ds-space-2); width: 340px; padding: var(--ds-space-2); }
+.infra-icon-picker input { height: 34px; padding: 0 var(--ds-space-2); border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg); color: var(--vd-text); font-size: 14px; }
+.infra-icon-grid { display: grid; grid-template-columns: repeat(8, 36px); gap: 4px; max-height: 260px; overflow: auto; }
+.infra-icon-option { width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 1px solid transparent; border-radius: var(--ds-radius-sm); background: transparent; cursor: pointer; }
+.infra-icon-option img { width: 30px; height: 30px; object-fit: contain; }
+.infra-icon-option:hover { background: var(--vd-theme-control-hover); }
+.infra-icon-option[aria-selected="true"] { border-color: var(--vd-accent); background: var(--vd-theme-accent-soft); }
