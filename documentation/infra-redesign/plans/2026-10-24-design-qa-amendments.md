@@ -26,3 +26,15 @@ Owned by Plan C (Tasks 11–17 executor), because they touch panel copy and styl
 | A10 | Cleanup suggestion cards each carry a full-width accent-filled button ("Duplikat entfernen und ignorieren", "Engine-Host zuweisen", "Host wählen…"); a list of loud primaries violates the one-accent-per-view rule. | Suggestion actions become compact secondary buttons (`.infra-button` secondary style, accent text on hover only); "Dismiss" becomes a ghost icon button with a tooltip. The only accent-filled control in the view stays the command bar's Add button. | Screenshot of the Cleanup section: no accent-filled buttons inside the library. |
 | A11 | Overview shows "1 Verbindungen". | Singular/plural keys for the connection count (and any other count rendered in the inspector or library: guests, sources, assets in a place). | Node i18n test lists the `_one` keys; browser assertion for "1 connection" in en. |
 | A12 | Overview shows raw coordinates ("Platzierung x 330, y 100"). | Overview never shows coordinates. Show "On the map" / "Not placed" (and the place breadcrumb, already present). Coordinates stay available only in the Details tab's placement group for power users (read-only text). | Overview screenshot without coordinates. |
+
+## After Plan C (2026-10-24)
+
+Owned by Plan D. A13, A15 and A16 join A1–A5, A8 and A9 in the first fix batch (D-fix-1); A14 belongs to Plan D
+Task 9 (i18n review).
+
+| id | finding | required change | acceptance |
+|---|---|---|---|
+| A13 | Between 1100 and 1300 px, active filter chips are clipped by the command bar (search shrinks to ~166 px). | Chips get a fixed share of the bar: show as many chips as fit, then a `+N` overflow chip that opens the filter popover; search keeps a minimum of 220 px above 760 px container width. | Browser test at 1110 px with 3 filters: no chip clipped, `+N` visible, overflow guard passes. |
+| A14 | Nine legacy infra locale keys are unused but still say node/relation (add_node, empty_map_hint, add_first, map_hint, select_asset_hint, connect_hint, relations, no_relations, import_hint) plus infra_version, infra_group, infra_no_group, infra_needs_host, infra_import_hint_short, infra_import_existing. | Delete unused keys from all 16 locales after confirming with a repo-wide text search that no code or test reads them; Plan D's unused-key check enforces it afterwards. | Node unused-key check passes. |
+| A15 | A kind with several instances would show the opaque instance hash in source chips. | Never show the hash: number instances per kind in stable order ("Docker 1", "Docker 2") with the hash only in the tooltip. | Node test for the label helper. |
+| A16 | `APP_LINK_TARGETS` is duplicated in infra-inspector.js and infra-menus.js. | Move it to infra-model.js and read it from both. | Grep shows one definition. |
