@@ -8212,6 +8212,8 @@
   "desktop.infra_topology_auto_place": "自动放置",
   "desktop.infra_topology_auto_placed": "已自动放置 {count} 项资产",
   "desktop.infra_topology_auto_placed_one": "已自动放置 1 项资产",
+  "desktop.infra_arrange_auto": "自动排列",
+  "desktop.infra_arrange_unsupported": "此服务器暂时无法将资产交还给自动排列。",
   "galaxa.emp_mine_layer": "电磁脉冲地雷",
   "galaxa.cluster_mine_layer": "破片地雷",
   "galaxa.swarm_launcher": "蜂群导弹",

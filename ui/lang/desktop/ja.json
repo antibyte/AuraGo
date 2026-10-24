@@ -8212,6 +8212,8 @@
   "desktop.infra_topology_auto_place": "自動で配置",
   "desktop.infra_topology_auto_placed": "資産{count}件を自動で配置しました",
   "desktop.infra_topology_auto_placed_one": "資産1件を自動で配置しました",
+  "desktop.infra_arrange_auto": "自動で整列",
+  "desktop.infra_arrange_unsupported": "このサーバーは、まだ資産を自動配置に戻せません。",
   "galaxa.emp_mine_layer": "EMP機雷",
   "galaxa.cluster_mine_layer": "破片機雷",
   "galaxa.swarm_launcher": "群体ミサイル",

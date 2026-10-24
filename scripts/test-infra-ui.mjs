@@ -1335,6 +1335,52 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
         assert.equal(old.store.canUndo('topology'), false, 'without unplace support the move stays out of the history');
         for (const item of [w, still, old]) item.store.dispose();
     }
+    { // A22: Topology ignores saved pinned:false placements; Arrange hands cards back to the automatic layout and undo restores them
+        const placed = (id, x, y, pinned, extra = {}) => card(id, 0, 0, { icon: 'laptop', name: id, placements: { topology: { x, y, pinned } }, ...extra });
+        const topoNodes = () => [placed('legacy', 0, 0, false), placed('a', 240, 1128, true), placed('b', -480, 1200, true), card('c', 0, 0, { icon: 'laptop', name: 'c', placements: {} }), card('room', 0, 0, { kind: 'room', name: 'Room', placements: { topology: { x: 0, y: 0, w: 360, h: 240, pinned: true } } })];
+        const w = world({ nodes: topoNodes(), view: 'topology', sourceHosts: [] });
+        assert.equal(w.store.effectivePlacement('legacy', 'topology'), null, 'a saved pinned:false topology placement is ignored');
+        assert.deepEqual(plain(w.store.effectivePlacement('a', 'topology')), { x: 240, y: 1128, pinned: true });
+        assert.equal(w.store.effectivePlacement('legacy', 'atlas'), null);
+        assert.deepEqual(plain(w.gl.topologyAutoPositions(w.store.state.nodes, [], { placementOf: id => w.store.effectivePlacement(id, 'topology'), guests: w.store.guests() }).get('legacy')), { x: 360, y: 1248, pinned: false }, 'the legacy asset is drawn at its automatic slot (4th of the 4 clients: a, b, c, legacy at -360, -120, 120, 360), not where it was saved');
+        assert.deepEqual(plain(w.store.currentIntent('legacy', 'topology')), null, 'there is nothing to restore for it');
+        const kept = world({ nodes: [card('m', 0, 0, { placements: { atlas: { x: 6, y: 7, pinned: false } } })], view: 'atlas', sourceHosts: [] });
+        assert.deepEqual(plain(kept.store.effectivePlacement('m', 'atlas')), { x: 6, y: 7, pinned: false }, 'the Map keeps pinned:false placements (Arrange there saves them)');
+        kept.store.dispose();
+        assert.equal(w.gestures.canArrangeTopology(), true);
+        await w.gestures.arrange();
+        await sleep(30);
+        assert.equal(w.puts.length, 1, 'one save for the whole arrangement');
+        assert.deepEqual(plain(w.puts[0].nodes.map(item => [item.id, item.unplace === true, 'x' in item])), [['a', true, false], ['b', true, false]], 'every card with a saved pin is handed back; automatic cards, legacy ones and places are not touched');
+        assert.equal(w.puts[0].view, 'topology');
+        assert.equal(w.announced.at(-1), 'desktop.infra_topology_auto_placed', 'the count is announced');
+        assert.equal(w.store.effectivePlacement('a', 'topology'), null);
+        assert.equal(w.store.canUndo('topology'), true);
+        await w.store.undo('topology');
+        await sleep(30);
+        assert.deepEqual(plain(w.puts[1].nodes.map(item => [item.id, item.x, item.y, item.pinned])), [['a', 240, 1128, true], ['b', -480, 1200, true]], 'undo restores the previous placements, pinned ones included');
+        assert.deepEqual(plain(w.store.effectivePlacement('b', 'topology')), { x: -480, y: 1200, pinned: true });
+        assert.equal(w.gestures.canArrangeTopology(), true);
+        // a selection arranges only the selected cards
+        const picked = world({ nodes: topoNodes(), selection: ['b', 'c'], view: 'topology', sourceHosts: [] });
+        await picked.gestures.arrange();
+        await sleep(30);
+        assert.deepEqual(plain(picked.puts[0].nodes.map(item => item.id)), ['b'], 'only the selected card that has a saved placement');
+        assert.equal(picked.announced.at(-1), 'desktop.infra_topology_auto_placed_one');
+        // nothing left to hand back: Arrange has nothing to do and saves nothing
+        const calm = world({ nodes: [placed('legacy', 0, 0, false), card('c', 0, 0, { icon: 'laptop', placements: {} })], view: 'topology', sourceHosts: [] });
+        assert.equal(calm.gestures.canArrangeTopology(), false);
+        await calm.gestures.arrange();
+        await sleep(30);
+        assert.equal(calm.puts.length, 0);
+        // a server that cannot unplace cannot arrange in Topology at all
+        const old = world({ nodes: topoNodes(), view: 'topology', sourceHosts: null });
+        assert.equal(old.gestures.canArrangeTopology(), false);
+        await old.gestures.arrange();
+        await sleep(30);
+        assert.equal(old.puts.length, 0, 'without unplace support Arrange is disabled in Topology and does nothing');
+        for (const item of [w, picked, calm, old]) item.store.dispose();
+    }
     { // a place moves with everything inside it
         const nodes = [room(400, 120, 480, 320), card('inside', 640, 300, { parent_id: 'room' }), card('outside', 160, 200)];
         const w = world({ nodes, selection: ['room'], focus: 'room', sourceHosts: [] });
@@ -1510,9 +1556,6 @@ for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     assert.deepEqual(plain([wide.get('w00'), wide.get('w08'), wide.get('w09'), wide.get('w16')]), [{ x: -960, y: 1248, pinned: false }, { x: 960, y: 1248, pinned: false }, { x: -840, y: 1392, pinned: false }, { x: 840, y: 1392, pinned: false }], 'no lane ever has a third row');
     assert.equal(new Set([...wide.values()].map(pos => pos.y)).size, 2);
     for (const pos of layout.values()) assert.ok(pos.x % model.GRID === 0 && pos.y % model.GRID === 0, 'auto slots are grid points');
-    const nudged = lanes.topologyLayout(topo.slice(0, 2), [topoEdges[0]], { laneOf, obstacles: [model.cardRect({ x: -120, y: 96 })] });
-    assert.deepEqual(asObject(nudged), { inet: { x: -120, y: 24, pinned: false }, ont: { x: 120, y: 96, pinned: false } }, 'a slot under a card that stays moves to the nearest free grid point');
-    assert.deepEqual(asObject(lanes.topologyLayout(topo.slice(0, 2), [topoEdges[0]], { laneOf, centerX: 480 })), { inet: { x: 360, y: 96, pinned: false }, ont: { x: 600, y: 96, pinned: false } });
 
     const autoNodes = [...topo.slice(0, 3),
         { id: 'room', kind: 'room', name: 'Living room', icon: 'room', profile: {} },
@@ -1528,16 +1571,8 @@ for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     assert.deepEqual(plain(sceneTopo.cards.map(card => card.id)), ['inet', 'ont', 'router']);
     assert.deepEqual(plain(sceneTopo.bounds), { x: -228, y: 64, w: 2336, h: 448 }, 'the scene bounds are the drawn cards only; the stripes never widen fit or the minimap');
     assert.equal(sceneTopo.lanes, undefined, 'the scene knows no lanes');
+    assert.equal(typeof lanes.topologyArrange, 'undefined', 'Arrange in Topology is no layout any more: it unplaces');
 
-    const cards = [...layout].map(([id, pos]) => ({ id, x: pos.x, y: id === 'tv' ? 720 : pos.y })); // 720 is inside lane 1 (384-767)
-    const stored = { tv: { x: -120, y: 720, pinned: true }, nas: { x: -120, y: 1056, pinned: false } };
-    const nodeById = id => topo.find(node => node.id === id);
-    const arranged = lanes.topologyArrange({ cards, nodeById, edges: topoEdges, guestsOf, placementOf: id => stored[id] || null });
-    assert.equal(arranged.size, 9, 'without a selection every card is arranged');
-    assert.deepEqual(plain(arranged.get('tv')), { x: 120, y: 480, pinned: true }, 'a dragged card keeps its lane and stays pinned');
-    assert.deepEqual(plain(arranged.get('router')), { x: 360, y: 480, pinned: false });
-    assert.deepEqual(plain(arranged.get('laptop')), { x: 0, y: 1248, pinned: false });
-    assert.deepEqual(plain(arranged.get('nas')), { x: -120, y: 864, pinned: false }, 'an arranged, unpinned card follows its type');
     // ---- A20/A21 on the realistic fixture: the 24 assets of the browser world(25) with a believable wiring ----
     const demo = [['Public status', 'service', 'web-service'], ['Atlas hypervisor', 'vm', 'vm'], ['Cold-store NAS', 'device', 'nas'], ['Core switch', 'device', 'managed-switch'], ['North access point', 'device', 'access-point'], ['UPS bank', 'device', 'ups'], ['Entry camera', 'device', 'camera'], ['Camera recorder', 'device', 'nvr'], ['Build workstation', 'device', 'workstation'], ['Admin laptop', 'device', 'laptop'], ['Office printer', 'device', 'printer'], ['Gateway firewall', 'device', 'firewall'], ['Edge router', 'device', 'router'], ['Archive shelf', 'device', 'disk-shelf'], ['Prototype printer', 'device', '3d-printer'], ['Mesh relay', 'device', 'mesh-node'], ['Power distribution', 'device', 'pdu'], ['Fiber ONT', 'device', 'modem-ont'], ['Field tablet', 'device', 'tablet'], ['Room controller', 'device', 'smart-hub'], ['Remote access', 'device', 'vpn'], ['Metrics database', 'device', 'database'], ['Rack server', 'device', 'rack-server'], ['Lab mini PC', 'device', 'mini-pc']];
     const fid = i => `n${String(i).padStart(2, '0')}`;
@@ -1581,8 +1616,6 @@ for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     assert.deepEqual(asObject(lanes.topologyLayout(shuffled, labEdges, { laneOf: labLaneOf })), asObject(byBarycentre), 'nor on a shuffled input');
     const laneOrder = index => [...byBarycentre].filter(([id]) => labLane(id) === index).sort((a, b) => a[1].y - b[1].y || a[1].x - b[1].x).map(([id]) => id);
     assert.deepEqual(laneOrder(3), ['n07', 'n09', 'n11', 'n10', 'n19', 'n20', 'n15'], 'clients are keyed by the card they hang on; the unconnected 3D printer goes last');
-    const selected = lanes.topologyArrange({ cards, selection: new Set(['tv', 'laptop']), nodeById, edges: topoEdges, guestsOf, placementOf: id => stored[id] || null });
-    assert.deepEqual(asObject(selected), { tv: { x: 0, y: 408, pinned: true }, laptop: { x: 0, y: 1248, pinned: false } }, 'a selection is arranged around its mean x and around the other cards (the switch sits at 0,480, so the slot moves 72 px up)');
 }
 
 // ---- A19: Topology connections are curves between lanes ------------------------------------------------

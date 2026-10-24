@@ -2,8 +2,10 @@ package ui
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
@@ -33,15 +35,14 @@ func infraTopologyWorld(t *testing.T, fixture *infraAppBrowserFixture, width, he
 func TestDesktopInfraTopologyLanesBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	fixture := newInfraAppBrowserFixture()
-	fixture.world(25)
-	for _, node := range fixture.nodes { // removed with A22: the first scenarios run on a fixture without the legacy placements
-		if placements, ok := node["placements"].(map[string]any); ok {
-			delete(placements, "topology")
-		}
-	}
+	fixture.world(25) // ships saved topology placements with pinned:false on a 252x160 grid: they must not matter
 	page := infraTopologyWorld(t, fixture, 1500, 970)
 	defer page.Close()
 	zoom := func() float64 { return page.MustEval(`()=>infraZoomOf()`).Num() }
+	// A22: every card sits in a lane row (here one row per lane, centres at lane top + 96), none at its legacy pinned:false position.
+	if got := page.MustEval(`()=>JSON.stringify([...new Set([...document.querySelectorAll('[data-nodes] .infra-card')].map(card=>parseFloat(card.style.top)))].sort((a,b)=>a-b))`).Str(); got != `[96,480,864,1248]` {
+		t.Fatalf("the cards must sit in the lane rows of the automatic layout, not at the legacy placements: %s", got)
+	}
 
 	// A17: fit at 1500x970 shows the lanes at 45 % or more.
 	if z := zoom(); z < 0.45 {
@@ -193,5 +194,123 @@ func TestDesktopInfraTopologyCurvesBrowser(t *testing.T) {
 	page.Mouse.MustUp(proto.InputMouseButtonLeft)
 	page.MustWait(`(before)=>document.querySelector('[data-edge="e7"] .infra-edge-line').getAttribute('d')===before`, before)
 	closeInfraBrowserWindow(t, page)
+	requireInfraBrowserClean(t, page)
+}
+
+// TestDesktopInfraTopologyArrangeBrowser covers where Arrange is available in Topology (A22): it hands cards back to the
+// automatic layout, so it needs a card with a saved placement and a server that can unplace. Without unplace support
+// the menu item and the inspector button are disabled with a reason; with nothing to hand back they are disabled
+// without one.
+func TestDesktopInfraTopologyArrangeBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	reason := infraGermanWord(t, "desktop.infra_arrange_unsupported")
+	auto := infraGermanWord(t, "desktop.infra_arrange_auto")
+	const arrangeState = `()=>{
+		document.querySelector('[data-action="more"]').click();
+		const item=document.querySelector('[data-menu="more"] [data-action="arrange"]');
+		const state={disabled:item.disabled,title:item.getAttribute('title')||'',label:item.textContent.trim()};
+		document.querySelector('[data-action="more"]').click();
+		return JSON.stringify(state);
+	}`
+	const selectionState = `()=>{
+		document.querySelector('[data-node="inet"]').click();
+		document.querySelector('[data-node="ont"]').dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:true}));
+		return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>{
+			const button=document.querySelector('[data-inspector] [data-action="arrange-selection"]');
+			resolve(JSON.stringify(button?{disabled:button.disabled,title:button.getAttribute('title')||'',label:button.textContent.trim()}:null));
+		})));
+	}`
+	for _, server := range []struct {
+		name        string
+		noUnplace   bool
+		title, want string
+	}{{"a server without unplace", true, reason, "reason"}, {"a server that can unplace but has nothing to hand back", false, "", "nothing"}} {
+		fixture := infraTopologyFixture()
+		fixture.noSourceHosts = server.noUnplace
+		page := infraPanelsPage(t, fixture)
+		page.MustEval(`()=>document.querySelector('[data-view="topology"]').click()`)
+		page.MustWait(`()=>document.querySelectorAll('[data-lanes] [data-lane]').length===4&&!!document.querySelector('[data-node="tv"]')`)
+		want := fmt.Sprintf(`{"disabled":true,"title":%q,"label":%q}`, server.title, auto)
+		if got := page.MustEval(arrangeState).Str(); got != want {
+			t.Fatalf("%s: the Arrange item is %s; want %s", server.name, got, want)
+		}
+		if got := page.MustEval(selectionState).Str(); got != want {
+			t.Fatalf("%s: the inspector's Arrange button is %s; want %s", server.name, got, want)
+		}
+		page.Close()
+	}
+
+	// With a server that can unplace and a card that was placed by hand, Arrange is available and the title is gone.
+	fixture := infraTopologyFixture()
+	fixture.nodes[1]["placements"].(map[string]any)["topology"] = infraPanelsAt(120, 120)
+	page := infraPanelsPage(t, fixture)
+	defer page.Close()
+	page.MustEval(`()=>document.querySelector('[data-view="topology"]').click()`)
+	page.MustWait(`()=>document.querySelectorAll('[data-lanes] [data-lane]').length===4&&!!document.querySelector('[data-node="tv"]')`)
+	if got, want := page.MustEval(arrangeState).Str(), fmt.Sprintf(`{"disabled":false,"title":"","label":%q}`, auto); got != want {
+		t.Fatalf("with a placed card the Arrange item is %s; want %s", got, want)
+	}
+	if got, want := page.MustEval(selectionState).Str(), fmt.Sprintf(`{"disabled":false,"title":"","label":%q}`, auto); got != want {
+		t.Fatalf("with a placed card in the selection the inspector's Arrange button is %s; want %s", got, want)
+	}
+	requireInfraBrowserClean(t, page)
+}
+
+// TestDesktopInfraTopologyMotionBrowser covers the motion rule of A22: a card that Topology places automatically
+// glides to its new slot, but only while the desktop animations are on and reduced motion is not asked for.
+func TestDesktopInfraTopologyMotionBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	fixture := infraTopologyFixture()
+	fixture.nodes[1]["placements"].(map[string]any)["topology"] = infraPanelsAt(120, 120)
+	page := infraPanelsPage(t, fixture)
+	defer page.Close()
+	page.MustEval(`()=>document.querySelector('[data-view="topology"]').click()`)
+	page.MustWait(`()=>document.querySelectorAll('[data-lanes] [data-lane]').length===4&&!!document.querySelector('[data-node="inet"]')`)
+	saves := func() int {
+		fixture.mu.Lock()
+		defer fixture.mu.Unlock()
+		return len(fixture.layoutCalls)
+	}
+	waitSaves := func(want int) {
+		t.Helper()
+		deadline := time.Now().Add(8 * time.Second)
+		for saves() < want {
+			if time.Now().After(deadline) {
+				t.Fatalf("waited for %d layout saves, got %d", want, saves())
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		time.Sleep(450 * time.Millisecond) // the glide class is gone after 400 ms
+	}
+	// inet starts as a card placed by hand at 120,120; each Arrange hands it back to its automatic slot, each undo places it again.
+	const arrangeAndLook = `()=>new Promise(resolve=>{
+		document.querySelector('[data-action="more"]').click();
+		document.querySelector('[data-menu="more"] [data-action="arrange"]').click();
+		requestAnimationFrame(()=>requestAnimationFrame(()=>{
+			const card=document.querySelector('[data-node="inet"]');
+			resolve(JSON.stringify({glide:card.classList.contains('is-gliding'),transition:getComputedStyle(card).transitionProperty.includes('left')}));
+		}));
+	})`
+	n := 0
+	for _, motion := range []struct {
+		preference, animations string
+		glide                  bool
+	}{{"reduce", "true", false}, {"no-preference", "false", false}, {"no-preference", "true", true}} {
+		if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: motion.preference}}}).Call(page); err != nil {
+			t.Fatal(err)
+		}
+		page.MustEval(`(value)=>{document.body.dataset.animations=value;}`, motion.animations)
+		page.MustWait(`()=>{const item=document.querySelector('[data-action="more"]');return !!item&&!item.disabled;}`)
+		page.MustWait(`()=>{document.querySelector('[data-action="more"]').click();const item=document.querySelector('[data-menu="more"] [data-action="arrange"]'),ok=!item.disabled;document.querySelector('[data-action="more"]').click();return ok;}`)
+		want := fmt.Sprintf(`{"glide":%v,"transition":%v}`, motion.glide, motion.glide)
+		if got := page.MustEval(arrangeAndLook).Str(); got != want {
+			t.Fatalf("with prefers-reduced-motion %s and animations %s an automatic card gave %s; want %s", motion.preference, motion.animations, got, want)
+		}
+		n++
+		waitSaves(n)
+		page.MustEval(`()=>document.querySelector('[data-action="undo"]').click()`)
+		n++
+		waitSaves(n)
+	}
 	requireInfraBrowserClean(t, page)
 }

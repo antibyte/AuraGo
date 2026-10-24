@@ -828,7 +828,7 @@
         function arrange() {
             if (!store.canWrite()) return;
             const view = app.mapView(), scene = canvas.sceneData();
-            if (view === 'topology') { arrangeTopology(); return; }
+            if (view === 'topology') { void arrangeTopology(); return; }
             const selected = [...state.selection].filter(id => scene.cardById.has(id));
             const targets = selected.length ? selected : scene.cards.filter(card => !scene.regionRects.has(store.effectiveParent(card.id, view))).map(card => card.id);
             const targetSet = new Set(targets);
@@ -848,26 +848,19 @@
             void store.dispatch(commands().moveNodes(view, before, after, label));
             app.announce(label);
         }
-        // arrangeTopology re-runs the lane layout for the selection or every card as one undoable layout save;
-        // cards Infra laid out before are undone back to the automatic layout (unplace).
+        // Arrange in Topology (A22) hands the selected cards, or every card when nothing is selected, back to the
+        // automatic layout: one undoable PUT /layout of unplace operations, and undo restores the previous placements
+        // (pinned ones included). Cards that are already automatic have nothing to hand back; a server that cannot
+        // unplace cannot arrange here at all. arrangeIds lists the cards Arrange would act on.
+        function arrangeIds() {
+            const guests = store.guests(), drawn = node => !!node && !model.isContainer(node.kind) && !guests.hostOf.has(node.id);
+            const picked = [...state.selection].filter(id => drawn(store.nodeById(id)));
+            return (picked.length ? picked : state.nodes.filter(drawn).map(node => node.id)).filter(id => store.effectivePlacement(id, 'topology'));
+        }
+        const canArrangeTopology = () => store.canWrite() && store.features.unplace === true && arrangeIds().length > 0;
         function arrangeTopology() {
-            if (!store.canWrite()) return;
-            const view = 'topology', scene = canvas.sceneData();
-            const positions = lanes.topologyArrange({ cards: scene.cards, selection: state.selection, nodeById: store.nodeById, edges: state.edges, guestsOf: store.guests().guestsOf, placementOf: id => store.effectivePlacement(id, view) });
-            if (!positions.size) return;
-            const before = new Map(), after = new Map();
-            let undoable = true;
-            for (const [id, position] of positions) {
-                const intent = previousIntent(id, view, false);
-                if (!intent) undoable = false;
-                before.set(id, intent);
-                after.set(id, { x: Math.round(position.x), y: Math.round(position.y), pinned: position.pinned === true });
-            }
-            const label = t('desktop.infra_arranged');
-            const command = commands().moveNodes(view, before, after, label);
-            command.undoable = undoable;
-            void store.dispatch(command);
-            app.announce(label);
+            if (!canArrangeTopology()) return Promise.resolve(false);
+            return removeFromMap(arrangeIds());
         }
 
         // ---- shortcuts on the whole window --------------------------------------------------------------------------
@@ -924,7 +917,7 @@
             attached = false;
         }
 
-        return { attach, cancel, startLibraryDrag, finishLibraryDrop, moveIntoPlace, removeFromMap, positionsAt, placeAtCenter, enterMoveMode, arrange, onRootKeydown, dispose };
+        return { attach, cancel, startLibraryDrag, finishLibraryDrop, moveIntoPlace, removeFromMap, positionsAt, placeAtCenter, enterMoveMode, arrange, canArrangeTopology, onRootKeydown, dispose };
     }
 
     window.InfraAppGestures = { create };

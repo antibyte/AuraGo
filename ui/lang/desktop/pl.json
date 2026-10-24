@@ -8212,6 +8212,8 @@
   "desktop.infra_topology_auto_place": "Umieść automatycznie",
   "desktop.infra_topology_auto_placed": "Zasoby umieszczone automatycznie: {count}",
   "desktop.infra_topology_auto_placed_one": "1 zasób umieszczono automatycznie",
+  "desktop.infra_arrange_auto": "Rozmieść automatycznie",
+  "desktop.infra_arrange_unsupported": "Ten serwer nie potrafi jeszcze zwrócić zasobów do automatycznego rozmieszczenia.",
   "galaxa.emp_mine_layer": "Mina EMP",
   "galaxa.cluster_mine_layer": "Mina odłamkowa",
   "galaxa.swarm_launcher": "Rój rakiet",

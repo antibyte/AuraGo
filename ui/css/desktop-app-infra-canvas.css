@@ -142,6 +142,9 @@
   body:not([data-animations="false"]) .infra-viewport.is-form-switching .infra-card-icon, body:not([data-animations="false"]) .infra-viewport.is-form-switching .infra-card-text { animation: infra-form-in var(--ds-motion-duration-fast) var(--ds-motion-ease-decel); }
   body:not([data-animations="false"]) .infra-card { transition: box-shadow var(--ds-motion-duration-fast) var(--ds-motion-ease-standard), border-color var(--ds-motion-duration-fast) var(--ds-motion-ease-standard), opacity var(--ds-motion-duration-fast) var(--ds-motion-ease-standard); }
   body:not([data-animations="false"]) .infra-scene.is-animating { transition: transform var(--ds-motion-duration-base) var(--ds-motion-ease-decel); }
+  /* A22: a card that Topology places automatically glides to its new slot after a poll or an Arrange (infra-canvas.js startGlide adds the class only when the animations are on). */
+  body:not([data-animations="false"]) .infra-card.is-gliding { transition: left var(--ds-motion-duration-base) var(--ds-motion-ease-decel), top var(--ds-motion-duration-base) var(--ds-motion-ease-decel), box-shadow var(--ds-motion-duration-fast) var(--ds-motion-ease-standard), border-color var(--ds-motion-duration-fast) var(--ds-motion-ease-standard), opacity var(--ds-motion-duration-fast) var(--ds-motion-ease-standard); }
+  body:not([data-animations="false"]) :is(.infra-card-badge, .infra-guest-shelf).is-gliding { transition: left var(--ds-motion-duration-base) var(--ds-motion-ease-decel), top var(--ds-motion-duration-base) var(--ds-motion-ease-decel); }
 }
 @media (pointer: coarse) { .infra-card-handle { width: 16px; height: 16px; } .infra-tools button { width: 44px; height: 44px; } }
 @container infra (max-width: 759px) { .infra-minimap, .infra-tools [data-action="toggle-minimap"], .infra-tools [data-minimap-sep] { display: none; } .infra-tools [data-tool="hand"] { display: none; } }

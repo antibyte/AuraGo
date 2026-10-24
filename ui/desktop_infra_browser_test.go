@@ -30,6 +30,7 @@ type infraAppBrowserFixture struct {
 	fail409Once       bool                      // the next PUT /layout bumps its first node's version and answers 409
 	sourceHosts       map[string]map[string]any // Docker instance -> mapped device (desktop_infra_fixture_extras_test.go)
 	sourceHostPuts    []map[string]any          // every PUT /source-hosts body, in order
+	noSourceHosts     bool                      // the snapshot omits source_hosts, like a server without place and unplace support
 	ignoredRows       map[string]map[string]any // ignored sources by identity
 	nodeDeletes       []string                  // every DELETE /nodes/{id} as id?query
 	batchCalls        []map[string]any          // every POST /import/batch body, in order
@@ -93,7 +94,11 @@ func (f *infraAppBrowserFixture) source(kind, instance, key, name string) map[st
 }
 
 func (f *infraAppBrowserFixture) snapshot() map[string]any {
-	return map[string]any{"nodes": f.nodes, "edges": f.edges, "sources": f.sourceRows(), "source_hosts": f.sourceHostRows(), "capabilities": f.capabilities}
+	snapshot := map[string]any{"nodes": f.nodes, "edges": f.edges, "sources": f.sourceRows(), "source_hosts": f.sourceHostRows(), "capabilities": f.capabilities}
+	if f.noSourceHosts {
+		delete(snapshot, "source_hosts")
+	}
+	return snapshot
 }
 
 func (f *infraAppBrowserFixture) world(size int) {
@@ -675,7 +680,8 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 			page.MustEval(`()=>document.querySelector('[data-view="topology"]').click()`)
 			page.MustWait(`()=>document.querySelector('[data-view="topology"]').getAttribute('aria-pressed')==='true'`)
 			page.MustEval(`()=>document.querySelector('[data-view="atlas"]').click()`)
-			page.MustWait(`()=>document.querySelector('[data-view="atlas"]').getAttribute('aria-pressed')==='true'`)
+			// Topology ignores the saved pinned:false placements and draws no hostless VM, so the Map draws its cards again a frame later.
+			page.MustWait(`()=>document.querySelector('[data-view="atlas"]').getAttribute('aria-pressed')==='true'&&!!document.querySelector('[data-node="fixture-node-0002"]')&&!!document.querySelector('[data-node="fixture-node-0003"]')`)
 			if !page.MustEval(`()=>{const left=document.querySelector('[data-node="fixture-node-0003"]').getBoundingClientRect(),right=document.querySelector('[data-node="fixture-node-0002"]').getBoundingClientRect();return left.right<=right.left;}`).Bool() {
 				t.Fatal("cards overlap neighbouring assets at their saved positions")
 			}

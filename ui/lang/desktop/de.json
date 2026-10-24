@@ -8212,6 +8212,8 @@
   "desktop.infra_topology_auto_place": "Automatisch platzieren",
   "desktop.infra_topology_auto_placed": "{count} Assets automatisch platziert",
   "desktop.infra_topology_auto_placed_one": "1 Asset automatisch platziert",
+  "desktop.infra_arrange_auto": "Automatisch anordnen",
+  "desktop.infra_arrange_unsupported": "Dieser Server kann Assets noch nicht an die automatische Anordnung zurückgeben.",
   "galaxa.emp_mine_layer": "EMP-Mine",
   "galaxa.cluster_mine_layer": "Splittermine",
   "galaxa.swarm_launcher": "Schwarmraketen",

@@ -8212,6 +8212,8 @@
   "desktop.infra_topology_auto_place": "Placer automatiquement",
   "desktop.infra_topology_auto_placed": "{count} équipements placés automatiquement",
   "desktop.infra_topology_auto_placed_one": "1 équipement placé automatiquement",
+  "desktop.infra_arrange_auto": "Organiser automatiquement",
+  "desktop.infra_arrange_unsupported": "Ce serveur ne peut pas encore rendre les équipements à la disposition automatique.",
   "galaxa.emp_mine_layer": "Mine IEM",
   "galaxa.cluster_mine_layer": "Mine à fragmentation",
   "galaxa.swarm_launcher": "Essaim de missiles",

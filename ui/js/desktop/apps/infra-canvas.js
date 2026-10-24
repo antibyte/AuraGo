@@ -99,7 +99,7 @@
         // centre of that size, even when the view was set between the layout change and the observer callback.
         const viewSize = { atlas: null, topology: null };
         const cardEls = new Map(), regionEls = new Map(), lineEls = new Map(), laneEls = new Map();
-        let laneTarget = -1, laneShift = NaN, laneWidth = NaN, autoMemo = { nodes: null, edges: null, sig: '', value: new Map() };
+        let laneTarget = -1, laneShift = NaN, laneWidth = NaN, glideTimer = 0, autoMemo = { nodes: null, edges: null, sig: '', value: new Map() };
         const temp = { cards: new Set(), regions: new Set(), lines: new Set() };
         const ghosts = new Set();
         let last = emptyScene(), linesByEnd = new Map(), lineGeom = new Map();
@@ -295,8 +295,21 @@
             const left = px(x), top = px(y);
             for (const part of [entry.card, entry.badge, entry.shelf]) if (part) { part.style.left = left; part.style.top = top; }
         }
-        function placeCard(entry, x, y) {
+        // startGlide lets an automatically placed card slide to its new slot (A22): the class carries a left/top
+        // transition that exists only while the desktop animations are on and reduced motion is not asked for.
+        const gliding = new Set();
+        function startGlide(entry) {
+            for (const part of [entry.card, entry.badge, entry.shelf]) part?.classList.add('is-gliding');
+            gliding.add(entry);
+            clearTimeout(glideTimer);
+            glideTimer = setTimeout(() => {
+                for (const item of gliding) for (const part of [item.card, item.badge, item.shelf]) part?.classList.remove('is-gliding');
+                gliding.clear();
+            }, 400);
+        }
+        function placeCard(entry, x, y, glide = false) {
             if (entry.x === x && entry.y === y) return;
+            if (glide && entry.x !== null && app.animationsEnabled()) startGlide(entry);
             writeCard(entry, x, y);
             entry.x = x; entry.y = y; mapDirty = true;
         }
@@ -322,7 +335,7 @@
             if (focused) entry.card.focus({ preventScroll: true });
         }
         function patchCards(cards, force) {
-            const fresh = [], seen = new Set();
+            const fresh = [], seen = new Set(), auto = app.mapView() === 'topology' ? topologyAuto() : null;
             for (const card of cards) {
                 const node = store.nodeById(card.id);
                 if (!node) continue;
@@ -330,7 +343,7 @@
                 const guestList = guestNodesOf(card), sig = cardSig(node, card, guestList), entry = cardEls.get(card.id);
                 if (!entry) fresh.push({ card, node, guestList, sig });
                 else if (force || entry.sig !== sig) replaceCard(entry, card, node, guestList, sig);
-                else placeCard(entry, card.x, card.y);
+                else placeCard(entry, card.x, card.y, !!auto && auto.has(card.id));
             }
             for (const [id, entry] of cardEls) {
                 if (seen.has(id)) continue;
@@ -818,7 +831,7 @@
             disposed = true;
             observer?.disconnect();
             for (const f of [applyFrame, minimapFrame, renderFrame]) f.cancel();
-            clearTimeout(animTimer); clearTimeout(persistTimer); clearTimeout(formTimer);
+            clearTimeout(animTimer); clearTimeout(persistTimer); clearTimeout(formTimer); clearTimeout(glideTimer);
             for (const ghost of ghosts) ghost.remove();
             ghosts.clear();
             cardEls.clear(); regionEls.clear(); lineEls.clear(); laneEls.clear(); mmCardEls.clear();

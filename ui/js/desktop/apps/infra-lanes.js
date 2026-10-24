@@ -1,5 +1,5 @@
 // Infra topology lanes: the pure helpers behind the Topology view (spec section 6). Four fixed horizontal
-// lanes, the lane of an asset, the deterministic auto layout and Arrange. Loaded right after infra-model.js
+// lanes, the lane of an asset, the deterministic auto layout and the connection paths. Loaded right after infra-model.js
 // (it reads window.InfraAppModel) and before every module that draws or moves Topology cards.
 (function () {
     'use strict';
@@ -50,11 +50,11 @@
     // decoration: never part of the scene bounds, fit, minimap or hit tests.
     const laneStripes = () => TOPOLOGY_LANES.map((id, index) => ({ id, index, rect: { x: -LANE_EXTENT, y: index * LANE_H, w: LANE_EXTENT * 2, h: LANE_H } }));
     const laneRank = node => LANE_ICON_INDEX.get(node?.icon)?.rank ?? 99;
-    // slotX is the centre x of card i of a lane of n cards: rows of up to `columns` cards, each row centred on centerX.
+    // slotX is the centre x of card i of a lane of n cards: rows of up to `columns` cards, each row centred on x = 0.
     const columnsOf = (n, maxColumns) => Math.max(maxColumns, Math.ceil(n / 2));
-    const slotX = (i, n, centerX, maxColumns) => {
+    const slotX = (i, n, maxColumns) => {
         const columns = columnsOf(n, maxColumns), row = Math.floor(i / columns), inRow = Math.min(columns, n - row * columns);
-        return snap(centerX - (inRow - 1) * LANE_CELL_W / 2) + (i % columns) * LANE_CELL_W;
+        return snap(-(inRow - 1) * LANE_CELL_W / 2) + (i % columns) * LANE_CELL_W;
     };
     // barycentreOrder reorders the cards of every lane (A20) to cut crossings between lanes. members[i] is the
     // lane i list in connection order. One sweep from the top lane down keys a card by the mean x of its
@@ -62,9 +62,9 @@
     // of its neighbours below. A card whose neighbours are all in its own lane borrows the mean key of those;
     // a card without any connection goes last. Equal keys keep the connection order, so the result is
     // deterministic.
-    const barycentreOrder = (members, adjacency, lane, order, centerX, maxColumns) => {
+    const barycentreOrder = (members, adjacency, lane, order, maxColumns) => {
         const xs = new Map();
-        const place = list => list.forEach((node, i) => xs.set(node.id, slotX(i, list.length, centerX, maxColumns)));
+        const place = list => list.forEach((node, i) => xs.set(node.id, slotX(i, list.length, maxColumns)));
         const meanX = (node, wanted) => {
             let sum = 0, count = 0;
             for (const next of adjacency.get(node.id)) if (wanted(lane.get(next.id))) { sum += xs.get(next.id); count += 1; }
@@ -103,9 +103,8 @@
     // barycentreOrder then reorders each lane against its neighbours (ordering
     // 'connection' keeps the plain connection order).
     // A lane holds up to two rows of maxColumns cards; a lane that would need a third row widens its
-    // rows instead (columns = max(maxColumns, ceil(n / 2)), A17). Every row is centred on centerX. obstacles are rects of cards that
-    // stay put; a slot under one moves to the nearest free grid point.
-    const topologyLayout = (nodes, edges, { laneOf = node => topologyLaneIndex(topologyLane(node)), obstacles = [], centerX = 0, maxColumns = 8, ordering = 'barycentre' } = {}) => {
+    // rows instead (columns = max(maxColumns, ceil(n / 2)), A17). Every row is centred on x = 0.
+    const topologyLayout = (nodes, edges, { laneOf = node => topologyLaneIndex(topologyLane(node)), maxColumns = 8, ordering = 'barycentre' } = {}) => {
         const list = (nodes || []).filter(node => node && node.id);
         const byId = new Map(list.map(node => [node.id, node]));
         const lane = new Map(list.map(node => [node.id, Math.min(TOPOLOGY_LANES.length - 1, Math.max(0, Math.trunc(Number(laneOf(node))) || 0))]));
@@ -133,15 +132,12 @@
         const members = TOPOLOGY_LANES.map(() => []);
         for (const node of list) members[lane.get(node.id)].push(node);
         for (const inLane of members) inLane.sort((a, b) => order.get(a.id) - order.get(b.id));
-        if (ordering === 'barycentre') barycentreOrder(members, adjacency, lane, order, centerX, maxColumns);
-        const nudge = (obstacles || []).length > 0, placed = nudge ? obstacles.slice() : [], out = new Map();
+        if (ordering === 'barycentre') barycentreOrder(members, adjacency, lane, order, maxColumns);
+        const out = new Map();
         members.forEach((inLane, index) => {
             inLane.forEach((node, i) => {
                 const row = Math.floor(i / columnsOf(inLane.length, maxColumns));
-                const want = { x: slotX(i, inLane.length, centerX, maxColumns), y: index * LANE_H + LANE_ROW0 + row * LANE_ROW_H };
-                const pos = nudge ? freeSlot(want, placed) : want;
-                if (nudge) placed.push(cardRect(pos));
-                out.set(node.id, { x: pos.x, y: pos.y, pinned: false });
+                out.set(node.id, { x: slotX(i, inLane.length, maxColumns), y: index * LANE_H + LANE_ROW0 + row * LANE_ROW_H, pinned: false });
             });
         });
         return out;
@@ -166,24 +162,6 @@
         }
         return out;
     };
-    // topologyArrange plans Arrange in Topology: the selected cards (centred on
-    // their mean x, around the other cards) or, without a selection, every
-    // card. A card the user placed (pinned) keeps the lane its y is in and
-    // stays pinned; the others follow their type and are saved unpinned.
-    const topologyArrange = ({ cards = [], selection = new Set(), nodeById, edges = [], guestsOf = new Map(), placementOf = () => null }) => {
-        const chosen = cards.filter(card => selection.has(card.id));
-        const targets = (chosen.length ? chosen : cards).filter(card => nodeById(card.id));
-        const ids = new Set(targets.map(card => card.id));
-        const manual = id => { const placement = placementOf(id); return !!placement && placement.pinned !== false; };
-        const yOf = new Map(cards.map(card => [card.id, card.y]));
-        const laneOf = node => (manual(node.id) ? laneAt(yOf.get(node.id)) : topologyLaneIndex(topologyLane(node, { hasGuests: (guestsOf.get(node.id) || []).length > 0 })));
-        const obstacles = chosen.length ? cards.filter(card => !ids.has(card.id)).map(cardRect) : [];
-        const centerX = chosen.length ? snap(chosen.reduce((sum, card) => sum + card.x, 0) / chosen.length) : 0;
-        const out = new Map();
-        for (const [id, pos] of topologyLayout(targets.map(card => nodeById(card.id)), edges, { laneOf, obstacles, centerX })) out.set(id, { x: pos.x, y: pos.y, pinned: manual(id) });
-        return out;
-    };
-
     // ---- connection paths (A19) ----------------------------------------------------------------------------
     // topologyPaths draws every connection of the Topology view. A connection between two lanes is a cubic curve
     // from the bottom edge of the upper card to the top edge of the lower one with vertical tangents (control
@@ -236,6 +214,6 @@
     };
 
     window.InfraAppLanes = {
-        topologyLanes: () => [...TOPOLOGY_LANES], LANE_H, LANE_EXTENT, LANE_LABEL_INSET, topologyLane, topologyLaneIndex, laneAt, laneStripes, topologyPaths, topologyLayout, topologyAutoPositions, topologyArrange,
+        topologyLanes: () => [...TOPOLOGY_LANES], LANE_H, LANE_EXTENT, LANE_LABEL_INSET, topologyLane, topologyLaneIndex, laneAt, laneStripes, topologyPaths, topologyLayout, topologyAutoPositions,
     };
 })();

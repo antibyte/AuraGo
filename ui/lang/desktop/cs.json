@@ -8212,6 +8212,8 @@
   "desktop.infra_topology_auto_place": "Umístit automaticky",
   "desktop.infra_topology_auto_placed": "Aktiva umístěná automaticky: {count}",
   "desktop.infra_topology_auto_placed_one": "1 aktivum umístěno automaticky",
+  "desktop.infra_arrange_auto": "Uspořádat automaticky",
+  "desktop.infra_arrange_unsupported": "Tento server zatím neumí vrátit aktiva do automatického uspořádání.",
   "galaxa.emp_mine_layer": "EMP mina",
   "galaxa.cluster_mine_layer": "Tříštivá mina",
   "galaxa.swarm_launcher": "Roj raket",

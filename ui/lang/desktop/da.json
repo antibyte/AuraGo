@@ -8212,6 +8212,8 @@
   "desktop.infra_topology_auto_place": "Placér automatisk",
   "desktop.infra_topology_auto_placed": "{count} aktiver placeret automatisk",
   "desktop.infra_topology_auto_placed_one": "1 aktiv placeret automatisk",
+  "desktop.infra_arrange_auto": "Arrangér automatisk",
+  "desktop.infra_arrange_unsupported": "Denne server kan endnu ikke give aktiver tilbage til den automatiske opstilling.",
   "galaxa.emp_mine_layer": "EMP-mine",
   "galaxa.cluster_mine_layer": "Splintmine",
   "galaxa.swarm_launcher": "Sværmmissiler",

@@ -227,8 +227,18 @@
         applyLibraryCollapsed(prefs.libraryCollapsed);
 
         // ---- shell painting ----------------------------------------------------------------
-        // Arrange needs a card to arrange; Topology draws one for every placeable asset (autoPositions), placed or not.
-        const hasPlacedCards = () => { const view = mapView(), auto = canvas.autoPositions(); return state.nodes.some(node => store.effectivePlacement(node.id, view) || auto.has(node.id)); };
+        // Arrange needs a card to arrange. In Topology it hands cards back to the automatic layout (A22): it needs a
+        // server that can unplace and a card with a saved placement, and then it reads "Arrange automatically".
+        const hasPlacedCards = () => { const view = mapView(); return view === 'topology' ? gestures.canArrangeTopology() : state.nodes.some(node => store.effectivePlacement(node.id, view)); };
+        function paintArrange() {
+            const write = store.canWrite(), topology = mapView() === 'topology', label = topology ? t('desktop.infra_arrange_auto') : t('desktop.infra_arrange');
+            const blocked = !write || state.busy.has('layout') || !hasPlacedCards();
+            for (const button of root.querySelectorAll('[data-action="arrange"]')) {
+                button.disabled = blocked;
+                if (button.textContent !== label) button.textContent = label;
+                if (topology && write && !store.features.unplace) button.title = t('desktop.infra_arrange_unsupported'); else button.removeAttribute('title');
+            }
+        }
         function paintShell() {
             if (disposed || !root.isConnected) return;
             const write = store.canWrite(), view = state.view, history = mapView();
@@ -237,8 +247,7 @@
             canvas.el.hidden = view === 'table';
             table.el.hidden = view !== 'table';
             for (const action of WRITE_ACTIONS) for (const button of root.querySelectorAll(`[data-action="${action}"]`)) button.disabled = !write;
-            const arrangeBlocked = !write || state.busy.has('layout') || !hasPlacedCards();
-            for (const button of root.querySelectorAll('[data-action="arrange"]')) button.disabled = arrangeBlocked;
+            paintArrange();
             for (const button of root.querySelectorAll('[data-action="refresh"]')) button.disabled = state.busy.has('snapshot');
             const canUndo = store.canUndo(history), canRedo = store.canRedo(history);
             const undo = q('.infra-history [data-action="undo"]'), redo = q('.infra-history [data-action="redo"]');
@@ -324,7 +333,7 @@
             { labelKey: 'desktop.infra_import_title', icon: 'download', disabled: !store.canWrite(), action: () => importer.open() },
             { labelKey: 'desktop.infra_new_asset', icon: 'plus', disabled: !store.canWrite(), action: () => dialogs.openNodeDialog('device') },
             { labelKey: 'desktop.infra_new_place', disabled: !store.canWrite(), action: () => dialogs.openNodeDialog('room', { title: t('desktop.infra_new_place') }) },
-            { labelKey: 'desktop.infra_arrange', icon: 'grid', disabled: !store.canWrite(), action: () => gestures.arrange() },
+            { labelKey: mapView() === 'topology' ? 'desktop.infra_arrange_auto' : 'desktop.infra_arrange', icon: 'grid', disabled: !store.canWrite() || (mapView() === 'topology' && !store.features.unplace), action: () => gestures.arrange() },
         ] }]);
 
         // ---- menus and popovers --------------------------------------------------------------
@@ -523,7 +532,7 @@
                 case 'source-hosts': library.render(); canvas.render(); importer.render(); break;
                 case 'candidates': importer.render(); break;
                 case 'selection':
-                    canvas.render(); library.renderSelection(); renderTable(); inspector.paint();
+                    canvas.render(); library.renderSelection(); renderTable(); inspector.paint(); paintArrange();
                     if (isNarrow() && root.dataset.inspectorOpen === 'true') setLibrarySheet(false);
                     break;
                 case 'view': paintShell(); canvas.render({ force: true }); library.render(); renderTable(); inspector.paint(); syncMenus(); break;

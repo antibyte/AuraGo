@@ -8212,6 +8212,8 @@
   "desktop.infra_topology_auto_place": "Colocar automáticamente",
   "desktop.infra_topology_auto_placed": "{count} activos colocados automáticamente",
   "desktop.infra_topology_auto_placed_one": "1 activo colocado automáticamente",
+  "desktop.infra_arrange_auto": "Ordenar automáticamente",
+  "desktop.infra_arrange_unsupported": "Este servidor aún no puede devolver los activos a la disposición automática.",
   "galaxa.emp_mine_layer": "Mina EMP",
   "galaxa.cluster_mine_layer": "Mina de fragmentación",
   "galaxa.swarm_launcher": "Enjambre de misiles",

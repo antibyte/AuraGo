@@ -60,8 +60,8 @@ func infraTopologyFixture() *infraAppBrowserFixture {
 //     and nothing is written;
 //   - guests stay nested and places and hostless containers stay out;
 //   - dragging into another lane saves a pinned placement;
-//   - Arrange keeps that lane while it re-lays everything else in one
-//     undoable save.
+//   - Arrange hands the cards that were placed by hand back to the
+//     automatic layout in one undoable save.
 //
 // Cards are 216x64, so auto columns sit 240 px apart: two cards are centred at
 // -120/120, three at -240/0/240, four at -360/-120/120/360. Inside a lane the cards are ordered by the barycentre
@@ -163,40 +163,41 @@ func TestDesktopInfraTopologyBrowser(t *testing.T) {
 	}
 	page.MustWait(`()=>!document.querySelector('[data-lane].is-drop-target')`)
 
-	// Arrange without a selection: one save, the dragged card keeps its lane.
+	// Arrange without a selection hands every card with a saved placement back to the automatic layout (A22): the
+	// menu item says so, one save of unplace operations, and only the dragged card has a placement to hand back.
 	page.MustEval(`()=>document.querySelector('[data-action="close-inspector"]')?.click()`)
 	page.MustWait(`()=>!document.querySelector('[data-node][aria-pressed="true"]')`)
 	page.MustEval(`()=>document.querySelector('[data-action="more"]').click()`)
 	page.MustWait(`()=>{const item=document.querySelector('[data-menu="more"] [data-action="arrange"]');return !!item&&!item.disabled&&item.offsetParent!==null;}`)
+	if got, want := page.MustEval(`()=>document.querySelector('[data-menu="more"] [data-action="arrange"]').textContent.trim()`).Str(), infraGermanWord(t, "desktop.infra_arrange_auto"); got != want {
+		t.Fatalf("in Topology the Arrange item reads %q; want %q", got, want)
+	}
 	page.MustEval(`()=>document.querySelector('[data-menu="more"] [data-action="arrange"]').click()`)
 	calls = waitCalls(2)
 	arranged := calls[1]
-	if nodes, _ := arranged["nodes"].([]map[string]any); len(nodes) != 9 {
-		t.Fatalf("Arrange without a selection must save all nine cards in one call: %#v", arranged)
+	nodes, _ := arranged["nodes"].([]map[string]any)
+	if arranged["view"] != "topology" || len(nodes) != 1 || nodes[0]["id"] != "tv" || nodes[0]["unplace"] != true {
+		t.Fatalf("Arrange must save one unplace operation for the one card with a saved placement: %#v", arranged)
 	}
-	for id, want := range map[string][3]any{
-		"tv":     {float64(120), float64(480), true},
-		"router": {float64(360), float64(480), false},
-		"inet":   {float64(-120), float64(96), false},
-		"laptop": {float64(0), float64(1248), false},
-	} {
-		got := item(arranged, id)
-		if got == nil || got["x"] != want[0] || got["y"] != want[1] || got["pinned"] != want[2] {
-			t.Fatalf("Arrange placed %s at %#v; want x=%v y=%v pinned=%v", id, got, want[0], want[1], want[2])
-		}
+	if _, has := nodes[0]["x"]; has {
+		t.Fatalf("an unplace operation carries no position: %#v", nodes[0])
 	}
+	page.MustWait(`()=>{const card=document.querySelector('[data-node="tv"]');return card.style.left==='-120px'&&card.style.top==='1248px';}`)
 
-	// Undo hands the auto cards back to the automatic layout.
+	// Undo puts the dragged card back where it was dropped, pinned again.
 	page.MustEval(`()=>document.querySelector('[data-action="undo"]').click()`)
 	calls = waitCalls(3)
 	undone := calls[2]
-	if got := item(undone, "router"); got == nil || got["unplace"] != true {
-		t.Fatalf("undoing Arrange must unplace the cards Infra laid out before: %#v", undone)
+	if got := item(undone, "tv"); got == nil || got["y"] != droppedY || got["pinned"] != true || got["unplace"] == true {
+		t.Fatalf("undoing Arrange must restore the previous placement, pinned: %#v", undone)
 	}
-	if got := item(undone, "tv"); got == nil || got["y"] != droppedY || got["pinned"] != true {
-		t.Fatalf("undoing Arrange must put the dragged card back: %#v", undone)
+	page.MustWait(`(y)=>{const card=document.querySelector('[data-node="tv"]');return card.style.top===y+'px';}`, droppedY)
+	// With the card pinned again, Arrange is available again and redo hands it back.
+	page.MustEval(`()=>document.querySelector('[data-action="redo"]').click()`)
+	calls = waitCalls(4)
+	if got := item(calls[3], "tv"); got == nil || got["unplace"] != true {
+		t.Fatalf("redo must hand the card back to the automatic layout: %#v", calls[3])
 	}
-	page.MustWait(`()=>{const card=document.querySelector('[data-node="router"]');return card.style.left==='0px'&&card.style.top==='480px';}`)
 	closeInfraBrowserWindow(t, page)
 	requireInfraBrowserClean(t, page)
 }

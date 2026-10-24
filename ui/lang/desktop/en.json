@@ -9482,6 +9482,8 @@
   "desktop.infra_topology_auto_place": "Place automatically",
   "desktop.infra_topology_auto_placed": "{count} assets placed automatically",
   "desktop.infra_topology_auto_placed_one": "1 asset placed automatically",
+  "desktop.infra_arrange_auto": "Arrange automatically",
+  "desktop.infra_arrange_unsupported": "This server cannot hand assets back to the automatic layout yet.",
   "galaxa.emp_mine_layer": "EMP mine",
   "galaxa.cluster_mine_layer": "Cluster mine",
   "galaxa.swarm_launcher": "Swarm missiles",

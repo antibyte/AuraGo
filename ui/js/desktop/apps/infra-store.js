@@ -410,16 +410,21 @@
         };
         // effectivePlacement is the stored placement under the queued intents;
         // null when the asset has none here, or an unplace is queued for it.
+        // Topology also treats a stored pinned:false placement as none (A22): it is a leftover of the retired
+        // layered Arrange, and the asset is drawn at its automatic slot. Only a drag or a keyboard move places
+        // a card there (pinned:true).
         function effectivePlacement(id, view) {
             const node = nodeById(id);
             if (!node) return null;
             const base = node.placements?.[view] || null;
             const intent = effectiveIntent(view, id);
-            if (!intent) return base;
-            if (intent.unplace) return null;
-            const out = { ...(base || {}), x: intent.x, y: intent.y, pinned: intent.pinned !== false };
-            if (intent.w != null && intent.h != null) { out.w = intent.w; out.h = intent.h; }
-            return out;
+            let placement = base;
+            if (intent) {
+                if (intent.unplace) return null;
+                placement = { ...(base || {}), x: intent.x, y: intent.y, pinned: intent.pinned !== false };
+                if (intent.w != null && intent.h != null) { placement.w = intent.w; placement.h = intent.h; }
+            }
+            return view === 'topology' && placement && placement.pinned === false ? null : placement;
         }
         function effectiveParent(id, view) {
             const intent = effectiveIntent(view, id);

@@ -8212,6 +8212,8 @@
   "desktop.infra_topology_auto_place": "Plasser automatisk",
   "desktop.infra_topology_auto_placed": "{count} ressurser plassert automatisk",
   "desktop.infra_topology_auto_placed_one": "1 ressurs plassert automatisk",
+  "desktop.infra_arrange_auto": "Ordne automatisk",
+  "desktop.infra_arrange_unsupported": "Denne serveren kan ennå ikke gi ressursene tilbake til automatisk plassering.",
   "galaxa.emp_mine_layer": "EMP-mine",
   "galaxa.cluster_mine_layer": "Splintmine",
   "galaxa.swarm_launcher": "Missilsverm",

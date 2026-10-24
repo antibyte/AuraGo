@@ -8212,6 +8212,8 @@
   "desktop.infra_topology_auto_place": "Posiziona automaticamente",
   "desktop.infra_topology_auto_placed": "{count} risorse posizionate automaticamente",
   "desktop.infra_topology_auto_placed_one": "1 risorsa posizionata automaticamente",
+  "desktop.infra_arrange_auto": "Disponi automaticamente",
+  "desktop.infra_arrange_unsupported": "Questo server non può ancora restituire le risorse alla disposizione automatica.",
   "galaxa.emp_mine_layer": "Mina EMP",
   "galaxa.cluster_mine_layer": "Mina a frammentazione",
   "galaxa.swarm_launcher": "Sciame di missili",

@@ -8212,6 +8212,8 @@
   "desktop.infra_topology_auto_place": "Αυτόματη τοποθέτηση",
   "desktop.infra_topology_auto_placed": "{count} στοιχεία τοποθετήθηκαν αυτόματα",
   "desktop.infra_topology_auto_placed_one": "1 στοιχείο τοποθετήθηκε αυτόματα",
+  "desktop.infra_arrange_auto": "Αυτόματη τακτοποίηση",
+  "desktop.infra_arrange_unsupported": "Αυτός ο διακομιστής δεν μπορεί ακόμη να επιστρέψει στοιχεία στην αυτόματη διάταξη.",
   "galaxa.emp_mine_layer": "Νάρκη EMP",
   "galaxa.cluster_mine_layer": "Νάρκη θραυσμάτων",
   "galaxa.swarm_launcher": "Σμήνος πυραύλων",
