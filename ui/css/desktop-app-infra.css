@@ -498,7 +498,10 @@ th[aria-sort="descending"] .infra-sort-arrow { border-top: 5px solid currentColo
 .infra-bulkbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-2); margin: 0 var(--ds-space-3) var(--ds-space-2); padding: var(--ds-space-2) var(--ds-space-3); border: 1px solid var(--vd-theme-accent-border); border-radius: var(--ds-radius-md); background: var(--vd-theme-accent-soft); }
 .infra-bulkbar-count { flex: 1; font-weight: 600; }
 /* ---- Plan C: filter chips, legend, shortcut sheet ---- */
-.infra-filter-chips { display: flex; flex: 0 1 auto; gap: 4px; min-width: 0; max-width: 360px; overflow: hidden; }
+/* A13: infra.js shows as many chips as the bar can spare and puts the rest behind "+N"; the search keeps 220 px above 760 px. */
+.infra-filter-chips { display: flex; flex: 0 0 auto; gap: 4px; min-width: 0; overflow: hidden; }
+.infra-filter-more { padding: 0 var(--ds-space-2); }
+@container infra (min-width: 760px) { .infra-search { min-width: 220px; } }
 .infra-filter-chip { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; height: 28px; padding: 0 4px 0 var(--ds-space-2); border: 1px solid var(--vd-theme-accent-border); border-radius: var(--ds-radius-full); background: var(--vd-theme-accent-soft); color: var(--vd-text); font-size: 13px; font-weight: 600; cursor: pointer; }
 .infra-filter-chip:hover { background: var(--vd-theme-control-hover); }
 @container infra (max-width: 1099px) { .infra-filter-chips { display: none !important; } }

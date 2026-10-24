@@ -9471,6 +9471,8 @@
   "desktop.infra_sources_count_one": "{current} of 1 source current",
   "desktop.infra_remove_node_confirm_sources": "Remove {name} from the Infra inventory? Its external source will not be changed, so it can come back as a discovery. Choose “Remove and ignore” to keep it away.",
   "desktop.infra_remove_selection_confirm_sources": "Remove {count} assets from the Infra inventory? Their external sources will not be changed, so they can come back as discoveries. Choose “Remove and ignore” to keep them away.",
+  "desktop.infra_filters_more": "Show {count} more filters",
+  "desktop.infra_filters_more_one": "Show 1 more filter",
   "galaxa.emp_mine_layer": "EMP mine",
   "galaxa.cluster_mine_layer": "Cluster mine",
   "galaxa.swarm_launcher": "Swarm missiles",

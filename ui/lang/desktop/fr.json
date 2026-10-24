@@ -8201,6 +8201,8 @@
   "desktop.infra_sources_count_one": "{current} source sur 1 à jour",
   "desktop.infra_remove_node_confirm_sources": "Retirer {name} de l’inventaire Infra ? Sa source externe ne sera pas modifiée : il peut donc réapparaître comme découverte. Choisissez « Retirer et ignorer » pour l’en empêcher.",
   "desktop.infra_remove_selection_confirm_sources": "Retirer {count} équipements de l’inventaire Infra ? Leurs sources externes ne seront pas modifiées : ils peuvent donc réapparaître comme découvertes. Choisissez « Retirer et ignorer » pour l’empêcher.",
+  "desktop.infra_filters_more": "Afficher {count} autres filtres",
+  "desktop.infra_filters_more_one": "Afficher 1 autre filtre",
   "galaxa.emp_mine_layer": "Mine IEM",
   "galaxa.cluster_mine_layer": "Mine à fragmentation",
   "galaxa.swarm_launcher": "Essaim de missiles",

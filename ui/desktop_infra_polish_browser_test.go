@@ -215,3 +215,53 @@ func TestDesktopInfraEdgeLabelsBrowser(t *testing.T) {
 	}
 	requireInfraBrowserClean(t, page)
 }
+
+// infraBarProbe is the page-side helper of the command bar tests: it reports how the bar, the search and the
+// filter chips share the width.
+const infraBarProbe = `()=>{
+	window.infraBar=()=>{
+		const bar=document.querySelector('.infra-commandbar'),chips=document.querySelector('[data-filter-chips]'),search=document.querySelector('.infra-search'),more=chips.querySelector('[data-filter-overflow]');
+		const box=chips.getBoundingClientRect(),all=[...chips.querySelectorAll('[data-remove-filter]')],shown=all.filter(chip=>!chip.hidden&&chip.offsetParent!==null);
+		return {app:document.querySelector('.infra-app').clientWidth,overflow:bar.scrollWidth>bar.clientWidth+1,chipsOverflow:chips.scrollWidth>chips.clientWidth+1,search:Math.round(search.getBoundingClientRect().width),
+			shown:shown.length,total:all.length,more:more&&!more.hidden&&more.offsetParent!==null?more.textContent:'',
+			clipped:shown.filter(chip=>{const r=chip.getBoundingClientRect();return r.left<box.left-0.5||r.right>box.right+0.5;}).length};
+	};
+}`
+
+// TestDesktopInfraFilterChipsBrowser covers amendment A13: with several active filters the command bar shows as many
+// chips as fit and a "+N" chip for the rest, the search keeps at least 220 px above 760 px, and nothing overflows.
+func TestDesktopInfraFilterChipsBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	fixture := newInfraAppBrowserFixture()
+	fixture.world(25)
+	page := infraPolishOpen(t, fixture, 1110, 800)
+	defer page.Close()
+	page.MustEval(infraBarProbe)
+	page.MustEval(`()=>{const set=(selector,value)=>{const el=document.querySelector(selector);el.value=value;el.dispatchEvent(new Event('change',{bubbles:true}));};set('[data-kind-filter]','device');set('[data-source-filter]','docker');set('[data-power-filter]','running');}`)
+	page.MustWait(`()=>document.querySelectorAll('[data-remove-filter]').length===3`)
+	infraPolishSettle(page)
+	state := func() string { return page.MustEval(`()=>JSON.stringify(infraBar())`).Str() }
+	if !page.MustEval(`()=>{const b=infraBar();return b.app>=1100&&b.app<1200&&!b.overflow&&!b.chipsOverflow&&b.search>=220&&b.clipped===0&&b.shown<3&&b.shown+Number(b.more.slice(1))===3;}`).Bool() {
+		t.Fatalf("at about 1110 px three filters must show whole chips plus a +N chip, with the search at 220 px or more and no overflow: %s", state())
+	}
+	if !page.MustEval(`()=>{const more=document.querySelector('[data-filter-overflow]'),words=window.fixtureWords,n=Number(more.textContent.slice(1));
+		return more.getAttribute('aria-label')===(n===1?words['desktop.infra_filters_more_one']:words['desktop.infra_filters_more'].replace('{count}',n))&&more.title===more.getAttribute('aria-label');}`).Bool() {
+		t.Fatal("the +N chip must say how many filters it hides")
+	}
+	// +N opens the filter popover.
+	page.MustEval(`()=>document.querySelector('[data-filter-overflow]').click()`)
+	page.MustWait(`()=>!document.querySelector('[data-popover="filters"]').hidden`)
+	page.MustEval(`()=>document.querySelector('[data-filter-overflow]').click()`)
+	page.MustWait(`()=>document.querySelector('[data-popover="filters"]').hidden`)
+
+	// The search keeps 220 px and the bar never overflows, at every width from 760 px up.
+	for _, width := range []int{760, 800, 860, 980, 1099, 1140, 1300, 1500} {
+		infraPolishResize(page, width, 800)
+		page.MustEval(`()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
+		t.Logf("%d px window: %s", width, state())
+		if !page.MustEval(`()=>{const b=infraBar();return !b.overflow&&!b.chipsOverflow&&b.search>=220&&b.clipped===0&&(b.app<1100||b.shown+(b.more?Number(b.more.slice(1)):0)===3);}`).Bool() {
+			t.Fatalf("at a %d px window the bar overflows, clips a chip or squeezes the search below 220 px: %s", width, state())
+		}
+	}
+	requireInfraBrowserClean(t, page)
+}

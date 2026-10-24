@@ -8201,6 +8201,8 @@
   "desktop.infra_sources_count_one": "{current} de 1 origen actualizado",
   "desktop.infra_remove_node_confirm_sources": "¿Quitar {name} del inventario Infra? No se cambiará su origen externo, así que puede volver a aparecer como hallazgo. Elige «Quitar e ignorar» para evitarlo.",
   "desktop.infra_remove_selection_confirm_sources": "¿Quitar {count} activos del inventario Infra? No se cambiarán sus orígenes externos, así que pueden volver a aparecer como hallazgos. Elige «Quitar e ignorar» para evitarlo.",
+  "desktop.infra_filters_more": "Mostrar {count} filtros más",
+  "desktop.infra_filters_more_one": "Mostrar 1 filtro más",
   "galaxa.emp_mine_layer": "Mina EMP",
   "galaxa.cluster_mine_layer": "Mina de fragmentación",
   "galaxa.swarm_launcher": "Enjambre de misiles",

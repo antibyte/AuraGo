@@ -107,7 +107,7 @@ for (const locale of locales) {
 }
 
 // Counts read "1 asset", not "1 assets": every counted text has a singular key without a count placeholder.
-const singularKeys = ['connections_summary', 'asset_count', 'imported', 'guest_count', 'region_label', 'moved_to_place', 'moved_out_of_place', 'cleanup_show_dismissed', 'cleanup_engine_host', 'cleanup_show_guests', 'removed_ignored', 'removed_from_map', 'picker_mesh_hidden', 'ignored_count', 'import_partial', 'select_all_rows', 'sources_count', 'moved', 'guests_badge', 'guests_badge_stopped'].map(name => `desktop.infra_${name}_one`);
+const singularKeys = ['connections_summary', 'asset_count', 'imported', 'guest_count', 'region_label', 'moved_to_place', 'moved_out_of_place', 'cleanup_show_dismissed', 'cleanup_engine_host', 'cleanup_show_guests', 'removed_ignored', 'removed_from_map', 'picker_mesh_hidden', 'ignored_count', 'import_partial', 'select_all_rows', 'sources_count', 'moved', 'guests_badge', 'guests_badge_stopped', 'filters_more'].map(name => `desktop.infra_${name}_one`);
 for (const locale of locales) {
     const dictionary = JSON.parse(fs.readFileSync(path.join(root, `ui/lang/desktop/${locale}.json`), 'utf8'));
     const bad = singularKeys.filter(key => typeof dictionary[key] !== 'string' || !dictionary[key].trim() || dictionary[key].includes('{count}'));

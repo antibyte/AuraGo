@@ -13,6 +13,7 @@
     const POWER_VALUES = ['running', 'stopped', 'paused', 'unknown', 'none'];
     const PREFS_KEY = 'infra.layout.v1';
     const INSPECTOR_MIN = 320, INSPECTOR_MAX = 520, INSPECTOR_STEP = 16;
+    const SEARCH_MIN = 220, CHIP_GAP = 4;
     const WRITE_ACTIONS = ['add', 'add-menu', 'add-place', 'import', 'add-empty', 'import-empty'];
     const MENU_TRIGGERS = { add: '[data-action="add-menu"]', more: '[data-action="more"]', legend: '[data-action="more"]', filters: '[data-action="filters"]' };
     const FILTER_SELECTS = { kind: '[data-kind-filter]', source: '[data-source-filter]', power: '[data-power-filter]' };
@@ -92,7 +93,7 @@
         const toggleLibraryButton = q('[data-action="toggle-library"]');
         const searchInput = q('[data-search]'), liveEl = q('[data-live]'), filterDot = q('[data-filter-dot]');
         const chipsEl = q('[data-filter-chips]'), clearFiltersButton = q('[data-action="clear-filters"]');
-        let chipsKey = '', disposed = false, deferred = false, searchFrame = 0, searchValue = '', announceTimer = 0, prefsTimer = 0, openMenuName = '', resizeFrame = 0, unsubscribe = null, resizeObserver = null;
+        let chipsKey = '', chipsFrame = 0, disposed = false, deferred = false, searchFrame = 0, searchValue = '', announceTimer = 0, prefsTimer = 0, openMenuName = '', resizeFrame = 0, unsubscribe = null, resizeObserver = null;
         const toastTimers = new Map();
 
         // ---- preferences ---------------------------------------------------------------
@@ -256,8 +257,10 @@
             liveEl.title = updated ? `${updated} · ${sources}` : sources;
             filterDot.hidden = !(state.filters.kind || state.filters.source || state.filters.power);
             paintFilterChips();
+            scheduleChipFit();
         }
         // One removable chip per active filter (wide windows only; the dot on the filter button says the same below that).
+        // Only as many chips as the bar can spare are shown: the search keeps SEARCH_MIN px, the rest sit behind a "+N" chip.
         function paintFilterChips() {
             const { kind, source, power } = state.filters, key = [kind, source, power].join('\x1f');
             if (key === chipsKey) return;
@@ -269,9 +272,41 @@
             chipsEl.innerHTML = chips.map(([name, label]) => {
                 const remove = esc(model.fill(t('desktop.infra_remove_filter'), { filter: label }));
                 return `<button type="button" class="infra-filter-chip" data-remove-filter="${name}" aria-label="${remove}" title="${remove}"><span>${esc(label)}</span>${glyph('close')}</button>`;
-            }).join('');
+            }).join('') + (chips.length ? `<button type="button" class="infra-filter-chip infra-filter-more" data-filter-overflow data-action="filters" aria-haspopup="true" hidden></button>` : '');
             chipsEl.hidden = !chips.length;
             clearFiltersButton.disabled = !chips.length;
+            fitFilterChips();
+        }
+        function fitFilterChips() {
+            const chips = [...chipsEl.querySelectorAll('[data-remove-filter]')], more = chipsEl.querySelector('[data-filter-overflow]');
+            if (!more) return;
+            for (const chip of chips) chip.hidden = false;
+            more.hidden = true;
+            if (chipsEl.hidden || chipsEl.offsetParent === null) return;
+            // What the bar has left for the chips: its width minus every other item (the search counts as SEARCH_MIN) and the gaps.
+            const bar = chipsEl.parentElement, style = getComputedStyle(bar);
+            let used = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0), gaps = 0;
+            for (const child of bar.children) {
+                if (child === chipsEl || child.offsetParent === null) continue;
+                used += child.classList.contains('infra-search') ? SEARCH_MIN : child.offsetWidth;
+                gaps += 1;
+            }
+            const budget = bar.clientWidth - used - (parseFloat(style.columnGap) || 0) * gaps;
+            const widths = chips.map(chip => chip.offsetWidth);
+            if (widths.reduce((sum, width) => sum + width, 0) + CHIP_GAP * (chips.length - 1) <= budget) return;
+            more.hidden = false;
+            more.textContent = `+${chips.length}`;
+            let taken = more.offsetWidth, shown = 0;
+            for (const width of widths) { if (taken + CHIP_GAP + width > budget) break; taken += CHIP_GAP + width; shown += 1; }
+            chips.forEach((chip, index) => { chip.hidden = index >= shown; });
+            const rest = chips.length - shown, label = model.countText(rest, t('desktop.infra_filters_more_one'), t('desktop.infra_filters_more'));
+            more.textContent = `+${rest}`;
+            more.setAttribute('aria-label', label);
+            more.title = label;
+        }
+        function scheduleChipFit() {
+            if (chipsFrame || chipsEl.hidden) return;
+            chipsFrame = requestAnimationFrame(() => { chipsFrame = 0; if (!disposed) fitFilterChips(); });
         }
         const renderTable = () => { if (state.view === 'table') table.render(); };
         function renderData() { canvas.render(); library.render(); renderTable(); }
@@ -291,7 +326,7 @@
         const menuEl = name => q(`[data-menu="${name}"], [data-popover="${name}"]`);
         function onMenuOutside(event) {
             const el = menuEl(openMenuName), trigger = q(MENU_TRIGGERS[openMenuName]);
-            if (el?.contains(event.target) || trigger?.contains(event.target)) return;
+            if (el?.contains(event.target) || trigger?.contains(event.target) || event.target.closest?.('[data-filter-overflow]')) return;
             closeMenus();
         }
         function closeMenus({ restoreFocus = false } = {}) {
@@ -363,7 +398,8 @@
         function removeFilter(key) {
             const index = [...chipsEl.querySelectorAll('[data-remove-filter]')].findIndex(chip => chip.dataset.removeFilter === key);
             resetFilters([key]);
-            (chipsEl.querySelectorAll('[data-remove-filter]')[index] || searchInput).focus();
+            const left = [...chipsEl.querySelectorAll('[data-remove-filter]:not([hidden])')];
+            (left[Math.min(index, left.length - 1)] || chipsEl.querySelector('[data-filter-overflow]:not([hidden])') || searchInput).focus();
         }
         const onRootClick = event => {
             if (event.target.closest(OWN_CLICKS)) return;
@@ -493,6 +529,7 @@
                 resizeFrame = requestAnimationFrame(() => {
                     resizeFrame = 0;
                     if (disposed) return;
+                    fitFilterChips();
                     if (!isNarrow() && root.dataset.librarySheet === 'open') root.dataset.librarySheet = 'closed';
                     syncLibraryToggle();
                 });
@@ -516,7 +553,7 @@
                 app.cleanup.dispose();
                 gestures.dispose(); menus.dispose(); canvas.dispose(); library.dispose(); inspector.dispose(); dialogs.dispose(); importer.dispose(); table.dispose();
                 for (const element of [...toastTimers.keys()]) removeToast(element);
-                clearTimeout(announceTimer); cancelAnimationFrame(searchFrame); cancelAnimationFrame(resizeFrame);
+                clearTimeout(announceTimer); cancelAnimationFrame(searchFrame); cancelAnimationFrame(resizeFrame); cancelAnimationFrame(chipsFrame);
                 resizeObserver?.disconnect();
                 if (prefsTimer) flushPrefs();
                 unsubscribe?.();

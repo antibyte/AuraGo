@@ -8201,6 +8201,8 @@
   "desktop.infra_sources_count_one": "{current} su 1 origine aggiornata",
   "desktop.infra_remove_node_confirm_sources": "Rimuovere {name} dall’inventario Infra? La fonte esterna non verrà modificata, quindi potrebbe ricomparire come rilevamento. Scegli «Rimuovi e ignora» per evitarlo.",
   "desktop.infra_remove_selection_confirm_sources": "Rimuovere {count} risorse dall’inventario Infra? Le loro fonti esterne non verranno modificate, quindi potrebbero ricomparire come rilevamenti. Scegli «Rimuovi e ignora» per evitarlo.",
+  "desktop.infra_filters_more": "Mostra altri {count} filtri",
+  "desktop.infra_filters_more_one": "Mostra 1 altro filtro",
   "galaxa.emp_mine_layer": "Mina EMP",
   "galaxa.cluster_mine_layer": "Mina a frammentazione",
   "galaxa.swarm_launcher": "Sciame di missili",

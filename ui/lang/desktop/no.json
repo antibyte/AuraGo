@@ -8201,6 +8201,8 @@
   "desktop.infra_sources_count_one": "{current} av 1 kilde oppdatert",
   "desktop.infra_remove_node_confirm_sources": "Fjerne {name} fra Infra-inventaret? Den eksterne kilden endres ikke, så den kan dukke opp igjen som et funn. Velg «Fjern og ignorer» for å unngå det.",
   "desktop.infra_remove_selection_confirm_sources": "Fjerne {count} ressurser fra Infra-inventaret? De eksterne kildene deres endres ikke, så de kan dukke opp igjen som funn. Velg «Fjern og ignorer» for å unngå det.",
+  "desktop.infra_filters_more": "Vis {count} flere filtre",
+  "desktop.infra_filters_more_one": "Vis 1 filter til",
   "galaxa.emp_mine_layer": "EMP-mine",
   "galaxa.cluster_mine_layer": "Splintmine",
   "galaxa.swarm_launcher": "Missilsverm",
