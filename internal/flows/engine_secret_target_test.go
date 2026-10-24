@@ -56,7 +56,7 @@ func (r *secretRun) run(f *Flow, trigger string, mode RunMode) RunResult {
 // A flow published before the rule existed keeps its live revision, which is never
 // validated again, and a test run only validates with draft rules. So the run itself
 // refuses, once per run for the whole document and before the node runs: when unchecked
-// data decides where the vault secret is sent (the url or the headers of an http.request
+// data decides where the vault secret is sent (the scheme, user info, host or port of the url of an http.request
 // that has an auth_secret), the node fails with FLOW_PARAM_INVALID, which no retry
 // repeats. The vault is not read and the tool is not called, whatever the node's on_error
 // says; on_error only decides what follows the failure.
@@ -68,7 +68,6 @@ func TestRunRefusesUntrustedDataChoosingWhereASecretGoes(t *testing.T) {
 	}{
 		{"url", map[string]any{"url": "{{trigger.data.link}}", "auth_secret": "partner_token"}, false},
 		{"part of the url", map[string]any{"url": "https://{{trigger.data.host}}/v1", "auth_secret": "partner_token"}, false},
-		{"headers", map[string]any{"url": "https://api.example.org/v1", "headers": map[string]any{"X-Next": "{{trigger.data.link}}"}, "auth_secret": "partner_token"}, false},
 		{"url through another node", map[string]any{"url": "{{prep.next}}", "auth_secret": "partner_token"}, true},
 	} {
 		for _, mode := range []RunMode{ModeLive, ModeTest} {
@@ -167,6 +166,10 @@ func TestRunStillSendsWhenNoSecretFollowsUntrustedData(t *testing.T) {
 		{"blank secret", map[string]any{"url": "{{trigger.data.link}}", "auth_secret": "  "}, "https://attacker.example/steal", 0},
 		{"secret with a fixed address", map[string]any{"method": "POST", "url": "https://api.example.org/v1", "body": "{{trigger.data.link}}", "auth_secret": "partner_token"},
 			"https://api.example.org/v1", 1},
+		{"secret with outside data in a header", map[string]any{"url": "https://api.example.org/v1", "headers": map[string]any{"X-Next": "{{trigger.data.link}}"}, "auth_secret": "partner_token"},
+			"https://api.example.org/v1", 1},
+		{"secret with outside data in the query", map[string]any{"url": "https://api.example.org/v1?next={{trigger.data.host}}", "auth_secret": "partner_token"},
+			"https://api.example.org/v1?next=attacker.example", 1},
 	} {
 		for _, mode := range []RunMode{ModeLive, ModeTest} {
 			label := c.name + "/" + string(mode)

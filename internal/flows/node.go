@@ -102,8 +102,9 @@ type ParamSpec struct {
 	// data is for, and what the node returns is built from other params and from
 	// the tool's answer). The lint reads it; it is not part of the editor's API.
 	OutputIndependent bool `json:"-"`
-	// SecretTarget: the param decides where the node sends its vault secret (the address
-	// and the headers of a request). While a ParamSecretRef param of the node is set,
+	// SecretTarget: the param decides where the node sends its vault secret (the address of a
+	// request, where only data that can reach its scheme, user info, host or port counts, see
+	// secretTargetFixed). While a ParamSecretRef param of the node is set,
 	// untrusted data reaching it is an error (IssueUntrustedSecretTarget), not the
 	// warning of a SensitiveSink. It takes effect together with SensitiveSink. The lint
 	// reads it; it is not part of the editor's API.

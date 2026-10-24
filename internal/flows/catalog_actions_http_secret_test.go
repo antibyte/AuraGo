@@ -54,10 +54,10 @@ func TestSecretRefParamRefusesATemplate(t *testing.T) {
 }
 
 // Where a vault secret is sent must not depend on outside data: with an auth_secret set,
-// untrusted data in the url or the headers is an error when publishing (a warning in a
-// draft, like every publish rule), with its own code, and Publish refuses the flow. The
-// same flow without a secret keeps the plain warning. Test runs validate with draft
-// rules, so they only see the warning.
+// untrusted data that can reach the url's scheme, user info, host or port is an error when
+// publishing (a warning in a draft, like every publish rule), with its own code, and Publish
+// refuses the flow. The same flow without a secret, and data in the headers, keep the plain
+// warning. Test runs validate with draft rules, so they only see the warning.
 func TestUntrustedDataCannotChooseWhereASecretGoes(t *testing.T) {
 	reg := catalogRegistry(t, fullEnv())
 	for _, c := range []struct {
@@ -66,7 +66,6 @@ func TestUntrustedDataCannotChooseWhereASecretGoes(t *testing.T) {
 	}{
 		{"url", "url", map[string]any{"url": "{{trigger.data.link}}", "auth_secret": "partner_token"}},
 		{"part of the url", "url", map[string]any{"url": "https://{{trigger.data.host}}/v1", "auth_secret": "partner_token"}},
-		{"headers", "headers", map[string]any{"url": "https://api.example.org/v1", "headers": map[string]any{"X-Next": "{{trigger.data.link}}"}, "auth_secret": "partner_token"}},
 	} {
 		f, call := secretCallFlow(c.params)
 		issues := Validate(f, reg, publishCtx())
@@ -103,8 +102,9 @@ func TestUntrustedDataCannotChooseWhereASecretGoes(t *testing.T) {
 	// Without a secret the data still only draws the plain warning, and outside data that
 	// reaches neither the url nor the headers does not matter for the secret.
 	for name, params := range map[string]map[string]any{
-		"no secret":    {"url": "{{trigger.data.link}}"},
-		"blank secret": {"url": "{{trigger.data.link}}", "auth_secret": "  "},
+		"no secret":        {"url": "{{trigger.data.link}}"},
+		"blank secret":     {"url": "{{trigger.data.link}}", "auth_secret": "  "},
+		"data in a header": {"url": "https://api.example.org/v1", "headers": map[string]any{"X-Next": "{{trigger.data.link}}"}, "auth_secret": "partner_token"},
 	} {
 		f, call := secretCallFlow(params)
 		issues := Validate(f, reg, publishCtx())

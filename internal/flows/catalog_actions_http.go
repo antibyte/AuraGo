@@ -377,8 +377,14 @@ func httpRequestEffects(n *Node) []Effect {
 // The address, the headers and the body are sensitive sinks, and so is auth_secret.
 // auth_secret is a secret_ref, which never holds a template (Validate refuses one when
 // publishing, withAuthSecret at run time), so no outside data can pick the vault entry.
-// The address and the headers also decide where the secret is sent: while auth_secret is
-// set, untrusted data in them is an error (SecretTarget), not a warning.
+// The address also decides where the secret is sent: while auth_secret is set, untrusted
+// data that can reach its scheme, user info, host or port is an error (SecretTarget, see
+// secretTargetFixed), not a warning; data behind a literal "https://host/" is path or query.
+// The headers are no secret target: a header value never moves the request (net/http writes
+// the Host line from the URL and skips a "Host" entry of the header map,
+// reqWriteExcludeHeader), map keys are not templates (resolveValue resolves values only), the
+// vault value replaces a header of the auth_header name, and a redirect that leaves the origin
+// drops every caller header but Accept, Content-Type and User-Agent (see above).
 func httpRequestDef(env CatalogEnv) *NodeDef {
 	def := actionDef(TypeHTTPRequest, "web", "api", "api_request", env)
 	def.UntrustedOutput = true
@@ -388,7 +394,7 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 	def.Params = []ParamSpec{
 		{Name: "method", Kind: ParamSelect, LabelKey: "easydrag.param.http_method", Default: "GET", Options: methods},
 		{Name: "url", Kind: ParamText, LabelKey: "easydrag.param.url", Required: true, Templatable: true, SensitiveSink: true, SecretTarget: true},
-		{Name: "headers", Kind: ParamKeyValue, LabelKey: "easydrag.param.http_headers", Templatable: true, SensitiveSink: true, SecretTarget: true},
+		{Name: "headers", Kind: ParamKeyValue, LabelKey: "easydrag.param.http_headers", Templatable: true, SensitiveSink: true},
 		{Name: "body", Kind: ParamTextarea, LabelKey: "easydrag.param.http_body", Templatable: true, SensitiveSink: true,
 			VisibleIf: &Visibility{Param: "method", Equals: []string{"POST", "PUT", "PATCH", "DELETE"}}},
 		{Name: "auth_secret", Kind: ParamSecretRef, LabelKey: "easydrag.param.auth_secret", HelpKey: "easydrag.help.auth_secret", SensitiveSink: true},

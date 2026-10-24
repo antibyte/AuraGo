@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
+	"unicode"
 )
 
 var effectOrder = []Effect{
@@ -113,6 +115,34 @@ func passesInputs(n *Node) bool {
 	return false
 }
 
+// secretTargetFixed reports whether the raw value of a SecretTarget parameter fixes where the
+// secret goes before any data comes in. Only a web address can: text whose literal part before
+// the first unescaped "{{" (as ParseTemplate splits it, so "\{{" is literal text), after leading
+// white space, is "http://" or "https://" (any case), a non-empty host part and then "/", "?" or
+// "#". net/url, which api_request parses the address with, cuts the fragment and the query
+// before it reads the host and ends the host at the first "/", so data behind that point is
+// path, query or fragment and cannot change the scheme, the user info, the host or the port.
+// Anything else is not fixed: no literal start ("{{x}}"), an empty host ("https://{{x}}/"), data
+// glued to the host ("https://api.example.com{{x}}" with x = ".evil.com" or "@evil.com"), a port
+// or user info from data, text that does not parse, and every value that is not text. It reads
+// the raw parameter and calls no hook.
+func secretTargetFixed(raw any) bool {
+	s, ok := raw.(string)
+	if !ok {
+		return false
+	}
+	tpl, err := ParseTemplate(s)
+	if err != nil || len(tpl.parts) == 0 || tpl.parts[0].expr != nil {
+		return false
+	}
+	prefix := strings.TrimLeftFunc(tpl.parts[0].literal, unicode.IsSpace)
+	if !hasWebScheme(prefix) {
+		return false
+	}
+	rest := prefix[strings.Index(prefix, "://")+len("://"):]
+	return strings.IndexAny(rest, "/?#") > 0
+}
+
 // LintUntrustedData warns when data from an untrusted source (untrusted triggers,
 // nodes with UntrustedOutput, and anything derived from them) reaches a parameter
 // flagged SensitiveSink. Taint flows through template references in topological
@@ -124,6 +154,10 @@ func passesInputs(n *Node) bool {
 // address) instead of a warning for a parameter flagged SecretTarget while the node has
 // a secret_ref parameter set: that data decides where the vault secret is sent. The
 // caller turns an error into a warning for a draft, as it does for every publish rule.
+//
+// A SecretTarget whose literal start fixes the target (secretTargetFixed: "https://host/" before
+// the first data reference) is not one: the data behind it can fill the path, the query or the
+// fragment but not move the request, so it keeps the plain warning.
 //
 // A reference in a parameter flagged OutputIndependent (it reaches only the node's
 // effect, such as the content of a PDF or the text of a message, never its output)
@@ -188,11 +222,12 @@ func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 				secretSet = true
 			}
 		}
-		// The sinks that decide where the node's secret goes, while it has one.
+		// The sinks that decide where the node's secret goes, while it has one: a SecretTarget
+		// whose literal start does not fix the target already (secretTargetFixed).
 		secretTargets := map[string]bool{}
 		if secretSet {
 			for _, spec := range def.Params {
-				if spec.SensitiveSink && spec.SecretTarget {
+				if spec.SensitiveSink && spec.SecretTarget && !secretTargetFixed(n.Params[spec.Name]) {
 					secretTargets[spec.Name] = true
 				}
 			}
