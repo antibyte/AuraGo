@@ -18484,7 +18484,7 @@ function updateTaskbarSystemButtonsForMobile() {
         }
         if (appId === 'infra' && window.InfraApp) {
             return window.InfraApp.render(contentEl(id), id, Object.assign({}, context || {}, {
-                esc, t, api, openApp, setWindowMenus, clearWindowMenus, confirmDialog, readonly: desktopReadonly(),
+                esc, t, api, openApp, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, confirmDialog, readonly: desktopReadonly(),
                 setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 showConfirmModal: (title, message, confirmLabel) => confirmLabel
                     ? modalDialog({ title, message, choices: [{ value: 'discard', label: confirmLabel }] }).then(value => value === 'discard')
