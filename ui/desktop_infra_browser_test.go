@@ -34,6 +34,8 @@ type infraAppBrowserFixture struct {
 	nodeDeletes       []string                  // every DELETE /nodes/{id} as id?query
 	batchCalls        []map[string]any          // every POST /import/batch body, in order
 	ignoreCalls       []map[string]any          // every PUT /sources/ignore body, in order
+	nodePuts          []map[string]any          // every PUT /nodes/{id} body, in order
+	targets           []map[string]any          // GET /targets answer (app link candidates)
 }
 
 func newInfraAppBrowserFixture() *infraAppBrowserFixture {
@@ -41,6 +43,11 @@ func newInfraAppBrowserFixture() *infraAppBrowserFixture {
 		consumed:          map[string]bool{},
 		failCandidateOnce: "docker-candidate",
 		capabilities:      map[string]bool{"write": true, "source_edit": true, "control": true},
+		targets: []map[string]any{
+			{"app": "network-cameras", "target_id": "stream-front-door", "label": "Front door camera"},
+			{"app": "software-store", "target_id": "net-tools", "label": "Network Tools"},
+			{"app": "meshcore", "target_id": "conversation-lab", "label": "Lab mesh conversation"},
+		},
 		candidates: []map[string]any{
 			{"id": "registry-candidate", "source": map[string]any{"kind": "registry", "instance": "local", "key": "registry-device-9", "name": "Device registry", "state": "current"}, "registry_id": "registry-device-9", "node": map[string]any{"kind": "device", "name": "Atlas gateway", "icon": "router", "profile": map[string]any{"ip_address": "192.0.2.9", "interfaces": []any{}}}},
 			{"id": "docker-candidate", "source": map[string]any{"kind": "docker", "instance": "engine-a", "key": "container-full-id-2", "name": "Docker Engine", "state": "current"}, "node": map[string]any{"kind": "container", "name": "runtime-worker", "icon": "container", "profile": map[string]any{"vendor": "Docker", "model": "nginx:stable", "interfaces": []any{}}}},
@@ -175,11 +182,7 @@ func (f *infraAppBrowserFixture) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	case path == "/snapshot" && r.Method == http.MethodGet:
 		write(http.StatusOK, f.snapshot())
 	case path == "/targets" && r.Method == http.MethodGet:
-		write(http.StatusOK, map[string]any{"targets": []any{
-			map[string]any{"app": "network-cameras", "target_id": "stream-front-door", "label": "Front door camera"},
-			map[string]any{"app": "software-store", "target_id": "net-tools", "label": "Network Tools"},
-			map[string]any{"app": "meshcore", "target_id": "conversation-lab", "label": "Lab mesh conversation"},
-		}})
+		write(http.StatusOK, map[string]any{"targets": f.targets})
 	case path == "/candidates" && r.Method == http.MethodGet:
 		candidates := make([]map[string]any, 0, len(f.candidates))
 		for _, candidate := range f.candidates {
@@ -304,6 +307,7 @@ func (f *infraAppBrowserFixture) ServeHTTP(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		id := strings.Split(strings.TrimPrefix(path, "/nodes/"), "/")[0]
+		f.nodePuts = append(f.nodePuts, updated)
 		for index, node := range f.nodes {
 			if node["id"] == id {
 				updated["version"] = float64(2)
@@ -353,6 +357,12 @@ func (f *infraAppBrowserFixture) ServeHTTP(w http.ResponseWriter, r *http.Reques
 			if placements == nil {
 				placements = map[string]any{}
 				node["placements"] = placements
+			}
+			if change["unplace"] == true { // the amendment: the asset leaves this map view
+				delete(placements, payload.View)
+				node["version"] = infraFixtureNumber(node["version"]) + 1
+				patched = append(patched, node)
+				continue
 			}
 			placement := map[string]any{"x": change["x"], "y": change["y"], "pinned": change["pinned"]}
 			if w, ok := change["w"]; ok {
