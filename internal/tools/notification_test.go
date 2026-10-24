@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"io"
 	"log/slog"
+	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 )
@@ -89,5 +92,42 @@ func TestNtfyFailureKeepsTheTopicOutOfErrorsAndLogs(t *testing.T) {
 		if err := sendNtfy(cfg, "T", "B", "high"); err == nil || strings.Contains(err.Error(), topic) {
 			t.Fatalf("%s: sendNtfy error = %v", base, err)
 		}
+	}
+}
+
+// A flood-limited Telegram API must not block the caller for the announced
+// retry window: the whole send stays inside telegramSendTotalBudget.
+func TestSendTelegramNotificationStopsAtTheRetryBudget(t *testing.T) {
+	// The shipped default has to bound the blocking time on its own.
+	if telegramSendTotalBudget <= 0 || telegramSendTotalBudget > time.Minute {
+		t.Fatalf("default send budget = %v, want at most one minute", telegramSendTotalBudget)
+	}
+	old := telegramSendTotalBudget
+	telegramSendTotalBudget = 300 * time.Millisecond
+	t.Cleanup(func() { telegramSendTotalBudget = old })
+
+	var requests atomic.Int32
+	tg04API(t, func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = io.WriteString(w, `{"ok":false,"description":"Too Many Requests","parameters":{"retry_after":60}}`)
+	})
+	cfg, _ := tg04Config(t, "123:secret")
+
+	start := time.Now()
+	err := sendTelegramNotification(cfg, "t", "m")
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("a flood-limited send must fail")
+	}
+	if !strings.Contains(err.Error(), "429") {
+		t.Fatalf("send error = %v, want the telegram status", err)
+	}
+	if elapsed > 3*time.Second {
+		t.Fatalf("send blocked for %v, want the retry budget to stop it", elapsed)
+	}
+	if got := requests.Load(); got > 2 {
+		t.Fatalf("requests = %d, want at most 2", got)
 	}
 }

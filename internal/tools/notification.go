@@ -297,6 +297,12 @@ const telegramSendMaxAttempts = 3
 // telegramSendRetryCap caps the wait between two send attempts.
 const telegramSendRetryCap = 30 * time.Second
 
+// telegramSendTotalBudget bounds a whole Telegram send including the
+// flood-control waits. A throttled Bot API must not block the caller for
+// minutes: without a budget the retry path could wait twice for the announced
+// delay. It is a variable so tests can shorten it.
+var telegramSendTotalBudget = 30 * time.Second
+
 // sendTelegramNotification sends title and message as one MarkdownV2 message. It counts as
 // sent only when the Bot API answers 2xx with ok:true (checkTelegramReply); a redirect is
 // not followed. Its errors never carry the bot token, and a failed request keeps its cause
@@ -304,7 +310,8 @@ const telegramSendRetryCap = 30 * time.Second
 //
 // A message that exceeds Telegram's length limit is rejected here with the measured size
 // instead of at the API. Only flood control is retried: that answer states that the message
-// was not accepted, so repeating it cannot duplicate a delivered message.
+// was not accepted, so repeating it cannot duplicate a delivered message. The whole send —
+// request and flood-control waits — stays inside telegramSendTotalBudget.
 func sendTelegramNotification(cfg *config.Config, title, message string, contexts ...context.Context) error {
 	botToken := cfg.Telegram.BotToken
 	chatID := cfg.Telegram.UserID
@@ -325,12 +332,19 @@ func sendTelegramNotification(cfg *config.Config, title, message string, context
 		"parse_mode": "MarkdownV2",
 	})
 
-	ctx := nativeHTTPContext(contexts...)
+	// The budget covers the request and the flood-control waits together. A
+	// caller that brings its own deadline keeps it: WithTimeout takes the
+	// shorter of the two.
+	ctx, cancel := context.WithTimeout(nativeHTTPContext(contexts...), telegramSendTotalBudget)
+	defer cancel()
 	endpoint := telegramAPIBase + "/bot" + url.PathEscape(botToken) + "/sendMessage"
 
 	var lastErr error
 	for attempt := 1; attempt <= telegramSendMaxAttempts; attempt++ {
 		if err := ctx.Err(); err != nil {
+			if lastErr != nil {
+				return lastErr
+			}
 			return err
 		}
 		resp, err := postToolHTTP(ctx, telegramMessageClient, endpoint, "application/json", bytes.NewReader(payload))
@@ -351,6 +365,11 @@ func sendTelegramNotification(cfg *config.Config, title, message string, context
 		}
 		select {
 		case <-ctx.Done():
+			// The budget ran out. The Telegram answer describes the cause
+			// better than the deadline, so it wins.
+			if lastErr != nil {
+				return lastErr
+			}
 			return ctx.Err()
 		case <-time.After(telegramRetryWait(statusErr.retryAfter, attempt)):
 		}
