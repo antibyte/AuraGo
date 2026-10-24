@@ -8081,6 +8081,8 @@
   "desktop.infra_guests_badge_stopped": "Gości: {count} · żaden nie działa",
   "desktop.infra_guests_badge_stopped_one": "1 gość · nie działa",
   "desktop.infra_guests_badge_title": "Goście: {names}",
+  "desktop.infra_error_timeout": "Serwer nie odpowiedział na czas.",
+  "desktop.infra_field_app_bindings": "Powiązane aplikacje",
   "galaxa.emp_mine_layer": "Mina EMP",
   "galaxa.cluster_mine_layer": "Mina odłamkowa",
   "galaxa.swarm_launcher": "Rój rakiet",

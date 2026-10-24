@@ -8081,6 +8081,8 @@
   "desktop.infra_guests_badge_stopped": "ゲスト{count}件 · 停止中",
   "desktop.infra_guests_badge_stopped_one": "ゲスト1件 · 停止中",
   "desktop.infra_guests_badge_title": "ゲスト: {names}",
+  "desktop.infra_error_timeout": "サーバーが時間内に応答しませんでした。",
+  "desktop.infra_field_app_bindings": "リンク済みアプリ",
   "galaxa.emp_mine_layer": "EMP機雷",
   "galaxa.cluster_mine_layer": "破片機雷",
   "galaxa.swarm_launcher": "群体ミサイル",

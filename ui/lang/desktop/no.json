@@ -8081,6 +8081,8 @@
   "desktop.infra_guests_badge_stopped": "{count} gjester · stoppet",
   "desktop.infra_guests_badge_stopped_one": "1 gjest · stoppet",
   "desktop.infra_guests_badge_title": "Gjester: {names}",
+  "desktop.infra_error_timeout": "Serveren svarte ikke i tide.",
+  "desktop.infra_field_app_bindings": "Tilknyttede apper",
   "galaxa.emp_mine_layer": "EMP-mine",
   "galaxa.cluster_mine_layer": "Splintmine",
   "galaxa.swarm_launcher": "Missilsverm",

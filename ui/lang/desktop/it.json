@@ -8081,6 +8081,8 @@
   "desktop.infra_guests_badge_stopped": "{count} ospiti · fermi",
   "desktop.infra_guests_badge_stopped_one": "1 ospite · fermo",
   "desktop.infra_guests_badge_title": "Ospiti: {names}",
+  "desktop.infra_error_timeout": "Il server non ha risposto in tempo.",
+  "desktop.infra_field_app_bindings": "App collegate",
   "galaxa.emp_mine_layer": "Mina EMP",
   "galaxa.cluster_mine_layer": "Mina a frammentazione",
   "galaxa.swarm_launcher": "Sciame di missili",

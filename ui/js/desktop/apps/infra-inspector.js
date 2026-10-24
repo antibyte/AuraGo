@@ -399,10 +399,11 @@
                 }
                 paint();
             } catch (error) {
-                // A conflict or an uncertain write: reload the confirmed state and
-                // let the operator compare it with the retained draft.
+                // A conflict or an uncertain write (a timeout included): reload the confirmed state and
+                // let the operator compare it with the retained draft. Hiding or closing the window stays quiet.
+                if (error.name === 'AbortError') return;
                 if (error.status === 409 || store.uncertainMutation(error)) await review();
-                else if (error.name !== 'AbortError') store.notify(store.messageFor(error), 'error');
+                else store.notify(store.messageFor(error), 'error');
             } finally { store.setBusy(`node-${id}`, false); }
         }
 

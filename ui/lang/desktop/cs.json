@@ -8081,6 +8081,8 @@
   "desktop.infra_guests_badge_stopped": "Hostů: {count} · zastaveno",
   "desktop.infra_guests_badge_stopped_one": "1 host · zastaven",
   "desktop.infra_guests_badge_title": "Hosté: {names}",
+  "desktop.infra_error_timeout": "Server neodpověděl včas.",
+  "desktop.infra_field_app_bindings": "Propojené aplikace",
   "galaxa.emp_mine_layer": "EMP mina",
   "galaxa.cluster_mine_layer": "Tříštivá mina",
   "galaxa.swarm_launcher": "Roj raket",

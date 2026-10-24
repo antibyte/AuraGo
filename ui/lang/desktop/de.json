@@ -8081,6 +8081,8 @@
   "desktop.infra_guests_badge_stopped": "{count} Gäste · gestoppt",
   "desktop.infra_guests_badge_stopped_one": "1 Gast · gestoppt",
   "desktop.infra_guests_badge_title": "Gäste: {names}",
+  "desktop.infra_error_timeout": "Der Server hat nicht rechtzeitig geantwortet.",
+  "desktop.infra_field_app_bindings": "Verknüpfte Apps",
   "galaxa.emp_mine_layer": "EMP-Mine",
   "galaxa.cluster_mine_layer": "Splittermine",
   "galaxa.swarm_launcher": "Schwarmraketen",

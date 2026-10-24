@@ -8081,6 +8081,8 @@
   "desktop.infra_guests_badge_stopped": "{count} gasten · gestopt",
   "desktop.infra_guests_badge_stopped_one": "1 gast · gestopt",
   "desktop.infra_guests_badge_title": "Gasten: {names}",
+  "desktop.infra_error_timeout": "De server reageerde niet op tijd.",
+  "desktop.infra_field_app_bindings": "Gekoppelde apps",
   "galaxa.emp_mine_layer": "EMP-mijn",
   "galaxa.cluster_mine_layer": "Splintermijn",
   "galaxa.swarm_launcher": "Zwermraketten",

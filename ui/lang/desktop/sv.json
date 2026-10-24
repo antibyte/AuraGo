@@ -8081,6 +8081,8 @@
   "desktop.infra_guests_badge_stopped": "{count} gäster · stoppade",
   "desktop.infra_guests_badge_stopped_one": "1 gäst · stoppad",
   "desktop.infra_guests_badge_title": "Gäster: {names}",
+  "desktop.infra_error_timeout": "Servern svarade inte i tid.",
+  "desktop.infra_field_app_bindings": "Länkade appar",
   "galaxa.emp_mine_layer": "EMP-mina",
   "galaxa.cluster_mine_layer": "Splittermina",
   "galaxa.swarm_launcher": "Robotsvärm",

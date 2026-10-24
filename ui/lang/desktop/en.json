@@ -9351,6 +9351,8 @@
   "desktop.infra_guests_badge_stopped": "{count} guests · stopped",
   "desktop.infra_guests_badge_stopped_one": "1 guest · stopped",
   "desktop.infra_guests_badge_title": "Guests: {names}",
+  "desktop.infra_error_timeout": "The server did not answer in time.",
+  "desktop.infra_field_app_bindings": "Linked apps",
   "galaxa.emp_mine_layer": "EMP mine",
   "galaxa.cluster_mine_layer": "Cluster mine",
   "galaxa.swarm_launcher": "Swarm missiles",

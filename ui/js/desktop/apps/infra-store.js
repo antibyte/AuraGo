@@ -7,6 +7,7 @@
 
     const API = '/api/desktop/infra';
     const VIEWS = ['atlas', 'topology'];
+    const REQUEST_TIMEOUT = 20000, REPOLL_DELAY = 250;
 
     const edgeFields = edge => {
         const fields = { from: edge.from, to: edge.to, kind: edge.kind };
@@ -72,7 +73,7 @@
         }),
     };
 
-    function create({ ctx = {}, t: translate } = {}) {
+    function create({ ctx = {}, t: translate, requestTimeout = REQUEST_TIMEOUT } = {}) {
         const model = window.InfraAppModel;
         const t = translate || (key => ctx.t?.(key) || key);
         const listeners = new Set();
@@ -83,7 +84,7 @@
             histories[view] = model.createHistory(50);
         }
         const state = {
-            disposed: false, epoch: 1, visible: false, inView: true, pollPaused: false, timer: 0,
+            disposed: false, epoch: 1, visible: false, inView: true, pollPaused: false, timer: 0, writeSeq: 0, repollTimer: 0, repollExplicit: false,
             requests: new Set(), controller: new AbortController(), manifestController: null, manifestLoaded: false, manifestLoading: false,
             caps: { write: false, source_edit: false, control: false },
             nodes: [], edges: [], sources: [], sourceHosts: [], candidates: [],
@@ -107,6 +108,9 @@
         const subscribe = fn => { listeners.add(fn); return () => listeners.delete(fn); };
         const notify = (message, kind = 'info') => emit({ type: 'notice', message, kind });
         const setBusy = (key, busy) => { if (busy) state.busy.add(key); else state.busy.delete(key); emit({ type: 'busy', key }); };
+        // noteWrite counts every layout, node, edge, ignore and engine host write that was applied.
+        // A snapshot request that started before the count moved may predate that write.
+        const noteWrite = () => { state.writeSeq += 1; };
 
         // ---- permissions -----------------------------------------------------
         const canWrite = () => state.caps.write === true && ctx.readonly !== true;
@@ -123,6 +127,7 @@
         const abortRequests = () => {
             state.epoch++;
             clearTimeout(state.timer); state.timer = 0;
+            clearTimeout(state.repollTimer); state.repollTimer = 0; state.repollExplicit = false;
             state.requests.forEach(request => request.abort());
             state.requests.clear();
             state.manifestController?.abort();
@@ -137,7 +142,8 @@
             state.requests.add(controller);
             const relayAbort = () => controller.abort();
             state.controller.signal.addEventListener('abort', relayAbort, { once: true });
-            const timeout = setTimeout(() => controller.abort(), 20000);
+            let timedOut = false;
+            const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, requestTimeout);
             const opts = { ...options, signal: controller.signal };
             if (opts.body && typeof opts.body !== 'string') {
                 opts.headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
@@ -148,6 +154,10 @@
                 const result = await ctx.api(endpoint, opts);
                 if (state.disposed || epoch !== state.epoch) throw new DOMException('Stale request', 'AbortError');
                 return result;
+            } catch (error) {
+                // Running out of time is a failure of its own, not the quiet abort of a hide or close.
+                if (timedOut && error?.name === 'AbortError' && !state.disposed && epoch === state.epoch) throw Object.assign(new Error('timeout'), { name: 'TimeoutError' });
+                throw error;
             } finally {
                 clearTimeout(timeout);
                 state.requests.delete(controller);
@@ -161,7 +171,8 @@
             if (text !== key) return text;
             return t(error?.status === 409 ? 'desktop.infra_error_conflict' : 'desktop.infra_error_infra_error');
         };
-        const uncertainMutation = error => error?.name === 'AbortError' || (Number.isFinite(Number(error?.status)) && Number(error.status) >= 500) || (error?.status == null && error?.message !== 'unavailable');
+        // A write that was aborted, timed out or answered with a server error may still have been applied.
+        const uncertainMutation = error => error?.name === 'AbortError' || error?.name === 'TimeoutError' || (Number.isFinite(Number(error?.status)) && Number(error.status) >= 500) || (error?.status == null && error?.message !== 'unavailable');
         const isAccessError = error => {
             const code = String(error?.body?.error || '').toLowerCase();
             return [401, 403].includes(Number(error?.status)) || ['disabled', 'desktop_disabled', 'infra_disabled', 'forbidden', 'unauthorized'].includes(code);
@@ -247,13 +258,26 @@
             emit({ type: 'snapshot', structural, explicit });
             if (previousCaps !== JSON.stringify(state.caps)) emit({ type: 'caps' });
         }
+        // scheduleRepoll asks again shortly; an explicit refresh stays explicit.
+        function scheduleRepoll(explicit) {
+            state.repollExplicit = state.repollExplicit || explicit;
+            if (state.repollTimer || state.disposed) return;
+            state.repollTimer = setTimeout(() => {
+                const wantsExplicit = state.repollExplicit;
+                state.repollTimer = 0; state.repollExplicit = false;
+                void loadSnapshot(wantsExplicit);
+            }, REPOLL_DELAY);
+        }
         async function loadSnapshot(explicit = false) {
             if (state.disposed || !state.visible || state.busy.has('snapshot') || (state.pollPaused && !explicit)) return;
-            const generation = state.epoch;
+            const generation = state.epoch, writes = state.writeSeq;
             setBusy('snapshot', true);
             try {
                 const data = await request(`/snapshot?${explicit ? 'refresh=1&' : ''}include_ignored=1`, {}, generation);
                 state.pollPaused = false;
+                // A write was applied while this answer was on its way. The answer may predate it,
+                // and applying it would roll back the committed versions and positions.
+                if (writes !== state.writeSeq) { scheduleRepoll(explicit); return; }
                 applySnapshot(data, { explicit });
                 setSync('live');
                 schedulePoll();
@@ -263,13 +287,27 @@
                         state.caps = { write: false, source_edit: false, control: false };
                         state.pollPaused = true; abortRequests(); emit({ type: 'caps' });
                         notify(t('desktop.infra_access_unavailable'), 'error'); setSync('paused');
-                    } else { notify(messageFor(error), 'error'); setSync('error'); }
+                    } else {
+                        // One notice when the outage starts (recovery announces itself); a refresh the user asked for always answers.
+                        const entering = state.sync !== 'error';
+                        if (entering || explicit) notify(messageFor(error), 'error');
+                        setSync('error');
+                    }
                 }
             } finally { setBusy('snapshot', false); }
         }
+        // refreshSnapshot reloads after a write or a conflict. An answer that raced another
+        // write is asked for again (twice at most) instead of rolling that write back.
         async function refreshSnapshot() {
-            try { applySnapshot(await request('/snapshot?include_ignored=1')); return true; }
-            catch (error) { if (error?.name !== 'AbortError') notify(messageFor(error), 'error'); return false; }
+            try {
+                for (let attempt = 0; ; attempt += 1) {
+                    const writes = state.writeSeq;
+                    const data = await request('/snapshot?include_ignored=1');
+                    if (writes !== state.writeSeq && attempt < 2) continue;
+                    applySnapshot(data);
+                    return true;
+                }
+            } catch (error) { if (error?.name !== 'AbortError') notify(messageFor(error), 'error'); return false; }
         }
         async function loadTargets(force = false) {
             if (state.disposed || !state.visible || (state.targetsLoaded && !force)) return;
@@ -321,6 +359,7 @@
         }
 
         const replaceNode = node => {
+            noteWrite();
             const normalized = model.normalizeNode(node);
             const nodes = state.nodes.slice();
             const index = nodes.findIndex(item => item.id === normalized.id);
@@ -331,6 +370,7 @@
             return normalized;
         };
         const removeNode = id => {
+            noteWrite();
             state.nodes = state.nodes.filter(item => item.id !== id);
             state.edges = state.edges.filter(edge => edge.from !== id && edge.to !== id);
             state.drafts.delete(id); state.dirty.delete(id);
@@ -433,6 +473,7 @@
             if (intent?.parent_id !== undefined) draft.parent_id = node.parent_id;
         }
         function applyLayoutResult(result, view, batch) {
+            noteWrite();
             const snapshot = model.layoutSnapshot(result);
             if (snapshot) { applySnapshot(snapshot, { explicit: true }); return; }
             const rows = Array.isArray(result?.nodes) ? result.nodes : Array.isArray(result) ? result : [];
@@ -497,6 +538,7 @@
         // ---- edges ------------------------------------------------------------
         async function createEdge(fields) {
             const result = await request('/edges', { method: 'POST', body: { id: '', version: 0, ...fields } });
+            noteWrite();
             const edge = result?.edge || result;
             if (!edge?.id) { await refreshSnapshot(); return null; }
             state.edges = [...state.edges.filter(item => item.id !== edge.id), edge];
@@ -505,6 +547,7 @@
         }
         async function updateEdge(id, body) {
             const result = await request(`/edges/${encodeURIComponent(id)}`, { method: 'PUT', body });
+            noteWrite();
             const edge = result?.edge || result;
             if (edge?.id) { state.edges = state.edges.map(item => (item.id === edge.id ? edge : item)); emit({ type: 'edges' }); }
             else await refreshSnapshot();
@@ -515,6 +558,7 @@
             if (!edge) return true;
             try { await request(`/edges/${encodeURIComponent(id)}?version=${encodeURIComponent(edge.version)}`, { method: 'DELETE' }); }
             catch (error) { if (error?.status !== 404) throw error; }
+            noteWrite();
             state.edges = state.edges.filter(item => item.id !== id);
             if (state.selectedEdge === id) { state.selectedEdge = ''; emit({ type: 'selection' }); }
             emit({ type: 'edges' });
@@ -524,6 +568,7 @@
         // ---- sources, discoveries, removal and parents (Plan C) ---------------------
         const identityKey = source => `${source?.kind || ''}\x00${source?.instance || ''}\x00${source?.key || ''}`;
         function mergeSources(rows) {
+            noteWrite();
             const byKey = new Map(state.sources.map(source => [identityKey(source), source]));
             for (const row of rows) byKey.set(identityKey(row), { ...(byKey.get(identityKey(row)) || {}), ...row });
             state.sources = [...byKey.values()];
@@ -538,7 +583,7 @@
                 if (!state.dirty.has(normalized.id)) state.drafts.set(normalized.id, model.clone(normalized));
                 out.push(normalized);
             }
-            if (out.length) { state.nodes = nodes; emit({ type: 'nodes' }); }
+            if (out.length) { noteWrite(); state.nodes = nodes; emit({ type: 'nodes' }); }
             return out;
         }
         // setSourcesIgnored ignores (or restores) sources in chunks of 1000 and
@@ -573,6 +618,7 @@
             try {
                 const result = await request('/source-hosts', { method: 'PUT', body: { kind: 'docker', instance, node_id: nodeId || '', version: Number(entry?.version) || 0 } });
                 const saved = result?.source_host;
+                noteWrite();
                 if (saved?.instance) { state.sourceHosts = [...state.sourceHosts.filter(item => !(item.kind === saved.kind && item.instance === saved.instance)), { ...(entry || {}), ...saved }]; emit({ type: 'source-hosts' }); }
                 await refreshSnapshot();
                 return true;

@@ -8081,6 +8081,8 @@
   "desktop.infra_guests_badge_stopped": "{count} 个客户机 · 已停止",
   "desktop.infra_guests_badge_stopped_one": "1 个客户机 · 已停止",
   "desktop.infra_guests_badge_title": "客户机：{names}",
+  "desktop.infra_error_timeout": "服务器未在规定时间内响应。",
+  "desktop.infra_field_app_bindings": "已关联的应用",
   "galaxa.emp_mine_layer": "电磁脉冲地雷",
   "galaxa.cluster_mine_layer": "破片地雷",
   "galaxa.swarm_launcher": "蜂群导弹",

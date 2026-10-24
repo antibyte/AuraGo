@@ -8081,6 +8081,8 @@
   "desktop.infra_guests_badge_stopped": "{count} invitados · detenidos",
   "desktop.infra_guests_badge_stopped_one": "1 invitado · detenido",
   "desktop.infra_guests_badge_title": "Invitados: {names}",
+  "desktop.infra_error_timeout": "El servidor no respondió a tiempo.",
+  "desktop.infra_field_app_bindings": "Aplicaciones vinculadas",
   "galaxa.emp_mine_layer": "Mina EMP",
   "galaxa.cluster_mine_layer": "Mina de fragmentación",
   "galaxa.swarm_launcher": "Enjambre de misiles",

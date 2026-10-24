@@ -70,7 +70,7 @@ const required = new Set();
 for (const match of source.matchAll(/t\('(desktop\.(?:app_infra|infra_[a-zA-Z0-9_]+))'/g)) required.add(match[1]);
 for (const key of ['desktop.qc_target_selected', 'desktop.qc_no_connection']) required.add(key);
 for (const icon of model.iconIds()) required.add(`desktop.infra_icon_${icon.replaceAll('-', '_')}`);
-for (const key of ['desktop.infra_access_unavailable', 'desktop.infra_action_unavailable', 'desktop.infra_saved_newer_draft', 'desktop.infra_source_saved_newer_draft', 'desktop.infra_layout_pending_review', 'desktop.infra_position', 'desktop.infra_source_compare', 'desktop.infra_node_compare', 'desktop.infra_current_source', 'desktop.infra_current_inventory', 'desktop.infra_your_draft', 'desktop.infra_no_field_differences', 'desktop.infra_reapply_draft', 'desktop.infra_reapply_ready', 'desktop.infra_node_conflict_review', 'desktop.infra_target_unavailable', 'desktop.infra_action_outcome_unknown', 'desktop.infra_pve_tags_hint']) required.add(key);
+for (const key of ['desktop.infra_access_unavailable', 'desktop.infra_action_unavailable', 'desktop.infra_saved_newer_draft', 'desktop.infra_source_saved_newer_draft', 'desktop.infra_layout_pending_review', 'desktop.infra_position', 'desktop.infra_source_compare', 'desktop.infra_node_compare', 'desktop.infra_current_source', 'desktop.infra_current_inventory', 'desktop.infra_your_draft', 'desktop.infra_no_field_differences', 'desktop.infra_reapply_draft', 'desktop.infra_reapply_ready', 'desktop.infra_node_conflict_review', 'desktop.infra_target_unavailable', 'desktop.infra_action_outcome_unknown', 'desktop.infra_pve_tags_hint', 'desktop.infra_error_timeout', 'desktop.infra_field_app_bindings']) required.add(key);
 for (const [family, values] of Object.entries({
     infra_kind: ['device', 'vm', 'container', 'service', 'network', 'site', 'room', 'rack', 'group'],
     infra_source: ['registry', 'docker', 'proxmox', 'fritzbox'],
@@ -802,6 +802,168 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
         assert.equal(await locked.updateParents([['a', 'room']]), false);
         assert.equal(readonly.calls.length, 0, 'a read-only desktop sends nothing');
         locked.dispose();
+    }
+}
+
+// ---- store: stale polls, request timeouts, repeated poll failures -------------------
+{
+    const InfraStore = window.InfraAppStore;
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const tick = () => sleep(0);
+    const node = (version, x, extra = {}) => ({ id: 'a', version, kind: 'device', name: 'A', icon: 'router', profile: {}, placements: { atlas: { x, y: 0, pinned: true } }, sources: [], ...extra });
+    const snap = (nodes, extra = {}) => ({ nodes, edges: [], sources: [], source_hosts: [], capabilities: { write: true }, ...extra });
+    // A fake API that holds every request until the test answers it, and rejects like fetch when aborted.
+    const held = () => {
+        const pending = [];
+        const api = (endpoint, options = {}) => new Promise((resolve, reject) => {
+            pending.push({ endpoint, method: options.method || 'GET', body: typeof options.body === 'string' ? JSON.parse(options.body) : options.body, resolve, reject });
+            options.signal?.addEventListener('abort', () => reject(new DOMException('The operation was aborted.', 'AbortError')));
+        });
+        const take = predicate => { const index = pending.findIndex(predicate); assert.ok(index >= 0, 'expected a pending request'); return pending.splice(index, 1)[0]; };
+        const isSnapshot = request => request.method === 'GET' && request.endpoint.includes('/snapshot');
+        return { api, pending, take, isSnapshot };
+    };
+    const noticesOf = store => { const notices = []; store.subscribe(change => { if (change.type === 'notice') notices.push(change.message); }); return notices; };
+    const failure = status => Object.assign(new Error('boom'), { status, body: { error: 'boom' } });
+
+    { // a poll that started before a committed write never rolls the write back
+        const { api, take, isSnapshot, pending } = held();
+        const store = InfraStore.create({ ctx: { api }, t: key => key });
+        store.applySnapshot(snap([node(1, 0)]));
+        store.state.visible = true;
+        const poll = store.loadSnapshot(false);
+        await tick();
+        const olderPoll = take(isSnapshot);
+        const move = store.dispatch(InfraStore.commands.moveNodes('atlas', new Map([['a', { x: 0, y: 0, pinned: true }]]), new Map([['a', { x: 48, y: 0, pinned: true }]])));
+        await tick();
+        const put = take(request => request.method === 'PUT');
+        assert.equal(put.body.nodes[0].version, 1);
+        put.resolve({ nodes: [node(2, 48)] });
+        await move;
+        assert.equal(store.nodeById('a').version, 2);
+        olderPoll.resolve(snap([node(1, 0)]));
+        await poll;
+        assert.equal(store.nodeById('a').version, 2, 'the older poll answer is discarded');
+        assert.equal(store.effectivePlacement('a', 'atlas').x, 48);
+        assert.equal(store.canUndo('atlas'), true, 'the undo history survives');
+        assert.equal(pending.length, 0, 'the re-poll is not instant');
+        await sleep(400);
+        const repoll = take(isSnapshot);
+        assert.doesNotMatch(repoll.endpoint, /refresh=1/, 'a quiet poll stays quiet');
+        repoll.resolve(snap([node(2, 48)]));
+        await sleep(20);
+        assert.equal(store.state.sync, 'live');
+        const next = store.dispatch(InfraStore.commands.moveNodes('atlas', new Map([['a', { x: 48, y: 0, pinned: true }]]), new Map([['a', { x: 96, y: 0, pinned: true }]])));
+        await tick();
+        const second = take(request => request.method === 'PUT');
+        assert.equal(second.body.nodes[0].version, 2, 'the next move carries the committed version');
+        second.resolve({ nodes: [node(3, 96)] });
+        await next;
+        assert.equal(store.canUndo('atlas'), true);
+        store.dispose();
+    }
+    { // an explicit refresh that raced a write is asked again as an explicit refresh
+        const { api, take, isSnapshot } = held();
+        const store = InfraStore.create({ ctx: { api }, t: key => key });
+        store.applySnapshot(snap([node(1, 0)]));
+        store.state.visible = true;
+        const refresh = store.loadSnapshot(true);
+        await tick();
+        const older = take(isSnapshot);
+        assert.match(older.endpoint, /refresh=1/);
+        const move = store.queueLayout('atlas', new Map([['a', { x: 48, y: 0, pinned: true }]]));
+        await tick();
+        take(request => request.method === 'PUT').resolve({ nodes: [node(2, 48)] });
+        await move;
+        older.resolve(snap([node(1, 0)]));
+        await refresh;
+        assert.equal(store.nodeById('a').version, 2);
+        await sleep(400);
+        const again = take(isSnapshot);
+        assert.match(again.endpoint, /refresh=1/, 'the user still gets the explicit refresh');
+        again.resolve(snap([node(2, 48)]));
+        await sleep(20);
+        assert.equal(store.nodeById('a').version, 2);
+        store.dispose();
+    }
+    { // edge, node and ignore writes count as writes too
+        const { api, take, isSnapshot } = held();
+        const store = InfraStore.create({ ctx: { api }, t: key => key });
+        store.applySnapshot(snap([node(1, 0)]));
+        store.state.visible = true;
+        const poll = store.loadSnapshot(false);
+        await tick();
+        const olderPoll = take(isSnapshot);
+        const create = store.createEdge({ from: 'a', to: 'b', kind: 'ethernet' });
+        await tick();
+        take(request => request.method === 'POST').resolve({ edge: { id: 'e1', version: 1, from: 'a', to: 'b', kind: 'ethernet' } });
+        await create;
+        olderPoll.resolve(snap([node(1, 0)]));
+        await poll;
+        assert.equal(store.state.edges.length, 1, 'an edge created after the poll started survives its answer');
+        store.dispose();
+    }
+    { // a request that hits the timeout is an error, never a quiet abort
+        const { api } = held();
+        const store = InfraStore.create({ ctx: { api }, t: key => (key === 'desktop.infra_error_timeout' ? 'Timed out' : key), requestTimeout: 15 });
+        const notices = noticesOf(store);
+        store.state.visible = true;
+        await store.loadSnapshot(false);
+        assert.equal(store.state.sync, 'error', 'a hung server is not shown as live');
+        assert.deepEqual(notices, ['Timed out']);
+        assert.equal(store.state.busy.has('snapshot'), false);
+        const timedOut = await store.request('/nodes', { method: 'POST', body: {} }).catch(error => error);
+        assert.equal(timedOut.name, 'TimeoutError');
+        assert.equal(store.uncertainMutation(timedOut), true, 'a timed-out write has an unknown outcome');
+        assert.equal(store.uncertainMutation(new DOMException('aborted', 'AbortError')), true);
+        assert.equal(store.uncertainMutation(Object.assign(new Error('bad'), { status: 400 })), false);
+        store.dispose();
+    }
+    { // a timed-out write reloads and reports the unknown outcome; a deliberate abort stays quiet
+        const { api, take, isSnapshot, pending } = held();
+        const store = InfraStore.create({ ctx: { api }, t: key => key, requestTimeout: 60 });
+        store.applySnapshot(snap([node(1, 0)]));
+        store.state.visible = true;
+        const notices = noticesOf(store);
+        const imported = store.importBatch([{ candidate_id: 'c1' }]);
+        while (!pending.some(isSnapshot)) await sleep(2);
+        const reload = take(isSnapshot);
+        reload.resolve(snap([node(1, 0)]));
+        const result = await imported;
+        assert.equal(result.uncertain, true);
+        assert.deepEqual(notices, ['desktop.infra_write_outcome_unknown']);
+        notices.length = 0;
+        const poll = store.loadSnapshot(false);
+        await tick();
+        store.abortRequests();
+        await poll;
+        assert.deepEqual(notices, [], 'hiding or closing the window aborts without a notice');
+        assert.notEqual(store.state.sync, 'error');
+        store.dispose();
+    }
+    { // repeated poll failures notify once; recovery announces once
+        let failing = true;
+        const flaky = async (endpoint, options) => { if (failing) throw failure(502); return snap([node(1, 0)]); };
+        const store = InfraStore.create({ ctx: { api: flaky }, t: key => key });
+        const notices = noticesOf(store);
+        const announced = [];
+        store.subscribe(change => { if (change.type === 'sync' && change.announce) announced.push(change.announce); });
+        store.state.visible = true;
+        for (let index = 0; index < 3; index += 1) await store.loadSnapshot(false);
+        assert.equal(store.state.sync, 'error');
+        assert.equal(notices.length, 1, 'three failed polls make one notice');
+        await store.loadSnapshot(true);
+        assert.equal(notices.length, 2, 'a refresh the user asked for always answers');
+        failing = false;
+        await store.loadSnapshot(false);
+        assert.equal(store.state.sync, 'live');
+        assert.deepEqual(announced, ['desktop.infra_sync_recovered']);
+        failing = true;
+        await store.loadSnapshot(false);
+        await store.loadSnapshot(false);
+        assert.equal(notices.length, 3, 'a new outage notifies again');
+        assert.deepEqual(announced, ['desktop.infra_sync_recovered', 'desktop.infra_sync_stale']);
+        store.dispose();
     }
 }
 

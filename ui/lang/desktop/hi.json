@@ -8081,6 +8081,8 @@
   "desktop.infra_guests_badge_stopped": "{count} गेस्ट · रुके हुए",
   "desktop.infra_guests_badge_stopped_one": "1 गेस्ट · रुका हुआ",
   "desktop.infra_guests_badge_title": "गेस्ट: {names}",
+  "desktop.infra_error_timeout": "सर्वर ने समय पर उत्तर नहीं दिया।",
+  "desktop.infra_field_app_bindings": "लिंक किए गए ऐप",
   "galaxa.emp_mine_layer": "ईएमपी बारूदी सुरंग",
   "galaxa.cluster_mine_layer": "विखंडन बारूदी सुरंग",
   "galaxa.swarm_launcher": "मिसाइलों का झुंड",
