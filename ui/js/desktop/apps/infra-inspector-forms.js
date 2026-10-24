@@ -111,7 +111,7 @@
                     id: group.id, label: group.id === 'suggested' ? t('desktop.infra_picker_suggested') : appLabel(group.id), more: group.more || 0,
                     options: group.options.map(option => ({ id: `${option.app}:${option.target_id}`, label: option.label, meta: appLabel(option.app), attrs: { 'data-app-target': '', 'data-app': option.app, 'data-target-id': option.target_id } })),
                 })),
-                note: result.hiddenMesh ? model.fill(t('desktop.infra_picker_mesh_hidden'), { count: result.hiddenMesh }) : '',
+                note: result.hiddenMesh ? model.countText(result.hiddenMesh, t('desktop.infra_picker_mesh_hidden_one'), t('desktop.infra_picker_mesh_hidden')) : '',
             };
         }
         function renderChips() {

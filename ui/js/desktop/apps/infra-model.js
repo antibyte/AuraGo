@@ -473,6 +473,8 @@
         return { libraryWidth: clampNumber(data.libraryWidth, 220, 400, 264), libraryCollapsed: data.libraryCollapsed === true, inspectorWidth: clampNumber(data.inspectorWidth, 320, 520, 360), minimap: data.minimap !== false };
     };
     const fill = (text, vars = {}) => Object.entries(vars).reduce((out, [key, value]) => out.replaceAll(`{${key}}`, String(value)), String(text));
+    // countText says "1 asset" or "3 assets": the singular text for exactly one, the plural text otherwise ({count} is filled in).
+    const countText = (count, one, other, vars = {}) => fill(Number(count) === 1 ? one : other, { ...vars, count });
     // normalizeNode fills UI defaults. It never adds fields the snapshot did not
     // send: node PUT bodies are clones of these objects and the server rejects
     // unknown fields.
@@ -832,7 +834,7 @@
         clampZoom, toWorld, toScreen, zoomAt, fitView, viewCenter, viewFromCenter, snap, cardRect, intersects, containsPoint,
         normalizeRect, padRect, unionRects, freeSlot, regionRect, regionLayout, regionAt, dropParent, growRegions,
         spatialNeighbour, compactGrid, defaultEdgeKind, guestIndex, matchesFilters, filtersActive, buildScene,
-        mergeIntent, layoutItems, rebaseLayout, createHistory, readLayoutPrefs, fill, normalizeNode, minimapTransform, glyph,
+        mergeIntent, layoutItems, rebaseLayout, createHistory, readLayoutPrefs, fill, countText, normalizeNode, minimapTransform, glyph,
         naturalCompare, isOpaqueName, addressesOf, isGenericDiscovery, compareSpecificity, relevanceIndex, discoveryRelevance, groupDiscoveries, bindableFor, linkSuggestions, infraCleanup,
         TABLE_SORTS, tableComparator, tableRows, readTablePrefs, readInspectorPrefs, inspectorTab, withInspectorTab, readDismissed, listEntryText, draftDiff, formGroupFill, groupOfField,
         isMeshAsset, appTargetOptions, appLinkContext, placePath, isDescendant, attentionItems,

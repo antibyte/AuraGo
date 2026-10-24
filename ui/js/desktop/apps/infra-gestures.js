@@ -753,7 +753,7 @@
                 const node = store.nodeById(id);
                 if (view === 'atlas' && store.features.layoutParent && scene.cardById.has(id) && !model.isContainer(node.kind) && (!placeId || target)) layoutIds.push(id); else parentIds.push(id);
             }
-            const label = placeId ? model.fill(t('desktop.infra_moved_to_place'), { count: valid.length, place: nameOf(placeId) }) : model.fill(t('desktop.infra_moved_out_of_place'), { count: valid.length });
+            const label = placeId ? model.countText(valid.length, t('desktop.infra_moved_to_place_one'), t('desktop.infra_moved_to_place'), { place: nameOf(placeId) }) : model.countText(valid.length, t('desktop.infra_moved_out_of_place_one'), t('desktop.infra_moved_out_of_place'));
             const work = [];
             if (layoutIds.length) {
                 const moving = new Set(layoutIds), obstacles = scene.cards.filter(card => !moving.has(card.id)).map(model.cardRect);
@@ -783,7 +783,7 @@
             const view = app.mapView(), before = new Map();
             for (const id of ids) { const intent = store.currentIntent(id, view, false); if (intent) before.set(id, intent); }
             if (!before.size || !store.canWrite() || !store.features.unplace) return Promise.resolve(false);
-            const label = model.fill(t('desktop.infra_removed_from_map'), { count: before.size });
+            const label = model.countText(before.size, t('desktop.infra_removed_from_map_one'), t('desktop.infra_removed_from_map'));
             app.announce(label);
             return store.dispatch(commands().unplace(view, before, label));
         }

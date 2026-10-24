@@ -106,6 +106,19 @@ for (const locale of locales) {
     assert.deepEqual(untranslated, [], `${locale}.json keeps English prose for: ${untranslated.join(', ')}`);
 }
 
+// Counts read "1 asset", not "1 assets": every counted text has a singular key without a count placeholder.
+const singularKeys = ['connections_summary', 'asset_count', 'imported', 'guest_count', 'region_label', 'moved_to_place', 'moved_out_of_place', 'cleanup_show_dismissed', 'cleanup_engine_host', 'cleanup_show_guests', 'removed_ignored', 'removed_from_map', 'picker_mesh_hidden', 'ignored_count', 'import_partial', 'select_all_rows', 'sources_count', 'moved', 'guests_badge', 'guests_badge_stopped'].map(name => `desktop.infra_${name}_one`);
+for (const locale of locales) {
+    const dictionary = JSON.parse(fs.readFileSync(path.join(root, `ui/lang/desktop/${locale}.json`), 'utf8'));
+    const bad = singularKeys.filter(key => typeof dictionary[key] !== 'string' || !dictionary[key].trim() || dictionary[key].includes('{count}'));
+    assert.deepEqual(bad, [], `${locale}.json lacks singular texts (or keeps a count placeholder) for: ${bad.join(', ')}`);
+}
+assert.equal(english['desktop.infra_connections_summary_one'], '1 connection');
+assert.equal(english['desktop.infra_asset_count_one'], '1 asset');
+assert.equal(english['desktop.infra_cleanup_show_guests_one'], 'Show 1 guest');
+assert.equal(model.countText(1, '1 connection', '{count} connections'), '1 connection');
+assert.equal(model.countText(0, '1 connection', '{count} connections'), '0 connections');
+assert.equal(model.countText(3, '1 asset moved to {place}', '{count} assets moved to {place}', { place: 'Rack' }), '3 assets moved to Rack');
 assert.equal(model.powerLabel('stopped'), 'desktop.infra_power_stopped');
 assert.equal(model.powerLabel(''), '');
 assert.equal(model.powerLabel('on'), '');

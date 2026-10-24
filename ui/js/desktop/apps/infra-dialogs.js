@@ -219,7 +219,7 @@
             if (!await confirmAction(t('desktop.infra_remove_and_ignore'), message, { confirmLabel: t('desktop.infra_remove_and_ignore') })) return false;
             const removed = await store.removeNodes(list, { ignoreSources: true });
             if (removed.length) {
-                const text = model.fill(t('desktop.infra_removed_ignored'), { count: removed.length });
+                const text = model.countText(removed.length, t('desktop.infra_removed_ignored_one'), t('desktop.infra_removed_ignored'));
                 if (removed.length === list.length) store.notify(text, 'success'); else app.announce(text);
             }
             return removed.length === list.length;

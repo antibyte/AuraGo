@@ -218,7 +218,7 @@
             const id = esc(node.id), name = esc(node.name || node.id), safe = safeOf(node.id);
             const state = model.sourceState(node), power = powerOf(node), expanded = store.state.expandedHosts.has(node.id);
             const label = [node.name || node.id, kindLabel(node.kind), app.statusLabel(state), power ? t(model.powerLabel(power)) : '',
-                guestList.length ? model.fill(t('desktop.infra_guest_count'), { count: guestList.length }) : ''].filter(Boolean).join(', ');
+                guestList.length ? model.countText(guestList.length, t('desktop.infra_guest_count_one'), t('desktop.infra_guest_count')) : ''].filter(Boolean).join(', ');
             const handles = store.canWrite() ? CONNECT_HANDLES.map(side => `<span class="infra-card-handle" data-connect-handle="${side}" aria-hidden="true"></span>`).join('') : '';
             let html = `<button type="button" class="infra-card" data-node="${id}" data-kind="${esc(node.kind)}" data-state="${esc(state)}"${power ? ` data-power="${power}"` : ''} tabindex="-1" aria-pressed="false" aria-label="${esc(label)}" title="${name}">`
                 + `<span class="infra-card-icon">${app.icon(node.icon)}</span>`
@@ -313,7 +313,7 @@
         // ---- regions --------------------------------------------------------------
         function regionHTML(node, depth) {
             const id = esc(node.id), count = store.childrenOf(node.id).length;
-            const label = model.fill(t('desktop.infra_region_label'), { name: node.name || node.id, kind: kindLabel(node.kind), count });
+            const label = model.countText(count, t('desktop.infra_region_label_one'), t('desktop.infra_region_label'), { name: node.name || node.id, kind: kindLabel(node.kind) });
             const handles = store.canWrite() && store.features.layoutParent ? RESIZE_HANDLES.map(side => `<span class="infra-region-handle" data-resize="${side}" aria-hidden="true"></span>`).join('') : '';
             return `<div class="infra-region" data-region="${id}" data-kind="${esc(node.kind)}" data-depth="${depth}">`
                 + `<button type="button" class="infra-region-header" data-region-header="${id}" tabindex="-1" aria-pressed="false" aria-label="${esc(label)}">`

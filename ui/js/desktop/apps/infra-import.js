@@ -229,8 +229,8 @@
             if (disposed || state.disposed) return;
             const failed = new Map(result.errors.map(item => [item.candidate_id, item.message]));
             const imported = result.uncertain ? 0 : items.filter(item => !failed.has(item.candidate_id) && !state.candidates.some(candidate => candidate.id === item.candidate_id)).length;
-            if (imported) store.notify(model.fill(t('desktop.infra_imported'), { count: imported }), 'success');
-            if (failed.size) app.announce(model.fill(t('desktop.infra_import_partial'), { count: failed.size }));
+            if (imported) store.notify(model.countText(imported, t('desktop.infra_imported_one'), t('desktop.infra_imported')), 'success');
+            if (failed.size) app.announce(model.countText(failed.size, t('desktop.infra_import_partial_one'), t('desktop.infra_import_partial')));
             if (!mine || owner !== mine) return;
             for (const item of items) errors.delete(item.candidate_id);
             for (const [id, message] of failed) errors.set(id, message);
@@ -254,7 +254,7 @@
             if (!list.length || !canWrite() || state.busy.has('ignore')) return;
             const mine = owner;
             if (!await store.setSourcesIgnored(list.map(candidate => candidate.source), true)) return;
-            app.announce(model.fill(t('desktop.infra_ignored_count'), { count: list.length }));
+            app.announce(model.countText(list.length, t('desktop.infra_ignored_count_one'), t('desktop.infra_ignored_count')));
             if (owner !== mine) return;
             for (const candidate of list) { state.importSelection.delete(candidate.id); state.importBindings.delete(candidate.id); errors.delete(candidate.id); }
             render();

@@ -243,7 +243,7 @@
             const counted = state.sources.filter(source => !source.ignored);
             const current = counted.filter(source => source.state === 'current').length;
             const updated = state.refreshAt ? t('desktop.infra_updated').replace('{time}', new Date(state.refreshAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) : '';
-            const sources = counted.length ? t('desktop.infra_sources_count').replace('{current}', current).replace('{total}', counted.length) : t('desktop.infra_sources_waiting');
+            const sources = counted.length ? model.fill(counted.length === 1 ? t('desktop.infra_sources_count_one') : t('desktop.infra_sources_count'), { current, total: counted.length }) : t('desktop.infra_sources_waiting');
             liveEl.title = updated ? `${updated} · ${sources}` : sources;
             filterDot.hidden = !(state.filters.kind || state.filters.source || state.filters.power);
         }

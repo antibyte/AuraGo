@@ -51,7 +51,7 @@
                 const more = guests.length > LIST_LIMIT ? `<li><button type="button" data-guest-more="${esc(node.id)}">${esc(model.fill(t('desktop.infra_more_guests'), { count: guests.length - LIST_LIMIT }))}</button></li>` : '';
                 facts += row(t('desktop.infra_fact_guests'), `<ul class="infra-overview-guests">${guests.slice(0, LIST_LIMIT).map(guest => `<li><button type="button" data-inspector-select="${esc(guest.id)}">${app.icon(guest.icon)}<span>${esc(guest.name)}</span></button></li>`).join('')}${more}</ul>`);
             }
-            facts += row(t('desktop.infra_tab_connections'), esc(model.fill(t('desktop.infra_connections_summary'), { count: edgesOf(node).length })))
+            facts += row(t('desktop.infra_tab_connections'), esc(model.countText(edgesOf(node).length, t('desktop.infra_connections_summary_one'), t('desktop.infra_connections_summary'))))
                 + row(t('desktop.infra_fact_last_seen'), esc(seen ? new Date(seen).toLocaleString() : t('desktop.infra_no_observation')));
             const links = (node.app_links || []).filter(link => APP_LINK_TARGETS.has(link.app));
             const apps = links.length ? `<div class="infra-form-section"><h3>${esc(t('desktop.infra_fact_apps'))}</h3><div class="infra-app-links">${links.map(link => `<button type="button" class="infra-app-link" data-open-app="${esc(link.app)}" data-target-id="${esc(link.target_id)}">${esc(appLabel(link.app))}<span aria-hidden="true">↗</span></button>`).join('')}</div></div>` : '';

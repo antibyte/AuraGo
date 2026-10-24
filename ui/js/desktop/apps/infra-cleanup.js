@@ -38,7 +38,7 @@
                 const text = item.match === 'mac' ? t('desktop.infra_cleanup_duplicate_mac') : t('desktop.infra_cleanup_duplicate');
                 return { text: model.fill(text, { names, address: item.value }), primary: t('desktop.infra_cleanup_remove_duplicate'), meta: model.fill(t('desktop.infra_cleanup_keep'), { name: nameOf(item.keepId) }) };
             }
-            if (item.type === 'engine-host') return { text: model.fill(t('desktop.infra_cleanup_engine_host'), { count: item.guestIds.length }), primary: t('desktop.infra_assign_engine_host'), dialog: true };
+            if (item.type === 'engine-host') return { text: model.countText(item.guestIds.length, t('desktop.infra_cleanup_engine_host_one'), t('desktop.infra_cleanup_engine_host')), primary: t('desktop.infra_assign_engine_host'), dialog: true };
             if (item.type === 'guest-host') return { text: model.fill(t('desktop.infra_cleanup_guest_host'), { name: nameOf(item.nodeId) }), primary: t('desktop.infra_choose_host'), dialog: true };
             return { text: model.fill(t('desktop.infra_cleanup_opaque'), { name: nameOf(item.nodeId) }), primary: t('desktop.infra_rename') };
         }
@@ -53,7 +53,7 @@
             let guests = '';
             if (item.type === 'engine-host') {
                 const open = expanded.has(item.id);
-                const label = open ? t('desktop.infra_cleanup_hide_guests') : model.fill(t('desktop.infra_cleanup_show_guests'), { count: item.guestIds.length });
+                const label = open ? t('desktop.infra_cleanup_hide_guests') : model.countText(item.guestIds.length, t('desktop.infra_cleanup_show_guests_one'), t('desktop.infra_cleanup_show_guests'));
                 guests = `<button type="button" class="infra-library-disclosure infra-cleanup-toggle" data-cleanup-expand="${id}" aria-expanded="${open}" aria-controls="${listId}">${app.glyph('chevron')}<span>${esc(label)}</span></button>`
                     + `<ul class="infra-library-children" id="${listId}" role="listbox" aria-multiselectable="true" aria-label="${esc(label)}"${open ? '' : ' hidden'}>${open ? item.guestIds.map(guestRow).join('') : ''}</ul>`;
             }
@@ -66,7 +66,7 @@
             list.innerHTML = rows.map(itemHTML).join('');
             count.textContent = String(rows.length);
             reset.hidden = hiddenCount === 0;
-            reset.textContent = hiddenCount ? model.fill(t('desktop.infra_cleanup_show_dismissed'), { count: hiddenCount }) : '';
+            reset.textContent = hiddenCount ? model.countText(hiddenCount, t('desktop.infra_cleanup_show_dismissed_one'), t('desktop.infra_cleanup_show_dismissed')) : '';
             section.hidden = !rows.length && hiddenCount === 0;
             return rows.length;
         }
@@ -95,7 +95,7 @@
             if (!await app.dialogs.confirmAction(t('desktop.infra_cleanup_remove_duplicate'), message, { confirmLabel: t('desktop.infra_cleanup_remove_duplicate') })) return;
             if (!store.canWrite()) return;
             const removed = await store.removeNodes(item.removeIds, { ignoreSources: true });
-            if (removed.length) app.announce(model.fill(t('desktop.infra_removed_ignored'), { count: removed.length }));
+            if (removed.length) app.announce(model.countText(removed.length, t('desktop.infra_removed_ignored_one'), t('desktop.infra_removed_ignored')));
         }
         async function run(id, button) {
             const item = find(id);
