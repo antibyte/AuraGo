@@ -136,7 +136,7 @@ func TestGameMakerStudioLayoutBrowser(t *testing.T) {
 	send(1, "phase", map[string]any{"phase": "building"})
 	send(2, "file_changed", map[string]any{"path": "src/main.ts"})
 	send(3, "tool_call", map[string]any{"attempted": true, "tool": "game_maker_validate"})
-	page.MustWait(`()=>!document.querySelector('[data-gm-job-banner]').hidden&&document.querySelector('[data-gm-conversation]').textContent.includes('src/main.ts')`)
+	page.MustWait(`()=>!document.querySelector('[data-gm-job-banner]').hidden&&!document.querySelector('[data-gm-job-feed]').hidden&&document.querySelector('[data-gm-job-feed-lines]').textContent.includes('src/main.ts')`)
 	layout("running")
 	check("running: stop stays reachable and the form is locked", `()=>{const stop=document.querySelector('[data-gm-action="stop"]').getBoundingClientRect();return stop.width>30&&stop.right<=innerWidth&&document.querySelector('[data-gm-change-form] textarea').disabled}`)
 	check("running: the conversation keeps the free space, not the phase row", `()=>{const pane=document.querySelector('.gm-agent-pane').getBoundingClientRect(),phases=document.querySelector('[data-gm-phases]').getBoundingClientRect(),banner=document.querySelector('[data-gm-job-banner]').getBoundingClientRect(),log=document.querySelector('[data-gm-conversation]').getBoundingClientRect(),form=document.querySelector('[data-gm-change-form]').getBoundingClientRect();return phases.height<90&&banner.height<90&&log.top<=phases.bottom+2&&log.height>pane.height/2&&Math.abs(form.bottom-pane.bottom)<2}`)
@@ -184,6 +184,7 @@ return m.top>=s.top-1&&m.bottom<=s.bottom+1&&m.left>=s.left-1&&m.right<=s.right+
 	page.MustElement(`[data-gm-create] [data-modal-close]`).MustClick()
 	page.MustWait(`()=>!document.querySelector('[data-gm-create]')`)
 
+	page.MustElement(`[data-gm-more-toggle]`).MustClick()
 	page.MustElement(`[data-gm-action="revisions"]`).MustClick()
 	page.MustWait(`()=>!!document.querySelector('.gm-modal')`)
 	snapshot("studio-05-revisions")

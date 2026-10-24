@@ -117,7 +117,7 @@ fetch('/lang/desktop/de.json').then(r=>r.json()).then(lang=>GameMakerStudioApp.r
 	page.MustSetViewport(1366, 768, 1, false)
 	send(10, "file_changed", map[string]any{"path": "<img src=x onerror=alert(1)>"})
 	page.MustWait(`()=>document.querySelector('.gm-build-lines').textContent.includes('<img')`)
-	if !page.MustEval(`()=>!document.querySelector('.gm-build-lines img')&&!/PRIVATE_SENTINEL|STALE_SENTINEL/.test(document.querySelector('.gm-build-lines').textContent)`).Bool() {
+	if !page.MustEval(`()=>{const feed=document.querySelector('[data-gm-job-feed]');return !document.querySelector('.gm-build-lines img')&&!feed.querySelector('img')&&feed.hidden&&!/PRIVATE_SENTINEL|STALE_SENTINEL/.test(document.querySelector('.gm-build-lines').textContent+feed.textContent)}`).Bool() {
 		t.Fatal("terminal interpreted markup or exposed private/stale content")
 	}
 	page.MustEval(`()=>{const s=GameMakerStudioApp.instances.get('fixture');for(let id=11;id<90;id++)s.activity.event({id,type:'file_changed',payload:{path:'src/file-'+id+'.ts'}});s.activity.event({id:89,type:'file_changed',payload:{path:'REPLAY_SENTINEL'}})}`)
@@ -145,6 +145,7 @@ fetch('/lang/desktop/de.json').then(r=>r.json()).then(lang=>GameMakerStudioApp.r
 	// Deleting rebuilds the shell. The next job must use the new preview node,
 	// not a detached element captured by the previous activity controller.
 	page.MustEval(`()=>{const s=GameMakerStudioApp.instances.get('fixture');s.job.status='failed';s.activity.sync()}`)
+	page.MustElement(`[data-gm-more-toggle]`).MustClick()
 	page.MustElement(`[data-gm-action="delete"]`).MustClick()
 	page.MustWait(`()=>!GameMakerStudioApp.instances.get('fixture').project&&activityTimers.size===0`)
 	page.MustElement(`[data-project-id="forest"]`).MustClick()

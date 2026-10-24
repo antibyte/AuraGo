@@ -31,6 +31,32 @@ func TestGameMakerModelLimitsKeepUnknownModelsStartable(t *testing.T) {
 	}
 }
 
+func TestGameMakerModelLimitsNameCompactRoute(t *testing.T) {
+	cfg := &config.Config{}
+	belowFloor := gameMakerModelLimits(cfg, "", "gpt-4")
+	if !gameMakerRouteIsSmall(belowFloor) {
+		t.Fatalf("gpt-4 is below the compact boundary: %+v", belowFloor)
+	}
+	shortOutput := gameMakerModelLimits(cfg, "", "gpt-4o-2024-05-13")
+	if shortOutput.Unknown || shortOutput.ContextWindow < gameMakerSmallContextWindow || shortOutput.MaxOutputTokens >= gameMakerSmallOutputTokens {
+		t.Fatalf("fixture model is not a large-context short-output route: %+v", shortOutput)
+	}
+	if !gameMakerRouteIsSmall(shortOutput) {
+		t.Fatal("short output was not marked compact")
+	}
+	if _, blocked := gameMakerModelLimitBlocked(cfg, "", "gpt-4o-2024-05-13", false); blocked {
+		t.Fatal("compact output limit was treated as the context floor")
+	}
+	large := gameMakerModelLimits(cfg, "", "gpt-4o")
+	if gameMakerRouteIsSmall(large) {
+		t.Fatalf("gpt-4o was marked compact: %+v", large)
+	}
+	unknown := gameMakerModelLimits(cfg, "", "totally-unknown-model-xyz")
+	if gameMakerRouteIsSmall(unknown) {
+		t.Fatal("unknown model was marked compact")
+	}
+}
+
 func TestGameMakerModelLimitsRecognizeLargeModel(t *testing.T) {
 	cfg := &config.Config{}
 	limits := gameMakerModelLimits(cfg, "", "gpt-4o")

@@ -182,15 +182,18 @@ type Message struct {
 }
 
 type Revision struct {
-	ID         int64     `json:"id"`
-	ProjectID  string    `json:"project_id"`
-	Number     int64     `json:"number"`
-	Parent     int64     `json:"parent,omitempty"`
-	Source     string    `json:"source"`
-	Summary    string    `json:"summary"`
-	FileCount  int       `json:"file_count"`
-	TotalBytes int64     `json:"total_bytes"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID           int64     `json:"id"`
+	ProjectID    string    `json:"project_id"`
+	Number       int64     `json:"number"`
+	Parent       int64     `json:"parent,omitempty"`
+	Source       string    `json:"source"`
+	Summary      string    `json:"summary"`
+	FileCount    int       `json:"file_count"`
+	TotalBytes   int64     `json:"total_bytes"`
+	CreatedAt    time.Time `json:"created_at"`
+	ChangedPaths []string  `json:"changed_paths,omitempty"`
+	ChangedCount int       `json:"changed_count,omitempty"`
+	Truncated    bool      `json:"truncated,omitempty"`
 }
 
 type Diagnostic struct {
@@ -280,10 +283,11 @@ type Capabilities struct {
 // ActiveJobInfo exposes the single globally running Game Maker job so the
 // studio UI can mark the owning project and block edits elsewhere.
 type ActiveJobInfo struct {
-	JobID     string `json:"job_id"`
-	ProjectID string `json:"project_id"`
-	Status    string `json:"status"`
-	Phase     string `json:"phase"`
+	JobID     string     `json:"job_id"`
+	ProjectID string     `json:"project_id"`
+	Status    string     `json:"status"`
+	Phase     string     `json:"phase"`
+	StartedAt *time.Time `json:"started_at,omitempty"`
 }
 
 type Provider struct {

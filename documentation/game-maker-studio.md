@@ -75,7 +75,10 @@ AuraGo's system-wide selection.
 The selected model plans, builds, validates, and polishes autonomously. Planning
 is internal and requires no additional user confirmation. The server validates
 the structured plan before allowing code/media/import mutations. The initial
-plan has at most two corrections. Verified phase guidance is supplied directly;
+planning budget allows three charged invalid submissions, including the initial
+rejection. A correction that reduces the independent issue count is free, a job
+stops at five submissions, and three dry-run previews neither accept a plan nor consume
+that budget. Verified phase guidance is supplied directly;
 the model does not have to discover or activate skills first. Peaceful requests
 do not inherit mandatory combat, hazards or endings from the design defaults.
 Progress events,
@@ -259,7 +262,11 @@ browser validation still decide whether the resulting game is ready.
   resolved limits of the chosen model (`ctx … tok · out … tok`) and warns when a
   known model sits below the Studio floor of 16 384 context tokens; starting
   anyway asks for an explicit confirmation and sends the small-model opt-in.
-  Unknown models show no warning and are never blocked. The copy names the
+  Unknown models show no warning and are never blocked. A known route below
+  65 536 context tokens or below 16 384 output tokens also shows the compact-mode
+  notice: a shorter plan, at most six anchors, and no full rewrite of
+  `src/main.ts`. That notice is separate from the context-floor warning.
+  The copy names the
   rough budget: about 12–14K input plus a 16K output reserve for a 2D building
   round, so 32K context is a sensible minimum.
 - Models below 65 536 tokens of context, or below 16 384 output tokens, count as
@@ -272,16 +279,27 @@ browser validation still decide whether the resulting game is ready.
   unchanged, and an ordinary run keeps the complete profile and source window.
 - While a job runs, a banner shows the current phase, the elapsed time, and
   the repair pass when the builder loops back from validation. The phase
-  stepper below it mirrors the same state.
+  stepper below it mirrors the same state. The elapsed time follows the job's
+  `started_at` and falls back to the local clock only when that time is
+  missing, including when a running project is opened again. A job feed under
+  the step bar, outside both panes, shows the phase, the same elapsed time,
+  stop, and the last eight public events. It stays hidden while the
+  empty-preview terminal is on screen, and it stays visible when the preview
+  is the game itself. Narrow step switching does not hide the feed.
 - Finished jobs end with a result card in the conversation: a playable
   revision offers **Play now**. A failure explains the cause in the interface
   language (failed play test, unavailable browser test, time limit, plan,
   language model, cancelled run, or unexpected end), keeps the backend report
   folded under **Technical details**, and offers **Try again**, which continues
   the saved working copy and agent context. Above the technical details it names
-  the open checks (ID, expected and observed value) and the next step the model
-  was told to take; the server bounds that list to six checks and never puts
-  source text in it.
+  up to six open checks in the interface language. `required_controls` and
+  `required_stages` have their own explanation; every other check uses a
+  generic sentence that includes the check id. **Use as change** copies a
+  matching request into the change field and does not start a job. Expected
+  and observed values stay diagnostic data. The instruction that was given to
+  the model stays folded under **Technical details**. The card also says that
+  **Try again** sends no new asset selection, so a binding the plan already
+  accepted stays. The server never puts source text in the check list.
 - **Try with another model** reopens the model choice and continues the same
   draft. The selected provider and model become the project default, so later
   runs use them; the dialog says so. When the failed run used repair passes, an
@@ -310,9 +328,14 @@ browser validation still decide whether the resulting game is ready.
 - Only one job runs at a time. The library marks the busy project with a
   spinner, and the change form of other projects stays disabled with a hint
   until the active job finishes (the capabilities API exposes the active
-  job's project ID, status, and phase).
+  job's project ID, status, phase, and start time).
+- **Assets** and **Export** stay visible. Sources, Knowledge, Revisions,
+  Code Studio, Rename, and Delete live in the more menu at every width.
+  Knowledge is offered when a project is open and the learnings window is
+  available. Export stays disabled until the project has a revision.
+  The revisions list shows the changed relative paths, at most 40, and says
+  when more paths changed than the list shows.
 - The layout follows the width of the Studio window, not of the screen. Below
-  1180 px the secondary project actions move into an overflow menu. Below
   980 px the library collapses into a project dropdown in the agent pane, next
   to its own **New game** button. Below 760 px the conversation and the preview
   are separate steps. The conversation is the default. **Play now** opens the
@@ -350,7 +373,8 @@ provide four directions; rotatable vehicles record their exact forward angle.
 
 Search/filter packs, inspect sprites, play animations, and switch between
 checkerboard, white and dark backgrounds. **Use for next job** prepares the next
-creation or change request without starting it. The form shows the selection.
+creation or change request without starting it. The form shows the selection
+and says that it applies only in this browser and only to an ordinary change.
 Each project remembers that selection in this browser, and the next change
 request uses it again until it is cleared. Try again continues without sending
 the selection again, so a binding the plan already accepted stays. An empty

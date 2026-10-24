@@ -12,6 +12,9 @@ game lifecycle and the sprite/model library stay in `internal/gamemaker/AGENTS.m
 ## Local Contracts
 
 - Revision blobs are SHA-256 addressed and deduplicated. Restore creates a new revision; export excludes tokens, staging, revision metadata, and AuraGo state while including source, output, local runtimes, assets, and third-party notices.
+- Revision listings compare file hashes with each revision's parent, include
+  added/changed/deleted project-relative paths in sorted order (at most 40),
+  and expose the full changed count plus a truncation flag.
 - Publication holds the source/build locks and rechecks the validation fingerprint
   over source, assets, runtimes, output and plan before creating a revision.
   Generated asset writes share the source lock. Changed or missing fingerprints

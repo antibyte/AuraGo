@@ -186,7 +186,11 @@ revision publication and standalone export for Phaser and Three.js games.
   model below 16384 usable context tokens is refused with `model_context_too_small`
   unless `StartJobRequest.AllowSmallModel` is set; unknown models keep the
   conservative defaults and are never refused. `GET /api/game-maker/model-limits`
-  reports the resolved limits passively, without a provider probe.
+  reports the resolved limits passively, without a provider probe, plus
+  `small_model`, `small_context_window` (65536) and `small_output_tokens`
+  (16384). `small_model` is true only for a known route below either threshold.
+  Unknown models are not small and are never blocked. `ActiveJobInfo` includes
+  `started_at` once the job has started.
 - Planning, editing, source-only generation and image review have versioned
   prepared prompt profiles. Editing is shared by building and repair. Select
   2D/3D guidance once; keep the three planning/four editing schemas and their
@@ -310,6 +314,7 @@ revision publication and standalone export for Phaser and Three.js games.
   never expose reasoning as answer/source or double-count aliases. Stream errors
   report text/reasoning byte counts only. Thinking and call deadlines stay enabled.
 - Jobs run in isolated staging directories with one global writer. A validated internal `.aurago/game-plan.json` is required before agent code/media/import mutations. Planning has an initial submission and at most three charged corrections: an attempt that reduces the independent issue count is free, every job caps at five submissions, and three `dry_run` previews validate a design without accepting it or consuming the budget. The selected model plans and builds; no user confirmation or stronger-model fallback is required.
+- `ListRevisions` compares each revision's stored file hashes with its parent and fills `changed_paths` (at most 40 relative paths), `changed_count` and `truncated`. Revision 1 compares with an empty parent. The list contains no file contents and no host paths.
 - `WorkspaceDrift` is a read-only hash compare of the published revision and the editable workspace. `GET /api/game-maker/projects/{id}/workspace-drift` uses the same read permission as other project reads. Skip export dot paths (`.aurago/` included). Cap each path list at 40 and return full counts plus `truncated`. Revision 0 or equal trees return empty counts. A missing workspace lists the published files as removed. Do not write blobs. Relative-path errors only; `RedactHostPaths` stays the last boundary. Symlinks and the publication size limits still reject the walk.
 - `adopt_workspace` publishes Code Studio edits without a model. Reject it before the writer lock when there is no current revision, the drift is empty, or the request also resumes, supplies a prompt, asset selections, pack IDs, model IDs, presentation, image or music generation, or preview diagnostics. The job still copies the workspace. Accept the stored plan with `acceptPublishedPlan` (force `CurrentRevision` 0 for the preserve check) and do not rewrite `.aurago/game-plan.json`. Validate once at full scope, or startup for free-code 3D without scene data. Publish through `publishValidated` with source `adopt` only when the checks pass. No repair and no image review. Failure keeps the last revision.
 - A normal edit that copied a drifted workspace (`ResumeFrom` empty, base revision above 0, kind not adopt) names that drift on the planning `JobRun` only. `compactGameMakerContext` puts `workspace_drift` in the untrusted context after the stable profile. Building omits it. A drift error omits the field and does not fail the job. The profile fingerprint stays unchanged.

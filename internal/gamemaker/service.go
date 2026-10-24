@@ -234,7 +234,7 @@ func (s *Service) ActiveJobInfo(ctx context.Context) *ActiveJobInfo {
 	if err != nil {
 		return nil
 	}
-	return &ActiveJobInfo{JobID: job.ID, ProjectID: job.ProjectID, Status: job.Status, Phase: job.Phase}
+	return &ActiveJobInfo{JobID: job.ID, ProjectID: job.ProjectID, Status: job.Status, Phase: job.Phase, StartedAt: job.StartedAt}
 }
 
 func (s *Service) ListProjects(ctx context.Context) ([]Project, error) {

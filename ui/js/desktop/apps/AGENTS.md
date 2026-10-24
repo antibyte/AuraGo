@@ -2822,7 +2822,7 @@ buttons and menu popovers remain excluded from those gestures.
   `game-maker-studio-modals.js`, and `game-maker-studio.js` implement Game
   Maker Studio: a project library, 2D/3D creation dialog with idea chips,
   bounded agent progress (job banner with phase, elapsed time, and repair-pass
-  indicator plus a phase stepper), result cards for ready/failed jobs,
+  indicator, a phase stepper, and a job feed under the steps outside both panes), result cards for ready/failed jobs,
   revision history, change requests, and a live game preview in one maximized
   desktop window.
 - `live-speech.js` mounts the shared realtime-speech panel on the desktop in a
@@ -2903,7 +2903,9 @@ registration lives in `internal/desktop/types.go`.
   `game-maker-studio-preview.js` (`window.GameMakerStudioPreview`: loading
   overlay, stale badge, fullscreen, new-tab), `game-maker-studio-modals.js`
   (`window.GameMakerStudioModals`: shared modal lifecycle, media toggles,
-  skills and revisions; confirmation stays shell-mediated),
+  skills and revisions; the revisions list shows `changed_paths`, at most 40,
+  and `game_maker.revision_paths_truncated` when `truncated` is set;
+  confirmation stays shell-mediated),
   `game-maker-studio-assets.js` (`window.GameMakerStudioAssets`: offline pack
   catalog, selection, sprite/animation previews), then
   `game-maker-studio.js`.
@@ -2911,8 +2913,11 @@ registration lives in `internal/desktop/types.go`.
   `gm-studio` inline-size container and `.gm-preview-pane` the `gm-preview`
   container. Every width rule exists as `@container` and as its `@media` twin,
   because fixtures render panes outside the shell; change both together. Below
-  760px both rules show `[data-gm-steps]` and give `.gm-workspace` one column
-  and one flexible row. `.gm-studio` starts at `data-gm-step="agent"`. That
+  760px both rules show `[data-gm-steps]` and give `.gm-workspace` one column.
+  The step bar is row 1, `[data-gm-job-feed]` is row 2, and the panes share
+  row 3. A hidden feed uses `display: none`, so its row collapses. On a wide
+  grid the feed spans both columns as a content-sized first row; the panes
+  stay on the flexible second row so the conversation keeps most of the agent pane. `.gm-studio` starts at `data-gm-step="agent"`. That
   step hides `.gm-preview-pane`; `preview` hides `.gm-agent-pane`. The bar uses
   `display:none` above 760px, not the `hidden` attribute, and those pane rules
   stay inside the 760px queries so a wide window keeps both panes. The buttons
@@ -2949,15 +2954,26 @@ registration lives in `internal/desktop/types.go`.
   ignores late responses and degrades to "unknown" on failure; only an explicit
   confirmation sends `allow_small_model: true`, and a server
   `model_context_too_small` answer replaces the dialog error with
-  `game_maker.small_model_blocked`. The failure card renders
-  `latest_job.open_checks` (bounded `id`/`status`/`expected`/`observed` plus the
-  model-facing `next_action`) above the folded technical details, offers
+  `game_maker.small_model_blocked`. When the same response reports `small_model`,
+  both dialogs show `game_maker.compact_mode_title` and
+  `game_maker.compact_mode_body`. That flag is separate from `below_minimum`:
+  a route can be compact while it still clears the 16384 context floor.
+  The failure card renders translated help for `latest_job.open_checks` (at most
+  six). `required_controls` and `required_stages` use their own strings; any
+  other id uses `game_maker.check_help_generic`. A missing translation falls
+  back to that generic string. `data-gm-apply-check` writes the matching
+  `game_maker.check_prompt_*` into the change field and does not start a job.
+  Expected and observed values stay in the collapsed technical details, off the headline. The model-facing
+  `next_action` stays inside the technical `details` as
+  `data-gm-model-instruction`. The card offers
   `data-gm-retry-model` (resume with the chosen provider/model, which becomes the
   project default) and `data-gm-extend-repairs` only for a failed job whose
   `repair_passes` is above zero and below six, carrying `used + 3` as
-  `max_repair_passes`. Both reuse the shared resume payload
-  (`resume`/`validate_restored_draft` plus the current asset selection) and never
-  reset unrelated fields. Verify `TestGameMakerFailureCardBrowser`.
+  `max_repair_passes`. Both resume with empty asset arrays, and the card says
+  so with `game_maker.retry_keeps_bindings`. They never reset unrelated fields.
+  Elapsed time reads `started_at` from the job or the active-job capability and
+  falls back to the local clock only when that time is missing.
+  Verify `TestGameMakerFailureCardBrowser`.
 - Game Maker Studio exposes `window.GameMakerStudioApp = { render, dispose,
   instances }`. Every window owns and closes its EventSource, preview iframe,
   channel ID, diagnostics, modal handlers, job-elapsed and busy-poll timers,
@@ -2988,7 +3004,9 @@ registration lives in `internal/desktop/types.go`.
   actual inputs, repeated resource counts, exported games and narrow layouts.
 - Each project remembers its last asset selection in this browser
   (`localStorage` key `aurago.game-maker.asset-selection`, with an in-memory
-  fallback). The next change request sends that selection again until the user
+  fallback). The selection line also says `game_maker.assets_browser_only`:
+  it applies only in this browser and only to an ordinary change. The next
+  change request sends that selection again until the user
   clears it. Try again sends empty `asset_pack_ids`, `model_asset_ids` and
   `asset_selections`, and no presentation, so an accepted binding stays. An
   empty selection lets the agent choose. Selecting packs never starts a job.
@@ -4571,7 +4589,15 @@ registration lives in `internal/desktop/types.go`.
   `window.AuraTeeVeeCatalog`). Exposes `window.TeeVeeApp`. The real-shell
   `TestDesktopTeeVeeBrowser` covers video, HLS/AES, origin fallback, controls and
   lifecycle; opt in with `AURAGO_RUN_BROWSER_SMOKE=1`. No child DOX file needed.
-- `game-maker-studio.js` - Game Maker Studio shell. Missing
+- `game-maker-studio.js` - Game Maker Studio shell. The shell hosts
+  `[data-gm-job-feed]` directly under `[data-gm-steps]`, outside both panes.
+  `GameMakerStudioActivity` paints the phase, the shared elapsed time and the
+  last eight public events, and hides the feed while `.gm-build-terminal` is
+  connected. Assets and Export stay visible buttons. Sources, Knowledge,
+  Revisions, Code Studio, Rename and Delete live only in `.gm-more`, which
+  stays visible at every width. Knowledge is enabled only when a project is
+  open and `window.AuraGoLearnings` exists. The sources item stays enabled.
+  Export stays disabled until the open project has a revision. Missing
   skills/revisions modals throw `game_maker.modules_load_failed`
   via `state.context.t(key)`. Exposes `window.GameMakerStudioApp`.
   Its optional screenshot-review strip has an explicit, height-bounded grid row;

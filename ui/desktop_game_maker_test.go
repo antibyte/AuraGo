@@ -173,6 +173,13 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		"game_maker.retry_model", "game_maker.retry_model_title", "game_maker.retry_model_note",
 		"game_maker.retry_model_start", "game_maker.extend_repairs", "game_maker.extend_repairs_note",
 		"game_maker.open_checks_title", "game_maker.open_check_next",
+		"game_maker.job_feed_title", "game_maker.job_feed_empty",
+		"game_maker.check_help_required_controls", "game_maker.check_help_required_stages", "game_maker.check_help_generic",
+		"game_maker.check_prompt_required_controls", "game_maker.check_prompt_required_stages", "game_maker.check_prompt_generic",
+		"game_maker.check_apply", "game_maker.model_instruction",
+		"game_maker.assets_browser_only", "game_maker.retry_keeps_bindings",
+		"game_maker.compact_mode_title", "game_maker.compact_mode_body",
+		"game_maker.revision_paths_truncated",
 	}
 	for _, file := range files {
 		data, err := os.ReadFile(file)
@@ -206,11 +213,14 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 			t.Errorf("%s game_maker.usage_cost missing {{cost}}", file)
 		}
 		for key, placeholders := range map[string][]string{
-			"game_maker.model_limits_line":  {"{{context}}", "{{output}}"},
-			"game_maker.model_limits_warning": {"{{minimum}}"},
-			"game_maker.small_model_confirm": {"{{context}}", "{{minimum}}"},
-			"game_maker.extend_repairs":      {"{{extra}}"},
-			"game_maker.extend_repairs_note": {"{{model}}", "{{passes}}"},
+			"game_maker.model_limits_line":        {"{{context}}", "{{output}}"},
+			"game_maker.model_limits_warning":     {"{{minimum}}"},
+			"game_maker.small_model_confirm":      {"{{context}}", "{{minimum}}"},
+			"game_maker.extend_repairs":           {"{{extra}}"},
+			"game_maker.extend_repairs_note":      {"{{model}}", "{{passes}}"},
+			"game_maker.check_help_generic":       {"{{id}}"},
+			"game_maker.check_prompt_generic":     {"{{id}}"},
+			"game_maker.revision_paths_truncated": {"{{count}}"},
 		} {
 			for _, placeholder := range placeholders {
 				if !strings.Contains(values[key], placeholder) {

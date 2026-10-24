@@ -37,6 +37,17 @@
         return ' · ' + new Date(stamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
     }
 
+    function revisionPathsMarkup(revision, esc, t) {
+        const paths = Array.isArray(revision.changed_paths) ? revision.changed_paths : [];
+        const count = Number(revision.changed_count) || paths.length;
+        if (!count) return '';
+        const list = paths.map(path => `<li>${esc(path)}</li>`).join('');
+        const note = revision.truncated
+            ? `<small>${esc(t('game_maker.revision_paths_truncated', { count }))}</small>`
+            : '';
+        return `<ul class="gm-revision-paths">${list}</ul>${note}`;
+    }
+
     async function showRevisionsModal(state, helpers) {
         if (!state.project) return;
         const projectID = state.project.id;
@@ -54,6 +65,7 @@
                 <div class="gm-revision-list">${(body.revisions || []).map(revision => `<article>
                     <div><strong>v${revision.number}</strong><span>${esc(revision.source)}${esc(formatRevisionTime(revision.created_at))}</span></div>
                     <p>${esc(revision.summary)}</p><small>${revision.file_count} ${esc(t('game_maker.files'))}</small>
+                    ${revisionPathsMarkup(revision, esc, t)}
                     <button type="button" data-restore="${revision.number}"
                         ${revision.number === state.project.current_revision || !restoreAllowed ? 'disabled' : ''}
                         ${restoreAllowed ? '' : `title="${esc(readonlyNotice)}" aria-label="${esc(t('game_maker.restore'))}: ${esc(readonlyNotice)}"`}>${esc(t('game_maker.restore'))}</button>

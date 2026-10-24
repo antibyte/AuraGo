@@ -258,14 +258,15 @@ async function testGameMakerEventConnectionLifecycle() {
     eventTypes: ['job_status'], terminalStatuses: new Set(['ready', 'failed', 'cancelled']),
     updateStatus(_state, status) { statuses.push(status); }, syncJobControls() {}, finalizeStreaming() {}, stopElapsed() {},
     phaseMarkup(_state, status) { return status; }, renderProjects() {},
-    async reloadProjectRecord() {}, refreshWorkspaceDrift() {}
+    async reloadProjectRecord() {}, refreshWorkspaceDrift() {}, window: {}
   };
   vm.createContext(context);
+  vm.runInContext(sourceBetween(app, 'function jobStartMillis(', 'function formatElapsed('), context);
   vm.runInContext(sourceBetween(app, 'const outcomeFields =', 'function stepBarShown('), context);
   for (const [start, end] of [['function connectEvents(', 'function parseEvent('], ['function closeEvents(', 'function dispose('], ['function handleJobStatus(', 'function finalizeStreaming(']]) {
     vm.runInContext(sourceBetween(app, start, end), context);
   }
-  const state = { project: { id: 'bo', status: 'draft' }, job: { id: 'job', status: 'building' },
+  const state = { project: { id: 'bo', status: 'draft' }, job: { id: 'job', status: 'building', started_at: '2026-01-02T00:00:00Z' },
     api: { eventURL: () => '/events' }, container: { querySelector: selector => selector === '[data-gm-phases]' ? phases : null }, context: { t: key => key, esc: String } };
   context.connectEvents(state);
   const first = sources[0];
@@ -276,6 +277,7 @@ async function testGameMakerEventConnectionLifecycle() {
   assert.equal(state.reconnecting, false);
   context.handleJobStatus(state, { status: 'cancelled', error: 'Game creation exceeded its time limit.' });
   await Promise.resolve();
+  assert.equal(state.jobStartedAt, Date.parse(state.job.started_at), 'reload retains the server start time');
   assert.equal(phases.innerHTML, 'cancelled', 'terminal jobs leave the active building phase');
   assert.equal(state.latestJob.status, 'cancelled');
   assert.equal(state.latestJob.error, 'Game creation exceeded its time limit.');
@@ -332,6 +334,7 @@ async function testGameMakerJobEventOwnership() {
   };
   context.syncJobControls = state => { state.jobActive = !context.terminalStatuses.has(state.job.status); };
   vm.createContext(context);
+  vm.runInContext(sourceBetween(app, 'function jobStartMillis(', 'function formatElapsed('), context);
   vm.runInContext(sourceBetween(app, 'const outcomeFields =', 'function stepBarShown('), context);
   vm.runInContext(sourceBetween(app, 'function connectEvents(', 'function finalizeStreaming('), context);
   const job = { id: 'new', status: 'building', created_at: '2026-01-02T00:00:00Z' };
@@ -455,8 +458,11 @@ async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   const context = {
     window: {}, addDiagnostic(_state, diagnostic) { shown.push(diagnostic); },
     setTimeout() { return 1; }, clearTimeout() {},
-    autoGrow() {}, finalizeStreaming() {}, renderConversation() {}, scrollConversation() {}, syncJobControls() {}
+    autoGrow() {}, finalizeStreaming() {}, renderConversation() {}, scrollConversation() {}, syncJobControls() {},
+    fail(_state, error) { throw error; }
   };
+  vm.runInNewContext(sourceBetween(app, 'function jobStartMillis(', 'function formatElapsed('), context);
+  vm.runInNewContext(sourceBetween(app, 'function applyStartedJob(', 'async function startResumedJob('), context);
   vm.runInNewContext(sourceBetween(app, 'function handlePreviewMessage(', 'function addDiagnostic('), context);
   vm.runInNewContext(read('ui/js/desktop/apps/game-maker-studio-preview.js'), context);
   state.addDiagnostic = diagnostic => context.addDiagnostic(state, diagnostic);
@@ -520,13 +526,16 @@ async function testGameMakerAssetSelectionReachesCreateAndEdit() {
     const fields = { name: 'New game', description: 'Create the game', dimension: '2d' };
     const context = {
       window: {}, FormData: class { get(key) { return fields[key] || ''; } },
-      capabilityState: () => ({ status: 'ready' }), mediaToggle: () => '',
+      capabilityState: () => ({ status: 'ready' }), mediaToggle: () => '', bindModelLimits() {},
       showModal(_state, _html, mount) { mount(layer); }, closeModal() {}, setModalBusy() {},
       modalError(_layer, message) { assert.fail(message); }, fail(_state, error) { throw error; },
       async openProject(current) { current.project = project; },
       syncJobControls() {}, autoGrow() {}, finalizeStreaming() {}, renderConversation() {}, scrollConversation() {}
     };
     vm.createContext(context);
+    vm.runInContext(sourceBetween(app, 'function jobStartMillis(', 'function formatElapsed('), context);
+    vm.runInContext(sourceBetween(app, 'async function confirmSmallModel(', 'function applyStartedJob('), context);
+    vm.runInContext(sourceBetween(app, 'function applyStartedJob(', 'async function startResumedJob('), context);
     vm.runInContext(read('ui/js/desktop/apps/game-maker-studio-assets.js'), context);
     vm.runInContext(sourceBetween(app, 'function postedSelection(', 'async function stopJob('), context);
     context.showCreateModal(state);

@@ -76,6 +76,18 @@ func gameMakerModelLimits(cfg *config.Config, providerID, model string) llm.Mode
 	return llm.ResolveModelLimitsCached(route, cfg.Agent.ContextWindow)
 }
 
+// gameMakerRouteIsSmall reports the compact profile for a known route below
+// 65536 context tokens or 16384 output tokens. Unknown models stay ordinary.
+func gameMakerRouteIsSmall(limits llm.ModelLimits) bool {
+	if limits.Unknown {
+		return false
+	}
+	if limits.ContextWindow > 0 && limits.ContextWindow < gameMakerSmallContextWindow {
+		return true
+	}
+	return limits.MaxOutputTokens > 0 && limits.MaxOutputTokens < gameMakerSmallOutputTokens
+}
+
 // gameMakerModelLimitBlocked reports a known model whose usable context is below
 // the Studio floor. Unknown models and explicit opt-ins are never blocked.
 func gameMakerModelLimitBlocked(cfg *config.Config, providerID, model string, allowSmall bool) (int, bool) {
@@ -117,6 +129,9 @@ func handleGameMakerModelLimits(s *Server) http.HandlerFunc {
 			"context_source":         limits.ContextSource,
 			"minimum_context_window": gameMakerMinContextWindow,
 			"below_minimum":          !limits.Unknown && limits.ContextWindow > 0 && limits.ContextWindow < gameMakerMinContextWindow,
+			"small_model":            gameMakerRouteIsSmall(limits),
+			"small_context_window":   gameMakerSmallContextWindow,
+			"small_output_tokens":    gameMakerSmallOutputTokens,
 			"warning":                limits.Warning,
 		})
 	}

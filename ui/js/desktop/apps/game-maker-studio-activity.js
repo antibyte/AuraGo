@@ -22,7 +22,7 @@
         const motion = matchMedia('(prefers-reduced-motion: reduce)');
         const reducedMotion = () => motion.matches || document.body.dataset.animations === 'false';
         let timer = null, disposed = false, visible = true, jobID = '', lastID = 0;
-        let queue = [], current = null, lastText = '', lastPhase = '', sequence = 0, stoppedAt = '';
+        let queue = [], history = [], current = null, lastText = '', lastPhase = '', sequence = 0, stoppedAt = '';
         const t = key => state.context.t(key);
         const text = value => String(value || '').replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 240);
         const elapsed = () => {
@@ -34,8 +34,9 @@
 
         function clear() {
             clearTimer();
-            queue = []; current = null; lastText = ''; lastPhase = ''; sequence = 0; lastID = 0; stoppedAt = '';
+            queue = []; history = []; current = null; lastText = ''; lastPhase = ''; sequence = 0; lastID = 0; stoppedAt = '';
             lines.replaceChildren(); prompt.textContent = ''; terminal.remove();
+            paintFeed();
         }
 
         function add(value) {
@@ -44,6 +45,46 @@
             lastText = clean;
             queue.push(clean);
             queue = queue.slice(-32);
+            history.push(clean);
+            history = history.slice(-8);
+            paintFeed();
+        }
+
+        function paintFeed() {
+            const feed = state.container.querySelector('[data-gm-job-feed]');
+            if (!feed) return;
+            const status = state.job?.status || '';
+            const active = running();
+            const show = !terminal.isConnected && (active || (history.length > 0 && ['failed', 'cancelled', 'ready'].includes(status)));
+            feed.hidden = !show;
+            const title = feed.querySelector('[data-gm-job-feed-title]');
+            if (title) {
+                const phase = state.job?.phase || status;
+                const phaseKey = 'game_maker.phase_' + phase;
+                const statusKey = 'game_maker.status_' + String(phase).replaceAll('-', '_');
+                let phaseLabel = phase ? t(phaseKey) : '';
+                if (!phaseLabel || phaseLabel === phaseKey) phaseLabel = phase ? t(statusKey) : '';
+                if (!phaseLabel || phaseLabel === statusKey) phaseLabel = '';
+                title.textContent = phaseLabel ? t('game_maker.job_feed_title') + ' · ' + phaseLabel : t('game_maker.job_feed_title');
+            }
+            const stop = feed.querySelector('[data-gm-action="stop"]');
+            if (stop) stop.disabled = !active || status === 'cancelling';
+            const list = feed.querySelector('[data-gm-job-feed-lines]');
+            if (!list) return;
+            list.replaceChildren();
+            const rows = history.slice(-8);
+            if (!rows.length) {
+                const item = document.createElement('li');
+                item.className = 'is-empty';
+                item.textContent = t('game_maker.job_feed_empty');
+                list.appendChild(item);
+                return;
+            }
+            for (const line of rows) {
+                const item = document.createElement('li');
+                item.textContent = line;
+                list.appendChild(item);
+            }
         }
 
         function tick() {
@@ -97,10 +138,12 @@
             const stopped = ['failed', 'cancelled'].includes(state.job?.status) && !!lastPhase;
             if ((!running() && !stopped) || !empty) {
                 clearTimer(); terminal.remove(); shell.classList.remove('has-build-terminal');
+                paintFeed();
                 return;
             }
             if (!terminal.isConnected) empty.prepend(terminal);
             shell.classList.add('has-build-terminal');
+            paintFeed();
             if (stopped) { finish(); return; }
             if (visible && !document.hidden && timer === null) tick();
         }
