@@ -44,12 +44,13 @@
         const disabledAttr = () => (!canWrite() ? 'disabled' : '');
 
         // ---- review markup -------------------------------------------------------
+        const reviewItem = (item, key) => model.listEntryText(key, item, { targets: state.appTargets, t });
         const reviewValue = (value, key = '') => {
             if (key === 'credential_id') {
                 const credential = state.credentials.find(item => item.id === value);
                 if (credential) return credential.name;
             }
-            if (Array.isArray(value)) return value.join(key === 'tags' ? '; ' : ', ');
+            if (Array.isArray(value)) return value.map(item => reviewItem(item, key)).filter(Boolean).join(key === 'tags' ? '; ' : ', ');
             if (value && typeof value === 'object') return JSON.stringify(value).slice(0, 180);
             return value == null || value === '' ? t('desktop.infra_unknown') : String(value);
         };

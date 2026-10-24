@@ -967,6 +967,19 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     }
 }
 
+{ // the conflict review reads list entries like the editor, never "[object Object]"
+    const targets = [{ app: 'network-cameras', target_id: 'cam-1', label: 'Garden camera' }];
+    const text = (key, item) => model.listEntryText(key, item, { targets, t: value => (value === 'desktop.infra_field_vlan' ? 'VLAN' : value) });
+    assert.equal(text('interfaces', { name: 'eth0', ip_address: '192.0.2.10' }), 'eth0 · 192.0.2.10');
+    assert.equal(text('interfaces', { name: 'eth1', ip_address: '', mac_address: '', vlan: '20', speed: '1G' }), 'eth1 · VLAN 20 · 1G');
+    assert.equal(text('links', { label: 'Router UI', url: 'https://192.0.2.1/' }), 'Router UI · https://192.0.2.1/');
+    assert.equal(text('app_bindings', { app: 'network-cameras', target_id: 'cam-1' }), 'Garden camera');
+    assert.equal(text('app_bindings', { app: 'meshcore', target_id: 'gone-7' }), 'meshcore · gone-7', 'a missing target falls back to app and id');
+    assert.equal(text('tags', 'lab'), 'lab');
+    assert.equal(text('interfaces', null), '');
+    for (const entry of [text('interfaces', { name: 'x' }), text('links', { label: 'y' }), text('app_bindings', { app: 'a', target_id: 'b' })]) assert.ok(!entry.includes('[object Object]'));
+}
+
 for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     const css = fs.readFileSync(path.join(root, 'ui/css', file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     const outsideMixes = css.replace(/color-mix\((?:[^()]|\([^()]*\))*\)/g, '');

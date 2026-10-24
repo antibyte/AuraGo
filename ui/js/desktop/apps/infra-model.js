@@ -732,6 +732,18 @@
     const readDismissed = raw => { let list; try { list = JSON.parse(raw || '[]'); } catch (_) { list = []; } return new Set((Array.isArray(list) ? list : []).filter(item => typeof item === 'string').slice(-500)); };
     const blankValue = value => value === undefined || value === null || value === '' || value === 0 || (Array.isArray(value) && !value.length) || (typeof value === 'object' && value !== null && !Array.isArray(value) && !Object.keys(value).length);
     const sameValue = (a, b) => (blankValue(a) && blankValue(b)) || JSON.stringify(a) === JSON.stringify(b);
+    // listEntryText reads one entry of a profile list the way the editor shows it: an
+    // interface as "name · ip", a link as "label · url", an app link by its target label
+    // (the app and target id when the target is gone). `targets` is state.appTargets.
+    const listEntryText = (key, item, { targets = [], t = text => text } = {}) => {
+        if (item == null) return '';
+        if (typeof item !== 'object') return String(item);
+        const join = parts => parts.filter(part => part != null && part !== '').join(' · ');
+        if (key === 'interfaces') return join([item.name, item.ip_address, item.mac_address, item.vlan ? `${t('desktop.infra_field_vlan')} ${item.vlan}` : '', item.speed]);
+        if (key === 'links') return join([item.label, item.url]);
+        if (key === 'app_bindings') return targets.find(target => target.app === item.app && target.target_id === item.target_id)?.label || join([item.app, item.target_id]);
+        return JSON.stringify(item).slice(0, 80);
+    };
     // draftDiff lists changed fields: name, kind, icon, parent_id, profile.<key>.
     const draftDiff = (node, draft) => {
         const changed = new Set();
@@ -822,7 +834,7 @@
         spatialNeighbour, compactGrid, defaultEdgeKind, guestIndex, matchesFilters, filtersActive, buildScene,
         mergeIntent, layoutItems, rebaseLayout, createHistory, readLayoutPrefs, fill, normalizeNode, minimapTransform, glyph,
         naturalCompare, isOpaqueName, addressesOf, isGenericDiscovery, compareSpecificity, relevanceIndex, discoveryRelevance, groupDiscoveries, bindableFor, linkSuggestions, infraCleanup,
-        TABLE_SORTS, tableComparator, tableRows, readTablePrefs, readInspectorPrefs, inspectorTab, withInspectorTab, readDismissed, draftDiff, formGroupFill, groupOfField,
+        TABLE_SORTS, tableComparator, tableRows, readTablePrefs, readInspectorPrefs, inspectorTab, withInspectorTab, readDismissed, listEntryText, draftDiff, formGroupFill, groupOfField,
         isMeshAsset, appTargetOptions, appLinkContext, placePath, isDescendant, attentionItems,
     };
 })();
