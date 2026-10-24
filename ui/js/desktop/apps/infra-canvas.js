@@ -23,6 +23,8 @@
     const RESIZE_HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
     const MAX_CHIPS = 8;
     const MM = { w: 160, h: 104 };
+    // Fit keeps 48 px around the cards and 104 px below them: the tools sit bottom left, and a compact card's name hangs under its box.
+    const FIT_PADDING = { top: 48, right: 48, bottom: 104, left: 48 };
     const px = value => `${value}px`;
     const round1 = value => Math.round(value * 10) / 10;
     const emptyScene = () => ({ cards: [], cardById: new Map(), regions: [], regionRects: new Map(), regionDepth: new Map(), lines: [], bounds: null });
@@ -217,7 +219,7 @@
             let stored = null;
             try { stored = model.viewFromCenter(JSON.parse(localStorage.getItem(`infra.viewport.v1.${key}`) || 'null'), sz); } catch (_) { stored = null; }
             if (stored && visibleHits(stored, sz)) setView(stored);
-            else setView(model.fitView(last.bounds, sz, 48, 1));
+            else setView(model.fitView(last.bounds, sz, FIT_PADDING, 1));
         }
         function zoomBy(factor, point) {
             const v = getView(), sz = size();
@@ -226,7 +228,7 @@
         function zoomTo(zoom) { zoomBy(model.clampZoom(zoom) / getView().zoom); }
         function fit({ animate = false } = {}) {
             if (!last.bounds) renderNow();
-            setView(model.fitView(last.bounds, size(), 48, 1), { animate });
+            setView(model.fitView(last.bounds, size(), FIT_PADDING, 1), { animate });
         }
         // worldRect is the rectangle of a card, a region or (via its host) a guest.
         function worldRect(id) {

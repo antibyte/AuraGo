@@ -50,6 +50,19 @@ func TestDesktopInfraTopologyLanesBrowser(t *testing.T) {
 	} else {
 		t.Logf("fit at 1500x970: %.0f%%", z*100)
 	}
+	// namesProbe lists every compact name that touches another card box, another name or the tools cluster.
+	const namesProbe = `()=>{
+		const boxes=[...document.querySelectorAll('[data-nodes] .infra-card')].map(el=>({id:el.dataset.node,r:el.getBoundingClientRect()}));
+		const names=[...document.querySelectorAll('.infra-card-name')].map(el=>({id:el.closest('.infra-card').dataset.node,r:el.getBoundingClientRect()}));
+		const hit=(a,b)=>a.left<b.right-1&&a.right>b.left+1&&a.top<b.bottom-1&&a.bottom>b.top+1;
+		const bad=[];
+		const tools=document.querySelector('[data-tools]').getBoundingClientRect();
+		for(const n of names){for(const b of boxes)if(b.id!==n.id&&hit(n.r,b.r))bad.push(n.id+'>'+b.id);for(const m of names)if(m.id<n.id&&hit(n.r,m.r))bad.push(n.id+'~'+m.id);if(hit(n.r,tools))bad.push(n.id+' under the tools');}
+		return JSON.stringify({compact:document.querySelector('[data-stage]').classList.contains('is-compact'),cards:boxes.length,bad});
+	}`
+	if got := page.MustEval(namesProbe).Str(); got != `{"compact":true,"cards":22,"bad":[]}` {
+		t.Fatalf("at 1500x970 fit no compact name may touch another card box, another name or the tools: %s", got)
+	}
 	// A18: four stripes, far wider than the cards, behind everything; fit hugs the cards (48 px of padding on the
 	// limiting axis), so the stripes are not part of the scene bounds.
 	if got := page.MustEval(`()=>{
@@ -90,17 +103,10 @@ func TestDesktopInfraTopologyLanesBrowser(t *testing.T) {
 	infraPolishSettle(page)
 	check("panned far left")
 
-	// A17: at 1000x700 fit no compact name touches another card or another name; A18: at 430x700 no label is cut.
+	// A17: at 1000x700 fit no compact name touches another card, another name or the tools; A18: at 430x700 no label is cut.
 	infraPolishResize(page, 1000, 700)
-	if got := page.MustEval(`()=>{
-		const boxes=[...document.querySelectorAll('[data-nodes] .infra-card')].map(el=>({id:el.dataset.node,r:el.getBoundingClientRect()}));
-		const names=[...document.querySelectorAll('.infra-card-name')].map(el=>({id:el.closest('.infra-card').dataset.node,r:el.getBoundingClientRect()}));
-		const hit=(a,b)=>a.left<b.right-1&&a.right>b.left+1&&a.top<b.bottom-1&&a.bottom>b.top+1;
-		const bad=[];
-		for(const n of names){for(const b of boxes)if(b.id!==n.id&&hit(n.r,b.r))bad.push(n.id+'>'+b.id);for(const m of names)if(m.id<n.id&&hit(n.r,m.r))bad.push(n.id+'~'+m.id);}
-		return JSON.stringify({compact:document.querySelector('[data-stage]').classList.contains('is-compact'),cards:boxes.length,bad});
-	}`).Str(); got != `{"compact":true,"cards":22,"bad":[]}` {
-		t.Fatalf("at 1000x700 fit no compact name may touch another card box or name: %s", got)
+	if got := page.MustEval(namesProbe).Str(); got != `{"compact":true,"cards":22,"bad":[]}` {
+		t.Fatalf("at 1000x700 fit no compact name may touch another card box, another name or the tools: %s", got)
 	}
 	infraPolishResize(page, 430, 700)
 	page.MustEval(`()=>document.querySelector('[data-action="close-inspector"]')?.click()`)

@@ -167,11 +167,13 @@
         const wx = (screen.x - view.x) / view.zoom, wy = (screen.y - view.y) / view.zoom;
         return { x: screen.x - wx * z, y: screen.y - wy * z, zoom: z };
     };
-    // fitView shows box inside size with padding, never above maxZoom.
+    // fitView shows box inside size with padding (one number, or {top, right, bottom, left}), never above maxZoom.
     const fitView = (box, size, padding = 48, maxZoom = 1) => {
         if (!box) return { x: size.w / 2, y: size.h / 2, zoom: 1 };
-        const zoom = clampZoom(Math.min((size.w - padding * 2) / Math.max(box.w, 1), (size.h - padding * 2) / Math.max(box.h, 1), maxZoom));
-        return { x: (size.w - box.w * zoom) / 2 - box.x * zoom, y: (size.h - box.h * zoom) / 2 - box.y * zoom, zoom };
+        const pad = typeof padding === 'object' && padding ? { top: padding.top ?? 48, right: padding.right ?? 48, bottom: padding.bottom ?? 48, left: padding.left ?? 48 } : { top: padding, right: padding, bottom: padding, left: padding };
+        const room = { w: size.w - pad.left - pad.right, h: size.h - pad.top - pad.bottom };
+        const zoom = clampZoom(Math.min(room.w / Math.max(box.w, 1), room.h / Math.max(box.h, 1), maxZoom));
+        return { x: pad.left + (room.w - box.w * zoom) / 2 - box.x * zoom, y: pad.top + (room.h - box.h * zoom) / 2 - box.y * zoom, zoom };
     };
     // ---- semantic zoom (A1) --------------------------------------------------------
     // Below COMPACT_BELOW cards draw in a compact form (icon and name only); once compact they stay so until

@@ -190,6 +190,11 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     const fitted = model.fitView({ x: 0, y: 0, w: 400, h: 200 }, { w: 1000, h: 800 });
     assert.deepEqual(plain(fitted), { x: 300, y: 300, zoom: 1 }, 'fit never zooms beyond 100 %');
     assert.equal(model.fitView({ x: 0, y: 0, w: 1808, h: 200 }, { w: 1000, h: 800 }).zoom, 0.5, 'fit keeps a 48 px margin');
+    // a padding object keeps more room on one side (the bottom, where the tools and the names of compact cards sit)
+    const sides = { top: 48, right: 48, bottom: 104, left: 48 };
+    assert.deepEqual(plain(model.fitView({ x: 0, y: 0, w: 400, h: 200 }, { w: 1000, h: 800 }, sides)), { x: 300, y: 272, zoom: 1 }, 'the content sits 28 px higher: 48 + (648 - 200) / 2');
+    const tall = model.fitView({ x: 0, y: 0, w: 100, h: 1300 }, { w: 1000, h: 800 }, sides);
+    assert.ok(Math.abs(tall.zoom - 648 / 1300) < 1e-9 && Math.abs(tall.y - 48) < 1e-9, 'a tall scene gets 48 px above and 104 px below');
     const stored = model.viewCenter({ x: 100, y: 50, zoom: 2 }, { w: 800, h: 600 });
     assert.deepEqual(plain(model.viewFromCenter(stored, { w: 800, h: 600 })), { x: 100, y: 50, zoom: 2 });
     assert.equal(model.viewFromCenter({ cx: 'x' }, { w: 1, h: 1 }), null);
