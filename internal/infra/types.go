@@ -197,7 +197,8 @@ type Edge struct {
 }
 
 // LayoutItem moves one node. ParentID nil keeps the parent and "" clears it;
-// W/H nil keep the stored place size.
+// W/H nil keep the stored place size. Unplace removes the node's placement in
+// the request's view; such an item carries only an ID and a version.
 type LayoutItem struct {
 	ID       string   `json:"id"`
 	Version  int64    `json:"version"`
@@ -207,6 +208,7 @@ type LayoutItem struct {
 	ParentID *string  `json:"parent_id,omitempty"`
 	W        *float64 `json:"w,omitempty"`
 	H        *float64 `json:"h,omitempty"`
+	Unplace  bool     `json:"unplace,omitempty"`
 }
 
 type LayoutRequest struct {

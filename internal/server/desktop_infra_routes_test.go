@@ -263,3 +263,48 @@ func TestDesktopInfraRefreshContextHonoursRevocation(t *testing.T) {
 		t.Fatal("a revoked configuration still registered a refresh context")
 	}
 }
+
+func TestDesktopInfraLayoutRouteUnplacesANodeInOneView(t *testing.T) {
+	s, cfg, _, runtime := newDesktopInfraRefreshFixture(t)
+	store := runtime.store
+	ctx := context.Background()
+	node, err := store.CreateNode(ctx, infra.Node{Kind: infra.NodeDevice, Name: "web", Icon: "generic-device"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	save := func(body string) *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		desktopInfraSaveLayout(response, httptest.NewRequest(http.MethodPut, desktopInfraBasePath+"/layout", strings.NewReader(body)), s, cfg, store)
+		return response
+	}
+	id := `"id":"` + node.ID + `"`
+	if response := save(`{"view":"atlas","nodes":[{` + id + `,"version":1,"x":120,"y":140}]}`); response.Code != http.StatusOK {
+		t.Fatalf("atlas placement = %d %s", response.Code, response.Body.String())
+	}
+	if response := save(`{"view":"topology","nodes":[{` + id + `,"version":2,"x":30,"y":40}]}`); response.Code != http.StatusOK {
+		t.Fatalf("topology placement = %d %s", response.Code, response.Body.String())
+	}
+	response := save(`{"view":"atlas","nodes":[{` + id + `,"version":3,"unplace":true}]}`)
+	if response.Code != http.StatusOK {
+		t.Fatalf("unplace = %d %s", response.Code, response.Body.String())
+	}
+	var payload struct {
+		Nodes []infra.Node `json:"nodes"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Nodes) != 1 || payload.Nodes[0].Version != 4 {
+		t.Fatalf("unplace answer = %#v; want the node at version 4", payload.Nodes)
+	}
+	if _, ok := payload.Nodes[0].Placements[infra.ViewAtlas]; ok || payload.Nodes[0].Placements[infra.ViewTopology].X != 30 {
+		t.Fatalf("unplace answer placements = %#v; want the topology view only", payload.Nodes[0].Placements)
+	}
+	// A stale version conflicts and an item with coordinates is invalid.
+	if stale := save(`{"view":"atlas","nodes":[{` + id + `,"version":3,"unplace":true}]}`); stale.Code != http.StatusConflict {
+		t.Fatalf("stale unplace = %d %s; want 409", stale.Code, stale.Body.String())
+	}
+	if invalid := save(`{"view":"atlas","nodes":[{` + id + `,"version":4,"x":5,"unplace":true}]}`); invalid.Code != http.StatusBadRequest {
+		t.Fatalf("unplace with coordinates = %d %s; want 400", invalid.Code, invalid.Body.String())
+	}
+}

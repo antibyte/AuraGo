@@ -1233,3 +1233,130 @@ func TestHostProjectionFieldsAreRuntimeOnly(t *testing.T) {
 		t.Fatalf("caller-supplied host projection survived: %#v", created)
 	}
 }
+
+func TestSaveLayoutUnplaceRemovesOnlyThatView(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	room, err := store.CreateNode(ctx, testNode(NodeRoom, "Room", "room"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	device, err := store.CreateNode(ctx, testNode(NodeDevice, "Switch", "switch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	size := func(value float64) *float64 { return &value }
+	atlas, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: room.ID, Version: room.Version, X: 10, Y: 20, W: size(600), H: size(400)},
+		{ID: device.ID, Version: device.Version, X: 48, Y: 72},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	topology, err := store.SaveLayout(ctx, LayoutRequest{View: ViewTopology, Nodes: []LayoutItem{
+		{ID: device.ID, Version: atlas[1].Version, X: 300, Y: 400, Pinned: true},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	roomNode, deviceNode := atlas[0], topology[0]
+
+	// An unplace removes the placement of that view only and bumps the version.
+	removed, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: room.ID, Version: roomNode.Version, Unplace: true},
+		{ID: device.ID, Version: deviceNode.Version, Unplace: true},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(removed) != 2 || removed[0].Version != roomNode.Version+1 || removed[1].Version != deviceNode.Version+1 {
+		t.Fatalf("unplace result = %#v", removed)
+	}
+	if _, ok := removed[0].Placements[ViewAtlas]; ok || len(removed[0].Placements) != 0 {
+		t.Fatalf("room placements after unplace = %#v", removed[0].Placements)
+	}
+	if _, ok := removed[1].Placements[ViewAtlas]; ok || removed[1].Placements[ViewTopology].X != 300 || !removed[1].Placements[ViewTopology].Pinned {
+		t.Fatalf("device placements after unplace = %#v; want only the topology view kept", removed[1].Placements)
+	}
+	stored, err := store.GetNode(ctx, device.ID)
+	if err != nil || stored.Version != deviceNode.Version+1 || len(stored.Placements) != 1 {
+		t.Fatalf("stored device after unplace = %#v, %v", stored, err)
+	}
+
+	// A node without a placement in that view is a successful no-op: the version
+	// is still checked but not advanced.
+	noop, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: device.ID, Version: removed[1].Version, Unplace: true},
+	}})
+	if err != nil || len(noop) != 1 || noop[0].Version != removed[1].Version {
+		t.Fatalf("unplace without placement = %#v, %v; want unchanged success", noop, err)
+	}
+	if _, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: device.ID, Version: removed[1].Version + 5, Unplace: true},
+	}}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale no-op unplace error = %v; want conflict", err)
+	}
+}
+
+func TestSaveLayoutUnplaceChecksVersionsAndStaysAtomic(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	a, err := store.CreateNode(ctx, testNode(NodeDevice, "A", "generic-device"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := store.CreateNode(ctx, testNode(NodeDevice, "B", "generic-device"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := func(value string) *string { return &value }
+	size := func(value float64) *float64 { return &value }
+	placed, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: a.ID, Version: a.Version, X: 10, Y: 20},
+		{ID: b.ID, Version: b.Version, X: 30, Y: 40},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// One stale item rolls back the valid unplace before it.
+	if _, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: a.ID, Version: placed[0].Version, Unplace: true},
+		{ID: b.ID, Version: placed[1].Version + 1, Unplace: true},
+	}}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale mixed batch error = %v; want conflict", err)
+	}
+	after, err := store.GetNode(ctx, a.ID)
+	if err != nil || after.Version != placed[0].Version || after.Placements[ViewAtlas].X != 10 {
+		t.Fatalf("stale batch committed its valid unplace: %#v, %v", after, err)
+	}
+	// An unplace may share a batch with an ordinary move.
+	mixed, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: a.ID, Version: placed[0].Version, Unplace: true},
+		{ID: b.ID, Version: placed[1].Version, X: 99, Y: 98},
+	}})
+	if err != nil || len(mixed[0].Placements) != 0 || mixed[1].Placements[ViewAtlas].X != 99 {
+		t.Fatalf("mixed unplace and move = %#v, %v", mixed, err)
+	}
+	// An unplace item carries an id and a version only.
+	for _, tc := range []struct {
+		name string
+		item LayoutItem
+	}{
+		{"x", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, X: 1}},
+		{"y", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, Y: 1}},
+		{"pinned", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, Pinned: true}},
+		{"parent", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, ParentID: text("")}},
+		{"width", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, W: size(200)}},
+		{"height", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, H: size(200)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{tc.item}}); !errors.Is(err, ErrValidation) {
+				t.Fatalf("unplace with %s error = %v; want validation error", tc.name, err)
+			}
+		})
+	}
+	unchanged, err := store.GetNode(ctx, b.ID)
+	if err != nil || unchanged.Version != mixed[1].Version || unchanged.Placements[ViewAtlas].X != 99 {
+		t.Fatalf("rejected unplace changed the node: %#v, %v", unchanged, err)
+	}
+}
