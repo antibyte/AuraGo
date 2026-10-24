@@ -25,7 +25,7 @@
     const MM = { w: 160, h: 104 };
     const px = value => `${value}px`;
     const round1 = value => Math.round(value * 10) / 10;
-    const emptyScene = () => ({ cards: [], cardById: new Map(), regions: [], regionRects: new Map(), regionDepth: new Map(), lines: [], bounds: null });
+    const emptyScene = () => ({ cards: [], cardById: new Map(), regions: [], regionRects: new Map(), regionDepth: new Map(), lines: [], lanes: [], bounds: null });
     // frame coalesces many requests into one requestAnimationFrame callback.
     const frame = fn => {
         let id = 0;
@@ -43,6 +43,7 @@
   <div class="infra-viewport" data-stage tabindex="0" role="application" data-tool="select" aria-roledescription="${esc(t('desktop.infra_map_role'))}" aria-label="${esc(t('desktop.infra_map_label'))}" aria-describedby="infra-canvas-help-${S}">
     <div class="infra-canvas-grid" aria-hidden="true"></div>
     <div class="infra-scene" data-scene>
+      <div class="infra-lanes" data-lanes aria-hidden="true"></div>
       <div class="infra-regions" data-regions></div>
       <svg class="infra-edges" data-edges width="1" height="1" viewBox="0 0 1 1" overflow="visible" aria-hidden="true" focusable="false"><g data-edge-layer></g><path class="infra-edge-preview" data-edge-preview d=""></path></svg>
       <div class="infra-nodes" data-nodes></div>
@@ -82,7 +83,7 @@
         const el = holder.firstElementChild;
         const q = selector => el.querySelector(selector);
         const viewport = q('[data-stage]'), scene = q('[data-scene]'), gridEl = q('.infra-canvas-grid');
-        const regionsEl = q('[data-regions]'), nodesEl = q('[data-nodes]'), edgesSvg = q('[data-edges]');
+        const lanesEl = q('[data-lanes]'), regionsEl = q('[data-regions]'), nodesEl = q('[data-nodes]'), edgesSvg = q('[data-edges]');
         const edgeLayer = q('[data-edge-layer]'), edgePreview = q('[data-edge-preview]'), marquee = q('[data-marquee]');
         const emptyEl = q('[data-empty]'), noMatchEl = q('[data-no-match]'), chipEl = q('[data-layout-chip]');
         const toolsEl = q('[data-tools]'), zoomText = q('[data-zoom]'), zoomButton = q('[data-action="zoom-reset"]');
@@ -95,7 +96,8 @@
         // viewSize is the viewport size each view was last placed for: a resize keeps the world point at the
         // centre of that size, even when the view was set between the layout change and the observer callback.
         const viewSize = { atlas: null, topology: null };
-        const cardEls = new Map(), regionEls = new Map(), lineEls = new Map();
+        const cardEls = new Map(), regionEls = new Map(), lineEls = new Map(), laneEls = new Map();
+        let laneTarget = -1, autoMemo = { nodes: null, edges: null, sig: '', value: new Map() };
         const temp = { cards: new Set(), regions: new Set(), lines: new Set() };
         const ghosts = new Set();
         let last = emptyScene(), linesByEnd = new Map(), lineGeom = new Map();
@@ -521,13 +523,61 @@
             chipEl.hidden = unsaved === 0;
             retryButton.disabled = unsaved === 0 || !canWrite || store.state.busy.has('layout');
         }
+        // ---- topology lanes and the auto layout ------------------------------------------
+        // topologyAuto: computed slots for assets without a topology placement,
+        // memoized on the node and edge arrays and the placed positions.
+        function topologyAuto() {
+            const { nodes, edges } = store.state;
+            const placementOf = id => store.effectivePlacement(id, 'topology');
+            let sig = '';
+            for (const node of nodes) { const p = placementOf(node.id); if (p) sig += `${node.id}:${Math.round(p.x)},${Math.round(p.y)}\x1f`; }
+            if (autoMemo.nodes === nodes && autoMemo.edges === edges && autoMemo.sig === sig) return autoMemo.value;
+            const value = model.topologyAutoPositions(nodes, edges, { placementOf, guests: store.guests() });
+            autoMemo = { nodes, edges, sig, value };
+            return value;
+        }
+        function patchLanes(lanes) {
+            const live = new Set();
+            for (const lane of lanes) {
+                live.add(lane.id);
+                let entry = laneEls.get(lane.id);
+                if (!entry) {
+                    const band = document.createElement('div');
+                    band.className = 'infra-lane';
+                    band.dataset.lane = lane.id;
+                    band.dataset.laneIndex = String(lane.index);
+                    band.innerHTML = `<span class="infra-lane-label">${esc(app.laneLabel(lane.id))}</span>`;
+                    lanesEl.append(band);
+                    entry = { band, index: lane.index, key: '' };
+                    laneEls.set(lane.id, entry);
+                }
+                const r = lane.rect, key = `${r.x},${r.y},${r.w},${r.h}`;
+                if (entry.key !== key) {
+                    entry.key = key;
+                    Object.assign(entry.band.style, { left: px(r.x), top: px(r.y), width: px(r.w), height: px(r.h) });
+                }
+                entry.band.classList.toggle('is-drop-target', entry.index === laneTarget);
+            }
+            for (const [id, entry] of laneEls) if (!live.has(id)) { entry.band.remove(); laneEls.delete(id); }
+        }
+        // setLaneTarget highlights the lane a dragged card would land in (-1 clears).
+        function setLaneTarget(index) {
+            laneTarget = Number.isInteger(index) ? index : -1;
+            for (const entry of laneEls.values()) entry.band.classList.toggle('is-drop-target', entry.index === laneTarget);
+        }
+        // isAutoPlaced: the card is drawn by the Topology auto layout, not saved.
+        const isAutoPlaced = id => app.mapView() === 'topology' && last.cardById.has(id) && !store.effectivePlacement(id, 'topology');
+        // autoPositions: the slots Topology computes for assets without a placement (empty in the Map view).
+        const autoPositions = () => (app.mapView() === 'topology' ? topologyAuto() : new Map());
+
         function renderNow() {
             if (disposed || store.state.view === 'table' || !viewport.isConnected) return;
             const view = app.mapView(), force = forceNext;
             forceNext = false;
+            const auto = view === 'topology' ? topologyAuto() : null;
             last = model.buildScene({ nodes: store.state.nodes, edges: store.state.edges, view,
-                placementOf: id => store.effectivePlacement(id, view), parentOf: id => store.effectiveParent(id, view), guests: store.guests() });
-            patchRegions(last.regions, force); patchCards(last.cards, force); patchLines(last.lines, force);
+                placementOf: id => store.effectivePlacement(id, view) || auto?.get(id) || null, parentOf: id => store.effectiveParent(id, view), guests: store.guests() });
+            patchLanes(last.lanes || []); patchRegions(last.regions, force); patchCards(last.cards, force); patchLines(last.lines, force);
             if (mapDirty) { mapDirty = false; revision += 1; }
             paintOverlays(paintStates()); ensureInitialView();
             viewport.classList.toggle('is-readonly', !store.canWrite());
@@ -763,7 +813,7 @@
             clearTimeout(animTimer); clearTimeout(persistTimer); clearTimeout(formTimer);
             for (const ghost of ghosts) ghost.remove();
             ghosts.clear();
-            cardEls.clear(); regionEls.clear(); lineEls.clear(); mmCardEls.clear();
+            cardEls.clear(); regionEls.clear(); lineEls.clear(); laneEls.clear(); mmCardEls.clear();
             el.remove();
         }
 
@@ -772,7 +822,7 @@
             getView, setView, fit, zoomBy, zoomTo, centerOn, ensureVisible, clientToWorld, size,
             cardEl, regionEl, moveTemp, clearTemp,
             setDropTarget, setConnectTarget, showEdgePreview, showMarquee, createGhost,
-            setRovingCard, applyTool, dispose,
+            setRovingCard, setLaneTarget, isAutoPlaced, autoPositions, applyTool, dispose,
         };
     }
 

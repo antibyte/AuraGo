@@ -93,6 +93,13 @@
 .infra-region-handle[data-resize="e"], .infra-region-handle[data-resize="w"] { top: 14px; bottom: 14px; height: auto; cursor: ew-resize; }
 .infra-region-handle[data-resize="e"] { right: -7px; }
 .infra-region-handle[data-resize="w"] { left: -7px; }
+/* Topology lanes (spec section 6): four fixed world bands behind the cards. They never take the pointer. The label is a muted pill that is counter-scaled by --infra-lane-k like a region header (A1), so it stays 13 px or more on screen at any zoom up to 1. */
+.infra-lanes { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
+.infra-lane { position: absolute; border-top: 1px solid var(--vd-theme-border); pointer-events: none; }
+.infra-lane[data-lane-index="3"] { border-bottom: 1px solid var(--vd-theme-border); }
+.infra-lane[data-lane-index="1"], .infra-lane[data-lane-index="3"] { background: color-mix(in srgb, var(--vd-text) 4%, transparent); }
+.infra-lane.is-drop-target { background: var(--vd-theme-accent-soft); box-shadow: inset 0 0 0 2px var(--vd-theme-accent-border); }
+.infra-lane-label { position: absolute; left: var(--ds-space-3); top: 6px; max-width: calc((100% - var(--ds-space-3) * 2) / var(--infra-lane-k, 1)); overflow: hidden; padding: 1px var(--ds-space-2); border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-full); background: var(--vd-theme-panel-bg-strong); color: var(--vd-theme-muted); font: 600 14px/1.3 var(--vd-font-ui); text-overflow: ellipsis; white-space: nowrap; transform: scale(var(--infra-lane-k, 1)); transform-origin: 0 0; }
 .infra-marquee { position: absolute; left: 0; top: 0; border: 1px solid var(--vd-accent); background: var(--vd-theme-accent-soft); pointer-events: none; }
 .infra-tools { position: absolute; left: var(--ds-space-3); bottom: var(--ds-space-3); z-index: 6; display: flex; align-items: center; gap: 2px; padding: 4px; border: 1px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: var(--vd-theme-panel-bg-strong); box-shadow: var(--vd-theme-shadow-panel); }
 .infra-tools button { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: var(--ds-radius-sm); background: transparent; color: var(--vd-text); cursor: pointer; }

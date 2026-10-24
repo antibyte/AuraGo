@@ -146,6 +146,7 @@
             icon: value => `<img src="${esc(model.iconURL(value))}" alt="" loading="lazy" draggable="false">`,
             glyph,
             labelForKind: kind => t(`desktop.infra_kind_${kind}`),
+            laneLabel: lane => ({ internet: t('desktop.infra_lane_internet'), network: t('desktop.infra_lane_network'), compute: t('desktop.infra_lane_compute'), clients: t('desktop.infra_lane_clients') })[lane] || lane,
             statusLabel: status => t(`desktop.infra_state_${status}`),
             mapView, ensureMapView, toast, announce, animationsEnabled, focusSearch: () => focusSearch(),
             setLibraryCollapsed: on => setLibraryCollapsed(on),
