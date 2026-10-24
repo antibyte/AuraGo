@@ -97,6 +97,10 @@
 .infra-library.is-collapsed { overflow: hidden; }
 
 /* Ported inspector, table and dialog rules. */
+.infra-form-actions button, .infra-detail-actions button, .infra-relations button, .infra-source-row button, .infra-quick-place button { min-height: 38px; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-sm); background: var(--vd-theme-panel-bg-strong); color: var(--vd-text); cursor: pointer; }
+.infra-form-actions button:hover:not(:disabled), .infra-detail-actions button:hover:not(:disabled), .infra-relations button:hover:not(:disabled), .infra-source-row button:hover:not(:disabled), .infra-quick-place button:hover:not(:disabled) { border-color: color-mix(in srgb, var(--vd-accent) 58%, var(--vd-theme-border)); background: color-mix(in srgb, var(--vd-accent) 10%, var(--vd-theme-panel-bg-strong)); }
+.infra-app .infra-button-primary { border-color: transparent; background: var(--vd-accent); color: var(--vd-accent-contrast); font-weight: 700; }
+.infra-app .infra-button-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--vd-accent) 86%, var(--vd-text)); color: var(--vd-accent-contrast); }
 .infra-action-reason { display: block; max-width: 240px; margin-top: 3px; color: var(--infra-warn); font-size: 14px; line-height: 1.35; }
 .infra-list-editor { margin-top: 13px; padding-top: 10px; border-top: 1px solid var(--vd-theme-border); }
 .infra-list-heading { min-height: 31px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--vd-theme-muted); font-size: 14px; font-weight: 650; }
@@ -164,6 +168,7 @@
 .infra-state-pill[data-state="stale"] i { background: var(--infra-warn); }
 .infra-state-pill[data-state="removed"] { color: var(--infra-bad); }
 .infra-state-pill[data-state="removed"] i { background: var(--infra-bad); }
+.infra-detail-head { min-height: 72px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--vd-theme-border); }
 .infra-detail-icon { width: 45px; height: 45px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid var(--vd-theme-border); border-radius: 8px; background: var(--vd-theme-panel-bg-strong); }
 .infra-detail-icon img { width: 38px; height: 38px; object-fit: contain; }
 .infra-detail-head > div:nth-child(2) { min-width: 0; flex: 1; }
@@ -272,6 +277,10 @@
 .infra-hosted-services .infra-component-list { margin-top: 7px; }
 .infra-dialog .infra-danger-button { color: var(--infra-bad); }
 
+.infra-hosted-services { margin-top: 0; padding: 12px 13px 14px; }
+.infra-hosted-services h3 { margin: 0; color: var(--vd-theme-muted); font: 600 13px/1.3 var(--vd-font-ui); }
+.infra-hosted-services .infra-component-list { padding: 0; }
+.infra-component-list button img { width: 22px; height: 22px; flex: 0 0 auto; object-fit: contain; }
 .infra-detail-kind { margin: 0 0 2px; color: var(--vd-theme-muted); font-size: 13px; font-weight: 600; }
 .infra-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px var(--ds-space-3); margin: 0; font-size: 14px; }
 .infra-facts dt { color: var(--vd-theme-muted); }
@@ -308,7 +317,7 @@
   .infra-history { display: none; }
   .infra-menu [data-overflow-only] { display: flex; }
   .infra-body, .infra-app[data-inspector-open="true"] .infra-body, .infra-app[data-library-collapsed="true"] .infra-body, .infra-app[data-library-collapsed="true"][data-inspector-open="true"] .infra-body { grid-template-columns: minmax(0, 1fr); }
-  .infra-canvas, .infra-table-view { grid-column: 1; }
+  .infra-body > .infra-canvas, .infra-body > .infra-table-view { grid-column: 1; }
   .infra-library { grid-area: auto; position: absolute; top: 0; left: 0; bottom: 0; z-index: 8; display: none; width: min(320px, 92%); box-shadow: var(--vd-theme-shadow-modal); }
   .infra-app[data-library-sheet="open"] .infra-library { display: flex; }
   .infra-app[data-library-sheet="open"] .infra-scrim { display: block; }
@@ -320,7 +329,9 @@
   .infra-brand, .infra-live-status { display: none; }
   .infra-commandbar { gap: 4px; padding: 0 6px; }
   .infra-cmd-icon { width: 32px; height: 32px; }
-  .infra-view-switch button { padding: 0 6px; }
+  .infra-view-switch button { padding: 0 5px; }
+  .infra-search-icon { display: none; }
+  .infra-search { padding-left: 8px; }
 }
 @media (prefers-reduced-motion: no-preference) { body:not([data-animations="false"]) .infra-inspector { animation: infra-panel-in var(--ds-motion-duration-base) var(--ds-motion-ease-decel); } }
 @keyframes infra-panel-in { from { opacity: 0; transform: translateX(12px); } }
