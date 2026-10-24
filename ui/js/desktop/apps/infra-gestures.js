@@ -30,7 +30,13 @@
             if (ev.pointerType === 'mouse' && ev.buttons === 0) finish(ev, true);
             else onMove(ev);
         };
-        const end = ev => { if (ev.pointerId === id) finish(ev, ev.type !== 'pointerup'); };
+        const end = ev => {
+            if (ev.pointerId !== id) return;
+            // A mouse that loses capture with its button still down (the browser dropped it, or the
+            // capturing element was re-rendered) keeps going: pointerup or a move without buttons ends it.
+            if (ev.type === 'lostpointercapture' && ev.pointerType === 'mouse' && ev.buttons !== 0) return;
+            finish(ev, ev.type !== 'pointerup');
+        };
         function detach() {
             done = true;
             target.removeEventListener('pointermove', move);
