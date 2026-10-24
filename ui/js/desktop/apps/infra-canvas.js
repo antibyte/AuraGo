@@ -91,6 +91,9 @@
         const retryButton = q('[data-action="retry-layout"]');
 
         const views = { atlas: null, topology: null }, initialized = { atlas: false, topology: false };
+        // viewSize is the viewport size each view was last placed for: a resize keeps the world point at the
+        // centre of that size, even when the view was set between the layout change and the observer callback.
+        const viewSize = { atlas: null, topology: null };
         const cardEls = new Map(), regionEls = new Map(), lineEls = new Map();
         const temp = { cards: new Set(), regions: new Set(), lines: new Set() };
         const ghosts = new Set();
@@ -148,6 +151,8 @@
         function setView(next, { animate = false } = {}) {
             const finite = value => (Number.isFinite(value) ? value : 0);
             views[curKey()] = { x: finite(next?.x), y: finite(next?.y), zoom: model.clampZoom(next?.zoom) };
+            const placedFor = size();
+            if (placedFor.w > 0 && placedFor.h > 0) viewSize[curKey()] = placedFor;
             if (animate && app.animationsEnabled()) {
                 scene.classList.add('is-animating');
                 clearTimeout(animTimer);
@@ -682,9 +687,13 @@
         // ---- size changes and teardown ------------------------------------------------------------
         const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
             const now = size();
-            if (lastSize && lastSize.w > 0 && lastSize.h > 0 && now.w > 0 && now.h > 0 && (now.w !== lastSize.w || now.h !== lastSize.h)) {
-                for (const key of Object.keys(views)) if (views[key]) views[key] = model.viewFromCenter(model.viewCenter(views[key], lastSize), now) || views[key];
-                applyFrame.request();
+            if (now.w > 0 && now.h > 0) {
+                for (const key of Object.keys(views)) {
+                    const was = viewSize[key] || lastSize;
+                    if (!views[key] || !was || was.w <= 0 || was.h <= 0) continue;
+                    if (now.w !== was.w || now.h !== was.h) { views[key] = model.viewFromCenter(model.viewCenter(views[key], was), now) || views[key]; applyFrame.request(); }
+                    viewSize[key] = now;
+                }
             }
             lastSize = now;
             if (!initialized[curKey()]) renderFrame.request(); else minimapFrame.request();
