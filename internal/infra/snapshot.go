@@ -21,7 +21,7 @@ func (s *Store) Snapshot(ctx context.Context) (Snapshot, error) {
 
 // SnapshotWith returns the stored graph with optional content.
 func (s *Store) SnapshotWith(ctx context.Context, options SnapshotOptions) (Snapshot, error) {
-	result := Snapshot{Nodes: []Node{}, Edges: []Edge{}, Sources: []Source{}}
+	result := Snapshot{Nodes: []Node{}, Edges: []Edge{}, Sources: []Source{}, SourceHosts: []SourceHost{}}
 	rows, err := s.db.QueryContext(ctx, `SELECT id, version, kind, name, icon, registry_id, parent_id, profile_json, placements_json
 		FROM infra_nodes ORDER BY name COLLATE NOCASE, id`)
 	if err != nil {
@@ -93,6 +93,10 @@ func (s *Store) SnapshotWith(ctx context.Context, options SnapshotOptions) (Snap
 		return Snapshot{}, fmt.Errorf("close infra source list: %w", err)
 	}
 	result.Edges, err = s.listEdges(ctx)
+	if err != nil {
+		return Snapshot{}, err
+	}
+	result.SourceHosts, err = s.snapshotSourceHosts(ctx, result.Sources)
 	if err != nil {
 		return Snapshot{}, err
 	}

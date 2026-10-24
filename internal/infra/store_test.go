@@ -1161,3 +1161,62 @@ func TestDeleteNodeAndIgnoreSourcesIsAtomic(t *testing.T) {
 		t.Fatalf("discoverable sources = %#v, %v; want none", listed, err)
 	}
 }
+
+func TestSourceHostMappingUsesVersionCAS(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	host, err := store.CreateNode(ctx, testNode(NodeDevice, "TheBrain", "tower-server"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := store.CreateNode(ctx, testNode(NodeRoom, "Office", "room"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := SourceIdentity{Kind: "docker", Instance: "docker_engine", Key: "web"}
+	if err := store.ObserveSources(ctx, identity.Kind, identity.Instance, []SourceObservation{{
+		Identity: identity, Name: "web", Observed: SourceObserved{Kind: NodeContainer, Name: "web", Icon: "container"},
+	}}, true); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name string
+		host SourceHost
+		want error
+	}{
+		{"unobserved engine", SourceHost{Kind: "docker", Instance: "docker_unknown", NodeID: host.ID}, ErrSourceNotFound},
+		{"other source kind", SourceHost{Kind: "proxmox", Instance: "docker_engine", NodeID: host.ID}, ErrValidation},
+		{"place as host", SourceHost{Kind: "docker", Instance: "docker_engine", NodeID: room.ID}, ErrValidation},
+		{"missing node", SourceHost{Kind: "docker", Instance: "docker_engine", NodeID: "missing"}, ErrValidation},
+	} {
+		if _, err := store.SetSourceHost(ctx, tc.host); !errors.Is(err, tc.want) {
+			t.Fatalf("%s error = %v; want %v", tc.name, err, tc.want)
+		}
+	}
+	created, err := store.SetSourceHost(ctx, SourceHost{Kind: "docker", Instance: "docker_engine", NodeID: host.ID, InferredNodeID: "forged"})
+	if err != nil || created.Version != 1 || created.NodeID != host.ID || created.InferredNodeID != "" {
+		t.Fatalf("created mapping = %#v, %v", created, err)
+	}
+	if _, err := store.SetSourceHost(ctx, SourceHost{Kind: "docker", Instance: "docker_engine"}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("second create error = %v; want conflict", err)
+	}
+	cleared, err := store.SetSourceHost(ctx, SourceHost{Kind: "docker", Instance: "docker_engine", Version: 1})
+	if err != nil || cleared.Version != 2 || cleared.NodeID != "" {
+		t.Fatalf("cleared mapping = %#v, %v", cleared, err)
+	}
+	if _, err := store.SetSourceHost(ctx, SourceHost{Kind: "docker", Instance: "docker_engine", NodeID: host.ID, Version: 2}); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := store.Snapshot(ctx)
+	if err != nil || len(snapshot.SourceHosts) != 1 || snapshot.SourceHosts[0].NodeID != host.ID || snapshot.SourceHosts[0].Version != 3 {
+		t.Fatalf("snapshot source hosts = %#v, %v", snapshot.SourceHosts, err)
+	}
+	// Deleting the host node cascades the mapping; the observed engine stays listed.
+	if err := store.DeleteNode(ctx, host.ID, host.Version); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err = store.Snapshot(ctx)
+	if err != nil || len(snapshot.SourceHosts) != 1 || snapshot.SourceHosts[0].NodeID != "" || snapshot.SourceHosts[0].Version != 0 {
+		t.Fatalf("source hosts after deleting the host = %#v, %v; want an unassigned observed engine", snapshot.SourceHosts, err)
+	}
+}

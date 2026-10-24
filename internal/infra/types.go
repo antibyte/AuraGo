@@ -216,10 +216,21 @@ type Capabilities struct {
 	Control    bool `json:"control"`
 }
 
+// SourceHost maps a provider engine instance (Docker only) to the Infra device
+// that runs it. InferredNodeID is a runtime projection and is never stored.
+type SourceHost struct {
+	Kind           string `json:"kind"`
+	Instance       string `json:"instance"`
+	NodeID         string `json:"node_id"`
+	Version        int64  `json:"version"`
+	InferredNodeID string `json:"inferred_node_id,omitempty"`
+}
+
 type Snapshot struct {
 	Nodes        []Node       `json:"nodes"`
 	Edges        []Edge       `json:"edges"`
 	Sources      []Source     `json:"sources"`
+	SourceHosts  []SourceHost `json:"source_hosts"`
 	Capabilities Capabilities `json:"capabilities"`
 }
 

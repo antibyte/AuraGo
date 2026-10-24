@@ -332,9 +332,13 @@ func desktopInfraRefreshContext(s *Server, r *http.Request, cfg *config.Config, 
 }
 
 func desktopInfraSnapshotResponse(snapshot infra.Snapshot, runtime *desktopInfraRuntime) map[string]any {
+	sourceHosts := snapshot.SourceHosts
+	if sourceHosts == nil {
+		sourceHosts = []infra.SourceHost{}
+	}
 	response := map[string]any{
 		"nodes": snapshot.Nodes, "edges": snapshot.Edges, "sources": snapshot.Sources,
-		"capabilities": snapshot.Capabilities,
+		"source_hosts": sourceHosts, "capabilities": snapshot.Capabilities,
 	}
 	if sourceErrors := runtime.sourceErrors(); len(sourceErrors) > 0 {
 		response["source_errors"] = sourceErrors
