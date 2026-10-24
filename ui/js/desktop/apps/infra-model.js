@@ -438,9 +438,10 @@
     };
     // ---- layout intents and history -----------------------------------------
     // mergeIntent lays a later intent over an earlier one. An unplace intent
-    // ({unplace: true}) replaces everything before it; a later placement lifts it.
+    // ({unplace: true, parent_id?}) replaces everything before it and keeps only
+    // its own parent_id; a later placement lifts it.
     const mergeIntent = (earlier, later) => {
-        if (later && later.unplace) return { unplace: true };
+        if (later && later.unplace) return later.parent_id === undefined ? { unplace: true } : { unplace: true, parent_id: later.parent_id };
         const merged = { ...(earlier || {}), ...(later || {}) };
         delete merged.unplace;
         return merged;
@@ -452,7 +453,10 @@
         for (const [id, intent] of intents) {
             const node = nodesById.get(id);
             if (!node) { missing.push(id); continue; }
-            if (intent.unplace) { if (parent) items.push({ id, version: node.version, unplace: true }); continue; }
+            if (intent.unplace) {
+                if (parent) items.push(intent.parent_id === undefined ? { id, version: node.version, unplace: true } : { id, version: node.version, unplace: true, parent_id: String(intent.parent_id) });
+                continue;
+            }
             const item = { id, version: node.version, x: Math.round(Number(intent.x)), y: Math.round(Number(intent.y)), pinned: intent.pinned !== false };
             if (parent && intent.parent_id !== undefined) item.parent_id = String(intent.parent_id);
             if (parent && isContainer(node.kind)) {

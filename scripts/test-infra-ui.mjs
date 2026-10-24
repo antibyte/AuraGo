@@ -282,6 +282,8 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     assert.deepEqual(plain(model.mergeIntent({ x: 1, y: 1, parent_id: 'room' }, { x: 5, y: 6, pinned: true })), { x: 5, y: 6, parent_id: 'room', pinned: true });
     assert.deepEqual(plain(model.mergeIntent({ x: 1, y: 1, parent_id: 'room' }, { unplace: true })), { unplace: true }, 'an unplace replaces every earlier intent');
     assert.deepEqual(plain(model.mergeIntent({ unplace: true }, { x: 5, y: 6, pinned: true })), { x: 5, y: 6, pinned: true }, 'a later placement lifts an unplace');
+    assert.deepEqual(plain(model.mergeIntent({ x: 1, y: 1, parent_id: 'room' }, { unplace: true, parent_id: '' })), { unplace: true, parent_id: '' }, 'an unplace keeps its own parent_id');
+    assert.deepEqual(plain(model.mergeIntent({ unplace: true, parent_id: '' }, { x: 5, y: 6, parent_id: 'room' })), { x: 5, y: 6, parent_id: 'room' }, 'a later placement lifts an unplace with a parent');
     const nodesById = new Map([['a', { id: 'a', kind: 'device', version: 3, placements: {} }], ['r', { id: 'r', kind: 'room', version: 7, placements: { atlas: { x: 0, y: 0, w: 400, h: 300 } } }]]);
     const intents = new Map([['a', { x: 10.4, y: 20.6, parent_id: 'r' }], ['r', { x: 24, y: 48 }], ['gone', { x: 0, y: 0 }]]);
     const legacy = model.layoutItems(intents, nodesById, { parent: false, view: 'atlas' });
@@ -292,6 +294,7 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     const unplaceIntents = new Map([['a', { unplace: true }]]);
     assert.deepEqual(plain(model.layoutItems(unplaceIntents, nodesById, { parent: true, view: 'atlas' }).items), [{ id: 'a', version: 3, unplace: true }], 'an unplace carries only id and version');
     assert.deepEqual(plain(model.layoutItems(unplaceIntents, nodesById, { parent: false, view: 'atlas' }).items), [], 'a server without layout support never receives unplace');
+    assert.deepEqual(plain(model.layoutItems(new Map([['a', { unplace: true, parent_id: '' }]]), nodesById, { parent: true, view: 'atlas' }).items), [{ id: 'a', version: 3, unplace: true, parent_id: '' }], 'an unplace carries its parent_id when it has one');
     const rebased = model.rebaseLayout(new Map([['a', { x: 1, y: 2, parent_id: 'gone' }], ['b', { x: 3, y: 4 }]]), nodesById);
     assert.deepEqual(plain([...rebased.kept]), [['a', { x: 1, y: 2 }]], 'a vanished parent is dropped, the coordinates stay');
     assert.deepEqual(plain(rebased.dropped), ['b']);
@@ -427,13 +430,39 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
         assert.equal(store.currentIntent('a', 'atlas'), null);
         await store.whenLayoutIdle('atlas');
         const puts = calls.filter(call => call.route === 'PUT /layout').map(call => call.body.nodes);
-        assert.deepEqual(plain(puts[1]), [{ id: 'a', version: 2, unplace: true }, { id: 'b', version: 2, x: 0, y: 0, pinned: true, parent_id: '' }], 'unplace carries no coordinates; an asset that was placed before goes back to where it was');
+        assert.deepEqual(plain(puts[1]), [{ id: 'a', version: 2, unplace: true, parent_id: '' }, { id: 'b', version: 2, x: 0, y: 0, pinned: true, parent_id: '' }], 'unplace carries no coordinates but the previous parent; an asset that was placed before goes back to where it was');
         assert.equal(store.nodeById('a').placements.atlas, undefined, 'the saved asset is unplaced afterwards');
         assert.equal(store.layoutState('a', 'atlas'), '');
         assert.equal(await store.redo('atlas'), true);
         await store.whenLayoutIdle('atlas');
         assert.equal(store.effectivePlacement('a', 'atlas').x, 96, 'redo places it again');
         assert.deepEqual(plain(calls.filter(call => call.route === 'PUT /layout')[2].body.nodes[0]), { id: 'a', version: 3, x: 96, y: 48, pinned: true, parent_id: 'room' });
+        store.dispose();
+    }
+    { // undoing a drop out of a place puts the asset back into the place it left
+        const { api, calls } = fakeApi({ 'PUT /layout': echo });
+        const store = newStore(api);
+        store.applySnapshot({ nodes: [storeNode('c', { placements: {}, parent_id: 'room' }), storeNode('room', { kind: 'room' })], edges: [], sources: [], source_hosts: [], capabilities: { write: true } });
+        await store.dispatch(InfraStore.commands.placeFromLibrary('atlas', new Map([['c', { x: 480, y: 48, pinned: true, parent_id: '' }]]), 'place'));
+        await store.whenLayoutIdle('atlas');
+        assert.equal(store.nodeById('c').parent_id, '');
+        assert.equal(await store.undo('atlas'), true);
+        await store.whenLayoutIdle('atlas');
+        const puts = calls.filter(call => call.route === 'PUT /layout').map(call => call.body.nodes);
+        assert.deepEqual(plain(puts[1]), [{ id: 'c', version: 2, unplace: true, parent_id: 'room' }], 'the unplace restores the parent the drop cleared');
+        assert.equal(store.nodeById('c').parent_id, 'room');
+        assert.equal(store.nodeById('c').placements.atlas, undefined);
+        store.dispose();
+    }
+    { // a drop that leaves the parent alone unplaces without parent_id
+        const { api, calls } = fakeApi({ 'PUT /layout': echo });
+        const store = newStore(api);
+        store.applySnapshot({ nodes: [storeNode('c', { placements: {}, parent_id: 'room' }), storeNode('room', { kind: 'room' })], edges: [], sources: [], source_hosts: [], capabilities: { write: true } });
+        await store.dispatch(InfraStore.commands.placeFromLibrary('atlas', new Map([['c', { x: 96, y: 48, pinned: true, parent_id: 'room' }]]), 'place'));
+        await store.whenLayoutIdle('atlas');
+        await store.undo('atlas');
+        await store.whenLayoutIdle('atlas');
+        assert.deepEqual(plain(calls.filter(call => call.route === 'PUT /layout').map(call => call.body.nodes)[1]), [{ id: 'c', version: 2, unplace: true }]);
         store.dispose();
     }
     { // against a server without source_hosts a library placement stays out of history

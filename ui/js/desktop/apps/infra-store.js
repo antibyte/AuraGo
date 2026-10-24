@@ -21,14 +21,20 @@
     // placeFromLibrary puts assets on a view that had no placement for them.
     // Undoing it queues {unplace: true} intents, which only a server with
     // layout-parent support understands; dispatch() calls prepare() so the
-    // command knows that server and the previous state of every asset. Against
-    // an older server the command stays out of history.
+    // command knows that server and the previous state of every asset. A drop
+    // that changed an asset's parent unplaces it with its previous parent_id.
+    // Against an older server the command stays out of history.
     const placeFromLibrary = (view, after, label = '') => {
         const command = layoutCommand('PlaceFromLibrary', view, new Map(), after, label);
         command.undoable = false;
         command.prepare = store => {
             const before = new Map();
-            for (const id of after.keys()) before.set(id, store.currentIntent(id, view, store.features.layoutParent) || { unplace: true });
+            for (const [id, intent] of after) {
+                const previous = store.currentIntent(id, view, store.features.layoutParent);
+                if (previous) { before.set(id, previous); continue; }
+                const parent = store.effectiveParent(id, view);
+                before.set(id, intent.parent_id !== undefined && intent.parent_id !== parent ? { unplace: true, parent_id: parent } : { unplace: true });
+            }
             command.before = before;
             command.undoable = store.features.layoutParent === true;
         };
