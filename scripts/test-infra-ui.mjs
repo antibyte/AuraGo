@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['infra-model.js', 'infra-store.js', 'infra-canvas.js', 'infra-gestures.js', 'infra-library.js', 'infra-inspector.js', 'infra-table.js', 'infra-dialogs.js', 'infra-views.js', 'infra.js'];
+const files = ['infra-model.js', 'infra-store.js', 'infra-canvas.js', 'infra-gestures.js', 'infra-library.js', 'infra-inspector.js', 'infra-table.js', 'infra-dialogs.js', 'infra.js'];
 for (const file of files) {
     const text = fs.readFileSync(path.join(root, 'ui/js/desktop/apps', file), 'utf8');
     const lines = text.split('\n').length;
@@ -58,15 +58,12 @@ const collapsed = new Set(Array.from({ length: 20 }, (_, index) => `group-${inde
 assert.equal(Array.from(model.visibleByCollapsed(grouped, collapsed)).length, 20);
 assert.equal(Array.from(model.visibleByCollapsed(grouped, new Set())).length, 1000);
 
-const placed = [
-    { id: 'north', placements: { atlas: { x: -330, y: 85 } } },
-    { id: 'far', placements: { atlas: { x: 5200, y: 2910 } } },
-    ...Array.from({ length: 1000 }, (_, index) => ({ id: `unplaced-${index}`, placements: {} })),
-];
-const fullWorld = model.sceneDimensions(placed, 'atlas');
-const filteredWorld = model.sceneDimensions(placed.slice(0, 2), 'atlas');
-assert.deepEqual(fullWorld, filteredWorld, 'adding or filtering unplaced nodes never changes saved world coordinates');
-assert.ok(fullWorld.width > 5200 && fullWorld.height > 2910, 'large positive and negative saved positions remain in the world map');
+const placedNodes = [{ id: 'north', kind: 'device', placements: { atlas: { x: -330, y: 85 } } }, { id: 'far', kind: 'device', placements: { atlas: { x: 5200, y: 2910 } } }];
+const unplacedNodes = Array.from({ length: 1000 }, (_, index) => ({ id: `unplaced-${index}`, kind: 'device', placements: {} }));
+const worldOf = nodes => { const byId = new Map(nodes.map(node => [node.id, node])); return model.buildScene({ nodes, edges: [], view: 'atlas', placementOf: id => byId.get(id).placements.atlas, parentOf: () => '', guests: model.guestIndex(nodes, []) }).bounds; };
+assert.deepEqual(plain(worldOf([...placedNodes, ...unplacedNodes])), plain(worldOf(placedNodes)), 'unplaced nodes never change the world bounds');
+const world = worldOf(placedNodes);
+assert.ok(world.x < -330 && world.x + world.w > 5200 && world.y + world.h > 2910, 'saved negative and far positions stay in the world');
 
 const locales = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
 const required = new Set();
@@ -120,16 +117,6 @@ const room = { id: 'room', kind: 'room', parent_id: '' };
 const rack = { id: 'rack', kind: 'rack', parent_id: 'room' };
 const host = { id: 'host', kind: 'device', parent_id: 'rack' };
 assert.equal(model.visibleByCollapsed([room, rack, host], new Set(['room'])).length, 1);
-
-const placedContainer = { id: 'room', kind: 'room' };
-const placedChild = { id: 'host', kind: 'device' };
-const positions = new Map([['room', { x: 200, y: 200 }], ['host', { x: 420, y: 260 }]]);
-const frame = model.containerFrame(placedContainer, [placedChild], item => positions.get(item.id));
-assert.equal(frame.x, 200 - 48);
-assert.equal(frame.y, 200 - 48);
-assert.equal(frame.width, 220 + 96);
-assert.equal(frame.height, 60 + 96);
-assert.equal(model.containerFrame(placedContainer, [{ id: 'loose' }], () => null), null);
 
 assert.deepEqual(plain(model.edgeSegment({ x: 0, y: 0 }, { x: 400, y: 0 })), { x1: 92, y1: 0, x2: 308, y2: 0 }, 'connections start and end at the card border');
 assert.deepEqual(plain(model.edgeSegment({ x: 0, y: 0 }, { x: 0, y: 300 })), { x1: 0, y1: 30, x2: 0, y2: 270 });
@@ -489,7 +476,7 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     }
 }
 
-for (const file of ['desktop-app-infra-canvas.css']) {
+for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     const css = fs.readFileSync(path.join(root, 'ui/css', file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     const outsideMixes = css.replace(/color-mix\((?:[^()]|\([^()]*\))*\)/g, '');
     assert.deepEqual(outsideMixes.match(/#[0-9a-fA-F]{3,8}\b/g) || [], [], `${file} uses hex colours outside color-mix()`);

@@ -26,6 +26,8 @@ type infraAppBrowserFixture struct {
 	nextEdge          int
 	capabilities      map[string]bool
 	worldSize         int
+	layoutCalls       []map[string]any // every PUT /layout body, in order
+	fail409Once       bool             // the next PUT /layout bumps its first node's version and answers 409
 }
 
 func newInfraAppBrowserFixture() *infraAppBrowserFixture {
@@ -56,6 +58,18 @@ func infraReviewArtifactPath(t *testing.T, name string) string {
 	return filepath.Join(dir, name)
 }
 
+func infraFixtureNumber(value any) float64 {
+	switch v := value.(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	}
+	return 0
+}
+
 func (f *infraAppBrowserFixture) record(path string) {
 	f.requests = append(f.requests, path)
 }
@@ -65,7 +79,7 @@ func (f *infraAppBrowserFixture) source(kind, instance, key, name string) map[st
 }
 
 func (f *infraAppBrowserFixture) snapshot() map[string]any {
-	return map[string]any{"nodes": f.nodes, "edges": f.edges, "sources": []any{}, "capabilities": f.capabilities}
+	return map[string]any{"nodes": f.nodes, "edges": f.edges, "sources": []any{}, "source_hosts": []any{}, "capabilities": f.capabilities}
 }
 
 func (f *infraAppBrowserFixture) world(size int) {
@@ -272,6 +286,16 @@ func (f *infraAppBrowserFixture) ServeHTTP(w http.ResponseWriter, r *http.Reques
 			write(http.StatusBadRequest, map[string]string{"error": "invalid_request"})
 			return
 		}
+		if edge["from"] == edge["to"] {
+			write(http.StatusBadRequest, map[string]string{"error": "invalid_request"})
+			return
+		}
+		for _, existing := range f.edges {
+			if existing["from"] == edge["from"] && existing["to"] == edge["to"] && existing["kind"] == edge["kind"] {
+				write(http.StatusConflict, map[string]string{"error": "edge_exists"})
+				return
+			}
+		}
 		f.nextEdge++
 		edge["id"], edge["version"] = fmt.Sprintf("edge-%d", f.nextEdge), 1
 		f.edges = append(f.edges, edge)
@@ -301,21 +325,54 @@ func (f *infraAppBrowserFixture) ServeHTTP(w http.ResponseWriter, r *http.Reques
 			write(http.StatusBadRequest, map[string]string{"error": "invalid_request"})
 			return
 		}
+		f.layoutCalls = append(f.layoutCalls, map[string]any{"view": payload.View, "nodes": payload.Nodes})
+		byID := map[string]map[string]any{}
+		for _, node := range f.nodes {
+			byID[fmt.Sprint(node["id"])] = node
+		}
+		if f.fail409Once && len(payload.Nodes) > 0 {
+			f.fail409Once = false
+			if node := byID[fmt.Sprint(payload.Nodes[0]["id"])]; node != nil {
+				node["version"] = infraFixtureNumber(node["version"]) + 5 // another client changed it
+			}
+			write(http.StatusConflict, map[string]string{"error": "conflict"})
+			return
+		}
+		for _, change := range payload.Nodes { // the server validates the whole batch first
+			node := byID[fmt.Sprint(change["id"])]
+			if node == nil {
+				write(http.StatusNotFound, map[string]string{"error": "not_found"})
+				return
+			}
+			if infraFixtureNumber(change["version"]) != infraFixtureNumber(node["version"]) {
+				write(http.StatusConflict, map[string]string{"error": "conflict"})
+				return
+			}
+		}
 		patched := make([]map[string]any, 0, len(payload.Nodes))
 		for _, change := range payload.Nodes {
-			for _, node := range f.nodes {
-				if node["id"] != change["id"] {
-					continue
-				}
-				placements, _ := node["placements"].(map[string]any)
-				if placements == nil {
-					placements = map[string]any{}
-					node["placements"] = placements
-				}
-				placements[payload.View] = map[string]any{"x": change["x"], "y": change["y"], "pinned": change["pinned"]}
-				node["version"] = float64(2)
-				patched = append(patched, node)
+			node := byID[fmt.Sprint(change["id"])]
+			placements, _ := node["placements"].(map[string]any)
+			if placements == nil {
+				placements = map[string]any{}
+				node["placements"] = placements
 			}
+			placement := map[string]any{"x": change["x"], "y": change["y"], "pinned": change["pinned"]}
+			if w, ok := change["w"]; ok {
+				placement["w"], placement["h"] = w, change["h"]
+			} else if previous, ok := placements[payload.View].(map[string]any); ok && previous["w"] != nil {
+				placement["w"], placement["h"] = previous["w"], previous["h"]
+			}
+			placements[payload.View] = placement
+			if parent, ok := change["parent_id"]; ok {
+				if value, _ := parent.(string); value == "" {
+					delete(node, "parent_id")
+				} else {
+					node["parent_id"] = value
+				}
+			}
+			node["version"] = infraFixtureNumber(node["version"]) + 1
+			patched = append(patched, node)
 		}
 		// Mirror the server: only the nodes this request changed are returned.
 		write(http.StatusOK, map[string]any{"nodes": patched})
@@ -353,7 +410,7 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 	page.MustWait(`()=>!!document.querySelector('.infra-app') && !document.querySelector('[data-action="add-empty"]').disabled`)
 	if !page.MustEval(`()=>{
 		const create=document.querySelector('[data-action="add-empty"]'),importExisting=document.querySelector('[data-action="import-empty"]');
-		return !create.hidden&&!create.disabled&&!importExisting.hidden&&!importExisting.disabled&&document.querySelector('.infra-stage-empty img')?.naturalWidth>0;
+		return !create.hidden&&!create.disabled&&!importExisting.hidden&&!importExisting.disabled&&document.querySelector('[data-empty] img')?.naturalWidth>0;
 	}`).Bool() {
 		t.Fatal("empty Infra atlas must show both enabled first-run choices and its local illustration")
 	}
@@ -376,7 +433,7 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 		t.Fatal("partial import did not retain only the candidate that still needs processing")
 	}
 	page.MustEval(`()=>document.querySelector('[data-import]').click()`)
-	page.MustWait(`()=>!!document.querySelector('[data-place="imported-2"]')`)
+	page.MustWait(`()=>!!document.querySelector('[data-library-item="imported-2"]')`)
 	page.MustWait(`()=>document.querySelectorAll('.infra-source-row').length===3`)
 	if !page.MustEval(`()=>{
 		const rows=[...document.querySelectorAll('.infra-source-row')];
@@ -424,15 +481,17 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 		const settings=auditTest.state.bootstrap.settings;settings['appearance.theme']='standard';settings['appearance.fruity_mode']='dark';auditTest.applyDesktopSettings();
 	}`)
 	assertReadableLayout := func(label string) {
-		if !page.MustEval(`()=>{
-			const sizes=[['overline','.infra-eyebrow',14],['kicker','.infra-kicker',14],['sidebar count','.infra-count',14],['scope count','.infra-scope-nav button > span:last-child',14],['source status','.infra-sidebar-bottom',14],['map legend','.infra-stage-footer',14],['map help','.infra-stage-footer [data-map-help]',14],['tray heading','.infra-tray-title',14],['tray name','.infra-tray-item strong',15],['tray kind','.infra-tray-item small',14]];
-			if(sizes.some(([,selector,min])=>{const el=document.querySelector(selector);return !el||parseFloat(getComputedStyle(el).fontSize)<min;})) return false;
-			return ['.infra-toolbar','.infra-filterbar','.infra-stage-head','.infra-stage-footer','.infra-tray-title','.infra-inspector'].every(selector=>{const el=document.querySelector(selector);return !el||getComputedStyle(el).display==='none'||el.scrollWidth<=el.clientWidth+1;});
-		}`).Bool() {
-			t.Fatalf("%s Infra text is too small or a key region overflows: %s", label, page.MustEval(`()=>JSON.stringify({sizes:['.infra-eyebrow','.infra-kicker','.infra-count','.infra-scope-nav button > span:last-child','.infra-sidebar-bottom','.infra-stage-footer','.infra-stage-footer [data-map-help]','.infra-tray-title','.infra-tray-item strong','.infra-tray-item small'].map(selector=>[selector,document.querySelector(selector)&&getComputedStyle(document.querySelector(selector)).fontSize]),overflow:['.infra-toolbar','.infra-filterbar','.infra-stage-head','.infra-stage-footer','.infra-tray-title','.infra-inspector'].filter(selector=>{const el=document.querySelector(selector);return el&&getComputedStyle(el).display!=='none'&&el.scrollWidth>el.clientWidth+1;})})`).Str())
+		got := page.MustEval(`()=>{
+			const sizes=[['brand','.infra-brand-name',14],['view switch','.infra-view-switch button',14],['search','.infra-search input',14],['library title','.infra-library-title',13],['library row','.infra-library-row-name',14],['library meta','.infra-library-row-meta',14],['zoom','.infra-zoom-value',14],['visible count','[data-visible-count]',14]];
+			const small=sizes.filter(([,selector,min])=>{const el=document.querySelector(selector);return !el||parseFloat(getComputedStyle(el).fontSize)<min;}).map(([name])=>name);
+			const overflow=['.infra-commandbar','.infra-library','.infra-inspector'].filter(selector=>{const el=document.querySelector(selector);return el&&getComputedStyle(el).display!=='none'&&el.scrollWidth>el.clientWidth+1;});
+			return JSON.stringify({small,overflow});
+		}`).Str()
+		if got != `{"small":[],"overflow":[]}` {
+			t.Fatalf("%s Infra text is too small or a key region overflows: %s", label, got)
 		}
 	}
-	page.MustWait(`()=>!!document.querySelector('.infra-tray-item')&&!!document.querySelector('[data-detail-form]')`)
+	page.MustWait(`()=>!!document.querySelector('[data-library-item]')&&!!document.querySelector('[data-detail-form]')`)
 	assertReadableLayout("wide")
 	for _, theme := range []string{"standard", "fruity"} {
 		for _, mode := range []string{"light", "dark"} {
@@ -447,12 +506,16 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 	page.MustEval(`()=>{const win=document.querySelector('.vd-window[data-app-id="infra"]');win.style.width='430px';win.style.height='700px';}`)
 	page.MustWait(`()=>document.querySelector('.infra-app').clientWidth<500&&!!document.querySelector('[data-action="close-inspector"]')`)
 	page.MustEval(`()=>document.querySelector('[data-action="close-inspector"]').click()`)
-	page.MustWait(`()=>getComputedStyle(document.querySelector('[data-inspector]')).display==='none'&&!document.querySelector('[data-tray]').hidden`)
+	page.MustWait(`()=>getComputedStyle(document.querySelector('[data-inspector]')).display==='none'&&getComputedStyle(document.querySelector('.infra-library')).display==='none'`)
+	page.MustEval(`()=>document.querySelector('[data-action="toggle-library"]').click()`)
+	page.MustWait(`()=>{const place=document.querySelector('[data-place="manual-1"]');return getComputedStyle(document.querySelector('.infra-library')).display!=='none'&&!!place&&place.offsetParent!==null;}`)
 	assertReadableLayout("430px")
-	path := infraReviewArtifactPath(t, "430-narrow-populated-tray.png")
+	path := infraReviewArtifactPath(t, "430-narrow-library-sheet.png")
 	if err := os.WriteFile(path, page.MustScreenshot(), 0644); err != nil {
 		t.Fatal(err)
 	}
+	page.MustEval(`()=>document.querySelector('[data-action="toggle-library"]').click()`)
+	page.MustWait(`()=>getComputedStyle(document.querySelector('.infra-library')).display==='none'`)
 	page.MustEval(`()=>{const win=document.querySelector('.vd-window[data-app-id="infra"]');win.style.width='1500px';win.style.height='970px';}`)
 	page.MustWait(`()=>document.querySelector('.infra-app').clientWidth>1000`)
 	for _, size := range []int{25, 250, 1000} {
@@ -460,59 +523,44 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 		fixture.world(size)
 		fixture.mu.Unlock()
 		page.MustEval(`()=>document.querySelector('[data-action="refresh"]').click()`)
-		expectedVisible := size
-		if size == 25 {
-			expectedVisible-- // The service is hidden until its explicit host expansion.
-		}
+		expectedVisible := map[int]int{25: 23, 250: 248, 1000: 998}[size]
 		page.MustWait(fmt.Sprintf(`()=>document.querySelector('[data-visible-count]').textContent.includes('%d')`, expectedVisible))
 		if size == 25 {
 			page.MustWait(`()=>{const images=[...document.querySelectorAll('[data-nodes] img')];return images.length>0&&images.every(image=>image.complete&&image.naturalWidth>0);}`)
-			if !page.MustEval(`()=>{
-				const scene=document.querySelector('[data-scene]'),nodes=[...document.querySelectorAll('[data-nodes] [data-node]')];
-				return nodes.length===24&&!document.querySelector('[data-node="fixture-node-0001"]')&&parseFloat(scene.style.width)>1000&&parseFloat(scene.style.width)<2000&&document.querySelector('[data-edges]').getAttribute('viewBox').startsWith('0 0 ');
-			}`).Bool() {
-				metrics := page.MustEval(`()=>{const scene=document.querySelector('[data-scene]'),nodes=[...document.querySelectorAll('[data-nodes] [data-node]')],images=[...document.querySelectorAll('[data-nodes] img')];return JSON.stringify({nodes:nodes.length,service:!!document.querySelector('[data-node="fixture-node-0001"]'),loaded:images.filter(image=>image.complete&&image.naturalWidth>0).length,imageCount:images.length,width:scene.style.width,height:scene.style.height,viewBox:document.querySelector('[data-edges]').getAttribute('viewBox')});}`).Str()
-				t.Fatalf("atlas did not render the compact 5×5 demo cluster with SVG bounds and packaged miniatures: %s", metrics)
+			if got := page.MustEval(`()=>JSON.stringify({cards:document.querySelectorAll('[data-nodes] [data-node]').length,guestCard:!!document.querySelector('[data-node="fixture-node-0001"]'),region:!!document.querySelector('[data-regions] [data-region="fixture-group"]'),viewBox:document.querySelector('[data-edges]').getAttribute('viewBox').slice(0,4),transform:document.querySelector('[data-scene]').style.transform.slice(0,10)})`).Str(); got != `{"cards":23,"guestCard":false,"region":true,"viewBox":"0 0 ","transform":"translate("}` {
+				t.Fatalf("map did not render 23 cards, the group region and a translate+scale scene: %s", got)
 			}
-			page.MustEval(`()=>document.querySelector('[data-node="fixture-node-0002"]').click()`)
-			page.MustWait(`()=>!!document.querySelector('[data-toggle-host-services]')`)
-			if !page.MustEval(`()=>{const button=document.querySelector('[data-toggle-host-services]'),list=document.getElementById(button.getAttribute('aria-controls'));return button.getAttribute('aria-expanded')==='false'&&list?.hidden&&!!list.querySelector('[data-hosted-service="fixture-node-0001"]');}`).Bool() {
-				t.Fatal("host did not expose a collapsed, accessible hosted-service list")
+			if !page.MustEval(`()=>{const button=document.querySelector('[data-toggle-host-services="fixture-node-0002"]'),shelf=button&&document.getElementById(button.getAttribute('aria-controls'));return button?.getAttribute('aria-expanded')==='false'&&shelf?.hidden&&!!shelf.querySelector('[data-hosted-service="fixture-node-0001"]');}`).Bool() {
+				t.Fatal("the host card did not expose a collapsed, accessible guest shelf")
 			}
-			page.MustEval(`()=>document.querySelector('[data-toggle-host-services]').click()`)
-			page.MustWait(`()=>document.querySelectorAll('[data-nodes] [data-node]').length===25&&!!document.querySelector('[data-node="fixture-node-0001"]')`)
-			constBefore := page.MustEval(`()=>{const n=document.querySelector('[data-node="fixture-node-0001"]');return n.style.left+'|'+n.style.top;}`).Str()
-			page.MustEval(`()=>document.querySelector('[data-toggle-host-services]').click()`)
-			page.MustWait(`()=>document.querySelectorAll('[data-nodes] [data-node]').length===24`)
-			if !page.MustEval(`()=>['.infra-node-copy strong','.infra-node-copy small'].every(selector=>parseFloat(getComputedStyle(document.querySelector(selector)).fontSize)>=16)`).Bool() {
-				t.Fatal("atlas node labels must remain at least 16px")
+			page.MustEval(`()=>document.querySelector('[data-toggle-host-services="fixture-node-0002"]').click()`)
+			page.MustWait(`()=>{const button=document.querySelector('[data-toggle-host-services="fixture-node-0002"]');return button.getAttribute('aria-expanded')==='true'&&!document.getElementById(button.getAttribute('aria-controls')).hidden;}`)
+			if count := page.MustEval(`()=>document.querySelectorAll('[data-nodes] [data-node]').length`).Int(); count != 23 {
+				t.Fatalf("expanding a host must not turn guests into cards; got %d cards", count)
 			}
-			page.MustEval(`()=>document.querySelector('[data-toggle-host-services]').click()`)
-			page.MustWait(`()=>document.querySelectorAll('[data-nodes] [data-node]').length===25`)
-			if after := page.MustEval(`()=>{const n=document.querySelector('[data-node="fixture-node-0001"]');return n.style.left+'|'+n.style.top;}`).Str(); after != constBefore {
-				t.Fatal("expanding the host moved the saved hosted-service placement")
+			page.MustEval(`()=>document.querySelector('[data-hosted-service="fixture-node-0001"]').click()`)
+			page.MustWait(`()=>document.querySelector('[data-inspector] h2')?.textContent==='Public status'`)
+			if !page.MustEval(`()=>parseFloat(getComputedStyle(document.querySelector('.infra-card-name')).fontSize)>=16&&parseFloat(getComputedStyle(document.querySelector('.infra-card-meta')).fontSize)>=14`).Bool() {
+				t.Fatal("card names must stay at least 16px and their meta line at least 14px")
 			}
-			page.MustEval(`()=>{const search=document.querySelector('[data-search]');search.value='Public status';search.dispatchEvent(new Event('input',{bubbles:true}));}`)
-			page.MustWait(`()=>document.querySelectorAll('[data-nodes] [data-node]').length===1`)
+			before := page.MustEval(`()=>{const n=document.querySelector('[data-node="fixture-node-0003"]');return n.style.left+'|'+n.style.top;}`).Str()
+			page.MustEval(`()=>{const search=document.querySelector('[data-search]');search.value='Cold-store NAS';search.dispatchEvent(new Event('input',{bubbles:true}));}`)
+			page.MustWait(`()=>document.querySelectorAll('[data-nodes] [data-node]:not(.is-dimmed)').length===1&&!document.querySelector('[data-node="fixture-node-0003"]').classList.contains('is-dimmed')&&document.querySelectorAll('[data-nodes] [data-node]').length===23`)
 			page.MustEval(`()=>{const search=document.querySelector('[data-search]');search.value='';search.dispatchEvent(new Event('input',{bubbles:true}));}`)
-			page.MustWait(`()=>document.querySelectorAll('[data-nodes] [data-node]').length===25`)
-			if after := page.MustEval(`()=>{const n=document.querySelector('[data-node="fixture-node-0001"]');return n.style.left+'|'+n.style.top;}`).Str(); after != constBefore {
+			page.MustWait(`()=>!document.querySelector('[data-nodes] [data-node].is-dimmed')`)
+			if after := page.MustEval(`()=>{const n=document.querySelector('[data-node="fixture-node-0003"]');return n.style.left+'|'+n.style.top;}`).Str(); after != before {
 				t.Fatal("filtering moved the asset from its saved world position")
 			}
-			page.MustEval(`()=>document.querySelector('[data-action="zoom-in"]').click()`)
-			page.MustWait(`()=>document.querySelector('[data-scene]').style.transform==='scale(1)'`)
+			page.MustEval(`()=>{window.infraZoomOf=()=>Number(/scale\(([^)]+)\)/.exec(document.querySelector('[data-scene]').style.transform)[1]);window.infraZoomBefore=infraZoomOf();document.querySelector('[data-action="zoom-in"]').click();}`)
+			page.MustWait(`()=>infraZoomOf()>infraZoomBefore`)
 			page.MustEval(`()=>document.querySelector('[data-action="zoom-reset"]').click()`)
-			page.MustWait(`()=>document.querySelector('[data-scene]').style.transform==='scale(0.9)'`)
+			page.MustWait(`()=>infraZoomOf()===1&&document.querySelector('[data-zoom]').textContent.trim()==='100%'`)
 			page.MustEval(`()=>document.querySelector('[data-view="topology"]').click()`)
 			page.MustWait(`()=>document.querySelector('[data-view="topology"]').getAttribute('aria-pressed')==='true'`)
 			page.MustEval(`()=>document.querySelector('[data-view="atlas"]').click()`)
 			page.MustWait(`()=>document.querySelector('[data-view="atlas"]').getAttribute('aria-pressed')==='true'`)
-			if !page.MustEval(`()=>{
-				const left=document.querySelector('[data-node="fixture-node-0003"] .infra-node-copy').getBoundingClientRect();
-				const right=document.querySelector('[data-node="fixture-node-0001"] .infra-node-copy').getBoundingClientRect();
-				return left.right<=right.left;
-			}`).Bool() {
-				t.Fatal("larger labels overlap neighboring assets at their saved positions")
+			if !page.MustEval(`()=>{const left=document.querySelector('[data-node="fixture-node-0003"]').getBoundingClientRect(),right=document.querySelector('[data-node="fixture-node-0002"]').getBoundingClientRect();return left.right<=right.left;}`).Bool() {
+				t.Fatal("cards overlap neighbouring assets at their saved positions")
 			}
 			for _, theme := range []string{"standard", "fruity"} {
 				for _, mode := range []string{"light", "dark"} {
@@ -526,19 +574,21 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 					}
 				}
 			}
-			if metrics := page.MustEval(`()=>{const root=document.querySelector('.infra-inspector');return JSON.stringify({client:root.clientWidth,scroll:root.scrollWidth,overflow:[...root.querySelectorAll('*')].filter(el=>el.scrollWidth>el.clientWidth+2).map(el=>({tag:el.tagName,class:el.className,client:el.clientWidth,scroll:el.scrollWidth,grid:getComputedStyle(el).gridTemplateColumns})).slice(0,8)});}`).Str(); page.MustEval(`()=>{const root=document.querySelector('.infra-inspector');return root.scrollWidth<=root.clientWidth+1}`).Bool() == false {
-				t.Fatalf("selected node inspector has horizontal overflow: %s", metrics)
+			page.MustEval(`()=>document.querySelector('[data-node="fixture-node-0002"]').click()`)
+			page.MustWait(`()=>document.querySelector('[data-inspector] h2')?.textContent==='Atlas hypervisor'`)
+			if !page.MustEval(`()=>{const root=document.querySelector('.infra-inspector');return root.scrollWidth<=root.clientWidth+1}`).Bool() {
+				t.Fatal("selected node inspector has horizontal overflow")
 			}
 		} else if size == 250 {
-			if count := page.MustEval(`()=>document.querySelectorAll('[data-nodes] [data-node]').length`).Int(); count != 250 {
-				t.Fatalf("atlas has %d visible nodes; want 250", count)
+			if count := page.MustEval(`()=>document.querySelectorAll('[data-nodes] [data-node]').length`).Int(); count != 248 {
+				t.Fatalf("map has %d cards; want 248 (249 assets minus one guest)", count)
 			}
-			if !page.MustEval(`()=>parseFloat(document.querySelector('[data-scene]').style.width)>5000`).Bool() {
-				t.Fatal("large atlas did not expand to contain saved world coordinates")
+			if left := page.MustEval(`()=>document.querySelector('[data-node="fixture-node-0045"]').style.left`).Str(); left != "5390px" {
+				t.Fatalf("a far saved world coordinate changed: %s", left)
 			}
 		} else {
-			if count := page.MustEval(`()=>document.querySelectorAll('[data-nodes] [data-node]').length`).Int(); count != 1000 {
-				t.Fatalf("expanded grouped atlas has %d nodes; want 1000", count)
+			if got := page.MustEval(`()=>document.querySelectorAll('[data-nodes] [data-node]').length+document.querySelectorAll('[data-regions] [data-region]').length+document.querySelectorAll('[data-guest-shelf] [data-hosted-service]').length`).Int(); got != 1000 {
+				t.Fatalf("1000-asset map rendered %d cards, regions and guest chips; want 1000", got)
 			}
 			page.MustEval(`()=>document.querySelector('[data-view="table"]').click()`)
 			page.MustWait(`()=>document.querySelector('[data-table-total]').textContent.includes('1000')`)
@@ -546,23 +596,22 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 				t.Fatalf("inventory table rendered %d rows at once; want a virtualized slice", count)
 			}
 			page.MustEval(`()=>document.querySelector('[data-view="atlas"]').click()`)
-			page.MustWait(`()=>document.querySelectorAll('[data-nodes] [data-node]').length===1000`)
-			page.MustEval(`()=>document.querySelector('.infra-group-toggle').click()`)
-			page.MustWait(`()=>document.querySelector('[data-visible-count]').textContent.includes('1')`)
-			if count := page.MustEval(`()=>document.querySelectorAll('[data-nodes] [data-node]').length`).Int(); count != 1 {
-				t.Fatalf("collapsed 1000-entry group has %d DOM nodes; want its single group marker", count)
+			page.MustWait(`()=>document.querySelectorAll('[data-nodes] [data-node]').length===998`)
+			// Switching back from the list schedules one forced canvas pass; let it finish before the card is captured.
+			page.MustEval(`()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
+			page.MustEval(`()=>{window.infraKeyedCard=document.querySelector('[data-node="fixture-node-0500"]');window.infraStamp=document.querySelector('[data-live]').dataset.refreshedAt;document.querySelector('[data-action="refresh"]').click();}`)
+			page.MustWait(`()=>document.querySelector('[data-live]').dataset.refreshedAt!==window.infraStamp`)
+			if !page.MustEval(`()=>document.querySelector('[data-node="fixture-node-0500"]')===window.infraKeyedCard`).Bool() {
+				t.Fatal("a refresh with unchanged data rebuilt the card instead of patching it")
 			}
-			page.MustEval(`()=>document.querySelector('.infra-group-toggle').click()`)
-			page.MustWait(`()=>document.querySelectorAll('[data-nodes] [data-node]').length===1000`)
 			page.MustEval(`()=>{const win=document.querySelector('.vd-window[data-app-id="infra"]');win.classList.remove('maximized','vd-mobile-forced-maximized');win.style.right='auto';win.style.minWidth='360px';win.style.width='430px';win.style.height='700px';}`)
-			if !page.MustEval(`()=>document.querySelector('.infra-app').clientWidth<500&&getComputedStyle(document.querySelector('.infra-sidebar')).display==='none'&&getComputedStyle(document.querySelector('.infra-workspace')).gridTemplateColumns.split(' ').length===1&&document.querySelector('.infra-toolbar').scrollWidth<=document.querySelector('.infra-toolbar').clientWidth+1&&innerWidth>1500`).Bool() {
-				metrics := page.MustEval(`()=>{const app=document.querySelector('.infra-app'),win=document.querySelector('.vd-window[data-app-id="infra"]'),workspace=document.querySelector('.infra-workspace'),toolbar=document.querySelector('.infra-toolbar');return JSON.stringify({window:win.clientWidth,app:app.clientWidth,sidebar:getComputedStyle(document.querySelector('.infra-sidebar')).display,columns:getComputedStyle(workspace).gridTemplateColumns,toolbar:{client:toolbar.clientWidth,scroll:toolbar.scrollWidth},viewport:innerWidth});}`).Str()
-				t.Fatalf("narrow Infra window on a wide viewport did not switch to its compact container layout: %s", metrics)
+			if !page.MustEval(`()=>{const app=document.querySelector('.infra-app'),bar=document.querySelector('.infra-commandbar'),toggle=document.querySelector('[data-action="toggle-library"]');return app.clientWidth<500&&getComputedStyle(document.querySelector('.infra-library')).display==='none'&&getComputedStyle(toggle).display!=='none'&&bar.scrollWidth<=bar.clientWidth+1&&innerWidth>1500;}`).Bool() {
+				t.Fatalf("narrow Infra window did not switch to its compact layout: %s", page.MustEval(`()=>{const bar=document.querySelector('.infra-commandbar');return JSON.stringify({app:document.querySelector('.infra-app').clientWidth,library:getComputedStyle(document.querySelector('.infra-library')).display,bar:[bar.clientWidth,bar.scrollWidth]});}`).Str())
 			}
 			page.MustEval(`()=>document.querySelector('[data-view="table"]').click()`)
 			page.MustWait(`()=>document.querySelectorAll('[data-table-body] [data-row]').length<100`)
-			if !page.MustEval(`()=>getComputedStyle(document.querySelector('[data-action="import"]')).display!=='none'&&!!document.querySelector('[data-action="close-inspector"]')&&!!document.querySelector('[data-action="close-inspector"]').getAttribute('aria-label')`).Bool() {
-				t.Fatal("narrow inventory must retain an accessible import action and a clear inspector control")
+			if !page.MustEval(`()=>{const trigger=document.querySelector('[data-action="add-menu"]');trigger.click();const item=document.querySelector('[data-action="import"]');const ok=!!item&&item.offsetParent!==null&&!item.disabled;trigger.click();return ok&&!!document.querySelector('[data-action="close-inspector"]')?.getAttribute('aria-label');}`).Bool() {
+				t.Fatal("narrow inventory must keep import reachable through the Add menu and a labelled inspector close control")
 			}
 			page.MustEval(`()=>{const field=document.querySelector('[data-node-field="name"]');field.value='Unsaved narrow draft';field.dispatchEvent(new Event('input',{bubbles:true}));}`)
 			page.MustWait(`()=>!!document.querySelector('.infra-draft-banner')`)

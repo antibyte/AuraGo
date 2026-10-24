@@ -47,22 +47,6 @@
     const isPlaced = (node, view) => !!node.placements?.[view];
     const isContainer = kind => CONTAINER_KINDS.includes(kind);
     const powerLabel = power => POWERS.has(power) ? `desktop.infra_power_${power}` : '';
-    const atlasDimensions = count => {
-        const columns = Math.max(3, Math.ceil(Math.sqrt(Math.max(1, count) * 1.45)));
-        const rows = Math.max(2, Math.ceil(Math.max(1, count) / columns));
-        return { columns, rows, width: Math.max(940, columns * 220 + 320), height: Math.max(600, rows * 155 + 220) };
-    };
-    const sceneDimensions = (nodes, view, pending = new Map()) => {
-        let minX = 0, minY = 0, maxX = 620, maxY = 360;
-        for (const node of nodes) {
-            const position = pending.get(node.id) || node.placements?.[view];
-            if (!position || !Number.isFinite(Number(position.x)) || !Number.isFinite(Number(position.y))) continue;
-            minX = Math.min(minX, Number(position.x)); minY = Math.min(minY, Number(position.y));
-            maxX = Math.max(maxX, Number(position.x)); maxY = Math.max(maxY, Number(position.y));
-        }
-        const originX = minX - 160, originY = minY - 120;
-        return { originX, originY, width: Math.max(940, maxX - originX + 160), height: Math.max(600, maxY - originY + 120) };
-    };
     const validCIDR = value => {
         if (!value) return true;
         const parts = String(value).trim().split('/');
@@ -78,20 +62,6 @@
     const validHTTPLink = value => {
         try { const url = new URL(String(value)); return ['http:', 'https:'].includes(url.protocol) && !!url.hostname && !url.username && !url.password; }
         catch (_) { return false; }
-    };
-    const containerFrame = (container, children, positionOf) => {
-        const origin = positionOf(container);
-        if (!origin || !Number.isFinite(Number(origin.x)) || !Number.isFinite(Number(origin.y))) return null;
-        const placed = (children || []).map(positionOf).filter(position => position && Number.isFinite(Number(position.x)) && Number.isFinite(Number(position.y)));
-        if (!placed.length) return null;
-        const points = [origin, ...placed];
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        for (const point of points) {
-            minX = Math.min(minX, Number(point.x)); minY = Math.min(minY, Number(point.y));
-            maxX = Math.max(maxX, Number(point.x)); maxY = Math.max(maxY, Number(point.y));
-        }
-        const pad = 48;
-        return { id: container.id, x: minX - pad, y: minY - pad, width: (maxX - minX) + pad * 2, height: (maxY - minY) + pad * 2 };
     };
     // edgeSegment joins two shapes at their borders: each end leaves its centre
     // towards the other and stops at its half-size rectangle. Overlapping shapes
@@ -532,9 +502,9 @@
 
     window.InfraAppModel = {
         esc, clone, iconId, iconURL, assetURL, iconLabelKey, sourceActions, sourceIdentity, virtualSlice, sourceState,
-        visibleByCollapsed, isPlaced, atlasDimensions, sceneDimensions, validCIDR, validHTTPLink, iconIds: () => [...ICON_LIST],
+        visibleByCollapsed, isPlaced, validCIDR, validHTTPLink, iconIds: () => [...ICON_LIST],
         acceptsIcon, rememberIcon, versionedAsset, containerKinds: () => [...CONTAINER_KINDS], isContainer, powerLabel,
-        containerFrame, edgeSegment, edgeCaption, gridPositions, topologyPositions, snapshotStamp,
+        edgeSegment, edgeCaption, gridPositions, topologyPositions, snapshotStamp,
         layoutSnapshot, applyLayoutPatch,
         CARD_W, CARD_H, GRID, MIN_ZOOM, MAX_ZOOM, REGION_W, REGION_H, REGION_PAD, REGION_MIN_W, REGION_MIN_H,
         clampZoom, toWorld, toScreen, zoomAt, fitView, viewCenter, viewFromCenter, snap, cardRect, intersects, containsPoint,

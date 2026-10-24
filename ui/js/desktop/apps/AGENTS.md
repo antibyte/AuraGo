@@ -105,23 +105,31 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 
 ## Infra
 
-- Load `infra-model.js`, then `infra-views.js`, then `infra.js`. The model owns
-  pure map math. The view factory owns rendering and node forms for one window.
-  The app retains requests, lifecycle and source actions. A snapshot poll
-  repaints the inspector only when the selected draft is clean and focus is
-  outside it. Dragging, panning and keyboard moves defer that paint until the
-  gesture ends. All three use the translated Desktop keys without literal
-  English fallbacks.
-- `PUT /layout` answers `{"nodes": [<changed nodes>]}` and is a patch, never a
-  snapshot: merge it through `InfraAppModel.applyLayoutPatch` and replace the
-  atlas only for an explicit `snapshot` field (`InfraAppModel.layoutSnapshot`).
-  Keep `node.placements` patches, the search stampede guard (one repaint per
-  animation frame) and the derived children/edge indexes; key them by the
-  current node/edge array so `replaceNode` stays correct. Keyboard placement
-  persists a visible position before it takes focus.
-- Verify `node scripts/test-infra-ui.mjs`, the UI line budget and the existing
-  `TestDesktopInfra*Browser` suites after changes to this boundary. The browser
-  fixture answers `/layout` like the server; never return a full snapshot there.
+- Load order (module-loader `infra`): `infra-model.js` (pure helpers: viewport math, geometry, regions, drop rules,
+  guests, filters, scene builder, layout intents, history), `infra-store.js` (state, API, polling and visibility,
+  layout queue, undo), `infra-canvas.js` (keyed map rendering), `infra-gestures.js` (pointer and keyboard),
+  `infra-library.js`, `infra-inspector.js`, `infra-table.js`, `infra-dialogs.js`, then `infra.js` (composition root).
+  Styles: `desktop-app-infra.css` (shell, panels, dialogs) and `desktop-app-infra-canvas.css` (map). Every file stays
+  below 1100 lines and no file touches the DOM at load time (the Node test runs them in a vm).
+- World coordinates: an asset placement is the centre of its 184×60 card; a place placement is the top-left of its
+  region plus `w`/`h`. Cards sit at `left`/`top` world px inside `[data-scene]`, which carries the only transform
+  (`translate(x, y) scale(z)`, zoom 0.25–2).
+- Every position, parent or size change goes through `store.dispatch` with an `InfraAppStore.commands` object. The
+  store keeps one `PUT /layout` in flight per view, coalesces later moves, rebases once on 409 (fresh snapshot, same
+  intents) and leaves a second failure unsaved behind `[data-action="retry-layout"]`. A conflict clears that view's
+  history. Placing from the library is undoable when the server supports `unplace` (`features.layoutParent`); the
+  revert queues `{unplace: true}` intents, which the queue sends as `{id, version, unplace: true}`.
+- `PUT /layout` answers `{"nodes": [<changed nodes>]}` and is a patch: merge it through
+  `InfraAppModel.applyLayoutPatch` (full nodes also set `parent_id`); only an explicit `snapshot` field replaces the
+  atlas.
+- The server rejects unknown body fields. `parent_id`, `w` and `h` go out only when the snapshot has `source_hosts`
+  (`store.features.layoutParent`); node drafts never gain fields the snapshot did not send.
+- Rendering is keyed by id; search and filters dim instead of re-rendering; a snapshot poll repaints the inspector
+  only when its draft is clean and focus is outside it; gestures defer snapshot repaints until they end; keep the
+  one-repaint-per-frame search guard.
+- Verify `node scripts/test-infra-ui.mjs`, the UI line budget, the i18n and asset guards and
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopInfra`. The browser fixture answers `/layout` like the
+  server (version CAS, patch reply); never return a full snapshot there.
 
 ## Synth Studio
 
