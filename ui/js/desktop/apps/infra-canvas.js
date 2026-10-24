@@ -662,12 +662,14 @@
             if (target) { target.tabIndex = 0; rovingId = id; viewport.tabIndex = -1; }
             else { rovingId = ''; viewport.tabIndex = 0; }
         }
-        function createGhost(ids) {
-            const node = store.nodeById(ids[0]);
+        // createGhost makes the drag ghost of ids; items ({icon, name}) describe dragged things that are not
+        // assets yet (discoveries).
+        function createGhost(ids, items = null) {
+            const first = items?.length ? items[0] : store.nodeById(ids[0]), total = (items?.length ? items : ids).length;
             const ghost = document.createElement('div');
             ghost.className = 'infra-drag-ghost';
             ghost.setAttribute('aria-hidden', 'true');
-            ghost.innerHTML = `<span class="infra-ghost-icon">${node ? app.icon(node.icon) : ''}</span><span class="infra-ghost-text"><strong>${esc(node?.name || '')}</strong>${ids.length > 1 ? `<small>+${ids.length - 1}</small>` : ''}</span>`;
+            ghost.innerHTML = `<span class="infra-ghost-icon">${first ? app.icon(first.icon) : ''}</span><span class="infra-ghost-text"><strong>${esc(first?.name || '')}</strong>${total > 1 ? `<small>+${total - 1}</small>` : ''}</span>`;
             app.root.appendChild(ghost);
             ghosts.add(ghost);
             return {

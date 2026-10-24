@@ -675,6 +675,8 @@
             if (!target) return;
             const sx = event.clientX, sy = event.clientY, touch = event.pointerType === 'touch', view = app.mapView();
             let started = false, ghost = null, last = null;
+            // Discovered guests join their host; the map position under the pointer means nothing to them.
+            const guestsOnly = mode === 'discovery' && !!items?.length && items.every(item => item.guest);
             const probe = ev => {
                 const hit = document.elementFromPoint(ev.clientX, ev.clientY), scene = canvas.sceneData();
                 const over = !!hit && viewport.contains(hit), world = canvas.clientToWorld(ev.clientX, ev.clientY);
@@ -687,9 +689,9 @@
                 if (!ghost || !last) return;
                 const info = probe(last), onMap = info.over && !info.placeTarget;
                 app.library?.setDropTarget(info.placeTarget);
-                canvas.setDropTarget(info.placeTarget ? '' : info.region);
+                canvas.setDropTarget(info.placeTarget || guestsOnly ? '' : info.region);
                 const label = info.placeTarget ? model.fill(t('desktop.infra_drop_into'), { name: nameOf(info.placeTarget) })
-                    : onMap ? (info.region ? model.fill(t('desktop.infra_drop_into'), { name: nameOf(info.region) }) : t('desktop.infra_drop_on_map')) : '';
+                    : onMap ? (guestsOnly ? t('desktop.infra_drop_guest') : info.region ? model.fill(t('desktop.infra_drop_into'), { name: nameOf(info.region) }) : t('desktop.infra_drop_on_map')) : '';
                 const invalid = !info.placeTarget && !info.over && !info.onLibrary;
                 ghost.move(last.clientX, last.clientY, { scale: onMap ? canvas.getView().zoom : 1, label, invalid });
                 root.classList.toggle('is-drag-invalid', invalid);

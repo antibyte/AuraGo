@@ -126,6 +126,7 @@ func (f *infraAppBrowserFixture) serveExtras(path string, r *http.Request, write
 		if f.ignoredRows == nil {
 			f.ignoredRows = map[string]map[string]any{}
 		}
+		f.ignoreCalls = append(f.ignoreCalls, map[string]any{"sources": body.Sources, "ignored": body.Ignored})
 		answer := []any{}
 		for _, identity := range body.Sources {
 			key := infraFixtureSourceKey(identity)
@@ -136,6 +137,11 @@ func (f *infraAppBrowserFixture) serveExtras(path string, r *http.Request, write
 					if source, ok := item.(map[string]any); ok && infraFixtureSourceKey(source) == key {
 						row = cloneInfraBrowserNode(source)
 					}
+				}
+			}
+			for _, candidate := range f.candidates {
+				if source, ok := candidate["source"].(map[string]any); ok && infraFixtureSourceKey(source) == key {
+					row = cloneInfraBrowserNode(source)
 				}
 			}
 			if previous := f.ignoredRows[key]; previous != nil {

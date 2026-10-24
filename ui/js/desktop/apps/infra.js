@@ -1,6 +1,6 @@
 // Infra composition root. render(host, windowId, ctx) builds the shell (command
 // bar, menus, toasts, announcer, dialog host), creates the store and the canvas,
-// table, library, inspector, dialogs and gestures modules around one shared
+// table, library, inspector, dialogs, import sheet and gestures modules around one shared
 // `app` context, and routes store events to them. Everything below the shell
 // lives in infra-*.js; this file owns lifecycle, window menus and chrome only.
 (function () {
@@ -150,12 +150,14 @@
         app.forms = window.InfraAppInspectorForms.create(app);
         app.inspector = window.InfraAppInspector.create(app);
         app.dialogs = window.InfraAppDialogs.create(app);
+        app.importer = window.InfraAppImport.create(app);
         app.gestures = window.InfraAppGestures.create(app);
-        const { canvas, table, library, inspector, dialogs, gestures } = app;
+        const { canvas, table, library, inspector, dialogs, importer, gestures } = app;
         inspector.el.id = `infra-inspector-${S}`;
         inspector.el.tabIndex = -1;
         scrim.before(library.el, library.splitter, canvas.el, table.el);
         inspectorSplitter.after(inspector.el);
+        body.appendChild(importer.el);
 
         // ---- library and inspector sizing --------------------------------------------------
         const isNarrow = () => root.clientWidth < 760;
@@ -253,7 +255,7 @@
             { labelKey: 'desktop.infra_undo', disabled: !store.canUndo(mapView()), action: () => void store.undo(mapView()) },
             { labelKey: 'desktop.infra_redo', disabled: !store.canRedo(mapView()), action: () => void store.redo(mapView()) },
             { type: 'separator' },
-            { labelKey: 'desktop.infra_import_title', icon: 'download', disabled: !store.canWrite(), action: () => dialogs.openImport() },
+            { labelKey: 'desktop.infra_import_title', icon: 'download', disabled: !store.canWrite(), action: () => importer.open() },
             { labelKey: 'desktop.infra_new_asset', icon: 'plus', disabled: !store.canWrite(), action: () => dialogs.openNodeDialog('device') },
             { labelKey: 'desktop.infra_new_place', disabled: !store.canWrite(), action: () => dialogs.openNodeDialog('room', { title: t('desktop.infra_new_place') }) },
             { labelKey: 'desktop.infra_arrange', icon: 'grid', disabled: !store.canWrite(), action: () => gestures.arrange() },
@@ -314,7 +316,7 @@
         q('[data-layer]').addEventListener('change', onFilterChange);
 
         // ---- clicks -------------------------------------------------------------------------------
-        const OWN_CLICKS = '[data-inspector], [data-dialog], [data-connect-popover], [data-stage], [data-library], [data-table-view]';
+        const OWN_CLICKS = '[data-inspector], [data-dialog], [data-connect-popover], [data-stage], [data-library], [data-table-view], [data-import-sheet]';
         function clearSearch() {
             cancelAnimationFrame(searchFrame); searchFrame = 0;
             searchInput.value = '';
@@ -341,7 +343,8 @@
                 case 'add-menu': openMenu('add'); return;
                 case 'more': openMenu('more'); return;
                 case 'filters': openMenu('filters'); return;
-                case 'import': case 'import-empty': dialogs.openImport(); break;
+                // The sheet remembers the focused element: take the focus back to the trigger first.
+                case 'import': case 'import-empty': if (menuItem) closeMenus({ restoreFocus: true }); importer.open(); return;
                 case 'arrange': gestures.arrange(); break;
                 case 'undo': case 'history-undo': if (store.canUndo(view)) void store.undo(view); break;
                 case 'redo': case 'history-redo': if (store.canRedo(view)) void store.redo(view); break;
@@ -411,8 +414,9 @@
                 case 'nodes': case 'edges': renderData(); paintShell(); inspector.paintIfIdle(); break;
                 case 'expanded': renderData(); break;
                 case 'layout-status': canvas.render(); library.render(); paintShell(); break;
-                case 'sources': library.render(); paintShell(); break;
-                case 'source-hosts': library.render(); canvas.render(); break;
+                case 'sources': library.render(); paintShell(); importer.render(); break;
+                case 'source-hosts': library.render(); canvas.render(); importer.render(); break;
+                case 'candidates': importer.render(); break;
                 case 'selection':
                     canvas.render(); library.renderSelection(); renderTable(); inspector.paint();
                     if (isNarrow() && root.dataset.inspectorOpen === 'true') setLibrarySheet(false);
@@ -420,11 +424,11 @@
                 case 'view': paintShell(); canvas.render({ force: true }); library.render(); renderTable(); inspector.paint(); syncMenus(); break;
                 case 'filters': renderData(); paintShell(); break;
                 case 'tool': canvas.applyTool(); break;
-                case 'busy': paintShell(); inspector.onBusy(change.key); dialogs.onBusy(change.key); break;
+                case 'busy': paintShell(); inspector.onBusy(change.key); dialogs.onBusy(change.key); importer.onBusy(change.key); break;
                 case 'caps':
                     if (!store.canWrite()) gestures.cancel();
                     app.picker.close({ restoreFocus: false });
-                    syncMenus(); paintShell(); canvas.render({ force: true }); library.render(); inspector.paint();
+                    syncMenus(); paintShell(); canvas.render({ force: true }); library.render(); inspector.paint(); importer.render();
                     break;
                 case 'history': paintShell(); syncMenus(); break;
                 case 'notice': toast(change.message, change.kind); break;
@@ -466,7 +470,7 @@
                 closeMenus();
                 app.picker.dispose();
                 app.cleanup.dispose();
-                gestures.dispose(); canvas.dispose(); library.dispose(); inspector.dispose(); dialogs.dispose(); table.dispose();
+                gestures.dispose(); canvas.dispose(); library.dispose(); inspector.dispose(); dialogs.dispose(); importer.dispose(); table.dispose();
                 for (const element of [...toastTimers.keys()]) removeToast(element);
                 clearTimeout(announceTimer); cancelAnimationFrame(searchFrame); cancelAnimationFrame(resizeFrame);
                 resizeObserver?.disconnect();

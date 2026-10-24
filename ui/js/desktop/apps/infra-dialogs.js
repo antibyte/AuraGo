@@ -1,5 +1,5 @@
-// Infra dialogs: the modal host (confirm, new asset or place, import, edge
-// form, source actions, node actions, delete) and the non-modal connection
+// Infra dialogs: the modal host (confirm, new asset or place, edge form,
+// source actions, node actions, delete) and the non-modal connection
 // popover that opens when a connect drag is released on another asset. The
 // shell (infra.js) provides the <dialog data-dialog> element; every write goes
 // through the store.
@@ -28,7 +28,6 @@
             if (state.disposed || !root.isConnected) return null;
             const dialog = dialogEl();
             if (!dialog) return null;
-            if (state.importOpen && dialog.dataset.infraOwner === state.importDialogOwner) { state.importOpen = false; state.importDialogOwner = ''; }
             dialog.dataset.infraOwner = String(++state.dialogGeneration);
             q('[data-dialog-content]').innerHTML = `<h2 id="infra-dialog-title-${esc(S)}">${esc(title)}</h2>${content}`;
             if (!dialog.open) dialog.showModal();
@@ -84,83 +83,6 @@
                 store.notify(t('desktop.infra_node_created'), 'success');
             } catch (error) { await store.writeFailed(error); }
             finally { store.setBusy('create', false); }
-        }
-
-        // ---- import -------------------------------------------------------------------------------
-        async function loadCandidates(preserveSelection = false, owner = state.importDialogOwner) {
-            try {
-                const selected = preserveSelection ? new Set(state.importSelection) : new Set();
-                const result = await store.request('/candidates');
-                if (state.disposed || !owner || state.importDialogOwner !== owner || !ownsDialog(owner)) return;
-                state.candidates = result.candidates || [];
-                state.importSelection = preserveSelection ? new Set(state.candidates.filter(candidate => selected.has(candidate.id)).map(candidate => candidate.id)) : new Set(state.candidates.map(candidate => candidate.id));
-                paintImportDialog();
-            } catch (error) { if (error.name !== 'AbortError') store.notify(store.messageFor(error), 'error'); }
-        }
-        function paintImportDialog() {
-            const dialog = dialogEl();
-            if (state.disposed || !state.importOpen || !dialog?.open || !ownsDialog(state.importDialogOwner)) return;
-            const rows = state.candidates.map(candidate => {
-                const node = candidate.node || {};
-                const selectedNode = state.importBindings.get(candidate.id) || '';
-                const bindableNodes = candidate.source?.kind === 'registry' ? state.nodes.filter(existing => ['device', 'vm', 'container'].includes(existing.kind)) : state.nodes;
-                const candidateName = node.name || t('desktop.infra_unnamed_candidate');
-                const checkboxLabel = t('desktop.infra_select_candidate').replace('{name}', candidateName);
-                return `<article class="infra-candidate"><label class="infra-candidate-check"><input type="checkbox" data-candidate="${esc(candidate.id)}" aria-label="${esc(checkboxLabel)}" ${state.importSelection.has(candidate.id) ? 'checked' : ''}><span class="infra-checkbox-mark"></span></label><div class="infra-candidate-icon">${app.icon(node.icon)}</div><div class="infra-candidate-copy"><strong>${esc(candidateName)}</strong><span>${esc(t(`desktop.infra_source_${candidate.source?.kind}`))} · ${esc(candidate.source?.name || candidate.source?.instance || '')}</span><small>${esc([node.profile?.vendor, node.profile?.model, node.profile?.ip_address].filter(Boolean).join(' · '))}</small></div><span class="infra-state-pill" data-state="${esc(candidate.source?.state || 'unknown')}"><i></i>${esc(app.statusLabel(candidate.source?.state || 'unknown'))}</span><label class="infra-field infra-bind-field"><span>${esc(t('desktop.infra_link_existing'))}</span><select data-bind="${esc(candidate.id)}"><option value="">${esc(t('desktop.infra_import_new'))}</option>${bindableNodes.map(existing => `<option value="${esc(existing.id)}" ${selectedNode === existing.id ? 'selected' : ''}>${esc(existing.name)}</option>`).join('')}</select></label></article>`;
-            }).join('');
-            dialog.querySelector('[data-candidate-sources]').innerHTML = state.sources.filter(source => !source.ignored).map(source => `<span class="infra-source-chip" data-state="${esc(source.state)}"><i></i>${esc(t(`desktop.infra_source_${source.kind}`))} · ${esc(source.name || source.instance || source.kind)}</span>`).join('');
-            dialog.querySelector('.infra-candidate-list').innerHTML = rows || `<div class="infra-empty-candidates"><span aria-hidden="true">⌁</span><strong>${esc(t('desktop.infra_no_candidates'))}</strong><p>${esc(t('desktop.infra_no_candidates_hint'))}</p></div>`;
-            dialog.querySelectorAll('[data-candidate]').forEach(box => box.addEventListener('change', () => { if (box.checked) state.importSelection.add(box.dataset.candidate); else state.importSelection.delete(box.dataset.candidate); updateImportCount(dialog); }));
-            dialog.querySelectorAll('[data-bind]').forEach(select => select.addEventListener('change', () => state.importBindings.set(select.dataset.bind, select.value)));
-            updateImportCount(dialog);
-        }
-        function updateImportCount(dialog) {
-            const count = state.importSelection.size;
-            const label = dialog.querySelector('[data-import-count]');
-            if (label) label.textContent = t('desktop.infra_selected_count').replace('{count}', count);
-            const button = dialog.querySelector('[data-import]');
-            if (button) button.disabled = !count || !canWrite() || state.busy.has('import');
-        }
-        async function importSelected() {
-            if (!canWrite() || !state.importSelection.size || state.busy.has('import')) return;
-            const owner = state.importDialogOwner;
-            store.setBusy('import', true);
-            const ids = [...state.importSelection];
-            try {
-                for (const candidate_id of ids) {
-                    await store.request('/import', { method: 'POST', body: { candidate_id, ...(state.importBindings.get(candidate_id) ? { node_id: state.importBindings.get(candidate_id) } : {}) } });
-                    state.importSelection.delete(candidate_id); state.importBindings.delete(candidate_id);
-                    state.candidates = state.candidates.filter(candidate => candidate.id !== candidate_id);
-                    paintImportDialog();
-                }
-                closeOwnedDialog(owner);
-                if (state.importDialogOwner === owner) { state.importOpen = false; state.importDialogOwner = ''; }
-                state.importSelection.clear(); state.importBindings.clear();
-                store.notify(t('desktop.infra_imported').replace('{count}', ids.length), 'success');
-                await store.loadSnapshot();
-            } catch (error) {
-                if (error.name !== 'AbortError') store.notify(store.messageFor(error), 'error');
-                if (!state.disposed && state.importDialogOwner === owner) await loadCandidates(true, owner);
-                paintImportDialog();
-            } finally { store.setBusy('import', false); }
-        }
-        function openImport() {
-            if (!canWrite()) return;
-            state.importOpen = true;
-            state.candidates = []; state.importSelection.clear(); state.importBindings.clear();
-            const dialog = openDialog(t('desktop.infra_import_title'), `<p class="infra-dialog-intro">${esc(t('desktop.infra_import_hint'))}</p><div class="infra-candidate-source-tabs" data-candidate-sources></div><div class="infra-candidate-list"><div class="infra-import-loading">${esc(t('desktop.infra_loading_candidates'))}</div></div><div class="infra-form-actions infra-dialog-actions"><span data-import-count></span><button type="button" data-close>${esc(t('desktop.cancel'))}</button><button type="button" data-import class="infra-button-primary" disabled>${esc(t('desktop.infra_import_selected'))}</button></div>`, dlg => {
-                dlg.querySelector('[data-close]').addEventListener('click', () => dlg.close());
-                dlg.querySelector('[data-import]').addEventListener('click', () => void importSelected());
-            });
-            state.importDialogOwner = dialog?.dataset.infraOwner || '';
-            if (dialog && !dialog.dataset.importCloseBound) {
-                dialog.dataset.importCloseBound = 'true';
-                dialog.addEventListener('close', () => {
-                    const owner = dialog.dataset.infraOwner;
-                    if (state.importDialogOwner === owner) { state.candidates = []; state.importOpen = false; state.importDialogOwner = ''; }
-                });
-            }
-            void loadCandidates();
         }
 
         // ---- connections --------------------------------------------------------------------------------
@@ -396,7 +318,6 @@
         function onBusy(key) {
             const busy = state.busy.has(key);
             if (key === 'create') { const submit = q('[data-new-node] [type="submit"]'); if (submit) submit.disabled = busy; }
-            if (key === 'import') { const submit = q('[data-import]'); if (submit) submit.disabled = busy || !state.importSelection.size || !canWrite(); }
             if (key.startsWith('edge-')) { const submit = q('[data-edge-form] [type="submit"]'); if (submit) submit.disabled = busy; }
             if (key.startsWith('action-')) dialogEl()?.querySelectorAll('[data-run-action]').forEach(button => { button.disabled = busy || state.actionBlocks.has(store.actionBlockKey(button.dataset.actionNode, button.dataset.sourceIdentity, button.dataset.runAction)); });
         }
@@ -407,7 +328,7 @@
         }
 
         return {
-            openDialog, confirmAction, openNodeDialog, openImport, openEdgeDialog,
+            openDialog, confirmAction, openNodeDialog, openEdgeDialog,
             deleteNode, deleteNodes, removeAndIgnore, removeEdge, openActionMenu, runAction, openNodeActions, createNode, saveEdge,
             openConnectionPopover, closeConnectionPopover, onBusy, ownsDialog, closeOwnedDialog, dispose,
         };

@@ -32,6 +32,8 @@ type infraAppBrowserFixture struct {
 	sourceHostPuts    []map[string]any          // every PUT /source-hosts body, in order
 	ignoredRows       map[string]map[string]any // ignored sources by identity
 	nodeDeletes       []string                  // every DELETE /nodes/{id} as id?query
+	batchCalls        []map[string]any          // every POST /import/batch body, in order
+	ignoreCalls       []map[string]any          // every PUT /sources/ignore body, in order
 }
 
 func newInfraAppBrowserFixture() *infraAppBrowserFixture {
@@ -181,7 +183,7 @@ func (f *infraAppBrowserFixture) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	case path == "/candidates" && r.Method == http.MethodGet:
 		candidates := make([]map[string]any, 0, len(f.candidates))
 		for _, candidate := range f.candidates {
-			if !f.consumed[candidate["id"].(string)] {
+			if !f.consumed[candidate["id"].(string)] && !f.candidateIgnored(candidate) {
 				candidates = append(candidates, candidate)
 			}
 		}
@@ -214,61 +216,49 @@ func (f *infraAppBrowserFixture) ServeHTTP(w http.ResponseWriter, r *http.Reques
 			write(http.StatusBadRequest, map[string]string{"error": "invalid_request"})
 			return
 		}
-		if f.failCandidateOnce == request.CandidateID {
-			f.failCandidateOnce = ""
-			write(http.StatusUnprocessableEntity, map[string]string{"error": "fixture_retryable_candidate"})
+		node, status, code := f.importCandidate(request.CandidateID, request.NodeID)
+		if code != "" {
+			write(status, map[string]string{"error": code})
 			return
 		}
-		var candidate map[string]any
-		for _, item := range f.candidates {
-			if item["id"] == request.CandidateID {
-				candidate = item
-				break
+		write(status, map[string]any{"node": node})
+	case path == "/import/batch" && r.Method == http.MethodPost:
+		var payload struct {
+			Items []map[string]any `json:"items"`
+		}
+		if !decode(&payload) || len(payload.Items) == 0 || len(payload.Items) > 500 {
+			write(http.StatusBadRequest, map[string]string{"error": "invalid_request"})
+			return
+		}
+		f.batchCalls = append(f.batchCalls, map[string]any{"items": payload.Items})
+		nodes, failures := []map[string]any{}, []map[string]any{}
+		for _, item := range payload.Items {
+			candidateID, _ := item["candidate_id"].(string)
+			nodeID, _ := item["node_id"].(string)
+			node, _, code := f.importCandidate(candidateID, nodeID)
+			if code != "" {
+				failures = append(failures, map[string]any{"candidate_id": candidateID, "error": code, "message": code})
+				continue
 			}
-		}
-		if candidate == nil {
-			write(http.StatusNotFound, map[string]string{"error": "not_found"})
-			return
-		}
-		f.consumed[request.CandidateID] = true
-		if request.NodeID != "" {
-			var target map[string]any
-			for _, item := range f.nodes {
-				if item["id"] == request.NodeID {
-					target = item
-					break
+			if parent, ok := item["parent_id"].(string); ok {
+				if parent == "" {
+					delete(node, "parent_id")
+				} else {
+					node["parent_id"] = parent
 				}
 			}
-			if target == nil {
-				write(http.StatusNotFound, map[string]string{"error": "not_found"})
-				return
+			if placement, ok := item["placement"].(map[string]any); ok {
+				placements, _ := node["placements"].(map[string]any)
+				if placements == nil {
+					placements = map[string]any{}
+					node["placements"] = placements
+				}
+				view, _ := placement["view"].(string)
+				placements[view] = map[string]any{"x": placement["x"], "y": placement["y"], "pinned": true}
 			}
-			source := candidate["source"].(map[string]any)
-			target["sources"] = append(target["sources"].([]any), source)
-			if source["kind"] == "registry" {
-				target["registry_id"] = candidate["registry_id"]
-				first := f.source("docker", "engine-a", "protected-container", "Protected sidecar")
-				second := f.source("docker", "engine-a", "ordinary-container", "Ordinary container")
-				target["sources"] = append(target["sources"].([]any), first, second)
-				target["available_actions"] = []any{"start"}
-				target["source_actions"] = map[string]any{infraAppSourceID("docker", "engine-a", "protected-container"): []string{}, infraAppSourceID("docker", "engine-a", "ordinary-container"): []string{"start"}}
-				target["source_action_reasons"] = map[string]any{infraAppSourceID("docker", "engine-a", "protected-container"): map[string]string{"start": "managed_container"}}
-			}
-			write(http.StatusOK, map[string]any{"node": target})
-			return
+			nodes = append(nodes, node)
 		}
-		node := candidate["node"].(map[string]any)
-		f.nextNode++
-		node = cloneInfraBrowserNode(node)
-		node["id"], node["version"] = fmt.Sprintf("imported-%d", f.nextNode), 1
-		node["sources"] = []any{candidate["source"]}
-		node["placements"] = map[string]any{}
-		node["available_actions"] = []any{"start", "stop", "restart"}
-		source := candidate["source"].(map[string]any)
-		node["source_actions"] = map[string]any{infraAppSourceID("docker", source["instance"].(string), source["key"].(string)): []string{"start", "stop", "restart"}}
-		node["source_action_reasons"] = map[string]any{}
-		f.nodes = append(f.nodes, node)
-		write(http.StatusCreated, map[string]any{"node": node})
+		write(http.StatusOK, map[string]any{"nodes": nodes, "errors": failures})
 	case strings.HasPrefix(path, "/nodes/") && strings.HasSuffix(path, "/source-edit") && r.Method == http.MethodGet:
 		write(http.StatusOK, map[string]any{"source": "registry", "fields": map[string]any{"name": "Atlas gateway", "type": "server", "protocol": "ssh", "ip_address": "192.0.2.9", "port": 22, "username": "andigo", "credential_id": "credential-lab-1", "description": "Lab entry", "tags": []any{"lab"}}, "version": 1, "editable": true})
 	case strings.HasPrefix(path, "/nodes/") && strings.HasSuffix(path, "/source-edit") && r.Method == http.MethodPut:
@@ -388,6 +378,67 @@ func (f *infraAppBrowserFixture) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// candidateIgnored tells whether the discovery's source was ignored (PUT /sources/ignore).
+func (f *infraAppBrowserFixture) candidateIgnored(candidate map[string]any) bool {
+	source, _ := candidate["source"].(map[string]any)
+	return source != nil && f.ignoredRows[infraFixtureSourceKey(source)] != nil
+}
+
+// importCandidate mirrors POST /import for one discovery: the node, the HTTP status and an error code.
+func (f *infraAppBrowserFixture) importCandidate(candidateID, nodeID string) (map[string]any, int, string) {
+	if f.failCandidateOnce == candidateID {
+		f.failCandidateOnce = ""
+		return nil, http.StatusUnprocessableEntity, "fixture_retryable_candidate"
+	}
+	var candidate map[string]any
+	for _, item := range f.candidates {
+		if item["id"] == candidateID && !f.consumed[candidateID] && !f.candidateIgnored(item) {
+			candidate = item
+			break
+		}
+	}
+	if candidate == nil {
+		return nil, http.StatusNotFound, "not_found"
+	}
+	source := candidate["source"].(map[string]any)
+	if nodeID != "" {
+		var target map[string]any
+		for _, item := range f.nodes {
+			if item["id"] == nodeID {
+				target = item
+				break
+			}
+		}
+		if target == nil {
+			return nil, http.StatusNotFound, "not_found"
+		}
+		f.consumed[candidateID] = true
+		sources, _ := target["sources"].([]any)
+		target["sources"] = append(sources, source)
+		if source["kind"] == "registry" {
+			target["registry_id"] = candidate["registry_id"]
+			first := f.source("docker", "engine-a", "protected-container", "Protected sidecar")
+			second := f.source("docker", "engine-a", "ordinary-container", "Ordinary container")
+			target["sources"] = append(target["sources"].([]any), first, second)
+			target["available_actions"] = []any{"start"}
+			target["source_actions"] = map[string]any{infraAppSourceID("docker", "engine-a", "protected-container"): []string{}, infraAppSourceID("docker", "engine-a", "ordinary-container"): []string{"start"}}
+			target["source_action_reasons"] = map[string]any{infraAppSourceID("docker", "engine-a", "protected-container"): map[string]string{"start": "managed_container"}}
+		}
+		return target, http.StatusOK, ""
+	}
+	f.consumed[candidateID] = true
+	node := cloneInfraBrowserNode(candidate["node"].(map[string]any))
+	f.nextNode++
+	node["id"], node["version"] = fmt.Sprintf("imported-%d", f.nextNode), 1
+	node["sources"] = []any{candidate["source"]}
+	node["placements"] = map[string]any{}
+	node["available_actions"] = []any{"start", "stop", "restart"}
+	node["source_actions"] = map[string]any{infraAppSourceID(fmt.Sprint(source["kind"]), fmt.Sprint(source["instance"]), fmt.Sprint(source["key"])): []string{"start", "stop", "restart"}}
+	node["source_action_reasons"] = map[string]any{}
+	f.nodes = append(f.nodes, node)
+	return node, http.StatusCreated, ""
+}
+
 func cloneInfraBrowserNode(node map[string]any) map[string]any {
 	encoded, _ := json.Marshal(node)
 	var cloned map[string]any
@@ -427,6 +478,9 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 	page.MustWait(`()=>!!document.querySelector('[data-place="manual-1"]')`)
 	page.MustEval(`()=>document.querySelector('[data-action="import"]').click()`)
 	page.MustWait(`()=>document.querySelectorAll('[data-candidate]').length===2`)
+	if !page.MustEval(`()=>{const sheet=document.querySelector('[data-import-sheet]');return !sheet.hidden&&sheet.getAttribute('aria-modal')==='false'&&!document.querySelector('[data-dialog]').open;}`).Bool() {
+		t.Fatal("the import sheet must open beside the map, not as a modal dialog")
+	}
 	if !page.MustEval(`()=>document.querySelector('[data-bind="registry-candidate"] option[value="manual-1"]')?.textContent==='Atlas gateway'`).Bool() {
 		t.Fatal("registry candidate did not offer the existing eligible device")
 	}
@@ -436,10 +490,17 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 		document.querySelector('[data-import]').click();
 	}`)
 	page.MustWait(`()=>document.querySelectorAll('[data-candidate]').length===1`)
-	if !page.MustEval(`()=>document.querySelector('[data-candidate="docker-candidate"]')?.checked&&!document.querySelector('[data-candidate="registry-candidate"]')`).Bool() {
-		t.Fatal("partial import did not retain only the candidate that still needs processing")
+	if !page.MustEval(`()=>document.querySelector('[data-candidate="docker-candidate"]')?.checked&&!document.querySelector('[data-candidate="registry-candidate"]')&&!document.querySelector('[data-candidate-row="docker-candidate"] [data-candidate-error]').hidden`).Bool() {
+		t.Fatal("partial import did not retain only the candidate that still needs processing, with its inline error")
+	}
+	fixture.mu.Lock()
+	batches := append([]map[string]any(nil), fixture.batchCalls...)
+	fixture.mu.Unlock()
+	if len(batches) != 1 || len(batches[0]["items"].([]map[string]any)) != 2 || batches[0]["items"].([]map[string]any)[0]["node_id"] != "manual-1" {
+		t.Fatalf("the first import posted %v; want one batch of both candidates, the registry one bound to manual-1", batches)
 	}
 	page.MustEval(`()=>document.querySelector('[data-import]').click()`)
+	page.MustWait(`()=>document.querySelector('[data-import-sheet]').hidden`)
 	page.MustWait(`()=>!!document.querySelector('[data-cleanup="engine-host:docker:engine-a"]')`)
 	page.MustWait(`()=>document.querySelectorAll('.infra-source-row').length===3`)
 	if !page.MustEval(`()=>{
