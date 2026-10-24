@@ -7,7 +7,9 @@ const checkOnly = process.argv.includes('--check');
 
 const desktopMainParts = [
   'ui/js/shared/browser-audio-lease.js',
+  'ui/js/desktop/icon-theme-resolver.js',
   'ui/js/desktop/core/desktop-foundation.js',
+  'ui/js/desktop/core/icon-theme-runtime.js',
   'ui/js/desktop/core/theme-runtime.js',
   'ui/js/desktop/core/window-effects-runtime.js',
   'ui/js/desktop/core/cursor-runtime.js',
@@ -105,6 +107,7 @@ const chatRuntimeParts = [
 ];
 
 const jsBundles = [
+  { out: 'ui/js/desktop/aura-desktop-sdk.js', parts: ['ui/js/desktop/icon-theme-resolver.js', 'ui/js/desktop/sdk-runtime.js'] },
   {
     out: 'ui/js/desktop/bundles/main.bundle.js',
     parts: desktopMainParts

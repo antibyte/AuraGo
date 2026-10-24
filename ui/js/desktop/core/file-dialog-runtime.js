@@ -176,7 +176,7 @@
 
     function fileDialogIcon(entry) {
         if (typeof iconForFile === 'function' && typeof iconMarkup === 'function') {
-            return iconMarkup(iconForFile(entry), fileDialogIsDirectory(entry) ? 'D' : 'F', 'vd-file-dialog-entry-icon-img', 18);
+            return iconMarkup(iconForFile(entry), fileDialogIsDirectory(entry) ? 'D' : 'F', 'vd-file-dialog-entry-icon-img', 18, fileDialogIsDirectory(entry) ? 'folder' : 'icon');
         }
         return fileDialogIsDirectory(entry) ? 'D' : 'F';
     }

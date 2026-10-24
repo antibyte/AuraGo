@@ -1,0 +1,6 @@
+Candy icon theme. Imported artwork is distributed under GPL-3.0; upstream copyright notices are retained. Source paths, SHA-256 hashes, resolved links and every modification are recorded in provenance.json. Source archives and the deterministic importer are described in documentation/desktop-icon-themes.md.
+
+Source: https://github.com/EliverLara/candy-icons
+Revision: 8d21022f3b77d6a3b44f9a4a1ed26d6a974c41f6
+Per-file provenance and modifications: provenance.json
+AuraGo original supplements: MIT (SUPPLEMENTS-LICENSE.txt).

@@ -232,6 +232,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | External Web UI assets | `internal/webassets/AGENTS.md` | Integrity/install/resolution/verification/external browser resources. |
 | ZIM reader | `internal/zim/AGENTS.md` | Read-only archives/cluster cache/decompression bounds/fixtures; owns xapian full-text/title-index child. |
 | Licenses | `licences/AGENTS.md` | External-project inventory/license conditions/redistributed texts. |
+| Desktop icon artwork | `assets/desktop-icon-themes/AGENTS.md` | Pinned imports, supplements, source licenses and generated theme manifests. |
 | Web UI | `ui/AGENTS.md` | External UI/Precision Workspace opt-in/protected Chat-Desktop surfaces/translations/verification; owns deeper contracts. |
 | Quick Connect/shared MeshCore ports | `internal/desktop/AGENTS.md`, `internal/meshcore/AGENTS.md`, `internal/serialutil/AGENTS.md` | Shared serial ownership across features. |
 | WebAuthn/passkey owner login | `internal/server/AGENTS.md`, `internal/security/AGENTS.md`, `ui/AGENTS.md`, `internal/webassets/AGENTS.md` | Protected auth policy/recovery/credential registry. |

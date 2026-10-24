@@ -229,6 +229,43 @@
 })();
 
 ;
+/* ui/js/desktop/icon-theme-resolver.js */
+// Shared by the shell and the generated SDK bundle; manifests own semantic mappings.
+(function () {
+    'use strict';
+    const themes = ['papirus', 'whitesur', 'windows_xp', 'tela', 'candy', 'fluent', 'buuf_nestort'];
+    function normalize(name) { return String(name || '').trim().toLowerCase().replace(/[^a-z0-9:_-]+/g, '_'); }
+    function path(manifests, settings, scheme, name, usage) {
+        let key = normalize(name), theme = settings['appearance.icon_theme'] || 'papirus';
+        if (!key || key.startsWith('sprite:')) return '';
+        for (const id of themes) {
+            if (key.startsWith(id + ':')) { theme = id; key = key.slice(id.length + 1); break; }
+        }
+        const manifest = (manifests || {})[theme];
+        if (!manifest) return '';
+        const aliases = manifest.aliases || {};
+        const dashed = key.replaceAll('_', '-');
+        const candidates = [...new Set([key, dashed, aliases[key], aliases[dashed], ({ 'arrow-left': 'chevron-left', 'arrow-right': 'chevron-right' })[key]].filter(Boolean))];
+        let icons = manifest.icons || {};
+        if (usage === 'action' && manifest.actions) {
+            icons = manifest.actions[scheme === 'dark' ? 'dark' : 'light'] || {};
+            const actionName = dashed.replace(/-symbolic$/, '');
+            candidates.unshift((manifest.action_aliases || {})[actionName] || actionName);
+        } else if (usage === 'folder' && manifest.folder_variants) {
+            icons = manifest.folder_variants[settings['appearance.' + theme + '_folder_color']] || manifest.folder_variants.standard || {};
+            candidates.push('folder');
+        }
+        for (const candidate of candidates) {
+            const value = icons[candidate];
+            // Manifest paths are local assets; never turn a malformed entry into a request.
+            if (typeof value === 'string' && /^img\/[a-z0-9_/-]+\.(svg|png)$/.test(value) && !value.includes('..')) return '/' + value;
+        }
+        return '';
+    }
+    window.AuraDesktopIcons = Object.freeze({ themes, normalize, path });
+}());
+
+;
 /* ui/js/desktop/core/desktop-foundation.js */
 // AUDIT(Task27 / 2026-06-02): All 24 `.style.*` assignments in this file were reviewed.
 // No tokenizable hard-coded colors/sizes/radii were found. Every match is one of:
@@ -529,6 +566,8 @@
         'appearance.accent': 'teal',
         'appearance.density': 'comfortable',
         'appearance.icon_theme': 'papirus',
+        'appearance.tela_folder_color': 'standard',
+        'appearance.fluent_folder_color': 'standard',
         'appearance.fruity_mode': 'light',
         'appearance.minimal_mode': 'light',
         'desktop.icon_size': 'medium',
@@ -624,12 +663,13 @@
     }
 
     async function loadIconManifest() {
-        const [spriteManifest, defaultThemeManifest, whitesurThemeManifest, miniManifest, xpThemeManifest] = await Promise.all([
+        const [spriteManifest, defaultThemeManifest, whitesurThemeManifest, miniManifest, xpThemeManifest, tela, candy, fluent, buuf] = await Promise.all([
             api('/img/desktop-icons-sprite.json').catch(() => null),
             api('/img/papirus/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null),
             api('/img/whitesur/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null),
             api('/img/desktop-mini/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null),
-            api('/img/windows-xp/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null)
+            api('/img/windows-xp/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null),
+            ...['tela', 'candy', 'fluent', 'buuf-nestort'].map(theme => api('/img/' + theme + '/manifest.json?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev')).catch(() => null))
         ]);
         state.iconManifest = spriteManifest;
         state.miniIconManifest = miniManifest;
@@ -638,7 +678,8 @@
         state.iconThemeManifests = {
             papirus: defaultThemeManifest,
             whitesur: whitesurThemeManifest,
-            windows_xp: xpThemeManifest
+            windows_xp: xpThemeManifest,
+            tela, candy, fluent, buuf_nestort: buuf
         };
     }
 
@@ -652,33 +693,15 @@
 
     function iconAlias(name) { return ({ 'arrow-left': 'chevron-left', 'arrow-right': 'chevron-right' })[name] || ''; }
 
-    function themeIconPath(key) {
-        let normalized = normalizeIconName(key);
-        if (!normalized || normalized.startsWith('sprite:')) return '';
-        let theme = settingValue('appearance.icon_theme') || 'papirus';
-        Object.keys(state.iconThemeManifests || {}).forEach(themeKey => {
-            const prefix = themeKey + ':';
-            if (normalized.startsWith(prefix)) {
-                theme = themeKey;
-                normalized = normalized.slice(prefix.length);
-            }
-        });
-        const manifest = (state.iconThemeManifests || {})[theme] || (state.iconThemeManifests || {}).papirus;
-        if (!manifest || !manifest.icons) return '';
-        const aliases = manifest.aliases || {};
-        const dashed = normalized.replaceAll('_', '-');
-        const candidates = [normalized, iconAlias(normalized), aliases[normalized], dashed, iconAlias(dashed), aliases[dashed]].filter(Boolean);
-        for (const candidate of candidates) {
-            if (manifest.icons[candidate]) return '/' + String(manifest.icons[candidate]).replace(/^\/+/, '');
-        }
-        return '';
+    function themeIconPath(key, usage) {
+        return window.AuraDesktopIcons.path(state.iconThemeManifests, desktopSettings(), document.body.dataset.scheme, key, usage);
     }
 
-    function resolveIconSource(key) {
+    function resolveIconSource(key, usage) {
         const normalized = normalizeIconName(key);
         if (!normalized) return { type: 'fallback' };
         if (!normalized.startsWith('sprite:')) {
-            const path = themeIconPath(normalized);
+            const path = themeIconPath(normalized, usage);
             if (path) return { type: 'theme', path };
         }
         const spriteKey = normalized.startsWith('sprite:') ? normalized.slice('sprite:'.length) : normalized;
@@ -717,9 +740,11 @@
     }
 
     function iconMarkup(key, fallback, className, size, usage) {
-        if (usage === 'action' || (!usage && miniIconRole(className))) {
+        usage = usage || (miniIconRole(className) ? 'action' : 'icon');
+        const track = markup => trackedIconMarkup(markup, key, fallback, className, size || (usage === 'action' ? 16 : 42), usage);
+        if (usage === 'action') {
             const miniature = miniIconMarkup(key, className, size);
-            if (miniature) return miniature;
+            if (miniature) return track(miniature);
         }
         const logoPath = String(key || '').startsWith('logo:') ? String(key).slice(5).replace(/[\r\n"<>]/g, '').trim() : '';
         if (logoPath) {
@@ -727,14 +752,12 @@
             const fallbackMarkup = iconMarkup('apps', fallback, className, size);
             return `<span class="${esc(className)} vd-app-logo-icon" aria-hidden="true" style="width:${pixels}px;height:${pixels}px"><img src="${esc(logoPath)}" alt="" loading="lazy" draggable="false" data-vd-logo-img="true" ondragstart="return false" onerror="this.hidden=true;this.nextElementSibling.hidden=false">${fallbackMarkup.replace('aria-hidden="true"', 'aria-hidden="true" hidden')}</span>`;
         }
-        const source = resolveIconSource(key);
+        const source = resolveIconSource(key, usage);
         if (source.type === 'theme') {
-            const pixels = Number(size || 42) || 42;
-            return `<span class="${esc(className)} vd-theme-icon vd-papirus-icon" data-vd-icon-key="${esc(key)}" aria-hidden="true" style="--vd-theme-icon-url:${esc(iconUrlStyle(source.path))};width:${pixels}px;height:${pixels}px"></span>`;
+            return track(themedArtworkMarkup(source.path, key, fallback, className, size, usage === 'action'));
         }
-        return spriteMarkup(source.key || key, fallback, className, size);
+        return track(spriteMarkup(source.key || key, fallback, className, size));
     }
-    function refreshThemeIconElements(root) { (root || document).querySelectorAll('.vd-theme-icon[data-vd-icon-key], .vd-papirus-icon[data-vd-icon-key]').forEach(icon => { const path = themeIconPath(icon.dataset.vdIconKey || ''); if (path) icon.style.setProperty('--vd-theme-icon-url', iconUrlStyle(path)); }); }
     function themeBackedAppIconKey(app) {
         if (!app) return '';
         for (const key of [appIconKeys[app.id], app.icon]) {
@@ -934,6 +957,7 @@
         body.style.setProperty('--vd-icon-glyph-size', (sizes[settingValue('desktop.icon_size')] || 42) + 'px');
         refreshThemeIconElements(document);
         refreshMiniIconTheme();
+        broadcastDesktopIconAppearance();
         const agentButton = $('vd-agent-button');
         if (agentButton) agentButton.hidden = !settingBool('agent.show_chat_button');
         if (window.SipPhoneGadget && typeof window.SipPhoneGadget.sync === 'function') window.SipPhoneGadget.sync();
@@ -1633,7 +1657,7 @@
         btn.dataset.desktopEntry = item.desktopEntry ? 'true' : 'false';
         btn.style.left = (Number(pos.x) || 18) + 'px';
         btn.style.top = (Number(pos.y) || 18) + 'px';
-        const renderedHTML = `${iconMarkup(iconKey, fallback, 'vd-sprite-icon', iconGlyphPixels())}<span class="vd-icon-label">${esc(item.name)}</span>`;
+        const renderedHTML = `${iconMarkup(iconKey, fallback, 'vd-sprite-icon', iconGlyphPixels(), item.type === 'directory' || (item.file && item.file.type === 'directory') ? 'folder' : 'icon')}<span class="vd-icon-label">${esc(item.name)}</span>`;
         if (btn.dataset.renderedHtml !== renderedHTML) {
             btn.innerHTML = renderedHTML;
             btn.dataset.renderedHtml = renderedHTML;
@@ -2074,6 +2098,59 @@
         }
         bindRadialMenuBlurEscape(anchor);
         return anchor;
+    }
+
+;
+/* ui/js/desktop/core/icon-theme-runtime.js */
+    function themedArtworkMarkup(path, key, fallback, className, size, action) {
+        const pixels = Math.max(8, Math.min(256, Number(size) || 42));
+        return `<span class="${esc(className || '')} vd-theme-icon vd-papirus-icon vd-theme-image-icon${action ? ' vd-mini-themed-icon' : ''}" aria-hidden="true" style="--vd-theme-icon-url:${esc(iconUrlStyle(path))};width:${pixels}px;height:${pixels}px"><img class="vd-theme-image" src="${esc(versionedIconAssetPath(path))}" alt="" draggable="false"><span class="vd-theme-image-fallback" hidden>${esc(String(fallback || key || '?').slice(0, 2).toUpperCase())}</span></span>`;
+    }
+
+    function trackedIconMarkup(markup, key, fallback, className, size, usage) {
+        const attributes = ` data-vd-icon-key="${esc(key)}" data-vd-icon-fallback="${esc(fallback || '')}" data-vd-icon-class="${esc(className || '')}" data-vd-icon-size="${Number(size) || 16}" data-vd-icon-usage="${esc(usage || 'icon')}"`;
+        return markup.replace(/^(<span|<svg)\b/, '$1' + attributes);
+    }
+
+    function refreshThemeIconElements(root) {
+        (root || document).querySelectorAll('[data-vd-icon-key]').forEach(icon => {
+            const data = icon.dataset;
+            const template = document.createElement('template');
+            template.innerHTML = iconMarkup(data.vdIconKey, data.vdIconFallback, data.vdIconClass, Number(data.vdIconSize), data.vdIconUsage);
+            const replacement = template.content.firstElementChild;
+            if (replacement) {
+                if (icon.hasAttribute('hidden')) replacement.setAttribute('hidden', '');
+                icon.replaceWith(replacement);
+            }
+        });
+    }
+
+    // Broken assets reveal a readable local fallback; an old theme never survives a refresh.
+    document.addEventListener('error', event => {
+        const image = event.target;
+        if (!image || !image.matches || !image.matches('img.vd-theme-image')) return;
+        image.hidden = true;
+        if (image.nextElementSibling) image.nextElementSibling.hidden = false;
+    }, true);
+
+    let desktopIconAppearanceRevision = 0;
+    let desktopIconAppearanceSignature = '';
+    function desktopIconAppearance() {
+        const settings = {};
+        ['appearance.icon_theme', 'appearance.tela_folder_color', 'appearance.fluent_folder_color'].forEach(key => { settings[key] = settingValue(key); });
+        return { settings, scheme: document.body.dataset.scheme || 'light', revision: desktopIconAppearanceRevision };
+    }
+    function broadcastDesktopIconAppearance() {
+        const appearance = desktopIconAppearance();
+        const signature = JSON.stringify([appearance.settings, appearance.scheme]);
+        if (signature === desktopIconAppearanceSignature) return;
+        desktopIconAppearanceSignature = signature;
+        appearance.revision = ++desktopIconAppearanceRevision;
+        for (const client of sdkFrameClients.values()) {
+            if (!isCurrentSDKClient(client)) continue;
+            try { client.port.postMessage({ type: 'aurago.desktop.appearance', payload: appearance }); }
+            catch (_) { revokeSDKFrameClient(client.frame); }
+        }
     }
 
 ;
@@ -3202,10 +3279,16 @@
         return /(?:^|\s)(?:vd-(?:tool|context-papirus|window-menu-papirus|settings-nav|settings-pane-papirus|settings-hamburger|modal-action|window-ai-button|quickchat-send|dock-scroll|todo-action|calendar-(?:action|mini)|gallery-action|chess-action|chat-(?:toolbar|sidebar|scroll|voice|send|context)|qc-(?:btn|filter|close|input)|launchpad-action|store-(?:btn|terminal-action|terminal-tab-close)|hp-(?:btn|send)|viewer-action)|fm-(?:btn|search|sort-indicator|drop|context)|cs-(?:button|icon-button|file-action|tab-close)|pixel-toolbar|oscad-btn|camera-btn)-icon(?:\s|$)/.test(String(className || ''));
     }
     function miniIconName(key) {
-        const name = normalizeIconName(key).replace(/^(?:papirus|whitesur):/, '').replace(/_/g, '-').replace(/-symbolic$/, '');
+        const name = normalizeIconName(key).replace(/^(?:papirus|whitesur|windows_xp|tela|candy|fluent|buuf_nestort):/, '').replace(/_/g, '-').replace(/-symbolic$/, '');
         return MINI_ALIASES[name] || name;
     }
     function miniIconMarkup(key, className, size) {
+        if (typeof themeIconPath === 'function' && typeof settingValue === 'function') {
+            const explicit = String(key || '').includes(':') ? String(key).split(':')[0] : '';
+            const selected = (state.iconThemeManifests || {})[explicit || settingValue('appearance.icon_theme')];
+            const path = selected && selected.actions && themeIconPath(key, 'action');
+            if (path) return themedArtworkMarkup(path, key, miniIconName(key), className, size || 16, true);
+        }
         const name = miniIconName(key);
         const pixels = Math.max(8, Math.min(64, Number(size) || 16));
         const manifest = state.miniIconManifest, icon = manifest && manifest.icons && manifest.icons[name];
@@ -6774,7 +6857,7 @@
             ['system-info', '', 'desktop', 'desktop.app_system_info'],
             ['settings', '', 'settings', 'desktop.app_settings']
         ];
-        links.innerHTML = shortcuts.map(([app, folder, icon, key]) => `<button type="button" class="vd-start-xp-link" data-xp-app="${app}" data-xp-folder="${folder}">${iconMarkup(icon, '', '', 24)}<span>${esc(t(key))}</span></button>`).join('');
+        links.innerHTML = shortcuts.map(([app, folder, icon, key]) => `<button type="button" class="vd-start-xp-link" data-xp-app="${app}" data-xp-folder="${folder}">${iconMarkup(icon, '', '', 24, folder ? 'folder' : 'icon')}<span>${esc(t(key))}</span></button>`).join('');
         links.querySelectorAll('[data-xp-app]').forEach(button => button.addEventListener('click', () => {
             closeStartMenu();
             openApp(button.dataset.xpApp, button.dataset.xpFolder ? { path: button.dataset.xpFolder } : {});
@@ -8964,7 +9047,7 @@ function wireWindow(win, id) {
 
     function fileDialogIcon(entry) {
         if (typeof iconForFile === 'function' && typeof iconMarkup === 'function') {
-            return iconMarkup(iconForFile(entry), fileDialogIsDirectory(entry) ? 'D' : 'F', 'vd-file-dialog-entry-icon-img', 18);
+            return iconMarkup(iconForFile(entry), fileDialogIsDirectory(entry) ? 'D' : 'F', 'vd-file-dialog-entry-icon-img', 18, fileDialogIsDirectory(entry) ? 'folder' : 'icon');
         }
         return fileDialogIsDirectory(entry) ? 'D' : 'F';
     }
@@ -18849,7 +18932,7 @@ if (appId === 'pixel') {
             const body = await api('/api/desktop/files?path=' + encodeURIComponent(state.filesPath));
             const files = body.files || [];
             host.querySelector('.vd-file-list').innerHTML = files.length ? files.map(file => `<div class="vd-file-row" data-type="${esc(file.type)}" data-path="${esc(file.path)}" data-web-path="${esc(file.web_path || '')}" data-media-kind="${esc(file.media_kind || '')}" data-mime-type="${esc(file.mime_type || '')}">
-                ${iconMarkup(iconForFile(file), file.type === 'directory' ? 'D' : file.name, 'vd-sprite-file', 26)}
+                ${iconMarkup(iconForFile(file), file.type === 'directory' ? 'D' : file.name, 'vd-sprite-file', 26, file.type === 'directory' ? 'folder' : 'icon')}
                 <span class="vd-file-name">${esc(file.name)}</span>
                 <span class="vd-file-meta">${esc(file.type === 'directory' ? t('desktop.folder') : fmtBytes(file.size))}</span>
             </div>`).join('') : `<div class="vd-empty">${esc(t('desktop.empty_folder'))}</div>`;
@@ -22073,7 +22156,9 @@ if (appId === 'pixel') {
                     widget: client.widget || null,
                     bootstrap: sdkBootstrap(),
                     icon_manifest: state.iconManifest,
-                    icon_theme_manifests: state.iconThemeManifests
+                    icon_theme_manifests: state.iconThemeManifests,
+                    icon_appearance: desktopIconAppearance(),
+                    build_version: window.BUILD_VERSION || 'dev'
                 };
             case 'desktop:widget:resize':
                 guard();

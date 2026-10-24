@@ -96,8 +96,9 @@ func TestDesktopSDKResolvesThemedIcons(t *testing.T) {
 		"icon_catalog",
 		"catalog: () => context().then",
 		"sprite:",
-		"papirus:",
-		"whitesur:",
+		"window.AuraDesktopIcons.path",
+		"'papirus', 'whitesur', 'windows_xp', 'tela', 'candy', 'fluent', 'buuf_nestort'",
+		"aurago.desktop.appearance",
 	} {
 		if !strings.Contains(sdkText, want) {
 			t.Fatalf("SDK is missing themed icon resolver marker %q", want)

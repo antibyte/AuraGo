@@ -2,6 +2,7 @@
     'use strict';
 
     let host, ctx;
+    let settingsSaveQueue = Promise.resolve();
 
     // Label key of the light/dark row for each setting a theme can name as its schemeSetting.
     const SCHEME_MODE_LABELS = Object.freeze({ 'appearance.fruity_mode': 'desktop.settings_fruity_mode', 'appearance.minimal_mode': 'desktop.settings_minimal_mode' });
@@ -20,6 +21,8 @@
         const schemeSetting = activeTheme && activeTheme.schemeSetting ? activeTheme.schemeSetting : 'appearance.fruity_mode';
         const schemeLabel = SCHEME_MODE_LABELS[schemeSetting] || 'desktop.settings_fruity_mode';
         const showAccent = !activeTheme || activeTheme.accent === 'user';
+        const iconTheme = ctx.settingValue('appearance.icon_theme');
+        const iconManifest = (ctx.state.iconThemeManifests || {})[iconTheme];
         return [
             {
                 id: 'appearance', icon: 'settings-symbolic', fallback: 'A', title: 'desktop.settings_category_appearance', desc: 'desktop.settings_category_appearance_desc', items: [
@@ -46,8 +49,11 @@
                         ['comfortable', 'desktop.settings_density_comfortable'], ['compact', 'desktop.settings_density_compact']
                     ]),
                     settingSelect('appearance.icon_theme', 'desktop.settings_icon_theme', 'desktop.settings_icon_theme_desc', [
-                        ['papirus', 'desktop.settings_icon_theme_papirus'], ['whitesur', 'desktop.settings_icon_theme_whitesur'], ['windows_xp', 'desktop.settings_icon_theme_windows_xp']
-                    ])
+                        ['papirus', 'desktop.settings_icon_theme_papirus'], ['whitesur', 'desktop.settings_icon_theme_whitesur'], ['windows_xp', 'desktop.settings_icon_theme_windows_xp'],
+                        ['tela', 'desktop.settings_icon_theme_tela'], ['candy', 'desktop.settings_icon_theme_candy'], ['fluent', 'desktop.settings_icon_theme_fluent'], ['buuf_nestort', 'desktop.settings_icon_theme_buuf_nestort']
+                    ]),
+                    ['tela', 'fluent'].includes(iconTheme) ? settingSelect('appearance.' + iconTheme + '_folder_color', 'desktop.settings_folder_color', 'desktop.settings_folder_color_desc',
+                        ((iconManifest && iconManifest.folder_colors) || ['standard']).map(color => [color, 'desktop.settings_folder_color_' + color])) : null
                 ].filter(Boolean)
             },
             {
@@ -586,6 +592,12 @@
     }
 
     async function saveDesktopSetting(key, value) {
+        // Preserve the user's order when several appearance changes are saved quickly.
+        settingsSaveQueue = settingsSaveQueue.then(() => persistDesktopSetting(key, value));
+        return settingsSaveQueue;
+    }
+
+    async function persistDesktopSetting(key, value) {
         try {
             const updates = [{ key, value }];
             const themeChange = key === 'appearance.theme';

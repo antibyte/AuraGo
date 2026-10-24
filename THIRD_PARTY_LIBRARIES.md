@@ -378,3 +378,11 @@ Related docs:
 ## Disclaimer
 
 License classifications above are based on license files in the module cache, package metadata, and file headers at generation time. Always verify against the license file shipped with the exact version you distribute. This is not legal advice.
+
+### Additional Desktop icon artwork
+
+Tela, Candy and Fluent (GPL-3.0) and Buuf For Many Desktops (CC BY-NC-SA 2.5,
+noncommercial) are pinned local asset selections. See `THIRD_PARTY_NOTICES.md`,
+`documentation/desktop-icon-themes.md` and the packaged per-file provenance and
+license texts under `ui/img/{tela,candy,fluent,buuf-nestort}/`. Original AuraGo
+supplements are identified separately as MIT.

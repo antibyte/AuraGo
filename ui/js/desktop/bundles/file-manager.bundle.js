@@ -878,7 +878,7 @@
             const isActive = !isRemote() && (fm.currentPath === dir || fm.currentPath.startsWith(dir + '/'));
             const iconKey = iconForDirectory(baseName(dir) || dir);
             return `<div class="fm-sidebar-item${isActive ? ' active' : ''}" data-sidebar-path="${esc(dir)}" role="button" tabindex="0">
-                ${iconMarkup(iconKey, '\u25A0', 'fm-sidebar-icon', 18)}
+                ${iconMarkup(iconKey, '\u25A0', 'fm-sidebar-icon', 18, 'folder')}
                 <span class="fm-sidebar-label">${esc(baseName(dir) || dir)}</span>
             </div>`;
         }).join('');
@@ -927,7 +927,7 @@
             if (fm.filteredFiles !== null && fm.searchQuery) {
                 return `<div class="fm-empty">${iconMarkup('search', '\u2315', 'fm-empty-icon', 32)}<div>${esc(t('desktop.fm.no_results', { query: fm.searchQuery }))}</div></div>`;
             }
-            return `<div class="fm-empty">${iconMarkup('folder-open', '\u25A1', 'fm-empty-icon', 32)}<div>${esc(t('desktop.fm.empty_folder'))}</div></div>`;
+            return `<div class="fm-empty">${iconMarkup('folder-open', '\u25A1', 'fm-empty-icon', 32, 'folder')}<div>${esc(t('desktop.fm.empty_folder'))}</div></div>`;
         }
         const renderFiles = files.length > FILE_INCREMENTAL_THRESHOLD ? files.slice(0, FILE_RENDER_BATCH_SIZE) : files;
         const incrementalAttr = files.length > FILE_INCREMENTAL_THRESHOLD ? ` data-fm-incremental="${esc(String(files.length))}"` : '';
@@ -1163,9 +1163,9 @@
         }, true);
     }
 
-    function iconMarkup(key, fallback, className, size) {
+    function iconMarkup(key, fallback, className, size, usage) {
         if (fm.callbacks && typeof fm.callbacks.iconMarkup === 'function') {
-            return fm.callbacks.iconMarkup(key, fallback, className, size);
+            return fm.callbacks.iconMarkup(key, fallback, className, size, usage);
         }
         const pixels = Number(size || 16) || 16;
         return `<span class="${esc(className || '')}" style="font-size:${pixels}px">${esc(fallback || key || '')}</span>`;
@@ -1212,7 +1212,7 @@
     }
 
     function thumbnailMarkup(file, iconKey, fallback, mode) {
-        const icon = iconMarkup(iconKey, fallback, 'fm-thumb-fallback-icon', mode === 'grid' ? 38 : 18);
+        const icon = iconMarkup(iconKey, fallback, 'fm-thumb-fallback-icon', mode === 'grid' ? 38 : 18, file.type === 'directory' ? 'folder' : 'icon');
         if (!isPreviewableImage(file)) return icon;
         return `<span class="fm-thumb fm-thumb-${esc(mode || 'grid')}" aria-hidden="true">
             <img src="${esc(previewURL(file))}" loading="lazy" decoding="async" alt="">
@@ -3483,7 +3483,7 @@
             const sourceName = storageName({ ...fm, storage: tab.storage });
             const title = tab.path ? (tab.storage?.provider !== 'local' ? sourceName + ' · ' : '') + (tab.storage?.name || tab.path.split('/').pop()) : sourceName;
             return `<div class="fm-tab${active}" data-tab-index="${idx}" draggable="true" role="tab" aria-selected="${idx === fm.activeTabIndex ? 'true' : 'false'}">
-                <span class="fm-tab-icon">${iconMarkup('folder', 'F', 'fm-tab-folder-icon', 12)}</span>
+                <span class="fm-tab-icon">${iconMarkup('folder', 'F', 'fm-tab-folder-icon', 12, 'folder')}</span>
                 <span class="fm-tab-title" title="${esc(tab.path || '/')}">${esc(title)}</span>
                 ${fm.tabs.length > 1 ? `<button type="button" class="fm-tab-close" data-action="close-tab" data-tab-index="${idx}" title="${esc(t('desktop.close'))}">&times;</button>` : ''}
             </div>`;

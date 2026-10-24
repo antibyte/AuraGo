@@ -37,6 +37,7 @@ var themeSweepSeam = []string{
 	"renderIcons", "renderStartApps", "renderStartButtonIcon", "renderTaskbar",
 	"desktopThemes", "desktopThemeById", "currentDesktopTheme", "settingValue",
 	"applyWindowSnap", "toggleMaximizeWindow", "minimizeWindow", "switchSpace", "modalDialog",
+	"iconMarkup", "themeIconPath", "sdkFrameClient", "handleSDKMessage", "runSDKAction", "desktopIconAppearance", "showContextMenu",
 }
 
 // themeSweepWideMinWidth is the first viewport width that is not a compact layout.

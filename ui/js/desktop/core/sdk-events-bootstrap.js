@@ -109,7 +109,9 @@
                     widget: client.widget || null,
                     bootstrap: sdkBootstrap(),
                     icon_manifest: state.iconManifest,
-                    icon_theme_manifests: state.iconThemeManifests
+                    icon_theme_manifests: state.iconThemeManifests,
+                    icon_appearance: desktopIconAppearance(),
+                    build_version: window.BUILD_VERSION || 'dev'
                 };
             case 'desktop:widget:resize':
                 guard();

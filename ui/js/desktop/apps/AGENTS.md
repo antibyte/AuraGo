@@ -4263,6 +4263,7 @@ registration lives in `internal/desktop/types.go`.
   The programmer section starts hidden; mode tabs must fit the content width.
   Verify all three modes in the default and narrow windows with
   `TestDesktopCalculatorLayoutBrowser`.
+- Settings icon themes include Tela, Candy, Fluent and Buuf; Tela/Fluent each persist their own folder color. The picker reads generated manifest palettes, with backend parity enforced by `TestDesktopAdditionalIconAssets`. Serialize settings saves so fast selections keep their order; failed saves restore the previous state. Theme/color/scheme changes update open decorative icons without replacing controls or focus.
 - `settings.js` implements the Settings app, a virtual desktop configuration
   panel with sidebar navigation, global search, hamburger menu on mobile,
   and full desktop shell re-render on changes (icons, widgets, start menu,

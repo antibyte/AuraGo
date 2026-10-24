@@ -1,0 +1,941 @@
+{
+  "action_aliases": {
+    "agent": "chat",
+    "agent-chat": "chat",
+    "arrow-left": "chevron-left",
+    "arrow-right": "chevron-right",
+    "attach": "attachment",
+    "audio": "music",
+    "audio-player": "music",
+    "back": "chevron-left",
+    "browser": "globe",
+    "cheater": "notes",
+    "check-circle": "check",
+    "check_square": "check-square",
+    "code-studio": "code",
+    "cut": "scissors",
+    "delete": "trash",
+    "desktop": "monitor",
+    "documents": "file",
+    "external-link": "external",
+    "file-archive": "archive",
+    "file-code": "code",
+    "file-minus": "file",
+    "file-text": "file",
+    "folder-open": "folder",
+    "gallery-action-delete": "trash",
+    "gallery-action-download": "download",
+    "gallery-action-edit": "edit",
+    "gallery-action-preview": "eye",
+    "git-branch": "network",
+    "git-commit": "code",
+    "git-merge": "network",
+    "hard-drive": "server",
+    "image-plus": "image",
+    "launchpad": "apps",
+    "lock": "shield",
+    "maximize-2": "maximize",
+    "message-square": "chat",
+    "minimize": "minus",
+    "more-horizontal": "menu",
+    "more-vertical": "menu",
+    "music-player": "music",
+    "paste": "clipboard",
+    "pencil": "edit",
+    "refresh-cw": "refresh",
+    "rotate-ccw": "undo",
+    "rotate-cw": "refresh",
+    "screensaver": "star",
+    "settings-2": "sliders",
+    "sound": "speaker",
+    "theme-threedee": "cube",
+    "tools": "sliders",
+    "trash-empty": "trash",
+    "trash-full": "trash",
+    "unlock": "key",
+    "user": "users",
+    "volume": "speaker",
+    "volume-2": "speaker",
+    "widgets": "layout",
+    "zoom-reset": "search"
+  },
+  "actions": {
+    "analytics": {
+      "supplement": "analytics"
+    },
+    "apps": {
+      "source": "actions/view-app-grid.png"
+    },
+    "archive": {
+      "source": "actions/archive-insert.png"
+    },
+    "arrow-down": {
+      "source": "actions/go-down.png"
+    },
+    "arrow-up": {
+      "source": "actions/go-up.png"
+    },
+    "attachment": {
+      "source": "actions/mail-attachment.png"
+    },
+    "bell": {
+      "source": "status/notifications.png"
+    },
+    "bookmark": {
+      "source": "actions/bookmark-new.png"
+    },
+    "calendar": {
+      "supplement": "calendar"
+    },
+    "camera": {
+      "source": "devices/camera-photo.png"
+    },
+    "chat": {
+      "source": "places/mail-message.png"
+    },
+    "check": {
+      "source": "actions/dialog-ok.png"
+    },
+    "check-square": {
+      "source": "actions/checkbox-checked.png"
+    },
+    "chevron-down": {
+      "source": "actions/go-down.png"
+    },
+    "chevron-left": {
+      "source": "actions/go-previous.png"
+    },
+    "chevron-right": {
+      "source": "actions/go-next.png"
+    },
+    "chevron-up": {
+      "source": "actions/go-up.png"
+    },
+    "clipboard": {
+      "source": "actions/edit-paste.png"
+    },
+    "clock": {
+      "source": "actions/appointment-new.png"
+    },
+    "code": {
+      "supplement": "code"
+    },
+    "columns": {
+      "source": "actions/view-split-left-right.png"
+    },
+    "contrast": {
+      "supplement": "contrast"
+    },
+    "copy": {
+      "source": "actions/edit-copy.png"
+    },
+    "cpu": {
+      "source": "devices/cpu.png"
+    },
+    "crop": {
+      "supplement": "crop"
+    },
+    "cube": {
+      "supplement": "cube"
+    },
+    "database": {
+      "supplement": "database"
+    },
+    "download": {
+      "source": "actions/go-down.png"
+    },
+    "edit": {
+      "source": "actions/document-edit.png"
+    },
+    "external": {
+      "source": "actions/window-new.png"
+    },
+    "eye": {
+      "source": "actions/view-visible.png"
+    },
+    "eye-off": {
+      "source": "actions/view-hidden.png"
+    },
+    "eyedropper": {
+      "source": "actions/color-picker.png"
+    },
+    "file": {
+      "supplement": "file"
+    },
+    "file-plus": {
+      "source": "actions/document-new.png"
+    },
+    "folder": {
+      "source": "places/folder.png"
+    },
+    "folder-plus": {
+      "source": "actions/folder-new.png"
+    },
+    "format-bold": {
+      "supplement": "format-bold"
+    },
+    "format-italic": {
+      "supplement": "format-italic"
+    },
+    "format-numbered": {
+      "source": "actions/format-list-ordered.png"
+    },
+    "format-quote": {
+      "supplement": "format-quote"
+    },
+    "format-strike": {
+      "supplement": "format-strike"
+    },
+    "games": {
+      "supplement": "games"
+    },
+    "globe": {
+      "supplement": "globe"
+    },
+    "grid": {
+      "source": "actions/view-grid.png"
+    },
+    "headphones": {
+      "source": "devices/audio-headphones.png"
+    },
+    "heart": {
+      "supplement": "heart"
+    },
+    "help": {
+      "source": "actions/help-contents.png"
+    },
+    "home": {
+      "source": "actions/go-home.png"
+    },
+    "image": {
+      "source": "actions/insert-image.png"
+    },
+    "info": {
+      "source": "status/dialog-information.png"
+    },
+    "key": {
+      "source": "status/dialog-password.png"
+    },
+    "keyboard": {
+      "source": "devices/input-keyboard.png"
+    },
+    "layout": {
+      "source": "actions/view-split-left-right.png"
+    },
+    "link": {
+      "source": "actions/insert-link.png"
+    },
+    "list": {
+      "source": "actions/view-list-details.png"
+    },
+    "mail": {
+      "source": "actions/mail-send.png"
+    },
+    "maximize": {
+      "source": "actions/window-maximize.png"
+    },
+    "menu": {
+      "source": "actions/open-menu-symbolic.png"
+    },
+    "mesh": {
+      "supplement": "mesh"
+    },
+    "microphone": {
+      "source": "devices/audio-input-microphone.png"
+    },
+    "minus": {
+      "source": "actions/list-remove.png"
+    },
+    "monitor": {
+      "source": "devices/video-display.png"
+    },
+    "music": {
+      "supplement": "music"
+    },
+    "network": {
+      "source": "devices/network-workgroup.png"
+    },
+    "notes": {
+      "source": "actions/document-edit.png"
+    },
+    "package": {
+      "supplement": "package"
+    },
+    "palette": {
+      "source": "actions/color-management.png"
+    },
+    "pause": {
+      "source": "actions/media-playback-pause.png"
+    },
+    "phone": {
+      "source": "actions/call-start.png"
+    },
+    "play": {
+      "source": "actions/media-playback-start.png"
+    },
+    "plus": {
+      "source": "actions/list-add.png"
+    },
+    "printer": {
+      "source": "actions/document-print.png"
+    },
+    "puzzle": {
+      "supplement": "puzzle"
+    },
+    "radio": {
+      "supplement": "radio"
+    },
+    "redo": {
+      "source": "actions/edit-redo.png"
+    },
+    "refresh": {
+      "source": "actions/view-refresh.png"
+    },
+    "restore": {
+      "source": "actions/window-restore.png"
+    },
+    "run": {
+      "source": "actions/system-run.png"
+    },
+    "save": {
+      "source": "actions/document-save.png"
+    },
+    "scissors": {
+      "source": "actions/edit-cut.png"
+    },
+    "search": {
+      "source": "actions/system-search.png"
+    },
+    "server": {
+      "source": "places/network-server.png"
+    },
+    "settings": {
+      "source": "actions/configure.png"
+    },
+    "shield": {
+      "source": "status/security-high.png"
+    },
+    "sliders": {
+      "source": "actions/configure.png"
+    },
+    "sort": {
+      "source": "actions/view-sort-ascending.png"
+    },
+    "speaker": {
+      "source": "status/audio-volume-high.png"
+    },
+    "square": {
+      "source": "actions/checkbox.png"
+    },
+    "star": {
+      "source": "actions/rating.png"
+    },
+    "stop": {
+      "source": "actions/media-playback-stop.png"
+    },
+    "terminal": {
+      "supplement": "terminal"
+    },
+    "todo": {
+      "source": "status/task-complete.png"
+    },
+    "trash": {
+      "source": "actions/edit-delete.png"
+    },
+    "undo": {
+      "source": "actions/edit-undo.png"
+    },
+    "upload": {
+      "source": "actions/go-up.png"
+    },
+    "users": {
+      "supplement": "users"
+    },
+    "video": {
+      "source": "actions/media-record.png"
+    },
+    "wallpaper": {
+      "supplement": "wallpaper"
+    },
+    "x": {
+      "source": "actions/window-close.png"
+    },
+    "zoom-in": {
+      "source": "actions/zoom-in.png"
+    },
+    "zoom-out": {
+      "source": "actions/zoom-out.png"
+    }
+  },
+  "folders": {
+    "analytics": {
+      "source": "places/folder-documents.png"
+    },
+    "apps": {
+      "source": "places/folder.png"
+    },
+    "archive": {
+      "source": "places/folder-tar.png"
+    },
+    "audio": {
+      "source": "places/folder-music.png"
+    },
+    "backup": {
+      "source": "places/folder.png"
+    },
+    "book": {
+      "source": "places/folder-library.png"
+    },
+    "camera": {
+      "source": "places/folder-camera.png"
+    },
+    "cloud": {
+      "source": "places/folder-cloud.png"
+    },
+    "code": {
+      "source": "places/folder-development.png"
+    },
+    "database": {
+      "source": "places/folder-database.png"
+    },
+    "desktop": {
+      "source": "places/folder-desktop.png"
+    },
+    "documents": {
+      "source": "places/folder-documents.png"
+    },
+    "downloads": {
+      "source": "places/folder-downloads.png"
+    },
+    "folder": {
+      "source": "places/folder.png"
+    },
+    "folder-open": {
+      "source": "places/folder-open.png"
+    },
+    "folder-plus": {
+      "source": "places/folder-add.png"
+    },
+    "folder-symbolic": {
+      "source": "places/folder.png"
+    },
+    "forms": {
+      "source": "places/folder-templates.png"
+    },
+    "globe": {
+      "source": "places/folder-publicshare.png"
+    },
+    "heart": {
+      "source": "places/folder-favorites.png"
+    },
+    "help": {
+      "source": "places/folder.png"
+    },
+    "home": {
+      "source": "places/folder-home.png"
+    },
+    "image": {
+      "source": "places/folder-pictures.png"
+    },
+    "key": {
+      "source": "places/folder-encrypted.png"
+    },
+    "mail": {
+      "source": "places/folder-mail.png"
+    },
+    "map": {
+      "source": "places/folder-publicshare.png"
+    },
+    "network": {
+      "source": "places/folder-network.png"
+    },
+    "package": {
+      "source": "places/folder.png"
+    },
+    "phone": {
+      "source": "places/folder.png"
+    },
+    "printer": {
+      "source": "places/folder-print.png"
+    },
+    "settings": {
+      "source": "places/folder-system.png"
+    },
+    "share": {
+      "source": "places/folder-publicshare.png"
+    },
+    "text": {
+      "source": "places/folder-documents.png"
+    },
+    "tools": {
+      "source": "places/folder-development.png"
+    },
+    "video": {
+      "source": "places/folder-videos.png"
+    },
+    "weather": {
+      "source": "places/folder.png"
+    },
+    "workflow": {
+      "source": "places/folder-git.png"
+    }
+  },
+  "icons": {
+    "agent-chat": {
+      "source": "apps/pidgin.png"
+    },
+    "analytics": {
+      "source": "apps/utilities-system-monitor.png"
+    },
+    "apps": {
+      "source": "categories/applications-other.png"
+    },
+    "apps-symbolic": {
+      "source": "categories/applications-other.png"
+    },
+    "archive": {
+      "source": "mimetypes/application-x-archive.png"
+    },
+    "arrow-up": {
+      "source": "actions/go-up.png"
+    },
+    "audio": {
+      "source": "mimetypes/audio-x-generic.png"
+    },
+    "audio-player": {
+      "source": "apps/rhythmbox.png"
+    },
+    "backup": {
+      "source": "apps/deja-dup.png"
+    },
+    "bluetooth": {
+      "source": "apps/bluetooth.png"
+    },
+    "book": {
+      "source": "apps/accessories-dictionary.png"
+    },
+    "bookshelf": {
+      "supplement": "book"
+    },
+    "browser": {
+      "source": "apps/web-browser.png"
+    },
+    "calculator": {
+      "source": "apps/accessories-calculator.png"
+    },
+    "calendar": {
+      "source": "apps/x-office-calendar.png"
+    },
+    "camera": {
+      "source": "devices/camera-photo.png"
+    },
+    "chat": {
+      "source": "apps/pidgin.png"
+    },
+    "check-square": {
+      "source": "actions/checkbox-checked.png"
+    },
+    "chess": {
+      "source": "apps/gnome-chess.png"
+    },
+    "chevron-down": {
+      "source": "actions/go-down.png"
+    },
+    "chevron-left": {
+      "source": "actions/go-previous.png"
+    },
+    "chevron-right": {
+      "source": "actions/go-next.png"
+    },
+    "chevron-up": {
+      "source": "actions/go-up.png"
+    },
+    "clipboard": {
+      "source": "actions/edit-paste.png"
+    },
+    "cloud": {
+      "source": "places/folder-cloud.png"
+    },
+    "code": {
+      "source": "mimetypes/text-x-script.png"
+    },
+    "code-studio": {
+      "source": "apps/visual-studio-code.png"
+    },
+    "columns": {
+      "source": "actions/view-split-left-right.png"
+    },
+    "commandcode": {
+      "source": "apps/utilities-terminal.png"
+    },
+    "contrast": {
+      "source": "apps/preferences-desktop-accessibility.png"
+    },
+    "copy": {
+      "source": "actions/edit-copy.png"
+    },
+    "css": {
+      "source": "mimetypes/text-css.png"
+    },
+    "cube": {
+      "supplement": "cube"
+    },
+    "cyd-creator": {
+      "supplement": "circuit"
+    },
+    "database": {
+      "source": "apps/libreoffice-base.png"
+    },
+    "desktop": {
+      "source": "places/user-desktop.png"
+    },
+    "desktop-symbolic": {
+      "source": "places/user-desktop.png"
+    },
+    "documents": {
+      "source": "mimetypes/x-office-document.png"
+    },
+    "download": {
+      "source": "places/folder-downloads.png"
+    },
+    "downloads": {
+      "source": "places/folder-downloads.png"
+    },
+    "dozzle": {
+      "source": "apps/utilities-log-viewer.png"
+    },
+    "easydrag": {
+      "source": "devices/input-mouse.png"
+    },
+    "editor": {
+      "source": "apps/accessories-text-editor.png"
+    },
+    "eye": {
+      "source": "actions/view-visible.png"
+    },
+    "eye-off": {
+      "source": "actions/view-hidden.png"
+    },
+    "file-plus": {
+      "source": "actions/document-new.png"
+    },
+    "folder": {
+      "source": "places/folder.png"
+    },
+    "folder-open": {
+      "source": "places/folder-open.png"
+    },
+    "folder-plus": {
+      "source": "actions/folder-new.png"
+    },
+    "folder-symbolic": {
+      "source": "places/folder.png"
+    },
+    "forms": {
+      "source": "mimetypes/x-office-address-book.png"
+    },
+    "galaxa-deluxe": {
+      "supplement": "rocket"
+    },
+    "gallery": {
+      "source": "apps/org.gnome.Photos.png"
+    },
+    "gallery-action-delete": {
+      "supplement": "trash"
+    },
+    "gallery-action-download": {
+      "supplement": "download"
+    },
+    "gallery-action-edit": {
+      "supplement": "edit"
+    },
+    "gallery-action-preview": {
+      "supplement": "eye"
+    },
+    "globe": {
+      "source": "categories/applications-internet.png"
+    },
+    "go": {
+      "source": "mimetypes/text-x-go.png"
+    },
+    "gods-eye-view": {
+      "supplement": "map"
+    },
+    "grid": {
+      "source": "actions/view-grid.png"
+    },
+    "ha-switchboard": {
+      "source": "apps/preferences-system.png"
+    },
+    "heart": {
+      "supplement": "heart"
+    },
+    "help": {
+      "source": "apps/help-browser.png"
+    },
+    "home": {
+      "source": "places/user-home.png"
+    },
+    "html": {
+      "source": "mimetypes/text-html.png"
+    },
+    "image": {
+      "source": "mimetypes/image-x-generic.png"
+    },
+    "info": {
+      "source": "status/dialog-information.png"
+    },
+    "info-symbolic": {
+      "source": "status/dialog-information.png"
+    },
+    "javascript": {
+      "source": "mimetypes/application-javascript.png"
+    },
+    "json": {
+      "source": "mimetypes/application-json.png"
+    },
+    "key": {
+      "source": "status/dialog-password.png"
+    },
+    "launchpad": {
+      "source": "actions/view-app-grid.png"
+    },
+    "layerling": {
+      "source": "mimetypes/text-x-markdown.png"
+    },
+    "layout": {
+      "source": "actions/view-split-left-right.png"
+    },
+    "leafy": {
+      "source": "places/folder-green.png"
+    },
+    "list": {
+      "source": "actions/view-list-details.png"
+    },
+    "live-speech": {
+      "source": "devices/audio-input-microphone.png"
+    },
+    "looper": {
+      "source": "apps/ardour.png"
+    },
+    "mail": {
+      "source": "apps/internet-mail.png"
+    },
+    "map": {
+      "source": "apps/gnome-maps.png"
+    },
+    "markdown": {
+      "source": "mimetypes/text-x-markdown.png"
+    },
+    "maximize": {
+      "source": "actions/window-maximize.png"
+    },
+    "mesh": {
+      "supplement": "mesh"
+    },
+    "minus": {
+      "source": "actions/list-remove.png"
+    },
+    "monitor": {
+      "source": "devices/computer.png"
+    },
+    "monitor-symbolic": {
+      "source": "devices/computer.png"
+    },
+    "n8n": {
+      "supplement": "workflow"
+    },
+    "nasscad": {
+      "source": "apps/freecad.png"
+    },
+    "network": {
+      "source": "devices/network-workgroup.png"
+    },
+    "newspaper": {
+      "source": "mimetypes/application-rss+xml.png"
+    },
+    "node-red": {
+      "supplement": "network"
+    },
+    "notes": {
+      "supplement": "notes"
+    },
+    "olivetin": {
+      "supplement": "switchboard"
+    },
+    "open-webui": {
+      "supplement": "chat"
+    },
+    "openscad": {
+      "supplement": "openscad"
+    },
+    "package": {
+      "source": "mimetypes/package-x-generic.png"
+    },
+    "pdf": {
+      "source": "mimetypes/application-pdf.png"
+    },
+    "personal-radio": {
+      "supplement": "headphones"
+    },
+    "phone": {
+      "source": "devices/phone.png"
+    },
+    "pixel": {
+      "source": "categories/applications-graphics.png"
+    },
+    "printer": {
+      "source": "devices/printer.png"
+    },
+    "python": {
+      "source": "mimetypes/text-x-python.png"
+    },
+    "quakejs": {
+      "supplement": "games"
+    },
+    "radio": {
+      "source": "apps/radio.png"
+    },
+    "redo": {
+      "source": "actions/edit-redo.png"
+    },
+    "refresh": {
+      "source": "actions/view-refresh.png"
+    },
+    "romm": {
+      "source": "categories/applications-games.png"
+    },
+    "rtl-sdr": {
+      "supplement": "antenna"
+    },
+    "run": {
+      "source": "apps/system-run.png"
+    },
+    "ruview": {
+      "supplement": "radar"
+    },
+    "save": {
+      "source": "actions/document-save.png"
+    },
+    "scissors": {
+      "source": "actions/edit-cut.png"
+    },
+    "screensaver-symbolic": {
+      "source": "apps/preferences-desktop-screensaver.png"
+    },
+    "search": {
+      "source": "actions/system-search.png"
+    },
+    "server": {
+      "source": "places/network-server.png"
+    },
+    "settings": {
+      "source": "apps/preferences-system.png"
+    },
+    "settings-symbolic": {
+      "source": "apps/preferences-system.png"
+    },
+    "sliders": {
+      "source": "apps/preferences-other.png"
+    },
+    "software-store": {
+      "source": "apps/system-software-install.png"
+    },
+    "sort": {
+      "source": "actions/view-sort-ascending.png"
+    },
+    "sound-symbolic": {
+      "source": "apps/preferences-desktop-sound.png"
+    },
+    "spreadsheet": {
+      "source": "mimetypes/x-office-spreadsheet.png"
+    },
+    "square": {
+      "source": "apps/checkbox.png"
+    },
+    "star": {
+      "source": "actions/rating.png"
+    },
+    "stop": {
+      "source": "actions/media-playback-stop.png"
+    },
+    "teevee": {
+      "source": "devices/tv.png"
+    },
+    "terminal": {
+      "source": "apps/utilities-terminal.png"
+    },
+    "terminal-app": {
+      "source": "apps/utilities-terminal.png"
+    },
+    "termix": {
+      "source": "apps/terminator.png"
+    },
+    "text": {
+      "source": "mimetypes/text-x-generic.png"
+    },
+    "tools": {
+      "source": "categories/applications-utilities.png"
+    },
+    "trash": {
+      "source": "places/user-trash.png"
+    },
+    "trash-empty": {
+      "source": "places/user-trash.png"
+    },
+    "trash-full": {
+      "source": "places/user-trash-full.png"
+    },
+    "tresor": {
+      "source": "apps/keepassxc.png"
+    },
+    "undo": {
+      "source": "actions/edit-undo.png"
+    },
+    "upload": {
+      "source": "actions/go-up.png"
+    },
+    "users": {
+      "source": "apps/system-users.png"
+    },
+    "video": {
+      "source": "mimetypes/video-x-generic.png"
+    },
+    "video-studio": {
+      "source": "apps/kdenlive.png"
+    },
+    "weather": {
+      "source": "status/weather-clear.png"
+    },
+    "workflow": {
+      "supplement": "workflow"
+    },
+    "writer": {
+      "source": "apps/libreoffice-writer.png"
+    },
+    "x": {
+      "source": "actions/window-close.png"
+    },
+    "xml": {
+      "source": "mimetypes/application-xml.png"
+    },
+    "yaml": {
+      "supplement": "code"
+    },
+    "zipper": {
+      "source": "mimetypes/application-zip.png"
+    },
+    "ziro-designer": {
+      "source": "apps/kicad.png"
+    },
+    "zoom-in": {
+      "source": "actions/zoom-in.png"
+    },
+    "zoom-out": {
+      "source": "actions/zoom-out.png"
+    },
+    "zoom-reset": {
+      "supplement": "search"
+    }
+  }
+}

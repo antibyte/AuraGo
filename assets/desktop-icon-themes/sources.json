@@ -1,0 +1,184 @@
+{
+  "tela": {
+    "name": "Tela",
+    "url": "https://github.com/vinceliuice/Tela-icon-theme",
+    "revision": "a1fffc5bfab716bd022dd228ee96fe3965cdb33d",
+    "archive": "tela.tar.gz",
+    "sha256": "ee29a82dcc17fa89aedb2a90fbf124f55b6870232657c06dc6d06fc2c9ffd178",
+    "archive_prefix": "Tela-icon-theme-a1fffc5bfab716bd022dd228ee96fe3965cdb33d/",
+    "overlay": true,
+    "license": "GPL-3.0",
+    "authors": [
+      "Vince Liuice",
+      "Numix, Papirus and Paper contributors (see AUTHORS.txt)"
+    ],
+    "supplement_colors": {
+      "light": [
+        "#3d5775",
+        "#5294e2"
+      ],
+      "dark": [
+        "#e3eaf4",
+        "#80b5f5"
+      ]
+    },
+    "action_foregrounds": [
+      "#565656",
+      "#333333"
+    ],
+    "notices": {
+      "LICENSE.txt": "COPYING",
+      "AUTHORS.txt": "AUTHORS"
+    },
+    "notice": "Tela icon theme. Imported artwork is distributed under GPL-3.0; upstream copyright notices are retained. Source paths, SHA-256 hashes, resolved links and every modification are recorded in provenance.json. Source archives and the deterministic importer are described in documentation/desktop-icon-themes.md.",
+    "folder_colors": {
+      "standard": "#5294e2",
+      "black": "#4d4d4d",
+      "blue": "#5677fc",
+      "brown": "#795548",
+      "green": "#66bb6a",
+      "grey": "#bdbdbd",
+      "orange": "#ff9800",
+      "pink": "#f06292",
+      "purple": "#7e57c2",
+      "red": "#ef5350",
+      "yellow": "#ffca28",
+      "manjaro": "#16a085",
+      "ubuntu": "#fb8441",
+      "dracula": "#44475a",
+      "nord": "#4d576a"
+    }
+  },
+  "candy": {
+    "name": "Candy",
+    "url": "https://github.com/EliverLara/candy-icons",
+    "revision": "8d21022f3b77d6a3b44f9a4a1ed26d6a974c41f6",
+    "archive": "candy.tar.gz",
+    "sha256": "d99411fe765a7d018a79cc540b6b6615959746c3725669a0f8b56d085214011a",
+    "archive_prefix": "candy-icons-8d21022f3b77d6a3b44f9a4a1ed26d6a974c41f6/",
+    "overlay": false,
+    "license": "GPL-3.0",
+    "authors": [
+      "Eliver Lara"
+    ],
+    "supplement_colors": {
+      "light": [
+        "#8540a3",
+        "#a6235c"
+      ],
+      "dark": [
+        "#f6a1e1",
+        "#74e3db"
+      ]
+    },
+    "action_foregrounds": [
+      "#363636",
+      "#4d4d4d",
+      "#232629"
+    ],
+    "notices": {
+      "LICENSE.txt": "LICENSE"
+    },
+    "notice": "Candy icon theme. Imported artwork is distributed under GPL-3.0; upstream copyright notices are retained. Source paths, SHA-256 hashes, resolved links and every modification are recorded in provenance.json. Source archives and the deterministic importer are described in documentation/desktop-icon-themes.md.",
+    "action_colors": {
+      "light": {
+        "rgb(247,242,6)": "#a96a00",
+        "rgb(255,187,36)": "#b35a0c",
+        "#00b8ba": "#007c80",
+        "#00ffed": "#007f77",
+        "#74eed9": "#087f70",
+        "#cc97ff": "#7845a8",
+        "#37ec13": "#247a18",
+        "#c8ec15": "#62700a"
+      },
+      "dark": {
+        "#8500f7": "#c495ff",
+        "#c50ed2": "#ff93e3"
+      }
+    }
+  },
+  "fluent": {
+    "name": "Fluent",
+    "url": "https://github.com/vinceliuice/Fluent-icon-theme",
+    "revision": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+    "archive": "fluent.tar.gz",
+    "sha256": "07b6b593ab557e07f0a7cdb232cda99214af13fb74ad6ce1e77d666057647767",
+    "archive_prefix": "Fluent-icon-theme-c8a244f571ef8fb47812bdc9dbce76546cedce69/",
+    "overlay": true,
+    "license": "GPL-3.0",
+    "authors": [
+      "Vince Liuice",
+      "Numix, Papirus and Paper contributors (see AUTHORS.txt)"
+    ],
+    "supplement_colors": {
+      "light": [
+        "#24577f",
+        "#198ee6"
+      ],
+      "dark": [
+        "#dfedff",
+        "#66b6f4"
+      ]
+    },
+    "action_foregrounds": [
+      "#363636"
+    ],
+    "notices": {
+      "LICENSE.txt": "COPYING",
+      "AUTHORS.txt": "AUTHORS"
+    },
+    "notice": "Fluent icon theme. Imported artwork is distributed under GPL-3.0; upstream copyright notices are retained. Source paths, SHA-256 hashes, resolved links and every modification are recorded in provenance.json. Source archives and the deterministic importer are described in documentation/desktop-icon-themes.md.",
+    "folder_colors": {
+      "standard": "#198ee6",
+      "green": "#67cb6b",
+      "grey": "#808080",
+      "orange": "#ff9c33",
+      "pink": "#ff5c93",
+      "purple": "#dc63ee",
+      "red": "#ff6666",
+      "yellow": "#ffcb52",
+      "teal": "#32c8ba"
+    },
+    "action_colors": {
+      "light": {
+        "#a4e451": "#497b15",
+        "#13af13": "#168018"
+      }
+    }
+  },
+  "buuf_nestort": {
+    "name": "Buuf",
+    "url": "https://git.disroot.org/eudaimon/buuf-nestort",
+    "revision": "ba218523983aec90f1e9facaefeeeeecdcf6d6a5",
+    "archive": "buuf.tar",
+    "sha256": "687ba1b02c9e2e79a24f4dc17b9831c5fe2a95f8229711c38f3c71c51fcab3d9",
+    "archive_prefix": "",
+    "overlay": false,
+    "license": "CC-BY-NC-SA-2.5",
+    "authors": [
+      "Paul Davey (Mattahan)",
+      "OxayotlTheGreat",
+      "robson-66",
+      "eudaimon (Nestort)"
+    ],
+    "supplement_colors": {
+      "light": [
+        "#674229",
+        "#a76b37"
+      ],
+      "dark": [
+        "#edd4a7",
+        "#d6a35c"
+      ]
+    },
+    "action_foregrounds": [
+      "#363636"
+    ],
+    "notices": {
+      "LICENSE.txt": "local:licences/texts/CC-BY-NC-SA-2.5.txt",
+      "UPSTREAM-README.txt": "README.md",
+      "UPSTREAM-INDEX.txt": "index.theme"
+    },
+    "notice": "Buuf For Many Desktops (formerly Buuf Nestort). Original artwork by Paul Davey (Mattahan); remixes by OxayotlTheGreat, robson-66 and eudaimon. Upstream index.theme declares CC BY-NC-SA 2.5. Original artist licensing statement: https://www.deviantart.com/mattahan/art/Buuf-37966044 . Noncommercial use only for the imported artwork. This artwork is NOT covered by AuraGo's MIT license. Selected raster artwork is copied unchanged; see the explicit per-motif source allowlist and provenance.json. Upstream placeholders are not an implicit fallback."
+  }
+}

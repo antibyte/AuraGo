@@ -358,3 +358,16 @@ enthält Platzhalter für Jahr und Namen. Die konkreten Zeilen ersetzen diese Pl
 | `Open-WebUI.txt` | Open WebUI |
 | `CanvasUI-Commons-Clause.txt` | CanvasUI |
 | `C64-Pro-Mono.txt` | C64 Pro Mono |
+
+## Zusätzliche Desktop-Icons
+
+Tela und Fluent von Vince Liuice sowie Candy von Eliver Lara stehen unter GPL-3.0.
+Die Quellenhinweise von Tela/Fluent auf Numix, Papirus und Paper bleiben in
+`AUTHORS.txt` erhalten. Buuf For Many Desktops (eudaimon/Nestort; Artwork von Paul
+Davey/Mattahan, Remixe von OxayotlTheGreat und robson-66) wird unter CC BY-NC-SA 2.5
+für nichtkommerzielle Nutzung mitgeliefert. Diese Buuf-Assets sind nicht MIT.
+
+Die vier Pakete enthalten ihre Lizenztexte, feste Revisionen und Nachweise je
+Motiv. Der vollständige CC-Text liegt zusätzlich in `texts/CC-BY-NC-SA-2.5.txt`.
+Eigene AuraGo-Ergänzungen sind gesondert als MIT gekennzeichnet. Einzelheiten und
+Quellen: `documentation/desktop-icon-themes.md`.

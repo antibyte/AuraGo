@@ -18,6 +18,7 @@ This folder owns `UEBERSICHT.md` and `licences/texts/`. AuraGo's own license sta
 - `command-code` npm metadata `UNLICENSED` stays stated as no granted license.
 - Copyleft and the special terms for n8n, Open WebUI, Redis, C64 Pro Mono, and CanvasUI stay visible in the Sonderfälle section.
 - Running an unmodified container does not relicense AuraGo's own MIT code.
+- Desktop icon notices are generated into `ui/img/{tela,candy,fluent,buuf-nestort}/` for the external resource set. Preserve imported GPL-3.0 artwork and noncommercial CC BY-NC-SA 2.5 Buuf separately from original MIT supplements; see `../assets/desktop-icon-themes/AGENTS.md`.
 
 ## Work Guidance
 

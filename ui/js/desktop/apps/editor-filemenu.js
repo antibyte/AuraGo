@@ -100,7 +100,7 @@
             const body = await api('/api/desktop/files?path=' + encodeURIComponent(state.filesPath));
             const files = body.files || [];
             host.querySelector('.vd-file-list').innerHTML = files.length ? files.map(file => `<div class="vd-file-row" data-type="${esc(file.type)}" data-path="${esc(file.path)}" data-web-path="${esc(file.web_path || '')}" data-media-kind="${esc(file.media_kind || '')}" data-mime-type="${esc(file.mime_type || '')}">
-                ${iconMarkup(iconForFile(file), file.type === 'directory' ? 'D' : file.name, 'vd-sprite-file', 26)}
+                ${iconMarkup(iconForFile(file), file.type === 'directory' ? 'D' : file.name, 'vd-sprite-file', 26, file.type === 'directory' ? 'folder' : 'icon')}
                 <span class="vd-file-name">${esc(file.name)}</span>
                 <span class="vd-file-meta">${esc(file.type === 'directory' ? t('desktop.folder') : fmtBytes(file.size))}</span>
             </div>`).join('') : `<div class="vd-empty">${esc(t('desktop.empty_folder'))}</div>`;

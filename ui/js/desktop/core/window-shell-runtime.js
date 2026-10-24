@@ -1075,7 +1075,7 @@
             ['system-info', '', 'desktop', 'desktop.app_system_info'],
             ['settings', '', 'settings', 'desktop.app_settings']
         ];
-        links.innerHTML = shortcuts.map(([app, folder, icon, key]) => `<button type="button" class="vd-start-xp-link" data-xp-app="${app}" data-xp-folder="${folder}">${iconMarkup(icon, '', '', 24)}<span>${esc(t(key))}</span></button>`).join('');
+        links.innerHTML = shortcuts.map(([app, folder, icon, key]) => `<button type="button" class="vd-start-xp-link" data-xp-app="${app}" data-xp-folder="${folder}">${iconMarkup(icon, '', '', 24, folder ? 'folder' : 'icon')}<span>${esc(t(key))}</span></button>`).join('');
         links.querySelectorAll('[data-xp-app]').forEach(button => button.addEventListener('click', () => {
             closeStartMenu();
             openApp(button.dataset.xpApp, button.dataset.xpFolder ? { path: button.dataset.xpFolder } : {});

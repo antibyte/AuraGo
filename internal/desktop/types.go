@@ -268,7 +268,9 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "appearance.theme_cursors", Default: "true", Values: []string{"true", "false"}},
 		{Key: "appearance.accent", Default: "teal", Values: []string{"teal", "orange", "blue", "violet", "green"}},
 		{Key: "appearance.density", Default: "comfortable", Values: []string{"comfortable", "compact"}},
-		{Key: "appearance.icon_theme", Default: "papirus", Values: []string{"papirus", "whitesur", "windows_xp"}},
+		{Key: "appearance.icon_theme", Default: "papirus", Values: []string{"papirus", "whitesur", "windows_xp", "tela", "candy", "fluent", "buuf_nestort"}},
+		{Key: "appearance.tela_folder_color", Default: "standard", Values: []string{"standard", "black", "blue", "brown", "green", "grey", "orange", "pink", "purple", "red", "yellow", "manjaro", "ubuntu", "dracula", "nord"}},
+		{Key: "appearance.fluent_folder_color", Default: "standard", Values: []string{"standard", "green", "grey", "orange", "pink", "purple", "red", "yellow", "teal"}},
 		{Key: "appearance.fruity_mode", Default: "light", Values: []string{"light", "dark"}},
 		{Key: "appearance.minimal_mode", Default: "light", Values: []string{"light", "dark"}},
 		{Key: "desktop.icon_size", Default: "medium", Values: []string{"small", "medium", "large"}},
@@ -688,11 +690,11 @@ func NormalizeDesktopIconName(raw, label string) (string, error) {
 		return "", fmt.Errorf("%s icon is required", label)
 	}
 	icon = strings.ReplaceAll(icon, " ", "_")
-	if strings.HasPrefix(icon, "papirus:") {
-		icon = strings.TrimPrefix(icon, "papirus:")
-	}
-	if strings.HasPrefix(icon, "whitesur:") {
-		icon = strings.TrimPrefix(icon, "whitesur:")
+	for _, theme := range []string{"papirus", "whitesur", "windows_xp", "tela", "candy", "fluent", "buuf_nestort"} {
+		if strings.HasPrefix(icon, theme+":") {
+			icon = strings.TrimPrefix(icon, theme+":")
+			break
+		}
 	}
 	if strings.HasPrefix(icon, "sprite:") {
 		spriteName := strings.TrimPrefix(icon, "sprite:")

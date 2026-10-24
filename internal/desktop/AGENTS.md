@@ -33,6 +33,8 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 - `openscad_render` refuses when the virtual desktop is read-only, with the message `virtual desktop is read-only`, before it compiles.
 - Desktop theme ids: `DesktopThemeIDs()` in `themes.go` is the picker order and the allowed `appearance.theme` values (`DesktopSettingDefinitions()` in `types.go`); `DefaultDesktopTheme` (`standard`) is the theme of a fresh desktop. `DESKTOP_THEMES` in `ui/js/desktop/core/theme-runtime.js` must list the same ids in the same order, and `ui/desktop_theme_registry_test.go` enforces it. `light` and `dark` name colour schemes and are never theme ids. Verify `go test ./ui -run DesktopTheme -count=1`.
 
+- Icon settings retain Papirus by default and accept `tela`, `candy`, `fluent`, `buuf_nestort` alongside the existing sets. Tela/Fluent folder colors persist separately with default `standard`; `DesktopSettingDefinitions` is the backend allowlist. Manifest palette parity and all sixteen locale labels are checked by `TestDesktopAdditionalIcon*`. No database migration or settings API change is required.
+
 ## Work Guidance
 
 - NASSCAD 4.7.0 is pinned to upstream `279da7c0f0ca28dfae19c11c8be231f326dfda4f`.

@@ -21,6 +21,16 @@ ui/css/*.bundle.css text eol=lf
 ui/js/chat/bundles/*.js text eol=lf
 ui/js/chat/main.js text eol=lf
 ui/js/desktop/bundles/*.js text eol=lf
+ui/js/desktop/aura-desktop-sdk.js text eol=lf
+
+# Reproducible icon output and its pinned import inputs.
+assets/desktop-icon-themes/** text=auto eol=lf
+ui/img/tela/** text=auto eol=lf
+ui/img/candy/** text=auto eol=lf
+ui/img/fluent/** text=auto eol=lf
+ui/img/buuf-nestort/** text=auto eol=lf
+licences/texts/CC-BY-NC-SA-2.5.txt text eol=lf -whitespace
+ui/img/buuf-nestort/LICENSE.txt -whitespace
 
 # Preserve generated template literals and upstream license text byte-for-byte.
 ui/js/vendor/** text=auto eol=lf -whitespace

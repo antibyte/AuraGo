@@ -290,3 +290,18 @@ GPL-3.0-or-later; KiCad libraries CC-BY-SA-4.0 with the KiCad library exception.
 The separate Store image includes `/LICENSE`, `/NOTICE.md` and `/source.tar.gz`
 with the pinned upstream source and AuraGo adapter, served by the image web server.
 Upstream: https://github.com/ZiroEDA/ziro-designer/tree/7b4597005e4801d4fb19661fcac6fc3380547cf2.
+
+## Additional Desktop icon themes
+
+Tela (Vince Liuice), Candy (Eliver Lara) and Fluent (Vince Liuice) artwork is
+distributed under GPL-3.0. Tela/Fluent preserve Numix, Papirus and Paper source
+credits in their AUTHORS.txt. Buuf For Many Desktops (eudaimon/Nestort), based on
+Paul Davey/Mattahan with OxayotlTheGreat and robson-66 remixes, is CC BY-NC-SA 2.5
+and is included for noncommercial use. The imported Buuf assets are not MIT.
+
+Pinned revisions, per-motif source paths, hashes and changes are documented in
+`documentation/desktop-icon-themes.md` and `ui/img/<theme>/provenance.json`.
+Each generated theme directory ships LICENSE.txt and NOTICE.txt; Buuf also ships
+its original README/index declarations. Original AuraGo supplements are separately
+marked MIT with their own license copy. All notices accompany the offline web
+resource package.
