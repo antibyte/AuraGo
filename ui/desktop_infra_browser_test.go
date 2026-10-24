@@ -461,19 +461,23 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 		document.querySelector('[data-action="save-source"]').click();
 	}`)
 	page.MustWait(`()=>!document.querySelector('.infra-source-edit')`)
-	page.MustWait(`()=>!!document.querySelector('[data-app-target][data-app="software-store"]')`)
+	page.MustWait(`()=>!!document.querySelector('[data-action="link-app"]')`)
+	page.MustEval(`()=>document.querySelector('[data-action="link-app"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('[data-app-picker] [data-app-target][data-app="software-store"]')`)
+	page.MustEval(`()=>document.querySelector('[data-app-picker] [data-app-target][data-app="software-store"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('[data-app-binding="software-store:net-tools"]')`)
 	page.MustEval(`()=>{
-		const target=document.querySelector('[data-app-target][data-app="software-store"]');target.checked=true;target.dispatchEvent(new Event('change',{bubbles:true}));
 		const iface=document.querySelector('[data-list-add="interfaces"]');iface.click();
 		const name=document.querySelector('[data-list-row="interfaces"] [data-key="name"]');name.value='eth0';name.dispatchEvent(new Event('input',{bubbles:true}));
 		const address=document.querySelector('[data-list-row="interfaces"] [data-key="ip_address"]');address.value='192.0.2.9';address.dispatchEvent(new Event('input',{bubbles:true}));
 		document.querySelector('[data-detail-form] button[type="submit"]').click();
 	}`)
 	page.MustWait(`()=>document.querySelector('[data-detail-form] button[type="submit"]')?.disabled&&!document.querySelector('.infra-draft-banner')`)
-	page.MustEval(`()=>{
-		const add=document.querySelector('[data-action="add-edge"]');add.click();
-		const form=document.querySelector('[data-edge-form]');form.elements.from.value='manual-1';form.elements.to.value='imported-2';form.elements.kind.value='depends_on';form.requestSubmit();
-	}`)
+	page.MustEval(`()=>document.querySelector('[data-action="add-edge"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('[data-picker] [data-node-option="imported-2"]')`)
+	page.MustEval(`()=>document.querySelector('[data-picker] [data-node-option="imported-2"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('[data-edge-form]')`)
+	page.MustEval(`()=>{const form=document.querySelector('[data-edge-form]');if(form.elements.from.value!=='manual-1'||form.elements.to.value!=='imported-2')throw new Error('connection ends were not prefilled');form.elements.kind.value='depends_on';form.requestSubmit();}`)
 	page.MustWait(`()=>document.querySelectorAll('.infra-relation-row').length===1`)
 	fixture.mu.Lock()
 	manualBindings, _ := fixture.nodes[0]["profile"].(map[string]any)["app_bindings"].([]any)
@@ -573,6 +577,10 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 			}
 			page.MustEval(`()=>document.querySelector('[data-hosted-service="fixture-node-0001"]').click()`)
 			page.MustWait(`()=>document.querySelector('[data-inspector] h2')?.textContent==='Public status'`)
+			// The header names kind and place only (no internal version) and the tabs follow the tablist pattern.
+			if !page.MustEval(`()=>{const head=document.querySelector('[data-inspector-head]'),version=window.fixtureWords['desktop.infra_version'].replace('{version}','1'),tabs=[...document.querySelectorAll('[role="tab"][data-inspector-tab]')];return !head.textContent.includes(version)&&!!document.querySelector('[role="tablist"]')&&tabs.length===4&&tabs.filter(tab=>tab.getAttribute('aria-selected')==='true').length===1&&tabs.every(tab=>document.getElementById(tab.getAttribute('aria-controls'))?.getAttribute('role')==='tabpanel');}`).Bool() {
+				t.Fatal("the inspector header must not show the version and its tabs must be a tablist with tabpanels")
+			}
 			if !page.MustEval(`()=>parseFloat(getComputedStyle(document.querySelector('.infra-card-name')).fontSize)>=16&&parseFloat(getComputedStyle(document.querySelector('.infra-card-meta')).fontSize)>=14`).Bool() {
 				t.Fatal("card names must stay at least 16px and their meta line at least 14px")
 			}

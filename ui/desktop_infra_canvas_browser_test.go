@@ -294,6 +294,20 @@ func TestDesktopInfraCanvasGesturesBrowser(t *testing.T) {
 		t.Fatalf("dropping an asset row on a place row did not move it into the place: %s", fmt.Sprint(calls))
 	}
 
+	// The inspector tabs follow the tablist pattern: arrows select, and the choice is remembered per kind.
+	page.MustEval(`()=>document.querySelector('[data-node="dev-b"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('[role="tab"][data-inspector-tab="overview"]')`)
+	page.MustEval(`()=>document.querySelector('[role="tab"][aria-selected="true"]').focus()`)
+	page.Keyboard.MustType(input.ArrowRight, input.ArrowRight)
+	if !page.MustEval(`()=>{const active=document.activeElement;return active.dataset.inspectorTab==='sources'&&active.getAttribute('aria-selected')==='true'&&document.querySelector('[data-inspector-panel="sources"]').hidden===false&&document.querySelector('[data-inspector-panel="overview"]').hidden===true;}`).Bool() {
+		t.Fatal("two ArrowRight presses must select and focus the Sources tab")
+	}
+	page.MustEval(`()=>document.querySelector('[data-node="dev-a"]').click()`)
+	page.MustWait(`()=>document.querySelector('[data-inspector] h2')?.textContent==='Edge router'`)
+	if !page.MustEval(`()=>document.querySelector('[role="tab"][aria-selected="true"]').dataset.inspectorTab==='sources'`).Bool() {
+		t.Fatal("the selected tab is remembered per asset kind")
+	}
+
 	closeInfraBrowserWindow(t, page)
 	requireInfraBrowserClean(t, page)
 }

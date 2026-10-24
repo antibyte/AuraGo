@@ -147,6 +147,7 @@
         app.table = window.InfraAppTable.create(app);
         app.cleanup = window.InfraAppCleanup.create(app);
         app.library = window.InfraAppLibrary.create(app);
+        app.forms = window.InfraAppInspectorForms.create(app);
         app.inspector = window.InfraAppInspector.create(app);
         app.dialogs = window.InfraAppDialogs.create(app);
         app.gestures = window.InfraAppGestures.create(app);

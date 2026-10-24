@@ -164,15 +164,20 @@
         }
 
         // ---- connections --------------------------------------------------------------------------------
+        // openEdgeDialog edits a connection, or creates one from fromId to toId; without toId the other end is
+        // chosen in the asset picker first.
         function openEdgeDialog(edgeId = '', fromId = state.selected, toId = '') {
             if (!canWrite()) return;
             const edge = state.edges.find(item => item.id === edgeId);
-            const options = state.nodes.map(node => `<option value="${esc(node.id)}">${esc(node.name)}</option>`).join('');
-            openDialog(edge ? t('desktop.infra_edit_relation') : t('desktop.infra_add_relation'), `<form data-edge-form><input type="hidden" name="id" value="${esc(edge?.id || '')}"><input type="hidden" name="version" value="${esc(edge?.version || 0)}"><label class="infra-field"><span>${esc(t('desktop.infra_relation_from'))}</span><select name="from">${options}</select></label><label class="infra-field"><span>${esc(t('desktop.infra_relation_kind'))}</span><select name="kind">${EDGE_KINDS.map(kind => `<option value="${kind}">${esc(t(`desktop.infra_edge_${kind}`))}</option>`).join('')}</select></label><label class="infra-field"><span>${esc(t('desktop.infra_relation_to'))}</span><select name="to">${options}</select></label><div class="infra-field-row"><label class="infra-field"><span>${esc(t('desktop.infra_relation_from_port'))}</span><input name="from_port"></label><label class="infra-field"><span>${esc(t('desktop.infra_relation_to_port'))}</span><input name="to_port"></label></div><div class="infra-field-row"><label class="infra-field"><span>${esc(t('desktop.infra_relation_speed'))}</span><input name="speed"></label><label class="infra-field"><span>${esc(t('desktop.infra_relation_label'))}</span><input name="label"></label></div><div class="infra-form-actions">${edge ? `<button type="button" data-delete-edge class="infra-danger-button">${esc(t('desktop.infra_remove_relation'))}</button>` : ''}<span class="infra-flex-spacer"></span><button type="button" data-close>${esc(t('desktop.cancel'))}</button><button type="submit" class="infra-button-primary">${esc(t('desktop.save'))}</button></div></form>`, dlg => {
+            if (!edge && !toId) {
+                app.picker.openAssetPicker({ anchor: document.activeElement, label: t('desktop.infra_connect_to'), accept: node => node.id !== fromId, onPick: option => openEdgeDialog('', fromId, option.id) });
+                return;
+            }
+            const from = edge?.from || fromId, to = edge?.to || toId, fromNode = store.nodeById(from), toNode = store.nodeById(to);
+            if (!fromNode || !toNode) return;
+            openDialog(edge ? t('desktop.infra_edit_relation') : t('desktop.infra_add_relation'), `<form data-edge-form><input type="hidden" name="id" value="${esc(edge?.id || '')}"><input type="hidden" name="version" value="${esc(edge?.version || 0)}"><input type="hidden" name="from" value="${esc(from)}"><input type="hidden" name="to" value="${esc(to)}"><p class="infra-connect-ends">${esc(fromNode.name)} → ${esc(toNode.name)}</p><label class="infra-field"><span>${esc(t('desktop.infra_relation_kind'))}</span><select name="kind">${EDGE_KINDS.map(kind => `<option value="${kind}">${esc(t(`desktop.infra_edge_${kind}`))}</option>`).join('')}</select></label><div class="infra-field-row"><label class="infra-field"><span>${esc(t('desktop.infra_relation_from_port'))}</span><input name="from_port"></label><label class="infra-field"><span>${esc(t('desktop.infra_relation_to_port'))}</span><input name="to_port"></label></div><div class="infra-field-row"><label class="infra-field"><span>${esc(t('desktop.infra_relation_speed'))}</span><input name="speed"></label><label class="infra-field"><span>${esc(t('desktop.infra_relation_label'))}</span><input name="label"></label></div><div class="infra-form-actions">${edge ? `<button type="button" data-delete-edge class="infra-danger-button">${esc(t('desktop.infra_remove_relation'))}</button>` : ''}<span class="infra-flex-spacer"></span><button type="button" data-close>${esc(t('desktop.cancel'))}</button><button type="submit" class="infra-button-primary">${esc(t('desktop.save'))}</button></div></form>`, dlg => {
                 const form = dlg.querySelector('[data-edge-form]');
-                form.elements.from.value = edge?.from || fromId || '';
-                form.elements.to.value = edge?.to || toId || '';
-                form.elements.kind.value = edge?.kind || 'ethernet';
+                form.elements.kind.value = edge?.kind || model.defaultEdgeKind(fromNode, toNode);
                 for (const key of ['label', 'from_port', 'to_port', 'speed']) form.elements[key].value = edge?.[key] || '';
                 dlg.querySelector('[data-close]').addEventListener('click', () => dlg.close());
                 form.addEventListener('submit', event => { event.preventDefault(); void saveEdge(new FormData(form), dlg.dataset.infraOwner); });
@@ -268,36 +273,45 @@
         }
 
         // ---- delete -------------------------------------------------------------------------------------------
-        async function removeRemote(node) {
-            await store.request(`/nodes/${encodeURIComponent(node.id)}?version=${encodeURIComponent(node.version)}`, { method: 'DELETE' });
-            store.removeNode(node.id);
-        }
-        async function deleteNode(id) {
-            const node = store.nodeById(id);
-            if (!node || !canWrite()) return;
-            if (!await confirmAction(t('desktop.infra_remove_node'), t('desktop.infra_remove_node_confirm').replace('{name}', node.name))) return;
-            // The confirmation can stay open for a while: permissions and the version may have moved on.
-            if (!canWrite()) { store.notify(t('desktop.infra_error_infra_readonly'), 'info'); return; }
-            const current = store.nodeById(id);
-            if (!current) return;
-            try { await removeRemote(current); store.notify(t('desktop.infra_node_removed'), 'success'); }
-            catch (error) { await store.writeFailed(error); }
-        }
-        // deleteNodes removes assets one by one, places last, and stops at the first error.
+        // deleteNodes removes assets from Infra after a confirmation (places last); the store re-checks the
+        // permission before every request and stops at the first refusal.
         async function deleteNodes(ids) {
-            const nodes = ids.map(id => store.nodeById(id)).filter(Boolean);
-            if (!nodes.length || !canWrite()) return;
-            if (nodes.length === 1) { await deleteNode(nodes[0].id); return; }
-            if (!await confirmAction(t('desktop.infra_remove_node'), t('desktop.infra_remove_selection_confirm').replace('{count}', nodes.length))) return;
-            const ordered = [...nodes.filter(node => !model.isContainer(node.kind)), ...nodes.filter(node => model.isContainer(node.kind))];
-            for (const node of ordered) {
-                if (!canWrite()) { store.notify(t('desktop.infra_error_infra_readonly'), 'info'); return; }
-                const current = store.nodeById(node.id);
-                if (!current) continue;
-                try { await removeRemote(current); }
-                catch (error) { await store.writeFailed(error); return; }
+            const list = (ids || []).filter(id => store.nodeById(id));
+            if (!list.length || !canWrite()) return false;
+            const message = list.length === 1 ? model.fill(t('desktop.infra_remove_node_confirm'), { name: store.nodeById(list[0]).name }) : model.fill(t('desktop.infra_remove_selection_confirm'), { count: list.length });
+            if (!await confirmAction(t('desktop.infra_remove_node'), message, { confirmLabel: t('desktop.infra_remove_node') })) return false;
+            const ordered = [...list.filter(id => !model.isContainer(store.nodeById(id).kind)), ...list.filter(id => model.isContainer(store.nodeById(id).kind))];
+            const removed = await store.removeNodes(ordered);
+            if (removed.length) {
+                const text = removed.length === 1 ? t('desktop.infra_node_removed') : model.fill(t('desktop.infra_removed_many'), { count: removed.length });
+                if (removed.length === list.length) store.notify(text, 'success'); else app.announce(text); // a refusal already said why
             }
-            store.notify(t('desktop.infra_node_removed'), 'success');
+            return removed.length === list.length;
+        }
+        const deleteNode = id => deleteNodes([id]);
+        // removeAndIgnore removes assets and ignores their sources, so a rediscovery does not bring them back.
+        async function removeAndIgnore(ids) {
+            const list = (ids || []).filter(id => store.nodeById(id));
+            if (!list.length || !canWrite()) return false;
+            const message = list.length === 1 ? model.fill(t('desktop.infra_remove_ignore_confirm'), { name: store.nodeById(list[0]).name }) : model.fill(t('desktop.infra_remove_ignore_confirm_many'), { count: list.length });
+            if (!await confirmAction(t('desktop.infra_remove_and_ignore'), message, { confirmLabel: t('desktop.infra_remove_and_ignore') })) return false;
+            const removed = await store.removeNodes(list, { ignoreSources: true });
+            if (removed.length) {
+                const text = model.fill(t('desktop.infra_removed_ignored'), { count: removed.length });
+                if (removed.length === list.length) store.notify(text, 'success'); else app.announce(text);
+            }
+            return removed.length === list.length;
+        }
+        async function removeEdge(edgeId) {
+            const edge = state.edges.find(item => item.id === edgeId);
+            if (!edge || edge.source || !canWrite()) return false;
+            if (!await confirmAction(t('desktop.infra_remove_connection'), t('desktop.infra_remove_relation_confirm'), { confirmLabel: t('desktop.infra_remove_connection') })) return false;
+            if (!canWrite()) { store.notify(t('desktop.infra_error_infra_readonly'), 'info'); return false; }
+            try {
+                const ok = await store.dispatch(commands().deleteEdge(edge));
+                if (ok) app.announce(t('desktop.infra_connection_removed'));
+                return ok;
+            } catch (error) { await store.writeFailed(error); return false; }
         }
 
         // ---- source actions -------------------------------------------------------------------------------------
@@ -394,7 +408,7 @@
 
         return {
             openDialog, confirmAction, openNodeDialog, openImport, openEdgeDialog,
-            deleteNode, deleteNodes, openActionMenu, runAction, openNodeActions, createNode, saveEdge,
+            deleteNode, deleteNodes, removeAndIgnore, removeEdge, openActionMenu, runAction, openNodeActions, createNode, saveEdge,
             openConnectionPopover, closeConnectionPopover, onBusy, ownsDialog, closeOwnedDialog, dispose,
         };
     }

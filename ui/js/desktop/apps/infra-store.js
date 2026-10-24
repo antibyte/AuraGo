@@ -670,10 +670,11 @@
         // first refusal; ignoreSources also ignores the linked sources.
         async function removeNodes(ids, { ignoreSources = false } = {}) {
             const removed = [];
-            if (!canWrite()) return removed;
             setBusy('remove', true);
             try {
                 for (const id of ids || []) {
+                    // The permission can go away while a confirmation is open or between two requests.
+                    if (!canWrite()) { notify(t('desktop.infra_error_infra_readonly'), 'info'); break; }
                     const node = nodeById(id);
                     if (!node) continue;
                     const linked = new Map((node.sources || []).map(source => [identityKey(source), source]));
