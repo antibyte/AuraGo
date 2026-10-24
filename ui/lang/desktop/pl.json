@@ -8199,6 +8199,8 @@
   "desktop.infra_import_partial_one": "Nie udało się zaimportować 1 wykrytego elementu",
   "desktop.infra_select_all_rows_one": "Zaznacz jedyny wiersz",
   "desktop.infra_sources_count_one": "{current} z 1 źródła aktualne",
+  "desktop.infra_remove_node_confirm_sources": "Usunąć {name} z zasobów Infra? Zewnętrzne źródło pozostanie bez zmian, więc element może znów pojawić się jako wykryty. Wybierz „Usuń i ignoruj”, aby temu zapobiec.",
+  "desktop.infra_remove_selection_confirm_sources": "Usunąć z Infra zaznaczone zasoby ({count})? Ich zewnętrzne źródła pozostaną bez zmian, więc mogą znów pojawić się jako wykryte elementy. Wybierz „Usuń i ignoruj”, aby temu zapobiec.",
   "galaxa.emp_mine_layer": "Mina EMP",
   "galaxa.cluster_mine_layer": "Mina odłamkowa",
   "galaxa.swarm_launcher": "Rój rakiet",

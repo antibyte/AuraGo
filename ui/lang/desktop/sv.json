@@ -8199,6 +8199,8 @@
   "desktop.infra_import_partial_one": "1 fynd kunde inte importeras",
   "desktop.infra_select_all_rows_one": "Markera den enda raden",
   "desktop.infra_sources_count_one": "{current} av 1 källa aktuell",
+  "desktop.infra_remove_node_confirm_sources": "Ta bort {name} från Infra-inventeringen? Den externa källan ändras inte, så den kan dyka upp igen som ett fynd. Välj ”Ta bort och ignorera” för att undvika det.",
+  "desktop.infra_remove_selection_confirm_sources": "Ta bort {count} tillgångar från Infra-inventeringen? Deras externa källor ändras inte, så de kan dyka upp igen som fynd. Välj ”Ta bort och ignorera” för att undvika det.",
   "galaxa.emp_mine_layer": "EMP-mina",
   "galaxa.cluster_mine_layer": "Splittermina",
   "galaxa.swarm_launcher": "Robotsvärm",

@@ -111,6 +111,9 @@ func TestDesktopInfraListViewBrowser(t *testing.T) {
 	page.MustWait(`()=>document.querySelector('[data-bulk-count]').textContent===window.w('desktop.infra_selected_count',{count:2})`)
 	page.MustEval(`()=>document.querySelector('[data-action="bulk-remove"]').click()`)
 	page.MustWait(`()=>!!document.querySelector('.vd-modal [data-choice="discard"]')`)
+	if !page.MustEval(`()=>document.querySelector('.vd-modal .vd-modal-copy').textContent===w('desktop.infra_remove_selection_confirm',{count:2})`).Bool() {
+		t.Fatal("assets without sources are removed with the plain confirmation")
+	}
 	page.MustEval(`()=>document.querySelector('.vd-modal [data-choice="discard"]').click()`)
 	page.MustWait(`()=>!document.querySelector('[data-row="fixture-node-0007"]')&&!document.querySelector('[data-row="fixture-node-0008"]')`)
 	fixture.mu.Lock()

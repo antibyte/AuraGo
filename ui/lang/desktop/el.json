@@ -8199,6 +8199,8 @@
   "desktop.infra_import_partial_one": "1 εύρημα δεν ήταν δυνατό να εισαχθεί",
   "desktop.infra_select_all_rows_one": "Επιλογή της μοναδικής γραμμής",
   "desktop.infra_sources_count_one": "{current} από 1 πηγή ενημερωμένη",
+  "desktop.infra_remove_node_confirm_sources": "Να αφαιρεθεί το {name} από το Infra; Η εξωτερική πηγή δεν θα αλλάξει, οπότε μπορεί να εμφανιστεί ξανά ως εύρημα. Επιλέξτε «Αφαίρεση και αγνόηση» για να μην ξαναεμφανιστεί.",
+  "desktop.infra_remove_selection_confirm_sources": "Να αφαιρεθούν {count} στοιχεία από το Infra; Οι εξωτερικές πηγές τους δεν θα αλλάξουν, οπότε μπορεί να εμφανιστούν ξανά ως ευρήματα. Επιλέξτε «Αφαίρεση και αγνόηση» για να μην ξαναεμφανιστούν.",
   "galaxa.emp_mine_layer": "Νάρκη EMP",
   "galaxa.cluster_mine_layer": "Νάρκη θραυσμάτων",
   "galaxa.swarm_launcher": "Σμήνος πυραύλων",

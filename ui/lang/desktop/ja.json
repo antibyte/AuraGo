@@ -8199,6 +8199,8 @@
   "desktop.infra_import_partial_one": "検出項目1件を取り込めませんでした",
   "desktop.infra_select_all_rows_one": "唯一の行を選択",
   "desktop.infra_sources_count_one": "1件中{current}件のソースが最新",
+  "desktop.infra_remove_node_confirm_sources": "{name}をInfraの一覧から削除しますか？外部ソースは変更されないため、検出項目として再び表示されることがあります。再表示させたくない場合は「削除して無視」を選んでください。",
+  "desktop.infra_remove_selection_confirm_sources": "資産{count}件をInfraの一覧から削除しますか？外部ソースは変更されないため、検出項目として再び表示されることがあります。再表示させたくない場合は「削除して無視」を選んでください。",
   "galaxa.emp_mine_layer": "EMP機雷",
   "galaxa.cluster_mine_layer": "破片機雷",
   "galaxa.swarm_launcher": "群体ミサイル",

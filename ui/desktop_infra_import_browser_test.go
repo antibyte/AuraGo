@@ -183,6 +183,15 @@ func TestDesktopInfraImportSheetBrowser(t *testing.T) {
 	if len(sources) != 1 {
 		t.Fatalf("Backup NAS has %d sources after the import, want the FRITZ!Box source", len(sources))
 	}
+
+	// An asset with sources can be rediscovered: its removal confirmation points at "Remove and ignore".
+	page.MustEval(`()=>document.querySelector('[data-library-item="dup-a"] [data-library-select]').focus()`)
+	page.Keyboard.MustType(input.Delete)
+	page.MustWait(`()=>!!document.querySelector('.vd-modal [data-cancel]')`)
+	if !page.MustEval(`()=>document.querySelector('.vd-modal .vd-modal-copy').textContent===w('desktop.infra_remove_node_confirm_sources',{name:'Backup NAS'})`).Bool() {
+		t.Fatal("removing an asset with sources must point at Remove and ignore")
+	}
+	page.MustEval(`()=>document.querySelector('.vd-modal [data-cancel]').click()`)
 	closeInfraBrowserWindow(t, page)
 	requireInfraBrowserClean(t, page)
 }

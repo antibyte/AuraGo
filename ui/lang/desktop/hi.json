@@ -8199,6 +8199,8 @@
   "desktop.infra_import_partial_one": "1 खोजा गया आइटम आयात नहीं हो सका",
   "desktop.infra_select_all_rows_one": "एकमात्र पंक्ति चुनें",
   "desktop.infra_sources_count_one": "1 में से {current} स्रोत अद्यतन",
+  "desktop.infra_remove_node_confirm_sources": "क्या {name} को Infra सूची से हटाएँ? बाहरी स्रोत नहीं बदलेगा, इसलिए यह खोजे गए आइटम के रूप में फिर दिख सकता है। इसे दूर रखने के लिए “हटाएँ और अनदेखा करें” चुनें।",
+  "desktop.infra_remove_selection_confirm_sources": "क्या {count} संसाधन Infra सूची से हटाएँ? उनके बाहरी स्रोत नहीं बदलेंगे, इसलिए वे खोजे गए आइटम के रूप में फिर दिख सकते हैं। उन्हें दूर रखने के लिए “हटाएँ और अनदेखा करें” चुनें।",
   "galaxa.emp_mine_layer": "ईएमपी बारूदी सुरंग",
   "galaxa.cluster_mine_layer": "विखंडन बारूदी सुरंग",
   "galaxa.swarm_launcher": "मिसाइलों का झुंड",

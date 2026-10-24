@@ -8199,6 +8199,8 @@
   "desktop.infra_import_partial_one": "有 1 个发现项无法导入",
   "desktop.infra_select_all_rows_one": "选择唯一的一行",
   "desktop.infra_sources_count_one": "{current}/1 个来源为最新",
+  "desktop.infra_remove_node_confirm_sources": "从 Infra 资产清单中移除 {name}？不会更改外部来源，因此它可能会再次作为发现项出现。若要避免，请选择“移除并忽略”。",
+  "desktop.infra_remove_selection_confirm_sources": "从 Infra 资产清单中移除 {count} 项资产？不会更改它们的外部来源，因此它们可能会再次作为发现项出现。若要避免，请选择“移除并忽略”。",
   "galaxa.emp_mine_layer": "电磁脉冲地雷",
   "galaxa.cluster_mine_layer": "破片地雷",
   "galaxa.swarm_launcher": "蜂群导弹",

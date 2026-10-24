@@ -200,7 +200,11 @@
         async function deleteNodes(ids) {
             const list = (ids || []).filter(id => store.nodeById(id));
             if (!list.length || !canWrite()) return false;
-            const message = list.length === 1 ? model.fill(t('desktop.infra_remove_node_confirm'), { name: store.nodeById(list[0]).name }) : model.fill(t('desktop.infra_remove_selection_confirm'), { count: list.length });
+            // An asset with sources can be rediscovered: its confirmation points at "Remove and ignore".
+            const linked = id => (store.nodeById(id).sources || []).length > 0;
+            const message = list.length === 1
+                ? model.fill(linked(list[0]) ? t('desktop.infra_remove_node_confirm_sources') : t('desktop.infra_remove_node_confirm'), { name: store.nodeById(list[0]).name })
+                : model.fill(list.some(linked) ? t('desktop.infra_remove_selection_confirm_sources') : t('desktop.infra_remove_selection_confirm'), { count: list.length });
             if (!await confirmAction(t('desktop.infra_remove_node'), message, { confirmLabel: t('desktop.infra_remove_node') })) return false;
             const ordered = [...list.filter(id => !model.isContainer(store.nodeById(id).kind)), ...list.filter(id => model.isContainer(store.nodeById(id).kind))];
             const removed = await store.removeNodes(ordered);

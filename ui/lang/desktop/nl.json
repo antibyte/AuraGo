@@ -8199,6 +8199,8 @@
   "desktop.infra_import_partial_one": "1 gevonden item kon niet worden geïmporteerd",
   "desktop.infra_select_all_rows_one": "De enige rij selecteren",
   "desktop.infra_sources_count_one": "{current} van 1 bron actueel",
+  "desktop.infra_remove_node_confirm_sources": "{name} uit de Infra-inventaris verwijderen? De externe bron blijft ongewijzigd, dus het kan opnieuw als gevonden item verschijnen. Kies “Verwijderen en negeren” om dat te voorkomen.",
+  "desktop.infra_remove_selection_confirm_sources": "{count} assets uit de Infra-inventaris verwijderen? Hun externe bronnen blijven ongewijzigd, dus ze kunnen opnieuw als gevonden items verschijnen. Kies “Verwijderen en negeren” om dat te voorkomen.",
   "galaxa.emp_mine_layer": "EMP-mijn",
   "galaxa.cluster_mine_layer": "Splintermijn",
   "galaxa.swarm_launcher": "Zwermraketten",

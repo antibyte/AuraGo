@@ -8199,6 +8199,8 @@
   "desktop.infra_import_partial_one": "1 nález se nepodařilo importovat",
   "desktop.infra_select_all_rows_one": "Vybrat jediný řádek",
   "desktop.infra_sources_count_one": "{current} z 1 zdroje aktuální",
+  "desktop.infra_remove_node_confirm_sources": "Odebrat {name} z inventáře Infry? Externí zdroj se nezmění, takže se může znovu objevit jako nález. Chcete-li tomu zabránit, zvolte „Odebrat a ignorovat“.",
+  "desktop.infra_remove_selection_confirm_sources": "Odebrat vybraná aktiva (počet: {count}) z inventáře Infry? Jejich externí zdroje se nezmění, takže se mohou znovu objevit jako nálezy. Chcete-li tomu zabránit, zvolte „Odebrat a ignorovat“.",
   "galaxa.emp_mine_layer": "EMP mina",
   "galaxa.cluster_mine_layer": "Tříštivá mina",
   "galaxa.swarm_launcher": "Roj raket",
