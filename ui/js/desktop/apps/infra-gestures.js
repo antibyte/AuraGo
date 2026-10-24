@@ -147,7 +147,7 @@
             const command = kind === 'place' ? factory.placeFromLibrary(view, plan.after, label)
                 : changed.length ? factory.reparent(view, plan.before, plan.after, label) : factory.moveNodes(view, plan.before, plan.after, label);
             // Without unplace support there is nothing to put an auto-laid card back to, so the move cannot be undone.
-            if (kind !== 'place' && [...plan.before.values()].some(intent => !intent)) command.undoable = false;
+            if (view === 'topology' && kind !== 'place' && [...plan.before.values()].some(intent => !intent)) command.undoable = false;
             void store.dispatch(command);
             app.announce(label);
             if (plan.hitRegion && !plan.parentAware) store.notify(t('desktop.infra_parent_unsupported'), 'info');

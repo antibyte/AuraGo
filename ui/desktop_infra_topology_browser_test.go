@@ -115,6 +115,22 @@ func TestDesktopInfraTopologyBrowser(t *testing.T) {
 	if !page.MustEval(`()=>{const first=document.querySelector('[data-scene]').firstElementChild;return first.matches('[data-lanes]')&&first.getAttribute('aria-hidden')==='true';}`).Bool() {
 		t.Fatal("lanes must be the first scene layer, behind the cards, and hidden from assistive technology")
 	}
+	// A lane label is counter-scaled like a card name: 12 px or more on screen at fit and at the smallest zoom.
+	const labelPx = `()=>{const scene=document.querySelector('[data-scene]'),style=getComputedStyle(scene),k=parseFloat(style.getPropertyValue('--infra-lane-k'))||1,zoom=new DOMMatrix(style.transform).a,label=document.querySelector('.infra-lane-label'),box=label.getBoundingClientRect();return {px:parseFloat(getComputedStyle(label).fontSize)*k*zoom,height:box.height,zoom};}`
+	for _, step := range []string{"fit", "smallest zoom"} {
+		if step == "smallest zoom" {
+			for i := 0; i < 6; i++ {
+				page.MustEval(`()=>document.querySelector('[data-action="zoom-out"]').click()`)
+			}
+			infraPanelsCenter(page, `[data-lane="network"]`)
+		}
+		got := page.MustEval(labelPx)
+		if px := got.Get("px").Num(); px < 12 {
+			t.Fatalf("a lane label is %.1f px on screen at %s (zoom %.2f); want at least 12", px, step, got.Get("zoom").Num())
+		}
+	}
+	page.MustEval(`()=>document.querySelector('[data-action="fit"]').click()`)
+	infraPanelsCenter(page, `[data-lane="network"]`)
 
 	const wantAuto = `{"inet":"-120px,96px","ont":"120px,96px","router":"-240px,576px","switch":"0px,576px","ap":"240px,576px","nas":"-120px,1056px","pve":"120px,1056px","tv":"-120px,1536px","laptop":"120px,1536px"}`
 	if got := page.MustEval(`()=>JSON.stringify(Object.fromEntries(['inet','ont','router','switch','ap','nas','pve','tv','laptop'].map(id=>{const card=document.querySelector('[data-node="'+id+'"]');return [id,card?card.style.left+','+card.style.top:'missing'];})))`).Str(); got != wantAuto {
