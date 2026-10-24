@@ -291,7 +291,22 @@
             clearFiltersButton.disabled = !chips.length;
             fitFilterChips();
         }
-        function fitFilterChips() {
+        // fitSearchBadge (A27) hides the Ctrl K badge whenever the field is too narrow for the placeholder next to it:
+        // the badge is a hint, the placeholder is the label. Below 1100 px a container rule hides it anyway.
+        let placeholderProbe = null;
+        function fitSearchBadge() {
+            if (disposed || root.clientWidth < SEARCH_COLLAPSE) return;
+            const kbd = searchGroup.querySelector('.infra-search-kbd');
+            searchGroup.classList.remove('is-kbd-hidden');
+            if (!kbd || kbd.offsetWidth === 0) return;
+            const style = getComputedStyle(searchInput);
+            placeholderProbe = placeholderProbe || document.createElement('canvas').getContext('2d');
+            placeholderProbe.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+            const needed = Math.ceil(placeholderProbe.measureText(searchInput.placeholder).width) + 6;
+            searchGroup.classList.toggle('is-kbd-hidden', searchInput.clientWidth < needed);
+        }
+        function fitFilterChips() { fitChips(); fitSearchBadge(); }
+        function fitChips() {
             const chips = [...chipsEl.querySelectorAll('[data-remove-filter]')], more = chipsEl.querySelector('[data-filter-overflow]');
             if (!more) return;
             for (const chip of chips) chip.hidden = false;

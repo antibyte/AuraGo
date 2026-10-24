@@ -28,6 +28,7 @@
 .infra-search .infra-cmd-icon { width: 30px; height: 30px; }
 .infra-search-icon { display: inline-grid; place-items: center; }
 .infra-search-open { display: none; }
+.infra-search.is-kbd-hidden .infra-search-kbd { display: none; }
 .infra-search-kbd { padding: 3px 5px; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-xs); color: var(--vd-theme-muted); font: 600 12px/1 var(--vd-font-ui); }
 .infra-filter-dot { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--vd-accent); }
 .infra-live-status { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; color: var(--vd-theme-muted); font-size: 14px; }
@@ -514,6 +515,8 @@ th[aria-sort="descending"] .infra-sort-arrow { border-top: 5px solid currentColo
 .infra-filter-chips { display: flex; flex: 0 0 auto; gap: 4px; min-width: 0; overflow: hidden; }
 .infra-filter-more { padding: 0 var(--ds-space-2); }
 @container infra (min-width: 760px) { .infra-search { min-width: 220px; } }
+/* A27: from 760 px the search keeps 220 px, and with the longest labels (German) the bar then needs about 790 px, so up to 819 px the brand shows its mark only. */
+@container infra (min-width: 760px) and (max-width: 819px) { .infra-brand-name { display: none; } }
 .infra-filter-chip { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; height: 28px; padding: 0 4px 0 var(--ds-space-2); border: 1px solid var(--vd-theme-accent-border); border-radius: var(--ds-radius-full); background: var(--vd-theme-accent-soft); color: var(--vd-text); font-size: 13px; font-weight: 600; cursor: pointer; }
 .infra-filter-chip:hover { background: var(--vd-theme-control-hover); }
 @container infra (max-width: 1099px) { .infra-filter-chips { display: none !important; } }

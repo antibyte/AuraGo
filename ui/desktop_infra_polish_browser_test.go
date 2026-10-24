@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/go-rod/rod"
@@ -417,4 +419,83 @@ func TestDesktopInfraEmptyStatesBrowser(t *testing.T) {
 		t.Fatalf("the To place section says %q; want %q", got, want)
 	}
 	requireInfraBrowserClean(t, page)
+}
+
+// TestDesktopInfraSearchPlaceholderBrowser covers amendment A27: the Ctrl K badge only shows while the field still has
+// room for the placeholder next to it, so the placeholder never truncates from 760 px container width up, in English
+// and in German, with and without active filters.
+func TestDesktopInfraSearchPlaceholderBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	var english map[string]any
+	if err := json.Unmarshal([]byte(readDesktopAssetText(t, "lang/desktop/en.json")), &english); err != nil {
+		t.Fatal(err)
+	}
+	words := map[string]any{}
+	for key, value := range english {
+		if strings.HasPrefix(key, "desktop.infra") || strings.HasPrefix(key, "desktop.app_infra") {
+			words[key] = value
+		}
+	}
+	const probe = `()=>{
+		window.infraPlaceholder=()=>{
+			const input=document.querySelector('[data-search]'),kbd=document.querySelector('.infra-search-kbd'),bar=document.querySelector('.infra-commandbar');
+			const span=document.createElement('span'),style=getComputedStyle(input);
+			span.style.cssText='position:absolute;visibility:hidden;white-space:pre;left:-9999px;font:'+style.fontStyle+' '+style.fontWeight+' '+style.fontSize+' '+style.fontFamily;
+			span.textContent=input.placeholder;document.body.appendChild(span);
+			const text=span.getBoundingClientRect().width;span.remove();
+			return {app:document.querySelector('.infra-app').clientWidth,field:Math.round(input.clientWidth),text:Math.ceil(text),kbd:kbd.offsetParent!==null,overflow:bar.scrollWidth>bar.clientWidth+1,bar:bar.clientWidth+'/'+bar.scrollWidth+' '+[...bar.children].filter(c=>c.offsetParent!==null).map(c=>(c.className||c.tagName).toString().split(' ')[0]+':'+Math.round(c.getBoundingClientRect().width)).join(' ')};
+		};
+	}`
+	for _, language := range []struct {
+		name  string
+		words map[string]any
+	}{{"de", nil}, {"en", words}} {
+		fixture := newInfraAppBrowserFixture()
+		fixture.world(25)
+		page := infraBrowserPageWithFixture(t, fixture)
+		page.MustSetViewport(1920, 1200, 1, false)
+		if language.words != nil {
+			page.MustEval(`(words)=>Object.assign(window.fixtureWords,words)`, language.words)
+		}
+		openInfraBrowserApp(page)
+		page.MustWait(`()=>document.querySelectorAll('[data-nodes] [data-node]').length>0`)
+		page.MustEval(probe)
+		wantPlaceholder := page.MustEval(`()=>window.fixtureWords['desktop.infra_search_jump']`).Str()
+		if got := page.MustEval(`()=>document.querySelector('[data-search]').placeholder`).Str(); got != wantPlaceholder {
+			t.Fatalf("%s: the placeholder is %q; want %q", language.name, got, wantPlaceholder)
+		}
+		for _, filtered := range []bool{false, true} {
+			if filtered {
+				page.MustEval(`()=>{const set=(selector,value)=>{const el=document.querySelector(selector);el.value=value;el.dispatchEvent(new Event('change',{bubbles:true}));};set('[data-kind-filter]','device');set('[data-source-filter]','docker');set('[data-power-filter]','running');}`)
+				page.MustWait(`()=>document.querySelectorAll('[data-remove-filter]').length===3`)
+			}
+			shown, hidden := 0, 0
+			for width := 760; width <= 1500; width += 20 {
+				infraPolishResize(page, width, 800)
+				page.MustEval(`()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
+				var got struct {
+					App, Field, Text int
+					Kbd, Overflow    bool
+					Bar              string
+				}
+				if err := json.Unmarshal([]byte(page.MustEval(`()=>JSON.stringify(infraPlaceholder())`).Str()), &got); err != nil {
+					t.Fatal(err)
+				}
+				if got.Field < got.Text || got.Overflow {
+					t.Fatalf("%s, filters %v, %d px window: the field is %d px wide for a %d px placeholder (overflow %v, badge %v): %s", language.name, filtered, width, got.Field, got.Text, got.Overflow, got.Kbd, got.Bar)
+				}
+				if got.Kbd {
+					shown++
+				} else {
+					hidden++
+				}
+			}
+			t.Logf("%s, filters %v: the badge shows at %d of %d widths", language.name, filtered, shown, shown+hidden)
+			if !filtered && shown == 0 {
+				t.Fatalf("%s: without filters the badge must show where there is room for it", language.name)
+			}
+		}
+		requireInfraBrowserClean(t, page)
+		page.Close()
+	}
 }
