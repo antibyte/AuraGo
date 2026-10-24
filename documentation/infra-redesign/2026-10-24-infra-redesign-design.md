@@ -148,9 +148,12 @@ coalescing, `touch-action: none` on the canvas only.
 - The canvas is one tab stop (`role=application`, `aria-roledescription` "map", labelled "Infrastructure map").
   Focus lands on the selected card or the first card in reading order.
 - Arrow keys move focus spatially to the nearest card in that direction. `Enter` opens the inspector.
-  `Space` toggles selection. `M` enters move mode for the selection: arrows move 24 px (Shift: 8 px), `Enter`
-  commits one layout save, `Esc` reverts. `P` on a library row or unplaced asset places it at the viewport
-  centre and enters move mode. `Delete` asks to remove the selection from Infra.
+  `Space` toggles selection. `M` enters move mode for the selection (assets, or one place with everything
+  inside it): arrows move 24 px (Shift: 8 px), `Shift+Alt+arrows` resize a place by 24 px (minimum 200 x 140),
+  `Enter` commits one layout save. `Esc`, `Tab`, losing focus and a pointer press revert and announce it; only
+  `Enter` keeps a keyboard move. `M` with nothing movable selected, or without write access, announces why.
+  `P` on a library row or unplaced asset places it at the viewport centre and enters move mode. `Delete` asks
+  to remove the selection from Infra.
 - Global: `Ctrl K` search/jump, `Ctrl Z` / `Ctrl Shift Z` undo/redo, `Ctrl A` select all visible, `F` fit,
   `+`/`-`/`0` zoom, `V/H/C` tools, `?` shortcut sheet, `Ctrl S` save inspector draft. Shortcuts are ignored
   while typing in inputs.

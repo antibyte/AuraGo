@@ -173,6 +173,15 @@
             }
             return { before, after, changed, to: changed ? after.get(regionId).parent_id : store.effectiveParent(regionId, view) };
         }
+        // commitRegionDelta saves a place moved by delta together with everything inside it.
+        function commitRegionDelta(regionId, delta, view, scene, family) {
+            const plan = planRegionMove(regionId, delta, view, scene, family);
+            const label = plan.changed
+                ? (plan.to ? t('desktop.infra_moved_into').replace('{name}', nameOf(regionId)).replace('{place}', nameOf(plan.to)) : t('desktop.infra_moved_out').replace('{name}', nameOf(regionId)))
+                : movedLabel(plan.after.size);
+            void store.dispatch(plan.changed ? commands().reparent(view, plan.before, plan.after, label) : commands().moveNodes(view, plan.before, plan.after, label));
+            app.announce(label);
+        }
         // resizeRect applies a handle drag to the start rectangle: edges snap to the
         // grid and the minimum size holds with the opposite edge fixed.
         function resizeRect(handle, start, dx, dy) {
@@ -298,12 +307,7 @@
                 if (!cancelled) {
                     compute(ev);
                     if (delta.x || delta.y) {
-                        const plan = planRegionMove(regionId, delta, view, scene, family);
-                        const label = plan.changed
-                            ? (plan.to ? t('desktop.infra_moved_into').replace('{name}', nameOf(regionId)).replace('{place}', nameOf(plan.to)) : t('desktop.infra_moved_out').replace('{name}', nameOf(regionId)))
-                            : movedLabel(plan.after.size);
-                        void store.dispatch(plan.changed ? commands().reparent(view, plan.before, plan.after, label) : commands().moveNodes(view, plan.before, plan.after, label));
-                        app.announce(label);
+                        commitRegionDelta(regionId, delta, view, scene, family);
                         canvas.renderNow();
                     }
                 } else app.announce(t('desktop.infra_move_cancelled'));
@@ -384,7 +388,7 @@
             }
             if (gesture && event.pointerType !== 'touch') gesture.abort(); // a release outside the canvas never reached it
             if (pinch || gesture || !(event.target instanceof Element)) return;
-            if (moveMode) finishMoveMode(true);
+            if (moveMode) cancelMoveMode(); // only Enter keeps a keyboard move
             if (event.button !== 0 && event.button !== 1) return;
             if (event.button === 1 || spaceDown || state.tool === 'hand') { startPan(event, false); return; }
             const target = event.target;
@@ -500,10 +504,10 @@
             }
             switch (key) {
                 case 'm': case 'M': {
-                    if (!store.canWrite()) break;
-                    const scene = canvas.sceneData(), selected = [...state.selection].filter(id => scene.cardById.has(id)), focused = focusedItem();
-                    const ids = selected.length ? selected : focused?.card ? [focused.id] : [];
-                    if (ids.length) { event.preventDefault(); enterMoveMode(ids); }
+                    if (!store.canWrite()) { app.announce(t('desktop.infra_error_infra_readonly')); break; }
+                    const ids = moveTargets(canvas.sceneData());
+                    if (ids.length && enterMoveMode(ids)) event.preventDefault();
+                    else app.announce(t('desktop.infra_move_nothing'));
                     break;
                 }
                 case 'Delete': case 'Backspace': {
@@ -551,30 +555,71 @@
         function onFocusOut(event) {
             if (viewport.contains(event.relatedTarget)) return;
             spaceDown = false;
-            if (moveMode) finishMoveMode(true);
+            cancelMoveMode(); // losing focus is not a decision to save
         }
 
         // ---- move mode ----------------------------------------------------------------------------------------
+        // moveTargets: the selected assets, else the one selected place, else the focused asset or place.
+        function moveTargets(scene) {
+            const selected = [...state.selection], focused = focusedItem();
+            const cards = selected.filter(id => scene.cardById.has(id));
+            if (cards.length) return cards;
+            const places = selected.filter(id => scene.regionRects.has(id));
+            if (places.length === 1) return places;
+            if (places.length > 1 && focused && !focused.card && places.includes(focused.id)) return [focused.id];
+            return focused && (focused.card ? scene.cardById.has(focused.id) : scene.regionRects.has(focused.id)) ? [focused.id] : [];
+        }
+        const canResizePlace = () => moveMode?.kind === 'region' && moveMode.view === 'atlas' && store.features.layoutParent;
+        // placeRect is the place as the move mode shows it: moved, and grown or shrunk at the bottom right corner.
+        function placeRect(rect) {
+            return { x: rect.x + moveMode.dx, y: rect.y + moveMode.dy, w: rect.w + moveMode.dw, h: rect.h + moveMode.dh };
+        }
         function showMoveTemp() {
+            const scene = canvas.sceneData();
+            if (moveMode.kind === 'region') {
+                const { dx, dy, family } = moveMode;
+                const cards = new Map([...family.cards].map(cid => { const card = scene.cardById.get(cid); return [cid, { x: card.x + dx, y: card.y + dy }]; }));
+                const regions = new Map([...family.regions].map(rid => { const r = scene.regionRects.get(rid); return [rid, { x: r.x + dx, y: r.y + dy, w: r.w, h: r.h }]; }));
+                regions.set(moveMode.regionId, placeRect(scene.regionRects.get(moveMode.regionId)));
+                canvas.moveTemp(cards, regions);
+                return;
+            }
             const positions = new Map(moveMode.ids.map(id => [id, { x: moveMode.origin.get(id).x + moveMode.dx, y: moveMode.origin.get(id).y + moveMode.dy }]));
             canvas.moveTemp(positions);
-            if (moveMode.view === 'atlas') canvas.setDropTarget(model.regionAt(positions.get(moveMode.ids[0]), canvas.sceneData().regionRects, canvas.sceneData().regionDepth));
+            if (moveMode.view === 'atlas') canvas.setDropTarget(model.regionAt(positions.get(moveMode.ids[0]), scene.regionRects, scene.regionDepth));
         }
+        // enterMoveMode starts the keyboard move of assets, or of one place with everything inside it.
         function enterMoveMode(ids) {
-            if (!store.canWrite() || moveMode || gesture) return;
-            const scene = canvas.sceneData(), cardIds = ids.filter(id => scene.cardById.has(id));
-            if (!cardIds.length) return;
-            moveMode = { view: app.mapView(), ids: cardIds, origin: new Map(cardIds.map(id => [id, { x: scene.cardById.get(id).x, y: scene.cardById.get(id).y }])), dx: 0, dy: 0 };
+            if (!store.canWrite() || moveMode || gesture) return false;
+            const scene = canvas.sceneData(), view = app.mapView(), cardIds = ids.filter(id => scene.cardById.has(id));
+            let focusTarget = null;
+            if (cardIds.length) {
+                moveMode = { view, kind: 'cards', ids: cardIds, origin: new Map(cardIds.map(id => [id, { x: scene.cardById.get(id).x, y: scene.cardById.get(id).y }])), dx: 0, dy: 0 };
+                focusTarget = canvas.cardEl(cardIds[0]);
+            } else if (ids.length === 1 && scene.regionRects.has(ids[0])) {
+                moveMode = { view, kind: 'region', ids: [], regionId: ids[0], family: subtree(ids[0], view, scene), dx: 0, dy: 0, dw: 0, dh: 0 };
+                focusTarget = canvas.regionEl(ids[0])?.querySelector('[data-region-header]');
+            } else return false;
             store.beginInteraction();
-            app.announce(t('desktop.infra_move_mode'));
-            const el = canvas.cardEl(cardIds[0]);
-            if (el && document.activeElement !== el) el.focus({ preventScroll: true });
+            app.announce(t(moveMode.kind === 'region' ? 'desktop.infra_move_mode_place' : 'desktop.infra_move_mode'));
+            if (focusTarget && document.activeElement !== focusTarget) focusTarget.focus({ preventScroll: true });
+            return true;
         }
         function finishMoveMode(commit) {
             if (!moveMode) return;
             const mode = moveMode;
             moveMode = null;
-            if (commit && (mode.dx || mode.dy)) {
+            if (commit && mode.kind === 'region') {
+                const scene = canvas.sceneData(), start = scene.regionRects.get(mode.regionId);
+                if (start && (mode.dx || mode.dy)) commitRegionDelta(mode.regionId, { x: mode.dx, y: mode.dy }, mode.view, scene, mode.family);
+                if (start && (mode.dw || mode.dh)) {
+                    // Saved after the move, so the stored place already sits where it was moved to.
+                    const end = { x: start.x + mode.dx, y: start.y + mode.dy, w: start.w + mode.dw, h: start.h + mode.dh };
+                    const before = store.currentIntent(mode.regionId, mode.view, false);
+                    if (before) void store.dispatch(commands().resizePlace(mode.view, new Map([[mode.regionId, before]]), new Map([[mode.regionId, { x: end.x, y: end.y, w: end.w, h: end.h, pinned: true }]]), ''));
+                }
+                canvas.renderNow();
+            } else if (commit && (mode.dx || mode.dy)) {
                 const wants = new Map(mode.ids.map(id => [id, { x: mode.origin.get(id).x + mode.dx, y: mode.origin.get(id).y + mode.dy }]));
                 commitPlan(mode.view, planDrop(mode.view, wants, { nudge: false }), 'move');
                 canvas.renderNow();
@@ -582,12 +627,33 @@
             canvas.clearTemp(); canvas.setDropTarget('');
             store.endInteraction();
         }
+        // cancelMoveMode puts everything back and says so. Only Enter keeps a keyboard move.
+        function cancelMoveMode() {
+            if (!moveMode) return;
+            finishMoveMode(false);
+            app.announce(t('desktop.infra_move_cancelled'));
+        }
         function onMoveKey(event) {
-            const step = event.shiftKey ? 8 : 24;
+            const resizing = moveMode.kind === 'region' && event.shiftKey && event.altKey;
+            const step = resizing ? 24 : event.shiftKey ? 8 : 24;
             const delta = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];
-            if (delta) { event.preventDefault(); moveMode.dx += delta[0]; moveMode.dy += delta[1]; showMoveTemp(); return; }
+            if (delta) {
+                event.preventDefault();
+                if (!resizing) { moveMode.dx += delta[0]; moveMode.dy += delta[1]; }
+                else if (canResizePlace()) {
+                    // Exactly one step per press, never below the minimum. The clamped size is what is kept,
+                    // so the arrow back is not swallowed by the minimum.
+                    const rect = canvas.sceneData().regionRects.get(moveMode.regionId);
+                    const size = { w: Math.max(model.REGION_MIN_W, rect.w + moveMode.dw + delta[0]), h: Math.max(model.REGION_MIN_H, rect.h + moveMode.dh + delta[1]) };
+                    moveMode.dw = size.w - rect.w; moveMode.dh = size.h - rect.h;
+                    app.announce(model.fill(t('desktop.infra_place_size'), { w: size.w, h: size.h }));
+                } else return;
+                showMoveTemp();
+                return;
+            }
             if (event.key === 'Enter') { event.preventDefault(); finishMoveMode(true); }
-            else if (event.key === 'Escape') { event.preventDefault(); finishMoveMode(false); app.announce(t('desktop.infra_move_cancelled')); }
+            else if (event.key === 'Escape') { event.preventDefault(); cancelMoveMode(); }
+            else if (event.key === 'Tab') cancelMoveMode(); // focus is about to leave; nothing was saved
         }
 
         // ---- library drag ----------------------------------------------------------------------------------------

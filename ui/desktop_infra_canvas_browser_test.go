@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -26,7 +27,8 @@ func infraCanvasFixtureNode(id, kind, name, icon string, placement map[string]an
 // the window, a library row dropped into a region saves parent and position in
 // one call, a card dragged out clears its parent, undo/redo replay the move,
 // connecting by handle drag creates an edge, a layout conflict is rebased
-// once, and keyboard move mode saves one move.
+// once, keyboard move mode saves one move on Enter and puts everything back
+// when focus leaves, and a place moves with its assets by keyboard.
 func TestDesktopInfraCanvasGesturesBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	fixture := newInfraAppBrowserFixture()
@@ -189,6 +191,65 @@ func TestDesktopInfraCanvasGesturesBrowser(t *testing.T) {
 	calls = waitLayoutCalls(start + 1)[start:]
 	if item := itemFor(calls[0], "dev-b"); len(calls) != 1 || item == nil || item["x"] != float64(208) || item["y"] != float64(420) {
 		t.Fatalf("keyboard move mode saved %s", fmt.Sprint(calls))
+	}
+
+	// Only Enter keeps a keyboard move: Tab away restores the position and sends nothing.
+	cardCorner := func(selector string) (float64, float64) {
+		settleScene()
+		point := page.MustEval(`selector=>{const r=document.querySelector(selector).getBoundingClientRect();return [r.left,r.top];}`, selector).Arr()
+		return point[0].Num(), point[1].Num()
+	}
+	page.MustEval(`()=>{const card=document.querySelector('[data-node="dev-b"]');card.click();card.focus();}`)
+	restX, restY := cardCorner(`[data-node="dev-b"]`)
+	start = len(layoutCalls())
+	page.Keyboard.MustType(input.KeyM)
+	page.MustWait(`()=>document.querySelector('[data-announce]').textContent!==''`)
+	modeText := page.MustEval(`()=>document.querySelector('[data-announce]').textContent`).Str()
+	page.Keyboard.MustType(input.ArrowRight, input.ArrowRight)
+	if x, _ := cardCorner(`[data-node="dev-b"]`); x <= restX+1 {
+		t.Fatalf("the move preview should shift the card to the right, it is at %v (rest %v)", x, restX)
+	}
+	page.Keyboard.MustType(input.Tab)
+	// The revert is announced (the page may run in any language, so compare with the move mode text).
+	page.MustWait(`modeText=>{const text=document.querySelector('[data-announce]').textContent;return text!==''&&text!==modeText;}`, modeText)
+	if x, y := cardCorner(`[data-node="dev-b"]`); math.Abs(x-restX) > 0.5 || math.Abs(y-restY) > 0.5 {
+		t.Fatalf("leaving the card must put it back: rest (%v, %v), now (%v, %v)", restX, restY, x, y)
+	}
+	time.Sleep(400 * time.Millisecond) // a stray save would land here
+	if got := len(layoutCalls()); got != start {
+		t.Fatalf("a reverted keyboard move sent %d layout saves", got-start)
+	}
+
+	// A place moves like an asset: M, arrows and Enter take it along with the assets inside it.
+	placementOf := func(id string) (float64, float64) {
+		fixture.mu.Lock()
+		defer fixture.mu.Unlock()
+		for _, node := range fixture.nodes {
+			if node["id"] == id {
+				atlas := node["placements"].(map[string]any)["atlas"].(map[string]any)
+				return infraFixtureNumber(atlas["x"]), infraFixtureNumber(atlas["y"])
+			}
+		}
+		t.Fatalf("fixture has no node %s", id)
+		return 0, 0
+	}
+	roomX, roomY := placementOf("room-1")
+	droppedX, droppedY := placementOf("dev-unplaced")
+	page.MustEval(`()=>{const header=document.querySelector('[data-region-header="room-1"]');header.click();header.focus();}`)
+	start = len(layoutCalls())
+	page.Keyboard.MustType(input.KeyM, input.ArrowRight, input.ArrowRight, input.Enter)
+	calls = waitLayoutCalls(start + 1)[start:]
+	if len(calls) != 1 {
+		t.Fatalf("moving a place made %d layout saves; want one", len(calls))
+	}
+	if room := itemFor(calls[0], "room-1"); room == nil || room["x"] != roomX+48 || room["y"] != roomY {
+		t.Fatalf("the place did not move 48 px to the right: %#v", calls[0])
+	}
+	if child := itemFor(calls[0], "dev-unplaced"); child == nil || child["x"] != droppedX+48 || child["y"] != droppedY {
+		t.Fatalf("the asset in the place did not move with it: %#v", calls[0])
+	}
+	if itemFor(calls[0], "dev-a") != nil || itemFor(calls[0], "dev-in-room") != nil {
+		t.Fatalf("assets outside the place must stay where they are: %#v", calls[0])
 	}
 
 	closeInfraBrowserWindow(t, page)

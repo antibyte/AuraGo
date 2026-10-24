@@ -1105,6 +1105,158 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     }
 }
 
+// ---- keyboard move mode: assets and places, revert unless Enter ---------------------------
+{
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const gestureSource = ['infra-model.js', 'infra-store.js', 'infra-gestures.js'].map(file => fs.readFileSync(path.join(root, 'ui/js/desktop/apps', file), 'utf8')).join('\n');
+    // A world with a fake viewport: key and pointer events go to the handlers gestures.attach() registered.
+    const world = ({ nodes, selection = [], focus = null, view = 'atlas', sourceHosts = [], readonly = false }) => {
+        class FakeElement {}
+        const sandbox = { window: { BUILD_VERSION: 'test', btoa: value => Buffer.from(value, 'binary').toString('base64') }, console, setTimeout, clearTimeout, DOMException, TextEncoder, Map, Set, JSON, Math, Date, URL, AbortController, document: { activeElement: null }, Element: FakeElement, requestAnimationFrame: fn => setTimeout(fn, 0), cancelAnimationFrame: clearTimeout };
+        vm.runInNewContext(gestureSource, sandbox);
+        const { InfraAppModel: gm, InfraAppStore: GS, InfraAppGestures } = sandbox.window;
+        const puts = [];
+        const api = async (url, options = {}) => {
+            const body = typeof options.body === 'string' ? JSON.parse(options.body) : undefined;
+            if ((options.method || 'GET') !== 'PUT' || !String(url).endsWith('/layout')) throw Object.assign(new Error('not_found'), { status: 404 });
+            puts.push(body);
+            return { nodes: body.nodes.map(item => ({ ...nodes.find(node => node.id === item.id), version: item.version + 1, placements: { [body.view]: { x: item.x, y: item.y, w: item.w, h: item.h, pinned: true } } })) };
+        };
+        const ctx = { api, readonly };
+        const store = GS.create({ ctx, t: key => key });
+        store.applySnapshot({ nodes, edges: [], sources: [], source_hosts: sourceHosts, capabilities: { write: true } });
+        store.setView(view);
+        store.state.selection = new Set(selection);
+        const listeners = new Map(), elements = new Set(), cardEls = new Map(), headerEls = new Map();
+        const viewport = { classList: { add() {}, remove() {}, toggle() {} }, addEventListener: (type, fn) => listeners.set(type, fn), removeEventListener() {}, setPointerCapture() {}, contains: node => node === viewport || elements.has(node), getBoundingClientRect: () => ({ left: 0, top: 0, width: 1000, height: 800 }) };
+        const element = (id, kind) => {
+            const el = new FakeElement();
+            el.dataset = kind === 'card' ? { node: id } : { regionHeader: id };
+            el.closest = selector => (selector.split(',').map(part => part.trim()).some(part => (part === '[data-node]' && kind === 'card') || (part === '[data-region-header]' && kind === 'region')) ? el : null);
+            el.focus = () => { sandbox.document.activeElement = el; };
+            elements.add(el);
+            return el;
+        };
+        const scene = () => gm.buildScene({ nodes: store.state.nodes, edges: [], view, placementOf: id => store.effectivePlacement(id, view), parentOf: id => store.effectiveParent(id, view), guests: store.guests() });
+        const first = scene();
+        for (const card of first.cards) cardEls.set(card.id, element(card.id, 'card'));
+        for (const id of first.regionRects.keys()) headerEls.set(id, element(id, 'region'));
+        const temps = [];
+        let cleared = 0;
+        const canvas = { viewport, sceneData: scene, cardEl: id => cardEls.get(id), regionEl: id => (headerEls.has(id) ? { querySelector: () => headerEls.get(id) } : null), moveTemp: (cards, regions = new Map()) => temps.push({ cards: new Map(cards), regions: new Map(regions) }), clearTemp: () => { cleared += 1; }, setDropTarget() {}, renderNow() {}, getView: () => ({ x: 0, y: 0, zoom: 1 }) };
+        const announced = [];
+        const app = { store, state: store.state, t: key => key, model: gm, root: { classList: { add() {}, remove() {}, toggle() {} } }, canvas, mapView: () => view, announce: text => announced.push(text), ensureMapView() {}, q: () => null, dialogs: {} };
+        const gestures = InfraAppGestures.create(app);
+        gestures.attach();
+        if (focus) (cardEls.get(focus) || headerEls.get(focus)).focus();
+        const target = () => sandbox.document.activeElement || viewport;
+        const press = (key, mods = {}) => { const event = { key, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false, ...mods, target: target(), defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }; listeners.get('keydown')(event); return event; };
+        return { store, gm, puts, temps, announced, press, cleared: () => cleared, ctx, fire: (type, event) => listeners.get(type)({ target: target(), ...event }), FakeElement, gestures };
+    };
+    const card = (id, x, y, extra = {}) => ({ id, version: 1, kind: 'device', name: id, icon: 'router', profile: {}, placements: { atlas: { x, y, pinned: true } }, sources: [], ...extra });
+    const room = (x, y, w, h) => card('room', x, y, { kind: 'room', placements: { atlas: { x, y, w, h, pinned: true } } });
+    const itemOf = (put, id) => put.nodes.find(item => item.id === id);
+
+    { // Enter saves a keyboard move; Escape, Tab, focus loss and a pointer press put it back
+        const quit = {
+            'Escape': w => w.press('Escape'),
+            'Tab': w => w.press('Tab'),
+            'focus loss': w => w.fire('focusout', { relatedTarget: null }),
+            'pointer press': w => w.fire('pointerdown', { pointerType: 'mouse', button: 0, pointerId: 1, clientX: 5, clientY: 5, target: Object.assign(new w.FakeElement(), { closest: () => null }) }),
+        };
+        for (const [name, leave] of Object.entries(quit)) {
+            const w = world({ nodes: [card('a', 0, 0), card('b', 240, 0)], selection: ['a'], focus: 'a' });
+            w.press('m');
+            assert.equal(w.store.state.interacting, 1, `${name}: the move mode started`);
+            w.press('ArrowRight'); w.press('ArrowRight');
+            assert.equal(w.temps.at(-1).cards.get('a').x, 48);
+            leave(w);
+            assert.equal(w.store.state.interacting, 0, `${name}: the interaction ended`);
+            assert.ok(w.cleared() >= 1, `${name}: the preview was removed`);
+            assert.equal(w.announced.at(-1), 'desktop.infra_move_cancelled', `${name}: the revert is announced`);
+            await sleep(30);
+            assert.equal(w.puts.length, 0, `${name}: nothing was saved`);
+            assert.equal(w.store.effectivePlacement('a', 'atlas').x, 0);
+            w.store.dispose();
+        }
+        const w = world({ nodes: [card('a', 0, 0)], selection: ['a'], focus: 'a' });
+        w.press('m'); w.press('ArrowRight'); w.press('ArrowRight'); w.press('Enter');
+        await sleep(30);
+        assert.equal(w.puts.length, 1);
+        assert.equal(itemOf(w.puts[0], 'a').x, 48);
+        w.store.dispose();
+    }
+    { // a refused M says why
+        const nothing = world({ nodes: [card('a', 0, 0)] });
+        nothing.press('m');
+        assert.deepEqual(plain(nothing.announced), ['desktop.infra_move_nothing']);
+        nothing.store.dispose();
+        const locked = world({ nodes: [card('a', 0, 0)], selection: ['a'], focus: 'a', readonly: true });
+        locked.press('m');
+        assert.deepEqual(plain(locked.announced), ['desktop.infra_error_infra_readonly']);
+        assert.equal(locked.store.state.interacting, 0);
+        locked.store.dispose();
+    }
+    { // a place moves with everything inside it
+        const nodes = [room(400, 120, 480, 320), card('inside', 640, 300, { parent_id: 'room' }), card('outside', 160, 200)];
+        const w = world({ nodes, selection: ['room'], focus: 'room', sourceHosts: [] });
+        const entered = w.press('M');
+        assert.equal(entered.defaultPrevented, true);
+        assert.equal(w.announced[0], 'desktop.infra_move_mode_place');
+        w.press('ArrowRight'); w.press('ArrowRight'); w.press('ArrowDown');
+        const preview = w.temps.at(-1);
+        assert.equal(preview.regions.get('room').x, 448);
+        assert.equal(preview.regions.get('room').y, 144);
+        assert.equal(preview.cards.get('inside').x, 688, 'the asset in the place moves with it');
+        assert.equal(preview.cards.has('outside'), false);
+        w.press('Enter');
+        await sleep(30);
+        assert.equal(w.puts.length, 1, 'one save for the place and its assets');
+        assert.deepEqual(plain([itemOf(w.puts[0], 'room'), itemOf(w.puts[0], 'inside')].map(item => [item.x, item.y])), [[448, 144], [688, 324]]);
+        assert.equal(itemOf(w.puts[0], 'outside'), undefined);
+        assert.equal(w.store.state.interacting, 0);
+        w.store.dispose();
+    }
+    { // Shift+Alt+arrows resize a place by 24 px, never below 200 x 140; Enter saves through resizePlace
+        const nodes = [room(400, 120, 480, 320), card('inside', 640, 300, { parent_id: 'room' })];
+        const w = world({ nodes, selection: ['room'], focus: 'room' });
+        w.press('m');
+        const resize = key => w.press(key, { shiftKey: true, altKey: true });
+        resize('ArrowRight'); resize('ArrowDown');
+        assert.deepEqual(plain([w.temps.at(-1).regions.get('room').w, w.temps.at(-1).regions.get('room').h]), [504, 344], 'exactly 24 px per press');
+        assert.equal(w.announced.at(-1), 'desktop.infra_place_size');
+        for (let step = 0; step < 20; step += 1) resize('ArrowLeft');
+        assert.equal(w.temps.at(-1).regions.get('room').w, 200, 'the minimum width holds');
+        for (let step = 0; step < 20; step += 1) resize('ArrowUp');
+        assert.equal(w.temps.at(-1).regions.get('room').h, 140, 'the minimum height holds');
+        resize('ArrowRight');
+        assert.equal(w.temps.at(-1).regions.get('room').w, 224, 'the arrow back is not swallowed by the minimum');
+        w.press('ArrowRight');
+        w.press('Enter');
+        await sleep(30);
+        assert.equal(w.puts.length, 1, 'the move and the resize are saved together');
+        const saved = itemOf(w.puts[0], 'room');
+        assert.deepEqual(plain([saved.x, saved.y, saved.w, saved.h]), [424, 120, 224, 140]);
+        assert.equal(w.store.canUndo('atlas'), true);
+        w.store.dispose();
+    }
+    { // a server without place support cannot resize; assets have nothing to resize
+        const noPlaces = world({ nodes: [room(400, 120, 480, 320)], selection: ['room'], focus: 'room', sourceHosts: null });
+        noPlaces.press('m');
+        noPlaces.press('ArrowRight', { shiftKey: true, altKey: true });
+        noPlaces.press('Enter');
+        await sleep(30);
+        assert.equal(noPlaces.puts.length, 0);
+        noPlaces.store.dispose();
+        const cardOnly = world({ nodes: [card('a', 0, 0)], selection: ['a'], focus: 'a' });
+        cardOnly.press('m');
+        const alt = cardOnly.press('ArrowRight', { shiftKey: true, altKey: true });
+        assert.equal(alt.defaultPrevented, true, 'Alt+Arrow never navigates the browser history');
+        assert.equal(cardOnly.temps.at(-1).cards.get('a').x, 8, 'an asset still only moves');
+        cardOnly.store.dispose();
+    }
+}
+
 { // the conflict review reads list entries like the editor, never "[object Object]"
     const targets = [{ app: 'network-cameras', target_id: 'cam-1', label: 'Garden camera' }];
     const text = (key, item) => model.listEntryText(key, item, { targets, t: value => (value === 'desktop.infra_field_vlan' ? 'VLAN' : value) });
