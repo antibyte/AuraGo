@@ -406,7 +406,8 @@ func desktopInfraReconcileProxmoxEdges(ctx context.Context, store *infra.Store, 
 			}
 		}
 	}
-	sources, err := store.ListSources(ctx, "proxmox", instance)
+	// Keep reconciling ignored guests too so provider edges never go stale.
+	sources, err := store.ListSourcesIncludingIgnored(ctx, "proxmox", instance)
 	if err != nil {
 		return fmt.Errorf("list Proxmox sources for placement: %w", err)
 	}

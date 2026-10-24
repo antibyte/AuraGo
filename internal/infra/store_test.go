@@ -1095,3 +1095,31 @@ func TestIgnoredSourcesLeaveDiscoveriesAndSurviveRefresh(t *testing.T) {
 		t.Fatalf("imported source = %#v, %v; want the ignore flag cleared by the link", source, err)
 	}
 }
+
+func TestSnapshotListsIgnoredSourcesOnlyOnRequest(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	identity := SourceIdentity{Kind: "docker", Instance: "engine", Key: "chromecast"}
+	if err := store.ObserveSources(ctx, "docker", "engine", []SourceObservation{
+		{Identity: identity, Name: "chromecast", Observed: SourceObserved{Kind: NodeContainer, Name: "chromecast", Icon: "container"}},
+		{Identity: SourceIdentity{Kind: "docker", Instance: "engine", Key: "web"}, Name: "web", Observed: SourceObserved{Kind: NodeContainer, Name: "web", Icon: "container"}},
+	}, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SetSourcesIgnored(ctx, []SourceIdentity{identity}, true); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := store.Snapshot(ctx)
+	if err != nil || len(snapshot.Sources) != 1 || snapshot.Sources[0].Key != "web" {
+		t.Fatalf("default snapshot sources = %#v, %v; want the ignored source left out", snapshot.Sources, err)
+	}
+	withIgnored, err := store.SnapshotWith(ctx, SnapshotOptions{IncludeIgnored: true})
+	if err != nil || len(withIgnored.Sources) != 2 {
+		t.Fatalf("snapshot with ignored = %#v, %v", withIgnored.Sources, err)
+	}
+	for _, source := range withIgnored.Sources {
+		if source.Ignored != (source.Key == "chromecast") {
+			t.Fatalf("source %s ignored = %v", source.Key, source.Ignored)
+		}
+	}
+}

@@ -306,7 +306,7 @@ func desktopInfraSnapshot(w http.ResponseWriter, r *http.Request, s *Server, cfg
 	} else {
 		desktopInfraScheduleRefreshConfigured(s, cfg, store, runtime)
 	}
-	snapshot, err := store.Snapshot(r.Context())
+	snapshot, err := store.SnapshotWith(r.Context(), infra.SnapshotOptions{IncludeIgnored: r.URL.Query().Get("include_ignored") == "1"})
 	if err != nil {
 		desktopInfraStoreError(w, err)
 		return
@@ -409,7 +409,10 @@ func desktopInfraCandidates(w http.ResponseWriter, r *http.Request, s *Server, c
 		desktopInfraRefreshConfigured(ctx, s, cfg, store, runtime, r.URL.Query().Get("refresh") == "1")
 		finish()
 	}
-	sources, err := desktopInfraConfiguredSources(r.Context(), s, cfg, store)
+	// Ignored sources stay out of discoveries unless the caller asks for them;
+	// they then carry ignored: true.
+	includeIgnored := r.URL.Query().Get("include_ignored") == "1"
+	sources, err := desktopInfraConfiguredSources(r.Context(), s, cfg, store, includeIgnored)
 	if err != nil {
 		desktopInfraStoreError(w, err)
 		return
@@ -815,7 +818,7 @@ func desktopInfraRefreshSource(ctx context.Context, s *Server, cfg *config.Confi
 	}
 }
 
-func desktopInfraConfiguredSources(ctx context.Context, s *Server, cfg *config.Config, store *infra.Store) ([]infra.Source, error) {
+func desktopInfraConfiguredSources(ctx context.Context, s *Server, cfg *config.Config, store *infra.Store, includeIgnored bool) ([]infra.Source, error) {
 	sources := make([]infra.Source, 0)
 	providers := []struct {
 		kind, instance string
@@ -826,11 +829,15 @@ func desktopInfraConfiguredSources(ctx context.Context, s *Server, cfg *config.C
 		{"proxmox", desktopInfraProxmoxInstance(cfg), cfg.Proxmox.Enabled},
 		{"fritzbox", desktopInfraFritzInstance(cfg), desktopInfraFritzAllowed(cfg)},
 	}
+	list := store.ListSources
+	if includeIgnored {
+		list = store.ListSourcesIncludingIgnored
+	}
 	for _, provider := range providers {
 		if !provider.enabled {
 			continue
 		}
-		found, err := store.ListSources(ctx, provider.kind, provider.instance)
+		found, err := list(ctx, provider.kind, provider.instance)
 		if err != nil {
 			return nil, err
 		}
