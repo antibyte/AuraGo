@@ -81,6 +81,12 @@ func handleDesktopInfra(s *Server) http.HandlerFunc {
 			desktopInfraNodeRoute(w, r, s, cfg, store, runtime, strings.TrimPrefix(path, "nodes/"))
 		case path == "import" && r.Method == http.MethodPost:
 			desktopInfraImport(w, r, s, cfg, store, runtime)
+		case path == "import/batch" && r.Method == http.MethodPost:
+			desktopInfraImportBatch(w, r, s, cfg, store, runtime)
+		case path == "sources/ignore" && r.Method == http.MethodPut:
+			desktopInfraIgnoreSources(w, r, cfg, store)
+		case path == "source-hosts" && r.Method == http.MethodPut:
+			desktopInfraSetSourceHost(w, r, store)
 		case path == "edges" && r.Method == http.MethodPost:
 			desktopInfraCreateEdge(w, r, store)
 		case strings.HasPrefix(path, "edges/"):

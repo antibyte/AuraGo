@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -306,5 +307,56 @@ func TestDesktopInfraLayoutRouteUnplacesANodeInOneView(t *testing.T) {
 	}
 	if invalid := save(`{"view":"atlas","nodes":[{` + id + `,"version":4,"x":5,"unplace":true}]}`); invalid.Code != http.StatusBadRequest {
 		t.Fatalf("unplace with coordinates = %d %s; want 400", invalid.Code, invalid.Body.String())
+	}
+}
+
+func TestDesktopInfraNewWriteRoutesAreRoutedAndHonourReadOnly(t *testing.T) {
+	s, _, writeToken := testDesktopPermissionServer(t)
+	adminToken, _, err := s.TokenManager.Create("infra admin", []string{desktopScopeAdmin}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := inventory.InitDB(filepath.Join(t.TempDir(), "inventory.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	s.InventoryDB = db
+	s.Cfg.VirtualDesktop.Enabled = true
+	s.Cfg.VirtualDesktop.Infra.Enabled = true
+	mux := http.NewServeMux()
+	registerDesktopInfraRoutes(mux, s)
+	call := func(method, path, token, body string) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(method, path, strings.NewReader(body))
+		request.Header.Set("Authorization", "Bearer "+token)
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, request)
+		return response
+	}
+	type route struct {
+		method, path, body string
+		status             int
+	}
+	routes := []route{
+		{http.MethodPut, desktopInfraBasePath + "/sources/ignore", `{}`, http.StatusBadRequest},
+		{http.MethodPut, desktopInfraBasePath + "/source-hosts", `{}`, http.StatusBadRequest},
+		{http.MethodPost, desktopInfraBasePath + "/import/batch", `{}`, http.StatusBadRequest},
+		{http.MethodDelete, desktopInfraBasePath + "/nodes/missing?version=1&ignore_sources=1", "", http.StatusNotFound},
+	}
+	for _, tc := range routes {
+		if response := call(tc.method, tc.path, writeToken, tc.body); response.Code != http.StatusForbidden && response.Code != http.StatusUnauthorized {
+			t.Fatalf("%s %s without admin scope = %d %s", tc.method, tc.path, response.Code, response.Body.String())
+		}
+		// An admin reaches the handler's own validation, so the route exists.
+		if response := call(tc.method, tc.path, adminToken, tc.body); response.Code != tc.status {
+			t.Fatalf("%s %s = %d %s; want %d", tc.method, tc.path, response.Code, response.Body.String(), tc.status)
+		}
+	}
+	s.Cfg.VirtualDesktop.Infra.ReadOnly = true
+	for _, tc := range routes {
+		response := call(tc.method, tc.path, adminToken, tc.body)
+		if response.Code != http.StatusForbidden || !strings.Contains(response.Body.String(), "infra_readonly") {
+			t.Fatalf("%s %s on read-only Infra = %d %s; want 403 infra_readonly", tc.method, tc.path, response.Code, response.Body.String())
+		}
 	}
 }
