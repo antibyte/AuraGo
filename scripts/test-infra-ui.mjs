@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['infra-model.js', 'infra-store.js', 'infra-canvas.js', 'infra-library.js', 'infra-inspector.js', 'infra-table.js', 'infra-dialogs.js', 'infra-views.js', 'infra.js'];
+const files = ['infra-model.js', 'infra-store.js', 'infra-canvas.js', 'infra-gestures.js', 'infra-library.js', 'infra-inspector.js', 'infra-table.js', 'infra-dialogs.js', 'infra-views.js', 'infra.js'];
 for (const file of files) {
     const text = fs.readFileSync(path.join(root, 'ui/js/desktop/apps', file), 'utf8');
     const lines = text.split('\n').length;
