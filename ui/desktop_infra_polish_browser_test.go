@@ -352,3 +352,67 @@ func TestDesktopInfraSearchCollapseBrowser(t *testing.T) {
 	}
 	requireInfraBrowserClean(t, page)
 }
+
+// TestDesktopInfraEmptyStatesBrowser covers amendment A26: when a query or filters hide every asset, the action of
+// the empty map matches the cause (search, filters or both), and the library sections say "No matches" instead of
+// leaving a bare header with a zero.
+func TestDesktopInfraEmptyStatesBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	fixture := newInfraAppBrowserFixture()
+	fixture.world(25)
+	page := infraPolishOpen(t, fixture, 1110, 800)
+	defer page.Close()
+	page.MustEval(`()=>{
+		window.infraSet=(selector,value,type)=>{const el=document.querySelector(selector);el.value=value;el.dispatchEvent(new Event(type,{bubbles:true}));};
+		window.infraEmpty=()=>{
+			const box=document.querySelector('[data-no-match]'),button=box.querySelector('button'),words=window.fixtureWords;
+			return JSON.stringify({shown:!box.hidden,action:button.dataset.action,label:button.textContent.trim(),
+				query:document.querySelector('[data-search]').value,kind:document.querySelector('[data-kind-filter]').value});
+		};
+		window.infraWord=key=>window.fixtureWords[key];
+	}`)
+	empty := func() string { return page.MustEval(`()=>infraEmpty()`).Str() }
+	word := func(key string) string { return page.MustEval(`(key)=>infraWord(key)`, key).Str() }
+	waitShown := func(action string) {
+		t.Helper()
+		page.MustWait(`(action)=>{const box=document.querySelector('[data-no-match]');return !box.hidden&&box.querySelector('button').dataset.action===action;}`, action)
+	}
+
+	// Filters only: the action resets the filters, it does not offer to clear a search that is empty.
+	page.MustEval(`()=>infraSet('[data-kind-filter]','network','change')`)
+	waitShown("reset-filters")
+	if got, want := empty(), fmt.Sprintf(`{"shown":true,"action":"reset-filters","label":%q,"query":"","kind":"network"}`, word("desktop.infra_clear_filters")); got != want {
+		t.Fatalf("with only a filter the empty map shows %s; want %s", got, want)
+	}
+	// The library sections say so too: one "No matches" line instead of a bare header with a zero.
+	if got, want := page.MustEval(`()=>JSON.stringify(['to-place','on-map'].map(id=>{const line=document.querySelector('[data-section-empty="'+id+'"]');return [line.hidden,line.textContent.trim()];}))`).Str(), fmt.Sprintf(`[[false,%q],[false,%q]]`, word("desktop.infra_no_matches"), word("desktop.infra_no_matches")); got != want {
+		t.Fatalf("with a filter that hides every asset the library sections show %s; want %s", got, want)
+	}
+	page.MustEval(`()=>document.querySelector('[data-no-match] button').click()`)
+	page.MustWait(`()=>document.querySelector('[data-no-match]').hidden&&document.querySelector('[data-kind-filter]').value===''`)
+
+	// A query only: the action clears the search.
+	page.MustEval(`()=>infraSet('[data-search]','zzzz-no-such-asset','input')`)
+	waitShown("clear-search")
+	if got, want := empty(), fmt.Sprintf(`{"shown":true,"action":"clear-search","label":%q,"query":"zzzz-no-such-asset","kind":""}`, word("desktop.infra_clear_search")); got != want {
+		t.Fatalf("with only a query the empty map shows %s; want %s", got, want)
+	}
+	// Under the query every library section is empty and says "No matches".
+	page.MustWait(`()=>['to-place','on-map'].every(id=>{const line=document.querySelector('[data-section-empty="'+id+'"]');return !line.hidden&&line.textContent.trim()===infraWord('desktop.infra_no_matches');})`)
+	// Both: one action clears both.
+	page.MustEval(`()=>infraSet('[data-kind-filter]','network','change')`)
+	waitShown("clear-search-filters")
+	if got, want := empty(), fmt.Sprintf(`{"shown":true,"action":"clear-search-filters","label":%q,"query":"zzzz-no-such-asset","kind":"network"}`, word("desktop.infra_clear_search_filters")); got != want {
+		t.Fatalf("with a query and a filter the empty map shows %s; want %s", got, want)
+	}
+	page.MustEval(`()=>document.querySelector('[data-no-match] button').click()`)
+	page.MustWait(`()=>document.querySelector('[data-no-match]').hidden&&document.querySelector('[data-kind-filter]').value===''&&document.querySelector('[data-search]').value===''`)
+	// Without a query or filter the sections keep their own empty texts (everything is placed here).
+	if got := page.MustEval(`()=>JSON.stringify(['to-place','on-map'].map(id=>document.querySelector('[data-section-empty="'+id+'"]').hidden))`).Str(); got != `[false,true]` {
+		t.Fatalf("with nothing filtered the To place section is empty and On the map is not: %s", got)
+	}
+	if got, want := page.MustEval(`()=>document.querySelector('[data-section-empty="to-place"]').textContent.trim()`).Str(), word("desktop.infra_everything_placed"); got != want {
+		t.Fatalf("the To place section says %q; want %q", got, want)
+	}
+	requireInfraBrowserClean(t, page)
+}

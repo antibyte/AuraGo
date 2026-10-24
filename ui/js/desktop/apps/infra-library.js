@@ -43,6 +43,7 @@
         const addButton = el.querySelector('[data-action="library-add-place"]'), resetButton = el.querySelector('[data-action="cleanup-reset"]');
         const listOf = id => el.querySelector(`[data-section-list="${id}"]`);
         const countOf = id => el.querySelector(`[data-section-count="${id}"]`);
+        const titleOf = id => el.querySelector(`[data-section-toggle="${id}"] .infra-library-title`);
         const emptyOf = id => el.querySelector(`[data-section-empty="${id}"]`);
         const sectionEl = id => el.querySelector(`[data-library-section="${id}"]`);
 
@@ -179,12 +180,22 @@
             const focusValue = focusKey ? active.dataset[focusKey] : '';
             const focusSection = active?.closest('[data-library-section]')?.dataset.librarySection || '';
             const scrollTop = scrollEl.scrollTop;
+            // Topology draws every placeable asset by itself: nothing is left to place, and the placed section is "In topology".
+            const topology = app.mapView() === 'topology';
+            sectionEl('to-place').hidden = topology;
+            const placedTitle = topology ? t('desktop.infra_in_topology') : t('desktop.infra_on_map');
+            const placedEmpty = topology ? t('desktop.infra_library_empty_topology') : t('desktop.infra_library_empty_map');
+            if (titleOf('on-map').textContent !== placedTitle) { titleOf('on-map').textContent = placedTitle; listOf('on-map').setAttribute('aria-label', placedTitle); }
             for (const id of Object.keys(sections)) {
                 const rows = sections[id], list = listOf(id);
                 list.innerHTML = rows.map(row => rowHTML(row, id)).join('');
                 countOf(id).textContent = String(countRows(rows));
                 const empty = emptyOf(id);
-                if (empty) empty.hidden = rows.length > 0 || filtersOn;
+                if (empty) {
+                    // Under a query or filter an empty section is "No matches", not a bare header with a 0.
+                    empty.hidden = rows.length > 0;
+                    empty.textContent = filtersOn ? t('desktop.infra_no_matches') : id === 'on-map' ? placedEmpty : t('desktop.infra_everything_placed');
+                }
                 applyFold(id);
             }
             sectionEl('attention').hidden = sections.attention.length === 0;

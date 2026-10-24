@@ -444,6 +444,8 @@
                 case 'toggle-library': toggleLibrary(); return;
                 case 'retry-layout': void store.retryLayout(view); break;
                 case 'clear-search': clearSearch(); break;
+                case 'reset-filters': resetFilters(Object.keys(FILTER_SELECTS)); break;
+                case 'clear-search-filters': clearSearch(); resetFilters(Object.keys(FILTER_SELECTS)); break;
                 case 'dismiss-toast': { const element = button.closest('[data-toast]'); if (element) removeToast(element); return; }
                 default: return;
             }

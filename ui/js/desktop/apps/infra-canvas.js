@@ -11,8 +11,8 @@
 //  - this module handles its own [data-tool], zoom-in/out/reset, fit and
 //    toggle-minimap clicks (the toggle sits in the tools cluster, the minimap
 //    hides itself while the whole scene fits); infra.js must not act on the zoom, fit and
-//    minimap actions, and handles import-empty, add-empty, clear-search and
-//    retry-layout itself;
+//    minimap actions, and handles import-empty, add-empty, clear-search,
+//    reset-filters, clear-search-filters and retry-layout itself;
 //  - app.setPref('minimap', bool) is called after the minimap toggle changes,
 //    app.prefs.minimap === false starts it hidden.
 (function () {
@@ -62,7 +62,7 @@
     </div>
   </div>
   <div class="infra-canvas-nomatch" data-no-match hidden><strong>${esc(t('desktop.infra_no_match'))}</strong>
-    <button type="button" class="infra-button" data-action="clear-search">${esc(t('desktop.infra_clear_search'))}</button></div>
+    <button type="button" class="infra-button" data-action="clear-search" data-cause="query">${esc(t('desktop.infra_clear_search'))}</button></div>
   <div class="infra-canvas-chip" data-layout-chip role="status" hidden>
     <span>${esc(t('desktop.infra_layout_unsaved'))}</span><button type="button" class="infra-button" data-action="retry-layout" disabled>${esc(t('desktop.infra_retry'))}</button></div>
   <div class="infra-tools" role="toolbar" aria-label="${esc(t('desktop.infra_tools'))}" data-tools>
@@ -92,7 +92,7 @@
         const minimapEl = q('[data-minimap]'), minimapSvg = q('[data-minimap-map]'), minimapView = q('[data-minimap-view]');
         const minimapRegions = q('[data-minimap-regions]'), minimapCards = q('[data-minimap-cards]');
         const minimapToggle = q('[data-action="toggle-minimap"]');
-        const retryButton = q('[data-action="retry-layout"]');
+        const retryButton = q('[data-action="retry-layout"]'), noMatchButton = noMatchEl.querySelector('button');
 
         const views = { atlas: null, topology: null }, initialized = { atlas: false, topology: false };
         // viewSize is the viewport size each view was last placed for: a resize keeps the world point at the
@@ -560,6 +560,14 @@
             emptyEl.hidden = !(store.state.refreshAt && !last.cards.length && !last.regions.length);
             for (const button of emptyEl.querySelectorAll('button')) button.disabled = !canWrite;
             noMatchEl.hidden = !(filtersOn && last.cards.length && shown === 0);
+            // The action matches the cause of the empty result (A26): a query, filters, or both.
+            const filters = store.state.filters, byQuery = !!String(filters.query || '').trim(), byFilters = !!(filters.kind || filters.source || filters.power);
+            const cause = byQuery && byFilters ? 'both' : byFilters ? 'filters' : 'query';
+            if (noMatchButton.dataset.cause !== cause) {
+                noMatchButton.dataset.cause = cause;
+                noMatchButton.dataset.action = cause === 'both' ? 'clear-search-filters' : cause === 'filters' ? 'reset-filters' : 'clear-search';
+                noMatchButton.textContent = cause === 'both' ? t('desktop.infra_clear_search_filters') : cause === 'filters' ? t('desktop.infra_clear_filters') : t('desktop.infra_clear_search');
+            }
             const unsaved = store.unsavedCount(view);
             chipEl.hidden = unsaved === 0;
             retryButton.disabled = unsaved === 0 || !canWrite || store.state.busy.has('layout');

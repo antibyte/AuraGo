@@ -2,6 +2,7 @@ package ui
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -143,6 +144,20 @@ func TestDesktopInfraTopologyBrowser(t *testing.T) {
 	if n := len(layoutCalls()); n != 0 {
 		t.Fatalf("opening Topology saved %d layouts; the auto layout must not write", n)
 	}
+
+	// A23: the library has no To place section in Topology and calls the placed section "In topology"; the Map view gets both back.
+	libraryState := `()=>JSON.stringify({toPlace:document.querySelector('[data-library-section="to-place"]').hidden,title:document.querySelector('[data-section-toggle="on-map"] .infra-library-title').textContent.trim(),list:document.querySelector('[data-section-list="on-map"]').getAttribute('aria-label')})`
+	if got, want := page.MustEval(libraryState).Str(), fmt.Sprintf(`{"toPlace":true,"title":%q,"list":%q}`, infraGermanWord(t, "desktop.infra_in_topology"), infraGermanWord(t, "desktop.infra_in_topology")); got != want {
+		t.Fatalf("in Topology the library is %s; want %s", got, want)
+	}
+	page.MustEval(`()=>document.querySelector('[data-view="atlas"]').click()`)
+	page.MustWait(`()=>!document.querySelector('[data-library-section="to-place"]').hidden`)
+	if got, want := page.MustEval(libraryState).Str(), fmt.Sprintf(`{"toPlace":false,"title":%q,"list":%q}`, infraGermanWord(t, "desktop.infra_on_map"), infraGermanWord(t, "desktop.infra_on_map")); got != want {
+		t.Fatalf("in the Map view the library is %s; want %s", got, want)
+	}
+	page.MustEval(`()=>document.querySelector('[data-view="topology"]').click()`)
+	page.MustWait(`()=>document.querySelector('[data-library-section="to-place"]').hidden&&!!document.querySelector('[data-node="tv"]')`)
+	page.MustEval(`()=>document.querySelector('[data-action="fit"]').click()`)
 
 	// Dragging a card into another lane saves a pinned topology placement.
 	tx, ty := infraPanelsCenter(page, `[data-node="tv"]`)
