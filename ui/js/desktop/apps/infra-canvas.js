@@ -439,8 +439,11 @@
             let rects = null;
             return () => rects || (rects = last.cards.map(card => model.cardRect(tempCards?.get(card.id) || card)));
         }
+        // applyLine draws a connection from seg: the straight segment of the scene or, in Topology, a path from
+        // lanes.topologyPaths (a curve between lanes). The label sits at the midpoint of the ends, which is also the
+        // midpoint of the curve, so the same A5 clash rule serves both. The hit area and the highlight share d.
         function applyLine(entry, seg, rectsOf) {
-            const d = `M${round1(seg.x1)} ${round1(seg.y1)}L${round1(seg.x2)} ${round1(seg.y2)}`;
+            const d = seg.d || `M${round1(seg.x1)} ${round1(seg.y1)}L${round1(seg.x2)} ${round1(seg.y2)}`;
             if (d !== entry.d) {
                 entry.hit.setAttribute('d', d); entry.line.setAttribute('d', d); entry.core?.setAttribute('d', d);
                 entry.d = d;
@@ -463,9 +466,15 @@
             const r = regions?.get(id) || last.regionRects.get(id);
             return r ? { x: r.x + r.w / 2, y: r.y + r.h / 2, half: { w: r.w / 2, h: r.h / 2 } } : null;
         }
-        function redrawLine(lineId, cards, regions, rectsOf) {
+        // topologyPathsAt: the curves of every connection with the cards in `cards` (a map of dragged positions) moved.
+        // The slots on a card edge depend on the other ends' x, so a move redraws all of them; only changed paths
+        // touch the DOM.
+        const topologyPathsAt = cards => lanes.topologyPaths(last.lines, id => cards?.get(id) || last.cardById.get(id));
+        function redrawLine(lineId, cards, regions, rectsOf, paths) {
             const geom = lineGeom.get(lineId), entry = lineEls.get(lineId);
             if (!geom || !entry) return;
+            const path = paths?.get(lineId);
+            if (path) { applyLine(entry, path, rectsOf || blockersOf(cards)); return; }
             const a = shapeOf(geom.from, cards, regions), b = shapeOf(geom.to, cards, regions);
             if (a && b) applyLine(entry, model.edgeSegment(a, b, a.half, b.half), rectsOf || blockersOf(cards));
         }
@@ -473,6 +482,7 @@
             const edgeById = new Map(store.state.edges.map(edge => [edge.id, edge]));
             const seen = new Set(), applied = [];
             linesByEnd = new Map(); lineGeom = new Map();
+            const paths = app.mapView() === 'topology' ? topologyPathsAt(null) : null;
             for (const line of lines) {
                 const edge = edgeById.get(line.id);
                 if (!edge) continue;
@@ -489,7 +499,7 @@
                 }
                 lineGeom.set(line.id, { from: line.from, to: line.to });
                 for (const end of [line.from, line.to]) (linesByEnd.get(end) || linesByEnd.set(end, new Set()).get(end)).add(line.id);
-                applied.push([entry, line]);
+                applied.push([entry, paths?.get(line.id) || line]);
             }
             // Label boxes are measured once per label, all reads before any write.
             for (const [entry] of applied) if (entry.label && !entry.labelBox) { const box = entry.label.getBBox(); if (box.width > 0) entry.labelBox = { w: box.width, h: box.height }; }
@@ -699,9 +709,11 @@
                 if (!entry) continue;
                 writeRegion(entry, rect); temp.regions.add(id); affected.add(id);
             }
-            for (const id of affected) for (const lineId of linesByEnd.get(id) || []) lines.add(lineId);
+            const paths = app.mapView() === 'topology' && cards.size ? topologyPathsAt(cards) : null;
+            if (paths) for (const lineId of lineGeom.keys()) lines.add(lineId);
+            else for (const id of affected) for (const lineId of linesByEnd.get(id) || []) lines.add(lineId);
             const rectsOf = blockersOf(cards);
-            for (const lineId of lines) { temp.lines.add(lineId); redrawLine(lineId, cards, regions, rectsOf); }
+            for (const lineId of lines) { temp.lines.add(lineId); redrawLine(lineId, cards, regions, rectsOf, paths); }
             refreshClashes(rectsOf);
         }
         function clearTemp() {
@@ -713,8 +725,8 @@
                 const entry = regionEls.get(id), rect = last.regionRects.get(id);
                 if (entry && rect) writeRegion(entry, rect);
             }
-            const rectsOf = blockersOf(null);
-            for (const lineId of temp.lines) redrawLine(lineId, undefined, undefined, rectsOf);
+            const rectsOf = blockersOf(null), paths = app.mapView() === 'topology' && temp.lines.size ? topologyPathsAt(null) : null;
+            for (const lineId of temp.lines) redrawLine(lineId, undefined, undefined, rectsOf, paths);
             refreshClashes(rectsOf);
             temp.cards.clear(); temp.regions.clear(); temp.lines.clear();
         }

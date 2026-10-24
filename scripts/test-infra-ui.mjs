@@ -1585,4 +1585,51 @@ for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     assert.deepEqual(asObject(selected), { tv: { x: 0, y: 408, pinned: true }, laptop: { x: 0, y: 1248, pinned: false } }, 'a selection is arranged around its mean x and around the other cards (the switch sits at 0,480, so the slot moves 72 px up)');
 }
 
+// ---- A19: Topology connections are curves between lanes ------------------------------------------------
+// A connection between two lanes leaves the bottom edge of the upper card and arrives on the top edge of the lower one with
+// vertical tangents (control offset max(48, dy / 2)); several connections on one card edge spread over the middle 60% of its
+// 216 px (+-64.8 px), in slots of 129.6 / k ordered by the other end's x. Same-lane connections stay straight.
+{
+    const cardsAt = list => new Map(list.map(([id, x, y]) => [id, { id, x, y }]));
+    const draw = (list, wires) => lanes.topologyPaths(wires.map(([id, from, to]) => ({ id, from, to })), id => cardsAt(list).get(id));
+    const shape = path => plain({ curve: path.curve, d: path.d, ends: [path.x1, path.y1, path.x2, path.y2] });
+
+    // one connection: bottom centre (0, 96 + 32) to top centre (0, 480 - 32); dy 320, control offset 160
+    const single = draw([['u', 0, 96], ['l', 0, 480]], [['x', 'u', 'l']]);
+    assert.deepEqual(shape(single.get('x')), { curve: true, d: 'M0 128C0 288 0 288 0 448', ends: [0, 128, 0, 448] });
+    assert.equal(draw([['u', 0, 96], ['l', 0, 480]], [['x', 'l', 'u']]).get('x').d, single.get('x').d, 'the direction of the connection does not matter: it always runs from the upper card down');
+    // a fan of three below one card: slots at -43.2, 0, 43.2, ordered by the other end's x whatever the input order
+    const fan = draw([['u', 0, 96], ['l1', -240, 480], ['l2', 240, 480], ['l3', 0, 480]], [['b', 'u', 'l2'], ['c', 'l3', 'u'], ['a', 'u', 'l1']]);
+    assert.equal(fan.get('a').d, 'M-43.2 128C-43.2 288 -240 288 -240 448');
+    assert.equal(fan.get('c').d, 'M0 128C0 288 0 288 0 448');
+    assert.equal(fan.get('b').d, 'M43.2 128C43.2 288 240 288 240 448');
+    // a fan in: two cards above one, arrival slots at -32.4 and 32.4; the midpoint (label anchor) is the curve's midpoint
+    const fanIn = draw([['u1', -240, 96], ['u2', 240, 96], ['l', 0, 480]], [['q', 'u2', 'l'], ['p', 'u1', 'l']]);
+    assert.deepEqual(shape(fanIn.get('p')), { curve: true, d: 'M-240 128C-240 288 -32.4 288 -32.4 448', ends: [-240, 128, -32.4, 448] });
+    assert.equal(fanIn.get('q').d, 'M240 128C240 288 32.4 288 32.4 448');
+    // the midpoint of a cubic with vertical tangents is the midpoint of its ends: (-136.2, 288)
+    const cubic = (t, a, b, c, d) => (1 - t) ** 3 * a + 3 * (1 - t) ** 2 * t * b + 3 * (1 - t) * t ** 2 * c + t ** 3 * d;
+    assert.ok(Math.abs(cubic(0.5, -240, -240, -32.4, -32.4) - (fanIn.get('p').x1 + fanIn.get('p').x2) / 2) < 1e-9 && Math.abs(cubic(0.5, 128, 288, 288, 448) - (fanIn.get('p').y1 + fanIn.get('p').y2) / 2) < 1e-9);
+    // the control offset grows with the drop and never falls below 48
+    assert.equal(draw([['u', 0, 96], ['l', 0, 864]], [['x', 'u', 'l']]).get('x').d, 'M0 128C0 480 0 480 0 832', 'dy 704 gives offset 352');
+    assert.equal(draw([['u', 0, 300], ['l', 0, 420]], [['x', 'u', 'l']]).get('x').d, 'M0 332C0 380 0 340 0 388', 'dy 56 gives the minimum offset 48');
+    // parallel connections between the same two cards take neighbouring slots at both ends
+    const parallel = draw([['u', 0, 96], ['l', 0, 480]], [['e2', 'u', 'l'], ['e1', 'u', 'l']]);
+    assert.equal(parallel.get('e1').d, 'M-32.4 128C-32.4 288 -32.4 288 -32.4 448');
+    assert.equal(parallel.get('e2').d, 'M32.4 128C32.4 288 32.4 288 32.4 448');
+    // same lane: a straight line between the facing sides (the left card's right edge at -132, the right card's left edge at -108)
+    const flat = draw([['a', -240, 480], ['b', 0, 480]], [['x', 'a', 'b']]);
+    assert.deepEqual(shape(flat.get('x')), { curve: false, d: 'M-132 480L-108 480', ends: [-132, 480, -108, 480] });
+    // cards that overlap across a lane border have no room for a curve: straight, never a loop
+    assert.equal(draw([['u', 0, 380], ['l', 0, 400]], [['x', 'u', 'l']]).get('x').curve, false);
+    // the lane of a card is the lane its drawn y is in: a card dragged into the next lane is connected like any other
+    assert.equal(draw([['u', 0, 96], ['l', 0, 383]], [['x', 'u', 'l']]).get('x').curve, false, 'both in lane 0');
+    assert.equal(draw([['u', 0, 96], ['l', 0, 384]], [['x', 'u', 'l']]).get('x').curve, true, 'lane 1 starts at y 384');
+    // a connection with a missing end is not drawn; the answer does not depend on the order of the connections
+    assert.equal(draw([['u', 0, 96]], [['x', 'u', 'gone']]).size, 0);
+    const wires = [['a', 'u', 'l1'], ['b', 'u', 'l2'], ['c', 'u', 'l3'], ['d', 'l1', 'l2'], ['e', 'u', 'l1']];
+    const forward = draw([['u', 0, 96], ['l1', -240, 480], ['l2', 240, 480], ['l3', 0, 480]], wires), backward = draw([['u', 0, 96], ['l1', -240, 480], ['l2', 240, 480], ['l3', 0, 480]], wires.slice().reverse());
+    assert.deepEqual(plain([...forward].sort((x, y) => x[0].localeCompare(y[0]))), plain([...backward].sort((x, y) => x[0].localeCompare(y[0]))));
+}
+
 console.log(`Infra UI model, grouped virtualization, and ${required.size} translation keys passed for ${locales.length} locales.`);

@@ -1,9 +1,13 @@
 package ui
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/input"
+	"github.com/go-rod/rod/lib/proto"
 )
 
 // Design QA batch D-fix-2 (amendments A17 to A24 for the Topology view). Each scenario is its own test function.
@@ -106,5 +110,88 @@ func TestDesktopInfraTopologyLanesBrowser(t *testing.T) {
 	}`).Str(); got != `[true,true,true,true]` {
 		t.Fatalf("at 430x700 fit no lane label may be cut: %s", got)
 	}
+	requireInfraBrowserClean(t, page)
+}
+
+// TestDesktopInfraTopologyCurvesBrowser covers amendment A19: a connection between two lanes is a cubic curve from the
+// bottom edge of the upper card to the top edge of the lower card, connections that share a card edge take separate
+// slots on it, and a connection inside a lane stays straight. The hit area and the selection highlight use the same
+// path, and the curves follow a card that is being dragged. The Map view keeps straight lines.
+//
+// The cards sit at the automatic slots: inet -120,96  ont 120,96  switch -240,480  router 0,480  ap 240,480
+// nas -120,864  pve 120,864  tv -120,1248  laptop 120,1248 (see TestDesktopInfraTopologyBrowser).
+func TestDesktopInfraTopologyCurvesBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	fixture := infraTopologyFixture()
+	page := infraPanelsPage(t, fixture)
+	defer page.Close()
+	page.MustEval(`()=>{
+		window.infraPaths=()=>JSON.stringify(Object.fromEntries([...document.querySelectorAll('.infra-edge')].map(g=>[g.dataset.edge,[g.querySelector('.infra-edge-line').getAttribute('d'),g.querySelector('.infra-edge-hit').getAttribute('d')]])));
+	}`)
+	// The Map view keeps straight lines.
+	if got := page.MustEval(`()=>[...document.querySelectorAll('.infra-edge-line')].filter(path=>/C/.test(path.getAttribute('d'))).length`).Int(); got != 0 {
+		t.Fatalf("the Map view must draw straight connections; %d are curves", got)
+	}
+	page.MustEval(`()=>document.querySelector('[data-view="topology"]').click()`)
+	page.MustWait(`()=>document.querySelectorAll('[data-lanes] [data-lane]').length===4&&!!document.querySelector('[data-node="tv"]')`)
+	page.MustEval(`()=>document.querySelector('[data-action="fit"]').click()`)
+	infraPolishSettle(page)
+
+	// Hand computed: ont (120,96) to router (0,480): bottom centre 120,128 to top centre 0,448, offset 160; the switch (-240,480)
+	// has three connections on its bottom edge in slots -43.2 (nas), 0 (tv, same x, later id) and 43.2 (pve); tv has two on its
+	// top edge, -32.4 (switch) and 32.4 (nas); lane-internal ones are straight between the facing sides.
+	want := map[string]string{
+		"e1": "M-12 96L12 96",
+		"e2": "M120 128C120 288 0 288 0 448",
+		"e3": "M-108 480L-132 480",
+		"e4": "M-132 480L132 480",
+		"e5": "M-283.2 512C-283.2 672 -120 672 -120 832",
+		"e6": "M-196.8 512C-196.8 672 120 672 120 832",
+		"e7": "M240 512C240 864 120 864 120 1216",
+		"e8": "M-240 512C-240 864 -152.4 864 -152.4 1216",
+		"e9": "M-120 896C-120 1056 -87.6 1056 -87.6 1216",
+	}
+	paths := func() map[string][2]string {
+		out := map[string][2]string{}
+		if err := json.Unmarshal([]byte(page.MustEval(`()=>infraPaths()`).Str()), &out); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	got := paths()
+	for id, d := range want {
+		if got[id][0] != d {
+			t.Errorf("connection %s is drawn as %q; want %q", id, got[id][0], d)
+		}
+		if got[id][1] != got[id][0] {
+			t.Errorf("connection %s: the hit area %q must follow the visible line %q", id, got[id][1], got[id][0])
+		}
+	}
+	if t.Failed() {
+		t.FailNow()
+	}
+
+	// Clicking the curve selects it, and the highlighted line is that same path. e5 passes through free space at its midpoint.
+	point := page.MustEval(`()=>{const hit=document.querySelector('[data-edge="e5"] .infra-edge-hit'),at=hit.getPointAtLength(hit.getTotalLength()/2),m=hit.getScreenCTM();return [m.a*at.x+m.c*at.y+m.e,m.b*at.x+m.d*at.y+m.f];}`).Arr()
+	page.Mouse.MustMoveTo(point[0].Num(), point[1].Num()).MustClick(proto.InputMouseButtonLeft)
+	page.MustWait(`()=>document.querySelector('[data-edge="e5"]').classList.contains('is-selected')`)
+	if got := paths()["e5"]; got[0] != want["e5"] {
+		t.Fatalf("the selected connection changed its path: %v", got)
+	}
+
+	// A card that is dragged takes its curves along; cancelling the drag puts them back.
+	cx, cy := infraPanelsCenter(page, `[data-node="ap"]`)
+	before := paths()["e7"][0]
+	page.Mouse.MustMoveTo(cx, cy).MustDown(proto.InputMouseButtonLeft)
+	page.Mouse.MustMoveTo(cx-30, cy+10)
+	page.Mouse.MustMoveTo(cx-120, cy+40)
+	page.MustWait(`(before)=>document.querySelector('[data-edge="e7"] .infra-edge-line').getAttribute('d')!==before`, before)
+	if moved := paths()["e7"]; moved[0] == before || moved[1] != moved[0] || !strings.HasPrefix(moved[0], "M") || !strings.Contains(moved[0], "C") {
+		t.Fatalf("while dragging, the connection of the dragged card must stay a curve that follows it: %v", moved)
+	}
+	page.Keyboard.MustType(input.Escape)
+	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	page.MustWait(`(before)=>document.querySelector('[data-edge="e7"] .infra-edge-line').getAttribute('d')===before`, before)
+	closeInfraBrowserWindow(t, page)
 	requireInfraBrowserClean(t, page)
 }

@@ -4,7 +4,7 @@
 (function () {
     'use strict';
 
-    const { snap, cardRect, freeSlot, isContainer, naturalCompare } = window.InfraAppModel;
+    const { CARD_W, CARD_H, snap, cardRect, freeSlot, isContainer, naturalCompare, edgeSegment } = window.InfraAppModel;
     const finite = value => (value === null || value === undefined || value === '' || !Number.isFinite(Number(value)) ? null : Number(value));
 
     // ---- topology lanes and auto layout (spec §6) --------------------------------
@@ -184,7 +184,58 @@
         return out;
     };
 
+    // ---- connection paths (A19) ----------------------------------------------------------------------------
+    // topologyPaths draws every connection of the Topology view. A connection between two lanes is a cubic curve
+    // from the bottom edge of the upper card to the top edge of the lower one with vertical tangents (control
+    // offset max(48, dy / 2)). Connections that share a card edge spread over the middle 60% of it in equal slots,
+    // ordered by the other end's x (then its id, then the connection's id), so the answer never depends on the
+    // input order. A connection inside one lane stays a straight line between the facing sides, and so does one
+    // whose cards leave no room (dy under 16) for a curve. lines are {id, from, to} with card ids; cardAt(id) is
+    // {x, y} (the centre) or nothing. The answer maps a connection id to {curve, d, x1, y1, x2, y2}: the ends of
+    // the path, whose midpoint is also the midpoint of the curve (the label anchor of the A5 clash rule). The
+    // same path serves the visible line, its hit area and the selection highlight.
+    const SPREAD = 0.6, MIN_CONTROL = 48, MIN_DROP = 16;
+    const tenth = value => Math.round(value * 10) / 10;
+    const topologyPaths = (lines, cardAt) => {
+        const out = new Map(), half = { w: CARD_W / 2, h: CARD_H / 2 }, pending = [], bottoms = new Map(), tops = new Map();
+        const join = (map, key, entry) => { const list = map.get(key); if (list) list.push(entry); else map.set(key, [entry]); };
+        for (const line of lines || []) {
+            const a = cardAt(line.from), b = cardAt(line.to);
+            if (!a || !b || line.from === line.to) continue;
+            const la = laneAt(a.y), lb = laneAt(b.y);
+            const upper = la <= lb ? { id: line.from, card: a } : { id: line.to, card: b }, lower = upper.id === line.from ? { id: line.to, card: b } : { id: line.from, card: a };
+            if (la === lb || lower.card.y - half.h - (upper.card.y + half.h) < MIN_DROP) {
+                const seg = edgeSegment(a, b, half, half);
+                out.set(line.id, { curve: false, d: `M${tenth(seg.x1)} ${tenth(seg.y1)}L${tenth(seg.x2)} ${tenth(seg.y2)}`, x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 });
+                continue;
+            }
+            const entry = { line, upper, lower };
+            join(bottoms, upper.id, entry); join(tops, lower.id, entry);
+            pending.push(entry);
+        }
+        const offsets = new Map(); // connection id → [start offset, end offset]
+        const spread = (map, slot, otherOf) => {
+            for (const list of map.values()) {
+                list.sort((p, q) => otherOf(p).card.x - otherOf(q).card.x || naturalCompare(otherOf(p).id, otherOf(q).id) || naturalCompare(p.line.id, q.line.id));
+                list.forEach((entry, i) => {
+                    const pair = offsets.get(entry.line.id) || [0, 0];
+                    pair[slot] = tenth(((i + 0.5) / list.length - 0.5) * SPREAD * CARD_W);
+                    offsets.set(entry.line.id, pair);
+                });
+            }
+        };
+        spread(bottoms, 0, entry => entry.lower);
+        spread(tops, 1, entry => entry.upper);
+        for (const { line, upper, lower } of pending) {
+            const [from, to] = offsets.get(line.id);
+            const x1 = tenth(upper.card.x + from), y1 = upper.card.y + half.h, x2 = tenth(lower.card.x + to), y2 = lower.card.y - half.h;
+            const control = Math.max(MIN_CONTROL, (y2 - y1) / 2);
+            out.set(line.id, { curve: true, d: `M${x1} ${tenth(y1)}C${x1} ${tenth(y1 + control)} ${x2} ${tenth(y2 - control)} ${x2} ${tenth(y2)}`, x1, y1, x2, y2 });
+        }
+        return out;
+    };
+
     window.InfraAppLanes = {
-        topologyLanes: () => [...TOPOLOGY_LANES], LANE_H, LANE_EXTENT, LANE_LABEL_INSET, topologyLane, topologyLaneIndex, laneAt, laneStripes, topologyLayout, topologyAutoPositions, topologyArrange,
+        topologyLanes: () => [...TOPOLOGY_LANES], LANE_H, LANE_EXTENT, LANE_LABEL_INSET, topologyLane, topologyLaneIndex, laneAt, laneStripes, topologyPaths, topologyLayout, topologyAutoPositions, topologyArrange,
     };
 })();
