@@ -106,7 +106,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 ## Infra
 
 - Load order (module-loader `infra`): `infra-model.js` (pure helpers: viewport math, geometry, regions, drop rules,
-  guests, filters, scene builder, layout intents, history), `infra-store.js` (state, API, polling and visibility,
+  guests, filters, scene builder, layout intents, history), `infra-lanes.js` (Topology lanes, auto layout; `window.InfraAppLanes`,
+  `app.lanes`), `infra-store.js` (state, API, polling and visibility,
   layout queue, undo), `infra-canvas.js` (keyed map rendering), `infra-gestures.js` (pointer and keyboard),
   `infra-library.js`, `infra-inspector.js`, `infra-table.js`, `infra-dialogs.js`, then `infra.js` (composition root).
   Styles: `desktop-app-infra.css` (shell, panels, dialogs) and `desktop-app-infra-canvas.css` (map). Every file stays
@@ -130,7 +131,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - Verify `node scripts/test-infra-ui.mjs`, the UI line budget, the i18n and asset guards and
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopInfra`. The browser fixture answers `/layout` like the
   server (version CAS, patch reply); never return a full snapshot there.
-- Full load order: `infra-model.js`, `infra-store.js`, `infra-picker.js`, `infra-canvas.js`, `infra-gestures.js`,
+- Full load order: `infra-model.js`, `infra-lanes.js`, `infra-store.js`, `infra-picker.js`, `infra-canvas.js`, `infra-gestures.js`,
   `infra-library.js`, `infra-cleanup.js`, `infra-inspector-forms.js`, `infra-inspector.js`, `infra-table.js`,
   `infra-dialogs.js`, `infra-import.js`, `infra-menus.js`, `infra.js`. The module-loader list and the file list of
   `scripts/test-infra-ui.mjs` must match it.

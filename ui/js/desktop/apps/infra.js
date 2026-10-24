@@ -6,7 +6,7 @@
 (function () {
     'use strict';
 
-    const model = window.InfraAppModel;
+    const model = window.InfraAppModel, lanes = window.InfraAppLanes;
     const INSTANCES = new Map();
     const KINDS = ['device', 'vm', 'container', 'service', 'network', 'site', 'room', 'rack', 'group'];
     const SOURCE_KINDS = ['registry', 'docker', 'proxmox', 'fritzbox'];
@@ -142,7 +142,7 @@
             announce(text);
         }
         const app = {
-            ctx, t, esc, windowId, safeId: S, root, q, model, store, state, prefs, setPref,
+            ctx, t, esc, windowId, safeId: S, root, q, model, lanes, store, state, prefs, setPref,
             icon: value => `<img src="${esc(model.iconURL(value))}" alt="" loading="lazy" draggable="false">`,
             glyph,
             labelForKind: kind => t(`desktop.infra_kind_${kind}`),

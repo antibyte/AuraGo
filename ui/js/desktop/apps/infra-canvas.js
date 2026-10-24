@@ -36,7 +36,7 @@
     };
 
     function create(app) {
-        const { model, store, t, esc } = app;
+        const { model, lanes, store, t, esc } = app;
         const S = app.safeId;
         const holder = document.createElement('div');
         holder.innerHTML = `<section class="infra-canvas" data-canvas aria-label="${esc(t('desktop.infra_map_label'))}">
@@ -532,7 +532,7 @@
             let sig = '';
             for (const node of nodes) { const p = placementOf(node.id); if (p) sig += `${node.id}:${Math.round(p.x)},${Math.round(p.y)}\x1f`; }
             if (autoMemo.nodes === nodes && autoMemo.edges === edges && autoMemo.sig === sig) return autoMemo.value;
-            const value = model.topologyAutoPositions(nodes, edges, { placementOf, guests: store.guests() });
+            const value = lanes.topologyAutoPositions(nodes, edges, { placementOf, guests: store.guests() });
             autoMemo = { nodes, edges, sig, value };
             return value;
         }
@@ -577,6 +577,10 @@
             const auto = view === 'topology' ? topologyAuto() : null;
             last = model.buildScene({ nodes: store.state.nodes, edges: store.state.edges, view,
                 placementOf: id => store.effectivePlacement(id, view) || auto?.get(id) || null, parentOf: id => store.effectiveParent(id, view), guests: store.guests() });
+            if (view === 'topology') {
+                last.lanes = lanes.laneBands(last.bounds);
+                last.bounds = model.unionRects([last.bounds, ...last.lanes.map(lane => lane.rect)]);
+            }
             patchLanes(last.lanes || []); patchRegions(last.regions, force); patchCards(last.cards, force); patchLines(last.lines, force);
             if (mapDirty) { mapDirty = false; revision += 1; }
             paintOverlays(paintStates()); ensureInitialView();

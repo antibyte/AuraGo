@@ -60,7 +60,7 @@
     const readingOrder = cards => cards.slice().sort((a, b) => a.y - b.y || a.x - b.x);
 
     function create(app) {
-        const { store, state, t, model, root } = app;
+        const { store, state, t, model, lanes, root } = app;
         const canvas = app.canvas, viewport = canvas.viewport;
         const touches = new Map();
         let gesture = null, moveMode = null, pinch = null, spaceDown = false, spaceUsed = false, suppressClick = false, suppressTimer = 0, attached = false;
@@ -135,8 +135,8 @@
             const laneMove = (() => {
                 if (view !== 'topology' || kind !== 'move' || plan.moves.length !== 1) return null;
                 const id = plan.moves[0].id, card = canvas.sceneData().cardById.get(id), to = plan.after.get(id);
-                if (!card || !to || model.laneAt(card.y) === model.laneAt(to.y)) return null;
-                return model.fill(t('desktop.infra_moved_to_lane'), { name: name(id), lane: app.laneLabel(model.topologyLanes()[model.laneAt(to.y)]) });
+                if (!card || !to || lanes.laneAt(card.y) === lanes.laneAt(to.y)) return null;
+                return model.fill(t('desktop.infra_moved_to_lane'), { name: name(id), lane: app.laneLabel(lanes.topologyLanes()[lanes.laneAt(to.y)]) });
             })();
             const label = laneMove || (kind === 'place'
                 ? (plan.moves.length === 1 ? t('desktop.infra_placed').replace('{name}', name(plan.moves[0].id)) : t('desktop.infra_placed_many').replace('{count}', plan.moves.length))
@@ -268,7 +268,7 @@
                 if (!started) return;
                 canvas.moveTemp(positions);
                 canvas.setDropTarget(view === 'atlas' ? model.regionAt(positions.get(id), scene.regionRects, scene.regionDepth) : '');
-                if (view === 'topology') canvas.setLaneTarget(model.laneAt(positions.get(id).y));
+                if (view === 'topology') canvas.setLaneTarget(lanes.laneAt(positions.get(id).y));
             });
             begin(event, ev => {
                 if (!started) {
@@ -606,7 +606,7 @@
             const positions = new Map(moveMode.ids.map(id => [id, { x: moveMode.origin.get(id).x + moveMode.dx, y: moveMode.origin.get(id).y + moveMode.dy }]));
             canvas.moveTemp(positions);
             if (moveMode.view === 'atlas') canvas.setDropTarget(model.regionAt(positions.get(moveMode.ids[0]), scene.regionRects, scene.regionDepth));
-            else if (moveMode.view === 'topology') canvas.setLaneTarget(model.laneAt(positions.get(moveMode.ids[0]).y));
+            else if (moveMode.view === 'topology') canvas.setLaneTarget(lanes.laneAt(positions.get(moveMode.ids[0]).y));
         }
         // enterMoveMode starts the keyboard move of assets, or of one place with everything inside it.
         function enterMoveMode(ids) {
@@ -853,7 +853,7 @@
         function arrangeTopology() {
             if (!store.canWrite()) return;
             const view = 'topology', scene = canvas.sceneData();
-            const positions = model.topologyArrange({ cards: scene.cards, selection: state.selection, nodeById: store.nodeById, edges: state.edges, guestsOf: store.guests().guestsOf, placementOf: id => store.effectivePlacement(id, view) });
+            const positions = lanes.topologyArrange({ cards: scene.cards, selection: state.selection, nodeById: store.nodeById, edges: state.edges, guestsOf: store.guests().guestsOf, placementOf: id => store.effectivePlacement(id, view) });
             if (!positions.size) return;
             const before = new Map(), after = new Map();
             let undoable = true;
