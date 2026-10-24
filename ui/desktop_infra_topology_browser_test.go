@@ -132,7 +132,7 @@ func TestDesktopInfraTopologyBrowser(t *testing.T) {
 	page.MustEval(`()=>document.querySelector('[data-action="fit"]').click()`)
 	infraPanelsCenter(page, `[data-lane="network"]`)
 
-	const wantAuto = `{"inet":"-120px,96px","ont":"120px,96px","router":"-240px,576px","switch":"0px,576px","ap":"240px,576px","nas":"-120px,1056px","pve":"120px,1056px","tv":"-120px,1536px","laptop":"120px,1536px"}`
+	const wantAuto = `{"inet":"-120px,96px","ont":"120px,96px","router":"-240px,480px","switch":"0px,480px","ap":"240px,480px","nas":"-120px,864px","pve":"120px,864px","tv":"-120px,1248px","laptop":"120px,1248px"}`
 	if got := page.MustEval(`()=>JSON.stringify(Object.fromEntries(['inet','ont','router','switch','ap','nas','pve','tv','laptop'].map(id=>{const card=document.querySelector('[data-node="'+id+'"]');return [id,card?card.style.left+','+card.style.top:'missing'];})))`).Str(); got != wantAuto {
 		t.Fatalf("topology auto layout = %s; want %s", got, wantAuto)
 	}
@@ -157,8 +157,8 @@ func TestDesktopInfraTopologyBrowser(t *testing.T) {
 		t.Fatalf("dragging into another lane must save a pinned topology placement: %#v", calls[0])
 	}
 	droppedY, _ := tv["y"].(float64)
-	if droppedY < 480 || droppedY >= 960 || int(droppedY)%24 != 0 {
-		t.Fatalf("the card landed at y=%v; want a grid point inside the network lane (480-959)", droppedY)
+	if droppedY < 384 || droppedY >= 768 || int(droppedY)%24 != 0 {
+		t.Fatalf("the card landed at y=%v; want a grid point inside the network lane (384-767)", droppedY)
 	}
 	page.MustWait(`()=>!document.querySelector('[data-lane].is-drop-target')`)
 
@@ -174,10 +174,10 @@ func TestDesktopInfraTopologyBrowser(t *testing.T) {
 		t.Fatalf("Arrange without a selection must save all nine cards in one call: %#v", arranged)
 	}
 	for id, want := range map[string][3]any{
-		"tv":     {float64(360), float64(576), true},
-		"router": {float64(-360), float64(576), false},
+		"tv":     {float64(360), float64(480), true},
+		"router": {float64(-360), float64(480), false},
 		"inet":   {float64(-120), float64(96), false},
-		"laptop": {float64(0), float64(1536), false},
+		"laptop": {float64(0), float64(1248), false},
 	} {
 		got := item(arranged, id)
 		if got == nil || got["x"] != want[0] || got["y"] != want[1] || got["pinned"] != want[2] {
@@ -195,7 +195,7 @@ func TestDesktopInfraTopologyBrowser(t *testing.T) {
 	if got := item(undone, "tv"); got == nil || got["y"] != droppedY || got["pinned"] != true {
 		t.Fatalf("undoing Arrange must put the dragged card back: %#v", undone)
 	}
-	page.MustWait(`()=>{const card=document.querySelector('[data-node="router"]');return card.style.left==='-240px'&&card.style.top==='576px';}`)
+	page.MustWait(`()=>{const card=document.querySelector('[data-node="router"]');return card.style.left==='-240px'&&card.style.top==='480px';}`)
 	closeInfraBrowserWindow(t, page)
 	requireInfraBrowserClean(t, page)
 }

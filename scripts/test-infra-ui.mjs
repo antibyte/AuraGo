@@ -393,7 +393,8 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
 // A4: regions are neutral; only the drop target, the selection and the hovered header carry the accent.
 {
     const region = cssRule('.infra-region');
-    assert.ok(region.includes('border: 1.5px solid var(--vd-theme-border)'), 'a region is outlined with the theme border');
+    assert.ok(region.includes('border: calc(var(--infra-ring, 2px) * .75) solid var(--infra-outline)'), 'a region is outlined with the visible outline token, 1.5 px on screen');
+    assert.ok(fs.readFileSync(path.join(root, 'ui/css/desktop-app-infra.css'), 'utf8').includes('--infra-outline: color-mix(in srgb, var(--vd-text) 16%, var(--vd-theme-border))'), 'A25: the outline mixes the theme text colour into the theme border so it shows in dark themes');
     assert.ok(region.includes('background: color-mix(in srgb, var(--vd-theme-panel-bg) 45%, transparent)'), 'a region is filled with a neutral panel tint');
     assert.ok(!/var\(--vd-accent\)/.test(region) && !/\.infra-region\[data-depth/.test(canvasCSS), 'the accent never tints a plain region');
     for (const selector of ['.infra-region.is-selected', '.infra-region.is-drop-target', '.infra-region-header:hover']) assert.ok(/accent/.test(cssRule(selector)), `${selector} keeps the accent`);
@@ -1306,16 +1307,16 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
     { // Topology: an auto-laid card moves between lanes, pins where it lands and undoes back to the automatic layout
         const topo = [card('router', 0, 0, { placements: {} }), card('laptop', 0, 0, { icon: 'laptop', name: 'Laptop', placements: {} })];
         const w = world({ nodes: topo, selection: ['laptop'], focus: 'laptop', view: 'topology', sourceHosts: [] });
-        assert.deepEqual(plain(w.gl.topologyAutoPositions(w.store.state.nodes, [], { placementOf: () => null, guests: w.store.guests() }).get('laptop')), { x: 0, y: 1536, pinned: false }, 'the laptop starts in the clients lane');
+        assert.deepEqual(plain(w.gl.topologyAutoPositions(w.store.state.nodes, [], { placementOf: () => null, guests: w.store.guests() }).get('laptop')), { x: 0, y: 1248, pinned: false }, 'the laptop starts in the clients lane (lane 3 top 1152 plus 96)');
         w.press('m');
         for (let step = 0; step < 5; step += 1) w.press('ArrowUp');
-        assert.equal(w.temps.at(-1).cards.get('laptop').y, 1416, 'the move starts from the drawn slot, not from a stored placement');
+        assert.equal(w.temps.at(-1).cards.get('laptop').y, 1128, 'the move starts from the drawn slot, not from a stored placement (1248 - 5 * 24)');
         assert.equal(w.laneTargets.at(-1), 2, 'the lane the card would land in is highlighted');
         w.press('Enter');
         assert.equal(w.laneTargets.at(-1), -1, 'the highlight is cleared');
         assert.equal(w.announced.at(-1), 'desktop.infra_moved_to_lane', 'a lane change is announced');
         await sleep(30);
-        assert.deepEqual(plain(itemOf(w.puts[0], 'laptop')), { id: 'laptop', version: 1, x: 0, y: 1416, pinned: true });
+        assert.deepEqual(plain(itemOf(w.puts[0], 'laptop')), { id: 'laptop', version: 1, x: 0, y: 1128, pinned: true });
         assert.equal(w.store.effectivePlacement('laptop', 'topology').pinned, true);
         assert.equal(w.store.canUndo('topology'), true, 'the first move of an auto-laid card is undoable');
         await w.store.undo('topology');
@@ -1443,13 +1444,13 @@ for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     assert.equal(lane('tv', { profile: { role: 'chromecast' } }), 'clients');
     assert.equal(lanes.topologyLane({ kind: 'service', icon: 'web-service', profile: {} }), 'clients', 'everything else is a client');
     assert.equal(lanes.topologyLaneIndex('compute'), 2);
-    assert.deepEqual([-50, 0, 479, 480, 1919, 5000, 'x'].map(y => lanes.laneAt(y)), [0, 0, 0, 1, 3, 3, 3]);
-    assert.deepEqual(plain(lanes.laneBands({ x: -404, y: 66, w: 832, h: 1500 })), [
-        { id: 'internet', index: 0, rect: { x: -696, y: 0, w: 1440, h: 480 } },
-        { id: 'network', index: 1, rect: { x: -696, y: 480, w: 1440, h: 480 } },
-        { id: 'compute', index: 2, rect: { x: -696, y: 960, w: 1440, h: 480 } },
-        { id: 'clients', index: 3, rect: { x: -696, y: 1440, w: 1440, h: 480 } },
-    ], 'lanes span the cards with 240 px to spare and are at least 1440 px wide');
+    assert.deepEqual([-50, 0, 383, 384, 1535, 5000, 'x'].map(y => lanes.laneAt(y)), [0, 0, 0, 1, 3, 3, 3], 'lanes are 384 px tall');
+    assert.deepEqual(plain(lanes.laneStripes()), [
+        { id: 'internet', index: 0, rect: { x: -50000, y: 0, w: 100000, h: 384 } },
+        { id: 'network', index: 1, rect: { x: -50000, y: 384, w: 100000, h: 384 } },
+        { id: 'compute', index: 2, rect: { x: -50000, y: 768, w: 100000, h: 384 } },
+        { id: 'clients', index: 3, rect: { x: -50000, y: 1152, w: 100000, h: 384 } },
+    ], 'the stripes are fixed world rects far wider than any content');
 
     const topo = [
         { id: 'inet', kind: 'device', name: 'Internet', icon: 'internet', profile: {} },
@@ -1475,20 +1476,27 @@ for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     const layout = lanes.topologyLayout(topo, topoEdges, { laneOf });
     assert.deepEqual(asObject(layout), {
         inet: { x: -120, y: 96, pinned: false }, ont: { x: 120, y: 96, pinned: false },
-        router: { x: -240, y: 576, pinned: false }, switch: { x: 0, y: 576, pinned: false }, ap: { x: 240, y: 576, pinned: false },
-        nas: { x: -120, y: 1056, pinned: false }, pve: { x: 120, y: 1056, pinned: false },
-        tv: { x: -120, y: 1536, pinned: false }, laptop: { x: 120, y: 1536, pinned: false },
-    }, 'lanes in connection order, parents before children, rows centred');
+        router: { x: -240, y: 480, pinned: false }, switch: { x: 0, y: 480, pinned: false }, ap: { x: 240, y: 480, pinned: false },
+        nas: { x: -120, y: 864, pinned: false }, pve: { x: 120, y: 864, pinned: false },
+        tv: { x: -120, y: 1248, pinned: false }, laptop: { x: 120, y: 1248, pinned: false },
+    }, 'lanes in connection order, parents before children, rows centred; the first row of lane i is at 384 i + 96');
     assert.deepEqual(asObject(lanes.topologyLayout(topo.slice().reverse(), topoEdges.slice().reverse(), { laneOf })), asObject(layout), 'input order does not change the layout');
     assert.deepEqual(asObject(lanes.topologyLayout(topo, topoEdges.slice(0, 8), { laneOf })), asObject(layout), 'dependencies do not order the layout; only Ethernet, fiber and Wi-Fi do');
     const overridden = lanes.topologyLayout(topo, topoEdges, { laneOf: node => (node.id === 'tv' ? 1 : laneOf(node)) });
-    assert.deepEqual(plain(overridden.get('tv')), { x: 360, y: 576, pinned: false }, 'a lane override moves the card and keeps its connection order');
-    assert.deepEqual(plain(overridden.get('router')), { x: -360, y: 576, pinned: false });
-    assert.deepEqual(plain(overridden.get('laptop')), { x: 0, y: 1536, pinned: false });
+    assert.deepEqual(plain(overridden.get('tv')), { x: 360, y: 480, pinned: false }, 'a lane override moves the card and keeps its connection order');
+    assert.deepEqual(plain(overridden.get('router')), { x: -360, y: 480, pinned: false });
+    assert.deepEqual(plain(overridden.get('laptop')), { x: 0, y: 1248, pinned: false });
     const clients = Array.from({ length: 10 }, (_, i) => ({ id: `c${i}`, kind: 'device', name: `Client ${String(i).padStart(2, '0')}`, icon: 'laptop', profile: {} }));
     const wrapped = lanes.topologyLayout(clients, []);
-    assert.deepEqual(plain(wrapped.get('c4')), { x: 480, y: 1536, pinned: false });
-    assert.deepEqual(plain(wrapped.get('c5')), { x: -480, y: 1632, pinned: false }, 'ten cards wrap into two centred rows of five');
+    // columns per row = max(8, ceil(n / 2)): ten cards make a row of eight (x -840 + 240 i) and a centred row of two, 144 px below.
+    assert.deepEqual(plain(wrapped.get('c4')), { x: 120, y: 1248, pinned: false });
+    assert.deepEqual(plain(wrapped.get('c7')), { x: 840, y: 1248, pinned: false });
+    assert.deepEqual(plain(wrapped.get('c8')), { x: -120, y: 1392, pinned: false }, 'ten cards wrap into a row of eight and a row of two');
+    assert.deepEqual(plain(wrapped.get('c9')), { x: 120, y: 1392, pinned: false });
+    // a lane that would need a third row widens its rows instead: 17 cards are two rows of nine (x -960 + 240 i) and eight
+    const wide = lanes.topologyLayout(Array.from({ length: 17 }, (_, i) => ({ id: `w${String(i).padStart(2, '0')}`, kind: 'device', name: `Wide ${String(i).padStart(2, '0')}`, icon: 'laptop', profile: {} })), []);
+    assert.deepEqual(plain([wide.get('w00'), wide.get('w08'), wide.get('w09'), wide.get('w16')]), [{ x: -960, y: 1248, pinned: false }, { x: 960, y: 1248, pinned: false }, { x: -840, y: 1392, pinned: false }, { x: 840, y: 1392, pinned: false }], 'no lane ever has a third row');
+    assert.equal(new Set([...wide.values()].map(pos => pos.y)).size, 2);
     for (const pos of layout.values()) assert.ok(pos.x % model.GRID === 0 && pos.y % model.GRID === 0, 'auto slots are grid points');
     const nudged = lanes.topologyLayout(topo.slice(0, 2), [topoEdges[0]], { laneOf, obstacles: [model.cardRect({ x: -120, y: 96 })] });
     assert.deepEqual(asObject(nudged), { inet: { x: -120, y: 24, pinned: false }, ont: { x: 120, y: 96, pinned: false } }, 'a slot under a card that stays moves to the nearest free grid point');
@@ -1501,27 +1509,25 @@ for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     const autoGuests = model.guestIndex(autoNodes, []);
     const far = { ont: { x: 2000, y: 96, pinned: true } };
     const auto = lanes.topologyAutoPositions(autoNodes, topoEdges.slice(0, 2), { placementOf: id => far[id] || null, guests: autoGuests });
-    assert.deepEqual(asObject(auto), { inet: { x: -120, y: 96, pinned: false }, router: { x: 0, y: 576, pinned: false } }, 'placed assets, places, guests and hostless containers get no auto slot');
+    assert.deepEqual(asObject(auto), { inet: { x: -120, y: 96, pinned: false }, router: { x: 0, y: 480, pinned: false } }, 'placed assets, places, guests and hostless containers get no auto slot');
     const onSlot = { ont: { x: -120, y: 96, pinned: true } };
     assert.deepEqual(plain(lanes.topologyAutoPositions(autoNodes, topoEdges.slice(0, 2), { placementOf: id => onSlot[id] || null, guests: autoGuests }).get('inet')), { x: -120, y: 24, pinned: false }, 'an auto slot under a placed card moves aside');
     const sceneTopo = model.buildScene({ nodes: autoNodes, edges: topoEdges.slice(0, 2), view: 'topology', placementOf: id => far[id] || auto.get(id) || null, parentOf: () => '', guests: autoGuests });
     assert.deepEqual(plain(sceneTopo.cards.map(card => card.id)), ['inet', 'ont', 'router']);
-    assert.deepEqual(plain(sceneTopo.bounds), { x: -228, y: 64, w: 2336, h: 544 }, 'the scene bounds are the drawn cards');
-    const bands = lanes.laneBands(sceneTopo.bounds);
-    assert.deepEqual(plain(bands.map(item => item.id)), ['internet', 'network', 'compute', 'clients']);
-    assert.deepEqual(plain(bands[1].rect), { x: -480, y: 480, w: 2832, h: 480 }, 'cards span x -228..2108 (2336 wide); 240 px to spare each side, rounded up to the 24 px grid');
+    assert.deepEqual(plain(sceneTopo.bounds), { x: -228, y: 64, w: 2336, h: 448 }, 'the scene bounds are the drawn cards only; the stripes never widen fit or the minimap');
+    assert.equal(sceneTopo.lanes, undefined, 'the scene knows no lanes');
 
-    const cards = [...layout].map(([id, pos]) => ({ id, x: pos.x, y: id === 'tv' ? 720 : pos.y }));
+    const cards = [...layout].map(([id, pos]) => ({ id, x: pos.x, y: id === 'tv' ? 720 : pos.y })); // 720 is inside lane 1 (384-767)
     const stored = { tv: { x: -120, y: 720, pinned: true }, nas: { x: -120, y: 1056, pinned: false } };
     const nodeById = id => topo.find(node => node.id === id);
     const arranged = lanes.topologyArrange({ cards, nodeById, edges: topoEdges, guestsOf, placementOf: id => stored[id] || null });
     assert.equal(arranged.size, 9, 'without a selection every card is arranged');
-    assert.deepEqual(plain(arranged.get('tv')), { x: 360, y: 576, pinned: true }, 'a dragged card keeps its lane and stays pinned');
-    assert.deepEqual(plain(arranged.get('router')), { x: -360, y: 576, pinned: false });
-    assert.deepEqual(plain(arranged.get('laptop')), { x: 0, y: 1536, pinned: false });
-    assert.deepEqual(plain(arranged.get('nas')), { x: -120, y: 1056, pinned: false }, 'an arranged, unpinned card follows its type');
+    assert.deepEqual(plain(arranged.get('tv')), { x: 360, y: 480, pinned: true }, 'a dragged card keeps its lane and stays pinned');
+    assert.deepEqual(plain(arranged.get('router')), { x: -360, y: 480, pinned: false });
+    assert.deepEqual(plain(arranged.get('laptop')), { x: 0, y: 1248, pinned: false });
+    assert.deepEqual(plain(arranged.get('nas')), { x: -120, y: 864, pinned: false }, 'an arranged, unpinned card follows its type');
     const selected = lanes.topologyArrange({ cards, selection: new Set(['tv', 'laptop']), nodeById, edges: topoEdges, guestsOf, placementOf: id => stored[id] || null });
-    assert.deepEqual(asObject(selected), { tv: { x: 0, y: 504, pinned: true }, laptop: { x: 0, y: 1536, pinned: false } }, 'a selection is arranged around its mean x and around the other cards (switch sits at 0,576)');
+    assert.deepEqual(asObject(selected), { tv: { x: 0, y: 408, pinned: true }, laptop: { x: 0, y: 1248, pinned: false } }, 'a selection is arranged around its mean x and around the other cards (the switch sits at 0,480, so the slot moves 72 px up)');
 }
 
 console.log(`Infra UI model, grouped virtualization, and ${required.size} translation keys passed for ${locales.length} locales.`);

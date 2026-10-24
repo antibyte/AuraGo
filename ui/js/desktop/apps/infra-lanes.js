@@ -4,16 +4,20 @@
 (function () {
     'use strict';
 
-    const { GRID, snap, cardRect, freeSlot, isContainer, naturalCompare } = window.InfraAppModel;
+    const { snap, cardRect, freeSlot, isContainer, naturalCompare } = window.InfraAppModel;
     const finite = value => (value === null || value === undefined || value === '' || !Number.isFinite(Number(value)) ? null : Number(value));
 
     // ---- topology lanes and auto layout (spec §6) --------------------------------
     // Four fixed horizontal world bands, LANE_H px tall, from y = 0. A card the
     // user placed (pinned) belongs to the lane its centre y is in (laneAt);
     // every other card belongs to topologyLane(node). Auto rows sit LANE_CELL_W
-    // apart: the 216 px card plus one 24 px grid cell.
+    // apart: the 216 px card plus one 24 px grid cell. A lane holds two rows: their
+    // centres are LANE_ROW0 and LANE_ROW0 + LANE_ROW_H below the lane top (A17).
     const TOPOLOGY_LANES = ['internet', 'network', 'compute', 'clients'];
-    const LANE_H = 480, LANE_ROW0 = 96, LANE_ROW_H = 96, LANE_CELL_W = 240, LANE_PAD_X = 240, LANE_MIN_W = 1440;
+    const LANE_H = 384, LANE_ROW0 = 96, LANE_ROW_H = 144, LANE_CELL_W = 240;
+    // The stripes of the lanes reach LANE_EXTENT world px to both sides of x = 0 (A18); their labels keep
+    // LANE_LABEL_INSET screen px from the left edge of the viewport.
+    const LANE_EXTENT = 50000, LANE_LABEL_INSET = 12;
     const PHYSICAL_EDGES = new Set(['ethernet', 'fiber', 'wifi']);
     const LANE_ICONS = {
         internet: ['internet', 'modem-ont'],
@@ -40,22 +44,17 @@
     };
     const topologyLaneIndex = lane => Math.max(0, TOPOLOGY_LANES.indexOf(lane));
     const laneAt = y => { const n = Number(y); return Number.isFinite(n) ? Math.min(TOPOLOGY_LANES.length - 1, Math.max(0, Math.floor(n / LANE_H))) : TOPOLOGY_LANES.length - 1; };
-    // laneBands spans the four lanes across box (the drawn cards) with
-    // LANE_PAD_X to spare on both sides, at least LANE_MIN_W wide.
-    const laneBands = box => {
-        const centre = box ? box.x + box.w / 2 : 0;
-        const width = Math.ceil(Math.max(LANE_MIN_W, box ? box.w + LANE_PAD_X * 2 : 0) / GRID) * GRID;
-        const x = snap(centre - width / 2);
-        return TOPOLOGY_LANES.map((id, index) => ({ id, index, rect: { x, y: index * LANE_H, w: width, h: LANE_H } }));
-    };
+    // laneStripes: the four swimlanes as full-width world stripes, far wider than any content. They are
+    // decoration: never part of the scene bounds, fit, minimap or hit tests.
+    const laneStripes = () => TOPOLOGY_LANES.map((id, index) => ({ id, index, rect: { x: -LANE_EXTENT, y: index * LANE_H, w: LANE_EXTENT * 2, h: LANE_H } }));
     const laneRank = node => LANE_ICON_INDEX.get(node?.icon)?.rank ?? 99;
     // topologyLayout puts nodes into their lanes (laneOf → index) in connection
     // order: a breadth-first walk over Ethernet, fiber and Wi-Fi edges, started
     // from the top lane, numbers the nodes, so parents come before children.
-    // A lane holds up to maxRows rows of up to maxColumns cards (more widen the
-    // rows); every row is centred on centerX. obstacles are rects of cards that
+    // A lane holds up to two rows of maxColumns cards; a lane that would need a third row widens its
+    // rows instead (columns = max(maxColumns, ceil(n / 2)), A17). Every row is centred on centerX. obstacles are rects of cards that
     // stay put; a slot under one moves to the nearest free grid point.
-    const topologyLayout = (nodes, edges, { laneOf = node => topologyLaneIndex(topologyLane(node)), obstacles = [], centerX = 0, maxColumns = 8, maxRows = 4 } = {}) => {
+    const topologyLayout = (nodes, edges, { laneOf = node => topologyLaneIndex(topologyLane(node)), obstacles = [], centerX = 0, maxColumns = 8 } = {}) => {
         const list = (nodes || []).filter(node => node && node.id);
         const byId = new Map(list.map(node => [node.id, node]));
         const lane = new Map(list.map(node => [node.id, Math.min(TOPOLOGY_LANES.length - 1, Math.max(0, Math.trunc(Number(laneOf(node))) || 0))]));
@@ -85,8 +84,7 @@
         const nudge = (obstacles || []).length > 0, placed = nudge ? obstacles.slice() : [], out = new Map();
         lanes.forEach((members, index) => {
             members.sort((a, b) => order.get(a.id) - order.get(b.id));
-            const rows = Math.max(1, Math.min(maxRows, Math.ceil(members.length / maxColumns)));
-            const columns = Math.max(1, Math.ceil(members.length / rows));
+            const columns = Math.max(maxColumns, Math.ceil(members.length / 2));
             members.forEach((node, i) => {
                 const row = Math.floor(i / columns), inRow = Math.min(columns, members.length - row * columns);
                 const want = { x: snap(centerX - (inRow - 1) * LANE_CELL_W / 2) + (i % columns) * LANE_CELL_W, y: index * LANE_H + LANE_ROW0 + row * LANE_ROW_H };
@@ -136,6 +134,6 @@
     };
 
     window.InfraAppLanes = {
-        topologyLanes: () => [...TOPOLOGY_LANES], LANE_H, topologyLane, topologyLaneIndex, laneAt, laneBands, topologyLayout, topologyAutoPositions, topologyArrange,
+        topologyLanes: () => [...TOPOLOGY_LANES], LANE_H, LANE_EXTENT, LANE_LABEL_INSET, topologyLane, topologyLaneIndex, laneAt, laneStripes, topologyLayout, topologyAutoPositions, topologyArrange,
     };
 })();

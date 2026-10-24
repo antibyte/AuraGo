@@ -25,7 +25,7 @@
     const MM = { w: 160, h: 104 };
     const px = value => `${value}px`;
     const round1 = value => Math.round(value * 10) / 10;
-    const emptyScene = () => ({ cards: [], cardById: new Map(), regions: [], regionRects: new Map(), regionDepth: new Map(), lines: [], lanes: [], bounds: null });
+    const emptyScene = () => ({ cards: [], cardById: new Map(), regions: [], regionRects: new Map(), regionDepth: new Map(), lines: [], bounds: null });
     // frame coalesces many requests into one requestAnimationFrame callback.
     const frame = fn => {
         let id = 0;
@@ -38,12 +38,14 @@
     function create(app) {
         const { model, lanes, store, t, esc } = app;
         const S = app.safeId;
+        // The four swimlane stripes are static (A18): built once, shown in Topology only.
+        const stripeMarkup = lanes.laneStripes().map(lane => `<div class="infra-lane" data-lane="${lane.id}" data-lane-index="${lane.index}"><span class="infra-lane-label">${esc(app.laneLabel(lane.id))}</span></div>`).join('');
         const holder = document.createElement('div');
         holder.innerHTML = `<section class="infra-canvas" data-canvas aria-label="${esc(t('desktop.infra_map_label'))}">
   <div class="infra-viewport" data-stage tabindex="0" role="application" data-tool="select" aria-roledescription="${esc(t('desktop.infra_map_role'))}" aria-label="${esc(t('desktop.infra_map_label'))}" aria-describedby="infra-canvas-help-${S}">
     <div class="infra-canvas-grid" aria-hidden="true"></div>
     <div class="infra-scene" data-scene>
-      <div class="infra-lanes" data-lanes aria-hidden="true"></div>
+      <div class="infra-lanes" data-lanes aria-hidden="true" hidden>${stripeMarkup}</div>
       <div class="infra-regions" data-regions></div>
       <svg class="infra-edges" data-edges width="1" height="1" viewBox="0 0 1 1" overflow="visible" aria-hidden="true" focusable="false"><g data-edge-layer></g><path class="infra-edge-preview" data-edge-preview d=""></path></svg>
       <div class="infra-nodes" data-nodes></div>
@@ -97,7 +99,7 @@
         // centre of that size, even when the view was set between the layout change and the observer callback.
         const viewSize = { atlas: null, topology: null };
         const cardEls = new Map(), regionEls = new Map(), lineEls = new Map(), laneEls = new Map();
-        let laneTarget = -1, autoMemo = { nodes: null, edges: null, sig: '', value: new Map() };
+        let laneTarget = -1, laneShift = NaN, laneWidth = NaN, autoMemo = { nodes: null, edges: null, sig: '', value: new Map() };
         const temp = { cards: new Set(), regions: new Set(), lines: new Set() };
         const ghosts = new Set();
         let last = emptyScene(), linesByEnd = new Map(), lineGeom = new Map();
@@ -106,6 +108,11 @@
         const persistKeys = new Set();
         let mmTransform = null, mmFrozen = null, mmDragging = false, mmSelected = new Set();
         const mmCardEls = new Map();
+        for (const lane of lanes.laneStripes()) {
+            const band = lanesEl.querySelector(`[data-lane="${lane.id}"]`), r = lane.rect;
+            Object.assign(band.style, { left: px(r.x), top: px(r.y), width: px(r.w), height: px(r.h) });
+            laneEls.set(lane.id, { band, index: lane.index });
+        }
 
         const curKey = () => app.mapView();
         const getView = () => views[curKey()] || { x: 0, y: 0, zoom: 1 };
@@ -131,6 +138,7 @@
             gridEl.style.backgroundSize = `${model.GRID * v.zoom}px ${model.GRID * v.zoom}px`;
             gridEl.style.backgroundPosition = `${v.x}px ${v.y}px`;
             paintLevels(v.zoom);
+            paintLaneLabels(v);
             const pct = `${Math.round(v.zoom * 100)}%`;
             if (pctShown !== pct) {
                 pctShown = pct;
@@ -138,6 +146,16 @@
                 zoomButton.setAttribute('aria-label', `${t('desktop.infra_zoom_reset')} · ${pct}`);
             }
             drawMinimap();
+        }
+        // paintLaneLabels keeps the lane labels at the left edge of the viewport (A18): the shift is a world x
+        // relative to the stripes' left end, set once per frame on the lanes layer (no scene re-render); the width
+        // caps a label at the viewport width.
+        function paintLaneLabels(v) {
+            if (lanesEl.hidden) return;
+            const shift = Math.min(Math.max(Math.round(((lanes.LANE_LABEL_INSET - v.x) / v.zoom + lanes.LANE_EXTENT) * 2) / 2, 0), lanes.LANE_EXTENT * 2 - 2000);
+            if (shift !== laneShift) { laneShift = shift; lanesEl.style.setProperty('--infra-lane-x', px(shift)); }
+            const width = Math.max(120, Math.round((size().w - lanes.LANE_LABEL_INSET * 2) / v.zoom));
+            if (width !== laneWidth) { laneWidth = width; lanesEl.style.setProperty('--infra-lane-w', px(width)); }
         }
         // paintLevels applies the semantic zoom (A1): the card form, the labels' counter-scale and the handles. It
         // runs once per change of a level, not once per frame; the form switch fades the card content in.
@@ -536,35 +554,13 @@
             autoMemo = { nodes, edges, sig, value };
             return value;
         }
-        function patchLanes(lanes) {
-            const live = new Set();
-            for (const lane of lanes) {
-                live.add(lane.id);
-                let entry = laneEls.get(lane.id);
-                if (!entry) {
-                    const band = document.createElement('div');
-                    band.className = 'infra-lane';
-                    band.dataset.lane = lane.id;
-                    band.dataset.laneIndex = String(lane.index);
-                    band.innerHTML = `<span class="infra-lane-label">${esc(app.laneLabel(lane.id))}</span>`;
-                    lanesEl.append(band);
-                    entry = { band, index: lane.index, key: '' };
-                    laneEls.set(lane.id, entry);
-                }
-                const r = lane.rect, key = `${r.x},${r.y},${r.w},${r.h}`;
-                if (entry.key !== key) {
-                    entry.key = key;
-                    Object.assign(entry.band.style, { left: px(r.x), top: px(r.y), width: px(r.w), height: px(r.h) });
-                }
-                entry.band.classList.toggle('is-drop-target', entry.index === laneTarget);
-            }
-            for (const [id, entry] of laneEls) if (!live.has(id)) { entry.band.remove(); laneEls.delete(id); }
-        }
         // setLaneTarget highlights the lane a dragged card would land in (-1 clears).
         function setLaneTarget(index) {
             laneTarget = Number.isInteger(index) ? index : -1;
             for (const entry of laneEls.values()) entry.band.classList.toggle('is-drop-target', entry.index === laneTarget);
         }
+        // paintLaneLayer shows the stripes in Topology only.
+        function paintLaneLayer(view) { lanesEl.hidden = view !== 'topology'; }
         // isAutoPlaced: the card is drawn by the Topology auto layout, not saved.
         const isAutoPlaced = id => app.mapView() === 'topology' && last.cardById.has(id) && !store.effectivePlacement(id, 'topology');
         // autoPositions: the slots Topology computes for assets without a placement (empty in the Map view).
@@ -577,11 +573,7 @@
             const auto = view === 'topology' ? topologyAuto() : null;
             last = model.buildScene({ nodes: store.state.nodes, edges: store.state.edges, view,
                 placementOf: id => store.effectivePlacement(id, view) || auto?.get(id) || null, parentOf: id => store.effectiveParent(id, view), guests: store.guests() });
-            if (view === 'topology') {
-                last.lanes = lanes.laneBands(last.bounds);
-                last.bounds = model.unionRects([last.bounds, ...last.lanes.map(lane => lane.rect)]);
-            }
-            patchLanes(last.lanes || []); patchRegions(last.regions, force); patchCards(last.cards, force); patchLines(last.lines, force);
+            paintLaneLayer(view); patchRegions(last.regions, force); patchCards(last.cards, force); patchLines(last.lines, force);
             if (mapDirty) { mapDirty = false; revision += 1; }
             paintOverlays(paintStates()); ensureInitialView();
             viewport.classList.toggle('is-readonly', !store.canWrite());
