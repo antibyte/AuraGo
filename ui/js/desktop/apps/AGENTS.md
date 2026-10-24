@@ -151,6 +151,25 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - Selections made with the List checkboxes carry `state.selectionOrigin === 'check'`: in the List view the inspector
   stays closed for them and the bulk bar is the surface (below 1100 px the inspector is an overlay whose scrim would
   cover it). Every other `store.select` resets the origin. Clicking an asset's name still opens its panel.
+- Design QA batch D-fix-1 (amendments A1 to A16):
+  - Cards are 216x64 (`CARD_W`, `CARD_H`); a stacked card lands 72 px away (`freeSlot` gap 8), `compactGrid` cells are
+    240x96 and Arrange/Topology fall back to a 252x160 grid from (126, 100). The status glyph and the power dot ride on the icon.
+  - Semantic zoom lives in `InfraAppModel.zoomLevels(zoom, previousForm)`; `paintLevels` in infra-canvas.js applies it once
+    per level change. Classes on `[data-stage]`: `is-compact` (below 0.65, kept until 0.68), `is-tiny` (below 0.4),
+    `is-no-handles` (below 0.5), `is-zoom-low` (edge labels, below 0.75), `is-form-switching` (the fade, only while
+    `app.animationsEnabled()`). Names, region headers and lane labels are counter-scaled with a transform whose factor is the
+    CSS variable `--infra-name-k`, `--infra-header-k` or `--infra-lane-k` on `[data-scene]` (12, 13 and 13 px on screen at
+    the least); never change their font size per frame. `--infra-ring` keeps a compact icon's status ring visible. The
+    compact form changes no geometry.
+  - The minimap is a 168x112 panel without text; `model.sceneFits` hides it while the scene fits. Its toggle sits in the
+    tools cluster; the shown count is the toggle's `title` and the cluster's `aria-description`.
+  - A connection label that would sit on a card gets `is-label-clash` (`model.edgeLabelClash`) and shows on hover or
+    selection only; labels are hidden with `visibility` so they can be measured.
+  - Command bar: `fitFilterChips` shows the chips that fit and a `+N` chip (`data-filter-overflow`) that opens the filter
+    popover, the search keeps 220 px from 760 px up; below 560 px the search is the `open-search` icon and opens over the bar
+    (`data-search-open`, `app.focusSearch()`, which Ctrl K calls and which keeps the event from the desktop's Spotlight).
+  - `model.sourceLabels` numbers several instances of a source kind ("Docker 1"); the instance id only goes into a title.
+    `model.APP_LINK_TARGETS` is the one list of linkable apps.
 
 ## Synth Studio
 
