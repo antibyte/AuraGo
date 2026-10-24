@@ -228,9 +228,14 @@
             if (!guestList.length) return html;
             const running = guestList.filter(guest => guest.power === 'running').length;
             const toggleLabel = expanded ? t('desktop.infra_hide_guests') : t('desktop.infra_show_guests');
-            html += `<button type="button" class="infra-card-badge" data-toggle-host-services="${id}" tabindex="-1" aria-expanded="${expanded}" aria-controls="infra-guests-${S}-${safe}" aria-label="${esc(model.fill(toggleLabel, { name: node.name || node.id }))}">`
-                + `<span aria-hidden="true">▣</span> ${esc(model.fill(t('desktop.infra_guests_summary'), { count: guestList.length, running }))}</button>`;
             const sorted = guestList.slice().sort((a, b) => String(a.name).localeCompare(String(b.name)));
+            // "3 guests · 2 running", "1 guest · stopped"; the tooltip names the first five guests.
+            const summary = guestList.length === 1
+                ? (running ? t('desktop.infra_guests_badge_one') : t('desktop.infra_guests_badge_stopped_one'))
+                : (running ? t('desktop.infra_guests_badge') : t('desktop.infra_guests_badge_stopped'));
+            const names = sorted.slice(0, 5).map(guest => guest.name || guest.id).join(', ') + (sorted.length > 5 ? ` ${model.fill(t('desktop.infra_more_guests'), { count: sorted.length - 5 })}` : '');
+            html += `<button type="button" class="infra-card-badge" data-toggle-host-services="${id}" tabindex="-1" aria-expanded="${expanded}" aria-controls="infra-guests-${S}-${safe}" aria-label="${esc(model.fill(toggleLabel, { name: node.name || node.id }))}" title="${esc(model.fill(t('desktop.infra_guests_badge_title'), { names }))}">`
+                + `<span aria-hidden="true">▣</span> ${esc(model.fill(summary, { count: guestList.length, running }))}</button>`;
             const chips = sorted.slice(0, MAX_CHIPS).map(guest => `<button type="button" class="infra-guest-chip" data-hosted-service="${esc(guest.id)}" data-power="${esc(powerOf(guest))}" tabindex="-1" title="${esc(guest.name)}"><i aria-hidden="true"></i><span>${esc(guest.name)}</span></button>`).join('');
             const more = sorted.length > MAX_CHIPS ? `<button type="button" class="infra-guest-more" data-guest-more="${id}" tabindex="-1">${esc(model.fill(t('desktop.infra_more_guests'), { count: sorted.length - MAX_CHIPS }))}</button>` : '';
             return `${html}<div class="infra-guest-shelf" id="infra-guests-${S}-${safe}" data-guest-shelf="${id}" role="group" aria-label="${esc(model.fill(t('desktop.infra_guests_of'), { name: node.name || node.id }))}"${expanded ? '' : ' hidden'}>${chips}${more}</div>`;

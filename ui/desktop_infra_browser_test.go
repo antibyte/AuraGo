@@ -536,6 +536,10 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 			if !page.MustEval(`()=>{const button=document.querySelector('[data-toggle-host-services="fixture-node-0002"]'),shelf=button&&document.getElementById(button.getAttribute('aria-controls'));return button?.getAttribute('aria-expanded')==='false'&&shelf?.hidden&&!!shelf.querySelector('[data-hosted-service="fixture-node-0001"]');}`).Bool() {
 				t.Fatal("the host card did not expose a collapsed, accessible guest shelf")
 			}
+			// One guest that does not run reads "1 guest · stopped" (singular), and the tooltip lists the guest names.
+			if !page.MustEval(`()=>{const badge=document.querySelector('[data-toggle-host-services="fixture-node-0002"]'),words=window.fixtureWords;return badge.textContent.replace('▣','').trim()===words['desktop.infra_guests_badge_stopped_one']&&badge.title===words['desktop.infra_guests_badge_title'].replace('{names}','Public status');}`).Bool() {
+				t.Fatalf("the host badge must use the singular form and name its guest: %s", page.MustEval(`()=>{const badge=document.querySelector('[data-toggle-host-services="fixture-node-0002"]');return JSON.stringify([badge.textContent,badge.title]);}`).Str())
+			}
 			page.MustEval(`()=>document.querySelector('[data-toggle-host-services="fixture-node-0002"]').click()`)
 			page.MustWait(`()=>{const button=document.querySelector('[data-toggle-host-services="fixture-node-0002"]');return button.getAttribute('aria-expanded')==='true'&&!document.getElementById(button.getAttribute('aria-controls')).hidden;}`)
 			if count := page.MustEval(`()=>document.querySelectorAll('[data-nodes] [data-node]').length`).Int(); count != 23 {
