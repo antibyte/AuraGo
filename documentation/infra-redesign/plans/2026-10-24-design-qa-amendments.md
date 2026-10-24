@@ -63,3 +63,18 @@ supersede Plan D decisions 3, 5 and 6 and the `LANE_H`/`LANE_ROW_H` values of th
 | A25 (Q2) | Minimal dark: the region outline is invisible. | Region and lane separators use a border colour that stays visible in all 8 QA themes (for example `color-mix(in srgb, var(--vd-theme-text) 16%, var(--vd-theme-border))`); Task 8's theme test asserts a contrast ≥ 1.4:1 against the canvas. | Theme test. |
 | A26 (Q3) | With only filters active the empty map offers "Clear search"; library sections show bare "0" headers. | The empty-state action matches the cause: query only → "Clear search", filters only → "Reset filters", both → "Clear search and filters" (new keys where missing). Library sections under an active query or filter show one muted "No matches" line instead of a bare header. | Browser assertion for the filters-only case. |
 | A27 (Q4) | At 1110 px the search placeholder truncates because of the Ctrl K badge. | Hide the shortcut badge whenever the field is narrower than placeholder + badge (container query or measured class); the placeholder never truncates at ≥ 760 px container width in en and de. | Browser sweep 760–1500 px in en and de. |
+
+Resolution of A21: the `modem-ont` icon and the modem/ont/isp/wan/dsl role words stay in the Internet lane (existing
+contract; the amendment text was wrong there). `vpn` joins Network.
+
+## After D-fix-2 (2026-10-25)
+
+Source: D-fix-2 screenshots (Topology 1500×970 fit and 100 %, 1000×700; Map filters-only empty state). Owned by fix
+batch D-fix-3, which runs together with Plan D Tasks 6 and 7.
+
+| id | finding | required change | acceptance |
+|---|---|---|---|
+| A28 | A same-lane connection between non-adjacent cards runs straight behind the cards in between, so every pair of neighbours looks connected by a short stub. | Same-lane connections between cards that are not direct neighbours in their row are arcs above the row: from the top edge of one card to the top edge of the other, arc height clamp(24 + 0.12 × dx, 32, 56) world px, using the A19 slot spread on the top edges. Direct neighbours keep the straight segment. No connection is ever drawn behind an intermediate card in Topology. | Node test for the path helper (arc for a gap, straight for neighbours); screenshot without stubs between unconnected neighbours. |
+| A29 | Power and dependency connections inside a lane (UPS to every server) add clutter to the network view. | In Topology, network connections (ethernet, fiber, wifi) are always drawn; `powered_by` and `depends_on` connections are drawn only while one of their ends is selected or hovered (and always in the Map). Check which edge kinds the canvas draws today and keep membership kinds as they are. The legend or connection count must not claim hidden connections are missing: the inspector's Connections tab still lists them all. | Browser assertion: a power connection appears in Topology only when its end is selected. |
+| A30 | With a card selected, its connections look like every other connection; with filters active, connections of dimmed cards stay bright and run over the empty-state message. | Selection emphasis in both views: the selected card's connections use the accent stroke, sit above the others and the other connections fade to 35 % opacity; without a selection nothing changes. A connection with a dimmed (filtered out) end is dimmed like the cards. The empty-state message sits above the connection layer on its own surface. | Browser assertions for emphasis and for dimmed connections under a filter. |
+| A31 | Connections run over the lane labels. | Lane labels are drawn above the connection layer. | Visual check. |
