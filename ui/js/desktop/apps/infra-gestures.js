@@ -597,7 +597,7 @@
                 moveMode = { view, kind: 'cards', ids: cardIds, origin: new Map(cardIds.map(id => [id, { x: scene.cardById.get(id).x, y: scene.cardById.get(id).y }])), dx: 0, dy: 0 };
                 focusTarget = canvas.cardEl(cardIds[0]);
             } else if (ids.length === 1 && scene.regionRects.has(ids[0])) {
-                moveMode = { view, kind: 'region', ids: [], regionId: ids[0], family: subtree(ids[0], view, scene), dx: 0, dy: 0, dw: 0, dh: 0 };
+                moveMode = { view, kind: 'region', ids: [], regionId: ids[0], family: subtree(ids[0], view, scene), dx: 0, dy: 0, dw: 0, dh: 0, resizing: false };
                 focusTarget = canvas.regionEl(ids[0])?.querySelector('[data-region-header]');
             } else return false;
             store.beginInteraction();
@@ -633,8 +633,16 @@
             finishMoveMode(false);
             app.announce(t('desktop.infra_move_cancelled'));
         }
+        // R switches a place between moving and resizing; the arrows then do what the mode says.
         function onMoveKey(event) {
-            const resizing = moveMode.kind === 'region' && event.shiftKey && event.altKey;
+            if ((event.key === 'r' || event.key === 'R') && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                if (!canResizePlace()) return;
+                event.preventDefault();
+                moveMode.resizing = !moveMode.resizing;
+                app.announce(t(moveMode.resizing ? 'desktop.infra_resize_mode_on' : 'desktop.infra_move_mode_place'));
+                return;
+            }
+            const resizing = moveMode.kind === 'region' && moveMode.resizing === true;
             const step = resizing ? 24 : event.shiftKey ? 8 : 24;
             const delta = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];
             if (delta) {

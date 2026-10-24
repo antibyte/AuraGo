@@ -149,7 +149,7 @@ coalescing, `touch-action: none` on the canvas only.
   Focus lands on the selected card or the first card in reading order.
 - Arrow keys move focus spatially to the nearest card in that direction. `Enter` opens the inspector.
   `Space` toggles selection. `M` enters move mode for the selection (assets, or one place with everything
-  inside it): arrows move 24 px (Shift: 8 px), `Shift+Alt+arrows` resize a place by 24 px (minimum 200 x 140),
+  inside it): arrows move 24 px (Shift: 8 px), `R` switches a place between moving and resizing (arrows then resize by 24 px, minimum 200 x 140; the browser reserves Shift+Alt for the input language),
   `Enter` commits one layout save. `Esc`, `Tab`, losing focus and a pointer press revert and announce it; only
   `Enter` keeps a keyboard move. `M` with nothing movable selected, or without write access, announces why.
   `P` on a library row or unplaced asset places it at the viewport centre and enters move mode. `Delete` asks

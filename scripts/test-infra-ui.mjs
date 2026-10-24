@@ -1217,11 +1217,13 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
         assert.equal(w.store.state.interacting, 0);
         w.store.dispose();
     }
-    { // Shift+Alt+arrows resize a place by 24 px, never below 200 x 140; Enter saves through resizePlace
+    { // R switches a place to resizing: arrows resize by 24 px, never below 200 x 140; Enter saves through resizePlace
         const nodes = [room(400, 120, 480, 320), card('inside', 640, 300, { parent_id: 'room' })];
         const w = world({ nodes, selection: ['room'], focus: 'room' });
         w.press('m');
-        const resize = key => w.press(key, { shiftKey: true, altKey: true });
+        assert.equal(w.press('r').defaultPrevented, true);
+        assert.equal(w.announced.at(-1), 'desktop.infra_resize_mode_on', 'the mode switch is announced');
+        const resize = key => w.press(key);
         resize('ArrowRight'); resize('ArrowDown');
         assert.deepEqual(plain([w.temps.at(-1).regions.get('room').w, w.temps.at(-1).regions.get('room').h]), [504, 344], 'exactly 24 px per press');
         assert.equal(w.announced.at(-1), 'desktop.infra_place_size');
@@ -1231,7 +1233,10 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
         assert.equal(w.temps.at(-1).regions.get('room').h, 140, 'the minimum height holds');
         resize('ArrowRight');
         assert.equal(w.temps.at(-1).regions.get('room').w, 224, 'the arrow back is not swallowed by the minimum');
+        w.press('r');
+        assert.equal(w.announced.at(-1), 'desktop.infra_move_mode_place', 'R again announces the move mode');
         w.press('ArrowRight');
+        assert.equal(w.temps.at(-1).regions.get('room').w, 224, 'in move mode the size stays');
         w.press('Enter');
         await sleep(30);
         assert.equal(w.puts.length, 1, 'the move and the resize are saved together');
@@ -1243,13 +1248,17 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     { // a server without place support cannot resize; assets have nothing to resize
         const noPlaces = world({ nodes: [room(400, 120, 480, 320)], selection: ['room'], focus: 'room', sourceHosts: null });
         noPlaces.press('m');
-        noPlaces.press('ArrowRight', { shiftKey: true, altKey: true });
-        noPlaces.press('Enter');
+        const ignored = noPlaces.press('r');
+        assert.equal(ignored.defaultPrevented, false, 'R has no meaning without place support');
+        assert.ok(!noPlaces.announced.includes('desktop.infra_resize_mode_on'));
+        noPlaces.press('Escape');
         await sleep(30);
         assert.equal(noPlaces.puts.length, 0);
         noPlaces.store.dispose();
         const cardOnly = world({ nodes: [card('a', 0, 0)], selection: ['a'], focus: 'a' });
         cardOnly.press('m');
+        cardOnly.press('r');
+        assert.ok(!cardOnly.announced.includes('desktop.infra_resize_mode_on'), 'assets have nothing to resize');
         const alt = cardOnly.press('ArrowRight', { shiftKey: true, altKey: true });
         assert.equal(alt.defaultPrevented, true, 'Alt+Arrow never navigates the browser history');
         assert.equal(cardOnly.temps.at(-1).cards.get('a').x, 8, 'an asset still only moves');

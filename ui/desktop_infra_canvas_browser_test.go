@@ -252,6 +252,29 @@ func TestDesktopInfraCanvasGesturesBrowser(t *testing.T) {
 		t.Fatalf("assets outside the place must stay where they are: %#v", calls[0])
 	}
 
+	// R switches the place to resizing (Shift+Alt+arrows toggle the input language on many systems):
+	// the arrows then grow it by 24 px and Enter saves the new size in one call.
+	sizeOf := func(id string) (float64, float64) {
+		fixture.mu.Lock()
+		defer fixture.mu.Unlock()
+		for _, node := range fixture.nodes {
+			if node["id"] == id {
+				atlas := node["placements"].(map[string]any)["atlas"].(map[string]any)
+				return infraFixtureNumber(atlas["w"]), infraFixtureNumber(atlas["h"])
+			}
+		}
+		t.Fatalf("fixture has no node %s", id)
+		return 0, 0
+	}
+	roomW, roomH := sizeOf("room-1")
+	page.MustEval(`()=>{const header=document.querySelector('[data-region-header="room-1"]');header.click();header.focus();}`)
+	start = len(layoutCalls())
+	page.Keyboard.MustType(input.KeyM, input.KeyR, input.ArrowRight, input.ArrowDown, input.Enter)
+	calls = waitLayoutCalls(start + 1)[start:]
+	if room := itemFor(calls[0], "room-1"); len(calls) != 1 || room == nil || room["w"] != roomW+24 || room["h"] != roomH+24 || room["x"] != roomX+48 {
+		t.Fatalf("R + arrows did not resize the place by 24 px: %s", fmt.Sprint(calls))
+	}
+
 	closeInfraBrowserWindow(t, page)
 	requireInfraBrowserClean(t, page)
 }
