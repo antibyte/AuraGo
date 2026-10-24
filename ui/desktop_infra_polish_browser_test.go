@@ -296,7 +296,7 @@ func TestDesktopInfraSearchCollapseBrowser(t *testing.T) {
 	page.MustElement(`[data-action="open-search"]`).MustClick()
 	page.MustWait(`()=>{const s=infraSearch();return s.opened==='true'&&s.field&&s.focus==='input'&&s.covers&&!s.button&&s.expanded==='true';}`)
 	if !page.MustEval(`()=>{const s=infraSearch(),bar=document.querySelector('.infra-commandbar').getBoundingClientRect(),group=document.querySelector('.infra-search').getBoundingClientRect(),filters=document.querySelector('[data-action="filters"]').getBoundingClientRect();
-		return !s.overflow&&group.left>=bar.left&&group.right<=bar.right&&filters.right<=group.right&&filters.left>=group.left;}`).Bool() {
+		return !s.overflow&&group.left>=bar.left&&group.right<=bar.right&&filters.right<=group.right&&filters.left>=group.left&&getComputedStyle(document.querySelector('.infra-view-switch')).visibility==='hidden';}`).Bool() {
 		t.Fatalf("the open field must sit over the command bar, keep the filter button and overflow nothing: %s", state())
 	}
 	page.MustElement(`[data-search]`).MustInput("Cold-store")
@@ -313,7 +313,7 @@ func TestDesktopInfraSearchCollapseBrowser(t *testing.T) {
 	page.MustEval(`()=>document.querySelector('[data-stage]').focus()`)
 	page.KeyActions().Press(input.ControlLeft).Type(input.KeyK).Release(input.ControlLeft).MustDo()
 	page.MustWait(`()=>{const s=infraSearch();return s.opened==='true'&&s.focus==='input';}`)
-	page.MustEval(`()=>document.querySelector('[data-action="toggle-library"]').focus()`)
+	page.MustEval(`()=>document.querySelector('[data-stage]').focus()`)
 	page.MustWait(`()=>infraSearch().opened==='false'`)
 
 	// At 560 px and wider the field is back, and the bar still holds everything.

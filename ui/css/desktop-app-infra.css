@@ -21,7 +21,9 @@
 .infra-view-switch button { height: 30px; padding: 0 12px; border: 0; border-radius: var(--ds-radius-sm); background: transparent; color: var(--vd-theme-muted); font-size: 14px; font-weight: 600; cursor: pointer; }
 .infra-view-switch button[aria-pressed="true"] { background: var(--vd-theme-panel-bg-strong); color: var(--vd-text); box-shadow: var(--vd-theme-shadow-panel); }
 .infra-search { flex: 1 1 320px; min-width: 0; max-width: 460px; height: 34px; display: flex; align-items: center; gap: var(--ds-space-1); padding: 0 2px 0 var(--ds-space-2); border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-md); background: var(--vd-theme-control-bg); color: var(--vd-theme-muted); }
-.infra-search:focus-within { border-color: var(--ds-color-border-focus); }
+/* One focus ring for the whole search group: the group draws it, so the field inside must not add its own outline. */
+.infra-search:focus-within { border-color: var(--ds-color-border-focus); box-shadow: 0 0 0 1px var(--ds-color-border-focus); }
+.infra-app .infra-search input:focus, .infra-app .infra-search input:focus-visible { outline: none; box-shadow: none; }
 .infra-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--vd-text); font-size: 14px; }
 .infra-search .infra-cmd-icon { width: 30px; height: 30px; }
 .infra-search-icon { display: inline-grid; place-items: center; }
@@ -324,6 +326,8 @@
   .infra-app[data-search-open="true"] .infra-search-icon, .infra-app[data-search-open="true"] .infra-search [data-action="filters"] { display: inline-grid; }
   .infra-app[data-search-open="true"] .infra-search input { display: block; }
   .infra-app[data-search-open="true"] .infra-search-open { display: none; }
+  .infra-app[data-search-open="true"] .infra-commandbar > :not(.infra-search) { visibility: hidden; }
+  .infra-app[data-search-open="true"] .infra-search:focus-within { border-color: var(--ds-color-border-focus); box-shadow: 0 0 0 1px var(--ds-color-border-focus), var(--vd-theme-shadow-panel); }
 }
 @container infra (max-width: 419px) { .infra-commandbar { gap: 3px; padding: 0 4px; } }
 @media (prefers-reduced-motion: no-preference) { body:not([data-animations="false"]) .infra-inspector { animation: infra-panel-in var(--ds-motion-duration-base) var(--ds-motion-ease-decel); } }
