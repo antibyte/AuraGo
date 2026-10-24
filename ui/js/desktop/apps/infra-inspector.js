@@ -601,7 +601,9 @@
         }
         function dispose() { el.removeEventListener('click', onClick); el.remove(); }
 
-        return { el, paint, paintIfIdle, flushStale, onBusy, saveDraft, focusName, close, dispose };
+        // open selects id; the tabbed inspector (which takes the tab) replaces this.
+        const open = id => store.select([id]);
+        return { el, paint, paintIfIdle, flushStale, onBusy, saveDraft, focusName, close, open, dispose };
     }
 
     window.InfraAppInspector = { create };

@@ -145,6 +145,7 @@
         app.picker = window.InfraAppPicker.create(app);
         app.canvas = window.InfraAppCanvas.create(app);
         app.table = window.InfraAppTable.create(app);
+        app.cleanup = window.InfraAppCleanup.create(app);
         app.library = window.InfraAppLibrary.create(app);
         app.inspector = window.InfraAppInspector.create(app);
         app.dialogs = window.InfraAppDialogs.create(app);
@@ -235,9 +236,11 @@
             liveEl.classList.toggle('is-error', state.sync === 'error' || state.sync === 'paused');
             liveEl.querySelector('.infra-sync-label').textContent = sync === 'live' ? t('desktop.infra_sync_live') : sync === 'error' ? t('desktop.infra_sync_error') : sync === 'paused' ? t('desktop.infra_sync_paused') : t('desktop.infra_sync_syncing');
             liveEl.dataset.refreshedAt = String(state.refreshAt);
-            const current = state.sources.filter(source => source.state === 'current').length;
+            // Ignored sources are not part of the freshness ledger.
+            const counted = state.sources.filter(source => !source.ignored);
+            const current = counted.filter(source => source.state === 'current').length;
             const updated = state.refreshAt ? t('desktop.infra_updated').replace('{time}', new Date(state.refreshAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) : '';
-            const sources = state.sources.length ? t('desktop.infra_sources_count').replace('{current}', current).replace('{total}', state.sources.length) : t('desktop.infra_sources_waiting');
+            const sources = counted.length ? t('desktop.infra_sources_count').replace('{current}', current).replace('{total}', counted.length) : t('desktop.infra_sources_waiting');
             liveEl.title = updated ? `${updated} · ${sources}` : sources;
             filterDot.hidden = !(state.filters.kind || state.filters.source || state.filters.power);
         }
@@ -406,7 +409,9 @@
                 case 'layout': renderData(); paintShell(); break;
                 case 'nodes': case 'edges': renderData(); paintShell(); inspector.paintIfIdle(); break;
                 case 'expanded': renderData(); break;
-                case 'layout-status': canvas.render(); paintShell(); break;
+                case 'layout-status': canvas.render(); library.render(); paintShell(); break;
+                case 'sources': library.render(); paintShell(); break;
+                case 'source-hosts': library.render(); canvas.render(); break;
                 case 'selection':
                     canvas.render(); library.renderSelection(); renderTable(); inspector.paint();
                     if (isNarrow() && root.dataset.inspectorOpen === 'true') setLibrarySheet(false);
@@ -459,6 +464,7 @@
                 disposed = true;
                 closeMenus();
                 app.picker.dispose();
+                app.cleanup.dispose();
                 gestures.dispose(); canvas.dispose(); library.dispose(); inspector.dispose(); dialogs.dispose(); table.dispose();
                 for (const element of [...toastTimers.keys()]) removeToast(element);
                 clearTimeout(announceTimer); cancelAnimationFrame(searchFrame); cancelAnimationFrame(resizeFrame);

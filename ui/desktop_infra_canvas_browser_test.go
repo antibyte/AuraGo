@@ -275,6 +275,25 @@ func TestDesktopInfraCanvasGesturesBrowser(t *testing.T) {
 		t.Fatalf("R + arrows did not resize the place by 24 px: %s", fmt.Sprint(calls))
 	}
 
+	// The library is a tree: its rows are treeitems that carry the selection, never plain list items.
+	if !page.MustEval(`()=>{const list=document.querySelector('[data-section-list="on-map"]'),items=[...list.querySelectorAll('[data-library-select]')];return list.getAttribute('role')==='tree'&&items.length>0&&items.every(item=>item.getAttribute('role')==='treeitem'&&item.hasAttribute('aria-selected'))&&!document.querySelector('.infra-library li[aria-selected]');}`).Bool() {
+		t.Fatal("On the map must be a tree whose treeitems carry aria-selected")
+	}
+
+	// A place row of the library is a drop target: dragging an asset row onto it moves the asset inside the place.
+	start = len(layoutCalls())
+	rowX, rowY := center(`[data-library-item="dev-a"][data-section="on-map"] .infra-library-row-name`)
+	placeX, placeY := center(`[data-library-item="room-1"][data-section="on-map"] > .infra-library-row-main .infra-library-row-name`)
+	page.Mouse.MustMoveTo(rowX, rowY).MustDown(proto.InputMouseButtonLeft)
+	page.Mouse.MustMoveTo((rowX+placeX)/2, (rowY+placeY)/2)
+	page.Mouse.MustMoveTo(placeX, placeY)
+	page.MustWait(`()=>!!document.querySelector('[data-library-item="room-1"].is-drop-target')`)
+	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	calls = waitLayoutCalls(start + 1)[start:]
+	if item := itemFor(calls[0], "dev-a"); len(calls) != 1 || item == nil || item["parent_id"] != "room-1" {
+		t.Fatalf("dropping an asset row on a place row did not move it into the place: %s", fmt.Sprint(calls))
+	}
+
 	closeInfraBrowserWindow(t, page)
 	requireInfraBrowserClean(t, page)
 }

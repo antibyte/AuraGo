@@ -26,8 +26,12 @@ type infraAppBrowserFixture struct {
 	nextEdge          int
 	capabilities      map[string]bool
 	worldSize         int
-	layoutCalls       []map[string]any // every PUT /layout body, in order
-	fail409Once       bool             // the next PUT /layout bumps its first node's version and answers 409
+	layoutCalls       []map[string]any          // every PUT /layout body, in order
+	fail409Once       bool                      // the next PUT /layout bumps its first node's version and answers 409
+	sourceHosts       map[string]map[string]any // Docker instance -> mapped device (desktop_infra_fixture_extras_test.go)
+	sourceHostPuts    []map[string]any          // every PUT /source-hosts body, in order
+	ignoredRows       map[string]map[string]any // ignored sources by identity
+	nodeDeletes       []string                  // every DELETE /nodes/{id} as id?query
 }
 
 func newInfraAppBrowserFixture() *infraAppBrowserFixture {
@@ -79,7 +83,7 @@ func (f *infraAppBrowserFixture) source(kind, instance, key, name string) map[st
 }
 
 func (f *infraAppBrowserFixture) snapshot() map[string]any {
-	return map[string]any{"nodes": f.nodes, "edges": f.edges, "sources": []any{}, "source_hosts": []any{}, "capabilities": f.capabilities}
+	return map[string]any{"nodes": f.nodes, "edges": f.edges, "sources": f.sourceRows(), "source_hosts": f.sourceHostRows(), "capabilities": f.capabilities}
 }
 
 func (f *infraAppBrowserFixture) world(size int) {
@@ -160,6 +164,9 @@ func (f *infraAppBrowserFixture) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	}
 	decode := func(dst any) bool { return json.NewDecoder(r.Body).Decode(dst) == nil }
 	path := strings.TrimPrefix(r.URL.Path, "/api/desktop/infra")
+	if f.serveExtras(path, r, write, decode) {
+		return
+	}
 	switch {
 	case r.URL.Path == "/api/desktop/integrations/credentials" && r.Method == http.MethodGet:
 		write(http.StatusOK, []any{map[string]any{"id": "credential-lab-1", "name": "Lab SSH", "type": "ssh"}})
@@ -433,7 +440,7 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 		t.Fatal("partial import did not retain only the candidate that still needs processing")
 	}
 	page.MustEval(`()=>document.querySelector('[data-import]').click()`)
-	page.MustWait(`()=>!!document.querySelector('[data-library-item="imported-2"]')`)
+	page.MustWait(`()=>!!document.querySelector('[data-cleanup="engine-host:docker:engine-a"]')`)
 	page.MustWait(`()=>document.querySelectorAll('.infra-source-row').length===3`)
 	if !page.MustEval(`()=>{
 		const rows=[...document.querySelectorAll('.infra-source-row')];
@@ -475,6 +482,25 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 	fixture.mu.Unlock()
 	if len(manualBindings) != 1 || len(manualInterfaces) != 1 || credentialPut == nil {
 		t.Fatal("expected confirmed app binding, interface profile, and independent registry source edit")
+	}
+	// Cleanup: a dismissed suggestion hides and comes back through "show dismissed"; the hostless Docker
+	// guest asks for its engine host, the picker offers devices, and the choice is written with the stored version.
+	page.MustEval(`()=>document.querySelector('[data-cleanup-dismiss="engine-host:docker:engine-a"]').click()`)
+	page.MustWait(`()=>!document.querySelector('[data-cleanup="engine-host:docker:engine-a"]')&&!document.querySelector('[data-action="cleanup-reset"]').hidden`)
+	page.MustEval(`()=>document.querySelector('[data-action="cleanup-reset"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('[data-cleanup="engine-host:docker:engine-a"]')&&document.querySelector('[data-action="cleanup-reset"]').hidden`)
+	page.MustEval(`()=>document.querySelector('[data-cleanup-action="engine-host:docker:engine-a"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('[data-picker] [data-node-option="manual-1"]')`)
+	if !page.MustEval(`()=>document.querySelector('[data-picker-input]')===document.activeElement&&document.querySelector('[data-picker-input]').getAttribute('role')==='combobox'&&document.querySelector('[data-picker] [role="listbox"] [role="option"]')!==null`).Bool() {
+		t.Fatal("the asset picker must be a focused combobox with a listbox of options")
+	}
+	page.MustEval(`()=>document.querySelector('[data-picker] [data-node-option="manual-1"]').click()`)
+	page.MustWait(`()=>!document.querySelector('[data-cleanup="engine-host:docker:engine-a"]')`)
+	fixture.mu.Lock()
+	hostPuts := append([]map[string]any(nil), fixture.sourceHostPuts...)
+	fixture.mu.Unlock()
+	if len(hostPuts) != 1 || hostPuts[0]["instance"] != "engine-a" || hostPuts[0]["node_id"] != "manual-1" || infraFixtureNumber(hostPuts[0]["version"]) != 0 {
+		t.Fatalf("assigning the engine host wrote %#v", hostPuts)
 	}
 	page.MustEval(`()=>{
 		const win=document.querySelector('.vd-window[data-app-id="infra"]');win.classList.remove('maximized','vd-mobile-forced-maximized');win.style.right='auto';win.style.width='1500px';win.style.height='970px';win.style.left='210px';win.style.top='70px';

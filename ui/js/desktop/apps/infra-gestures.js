@@ -381,6 +381,7 @@
             pinch = { view, dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, world: model.toWorld(view, mid) };
         }
         function onPointerDown(event) {
+            if (event.button === 2) return; // a context menu press changes nothing
             if (event.pointerType === 'touch') {
                 touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
                 if (touches.size === 2) { startPinch(); return; }
@@ -665,7 +666,9 @@
         }
 
         // ---- library drag ----------------------------------------------------------------------------------------
-        function startLibraryDrag(event, ids) {
+        // startLibraryDrag drags rows of the library (mode 'place' for To place, 'move' for assets on the
+        // map) onto the map or onto a place row; items/'discovery' belong to the import sheet.
+        function startLibraryDrag(event, ids, { mode = 'place', items = null, onDragged = () => app.library?.suppressNextClick() } = {}) {
             if (!store.canWrite() || moveMode || pinch || !ids?.length) return;
             gesture?.abort(); // a press that never saw its release
             const target = event.currentTarget || app.library?.el;
@@ -675,15 +678,20 @@
             const probe = ev => {
                 const hit = document.elementFromPoint(ev.clientX, ev.clientY), scene = canvas.sceneData();
                 const over = !!hit && viewport.contains(hit), world = canvas.clientToWorld(ev.clientX, ev.clientY);
-                return { over, onLibrary: !!hit && target.contains(hit), world, region: over && view === 'atlas' ? model.regionAt(world, scene.regionRects, scene.regionDepth) : '' };
+                // A place row of the library takes the drop before the map does.
+                const row = mode !== 'discovery' ? hit?.closest?.('.infra-library-row') : null;
+                const dropId = row && row.hasAttribute('data-library-drop') && app.library.el.contains(row) ? row.dataset.libraryDrop : '';
+                return { over, onLibrary: !!hit && target.contains(hit), world, placeTarget: dropId && !ids.includes(dropId) ? dropId : '', region: over && view === 'atlas' ? model.regionAt(world, scene.regionRects, scene.regionDepth) : '' };
             };
             const paint = frame(() => {
                 if (!ghost || !last) return;
-                const info = probe(last);
-                canvas.setDropTarget(info.region);
-                const label = info.over ? (info.region ? model.fill(t('desktop.infra_drop_into'), { name: nameOf(info.region) }) : t('desktop.infra_drop_on_map')) : '';
-                const invalid = !info.over && !info.onLibrary;
-                ghost.move(last.clientX, last.clientY, { scale: info.over ? canvas.getView().zoom : 1, label, invalid });
+                const info = probe(last), onMap = info.over && !info.placeTarget;
+                app.library?.setDropTarget(info.placeTarget);
+                canvas.setDropTarget(info.placeTarget ? '' : info.region);
+                const label = info.placeTarget ? model.fill(t('desktop.infra_drop_into'), { name: nameOf(info.placeTarget) })
+                    : onMap ? (info.region ? model.fill(t('desktop.infra_drop_into'), { name: nameOf(info.region) }) : t('desktop.infra_drop_on_map')) : '';
+                const invalid = !info.placeTarget && !info.over && !info.onLibrary;
+                ghost.move(last.clientX, last.clientY, { scale: onMap ? canvas.getView().zoom : 1, label, invalid });
                 root.classList.toggle('is-drag-invalid', invalid);
             });
             const cap = capturePointer(target, event, ev => {
@@ -692,7 +700,7 @@
                     if (Math.hypot(dx, dy) < LIBRARY_THRESHOLD) return;
                     if (touch && Math.abs(dy) > Math.abs(dx)) { cap.detach(); gesture = null; return; }
                     started = true;
-                    ghost = canvas.createGhost(ids);
+                    ghost = canvas.createGhost(ids, items);
                     store.beginInteraction();
                     root.classList.add('is-dragging');
                 }
@@ -704,18 +712,78 @@
                 if (!started) return;
                 const info = !cancelled ? probe(ev) : null;
                 ghost?.remove();
-                canvas.setDropTarget('');
+                canvas.setDropTarget(''); app.library?.setDropTarget('');
                 root.classList.remove('is-dragging', 'is-drag-invalid');
-                if (info?.over) {
-                    const spots = ids.length === 1 ? [info.world] : model.compactGrid(ids.length, info.world);
-                    commitPlan(view, planDrop(view, new Map(ids.map((id, index) => [id, spots[index]])), { nudge: true }), 'place');
-                    store.select(ids);
-                    canvas.renderNow();
-                }
+                if (info?.placeTarget) void finishLibraryDrop(ids, { mode, placeTarget: info.placeTarget });
+                else if (info?.over) void finishLibraryDrop(ids, { mode, world: info.world, region: info.region });
                 store.endInteraction();
-                app.library?.suppressNextClick();
+                onDragged();
             });
             gesture = cap;
+        }
+        // finishLibraryDrop commits a library drag that ended over the map or on a place row.
+        function finishLibraryDrop(ids, { mode = 'place', placeTarget = '', world = null, region = '' } = {}) {
+            const view = app.mapView();
+            if (mode === 'discovery') return world && app.importer ? app.importer.dropOnCanvas(ids, world, view === 'atlas' ? region : '') : Promise.resolve(false);
+            if (placeTarget) return moveIntoPlace(ids, placeTarget);
+            if (!world) return Promise.resolve(false);
+            const points = ids.length === 1 ? [world] : model.compactGrid(ids.length, world);
+            commitPlan(view, planDrop(view, new Map(ids.map((id, index) => [id, points[index]])), { nudge: true }), mode === 'move' ? 'move' : 'place');
+            store.select(ids);
+            canvas.renderNow();
+            return Promise.resolve(true);
+        }
+        // positionsAt returns free card centres around a world point.
+        function positionsAt(count, world) {
+            const obstacles = canvas.sceneData().cards.map(model.cardRect);
+            const points = count === 1 ? [world] : model.compactGrid(count, world);
+            return points.map(point => { const pos = model.freeSlot(point, obstacles); obstacles.push(model.cardRect(pos)); return { x: Math.round(pos.x), y: Math.round(pos.y) }; });
+        }
+        // moveIntoPlace puts assets into a place ('' = out of every place): placed assets with a drawn
+        // target move inside it in one layout save, the rest only change parent_id (node update).
+        function moveIntoPlace(ids, placeId) {
+            if (!store.canWrite()) return Promise.resolve(false);
+            const view = app.mapView(), scene = canvas.sceneData(), parentOf = id => store.effectiveParent(id, view);
+            const valid = ids.filter(id => store.nodeById(id) && id !== placeId && !(placeId && model.isDescendant(placeId, id, parentOf)) && parentOf(id) !== placeId);
+            if (!valid.length) return Promise.resolve(false);
+            const target = placeId ? scene.regionRects.get(placeId) : null, layoutIds = [], parentIds = [];
+            for (const id of valid) {
+                const node = store.nodeById(id);
+                if (view === 'atlas' && store.features.layoutParent && scene.cardById.has(id) && !model.isContainer(node.kind) && (!placeId || target)) layoutIds.push(id); else parentIds.push(id);
+            }
+            const label = placeId ? model.fill(t('desktop.infra_moved_to_place'), { count: valid.length, place: nameOf(placeId) }) : model.fill(t('desktop.infra_moved_out_of_place'), { count: valid.length });
+            const work = [];
+            if (layoutIds.length) {
+                const moving = new Set(layoutIds), obstacles = scene.cards.filter(card => !moving.has(card.id)).map(model.cardRect);
+                const first = scene.cardById.get(layoutIds[0]), from = scene.regionRects.get(parentOf(layoutIds[0]));
+                const centre = target ? { x: target.x + target.w / 2, y: target.y + target.h / 2 } : from ? { x: from.x + from.w + model.REGION_PAD + model.CARD_W / 2, y: first.y } : { x: first.x, y: first.y };
+                const wants = model.compactGrid(layoutIds.length, centre), before = new Map(), after = new Map(), regionIds = new Set(scene.regionRects.keys());
+                const placementOf = id => after.get(id) || store.effectivePlacement(id, view);
+                layoutIds.forEach((id, index) => {
+                    const pos = model.freeSlot(wants[index], obstacles);
+                    obstacles.push(model.cardRect(pos));
+                    before.set(id, store.currentIntent(id, view, true));
+                    after.set(id, { x: Math.round(pos.x), y: Math.round(pos.y), pinned: true, parent_id: placeId });
+                    if (!placeId) return;
+                    for (const [regionId, rect] of model.growRegions(placeId, model.cardRect(pos), { ids: regionIds, parentOf, placementOf })) {
+                        if (!before.has(regionId)) before.set(regionId, store.currentIntent(regionId, view, false));
+                        after.set(regionId, { ...(after.get(regionId) || {}), x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.w), h: Math.round(rect.h), pinned: true });
+                    }
+                });
+                work.push(store.dispatch(commands().reparent(view, before, after, label)));
+            }
+            if (parentIds.length) work.push(store.dispatch(commands().setParent(parentIds.map(id => ({ id, before: store.nodeById(id).parent_id || '', after: placeId })), label)));
+            app.announce(label);
+            return Promise.all(work).then(results => results.every(Boolean)).catch(error => store.writeFailed(error).then(() => false));
+        }
+        // removeFromMap unplaces assets in the current map view (undoable).
+        function removeFromMap(ids) {
+            const view = app.mapView(), before = new Map();
+            for (const id of ids) { const intent = store.currentIntent(id, view, false); if (intent) before.set(id, intent); }
+            if (!before.size || !store.canWrite() || !store.features.unplace) return Promise.resolve(false);
+            const label = model.fill(t('desktop.infra_removed_from_map'), { count: before.size });
+            app.announce(label);
+            return store.dispatch(commands().unplace(view, before, label));
         }
 
         // ---- placing and arranging ---------------------------------------------------------------------------------
@@ -803,7 +871,7 @@
             attached = false;
         }
 
-        return { attach, cancel, startLibraryDrag, placeAtCenter, enterMoveMode, arrange, onRootKeydown, dispose };
+        return { attach, cancel, startLibraryDrag, finishLibraryDrop, moveIntoPlace, removeFromMap, positionsAt, placeAtCenter, enterMoveMode, arrange, onRootKeydown, dispose };
     }
 
     window.InfraAppGestures = { create };
