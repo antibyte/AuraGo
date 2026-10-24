@@ -89,10 +89,12 @@
         const toastTimers = new Map();
 
         // ---- preferences ---------------------------------------------------------------
-        const prefs = model.readLayoutPrefs((() => { try { return localStorage.getItem(PREFS_KEY); } catch (_) { return null; } })());
+        const readStorage = key => { try { return window.localStorage.getItem(key); } catch (_) { return null; } };
+        const writeStorage = (key, value) => { try { window.localStorage.setItem(key, value); } catch (_) { /* storage may be unavailable */ } };
+        const prefs = model.readLayoutPrefs(readStorage(PREFS_KEY));
         const flushPrefs = () => {
             clearTimeout(prefsTimer); prefsTimer = 0;
-            try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (_) { /* storage may be unavailable */ }
+            writeStorage(PREFS_KEY, JSON.stringify(prefs));
         };
         const setPref = (key, value) => {
             prefs[key] = value;
@@ -137,7 +139,10 @@
             statusLabel: status => t(`desktop.infra_state_${status}`),
             mapView, ensureMapView, toast, announce, animationsEnabled,
             setLibraryCollapsed: on => setLibraryCollapsed(on),
+            readStorage, writeStorage,
+            openAppLink: link => ctx.openApp?.(link.app, model.appLinkContext(link)),
         };
+        app.picker = window.InfraAppPicker.create(app);
         app.canvas = window.InfraAppCanvas.create(app);
         app.table = window.InfraAppTable.create(app);
         app.library = window.InfraAppLibrary.create(app);
@@ -412,6 +417,7 @@
                 case 'busy': paintShell(); inspector.onBusy(change.key); dialogs.onBusy(change.key); break;
                 case 'caps':
                     if (!store.canWrite()) gestures.cancel();
+                    app.picker.close({ restoreFocus: false });
                     syncMenus(); paintShell(); canvas.render({ force: true }); library.render(); inspector.paint();
                     break;
                 case 'history': paintShell(); syncMenus(); break;
@@ -452,6 +458,7 @@
                 if (disposed) return;
                 disposed = true;
                 closeMenus();
+                app.picker.dispose();
                 gestures.dispose(); canvas.dispose(); library.dispose(); inspector.dispose(); dialogs.dispose(); table.dispose();
                 for (const element of [...toastTimers.keys()]) removeToast(element);
                 clearTimeout(announceTimer); cancelAnimationFrame(searchFrame); cancelAnimationFrame(resizeFrame);

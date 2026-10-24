@@ -24,7 +24,7 @@
             styles: appStyles('/css/desktop-app-minigolf.css'),
             scripts: ['/js/desktop/apps/minigolf.js']
         },
-        infra: { styles: appStyles('/css/desktop-app-infra.css', '/css/desktop-app-infra-canvas.css'), scripts: ['/js/desktop/apps/infra-model.js', '/js/desktop/apps/infra-store.js', '/js/desktop/apps/infra-canvas.js', '/js/desktop/apps/infra-gestures.js', '/js/desktop/apps/infra-library.js', '/js/desktop/apps/infra-inspector.js', '/js/desktop/apps/infra-table.js', '/js/desktop/apps/infra-dialogs.js', '/js/desktop/apps/infra.js'] },
+        infra: { styles: appStyles('/css/desktop-app-infra.css', '/css/desktop-app-infra-canvas.css'), scripts: ['/js/desktop/apps/infra-model.js', '/js/desktop/apps/infra-store.js', '/js/desktop/apps/infra-picker.js', '/js/desktop/apps/infra-canvas.js', '/js/desktop/apps/infra-gestures.js', '/js/desktop/apps/infra-library.js', '/js/desktop/apps/infra-inspector.js', '/js/desktop/apps/infra-table.js', '/js/desktop/apps/infra-dialogs.js', '/js/desktop/apps/infra.js'] },
         'ruview': { styles: appStyles('/css/ruview.css'), scripts: ['/js/desktop/apps/ruview.js'] },
         'ha-switchboard': {
             styles: appStyles('/css/ha-switchboard.css'),

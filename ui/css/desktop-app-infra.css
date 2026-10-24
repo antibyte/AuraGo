@@ -336,3 +336,20 @@
 @media (prefers-reduced-motion: no-preference) { body:not([data-animations="false"]) .infra-inspector { animation: infra-panel-in var(--ds-motion-duration-base) var(--ds-motion-ease-decel); } }
 @keyframes infra-panel-in { from { opacity: 0; transform: translateX(12px); } }
 @media (pointer: coarse) { .infra-cmd-icon, .infra-view-switch button { min-height: 40px; } .infra-button, .infra-library-row-main, .infra-library-place { min-height: 44px; } }
+/* ---- Plan C: picker ---- */
+.infra-picker { display: grid; gap: var(--ds-space-2); width: 320px; max-height: min(420px, 70vh); padding: var(--ds-space-2); }
+.infra-picker-inline { position: relative; width: 100%; max-height: none; padding: 0; }
+.infra-picker-input { width: 100%; height: 36px; padding: 0 var(--ds-space-2); border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg); color: var(--vd-text); font-size: 14px; }
+.infra-picker-input:focus { border-color: var(--ds-color-border-focus); outline: none; }
+.infra-picker-list { display: grid; gap: 2px; max-height: 320px; overflow: auto; }
+.infra-picker-inline .infra-picker-list { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 12; padding: var(--ds-space-1); border: 1px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: var(--vd-theme-panel-bg-strong); box-shadow: var(--vd-theme-shadow-modal); }
+.infra-picker-heading { padding: var(--ds-space-1) var(--ds-space-2) 2px; color: var(--vd-theme-muted); font-size: 13px; font-weight: 600; }
+.infra-picker-option { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-2); min-height: 36px; padding: 2px var(--ds-space-2); border-radius: var(--ds-radius-sm); font-size: 14px; cursor: pointer; }
+.infra-picker-option:not(:has(img)) { grid-template-columns: minmax(0, 1fr) auto; }
+.infra-picker-option img { width: 24px; height: 24px; object-fit: contain; }
+.infra-picker-option:hover, .infra-picker-option.is-active { background: var(--vd-theme-control-hover); }
+.infra-picker-option.is-active { box-shadow: inset 0 0 0 1px var(--vd-theme-accent-border); }
+.infra-picker-label, .infra-picker-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.infra-picker-meta, .infra-picker-note, .infra-picker-more, .infra-picker-empty { margin: 0; color: var(--vd-theme-muted); font-size: 13px; }
+.infra-picker-note, .infra-picker-more, .infra-picker-empty { padding: 0 var(--ds-space-2); }
+@media (pointer: coarse) { .infra-picker-option { min-height: 44px; } }
