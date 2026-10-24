@@ -11,7 +11,6 @@
     const TABS = ['overview', 'details', 'sources', 'connections'];
     const PREFS_KEY = 'infra.inspector.v1';
     const EDGE_KINDS = ['ethernet', 'fiber', 'wifi', 'member_of', 'runs_on', 'depends_on', 'powered_by'];
-    const APP_LINK_TARGETS = new Set(['quick-connect', 'network-cameras', 'software-store', 'meshcore']);
     const LIST_LIMIT = 8;
 
     function create(app) {
@@ -54,7 +53,7 @@
             }
             facts += row(t('desktop.infra_tab_connections'), esc(model.countText(edgesOf(node).length, t('desktop.infra_connections_summary_one'), t('desktop.infra_connections_summary'))))
                 + row(t('desktop.infra_fact_last_seen'), esc(seen ? new Date(seen).toLocaleString() : t('desktop.infra_no_observation')));
-            const links = (node.app_links || []).filter(link => APP_LINK_TARGETS.has(link.app));
+            const links = (node.app_links || []).filter(link => model.APP_LINK_TARGETS.has(link.app));
             const apps = links.length ? `<div class="infra-form-section"><h3>${esc(t('desktop.infra_fact_apps'))}</h3><div class="infra-app-links">${links.map(link => `<button type="button" class="infra-app-link" data-open-app="${esc(link.app)}" data-target-id="${esc(link.target_id)}">${esc(appLabel(link.app))}<span aria-hidden="true">↗</span></button>`).join('')}</div></div>` : '';
             const canPlace = !placement && !hostId && canWrite();
             const logical = node.kind === 'service' ? edgesOf(node).filter(edge => ['runs_on', 'depends_on', 'powered_by'].includes(edge.kind)) : [];
@@ -83,7 +82,7 @@
             const dirty = state.dirty.has(node.id), write = canWrite();
             const stateName = sourceState(node), crumbs = model.placePath(node.id, store.nodeById);
             const powerKey = node.power ? model.powerLabel(node.power) : '';
-            const link = (node.app_links || []).find(item => APP_LINK_TARGETS.has(item.app));
+            const link = (node.app_links || []).find(item => model.APP_LINK_TARGETS.has(item.app));
             const quick = link
                 ? `<button type="button" class="infra-button infra-button-primary" data-action="open-first-app" data-open-app="${esc(link.app)}" data-target-id="${esc(link.target_id)}">${esc(model.fill(t('desktop.infra_open_in_app'), { app: appLabel(link.app) }))}</button>`
                 : write ? `<button type="button" class="infra-button" data-action="edit-details">${esc(t('desktop.infra_edit'))}</button>` : '';

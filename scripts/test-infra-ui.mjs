@@ -119,6 +119,8 @@ assert.equal(english['desktop.infra_cleanup_show_guests_one'], 'Show 1 guest');
 assert.equal(model.countText(1, '1 connection', '{count} connections'), '1 connection');
 assert.equal(model.countText(0, '1 connection', '{count} connections'), '0 connections');
 assert.equal(model.countText(3, '1 asset moved to {place}', '{count} assets moved to {place}', { place: 'Rack' }), '3 assets moved to Rack');
+assert.deepEqual(Array.from(model.APP_LINK_TARGETS), ['quick-connect', 'network-cameras', 'software-store', 'meshcore'], 'the linkable apps live in the model');
+assert.equal((source.match(/\bAPP_LINK_TARGETS\s*=/g) || []).length, 1, 'APP_LINK_TARGETS is defined once and read by the inspector and the menus');
 assert.equal(model.powerLabel('stopped'), 'desktop.infra_power_stopped');
 assert.equal(model.powerLabel(''), '');
 assert.equal(model.powerLabel('on'), '');

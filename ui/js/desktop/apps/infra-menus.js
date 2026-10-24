@@ -5,7 +5,6 @@
 (function () {
     'use strict';
 
-    const APP_LINK_TARGETS = new Set(['quick-connect', 'network-cameras', 'software-store', 'meshcore']);
     const LEGEND_STATES = ['current', 'stale', 'unknown', 'removed', 'manual'];
     const LEGEND_MARKS = { current: '●', stale: '◐', unknown: '○', removed: '✕', manual: '' };
     const LEGEND_POWER = ['running', 'paused', 'stopped'];
@@ -48,7 +47,7 @@
             if (single && !inspector) items.push(plain({ id: 'open', label: t('desktop.infra_open'), icon: 'info', action: () => app.inspector.open(id, 'overview') }, anchor));
             items.push(write({ id: 'move', label: t('desktop.infra_move_to_place'), icon: 'folder', action: () => app.picker.openPlacePicker({ anchor, rect, exclude: ids, onPick: placeId => { void app.gestures.moveIntoPlace(ids, placeId); } }) }, anchor));
             if (single) items.push(write({ id: 'connect', label: t('desktop.infra_connect_to'), icon: 'link', action: () => app.picker.openAssetPicker({ anchor, rect, label: t('desktop.infra_connect_to'), accept: other => other.id !== id, onPick: option => app.dialogs.openEdgeDialog('', id, option.id) }) }, anchor));
-            if (single) (node.app_links || []).filter(link => APP_LINK_TARGETS.has(link.app)).forEach((link, index) => items.push(plain({ id: `app-${index}`, label: model.fill(t('desktop.infra_open_in_app'), { app: appLabel(link.app) }), icon: 'apps', action: () => app.openAppLink(link) }, anchor)));
+            if (single) (node.app_links || []).filter(link => model.APP_LINK_TARGETS.has(link.app)).forEach((link, index) => items.push(plain({ id: `app-${index}`, label: model.fill(t('desktop.infra_open_in_app'), { app: appLabel(link.app) }), icon: 'apps', action: () => app.openAppLink(link) }, anchor)));
             if (state.view !== 'table' && store.features.unplace && ids.some(item => store.effectivePlacement(item, view))) items.push(write({ id: 'unplace', label: t('desktop.infra_remove_from_map'), icon: 'x', action: () => { void app.gestures.removeFromMap(ids); } }, anchor));
             items.push(separator, write({ id: 'remove', label: t('desktop.infra_remove_node'), icon: 'trash', action: () => { void app.dialogs.deleteNodes(ids); } }, anchor));
             if (ids.some(item => (store.nodeById(item)?.sources || []).length)) items.push(write({ id: 'remove-ignore', label: t('desktop.infra_remove_and_ignore'), icon: 'trash', action: () => { void app.dialogs.removeAndIgnore(ids); } }, anchor));

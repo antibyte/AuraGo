@@ -772,6 +772,8 @@
     const groupOfField = path => Object.entries(FORM_GROUPS).find(([, fields]) => fields.includes(path))?.[0] || (path.startsWith('profile.') ? 'custom' : 'identity');
     const MESH_ICONS = new Set(['mesh-node', 'radio-gateway']);
     const APP_ORDER = ['network-cameras', 'software-store', 'meshcore'];
+    // The apps an asset can link to; the inspector and the context menus read this one set.
+    const APP_LINK_TARGETS = new Set(['quick-connect', 'network-cameras', 'software-store', 'meshcore']);
     const isMeshAsset = node => MESH_ICONS.has(node?.icon) || /mesh/i.test(String(node?.profile?.role || '')) || (node?.profile?.tags || []).some(tag => /mesh/i.test(String(tag)));
     const tokensOf = value => new Set(String(value || '').toLocaleLowerCase().split(/[^\p{L}\p{N}]+/u).filter(token => token.length >= 3));
     const targetScore = (node, target) => {
@@ -842,6 +844,6 @@
         mergeIntent, layoutItems, rebaseLayout, createHistory, readLayoutPrefs, fill, countText, normalizeNode, minimapTransform, glyph,
         naturalCompare, isOpaqueName, addressesOf, isGenericDiscovery, compareSpecificity, relevanceIndex, discoveryRelevance, groupDiscoveries, bindableFor, linkSuggestions, infraCleanup,
         TABLE_SORTS, tableComparator, tableRows, readTablePrefs, readInspectorPrefs, inspectorTab, withInspectorTab, readDismissed, listEntryText, draftDiff, formGroupFill, groupOfField,
-        isMeshAsset, appTargetOptions, appLinkContext, placePath, isDescendant, attentionItems,
+        isMeshAsset, appTargetOptions, appLinkContext, placePath, isDescendant, attentionItems, APP_LINK_TARGETS,
     };
 })();
