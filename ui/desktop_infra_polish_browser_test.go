@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/go-rod/rod"
@@ -111,6 +112,31 @@ func TestDesktopInfraSemanticZoomBrowser(t *testing.T) {
 	page.MustWait(`()=>infraZoomOf()>1.3`)
 	if !page.MustEval(`()=>{const name=document.querySelector('.infra-card-name');return new DOMMatrix(getComputedStyle(name).transform).a===1&&infraOnScreen(name)>20;}`).Bool() {
 		t.Fatal("above 100% a name must scale with the scene instead of being counter-scaled")
+	}
+	// Crossing 0.65 fades the card content in, but only while the desktop animations are on and the user has not asked
+	// for reduced motion. Both settings are set here, because the host's own motion setting flips headless Chrome's
+	// preference and the desktop's animations switch.
+	for _, motion := range []struct {
+		preference, animations string
+		fade                   bool
+	}{{"reduce", "true", false}, {"no-preference", "false", false}, {"no-preference", "true", true}} {
+		if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: motion.preference}}}).Call(page); err != nil {
+			t.Fatal(err)
+		}
+		page.MustEval(`(value)=>{document.body.dataset.animations=value;}`, motion.animations)
+		page.MustEval(`()=>document.querySelector('[data-action="zoom-reset"]').click()`)
+		page.MustWait(`()=>infraZoomOf()===1&&!document.querySelector('[data-stage]').classList.contains('is-compact')`)
+		infraPolishSettle(page)
+		want := fmt.Sprintf(`{"compact":true,"fading":%v}`, motion.fade)
+		if got := page.MustEval(`()=>new Promise(resolve=>{
+			for(let i=0;i<3;i++)document.querySelector('[data-action="zoom-out"]').click();
+			requestAnimationFrame(()=>requestAnimationFrame(()=>{
+				const stage=document.querySelector('[data-stage]');
+				resolve(JSON.stringify({compact:stage.classList.contains('is-compact'),fading:stage.classList.contains('is-form-switching')}));
+			}));
+		})`).Str(); got != want {
+			t.Fatalf("with prefers-reduced-motion %s and animations %s the form switch gave %s; want %s", motion.preference, motion.animations, got, want)
+		}
 	}
 	requireInfraBrowserClean(t, page)
 }
