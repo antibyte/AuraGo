@@ -59,7 +59,7 @@ cd "/c/Users/Andi/Documents/repo/AuraGo/.worktrees/infra-redesign" && git add <o
 - `host_id` is read with `node.host_id || ''`. Without it, `runs_on` edges decide hosting, as today.
 
 **Known limitations Plan B accepts (state them in the review handoff):**
-1. **Placing from the library cannot be undone.** `PUT /layout` cannot remove a placement and node PUT keeps placements. `PlaceFromLibrary` is dispatched but not recorded in history.
+1. **Placing from the library is undoable only against a server that can unplace.** `PUT /layout` items may carry `unplace: true` (with `id` and `version`, no coordinates), which removes that view's placement; the backend plan adds it together with `parent_id`/`w`/`h`, so it is available exactly when `store.features.layoutParent` is true. `placeFromLibrary` then records an undo entry: its `before` holds the asset's previous intent, or `{unplace: true}` when it had no placement in that view. Against an older server the command is dispatched but stays out of history (no API removes a placement). Undoing a drop into a place unplaces the asset but leaves its `parent_id`, because an unplace item carries nothing else. The Task 1 and Task 3 listings below show the first, non-undoable draft; the committed `infra-model.js` and `infra-store.js` are authoritative for `mergeIntent` (an unplace replaces earlier intents and a later placement lifts it), `layoutItems`, `applyLayoutPatch` (a full node without the view drops that placement), `effectivePlacement` (null while an unplace is queued) and `placeFromLibrary`.
 2. **Not in Plan B:**
    - Plan C: context menus, the filter chips and popover polish, the full library sections (Cleanup, Ignored, place-row drop targets), inspector tabs, the app-link picker, import relevance groups and the shortcut sheet.
    - Plan D: topology lanes and auto layout.
@@ -157,7 +157,7 @@ app = {
 | Factory | Shape | apply | revert |
 |---|---|---|---|
 | `moveNodes(view, before, after, label)` / `reparent(...)` / `resizePlace(...)` | `{type, view, before:Map<id,Intent>, after:Map<id,Intent>, label, optimistic:true, undoable:true}` | `store.queueLayout(view, after)` | `store.queueLayout(view, before)` |
-| `placeFromLibrary(view, after, label)` | same shape, `before` empty, `undoable:false` | queue `after` | none |
+| `placeFromLibrary(view, after, label)` | same shape; `dispatch` calls its `prepare(store)`, which fills `before` (previous intent, or `{unplace: true}`) and sets `undoable = store.features.layoutParent` | queue `after` | queue `before` (unplace intents) |
 | `createEdge(fields)` | `{type:'CreateEdge', fields, edgeId, undoable:true}` | POST, remember `edgeId` | DELETE `edgeId` |
 | `deleteEdge(edge)` | `{type:'DeleteEdge', fields, edgeId, undoable:true}` | DELETE | POST `fields` again, remember the new id |
 
@@ -2755,7 +2755,7 @@ assert.ok(world.x < -330 && world.x + world.w > 5200 && world.y + world.h > 2910
 - Every position, parent or size change goes through `store.dispatch` with an `InfraAppStore.commands` object. The
   store keeps one `PUT /layout` in flight per view, coalesces later moves, rebases once on 409 (fresh snapshot, same
   intents) and leaves a second failure unsaved behind `[data-action="retry-layout"]`. A conflict clears that view's
-  history. Placing from the library is not undoable (no API removes a placement).
+  history. Placing from the library is undoable when the server supports `unplace` (`features.layoutParent`); the revert queues `{unplace: true}` intents, which the queue sends as `{id, version, unplace: true}`.
 - `PUT /layout` answers `{"nodes": [<changed nodes>]}` and is a patch: merge it through
   `InfraAppModel.applyLayoutPatch` (full nodes also set `parent_id`); only an explicit `snapshot` field replaces the
   atlas.
