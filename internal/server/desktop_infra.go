@@ -699,21 +699,30 @@ func desktopInfraValidPathID(id string) bool {
 }
 
 func desktopInfraStoreError(w http.ResponseWriter, err error) {
+	status, code, message := desktopInfraStoreErrorStatus(err)
+	desktopInfraError(w, status, code, message)
+}
+
+// desktopInfraStoreErrorStatus maps a store error to a status, a stable code and
+// a sanitized message. Batch imports report the same codes per item.
+func desktopInfraStoreErrorStatus(err error) (int, string, string) {
 	switch {
 	case errors.Is(err, infra.ErrConflict):
-		desktopInfraError(w, http.StatusConflict, "conflict", "The item changed; refresh and try again")
+		return http.StatusConflict, "conflict", "The item changed; refresh and try again"
 	case errors.Is(err, infra.ErrNotFound), errors.Is(err, infra.ErrSourceNotFound):
-		desktopInfraError(w, http.StatusNotFound, "not_found", "The Infra item was not found")
+		return http.StatusNotFound, "not_found", "The Infra item was not found"
 	case errors.Is(err, infra.ErrSourceRemoved), errors.Is(err, infra.ErrSourceLinked):
-		desktopInfraError(w, http.StatusConflict, "source_unavailable", "The source is no longer available")
+		return http.StatusConflict, "source_unavailable", "The source is no longer available"
 	case errors.Is(err, infra.ErrHasChildren):
-		desktopInfraError(w, http.StatusConflict, "has_children", "Move or remove child nodes first")
+		return http.StatusConflict, "has_children", "Move or remove child nodes first"
+	case errors.Is(err, infra.ErrEdgeExists):
+		return http.StatusConflict, "edge_exists", "This connection already exists"
 	case errors.Is(err, infra.ErrReadOnly):
-		desktopInfraError(w, http.StatusForbidden, "source_readonly", "This source is read-only")
+		return http.StatusForbidden, "source_readonly", "This source is read-only"
 	case errors.Is(err, infra.ErrValidation):
-		desktopInfraError(w, http.StatusBadRequest, "invalid_request", "Infra data is invalid")
+		return http.StatusBadRequest, "invalid_request", "Infra data is invalid"
 	default:
-		desktopInfraError(w, http.StatusInternalServerError, "infra_error", "Infra could not complete the request")
+		return http.StatusInternalServerError, "infra_error", "Infra could not complete the request"
 	}
 }
 

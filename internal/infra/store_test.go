@@ -988,3 +988,28 @@ func TestLayoutBatchChangesParentAndPlaceSize(t *testing.T) {
 		t.Fatalf("clearing the parent = %#v, %v", cleared, err)
 	}
 }
+
+func TestCreateEdgeRejectsSelfLoopsAndDuplicates(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	router, err := store.CreateNode(ctx, testNode(NodeDevice, "Router", "router"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	access, err := store.CreateNode(ctx, testNode(NodeDevice, "Switch", "switch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateEdge(ctx, Edge{From: router.ID, To: router.ID, Kind: EdgeEthernet}); !errors.Is(err, ErrValidation) {
+		t.Fatalf("self-loop error = %v; want validation error", err)
+	}
+	if _, err := store.CreateEdge(ctx, Edge{From: router.ID, To: access.ID, Kind: EdgeEthernet}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateEdge(ctx, Edge{From: router.ID, To: access.ID, Kind: EdgeEthernet, Label: "again"}); !errors.Is(err, ErrEdgeExists) {
+		t.Fatalf("duplicate edge error = %v; want ErrEdgeExists", err)
+	}
+	if _, err := store.CreateEdge(ctx, Edge{From: router.ID, To: access.ID, Kind: EdgeWiFi}); err != nil {
+		t.Fatalf("same pair with another kind: %v", err)
+	}
+}

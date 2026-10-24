@@ -219,6 +219,7 @@ func TestDesktopInfraStoreErrorMapsEverySentinel(t *testing.T) {
 		{infra.ErrSourceRemoved, http.StatusConflict, "source_unavailable"},
 		{infra.ErrSourceLinked, http.StatusConflict, "source_unavailable"},
 		{infra.ErrHasChildren, http.StatusConflict, "has_children"},
+		{infra.ErrEdgeExists, http.StatusConflict, "edge_exists"},
 		{infra.ErrReadOnly, http.StatusForbidden, "source_readonly"},
 		{infra.ErrValidation, http.StatusBadRequest, "invalid_request"},
 		{errors.New("boom"), http.StatusInternalServerError, "infra_error"},
