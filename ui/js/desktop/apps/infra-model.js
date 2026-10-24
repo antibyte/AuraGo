@@ -500,6 +500,171 @@
     };
     const glyph = name => `<svg class="infra-glyph" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${GLYPHS[name] || ''}</svg>`;
 
+    // ---- relevance and cleanup (spec §9.2) -------------------------------------
+    // Only devices and VMs are compared by address: containers share bridge
+    // addresses and places have none.
+    const DUPLICATE_KINDS = new Set(['device', 'vm']);
+    const GENERIC_ROLES = new Set(['mdns-device', 'dial', 'wfadevice', 'basic']);
+    const SCAN_TAGS = new Set(['network-scan', 'full-scan']);
+    const SOURCE_RANK = { registry: 0, proxmox: 1, docker: 2, fritzbox: 3 };
+    const DEFAULT_NAMES = new Set(['', 'unnamed device', 'unnamed candidate', 'fritz!box host', 'unknown', 'device']);
+    const OPAQUE_NAMES = [
+        /^[0-9a-f]{8,}$/i,
+        /^(uuid:)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+        /^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$/i,
+        /^\d{1,3}(\.\d{1,3}){3}$/,
+        /^[0-9a-f]{0,4}(:[0-9a-f]{0,4}){2,7}$/i,
+        /^[a-z][a-z0-9 _-]{0,24}[-_ ][0-9a-f]{12,}$/i,
+    ];
+    const naturalCompare = (a, b) => String(a ?? '').localeCompare(String(b ?? ''), undefined, { numeric: true, sensitivity: 'base' });
+    // isOpaqueName: blank/default names, hex ids, UUIDs, MAC or IP literals and a
+    // short word followed by a long hex run (mDNS instance names).
+    const isOpaqueName = name => { const value = String(name ?? '').trim(); return DEFAULT_NAMES.has(value.toLowerCase()) || OPAQUE_NAMES.some(pattern => pattern.test(value)); };
+    const normalizeIP = value => { const ip = String(value ?? '').trim().toLowerCase(); return !ip || ip === '0.0.0.0' || ip === '::' || ip === '::1' || ip.startsWith('127.') ? '' : ip; };
+    const normalizeMAC = value => { const mac = String(value ?? '').trim().toLowerCase().replaceAll('-', ':'); return /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(mac) && mac !== '00:00:00:00:00:00' ? mac : ''; };
+    const isLinkLocalIPv6 = ip => /^fe[89ab][0-9a-f]:/i.test(ip);
+    const addressesOf = node => {
+        const profile = node?.profile || {}, interfaces = Array.isArray(profile.interfaces) ? profile.interfaces : [];
+        const ips = new Set([profile.ip_address, ...interfaces.map(item => item?.ip_address)].map(normalizeIP).filter(Boolean));
+        const macs = new Set([profile.mac_address, ...interfaces.map(item => item?.mac_address)].map(normalizeMAC).filter(Boolean));
+        return { ips: [...ips], macs: [...macs] };
+    };
+    const isGenericDiscovery = (node, sourceKind) => {
+        const profile = node?.profile || {};
+        return sourceKind === 'registry' && GENERIC_ROLES.has(String(profile.role || '').trim().toLowerCase())
+            && (profile.tags || []).every(tag => SCAN_TAGS.has(String(tag).trim().toLowerCase()))
+            && !String(profile.vendor || '').trim() && !String(profile.model || '').trim();
+    };
+    // A FRITZ!Box names itself as vendor of every host it sees; that says nothing.
+    const detailLength = entry => (entry.sourceKind === 'fritzbox' ? 0 : String(entry.node?.profile?.vendor || '').trim().length) + String(entry.node?.profile?.model || '').trim().length;
+    // compareSpecificity sorts {id, node, sourceKind} most descriptive first.
+    const compareSpecificity = (a, b) => Number(isOpaqueName(a.node?.name)) - Number(isOpaqueName(b.node?.name))
+        || detailLength(b) - detailLength(a)
+        || (SOURCE_RANK[a.sourceKind] ?? 9) - (SOURCE_RANK[b.sourceKind] ?? 9)
+        || Number(isGenericDiscovery(a.node, a.sourceKind)) - Number(isGenericDiscovery(b.node, b.sourceKind))
+        || String(a.node?.name || '').length - String(b.node?.name || '').length
+        || String(a.id).localeCompare(String(b.id));
+    const addressIndex = entries => {
+        const byIp = new Map(), byMac = new Map();
+        for (const entry of entries) {
+            if (!DUPLICATE_KINDS.has(entry.node?.kind)) continue;
+            const { ips, macs } = addressesOf(entry.node);
+            for (const ip of ips) byIp.set(ip, [...(byIp.get(ip) || []), entry]);
+            for (const mac of macs) byMac.set(mac, [...(byMac.get(mac) || []), entry]);
+        }
+        return { byIp, byMac };
+    };
+    const candidateEntry = candidate => ({ id: candidate.id, node: candidate.node || {}, sourceKind: candidate.source?.kind || '' });
+    const relevanceIndex = (nodes = [], candidates = []) => ({
+        nodes: addressIndex((nodes || []).map(node => ({ id: node.id, node }))),
+        candidates: addressIndex((candidates || []).filter(Boolean).map(candidateEntry)),
+    });
+    // discoveryRelevance: an existing asset wins over every discovery; among
+    // discoveries sharing an address the most specific one is recommended.
+    const discoveryRelevance = (candidate, nodes = [], candidates = [], { sourceHosts = [], index = null } = {}) => {
+        const lookup = index || relevanceIndex(nodes, candidates);
+        const node = candidate?.node || {}, source = candidate?.source || {};
+        const own = addressesOf(node), reasons = [];
+        let duplicateOf = null;
+        if (DUPLICATE_KINDS.has(node.kind)) {
+            for (const [field, match, values] of [['byMac', 'mac', own.macs], ['byIp', 'ip', own.ips]]) {
+                const hit = values.map(value => (lookup.nodes[field].get(value) || [])[0]).find(Boolean);
+                if (hit) { duplicateOf = { nodeId: hit.id, match }; break; }
+            }
+            if (!duplicateOf) {
+                const peers = new Map();
+                for (const [field, match, values] of [['byMac', 'mac', own.macs], ['byIp', 'ip', own.ips]]) {
+                    for (const value of values) for (const entry of lookup.candidates[field].get(value) || []) if (entry.id !== candidate.id && !peers.has(entry.id)) peers.set(entry.id, { entry, match });
+                }
+                if (peers.size) {
+                    const best = [candidateEntry(candidate), ...[...peers.values()].map(peer => peer.entry)].sort(compareSpecificity)[0];
+                    if (best.id !== candidate.id) duplicateOf = { candidateId: best.id, match: peers.get(best.id).match };
+                }
+            }
+        }
+        if (duplicateOf) reasons.push(duplicateOf.match === 'mac' ? 'duplicate_mac' : 'duplicate_ip');
+        if (isGenericDiscovery(node, source.kind)) reasons.push('generic_discovery');
+        const power = String(source.observed?.power || '');
+        const mapped = (sourceHosts || []).some(host => host?.kind === 'docker' && host.instance === source.instance && host.node_id);
+        if ((source.kind === 'fritzbox' && power === 'stopped') || (source.kind === 'docker' && power === 'stopped' && !mapped)) reasons.push('inactive');
+        if (own.ips.length && own.ips.every(isLinkLocalIPv6)) reasons.push('link_local');
+        return { group: duplicateOf ? 'duplicate' : reasons.length ? 'unlikely' : 'recommended', reasons, ...(duplicateOf ? { duplicateOf } : {}) };
+    };
+    // groupDiscoveries returns the import sheet groups (sorted by name) and every relevance.
+    const groupDiscoveries = (candidates = [], nodes = [], { sourceHosts = [] } = {}) => {
+        const index = relevanceIndex(nodes, candidates), relevance = new Map(), groups = { recommended: [], duplicate: [], unlikely: [] };
+        for (const candidate of candidates || []) {
+            if (!candidate?.id) continue;
+            const result = discoveryRelevance(candidate, nodes, candidates, { sourceHosts, index });
+            relevance.set(candidate.id, result);
+            groups[result.group].push(candidate);
+        }
+        for (const list of Object.values(groups)) list.sort((a, b) => naturalCompare(a.node?.name, b.node?.name) || String(a.id).localeCompare(String(b.id)));
+        return { ...groups, relevance };
+    };
+    const LINKABLE_REGISTRY_KINDS = new Set(['device', 'vm', 'container']);
+    // bindableFor: never a place or network; registry devices only onto devices,
+    // VMs and containers without another registry device.
+    const bindableFor = (candidate, node) => {
+        if (!node || isContainer(node.kind) || node.kind === 'network') return false;
+        if (candidate?.source?.kind !== 'registry') return true;
+        return LINKABLE_REGISTRY_KINDS.has(node.kind) && (!node.registry_id || node.registry_id === candidate.registry_id);
+    };
+    const normalizedName = value => String(value ?? '').toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    // linkSuggestions ranks assets a discovery probably is: same MAC, address, name.
+    const linkSuggestions = (candidate, nodes = [], limit = 5) => {
+        const own = addressesOf(candidate?.node), name = normalizedName(candidate?.node?.name), scored = [];
+        for (const node of nodes || []) {
+            if (!bindableFor(candidate, node)) continue;
+            const theirs = addressesOf(node);
+            const score = (own.macs.some(mac => theirs.macs.includes(mac)) ? 4 : 0) + (own.ips.some(ip => theirs.ips.includes(ip)) ? 2 : 0) + (name && normalizedName(node.name) === name ? 1 : 0);
+            if (score) scored.push({ id: node.id, name: node.name, score });
+        }
+        return scored.sort((a, b) => b.score - a.score || naturalCompare(a.name, b.name)).slice(0, limit).map(item => item.id);
+    };
+    const bestSourceKind = node => (node.sources || []).map(source => source.kind).sort((a, b) => (SOURCE_RANK[a] ?? 9) - (SOURCE_RANK[b] ?? 9))[0] || '';
+    // A placed, connected, grouped or manual asset is the one a user invested in.
+    const investment = (node, edgeCount) => Object.keys(node.placements || {}).length * 2 + (edgeCount.get(node.id) || 0) + (node.parent_id ? 1 : 0) + ((node.sources || []).length ? 0 : 3);
+    const isUntouchedImport = node => (node.sources || []).some(source => [source.name, source.observed?.name].includes(node.name));
+    // infraCleanup: duplicates by MAC or address, Docker guests whose engine has
+    // no host, other hostless guests, untouched opaque names. `sources` is kept
+    // for the spec signature.
+    const infraCleanup = (nodes = [], sources = [], sourceHosts = [], { edges = [], dismissed = new Set() } = {}) => {
+        const list = (nodes || []).filter(Boolean), edgeCount = new Map();
+        for (const edge of edges || []) for (const id of [edge.from, edge.to]) edgeCount.set(id, (edgeCount.get(id) || 0) + 1);
+        const rank = (a, b) => investment(b, edgeCount) - investment(a, edgeCount) || compareSpecificity({ id: a.id, node: a, sourceKind: bestSourceKind(a) }, { id: b.id, node: b, sourceKind: bestSourceKind(b) });
+        const byName = (a, b) => naturalCompare(a.name, b.name) || String(a.id).localeCompare(String(b.id));
+        const duplicates = [], seenGroups = new Set(), inDuplicate = new Set();
+        const index = addressIndex(list.map(node => ({ id: node.id, node })));
+        for (const [field, match] of [['byMac', 'mac'], ['byIp', 'ip']]) {
+            for (const [value, entries] of [...index[field]].sort((a, b) => naturalCompare(a[0], b[0]))) {
+                const members = [...new Set(entries.map(entry => entry.id))];
+                if (members.length < 2) continue;
+                const key = members.slice().sort().join(',');
+                if (seenGroups.has(key)) continue;
+                seenGroups.add(key);
+                const ranked = members.map(id => list.find(node => node.id === id)).sort(rank);
+                ranked.forEach(node => inDuplicate.add(node.id));
+                duplicates.push({ id: `duplicate:${match}:${value}:${key}`, type: 'duplicate', match, value, keepId: ranked[0].id, removeIds: ranked.slice(1).map(node => node.id), nodeIds: ranked.map(node => node.id) });
+            }
+        }
+        const { hostOf } = guestIndex(list, edges);
+        const engines = new Map(), guestHosts = [];
+        for (const node of list.filter(item => (item.kind === 'vm' || item.kind === 'container') && !hostOf.has(item.id)).sort(byName)) {
+            const docker = (node.sources || []).find(source => source.kind === 'docker' && source.instance);
+            if (docker) engines.set(docker.instance, [...(engines.get(docker.instance) || []), node.id]);
+            else guestHosts.push({ id: `guest-host:${node.id}`, type: 'guest-host', nodeId: node.id, nodeIds: [node.id] });
+        }
+        const engineHosts = [...engines].sort((a, b) => naturalCompare(a[0], b[0])).map(([instance, guestIds]) => {
+            const entry = (sourceHosts || []).find(host => host?.kind === 'docker' && host.instance === instance) || {};
+            return { id: `engine-host:docker:${instance}`, type: 'engine-host', kind: 'docker', instance, version: Number(entry.version) || 0, inferredNodeId: String(entry.inferred_node_id || ''), guestIds, nodeIds: guestIds };
+        });
+        const opaque = list.filter(node => node.kind === 'device' && !inDuplicate.has(node.id) && isOpaqueName(node.name) && isUntouchedImport(node)
+            && (node.sources || []).some(source => source.kind === 'registry' || source.kind === 'fritzbox')).sort(byName)
+            .map(node => ({ id: `opaque:${node.id}`, type: 'opaque', nodeId: node.id, nodeIds: [node.id] }));
+        return [...duplicates, ...engineHosts, ...guestHosts, ...opaque].filter(item => !dismissed.has(item.id));
+    };
+
     window.InfraAppModel = {
         esc, clone, iconId, iconURL, assetURL, iconLabelKey, sourceActions, sourceIdentity, virtualSlice, sourceState,
         visibleByCollapsed, isPlaced, validCIDR, validHTTPLink, iconIds: () => [...ICON_LIST],
@@ -511,5 +676,6 @@
         normalizeRect, padRect, unionRects, freeSlot, regionRect, regionLayout, regionAt, dropParent, growRegions,
         spatialNeighbour, compactGrid, defaultEdgeKind, guestIndex, matchesFilters, filtersActive, buildScene,
         mergeIntent, layoutItems, rebaseLayout, createHistory, readLayoutPrefs, fill, normalizeNode, minimapTransform, glyph,
+        naturalCompare, isOpaqueName, addressesOf, isGenericDiscovery, compareSpecificity, relevanceIndex, discoveryRelevance, groupDiscoveries, bindableFor, linkSuggestions, infraCleanup,
     };
 })();

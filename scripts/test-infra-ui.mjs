@@ -476,6 +476,75 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     }
 }
 
+// ---- discovery relevance and cleanup -----------------------------------------
+{
+    const cand = (id, kind, name, profile = {}, source = {}) => ({ id, node: { kind, name, icon: 'generic-device', profile: { tags: [], interfaces: [], ...profile } }, source: { kind: 'registry', instance: 'inventory', key: id, state: 'current', observed: {}, ...source } });
+    for (const name of ['3f2a9c1e7b6d', 'b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e', 'AA-BB-CC-DD-EE-FF', '192.168.6.30', 'Chromecast-3c1d2e4f5a6b7c8d', 'Unnamed device']) assert.equal(model.isOpaqueName(name), true, name);
+    for (const name of ['Living room TV', 'TheBrain']) assert.equal(model.isOpaqueName(name), false, name);
+    const nas = cand('cand-nas', 'device', 'Basement NAS', { ip_address: '192.168.6.20', role: 'server', vendor: 'Synology' });
+    const brain = cand('cand-brain', 'device', 'TheBrain', { ip_address: '192.168.6.1', role: 'InternetGatewayDevice' });
+    const media = cand('cand-brain-media', 'device', 'TheBrain Mediaserver', { ip_address: '192.168.6.1', role: 'MediaServer' });
+    const castNamed = cand('cand-cast', 'device', 'Living room TV', { ip_address: '192.168.6.30', role: 'chromecast' });
+    const castUuid = cand('cand-cast-uuid', 'device', 'Chromecast-3c1d2e4f5a6b7c8d', { ip_address: '192.168.6.30', role: 'mdns-device', tags: ['network-scan'] });
+    const speaker = cand('cand-speaker', 'device', 'Kitchen speaker', { role: 'mdns-device', tags: ['network-scan', 'full-scan'] });
+    const phone = cand('cand-phone', 'device', 'Old phone', { ip_address: '192.168.6.77', vendor: 'AVM FRITZ!Box' }, { kind: 'fritzbox', instance: 'fritz', observed: { power: 'stopped' } });
+    const fritzSwitch = cand('cand-switch', 'device', 'Core switch', { ip_address: '192.168.6.2', vendor: 'AVM FRITZ!Box' }, { kind: 'fritzbox', instance: 'fritz', observed: { power: 'running' } });
+    const linkLocal = cand('cand-ll', 'device', 'Printer', { ip_address: 'fe80::1c2b:3aff:fe4d:5e6f', role: 'printer' });
+    const stopped = cand('cand-ct', 'container', 'legacy-db', {}, { kind: 'docker', instance: 'engine-a', observed: { power: 'stopped' } });
+    const nodes = [{ id: 'core-switch', kind: 'device', name: 'Core switch', profile: { ip_address: '192.168.6.2' } }];
+    const all = [nas, brain, media, castNamed, castUuid, speaker, phone, fritzSwitch, linkLocal, stopped];
+    const rel = candidate => plain(model.discoveryRelevance(candidate, nodes, all));
+    assert.deepEqual(rel(nas), { group: 'recommended', reasons: [] });
+    assert.deepEqual(rel(brain), { group: 'recommended', reasons: [] }, 'the shorter base name wins an equally detailed pair');
+    assert.deepEqual(rel(media), { group: 'duplicate', reasons: ['duplicate_ip'], duplicateOf: { candidateId: 'cand-brain', match: 'ip' } });
+    assert.deepEqual(rel(castNamed), { group: 'recommended', reasons: [] });
+    assert.deepEqual(rel(castUuid), { group: 'duplicate', reasons: ['duplicate_ip', 'generic_discovery'], duplicateOf: { candidateId: 'cand-cast', match: 'ip' } }, 'the opaque mDNS twin of a Chromecast is the duplicate');
+    assert.deepEqual(rel(speaker), { group: 'unlikely', reasons: ['generic_discovery'] });
+    assert.deepEqual(rel(phone), { group: 'unlikely', reasons: ['inactive'] });
+    assert.deepEqual(rel(fritzSwitch), { group: 'duplicate', reasons: ['duplicate_ip'], duplicateOf: { nodeId: 'core-switch', match: 'ip' } }, 'an existing asset wins over every discovery');
+    assert.deepEqual(rel(linkLocal), { group: 'unlikely', reasons: ['link_local'] });
+    assert.deepEqual(rel(stopped), { group: 'unlikely', reasons: ['inactive'] });
+    assert.deepEqual(plain(model.discoveryRelevance(stopped, nodes, all, { sourceHosts: [{ kind: 'docker', instance: 'engine-a', node_id: 'host-1', version: 1 }] })), { group: 'recommended', reasons: [] }, 'a mapped engine keeps stopped containers relevant');
+    const groups = model.groupDiscoveries(all, nodes);
+    assert.deepEqual(plain(groups.recommended.map(c => c.id)), ['cand-nas', 'cand-cast', 'cand-brain']);
+    assert.deepEqual(plain(groups.duplicate.map(c => c.id)), ['cand-cast-uuid', 'cand-switch', 'cand-brain-media']);
+    assert.deepEqual(plain(groups.unlikely.map(c => c.id)), ['cand-speaker', 'cand-ct', 'cand-phone', 'cand-ll']);
+    assert.equal(groups.relevance.get('cand-switch').duplicateOf.nodeId, 'core-switch');
+    const linkNodes = [
+        { id: 'manual-1', kind: 'device', name: 'Atlas gateway', profile: {} },
+        { id: 'sw', kind: 'device', name: 'Core switch', profile: { ip_address: '192.168.6.2' } },
+        { id: 'sw-reg', kind: 'device', name: 'Switch', registry_id: 'other-device', profile: { ip_address: '192.168.6.2' } },
+        { id: 'room', kind: 'room', name: 'Core switch', profile: {} },
+    ];
+    assert.deepEqual(plain(model.linkSuggestions(fritzSwitch, linkNodes)), ['sw', 'sw-reg'], 'address matches first; places are never link targets');
+    const atlas = { ...cand('registry-candidate', 'device', 'Atlas gateway', { ip_address: '192.0.2.9' }), registry_id: 'registry-device-9' };
+    assert.deepEqual(plain(model.linkSuggestions(atlas, linkNodes)), ['manual-1'], 'registry discoveries skip assets with another registry device');
+    assert.equal(model.bindableFor(atlas, { kind: 'service', name: 'x' }), false);
+    const src = (kind, name, extra = {}) => ({ kind, name, observed: { name }, ...extra });
+    const cleanupNodes = [
+        { id: 'tv', kind: 'device', name: 'Living room TV', placements: { atlas: { x: 0, y: 0 } }, profile: { ip_address: '192.168.6.30' }, sources: [src('registry', 'Living room TV')] },
+        { id: 'tv-uuid', kind: 'device', name: 'Chromecast-3c1d2e4f5a6b7c8d', placements: {}, profile: { ip_address: '192.168.6.30' }, sources: [src('registry', 'Chromecast-3c1d2e4f5a6b7c8d')] },
+        { id: 'blob', kind: 'device', name: '3f2a9c1e7b6d', placements: {}, profile: {}, sources: [src('fritzbox', '3f2a9c1e7b6d')] },
+        { id: 'renamed', kind: 'device', name: 'a1b2c3d4e5f6', placements: {}, profile: {}, sources: [src('registry', 'Garage sensor')] },
+        { id: 'ct-1', kind: 'container', name: 'radarr', placements: {}, profile: {}, sources: [{ kind: 'docker', instance: 'engine-a', key: 'c1' }] },
+        { id: 'ct-2', kind: 'container', name: 'sonarr', placements: {}, profile: {}, sources: [{ kind: 'docker', instance: 'engine-a', key: 'c2' }] },
+        { id: 'ct-hosted', kind: 'container', name: 'plex', host_id: 'host', placements: {}, profile: {}, sources: [{ kind: 'docker', instance: 'engine-a', key: 'c3' }] },
+        { id: 'host', kind: 'device', name: 'Docker host', placements: {}, profile: {}, sources: [] },
+        { id: 'vm-1', kind: 'vm', name: 'Lab VM', placements: {}, profile: {}, sources: [] },
+    ];
+    const suggestions = plain(model.infraCleanup(cleanupNodes, [], [{ kind: 'docker', instance: 'engine-a', node_id: '', version: 0, inferred_node_id: '' }], { edges: [] }));
+    assert.deepEqual(suggestions.map(item => item.id), ['duplicate:ip:192.168.6.30:tv,tv-uuid', 'engine-host:docker:engine-a', 'guest-host:vm-1', 'opaque:blob'], 'renamed opaque assets and hosted guests make no suggestion');
+    assert.deepEqual(suggestions[0], { id: 'duplicate:ip:192.168.6.30:tv,tv-uuid', type: 'duplicate', match: 'ip', value: '192.168.6.30', keepId: 'tv', removeIds: ['tv-uuid'], nodeIds: ['tv', 'tv-uuid'] });
+    assert.deepEqual(suggestions[1], { id: 'engine-host:docker:engine-a', type: 'engine-host', kind: 'docker', instance: 'engine-a', version: 0, inferredNodeId: '', guestIds: ['ct-1', 'ct-2'], nodeIds: ['ct-1', 'ct-2'] });
+    assert.deepEqual(suggestions[2], { id: 'guest-host:vm-1', type: 'guest-host', nodeId: 'vm-1', nodeIds: ['vm-1'] });
+    assert.deepEqual(suggestions[3], { id: 'opaque:blob', type: 'opaque', nodeId: 'blob', nodeIds: ['blob'] });
+    const again = plain(model.infraCleanup(cleanupNodes, [], [{ kind: 'docker', instance: 'engine-a', node_id: '', version: 4, inferred_node_id: 'host' }], { edges: [], dismissed: new Set(['opaque:blob']) }));
+    assert.deepEqual(again.map(item => item.id), ['duplicate:ip:192.168.6.30:tv,tv-uuid', 'engine-host:docker:engine-a', 'guest-host:vm-1'], 'dismissed suggestions stay hidden');
+    assert.equal(again[1].version, 4);
+    assert.equal(again[1].inferredNodeId, 'host');
+    assert.ok(!plain(model.infraCleanup(cleanupNodes, [], [], { edges: [{ id: 'e', kind: 'runs_on', from: 'vm-1', to: 'host' }] })).some(item => item.id === 'guest-host:vm-1'), 'a runs_on edge gives a guest its host');
+}
+
 for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     const css = fs.readFileSync(path.join(root, 'ui/css', file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     const outsideMixes = css.replace(/color-mix\((?:[^()]|\([^()]*\))*\)/g, '');
