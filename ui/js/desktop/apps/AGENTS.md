@@ -170,6 +170,18 @@ after the built-in installers and before the markup exists. DOM work belongs in 
     (`data-search-open`, `app.focusSearch()`, which Ctrl K calls and which keeps the event from the desktop's Spotlight).
   - `model.sourceLabels` numbers several instances of a source kind ("Docker 1"); the instance id only goes into a title.
     `model.APP_LINK_TARGETS` is the one list of linkable apps.
+- Topology lanes (Plan D):
+  - Four fixed world bands, `LANE_H` = 480 px from y = 0 (internet, network, compute, clients), drawn into `[data-lanes]`
+    (the first scene layer, `aria-hidden`); their labels are counter-scaled by `--infra-lane-k`. `buildScene` returns
+    `lanes` in Topology and its `bounds` include them, so Fit shows every lane. Lane labels are not sticky.
+  - A card saved `pinned: true` is in lane `laneAt(y)`; any other card is in `topologyLane(node)` (kind, icon, role words,
+    "has guests"). Auto columns sit `LANE_CELL_W` = 240 px apart, rows 96 px, from lane top + 96.
+  - The auto layout never writes: `model.topologyAutoPositions` slots every eligible asset without a topology placement
+    (not a place, guest or hostless VM/container) in connection order. The canvas memoizes it (`autoPositions()`,
+    `isAutoPlaced(id)`); the library tree, Arrange's enabled state and the inspector read it, so nothing is "to place".
+  - Gestures: a drag or keyboard move highlights its lane (`setLaneTarget`) and announces a lane change. The first move of
+    an auto-laid card undoes back to the automatic layout (`{unplace: true}` in `previousIntent`; without unplace support it
+    is not undoable). Arrange in Topology is `topologyArrange`, one undoable save for the selection or every card.
 
 ## Synth Studio
 
