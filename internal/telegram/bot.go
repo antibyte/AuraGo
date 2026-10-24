@@ -100,8 +100,10 @@ var telegramPollingInitialBackoff = time.Second
 
 const (
 	// telegramOffsetPersistEveryUpdates and telegramOffsetPersistInterval
-	// bound how long a handed-out cursor may stay unpersisted.
-	telegramOffsetPersistEveryUpdates = 10
+	// bound how long a handed-out cursor may stay unpersisted. The cursor is
+	// written after every update, so a restart never replays a batch: the
+	// interval only covers the case where a persist itself failed.
+	telegramOffsetPersistEveryUpdates = 1
 	telegramOffsetPersistInterval     = 30 * time.Second
 	// telegramMaxRetryAfterSeconds caps the flood-control delay Telegram asks
 	// for, so a hostile or buggy response cannot stall the poller.
@@ -181,7 +183,9 @@ func runPollingLoop(ctx context.Context, poller telegramUpdatePoller, updateCfg 
 				return updateCfg.Offset
 			}
 			// The cursor advances only after the update was handed to the
-			// worker, so a crash may replay at most this one update.
+			// worker, so a crash can lose at most this one message. The
+			// cursor is persisted right away, so a restart does not replay
+			// the rest of the batch either.
 			updateCfg.Offset = update.UpdateID + 1
 			pending++
 			if persist != nil && (pending >= telegramOffsetPersistEveryUpdates || time.Since(lastPersist) >= telegramOffsetPersistInterval) {

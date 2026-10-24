@@ -382,7 +382,7 @@ func TestTelegramCursorIsPersistedWhilePolling(t *testing.T) {
 		batch = append(batch, tgbotapi.Update{UpdateID: i})
 	}
 	poller := &telegramBatchPoller{batch: batch, release: release}
-	persisted := make(chan int, 4)
+	persisted := make(chan int, 16)
 	done := make(chan int, 1)
 	go func() {
 		done <- runPollingLoop(ctx, poller, tgbotapi.NewUpdate(0), nil, nil, func(tgbotapi.Update) bool { return true }, func(offset int) {
@@ -392,17 +392,86 @@ func TestTelegramCursorIsPersistedWhilePolling(t *testing.T) {
 			}
 		})
 	}()
-	select {
-	case offset := <-persisted:
-		// The cursor advances past the handed-out update, so ten handled
-		// updates persist the next expected update id.
-		if offset != 11 {
-			t.Fatalf("persisted cursor = %d, want 11", offset)
+	// The cursor advances past the handed-out update and is written after
+	// every one of them, so the first writes carry the next expected id.
+	for want := 2; want <= 4; want++ {
+		select {
+		case offset := <-persisted:
+			if offset != want {
+				t.Fatalf("persisted cursor = %d, want %d", offset, want)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("cursor was not persisted while polling")
 		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("cursor was not persisted while polling")
 	}
 	cancel()
 	releaseAll()
 	awaitTelegram(t, done)
+}
+
+// telegramRestartPoller serves one batch and then stops the poller, so a
+// restart check does not block on the long poll.
+type telegramRestartPoller struct {
+	batch  []tgbotapi.Update
+	served bool
+	cancel context.CancelFunc
+}
+
+func (p *telegramRestartPoller) GetUpdates(tgbotapi.UpdateConfig) ([]tgbotapi.Update, error) {
+	if !p.served {
+		p.served = true
+		return p.batch, nil
+	}
+	p.cancel()
+	return nil, nil
+}
+
+func TestTelegramCursorSurvivesRestartWithoutReplay(t *testing.T) {
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	releaseAll := func() { releaseOnce.Do(func() { close(release) }) }
+	t.Cleanup(releaseAll)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	batch := []tgbotapi.Update{{UpdateID: 1}, {UpdateID: 2}, {UpdateID: 3}}
+	poller := &telegramBatchPoller{batch: batch, release: release}
+	persisted := make(chan int, 8)
+	done := make(chan int, 1)
+	go func() {
+		done <- runPollingLoop(ctx, poller, tgbotapi.NewUpdate(0), nil, nil, func(tgbotapi.Update) bool { return true }, func(offset int) {
+			select {
+			case persisted <- offset:
+			default:
+			}
+		})
+	}()
+	last := 0
+	for want := 2; want <= 4; want++ {
+		select {
+		case offset := <-persisted:
+			last = offset
+			if offset != want {
+				t.Fatalf("persisted cursor = %d, want %d", offset, want)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("cursor was not persisted while polling")
+		}
+	}
+	cancel()
+	releaseAll()
+	awaitTelegram(t, done)
+
+	// A restart continues at the persisted cursor, so the updates of the first
+	// batch must not reach the worker a second time.
+	restartCtx, restartCancel := context.WithCancel(context.Background())
+	t.Cleanup(restartCancel)
+	handled := 0
+	runPollingLoop(restartCtx, &telegramRestartPoller{batch: batch, cancel: restartCancel}, tgbotapi.NewUpdate(last), nil, nil, func(tgbotapi.Update) bool {
+		handled++
+		return true
+	}, nil)
+	if handled != 0 {
+		t.Fatalf("restart replayed %d updates, want 0", handled)
+	}
 }
