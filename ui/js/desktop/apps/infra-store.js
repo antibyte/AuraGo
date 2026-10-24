@@ -64,11 +64,14 @@
         createEdge: fields => ({
             type: 'CreateEdge', fields: { ...fields }, edgeId: '', undoable: true,
             async apply(store) { const edge = await store.createEdge(this.fields); this.edgeId = edge?.id || ''; return !!this.edgeId; },
+            // settle runs after an unconfirmed write was reloaded: did the connection arrive? Then undo can remove it.
+            settle(store) { const found = store.state.edges.find(item => item.from === this.fields.from && item.to === this.fields.to && item.kind === this.fields.kind); this.edgeId = found?.id || ''; return !!this.edgeId; },
             async revert(store) { return store.deleteEdgeById(this.edgeId); },
         }),
         deleteEdge: edge => ({
             type: 'DeleteEdge', fields: edgeFields(edge), edgeId: edge.id, undoable: true,
             async apply(store) { return store.deleteEdgeById(this.edgeId); },
+            settle(store) { return !store.state.edges.some(item => item.id === this.edgeId); },
             async revert(store) { const created = await store.createEdge(this.fields); this.edgeId = created?.id || ''; return !!this.edgeId; },
         }),
     };
@@ -574,6 +577,12 @@
             state.sources = [...byKey.values()];
         }
         const uncertainReload = async error => { await refreshSnapshot(); notify(t('desktop.infra_write_outcome_unknown'), 'error'); return error; };
+        // writeFailed answers a rejected write: hiding or closing the window stays quiet, an unconfirmed
+        // write reloads and says so, anything else shows its own message.
+        async function writeFailed(error) {
+            if (state.disposed || error?.name === 'AbortError') return;
+            if (uncertainMutation(error)) await uncertainReload(error); else notify(messageFor(error), 'error');
+        }
         function replaceNodes(list) {
             const at = new Map(state.nodes.map((node, index) => [node.id, index])), nodes = state.nodes.slice(), out = [];
             for (const raw of list || []) {
@@ -722,7 +731,14 @@
                 if (command.undoable) { history.push(command); emit({ type: 'history' }); }
                 return done;
             }
-            const ok = await command.apply(api);
+            let ok;
+            try { ok = await command.apply(api); }
+            catch (error) {
+                // An unconfirmed write: reload and say so; the fresh state tells the command whether it took effect.
+                if (error?.name === 'AbortError' || !uncertainMutation(error)) throw error;
+                await uncertainReload(error);
+                ok = !!command.settle?.(api);
+            }
             if (ok && command.undoable) { history.push(command); emit({ type: 'history' }); }
             return ok;
         }
@@ -740,7 +756,7 @@
                 const ok = forward ? await entry.apply(api) : await entry.revert(api);
                 if (ok) done(); else back();
                 return !!ok;
-            } catch (error) { back(); notify(messageFor(error), 'error'); return false; }
+            } catch (error) { back(); await writeFailed(error); return false; }
             finally { state.historyBusy = false; emit({ type: 'history' }); }
         }
         const canUndo = view => !!histories[view]?.canUndo() && !state.historyBusy;
@@ -802,7 +818,7 @@
         }
 
         const api = {
-            state, features, subscribe, notify, setBusy, request, messageFor, uncertainMutation, isAccessError,
+            state, features, subscribe, notify, setBusy, request, messageFor, uncertainMutation, uncertainReload, writeFailed, isAccessError,
             canWrite, canEditSource, canControl, allowedAction, actionReason, actionBlockKey,
             nodeById, nodeIndex, childrenOf, guests, searchableText, matches,
             applySnapshot, loadSnapshot, loadTargets, loadCredentials, loadIconManifest, replaceNode, removeNode,

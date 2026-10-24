@@ -82,7 +82,7 @@
                     closeOwnedDialog(owner);
                 } else await store.loadSnapshot();
                 store.notify(t('desktop.infra_node_created'), 'success');
-            } catch (error) { store.notify(store.messageFor(error), 'error'); }
+            } catch (error) { await store.writeFailed(error); }
             finally { store.setBusy('create', false); }
         }
 
@@ -194,7 +194,7 @@
                 else if (!await store.dispatch(commands().createEdge(fields))) return;
                 closeOwnedDialog(owner);
                 store.notify(t('desktop.infra_relation_saved'), 'success');
-            } catch (error) { store.notify(store.messageFor(error), 'error'); }
+            } catch (error) { await store.writeFailed(error); }
             finally { store.setBusy(busyKey, false); }
         }
         async function deleteEdge(edge, owner) {
@@ -203,7 +203,7 @@
             if (!confirmation.confirmed) return;
             try {
                 if (await store.dispatch(commands().deleteEdge(edge))) { closeOwnedDialog(confirmation.owner || owner); app.announce(t('desktop.infra_connection_removed')); }
-            } catch (error) { store.notify(store.messageFor(error), 'error'); }
+            } catch (error) { await store.writeFailed(error); }
         }
 
         // The popover opens at the release point of a connect drag.
@@ -276,8 +276,12 @@
             const node = store.nodeById(id);
             if (!node || !canWrite()) return;
             if (!await confirmAction(t('desktop.infra_remove_node'), t('desktop.infra_remove_node_confirm').replace('{name}', node.name))) return;
-            try { await removeRemote(node); store.notify(t('desktop.infra_node_removed'), 'success'); }
-            catch (error) { store.notify(store.messageFor(error), 'error'); }
+            // The confirmation can stay open for a while: permissions and the version may have moved on.
+            if (!canWrite()) { store.notify(t('desktop.infra_error_infra_readonly'), 'info'); return; }
+            const current = store.nodeById(id);
+            if (!current) return;
+            try { await removeRemote(current); store.notify(t('desktop.infra_node_removed'), 'success'); }
+            catch (error) { await store.writeFailed(error); }
         }
         // deleteNodes removes assets one by one, places last, and stops at the first error.
         async function deleteNodes(ids) {
@@ -287,10 +291,11 @@
             if (!await confirmAction(t('desktop.infra_remove_node'), t('desktop.infra_remove_selection_confirm').replace('{count}', nodes.length))) return;
             const ordered = [...nodes.filter(node => !model.isContainer(node.kind)), ...nodes.filter(node => model.isContainer(node.kind))];
             for (const node of ordered) {
+                if (!canWrite()) { store.notify(t('desktop.infra_error_infra_readonly'), 'info'); return; }
                 const current = store.nodeById(node.id);
                 if (!current) continue;
                 try { await removeRemote(current); }
-                catch (error) { store.notify(store.messageFor(error), 'error'); return; }
+                catch (error) { await store.writeFailed(error); return; }
             }
             store.notify(t('desktop.infra_node_removed'), 'success');
         }
@@ -332,6 +337,12 @@
                     reviewAllowed = true;
                 }
                 if (state.disposed || !root.isConnected) return;
+                // A confirmation can outlive the permission it was given under.
+                if (!store.allowedAction(store.nodeById(id), action, sourceDescriptor)) {
+                    if (store.canControl()) store.notify(t('desktop.infra_action_unavailable'), 'info');
+                    else store.notify(t('desktop.infra_error_infra_readonly'), 'info');
+                    return;
+                }
                 const result = await store.request(`/nodes/${encodeURIComponent(id)}/actions`, { method: 'POST', body: { source: sourceDescriptor.kind, action, request_id, confirmed: true } });
                 if (state.disposed || !root.isConnected) return;
                 if (['running', 'accepted', 'unknown'].includes(result.status)) {
@@ -383,7 +394,7 @@
 
         return {
             openDialog, confirmAction, openNodeDialog, openImport, openEdgeDialog,
-            deleteNode, deleteNodes, openActionMenu, runAction, openNodeActions,
+            deleteNode, deleteNodes, openActionMenu, runAction, openNodeActions, createNode, saveEdge,
             openConnectionPopover, closeConnectionPopover, onBusy, ownsDialog, closeOwnedDialog, dispose,
         };
     }

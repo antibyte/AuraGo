@@ -967,6 +967,144 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     }
 }
 
+// ---- dialogs: permissions after a confirmation, unconfirmed writes ----------------------
+{
+    const InfraStore = window.InfraAppStore;
+    const gnode = (id, extra = {}) => ({ id, version: 1, kind: 'device', name: id, icon: 'router', profile: {}, placements: { atlas: { x: 0, y: 0, pinned: true } }, sources: [], ...extra });
+    const dockerSource = { kind: 'docker', instance: 'engine', key: 'c1', name: 'c1', state: 'current' };
+    const snapOf = (nodes, extra = {}) => ({ nodes, edges: [], sources: [], source_hosts: [], capabilities: { write: true, control: true }, ...extra });
+    const setup = handlers => {
+        const calls = [];
+        const api = async (url, options = {}) => {
+            const [pathPart, query = ''] = String(url).replace('/api/desktop/infra', '').split('?');
+            const method = options.method || 'GET';
+            const body = typeof options.body === 'string' ? JSON.parse(options.body) : undefined;
+            calls.push({ method, path: pathPart, query, body });
+            const handler = handlers[`${method} ${pathPart}`] || handlers[`${method} ${pathPart.replace(/\/(nodes|edges)\/[^/]+/, (_, kind) => `/${kind}/:id`)}`];
+            if (!handler) throw Object.assign(new Error('not_found'), { status: 404, body: { error: 'not_found' } });
+            return handler(body, { query, path: pathPart });
+        };
+        const ctx = { api, readonly: false };
+        const store = InfraStore.create({ ctx, t: key => key });
+        const notices = [];
+        store.subscribe(change => { if (change.type === 'notice') notices.push(change.message); });
+        const dialogs = window.InfraAppDialogs.create({ store, state: store.state, t: key => key, esc: model.esc, model, q: () => null, root: { isConnected: true }, ctx, safeId: 'x', announce() {} });
+        return { ctx, store, dialogs, calls, notices, sent: method => calls.filter(call => call.method === method && call.path !== '/snapshot') };
+    };
+    const unconfirmed = () => Object.assign(new Error('boom'), { status: 502 });
+    const timedOut = () => Object.assign(new Error('timeout'), { name: 'TimeoutError' });
+    const sourceKey = model.sourceIdentity(dockerSource);
+
+    { // a confirmed delete is stopped when write access went away while the modal was open
+        const { ctx, store, dialogs, sent, notices } = setup({ 'DELETE /nodes/:id': () => ({ status: 'deleted' }) });
+        store.applySnapshot(snapOf([gnode('a')]));
+        ctx.showConfirmModal = async () => { ctx.readonly = true; return true; };
+        await dialogs.deleteNode('a');
+        assert.equal(sent('DELETE').length, 0, 'no request after the permission was revoked');
+        assert.deepEqual(notices, ['desktop.infra_error_infra_readonly']);
+        assert.ok(store.nodeById('a'));
+        store.dispose();
+    }
+    { // a bulk delete re-checks before every request
+        let revoke = () => {};
+        const { ctx, store, dialogs, sent, notices } = setup({ 'DELETE /nodes/:id': () => { revoke(); return { status: 'deleted' }; } });
+        revoke = () => { ctx.readonly = true; };
+        store.applySnapshot(snapOf([gnode('a'), gnode('b'), gnode('c')]));
+        ctx.showConfirmModal = async () => true;
+        await dialogs.deleteNodes(['a', 'b', 'c']);
+        assert.equal(sent('DELETE').length, 1, 'the loop stops once the permission is gone');
+        assert.deepEqual(notices, ['desktop.infra_error_infra_readonly']);
+        assert.deepEqual(plain(store.state.nodes.map(item => item.id)), ['b', 'c']);
+        store.dispose();
+    }
+    { // a delete uses the version the asset has after the confirmation
+        const { ctx, store, dialogs, calls } = setup({ 'DELETE /nodes/:id': () => ({ status: 'deleted' }) });
+        store.applySnapshot(snapOf([gnode('a')]));
+        ctx.showConfirmModal = async () => { store.applySnapshot(snapOf([gnode('a', { version: 4 })])); return true; };
+        await dialogs.deleteNode('a');
+        assert.match(calls.find(call => call.method === 'DELETE').query, /version=4/);
+        store.dispose();
+    }
+    { // a confirmed action is not sent once control or the action itself went away
+        const node = () => gnode('a', { sources: [dockerSource], source_actions: { [sourceKey]: ['stop'] } });
+        const first = setup({ 'POST /nodes/:id/actions': () => ({ status: 'completed' }) });
+        first.store.applySnapshot(snapOf([node()]));
+        first.ctx.showConfirmModal = async () => { first.ctx.readonly = true; return true; };
+        await first.dialogs.runAction('a', dockerSource, 'stop');
+        assert.equal(first.sent('POST').length, 0);
+        assert.deepEqual(first.notices, ['desktop.infra_error_infra_readonly']);
+        first.store.dispose();
+        const second = setup({ 'POST /nodes/:id/actions': () => ({ status: 'completed' }) });
+        second.store.applySnapshot(snapOf([node()]));
+        second.ctx.showConfirmModal = async () => { second.store.applySnapshot(snapOf([gnode('a', { sources: [dockerSource], source_actions: { [sourceKey]: [] } })])); return true; };
+        await second.dialogs.runAction('a', dockerSource, 'stop');
+        assert.equal(second.sent('POST').length, 0);
+        assert.deepEqual(second.notices, ['desktop.infra_action_unavailable']);
+        second.store.dispose();
+        const third = setup({ 'POST /nodes/:id/actions': () => ({ status: 'completed' }) });
+        third.store.applySnapshot(snapOf([node()]));
+        third.ctx.showConfirmModal = async () => true;
+        await third.dialogs.runAction('a', dockerSource, 'stop');
+        assert.equal(third.sent('POST').length, 1, 'an untouched permission still sends');
+        third.store.dispose();
+    }
+    { // an unconfirmed delete or create reloads and says so; a deliberate abort stays quiet
+        for (const failure of [unconfirmed, timedOut]) {
+            const { ctx, store, dialogs, calls, notices } = setup({ 'DELETE /nodes/:id': () => { throw failure(); }, 'POST /nodes': () => { throw failure(); }, 'GET /snapshot': () => snapOf([gnode('a')]) });
+            store.applySnapshot(snapOf([gnode('a')]));
+            ctx.showConfirmModal = async () => true;
+            await dialogs.deleteNode('a');
+            assert.deepEqual(notices, ['desktop.infra_write_outcome_unknown']);
+            assert.equal(calls.filter(call => call.path === '/snapshot').length, 1, 'the latest state is reloaded');
+            notices.length = 0;
+            await dialogs.createNode(new Map([['kind', 'device'], ['name', 'New'], ['icon', 'router']]), '1');
+            assert.deepEqual(notices, ['desktop.infra_write_outcome_unknown']);
+            assert.equal(calls.filter(call => call.path === '/snapshot').length, 2);
+            assert.equal(store.state.busy.has('create'), false);
+            store.dispose();
+        }
+        const quiet = setup({ 'POST /nodes': () => { throw new DOMException('aborted', 'AbortError'); }, 'GET /snapshot': () => snapOf([gnode('a')]) });
+        quiet.store.applySnapshot(snapOf([gnode('a')]));
+        await quiet.dialogs.createNode(new Map([['kind', 'device'], ['name', 'New'], ['icon', 'router']]), '1');
+        assert.deepEqual(quiet.notices, []);
+        assert.equal(quiet.calls.filter(call => call.path === '/snapshot').length, 0);
+        const rejected = setup({ 'POST /nodes': () => { throw Object.assign(new Error('invalid_request'), { status: 400, body: { error: 'invalid_request' } }); } });
+        rejected.store.applySnapshot(snapOf([gnode('a')]));
+        await rejected.dialogs.createNode(new Map([['kind', 'device'], ['name', 'New'], ['icon', 'router']]), '1');
+        assert.deepEqual(rejected.notices, ['desktop.infra_error_infra_error'], 'a plain refusal keeps its own message');
+        quiet.store.dispose(); rejected.store.dispose();
+    }
+    { // an unconfirmed connection reloads; one that arrived is adopted, with its id in the undo entry
+        const arrived = { id: 'e9', version: 1, from: 'a', to: 'b', kind: 'ethernet' };
+        let edges = [arrived];
+        const { store, dialogs, calls, notices, sent } = setup({ 'POST /edges': () => { throw unconfirmed(); }, 'GET /snapshot': () => snapOf([gnode('a'), gnode('b')], { edges }), 'DELETE /edges/:id': () => ({ status: 'deleted' }) });
+        store.applySnapshot(snapOf([gnode('a'), gnode('b')]));
+        await dialogs.saveEdge(new Map([['id', ''], ['from', 'a'], ['to', 'b'], ['kind', 'ethernet']]), '1');
+        assert.equal(notices[0], 'desktop.infra_write_outcome_unknown');
+        assert.equal(calls.filter(call => call.path === '/snapshot').length, 1);
+        assert.equal(store.state.edges.length, 1);
+        assert.equal(store.canUndo('atlas'), true, 'the connection that arrived can be undone');
+        assert.equal(await store.undo('atlas'), true);
+        assert.equal(sent('DELETE')[0].path, '/edges/e9');
+        store.dispose();
+        edges = [];
+        const lost = setup({ 'POST /edges': () => { throw unconfirmed(); }, 'GET /snapshot': () => snapOf([gnode('a'), gnode('b')], { edges }) });
+        lost.store.applySnapshot(snapOf([gnode('a'), gnode('b')]));
+        await lost.dialogs.saveEdge(new Map([['id', ''], ['from', 'a'], ['to', 'b'], ['kind', 'ethernet']]), '1');
+        assert.deepEqual(lost.notices, ['desktop.infra_write_outcome_unknown']);
+        assert.equal(lost.store.canUndo('atlas'), false, 'nothing arrived, nothing to undo');
+        lost.store.dispose();
+    }
+    { // editing a connection that could not be confirmed reloads too
+        const { store, dialogs, calls, notices } = setup({ 'PUT /edges/:id': () => { throw unconfirmed(); }, 'GET /snapshot': () => snapOf([gnode('a'), gnode('b')], { edges: [{ id: 'e1', version: 1, from: 'a', to: 'b', kind: 'ethernet' }] }) });
+        store.applySnapshot(snapOf([gnode('a'), gnode('b')], { edges: [{ id: 'e1', version: 1, from: 'a', to: 'b', kind: 'ethernet' }] }));
+        await dialogs.saveEdge(new Map([['id', 'e1'], ['version', '1'], ['from', 'a'], ['to', 'b'], ['kind', 'fiber']]), '1');
+        assert.deepEqual(notices, ['desktop.infra_write_outcome_unknown']);
+        assert.equal(calls.filter(call => call.path === '/snapshot').length, 1);
+        store.dispose();
+    }
+}
+
 { // the conflict review reads list entries like the editor, never "[object Object]"
     const targets = [{ app: 'network-cameras', target_id: 'cam-1', label: 'Garden camera' }];
     const text = (key, item) => model.listEntryText(key, item, { targets, t: value => (value === 'desktop.infra_field_vlan' ? 'VLAN' : value) });
