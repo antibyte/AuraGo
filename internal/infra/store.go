@@ -299,9 +299,11 @@ func pruneMigrationBackups(databasePath string) {
 	}
 }
 
+// PruneSources deletes unlinked removed observations older than olderThan.
+// Ignored observations are kept: the operator's decision must outlive an outage.
 func (s *Store) PruneSources(ctx context.Context, olderThan time.Time) (int64, error) {
 	res, err := s.db.ExecContext(ctx, `DELETE FROM infra_sources
-		WHERE node_id IS NULL AND state='removed' AND removed_at<>'' AND removed_at<?`, formatTime(olderThan))
+		WHERE node_id IS NULL AND state='removed' AND removed_at<>'' AND removed_at<? AND ignored_at=''`, formatTime(olderThan))
 	if err != nil {
 		return 0, fmt.Errorf("prune expired infra source observations: %w", err)
 	}

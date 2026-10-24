@@ -141,7 +141,7 @@ func (s *Store) CreateImportedNode(ctx context.Context, node Node, identity Sour
 	if err := insertNode(ctx, tx, node); err != nil {
 		return Node{}, err
 	}
-	res, err := tx.ExecContext(ctx, `UPDATE infra_sources SET node_id=? WHERE kind=? AND instance=? AND source_key=? AND node_id IS NULL`,
+	res, err := tx.ExecContext(ctx, `UPDATE infra_sources SET node_id=?, ignored_at='' WHERE kind=? AND instance=? AND source_key=? AND node_id IS NULL`,
 		node.ID, identity.Kind, identity.Instance, identity.Key)
 	if err != nil {
 		return Node{}, fmt.Errorf("link imported infra source: %w", err)
@@ -293,7 +293,7 @@ func loadNode(ctx context.Context, q nodeQueryer, id string) (Node, error) {
 func loadNodeSources(ctx context.Context, q interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }, node *Node) error {
-	rows, err := q.QueryContext(ctx, `SELECT kind, instance, source_key, name, state, fetched_at, removed_at, observed_json
+	rows, err := q.QueryContext(ctx, `SELECT `+sourceColumns+`
 		FROM infra_sources WHERE node_id=? ORDER BY kind, instance, source_key`, node.ID)
 	if err != nil {
 		return fmt.Errorf("list sources for infra node: %w", err)

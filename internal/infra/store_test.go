@@ -1013,3 +1013,85 @@ func TestCreateEdgeRejectsSelfLoopsAndDuplicates(t *testing.T) {
 		t.Fatalf("same pair with another kind: %v", err)
 	}
 }
+
+func TestIgnoredSourcesLeaveDiscoveriesAndSurviveRefresh(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	observed := func(key string) SourceObservation {
+		return SourceObservation{Identity: SourceIdentity{Kind: "docker", Instance: "engine", Key: key}, Name: key,
+			Observed: SourceObserved{Kind: NodeContainer, Name: key, Icon: "container"}}
+	}
+	tv, web := observed("tv"), observed("web")
+	if err := store.ObserveSources(ctx, "docker", "engine", []SourceObservation{tv, web}, true); err != nil {
+		t.Fatal(err)
+	}
+	webCandidate, err := store.GetCandidate(ctx, CandidateID(web.Identity))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateImportedNode(ctx, webCandidate.Node, web.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SetSourcesIgnored(ctx, []SourceIdentity{web.Identity}, true); !errors.Is(err, ErrSourceLinked) {
+		t.Fatalf("ignoring a linked source = %v; want ErrSourceLinked", err)
+	}
+	if _, err := store.SetSourcesIgnored(ctx, []SourceIdentity{{Kind: "docker", Instance: "engine", Key: "missing"}}, true); !errors.Is(err, ErrSourceNotFound) {
+		t.Fatalf("ignoring an unknown source = %v; want ErrSourceNotFound", err)
+	}
+	if _, err := store.SetSourcesIgnored(ctx, nil, true); !errors.Is(err, ErrValidation) {
+		t.Fatalf("empty ignore request = %v; want validation error", err)
+	}
+	for range 2 {
+		ignored, err := store.SetSourcesIgnored(ctx, []SourceIdentity{tv.Identity}, true)
+		if err != nil || len(ignored) != 1 || !ignored[0].Ignored {
+			t.Fatalf("ignore result = %#v, %v; want one ignored source on every call", ignored, err)
+		}
+	}
+	// A provider refresh keeps the decision.
+	if err := store.ObserveSources(ctx, "docker", "engine", []SourceObservation{tv, web}, true); err != nil {
+		t.Fatal(err)
+	}
+	listed, err := store.ListSources(ctx, "docker", "engine")
+	if err != nil || len(listed) != 1 || listed[0].Key != "web" {
+		t.Fatalf("default source list = %#v, %v; want the ignored source left out", listed, err)
+	}
+	all, err := store.ListSourcesIncludingIgnored(ctx, "docker", "engine")
+	if err != nil || len(all) != 2 {
+		t.Fatalf("source list with ignored = %#v, %v; want both sources", all, err)
+	}
+	candidate, err := store.GetCandidate(ctx, CandidateID(tv.Identity))
+	if err != nil || !candidate.Ignored || !candidate.Source.Ignored {
+		t.Fatalf("ignored candidate = %#v, %v; want the ignored flag after a refresh", candidate, err)
+	}
+	// Ignored observations outlive the removed-source retention window.
+	if err := store.ObserveSources(ctx, "docker", "engine", []SourceObservation{web}, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.PruneSources(ctx, time.Now().UTC().Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if source, err := store.GetSource(ctx, tv.Identity); err != nil || !source.Ignored || source.State != SourceRemoved {
+		t.Fatalf("ignored removed source after retention = %#v, %v; want it kept", source, err)
+	}
+	restored, err := store.SetSourcesIgnored(ctx, []SourceIdentity{tv.Identity}, false)
+	if err != nil || len(restored) != 1 || restored[0].Ignored {
+		t.Fatalf("restore = %#v, %v", restored, err)
+	}
+	// Importing an ignored source clears the flag: linked sources are never ignored.
+	if err := store.ObserveSources(ctx, "docker", "engine", []SourceObservation{tv, web}, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SetSourcesIgnored(ctx, []SourceIdentity{tv.Identity}, true); err != nil {
+		t.Fatal(err)
+	}
+	tvCandidate, err := store.GetCandidate(ctx, CandidateID(tv.Identity))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateImportedNode(ctx, tvCandidate.Node, tv.Identity); err != nil {
+		t.Fatalf("importing an ignored source: %v", err)
+	}
+	if source, err := store.GetSource(ctx, tv.Identity); err != nil || source.Ignored {
+		t.Fatalf("imported source = %#v, %v; want the ignore flag cleared by the link", source, err)
+	}
+}

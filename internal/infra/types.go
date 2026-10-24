@@ -127,6 +127,8 @@ type Source struct {
 	FetchedAt *time.Time     `json:"fetched_at,omitempty"`
 	RemovedAt *time.Time     `json:"removed_at,omitempty"`
 	Observed  SourceObserved `json:"observed"`
+	// Ignored hides the source from discoveries. An ignored source is never linked.
+	Ignored bool `json:"ignored,omitempty"`
 }
 
 // SourceObserved contains only bounded, typed facts safe to retain from an adapter.
@@ -162,6 +164,7 @@ type Candidate struct {
 	Node        Node     `json:"node"`
 	RegistryID  string   `json:"registry_id,omitempty"`
 	Suggestions []string `json:"suggestions"`
+	Ignored     bool     `json:"ignored,omitempty"`
 }
 
 type EdgeKind string
