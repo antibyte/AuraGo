@@ -1309,7 +1309,6 @@ func TestSaveLayoutUnplaceChecksVersionsAndStaysAtomic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	text := func(value string) *string { return &value }
 	size := func(value float64) *float64 { return &value }
 	placed, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
 		{ID: a.ID, Version: a.Version, X: 10, Y: 20},
@@ -1345,7 +1344,6 @@ func TestSaveLayoutUnplaceChecksVersionsAndStaysAtomic(t *testing.T) {
 		{"x", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, X: 1}},
 		{"y", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, Y: 1}},
 		{"pinned", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, Pinned: true}},
-		{"parent", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, ParentID: text("")}},
 		{"width", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, W: size(200)}},
 		{"height", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, H: size(200)}},
 	} {
@@ -1358,5 +1356,63 @@ func TestSaveLayoutUnplaceChecksVersionsAndStaysAtomic(t *testing.T) {
 	unchanged, err := store.GetNode(ctx, b.ID)
 	if err != nil || unchanged.Version != mixed[1].Version || unchanged.Placements[ViewAtlas].X != 99 {
 		t.Fatalf("rejected unplace changed the node: %#v, %v", unchanged, err)
+	}
+}
+
+func TestSaveLayoutUnplaceCanRestoreTheParentAtomically(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	room, err := store.CreateNode(ctx, testNode(NodeRoom, "Room", "room"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	device, err := store.CreateNode(ctx, testNode(NodeDevice, "Switch", "switch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := store.CreateNode(ctx, testNode(NodeDevice, "NAS", "nas"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := func(value string) *string { return &value }
+	// A library drop into the room places the device and sets its parent.
+	dropped, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: device.ID, Version: device.Version, X: 48, Y: 72, ParentID: text(room.ID)},
+	}})
+	if err != nil || dropped[0].ParentID != room.ID || len(dropped[0].Placements) != 1 {
+		t.Fatalf("drop = %#v, %v", dropped, err)
+	}
+	// An invalid parent on an unplace item rolls back the whole batch.
+	for _, parent := range []string{other.ID, "missing"} {
+		if _, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+			{ID: device.ID, Version: dropped[0].Version, Unplace: true, ParentID: text(parent)},
+		}}); !errors.Is(err, ErrValidation) {
+			t.Fatalf("unplace with parent %q error = %v; want validation error", parent, err)
+		}
+	}
+	unchanged, err := store.GetNode(ctx, device.ID)
+	if err != nil || unchanged.Version != dropped[0].Version || unchanged.ParentID != room.ID || len(unchanged.Placements) != 1 {
+		t.Fatalf("rejected unplace changed the node: %#v, %v", unchanged, err)
+	}
+	// Undoing the drop removes the placement and clears the parent in one call.
+	undone, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: device.ID, Version: dropped[0].Version, Unplace: true, ParentID: text("")},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if undone[0].Version != dropped[0].Version+1 || undone[0].ParentID != "" || len(undone[0].Placements) != 0 {
+		t.Fatalf("undo result = %#v; want one version step with no placement and no parent", undone[0])
+	}
+	stored, err := store.GetNode(ctx, device.ID)
+	if err != nil || stored.Version != undone[0].Version || stored.ParentID != "" || len(stored.Placements) != 0 {
+		t.Fatalf("stored node after undo = %#v, %v", stored, err)
+	}
+	// A parent change still applies when the node has no placement in the view.
+	restored, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: device.ID, Version: undone[0].Version, Unplace: true, ParentID: text(room.ID)},
+	}})
+	if err != nil || restored[0].ParentID != room.ID || restored[0].Version != undone[0].Version+1 || len(restored[0].Placements) != 0 {
+		t.Fatalf("parent restore without placement = %#v, %v", restored, err)
 	}
 }

@@ -159,12 +159,16 @@ bodies are limited to 256 KiB and unknown JSON fields are rejected.
 | `PUT /api/desktop/infra/sources/ignore` | Ignore or restore 1–1000 sources: `{sources: [{kind, instance, key}], ignored}`; a linked source answers 409 `source_linked` |
 | `PUT /api/desktop/infra/source-hosts` | Assign (`node_id`) or clear (`""`) the device that runs a Docker engine: `{kind: "docker", instance, node_id, version}`, version 0 creates; answers `source_host` |
 | `POST /api/desktop/infra/edges`, `PUT`/`DELETE /edges/{id}` | Manual relationships (provider edges are read-only); a self-loop is invalid and a second `(from, to, kind)` answers 409 `edge_exists` |
-| `PUT /api/desktop/infra/layout` | Atomic layout batch; items may set `parent_id` (absent keeps it, `""` clears it) and `w`/`h` for places (120–20000), or `unplace: true` (with `id` and `version` only) to drop the node's placement in the request's `view`; answers the changed nodes only |
+| `PUT /api/desktop/infra/layout` | Atomic layout batch; items may set `parent_id` (absent keeps it, `""` clears it) and `w`/`h` for places (120–20000), or `unplace: true` (with `id`, `version` and optionally `parent_id`, never a position or size) to drop the node's placement in the request's `view`; answers the changed nodes only |
 
 An `unplace` item removes just that view's placement and advances the node's
-version. A node without a placement in that view is left untouched (its version
-is still checked and does not advance). Like every layout item it is
-version-checked, and the whole batch stays atomic.
+version. Its optional `parent_id` behaves as on any layout item (absent keeps
+the parent, `""` clears it, otherwise it must be a container without a cycle),
+so undoing a drop into a room removes the placement and restores the previous
+parent in one atomic call. A node without a placement in that view and without
+`parent_id` is left untouched (its version is still checked and does not
+advance). Like every layout item it is version-checked, and the whole batch
+stays atomic.
 
 VMs and containers carry the runtime-only `host_id`, with `host_inferred: true`
 when the host was guessed. A Proxmox guest uses its provider `runs_on` edge, a
