@@ -84,5 +84,11 @@
   "config.indexing.chunk_max_chars": "チャンクあたり最大文字数",
   "config.indexing.chunk_overlap_chars": "文字オーバーラップ",
   "config.indexing.chunk_max_chunks": "ファイルあたり最大チャンク数",
-  "config.indexing.chunking_reindex_notice": "これらの値を変更すると、次回スキャン時にクリーンな再インデックスが実行されます。"
+  "config.indexing.chunking_reindex_notice": "これらの値を変更すると、次回スキャン時にクリーンな再インデックスが実行されます。",
+  "config.indexing.media_toggle_label": "メディアをプロバイダーへ",
+  "config.indexing.media_toggle_title": "このディレクトリの画像・音声・スキャンPDFを、設定済みのVision LLMまたはマルチモーダル埋め込みプロバイダーに送信することを許可します。既定ではオフです。",
+  "config.indexing.media_confirm_title": "このディレクトリのメディアをプロバイダーに送信しますか？",
+  "config.indexing.media_confirm": "このディレクトリの画像・音声・スキャンPDFは、分析のため設定済みのVisionまたはマルチモーダル埋め込みプロバイダーに送信されます。外部サービスの場合があり、これらのファイルの内容がこのシステムの外に出る可能性があります。再度オフにすると、以降のメディア送信は停止します。",
+  "config.indexing.media_inactive_hint": "Visionとマルチモーダル埋め込みはグローバルでオフになっています。どちらかが有効になると、この設定が反映されます。",
+  "config.indexing.index_images_per_folder_hint": "画像は、上のリストでメディア共有がオンになっているディレクトリのものだけが送信されます。"
 }

@@ -76,19 +76,25 @@
                 </div>
                 <div class="idx-card-body">`;
 
-            // Directories list
-            html += `<div class="idx-dirs-wrap">
-                <div id="idx-dirs-list">`;
-
             // Fetch current directories from API
             let dirs = [];
+            let mediaAvailable = null; // null = backend did not say
             try {
                 const resp = await fetch('/api/indexing/directories');
                 if (resp.ok) {
                     const data = await resp.json();
                     dirs = data.directories || [];
+                    if (typeof data.media_analysis_available === 'boolean') mediaAvailable = data.media_analysis_available;
                 }
             } catch (_) {}
+
+            // Directories list
+            const showMediaHint = dirs.length > 0 && mediaAvailable === false;
+            html += `<div class="idx-dirs-wrap">`;
+            if (showMediaHint) {
+                html += `<div class="idx-media-hint" id="idx-media-hint" role="note">${escapeHtml(t('config.indexing.media_inactive_hint'))}</div>`;
+            }
+            html += `<div id="idx-dirs-list">`;
 
             if (dirs.length === 0) {
                 html += `<div class="idx-empty-state">
@@ -100,9 +106,18 @@
                     const dirLabel = idxDirLabel(d);
                     const safeDir = escapeHtml(dirLabel);
                     const attrDir = escapeAttr(dirPath);
+                    const mediaOn = idxDirMediaAllowed(d);
+                    const mediaLabel = t('config.indexing.media_toggle_label');
+                    const mediaName = escapeAttr(mediaLabel + ': ' + dirPath);
+                    const mediaTitle = escapeAttr(t('config.indexing.media_toggle_title'));
+                    const mediaDesc = showMediaHint ? ' aria-describedby="idx-media-hint"' : '';
                     html += `<div class="idx-dir-item">
                         <span class="idx-dir-icon">📁</span>
                         <span class="idx-dir-path" title="${attrDir}">${safeDir}</span>
+                        <div class="idx-media-toggle" title="${mediaTitle}">
+                            <span class="idx-media-label" aria-hidden="true">${escapeHtml(mediaLabel)}</span>
+                            <button type="button" class="idx-media-switch" role="switch" aria-checked="${mediaOn ? 'true' : 'false'}" aria-label="${mediaName}"${mediaDesc} data-dir="${attrDir}" onclick="idxToggleMediaAnalysis(this)"></button>
+                        </div>
                         <button onclick="idxRemoveDir(this.dataset.dir)" data-dir="${attrDir}" class="idx-dir-remove-btn" title="${t('config.indexing.remove')}">✕</button>
                     </div>`;
                 });
@@ -220,6 +235,9 @@
                 <div class="idx-field-help">
                     ${t('config.indexing.index_images_desc')}
                 </div>
+                <div class="idx-field-help idx-field-help-tight">
+                    ${t('config.indexing.index_images_per_folder_hint')}
+                </div>
             </div>`;
 
             // Cost warning for image indexing
@@ -283,6 +301,60 @@
             }
         }
 
+        // Per-folder opt-in: images, audio and scanned PDFs of a folder may only go to the
+        // Vision/multimodal provider after the user enabled it for that folder (default off).
+        // Not a config-path field, so it deliberately bypasses toggleBool/data-path.
+        let idxMediaToggleBusy = false;
+
+        async function idxToggleMediaAnalysis(btn) {
+            if (!btn || idxMediaToggleBusy) return;
+            const path = btn.dataset.dir || '';
+            if (!path) return;
+            const enable = btn.getAttribute('aria-checked') !== 'true';
+            const restoreFocus = document.activeElement === btn;
+            idxMediaToggleBusy = true;
+            btn.setAttribute('aria-disabled', 'true');
+            try {
+                if (enable && !(await showConfirm(t('config.indexing.media_confirm_title'), t('config.indexing.media_confirm')))) return;
+                const resp = await fetch('/api/indexing/directories', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path, allow_media_analysis: enable })
+                });
+                if (!resp.ok) {
+                    showToast(await idxResponseError(resp), 'error');
+                    return;
+                }
+                const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'indexing');
+                await renderIndexingSection(sectionMeta);
+                if (restoreFocus) idxFocusMediaSwitch(path);
+            } catch (e) {
+                showToast(t('config.common.error') + ': ' + e.message, 'error');
+            } finally {
+                idxMediaToggleBusy = false;
+                if (btn.isConnected) btn.removeAttribute('aria-disabled');
+            }
+        }
+
+        function idxFocusMediaSwitch(path) {
+            const sw = Array.from(document.querySelectorAll('.idx-media-switch')).find(b => b.dataset.dir === path);
+            if (sw) sw.focus();
+        }
+
+        // Backend errors come as plain text or as {"error": "..."}; show the readable part.
+        async function idxResponseError(resp) {
+            let text = '';
+            try { text = (await resp.text()).trim(); } catch (_) {}
+            if (text.charAt(0) === '{') {
+                try {
+                    const body = JSON.parse(text);
+                    const msg = body && (body.error || body.message);
+                    if (typeof msg === 'string' && msg) return msg;
+                } catch (_) {}
+            }
+            return text || t('config.common.error');
+        }
+
         async function idxRescan() {
             try {
                 const resp = await fetch('/api/indexing/rescan', { method: 'POST' });
@@ -300,6 +372,10 @@
             if (typeof dir === 'string') return dir;
             if (dir && typeof dir === 'object') return dir.path || dir.Path || '';
             return '';
+        }
+
+        function idxDirMediaAllowed(dir) {
+            return !!dir && typeof dir === 'object' && dir.allow_media_analysis === true;
         }
 
         function idxDirLabel(dir) {
