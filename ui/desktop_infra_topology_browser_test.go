@@ -64,7 +64,8 @@ func infraTopologyFixture() *infraAppBrowserFixture {
 //     undoable save.
 //
 // Cards are 216x64, so auto columns sit 240 px apart: two cards are centred at
-// -120/120, three at -240/0/240, four at -360/-120/120/360.
+// -120/120, three at -240/0/240, four at -360/-120/120/360. Inside a lane the cards are ordered by the barycentre
+// of their neighbours in the other lanes (A20): the switch (its children sit below) comes before the router (hung on the ONT above).
 func TestDesktopInfraTopologyBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	fixture := infraTopologyFixture()
@@ -132,7 +133,7 @@ func TestDesktopInfraTopologyBrowser(t *testing.T) {
 	page.MustEval(`()=>document.querySelector('[data-action="fit"]').click()`)
 	infraPanelsCenter(page, `[data-lane="network"]`)
 
-	const wantAuto = `{"inet":"-120px,96px","ont":"120px,96px","router":"-240px,480px","switch":"0px,480px","ap":"240px,480px","nas":"-120px,864px","pve":"120px,864px","tv":"-120px,1248px","laptop":"120px,1248px"}`
+	const wantAuto = `{"inet":"-120px,96px","ont":"120px,96px","router":"0px,480px","switch":"-240px,480px","ap":"240px,480px","nas":"-120px,864px","pve":"120px,864px","tv":"-120px,1248px","laptop":"120px,1248px"}`
 	if got := page.MustEval(`()=>JSON.stringify(Object.fromEntries(['inet','ont','router','switch','ap','nas','pve','tv','laptop'].map(id=>{const card=document.querySelector('[data-node="'+id+'"]');return [id,card?card.style.left+','+card.style.top:'missing'];})))`).Str(); got != wantAuto {
 		t.Fatalf("topology auto layout = %s; want %s", got, wantAuto)
 	}
@@ -174,8 +175,8 @@ func TestDesktopInfraTopologyBrowser(t *testing.T) {
 		t.Fatalf("Arrange without a selection must save all nine cards in one call: %#v", arranged)
 	}
 	for id, want := range map[string][3]any{
-		"tv":     {float64(360), float64(480), true},
-		"router": {float64(-360), float64(480), false},
+		"tv":     {float64(120), float64(480), true},
+		"router": {float64(360), float64(480), false},
 		"inet":   {float64(-120), float64(96), false},
 		"laptop": {float64(0), float64(1248), false},
 	} {
@@ -195,7 +196,7 @@ func TestDesktopInfraTopologyBrowser(t *testing.T) {
 	if got := item(undone, "tv"); got == nil || got["y"] != droppedY || got["pinned"] != true {
 		t.Fatalf("undoing Arrange must put the dragged card back: %#v", undone)
 	}
-	page.MustWait(`()=>{const card=document.querySelector('[data-node="router"]');return card.style.left==='-240px'&&card.style.top==='480px';}`)
+	page.MustWait(`()=>{const card=document.querySelector('[data-node="router"]');return card.style.left==='0px'&&card.style.top==='480px';}`)
 	closeInfraBrowserWindow(t, page)
 	requireInfraBrowserClean(t, page)
 }

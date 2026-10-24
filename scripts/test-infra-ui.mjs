@@ -1433,8 +1433,14 @@ for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     assert.deepEqual(plain(lanes.topologyLanes()), ['internet', 'network', 'compute', 'clients']);
     assert.equal(lanes.topologyLane({ kind: 'network', icon: 'generic-device', profile: {} }), 'network', 'the network kind is always in the network lane');
     for (const icon of ['internet', 'modem-ont']) assert.equal(lane(icon), 'internet', icon);
-    for (const icon of ['router', 'firewall', 'managed-switch', 'switch', 'access-point', 'mesh-node', 'patch-panel', 'lan']) assert.equal(lane(icon), 'network', icon);
-    for (const icon of ['rack-server', 'tower-server', 'mini-pc', 'sbc', 'nas', 'hypervisor', 'kubernetes']) assert.equal(lane(icon), 'compute', icon);
+    for (const icon of ['router', 'firewall', 'vpn', 'managed-switch', 'switch', 'access-point', 'mesh-node', 'patch-panel', 'lan', 'vlan', 'wlan']) assert.equal(lane(icon), 'network', icon);
+    // A21: servers, storage and rack infrastructure are all compute; the groups are separate loops so a failure names its group.
+    for (const icon of ['rack-server', 'tower-server', 'mini-pc', 'sbc', 'hypervisor', 'kubernetes']) assert.equal(lane(icon), 'compute', `server ${icon}`);
+    for (const icon of ['nas', 'disk-shelf', 'storage-share', 'backup', 'database', 'nvr']) assert.equal(lane(icon), 'compute', `storage ${icon}`);
+    for (const icon of ['ups', 'pdu']) assert.equal(lane(icon), 'compute', `rack infrastructure ${icon}`);
+    for (const icon of ['camera', 'printer', '3d-printer', 'tv', 'console', 'smartphone', 'tablet', 'laptop', 'workstation', 'sensor', 'smart-hub', 'smart-plug', 'radio-gateway', 'usb-gateway']) assert.equal(lane(icon), 'clients', `client ${icon}`);
+    for (const icon of ['rack-server', 'nas', 'disk-shelf', 'nvr', 'database', 'ups', 'pdu', 'vpn', 'firewall', 'camera']) assert.ok(model.iconIds().includes(icon), `${icon} is a real icon id`);
+    for (const [role, want] of [['NAS', 'compute'], ['Disk shelf', 'compute'], ['storage appliance', 'compute'], ['PostgreSQL database', 'compute'], ['NVR', 'compute'], ['Network video recorder', 'compute'], ['file server', 'compute'], ['Rack unit', 'compute'], ['APC UPS', 'compute'], ['PDU', 'compute'], ['Hypervisor', 'compute'], ['VPN', 'network'], ['Firewall', 'network'], ['VPN gateway', 'network'], ['camera', 'clients'], ['printer', 'clients'], ['mdns-device', 'clients']]) assert.equal(lane('generic-device', { profile: { role } }), want, `role ${role}`);
     assert.equal(lane('generic-device', { profile: { role: 'InternetGatewayDevice' } }), 'network', 'role words split camel case');
     assert.equal(lane('generic-device', { profile: { role: 'DSL modem' } }), 'internet');
     assert.equal(lane('generic-device', { profile: { role: 'MediaServer' } }), 'compute');
@@ -1476,15 +1482,21 @@ for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     const layout = lanes.topologyLayout(topo, topoEdges, { laneOf });
     assert.deepEqual(asObject(layout), {
         inet: { x: -120, y: 96, pinned: false }, ont: { x: 120, y: 96, pinned: false },
+        switch: { x: -240, y: 480, pinned: false }, router: { x: 0, y: 480, pinned: false }, ap: { x: 240, y: 480, pinned: false },
+        nas: { x: -120, y: 864, pinned: false }, pve: { x: 120, y: 864, pinned: false },
+        tv: { x: -120, y: 1248, pinned: false }, laptop: { x: 120, y: 1248, pinned: false },
+    }, 'A20: top sweep keys router 120 (ont), nas/pve/tv 0 and laptop 240 (switch, ap at 0 and 240); the bottom sweep keys switch -40 (nas, pve, tv at -120, 120, -120) and ap 120 (laptop), so the lane reads switch, router, ap; the first row of lane i is at 384 i + 96');
+    assert.deepEqual(asObject(lanes.topologyLayout(topo, topoEdges, { laneOf, ordering: 'connection' })), {
+        inet: { x: -120, y: 96, pinned: false }, ont: { x: 120, y: 96, pinned: false },
         router: { x: -240, y: 480, pinned: false }, switch: { x: 0, y: 480, pinned: false }, ap: { x: 240, y: 480, pinned: false },
         nas: { x: -120, y: 864, pinned: false }, pve: { x: 120, y: 864, pinned: false },
         tv: { x: -120, y: 1248, pinned: false }, laptop: { x: 120, y: 1248, pinned: false },
-    }, 'lanes in connection order, parents before children, rows centred; the first row of lane i is at 384 i + 96');
+    }, 'the plain connection order (breadth first from the top lane) is still available');
     assert.deepEqual(asObject(lanes.topologyLayout(topo.slice().reverse(), topoEdges.slice().reverse(), { laneOf })), asObject(layout), 'input order does not change the layout');
     assert.deepEqual(asObject(lanes.topologyLayout(topo, topoEdges.slice(0, 8), { laneOf })), asObject(layout), 'dependencies do not order the layout; only Ethernet, fiber and Wi-Fi do');
     const overridden = lanes.topologyLayout(topo, topoEdges, { laneOf: node => (node.id === 'tv' ? 1 : laneOf(node)) });
-    assert.deepEqual(plain(overridden.get('tv')), { x: 360, y: 480, pinned: false }, 'a lane override moves the card and keeps its connection order');
-    assert.deepEqual(plain(overridden.get('router')), { x: -360, y: 480, pinned: false });
+    // tv joins lane 1 with only a same-lane link (switch): it borrows the switch's bottom-sweep key 0 and ties with switch and ap.
+    assert.deepEqual(plain([overridden.get('switch'), overridden.get('ap'), overridden.get('tv'), overridden.get('router')]), [-360, -120, 120, 360].map(x => ({ x, y: 480, pinned: false })), 'a lane override moves the card; lane 1 reads switch, ap, tv, router');
     assert.deepEqual(plain(overridden.get('laptop')), { x: 0, y: 1248, pinned: false });
     const clients = Array.from({ length: 10 }, (_, i) => ({ id: `c${i}`, kind: 'device', name: `Client ${String(i).padStart(2, '0')}`, icon: 'laptop', profile: {} }));
     const wrapped = lanes.topologyLayout(clients, []);
@@ -1522,10 +1534,53 @@ for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     const nodeById = id => topo.find(node => node.id === id);
     const arranged = lanes.topologyArrange({ cards, nodeById, edges: topoEdges, guestsOf, placementOf: id => stored[id] || null });
     assert.equal(arranged.size, 9, 'without a selection every card is arranged');
-    assert.deepEqual(plain(arranged.get('tv')), { x: 360, y: 480, pinned: true }, 'a dragged card keeps its lane and stays pinned');
-    assert.deepEqual(plain(arranged.get('router')), { x: -360, y: 480, pinned: false });
+    assert.deepEqual(plain(arranged.get('tv')), { x: 120, y: 480, pinned: true }, 'a dragged card keeps its lane and stays pinned');
+    assert.deepEqual(plain(arranged.get('router')), { x: 360, y: 480, pinned: false });
     assert.deepEqual(plain(arranged.get('laptop')), { x: 0, y: 1248, pinned: false });
     assert.deepEqual(plain(arranged.get('nas')), { x: -120, y: 864, pinned: false }, 'an arranged, unpinned card follows its type');
+    // ---- A20/A21 on the realistic fixture: the 24 assets of the browser world(25) with a believable wiring ----
+    const demo = [['Public status', 'service', 'web-service'], ['Atlas hypervisor', 'vm', 'vm'], ['Cold-store NAS', 'device', 'nas'], ['Core switch', 'device', 'managed-switch'], ['North access point', 'device', 'access-point'], ['UPS bank', 'device', 'ups'], ['Entry camera', 'device', 'camera'], ['Camera recorder', 'device', 'nvr'], ['Build workstation', 'device', 'workstation'], ['Admin laptop', 'device', 'laptop'], ['Office printer', 'device', 'printer'], ['Gateway firewall', 'device', 'firewall'], ['Edge router', 'device', 'router'], ['Archive shelf', 'device', 'disk-shelf'], ['Prototype printer', 'device', '3d-printer'], ['Mesh relay', 'device', 'mesh-node'], ['Power distribution', 'device', 'pdu'], ['Fiber ONT', 'device', 'modem-ont'], ['Field tablet', 'device', 'tablet'], ['Room controller', 'device', 'smart-hub'], ['Remote access', 'device', 'vpn'], ['Metrics database', 'device', 'database'], ['Rack server', 'device', 'rack-server'], ['Lab mini PC', 'device', 'mini-pc']];
+    const fid = i => `n${String(i).padStart(2, '0')}`;
+    const lab = demo.map(([name, kind, icon], k) => ({ id: fid(k + 1), name, kind, icon, profile: {} }));
+    const wire = (kind, a, b) => ({ id: `w-${a}-${b}`, kind, from: fid(a), to: fid(b) });
+    const labEdges = [wire('fiber', 18, 13), wire('ethernet', 13, 12), wire('ethernet', 12, 4), wire('ethernet', 4, 23), wire('ethernet', 4, 24), wire('ethernet', 4, 9), wire('ethernet', 4, 11), wire('ethernet', 4, 8), wire('ethernet', 8, 7),
+        wire('wifi', 5, 10), wire('wifi', 5, 19), wire('wifi', 5, 20), wire('ethernet', 13, 21), wire('ethernet', 23, 22), wire('ethernet', 14, 3), wire('ethernet', 4, 16), wire('ethernet', 4, 5), wire('ethernet', 4, 3),
+        { id: 'w-runs-on', kind: 'runs_on', from: fid(1), to: fid(2) }];
+    const labGuests = model.guestIndex(lab, labEdges);
+    const labAuto = lanes.topologyAutoPositions(lab, labEdges, { placementOf: () => null, guests: labGuests });
+    assert.equal(labAuto.size, 22, 'the hostless VM and its guest are not drawn');
+    // A21: of 22 assets 1 is internet, 6 network, 8 servers and storage (it was 3), 7 clients and IoT
+    const laneCounts = [0, 0, 0, 0];
+    for (const node of lab) if (labAuto.has(node.id)) laneCounts[Math.floor(labAuto.get(node.id).y / 384)] += 1;
+    assert.deepEqual(laneCounts, [1, 6, 8, 7], 'NAS shelf, recorder, database, UPS, PDU and the server land in compute; VPN and firewall in network');
+    const labLane = id => Math.floor(labAuto.get(id).y / 384);
+    assert.deepEqual(['n14', 'n08', 'n22', 'n06', 'n17', 'n23', 'n03'].map(labLane), [2, 2, 2, 2, 2, 2, 2]);
+    assert.deepEqual(['n21', 'n12'].map(labLane), [1, 1]);
+    assert.deepEqual(['n07', 'n15', 'n11', 'n19'].map(labLane), [3, 3, 3, 3], 'cameras, printers and tablets stay clients');
+    // A20: crossings of the physical connections, drawn as straight lines between card centres
+    const labLaneOf = node => lanes.topologyLaneIndex(lanes.topologyLane(node, { hasGuests: (labGuests.guestsOf.get(node.id) || []).length > 0 }));
+    const drawable = lab.filter(node => labAuto.has(node.id));
+    const crossings = positions => {
+        const wires = labEdges.filter(edge => ['ethernet', 'fiber', 'wifi'].includes(edge.kind)).map(edge => [positions.get(edge.from), positions.get(edge.to), edge]);
+        const side = (a, b, c) => Math.sign((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
+        let count = 0;
+        for (let i = 0; i < wires.length; i += 1) for (let j = i + 1; j < wires.length; j += 1) {
+            const [a, b, e1] = wires[i], [c, d, e2] = wires[j];
+            if ([e1.from, e1.to].some(end => [e2.from, e2.to].includes(end))) continue; // wires that share a card meet there
+            if (side(a, b, c) * side(a, b, d) < 0 && side(c, d, a) * side(c, d, b) < 0) count += 1;
+        }
+        return count;
+    };
+    const byConnection = lanes.topologyLayout(drawable, labEdges, { laneOf: labLaneOf, ordering: 'connection' });
+    const byBarycentre = lanes.topologyLayout(drawable, labEdges, { laneOf: labLaneOf });
+    assert.equal(crossings(byConnection), 11, 'the plain connection order crosses 11 times');
+    assert.equal(crossings(byBarycentre), 5, 'the barycentre order crosses 5 times');
+    assert.ok(crossings(byBarycentre) < crossings(byConnection), 'A20: the barycentre order crosses less than the connection order');
+    assert.deepEqual(asObject(lanes.topologyLayout(drawable.slice().reverse(), labEdges.slice().reverse(), { laneOf: labLaneOf })), asObject(byBarycentre), 'the barycentre order does not depend on the input order');
+    const shuffled = drawable.map((node, i) => [(i * 7 + 3) % drawable.length, node]).sort((a, b) => a[0] - b[0]).map(item => item[1]);
+    assert.deepEqual(asObject(lanes.topologyLayout(shuffled, labEdges, { laneOf: labLaneOf })), asObject(byBarycentre), 'nor on a shuffled input');
+    const laneOrder = index => [...byBarycentre].filter(([id]) => labLane(id) === index).sort((a, b) => a[1].y - b[1].y || a[1].x - b[1].x).map(([id]) => id);
+    assert.deepEqual(laneOrder(3), ['n07', 'n09', 'n11', 'n10', 'n19', 'n20', 'n15'], 'clients are keyed by the card they hang on; the unconnected 3D printer goes last');
     const selected = lanes.topologyArrange({ cards, selection: new Set(['tv', 'laptop']), nodeById, edges: topoEdges, guestsOf, placementOf: id => stored[id] || null });
     assert.deepEqual(asObject(selected), { tv: { x: 0, y: 408, pinned: true }, laptop: { x: 0, y: 1248, pinned: false } }, 'a selection is arranged around its mean x and around the other cards (the switch sits at 0,480, so the slot moves 72 px up)');
 }

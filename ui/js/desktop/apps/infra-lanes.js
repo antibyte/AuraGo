@@ -19,16 +19,18 @@
     // LANE_LABEL_INSET screen px from the left edge of the viewport.
     const LANE_EXTENT = 50000, LANE_LABEL_INSET = 12;
     const PHYSICAL_EDGES = new Set(['ethernet', 'fiber', 'wifi']);
+    // The ids are the model's icon catalog. Cameras, printers, TVs, phones, tablets, laptops, workstations, sensors
+    // and the smart-home radios are not listed on purpose: they are the clients.
     const LANE_ICONS = {
         internet: ['internet', 'modem-ont'],
-        network: ['router', 'firewall', 'managed-switch', 'switch', 'patch-panel', 'access-point', 'mesh-node', 'lan', 'vlan', 'wlan'],
-        compute: ['rack-server', 'tower-server', 'mini-pc', 'sbc', 'nas', 'hypervisor', 'kubernetes'],
+        network: ['router', 'firewall', 'vpn', 'managed-switch', 'switch', 'patch-panel', 'access-point', 'mesh-node', 'lan', 'vlan', 'wlan'],
+        compute: ['rack-server', 'tower-server', 'mini-pc', 'sbc', 'nas', 'hypervisor', 'kubernetes', 'disk-shelf', 'storage-share', 'backup', 'database', 'nvr', 'ups', 'pdu'],
     };
     const LANE_ICON_INDEX = new Map(Object.entries(LANE_ICONS).flatMap(([lane, icons]) => icons.map((icon, rank) => [icon, { lane, rank }])));
     const LANE_ROLE_WORDS = [
         ['internet', ['modem', 'ont', 'isp', 'wan', 'dsl']],
-        ['network', ['router', 'firewall', 'switch', 'gateway', 'mesh', 'ap', 'access point']],
-        ['compute', ['server', 'nas', 'hypervisor', 'proxmox', 'esxi', 'kubernetes', 'k8s']],
+        ['network', ['router', 'firewall', 'vpn', 'switch', 'gateway', 'mesh', 'ap', 'access point']],
+        ['compute', ['server', 'nas', 'disk shelf', 'storage', 'database', 'nvr', 'recorder', 'rack', 'ups', 'pdu', 'hypervisor', 'proxmox', 'esxi', 'kubernetes', 'k8s']],
     ];
     // roleWords turns "InternetGatewayDevice" or "dsl-modem" into " internet gateway device ".
     const roleWords = role => ` ${String(role || '').replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `;
@@ -48,13 +50,62 @@
     // decoration: never part of the scene bounds, fit, minimap or hit tests.
     const laneStripes = () => TOPOLOGY_LANES.map((id, index) => ({ id, index, rect: { x: -LANE_EXTENT, y: index * LANE_H, w: LANE_EXTENT * 2, h: LANE_H } }));
     const laneRank = node => LANE_ICON_INDEX.get(node?.icon)?.rank ?? 99;
+    // slotX is the centre x of card i of a lane of n cards: rows of up to `columns` cards, each row centred on centerX.
+    const columnsOf = (n, maxColumns) => Math.max(maxColumns, Math.ceil(n / 2));
+    const slotX = (i, n, centerX, maxColumns) => {
+        const columns = columnsOf(n, maxColumns), row = Math.floor(i / columns), inRow = Math.min(columns, n - row * columns);
+        return snap(centerX - (inRow - 1) * LANE_CELL_W / 2) + (i % columns) * LANE_CELL_W;
+    };
+    // barycentreOrder reorders the cards of every lane (A20) to cut crossings between lanes. members[i] is the
+    // lane i list in connection order. One sweep from the top lane down keys a card by the mean x of its
+    // neighbours in the lanes above; one sweep from the bottom lane up keys a card that has none by the mean x
+    // of its neighbours below. A card whose neighbours are all in its own lane borrows the mean key of those;
+    // a card without any connection goes last. Equal keys keep the connection order, so the result is
+    // deterministic.
+    const barycentreOrder = (members, adjacency, lane, order, centerX, maxColumns) => {
+        const xs = new Map();
+        const place = list => list.forEach((node, i) => xs.set(node.id, slotX(i, list.length, centerX, maxColumns)));
+        const meanX = (node, wanted) => {
+            let sum = 0, count = 0;
+            for (const next of adjacency.get(node.id)) if (wanted(lane.get(next.id))) { sum += xs.get(next.id); count += 1; }
+            return count ? Math.round(sum / count * 1000) / 1000 : null;
+        };
+        const sortLane = (list, directKey) => {
+            const own = new Map(list.map(node => [node.id, directKey(node)])), keys = new Map();
+            for (const node of list) {
+                let key = own.get(node.id);
+                if (key === null) {
+                    let sum = 0, count = 0;
+                    for (const next of adjacency.get(node.id)) if (lane.get(next.id) === lane.get(node.id) && own.get(next.id) != null) { sum += own.get(next.id); count += 1; }
+                    key = count ? Math.round(sum / count * 1000) / 1000 : null;
+                }
+                keys.set(node.id, key);
+            }
+            list.sort((a, b) => {
+                const ka = keys.get(a.id), kb = keys.get(b.id);
+                if (ka === null || kb === null) return ka === kb ? order.get(a.id) - order.get(b.id) : (ka === null ? 1 : -1);
+                return ka - kb || order.get(a.id) - order.get(b.id);
+            });
+            place(list);
+        };
+        members.forEach(place);
+        const above = new Map();
+        for (let index = 1; index < members.length; index += 1) {
+            sortLane(members[index], node => { const key = meanX(node, other => other < index); above.set(node.id, key); return key; });
+        }
+        for (let index = members.length - 2; index >= 0; index -= 1) {
+            sortLane(members[index], node => (above.get(node.id) ?? null) !== null ? meanX(node, other => other < index) : meanX(node, other => other > index));
+        }
+    };
     // topologyLayout puts nodes into their lanes (laneOf → index) in connection
     // order: a breadth-first walk over Ethernet, fiber and Wi-Fi edges, started
-    // from the top lane, numbers the nodes, so parents come before children.
+    // from the top lane, numbers the nodes, so parents come before children;
+    // barycentreOrder then reorders each lane against its neighbours (ordering
+    // 'connection' keeps the plain connection order).
     // A lane holds up to two rows of maxColumns cards; a lane that would need a third row widens its
     // rows instead (columns = max(maxColumns, ceil(n / 2)), A17). Every row is centred on centerX. obstacles are rects of cards that
     // stay put; a slot under one moves to the nearest free grid point.
-    const topologyLayout = (nodes, edges, { laneOf = node => topologyLaneIndex(topologyLane(node)), obstacles = [], centerX = 0, maxColumns = 8 } = {}) => {
+    const topologyLayout = (nodes, edges, { laneOf = node => topologyLaneIndex(topologyLane(node)), obstacles = [], centerX = 0, maxColumns = 8, ordering = 'barycentre' } = {}) => {
         const list = (nodes || []).filter(node => node && node.id);
         const byId = new Map(list.map(node => [node.id, node]));
         const lane = new Map(list.map(node => [node.id, Math.min(TOPOLOGY_LANES.length - 1, Math.max(0, Math.trunc(Number(laneOf(node))) || 0))]));
@@ -79,15 +130,15 @@
                 }
             }
         }
-        const lanes = TOPOLOGY_LANES.map(() => []);
-        for (const node of list) lanes[lane.get(node.id)].push(node);
+        const members = TOPOLOGY_LANES.map(() => []);
+        for (const node of list) members[lane.get(node.id)].push(node);
+        for (const inLane of members) inLane.sort((a, b) => order.get(a.id) - order.get(b.id));
+        if (ordering === 'barycentre') barycentreOrder(members, adjacency, lane, order, centerX, maxColumns);
         const nudge = (obstacles || []).length > 0, placed = nudge ? obstacles.slice() : [], out = new Map();
-        lanes.forEach((members, index) => {
-            members.sort((a, b) => order.get(a.id) - order.get(b.id));
-            const columns = Math.max(maxColumns, Math.ceil(members.length / 2));
-            members.forEach((node, i) => {
-                const row = Math.floor(i / columns), inRow = Math.min(columns, members.length - row * columns);
-                const want = { x: snap(centerX - (inRow - 1) * LANE_CELL_W / 2) + (i % columns) * LANE_CELL_W, y: index * LANE_H + LANE_ROW0 + row * LANE_ROW_H };
+        members.forEach((inLane, index) => {
+            inLane.forEach((node, i) => {
+                const row = Math.floor(i / columnsOf(inLane.length, maxColumns));
+                const want = { x: slotX(i, inLane.length, centerX, maxColumns), y: index * LANE_H + LANE_ROW0 + row * LANE_ROW_H };
                 const pos = nudge ? freeSlot(want, placed) : want;
                 if (nudge) placed.push(cardRect(pos));
                 out.set(node.id, { x: pos.x, y: pos.y, pinned: false });
