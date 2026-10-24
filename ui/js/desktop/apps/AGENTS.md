@@ -171,18 +171,44 @@ after the built-in installers and before the markup exists. DOM work belongs in 
     (`data-search-open`, `app.focusSearch()`, which Ctrl K calls and which keeps the event from the desktop's Spotlight).
   - `model.sourceLabels` numbers several instances of a source kind ("Docker 1"); the instance id only goes into a title.
     `model.APP_LINK_TARGETS` is the one list of linkable apps.
-- Topology lanes (Plan D):
-  - Four fixed world bands, `LANE_H` = 480 px from y = 0 (internet, network, compute, clients), drawn into `[data-lanes]`
-    (the first scene layer, `aria-hidden`); their labels are counter-scaled by `--infra-lane-k`. `buildScene` returns
-    `lanes` in Topology and its `bounds` include them, so Fit shows every lane. Lane labels are not sticky.
-  - A card saved `pinned: true` is in lane `laneAt(y)`; any other card is in `topologyLane(node)` (kind, icon, role words,
-    "has guests"). Auto columns sit `LANE_CELL_W` = 240 px apart, rows 96 px, from lane top + 96.
-  - The auto layout never writes: `model.topologyAutoPositions` slots every eligible asset without a topology placement
-    (not a place, guest or hostless VM/container) in connection order. The canvas memoizes it (`autoPositions()`,
-    `isAutoPlaced(id)`); the library tree, Arrange's enabled state and the inspector read it, so nothing is "to place".
+- Topology lanes (Plan D, amended by D-fix-2, A17 to A27). The pure helpers live in `infra-lanes.js` (`window.InfraAppLanes`,
+  `app.lanes`); the model no longer knows lanes (`buildScene` returns no `lanes`, its `bounds` are the drawn cards only).
+  - Lanes: four fixed world bands, `LANE_H` = 384 px from y = 0 (internet, network, compute, clients), `laneAt(y)` =
+    clamp(floor(y / 384), 0, 3). They are drawn as swimlane stripes in `[data-lanes]` (the first scene layer,
+    `aria-hidden`, pointer-events none): static elements 100000 px wide (`LANE_EXTENT` = 50000 each side of x = 0), an
+    alternating neutral fill and a separator in `--infra-outline`. They never take part in bounds, fit, the minimap or hit
+    tests. Labels are sticky: `paintView` calls `paintLaneLabels`, which sets `--infra-lane-x` (and `--infra-lane-w`) on
+    the lanes layer once per frame so the pill sits 12 px from the viewport's left edge; `--infra-lane-k` counter-scales it.
+  - A card saved `pinned: true` is in lane `laneAt(y)`; any other card is in `topologyLane(node)`: the network kind, the icon
+    (`LANE_ICONS`, real ids of the icon catalog: servers, storage, NVR, database, UPS and PDU are compute, VPN and firewall
+    network, modem-ont internet), words in the role, "has guests", else clients. Auto columns sit `LANE_CELL_W` = 240 px
+    apart; a lane has at most two rows (centres at lane top + 96 and + 240, `LANE_ROW_H` = 144), columns per row =
+    max(8, ceil(n / 2)), every row centred on x = 0.
+  - Order inside a lane (A20): `topologyLayout` starts from the connection order (breadth first over Ethernet, fiber and Wi-Fi)
+    and reorders each lane by the barycentre of the neighbours in the other lanes (one sweep down, one up; a card whose links
+    stay in its lane borrows their key, unconnected cards go last, ties keep the connection order). `ordering: 'connection'`
+    gives the plain order. It is deterministic; the Node test pins the crossing counts of the lab fixture (11 and 5).
+  - Placements: Topology ignores a saved `pinned: false` placement (`store.effectivePlacement` returns null for it, A22): it is a
+    leftover of the retired layered Arrange. The auto layout never writes: `topologyAutoPositions` slots every eligible asset
+    without a placement (not a place, guest or hostless VM/container). The canvas memoizes it (`autoPositions()`,
+    `isAutoPlaced(id)`); the library tree and the inspector read it. In Topology the library has no To place section and the
+    placed one is titled "In topology". Cards the auto layout moves glide (`is-gliding`, `startGlide`) only while
+    `app.animationsEnabled()`.
+  - Connections (A19): `topologyPaths(lines, cardAt)` is the one source of every Topology path: a cubic from the bottom
+    edge of the upper card to the top edge of the lower one (control offset max(48, dy / 2)), the connections on one card edge
+    spread over the middle 60% in slots ordered by the other end's x, same-lane ones straight. The canvas draws it for the line,
+    the hit area and the selection, redraws all of them while a card is dragged, and evaluates the A5 label clash at the
+    midpoint of the path's ends (= the curve's midpoint). The Map view stays straight.
   - Gestures: a drag or keyboard move highlights its lane (`setLaneTarget`) and announces a lane change. The first move of
     an auto-laid card undoes back to the automatic layout (`{unplace: true}` in `previousIntent`; without unplace support it
-    is not undoable). Arrange in Topology is `topologyArrange`, one undoable save for the selection or every card.
+    is not undoable). Arrange in Topology (A22) is no layout: it hands the selection, or every card with a saved pin, back to the
+    automatic layout as one undoable unplace save (`arrangeIds`, `removeFromMap`); it reads "Arrange automatically" and is
+    disabled, with a reason title, without `store.features.unplace` (menu item, window menu and the inspector button).
+  - Fit keeps 104 px below the cards (`FIT_PADDING`, `fitView` takes a padding object) so the tools and the names of compact
+    cards stay clear. The compact icon is counter-scaled by `--infra-icon-k` (A24: `zoomLevels().icon`).
+  - The empty-result action names its cause (A26: `clear-search`, `reset-filters` or `clear-search-filters` on the no-match
+    box) and a library section that a query or filter emptied says "No matches". `fitSearchBadge` hides the Ctrl K badge when
+    the placeholder would not fit next to it (A27).
 
 ## Synth Studio
 
