@@ -168,6 +168,8 @@ ${panel('overview', overviewHTML(node))}${panel('details', forms.detailsHTML(nod
         }
         function paint() {
             if (state.disposed || !root.isConnected) return;
+            // In the List view the checkboxes build a selection for the bulk bar; they never open the panel over it.
+            if (state.view === 'table' && state.selectionOrigin === 'check') { hide(); return; }
             const node = store.nodeById(state.selected);
             if (node) { paintNode(node); return; }
             const edge = state.selectedEdge ? state.edges.find(item => item.id === state.selectedEdge) : null;

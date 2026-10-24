@@ -345,6 +345,21 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     const newStore = api => InfraStore.create({ ctx: { api }, t: key => key });
     const echo = body => ({ nodes: body.nodes.map(item => storeNode(item.id, { version: item.version + 1, ...(item.parent_id !== undefined ? { parent_id: item.parent_id } : {}), placements: item.unplace ? {} : { atlas: { x: item.x, y: item.y, pinned: true } } })) });
 
+    { // the List checkboxes mark their selection; every other way of selecting resets the mark
+        const store = newStore(fakeApi({}).api);
+        store.applySnapshot({ nodes: [storeNode('a'), storeNode('b')], edges: [], sources: [], capabilities: { write: true } });
+        store.select(['a'], { toggle: true, origin: 'check' });
+        assert.equal(store.state.selectionOrigin, 'check');
+        store.select(['b'], { toggle: true, origin: 'check' });
+        assert.equal(store.state.selectionOrigin, 'check');
+        assert.deepEqual([...store.state.selection], ['a', 'b']);
+        store.select(['a']);
+        assert.equal(store.state.selectionOrigin, '', 'selecting by name is not a checkbox selection');
+        store.select(['b'], { origin: 'check' });
+        store.clearSelection();
+        assert.equal(store.state.selectionOrigin, '');
+        store.dispose();
+    }
     { // coalescing; an old server never receives parent_id
         const { api, calls } = fakeApi({ 'PUT /layout': echo });
         const store = newStore(api);

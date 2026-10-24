@@ -112,8 +112,8 @@
         function onRowCheck(box, event) {
             const id = box.dataset.rowCheck, rows = list().rows;
             const from = rows.findIndex(row => row.id === anchor), to = rows.findIndex(row => row.id === id);
-            if (event.shiftKey && from >= 0 && to >= 0) store.select(rows.slice(Math.min(from, to), Math.max(from, to) + 1).map(row => row.id), { additive: true });
-            else store.select([id], { toggle: true });
+            if (event.shiftKey && from >= 0 && to >= 0) store.select(rows.slice(Math.min(from, to), Math.max(from, to) + 1).map(row => row.id), { additive: true, origin: 'check' });
+            else store.select([id], { toggle: true, origin: 'check' });
             anchor = id;
         }
         const onClick = event => {
@@ -131,7 +131,7 @@
             if (check) { onRowCheck(check, event); return; }
             if (target.closest('[data-table-check-all]')) {
                 const ids = list().rows.map(row => row.id);
-                if (ids.length && ids.every(id => state.selection.has(id))) store.clearSelection(); else store.select(ids);
+                if (ids.length && ids.every(id => state.selection.has(id))) store.clearSelection(); else store.select(ids, { origin: 'check' });
                 return;
             }
             const expand = target.closest('[data-row-expand]');

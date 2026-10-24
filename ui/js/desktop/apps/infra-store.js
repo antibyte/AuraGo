@@ -95,7 +95,7 @@
             credentials: [], credentialsLoaded: false, credentialsLoading: false, credentialsError: false,
             stamp: '', refreshAt: 0, sync: 'syncing',
             view: 'atlas', tool: 'select', filters: { query: '', kind: '', source: '', power: '' },
-            selection: new Set(), selected: '', selectedEdge: '', expandedHosts: new Set(), interacting: 0, historyBusy: false,
+            selection: new Set(), selectionOrigin: '', selected: '', selectedEdge: '', expandedHosts: new Set(), interacting: 0, historyBusy: false,
             drafts: new Map(), dirty: new Set(), draftRevision: new Map(), nodeReviews: new Map(), customRows: new Map(),
             sourceDrafts: new Map(), sourceDirty: new Set(), sourceRevision: new Map(), sourceReviews: new Map(), sourceBlocked: new Set(), sourcePending: new Set(),
             actionBlocks: new Map(), importSelection: new Set(), importBindings: new Map(), importDialogOwner: '', importOpen: false, dialogGeneration: 0,
@@ -383,16 +383,17 @@
         };
 
         // ---- selection, view, filters --------------------------------------------
-        function select(ids, { toggle = false, additive = false } = {}) {
+        // origin names the control that built the selection ('check' = List checkboxes); any other select resets it.
+        function select(ids, { toggle = false, additive = false, origin = '' } = {}) {
             const next = toggle || additive ? new Set(state.selection) : new Set();
             for (const id of ids) { if (toggle && next.has(id)) next.delete(id); else if (nodeById(id)) next.add(id); }
-            state.selection = next; state.selectedEdge = '';
+            state.selection = next; state.selectedEdge = ''; state.selectionOrigin = origin;
             state.selected = next.size === 1 ? [...next][0] : '';
             if (state.selected && !state.dirty.has(state.selected)) state.drafts.set(state.selected, model.clone(nodeById(state.selected)));
             emit({ type: 'selection' });
         }
-        const selectEdge = id => { state.selection = new Set(); state.selected = ''; state.selectedEdge = state.edges.some(edge => edge.id === id) ? id : ''; emit({ type: 'selection' }); };
-        const clearSelection = () => { if (!state.selection.size && !state.selectedEdge) return; state.selection = new Set(); state.selected = ''; state.selectedEdge = ''; emit({ type: 'selection' }); };
+        const selectEdge = id => { state.selection = new Set(); state.selectionOrigin = ''; state.selected = ''; state.selectedEdge = state.edges.some(edge => edge.id === id) ? id : ''; emit({ type: 'selection' }); };
+        const clearSelection = () => { if (!state.selection.size && !state.selectedEdge) return; state.selection = new Set(); state.selectionOrigin = ''; state.selected = ''; state.selectedEdge = ''; emit({ type: 'selection' }); };
         const setView = view => { if (state.view === view) return; state.view = view; emit({ type: 'view' }); };
         const setFilters = partial => { state.filters = { ...state.filters, ...partial }; emit({ type: 'filters' }); };
         const setTool = tool => { if (state.tool === tool) return; state.tool = tool; emit({ type: 'tool' }); };
