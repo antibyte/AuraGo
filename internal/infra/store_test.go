@@ -1123,3 +1123,41 @@ func TestSnapshotListsIgnoredSourcesOnlyOnRequest(t *testing.T) {
 		}
 	}
 }
+
+func TestDeleteNodeAndIgnoreSourcesIsAtomic(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	identity := SourceIdentity{Kind: "docker", Instance: "engine", Key: "duplicate-tv"}
+	if err := store.ObserveSources(ctx, "docker", "engine", []SourceObservation{{
+		Identity: identity, Name: "tv", Observed: SourceObserved{Kind: NodeContainer, Name: "tv", Icon: "container"},
+	}}, true); err != nil {
+		t.Fatal(err)
+	}
+	candidate, err := store.GetCandidate(ctx, CandidateID(identity))
+	if err != nil {
+		t.Fatal(err)
+	}
+	node, err := store.CreateImportedNode(ctx, candidate.Node, identity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.DeleteNodeAndIgnoreSources(ctx, node.ID, node.Version+1); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale delete = %v; want conflict", err)
+	}
+	if source, err := store.GetSource(ctx, identity); err != nil || source.Ignored {
+		t.Fatalf("a refused delete ignored the source: %#v, %v", source, err)
+	}
+	ignored, err := store.DeleteNodeAndIgnoreSources(ctx, node.ID, node.Version)
+	if err != nil || len(ignored) != 1 || ignored[0] != identity {
+		t.Fatalf("delete and ignore = %#v, %v; want the linked source", ignored, err)
+	}
+	if _, err := store.GetNode(ctx, node.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("deleted node lookup = %v; want not found", err)
+	}
+	if source, err := store.GetSource(ctx, identity); err != nil || !source.Ignored {
+		t.Fatalf("source after delete and ignore = %#v, %v; want ignored", source, err)
+	}
+	if listed, err := store.ListSources(ctx, "docker", "engine"); err != nil || len(listed) != 0 {
+		t.Fatalf("discoverable sources = %#v, %v; want none", listed, err)
+	}
+}

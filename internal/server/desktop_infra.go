@@ -507,12 +507,22 @@ func desktopInfraNodeRoute(w http.ResponseWriter, r *http.Request, s *Server, cf
 		if !ok {
 			return
 		}
+		ignoreSources, ok := desktopInfraFlagQuery(w, r, "ignore_sources")
+		if !ok {
+			return
+		}
 		node, err := store.GetNode(r.Context(), nodeID)
 		if err != nil {
 			desktopInfraStoreError(w, err)
 			return
 		}
-		if err := store.DeleteNode(r.Context(), nodeID, version); err != nil {
+		ignored := []infra.SourceIdentity{}
+		if ignoreSources {
+			ignored, err = store.DeleteNodeAndIgnoreSources(r.Context(), nodeID, version)
+		} else {
+			err = store.DeleteNode(r.Context(), nodeID, version)
+		}
+		if err != nil {
 			desktopInfraStoreError(w, err)
 			return
 		}
@@ -525,7 +535,11 @@ func desktopInfraNodeRoute(w http.ResponseWriter, r *http.Request, s *Server, cf
 		for instance := range instances {
 			_ = desktopInfraReconcileProxmoxEdges(r.Context(), store, instance)
 		}
-		desktopInfraJSON(w, http.StatusOK, map[string]any{"status": "deleted", "id": nodeID})
+		response := map[string]any{"status": "deleted", "id": nodeID}
+		if ignoreSources {
+			response["ignored"] = ignored
+		}
+		desktopInfraJSON(w, http.StatusOK, response)
 	default:
 		desktopInfraMethodNotAllowed(w)
 	}
@@ -695,6 +709,23 @@ func desktopInfraVersionQuery(w http.ResponseWriter, r *http.Request) (int64, bo
 		return 0, false
 	}
 	return version, true
+}
+
+// desktopInfraFlagQuery reads an optional boolean query flag ("1"/"true" or
+// "0"/"false"; absent means false). Anything else is refused so a typo never
+// silently drops the requested behaviour.
+func desktopInfraFlagQuery(w http.ResponseWriter, r *http.Request, name string) (bool, bool) {
+	switch r.URL.Query().Get(name) {
+	case "":
+		return false, true
+	case "1", "true":
+		return true, true
+	case "0", "false":
+		return false, true
+	default:
+		desktopInfraError(w, http.StatusBadRequest, "invalid_request", "Query flag "+name+" must be 1 or 0")
+		return false, false
+	}
 }
 
 func desktopInfraValidPathID(id string) bool {

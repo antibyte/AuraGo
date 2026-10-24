@@ -209,52 +209,93 @@ func (s *Store) UpdateNode(ctx context.Context, node Node) (Node, error) {
 	return s.GetNode(ctx, node.ID)
 }
 
+// DeleteNode removes a node and unlinks its sources.
 func (s *Store) DeleteNode(ctx context.Context, id string, version int64) error {
+	_, err := s.deleteNode(ctx, id, version, false)
+	return err
+}
+
+// DeleteNodeAndIgnoreSources removes a node and, in the same transaction,
+// unlinks and ignores every source it was linked to. It returns those sources.
+func (s *Store) DeleteNodeAndIgnoreSources(ctx context.Context, id string, version int64) ([]SourceIdentity, error) {
+	return s.deleteNode(ctx, id, version, true)
+}
+
+func (s *Store) deleteNode(ctx context.Context, id string, version int64, ignore bool) ([]SourceIdentity, error) {
 	if err := validateText("node id", id, 128, true); err != nil {
-		return err
+		return nil, err
 	}
 	if version <= 0 {
-		return fmt.Errorf("%w: node id and version are required", ErrValidation)
+		return nil, fmt.Errorf("%w: node id and version are required", ErrValidation)
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("begin infra node removal: %w", err)
+		return nil, fmt.Errorf("begin infra node removal: %w", err)
 	}
 	defer tx.Rollback()
 	var current int64
 	if err := tx.QueryRowContext(ctx, `SELECT version FROM infra_nodes WHERE id=?`, id).Scan(&current); err == sql.ErrNoRows {
-		return ErrNotFound
+		return nil, ErrNotFound
 	} else if err != nil {
-		return fmt.Errorf("read infra node version: %w", err)
+		return nil, fmt.Errorf("read infra node version: %w", err)
 	}
 	if current != version {
-		return ErrConflict
+		return nil, ErrConflict
 	}
 	var children bool
 	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM infra_nodes WHERE parent_id=?)`, id).Scan(&children); err != nil {
-		return fmt.Errorf("check infra node children: %w", err)
+		return nil, fmt.Errorf("check infra node children: %w", err)
 	}
 	if children {
-		return ErrHasChildren
+		return nil, ErrHasChildren
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE infra_sources SET node_id=NULL WHERE node_id=?`, id); err != nil {
-		return fmt.Errorf("unlink infra node sources: %w", err)
+	ignored := []SourceIdentity{}
+	if ignore {
+		ignored, err = linkedSourceIdentities(ctx, tx, id)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE infra_sources SET node_id=NULL, ignored_at=? WHERE node_id=?`, formatTime(time.Now().UTC()), id); err != nil {
+			return nil, fmt.Errorf("unlink and ignore infra node sources: %w", err)
+		}
+	} else if _, err := tx.ExecContext(ctx, `UPDATE infra_sources SET node_id=NULL WHERE node_id=?`, id); err != nil {
+		return nil, fmt.Errorf("unlink infra node sources: %w", err)
 	}
 	res, err := tx.ExecContext(ctx, `DELETE FROM infra_nodes WHERE id=? AND version=?`, id, version)
 	if err != nil {
-		return fmt.Errorf("delete infra node: %w", err)
+		return nil, fmt.Errorf("delete infra node: %w", err)
 	}
 	n, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("count deleted infra nodes: %w", err)
+		return nil, fmt.Errorf("count deleted infra nodes: %w", err)
 	}
 	if n != 1 {
-		return ErrConflict
+		return nil, ErrConflict
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit infra node removal: %w", err)
+		return nil, fmt.Errorf("commit infra node removal: %w", err)
 	}
-	return nil
+	return ignored, nil
+}
+
+func linkedSourceIdentities(ctx context.Context, tx *sql.Tx, nodeID string) ([]SourceIdentity, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT kind, instance, source_key FROM infra_sources WHERE node_id=? ORDER BY kind, instance, source_key`, nodeID)
+	if err != nil {
+		return nil, fmt.Errorf("list infra node sources: %w", err)
+	}
+	defer rows.Close()
+	identities := []SourceIdentity{}
+	for rows.Next() {
+		var identity SourceIdentity
+		if err := rows.Scan(&identity.Kind, &identity.Instance, &identity.Key); err != nil {
+			return nil, fmt.Errorf("read infra node source: %w", err)
+		}
+		identities = append(identities, identity)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read infra node sources: %w", err)
+	}
+	return identities, nil
 }
 
 type nodeQueryer interface {
