@@ -598,7 +598,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 			if typingCtx.Err() != nil {
 				return
 			}
-			bot.Send(tgbotapi.NewChatAction(msg.From.ID, tgbotapi.ChatTyping))
+			_ = sendChatAction(bot, msg.From.ID, tgbotapi.ChatTyping)
 			select {
 			case <-ticker.C:
 			case <-typingCtx.Done():
@@ -636,18 +636,12 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 			}
 			if convErr != nil {
 				logger.Warn("[Telegram] OGG conversion failed, falling back to audio", "error", convErr)
-				if err := sendTelegramAudio(bot, msg.From.ID, af.FilePath, af.Title); err != nil {
-					logger.Warn("[Telegram] Failed to send audio", "path", af.FilePath, "error", err)
-				}
+				deliverAudio(bot, msg.From.ID, af.FilePath, af.Title, logger)
 			} else {
-				if err := sendTelegramVoice(bot, msg.From.ID, oggPath); err != nil {
-					logger.Warn("[Telegram] Failed to send voice note", "path", oggPath, "error", err)
-				}
+				deliverVoice(bot, msg.From.ID, oggPath, logger)
 			}
 		} else {
-			if err := sendTelegramAudio(bot, msg.From.ID, af.FilePath, af.Title); err != nil {
-				logger.Warn("[Telegram] Failed to send audio", "path", af.FilePath, "error", err)
-			}
+			deliverAudio(bot, msg.From.ID, af.FilePath, af.Title, logger)
 		}
 	}
 
@@ -683,9 +677,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 			} else {
 				continue
 			}
-			if err := sendTelegramPhoto(bot, msg.From.ID, localPath, img.Caption); err != nil {
-				logger.Warn("Failed to send Telegram photo", "path", localPath, "error", err)
-			}
+			deliverPhoto(bot, msg.From.ID, localPath, img.Caption, logger)
 			if staged {
 				_ = os.Remove(localPath)
 			}
@@ -703,12 +695,50 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 func deliverMessage(bot *tgbotapi.BotAPI, chatID int64, text string, what string, logger *slog.Logger) error {
 	err := sendTelegramMessage(bot, chatID, text)
 	if err != nil {
-		integrationstatus.MarkTelegramDeliveryFailure(time.Now())
-		if logger != nil {
-			logger.Error("Failed to send Telegram "+what, "error", security.Scrub(err.Error()))
-		}
+		recordTelegramDeliveryFailure(what, err, logger)
 	}
 	return err
+}
+
+// deliverPhoto sends a photo to the user and records a failed delivery. A
+// lost photo is as invisible to the user as a lost answer.
+func deliverPhoto(bot *tgbotapi.BotAPI, chatID int64, localPath, caption string, logger *slog.Logger) error {
+	err := sendTelegramPhoto(bot, chatID, localPath, caption)
+	if err != nil {
+		recordTelegramDeliveryFailure("photo", err, logger, "path", localPath)
+	}
+	return err
+}
+
+// deliverAudio sends an audio attachment to the user and records a failed
+// delivery. The reply never reaches the chat without the file.
+func deliverAudio(bot *tgbotapi.BotAPI, chatID int64, localPath, title string, logger *slog.Logger) error {
+	err := sendTelegramAudio(bot, chatID, localPath, title)
+	if err != nil {
+		recordTelegramDeliveryFailure("audio", err, logger, "path", localPath)
+	}
+	return err
+}
+
+// deliverVoice sends a voice note to the user and records a failed delivery.
+func deliverVoice(bot *tgbotapi.BotAPI, chatID int64, oggPath string, logger *slog.Logger) error {
+	err := sendTelegramVoice(bot, chatID, oggPath)
+	if err != nil {
+		recordTelegramDeliveryFailure("voice note", err, logger, "path", oggPath)
+	}
+	return err
+}
+
+// recordTelegramDeliveryFailure counts a lost delivery and logs it. Every
+// content path has to use it, because a message that never arrives stays
+// invisible to the user.
+func recordTelegramDeliveryFailure(what string, err error, logger *slog.Logger, attrs ...any) {
+	integrationstatus.MarkTelegramDeliveryFailure(time.Now())
+	if logger == nil {
+		return
+	}
+	args := append([]any{"error", security.Scrub(err.Error())}, attrs...)
+	logger.Error("Failed to send Telegram "+what, args...)
 }
 
 // telegramChatAllowsOperator reports whether operator slash commands may run:
@@ -789,6 +819,13 @@ func sendTelegramAudio(bot *tgbotapi.BotAPI, chatID int64, localPath, title stri
 func sendTelegramVoice(bot *tgbotapi.BotAPI, chatID int64, oggPath string) error {
 	voice := tgbotapi.NewVoice(chatID, tgbotapi.FilePath(oggPath))
 	_, err := bot.Send(voice)
+	return err
+}
+
+// sendChatAction shows a chat action, for example the typing indicator. It
+// carries no content, so a failure loses no message and stays uncounted.
+func sendChatAction(bot *tgbotapi.BotAPI, chatID int64, action string) error {
+	_, err := bot.Send(tgbotapi.NewChatAction(chatID, action))
 	return err
 }
 

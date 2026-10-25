@@ -442,19 +442,34 @@ func TestTelegramDeliveryFailureCounterCountsEverySendPath(t *testing.T) {
 		t.Fatalf("construct Telegram bot API: %v", err)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mediaFile := filepath.Join(t.TempDir(), "reply.bin")
+	if err := os.WriteFile(mediaFile, []byte("payload"), 0o600); err != nil {
+		t.Fatalf("write the media fixture: %v", err)
+	}
 
 	before := integrationstatus.TelegramStatus().DeliveryFailures
-	if err := deliverMessage(bot, 4711, "hello", "answer", logger); err == nil {
-		t.Fatal("deliverMessage must report the failed delivery")
+	sends := []struct {
+		name string
+		send func() error
+	}{
+		{"text", func() error { return deliverMessage(bot, 4711, "hello", "answer", logger) }},
+		{"photo", func() error { return deliverPhoto(bot, 4711, mediaFile, "caption", logger) }},
+		{"audio", func() error { return deliverAudio(bot, 4711, mediaFile, "title", logger) }},
+		{"voice", func() error { return deliverVoice(bot, 4711, mediaFile, logger) }},
 	}
-	if got := integrationstatus.TelegramStatus().DeliveryFailures; got != before+1 {
-		t.Fatalf("delivery failures = %d, want %d", got, before+1)
+	for i, send := range sends {
+		if err := send.send(); err == nil {
+			t.Fatalf("%s: the failed delivery must be reported", send.name)
+		}
+		if got := integrationstatus.TelegramStatus().DeliveryFailures; got != before+i+1 {
+			t.Fatalf("%s: delivery failures = %d, want %d", send.name, got, before+i+1)
+		}
 	}
 
 	broker := &TelegramBroker{bot: bot, chatID: 4711, logger: logger}
 	broker.deliver("status")
-	if got := integrationstatus.TelegramStatus().DeliveryFailures; got != before+2 {
-		t.Fatalf("delivery failures = %d, want %d", got, before+2)
+	if got := integrationstatus.TelegramStatus().DeliveryFailures; got != before+len(sends)+1 {
+		t.Fatalf("delivery failures = %d, want %d", got, before+len(sends)+1)
 	}
 	if status := integrationstatus.TelegramStatus(); status.LastDeliveryErrorAt == "" {
 		t.Fatal("the last delivery error must be timestamped")
@@ -465,37 +480,97 @@ func TestTelegramDeliveryFailureCounterCountsEverySendPath(t *testing.T) {
 // name, with or without a receiver.
 var telegramFuncHeader = regexp.MustCompile(`^func (?:\([^)]*\)\s*)?([A-Za-z0-9_]+)\(`)
 
-// Every Telegram send has to run through deliverMessage or the broker, because
-// only there a lost message is counted. A direct send would stay invisible in
-// the delivery counter of the runtime status.
+// telegramSendPrimitives are the calls that put a payload into a Telegram
+// chat. Every one of them has to run inside a counting function or a
+// documented exception, otherwise a lost message stays invisible in the
+// delivery counter of the runtime status.
+var telegramSendPrimitives = []string{
+	"sendTelegramMessage(",
+	"sendTelegramPhoto(",
+	"sendTelegramPhotoFile(",
+	"sendTelegramAudio(",
+	"sendTelegramVoice(",
+	".Send(",
+}
+
+// telegramCountingSends are the functions whose send failures are counted in
+// the runtime status.
+var telegramCountingSends = map[string]bool{
+	"deliverMessage": true,
+	"deliverPhoto":   true,
+	"deliverAudio":   true,
+	"deliverVoice":   true,
+	"deliver":        true,
+}
+
+// telegramSendPrimitivesAllowed are the primitive senders themselves; they
+// only hand the payload to the Bot API.
+var telegramSendPrimitivesAllowed = map[string]bool{
+	"sendTelegramMessage":   true,
+	"sendTelegramPhoto":     true,
+	"sendTelegramPhotoFile": true,
+	"sendTelegramAudio":     true,
+	"sendTelegramVoice":     true,
+}
+
+// telegramSendExceptions are the sends that deliberately stay uncounted. The
+// value names the reason, so an exception cannot be copied silently.
+var telegramSendExceptions = map[string]string{
+	"sendChatAction":  "a chat action carries no content",
+	"SendTestMessage": "the manual connectivity test reports the error to its caller",
+	"SendPhoto":       "the person detection alert reports the error to its caller",
+}
+
+// Every Telegram send has to run through a counting function, because only
+// there a lost message is counted. A direct send would stay invisible in the
+// delivery counter of the runtime status. The check covers every file of the
+// package, so a new sender in another file cannot slip through.
 func TestTelegramSendsAllPassThroughTheDeliveryCounter(t *testing.T) {
-	source, err := os.ReadFile("bot.go")
+	files, err := filepath.Glob("*.go")
 	if err != nil {
-		t.Fatalf("read bot.go: %v", err)
+		t.Fatalf("list the telegram package files: %v", err)
 	}
-	counting := map[string]bool{"deliverMessage": true, "deliver": true}
-	seen := map[string]bool{}
-	current := ""
-	for _, line := range strings.Split(string(source), "\n") {
-		trimmed := strings.TrimSpace(line)
-		if match := telegramFuncHeader.FindStringSubmatch(trimmed); match != nil {
-			current = match[1]
-		}
-		if !strings.Contains(line, "sendTelegramMessage(") {
+	if len(files) == 0 {
+		t.Fatal("no telegram package files found")
+	}
+	counting := map[string]bool{}
+	for _, file := range files {
+		if strings.HasSuffix(file, "_test.go") {
 			continue
 		}
-		if telegramFuncHeader.MatchString(trimmed) {
-			continue // the helper itself
+		source, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatalf("read %s: %v", file, err)
 		}
-		seen[current] = true
+		current := ""
+		for _, line := range strings.Split(string(source), "\n") {
+			trimmed := strings.TrimSpace(line)
+			if match := telegramFuncHeader.FindStringSubmatch(trimmed); match != nil {
+				current = match[1]
+			}
+			for _, primitive := range telegramSendPrimitives {
+				if !strings.Contains(line, primitive) {
+					continue
+				}
+				if telegramCountingSends[current] {
+					counting[current] = true
+					continue
+				}
+				if telegramSendPrimitivesAllowed[current] {
+					continue
+				}
+				if reason, ok := telegramSendExceptions[current]; ok {
+					t.Logf("%s sends via %s, allowed because %s", current, primitive, reason)
+					continue
+				}
+				t.Errorf("%s: %s sends via %s, which does not count the delivery", file, current, primitive)
+			}
+		}
 	}
-	for name := range seen {
+	for name := range telegramCountingSends {
 		if !counting[name] {
-			t.Fatalf("bot.go sends through %q, which does not count the delivery", name)
+			t.Errorf("%s does not send anything, so the counting path is dead", name)
 		}
-	}
-	if !seen["deliverMessage"] || !seen["deliver"] {
-		t.Fatalf("expected the sends inside deliverMessage and the broker, saw %v", seen)
 	}
 }
 
