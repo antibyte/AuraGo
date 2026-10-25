@@ -301,8 +301,8 @@ var toolSearchUniverse = sync.OnceValue(func() *toolSearchStats {
 })
 
 // idf is the BM25 inverse document frequency of a stem. A stem the universe
-// has never seen borrows the frequency of the stems it starts or ends like,
-// and counts as rare when there are none.
+// has never seen borrows the summed frequency of the stems that start like it
+// or that it starts like, and counts as rare when there are none.
 func (s *toolSearchStats) idf(stem string) float64 {
 	df := s.df[stem]
 	if df == 0 {
