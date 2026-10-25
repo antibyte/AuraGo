@@ -43,7 +43,7 @@
       <button type="button" class="infra-cmd-icon infra-search-open" data-action="open-search" aria-expanded="false" aria-label="${esc(t('desktop.infra_search'))}" title="${esc(t('desktop.infra_search'))}">${glyph('search')}<span class="infra-filter-dot" data-search-dot hidden></span></button>
       <span class="infra-search-icon" aria-hidden="true">${glyph('search')}</span>
       <input type="search" data-search aria-label="${esc(t('desktop.infra_search'))}" placeholder="${esc(t('desktop.infra_search_jump'))}" autocomplete="off" aria-keyshortcuts="Control+K">
-      <kbd class="infra-search-kbd" aria-hidden="true">Ctrl K</kbd>
+      <kbd class="infra-search-kbd" aria-hidden="true">${esc(t('desktop.infra_kbd_ctrl'))} K</kbd>
       <button type="button" class="infra-cmd-icon" data-action="filters" aria-haspopup="true" aria-expanded="false" aria-controls="infra-filters-${esc(S)}" aria-label="${esc(t('desktop.infra_filters'))}" title="${esc(t('desktop.infra_filters'))}">${glyph('filter')}<span class="infra-filter-dot" data-filter-dot hidden></span></button>
     </div>
     <div class="infra-filter-chips" data-filter-chips role="group" aria-label="${esc(t('desktop.infra_active_filters'))}" hidden></div>

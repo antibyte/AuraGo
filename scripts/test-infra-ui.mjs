@@ -118,6 +118,11 @@ for (const locale of locales) {
     assert.deepEqual(unused, [], `unused Infra keys, delete them from all 16 locales:\n${unused.join('\n')}`);
 }
 
+// ---- key labels are translated (final review) ---------------------------------------------
+// A <kbd> shows a letter, a symbol or a translated key name (infra_kbd_*); a modifier spelled out in a template is English in every locale.
+assert.deepEqual([...source.matchAll(/<kbd[^>]*>\s*([^<$]*\b(?:Ctrl|Control|Shift|Alt|Del|Delete|Esc|Escape|Enter|Space)\b[^<]*)</g)].map(match => match[1]), [], 'no literal modifier name inside a <kbd>');
+assert.match(source, /<kbd class="infra-search-kbd"[^>]*>\$\{esc\(t\('desktop\.infra_kbd_ctrl'\)\)\} K<\/kbd>/, 'the search badge uses the translated Ctrl label');
+
 // ---- terminology (spec §3) and full locale parity ----------------------------------
 {
     const german = JSON.parse(fs.readFileSync(path.join(root, 'ui/lang/desktop/de.json'), 'utf8'));
