@@ -156,12 +156,12 @@ Other integrations (Home Assistant, TrueNAS, Tailscale) do not feed Infra; see [
 
 ## Topology and List
 
-**Topology** draws four full-width lanes: **Internet**, **Network**, **Compute** and **Clients and IoT**. The lane
+**Topology** draws four full-width lanes: **Internet**, **Network**, **Servers and storage** and **Clients and IoT**. The lane
 labels stay at the left edge of the view while you pan. Assets land in lanes like this:
 
 - **Internet:** modems, ONTs and internet gateways.
 - **Network:** routers, firewalls, VPN endpoints, switches, access points, mesh nodes and LAN, VLAN and WLAN segments.
-- **Compute:** servers, NAS and storage shelves, mini PCs, hypervisors, Kubernetes, databases, network video recorders,
+- **Servers and storage:** servers, NAS and storage shelves, mini PCs, hypervisors, Kubernetes, databases, network video recorders,
   UPS and PDUs. An asset that runs guests also lands here when no other rule matches.
 - **Clients and IoT:** everything else, such as cameras, printers, TVs, phones, tablets, laptops and sensors.
 

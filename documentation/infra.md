@@ -46,7 +46,7 @@ Sites, rooms, racks and groups are places. On the map a placed place is a region
 the place its parent, dragging the asset out clears the parent, and the region grows to contain its assets. VMs and
 containers are shown inside their host: a Proxmox guest through its `runs_on` connection, a Docker container
 through the device assigned to its engine. **Cleanup** [`desktop.infra_cleanup`] asks for that device when Infra
-cannot infer it. The Topology view draws four lanes, labelled Internet, Network, Compute and Clients and IoT in the
+cannot infer it. The Topology view draws four lanes, labelled Internet, Network, Servers and storage and Clients and IoT in the
 English UI (see [Topology lanes](#topology-lanes)). Assets without a topology position are laid out automatically,
 and dragging a card into another lane keeps it there. In Topology, **Arrange automatically**
 [`desktop.infra_arrange_auto`] hands the selection, or every card, back to the automatic layout; on the map,
@@ -245,7 +245,7 @@ The styles are `ui/css/desktop-app-infra.css` (shell, panels, dialogs) and `ui/c
 | --- | --- | --- | --- |
 | Internet | 0 | 0–383 | icons `internet`, `modem-ont`; role words modem, ONT, ISP, WAN, DSL |
 | Network | 1 | 384–767 | kind `network`; icons `router`, `firewall`, `vpn`, `managed-switch`, `switch`, `patch-panel`, `access-point`, `mesh-node`, `lan`, `vlan`, `wlan`; role words router, firewall, VPN, switch, gateway, mesh, AP, access point |
-| Compute | 2 | 768–1151 | icons `rack-server`, `tower-server`, `mini-pc`, `sbc`, `nas`, `hypervisor`, `kubernetes`, `disk-shelf`, `storage-share`, `backup`, `database`, `nvr`, `ups`, `pdu`; role words server, NAS, disk shelf, storage, database, NVR, recorder, rack, UPS, PDU, hypervisor, Proxmox, ESXi, Kubernetes, k8s; then any asset that runs guests |
+| Servers and storage | 2 | 768–1151 | icons `rack-server`, `tower-server`, `mini-pc`, `sbc`, `nas`, `hypervisor`, `kubernetes`, `disk-shelf`, `storage-share`, `backup`, `database`, `nvr`, `ups`, `pdu`; role words server, NAS, disk shelf, storage, database, NVR, recorder, rack, UPS, PDU, hypervisor, Proxmox, ESXi, Kubernetes, k8s; then any asset that runs guests |
 | Clients and IoT | 3 | 1152–1535 | everything else, for example cameras, printers, TVs, phones, tablets, laptops and sensors |
 
 - `topologyLane(node)` is the one mapping. It checks the `network` kind, then the icon, then words in the role (camel case is split, so `InternetGatewayDevice` reads as "internet gateway device"), then whether the asset runs guests. Anything else is a client.

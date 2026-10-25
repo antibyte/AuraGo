@@ -9408,7 +9408,7 @@
   "desktop.infra_filters_more_one": "Show 1 more filter",
   "desktop.infra_lane_internet": "Internet",
   "desktop.infra_lane_network": "Network",
-  "desktop.infra_lane_compute": "Compute",
+  "desktop.infra_lane_compute": "Servers and storage",
   "desktop.infra_lane_clients": "Clients and IoT",
   "desktop.infra_moved_to_lane": "{name} moved to {lane}",
   "desktop.infra_topology_auto": "Laid out automatically",
