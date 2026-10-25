@@ -799,6 +799,7 @@
   "easydrag.ui.run_done": "रन सफलतापूर्वक पूरा हुआ",
   "easydrag.ui.run_failed": "रन विफल हुआ",
   "easydrag.ui.run_failed_at": "रन {node} पर विफल हुआ",
+  "easydrag.ui.run_going": "एक रन अभी चल रहा है। उसके खत्म होने तक रुकें, फिर दोबारा टेस्ट करें।",
   "easydrag.ui.run_mode_live": "लाइव",
   "easydrag.ui.run_mode_test": "टेस्ट",
   "easydrag.ui.run_now": "अभी चलाएँ",

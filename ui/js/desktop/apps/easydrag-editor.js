@@ -332,6 +332,10 @@
             if (!run || ed.readonly) return false;
             const data = run.trigger_data;
             if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+            // The store keeps oversized trigger data as a stub ({_preview} or {_omitted}): testing it would run real effects on the stub.
+            if ('_preview' in data || '_omitted' in data) return false;
+            // A run is going (the viewed one or a parked live run): leaving the view would lose it, and no test can start.
+            if (ED.runs.isActive(run.status) || runs.hasParked()) return false;
             const n = draftModel.node(run.trigger_node);
             const i = n && draftModel.info(n.type);
             return !!(i && i.trigger && !(n.settings && n.settings.disabled));
@@ -341,7 +345,10 @@
         // The dialog lists the real effects and asks before anything runs, as every test does.
         function rerunViewed() {
             const run = ed.runView && ed.runView.run;
-            if (!canRerun(run)) return;
+            if (!canRerun(run)) {
+                if (run && (ED.runs.isActive(run.status) || runs.hasParked())) ctx.notify({ title: draftModel.doc.name, message: t('easydrag.ui.run_going') });
+                return;
+            }
             const triggerNode = run.trigger_node;
             const data = JSON.parse(JSON.stringify(run.trigger_data));
             exitRunView();

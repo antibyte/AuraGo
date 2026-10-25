@@ -799,6 +799,7 @@
   "easydrag.ui.run_done": "运行成功完成",
   "easydrag.ui.run_failed": "运行失败",
   "easydrag.ui.run_failed_at": "运行在 {node} 处失败",
+  "easydrag.ui.run_going": "仍有一次运行在进行中。请等它结束后再测试。",
   "easydrag.ui.run_mode_live": "正式",
   "easydrag.ui.run_mode_test": "测试",
   "easydrag.ui.run_now": "立即运行",

@@ -926,7 +926,7 @@
 
         return {
             startTest, attach, runLive, cancel, stopRun, refreshShown, runFinished, loadLast, toggleDrawer, openRunView, effects, stepsFrom, applyRunView, clearRun,
-            isRunning,
+            isRunning, hasParked: () => !!parked,
             drawerOpen: () => !!drawer,
             dispose() { disposed = true; parked = null; bag.dispose(); }
         };

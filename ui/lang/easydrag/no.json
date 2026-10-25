@@ -799,6 +799,7 @@
   "easydrag.ui.run_done": "Kjøringen ble fullført uten feil",
   "easydrag.ui.run_failed": "Kjøringen mislyktes",
   "easydrag.ui.run_failed_at": "Kjøringen mislyktes ved {node}",
+  "easydrag.ui.run_going": "En kjøring pågår fortsatt. Vent til den er ferdig, og test på nytt.",
   "easydrag.ui.run_mode_live": "Live",
   "easydrag.ui.run_mode_test": "Test",
   "easydrag.ui.run_now": "Kjør nå",

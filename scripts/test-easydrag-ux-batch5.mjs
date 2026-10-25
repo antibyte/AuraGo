@@ -609,7 +609,7 @@ export async function run(env) {
         eq('b5 V4 U13 wide: Run now first; phone: Runs and Test first and working; Paused chip marked; the 560 px rules hide the three buttons and only the non-paused chips',
             [wide.slice(0, 2), phone.slice(0, 4), drawer, testOpened, paused,
                 narrow.includes('.ed-head-actions [data-ed-cmd="runs"], .ed-head-actions [data-ed-cmd="test"], .ed-head-actions [data-ed-cmd="run-now"] { display: none; }'),
-                narrow.includes('.ed-state > :not([data-ed-paused]) { display: none; }'), narrow.includes('.ed-state { display: none; }'), s.h.logged],
+                narrow.includes('.ed-state > :not([data-ed-paused], [data-ed-live-outdated], [data-ed-timers-off]) { display: none; }'), narrow.includes('.ed-state { display: none; }'), s.h.logged],
             [['run_now', 'versions_title'], ['runs_title', 'test_draft', '|', 'run_now'], true, 1, true, true, true, false, []]);
         s.editor.dispose();
     });
@@ -844,6 +844,71 @@ export async function run(env) {
             [[[['e1'], ['e2']], [[], ['e2']], [['e1'], ['e2']], [['e2', added], []], [['e2', added], []], 'e2', null, [['e2'], []]], 2999, 2999]);
     });
 
+    // ── safe Test again, quiet JSON alert, phone state chips ──
+
+    await guardAsync('b5 rerun no Test again for stub trigger data or while a run is going; a click anyway keeps the run view', async () => {
+        const viewed = extra => ({ run: Object.assign({ id: 'r1', status: 'error', mode: 'live', started_at: '2026-10-25T10:00:00Z', revision: 2, trigger_node: T1, trigger_data: { name: 'Ada' } }, extra), steps: [], doc: flowDoc('Run') });
+        const hiddenFor = async run => {
+            const v = await session(req => (req.url === '/api/desktop/flows/runs/r1?include=doc' ? viewed(run) : undefined));
+            v.editor.showRun('r1');
+            await settle();
+            const hidden = v.editor.el.querySelector('[data-ed-cmd="rerun-viewed"]').hidden;
+            v.editor.dispose();
+            return hidden;
+        };
+        eq('b5 rerun a real trigger shows the button; a stub (_preview, _omitted) or a still active run does not',
+            [await hiddenFor({}), await hiddenFor({ trigger_data: { _preview: '{"a":' } }), await hiddenFor({ trigger_data: { _preview: '', _omitted: 'run_storage_budget' } }), await hiddenFor({ status: 'running' }), await hiddenFor({ status: 'queued' })],
+            [false, true, true, true, true]);
+        const chain = flowDoc('Live');
+        const s = await session(req => {
+            if (req.method === 'POST' && req.url === '/api/desktop/flows/f1/run') return { run_id: 'r7' };
+            if (req.url === '/api/desktop/flows/runs/r1?include=doc') return viewed();
+            return undefined;
+        }, { enabled: true, flow: { draft: chain, live: chain, live_revision: 2, published_draft_revision: 3 } });
+        s.editor.el.querySelector('[data-ed-cmd="run-now"]').fire('click');
+        await settle();
+        s.editor.showRun('r1');
+        await settle();
+        const button = s.editor.el.querySelector('[data-ed-cmd="rerun-viewed"]');
+        const parkedHidden = button.hidden;
+        button.hidden = false;
+        s.h.notes.length = 0;
+        button.fire('click');
+        await settle();
+        eq('b5 rerun with a parked live run the button is hidden; forced, the run view stays and a note says a run is going',
+            [parkedHidden, !!s.ed.runView, s.h.notes.map(n => n.message), s.h.logged], [true, true, ['run_going'], []]);
+        s.editor.dispose();
+        eq('b5 rerun the run-going words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.run_going']), []);
+    });
+
+    await guardAsync('b5 a11y the JSON alert text is written once while the text stays invalid, again after it was valid', async () => {
+        const h = sandbox(() => undefined);
+        const editor = openEditor(h);
+        await settle();
+        const fields = h.ED.fields;
+        const env = { t: (k) => k.replace('easydrag.ui.', ''), esc: x => String(x), readonly: false };
+        const box = fields.jsonEditor(env, {}, () => {}, 'j1');
+        const area = box.querySelector('textarea');
+        const error = box.querySelector('.ed-json-error');
+        let writes = 0;
+        let held = '';
+        Object.defineProperty(error, 'textContent', { get: () => held, set: v => { writes++; held = v; } });
+        for (const v of ['{', '{b', '{ba', '{bad']) { area.value = v; area.fire('input'); }
+        const invalid = [writes, error.hidden, area.getAttribute('aria-invalid')];
+        area.value = '{}';
+        area.fire('input');
+        area.value = '{x';
+        area.fire('input');
+        eq('b5 a11y one write for four invalid keystrokes, aria-invalid stays live, the same text is never rewritten',
+            [invalid, writes, error.hidden], [[1, false, 'true'], 1, false]);
+        editor.dispose();
+    });
+
+    await guardAsync('b5 phone the state chips Republish needed and the timers warning stay visible at 560 px', async () => {
+        const sheet = css();
+        const rule = /@container \(max-width: 560px\) \{[\s\S]*?\.ed-state > :not\(([^)]*)\) \{ display: none; \}/.exec(sheet);
+        eq('b5 phone the hide rule excepts paused, live-outdated and timers-off', rule && rule[1], '[data-ed-paused], [data-ed-live-outdated], [data-ed-timers-off]');
+    });
+
     // ── next checks go above this line ──
-    void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }

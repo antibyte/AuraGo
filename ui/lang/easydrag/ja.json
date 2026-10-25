@@ -799,6 +799,7 @@
   "easydrag.ui.run_done": "実行が正常に完了しました",
   "easydrag.ui.run_failed": "実行に失敗しました",
   "easydrag.ui.run_failed_at": "{node} で実行が失敗しました",
+  "easydrag.ui.run_going": "実行がまだ続いています。終わるまで待ってから、もう一度テストしてください。",
   "easydrag.ui.run_mode_live": "本番",
   "easydrag.ui.run_mode_test": "テスト",
   "easydrag.ui.run_now": "今すぐ実行",

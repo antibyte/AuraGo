@@ -722,7 +722,9 @@
         function showError(on) {
             error.hidden = !on;
             if (on) {
-                error.textContent = t('easydrag.ui.json_invalid');
+                // Written once while the error shows: a rewrite would make a screen reader read it on every keystroke.
+                const text = t('easydrag.ui.json_invalid');
+                if (error.textContent !== text) error.textContent = text;
                 area.setAttribute('aria-invalid', 'true');
                 area.setAttribute('aria-describedby', errorId);
             } else if (area.getAttribute('aria-describedby') === errorId) {
@@ -746,7 +748,16 @@
                 return false;
             }
         }
+        // Change and blur announce a standing error afresh.
+        const announceAgain = () => {
+            if (error.hidden) return;
+            const text = error.textContent;
+            error.textContent = '';
+            error.textContent = text;
+        };
         area.addEventListener('input', () => { commit(); });
+        area.addEventListener('change', announceAgain);
+        area.addEventListener('blur', announceAgain);
         area.edCommit = commit;
         return el;
     }

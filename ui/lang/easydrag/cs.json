@@ -799,6 +799,7 @@
   "easydrag.ui.run_done": "Běh úspěšně dokončen",
   "easydrag.ui.run_failed": "Běh selhal",
   "easydrag.ui.run_failed_at": "Běh selhal v kroku {node}",
+  "easydrag.ui.run_going": "Stále běží jedno spuštění. Počkejte, až skončí, a pak test zopakujte.",
   "easydrag.ui.run_mode_live": "Ostrý",
   "easydrag.ui.run_mode_test": "Test",
   "easydrag.ui.run_now": "Spustit nyní",

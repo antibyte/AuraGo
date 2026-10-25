@@ -799,6 +799,7 @@
   "easydrag.ui.run_done": "Lauf erfolgreich beendet",
   "easydrag.ui.run_failed": "Lauf fehlgeschlagen",
   "easydrag.ui.run_failed_at": "Lauf bei {node} fehlgeschlagen",
+  "easydrag.ui.run_going": "Es läuft noch ein Lauf. Warte, bis er beendet ist, und teste dann erneut.",
   "easydrag.ui.run_mode_live": "Live",
   "easydrag.ui.run_mode_test": "Test",
   "easydrag.ui.run_now": "Jetzt ausführen",

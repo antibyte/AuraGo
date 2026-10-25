@@ -799,6 +799,7 @@
   "easydrag.ui.run_done": "Körningen lyckades",
   "easydrag.ui.run_failed": "Körningen misslyckades",
   "easydrag.ui.run_failed_at": "Körning misslyckad vid {node}",
+  "easydrag.ui.run_going": "En körning pågår fortfarande. Vänta tills den är klar och testa sedan igen.",
   "easydrag.ui.run_mode_live": "Skarp",
   "easydrag.ui.run_mode_test": "Test",
   "easydrag.ui.run_now": "Kör nu",

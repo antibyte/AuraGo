@@ -799,6 +799,7 @@
   "easydrag.ui.run_done": "Uitvoering geslaagd",
   "easydrag.ui.run_failed": "Uitvoering mislukt",
   "easydrag.ui.run_failed_at": "Uitvoering mislukt bij {node}",
+  "easydrag.ui.run_going": "Er loopt nog een run. Wacht tot die klaar is en test dan opnieuw.",
   "easydrag.ui.run_mode_live": "Live",
   "easydrag.ui.run_mode_test": "Test",
   "easydrag.ui.run_now": "Nu uitvoeren",

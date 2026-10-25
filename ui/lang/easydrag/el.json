@@ -799,6 +799,7 @@
   "easydrag.ui.run_done": "Η εκτέλεση ολοκληρώθηκε με επιτυχία",
   "easydrag.ui.run_failed": "Η εκτέλεση απέτυχε",
   "easydrag.ui.run_failed_at": "Αποτυχία στο βήμα {node}",
+  "easydrag.ui.run_going": "Μια εκτέλεση βρίσκεται ακόμη σε εξέλιξη. Περιμένετε να τελειώσει και δοκιμάστε ξανά.",
   "easydrag.ui.run_mode_live": "Κανονική",
   "easydrag.ui.run_mode_test": "Δοκιμή",
   "easydrag.ui.run_now": "Εκτέλεση τώρα",

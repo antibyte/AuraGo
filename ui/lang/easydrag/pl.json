@@ -799,6 +799,7 @@
   "easydrag.ui.run_done": "Uruchomienie zakończone sukcesem",
   "easydrag.ui.run_failed": "Uruchomienie nie powiodło się",
   "easydrag.ui.run_failed_at": "Niepowodzenie w kroku {node}",
+  "easydrag.ui.run_going": "Uruchomienie nadal trwa. Poczekaj, aż się skończy, i przetestuj ponownie.",
   "easydrag.ui.run_mode_live": "Rzeczywiste",
   "easydrag.ui.run_mode_test": "Test",
   "easydrag.ui.run_now": "Uruchom teraz",

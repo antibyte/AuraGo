@@ -799,6 +799,7 @@
   "easydrag.ui.run_done": "Ejecución completada correctamente",
   "easydrag.ui.run_failed": "La ejecución falló",
   "easydrag.ui.run_failed_at": "La ejecución falló en {node}",
+  "easydrag.ui.run_going": "Todavía hay una ejecución en curso. Espera a que termine y vuelve a probar.",
   "easydrag.ui.run_mode_live": "Real",
   "easydrag.ui.run_mode_test": "Prueba",
   "easydrag.ui.run_now": "Ejecutar ahora",
