@@ -1825,49 +1825,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 		// ── YepAPI Tools ────────────────────────────────────────────────
 		case "yepapi_seo":
-			if !cfg.YepAPI.Enabled || !cfg.YepAPI.SEO.Enabled {
-				return `Tool Output: {"status":"error","message":"YepAPI SEO is disabled. Enable it in Settings > YepAPI > SEO."}`
-			}
-			if budgetTracker != nil && budgetTracker.IsBlocked("yepapi") {
-				return `Tool Output: {"status":"error","message":"Daily budget exceeded. YepAPI calls are blocked until the budget resets."}`
-			}
-			apiKey, keyErr := tools.ResolveYepAPIKey(cfg, vault)
-			if keyErr != nil {
-				b, _ := json.Marshal(keyErr.Error())
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
-			}
-			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
-			res, err := tools.DispatchYepAPISEO(ctx, client, tc.Operation, tc.Params)
-			if err != nil {
-				b, _ := json.Marshal(err.Error())
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
-			}
-			if budgetTracker != nil {
-				budgetTracker.RecordCostForCategory("yepapi", 0.08)
-			}
+			res, _ := dispatchYepAPI(ctx, tc, dc, tc.Action)
 			return res
 
 		case "yepapi_serp":
-			if !cfg.YepAPI.Enabled || !cfg.YepAPI.SERP.Enabled {
-				return `Tool Output: {"status":"error","message":"YepAPI SERP is disabled. Enable it in Settings > YepAPI > SERP."}`
-			}
-			if budgetTracker != nil && budgetTracker.IsBlocked("yepapi") {
-				return `Tool Output: {"status":"error","message":"Daily budget exceeded. YepAPI calls are blocked until the budget resets."}`
-			}
-			apiKey, keyErr := tools.ResolveYepAPIKey(cfg, vault)
-			if keyErr != nil {
-				b, _ := json.Marshal(keyErr.Error())
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
-			}
-			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
-			res, err := tools.DispatchYepAPISERP(ctx, client, tc.Operation, tc.Params)
-			if err != nil {
-				b, _ := json.Marshal(err.Error())
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
-			}
-			if budgetTracker != nil {
-				budgetTracker.RecordCostForCategory("yepapi", 0.01)
-			}
+			res, _ := dispatchYepAPI(ctx, tc, dc, tc.Action)
 			return res
 
 		case "certificate_manager":
@@ -1887,126 +1849,33 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return tools.ExecuteCertificateManager(op, req.FilePath, req.Hostname, req.Port, req.Domain, req.OutputDir, req.Days, cfg.Directories.WorkspaceDir)
 
 		case "yepapi_scrape":
-			if !cfg.YepAPI.Enabled || !cfg.YepAPI.Scraping.Enabled {
-				return `Tool Output: {"status":"error","message":"YepAPI Scraping is disabled. Enable it in Settings > YepAPI > Scraping."}`
-			}
-			if budgetTracker != nil && budgetTracker.IsBlocked("yepapi") {
-				return `Tool Output: {"status":"error","message":"Daily budget exceeded. YepAPI calls are blocked until the budget resets."}`
-			}
-			apiKey, keyErr := tools.ResolveYepAPIKey(cfg, vault)
-			if keyErr != nil {
-				b, _ := json.Marshal(keyErr.Error())
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
-			}
-			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
-			res, err := tools.DispatchYepAPIScrape(ctx, client, tc.Operation, tc.Params)
-			if err != nil {
-				b, _ := json.Marshal(err.Error())
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
-			}
-			if budgetTracker != nil {
-				budgetTracker.RecordCostForCategory("yepapi", 0.02)
-			}
+			res, _ := dispatchYepAPI(ctx, tc, dc, tc.Action)
 			return res
 
 		case "yepapi_youtube":
-			if !cfg.YepAPI.Enabled || !cfg.YepAPI.YouTube.Enabled {
-				return `Tool Output: {"status":"error","message":"YepAPI YouTube is disabled. Enable it in Settings > YepAPI > YouTube."}`
-			}
-			if budgetTracker != nil && budgetTracker.IsBlocked("yepapi") {
-				return `Tool Output: {"status":"error","message":"Daily budget exceeded. YepAPI calls are blocked until the budget resets."}`
-			}
-			apiKey, keyErr := tools.ResolveYepAPIKey(cfg, vault)
-			if keyErr != nil {
-				b, _ := json.Marshal(keyErr.Error())
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
-			}
-			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
-			res, err := tools.DispatchYepAPIYouTube(ctx, client, tc.Operation, tc.Params)
-			if err != nil {
-				b, _ := json.Marshal(err.Error())
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
-			}
-			if budgetTracker != nil {
-				budgetTracker.RecordCostForCategory("yepapi", 0.01)
-			}
+			res, _ := dispatchYepAPI(ctx, tc, dc, tc.Action)
 			return res
 
 		case "yepapi_tiktok":
-			if !cfg.YepAPI.Enabled || !cfg.YepAPI.TikTok.Enabled {
-				return `Tool Output: {"status":"error","message":"YepAPI TikTok is disabled. Enable it in Settings > YepAPI > TikTok."}`
-			}
-			if budgetTracker != nil && budgetTracker.IsBlocked("yepapi") {
-				return `Tool Output: {"status":"error","message":"Daily budget exceeded. YepAPI calls are blocked until the budget resets."}`
-			}
-			apiKey, keyErr := tools.ResolveYepAPIKey(cfg, vault)
-			if keyErr != nil {
-				b, _ := json.Marshal(keyErr.Error())
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
-			}
-			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
-			res, err := tools.DispatchYepAPITikTok(ctx, client, tc.Operation, tc.Params)
-			if err != nil {
-				b, _ := json.Marshal(err.Error())
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
-			}
-			if budgetTracker != nil {
-				budgetTracker.RecordCostForCategory("yepapi", 0.01)
-			}
+			res, _ := dispatchYepAPI(ctx, tc, dc, tc.Action)
 			return res
 
 		case "yepapi_instagram":
 			if tc.Operation == "" {
 				logInvalidToolCommand(logger, "yepapi_instagram", "", "missing_operation", tc.Params)
 			}
-			if !cfg.YepAPI.Enabled || !cfg.YepAPI.Instagram.Enabled {
-				return `Tool Output: {"status":"error","message":"YepAPI Instagram is disabled. Enable it in Settings > YepAPI > Instagram."}`
-			}
-			if budgetTracker != nil && budgetTracker.IsBlocked("yepapi") {
-				return `Tool Output: {"status":"error","message":"Daily budget exceeded. YepAPI calls are blocked until the budget resets."}`
-			}
-			apiKey, keyErr := tools.ResolveYepAPIKey(cfg, vault)
-			if keyErr != nil {
-				b, _ := json.Marshal(keyErr.Error())
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
-			}
-			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
-			yepCtx := tools.WithYepAPILogger(ctx, logger)
-			res, err := tools.DispatchYepAPIInstagram(yepCtx, client, tc.Operation, tc.Params)
+			res, err := dispatchYepAPI(ctx, tc, dc, tc.Action)
 			if err != nil {
 				logToolCommandFailure(logger, "yepapi_instagram", tc.Operation, err.Error(), tc.Params)
-				b, _ := json.Marshal(err.Error())
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
+				return res
 			}
 			if msg, ok := toolCommandErrorMessage(res); ok {
 				logToolCommandFailure(logger, "yepapi_instagram", tc.Operation, msg, tc.Params)
 			}
-			if budgetTracker != nil {
-				budgetTracker.RecordCostForCategory("yepapi", 0.01)
-			}
 			return res
 
 		case "yepapi_amazon":
-			if !cfg.YepAPI.Enabled || !cfg.YepAPI.Amazon.Enabled {
-				return `Tool Output: {"status":"error","message":"YepAPI Amazon is disabled. Enable it in Settings > YepAPI > Amazon."}`
-			}
-			if budgetTracker != nil && budgetTracker.IsBlocked("yepapi") {
-				return `Tool Output: {"status":"error","message":"Daily budget exceeded. YepAPI calls are blocked until the budget resets."}`
-			}
-			apiKey, keyErr := tools.ResolveYepAPIKey(cfg, vault)
-			if keyErr != nil {
-				b, _ := json.Marshal(keyErr.Error())
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
-			}
-			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
-			res, err := tools.DispatchYepAPIAmazon(ctx, client, tc.Operation, tc.Params)
-			if err != nil {
-				b, _ := json.Marshal(err.Error())
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
-			}
-			if budgetTracker != nil {
-				budgetTracker.RecordCostForCategory("yepapi", 0.015)
-			}
+			res, _ := dispatchYepAPI(ctx, tc, dc, tc.Action)
 			return res
 
 		case "read_tool_output":

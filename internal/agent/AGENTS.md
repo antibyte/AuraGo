@@ -160,6 +160,16 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   it); update_layout, write_file, delete_file, build, submit_plan and finish
   are `policy_denied` while the desktop is read-only. The service checks the
   phase (`CYD_JOB_STATE`).
+- The seven native YepAPI tools (`yepapi_seo`, `yepapi_serp`, `yepapi_scrape`,
+  `yepapi_youtube`, `yepapi_tiktok`, `yepapi_instagram`, `yepapi_amazon`) share
+  one dispatch path in `dispatch_yepapi.go`: enable gate, daily-budget gate, key
+  resolution, the call, the error envelope and the cost booking. The per-call
+  budget charge and the dispatcher live in `yepAPIServiceTable`; the service
+  label and enablement live in `YepAPIConfig.ServiceEnabled`. A nil vault must
+  never reach the `config.SecretReader` interface, because a typed-nil
+  `*security.Vault` panics inside `ReadSecret`. Verify
+  `TestDispatchYepAPIGates`, `TestDispatchYepAPIRecordsCostOnSuccess` and
+  `TestYepAPICostTableMatchesDocumentedValues`.
 - CYD Creator answers: typed service errors keep code, message and details,
   a cancelled context is `status: cancelled`, any other error is logged and
   answered as generic `CYD_INTERNAL` (it can carry host paths).

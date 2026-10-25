@@ -2806,6 +2806,28 @@ type YepAPIServiceConfig struct {
 	Enabled bool `yaml:"enabled" json:"enabled"`
 }
 
+// ServiceEnabled reports the label and the enablement of a native YepAPI tool
+// family. The label names the settings section used in the disabled message.
+func (c YepAPIConfig) ServiceEnabled(tool string) (label string, enabled bool, ok bool) {
+	switch tool {
+	case "yepapi_seo":
+		return "SEO", c.SEO.Enabled, true
+	case "yepapi_serp":
+		return "SERP", c.SERP.Enabled, true
+	case "yepapi_scrape":
+		return "Scraping", c.Scraping.Enabled, true
+	case "yepapi_youtube":
+		return "YouTube", c.YouTube.Enabled, true
+	case "yepapi_tiktok":
+		return "TikTok", c.TikTok.Enabled, true
+	case "yepapi_instagram":
+		return "Instagram", c.Instagram.Enabled, true
+	case "yepapi_amazon":
+		return "Amazon", c.Amazon.Enabled, true
+	}
+	return "", false, false
+}
+
 // LDAPConfig holds configuration for LDAP/Active Directory integration.
 type LDAPConfig struct {
 	Enabled            bool   `yaml:"enabled"`
