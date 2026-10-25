@@ -57,9 +57,12 @@
             '<button type="button" class="ed-icon-btn" data-ed-zoom="fit" title="' + esc(t('easydrag.ui.zoom_fit')) + ' (' + esc(core.shortcut('Shift+1')) + ')" aria-label="' + esc(t('easydrag.ui.zoom_fit')) + '">' + core.icon('fit') + '</button>' +
             '</div>' +
             '<div class="ed-minimap" title="' + esc(t('easydrag.ui.minimap')) + '"><svg viewBox="0 0 200 130" preserveAspectRatio="xMidYMid meet"><g class="ed-minimap-wires"></g><g class="ed-minimap-nodes"></g><rect class="ed-minimap-view" rx="3"></rect></svg></div>' +
-            '<ul class="ed-sr-only ed-node-list" aria-label="' + esc(t('easydrag.ui.node_list')) + '"></ul>' +
             '<div class="ed-sr-only" aria-live="polite" data-ed-live></div>' +
             '</div>');
+
+        // The screen-reader step list is a region beside the canvas, not inside it: role="application"
+        // keeps browse mode out of its content (U4). The editor appends listRegion to .ed-body.
+        const listRegion = core.el('<section class="ed-sr-only ed-node-region" aria-label="' + esc(t('easydrag.ui.node_list')) + '"><ul class="ed-node-list"></ul></section>');
 
         const grid = el.querySelector('.ed-grid');
         const world = el.querySelector('.ed-world');
@@ -70,7 +73,7 @@
         const minimap = el.querySelector('.ed-minimap svg');
         const minimapWires = minimap.querySelector('.ed-minimap-wires');
         const minimapNodes = minimap.querySelector('.ed-minimap-nodes');
-        const listEl = el.querySelector('.ed-node-list');
+        const listEl = listRegion.querySelector('.ed-node-list');
         const liveEl = el.querySelector('[data-ed-live]');
 
         // Every timeout the canvas starts is tracked, so dispose can clear the ones still pending.
@@ -360,7 +363,7 @@
                     '<button type="button" class="ed-port-add" tabindex="-1" data-ed-port-add="' + esc(p) + '" aria-label="' + esc(t('easydrag.ui.port_add')) + '">' + core.icon('plus') + '</button></span>';
             }).join('');
             const ro = ed.readonly || ed.runView;
-            const tools = ro ? '' : '<div class="ed-node-tools" role="toolbar">' +
+            const tools = ro ? '' : '<div class="ed-node-tools" role="toolbar" aria-label="' + esc(t('easydrag.ui.node_tools', { name: n.label || n.type })) + '">' +
                 toolButton('add', 'plus', t('easydrag.ui.port_add')) +
                 toolButton('connect', 'link', t('easydrag.ui.keys_connect')) +
                 toolButton('test', 'flask', t('easydrag.ui.node_test')) +
@@ -771,11 +774,11 @@
         });
 
         return {
-            el, world, wiresSvg, nodesHost,
+            el, world, wiresSvg, nodesHost, listRegion,
             render, renderNodes, setView, fit, zoomBy, centerOn, center, setCenter, restoreView, anyNodeVisible, size, clientToWorld, nodeRect, announce,
             autoLayout, alignSelection,
             nodeEl: id => nodeEls.get(id) || null,
-            dispose() { bag.dispose(); }
+            dispose() { bag.dispose(); listRegion.remove(); }
         };
     }
 

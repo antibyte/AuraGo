@@ -102,6 +102,7 @@
         publish = ED.publish.create(ed);
         body.appendChild(palette.el);
         body.appendChild(canvas.el);
+        body.appendChild(canvas.listRegion);
         // Undo/Redo in the header and the "deleted – Undo" toast (easydrag-history.js).
         history = ED.history.create(ed, {
             host: el.querySelector('[data-ed-history-host]'), toastHost: body,

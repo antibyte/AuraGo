@@ -82,7 +82,7 @@
                 '<span class="ed-pick-label">' + esc(n.label || n.type) + '</span>' + keyChip + '</button>';
         };
         const body = '<div class="ed-search">' + core.icon('search') + '<input type="search" data-ed-find-search aria-label="' + esc(t('easydrag.ui.find_step')) + '" placeholder="' + esc(t('easydrag.ui.find_step_placeholder')) + '" autofocus></div>' +
-            '<div class="ed-pick-list" role="list">' + (nodes.length ? nodes.map(row).join('') : '<p class="ed-hint">' + esc(t('easydrag.ui.palette_no_results')) + '</p>') + '</div>';
+            '<div class="ed-pick-list">' + (nodes.length ? nodes.map(row).join('') : '<p class="ed-hint">' + esc(t('easydrag.ui.palette_no_results')) + '</p>') + '</div>';
         const dialog = core.modal(ed.root, {
             title: t('easydrag.ui.find_step'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--picker', body
         });
@@ -137,7 +137,7 @@
                 '<span class="ed-tile">' + core.icon(info ? info.icon : 'tool') + '</span><span class="ed-pick-label">' + esc(c.node.label || c.node.type) + '</span>' + portLabel + '</button>';
         };
         const body = '<div class="ed-search">' + core.icon('search') + '<input type="search" data-ed-pick-search aria-label="' + esc(t('easydrag.ui.search')) + '" placeholder="' + esc(t('easydrag.ui.search')) + '" autofocus></div>' +
-            '<div class="ed-pick-list" role="list">' + (candidates.length ? candidates.map(row).join('') : '<p class="ed-hint">' + esc(t('easydrag.ui.connect_none')) + '</p>') + '</div>';
+            '<div class="ed-pick-list">' + (candidates.length ? candidates.map(row).join('') : '<p class="ed-hint">' + esc(t('easydrag.ui.connect_none')) + '</p>') + '</div>';
         const dialog = core.modal(ed.root, {
             title: t('easydrag.ui.connect_title', { name: src.label || src.type }), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--picker', body,
             actions: !reverse && outs.length === 1 ? [{ id: 'new', label: t('easydrag.ui.connect_new'), icon: 'plus' }] : [],

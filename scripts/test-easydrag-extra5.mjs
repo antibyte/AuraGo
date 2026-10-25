@@ -509,7 +509,7 @@ export async function run(env) {
         // to -1 outside a hidden part.
         const stops = () => [canvasEl].concat(canvasEl.querySelectorAll('button, [tabindex]')).filter(n => n.getAttribute('tabindex') !== '-1' && !n.closest('[hidden]')).length;
         const tools = id => editor.el.querySelector('[data-node-id="' + id + '"]').querySelectorAll('.ed-node-tool').map(b => b.getAttribute('tabindex'));
-        const none = [stops(), tools(A), canvasEl.querySelectorAll('[data-ed-focus-node]').map(b => b.getAttribute('tabindex'))];
+        const none = [stops(), tools(A), editor.el.querySelectorAll('[data-ed-focus-node]').map(b => b.getAttribute('tabindex'))];
         h.fireDoc('keydown', h.key('ArrowRight', canvasEl));
         const one = [stops(), tools(T1), tools(A)];
         // A redrawn card (a new label) keeps its tools' tab stops.

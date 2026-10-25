@@ -202,7 +202,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-chip--ok { background: color-mix(in srgb, var(--ed-ok) 16%, transparent); color: var(--ed-ok-ink); }
 .ed-chip--accent { background: color-mix(in srgb, var(--ed-warn) 18%, transparent); color: var(--ed-warn-ink); }
 .ed-chip--warn { background: color-mix(in srgb, var(--ed-warn) 18%, transparent); color: var(--ed-warn-ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ed-warn) 45%, transparent); }
-.ed-chip--warn[role="link"] { cursor: pointer; }
+.ed-palette-setup:focus-visible { outline: 2px solid var(--ed-focus); outline-offset: 2px; }
 .ed-chip--risk { background: color-mix(in srgb, var(--ed-danger) 16%, transparent); color: var(--ed-danger-ink); }
 
 .ed-callout {
@@ -1139,3 +1139,8 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     border: 1px solid var(--ed-border-strong); box-shadow: var(--ed-shadow-lg);
 }
 .ed-toast-text { min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+
+/* palette: an item that needs setup and its own setup link side by side (U6) */
+.ed-palette-row { display: flex; align-items: center; gap: 4px; }
+.ed-palette-row > .ed-palette-item { flex: 1; min-width: 0; }
+.ed-palette-setup { margin-right: 6px; text-decoration: none; }

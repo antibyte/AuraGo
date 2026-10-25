@@ -209,7 +209,7 @@ export async function run(env) {
         const { interact, el, key } = h;
         h.runTimers(400); // draws the screen-reader node list
         const zoomIn = el.querySelector('[data-ed-zoom="in"]');
-        const listButton = el.querySelector('[data-ed-focus-node]');
+        const listButton = h.canvas.listRegion.querySelector('[data-ed-focus-node]');
         interact.select([A]);
         const onButtons = [key('Tab', el, { shiftKey: true }), key('Tab', zoomIn), key('Tab', listButton), key(' ', zoomIn), key('Enter', zoomIn), key('Enter', listButton)].map(ev => interact.handleKey(ev));
         eq('c1d04 Shift+Tab, and Tab, Space and Enter on canvas buttons keep their default',
@@ -550,7 +550,7 @@ export async function run(env) {
         check('c1d04 wireBounds holds the whole wire, backwards wires included', inside);
         // The node list is built in one pass over nodes and edges.
         h.runTimers(400);
-        check('c1d04 the node list names where each step leads', h.el.querySelector('.ed-node-list').html.includes('Alpha ' + String.fromCharCode(0x2192) + ' Changed'));
+        check('c1d04 the node list names where each step leads', h.canvas.listRegion.querySelector('.ed-node-list').html.includes('Alpha ' + String.fromCharCode(0x2192) + ' Changed'));
         eq('c1d04 the frame checks log no errors', h.logged, []);
     });
 

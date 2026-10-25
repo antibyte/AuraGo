@@ -21,22 +21,32 @@
         }).filter(x => x.score > 0).sort((a, b) => b.score - a.score || a.info.label.localeCompare(b.info.label)).map(x => x.info);
     }
 
-    function availabilityBadge(core, t, esc, info) {
+    function availabilityBadge(core, t, esc, info, tag) {
         const state = (info.availability || {}).state;
-        if (state === 'needs_setup') return '<span class="ed-chip ed-chip--warn" role="link" data-ed-setup="' + esc((info.availability || {}).config_section || 'tools') + '" title="' + esc(t('easydrag.ui.palette_needs_setup')) + '">' + esc(t('easydrag.ui.palette_setup')) + '</span>';
+        // In the panel the setup chip is a link of its own beside the item (setupLink): a link inside the
+        // item's button role cannot be reached by keyboard. Quick-add options hold no controls, so there
+        // it is a plain chip.
+        if (state === 'needs_setup') return tag === 'li' ? '<span class="ed-chip ed-chip--warn" title="' + esc(t('easydrag.ui.palette_needs_setup')) + '">' + esc(t('easydrag.ui.palette_setup')) + '</span>' : '';
         if (state === 'blocked') return '<span class="ed-chip ed-chip--warn" title="' + esc(t('easydrag.ui.badge_blocked')) + '">' + core.icon('lock') + '</span>';
         if (info.risky) return '<span class="ed-chip ed-chip--risk" title="' + esc(t('easydrag.ui.badge_risky')) + '">' + core.icon('alert') + '</span>';
         return '';
     }
 
+    function setupLink(t, esc, info) {
+        const section = (info.availability || {}).config_section || 'tools';
+        return '<a class="ed-chip ed-chip--warn ed-palette-setup" href="/config#' + esc(section) + '" target="_blank" rel="noopener" data-ed-setup="' + esc(section) + '" title="' + esc(t('easydrag.ui.palette_needs_setup')) + '">' + esc(t('easydrag.ui.palette_setup')) + '</a>';
+    }
+
     function itemMarkup(core, t, esc, info, tag) {
         const unavailable = (info.availability || {}).state !== 'available';
-        return '<' + tag + ' class="ed-palette-item' + (unavailable ? ' is-unavailable' : '') + '" data-ed-type="' + esc(info.type) + '" data-cat="' + esc(core.catOf(info)) + '"' +
+        const item = '<' + tag + ' class="ed-palette-item' + (unavailable ? ' is-unavailable' : '') + '" data-ed-type="' + esc(info.type) + '" data-cat="' + esc(core.catOf(info)) + '"' +
             (tag === 'li' ? ' role="option"' : ' role="button" tabindex="0"') + ' title="' + esc(info.description || info.label) + '">' +
             '<span class="ed-palette-tile">' + core.icon(info.icon) + '</span>' +
             '<span class="ed-palette-text"><span class="ed-palette-name">' + esc(info.label) + '</span>' +
             (info.description ? '<span class="ed-palette-desc">' + esc(info.description) + '</span>' : '') + '</span>' +
-            availabilityBadge(core, t, esc, info) + '</' + tag + '>';
+            availabilityBadge(core, t, esc, info, tag) + '</' + tag + '>';
+        if (tag !== 'li' && (info.availability || {}).state === 'needs_setup') return '<div class="ed-palette-row">' + item + setupLink(t, esc, info) + '</div>';
+        return item;
     }
 
     function rememberType(type) {

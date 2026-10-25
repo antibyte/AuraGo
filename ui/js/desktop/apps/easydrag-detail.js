@@ -173,6 +173,11 @@
         let shownStep;
         let shownNode = null;
         let shownData = null;
+        // Tabs name the panel they show (aria-controls) and each panel its tab (U6). Ids carry the window id.
+        const tabId = (kind, id) => 'ed-' + kind + '-tab-' + ed.windowId + '-' + id;
+        const panelId = (kind, id) => 'ed-' + kind + '-' + ed.windowId + '-' + id;
+        const tab = (kind, id, data, label) => '<button type="button" role="tab" id="' + esc(tabId(kind, id)) + '" aria-controls="' + esc(panelId(kind, id)) + '" ' + data + '="' + id + '">' + esc(label) + '</button>';
+        const panel = (kind, id) => ' role="tabpanel" id="' + esc(panelId(kind, id)) + '" aria-labelledby="' + esc(tabId(kind, id)) + '"';
         const el = core.el('<aside class="ed-detail-backdrop"><div class="ed-detail" role="region">' +
             '<header class="ed-detail-head">' +
             '<button type="button" class="ed-icon-btn ed-detail-back" data-ed-detail-back aria-label="' + esc(t('easydrag.ui.inspector_back')) + '" title="' + esc(t('easydrag.ui.inspector_back')) + '">' + core.icon('arrow-left') + '</button>' +
@@ -182,20 +187,20 @@
             '<span class="ed-detail-status"></span>' +
             '<div class="ed-detail-actions"><button type="button" class="ed-btn" data-ed-detail-test>' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.detail_test')) + '</span></button>' +
             '<button type="button" class="ed-icon-btn" data-ed-detail-close aria-label="' + esc(t('easydrag.ui.close')) + '" title="' + esc(t('easydrag.ui.close')) + ' (Esc)">' + core.icon('x') + '</button></div></header>' +
-            '<div class="ed-detail-tabs" role="tablist">' + ['input', 'params', 'output'].map(id => '<button type="button" role="tab" data-ed-narrow="' + id + '">' + esc(t('easydrag.ui.detail_' + (id === 'params' ? 'parameters' : id))) + '</button>').join('') + '</div>' +
+            '<div class="ed-detail-tabs" role="tablist">' + ['input', 'params', 'output'].map(id => tab('col', id, 'data-ed-narrow', t('easydrag.ui.detail_' + (id === 'params' ? 'parameters' : id)))).join('') + '</div>' +
             '<div class="ed-detail-body">' +
-            '<section class="ed-detail-col" data-col="input"></section>' +
-            '<section class="ed-detail-col" data-col="params"><div class="ed-subtabs" role="tablist">' +
-            '<button type="button" role="tab" data-ed-pane="params">' + esc(t('easydrag.ui.detail_parameters')) + '</button>' +
-            '<button type="button" role="tab" data-ed-pane="settings">' + esc(t('easydrag.ui.detail_settings')) + '</button>' +
-            '<button type="button" role="tab" data-ed-pane="note">' + esc(t('easydrag.ui.detail_note')) + '</button></div>' +
-            '<div class="ed-detail-pane" data-pane="params"></div><div class="ed-detail-pane" data-pane="settings" hidden></div><div class="ed-detail-pane" data-pane="note" hidden></div></section>' +
-            '<section class="ed-detail-col" data-col="output"><div class="ed-col-head">' +
+            '<section class="ed-detail-col" data-col="input"' + panel('col', 'input') + '></section>' +
+            '<section class="ed-detail-col" data-col="params"' + panel('col', 'params') + '><div class="ed-subtabs" role="tablist">' +
+            tab('pane', 'params', 'data-ed-pane', t('easydrag.ui.detail_parameters')) +
+            tab('pane', 'settings', 'data-ed-pane', t('easydrag.ui.detail_settings')) +
+            tab('pane', 'note', 'data-ed-pane', t('easydrag.ui.detail_note')) + '</div>' +
+            '<div class="ed-detail-pane" data-pane="params"' + panel('pane', 'params') + '></div><div class="ed-detail-pane" data-pane="settings"' + panel('pane', 'settings') + ' hidden></div><div class="ed-detail-pane" data-pane="note"' + panel('pane', 'note') + ' hidden></div></section>' +
+            '<section class="ed-detail-col" data-col="output"' + panel('col', 'output') + '><div class="ed-col-head">' +
             '<h3 data-ed-output-title>' + esc(t('easydrag.ui.detail_output')) + '</h3>' +
-            '<div class="ed-seg ed-seg--small" role="radiogroup" data-ed-subject-group hidden>' +
+            '<div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.detail_output')) + '" data-ed-subject-group hidden>' +
             '<button type="button" role="radio" data-ed-subject="output">' + esc(t('easydrag.ui.detail_output')) + '</button>' +
             '<button type="button" role="radio" data-ed-subject="params">' + esc(t('easydrag.ui.detail_resolved_params')) + '</button></div>' +
-            '<div class="ed-col-tools"><div class="ed-seg ed-seg--small" role="radiogroup">' +
+            '<div class="ed-col-tools"><div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.output_view_label')) + '">' +
             ['tree', 'table', 'json'].map(v => '<button type="button" role="radio" data-ed-view="' + v + '">' + esc(t('easydrag.ui.view_' + v)) + '</button>').join('') + '</div>' +
             '<button type="button" class="ed-icon-btn" data-ed-copy-json aria-label="' + esc(t('easydrag.ui.copy_json')) + '" title="' + esc(t('easydrag.ui.copy_json')) + '" hidden>' + core.icon('copy') + '</button></div></div>' +
             '<div class="ed-output-status"></div><div class="ed-output"></div></section>' +

@@ -314,6 +314,54 @@ export async function run(env) {
         editor.dispose();
     });
 
+    // ── U4, U6: step list region and roles ──
+
+    await guardAsync('b5 U4 U6 the step list is a region beside the canvas; roles are whole and named', async () => {
+        const setupTypes = new Map(types);
+        setupTypes.set('notify.mail', { type: 'notify.mail', label: 'Mail', category: 'notify', inputs: ['in'], outputs: ['out'], params: [], availability: { state: 'needs_setup', config_section: 'email' } });
+        const h = sandbox(() => undefined);
+        h.catalog = { types: setupTypes, list: Array.from(setupTypes.values()), categories: [{ id: 'notify', label: 'Notify' }] };
+        const editor = openEditor(h);
+        await settle();
+        h.runTimers(400);
+        const ed = editor.ed;
+        const region = editor.el.querySelector('.ed-node-region');
+        const listButton = region.querySelector('[data-ed-focus-node]');
+        listButton.fire('click');
+        const u4 = [region.localName, region.getAttribute('aria-label'), region.parentNode === editor.el.querySelector('.ed-body'), !!editor.el.querySelector('.ed-canvas .ed-node-list'), Array.from(ed.selection)];
+        const link = editor.el.querySelector('.ed-palette [data-ed-setup]');
+        const palette = [link.localName, link.getAttribute('href'), link.getAttribute('role'), !!link.closest('[data-ed-type]')];
+        ed.bus.emit('quick-add', { x: 0, y: 0 });
+        const quick = editor.el.querySelector('.ed-quick ul').html;
+        const quickRow = [quick.includes('data-ed-setup'), quick.includes('role="link"')];
+        ed.quickAdd.close();
+        ed.bus.emit('find-step');
+        const find = h.dialogs[h.dialogs.length - 1];
+        const findList = find.el.parentNode.html.includes('role="list"');
+        find.close(null);
+        ed.bus.emit('connect-picker', { nodeId: A });
+        const pick = h.dialogs[h.dialogs.length - 1];
+        const pickList = pick.el.parentNode.html.includes('role="list"');
+        pick.close(null);
+        editor.el.querySelector('[data-ed-cmd="runs"]').fire('click');
+        const drawerGroup = editor.el.querySelector('.ed-drawer [role="radiogroup"]').getAttribute('aria-label');
+        ed.bus.emit('open-detail', { nodeId: A });
+        const tabs = editor.el.querySelectorAll('.ed-detail [role="tab"]').map(b => {
+            const p = editor.el.querySelector('[id="' + b.getAttribute('aria-controls') + '"]');
+            return !!p && p.getAttribute('role') === 'tabpanel' && p.getAttribute('aria-labelledby') === b.id;
+        });
+        const groups = editor.el.querySelectorAll('.ed-detail [role="radiogroup"]').map(g => g.getAttribute('aria-label'));
+        const tools = editor.el.querySelector('[data-node-id="' + A + '"] .ed-node-tools').getAttribute('aria-label');
+        eq('b5 U4 U6 region beside the canvas; setup link of its own; no list roles without items; named groups; tabs with panels',
+            [u4, palette, quickRow, findList, pickList, drawerGroup, tabs, groups, tools, h.logged], [
+                ['section', 'node_list', true, false, [listButton.dataset.edFocusNode]],
+                ['a', '/config#email', null, false], [false, false], false, false, 'runs_filter_label',
+                [true, true, true, true, true, true], ['detail_output', 'output_view_label'], 'node_tools:Alpha', []
+            ]);
+        eq('b5 U6 the new names exist in all 16 locales', missingKeys(apps, ['easydrag.ui.runs_filter_label', 'easydrag.ui.output_view_label', 'easydrag.ui.node_tools']), []);
+        editor.dispose();
+    });
+
     // ── F13: storage ──
 
     await guardAsync('b5 F13 a refused emergency copy backs off and then stops; a write that lands resets it', async () => {
