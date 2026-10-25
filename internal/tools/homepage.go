@@ -552,22 +552,22 @@ func homepageEnsureProjectWritable(dockerCfg DockerConfig, projectDir string, lo
 }
 
 func homepageProjectWritableCheckCommand(projectDir string) string {
-	projectPath := homepageContainerProjectPath(projectDir)
+	projectPath := shellSingleQuote(homepageContainerProjectPath(projectDir))
 	return fmt.Sprintf("set -eu; if [ ! -d %s ]; then exit 0; fi; touch %s/.aurago-project-write-test && rm -f %s/.aurago-project-write-test", projectPath, projectPath, projectPath)
 }
 
 func homepageProjectWritableRepairCommand(uidGid, projectDir string) string {
-	projectPath := homepageContainerProjectPath(projectDir)
+	projectPath := shellSingleQuote(homepageContainerProjectPath(projectDir))
 	return fmt.Sprintf("set -eu; if [ ! -d %s ]; then exit 0; fi; chown -R %s %s; chmod -R u+rwX,g+rwX %s", projectPath, uidGid, projectPath, projectPath)
 }
 
 func homepageProjectNodeArtifactsCheckCommand(projectDir string) string {
-	projectPath := homepageContainerProjectPath(projectDir)
+	projectPath := shellSingleQuote(homepageContainerProjectPath(projectDir))
 	return fmt.Sprintf("set -eu; if [ ! -d %s ]; then exit 0; fi; cd %s; if [ ! -d node_modules ]; then exit 0; fi; touch node_modules/.aurago-write-test && rm -f node_modules/.aurago-write-test; mkdir -p node_modules/.vite-temp; touch node_modules/.vite-temp/.aurago-write-test && rm -f node_modules/.vite-temp/.aurago-write-test", projectPath, projectPath)
 }
 
 func homepageProjectNodeArtifactsRepairCommand(uidGid, projectDir string) string {
-	projectPath := homepageContainerProjectPath(projectDir)
+	projectPath := shellSingleQuote(homepageContainerProjectPath(projectDir))
 	return fmt.Sprintf("set -eu; if [ ! -d %s ]; then exit 0; fi; cd %s; for path in node_modules .vite .next dist build out package-lock.json npm-shrinkwrap.json yarn.lock pnpm-lock.yaml; do if [ -e \"$path\" ]; then chown -R %s \"$path\"; chmod -R u+rwX,g+rwX \"$path\"; fi; done", projectPath, projectPath, uidGid)
 }
 

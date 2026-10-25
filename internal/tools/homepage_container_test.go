@@ -233,7 +233,7 @@ func TestHomepageExecRepairsDetectedProjectBeforeWorkspaceWrite(t *testing.T) {
 		case strings.Contains(cmd, "/workspace/.aurago-write-test"):
 			workspaceChecks++
 			return `{"status":"ok","exit_code":0,"output":""}`
-		case strings.Contains(cmd, "/workspace/ki-news/.aurago-project-write-test"):
+		case strings.Contains(cmd, "'/workspace/ki-news'/.aurago-project-write-test"):
 			projectChecks++
 			if projectChecks == 1 {
 				return `{"status":"error","exit_code":1,"output":"touch: cannot touch '/workspace/ki-news/.aurago-project-write-test': Permission denied"}`
@@ -241,7 +241,7 @@ func TestHomepageExecRepairsDetectedProjectBeforeWorkspaceWrite(t *testing.T) {
 			return `{"status":"ok","exit_code":0,"output":""}`
 		case strings.Contains(cmd, "id -u"):
 			return `{"status":"ok","exit_code":0,"output":"1001:1001\n"}`
-		case user == "0:0" && strings.Contains(cmd, "chown -R 1001:1001 /workspace/ki-news"):
+		case user == "0:0" && strings.Contains(cmd, "chown -R 1001:1001 '/workspace/ki-news'"):
 			repairedProject = true
 			return `{"status":"ok","exit_code":0,"output":""}`
 		case cmd == "cat > /workspace/ki-news/src/main.ts << 'EOF'\nconsole.log('ok')\nEOF":
@@ -288,7 +288,7 @@ func TestHomepageInitProjectRepairsExistingProjectBeforeScaffold(t *testing.T) {
 		case strings.Contains(cmd, "/workspace/.aurago-write-test"):
 			workspaceChecks++
 			return `{"status":"ok","exit_code":0,"output":""}`
-		case strings.Contains(cmd, "/workspace/ki-news/.aurago-project-write-test"):
+		case strings.Contains(cmd, "'/workspace/ki-news'/.aurago-project-write-test"):
 			projectChecks++
 			if projectChecks == 1 {
 				return `{"status":"error","exit_code":1,"output":"touch: Permission denied"}`
@@ -296,7 +296,7 @@ func TestHomepageInitProjectRepairsExistingProjectBeforeScaffold(t *testing.T) {
 			return `{"status":"ok","exit_code":0,"output":""}`
 		case strings.Contains(cmd, "id -u"):
 			return `{"status":"ok","exit_code":0,"output":"1001:1001\n"}`
-		case user == "0:0" && strings.Contains(cmd, "chown -R 1001:1001 /workspace/ki-news"):
+		case user == "0:0" && strings.Contains(cmd, "chown -R 1001:1001 '/workspace/ki-news'"):
 			repairedProject = true
 			return `{"status":"ok","exit_code":0,"output":""}`
 		default:
@@ -351,7 +351,7 @@ func TestHomepageEnsureProjectNodeArtifactsWritableRepairsRootOwnedNodeModules(t
 			return `{"status":"ok","exit_code":0,"output":""}`
 		case strings.Contains(cmd, "id -u"):
 			return `{"status":"ok","exit_code":0,"output":"1001:1001\n"}`
-		case user == "0:0" && strings.Contains(cmd, `cd /workspace/ki-news`) && strings.Contains(cmd, `chown -R 1001:1001 "$path"`) && strings.Contains(cmd, `for path in node_modules`):
+		case user == "0:0" && strings.Contains(cmd, `cd '/workspace/ki-news'`) && strings.Contains(cmd, `chown -R 1001:1001 "$path"`) && strings.Contains(cmd, `for path in node_modules`):
 			return `{"status":"ok","exit_code":0,"output":""}`
 		default:
 			t.Fatalf("unexpected docker exec call user=%q cmd=%q", user, cmd)
@@ -369,7 +369,7 @@ func TestHomepageEnsureProjectNodeArtifactsWritableRepairsRootOwnedNodeModules(t
 	foundRepair := false
 	for _, call := range calls {
 		if call.user == "0:0" &&
-			strings.Contains(call.cmd, `cd /workspace/ki-news`) &&
+			strings.Contains(call.cmd, `cd '/workspace/ki-news'`) &&
 			strings.Contains(call.cmd, `chown -R 1001:1001 "$path"`) &&
 			strings.Contains(call.cmd, `for path in node_modules`) &&
 			strings.Contains(call.cmd, `package-lock.json`) {
@@ -385,8 +385,8 @@ func TestHomepageEnsureProjectNodeArtifactsWritableRepairsRootOwnedNodeModules(t
 func TestHomepageProjectNodeArtifactsCommandsUseProjectScopedPaths(t *testing.T) {
 	checkCmd := homepageProjectNodeArtifactsCheckCommand("ki-news")
 	for _, want := range []string{
-		"if [ ! -d /workspace/ki-news ]; then exit 0; fi",
-		"cd /workspace/ki-news",
+		"if [ ! -d '/workspace/ki-news' ]; then exit 0; fi",
+		"cd '/workspace/ki-news'",
 		"node_modules/.vite-temp/.aurago-write-test",
 	} {
 		if !strings.Contains(checkCmd, want) {
@@ -396,8 +396,8 @@ func TestHomepageProjectNodeArtifactsCommandsUseProjectScopedPaths(t *testing.T)
 
 	repairCmd := homepageProjectNodeArtifactsRepairCommand("1001:1001", "ki-news")
 	for _, want := range []string{
-		"if [ ! -d /workspace/ki-news ]; then exit 0; fi",
-		"cd /workspace/ki-news",
+		"if [ ! -d '/workspace/ki-news' ]; then exit 0; fi",
+		"cd '/workspace/ki-news'",
 		`chown -R 1001:1001 "$path"`,
 		"node_modules .vite .next dist build out package-lock.json",
 	} {
@@ -410,8 +410,8 @@ func TestHomepageProjectNodeArtifactsCommandsUseProjectScopedPaths(t *testing.T)
 func TestHomepageProjectWritableCommandsUseProjectScopedPaths(t *testing.T) {
 	checkCmd := homepageProjectWritableCheckCommand("ki-news")
 	for _, want := range []string{
-		"if [ ! -d /workspace/ki-news ]; then exit 0; fi",
-		"touch /workspace/ki-news/.aurago-project-write-test",
+		"if [ ! -d '/workspace/ki-news' ]; then exit 0; fi",
+		"touch '/workspace/ki-news'/.aurago-project-write-test",
 	} {
 		if !strings.Contains(checkCmd, want) {
 			t.Fatalf("check command missing %q: %s", want, checkCmd)
@@ -420,9 +420,9 @@ func TestHomepageProjectWritableCommandsUseProjectScopedPaths(t *testing.T) {
 
 	repairCmd := homepageProjectWritableRepairCommand("1001:1001", "ki-news")
 	for _, want := range []string{
-		"if [ ! -d /workspace/ki-news ]; then exit 0; fi",
-		"chown -R 1001:1001 /workspace/ki-news",
-		"chmod -R u+rwX,g+rwX /workspace/ki-news",
+		"if [ ! -d '/workspace/ki-news' ]; then exit 0; fi",
+		"chown -R 1001:1001 '/workspace/ki-news'",
+		"chmod -R u+rwX,g+rwX '/workspace/ki-news'",
 	} {
 		if !strings.Contains(repairCmd, want) {
 			t.Fatalf("repair command missing %q: %s", want, repairCmd)
