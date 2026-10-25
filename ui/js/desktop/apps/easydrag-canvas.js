@@ -312,16 +312,30 @@
 
         function nodeIssues(id) { return (ed.issues || []).filter(is => is.node_id === id && is.severity === 'error'); }
 
+        // cardName is a card's accessible name (U7): its label and its state (turned off, not set up or
+        // blocked, open issues, the run status), so a screen reader hears more than the name.
+        function cardName(n, i, status, issues) {
+            const parts = [n.label || n.type];
+            if (n.settings && n.settings.disabled) parts.push(t('easydrag.ui.card_state_off'));
+            const avail = i ? (i.availability || {}).state : '';
+            if (!i) parts.push(t('easydrag.ui.badge_unknown'));
+            else if (avail === 'needs_setup') parts.push(t('easydrag.ui.badge_needs_setup'));
+            else if (avail === 'blocked') parts.push(t('easydrag.ui.badge_blocked'));
+            if (issues) parts.push(t('easydrag.ui.badge_incomplete'));
+            if (status) parts.push(core.tr(t, 'easydrag.ui.status_' + status, status));
+            return parts.join(', ');
+        }
+
         // badgesMarkup draws a card's badges: availability, risk, open issues and the run status
         // with its duration.
-        function badgesMarkup(n, i, status, step) {
+        function badgesMarkup(n, i, status, step, issues) {
             const avail = i ? (i.availability || {}).state : 'missing';
             const badges = [];
             if (!i) badges.push('<span class="ed-badge ed-badge--warn" title="' + esc(t('easydrag.ui.badge_unknown')) + '">' + core.icon('alert') + '</span>');
             else if (avail === 'needs_setup') badges.push('<span class="ed-badge ed-badge--warn" title="' + esc(t('easydrag.ui.badge_needs_setup')) + '">' + core.icon('settings') + '</span>');
             else if (avail === 'blocked') badges.push('<span class="ed-badge ed-badge--warn" title="' + esc(t('easydrag.ui.badge_blocked')) + '">' + core.icon('lock') + '</span>');
             if (i && i.risky) badges.push('<span class="ed-badge ed-badge--risk" title="' + esc(t('easydrag.ui.badge_risky')) + '">' + core.icon('alert') + '</span>');
-            if (nodeIssues(n.id).length) badges.push('<span class="ed-badge ed-badge--issue" title="' + esc(t('easydrag.ui.badge_incomplete')) + '"></span>');
+            if (issues) badges.push('<span class="ed-badge ed-badge--issue" title="' + esc(t('easydrag.ui.badge_incomplete')) + '"></span>');
             if (status) {
                 const label = core.tr(t, 'easydrag.ui.status_' + status, status);
                 const dur = step && step.duration_ms ? ' · ' + core.fmt.duration(step.duration_ms) : '';
@@ -333,9 +347,10 @@
         // paintState shows what runs and checks change on a card (badges, run status, a failed
         // step's error) in place: the card's markup, its tool buttons among it, stays, so a focused
         // tool keeps the focus while a run goes on.
-        function paintState(card, n, i, status, step) {
+        function paintState(card, n, i, status, step, issues) {
+            card.setAttribute('aria-label', cardName(n, i, status, issues));
             const badges = card.querySelector('.ed-node-badges');
-            if (badges) badges.innerHTML = badgesMarkup(n, i, status, step);
+            if (badges) badges.innerHTML = badgesMarkup(n, i, status, step, issues);
             const text = status === 'error' && step ? core.stepErrorText(t, step) : '';
             let box = card.querySelector('.ed-node-error');
             if (!text) { if (box) box.remove(); return; }
@@ -421,7 +436,6 @@
             const i = info(n);
             card.className = classesFor(n) + (card.classList.contains('is-new') ? ' is-new' : '');
             card.dataset.cat = core.catOf(i);
-            card.setAttribute('aria-label', n.label || n.type);
             card.style.transform = 'translate(' + n.position.x + 'px,' + n.position.y + 'px)';
             card.style.height = G.nodeHeight(outCount(n)) + 'px';
             named.set(n.id, n.key + '|' + n.label);
@@ -444,10 +458,11 @@
                 card.innerHTML = cardMarkup(n, sum);
                 toolsOn.delete(n.id);
             }
-            const state = JSON.stringify([status, step && step.duration_ms, step && step.error_code, step && step.error_message, nodeIssues(n.id).length]);
+            const issues = nodeIssues(n.id).length;
+            const state = JSON.stringify([status, step && step.duration_ms, step && step.error_code, step && step.error_message, issues]);
             if (states.get(n.id) !== state) {
                 states.set(n.id, state);
-                paintState(card, n, i, status, step);
+                paintState(card, n, i, status, step, issues);
             }
             syncTools(card, n.id);
             // Only a selected card's tools are tab stops: the focus of a card no longer selected

@@ -226,6 +226,15 @@
             if (opts && typeof opts.onLoaded === 'function') opts.onLoaded();
         }
 
+        // cardName is a flow card's accessible name (U7): its name and the state the card shows
+        // (state, Paused, a failed last run).
+        function cardName(f) {
+            const parts = [f.name, !f.published ? t('easydrag.ui.state_draft') : f.has_unpublished_changes ? t('easydrag.ui.state_changes') : t('easydrag.ui.state_published')];
+            if (f.published && !f.enabled) parts.push(t('easydrag.ui.state_inactive'));
+            if (f.last_run && f.last_run.status === 'error') parts.push(t('easydrag.ui.status_error'));
+            return parts.join(', ');
+        }
+
         function render() {
             const list = visibleFlows();
             const off = createOff();
@@ -241,12 +250,12 @@
                 speak(staleError ? 'stale-none' : 'none', t('easydrag.ui.home_no_match'));
             } else {
                 grid.innerHTML = banner + list.map(f =>
-                    '<article class="ed-flow-card' + (f.enabled ? ' is-active' : '') + '" data-ed-flow="' + esc(f.id) + '" tabindex="0" aria-label="' + esc(f.name) + '">' +
+                    '<article class="ed-flow-card' + (f.enabled ? ' is-active' : '') + '" data-ed-flow="' + esc(f.id) + '" tabindex="0" aria-label="' + esc(cardName(f)) + '">' +
                     '<div class="ed-flow-preview">' + previewSVG(f.preview, esc, f.preview_edges) + '</div>' +
                     '<div class="ed-flow-info"><h3>' + esc(f.name) + '</h3><p class="ed-flow-triggers">' + core.icon('bolt') + '<span>' + esc(triggerLabels(f).join(' · ') || t('easydrag.ui.home_no_trigger')) + '</span></p>' +
                     '<div class="ed-flow-meta">' + statusBadge(f) + liveBadge(f) + '<span class="ed-flow-run">' + lastRun(f) + '</span></div></div>' +
                     '<div class="ed-flow-card-actions">' +
-                    (f.published && !off ? '<button type="button" class="ed-switch ed-switch--small" role="switch" aria-checked="' + !!f.enabled + '" data-ed-toggle="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.active')) + '" title="' + esc(t('easydrag.ui.active')) + '"><span></span></button>' : '') +
+                    (f.published && !off ? '<button type="button" class="ed-switch ed-switch--small" role="switch" aria-checked="' + !!f.enabled + '" data-ed-toggle="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.home_active_named', { name: f.name })) + '" title="' + esc(t('easydrag.ui.active')) + '"><span></span></button>' : '') +
                     '<button type="button" class="ed-icon-btn" data-ed-card-menu="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.more')) + '">' + core.icon('dots') + '</button></div></article>').join('');
                 speak(staleError ? 'stale' : 'ready', staleError ? t('easydrag.ui.home_stale_title') : t('easydrag.ui.home_flows'));
             }

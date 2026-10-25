@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.card_state_off": "オフ",
   "easydrag.ui.error_flow_action_rule_required": "一致するアクションルールがありません。設定 → 危険ゾーンでルールを追加し、手動で再実行してください。自動再試行は行われません。",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU フォールバックが明示的に許可されていません。",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "推論デバイスが検証されていません。",
@@ -554,6 +555,7 @@
   "easydrag.ui.form_no_params": "このステップに設定は必要ありません。",
   "easydrag.ui.hint_plaintext_value": "フロー内にプレーンテキストで保存されます。パスワードやキーは貼り付けないでください。",
   "easydrag.ui.history_label": "元に戻す・やり直す",
+  "easydrag.ui.home_active_named": "有効: {name}",
   "easydrag.ui.home_clear_filter": "絞り込みを解除",
   "easydrag.ui.home_clear_search": "検索をクリア",
   "easydrag.ui.home_delete": "削除",

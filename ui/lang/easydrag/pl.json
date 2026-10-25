@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.card_state_off": "wyłączony",
   "easydrag.ui.error_flow_action_rule_required": "Brakuje pasującej reguły działania. Dodaj regułę w Konfiguracja → Strefa zagrożenia, a następnie uruchom ponownie ręcznie. Nie będzie automatycznej ponownej próby.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "Użycie CPU awaryjnie nie zostało wyraźnie dozwolone.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Urządzenie wnioskowania nie zostało zweryfikowane.",
@@ -554,6 +555,7 @@
   "easydrag.ui.form_no_params": "Ten krok nie wymaga ustawień.",
   "easydrag.ui.hint_plaintext_value": "Zapisywane w przepływie jako zwykły tekst. Nie wklejaj tu haseł ani kluczy.",
   "easydrag.ui.history_label": "Cofnij i ponów",
+  "easydrag.ui.home_active_named": "Aktywny: {name}",
   "easydrag.ui.home_clear_filter": "Wyczyść filtr",
   "easydrag.ui.home_clear_search": "Wyczyść wyszukiwanie",
   "easydrag.ui.home_delete": "Usuń",

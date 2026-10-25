@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.card_state_off": "ausgeschaltet",
   "easydrag.ui.error_flow_action_rule_required": "Eine passende Aktionsregel fehlt. Ergänze eine Regel unter Konfiguration → Gefahrenzone und starte danach manuell neu. Es gibt keinen automatischen Wiederholungsversuch.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU-Fallback wurde nicht ausdrücklich freigegeben.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Das Inferenzgerät wurde nicht verifiziert.",
@@ -554,6 +555,7 @@
   "easydrag.ui.form_no_params": "Dieser Schritt braucht keine Einstellungen.",
   "easydrag.ui.hint_plaintext_value": "Wird im Flow als Klartext gespeichert. Füge hier keine Passwörter oder Schlüssel ein.",
   "easydrag.ui.history_label": "Rückgängig und wiederholen",
+  "easydrag.ui.home_active_named": "Aktiv: {name}",
   "easydrag.ui.home_clear_filter": "Filter zurücksetzen",
   "easydrag.ui.home_clear_search": "Suche leeren",
   "easydrag.ui.home_delete": "Löschen",

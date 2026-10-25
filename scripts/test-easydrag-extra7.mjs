@@ -353,7 +353,7 @@ export async function run(env) {
         insert.fire('click');
         const quick = editor.el.querySelector('.ed-quick');
         const opened = [!!quick, !!ed.quickAdd];
-        quick.querySelector('[data-ed-index="0"]').fire('pointerdown');
+        quick.querySelector('[data-ed-index="0"]').fire('click');
         const added = ed.model.doc.nodes.find(n => ![T1, A, B].includes(n.id));
         const back = active();
         eq('a1023b U2 Insert on the wire to Beta opens quick-add, the chosen step lands between Alpha and Beta and the focus returns to the section',

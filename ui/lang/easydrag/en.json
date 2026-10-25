@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.card_state_off": "turned off",
   "easydrag.ui.error_flow_action_rule_required": "A matching action rule is missing. Add a rule in Configuration → Danger Zone, then start again manually. No automatic retry.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU fallback has not been explicitly allowed.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "The inference device has not been verified.",
@@ -554,6 +555,7 @@
   "easydrag.ui.form_no_params": "This step needs no settings.",
   "easydrag.ui.hint_plaintext_value": "Saved in the flow as plain text. Do not paste passwords or keys here.",
   "easydrag.ui.history_label": "Undo and redo",
+  "easydrag.ui.home_active_named": "Active: {name}",
   "easydrag.ui.home_clear_filter": "Clear filter",
   "easydrag.ui.home_clear_search": "Clear search",
   "easydrag.ui.home_delete": "Delete",

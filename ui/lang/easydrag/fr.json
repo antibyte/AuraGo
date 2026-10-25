@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.card_state_off": "désactivé",
   "easydrag.ui.error_flow_action_rule_required": "Une règle d’action correspondante manque. Ajoute une règle dans Configuration → Zone dangereuse, puis relance manuellement. Aucune nouvelle tentative automatique.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "Le recours au processeur n’a pas été explicitement autorisé.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "L’appareil d’inférence n’a pas été vérifié.",
@@ -554,6 +555,7 @@
   "easydrag.ui.form_no_params": "Cette étape ne nécessite aucun réglage.",
   "easydrag.ui.hint_plaintext_value": "Enregistré dans le flux en texte clair. Ne collez ici ni mots de passe ni clés.",
   "easydrag.ui.history_label": "Annuler et rétablir",
+  "easydrag.ui.home_active_named": "Actif : {name}",
   "easydrag.ui.home_clear_filter": "Effacer le filtre",
   "easydrag.ui.home_clear_search": "Effacer la recherche",
   "easydrag.ui.home_delete": "Supprimer",

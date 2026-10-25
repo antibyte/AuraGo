@@ -184,6 +184,8 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-switch--small { width: 30px; height: 17px; }
 .ed-switch--small > span { width: 13px; height: 13px; }
 .ed-switch--small[aria-checked="true"] > span { transform: translateX(13px); }
+/* U9: the small switch keeps its look; a pseudo element widens its target to 34 × 25 px */
+.ed-switch--small::before { content: ""; position: absolute; inset: -4px -2px; }
 .ed-switch-btn {
     display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 10px;
     border: 1px solid var(--ed-border); border-radius: var(--ds-radius-full); background: var(--ed-control);
@@ -719,7 +721,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-tree-row:hover, .ed-tree-row:focus { background: var(--ed-control-hover); }
 .ed-tree-row:active { cursor: grabbing; }
 .ed-tree-root { font-weight: 700; }
-.ed-tree-toggle { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; background: transparent; color: var(--ed-muted); cursor: pointer; }
+.ed-tree-toggle { display: grid; place-items: center; width: 24px; height: 24px; margin: -3px; padding: 0; border: 0; background: transparent; color: var(--ed-muted); cursor: pointer; }
 .ed-tree-toggle .ed-icon { width: 13px; height: 13px; }
 .ed-tree-spacer { width: 18px; flex: none; }
 .ed-tree-tile { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; color: var(--ed-cat-ink); background: color-mix(in srgb, var(--ed-cat) 16%, transparent); }
@@ -841,7 +843,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-tags { display: grid; gap: 6px; }
 .ed-tags-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .ed-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; border-radius: 999px; background: var(--ed-control); border: 1px solid var(--ed-border); font-size: 12px; }
-.ed-tag button { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--ed-muted); cursor: pointer; }
+.ed-tag button { display: grid; place-items: center; width: 24px; height: 24px; margin: -3px -2px -3px 0; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--ed-muted); cursor: pointer; }
 .ed-tag button:hover { background: var(--ed-danger); color: white; }
 .ed-secret { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .ed-secret > .ed-input { flex: 1 1 0; width: auto; min-width: 0; }

@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.card_state_off": "vypnuto",
   "easydrag.ui.error_flow_action_rule_required": "Chybí odpovídající pravidlo akce. Přidej pravidlo v Nastavení → Nebezpečná zóna a pak spusť úlohu znovu ručně. Automatické opakování neproběhne.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "Záložní použití CPU nebylo výslovně povoleno.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Zařízení pro odvozování nebylo ověřeno.",
@@ -554,6 +555,7 @@
   "easydrag.ui.form_no_params": "Tento krok nepotřebuje žádné nastavení.",
   "easydrag.ui.hint_plaintext_value": "Uloží se v toku jako prostý text. Nevkládej sem hesla ani klíče.",
   "easydrag.ui.history_label": "Zpět a znovu",
+  "easydrag.ui.home_active_named": "Aktivní: {name}",
   "easydrag.ui.home_clear_filter": "Zrušit filtr",
   "easydrag.ui.home_clear_search": "Vymazat hledání",
   "easydrag.ui.home_delete": "Smazat",

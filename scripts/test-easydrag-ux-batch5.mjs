@@ -613,6 +613,63 @@ export async function run(env) {
             [['run_now', 'versions_title'], ['runs_title', 'test_draft', '|', 'run_now'], true, 1, true, true, true, false, []]);
         s.editor.dispose();
     });
+    // ── U7, U9, U11 ──
+
+    await guardAsync('b5 U7 cards and start-page switches name their state', async () => {
+        const s = await session();
+        const name = () => s.card(A).getAttribute('aria-label');
+        const rows = [name()];
+        s.ed.model.toggleDisabled([A]);
+        rows.push(name());
+        s.ed.issues = [{ node_id: A, severity: 'error', code: 'PARAM_REQUIRED', param: 'query' }];
+        s.ed.bus.emit('issues', s.ed.issues);
+        rows.push(name());
+        s.ed.run = { id: 'r1', status: 'running', mode: 'test', steps: new Map([[A, { node_id: A, status: 'error' }]]), record: null, error: '' };
+        s.ed.bus.emit('run', s.ed.run);
+        rows.push(name());
+        s.editor.dispose();
+        const p = await homePage(req => {
+            if (req.url === '/api/desktop/flows' && req.method === 'GET') {
+                return { flows: [flowCard('f1', 'Alpha', { last_run: { status: 'success', started_at: '2026-10-25T10:00:00Z' } }),
+                    flowCard('f2', 'Beta', { enabled: false, last_run: { status: 'error', started_at: '2026-10-25T10:00:00Z' } }),
+                    flowCard('f3', 'Gamma', { published: false, enabled: false })] };
+            }
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+            return undefined;
+        });
+        const cardName = id => p.home.el.querySelector('[data-ed-flow="' + id + '"]').getAttribute('aria-label');
+        const sw = id => p.home.el.querySelector('[data-ed-toggle="' + id + '"]');
+        eq('b5 U7 a card says turned off, problems and its run state; a flow card its state; a switch names its flow',
+            [rows, ['f1', 'f2', 'f3'].map(cardName), [sw('f1').getAttribute('aria-label'), sw('f2').getAttribute('aria-label'), sw('f3')]], [
+                ['Alpha', 'Alpha, card_state_off', 'Alpha, card_state_off, badge_incomplete', 'Alpha, card_state_off, badge_incomplete, status_error'],
+                ['Alpha, state_published', 'Beta, state_published, state_inactive, status_error', 'Gamma, state_draft'],
+                ['home_active_named:Alpha', 'home_active_named:Beta', null]
+            ]);
+        eq('b5 U7 the words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.card_state_off', 'easydrag.ui.home_active_named']), []);
+        p.home.dispose();
+    });
+
+    await guardAsync('b5 U9 the small switch, the tree toggle and the tag remove button have targets of at least 24 px', async () => {
+        const sheet = css();
+        eq('b5 U9 hit area and sizes in the stylesheet', [
+            sheet.includes('.ed-switch--small::before { content: ""; position: absolute; inset: -4px -2px; }'),
+            /\.ed-tree-toggle \{[^}]*width: 24px; height: 24px;[^}]*margin: -3px;/.test(sheet),
+            /\.ed-tag button \{[^}]*width: 24px; height: 24px;[^}]*margin: -3px -2px -3px 0;/.test(sheet)
+        ], [true, true, true]);
+    });
+
+    await guardAsync('b5 U11 quick-add picks a step on click, not on the press that may start a scroll', async () => {
+        const s = await session();
+        s.ed.bus.emit('quick-add', { x: 0, y: 0 });
+        const item = s.editor.el.querySelector('.ed-quick [data-ed-index="0"]');
+        const nodes = s.ed.model.doc.nodes.length;
+        const press = item.fire('pointerdown');
+        const afterPress = [s.ed.model.doc.nodes.length - nodes, !!s.ed.quickAdd, press.defaultPrevented];
+        item.fire('click');
+        eq('b5 U11 a press keeps the focus and adds nothing; the click adds and closes', [afterPress, s.ed.model.doc.nodes.length - nodes, s.ed.quickAdd, s.h.logged], [[0, true, true], 1, null, []]);
+        s.editor.dispose();
+    });
+
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }

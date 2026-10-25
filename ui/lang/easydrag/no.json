@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.card_state_off": "slått av",
   "easydrag.ui.error_flow_action_rule_required": "En passende handlingsregel mangler. Legg til en regel under Konfigurasjon → Faresone, og start deretter på nytt manuelt. Ingen automatiske nye forsøk.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU-reserve er ikke uttrykkelig tillatt.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Inferensenheten er ikke verifisert.",
@@ -554,6 +555,7 @@
   "easydrag.ui.form_no_params": "Dette trinnet trenger ingen innstillinger.",
   "easydrag.ui.hint_plaintext_value": "Lagres i flyten som ren tekst. Ikke lim inn passord eller nøkler her.",
   "easydrag.ui.history_label": "Angre og gjør om",
+  "easydrag.ui.home_active_named": "Aktiv: {name}",
   "easydrag.ui.home_clear_filter": "Nullstill filter",
   "easydrag.ui.home_clear_search": "Tøm søket",
   "easydrag.ui.home_delete": "Slett",

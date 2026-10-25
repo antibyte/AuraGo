@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.card_state_off": "απενεργοποιημένο",
   "easydrag.ui.error_flow_action_rule_required": "Λείπει ένας κατάλληλος κανόνας ενέργειας. Πρόσθεσε έναν κανόνα στις Ρυθμίσεις → Ζώνη κινδύνου και μετά ξεκίνησε ξανά χειροκίνητα. Δεν γίνεται αυτόματη επανάληψη.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "Η εφεδρική χρήση CPU δεν έχει επιτραπεί ρητά.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Η συσκευή συμπερασμού δεν έχει επαληθευτεί.",
@@ -554,6 +555,7 @@
   "easydrag.ui.form_no_params": "Αυτό το βήμα δεν χρειάζεται ρυθμίσεις.",
   "easydrag.ui.hint_plaintext_value": "Αποθηκεύεται στη ροή ως απλό κείμενο. Μην επικολλάς εδώ κωδικούς πρόσβασης ή κλειδιά.",
   "easydrag.ui.history_label": "Αναίρεση και επανάληψη",
+  "easydrag.ui.home_active_named": "Ενεργό: {name}",
   "easydrag.ui.home_clear_filter": "Εκκαθάριση φίλτρου",
   "easydrag.ui.home_clear_search": "Εκκαθάριση αναζήτησης",
   "easydrag.ui.home_delete": "Διαγραφή",

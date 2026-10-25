@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.card_state_off": "slukket",
   "easydrag.ui.error_flow_action_rule_required": "Der mangler en passende handlingsregel. Tilføj en regel under Konfiguration → Farezone, og start derefter igen manuelt. Der forsøges ikke igen automatisk.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU-fallback er ikke udtrykkeligt tilladt.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Enheden til inferens er ikke verificeret.",
@@ -554,6 +555,7 @@
   "easydrag.ui.form_no_params": "Dette trin kræver ingen indstillinger.",
   "easydrag.ui.hint_plaintext_value": "Gemmes i flowet som klartekst. Indsæt ikke adgangskoder eller nøgler her.",
   "easydrag.ui.history_label": "Fortryd og gentag",
+  "easydrag.ui.home_active_named": "Aktiv: {name}",
   "easydrag.ui.home_clear_filter": "Nulstil filter",
   "easydrag.ui.home_clear_search": "Ryd søgning",
   "easydrag.ui.home_delete": "Slet",

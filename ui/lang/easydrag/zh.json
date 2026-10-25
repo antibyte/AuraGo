@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.card_state_off": "已关闭",
   "easydrag.ui.error_flow_action_rule_required": "缺少匹配的操作规则。请在配置 → 危险区域中添加规则，然后手动重新启动。系统不会自动重试。",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "尚未明确允许 CPU 回退。",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "推理设备尚未验证。",
@@ -554,6 +555,7 @@
   "easydrag.ui.form_no_params": "此步骤无需设置。",
   "easydrag.ui.hint_plaintext_value": "会以明文保存在流程中。请勿在此粘贴密码或密钥。",
   "easydrag.ui.history_label": "撤销和重做",
+  "easydrag.ui.home_active_named": "已启用：{name}",
   "easydrag.ui.home_clear_filter": "清除筛选",
   "easydrag.ui.home_clear_search": "清除搜索",
   "easydrag.ui.home_delete": "删除",

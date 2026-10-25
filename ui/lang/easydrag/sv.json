@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.card_state_off": "avstängd",
   "easydrag.ui.error_flow_action_rule_required": "En passande åtgärdsregel saknas. Lägg till en regel under Konfiguration → Farozon och starta sedan om manuellt. Inget automatiskt nytt försök görs.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU-reservläge har inte uttryckligen tillåtits.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Inferensenheten har inte verifierats.",
@@ -554,6 +555,7 @@
   "easydrag.ui.form_no_params": "Det här steget behöver inga inställningar.",
   "easydrag.ui.hint_plaintext_value": "Sparas i flödet som klartext. Klistra inte in lösenord eller nycklar här.",
   "easydrag.ui.history_label": "Ångra och gör om",
+  "easydrag.ui.home_active_named": "Aktiv: {name}",
   "easydrag.ui.home_clear_filter": "Rensa filter",
   "easydrag.ui.home_clear_search": "Rensa sökning",
   "easydrag.ui.home_delete": "Ta bort",

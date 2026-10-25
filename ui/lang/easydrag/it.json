@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.card_state_off": "disattivato",
   "easydrag.ui.error_flow_action_rule_required": "Manca una regola di azione corrispondente. Aggiungi una regola in Configurazione → Zona pericolosa, poi avvia di nuovo manualmente. Nessun nuovo tentativo automatico.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "L’uso di ripiego della CPU non è stato autorizzato esplicitamente.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Il dispositivo di inferenza non è stato verificato.",
@@ -554,6 +555,7 @@
   "easydrag.ui.form_no_params": "Questo passo non richiede impostazioni.",
   "easydrag.ui.hint_plaintext_value": "Salvato nel flusso come testo in chiaro. Non incollare qui password o chiavi.",
   "easydrag.ui.history_label": "Annulla e ripristina",
+  "easydrag.ui.home_active_named": "Attivo: {name}",
   "easydrag.ui.home_clear_filter": "Azzera il filtro",
   "easydrag.ui.home_clear_search": "Cancella la ricerca",
   "easydrag.ui.home_delete": "Elimina",

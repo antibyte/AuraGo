@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.card_state_off": "desactivado",
   "easydrag.ui.error_flow_action_rule_required": "Falta una regla de acción correspondiente. Añade una regla en Configuración → Zona de peligro y vuelve a iniciar manualmente. No se reintentará automáticamente.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "El uso alternativo de CPU no está autorizado expresamente.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "El dispositivo de inferencia no está verificado.",
@@ -554,6 +555,7 @@
   "easydrag.ui.form_no_params": "Este paso no necesita ajustes.",
   "easydrag.ui.hint_plaintext_value": "Se guarda en el flujo como texto sin cifrar. No pegues aquí contraseñas ni claves.",
   "easydrag.ui.history_label": "Deshacer y rehacer",
+  "easydrag.ui.home_active_named": "Activo: {name}",
   "easydrag.ui.home_clear_filter": "Quitar el filtro",
   "easydrag.ui.home_clear_search": "Borrar la búsqueda",
   "easydrag.ui.home_delete": "Eliminar",

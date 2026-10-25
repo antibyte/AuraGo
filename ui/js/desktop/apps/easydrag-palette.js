@@ -468,10 +468,14 @@
             else if (event.key === 'Escape' || event.key === 'Tab') { event.preventDefault(); close(); giveFocusBack(); }
             event.stopPropagation();
         });
+        // A press only keeps the focus in the search field; the choice is made on click, so a touch
+        // that scrolls the list adds nothing (U11).
         listEl.addEventListener('pointerdown', (event) => {
+            if (event.target.closest('[data-ed-index]')) event.preventDefault();
+        });
+        listEl.addEventListener('click', (event) => {
             const item = event.target.closest('[data-ed-index]');
             if (!item) return;
-            event.preventDefault();
             choose(Number(item.dataset.edIndex));
         });
         // Listen for outside presses from the next task on (not the press that opened the popover),

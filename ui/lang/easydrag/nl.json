@@ -1,4 +1,5 @@
 {
+  "easydrag.ui.card_state_off": "uitgeschakeld",
   "easydrag.ui.error_flow_action_rule_required": "Er ontbreekt een passende actieregel. Voeg een regel toe onder Configuratie → Gevarenzone en start daarna handmatig opnieuw. Er volgt geen automatische nieuwe poging.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU-terugval is niet uitdrukkelijk toegestaan.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Het inferentieapparaat is niet geverifieerd.",
@@ -554,6 +555,7 @@
   "easydrag.ui.form_no_params": "Deze stap heeft geen instellingen nodig.",
   "easydrag.ui.hint_plaintext_value": "Wordt als platte tekst in de flow opgeslagen. Plak hier geen wachtwoorden of sleutels.",
   "easydrag.ui.history_label": "Ongedaan maken en opnieuw",
+  "easydrag.ui.home_active_named": "Actief: {name}",
   "easydrag.ui.home_clear_filter": "Filter wissen",
   "easydrag.ui.home_clear_search": "Zoekopdracht wissen",
   "easydrag.ui.home_delete": "Verwijderen",
