@@ -150,3 +150,75 @@ func TestReadOnlyStopsRemainNarrowAndTimedRecordingIsRejected(t *testing.T) {
 		t.Fatalf("unexpected upstream mutations: %d", calls)
 	}
 }
+
+func TestRuViewTestKeepsLifecycleError(t *testing.T) {
+	for _, code := range []string{"stop_failed", "process_exited"} {
+		for _, probeFails := range []bool{false, true} {
+			t.Run(code+map[bool]string{false: "/probe-ok", true: "/probe-fails"}[probeFails], func(t *testing.T) {
+				m, c := fixture(t, func(w http.ResponseWriter, r *http.Request) {
+					if probeFails {
+						http.Error(w, "down", http.StatusServiceUnavailable)
+						return
+					}
+					io.WriteString(w, `{"status":"ready","source":"esp32","source_state":"live_unverified","last_frame_age_ms":5,"waiting_for_frames":false}`)
+				})
+				c.Directories.DataDir = t.TempDir()
+				m.mu.Lock()
+				m.status = Status{DataState: "disconnected", Error: code}
+				if code == "stop_failed" {
+					// The runtime is still owned, so the health loop would normally keep probing it.
+					m.managed, m.runningConfig = true, c
+				}
+				m.mu.Unlock()
+				for range 2 {
+					s, err := m.Test(context.Background())
+					if (err != nil) != probeFails || s.Error != code || s.Ready == probeFails {
+						t.Fatalf("probe replaced the lifecycle error: %+v %v", s, err)
+					}
+					if !probeFails && (!s.Fresh || s.DataState != "live_unverified" || s.ObservedAt == nil) {
+						t.Fatalf("fresh probe data was not stored: %+v", s)
+					}
+				}
+				if code == "stop_failed" && m.watch(context.Background()) != nil {
+					t.Fatal("the stop_failed guard was bypassed after a probe")
+				}
+				// An explicit stop replaces the status, so the next probe reports plainly.
+				if err := m.Stop(context.Background()); err != nil {
+					t.Fatal(err)
+				}
+				if s := m.Status(); s.Error != "" || s.DataState != "stopped" {
+					t.Fatalf("explicit stop did not clear the lifecycle error: %+v", s)
+				}
+				if s, err := m.Test(context.Background()); (err != nil) != probeFails || lifecycleError(s.Error) {
+					t.Fatalf("lifecycle error survived an explicit stop: %+v %v", s, err)
+				}
+			})
+		}
+	}
+}
+
+func TestRuViewConfigureKeepsLifecycleError(t *testing.T) {
+	m, _ := nativeFixture(t)
+	c := m.config()
+	m.mu.Lock()
+	m.status = Status{Error: "stop_failed", DataState: "disconnected"}
+	m.mu.Unlock()
+	m.Configure() // the baseline configuration is recorded
+	c.RuView.AgentAccess = !c.RuView.AgentAccess
+	m.Configure()
+	if s := m.Status(); s.Error != "stop_failed" {
+		t.Fatalf("configuration change cleared the unconfirmed stop: %+v", s)
+	}
+	if m.watch(context.Background()) != nil {
+		t.Fatal("configuration change re-enabled health probing of an unconfirmed runtime")
+	}
+	// Other statuses are still reset, and an explicit stop still clears the code.
+	m.mu.Lock()
+	m.status = Status{Ready: true, DataState: "live_unverified"}
+	m.mu.Unlock()
+	c.RuView.AgentAccess = !c.RuView.AgentAccess
+	m.Configure()
+	if s := m.Status(); s.Ready || s.Error != "" {
+		t.Fatalf("configuration change kept probe data: %+v", s)
+	}
+}

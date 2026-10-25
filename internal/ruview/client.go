@@ -5,6 +5,7 @@ package ruview
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -23,6 +24,10 @@ const FirmwareVersion = "0.8.12"
 const TokenKey = "ruview_api_token"
 const ManagedTokenKey = "ruview_managed_token"
 const maxResponseBytes = 8 << 20
+
+// errInvalidReply marks a 2xx reply that is not JSON or exceeds the size limit,
+// so callers can tell it from a failed request.
+var errInvalidReply = errors.New("RuView response is incomplete or invalid")
 
 // newClient pins every dial to a checked address of the saved origin. Proxy
 // environment variables cannot turn an explicit LAN grant into a public relay.
@@ -114,8 +119,11 @@ func (m *Manager) request(ctx context.Context, c *config.Config, method, path st
 		return nil, fmt.Errorf("RuView returned HTTP %d", resp.StatusCode)
 	}
 	data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
-	if err != nil || len(data) > maxResponseBytes || !json.Valid(data) {
+	if err != nil {
 		return nil, fmt.Errorf("RuView response is incomplete or invalid")
+	}
+	if len(data) > maxResponseBytes || !json.Valid(data) {
+		return nil, fmt.Errorf("%w", errInvalidReply)
 	}
 	return json.RawMessage(security.Scrub(string(data))), nil
 }

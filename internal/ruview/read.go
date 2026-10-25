@@ -24,6 +24,7 @@ type payloadRead struct {
 }
 
 // presenceRead is the agent summary. It never carries a scope path, a file path, or Wi-Fi data.
+// live_state is NodeList.LiveState: it tells an offline board from a live list that could not be read.
 type presenceRead struct {
 	Source      string         `json:"source"`
 	ObservedAt  time.Time      `json:"observed_at"`
@@ -32,6 +33,7 @@ type presenceRead struct {
 	Simulated   bool           `json:"simulated"`
 	DataState   string         `json:"data_state"`
 	StatusError string         `json:"status_error,omitempty"`
+	LiveState   string         `json:"live_state"`
 	Nodes       []presenceNode `json:"nodes"`
 }
 
@@ -50,7 +52,7 @@ func (m *Manager) readPresence(ctx context.Context) (presenceRead, error) {
 	if err != nil {
 		return presenceRead{}, err
 	}
-	out := presenceRead{Nodes: make([]presenceNode, 0, len(list.Nodes))}
+	out := presenceRead{LiveState: list.LiveState, Nodes: make([]presenceNode, 0, len(list.Nodes))}
 	m.attachStatus(ctx, &out.Source, &out.Fresh, &out.Simulated, &out.DataState, &out.StatusError)
 	out.ObservedAt = time.Now().UTC()
 	out.Revision = Revision

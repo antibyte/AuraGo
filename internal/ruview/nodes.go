@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -23,9 +24,20 @@ type Node struct {
 	RSSI          *float64 `json:"rssi_dbm"`
 }
 
+// NodeList.LiveState says why the live list is, or is not, part of Nodes.
+// Available is kept for compatibility and is true exactly for liveStateOK.
+const (
+	liveStateOK            = "ok"             // upstream list was read and valid
+	liveStateNotApplicable = "not_applicable" // the configured source has no node list
+	liveStateNotRunning    = "not_running"    // managed runtime is not running in this process; upstream was not dialed
+	liveStateUnreachable   = "unreachable"    // the upstream request failed
+	liveStateInvalid       = "invalid"        // the upstream reply was not a valid node list
+)
+
 type NodeList struct {
 	Nodes     []Node `json:"nodes"`
 	Available bool   `json:"available"`
+	LiveState string `json:"live_state"`
 	Scope     string `json:"scope"`
 }
 
@@ -41,15 +53,29 @@ func (m *Manager) Nodes(parent context.Context) (NodeList, error) {
 	if err != nil {
 		return NodeList{}, err
 	}
-	result := NodeList{Nodes: []Node{}, Scope: filepath.Base(name)}
+	result := NodeList{Nodes: []Node{}, Scope: filepath.Base(name), LiveState: liveStateNotApplicable}
 	if c.RuView.Source == "esp32" {
-		data, err := m.request(ctx, c, "GET", "/api/v1/nodes", nil)
-		if err == nil {
-			var live struct {
-				Nodes *[]Node `json:"nodes"`
-			}
-			if json.Unmarshal(data, &live) == nil && live.Nodes != nil && validNodes(*live.Nodes) {
-				result.Nodes, result.Available = *live.Nodes, true
+		m.mu.Lock()
+		running := m.runningLocked()
+		m.mu.Unlock()
+		if c.RuView.Mode != "external" && !running {
+			// Nothing of ours is listening; dialing would only report a refused connection as a fault.
+			result.LiveState = liveStateNotRunning
+		} else {
+			result.LiveState = liveStateUnreachable
+			data, err := m.request(ctx, c, "GET", "/api/v1/nodes", nil)
+			switch {
+			case err == nil:
+				result.LiveState = liveStateInvalid
+				var live struct {
+					Nodes *[]Node `json:"nodes"`
+				}
+				if json.Unmarshal(data, &live) == nil && live.Nodes != nil && validNodes(*live.Nodes) {
+					result.Nodes, result.Available, result.LiveState = *live.Nodes, true, liveStateOK
+				}
+			case errors.Is(err, errInvalidReply):
+				// The service answered 2xx, but not with JSON it could be asked to parse.
+				result.LiveState = liveStateInvalid
 			}
 		}
 	}

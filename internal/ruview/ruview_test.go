@@ -120,7 +120,7 @@ func TestStatusAgingPreservesMissingDataAndFailures(t *testing.T) {
 			}
 			m.observed = time.Now().Add(-11 * time.Second)
 			after := m.Status()
-			if after.DataState != tc.state || after.Fresh || after.Error != before.Error || after.Ready != before.Ready {
+			if after.DataState != tc.state || after.Fresh || after.Error != before.Error || after.Ready != before.Ready || after.WaitingForFrames != (tc.name == "waiting for first frame") {
 				t.Fatalf("missing measurements became stale readings: %+v", after)
 			}
 		})
@@ -315,8 +315,15 @@ func TestStatusUDPFieldsStayPassive(t *testing.T) {
 	}
 	c.RuView.Mode = "docker"
 	s = m.Status()
+	if calls.Load() != 0 || s.UDPScope != "managed" || !s.UDPEnabled || s.UDPReady {
+		t.Fatalf("managed UDP settings were not reported, or a stopped runtime looked ready: %+v", s)
+	}
+	m.mu.Lock()
+	m.managed = true
+	m.mu.Unlock()
+	s = m.Status()
 	if calls.Load() != 0 || s.UDPScope != "managed" || !s.UDPEnabled || !s.UDPReady {
-		t.Fatalf("managed UDP was not reported from saved settings: %+v", s)
+		t.Fatalf("running managed UDP was not reported from saved settings: %+v", s)
 	}
 	c.RuView.UDPAllow = nil
 	if s = m.Status(); s.UDPReady || s.UDPScope != "managed" {
@@ -329,6 +336,52 @@ func TestStatusUDPFieldsStayPassive(t *testing.T) {
 	c.RuView.Enabled = false
 	if s = m.Status(); s.UDPScope != "off" || s.DataState != "disabled" || s.UDPReady || calls.Load() != 0 {
 		t.Fatalf("disabled status probed or kept a UDP failure: %+v calls=%d", s, calls.Load())
+	}
+}
+
+func TestRuViewUDPReadyRequiresRunningRuntime(t *testing.T) {
+	managed := config.DefaultRuViewConfig()
+	managed.Enabled, managed.UDPEnabled, managed.UDPBind, managed.UDPAllow = true, true, "192.168.1.20", []string{"192.168.1.50"}
+	for _, tc := range []struct {
+		name    string
+		edit    func(*config.RuViewConfig)
+		running bool
+		ready   bool
+		scope   string
+	}{
+		{"managed and stopped", func(*config.RuViewConfig) {}, false, false, "managed"},
+		{"managed and running", func(*config.RuViewConfig) {}, true, true, "managed"},
+		{"running without UDP", func(c *config.RuViewConfig) { c.UDPEnabled = false }, true, false, "managed"},
+		{"running without allowlist", func(c *config.RuViewConfig) { c.UDPAllow = nil }, true, false, "managed"},
+		{"running with a public bind", func(c *config.RuViewConfig) { c.UDPBind = "8.8.8.8" }, true, false, "managed"},
+		{"external operator", func(c *config.RuViewConfig) { c.Mode = "external" }, true, false, "external"},
+		{"disabled", func(c *config.RuViewConfig) { c.Enabled = false }, true, false, "off"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := managed
+			tc.edit(&c)
+			s := applyPassiveStatus(Status{}, c, tc.running, "", "")
+			if s.UDPReady != tc.ready || s.UDPScope != tc.scope {
+				t.Fatalf("udp_ready=%v scope=%q", s.UDPReady, s.UDPScope)
+			}
+			if tc.name == "managed and stopped" && !s.UDPEnabled {
+				t.Fatal("saved UDP setting was hidden")
+			}
+		})
+	}
+	// An exited native process must not count as running, even before the health loop reaps it.
+	m, c := fixture(t, func(http.ResponseWriter, *http.Request) {})
+	c.RuView.Mode, c.RuView.UDPEnabled, c.RuView.UDPBind, c.RuView.UDPAllow = "docker", true, "192.168.1.20", []string{"192.168.1.50"}
+	p := &nativeProcess{done: make(chan struct{})}
+	m.mu.Lock()
+	m.managed, m.process = true, p
+	m.mu.Unlock()
+	if s := m.Status(); !s.UDPReady {
+		t.Fatalf("running process was not ready: %+v", s)
+	}
+	close(p.done)
+	if s := m.Status(); s.UDPReady || !s.UDPEnabled {
+		t.Fatalf("exited process still looked ready: %+v", s)
 	}
 }
 

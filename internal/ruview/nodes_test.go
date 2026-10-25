@@ -6,7 +6,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -174,5 +176,84 @@ func TestKnownNodesConcurrentRegistrationKeepsEveryBoard(t *testing.T) {
 	}
 	if m.RememberNode(context.Background(), 8) == nil {
 		t.Fatal("duplicate stored IDs were not rejected")
+	}
+}
+
+func TestRuViewNodesLiveState(t *testing.T) {
+	const valid = `{"nodes":[{"node_id":7,"csi_status":"active","csi_last_seen_ms":1,"csi_sequence":2}]}`
+	for _, tc := range []struct {
+		name, source, mode string
+		running            bool
+		status             int
+		body, want         string
+		dials              int32
+		live               []int
+	}{
+		{"wifi source has no node list", "wifi", "external", false, 0, valid, "not_applicable", 0, nil},
+		{"managed runtime not running", "esp32", "docker", false, 0, valid, "not_running", 0, nil},
+		{"managed runtime running", "esp32", "docker", true, 0, valid, "ok", 1, []int{7}},
+		{"upstream failure", "esp32", "external", false, http.StatusServiceUnavailable, "", "unreachable", 1, nil},
+		{"invalid reply", "esp32", "external", false, 0, `{"nodes":[{"node_id":0,"csi_status":"active"}]}`, "invalid", 1, nil},
+		{"non-JSON reply", "esp32", "external", false, 0, "<html>login</html>", "invalid", 1, nil},
+		{"valid reply", "esp32", "external", false, 0, valid, "ok", 1, []int{7}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var dials atomic.Int32
+			m, c := fixture(t, func(w http.ResponseWriter, r *http.Request) {
+				dials.Add(1)
+				if tc.status != 0 {
+					http.Error(w, "down", tc.status)
+					return
+				}
+				io.WriteString(w, tc.body)
+			})
+			// A managed runtime is always dialed on loopback, so point it at the fake: a stray dial would be counted.
+			u, err := url.Parse(c.RuView.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if c.RuView.HTTPPort, err = strconv.Atoi(u.Port()); err != nil {
+				t.Fatal(err)
+			}
+			c.Directories.DataDir = t.TempDir()
+			c.RuView.ReadOnly = false
+			c.RuView.Mode, c.RuView.Source = tc.mode, tc.source
+			if tc.mode != "external" {
+				c.RuView.URL = ""
+			}
+			if tc.running {
+				m.mu.Lock()
+				m.managed = true
+				m.mu.Unlock()
+			}
+			if err = m.RememberNode(context.Background(), 3); err != nil {
+				t.Fatal(err)
+			}
+			got, err := m.Nodes(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.LiveState != tc.want || got.Available != (tc.want == "ok") || dials.Load() != tc.dials {
+				t.Fatalf("live_state=%q available=%v dials=%d: %+v", got.LiveState, got.Available, dials.Load(), got)
+			}
+			// Saved identities stay visible as offline boards in every state; only live IDs carry telemetry.
+			want := append([]int{3}, tc.live...)
+			if len(got.Nodes) != len(want) {
+				t.Fatalf("nodes: %+v", got.Nodes)
+			}
+			for i, node := range got.Nodes {
+				wantStatus := "offline"
+				if node.NodeID == 7 {
+					wantStatus = "active"
+				}
+				if node.NodeID != want[i] || node.CSIStatus != wantStatus {
+					t.Fatalf("node %d: %+v", i, node)
+				}
+			}
+			data, err := json.Marshal(got)
+			if err != nil || !strings.Contains(string(data), `"live_state":"`+tc.want+`"`) {
+				t.Fatalf("wire shape: %s %v", data, err)
+			}
+		})
 	}
 }

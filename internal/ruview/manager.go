@@ -30,6 +30,7 @@ type Status struct {
 	Signal             string     `json:"signal"`
 	Simulated          bool       `json:"simulated"`
 	Fresh              bool       `json:"fresh"`
+	WaitingForFrames   bool       `json:"waiting_for_frames"`
 	ObservedAt         *time.Time `json:"observed_at"`
 	FrameAgeMS         *int64     `json:"last_frame_age_ms"`
 	Error              string     `json:"error,omitempty"`
@@ -78,6 +79,9 @@ func New(snapshot func() *config.Config, vault *security.Vault, logger *slog.Log
 }
 
 // Configure revokes active streams immediately; it never installs or starts a runtime.
+// A lifecycle error survives a configuration change: only an explicit Start or
+// Stop confirms the runtime state, so toggling a setting must not re-enable
+// health probing of a runtime whose stop was never confirmed.
 func (m *Manager) Configure() {
 	c := m.config().RuView
 	m.mu.Lock()
@@ -86,7 +90,11 @@ func (m *Manager) Configure() {
 		m.cancel()
 		m.generation, m.cancel = context.WithCancel(context.Background())
 		m.previous = c
+		previous := m.status
 		m.status = Status{}
+		if lifecycleError(previous.Error) {
+			m.status.Error = previous.Error
+		}
 		m.observed = time.Time{}
 	}
 }
@@ -105,6 +113,7 @@ func (m *Manager) Status() Status {
 	m.mu.Lock()
 	s := m.status
 	s.RevisionVerified = m.managed
+	running := m.runningLocked()
 	observed := m.observed
 	session, ack := m.recordingSession, m.recordingAck
 	m.mu.Unlock()
@@ -113,7 +122,7 @@ func (m *Manager) Status() Status {
 	s.AgentAccess = c.AgentAccess
 	s.Mode = c.Mode
 	s.Revision = Revision
-	s = applyPassiveStatus(s, c, session, ack)
+	s = applyPassiveStatus(s, c, running, session, ack)
 	if s.Source == "" {
 		s.Source = c.Source
 	}
@@ -123,6 +132,7 @@ func (m *Manager) Status() Status {
 	if !c.Enabled {
 		s.Ready = false
 		s.Fresh = false
+		s.WaitingForFrames = false
 		s.DataState = "disabled"
 		return s
 	}
@@ -137,9 +147,29 @@ func (m *Manager) Status() Status {
 	return s
 }
 
-// applyPassiveStatus copies saved configuration and this process's recording
-// marker. It never dials, resolves DNS, or reads the node inventory.
-func applyPassiveStatus(s Status, c config.RuViewConfig, session, ack string) Status {
+// runningLocked reports whether this process owns a managed runtime that has
+// not exited. It only reads: reaping an exited native process mutates state and
+// needs opMu, so passive readers must not do it. Called with mu held.
+// For Docker this means "started by this process and not stopped", not
+// "container alive": a container that exits on its own is not noticed (M24).
+func (m *Manager) runningLocked() bool {
+	if !m.managed {
+		return false
+	}
+	if m.process != nil {
+		select {
+		case <-m.process.done:
+			return false
+		default:
+		}
+	}
+	return true
+}
+
+// applyPassiveStatus copies saved configuration, whether this process runs the
+// managed runtime, and this process's recording marker. It never dials, resolves
+// DNS, or reads the node inventory.
+func applyPassiveStatus(s Status, c config.RuViewConfig, running bool, session, ack string) Status {
 	s.ReceiverConfigured = config.RuViewPrivateIPv4(c.ReceiverIP)
 	s.UDPEnabled = c.Mode != "external" && c.UDPEnabled
 	s.UDPReady = false
@@ -151,7 +181,8 @@ func applyPassiveStatus(s Status, c config.RuViewConfig, session, ack string) St
 		s.UDPEnabled = false
 	default:
 		s.UDPScope = "managed"
-		s.UDPReady = s.UDPEnabled && config.RuViewPrivateIPv4(c.UDPBind) && len(c.UDPAllow) > 0
+		// Saved settings alone do not receive packets: a stopped or exited runtime listens on nothing.
+		s.UDPReady = running && s.UDPEnabled && config.RuViewPrivateIPv4(c.UDPBind) && len(c.UDPAllow) > 0
 	}
 	s.RecordingSession = session
 	if s.RecordingSession == "" {
@@ -220,6 +251,7 @@ func (m *Manager) test(parent context.Context, generation context.Context) (Stat
 			s.FrameAgeMS = raw.Age
 			s.Simulated = raw.State == "synthetic"
 			s.Fresh = raw.State == "live_unverified" && raw.Age != nil && *raw.Age >= 0 && *raw.Age <= 10000 && !raw.Waiting
+			s.WaitingForFrames = raw.Waiting
 			if s.Simulated {
 				s.Signal = "demo"
 			} else if s.Source == "wifi" {
@@ -247,6 +279,13 @@ func (m *Manager) test(parent context.Context, generation context.Context) (Stat
 	if current {
 		previous = m.status
 		s.StorageLimit = m.status.StorageLimit
+		// A probe reports what the service answers; it cannot prove the runtime
+		// lifecycle recovered. A lifecycle failure keeps its code (and keeps the
+		// watch guard on "stop_failed" effective) until an explicit Start or Stop
+		// replaces the status. The rest of the probe data is still stored.
+		if lifecycleError(previous.Error) {
+			s.Error = previous.Error
+		}
 		m.status = s
 		m.observed = now
 		stored = true
@@ -259,6 +298,12 @@ func (m *Manager) test(parent context.Context, generation context.Context) (Stat
 		return m.Status(), context.Canceled
 	}
 	return m.Status(), err
+}
+
+// lifecycleError reports the status error codes written by stopRuntime and
+// reapNativeLocked. Only start and stopRuntime replace them.
+func lifecycleError(code string) bool {
+	return code == "stop_failed" || code == "process_exited"
 }
 
 func (m *Manager) Read(ctx context.Context, operation string) (any, error) {
@@ -317,6 +362,8 @@ func (m *Manager) StartBackground(parent context.Context) {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
 		var checked time.Time
+		// Touched only by the single probe goroutine at a time (probeDone orders them).
+		var listState string
 		probeDone := make(chan struct{}, 1)
 		probing := false
 		defer func() {
@@ -342,8 +389,15 @@ func (m *Manager) StartBackground(parent context.Context) {
 						defer stop()
 						status, err := m.test(probe, generation)
 						if err == nil && status.Ready && status.Source == "esp32" && !status.Simulated && generation.Err() == nil {
-							if _, err := m.Nodes(probe); err != nil && probe.Err() == nil {
+							list, err := m.Nodes(probe)
+							if err != nil && probe.Err() == nil {
 								m.logger.Warn("RuView device inventory refresh failed", "error", err)
+							} else if err == nil {
+								// Warn on entering a broken state, not on every 3-second probe.
+								if broken := list.LiveState == liveStateUnreachable || list.LiveState == liveStateInvalid; broken && list.LiveState != listState {
+									m.logger.Warn("RuView live device list unavailable", "live_state", list.LiveState)
+								}
+								listState = list.LiveState
 							}
 						}
 						probeDone <- struct{}{}
