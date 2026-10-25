@@ -37,6 +37,11 @@ type RunnerConfig struct {
 	// reports it like a run cancelled while queued. It is called on the run's goroutine,
 	// outside all locks. The Service sets it to its bridge's RunGate.
 	Gate func() error
+	// MaxSlotsPerFlow caps the global slots that the counted (non-test) runs of one flow hold at
+	// the same time; it matters for parallel flows, which otherwise only obey MaxParallelRuns.
+	// Zero or less means half of MaxParallelRuns, at least 1. A run over it waits in the global
+	// queue without holding up the runs of other flows behind it (S5).
+	MaxSlotsPerFlow int
 }
 
 // RunnerHooks observe runs. OnRunFinished is called for every run (also runs cancelled
@@ -137,6 +142,7 @@ type Runner struct {
 	closed    bool
 	slots     int
 	live      map[string]int
+	flowSlots map[string]int // global slots held by counted runs, per flow (MaxSlotsPerFlow)
 	flowQueue map[string][]*pendingRun
 	waiting   []*pendingRun
 	cancels   map[string]activeRun
@@ -157,6 +163,9 @@ func NewRunner(engine *Engine, store *Store, hooks RunnerHooks, cfg RunnerConfig
 	if cfg.MaxQueuedPerFlow <= 0 {
 		cfg.MaxQueuedPerFlow = DefaultMaxQueuedPerFlow
 	}
+	if cfg.MaxSlotsPerFlow <= 0 {
+		cfg.MaxSlotsPerFlow = max(1, cfg.MaxParallelRuns/2)
+	}
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -166,6 +175,7 @@ func NewRunner(engine *Engine, store *Store, hooks RunnerHooks, cfg RunnerConfig
 		bus:       NewEventBus(eventRetention, engine.services.Now),
 		now:       engine.services.Now,
 		live:      map[string]int{},
+		flowSlots: map[string]int{},
 		flowQueue: map[string][]*pendingRun{},
 		cancels:   map[string]activeRun{},
 		baseCtx:   ctx,
@@ -205,7 +215,8 @@ func (r *Runner) Start(req StartRequest) (StartResult, error) {
 	r.mu.Lock()
 	closed, busy := r.closed, exclusive && r.busyLocked(flowID)
 	full := busy && len(r.flowQueue[flowID]) >= r.cfg.MaxQueuedPerFlow
-	if !exclusive && r.slots >= r.cfg.MaxParallelRuns {
+	slotless := r.slots >= r.cfg.MaxParallelRuns || !r.fitsLocked(flowID, counted)
+	if !exclusive && slotless {
 		// Only Start adds runs like this one to the waiting list, so the cap holds
 		// exactly; for a queue or skip flow's test run, its waiting live run counts too.
 		full = r.waitingLocked(flowID) >= r.cfg.MaxQueuedPerFlow
@@ -252,25 +263,70 @@ func (r *Runner) newPending(req StartRequest, counted bool) (*pendingRun, error)
 	return &pendingRun{req: req, rec: rec, counted: counted}, nil
 }
 
-// admitLocked takes the flow slot for counted runs and launches the run when a
-// global slot is free and no earlier run waits for one. Otherwise the run waits at
-// the end of the global queue, so a flow's next queued run cannot overtake runs
-// that waited for a slot before it.
+// admitLocked takes the flow slot for counted runs and puts the run at the end of the global
+// queue; dispatchLocked launches it at once when a slot is free and nothing that may start waits
+// before it. It reports whether the run started. A flow's next queued run therefore cannot
+// overtake runs that waited for a slot before it.
 func (r *Runner) admitLocked(p *pendingRun) bool {
 	if p.counted {
 		r.live[p.rec.FlowID]++
 	}
-	if r.slots < r.cfg.MaxParallelRuns && len(r.waiting) == 0 {
-		r.launchLocked(p)
-		return true
+	// A run that does not start at once waited, so it asks the gate when it executes (batch 3).
+	// Decided before the launch: the run's goroutine reads the flag.
+	if !(r.slots < r.cfg.MaxParallelRuns && r.fitsLocked(p.rec.FlowID, p.counted) && r.nextWaitingLocked() < 0) {
+		p.waited = true
 	}
-	p.waited = true
 	r.waiting = append(r.waiting, p)
-	return false
+	r.dispatchLocked()
+	_, started := r.cancels[p.rec.ID]
+	return started
+}
+
+// dispatchLocked hands out free global slots in arrival order. A run whose flow already holds its
+// share of slots (MaxSlotsPerFlow) is passed over and keeps its place, so one flooding parallel
+// flow cannot hold up the runs of other flows queued behind its own (S5). Every run in r.waiting
+// has p.waited set unless admitLocked launches it at once, so Runner.execute asks the gate.
+func (r *Runner) dispatchLocked() {
+	for !r.closed && r.slots < r.cfg.MaxParallelRuns {
+		i := r.nextWaitingLocked()
+		if i < 0 {
+			return
+		}
+		p := r.waiting[i]
+		// A new slice: the old backing array must not keep the run's trigger data.
+		r.waiting = append(r.waiting[:i:i], r.waiting[i+1:]...)
+		r.launchLocked(p)
+	}
+}
+
+// nextWaitingLocked returns the index of the first waiting run that may take a slot, or -1.
+func (r *Runner) nextWaitingLocked() int {
+	for i, p := range r.waiting {
+		if r.fitsLocked(p.rec.FlowID, p.counted) {
+			return i
+		}
+	}
+	return -1
+}
+
+// fitsLocked reports whether a run of flowID may take one more global slot: a test run always,
+// a counted run while its flow holds fewer than MaxSlotsPerFlow.
+func (r *Runner) fitsLocked(flowID string, counted bool) bool {
+	return !counted || r.flowSlots[flowID] < r.cfg.MaxSlotsPerFlow
+}
+
+// dropFlowSlotLocked gives back one of the flow's global slots.
+func (r *Runner) dropFlowSlotLocked(flowID string) {
+	if r.flowSlots[flowID]--; r.flowSlots[flowID] <= 0 {
+		delete(r.flowSlots, flowID)
+	}
 }
 
 func (r *Runner) launchLocked(p *pendingRun) {
 	r.slots++
+	if p.counted {
+		r.flowSlots[p.rec.FlowID]++
+	}
 	ctx, cancel := context.WithCancel(r.baseCtx)
 	r.cancels[p.rec.ID] = activeRun{flowID: p.rec.FlowID, mode: p.rec.Mode, cancel: cancel}
 	r.wg.Add(1)
@@ -430,16 +486,14 @@ func (r *Runner) release(p *pendingRun) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.slots--
+	if p.counted {
+		r.dropFlowSlotLocked(p.rec.FlowID)
+	}
 	delete(r.cancels, p.rec.ID)
 	if p.counted {
 		r.releaseFlowLocked(p.rec.FlowID)
 	}
-	for !r.closed && r.slots < r.cfg.MaxParallelRuns && len(r.waiting) > 0 {
-		next := r.waiting[0]
-		r.waiting[0] = nil // the backing array must not keep the run's trigger data
-		r.waiting = r.waiting[1:]
-		r.launchLocked(next)
-	}
+	r.dispatchLocked()
 }
 
 // releaseFlowLocked frees the flow slot and admits the next queued run of the flow.
