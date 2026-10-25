@@ -803,6 +803,7 @@
   "easydrag.ui.run_view_banner": "{time} का रन · {status} · संस्करण {revision} (केवल पढ़ने के लिए)",
   "easydrag.ui.run_view_exit": "ड्राफ़्ट पर वापस जाएँ",
   "easydrag.ui.run_view_missing": "इस रन का फ़्लो संस्करण अब उपलब्ध नहीं है।",
+  "easydrag.ui.run_view_pruned": "इस फ़्लो का संस्करण {revision} साफ़ कर दिया गया: EasyDrag अंतिम 50 प्रकाशित संस्करण रखता है। रन सूची में बना रहता है।",
   "easydrag.ui.runs_empty": "अभी कोई रन नहीं।",
   "easydrag.ui.runs_filter_all": "सभी",
   "easydrag.ui.runs_filter_errors": "त्रुटियाँ",

@@ -803,6 +803,7 @@
   "easydrag.ui.run_view_banner": "Uitvoering van {time} · {status} · versie {revision} (alleen-lezen)",
   "easydrag.ui.run_view_exit": "Terug naar concept",
   "easydrag.ui.run_view_missing": "De flowversie van deze uitvoering is niet meer beschikbaar.",
+  "easydrag.ui.run_view_pruned": "Versie {revision} van deze flow is opgeruimd: EasyDrag bewaart de laatste 50 gepubliceerde versies. De run blijft in de lijst staan.",
   "easydrag.ui.runs_empty": "Nog geen uitvoeringen.",
   "easydrag.ui.runs_filter_all": "Alle",
   "easydrag.ui.runs_filter_errors": "Fouten",

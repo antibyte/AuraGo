@@ -803,6 +803,7 @@
   "easydrag.ui.run_view_banner": "{time} 的运行 · {status} · 版本 {revision}（只读）",
   "easydrag.ui.run_view_exit": "返回草稿",
   "easydrag.ui.run_view_missing": "此次运行所用的流程版本已不可用。",
+  "easydrag.ui.run_view_pruned": "此流程的版本 {revision} 已被清理：EasyDrag 保留最近 50 个已发布版本。该运行仍保留在列表中。",
   "easydrag.ui.runs_empty": "暂无运行记录。",
   "easydrag.ui.runs_filter_all": "全部",
   "easydrag.ui.runs_filter_errors": "错误",

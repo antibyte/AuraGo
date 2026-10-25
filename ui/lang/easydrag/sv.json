@@ -803,6 +803,7 @@
   "easydrag.ui.run_view_banner": "Körning från {time} · {status} · version {revision} (skrivskyddad)",
   "easydrag.ui.run_view_exit": "Tillbaka till utkastet",
   "easydrag.ui.run_view_missing": "Flödesversionen för den här körningen är inte längre tillgänglig.",
+  "easydrag.ui.run_view_pruned": "Version {revision} av det här flödet har rensats bort: EasyDrag behåller de senaste 50 publicerade versionerna. Körningen finns kvar i listan.",
   "easydrag.ui.runs_empty": "Inga körningar än.",
   "easydrag.ui.runs_filter_all": "Alla",
   "easydrag.ui.runs_filter_errors": "Fel",

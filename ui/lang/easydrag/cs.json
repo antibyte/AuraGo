@@ -803,6 +803,7 @@
   "easydrag.ui.run_view_banner": "Běh z {time} · {status} · verze {revision} (jen ke čtení)",
   "easydrag.ui.run_view_exit": "Zpět ke konceptu",
   "easydrag.ui.run_view_missing": "Verze toku pro tento běh už není k dispozici.",
+  "easydrag.ui.run_view_pruned": "Verze {revision} tohoto flow byla vyčištěna: EasyDrag uchovává posledních 50 publikovaných verzí. Běh zůstává v seznamu.",
   "easydrag.ui.runs_empty": "Zatím žádné běhy.",
   "easydrag.ui.runs_filter_all": "Vše",
   "easydrag.ui.runs_filter_errors": "Chyby",

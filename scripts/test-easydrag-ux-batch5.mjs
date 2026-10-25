@@ -324,6 +324,24 @@ export async function run(env) {
             [start, inView, after, open(), h.logged], [false, false, true, false, []]);
         editor.dispose();
     });
+    // ── G3: the version of a viewed run was cleaned up ──
+
+    await guardAsync('b5 G3 a run whose version was cleaned up says so in the run view', async () => {
+        const rows = [];
+        for (const missing of ['version_pruned', 'not_stored']) {
+            const s = await session(req => (req.url === '/api/desktop/flows/runs/r1?include=doc'
+                ? { run: { id: 'r1', status: 'success', mode: missing === 'not_stored' ? 'test' : 'live', started_at: '2026-10-25T10:00:00Z', revision: 7 }, steps: [], doc_missing: missing } : undefined));
+            s.editor.showRun('r1');
+            await settle();
+            rows.push([missing, s.h.notes.map(n => [n.title, n.message, n.type]), !!s.ed.runView, s.h.logged]);
+            s.editor.dispose();
+        }
+        eq('b5 G3 a pruned version names the version and the 50-version rule; any other missing document keeps the general text', rows, [
+            ['version_pruned', [['runs_title', 'run_view_pruned:7', 'error']], false, []],
+            ['not_stored', [['runs_title', 'run_view_missing', 'error']], false, []]
+        ]);
+        eq('b5 G3 the words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.run_view_pruned']), []);
+    });
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }

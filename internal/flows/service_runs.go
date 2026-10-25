@@ -34,12 +34,23 @@ type TestRunRequest struct {
 	BaseRevision int
 }
 
-// RunDetail is a run with its steps (and optionally the document it executed).
+// RunDetail is a run with its steps (and optionally the document it executed). DocMissing says
+// why an asked-for document is absent: DocMissingVersionPruned (the published version a live
+// run executed was cleaned up, see pruneVersionsSQL), DocMissingNotStored (a test run whose
+// document was too large to keep, see CreateRun) or DocMissingUnreadable (any other error).
 type RunDetail struct {
-	Run   *RunRecord   `json:"run"`
-	Steps []StepRecord `json:"steps"`
-	Doc   *Flow        `json:"doc,omitempty"`
+	Run        *RunRecord   `json:"run"`
+	Steps      []StepRecord `json:"steps"`
+	Doc        *Flow        `json:"doc,omitempty"`
+	DocMissing string       `json:"doc_missing,omitempty"`
 }
+
+// The reasons RunDetail.DocMissing names.
+const (
+	DocMissingVersionPruned = "version_pruned"
+	DocMissingNotStored     = "not_stored"
+	DocMissingUnreadable    = "unreadable"
+)
 
 // StartTestRun runs the draft from a trigger (the manual trigger or the first one by default).
 //
@@ -315,14 +326,33 @@ func (s *Service) Run(ctx context.Context, runID string, includeDoc bool) (*RunD
 	}
 	detail := &RunDetail{Run: rec, Steps: steps}
 	if includeDoc {
-		if doc, err := s.store.GetRunDoc(ctx, runID); err == nil {
+		doc, err := s.store.GetRunDoc(ctx, runID)
+		if err == nil {
 			// runs stored before S6 may hold typed-in credentials; templates stay
-			if red, rerr := RedactCredentials(doc); rerr == nil {
+			red, rerr := RedactCredentials(doc)
+			if rerr == nil {
 				detail.Doc = red
+			} else {
+				detail.DocMissing = DocMissingUnreadable
 			}
+		} else {
+			detail.DocMissing = docMissingReason(rec.Mode, err)
 		}
 	}
 	return detail, nil
+}
+
+// docMissingReason names why GetRunDoc returned no document for a run of mode: a test run keeps its
+// own document (ErrNotFound means it was not stored), every other run reads a published version.
+func docMissingReason(mode RunMode, err error) string {
+	switch {
+	case errors.Is(err, ErrNotFound) && mode == ModeTest:
+		return DocMissingNotStored
+	case errors.Is(err, ErrNotFound):
+		return DocMissingVersionPruned
+	default:
+		return DocMissingUnreadable
+	}
 }
 
 // RunHeader returns a run's header only (Store.GetRunHeader): no trigger data, no steps.

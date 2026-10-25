@@ -803,6 +803,7 @@
   "easydrag.ui.run_view_banner": "Kjøring fra {time} · {status} · versjon {revision} (skrivebeskyttet)",
   "easydrag.ui.run_view_exit": "Tilbake til utkastet",
   "easydrag.ui.run_view_missing": "Flytversjonen for denne kjøringen er ikke lenger tilgjengelig.",
+  "easydrag.ui.run_view_pruned": "Versjon {revision} av denne flyten er ryddet bort: EasyDrag beholder de siste 50 publiserte versjonene. Kjøringen blir stående i listen.",
   "easydrag.ui.runs_empty": "Ingen kjøringer ennå.",
   "easydrag.ui.runs_filter_all": "Alle",
   "easydrag.ui.runs_filter_errors": "Feil",

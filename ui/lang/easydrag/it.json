@@ -803,6 +803,7 @@
   "easydrag.ui.run_view_banner": "Esecuzione del {time} · {status} · versione {revision} (sola lettura)",
   "easydrag.ui.run_view_exit": "Torna alla bozza",
   "easydrag.ui.run_view_missing": "La versione del flusso di questa esecuzione non è più disponibile.",
+  "easydrag.ui.run_view_pruned": "La versione {revision} di questo flusso è stata ripulita: EasyDrag conserva le ultime 50 versioni pubblicate. L'esecuzione resta nell'elenco.",
   "easydrag.ui.runs_empty": "Ancora nessuna esecuzione.",
   "easydrag.ui.runs_filter_all": "Tutte",
   "easydrag.ui.runs_filter_errors": "Errori",

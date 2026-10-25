@@ -803,6 +803,7 @@
   "easydrag.ui.run_view_banner": "Uruchomienie z {time} · {status} · wersja {revision} (tylko do odczytu)",
   "easydrag.ui.run_view_exit": "Wróć do szkicu",
   "easydrag.ui.run_view_missing": "Wersja przepływu tego uruchomienia nie jest już dostępna.",
+  "easydrag.ui.run_view_pruned": "Wersja {revision} tego przepływu została wyczyszczona: EasyDrag przechowuje ostatnie 50 opublikowanych wersji. Uruchomienie pozostaje na liście.",
   "easydrag.ui.runs_empty": "Brak uruchomień.",
   "easydrag.ui.runs_filter_all": "Wszystkie",
   "easydrag.ui.runs_filter_errors": "Błędy",

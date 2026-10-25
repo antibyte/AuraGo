@@ -803,6 +803,7 @@
   "easydrag.ui.run_view_banner": "Εκτέλεση της {time} · {status} · έκδοση {revision} (μόνο ανάγνωση)",
   "easydrag.ui.run_view_exit": "Πίσω στο πρόχειρο",
   "easydrag.ui.run_view_missing": "Η έκδοση της ροής για αυτή την εκτέλεση δεν είναι πλέον διαθέσιμη.",
+  "easydrag.ui.run_view_pruned": "Η έκδοση {revision} αυτής της ροής καθαρίστηκε: το EasyDrag κρατά τις τελευταίες 50 δημοσιευμένες εκδόσεις. Η εκτέλεση παραμένει στη λίστα.",
   "easydrag.ui.runs_empty": "Καμία εκτέλεση ακόμη.",
   "easydrag.ui.runs_filter_all": "Όλες",
   "easydrag.ui.runs_filter_errors": "Σφάλματα",

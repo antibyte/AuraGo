@@ -162,3 +162,41 @@ func TestLeafOutputs(t *testing.T) {
 		t.Fatalf("leafOutputs = %#v", out)
 	}
 }
+
+func TestServiceRunSaysWhyTheDocumentIsMissing(t *testing.T) {
+	s, _ := newServiceFixture(t, nil)
+	ctx := context.Background()
+	pub, _ := publishedSimpleFlow(t, s)
+	res, err := s.RunNow(ctx, pub.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitRun(t, s, res.RunID)
+	if detail, err := s.Run(ctx, res.RunID, true); err != nil || detail.Doc == nil || detail.DocMissing != "" {
+		t.Fatalf("before pruning = %+v, %v", detail, err)
+	}
+	// Publish prunes versions 50 behind the live one (pruneVersionsSQL); deleting the row has the same effect.
+	if _, err := s.store.db.ExecContext(ctx, `DELETE FROM flow_versions WHERE flow_id = ?`, pub.ID); err != nil {
+		t.Fatal(err)
+	}
+	detail, err := s.Run(ctx, res.RunID, true)
+	if err != nil || detail.Doc != nil || detail.DocMissing != DocMissingVersionPruned {
+		t.Fatalf("after pruning = %+v, %v", detail, err)
+	}
+	if plain, err := s.Run(ctx, res.RunID, false); err != nil || plain.DocMissing != "" {
+		t.Fatalf("without include=doc = %+v, %v", plain, err)
+	}
+	for _, tc := range []struct {
+		mode RunMode
+		err  error
+		want string
+	}{
+		{ModeTest, ErrNotFound, DocMissingNotStored},
+		{ModeLive, ErrNotFound, DocMissingVersionPruned},
+		{ModeLive, errors.New("disk I/O error"), DocMissingUnreadable},
+	} {
+		if got := docMissingReason(tc.mode, tc.err); got != tc.want {
+			t.Errorf("docMissingReason(%s, %v) = %q, want %q", tc.mode, tc.err, got, tc.want)
+		}
+	}
+}

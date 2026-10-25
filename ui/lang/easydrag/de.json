@@ -803,6 +803,7 @@
   "easydrag.ui.run_view_banner": "Lauf vom {time} · {status} · Version {revision} (schreibgeschützt)",
   "easydrag.ui.run_view_exit": "Zurück zum Entwurf",
   "easydrag.ui.run_view_missing": "Die Flow-Version dieses Laufs ist nicht mehr verfügbar.",
+  "easydrag.ui.run_view_pruned": "Version {revision} dieses Flows wurde aufgeräumt: EasyDrag behält die letzten 50 veröffentlichten Versionen. Der Lauf bleibt in der Liste.",
   "easydrag.ui.runs_empty": "Noch keine Läufe.",
   "easydrag.ui.runs_filter_all": "Alle",
   "easydrag.ui.runs_filter_errors": "Fehler",

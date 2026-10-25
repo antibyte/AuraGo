@@ -803,6 +803,7 @@
   "easydrag.ui.run_view_banner": "Run from {time} · {status} · version {revision} (read-only)",
   "easydrag.ui.run_view_exit": "Back to draft",
   "easydrag.ui.run_view_missing": "The flow version of this run is no longer available.",
+  "easydrag.ui.run_view_pruned": "Version {revision} of this flow was cleaned up: EasyDrag keeps the last 50 published versions. The run stays in the list.",
   "easydrag.ui.runs_empty": "No runs yet.",
   "easydrag.ui.runs_filter_all": "All",
   "easydrag.ui.runs_filter_errors": "Errors",

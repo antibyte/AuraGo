@@ -803,6 +803,7 @@
   "easydrag.ui.run_view_banner": "{time} の実行 · {status} · バージョン {revision}（読み取り専用）",
   "easydrag.ui.run_view_exit": "下書きに戻る",
   "easydrag.ui.run_view_missing": "この実行で使われたフローのバージョンは、もう利用できません。",
+  "easydrag.ui.run_view_pruned": "このフローのバージョン {revision} は整理されました。EasyDrag は公開済みの直近 50 バージョンを保持します。実行は一覧に残ります。",
   "easydrag.ui.runs_empty": "まだ実行はありません。",
   "easydrag.ui.runs_filter_all": "すべて",
   "easydrag.ui.runs_filter_errors": "エラー",

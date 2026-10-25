@@ -864,7 +864,14 @@
             try {
                 const detail = await ed.api.run(runId, true);
                 if (disposed || mine !== viewSeq) return;
-                if (!detail.doc) { ed.ctx.notify({ title: t('easydrag.ui.runs_title'), message: t('easydrag.ui.run_view_missing'), type: 'error' }); return; }
+                if (!detail.doc) {
+                    // doc_missing (internal/flows RunDetail) tells a cleaned-up version from other gaps.
+                    const message = detail.doc_missing === 'version_pruned'
+                        ? t('easydrag.ui.run_view_pruned', { revision: (detail.run && detail.run.revision) || '?' })
+                        : t('easydrag.ui.run_view_missing');
+                    ed.ctx.notify({ title: t('easydrag.ui.runs_title'), message, type: 'error' });
+                    return;
+                }
                 ed.enterRunView(detail);
             } catch (err) {
                 if (!disposed && mine === viewSeq) ed.ctx.notify({ title: t('easydrag.ui.runs_title'), message: core.errorText(t, err), type: 'error' });
