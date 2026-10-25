@@ -102,8 +102,10 @@ func TestProgressiveDiscoveryPagesStayBoundedAndComplete(t *testing.T) {
 	}
 	SetDiscoverToolsState(sid, schemas[:1], nil, "")
 	out = handleDiscoverTools(ToolCall{Params: map[string]interface{}{"operation": "search", "query": "page_fixture", "cursor": cursor}}, cfg, nil, sid)
-	if !strings.Contains(out, "catalog_changed") {
-		t.Fatal(out)
+	var stale DiscoverToolsResponse
+	decodeToolOutputJSON(t, out, &stale)
+	if stale.Status != "success" || !stale.CursorReset || len(stale.Results) == 0 || stale.Results[0].Name != "page_fixture_00" {
+		t.Fatalf("a cursor from another catalog must restart at the first page: %s", out)
 	}
 }
 
