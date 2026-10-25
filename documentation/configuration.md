@@ -124,7 +124,7 @@ Core agent behaviour settings.
 | `show_tool_results` | `false` | Show tool call results in the Web UI by default. Can be toggled live with `/debug on\|off`. |
 | `debug_mode` | `false` | Inject debug instructions into the system prompt so the agent reports internal errors with helpful details. |
 | `adaptive_tools.enabled` | `true` | Enable adaptive tool filtering to reduce token usage. Explicit `false` keeps all enabled tools visible. |
-| `adaptive_tools.max_tools` | `10` | Maximum adaptive/preferred tool schemas before required and always-include tools are added. |
+| `adaptive_tools.max_tools` | `10` | Maximum adaptive/preferred tool schemas before required and always-include tools are added. Only tools the request ranked (name, search, manuals, family, your usage) take these slots: free slots stay empty instead of being filled by unranked schemas, and `generate_image`, `generate_music` and `generate_video` join only when the request asks for that kind of media. |
 | `adaptive_tools.max_total_tools` | `20` | Maximum final native tool schemas after hard-required tools are kept. |
 | `adaptive_tools.max_schema_tokens` | `6500` | Optional schema-token cap for adaptive native tools. Explicit `0` disables the token cap. |
 | `adaptive_tools.provider_profiles_enabled` | `true` | Apply provider-specific stability overlays for tool budgets and response-header timeouts. |
