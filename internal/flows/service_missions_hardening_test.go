@@ -466,7 +466,8 @@ func TestServiceCancelMissionRunsBeyondTheListPage(t *testing.T) {
 	bridge := newSvcBridge()
 	s := newC10Service(t, tools, bridge, ServiceConfig{MaxQueuedPerFlow: queuedRuns}, nil)
 	t.Cleanup(tools.letGo) // runs before the Shutdown
-	s.Runner().cfg.MaxPendingRuns = queuedRuns + 10 // this test queues more runs than the default allows to wait (E5)
+	// This test queues more runs than the default allows to wait (E5).
+	s.Runner().cfg.MaxPendingRuns = queuedRuns + 10
 	finished := c10ObserveFinished(s, queuedRuns+8)
 	ctx := context.Background()
 	rec, start := c10PublishSearch(t, s, "Viele")
