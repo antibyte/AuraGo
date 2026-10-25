@@ -315,3 +315,20 @@ func TestAllBuiltinNativeToolsAreDiscoverableByCategory(t *testing.T) {
 		}
 	}
 }
+
+// TestToolCategoryNamesAreNativeSchemas keeps toolCategoryDef free of names that
+// no native schema backs: a stale entry becomes a disabled catalog entry that
+// discover_tools offers for a tool that does not exist.
+func TestToolCategoryNamesAreNativeSchemas(t *testing.T) {
+	native := make(map[string]bool)
+	for _, name := range builtinToolNames(allBuiltinToolFeatureFlags()) {
+		native[name] = true
+	}
+	for category, entries := range toolCategoryDef {
+		for _, entry := range entries {
+			if !native[entry.Name] {
+				t.Errorf("toolCategoryDef[%q] lists %q, which is not a native tool schema", category, entry.Name)
+			}
+		}
+	}
+}
