@@ -8218,6 +8218,7 @@
   "desktop.infra_library_empty_topology": "Δεν υπάρχει ακόμη τίποτα στην τοπολογία",
   "desktop.infra_no_matches": "Καμία αντιστοιχία",
   "desktop.infra_clear_search_filters": "Εκκαθάριση αναζήτησης και φίλτρων",
+  "desktop.infra_legend_quiet_connections": "Στην τοπολογία, οι συνδέσεις τροφοδοσίας και εξάρτησης εμφανίζονται μόνο όσο επιλέγετε ή δείχνετε με το δείκτη ένα από τα στοιχεία τους.",
   "galaxa.emp_mine_layer": "Νάρκη EMP",
   "galaxa.cluster_mine_layer": "Νάρκη θραυσμάτων",
   "galaxa.swarm_launcher": "Σμήνος πυραύλων",

@@ -148,7 +148,7 @@ func TestDesktopInfraTopologyCurvesBrowser(t *testing.T) {
 	// Hand computed: ont (120,96) to router (0,480): bottom centre 120,128 to top centre 0,448, offset 160; the switch (-240,480)
 	// has three connections on its bottom edge in slots -43.2 (nas), 0 (tv, same x, later id) and 43.2 (pve); tv has two on its
 	// top edge, -32.4 (switch) and 32.4 (nas) (the hidden power and dependency connections keep their slots, A29); lane-internal
-// ones are straight between the facing sides, except e4: the router sits between switch and ap, so e4 is an arc over it.
+	// ones are straight between the facing sides, except e4: the router sits between switch and ap, so e4 is an arc over it.
 	want := map[string]string{
 		"e1": "M-12 96L12 96",
 		"e2": "M120 128C120 288 0 288 0 448",

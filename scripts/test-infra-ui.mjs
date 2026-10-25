@@ -1740,4 +1740,32 @@ for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
     assert.equal(model.edgeLabelClash({ x1: 0, y1: 0, x2: 100, y2: 0 }, { w: 20, h: 10 }, [{ x: 40, y: -45, w: 20, h: 10 }]), false);
 }
 
+// ---- A29/A30: which connections are drawn, emphasised, faded and dimmed -----------------------------------------------
+{
+    const none = { selection: new Set(), selectedEdge: '', near: new Set(), dimmed: new Set() };
+    const state = (edge, extra = {}, view = 'topology') => plain(model.edgeState({ view, id: 'e', kind: 'ethernet', ends: ['a', 'b'], ...edge }, { ...none, ...extra }));
+    // A29: in Topology only power and dependency connections wait for a selected or pointed-at end; the Map draws every kind
+    for (const kind of ['ethernet', 'fiber', 'wifi', 'member_of', 'runs_on']) assert.equal(state({ kind }).off, false, `${kind} is always drawn`);
+    for (const kind of ['powered_by', 'depends_on']) {
+        assert.equal(state({ kind }).off, true, `${kind} is off in Topology while nothing touches it`);
+        assert.equal(state({ kind }, {}, 'atlas').off, false, `${kind} is always drawn in the Map`);
+        assert.equal(state({ kind }, { selection: new Set(['b']) }).off, false, `${kind} appears while an end is selected`);
+        assert.equal(state({ kind }, { near: new Set(['a']) }).off, false, `${kind} appears while an end is hovered or focused`);
+        assert.equal(state({ kind }, { selectedEdge: 'e' }).off, false, `${kind} appears while it is the selected connection`);
+        assert.equal(state({ kind }, { selection: new Set(['x']), near: new Set(['y']) }).off, true, 'other cards do not show it');
+        assert.deepEqual(state({ kind }, { selection: new Set(['x']) }), { off: true, linked: false, faded: false, dimmed: false }, `a hidden ${kind} connection is not also faded`);
+    }
+    // A30: emphasis needs a selection; hovering only reveals
+    assert.deepEqual(state({}), { off: false, linked: false, faded: false, dimmed: false }, 'without a selection nothing changes');
+    assert.deepEqual(state({}, { near: new Set(['a']) }), { off: false, linked: false, faded: false, dimmed: false }, 'a hover emphasises nothing');
+    assert.deepEqual(state({}, { selection: new Set(['a']) }), { off: false, linked: true, faded: false, dimmed: false }, 'the connection of the selected card is emphasised');
+    assert.deepEqual(state({}, { selection: new Set(['c']) }), { off: false, linked: false, faded: true, dimmed: false }, 'the others fade while something is selected');
+    assert.deepEqual(state({ id: 'e' }, { selectedEdge: 'e' }), { off: false, linked: true, faded: false, dimmed: false }, 'a selected connection is emphasised too');
+    assert.deepEqual(state({ id: 'f' }, { selectedEdge: 'e' }), { off: false, linked: false, faded: true, dimmed: false });
+    assert.deepEqual(state({ ends: ['a', 'b', 'guest'] }, { selection: new Set(['guest']) }), { off: false, linked: true, faded: false, dimmed: false }, 'a selected guest counts: ends hold the assets a connection joins, not only its cards');
+    // a connection with a dimmed (filtered out) end is dimmed like the cards, whichever end it is
+    assert.equal(state({}, { dimmed: new Set(['b']) }).dimmed, true);
+    assert.equal(state({}, { dimmed: new Set(['z']) }).dimmed, false);
+}
+
 console.log(`Infra UI model, grouped virtualization, and ${required.size} translation keys passed for ${locales.length} locales.`);

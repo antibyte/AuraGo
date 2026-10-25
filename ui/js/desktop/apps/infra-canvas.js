@@ -105,6 +105,8 @@
         const temp = { cards: new Set(), regions: new Set(), lines: new Set() };
         const ghosts = new Set();
         let last = emptyScene(), linesByEnd = new Map(), lineGeom = new Map();
+        // The ids under the pointer or the keyboard focus, and the ids a filter dims: they decide which connections show (A29, A30).
+        let hoverId = '', focusId = '', dimmedIds = new Set();
         let forceNext = false, mapDirty = false, revision = 0, drawnRevision = -1;
         let pctShown = '', levelsKey = '', cardForm = 'full', formTimer = 0, rovingId = '', dropTargetId = '', connectTargetId = '', lastSize = null, animTimer = 0, persistTimer = 0, disposed = false;
         const persistKeys = new Set();
@@ -514,7 +516,7 @@
                     entry = { g, hit: g.querySelector('.infra-edge-hit'), line: g.querySelector('.infra-edge-line:not(.infra-edge-core)'), core: g.querySelector('.infra-edge-core'), label: g.querySelector('.infra-edge-label'), labelBox: null, sig, d: '', lx: null, ly: null, flags: {} };
                     lineEls.set(line.id, entry);
                 }
-                lineGeom.set(line.id, { from: line.from, to: line.to });
+                lineGeom.set(line.id, { from: line.from, to: line.to, kind: edge.kind, ends: [...new Set([line.from, line.to, edge.from, edge.to])] });
                 for (const end of [line.from, line.to]) (linesByEnd.get(end) || linesByEnd.set(end, new Set()).get(end)).add(line.id);
                 applied.push([entry, paths?.get(line.id) || line]);
             }
@@ -529,12 +531,14 @@
         function paintStates() {
             const view = app.mapView(), selection = store.state.selection, filtersOn = model.filtersActive(store.state.filters);
             let shown = 0;
+            const dimmed = new Set();
             for (const card of last.cards) {
                 const entry = cardEls.get(card.id);
                 if (!entry) continue;
                 const guestList = filtersOn ? guestNodesOf(card) : [];
                 const dim = filtersOn && !(store.matches(store.nodeById(card.id)) || guestList.some(guest => store.matches(guest)));
-                if (!dim) shown += 1;
+                if (!dim) shown += 1; else dimmed.add(card.id);
+                for (const guest of guestList) if (!store.matches(guest)) dimmed.add(guest.id);
                 const layout = store.layoutState(card.id, view);
                 setFlag(entry, 'pressed', selection.has(card.id), on => entry.card.setAttribute('aria-pressed', on ? 'true' : 'false'));
                 setFlag(entry, 'dim', dim, on => entry.card.classList.toggle('is-dimmed', on));
@@ -552,9 +556,48 @@
                 const on = selection.has(id);
                 setFlag(entry, 'pressed', on, value => { entry.header.setAttribute('aria-pressed', value ? 'true' : 'false'); entry.el.classList.toggle('is-selected', value); });
             }
-            for (const [id, entry] of lineEls) setFlag(entry, 'selected', store.state.selectedEdge === id, on => entry.g.classList.toggle('is-selected', on));
+            dimmedIds = dimmed;
+            paintEdges();
             return shown;
         }
+        // paintEdges classes every connection from edgeState (A29, A30): off (Topology power and dependency lines wait for a
+        // selected or pointed-at end), linked (touches the selection: accent stroke, raised above the others), faded (the others
+        // while something is selected) and dimmed (an end is filtered out). Only classes change, so a hover repaints no scene.
+        function paintEdges() {
+            const view = app.mapView(), { selection, selectedEdge } = store.state, near = new Set([hoverId, focusId]);
+            const context = { selection, selectedEdge, near, dimmed: dimmedIds };
+            for (const [id, entry] of lineEls) {
+                const geom = lineGeom.get(id);
+                if (!geom) continue;
+                const state = model.edgeState({ view, kind: geom.kind, id, ends: geom.ends }, context);
+                setFlag(entry, 'selected', selectedEdge === id, on => entry.g.classList.toggle('is-selected', on));
+                setFlag(entry, 'off', state.off, on => entry.g.classList.toggle('is-off', on));
+                setFlag(entry, 'faded', state.faded, on => entry.g.classList.toggle('is-faded', on));
+                setFlag(entry, 'dimmed', state.dimmed, on => entry.g.classList.toggle('is-dimmed', on));
+                setFlag(entry, 'linked', state.linked, on => { entry.g.classList.toggle('is-linked', on); if (on) edgeLayer.appendChild(entry.g); });
+            }
+        }
+        // idOfTarget names the asset or place an event target belongs to: a card, a guest chip, a host badge or a region header.
+        function idOfTarget(target) {
+            const part = target instanceof Element ? target.closest('[data-node], [data-hosted-service], [data-toggle-host-services], [data-region-header]') : null;
+            if (!part) return '';
+            const d = part.dataset;
+            return d.node ?? d.hostedService ?? d.toggleHostServices ?? d.regionHeader ?? '';
+        }
+        function setNear(next) {
+            if (next.hover !== undefined) hoverId = next.hover;
+            if (next.focus !== undefined) focusId = next.focus;
+            paintEdges();
+        }
+        const onPointerOver = event => { const id = idOfTarget(event.target); if (id !== hoverId) setNear({ hover: id }); };
+        const onPointerLeave = () => { if (hoverId) setNear({ hover: '' }); };
+        // Keyboard focus counts like a hover; a card focused by a click does not (a pointer user moves on).
+        const onFocusIn = event => { const id = event.target.matches?.(':focus-visible') ? idOfTarget(event.target) : ''; if (id !== focusId) setNear({ focus: id }); };
+        const onFocusOut = () => { if (focusId) setNear({ focus: '' }); };
+        viewport.addEventListener('pointerover', onPointerOver);
+        viewport.addEventListener('pointerleave', onPointerLeave);
+        viewport.addEventListener('focusin', onFocusIn);
+        viewport.addEventListener('focusout', onFocusOut);
         function paintOverlays(shown) {
             const filtersOn = model.filtersActive(store.state.filters), view = app.mapView(), canWrite = store.canWrite();
             // How many assets are shown lives in the toggle's tooltip and the cluster's description, not on the map.

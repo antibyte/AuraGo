@@ -203,7 +203,7 @@
             const edges = LEGEND_EDGES.map(kind => `<li><svg class="infra-legend-line" data-kind="${kind}" viewBox="0 0 40 8" width="40" height="8" aria-hidden="true" focusable="false"><line x1="2" y1="4" x2="38" y2="4"/></svg>${esc(t(`desktop.infra_edge_${kind}`))}</li>`).join('');
             return `<section><h3>${esc(t('desktop.infra_legend_status'))}</h3><ul>${states}</ul></section>`
                 + `<section><h3>${esc(t('desktop.infra_legend_power'))}</h3><ul>${powers}</ul></section>`
-                + `<section><h3>${esc(t('desktop.infra_tab_connections'))}</h3><ul>${edges}</ul></section>`;
+                + `<section><h3>${esc(t('desktop.infra_tab_connections'))}</h3><ul>${edges}</ul><p class="infra-legend-note">${esc(t('desktop.infra_legend_quiet_connections'))}</p></section>`;
         }
 
         return { onContextMenu, openForElement, openNodeMenu, openShortcuts, legendHTML, dispose() {} };

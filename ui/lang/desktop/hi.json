@@ -8218,6 +8218,7 @@
   "desktop.infra_library_empty_topology": "टोपोलॉजी में अभी कुछ नहीं है",
   "desktop.infra_no_matches": "कोई मेल नहीं",
   "desktop.infra_clear_search_filters": "खोज और फ़िल्टर साफ़ करें",
+  "desktop.infra_legend_quiet_connections": "टोपोलॉजी में बिजली और निर्भरता वाले कनेक्शन तभी दिखते हैं जब आप उनके किसी संसाधन को चुनते हैं या उस पर पॉइंटर ले जाते हैं।",
   "galaxa.emp_mine_layer": "ईएमपी बारूदी सुरंग",
   "galaxa.cluster_mine_layer": "विखंडन बारूदी सुरंग",
   "galaxa.swarm_launcher": "मिसाइलों का झुंड",

@@ -8218,6 +8218,7 @@
   "desktop.infra_library_empty_topology": "拓扑中还没有任何内容",
   "desktop.infra_no_matches": "无匹配项",
   "desktop.infra_clear_search_filters": "清除搜索和筛选",
+  "desktop.infra_legend_quiet_connections": "在拓扑中，供电和依赖连接仅在你选中或指向其中一项资产时显示。",
   "galaxa.emp_mine_layer": "电磁脉冲地雷",
   "galaxa.cluster_mine_layer": "破片地雷",
   "galaxa.swarm_launcher": "蜂群导弹",

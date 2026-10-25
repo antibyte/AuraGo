@@ -8218,6 +8218,7 @@
   "desktop.infra_library_empty_topology": "Nella topologia non c'è ancora nulla",
   "desktop.infra_no_matches": "Nessuna corrispondenza",
   "desktop.infra_clear_search_filters": "Cancella ricerca e filtri",
+  "desktop.infra_legend_quiet_connections": "Nella topologia, le connessioni di alimentazione e di dipendenza compaiono solo mentre selezioni o punti una delle loro risorse.",
   "galaxa.emp_mine_layer": "Mina EMP",
   "galaxa.cluster_mine_layer": "Mina a frammentazione",
   "galaxa.swarm_launcher": "Sciame di missili",

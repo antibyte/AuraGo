@@ -388,6 +388,15 @@ func TestDesktopInfraEmptyStatesBrowser(t *testing.T) {
 	if got, want := empty(), fmt.Sprintf(`{"shown":true,"action":"reset-filters","label":%q,"query":"","kind":"network"}`, word("desktop.infra_clear_filters")); got != want {
 		t.Fatalf("with only a filter the empty map shows %s; want %s", got, want)
 	}
+	// A30: the message has a surface of its own (the overlay token with the minimap's blur) above the connection layer, so the
+	// connections of the dimmed cards never run through its text.
+	if got := page.MustEval(`()=>{
+		const box=getComputedStyle(document.querySelector('[data-no-match]')),map=getComputedStyle(document.querySelector('[data-minimap]')),scene=getComputedStyle(document.querySelector('[data-scene]'));
+		const filled=box.backgroundColor!=='rgba(0, 0, 0, 0)'&&box.backgroundColor!=='transparent';
+		return JSON.stringify({filled,sameSurface:box.backgroundColor===map.backgroundColor&&box.backdropFilter===map.backdropFilter,above:Number(box.zIndex)>=1&&!(Number(scene.zIndex)>=1)});
+	}`).Str(); got != `{"filled":true,"sameSurface":true,"above":true}` {
+		t.Fatalf("the empty-result message must sit on the overlay surface above the connections: %s", got)
+	}
 	// The library sections say so too: one "No matches" line instead of a bare header with a zero.
 	if got, want := page.MustEval(`()=>JSON.stringify(['to-place','on-map'].map(id=>{const line=document.querySelector('[data-section-empty="'+id+'"]');return [line.hidden,line.textContent.trim()];}))`).Str(), fmt.Sprintf(`[[false,%q],[false,%q]]`, word("desktop.infra_no_matches"), word("desktop.infra_no_matches")); got != want {
 		t.Fatalf("with a filter that hides every asset the library sections show %s; want %s", got, want)

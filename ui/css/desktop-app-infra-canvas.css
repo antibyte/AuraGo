@@ -19,7 +19,13 @@
 .infra-edge[data-kind="fiber"] .infra-edge-core { stroke: var(--vd-theme-app-bg); stroke-width: 1.6px; }
 .infra-edge[data-kind="depends_on"] .infra-edge-line, .infra-edge[data-kind="member_of"] .infra-edge-line { stroke-dasharray: 1.5 4; stroke-linecap: round; }
 .infra-edge[data-kind="powered_by"] .infra-edge-line { stroke: var(--ds-color-warning-fg); }
-.infra-edge:hover .infra-edge-line, .infra-edge.is-selected .infra-edge-line { stroke: var(--vd-accent); stroke-width: 3px; }
+.infra-edge:hover .infra-edge-line, .infra-edge.is-selected .infra-edge-line, .infra-edge.is-linked .infra-edge-line { stroke: var(--vd-accent); stroke-width: 3px; }
+/* A29/A30: paintEdges (infra-canvas.js) sets these classes without redrawing the scene. is-linked connections touch the selection (accent stroke; they are also moved last in the layer, so they sit above the rest), is-faded ones are the others while something is selected, is-dimmed ones have an end that a filter dims (the same .28 as the cards), is-off ones are Topology power and dependency connections that no selected or pointed-at card touches (no hit area while off). */
+.infra-edge.is-faded { opacity: .35; }
+.infra-edge.is-faded:not(.is-dimmed):hover { opacity: 1; }
+.infra-edge.is-dimmed { opacity: .28; }
+.infra-edge.is-off { opacity: 0; }
+.infra-edge.is-off .infra-edge-hit { pointer-events: none; }
 .infra-edge-label { font: 600 14px/1 var(--vd-font-ui); fill: var(--vd-theme-muted); paint-order: stroke; stroke: var(--vd-theme-app-bg); stroke-width: 4px; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
 /* A5: a label is hidden (not removed, so it can be measured) below zoom 0.75 and while it would sit on a card; hovering or selecting its connection shows it. */
 .infra-viewport.is-zoom-low .infra-edge-label, .infra-edge.is-label-clash .infra-edge-label { visibility: hidden; }
@@ -118,7 +124,8 @@
 .infra-minimap-map .card.is-selected { fill: var(--vd-accent); }
 .infra-minimap-view { fill: var(--vd-theme-accent-soft); stroke: var(--vd-accent); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
 .infra-canvas-chip { position: absolute; top: var(--ds-space-3); left: 50%; z-index: 7; transform: translateX(-50%); display: flex; align-items: center; gap: var(--ds-space-2); padding: 4px 4px 4px var(--ds-space-3); border: 1px solid color-mix(in srgb, var(--ds-color-warning-fg) 50%, var(--vd-theme-border)); border-radius: var(--ds-radius-full); background: var(--vd-theme-panel-bg-strong); box-shadow: var(--vd-theme-shadow-panel); font-size: 14px; }
-.infra-canvas-empty, .infra-canvas-nomatch { position: absolute; inset: 0; z-index: 5; display: grid; place-content: center; justify-items: center; gap: var(--ds-space-3); padding: var(--ds-space-6); text-align: center; pointer-events: none; }
+/* A30: the empty-state messages sit above the connection layer on a surface of their own (the overlay token with the theme blur, like the minimap), so lines of dimmed cards never run through the text. The box wraps its content and only its buttons take the pointer. */
+.infra-canvas-empty, .infra-canvas-nomatch { position: absolute; left: 50%; top: 50%; z-index: 5; box-sizing: border-box; display: grid; justify-items: center; gap: var(--ds-space-3); width: max-content; max-width: min(460px, calc(100% - var(--ds-space-6))); max-height: calc(100% - var(--ds-space-6)); overflow: auto; padding: var(--ds-space-5) var(--ds-space-6); transform: translate(-50%, -50%); border: 1px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: var(--vd-theme-overlay-bg); -webkit-backdrop-filter: var(--vd-theme-blur, blur(12px)); backdrop-filter: var(--vd-theme-blur, blur(12px)); box-shadow: var(--vd-theme-shadow-panel); text-align: center; pointer-events: none; }
 .infra-canvas-empty img { width: 180px; height: 130px; object-fit: contain; }
 .infra-canvas-empty h2 { margin: 0; font-size: 20px; font-weight: 650; }
 .infra-canvas-empty ol { display: grid; gap: var(--ds-space-1); max-width: 420px; margin: 0; padding-left: 1.4em; color: var(--vd-theme-muted); font-size: 14px; text-align: left; }
@@ -142,6 +149,7 @@
   body:not([data-animations="false"]) .infra-viewport.is-form-switching .infra-card-icon, body:not([data-animations="false"]) .infra-viewport.is-form-switching .infra-card-text { animation: infra-form-in var(--ds-motion-duration-fast) var(--ds-motion-ease-decel); }
   body:not([data-animations="false"]) .infra-card { transition: box-shadow var(--ds-motion-duration-fast) var(--ds-motion-ease-standard), border-color var(--ds-motion-duration-fast) var(--ds-motion-ease-standard), opacity var(--ds-motion-duration-fast) var(--ds-motion-ease-standard); }
   body:not([data-animations="false"]) .infra-scene.is-animating { transition: transform var(--ds-motion-duration-base) var(--ds-motion-ease-decel); }
+  body:not([data-animations="false"]) .infra-edge { transition: opacity var(--ds-motion-duration-fast) var(--ds-motion-ease-standard); }
   /* A22: a card that Topology places automatically glides to its new slot after a poll or an Arrange (infra-canvas.js startGlide adds the class only when the animations are on). */
   body:not([data-animations="false"]) .infra-card.is-gliding { transition: left var(--ds-motion-duration-base) var(--ds-motion-ease-decel), top var(--ds-motion-duration-base) var(--ds-motion-ease-decel), box-shadow var(--ds-motion-duration-fast) var(--ds-motion-ease-standard), border-color var(--ds-motion-duration-fast) var(--ds-motion-ease-standard), opacity var(--ds-motion-duration-fast) var(--ds-motion-ease-standard); }
   body:not([data-animations="false"]) :is(.infra-card-badge, .infra-guest-shelf).is-gliding { transition: left var(--ds-motion-duration-base) var(--ds-motion-ease-decel), top var(--ds-motion-duration-base) var(--ds-motion-ease-decel); }

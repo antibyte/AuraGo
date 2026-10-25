@@ -419,6 +419,18 @@
         const drawn = unionRects([...cards.map(cardRect), ...rects.values()]);
         return { cards, cardById, regions, regionRects: rects, regionDepth: depth, lines, bounds: drawn };
     };
+    // edgeState says how one connection is drawn (A29, A30). ends lists every id it touches: its two cards and the
+    // assets it joins (a guest rides in its host's card). selection holds the selected ids, near the ones that are
+    // pointed at or focused. In Topology a power or dependency connection stays off until one of its ends is selected
+    // or near, or it is the selected connection; the Map draws every kind. A selection (cards or one connection)
+    // emphasises what touches it (linked) and fades the rest that is drawn; a hover only reveals. A connection with a dimmed
+    // (filtered out) end is dimmed like the cards.
+    const QUIET_EDGE_KINDS = new Set(['powered_by', 'depends_on']);
+    const edgeState = ({ view, kind, id, ends }, { selection, selectedEdge, near, dimmed }) => {
+        const linked = id === selectedEdge || ends.some(end => selection.has(end));
+        const off = view === 'topology' && QUIET_EDGE_KINDS.has(kind) && !linked && !ends.some(end => near.has(end));
+        return { off, linked, faded: (selection.size > 0 || !!selectedEdge) && !linked && !off, dimmed: ends.some(end => dimmed.has(end)) };
+    };
     // ---- layout intents and history -----------------------------------------
     // mergeIntent lays a later intent over an earlier one. An unplace intent
     // ({unplace: true, parent_id?}) replaces everything before it and keeps only
@@ -871,7 +883,7 @@
         CARD_W, CARD_H, GRID, MIN_ZOOM, MAX_ZOOM, REGION_W, REGION_H, REGION_PAD, REGION_MIN_W, REGION_MIN_H,
         clampZoom, zoomLevels, labelScale, toWorld, toScreen, zoomAt, fitView, viewCenter, viewFromCenter, snap, cardRect, intersects, containsPoint,
         normalizeRect, padRect, unionRects, freeSlot, regionRect, regionLayout, regionAt, dropParent, growRegions,
-        spatialNeighbour, compactGrid, defaultEdgeKind, guestIndex, matchesFilters, filtersActive, buildScene,
+        spatialNeighbour, compactGrid, defaultEdgeKind, guestIndex, matchesFilters, filtersActive, buildScene, edgeState,
         mergeIntent, layoutItems, rebaseLayout, createHistory, readLayoutPrefs, fill, countText, normalizeNode, minimapTransform, sceneFits, glyph,
         naturalCompare, isOpaqueName, addressesOf, isGenericDiscovery, compareSpecificity, relevanceIndex, discoveryRelevance, groupDiscoveries, bindableFor, linkSuggestions, infraCleanup, sourceLabels,
         TABLE_SORTS, tableComparator, tableRows, readTablePrefs, readInspectorPrefs, inspectorTab, withInspectorTab, readDismissed, listEntryText, draftDiff, formGroupFill, groupOfField,

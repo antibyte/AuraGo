@@ -8218,6 +8218,7 @@
   "desktop.infra_library_empty_topology": "Noch nichts in der Topologie",
   "desktop.infra_no_matches": "Keine Treffer",
   "desktop.infra_clear_search_filters": "Suche und Filter löschen",
+  "desktop.infra_legend_quiet_connections": "In der Topologie erscheinen Strom- und Abhängigkeitsverbindungen nur, solange du eines ihrer Assets auswählst oder mit dem Mauszeiger darauf zeigst.",
   "galaxa.emp_mine_layer": "EMP-Mine",
   "galaxa.cluster_mine_layer": "Splittermine",
   "galaxa.swarm_launcher": "Schwarmraketen",

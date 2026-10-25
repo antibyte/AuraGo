@@ -399,6 +399,10 @@ func TestDesktopInfraMenusAndShortcutsBrowser(t *testing.T) {
 	if got := page.MustEval(`()=>[document.querySelectorAll('.infra-legend-ring').length,document.querySelectorAll('.infra-legend-dot').length,document.querySelectorAll('.infra-legend-line').length].join()`).Str(); got != "5,3,5" {
 		t.Fatalf("legend has %s status, power and connection keys; want 5,3,5", got)
 	}
+	// A29: the legend says that Topology shows power and dependency connections on demand.
+	if want := infraGermanWord(t, "desktop.infra_legend_quiet_connections"); page.MustEval(`()=>document.querySelector('.infra-legend-note')?.textContent.trim()||''`).Str() != want {
+		t.Fatalf("the legend must carry the note %q", want)
+	}
 	page.Keyboard.MustType(input.Escape)
 	page.MustWait(`()=>document.querySelector('[data-popover="legend"]').hidden&&document.activeElement===document.querySelector('[data-action="more"]')`)
 

@@ -8218,6 +8218,7 @@
   "desktop.infra_library_empty_topology": "Rien dans la topologie pour l'instant",
   "desktop.infra_no_matches": "Aucun résultat",
   "desktop.infra_clear_search_filters": "Effacer la recherche et les filtres",
+  "desktop.infra_legend_quiet_connections": "Dans la topologie, les connexions d’alimentation et de dépendance n’apparaissent que lorsque vous sélectionnez ou survolez l’un de leurs équipements.",
   "galaxa.emp_mine_layer": "Mine IEM",
   "galaxa.cluster_mine_layer": "Mine à fragmentation",
   "galaxa.swarm_launcher": "Essaim de missiles",

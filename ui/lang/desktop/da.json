@@ -8218,6 +8218,7 @@
   "desktop.infra_library_empty_topology": "Der er endnu intet i topologien",
   "desktop.infra_no_matches": "Ingen match",
   "desktop.infra_clear_search_filters": "Ryd søgning og filtre",
+  "desktop.infra_legend_quiet_connections": "I topologien vises strøm- og afhængighedsforbindelser kun, mens du vælger eller peger på et af deres aktiver.",
   "galaxa.emp_mine_layer": "EMP-mine",
   "galaxa.cluster_mine_layer": "Splintmine",
   "galaxa.swarm_launcher": "Sværmmissiler",

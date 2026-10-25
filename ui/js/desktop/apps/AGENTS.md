@@ -215,6 +215,23 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   - The empty-result action names its cause (A26: `clear-search`, `reset-filters` or `clear-search-filters` on the no-match
     box) and a library section that a query or filter emptied says "No matches". `fitSearchBadge` hides the Ctrl K badge when
     the placeholder would not fit next to it (A27).
+- Design QA batch D-fix-3 (A28 to A31; A28 is in the Connections bullet above):
+  - Which connections show (A29/A30) is one pure answer, `model.edgeState({view, kind, id, ends}, {selection, selectedEdge,
+    near, dimmed})` -> `{off, linked, faded, dimmed}`, and `paintEdges` (infra-canvas.js) only toggles the classes `is-off`,
+    `is-linked`, `is-faded`, `is-dimmed` on the connection groups: no scene render, so a hover costs no layout. `ends` holds
+    the two cards of a line and the two assets the connection joins (a guest rides in its host's card). The canvas keeps
+    `hoverId` (pointerover on a card, guest chip, host badge or region header) and `focusId` (keyboard focus only, tested with
+    `:focus-visible`, so a clicked card does not keep its connections open); both are the `near` set.
+  - Topology draws ethernet, fiber, wifi and the membership kinds (`member_of`, `runs_on`) always; `powered_by` and `depends_on`
+    are `is-off` (opacity 0, no hit area) until an end is selected, hovered or focused, or the connection itself is selected.
+    The Map draws every kind. Hidden connections keep their path and their slots on the card edges, so nothing moves when one
+    appears. The inspector's Connections tab lists all of them.
+  - A selection (cards, guests, a place or one connection) makes the connections that touch it `is-linked` (accent stroke,
+    moved last in `[data-edge-layer]` so they paint above) and the other visible ones `is-faded` (35 %); a hover only reveals.
+    A connection with a dimmed (filtered out) end is `is-dimmed` (28 %, like the cards), whether or not it is drawn. The
+    opacity change is a transition only while `app.animationsEnabled()` and reduced motion is not asked for.
+  - `.infra-canvas-empty` and `.infra-canvas-nomatch` are centred boxes on their own surface (`--vd-theme-overlay-bg` with
+    the theme blur, as the minimap) above the scene; only their buttons take the pointer.
 
 ## Synth Studio
 

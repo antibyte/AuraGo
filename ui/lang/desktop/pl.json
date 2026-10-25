@@ -8218,6 +8218,7 @@
   "desktop.infra_library_empty_topology": "W topologii nic jeszcze nie ma",
   "desktop.infra_no_matches": "Brak dopasowań",
   "desktop.infra_clear_search_filters": "Wyczyść wyszukiwanie i filtry",
+  "desktop.infra_legend_quiet_connections": "W topologii połączenia zasilania i zależności są widoczne tylko wtedy, gdy zaznaczysz lub wskażesz jeden z ich zasobów.",
   "galaxa.emp_mine_layer": "Mina EMP",
   "galaxa.cluster_mine_layer": "Mina odłamkowa",
   "galaxa.swarm_launcher": "Rój rakiet",

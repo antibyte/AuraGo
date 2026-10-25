@@ -9488,6 +9488,7 @@
   "desktop.infra_library_empty_topology": "Nothing is in the topology yet",
   "desktop.infra_no_matches": "No matches",
   "desktop.infra_clear_search_filters": "Clear search and filters",
+  "desktop.infra_legend_quiet_connections": "In Topology, power and dependency connections appear while you select or point at one of their assets.",
   "galaxa.emp_mine_layer": "EMP mine",
   "galaxa.cluster_mine_layer": "Cluster mine",
   "galaxa.swarm_launcher": "Swarm missiles",
