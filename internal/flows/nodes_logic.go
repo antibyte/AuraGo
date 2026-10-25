@@ -305,7 +305,7 @@ func waitNodeDef() *NodeDef {
 		if err != nil {
 			return ExecResult{}, err
 		}
-		if err := in.Services.Sleep(ctx, d); err != nil {
+		if err := waitParked(ctx, in, d); err != nil {
 			return ExecResult{}, err
 		}
 		return ExecResult{Output: map[string]any{"waited_seconds": d.Seconds()}}, nil
@@ -518,4 +518,21 @@ func stopNodeDef() *NodeDef {
 		}, nil
 	}
 	return def
+}
+
+// waitParked sleeps d. With a runner slot (ExecInput.Slot) the run gives its global slot back
+// while it sleeps and takes one again, in turn, before the node returns (A7), so waiting runs do
+// not block other flows. Cancellation, shutdown and the run's time limit end the sleep and the
+// wait for a slot alike.
+func waitParked(ctx context.Context, in ExecInput, d time.Duration) (err error) {
+	if in.Slot == nil || d <= 0 {
+		return in.Services.Sleep(ctx, d)
+	}
+	in.Slot.Park()
+	defer func() {
+		if uerr := in.Slot.Unpark(); err == nil {
+			err = uerr
+		}
+	}()
+	return in.Services.Sleep(ctx, d)
 }

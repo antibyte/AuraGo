@@ -58,6 +58,9 @@ type RunRequest struct {
 	// lasts at most MaxRunSecondsLimit seconds, which the event bus relies on to
 	// recognise leaked logs.
 	Timeout time.Duration
+	// Slot is the run's global slot, which a logic.wait gives back while it waits (A7); nil
+	// without a runner.
+	Slot RunSlot
 }
 
 // EventSink receives run events in order, always from the run's coordinator goroutine.

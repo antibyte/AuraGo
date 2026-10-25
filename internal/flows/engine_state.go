@@ -64,6 +64,8 @@ type runState struct {
 	// interrupted records that the end of the run's context cut a node short:
 	// a node was cancelled or abandoned, or never got to run.
 	interrupted bool
+	// gate is the run's slot gate (A7); nil without a runner slot.
+	gate *slotGate
 }
 
 // newRunState prepares the state of one run; run builds the graph after
@@ -194,6 +196,7 @@ func (s *runState) run(parent context.Context) RunResult {
 	}
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
+	s.gate = newSlotGate(s.req.Slot, ctx)
 
 	trigger := s.g.nodes[s.req.TriggerNode]
 	if trigger == nil || !s.isTrigger(trigger) {
@@ -233,9 +236,11 @@ loop:
 		if s.running == 0 {
 			break
 		}
+		s.gate.idle()
 		select {
 		case d := <-done:
 			s.running--
+			s.gate.received()
 			s.complete(ctx, d)
 			switch {
 			case s.failure != nil:
@@ -384,6 +389,10 @@ func (s *runState) launch(ctx context.Context, id string, done chan<- nodeDone) 
 			Revision: s.req.Revision, StartedAt: s.started},
 		Services: s.e.services,
 		Logger:   s.e.logger.With("flow", s.req.Flow.ID, "run", s.req.RunID, "node", n.Key),
+	}
+	s.gate.launched()
+	if s.gate != nil {
+		in.Slot = s.gate // never a typed nil
 	}
 	def, refusal := s.def(n), s.info[id].refusal
 	// The worker touches only these locals. runNode recovers from any panic, and

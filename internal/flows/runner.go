@@ -20,7 +20,9 @@ const (
 	DefaultMaxPendingRuns = 200
 	// DefaultMaxPendingBytes caps the encoded trigger data those runs hold in memory (E5).
 	DefaultMaxPendingBytes = 64 << 20
-	eventRetention         = 2 * time.Minute
+	// DefaultMaxParkedRuns caps the runs that wait in a logic.wait without a global slot (A7).
+	DefaultMaxParkedRuns = 64
+	eventRetention       = 2 * time.Minute
 )
 
 var (
@@ -57,6 +59,9 @@ type RunnerConfig struct {
 	// may always wait when none does. Values of zero or less mean the defaults.
 	MaxPendingRuns  int
 	MaxPendingBytes int
+	// MaxParkedRuns caps the runs that gave their global slot back while a logic.wait waits;
+	// beyond it a wait keeps its slot. Zero or less means DefaultMaxParkedRuns.
+	MaxParkedRuns int
 }
 
 // RunnerHooks observe runs. OnRunFinished is called for every run (also runs cancelled
@@ -118,7 +123,9 @@ type pendingRun struct {
 	// waited is set when the run joined a queue (its flow's or the global one); only such a
 	// run asks RunnerConfig.Gate before it executes.
 	waited bool
-	size   int // encoded size of the trigger data (MaxPendingBytes)
+	size   int      // encoded size of the trigger data (MaxPendingBytes)
+	ticket uint64   // arrival order in the global queue (dispatchLocked)
+	slot   *runSlot // set at launch
 }
 
 // activeRun is a launched run: its flow and mode, for CancelFlow and CancelFlowMode, and
@@ -154,17 +161,20 @@ type Runner struct {
 	// record while holding it instead of mu (see Start). It is taken before mu.
 	startMu sync.Mutex
 
-	mu        sync.Mutex
-	closed    bool
-	slots     int
-	live      map[string]int
-	flowSlots map[string]int // global slots held by counted runs, per flow (MaxSlotsPerFlow)
-	flowQueue map[string][]*pendingRun
-	waiting   []*pendingRun
-	cancels   map[string]activeRun
-	baseCtx   context.Context
-	baseStop  context.CancelFunc
-	wg        sync.WaitGroup
+	mu         sync.Mutex
+	closed     bool
+	slots      int
+	live       map[string]int
+	flowSlots  map[string]int // global slots held by counted runs, per flow (MaxSlotsPerFlow)
+	flowQueue  map[string][]*pendingRun
+	waiting    []*pendingRun
+	resumers   []*resumeWait // parked runs waiting for a slot again (A7)
+	parked     int           // runs whose global slot is given back (A7)
+	nextTicket uint64        // arrival order of waiting runs and resumers
+	cancels    map[string]activeRun
+	baseCtx    context.Context
+	baseStop   context.CancelFunc
+	wg         sync.WaitGroup
 
 	// testOnEvent, when set before the first Start, sees every engine event before
 	// it is published. Tests use it to inject failures into the event sink.
@@ -184,6 +194,9 @@ func NewRunner(engine *Engine, store *Store, hooks RunnerHooks, cfg RunnerConfig
 	}
 	if cfg.MaxPendingBytes <= 0 {
 		cfg.MaxPendingBytes = DefaultMaxPendingBytes
+	}
+	if cfg.MaxParkedRuns <= 0 {
+		cfg.MaxParkedRuns = DefaultMaxParkedRuns
 	}
 	if cfg.MaxSlotsPerFlow <= 0 {
 		cfg.MaxSlotsPerFlow = max(1, cfg.MaxParallelRuns/2)
@@ -334,25 +347,34 @@ func (r *Runner) admitLocked(p *pendingRun) bool {
 	if !(r.slots < r.cfg.MaxParallelRuns && r.fitsLocked(p.rec.FlowID, p.counted) && r.nextWaitingLocked() < 0) {
 		p.waited = true
 	}
+	r.nextTicket++
+	p.ticket = r.nextTicket
 	r.waiting = append(r.waiting, p)
 	r.dispatchLocked()
 	_, started := r.cancels[p.rec.ID]
 	return started
 }
 
-// dispatchLocked hands out free global slots in arrival order. A run whose flow already holds its
+// dispatchLocked hands out free global slots in arrival (ticket) order, to waiting runs and to
+// parked runs that want a slot back (A7) alike. A run whose flow already holds its
 // share of slots (MaxSlotsPerFlow) is passed over and keeps its place, so one flooding parallel
 // flow cannot hold up the runs of other flows queued behind its own (S5). Every run in r.waiting
 // has p.waited set unless admitLocked launches it at once, so Runner.execute asks the gate.
 func (r *Runner) dispatchLocked() {
 	for !r.closed && r.slots < r.cfg.MaxParallelRuns {
-		i := r.nextWaitingLocked()
-		if i < 0 {
+		wi, ri := r.nextWaitingLocked(), r.nextResumerLocked()
+		if wi < 0 && ri < 0 {
 			return
 		}
-		p := r.waiting[i]
+		if ri >= 0 && (wi < 0 || r.resumers[ri].ticket < r.waiting[wi].ticket) {
+			w := r.resumers[ri]
+			r.resumers = append(r.resumers[:ri:ri], r.resumers[ri+1:]...)
+			r.grantLocked(w) // a run that already started: no gate check, no new record
+			continue
+		}
+		p := r.waiting[wi]
 		// A new slice: the old backing array must not keep the run's trigger data.
-		r.waiting = append(r.waiting[:i:i], r.waiting[i+1:]...)
+		r.waiting = append(r.waiting[:wi:wi], r.waiting[wi+1:]...)
 		r.launchLocked(p)
 	}
 }
@@ -385,6 +407,7 @@ func (r *Runner) launchLocked(p *pendingRun) {
 	if p.counted {
 		r.flowSlots[p.rec.FlowID]++
 	}
+	p.slot = &runSlot{r: r, flowID: p.rec.FlowID, counted: p.counted, held: true}
 	ctx, cancel := context.WithCancel(r.baseCtx)
 	r.cancels[p.rec.ID] = activeRun{flowID: p.rec.FlowID, mode: p.rec.Mode, cancel: cancel}
 	r.wg.Add(1)
@@ -480,10 +503,14 @@ func (r *Runner) runAndRecord(ctx context.Context, p *pendingRun) (res RunResult
 			}
 		}
 	}
+	var slot RunSlot // never a typed nil
+	if p.slot != nil {
+		slot = p.slot
+	}
 	res = r.engine.Execute(ctx, RunRequest{
 		RunID: runID, Flow: p.req.Flow, Revision: p.req.Revision, Mode: p.req.Mode,
 		TriggerNode: p.req.TriggerNode, TriggerType: p.req.TriggerType, TriggerData: p.req.TriggerData,
-		OnlyNode: p.req.OnlyNode, Timeout: p.req.Timeout,
+		OnlyNode: p.req.OnlyNode, Timeout: p.req.Timeout, Slot: slot,
 	}, sink)
 	if err := r.store.FinishRun(bg, runID, res); err != nil {
 		r.logStoreError("flow run result not saved", runID, err)
@@ -543,9 +570,13 @@ func (r *Runner) logStoreError(msg, runID string, err error, attrs ...any) {
 func (r *Runner) release(p *pendingRun) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.slots--
-	if p.counted {
-		r.dropFlowSlotLocked(p.rec.FlowID)
+	if p.slot == nil || !r.endSlotLocked(p.slot) {
+		r.slots--
+		if p.counted {
+			r.dropFlowSlotLocked(p.rec.FlowID)
+		}
+	} else {
+		r.parked-- // the run ended while it waited without a slot (cancelled, shut down)
 	}
 	delete(r.cancels, p.rec.ID)
 	if p.counted {
