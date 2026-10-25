@@ -454,6 +454,35 @@ export async function run(env) {
             [before, inView, head(), s.h.logged], [[0, false, false], [1, true, true], [0, false, false], []]);
         s.editor.dispose();
     });
+    // ── V4, U13: phone header ──
+
+    await guardAsync('b5 V4 U13 a phone header moves Runs and Test into the more menu and keeps Paused in view', async () => {
+        const s = await session(undefined, { enabled: false, flow: { live: flowDoc(), live_revision: 2, published_draft_revision: 3 } });
+        let items = [];
+        s.h.ctx.showContextMenu = (x, y, list) => { items = list; };
+        const labels = () => items.map(i => (i.separator ? '|' : i.label));
+        const more = s.editor.el.querySelector('[data-ed-cmd="more"]');
+        more.fire('click');
+        const wide = labels();
+        s.editor.el.getBoundingClientRect = () => ({ left: 0, top: 0, right: 390, bottom: 800, width: 390, height: 800 });
+        more.fire('click');
+        const phone = labels();
+        items.find(i => i.label === 'runs_title').action();
+        const drawer = !!s.editor.el.querySelector('.ed-drawer');
+        const dialogs = s.h.dialogs.length;
+        await items.find(i => i.label === 'test_draft').action();
+        await settle();
+        const testOpened = s.h.dialogs.length - dialogs;
+        const paused = s.editor.el.querySelector('[data-ed-state]').html.includes('data-ed-paused');
+        const sheet = css();
+        const narrow = sheet.slice(sheet.indexOf('@container (max-width: 560px)')).split(/\r?\n\}\r?\n/)[0];
+        eq('b5 V4 U13 wide: Run now first; phone: Runs and Test first and working; Paused chip marked; the 560 px rules hide the three buttons and only the non-paused chips',
+            [wide.slice(0, 2), phone.slice(0, 4), drawer, testOpened, paused,
+                narrow.includes('.ed-head-actions [data-ed-cmd="runs"], .ed-head-actions [data-ed-cmd="test"], .ed-head-actions [data-ed-cmd="run-now"] { display: none; }'),
+                narrow.includes('.ed-state > :not([data-ed-paused]) { display: none; }'), narrow.includes('.ed-state { display: none; }'), s.h.logged],
+            [['run_now', 'versions_title'], ['runs_title', 'test_draft', '|', 'run_now'], true, 1, true, true, true, false, []]);
+        s.editor.dispose();
+    });
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }

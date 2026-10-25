@@ -188,7 +188,7 @@
             const s = stateOf();
             const inactive = ed.flow.live && !ed.flowEnabled && !ed.runView;
             el.querySelector('[data-ed-state]').innerHTML = '<span class="ed-chip ed-chip--' + s.cls + '"' + (s.title ? ' title="' + esc(s.title) + '"' : '') + '>' + esc(t(s.key)) + '</span>' +
-                (inactive ? '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.state_inactive')) + '</span>' : '') + liveChip() + timersChip();
+                (inactive ? '<span class="ed-chip ed-chip--muted" data-ed-paused>' + esc(t('easydrag.ui.state_inactive')) + '</span>' : '') + liveChip() + timersChip();
             paintRevision();
             syncSaveChip();
             const ro = !!(ed.readonly || ed.runView);
@@ -533,10 +533,23 @@
             return ctx.confirmDialog(t('easydrag.ui.leave_title'), t('easydrag.ui.leave_text'));
         }
 
+        // headerNarrow: the editor is 560 px wide or narrower, where the stylesheet hides Runs, Test and
+        // Run now in the header (@container max-width 560px) and the ⋯ menu offers them.
+        function headerNarrow() {
+            const width = el.getBoundingClientRect().width;
+            return width > 0 && width <= 560;
+        }
+
         function moreMenu(anchor) {
             const r = anchor.getBoundingClientRect();
             const run = runNowState();
-            ctx.showContextMenu(r.left, r.bottom + 4, [
+            const ro = !!(ed.readonly || ed.runView);
+            const moved = headerNarrow() ? [
+                { icon: 'history', label: t('easydrag.ui.runs_title'), action: () => { runs.toggleDrawer(); renderHeader(); setMenus(); } },
+                { icon: 'flask', label: t('easydrag.ui.test_draft'), disabled: ro || runs.isRunning(), action: test },
+                { separator: true }
+            ] : [];
+            ctx.showContextMenu(r.left, r.bottom + 4, moved.concat([
                 { icon: 'play', label: t('easydrag.ui.run_now'), disabled: run.disabled, disabledHint: run.hint, action: runLiveNow },
                 { icon: 'history', label: t('easydrag.ui.versions_title'), action: () => publish.openVersions() },
                 { icon: 'settings', label: t('easydrag.ui.flow_settings'), action: () => ED.dialogs.flowSettings(ed) },
@@ -545,7 +558,7 @@
                 { icon: 'list', label: t('easydrag.ui.home_mission_control'), action: () => ctx.openApp && ctx.openApp('mission-control') },
                 { separator: true },
                 { icon: 'trash', label: t('easydrag.ui.home_delete'), disabled: !!ed.readonly, action: deleteFlow }
-            ]);
+            ]));
         }
 
         // ── window menus ────────────────────────────────────────────────────────

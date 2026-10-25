@@ -948,7 +948,10 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 }
 @container (max-width: 560px) {
     .ed-home-hero, .ed-home-toolbar, .ed-home-section { padding-left: 16px; padding-right: 16px; }
-    .ed-state { display: none; }
+    /* the state chip goes, Paused stays (U13): a paused flow must be told apart on a phone too */
+    .ed-state > :not([data-ed-paused]) { display: none; }
+    /* Runs, Test and Run now move into the ⋯ menu (editor moreMenu); Stop stays while a run goes on (V4) */
+    .ed-head-actions [data-ed-cmd="runs"], .ed-head-actions [data-ed-cmd="test"], .ed-head-actions [data-ed-cmd="run-now"] { display: none; }
     .ed-detail-backdrop { padding: 0; }
     .ed-detail { border-radius: 0; }
     .ed-detail-head {
