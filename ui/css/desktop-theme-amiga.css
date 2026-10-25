@@ -74,6 +74,11 @@
     --ds-color-accent-glow: rgba(102, 136, 187, 0);
     --ds-color-control-active: #999999;
     --ds-color-inner-highlight: #ffffff;
+    /* Status text: at least 5:1 on the #aaaaaa app and panel backgrounds. */
+    --ds-color-success-fg: #004300;
+    --ds-color-warning-fg: #5b2c00;
+    --ds-color-danger-fg: #780100;
+    --ds-color-info-fg: #003773;
     --ds-elevation-1: none;
     --ds-elevation-2: none;
     --ds-elevation-3: none;

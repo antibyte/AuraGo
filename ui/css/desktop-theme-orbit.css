@@ -113,6 +113,11 @@
     --ds-color-accent-glow: rgba(92, 225, 255, .3);
     --ds-color-control-active: rgba(92, 225, 255, .24);
     --ds-color-inner-highlight: rgba(210, 235, 255, .1);
+    /* Status text: the dark defaults. */
+    --ds-color-success-fg: #4ad29c;
+    --ds-color-warning-fg: #f2b84b;
+    --ds-color-danger-fg: #ff7a72;
+    --ds-color-info-fg: #5aa9ff;
     --ds-elevation-1: 0 0 0 1px rgba(92, 225, 255, .1), 0 2px 6px rgba(0, 0, 8, .5);
     --ds-elevation-2: 0 0 0 1px rgba(92, 225, 255, .12), 0 6px 16px rgba(0, 0, 8, .55);
     --ds-elevation-3: 0 0 0 1px rgba(92, 225, 255, .14), 0 12px 32px rgba(0, 0, 8, .6);

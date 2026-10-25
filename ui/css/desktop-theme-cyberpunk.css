@@ -83,6 +83,7 @@
     --ds-color-control-active: rgba(0, 240, 255, 0.24);
     --ds-color-inner-highlight: rgba(0, 240, 255, 0.06);
     --ds-color-success-fg: #0DF272;
+    --ds-color-warning-fg: #F2B84B;
     --ds-color-danger-fg: #FF3D7F;
     --ds-color-info-fg: #00F0FF;
     --ds-elevation-1: 0 0 0 1px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.6);

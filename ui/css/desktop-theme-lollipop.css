@@ -87,8 +87,8 @@
     /* Light-surface semantics (the shared dark-tuned values fail contrast here), rounder corners, display font */
     --vd-coral: #C42B52;
     --vd-amber: #9A5B00;
-    --ds-color-success-fg: #0B7A53;
-    --ds-color-warning-fg: #9A5B00;
+    --ds-color-success-fg: #03714C;
+    --ds-color-warning-fg: #905502;
     --ds-color-danger-fg: #B3261E;
     --ds-color-info-fg: #1B5FB0;
     --ds-radius-xs: 6px;

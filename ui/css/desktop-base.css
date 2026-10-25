@@ -482,6 +482,9 @@
     --vd-accent-r: 233;
     --vd-accent-g: 84;
     --vd-accent-b: 32;
+    /* Text on the accent: the dark ink reads on the orange (5.2:1, white only 3.65:1); the accent itself stays bright,
+       because it is also text on the dark panels. */
+    --vd-accent-contrast: #0c1016;
     --vd-coral: #f97362;
     --vd-amber: #f59e0b;
     --vd-shadow: 0 18px 52px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.28);
@@ -654,10 +657,11 @@
     --vd-border-bright: rgba(49, 66, 94, 0.38);
     --vd-text: #192334;
     --vd-muted: #43516a;
-    --vd-accent: #0a84ff;
-    --vd-accent-r: 10;
-    --vd-accent-g: 132;
-    --vd-accent-b: 255;
+    /* Deep system blue: white reads on it (5.6:1; #0a84ff only 3.65:1). Fruity dark keeps #0a84ff (rule below). */
+    --vd-accent: #0066cc;
+    --vd-accent-r: 0;
+    --vd-accent-g: 102;
+    --vd-accent-b: 204;
     --vd-coral: #ff5f57;
     --vd-amber: #ffbd2e;
     --vd-shadow: 0 28px 66px rgba(24, 38, 60, 0.3);
@@ -700,6 +704,12 @@
     --ds-color-control-hover: #e2e9f3;
     --ds-color-control-active: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.2);
     --ds-color-inner-highlight: rgba(255, 255, 255, 0.6);
+
+    /* Status text on the light panels: at least 5:1 on --vd-theme-panel-bg (#d8e0eb). */
+    --ds-color-success-fg: #026b26;
+    --ds-color-warning-fg: #894e04;
+    --ds-color-danger-fg: #bc0307;
+    --ds-color-info-fg: #0058bd;
 
     --ds-elevation-1: 0 1px 2px rgba(52, 64, 84, 0.08);
     --ds-elevation-2: 0 4px 12px rgba(52, 64, 84, 0.12);
@@ -780,6 +790,19 @@
     --ds-color-border-subtle: rgba(255, 255, 255, 0.12);
     --ds-color-border-default: rgba(255, 255, 255, 0.18);
     --ds-color-border-strong: rgba(255, 255, 255, 0.28);
+
+    /* Status text: back to the dark-tuned defaults. */
+    --ds-color-success-fg: #4ad29c;
+    --ds-color-warning-fg: #f2b84b;
+    --ds-color-danger-fg: #ff7a72;
+    --ds-color-info-fg: #5aa9ff;
+}
+
+/* Fruity dark keeps the bright system blue; the dark ink reads on it (5.3:1, white only 3.65:1). :where() keeps the
+   selector at the specificity of the accent presets ([data-accent], later in this file), so a chosen accent still wins. */
+.desktop-body[data-theme="fruity"]:where([data-fruity-mode="dark"]) {
+    --vd-accent: #0a84ff;
+    --vd-accent-contrast: #0d0f14;
 }
 
 /* Fruity dark mode - explicit component-level overrides (OS-independent) */
@@ -1920,6 +1943,16 @@
         --ds-color-surface-1: #1b1e26;
         --ds-color-surface-2: #202631;
         --ds-color-surface-3: #262e3c;
+
+        --ds-color-success-fg: #4ad29c;
+        --ds-color-warning-fg: #f2b84b;
+        --ds-color-danger-fg: #ff7a72;
+        --ds-color-info-fg: #5aa9ff;
+    }
+
+    .desktop-body[data-theme="fruity"]:where(:not([data-fruity-mode="light"])) {
+        --vd-accent: #0a84ff;
+        --vd-accent-contrast: #0d0f14;
     }
 
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"])[data-wallpaper="aurora"] {
@@ -2101,13 +2134,17 @@
     --vd-accent-r: 39;
     --vd-accent-g: 199;
     --vd-accent-b: 166;
+    --vd-accent-contrast: #0c1016;
 }
 
+/* The accent presets are light colours: a dark ink reads on each of them (7.9:1 and more). A skin's root rule, later
+   in the bundle, still sets its own --vd-accent-contrast. */
 .desktop-body[data-accent="orange"] {
     --vd-accent: #ff9d4d;
     --vd-accent-r: 255;
     --vd-accent-g: 157;
     --vd-accent-b: 77;
+    --vd-accent-contrast: #0c1016;
 }
 
 .desktop-body[data-accent="blue"] {
@@ -2115,6 +2152,7 @@
     --vd-accent-r: 99;
     --vd-accent-g: 179;
     --vd-accent-b: 255;
+    --vd-accent-contrast: #0c1016;
 }
 
 .desktop-body[data-accent="violet"] {
@@ -2122,6 +2160,7 @@
     --vd-accent-r: 183;
     --vd-accent-g: 148;
     --vd-accent-b: 255;
+    --vd-accent-contrast: #0c1016;
 }
 
 .desktop-body[data-accent="green"] {
@@ -2129,6 +2168,7 @@
     --vd-accent-r: 72;
     --vd-accent-g: 213;
     --vd-accent-b: 151;
+    --vd-accent-contrast: #0c1016;
 }
 
 /* A picked accent also replaces the darker step a theme pairs with its own colour. Fixed-accent skins have the same
@@ -2137,7 +2177,7 @@
     --ds-color-accent-600: color-mix(in srgb, var(--vd-accent) 78%, #000);
 }
 
-/* Text colour that sits on the accent: white by default (Standard, Fruity and the user accents); fixed-accent skins override it. */
+/* Text colour that sits on the accent: white by default (Fruity light); Standard, Fruity dark, the accent presets and the skins set their own. */
 .desktop-body {
     --vd-accent-contrast: #fff;
     /* Declared here, not on :root, so it follows the accent on this element. Black Gloss uses it; Standard and Fruity set their own strength. */

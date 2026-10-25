@@ -61,6 +61,11 @@
     --ds-color-accent-glow: rgba(230, 168, 58, .2);
     --ds-color-control-active: #33463a;
     --ds-color-inner-highlight: rgba(255, 255, 255, .07);
+    /* Status text: the dark defaults. */
+    --ds-color-success-fg: #4ad29c;
+    --ds-color-warning-fg: #f2b84b;
+    --ds-color-danger-fg: #ff7a72;
+    --ds-color-info-fg: #5aa9ff;
     --ds-elevation-1: 0 2px 5px rgba(0, 0, 0, .3);
     --ds-elevation-2: 0 5px 14px rgba(0, 0, 0, .36);
     --ds-elevation-3: 0 12px 28px rgba(0, 0, 0, .44);

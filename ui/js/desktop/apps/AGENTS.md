@@ -416,8 +416,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   - Status colours: `--infra-ok/warn/bad` stay the raw tokens for dots and strokes. Text and rings use `--infra-ok-text`,
     `--infra-warn-text`, `--infra-bad-text` and `--infra-ok-ring`, `--infra-warn-ring`, `--infra-bad-ring`, which are
     `light-dark(color-mix(token, --vd-text), token)`: the dark schemes keep the token (the danger text and the link are only
-    lightened a little), the light schemes darken it, because only the default theme and Minimal ship light variants of
-    `--ds-color-*-fg` (Fruity light, Windows XP and Amiga inherit the dark values: a theme-token follow-up). Accent used as a
+    lightened a little), the light schemes darken it, a belt-and-braces step now: every skin and Fruity light ship
+    their own `--ds-color-*-fg` (4.5:1, `TestDesktopThemeTokenContrastBrowser`); Infra's own darkening could be dropped. Accent used as a
     text colour goes through `--infra-link`. Never use the raw tokens as text colour.
   - Surfaces that float over the canvas (tools, lane labels, minimap, empty and no-match boxes) use `--vd-theme-panel-bg-strong`;
     `--vd-theme-overlay-bg` is a modal scrim (the scrim and the dialog backdrop only).

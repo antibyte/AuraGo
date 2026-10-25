@@ -22,8 +22,9 @@
     --vd-window-radius: 10px;
     --vd-font-ui: 'Inter', 'Geist', system-ui, sans-serif;
 
-    /* Text on the user's accent (the accent itself stays the user's; white is the shared default) */
-    --vd-accent-contrast: #fff;
+    /* Text on the user's accent: the default teal and every accent preset are light, so a dark ink reads on each of
+       them (8:1 and more; white only 1.9–2.4:1). The accent itself stays the user's. */
+    --vd-accent-contrast: #0c0c0e;
 
     /* Theme bridge */
     --vd-theme-app-bg: #0c0c0e;
@@ -71,6 +72,11 @@
     --ds-color-accent-glow: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.14);
     --ds-color-control-active: rgba(255, 255, 255, 0.16);
     --ds-color-inner-highlight: rgba(255, 255, 255, 0.1);
+    /* Status text: the dark defaults. */
+    --ds-color-success-fg: #4ad29c;
+    --ds-color-warning-fg: #f2b84b;
+    --ds-color-danger-fg: #ff7a72;
+    --ds-color-info-fg: #5aa9ff;
     --ds-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.5);
     --ds-elevation-2: 0 4px 12px rgba(0, 0, 0, 0.55);
     --ds-elevation-3: 0 12px 32px rgba(0, 0, 0, 0.6);

@@ -62,6 +62,11 @@
     --ds-color-accent-glow: rgba(165, 217, 65, .2);
     --ds-color-control-active: #3b4c23;
     --ds-color-inner-highlight: rgba(239, 255, 189, .16);
+    /* Status text: the dark defaults, with danger and info a little lighter for the lighter green panels. */
+    --ds-color-success-fg: #4ad29c;
+    --ds-color-warning-fg: #f2b84b;
+    --ds-color-danger-fg: #ff887f;
+    --ds-color-info-fg: #66afff;
     --ds-elevation-1: 0 2px 4px rgba(0, 0, 0, .3);
     --ds-elevation-2: 0 6px 14px rgba(0, 0, 0, .36);
     --ds-elevation-3: 0 14px 30px rgba(0, 0, 0, .44);

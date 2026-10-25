@@ -427,9 +427,14 @@ func cssContrastRatio(a, b [3]float64) float64 {
 // ---------------------------------------------------------------------------------------------------
 // The contract.
 
+// desktopThemeStatusTokens are the status text colours: every skin root sets them, opaque hex, at least 4.5:1 on the
+// app and panel backgrounds.
+var desktopThemeStatusTokens = []string{"--ds-color-success-fg", "--ds-color-warning-fg", "--ds-color-danger-fg", "--ds-color-info-fg"}
+
 // desktopThemeRequiredTokens must all be declared on the root rule of every skin. --vd-accent-contrast, the text
-// colour that sits on the accent, belongs to every skin: a user-accent skin sets the shared white, a fixed-accent
-// skin a colour that reads on its accent.
+// colour that sits on the accent, belongs to every skin: a user-accent skin sets an ink that reads on the default
+// accent and every accent preset, a fixed-accent skin a colour that reads on its accent. The status text colours
+// (desktopThemeStatusTokens) belong to every skin too.
 func desktopThemeRequiredTokens() []string {
 	tokens := []string{
 		"color-scheme",
@@ -449,6 +454,7 @@ func desktopThemeRequiredTokens() []string {
 		"--ds-color-control-active", "--ds-color-inner-highlight",
 		"--ds-blur-fine", "--ds-blur-coarse",
 	}
+	tokens = append(tokens, desktopThemeStatusTokens...)
 	for level := 0; level <= 3; level++ {
 		tokens = append(tokens, fmt.Sprintf("--ds-color-surface-%d", level))
 	}
@@ -466,6 +472,7 @@ var desktopThemeAccentTokens = []string{"--vd-accent", "--vd-accent-r", "--vd-ac
 var desktopThemeRootOnlyTokens = map[string]bool{
 	"color-scheme": true, "--vd-theme-app-bg": true, "--vd-theme-panel-bg": true, "--vd-text": true,
 	"--vd-theme-muted": true, "--vd-accent": true, "--vd-accent-contrast": true,
+	"--ds-color-success-fg": true, "--ds-color-warning-fg": true, "--ds-color-danger-fg": true, "--ds-color-info-fg": true,
 }
 
 func desktopThemeSkinPath(theme desktopThemeDescriptor) string {
@@ -644,6 +651,16 @@ func desktopThemeCSSViolations(theme desktopThemeDescriptor, css string) []strin
 		if mutedOK && appBgOK {
 			ratio(muted, appBg, "--vd-theme-muted", "--vd-theme-app-bg")
 		}
+		for _, token := range desktopThemeStatusTokens {
+			if status, statusOK := colour(token); statusOK {
+				if appBgOK {
+					ratio(status, appBg, token, "--vd-theme-app-bg")
+				}
+				if panelBgOK {
+					ratio(status, panelBg, token, "--vd-theme-panel-bg")
+				}
+			}
+		}
 
 		// The scheme has to match the palette. Compare the two luminances instead of testing the background
 		// against a threshold: a mid-grey skin with black text (Amiga) is a light theme.
@@ -657,7 +674,8 @@ func desktopThemeCSSViolations(theme desktopThemeDescriptor, css string) []strin
 			}
 		}
 
-		// Text that sits on the accent: a fixed accent must be readable under it; a user accent only carries the token.
+		// Text that sits on the accent: a fixed accent must be readable under it; a user accent only carries the token
+		// here (TestDesktopThemeTokenContrastBrowser measures it on every accent preset).
 		if theme.Accent == "fixed" {
 			if accent, accentOK := colour("--vd-accent"); accentOK && accentContrastOK {
 				ratio(accentContrast, accent, "--vd-accent-contrast", "--vd-accent")
@@ -849,6 +867,22 @@ func TestDesktopThemeCSSWalkerAndChecker(t *testing.T) {
 	}
 }
 
+// desktopThemeProbeStatus is the status text palette (success, warning, danger, info) of the probe skins: dark inks for
+// a light palette, light inks for a dark one. The dark inks also read on the mid-grey #aaaaaa of the Amiga case.
+var desktopThemeProbeStatus = map[string][4]string{
+	"light": {"#004300", "#5b2c00", "#780100", "#003773"},
+	"dark":  {"#4ad29c", "#f2b84b", "#ff7a72", "#5aa9ff"},
+}
+
+// desktopThemeProbeStatusValues maps the status tokens to the probe palette of the given kind ("light" or "dark").
+func desktopThemeProbeStatusValues(kind string) map[string]string {
+	values := map[string]string{}
+	for i, token := range desktopThemeStatusTokens {
+		values[token] = desktopThemeProbeStatus[kind][i]
+	}
+	return values
+}
+
 // desktopThemeProbeSkin renders a skin of the theme "probe" that satisfies the whole contract, so a test can break
 // exactly one thing. The palette is dark (near-black background, near-white text) or, for a light theme, the reverse;
 // a fixed accent is a dark blue with white text. An override replaces a token on the root rule; an empty override
@@ -857,8 +891,14 @@ func desktopThemeProbeSkin(theme desktopThemeDescriptor, overrides map[string]st
 	values := map[string]string{"color-scheme": theme.Scheme, "--vd-accent-contrast": "#ffffff"}
 	if theme.Scheme == "light" {
 		values["--vd-theme-app-bg"], values["--vd-theme-panel-bg"], values["--vd-text"], values["--vd-theme-muted"] = "#ffffff", "#f2f2f2", "#111111", "#444444"
+		for token, value := range desktopThemeProbeStatusValues("light") {
+			values[token] = value
+		}
 	} else {
 		values["--vd-theme-app-bg"], values["--vd-theme-panel-bg"], values["--vd-text"], values["--vd-theme-muted"] = "#101010", "#181818", "#f5f5f5", "#bbbbbb"
+		for token, value := range desktopThemeProbeStatusValues("dark") {
+			values[token] = value
+		}
 	}
 	order := desktopThemeRequiredTokens()
 	if theme.Accent == "fixed" {
@@ -885,12 +925,15 @@ func desktopThemeProbeSkin(theme desktopThemeDescriptor, overrides map[string]st
 }
 
 // desktopThemeContractProbeTokens renders a full valid root rule for the theme "probe" with a fixed accent: every
-// token of the contract is declared, the five measured values come from the arguments and the panel background
-// follows the app background.
+// token of the contract is declared, the five measured values come from the arguments, the panel background
+// follows the app background and the status text colours follow the scheme (dark inks on a light scheme).
 func desktopThemeContractProbeTokens(scheme, appBg, text, muted, accent, accentContrast string) string {
 	values := map[string]string{
 		"color-scheme": scheme, "--vd-theme-app-bg": appBg, "--vd-theme-panel-bg": appBg, "--vd-text": text,
 		"--vd-theme-muted": muted, "--vd-accent": accent, "--vd-accent-contrast": accentContrast,
+	}
+	for token, value := range desktopThemeProbeStatusValues(scheme) {
+		values[token] = value
 	}
 	order := append(desktopThemeRequiredTokens(), desktopThemeAccentTokens...)
 	var skin strings.Builder
@@ -921,7 +964,7 @@ func TestDesktopThemeCSSContractChecksTheDarkSchemeRoot(t *testing.T) {
 	t.Parallel()
 	theme := desktopThemeDescriptor{ID: "probe", Scheme: "light", SchemeSetting: "appearance.minimal_mode", Accent: "fixed"}
 	light := desktopThemeContractProbeTokens("light", "#ffffff", "#161616", "#6b6a66", "#161616", "#f7f6f3")
-	dark := `.desktop-body[data-theme="probe"][data-scheme="dark"] { color-scheme: dark; --vd-theme-app-bg: #181818; --vd-theme-panel-bg: #1c1c1c; --vd-text: #ededed; --vd-theme-muted: #9a9893; --vd-accent: #ededed; --vd-accent-contrast: #121212; }`
+	dark := `.desktop-body[data-theme="probe"][data-scheme="dark"] { color-scheme: dark; --vd-theme-app-bg: #181818; --vd-theme-panel-bg: #1c1c1c; --vd-text: #ededed; --vd-theme-muted: #9a9893; --vd-accent: #ededed; --vd-accent-contrast: #121212; --ds-color-success-fg: #6fc29a; --ds-color-warning-fg: #d6a95a; --ds-color-danger-fg: #e8857d; --ds-color-info-fg: #85aee0; }`
 	if v := desktopThemeCSSViolations(theme, light+"\n"+dark); len(v) != 0 {
 		t.Fatalf("valid light+dark skin rejected: %v", v)
 	}
@@ -931,6 +974,10 @@ func TestDesktopThemeCSSContractChecksTheDarkSchemeRoot(t *testing.T) {
 	lowContrast := strings.Replace(dark, "--vd-text: #ededed", "--vd-text: #333333", 1)
 	if v := desktopThemeCSSViolations(theme, light+"\n"+lowContrast); !containsSubstring(v, "dark: contrast of --vd-text") {
 		t.Fatalf("dark contrast not measured: %v", v)
+	}
+	lowStatus := strings.Replace(dark, "--ds-color-danger-fg: #e8857d", "--ds-color-danger-fg: #5a1d1d", 1)
+	if v := desktopThemeCSSViolations(theme, light+"\n"+lowStatus); !containsSubstring(v, "dark: contrast of --ds-color-danger-fg") {
+		t.Fatalf("dark status text not measured: %v", v)
 	}
 	wrongScheme := strings.Replace(dark, "color-scheme: dark", "color-scheme: light", 1)
 	if v := desktopThemeCSSViolations(theme, light+"\n"+wrongScheme); !containsSubstring(v, "dark root rule must set color-scheme: dark") {
@@ -1009,6 +1056,13 @@ func TestDesktopThemeCSSCheckerStrictness(t *testing.T) {
 		{name: "a user accent needs only the token", theme: dark, overrides: map[string]string{"--vd-accent-contrast": "#101010"}},
 		{name: "white on yellow is unreadable", theme: fixed, overrides: map[string]string{"--vd-accent": "#f3e600"}, want: "contrast of --vd-accent-contrast on --vd-accent"},
 		{name: "black on yellow reads", theme: fixed, overrides: map[string]string{"--vd-accent": "#f3e600", "--vd-accent-contrast": "#000000"}},
+
+		// Status text.
+		{name: "status text is required", theme: dark, overrides: map[string]string{"--ds-color-info-fg": ""}, want: "the root rule does not define --ds-color-info-fg"},
+		{name: "dark status text on a dark panel", theme: dark, overrides: map[string]string{"--ds-color-danger-fg": "#5a1d1d"}, want: "contrast of --ds-color-danger-fg on --vd-theme-panel-bg"},
+		{name: "dark-tuned status text on a light theme", theme: light, overrides: map[string]string{"--ds-color-success-fg": "#4ad29c"}, want: "contrast of --ds-color-success-fg on --vd-theme-app-bg"},
+		{name: "status text must be hex", theme: dark, overrides: map[string]string{"--ds-color-warning-fg": "var(--x)"}, want: `--ds-color-warning-fg is "var(--x)", want an opaque hex colour`},
+		{name: "deeper rule sets a status token", theme: dark, rest: root + ` .app { --ds-color-success-fg: #000000; }`, want: "sets --ds-color-success-fg"},
 	}
 	for _, tc := range cases {
 		tc := tc
