@@ -129,7 +129,7 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 			if len(results) == 0 {
 				// A success flagged no_results: a dedicated status would be
 				// classified as unknown and recorded as an unknown action.
-				return discoveryJSONWithinBudget(DiscoverToolsResponse{Status: "success", NoResults: true, Revision: revision, Suggestions: suggest(query), Summary: "No tools matched. Try list_categories, a shorter English keyword, or one of the suggestions."}, budget)
+				return discoveryJSONWithinBudget(DiscoverToolsResponse{Status: "success", NoResults: true, Revision: revision, Suggestions: suggest(query), Summary: "No tools matched. Try list_categories, a shorter keyword, or one of the suggestions."}, budget)
 			}
 		}
 		// Only names and kinds identify the result set: status, call_method and
