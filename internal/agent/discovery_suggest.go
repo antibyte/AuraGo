@@ -4,7 +4,9 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"unicode"
+	"unicode/utf8"
 )
 
 // discoverySuggestionThreshold is the lowest Dice coefficient that still counts
@@ -12,25 +14,66 @@ import (
 // name ("dokcer" for "docker") scores 0.33.
 const discoverySuggestionThreshold = 0.3
 
+const (
+	// discoverySuggestionTokens bounds the words of a query that are compared
+	// on their own; discoveryToolNameLimit bounds the query.
+	discoverySuggestionTokens = 8
+	// discoveryLabelLimit bounds the bytes of a label that are compared (the
+	// longest built-in one has 36), discoveryLabelCacheLimit the labels kept.
+	discoveryLabelLimit      = 128
+	discoveryLabelCacheLimit = 8192
+)
+
+// discoveryLabelCache keeps the trigrams of the labels of tools (names,
+// aliases and search terms) by text, so that a suggestion does not take
+// thousands of labels apart again. It starts over when it is full.
+var discoveryLabelCache struct {
+	sync.Mutex
+	grams map[string][]uint64
+}
+
+func discoveryLabelGrams(label string) []uint64 {
+	label = truncateUTF8ToLimit(label, discoveryLabelLimit, "")
+	discoveryLabelCache.Lock()
+	grams, ok := discoveryLabelCache.grams[label]
+	discoveryLabelCache.Unlock()
+	if ok {
+		return grams
+	}
+	grams = discoveryTrigrams(label)
+	discoveryLabelCache.Lock()
+	if discoveryLabelCache.grams == nil || len(discoveryLabelCache.grams) >= discoveryLabelCacheLimit {
+		discoveryLabelCache.grams = make(map[string][]uint64)
+	}
+	discoveryLabelCache.grams[label] = grams
+	discoveryLabelCache.Unlock()
+	return grams
+}
+
 // discoverySuggestions names up to limit catalog entries whose name or alias
 // resembles the query, best first, for answers that would otherwise be a dead
 // end (zero search hits, unknown tool name). keep filters the candidates, for
 // example to enabled tools the run may call; nil keeps all.
 func discoverySuggestions(catalog *ToolCatalog, query string, limit int, keep func(*ToolCatalogEntry) bool) []string {
-	query = strings.TrimSpace(query)
+	query = truncateUTF8ToLimit(strings.TrimSpace(query), discoveryToolNameLimit, "")
 	if catalog == nil || query == "" || limit <= 0 {
 		return nil
 	}
-	// The whole query plus every token of three or more characters, so that
-	// "send an emial" still finds send_email through "emial".
-	var probes []map[string]struct{}
+	// The whole query plus the first tokens of three or more characters, so
+	// that "send an emial" still finds send_email through "emial".
+	var probes [][]uint64
 	if grams := discoveryTrigrams(query); grams != nil {
 		probes = append(probes, grams)
 	}
+	tokens := 0
 	for _, token := range strings.FieldsFunc(strings.ToLower(query), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
-		if len([]rune(token)) < 3 {
+		if tokens == discoverySuggestionTokens {
+			break
+		}
+		if utf8.RuneCountInString(token) < 3 {
 			continue
 		}
+		tokens++
 		if grams := discoveryTrigrams(token); grams != nil {
 			probes = append(probes, grams)
 		}
@@ -50,7 +93,7 @@ func discoverySuggestions(catalog *ToolCatalog, query string, limit int, keep fu
 		}
 		best := 0.0
 		for _, label := range slices.Concat([]string{entry.Name}, entry.Aliases, entry.SearchTerms) {
-			labelGrams := discoveryTrigrams(label)
+			labelGrams := discoveryLabelGrams(label)
 			for _, probe := range probes {
 				best = max(best, discoveryDice(probe, labelGrams))
 			}
@@ -121,43 +164,50 @@ func unknownToolGuidance(dc *DispatchContext, name string) (guidance string, sug
 	return strings.Join(parts, " "), suggestions
 }
 
-// discoveryTrigrams returns the character trigrams of s, lower-cased, with
-// every non-letter and non-digit mapped to '_' and padded with '_' on both
-// sides so that word starts and ends weigh in. Nil when s has no letter or
-// digit.
-func discoveryTrigrams(s string) map[string]struct{} {
-	var b strings.Builder
-	b.WriteByte('_')
+// discoveryTrigrams returns the sorted, distinct character trigrams of s,
+// lower-cased, with every non-letter and non-digit mapped to '_' and padded
+// with '_' on both sides so that word starts and ends weigh in. A trigram is
+// its three runes packed into 21 bits each. Nil when s has no letter or digit.
+func discoveryTrigrams(s string) []uint64 {
+	runes := make([]rune, 1, len(s)+2)
+	runes[0] = '_'
 	alnum := false
 	for _, r := range strings.ToLower(s) {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
 			alnum = true
-			b.WriteRune(r)
+			runes = append(runes, r)
 		} else {
-			b.WriteByte('_')
+			runes = append(runes, '_')
 		}
 	}
-	b.WriteByte('_')
-	runes := []rune(b.String())
+	runes = append(runes, '_')
 	if !alnum || len(runes) < 3 {
 		return nil
 	}
-	grams := make(map[string]struct{}, len(runes))
+	grams := make([]uint64, 0, len(runes)-2)
 	for i := 0; i+3 <= len(runes); i++ {
-		grams[string(runes[i:i+3])] = struct{}{}
+		grams = append(grams, uint64(runes[i])<<42|uint64(runes[i+1])<<21|uint64(runes[i+2]))
 	}
-	return grams
+	slices.Sort(grams)
+	return slices.Compact(grams)
 }
 
 // discoveryDice is the Dice coefficient of two trigram sets: 2|A∩B| / (|A|+|B|).
-func discoveryDice(a, b map[string]struct{}) float64 {
+func discoveryDice(a, b []uint64) float64 {
 	if len(a) == 0 || len(b) == 0 {
 		return 0
 	}
 	shared := 0
-	for gram := range a {
-		if _, ok := b[gram]; ok {
+	for i, j := 0, 0; i < len(a) && j < len(b); {
+		switch {
+		case a[i] < b[j]:
+			i++
+		case a[i] > b[j]:
+			j++
+		default:
 			shared++
+			i++
+			j++
 		}
 	}
 	return 2 * float64(shared) / float64(len(a)+len(b))

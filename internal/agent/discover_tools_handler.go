@@ -141,7 +141,7 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 		revision = fmt.Sprintf("%x", sha256.Sum256(identity))[:16]
 		return discoveryPage(tc, results, revision, discoveryQueryKey(op, query), budget)
 	case "get_tool_info":
-		name := strings.TrimSpace(stringValueFromMap(tc.Params, "tool_name", "name", "tool"))
+		name := discoveryToolName(tc)
 		if entry, ok := catalog.Get(resolveDiscoverToolName(name)); ok {
 			result := discoverResultFromEntry(entry, sessionID, true)
 			if dc != nil && dc.discoveryReinjects && entry.Kind == ToolKindNative && entry.Enabled && entry.Status == ToolStatusHidden &&
@@ -174,7 +174,7 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 		}
 		return discoveryJSONWithinBudget(DiscoverToolsResponse{Status: "error", Error: "unknown_or_ambiguous_tool", Suggestions: suggest(name), Summary: "Use search to choose an exact namespaced tool ID."}, budget)
 	case "get_manual":
-		name := strings.TrimSpace(stringValueFromMap(tc.Params, "tool_name", "name", "tool"))
+		name := discoveryToolName(tc)
 		entry, ok := catalog.Get(name)
 		if !ok {
 			if serviceID := exactComposioServiceID(cfg, name); serviceID != "" {
@@ -208,6 +208,14 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 	default:
 		return discoverToolsJSON(DiscoverToolsResponse{Status: "error", Error: "unknown_operation", Summary: "Use list_categories, list_family, search, get_tool_info or get_manual."})
 	}
+}
+
+// discoveryToolNameLimit bounds a tool name a request carries and the query of
+// a suggestion; no tool, alias or Composio service is named longer.
+const discoveryToolNameLimit = 512
+
+func discoveryToolName(tc ToolCall) string {
+	return truncateUTF8ToLimit(strings.TrimSpace(stringValueFromMap(tc.Params, "tool_name", "name", "tool")), discoveryToolNameLimit, "")
 }
 
 func discoverComposioServiceSearchResults(cfg *config.Config, query string) []DiscoverToolResult {
