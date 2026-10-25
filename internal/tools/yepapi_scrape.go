@@ -9,6 +9,7 @@ import (
 
 // DispatchYepAPIScrape handles web scraping operations via YepAPI.
 func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation string, args map[string]interface{}) (string, error) {
+	ctx = WithYepAPIRequestContext(ctx, "yepapi_scrape", operation)
 	switch operation {
 	case "scrape":
 		payload, ok, msg := scrapeURLPayload(args)

@@ -7,6 +7,7 @@ import (
 
 // DispatchYepAPIAmazon handles Amazon data operations via YepAPI.
 func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation string, args map[string]interface{}) (string, error) {
+	ctx = WithYepAPIRequestContext(ctx, "yepapi_amazon", operation)
 	switch operation {
 	case "search":
 		query, _ := args["query"].(string)

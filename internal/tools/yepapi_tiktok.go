@@ -7,6 +7,7 @@ import (
 
 // DispatchYepAPITikTok handles TikTok data operations via YepAPI.
 func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation string, args map[string]interface{}) (string, error) {
+	ctx = WithYepAPIRequestContext(ctx, "yepapi_tiktok", operation)
 	switch operation {
 	case "search":
 		query, _ := args["query"].(string)

@@ -7,6 +7,7 @@ import (
 
 // DispatchYepAPISEO handles SEO tool operations via YepAPI.
 func DispatchYepAPISEO(ctx context.Context, client *YepAPIClient, operation string, args map[string]interface{}) (string, error) {
+	ctx = WithYepAPIRequestContext(ctx, "yepapi_seo", operation)
 	switch operation {
 	case "keywords":
 		keywords := stringSliceFromArgs(args, "keywords")

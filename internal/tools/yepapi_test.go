@@ -534,7 +534,8 @@ func TestDispatchYepAPIInstagramLogsPayloadShape(t *testing.T) {
 	})
 
 	ctx := WithYepAPILogger(context.Background(), logger)
-	if _, err := DispatchYepAPIInstagram(ctx, client, "user", map[string]interface{}{"username": "natgeo"}); err != nil {
+	res, err := DispatchYepAPIInstagram(ctx, client, "user", map[string]interface{}{"username": "natgeo"})
+	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	<-requests
@@ -554,6 +555,28 @@ func TestDispatchYepAPIInstagramLogsPayloadShape(t *testing.T) {
 	}
 	if strings.Contains(got, "natgeo") {
 		t.Fatalf("logs = %q, should not contain raw payload value", got)
+	}
+
+	// The successful envelope must carry the same request-shape diagnostics.
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(res), &payload); err != nil {
+		t.Fatalf("decode result %q: %v", res, err)
+	}
+	if payload["status"] != "success" {
+		t.Fatalf("status = %v, want success", payload["status"])
+	}
+	if payload["sent_endpoint"] != "/v1/instagram/user" {
+		t.Fatalf("sent_endpoint = %v, want /v1/instagram/user", payload["sent_endpoint"])
+	}
+	if payload["sent_operation"] != "user" {
+		t.Fatalf("sent_operation = %v, want user", payload["sent_operation"])
+	}
+	keys, ok := payload["sent_payload_keys"].([]interface{})
+	if !ok || len(keys) != 1 || keys[0] != "username_or_url" {
+		t.Fatalf("sent_payload_keys = %#v, want [username_or_url]", payload["sent_payload_keys"])
+	}
+	if strings.Contains(res, "natgeo") {
+		t.Fatalf("result = %q, should not contain the raw payload value", res)
 	}
 }
 
@@ -952,4 +975,211 @@ func (m *mockSecretReader) ReadSecret(key string) (string, error) {
 		return v, nil
 	}
 	return "", fmt.Errorf("secret not found: %s", key)
+}
+
+// The success envelope must carry the request-shape diagnostics. Before the
+// fix only the error path merged them, so a successful call with a wrong
+// payload shape looked identical to a correct one.
+func TestYepAPIFormatSuccessKeepsDiagnostics(t *testing.T) {
+	t.Run("success_envelope_carries_diagnostics", func(t *testing.T) {
+		out := yepAPIFormatSuccessWithDiagnostics(
+			json.RawMessage(`{"username":"natgeo"}`),
+			map[string]interface{}{
+				"sent_endpoint":     "/v1/instagram/user",
+				"sent_operation":    "user",
+				"sent_payload_keys": []string{"username_or_url"},
+			},
+		)
+
+		var payload map[string]interface{}
+		if err := json.Unmarshal([]byte(out), &payload); err != nil {
+			t.Fatalf("decode %q: %v", out, err)
+		}
+		if payload["status"] != "success" {
+			t.Fatalf("status = %v, want success", payload["status"])
+		}
+		if payload["sent_endpoint"] != "/v1/instagram/user" {
+			t.Fatalf("sent_endpoint = %v, want /v1/instagram/user", payload["sent_endpoint"])
+		}
+		if payload["sent_operation"] != "user" {
+			t.Fatalf("sent_operation = %v, want user", payload["sent_operation"])
+		}
+		keys, ok := payload["sent_payload_keys"].([]interface{})
+		if !ok || len(keys) != 1 || keys[0] != "username_or_url" {
+			t.Fatalf("sent_payload_keys = %#v, want [username_or_url]", payload["sent_payload_keys"])
+		}
+	})
+
+	t.Run("plain_success_envelope_stays_unchanged", func(t *testing.T) {
+		out := yepAPIFormatSuccess(json.RawMessage(`{"a":1}`))
+		if out != `{"data":{"a":1},"status":"success"}` {
+			t.Fatalf("plain success envelope = %s, want {\"data\":{\"a\":1},\"status\":\"success\"}", out)
+		}
+	})
+
+	t.Run("embedded_error_still_wins", func(t *testing.T) {
+		out := yepAPIFormatSuccessWithDiagnostics(
+			json.RawMessage(`{"error":"profile unavailable"}`),
+			map[string]interface{}{"sent_endpoint": "/v1/instagram/user"},
+		)
+		var payload map[string]interface{}
+		if err := json.Unmarshal([]byte(out), &payload); err != nil {
+			t.Fatalf("decode %q: %v", out, err)
+		}
+		if payload["status"] != "error" {
+			t.Fatalf("status = %v, want error", payload["status"])
+		}
+		if payload["sent_endpoint"] != "/v1/instagram/user" {
+			t.Fatalf("sent_endpoint = %v, want the diagnostic to survive the error path", payload["sent_endpoint"])
+		}
+	})
+}
+
+// The masked placeholder and an inactive static key must never be sent as the
+// API key; the runtime credential is the only usable value.
+func TestResolveYepAPIKeyIgnoresMaskedPlaceholder(t *testing.T) {
+	t.Run("masked_placeholder_is_not_a_key", func(t *testing.T) {
+		cfg := &config.Config{
+			Providers: []config.ProviderEntry{
+				{ID: "yepapi_main", Type: "yepapi", APIKey: "••••••••"},
+			},
+		}
+		vault := &mockSecretReader{secrets: map[string]string{}}
+		key, err := ResolveYepAPIKey(cfg, vault)
+		if err == nil {
+			t.Fatalf("expected an error for a masked placeholder, got key %q", key)
+		}
+		if key != "" {
+			t.Fatalf("expected no key, got %q", key)
+		}
+		if strings.Contains(err.Error(), "••••••••") {
+			t.Fatalf("error leaks the masked placeholder: %v", err)
+		}
+	})
+
+	t.Run("masked_placeholder_with_explicit_provider", func(t *testing.T) {
+		cfg := &config.Config{
+			YepAPI: config.YepAPIConfig{Provider: "my_yep"},
+			Providers: []config.ProviderEntry{
+				{ID: "my_yep", Type: "yepapi", APIKey: "••••••••"},
+			},
+		}
+		vault := &mockSecretReader{secrets: map[string]string{}}
+		key, err := ResolveYepAPIKey(cfg, vault)
+		if err == nil {
+			t.Fatalf("expected an error for a masked placeholder, got key %q", key)
+		}
+		if key != "" {
+			t.Fatalf("expected no key, got %q", key)
+		}
+	})
+
+	t.Run("oauth_provider_uses_the_runtime_token", func(t *testing.T) {
+		cfg := &config.Config{
+			Providers: []config.ProviderEntry{
+				{ID: "yepapi_main", Type: "yepapi", AuthType: "oauth2", APIKey: "static_key", RuntimeOAuthToken: "oauth_token"},
+			},
+		}
+		vault := &mockSecretReader{secrets: map[string]string{}}
+		key, err := ResolveYepAPIKey(cfg, vault)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if key != "oauth_token" {
+			t.Fatalf("expected 'oauth_token', got %q", key)
+		}
+	})
+}
+
+// The request diagnostics are traces, not warnings: they must not surface at
+// warn level, but they must still be available at debug level.
+func TestYepAPIDiagnosticsAreNotLoggedAtWarn(t *testing.T) {
+	newClient := func() *YepAPIClient {
+		return newYepAPITestClient(func(r *http.Request) (int, string) {
+			return http.StatusOK, `{"ok":true,"data":{}}`
+		})
+	}
+
+	t.Run("warn_level_stays_quiet", func(t *testing.T) {
+		var logs strings.Builder
+		logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
+		ctx := WithYepAPILogger(context.Background(), logger)
+		if _, err := DispatchYepAPIInstagram(ctx, newClient(), "user", map[string]interface{}{"username": "natgeo"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if strings.Contains(logs.String(), "[YepAPI]") {
+			t.Fatalf("logs = %q, want no YepAPI diagnostics at warn level", logs.String())
+		}
+	})
+
+	t.Run("debug_level_records_the_request_shape", func(t *testing.T) {
+		var logs strings.Builder
+		logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+		ctx := WithYepAPILogger(context.Background(), logger)
+		if _, err := DispatchYepAPIInstagram(ctx, newClient(), "user", map[string]interface{}{"username": "natgeo"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		got := logs.String()
+		if !strings.Contains(got, "[YepAPI] Prepared request payload") {
+			t.Fatalf("logs = %q, want the payload diagnostic", got)
+		}
+		if !strings.Contains(got, "tool=yepapi_instagram") {
+			t.Fatalf("logs = %q, want the tool name", got)
+		}
+		if !strings.Contains(got, "operation=user") {
+			t.Fatalf("logs = %q, want the operation name", got)
+		}
+	})
+}
+
+// Every YepAPI tool must emit the request-shape diagnostic, not just the
+// Instagram family.
+func TestYepAPIPayloadDiagnosticsCoverEveryTool(t *testing.T) {
+	cases := []struct {
+		tool     string
+		dispatch func(context.Context, *YepAPIClient) (string, error)
+	}{
+		{"yepapi_seo", func(ctx context.Context, c *YepAPIClient) (string, error) {
+			return DispatchYepAPISEO(ctx, c, "domain_overview", map[string]interface{}{"domain": "example.com"})
+		}},
+		{"yepapi_serp", func(ctx context.Context, c *YepAPIClient) (string, error) {
+			return DispatchYepAPISERP(ctx, c, "google", map[string]interface{}{"query": "aurago"})
+		}},
+		{"yepapi_scrape", func(ctx context.Context, c *YepAPIClient) (string, error) {
+			return DispatchYepAPIScrape(ctx, c, "scrape", map[string]interface{}{"url": "https://example.com"})
+		}},
+		{"yepapi_youtube", func(ctx context.Context, c *YepAPIClient) (string, error) {
+			return DispatchYepAPIYouTube(ctx, c, "search", map[string]interface{}{"query": "golang"})
+		}},
+		{"yepapi_tiktok", func(ctx context.Context, c *YepAPIClient) (string, error) {
+			return DispatchYepAPITikTok(ctx, c, "search", map[string]interface{}{"query": "cooking"})
+		}},
+		{"yepapi_instagram", func(ctx context.Context, c *YepAPIClient) (string, error) {
+			return DispatchYepAPIInstagram(ctx, c, "user", map[string]interface{}{"username": "natgeo"})
+		}},
+		{"yepapi_amazon", func(ctx context.Context, c *YepAPIClient) (string, error) {
+			return DispatchYepAPIAmazon(ctx, c, "search", map[string]interface{}{"query": "phone"})
+		}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.tool, func(t *testing.T) {
+			var logs strings.Builder
+			logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			client := newYepAPITestClient(func(r *http.Request) (int, string) {
+				return http.StatusOK, `{"ok":true,"data":{}}`
+			})
+			ctx := WithYepAPILogger(context.Background(), logger)
+			if _, err := tc.dispatch(ctx, client); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			got := logs.String()
+			if !strings.Contains(got, "[YepAPI] Prepared request payload") {
+				t.Fatalf("logs = %q, want the payload diagnostic for %s", got, tc.tool)
+			}
+			if !strings.Contains(got, "tool="+tc.tool) {
+				t.Fatalf("logs = %q, want tool=%s", got, tc.tool)
+			}
+		})
+	}
 }

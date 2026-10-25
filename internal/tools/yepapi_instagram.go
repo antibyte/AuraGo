@@ -66,6 +66,7 @@ func normalizeInstagramUsername(value string) string {
 
 // DispatchYepAPIInstagram handles Instagram data operations via YepAPI.
 func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operation string, args map[string]interface{}) (string, error) {
+	ctx = WithYepAPIRequestContext(ctx, "yepapi_instagram", operation)
 	switch operation {
 	case "search":
 		query := instagramSearchQueryArg(args)
@@ -74,7 +75,7 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		}
 		endpoint := "/v1/instagram/search"
 		payload := map[string]interface{}{"search_query": query}
-		data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
+		data, err := client.Post(ctx, endpoint, payload)
 		if err != nil {
 			return "", err
 		}
@@ -114,7 +115,7 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		}
 		endpoint := "/v1/instagram/post"
 		payload := map[string]interface{}{"shortcode": shortcode}
-		data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
+		data, err := client.Post(ctx, endpoint, payload)
 		if err != nil {
 			return "", err
 		}
@@ -133,7 +134,7 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		}
 		endpoint := "/v1/instagram/hashtag"
 		payload := map[string]interface{}{"tag": tag}
-		data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
+		data, err := client.Post(ctx, endpoint, payload)
 		if err != nil {
 			return "", err
 		}
@@ -146,7 +147,7 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		}
 		endpoint := "/v1/instagram/media-id"
 		payload := map[string]interface{}{"shortcode": shortcode}
-		data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
+		data, err := client.Post(ctx, endpoint, payload)
 		if err != nil {
 			return "", err
 		}
@@ -155,11 +156,6 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 	default:
 		return "", fmt.Errorf("unknown yepapi_instagram operation: %s", operation)
 	}
-}
-
-func postInstagramPayload(ctx context.Context, client *YepAPIClient, endpoint, operation string, payload map[string]interface{}) ([]byte, error) {
-	logYepAPIRequestPayload(ctx, "yepapi_instagram", operation, endpoint, payload)
-	return client.Post(ctx, endpoint, payload)
 }
 
 func instagramPayloadDiagnostics(endpoint, operation string, payload map[string]interface{}) map[string]interface{} {
@@ -186,7 +182,7 @@ func dispatchInstagramUsername(ctx context.Context, client *YepAPIClient, endpoi
 	if withLimit {
 		addPositiveIntArg(payload, args, "limit", "limit")
 	}
-	data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
+	data, err := client.Post(ctx, endpoint, payload)
 	if err != nil {
 		return "", err
 	}
@@ -202,7 +198,7 @@ func dispatchInstagramShortcode(ctx context.Context, client *YepAPIClient, endpo
 	if withLimit {
 		addPositiveIntArg(payload, args, "limit", "limit")
 	}
-	data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
+	data, err := client.Post(ctx, endpoint, payload)
 	if err != nil {
 		return "", err
 	}

@@ -89,6 +89,7 @@ func (c *YepAPIClient) postOnce(ctx context.Context, endpoint string, payload in
 		if err != nil {
 			return nil, fmt.Errorf("yepapi: failed to marshal payload: %w", err)
 		}
+		logYepAPIRequestPayload(ctx, endpoint, safeYepAPIJSONBodyKeys(body))
 		logYepAPIMarshaledRequestBody(ctx, endpoint, body)
 	}
 
@@ -157,8 +158,8 @@ func ResolveYepAPIKey(cfg *config.Config, vault config.SecretReader) (string, er
 				if err == nil && key != "" {
 					return key, nil
 				}
-				if p.APIKey != "" {
-					return p.APIKey, nil
+				if runtimeKey := p.RuntimeAPIKey(); runtimeKey != "" {
+					return runtimeKey, nil
 				}
 				return "", fmt.Errorf("provider '%s' configured for YepAPI but has no API key", p.ID)
 			}
@@ -173,8 +174,8 @@ func ResolveYepAPIKey(cfg *config.Config, vault config.SecretReader) (string, er
 			if err == nil && key != "" {
 				return key, nil
 			}
-			if p.APIKey != "" {
-				return p.APIKey, nil
+			if runtimeKey := p.RuntimeAPIKey(); runtimeKey != "" {
+				return runtimeKey, nil
 			}
 		}
 	}
@@ -231,9 +232,16 @@ func yepAPIFormatSuccessWithDiagnostics(data json.RawMessage, diagnostics map[st
 		}
 	}
 
-	b, _ := json.Marshal(map[string]interface{}{
+	payload := map[string]interface{}{
 		"status": "success",
 		"data":   json.RawMessage(data),
-	})
+	}
+	for key, value := range diagnostics {
+		if key == "" || value == nil {
+			continue
+		}
+		payload[key] = value
+	}
+	b, _ := json.Marshal(payload)
 	return string(b)
 }
