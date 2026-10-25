@@ -1385,9 +1385,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 			switch req.Operation {
 			case "list":
-				missions := missionManagerV2.List()
-				b, _ := json.Marshal(map[string]interface{}{"status": "success", "data": missions})
-				return "Tool Output: " + string(b)
+				return "Tool Output: " + tools.FormatMissionListForAgent(missionManagerV2.List())
 
 			case "create", "add":
 				// The agent cannot create flows; this path only builds manual and scheduled

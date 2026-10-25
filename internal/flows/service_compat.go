@@ -10,6 +10,9 @@ import (
 // bridge rule (no Service method that takes a flow lock).
 type LiveIssuesNoter interface {
 	NoteFlowLiveIssues(missionID string, issues []Issue)
+	// ClearFlowLiveIssues takes that note away again: the flow was published again, or its live
+	// revision passes the checks. It is a no-op when the mission shows no such note.
+	ClearFlowLiveIssues(missionID string)
 }
 
 // LiveIssueReport names a flow whose live revision no longer passes the current checks.
@@ -74,6 +77,13 @@ func (s *Service) CheckLiveRevisions(ctx context.Context) ([]LiveIssueReport, er
 		issues := s.liveRevisionErrors(rec)
 		if len(issues) == 0 {
 			visited[rec.ID] = nil
+			if noter != nil && rec.MissionID != "" {
+				noter.ClearFlowLiveIssues(rec.MissionID)
+			}
+			continue
+		}
+		// Published again while the check ran: the finding belongs to a revision that is gone.
+		if cur, err := s.store.GetFlow(ctx, rec.ID); err == nil && cur.LiveRevision != rec.LiveRevision {
 			continue
 		}
 		visited[rec.ID] = &liveCompat{revision: rec.LiveRevision, issues: issues}

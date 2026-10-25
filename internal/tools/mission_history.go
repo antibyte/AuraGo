@@ -412,3 +412,29 @@ func FormatMissionHistoryJSON(page *MissionHistoryPage) string {
 	}
 	return strings.TrimRight(buf.String(), "\n")
 }
+
+// FormatMissionListForAgent renders the mission list as the agent's manage_missions list reply
+// ({"status":"success","data":[...]}). last_output holds text a mission run produced (a flow's
+// leaf output can carry mail or web content), so a non-empty value is wrapped like the history
+// output by security.IsolateExternalData. It works on copies: the caller's missions stay as they
+// are, because the same list feeds the UI.
+func FormatMissionListForAgent(missions []*MissionV2) string {
+	data := make([]*MissionV2, len(missions))
+	for i, m := range missions {
+		if m == nil {
+			continue
+		}
+		c := *m
+		if c.LastOutput != "" {
+			c.LastOutput = security.IsolateExternalData(c.LastOutput)
+		}
+		data[i] = &c
+	}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(map[string]any{"status": "success", "data": data}); err != nil {
+		return `{"status":"error","message":"could not encode the mission list"}`
+	}
+	return strings.TrimRight(buf.String(), "\n")
+}

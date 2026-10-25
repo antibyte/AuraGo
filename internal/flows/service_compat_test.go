@@ -12,6 +12,19 @@ type b3NoteBridge struct {
 	*fakeBridge
 	noteMu sync.Mutex
 	noted  []string
+	clears []string
+}
+
+func (b *b3NoteBridge) ClearFlowLiveIssues(missionID string) {
+	b.noteMu.Lock()
+	b.clears = append(b.clears, missionID)
+	b.noteMu.Unlock()
+}
+
+func (b *b3NoteBridge) cleared() []string {
+	b.noteMu.Lock()
+	defer b.noteMu.Unlock()
+	return append([]string(nil), b.clears...)
 }
 
 func (b *b3NoteBridge) NoteFlowLiveIssues(missionID string, _ []Issue) {
@@ -96,5 +109,53 @@ func TestB3CheckLiveRevisionsFlagsWhatTheCurrentRulesRefuse(t *testing.T) {
 	cur, _ = s.GetFlow(ctx, rec.ID)
 	if got := s.LiveIssues(cur); got != nil {
 		t.Errorf("LiveIssues after a new publication = %+v, want none", got)
+	}
+}
+
+// R2b: a new publication and a clean re-check both take the note off the mission, and a fixed
+// flow is not noted again.
+func TestB3LiveNoteClearsOnRepublishAndCleanCheck(t *testing.T) {
+	ctx := context.Background()
+	clock := newFakeClock(time.Date(2026, 10, 3, 7, 0, 0, 0, time.UTC))
+	bridge := &b3NoteBridge{fakeBridge: newFakeBridge()}
+	s := NewService(openTestStore(t), catalogRegistry(t, fullEnv()), &Services{Tools: &fakeTools{}, Clock: clock, Location: time.UTC},
+		bridge, ServiceConfig{}, discardLogger())
+	t.Cleanup(func() { _ = s.Shutdown(context.Background()) })
+
+	old, _ := secretCallFlow(map[string]any{"url": "{{trigger.data.link}}", "auth_secret": "partner_token"})
+	rec, err := s.CreateFlow(ctx, CreateRequest{Import: old})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.store.Publish(ctx, rec.ID, rec.DraftRevision, clock.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CheckLiveRevisions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(bridge.notes()) != 1 || len(bridge.cleared()) != 0 {
+		t.Fatalf("notes %v clears %v after the first check", bridge.notes(), bridge.cleared())
+	}
+
+	fixed, _ := secretCallFlow(map[string]any{"url": "https://api.example.org/v1?next={{trigger.data.link}}", "auth_secret": "partner_token"})
+	cur, _ := s.GetFlow(ctx, rec.ID)
+	rev, _, err := s.SaveDraft(ctx, rec.ID, fixed, cur.DraftRevision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.Publish(ctx, rec.ID, rev); err != nil {
+		t.Fatal(err)
+	}
+	if got := bridge.cleared(); len(got) != 1 || got[0] != rec.MissionID {
+		t.Fatalf("clears after the republish = %v, want [%s]", got, rec.MissionID)
+	}
+	if _, err := s.CheckLiveRevisions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := bridge.cleared(); len(got) != 2 || got[1] != rec.MissionID {
+		t.Fatalf("clears after the clean re-check = %v", got)
+	}
+	if len(bridge.notes()) != 1 {
+		t.Fatalf("a fixed flow was noted again: %v", bridge.notes())
 	}
 }

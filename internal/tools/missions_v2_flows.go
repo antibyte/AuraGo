@@ -1067,3 +1067,20 @@ func (m *MissionManagerV2) NoteFlowLiveRevisionOutdated(missionID string) bool {
 	}
 	return changed
 }
+
+// ClearFlowLiveRevisionOutdated takes the note of NoteFlowLiveRevisionOutdated away again (the
+// flow was published again, or its live revision passes the checks): LastResult and LastOutput
+// go back to empty, but only while the mission still shows exactly that note, so a run result
+// or another note stays. It saves only when the mission changed and reports whether it did.
+func (m *MissionManagerV2) ClearFlowLiveRevisionOutdated(missionID string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	mission, ok := m.missions[missionID]
+	if !ok || !isFlowMission(mission) || mission.LastResult != MissionResultError ||
+		mission.LastOutput != flowLiveRevisionOutdatedOutput {
+		return false
+	}
+	mission.LastResult, mission.LastOutput = "", ""
+	m.saveFlowNotesLocked()
+	return true
+}

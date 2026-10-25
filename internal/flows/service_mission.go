@@ -144,6 +144,10 @@ func (s *Service) Publish(ctx context.Context, id string, baseRevision int) (*Fl
 	if err := s.bridge.SyncFlowMission(pub.MissionID, pub.Live.Name, bindings); err != nil {
 		return pub, issues, fmt.Errorf("update the flow mission: %w", err)
 	}
+	// The new revision passed the current rules: the outdated-revision note is obsolete.
+	if noter, ok := s.bridge.(LiveIssuesNoter); ok && pub.MissionID != "" {
+		noter.ClearFlowLiveIssues(pub.MissionID)
+	}
 	if err := s.armTimers(ctx, pub); err != nil {
 		return pub, issues, err
 	}

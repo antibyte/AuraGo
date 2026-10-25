@@ -101,6 +101,18 @@ func (b flowMissionBridge) NoteFlowLiveIssues(missionID string, _ []flows.Issue)
 	}
 }
 
+// ClearFlowLiveIssues implements flows.LiveIssuesNoter: the flow mission no longer shows the
+// outdated-revision note.
+func (b flowMissionBridge) ClearFlowLiveIssues(missionID string) {
+	mm, err := b.missions()
+	if err != nil {
+		return
+	}
+	if mm.ClearFlowLiveRevisionOutdated(missionID) {
+		broadcastMissionState(b.s)
+	}
+}
+
 // AutomaticRunsAllowed implements flows.RunGate: the Date/Time timers start no run while
 // automaticFlowRunsAllowed refuses (read-only missions, flows switched off).
 func (b flowMissionBridge) AutomaticRunsAllowed() error { return b.s.automaticFlowRunsAllowed() }
