@@ -70,7 +70,7 @@ const required = new Set();
 for (const match of source.matchAll(/t\('(desktop\.(?:app_infra|infra_[a-zA-Z0-9_]+))'/g)) required.add(match[1]);
 for (const key of ['desktop.qc_target_selected', 'desktop.qc_no_connection']) required.add(key);
 for (const icon of model.iconIds()) required.add(`desktop.infra_icon_${icon.replaceAll('-', '_')}`);
-for (const key of ['desktop.infra_access_unavailable', 'desktop.infra_action_unavailable', 'desktop.infra_saved_newer_draft', 'desktop.infra_source_saved_newer_draft', 'desktop.infra_layout_pending_review', 'desktop.infra_position', 'desktop.infra_source_compare', 'desktop.infra_node_compare', 'desktop.infra_current_source', 'desktop.infra_current_inventory', 'desktop.infra_your_draft', 'desktop.infra_no_field_differences', 'desktop.infra_reapply_draft', 'desktop.infra_reapply_ready', 'desktop.infra_node_conflict_review', 'desktop.infra_target_unavailable', 'desktop.infra_action_outcome_unknown', 'desktop.infra_pve_tags_hint', 'desktop.infra_error_timeout', 'desktop.infra_field_app_bindings']) required.add(key);
+for (const key of ['desktop.infra_access_unavailable', 'desktop.infra_action_unavailable', 'desktop.infra_saved_newer_draft', 'desktop.infra_source_saved_newer_draft', 'desktop.infra_position', 'desktop.infra_source_compare', 'desktop.infra_node_compare', 'desktop.infra_current_source', 'desktop.infra_current_inventory', 'desktop.infra_your_draft', 'desktop.infra_no_field_differences', 'desktop.infra_reapply_draft', 'desktop.infra_reapply_ready', 'desktop.infra_node_conflict_review', 'desktop.infra_target_unavailable', 'desktop.infra_action_outcome_unknown', 'desktop.infra_pve_tags_hint', 'desktop.infra_error_timeout', 'desktop.infra_field_app_bindings']) required.add(key);
 for (const [family, values] of Object.entries({
     infra_kind: ['device', 'vm', 'container', 'service', 'network', 'site', 'room', 'rack', 'group'],
     infra_source: ['registry', 'docker', 'proxmox', 'fritzbox'],
@@ -104,6 +104,57 @@ for (const locale of locales) {
         .filter(key => dictionary[key] === english[key])
         .filter(key => /\s/.test(english[key]) && english[key].length > 20);
     assert.deepEqual(untranslated, [], `${locale}.json keeps English prose for: ${untranslated.join(', ')}`);
+}
+
+// ---- no unused Infra keys (design QA A14) ----------------------------------------------
+// A key is used when the Infra sources spell it out, build it from a dynamic family (`desktop.infra_edge_${kind}`), or pass its tail
+// to the profile list editor. The bare `desktop.infra_${...}` prefix of that editor is not a family: it would cover every key.
+{
+    const referenced = new Set([...source.matchAll(/['"`](desktop\.infra_[a-z0-9_]+)['"`]/g)].map(match => match[1]));
+    const families = [...source.matchAll(/`(desktop\.infra_[a-z0-9_]*_)\$\{/g)].map(match => match[1]);
+    const tails = [...source.matchAll(/listEditor\('[a-z_]+', '([a-z_]+)',[^\n]*?, '([a-z_]+)', '([a-z_]+)'\)/g)].flatMap(match => match.slice(1));
+    assert.ok(tails.length >= 6, 'the profile list editors pass their key tails');
+    const unused = Object.keys(english).filter(key => key.startsWith('desktop.infra_') && !referenced.has(key) && !families.some(family => key.startsWith(family)) && !tails.some(tail => key === `desktop.infra_${tail}`));
+    assert.deepEqual(unused, [], `unused Infra keys, delete them from all 16 locales:\n${unused.join('\n')}`);
+}
+
+// ---- terminology (spec §3) and full locale parity ----------------------------------
+{
+    const german = JSON.parse(fs.readFileSync(path.join(root, 'ui/lang/desktop/de.json'), 'utf8'));
+    const RETIRED = { en: /\b(nodes?|relations?|relationships?|candidates?)\b/i, de: /(knoten|relation|beziehung|kandidat|behälter)/i };
+    // Keys whose text names a real thing that happens to use a retired word.
+    const RETIRED_ALLOW = new Map([
+        ['desktop.infra_icon_mesh_node', 'the mesh node device type, not the old asset term'],
+    ]);
+    // German compounds carry the term in lower case (Stromverbindungen), so the first letter is free for asset and connection.
+    const PAIRS = [
+        [/\bassets?\b/i, /[Aa]sset/, 'asset → Asset'],
+        [/\bconnections?\b/i, /[Vv]erbindung/, 'connection → Verbindung'],
+        [/\bdiscover(y|ies)\b/i, /Fund|Funde/, 'discovery → Fund'],
+        [/\bguests?\b/i, /Gast|Gäste/, 'guest → Gast'],
+    ];
+    // Keys whose German text is right without the paired term (state the reason).
+    const PAIR_ALLOW = new Map([]);
+    // The unused-key check above guarantees that every Infra key is used.
+    const used = Object.keys(english).filter(key => key.startsWith('desktop.infra_'));
+    const retired = [], mismatched = [];
+    for (const key of used) {
+        if (!RETIRED_ALLOW.has(key)) {
+            if (RETIRED.en.test(english[key] || '')) retired.push(`en ${key}: ${english[key]}`);
+            if (RETIRED.de.test(german[key] || '')) retired.push(`de ${key}: ${german[key]}`);
+        }
+        if (PAIR_ALLOW.has(key)) continue;
+        for (const [en, de, rule] of PAIRS) if (en.test(english[key] || '') && !de.test(german[key] || '')) mismatched.push(`${rule} ${key}: ${english[key]} / ${german[key]}`);
+    }
+    assert.deepEqual(retired, [], `retired UI terms (spec §3):\n${retired.join('\n')}`);
+    assert.deepEqual(mismatched, [], `en/de terminology differs (spec §3):\n${mismatched.join('\n')}`);
+    for (const locale of locales) {
+        const dictionary = JSON.parse(fs.readFileSync(path.join(root, `ui/lang/desktop/${locale}.json`), 'utf8'));
+        const missing = used.filter(key => typeof dictionary[key] !== 'string' || !dictionary[key].trim());
+        assert.deepEqual(missing, [], `${locale}.json lacks Infra keys present in en.json: ${missing.join(', ')}`);
+        const extra = Object.keys(dictionary).filter(key => key.startsWith('desktop.infra_') && typeof english[key] !== 'string');
+        assert.deepEqual(extra, [], `${locale}.json has Infra keys that en.json does not: ${extra.join(', ')}`);
+    }
 }
 
 // Counts read "1 asset", not "1 assets": every counted text has a singular key without a count placeholder.

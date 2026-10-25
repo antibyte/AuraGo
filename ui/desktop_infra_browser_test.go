@@ -658,8 +658,8 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 			}
 			page.MustEval(`()=>document.querySelector('[data-hosted-service="fixture-node-0001"]').click()`)
 			page.MustWait(`()=>document.querySelector('[data-inspector] h2')?.textContent==='Public status'`)
-			// The header names kind and place only (no internal version) and the tabs follow the tablist pattern.
-			if !page.MustEval(`()=>{const head=document.querySelector('[data-inspector-head]'),version=window.fixtureWords['desktop.infra_version'].replace('{version}','1'),tabs=[...document.querySelectorAll('[role="tab"][data-inspector-tab]')];return !head.textContent.includes(version)&&!!document.querySelector('[role="tablist"]')&&tabs.length===4&&tabs.filter(tab=>tab.getAttribute('aria-selected')==='true').length===1&&tabs.every(tab=>document.getElementById(tab.getAttribute('aria-controls'))?.getAttribute('role')==='tabpanel');}`).Bool() {
+			// The header names kind and place only (no internal version, in German or English "Version") and the tabs follow the tablist pattern.
+			if !page.MustEval(`()=>{const head=document.querySelector('[data-inspector-head]'),tabs=[...document.querySelectorAll('[role="tab"][data-inspector-tab]')];return !/version/i.test(head.textContent)&&!!document.querySelector('[role="tablist"]')&&tabs.length===4&&tabs.filter(tab=>tab.getAttribute('aria-selected')==='true').length===1&&tabs.every(tab=>document.getElementById(tab.getAttribute('aria-controls'))?.getAttribute('role')==='tabpanel');}`).Bool() {
 				t.Fatal("the inspector header must not show the version and its tabs must be a tablist with tabpanels")
 			}
 			if !page.MustEval(`()=>parseFloat(getComputedStyle(document.querySelector('.infra-card-name')).fontSize)>=16&&parseFloat(getComputedStyle(document.querySelector('.infra-card-meta')).fontSize)>=14`).Bool() {
