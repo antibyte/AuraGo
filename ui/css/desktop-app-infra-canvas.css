@@ -60,7 +60,7 @@
 .infra-viewport.is-compact .infra-card-icon img { width: 24px; height: 24px; }
 .infra-viewport.is-compact .infra-card-meta, .infra-viewport.is-compact .infra-card-status, .infra-viewport.is-compact .infra-card-badge { display: none; }
 .infra-viewport.is-compact .infra-card-text { position: absolute; left: 50%; top: calc(100% + 4px); width: 240px; transform: translateX(-50%); text-align: center; }
-.infra-viewport.is-compact .infra-card-name { margin: 0 auto; white-space: normal; text-overflow: clip; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; transform-origin: 50% 0; text-shadow: 0 0 3px var(--vd-theme-app-bg), 0 0 3px var(--vd-theme-app-bg), 0 0 6px var(--vd-theme-app-bg); }
+.infra-viewport.is-compact .infra-card-name { box-sizing: border-box; width: fit-content; max-width: 100%; margin: 0 auto; padding: 0 5px; border-radius: var(--ds-radius-sm); background: color-mix(in srgb, var(--vd-theme-app-bg) 82%, transparent); white-space: normal; text-overflow: clip; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; transform-origin: 50% 0; text-shadow: 0 0 3px var(--vd-theme-app-bg), 0 0 3px var(--vd-theme-app-bg), 0 0 6px var(--vd-theme-app-bg); }
 .infra-viewport.is-compact.is-tiny .infra-card-name { -webkit-line-clamp: 1; white-space: nowrap; text-overflow: ellipsis; display: block; }
 .infra-viewport.is-no-handles .infra-card-handle { display: none; }
 .infra-card-handle { position: absolute; width: 10px; height: 10px; border: 2px solid var(--vd-theme-panel-bg); border-radius: 50%; background: var(--vd-accent); opacity: 0; cursor: crosshair; }
