@@ -130,7 +130,8 @@
 
         // revisionText is the persistent draft-versus-live line. Partial publish stays on the state chip.
         function revisionText() {
-            if (ed.runView) return t('easydrag.ui.state_run_view');
+            // The run view's chip says "Past run" already; the line stays empty and hidden there.
+            if (ed.runView) return '';
             if (!ed.flow.live) return t('easydrag.ui.state_draft');
             const liveN = Number(ed.flow.live_revision) || 0;
             if (ed.flow.draft_revision !== ed.flow.published_draft_revision) return t('easydrag.ui.revision_ahead', { n: liveN });
@@ -156,6 +157,7 @@
             node.dataset.draft = draftN;
             node.dataset.live = liveN;
             node.dataset.paused = paused ? 'true' : 'false';
+            node.hidden = !!ed.runView;
             node.textContent = revisionText();
         }
 
@@ -188,6 +190,7 @@
             el.querySelector('[data-ed-state]').innerHTML = '<span class="ed-chip ed-chip--' + s.cls + '"' + (s.title ? ' title="' + esc(s.title) + '"' : '') + '>' + esc(t(s.key)) + '</span>' +
                 (inactive ? '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.state_inactive')) + '</span>' : '') + liveChip() + timersChip();
             paintRevision();
+            syncSaveChip();
             const ro = !!(ed.readonly || ed.runView);
             const running = runs.isRunning();
             const btn = cmd => el.querySelector('[data-ed-cmd="' + cmd + '"]');
@@ -236,6 +239,14 @@
             // Each state replaces the retry button: keyboard focus moves to the new one or, once the
             // save went through, to the canvas.
             if (hadFocus && !disposed) (node.querySelector('[data-ed-cmd="save"]') || canvas.el).focus({ preventScroll: true });
+            syncSaveChip();
+        }
+
+        // syncSaveChip hides "Saved" in the run view (nothing there can be saved); any other save
+        // state, a failure above all, stays visible there.
+        function syncSaveChip() {
+            const node = el.querySelector('[data-ed-save]');
+            if (node && ed.saver) node.hidden = !!ed.runView && ed.saver.state === 'saved';
         }
 
         function renderIssues() {

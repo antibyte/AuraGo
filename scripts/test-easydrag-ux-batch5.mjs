@@ -434,6 +434,26 @@ export async function run(env) {
             [await hiddenFor({ readonly: true }, {}), await hiddenFor({}, { trigger_data: undefined }), await hiddenFor({}, { trigger_node: 'n_gonegone' })], [true, true, true]);
         eq('b5 U15 the words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.run_rerun_test', 'easydrag.ui.rerun_redacted']), []);
     });
+    // ── V1: run-view header ──
+
+    await guardAsync('b5 V1 the run view header says Past run once and hides a Saved chip that means nothing there', async () => {
+        const s = await session(req => (req.url === '/api/desktop/flows/runs/r1?include=doc'
+            ? { run: { id: 'r1', status: 'success', mode: 'test', started_at: '2026-10-25T10:00:00Z', revision: 2 }, steps: [], doc: flowDoc('Run') } : undefined));
+        const head = () => {
+            const state = s.editor.el.querySelector('[data-ed-state]').html;
+            const rev = s.editor.el.querySelector('[data-ed-revisions]');
+            const save = s.editor.el.querySelector('[data-ed-save]');
+            return [(state.match(/state_run_view/g) || []).length + (rev.textContent === 'state_run_view' ? 1 : 0), !!rev.hidden, !!save.hidden];
+        };
+        const before = head();
+        s.editor.showRun('r1');
+        await settle();
+        const inView = head();
+        s.editor.el.querySelector('[data-ed-cmd="exit-run-view"]').fire('click');
+        eq('b5 V1 draft: no Past run; run view: once, revision line and Saved hidden; back: as before',
+            [before, inView, head(), s.h.logged], [[0, false, false], [1, true, true], [0, false, false], []]);
+        s.editor.dispose();
+    });
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }
