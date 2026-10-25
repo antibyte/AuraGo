@@ -1,6 +1,6 @@
 # RuView redesign: calm status first, native essentials, upstream in a Lab
 
-Status: draft for user review (2026-10-25); decisions D1–D8 open
+Status: approved by the user on 2026-10-25 (decisions D1–D8 taken, all as recommended). P0 landed on main (279e4f636..649ec0e72); P1 is next.
 
 Source audit: `reports/ruview-audit-2026-10-25.md` (German). Intended location: `documentation/ruview-redesign/2026-10-25-ruview-redesign-design.md`. Behavioural contract: `documentation/ruview.md`.
 
@@ -38,7 +38,7 @@ Non-goals:
 
 - No invented data. Demo data appears only for an explicitly selected `simulated` source and is always labelled. There is no client-side simulation fallback.
 - Data older than 10 s loses its fresh/live status. A fresh real board needs `esp32`, not simulated, `csi_status=active`, a sequence and an age ≤ 10 s (`presenceFresh`, `internal/ruview/read.go:98`).
-- Opening or reopening the app never starts, installs or probes a managed runtime. The external-probe rule is clarified in D6.
+- Opening or reopening the app never starts, installs or probes a managed runtime. External services are probed only by explicit checks and by the Live and Boards views while visible (D6).
 - Read-only blocks starts, changes and deletions. It still allows stopping the managed service, stopping a recording and stopping training (`ruview.IsStop`, `internal/ruview/policy.go:14`). Every mutation is admin-only and origin-checked.
 - The recording marker records only start/stop responses that this AuraGo process forwarded. Unknown after a restart, "not confirmed" after a failed or incomplete forward, no auto-retry, no timed recordings.
 - Wi-Fi credentials live only in browser memory: never in APIs, never in storage, cleared when the assistant closes or access is lost.
@@ -543,6 +543,8 @@ Order: P0 → P1 → {P2, P3, P4} → P5. P2, P3 and P4 can run in parallel once
 
 ### P0: Honesty and correctness fixes (no redesign; ships alone)
 
+**Status: done (2026-10-25, main 279e4f636..649ec0e72).** Deferred to P1: Docker self-exit detection (M24), the frame adapter keeping a stale `simulation` flag on a hung status fetch, lower-case check states in non-German locales, unused keys `live_unverified`, `synthetic`, `stopped`.
+
 - **Goal:** today's UI stops inventing data and stops raising false alarms.
 - **Files:**
   - `scripts/ruview/vendor-ui.mjs`, `patch-controls.mjs` and regenerated `ui/js/vendor/ruview/*`
@@ -683,32 +685,40 @@ Order: P0 → P1 → {P2, P3, P4} → P5. P2, P3 and P4 can run in parallel once
 
 Guards in every phase: `TestShippedWebAssetsLoadNothingExternal`, `TestUIAvoidsCookieConsentClassPrefix` (no `cc-` classes; all new classes use the `ruview-` prefix), `TestFrontend_JS_NoLiteralTranslationFallbacks`, `TestDesktopUsedI18nKeysExistInAllLanguages`, the JS line budget, `node scripts/build-ui-bundles.js --check`, and `node scripts/ruview/vendor-ui.mjs --check`.
 
-## 15. Open decisions
+## 15. Decisions (taken 2026-10-25)
 
 - **D1: Variant.**
+  - **Decided:** variant (b) — native Status, Live, Boards and Recordings views plus a labelled Lab.
   - (b) native essentials plus Lab, or (a) theme and translate the iframes.
   - **Recommendation: (b).** Variant (a) means patching ten upstream tabs for theme, 16 locales and controls that do nothing, on every upstream bump, and it still leaves three navigation levels.
 - **D2: The original upstream dashboard.** Keep it reachable in the Lab, or drop it.
+  - **Decided:** keep the original upstream dashboard in the Lab; drop it at the next upstream bump if re-patching costs more than a day.
   - **Recommendation:** keep it in the Lab as "Original RuView dashboard" once the P0 honesty patches are in. It is the only UI for LoRA, the 3D sensing view and the model library.
   - At the next upstream bump, drop it if re-patching it costs more than a day.
 - **D3: Polling vs SSE.**
+  - **Decided:** 3 s polling while visible through P4; admin-scoped SSE only in P5 if start progress feels laggy in acceptance.
   - **Recommendation:** 3 s polling while visible through P4; it is proven and cheap. Build P5 SSE only if start progress feels laggy in acceptance.
 - **D4: Read-only on first setup.**
+  - **Decided:** read-only stays default-on; Status and the setup assistant offer "Allow changes…" with a confirm sheet that saves only `ruview.readonly=false` through the admin config save path (P1 must verify a single-field save is supported; otherwise fall back to a Config link); the success screen offers "Turn read-only back on".
   - **Recommendation:** keep read-only on by default.
   - Status and the assistant preflight offer **Allow changes…**: a confirm sheet that explains what read-only blocks and writes only `ruview.readonly=false` through the existing admin config save path (verify that a single-field save is supported).
   - The success screen offers "Turn read-only back on".
   - Alternative: only link to Config.
 - **D5: Board names.**
+  - **Decided:** optional board names (≤ 40 characters, per-receiver file v2, legacy `[]int` still read), editable in Boards and the assistant, and included in the agent presence read.
   - **Recommendation:** yes. An optional name (at most 40 characters) stored next to the ID in the per-receiver file (v2 format), editable in Boards and the assistant.
   - Sub-question: include names in the agent `presence` read? Recommended yes; names are user-chosen room labels and the read stays read-only.
 - **D6: Probing an external service while the app is open** (M25, documentation drift).
+  - **Decided:** Status never probes an external service automatically ("Check now" + "last checked …"); Live and Boards count as explicit data reads every 3 s while visible; `documentation/ruview.md` is updated accordingly in P1/P3.
   - **Recommendation:** Status never probes an external service automatically.
   - Live and Boards count as explicit data reads while visible (3 s).
   - Update the documentation to say so.
 - **D7: Access loss during a firmware write.**
+  - **Decided:** on access loss during a firmware write, clear Wi-Fi credentials immediately, finish the running write and verification, then close; `documentation/ruview.md`'s invariant is amended in P2.
   - Today: close immediately, which aborts the write.
   - **Recommendation:** clear credentials immediately, finish the running write and verification (about 2 min at most), then close. This amends one documented invariant.
 - **D8: Readback after a reload** (M9).
+  - **Decided:** keep only the non-secret readback expectation (node ID, receiver, port, chip, device digest, time) in `sessionStorage` until success, logout or 30 minutes; Wi-Fi credentials stay memory-only.
   - **Recommendation:** keep the non-secret expectation (node ID, receiver, port, chip, device digest, time) in `sessionStorage` until success, logout or 30 min.
   - Wi-Fi credentials stay memory-only.
   - Alternative: memory only, with readback lost on reload.
