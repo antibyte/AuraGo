@@ -899,6 +899,33 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
         assert.deepEqual(puts, [['a', 'room', 1], ['a', '', 2]]);
         store.dispose();
     }
+    { // a parent change that fails half-way keeps an undo entry for exactly the nodes that were written
+        const puts = [], failing = new Set(['b']);
+        const { api } = recorder({ 'PUT /nodes/:id': body => { if (failing.has(body.id)) throw Object.assign(new Error('invalid_request'), { status: 400, body: { error: 'invalid_request' } }); puts.push([body.id, body.parent_id]); return { node: { ...body, version: body.version + 1 } }; } });
+        const store = newStore(api);
+        store.applySnapshot(snap([node('a', { placements: {} }), node('b', { placements: {} }), node('c', { placements: {} }), node('room', { kind: 'room' })]));
+        const notices = [];
+        store.subscribe(change => { if (change.type === 'notice') notices.push(change.message); });
+        const change = id => ({ id, before: '', after: 'room' });
+        assert.equal(await store.dispatch(InfraStore.commands.setParent([change('a'), change('b'), change('c')], 'moved')), false, 'the failure is still reported');
+        assert.deepEqual(notices, ['desktop.infra_error_infra_error'], 'with the existing toast');
+        assert.deepEqual(plain(['a', 'b', 'c'].map(id => store.nodeById(id).parent_id || '')), ['room', '', ''], 'the failed and the untried node stay unchanged');
+        assert.deepEqual(puts, [['a', 'room']], 'c is never tried');
+        assert.equal(store.canUndo('atlas'), true, 'the node that was written can be undone');
+        assert.equal(await store.undo('atlas'), true);
+        assert.deepEqual(puts, [['a', 'room'], ['a', '']], 'undo reverts only the written node');
+        assert.equal(store.nodeById('a').parent_id, '');
+        assert.equal(await store.redo('atlas'), true);
+        assert.deepEqual(puts, [['a', 'room'], ['a', ''], ['a', 'room']], 'redo applies only the written node');
+        assert.equal(store.canUndo('atlas'), true);
+        store.dispose();
+        const first = recorder({ 'PUT /nodes/:id': () => { throw Object.assign(new Error('invalid_request'), { status: 400, body: { error: 'invalid_request' } }); } });
+        const none = newStore(first.api);
+        none.applySnapshot(snap([node('a', { placements: {} }), node('room', { kind: 'room' })]));
+        assert.equal(await none.dispatch(InfraStore.commands.setParent([change('a')], 'moved')), false);
+        assert.equal(none.canUndo('atlas'), false, 'a failure before the first write leaves no entry');
+        none.dispose();
+    }
     { // dropped discoveries are placed pinned; one bound to an asset that already stands in the view only links it
         const dropItems = window.InfraAppImport.dropItems;
         const { api } = recorder({});

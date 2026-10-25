@@ -119,7 +119,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   store keeps one `PUT /layout` in flight per view, coalesces later moves, rebases once on 409 (fresh snapshot, same
   intents) and leaves a second failure unsaved behind `[data-action="retry-layout"]`. A conflict clears that view's
   history. Placing from the library is undoable when the server supports `unplace` (`features.layoutParent`); the
-  revert queues `{unplace: true}` intents, which the queue sends as `{id, version, unplace: true}`.
+  revert queues `{unplace: true}` intents, which the queue sends as `{id, version, unplace: true}`. A command with a
+  `partial()` hook (`setParent`, which writes node by node) keeps a history entry for the nodes it wrote before it failed.
   The connection dialog reads the stored version of the connection at Save and reloads on a 409, like the inline form.
 - `PUT /layout` answers `{"nodes": [<changed nodes>]}` and is a patch: merge it through
   `InfraAppModel.applyLayoutPatch` (full nodes also set `parent_id`); only an explicit `snapshot` field replaces the

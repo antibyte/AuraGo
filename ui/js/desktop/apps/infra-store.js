@@ -57,9 +57,12 @@
         unplace: (view, before, label = '') => layoutCommand('Unplace', view, before, new Map([...before.keys()].map(id => [id, { unplace: true }])), label),
         // setParent changes parent_id through the node PUT (assets that are not drawn inside the new place).
         setParent: (changes, label = '') => ({
-            type: 'SetParent', label, undoable: true, changes: changes.map(change => ({ id: change.id, before: change.before || '', after: change.after || '' })),
-            async apply(store) { return store.updateParents(this.changes.map(change => [change.id, change.after])); },
+            type: 'SetParent', label, undoable: true, changes: changes.map(change => ({ id: change.id, before: change.before || '', after: change.after || '' })), applied: [],
+            async apply(store) { this.applied = []; return store.updateParents(this.changes.map(change => [change.id, change.after]), this.applied); },
             async revert(store) { return store.updateParents(this.changes.map(change => [change.id, change.before])); },
+            // partial runs when dispatch's apply failed: the nodes that were written stay changed, so the entry shrinks to them
+            // and undo and redo cover exactly those. False when nothing was written.
+            partial() { const done = new Set(this.applied); this.changes = this.changes.filter(change => done.has(change.id)); return this.changes.length > 0; },
         }),
         createEdge: fields => ({
             type: 'CreateEdge', fields: { ...fields }, edgeId: '', undoable: true,
@@ -725,7 +728,14 @@
             }
             return false;
         }
-        async function updateParents(pairs) { for (const [id, parent] of pairs) if (!await updateNodeFields(id, { parent_id: parent || '' })) return false; return true; }
+        // updateParents stops at the first node that fails; `applied` (optional) collects the ids written before that.
+        async function updateParents(pairs, applied = []) {
+            for (const [id, parent] of pairs) {
+                if (!await updateNodeFields(id, { parent_id: parent || '' })) return false;
+                applied.push(id);
+            }
+            return true;
+        }
 
         // ---- history ---------------------------------------------------------------
         async function dispatch(command) {
@@ -746,7 +756,8 @@
                 await uncertainReload(error);
                 ok = !!command.settle?.(api);
             }
-            if (ok && command.undoable) { history.push(command); emit({ type: 'history' }); }
+            // A command that wrote some of its changes before it failed keeps an entry for those (the caller still sees the failure).
+            if (command.undoable && (ok || command.partial?.(api))) { history.push(command); emit({ type: 'history' }); }
             return ok;
         }
         async function step(view, direction) {
