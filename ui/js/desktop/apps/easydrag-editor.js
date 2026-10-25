@@ -442,15 +442,23 @@
             app.openHome(opts);
         }
 
+        // duplicating: one copy at a time; a double click (or the menu and the key) copies once.
+        let duplicating = false;
         async function duplicateFlow() {
-            if (!(await leave()) || disposed) return;
+            if (duplicating) return;
+            duplicating = true;
             try {
+                if (!(await leave()) || disposed) return;
                 // The draft, also in the run view (whose model is a stored run's document).
                 const doc = draftModel.toJSON();
                 doc.name = t('easydrag.ui.copy_of', { name: doc.name });
                 const res = await ed.api.create({ import: doc });
                 app.openFlow(res.flow.id);
-            } catch (err) { ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' }); }
+            } catch (err) {
+                ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' });
+            } finally {
+                duplicating = false;
+            }
         }
 
         // leave saves pending content before the editor closes; false keeps it open. A drag still in

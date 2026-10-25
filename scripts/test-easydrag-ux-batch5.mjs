@@ -193,6 +193,45 @@ export async function run(env) {
         eq('b5 F13 one read, one copy, one flow opened', [gets, posts, p.h.opened, p.h.logged], [1, 1, ['f2'], []]);
         p.home.dispose();
     });
+    // ── F13: editor and window shell ──
+
+    await guardAsync('b5 F13 a double Duplicate in the editor creates one copy', async () => {
+        const s = await session(req => (req.method === 'POST' && req.url === '/api/desktop/flows' ? { flow: { id: 'f2' } } : undefined));
+        let items = [];
+        s.h.ctx.showContextMenu = (x, y, list) => { items = list; };
+        s.editor.el.querySelector('[data-ed-cmd="more"]').fire('click');
+        const dup = items.find(i => i.label === 'home_duplicate');
+        const first = dup.action();
+        const second = dup.action();
+        await first;
+        await second;
+        await settle();
+        const posts = s.h.requests.filter(r => r.method === 'POST' && r.url === '/api/desktop/flows').length;
+        eq('b5 F13 two Duplicate clicks post one copy and open it once', [posts, s.h.opened, s.h.logged], [1, ['f2'], []]);
+        s.editor.dispose();
+    });
+
+    await guardAsync('b5 F13 an editor that cannot be built shows the error card with Try again, not an empty window', async () => {
+        const h = sandbox(req => {
+            if (req.url.startsWith('/api/desktop/flows/node-types')) return { node_types: Array.from(types.values()), categories: [] };
+            if (req.method === 'GET' && req.url === '/api/desktop/flows/f1') return { flow: { id: 'f1', name: 'Flow', draft: flowDoc(), draft_revision: 3 }, enabled: false, issues: [] };
+            return undefined;
+        });
+        const create = h.ED.editor.create;
+        h.ED.editor.create = () => { throw new Error('broken document'); };
+        const container = h.body.appendChild(new h.dom.El('div', {}));
+        h.win.EasyDragApp.render(container, 'w1', Object.assign({}, h.ctx, { api: h.transport, flowId: 'f1' }));
+        await settle();
+        h.flushFrames();
+        const shown = [!!container.querySelector('.ed-shell-error'), !!container.querySelector('[data-ed-shell="retry"]'), h.logged.length, String(h.logged[0] || '').startsWith('EasyDrag editor failed')];
+        h.ED.editor.create = create;
+        container.querySelector('[data-ed-shell="retry"]').fire('click');
+        await settle();
+        h.flushFrames();
+        const inst = h.win.EasyDragApp._instances.get('w1');
+        eq('b5 F13 the error card offers Try again, and Try again opens the editor', [shown, !!(inst && inst.screen && inst.screen.ed)], [[true, true, 1, true], true]);
+        h.win.EasyDragApp.dispose('w1');
+    });
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }
