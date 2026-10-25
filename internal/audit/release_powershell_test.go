@@ -58,6 +58,11 @@ func main() {
 	if webAssetsDeclaration == "" {
 		t.Fatal("web release asset list is missing")
 	}
+	validationStart := strings.Index(source, "$requiredPortableAssets = @(")
+	validationEnd := strings.Index(source, `Write-Host "  Generating SHA256SUMS`)
+	if validationStart < 0 || validationEnd <= validationStart {
+		t.Fatal("required portable asset validation missing")
+	}
 	script := `$ErrorActionPreference = 'Stop'
 $scriptDir = $PSScriptRoot
 $Version = 'v-fixture'
@@ -66,7 +71,12 @@ $assetLdFlags = '-X aurago/internal/webassets.BuildAssetSetID=reviewed-assets'
 $assetArchive = 'fixture.tar.gz'
 ` + webAssetsDeclaration + `
 if ($webReleaseAssets.Count -ne 2 -or $webReleaseAssets[0] -ne 'deploy\fixture.tar.gz' -or $webReleaseAssets[1] -ne 'deploy\web-assets.json') { throw 'Web release assets must be two separate paths.' }
-` + source[start:start+end] + `
+New-Item -ItemType Directory -Path (Join-Path $scriptDir 'deploy') -Force | Out-Null
+foreach ($asset in @('resources.dat','install.sh','update.sh','fixture.tar.gz')) {
+    [IO.File]::WriteAllBytes((Join-Path $scriptDir ('deploy/' + $asset)), [byte[]]::new(2048))
+}
+[IO.File]::WriteAllText((Join-Path $scriptDir 'deploy/web-assets.json'), ('{"asset_set_id":"' + ('a' * 64) + '"}'))
+` + source[validationStart:validationEnd] + source[start:start+end] + `
 Build-Binary -Output 'main.bin' -Target './cmd/aurago/'
 Build-Binary -Output 'remote.bin' -Target './cmd/remote/'
 Build-Binary -Output 'merger.bin' -Target './cmd/config-merger/'

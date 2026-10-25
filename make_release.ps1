@@ -307,7 +307,8 @@ $requiredPortableAssets = @(
 $requiredPortableAssets += $webReleaseAssets
 foreach ($file in $requiredPortableAssets) {
     $fullPath = Join-Path $scriptDir $file
-    if (!(Test-Path -LiteralPath $fullPath) -or (Get-Item -LiteralPath $fullPath).Length -lt 1024) {
+    $minimumBytes = if ($file -eq 'deploy\web-assets.json') { 64 } else { 1024 }
+    if (!(Test-Path -LiteralPath $fullPath) -or (Get-Item -LiteralPath $fullPath).Length -lt $minimumBytes) {
         throw "Required release asset is missing or unexpectedly small: $file"
     }
 }
