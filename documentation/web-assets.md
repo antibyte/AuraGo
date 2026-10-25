@@ -54,8 +54,8 @@ to pin its immutable GitHub release download URL. `make_release.bat` does this
 with its selected tag; `make_deploy.sh` uses `AURAGO_RELEASE_TAG` when provided.
 Local builds have no download URL. Never substitute a `latest` resource set.
 
-The compressed archive limit is 768 MiB; the expanded set remains limited to
-1 GiB and 20,000 files. The updater installs resources with the staged candidate
+The compressed archive limit is 1 GiB; the expanded set remains limited to
+2 GiB and 20,000 files. The updater installs resources with the staged candidate
 binary, so it applies the matching version's limits before activation.
 
 The release builders require a clean worktree so the binary identity matches

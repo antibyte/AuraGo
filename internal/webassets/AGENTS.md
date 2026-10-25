@@ -12,8 +12,8 @@ integration and versioned HTTP serving. See `documentation/web-assets.md`.
 - Verify every file before use; keep reads under `os.Root` and manifest paths.
   Reject archive links, traversal, duplicates, modes and size/count violations.
   Serialize installs; publish a verified directory atomically. Keep old sets.
-- Archives are bounded to 768 MiB (including the sticker library and Galaxa expansion);
-  expanded resources remain bounded to 1 GiB and 20,000 files.
+- Archives are bounded to 1 GiB; expanded resources remain bounded to 2 GiB
+  and 20,000 files. Packaging, installation and verification share these limits.
 - Set `Default` once before services start. Installation never hot-swaps captured
   templates or the active filesystem; restart activates the matching set.
 - Production PDF.js resources include CMaps (`.bcmap`), Type 1 fonts (`.pfb`),
