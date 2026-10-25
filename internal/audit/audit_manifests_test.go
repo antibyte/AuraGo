@@ -1502,6 +1502,16 @@ func TestReleaseSignatureDownloadsAreQuietlyOptional(t *testing.T) {
 			forbiddenSig:  `_download "${RELEASE_BASE}/SHA256SUMS.sig"`,
 			forbiddenCert: `_download "${RELEASE_BASE}/SHA256SUMS.pem"`,
 		},
+		{
+			name:          "repair",
+			path:          "repair-update.sh",
+			helper:        "fetch_optional_url_to_file()",
+			quietCalls:    []string{`"$1" -o "$2" 2>/dev/null`, `-O "$2" "$1" 2>/dev/null`},
+			requiredSig:   `release_verifier_fetch "$RELEASE_BASE/SHA256SUMS.sig" "$sig" 4096`,
+			requiredCert:  `release_verifier_fetch "$RELEASE_BASE/SHA256SUMS.pem" "$cert" 16384`,
+			forbiddenSig:  `fetch_url_to_file "${RELEASE_BASE}/SHA256SUMS.sig"`,
+			forbiddenCert: `fetch_url_to_file "${RELEASE_BASE}/SHA256SUMS.pem"`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			script := readRepoFile(t, tc.path)

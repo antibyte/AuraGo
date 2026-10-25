@@ -32,9 +32,9 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 fetch_optional_url_to_file() {
     if command -v curl >/dev/null; then
-        curl --fail --silent --show-error --location --connect-timeout 15 --max-time 180 --retry 2 --proto '=https' "$1" -o "$2"
+        curl --fail --silent --show-error --location --connect-timeout 15 --max-time 180 --retry 2 --proto '=https' "$1" -o "$2" 2>/dev/null
     elif command -v wget >/dev/null; then
-        wget -q --timeout=180 --tries=3 -O "$2" "$1"
+        wget -q --timeout=180 --tries=3 -O "$2" "$1" 2>/dev/null
     else
         die "Neither curl nor wget is available."
     fi
