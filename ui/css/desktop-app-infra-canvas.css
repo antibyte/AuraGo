@@ -32,9 +32,9 @@
 .infra-edge:hover .infra-edge-label, .infra-edge.is-selected .infra-edge-label { visibility: visible; }
 .infra-edge-preview { fill: none; stroke: var(--vd-accent); stroke-width: 2px; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
 .infra-card { position: absolute; z-index: 1; width: 216px; height: 64px; transform: translate(-50%, -50%); display: grid; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 7px; padding: 0 4px 0 7px; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-md); background: var(--vd-theme-panel-bg); color: var(--vd-text); box-shadow: var(--vd-theme-shadow-panel); font: inherit; text-align: left; cursor: default; --infra-state: transparent; }
-.infra-card[data-state="current"] { --infra-state: var(--ds-color-success-fg); }
-.infra-card[data-state="stale"] { --infra-state: var(--ds-color-warning-fg); }
-.infra-card[data-state="removed"] { --infra-state: var(--ds-color-danger-fg); }
+.infra-card[data-state="current"] { --infra-state: var(--infra-ok-ring); }
+.infra-card[data-state="stale"] { --infra-state: var(--infra-warn-ring); }
+.infra-card[data-state="removed"] { --infra-state: var(--infra-bad-ring); }
 .infra-card[data-state="unknown"] { --infra-state: var(--vd-theme-muted); }
 .infra-card-icon { position: relative; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg); box-shadow: 0 0 0 2px var(--infra-state); }
 .infra-card-icon img { width: 28px; height: 28px; object-fit: contain; pointer-events: none; }
@@ -141,7 +141,7 @@
 .infra-connect-popover { position: absolute; z-index: 30; width: 300px; display: grid; gap: var(--ds-space-2); padding: var(--ds-space-3); border: 1px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: var(--vd-theme-panel-bg-strong); box-shadow: var(--vd-theme-shadow-modal); }
 .infra-connect-popover h3 { margin: 0; font-size: 15px; font-weight: 650; }
 .infra-connect-ends { margin: 0; color: var(--vd-theme-muted); font-size: 14px; }
-.infra-connect-error { margin: 0; color: var(--ds-color-danger-fg); font-size: 14px; }
+.infra-connect-error { margin: 0; color: var(--infra-bad-text); font-size: 14px; }
 .infra-app.is-dragging, .infra-app.is-dragging * { cursor: grabbing !important; }
 .infra-app.is-drag-invalid, .infra-app.is-drag-invalid * { cursor: not-allowed !important; }
 @keyframes infra-form-in { from { opacity: .35; } }
