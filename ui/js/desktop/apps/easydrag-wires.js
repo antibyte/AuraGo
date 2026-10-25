@@ -62,6 +62,7 @@
         }
 
         function drawEdge(e, byId) {
+            if (ed.renderStats) ed.renderStats.wires++;
             const geo = ends(e, byId);
             let g = groups.get(e.id);
             const pill = pillEls.get(e.id);
@@ -118,23 +119,54 @@
             if (hoverEdge) placeActions(hoverEdge);
         }
 
-        // buildPills makes one item-count pill per wire with a count in the current run; drawEdge
-        // places it at the wire's midpoint.
+        // syncPill makes, updates or removes the item-count pill of one wire from the current run;
+        // drawEdge places it at the wire's midpoint.
+        function syncPill(e) {
+            const info = ed.run && ed.run.edges ? ed.run.edges.get(e.id) : null;
+            const text = info && info.count ? String(info.count) : '';
+            const old = pillEls.get(e.id);
+            if (old && old.text === text) return;
+            if (old) { old.g.remove(); pillEls.delete(e.id); }
+            if (!text) return;
+            const w = 14 + text.length * 7;
+            const g = document.createElementNS(SVG, 'g');
+            g.setAttribute('class', 'ed-pill');
+            g.innerHTML = '<rect width="' + w + '" height="18" rx="9"></rect><text x="' + (w / 2) + '" y="13" text-anchor="middle">' + esc(text) + '</text>';
+            pills.appendChild(g);
+            pillEls.set(e.id, { g, w, text });
+        }
+
+        // buildPills makes one pill per wire with a count in the current run (after a structural change
+        // or a new run).
         function buildPills() {
             pills.innerHTML = '';
             pillEls.clear();
             if (!ed.run || !ed.run.edges) return;
-            ed.model.doc.edges.forEach(e => {
-                const info = ed.run.edges.get(e.id);
-                if (!info || !info.count) return;
-                const text = String(info.count);
-                const w = 14 + text.length * 7;
-                const g = document.createElementNS(SVG, 'g');
-                g.setAttribute('class', 'ed-pill');
-                g.innerHTML = '<rect width="' + w + '" height="18" rx="9"></rect><text x="' + (w / 2) + '" y="13" text-anchor="middle">' + esc(text) + '</text>';
-                pills.appendChild(g);
-                pillEls.set(e.id, { g, w });
-            });
+            ed.model.doc.edges.forEach(syncPill);
+        }
+
+        // onRun repaints the wires of the steps a run event touched (ed.run.changes, runs.js); a new run
+        // object, one without a log, or no run redraws them all (F6).
+        let runShown = null;
+        let runSeen = 0;
+        function onRun() {
+            const run = ed.run;
+            const log = run && Array.isArray(run.changes) ? run.changes : null;
+            if (!run || run !== runShown || !log || runSeen > log.length) {
+                runShown = run;
+                runSeen = log ? log.length : 0;
+                render();
+                return;
+            }
+            const ids = new Set(log.slice(runSeen));
+            runSeen = log.length;
+            const done = new Set();
+            ids.forEach(id => ed.model.incoming(id).concat(ed.model.outgoing(id)).forEach(e => {
+                if (done.has(e.id)) return;
+                done.add(e.id);
+                syncPill(e);
+                drawEdge(e);
+            }));
         }
 
         function placePill(pill, geo) {
@@ -256,7 +288,7 @@
             if (change.structural || change.kind !== 'change' || change.meta) render();
             else renderFor(change.nodes);
         }));
-        bag.add(ed.bus.on('run', render));
+        bag.add(ed.bus.on('run', onRun));
         bag.add(ed.bus.on('selection', () => { if (ed.selection.size) { ed.selectedEdge = null; } markSelected(); }));
         bag.add(ed.bus.on('view', () => { if (hoverEdge) placeActions(hoverEdge); }));
 

@@ -143,6 +143,10 @@
         let viewing = null;
         let disposed = false;
 
+        // noteStep records that a step of run changed (ed.run.changes): the canvas and the wires repaint
+        // only those steps on the next run event (F6). A run object without a log is repainted whole.
+        function noteStep(run, id) { if (run && Array.isArray(run.changes)) run.changes.push(id); }
+
         function setRun(next) {
             ed.run = next;
             if (ed.run) ed.run.edges = edgeStates(ed);
@@ -200,7 +204,7 @@
             failures = 0;
             parked = null;
             failedSpoken = new Set();
-            setRun({ id: runId, status: 'queued', mode, steps: new Map(), record: null, error: '' });
+            setRun({ id: runId, status: 'queued', mode, steps: new Map(), changes: [], record: null, error: '' });
             connect(runId);
         }
 
@@ -220,7 +224,7 @@
                 if (!streamed(runId)) return;
                 ed.run.record = detail.run;
                 ed.run.status = detail.run.status;
-                (detail.steps || []).forEach(s => { ed.run.steps.set(s.node_id, s); announceFailed(s.node_id, s); });
+                (detail.steps || []).forEach(s => { ed.run.steps.set(s.node_id, s); noteStep(ed.run, s.node_id); announceFailed(s.node_id, s); });
                 setRun(ed.run);
             });
             es.addEventListener('event', (event) => {
@@ -294,8 +298,8 @@
 
         function applyEvent(ev) {
             if (ev.type === 'run_started') ed.run.status = 'running';
-            else if (ev.type === 'step_started') ed.run.steps.set(ev.node_id, Object.assign({}, ed.run.steps.get(ev.node_id), { node_id: ev.node_id, status: 'running' }));
-            else if (ev.type === 'step_finished' && ev.step) { ed.run.steps.set(ev.node_id, ev.step); announceFailed(ev.node_id, ev.step); }
+            else if (ev.type === 'step_started') { ed.run.steps.set(ev.node_id, Object.assign({}, ed.run.steps.get(ev.node_id), { node_id: ev.node_id, status: 'running' })); noteStep(ed.run, ev.node_id); }
+            else if (ev.type === 'step_finished' && ev.step) { ed.run.steps.set(ev.node_id, ev.step); noteStep(ed.run, ev.node_id); announceFailed(ev.node_id, ev.step); }
             else if (ev.type === 'run_finished' && ev.run) {
                 ed.run.status = ev.run.status;
                 ed.run.error = ev.run.error_message || '';
@@ -333,7 +337,7 @@
             if (detail && detail.run) {
                 current.record = detail.run;
                 current.status = detail.run.status;
-                (detail.steps || []).forEach(s => current.steps.set(s.node_id, s));
+                (detail.steps || []).forEach(s => { current.steps.set(s.node_id, s); noteStep(current, s.node_id); });
                 rememberRun(detail.run, detail.steps || []);
                 // The finished run is the last run now: the footer keeps naming it once the run
                 // state is cleared (leaving a run view), as after loadLast.
@@ -891,7 +895,7 @@
         function stepsFrom(steps, record) {
             const map = new Map();
             (steps || []).forEach(s => map.set(s.node_id, s));
-            return { id: record.id, status: record.status, mode: record.mode, steps: map, record };
+            return { id: record.id, status: record.status, mode: record.mode, steps: map, changes: [], record };
         }
 
         // applyRunView shows a stored run in the run view, with its own data in the input tree

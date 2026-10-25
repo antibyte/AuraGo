@@ -142,7 +142,34 @@
             }
             return nodeIndex.get(id) || null;
         }
-        function edge(id) { return state.doc.edges.find(e => e.id === id) || null; }
+        // adjacency holds each node's incoming and outgoing edges and an id Map of the edges. Like the
+        // node Map it follows docGen and the edge list it was built from, so a walk over the graph costs
+        // O(V+E), not O(V·E) (F6). Callers get copies of its lists.
+        let adjacency = null;
+        let adjacencyOf = null;
+        let adjacencyGen = -1;
+        function adj() {
+            const list = state.doc.edges;
+            if (!adjacency || adjacencyOf !== list || adjacencyGen !== docGen) {
+                const inc = new Map();
+                const out = new Map();
+                const byId = new Map();
+                list.forEach(e => {
+                    if (!byId.has(e.id)) byId.set(e.id, e);
+                    const to = e.target.node;
+                    const from = e.source.node;
+                    if (!inc.has(to)) inc.set(to, []);
+                    inc.get(to).push(e);
+                    if (!out.has(from)) out.set(from, []);
+                    out.get(from).push(e);
+                });
+                adjacency = { inc, out, byId };
+                adjacencyOf = list;
+                adjacencyGen = docGen;
+            }
+            return adjacency;
+        }
+        function edge(id) { return adj().byId.get(id) || null; }
         function byKey(key) { return state.doc.nodes.find(n => n.key === key) || null; }
 
         function inputs(n) {
@@ -214,15 +241,14 @@
             return Array.isArray(i.output_fields) ? i.output_fields.slice() : [];
         }
 
-        function incoming(id) { return state.doc.edges.filter(e => e.target.node === id); }
-        function outgoing(id) { return state.doc.edges.filter(e => e.source.node === id); }
+        function incoming(id) { return (adj().inc.get(id) || []).slice(); }
+        function outgoing(id) { return (adj().out.get(id) || []).slice(); }
 
         function walk(start, next) {
             const seen = new Set();
             const queue = [start];
-            while (queue.length) {
-                const id = queue.shift();
-                next(id).forEach(other => { if (!seen.has(other)) { seen.add(other); queue.push(other); } });
+            for (let i = 0; i < queue.length; i++) {
+                next(queue[i]).forEach(other => { if (!seen.has(other)) { seen.add(other); queue.push(other); } });
             }
             seen.delete(start);
             return seen;

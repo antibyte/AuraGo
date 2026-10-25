@@ -798,6 +798,52 @@ export async function run(env) {
         eq('b5 i18n the close hint exists in all 16 locales', missingKeys(apps, ['easydrag.ui.close_hint']), []);
     });
 
+    // ── F6: run-event rendering cost ──
+
+    await guardAsync('b5 F6 run events repaint only the steps they touch: 300 steps, 1000 events', async () => {
+        const chain = chainDoc(300);
+        const s = await session(req => (req.method === 'POST' && req.url === '/api/desktop/flows/f1/run' ? { run_id: 'r1' } : undefined),
+            { enabled: true, flow: { draft: chain, live: chain, live_revision: 2, published_draft_revision: 3 } });
+        s.editor.el.querySelector('[data-ed-cmd="run-now"]').fire('click');
+        await settle();
+        const source = s.h.sources[s.h.sources.length - 1];
+        const stats = s.ed.renderStats;
+        const before = { cards: stats.cards, paints: stats.paints, wires: stats.wires };
+        for (let k = 0; k < 500; k++) {
+            const id = chain.nodes[1 + (k % 299)].id;
+            source.emit('event', { seq: 2 * k + 1, type: 'step_started', node_id: id });
+            source.emit('event', { seq: 2 * k + 2, type: 'step_finished', node_id: id, step: { node_id: id, status: 'success', duration_ms: 3, item_count: 1 } });
+        }
+        s.h.flushFrames();
+        const used = [stats.cards - before.cards, stats.paints - before.paints, stats.wires - before.wires <= 2000];
+        eq('b5 F6 no card is re-rendered, one paint per event, at most two wires per event, every finished step\'s wire has its pill',
+            [used, s.editor.el.querySelectorAll('.ed-pill').length, s.card(chain.nodes[1].id).className.includes('status-success'), s.card(chain.nodes[299].id).className.includes('status-success'), s.h.logged],
+            [[0, 1000, true], 298, true, true, []]);
+        s.editor.dispose();
+    });
+
+    await guardAsync('b5 F6 the model\'s adjacency index follows every change and hands out copies', async () => {
+        const m = sandbox(() => undefined).ED.model.create(flowDoc(), { types });
+        const ends = id => [m.incoming(id).map(e => e.id), m.outgoing(id).map(e => e.id)];
+        const rows = [ends(A)];
+        m.disconnect(['e1']);
+        rows.push(ends(A));
+        m.undo();
+        rows.push(ends(A));
+        const added = m.connect(T1, 'out', B, 'in').id;
+        rows.push(ends(B));
+        m.incoming(B).length = 0;
+        rows.push(ends(B));
+        rows.push(m.edge('e2') && m.edge('e2').id, m.edge('nope'));
+        m.replaceDoc(flowDoc('Other'));
+        rows.push(ends(B));
+        const big = sandbox(() => undefined).ED.model.create(chainDoc(3000), { types });
+        const chain = big.doc.nodes;
+        eq('b5 F6 incoming, outgoing and edge after disconnect, undo, connect and replaceDoc; a caller\'s change to a list stays its own; walks over 3000 steps',
+            [rows, big.downstream(chain[0].id).size, big.upstream(chain[2999].id).size],
+            [[[['e1'], ['e2']], [[], ['e2']], [['e1'], ['e2']], [['e2', added], []], [['e2', added], []], 'e2', null, [['e2'], []]], 2999, 2999]);
+    });
+
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }

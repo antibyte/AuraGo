@@ -51,6 +51,9 @@
         // drawn from, by node id.
         const signatures = new Map();
         const states = new Map();
+        // renderStats counts card renders (renderNode), state paints (paintState) and wire draws
+        // (wires.js); the b5 F6 check reads them to guard the cost of run events.
+        if (!ed.renderStats) ed.renderStats = { cards: 0, paints: 0, wires: 0 };
 
         const el = core.el(
             '<div class="ed-canvas" tabindex="0" role="application" aria-roledescription="' + esc(t('easydrag.ui.canvas_role')) + '" aria-label="' + esc(t('easydrag.ui.canvas_label')) + '">' +
@@ -336,7 +339,29 @@
             return step ? step.status : '';
         }
 
-        function nodeIssues(id) { return (ed.issues || []).filter(is => is.node_id === id && is.severity === 'error'); }
+        // issueCounts counts the open error issues per step once per pass (a scan per card was O(V·I)).
+        function issueCounts() {
+            const counts = new Map();
+            (ed.issues || []).forEach(is => { if (is && is.severity === 'error' && is.node_id) counts.set(is.node_id, (counts.get(is.node_id) || 0) + 1); });
+            return counts;
+        }
+
+        // paintCard brings a card's run status, badges, error box and accessible name up to date when
+        // they changed, without touching its markup: run events and new issues come through here (F6).
+        // The signature holds everything a run event or an issue can change on a card.
+        function paintCard(n, counts) {
+            const card = nodeEls.get(n.id);
+            if (!card) return;
+            const status = statusOf(n.id);
+            const step = ed.run && ed.run.steps && ed.run.steps.get(n.id);
+            const issues = counts.get(n.id) || 0;
+            const state = JSON.stringify([status, step && step.duration_ms, step && step.error_code, step && step.error_message, step && !!step.effect_uncertain, issues]);
+            if (states.get(n.id) === state) return;
+            states.set(n.id, state);
+            const nextClass = classesFor(n) + (card.classList.contains('is-new') ? ' is-new' : '');
+            if (card.className !== nextClass) card.className = nextClass;
+            paintState(card, n, info(n), status, step, issues);
+        }
 
         // cardName is a card's accessible name (U7): its label and its state (turned off, not set up or
         // blocked, open issues, the run status), so a screen reader hears more than the name.
@@ -374,6 +399,7 @@
         // step's error) in place: the card's markup, its tool buttons among it, stays, so a focused
         // tool keeps the focus while a run goes on.
         function paintState(card, n, i, status, step, issues) {
+            ed.renderStats.paints++;
             card.setAttribute('aria-label', cardName(n, i, status, issues));
             const badges = card.querySelector('.ed-node-badges');
             if (badges) badges.innerHTML = badgesMarkup(n, i, status, step, issues);
@@ -446,7 +472,8 @@
             return cls.join(' ');
         }
 
-        function renderNode(n) {
+        function renderNode(n, counts) {
+            ed.renderStats.cards++;
             let card = nodeEls.get(n.id);
             if (!card) {
                 card = document.createElement('div');
@@ -465,8 +492,6 @@
             card.style.transform = 'translate(' + n.position.x + 'px,' + n.position.y + 'px)';
             card.style.height = G.nodeHeight(outCount(n)) + 'px';
             named.set(n.id, n.key + '|' + n.label);
-            const status = statusOf(n.id);
-            const step = ed.run && ed.run.steps && ed.run.steps.get(n.id);
             // The summary shows the labels of referenced nodes, so it is part of the signature. The
             // selection is not: it only sets the is-selected class. A run's status, duration and
             // error and the open issues are not either: paintState updates them in place, so run
@@ -484,12 +509,7 @@
                 card.innerHTML = cardMarkup(n, sum, summary(n, i, Infinity));
                 toolsOn.delete(n.id);
             }
-            const issues = nodeIssues(n.id).length;
-            const state = JSON.stringify([status, step && step.duration_ms, step && step.error_code, step && step.error_message, issues]);
-            if (states.get(n.id) !== state) {
-                states.set(n.id, state);
-                paintState(card, n, i, status, step, issues);
-            }
+            paintCard(n, counts || issueCounts());
             syncTools(card, n.id);
             // Only a selected card's tools are tab stops: the focus of a card no longer selected
             // (Escape, then Ctrl+Z) goes to the canvas instead.
@@ -510,9 +530,10 @@
         }
 
         function renderNodes(ids) {
+            const counts = issueCounts();
             (ids || []).forEach(id => {
                 const n = ed.model.node(id);
-                if (n) renderNode(n);
+                if (n) renderNode(n, counts);
                 else removeNode(id);
             });
             afterRender();
@@ -531,7 +552,8 @@
         function render() {
             const present = new Set(ed.model.doc.nodes.map(n => n.id));
             Array.from(nodeEls.keys()).forEach(id => { if (!present.has(id)) removeNode(id); });
-            ed.model.doc.nodes.forEach(renderNode);
+            const counts = issueCounts();
+            ed.model.doc.nodes.forEach(n => renderNode(n, counts));
             afterRender();
         }
 
@@ -542,11 +564,30 @@
             syncPortTip();
         }
 
-        function refreshClasses() {
-            ed.model.doc.nodes.forEach(n => {
-                const card = nodeEls.get(n.id);
-                if (card) renderNode(n);
-            });
+        // The run painted last and how far its change log (ed.run.changes, runs.js) was followed. A new
+        // run object, one without a log, or no run repaints every card's state; markup never changes here.
+        let runShown = null;
+        let runSeen = 0;
+        function onRun() {
+            const run = ed.run;
+            const log = run && Array.isArray(run.changes) ? run.changes : null;
+            const counts = issueCounts();
+            if (!run || run !== runShown || !log || runSeen > log.length) {
+                runShown = run;
+                runSeen = log ? log.length : 0;
+                ed.model.doc.nodes.forEach(n => paintCard(n, counts));
+            } else {
+                const ids = new Set(log.slice(runSeen));
+                runSeen = log.length;
+                ids.forEach(id => { const n = ed.model.node(id); if (n) paintCard(n, counts); });
+            }
+            selectionTick++;
+            minimapFrame.request();
+        }
+
+        function onIssues() {
+            const counts = issueCounts();
+            ed.model.doc.nodes.forEach(n => paintCard(n, counts));
             selectionTick++;
             minimapFrame.request();
         }
@@ -798,8 +839,8 @@
             else renderNodes(change.nodes.concat(affectedByEdges(change.edges)));
         }));
         bag.add(ed.bus.on('selection', refreshSelection));
-        bag.add(ed.bus.on('run', refreshClasses));
-        bag.add(ed.bus.on('issues', refreshClasses));
+        bag.add(ed.bus.on('run', onRun));
+        bag.add(ed.bus.on('issues', onIssues));
 
         function affectedByEdges(edgeIds) {
             const ids = new Set();
