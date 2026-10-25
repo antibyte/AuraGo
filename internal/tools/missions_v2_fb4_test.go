@@ -1,9 +1,12 @@
 package tools
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
+	"time"
 )
 
 type fb4ReporterHooks struct {
@@ -43,4 +46,15 @@ func TestFB4QueueFullIsANotedRefusal(t *testing.T) {
 		m, _ := mm.Get(id)
 		return m.LastResult == MissionResultError && m.LastOutput == flowQueueFullOutput
 	})
+}
+
+func TestFB4MissionLastRunIsLeftOutWhenZero(t *testing.T) {
+	data, err := json.Marshal(&MissionV2{ID: "m_fb4"})
+	if err != nil || strings.Contains(string(data), `"last_run"`) {
+		t.Fatalf("a mission that never ran = %s, %v", data, err)
+	}
+	data, _ = json.Marshal(&MissionV2{ID: "m_fb4", LastRun: time.Date(2026, 10, 25, 7, 0, 0, 0, time.UTC)})
+	if !strings.Contains(string(data), `"last_run":"2026-10-25T07:00:00Z"`) {
+		t.Fatalf("a mission that ran = %s", data)
+	}
 }

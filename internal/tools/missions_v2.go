@@ -154,7 +154,7 @@ type MissionV2 struct {
 	Priority      string         `json:"priority"` // low | medium | high
 	Enabled       bool           `json:"enabled"`
 	Status        string         `json:"status"` // idle | queued | running | waiting
-	LastRun       time.Time      `json:"last_run"`
+	LastRun       time.Time      `json:"last_run,omitzero"`
 	LastResult    string         `json:"last_result"` // success | error | ""
 	LastOutput    string         `json:"last_output"` // truncated last response
 	RunCount      int            `json:"run_count"`

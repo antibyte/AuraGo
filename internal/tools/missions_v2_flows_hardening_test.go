@@ -967,7 +967,6 @@ const c07LegacyMissionsFile = `[
     "priority": "medium",
     "enabled": true,
     "status": "idle",
-    "last_run": "0001-01-01T00:00:00Z",
     "last_result": "",
     "last_output": "",
     "run_count": 0,
@@ -985,7 +984,6 @@ const c07LegacyMissionsFile = `[
     "priority": "low",
     "enabled": false,
     "status": "idle",
-    "last_run": "0001-01-01T00:00:00Z",
     "last_result": "error",
     "last_output": "egg offline",
     "run_count": 1,
@@ -1015,7 +1013,6 @@ const c07LegacyMissionsFile = `[
     "priority": "medium",
     "enabled": true,
     "status": "waiting",
-    "last_run": "0001-01-01T00:00:00Z",
     "last_result": "",
     "last_output": "",
     "run_count": 0,
@@ -1046,7 +1043,8 @@ func c07MissionObjects(t *testing.T, data []byte) map[string]string {
 	return out
 }
 
-// Extra 5: a missions file without the flow fields loads and saves byte-identically.
+// Extra 5: a missions file without the flow fields loads and saves byte-identically (a mission
+// that never ran has no last_run key, as the file now writes it).
 func TestMissionsFileWithoutFlowFieldsSavesUnchanged(t *testing.T) {
 	dir := tempSystemTaskDir(t)
 	file := filepath.Join(dir, "missions_v2.json")
