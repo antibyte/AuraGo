@@ -402,6 +402,12 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
         assert.deepEqual(rows('atlas', only('room-u')), ['room-u'], 'an unplaced place is a row in the Map');
         assert.deepEqual(rows('topology', () => true), [], 'Topology draws every asset by itself: no To place rows');
         assert.deepEqual(rows('topology', only('room-u')), [], 'a place that matches in Topology is not a row (Topology draws no places)');
+        // Hostless guests of Needs attention that the Map does not draw and To place does not list, in the order given.
+        const attention = (ids, listed = []) => plain(model.unplacedAttention({ nodes: ids.map(id => toPlaceNodes.find(node => node.id === id)), hostOf: index.hostOf, placementOf: id => placed.get(id).atlas || null, listed: new Set(listed) }).map(node => node.id));
+        assert.deepEqual(attention(['ct-loose']), ['ct-loose'], 'a hostless container in Needs attention is revealable');
+        assert.deepEqual(attention(['vm-g', 'vm-p']), [], 'a guest has no row of its own (its host stands for it, or its host card draws it)');
+        assert.deepEqual(attention(['dev-b', 'host-p']), [], 'an asset on the map is not unplaced');
+        assert.deepEqual(attention(['dev-a', 'ct-loose'], ['dev-a']), ['ct-loose'], 'a To place row is not listed twice');
         const same = [{ id: 'y', name: 'Alpha', kind: 'device' }, { id: 'x', name: 'Alpha', kind: 'device' }, { id: 'w', name: 'Zulu', kind: 'device' }];
         assert.deepEqual(plain(model.toPlaceNodes({ nodes: same, view: 'atlas', hostOf: new Map(), guestsOf: new Map(), placementOf: () => null, matches: () => true }).map(node => node.id)), ['x', 'y', 'w'], 'sorted by name, then id');
     }
@@ -521,6 +527,29 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
     const newStore = api => InfraStore.create({ ctx: { api }, t: key => key });
     const echo = body => ({ nodes: body.nodes.map(item => storeNode(item.id, { version: item.version + 1, ...(item.parent_id !== undefined ? { parent_id: item.parent_id } : {}), placements: item.unplace ? {} : { atlas: { x: item.x, y: item.y, pinned: true } } })) });
 
+    { // the Map's unplaced matches: the To place rows, then the Needs attention rows of hostless guests; nothing in Topology
+        const stale = [{ kind: 'docker', instance: 'engine-a', key: 'k', name: 'x', state: 'stale' }];
+        const store = newStore(fakeApi({}).api);
+        store.applySnapshot({ nodes: [
+            storeNode('dev', { name: 'Zed device', placements: {} }), storeNode('dev-alpha', { name: 'Alpha', placements: {} }),
+            storeNode('ct-stale', { kind: 'container', name: 'aurago-boring-garage', placements: {}, sources: stale }),
+            storeNode('ct-plain', { kind: 'container', name: 'plain container', placements: {} }),
+            storeNode('ct-drawn', { kind: 'container', name: 'drawn container', sources: stale }),
+            storeNode('ct-guest', { kind: 'container', name: 'guest container', host_id: 'dev', placements: {}, sources: stale }),
+        ], edges: [], sources: [], capabilities: { write: true } });
+        const ids = view => plain(store.unplacedMatches(view).map(node => node.id));
+        assert.deepEqual(ids('atlas'), ['dev-alpha', 'dev', 'ct-stale'], 'To place rows by name first, then the hostless guest of Needs attention; a drawn, a plain hostless and a hosted one never');
+        assert.deepEqual(ids('topology'), [], 'Topology lists no unplaced match');
+        store.setFilters({ query: 'boring' });
+        assert.deepEqual(ids('atlas'), ['ct-stale'], 'a query that matches only the hostless guest still finds it');
+        store.setFilters({ query: 'plain container' });
+        assert.deepEqual(ids('atlas'), [], 'a hostless guest with nothing to attend to has no row the library can reveal');
+        store.setFilters({ query: 'drawn container' });
+        assert.deepEqual(ids('atlas'), [], 'an asset on the map is not an unplaced match');
+        store.setFilters({ query: 'guest container' });
+        assert.deepEqual(ids('atlas'), ['dev'], 'a guest stands for its host row');
+        store.dispose();
+    }
     { // the List checkboxes mark their selection; every other way of selecting resets the mark
         const store = newStore(fakeApi({}).api);
         store.applySnapshot({ nodes: [storeNode('a'), storeNode('b')], edges: [], sources: [], capabilities: { write: true } });

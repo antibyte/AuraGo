@@ -84,10 +84,7 @@
             const roots = top.regions.filter(Boolean).sort(byName).map(regionRow);
             for (const region of scene.regions) if (!visited.has(region.id)) roots.push(regionRow(store.nodeById(region.id))); // a parent cycle still shows its places
             roots.push(...top.cards.filter(Boolean).sort(byName).map(cardRow));
-            const unsaved = new Set(state.nodes.filter(node => ['atlas', 'topology'].some(layoutView => store.layoutState(node.id, layoutView) === 'unsaved')).map(node => node.id));
-            const actionBlocked = new Set([...state.actionBlocks.keys()].map(key => String(key).split('\x00')[0]));
-            const attention = model.attentionItems(state.nodes.filter(store.matches), { unsaved, reviews: new Set(state.nodeReviews.keys()), sourceBlocked: state.sourceBlocked, actionBlocked })
-                .map(item => ({ node: store.nodeById(item.id), kind: 'plain', children: [], reasons: item.reasons })).filter(row => row.node);
+            const attention = store.attention().map(item => ({ node: store.nodeById(item.id), kind: 'plain', children: [], reasons: item.reasons }));
             return {
                 'to-place': toPlace.map(node => ({ node, kind: 'plain', children: [] })),
                 'on-map': roots.map(prune).filter(Boolean),

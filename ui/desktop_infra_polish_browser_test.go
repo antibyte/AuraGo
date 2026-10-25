@@ -449,11 +449,15 @@ func TestDesktopInfraUnplacedSearchMatchBrowser(t *testing.T) {
 	fixture.world(25)
 	hiddenGuest := infraCanvasFixtureNode("brain-vm", "vm", "Hidden guest vm", "vm", nil, "")
 	hiddenGuest["host_id"] = "brain-a" // rides in the unplaced host "TheBrain": it has no library row of its own
+	staleBox := infraCanvasFixtureNode("stale-box", "container", "Stale box", "container", nil, "")
+	staleSource := fixture.source("docker", "engine-a", "stale-box-key", "Stale box")
+	staleSource["state"] = "stale"
+	staleBox["sources"] = []any{staleSource} // a hostless guest the library lists under Needs attention
 	fixture.nodes = append(fixture.nodes,
 		infraCanvasFixtureNode("brain-b", "device", "TheBrain Backup", "nas", nil, ""),
 		infraCanvasFixtureNode("brain-a", "device", "TheBrain", "mini-pc", nil, ""),
 		infraCanvasFixtureNode("switch-spare", "device", "Core switch spare", "managed-switch", nil, ""),
-		hiddenGuest,
+		hiddenGuest, staleBox,
 		infraCanvasFixtureNode("loose-box", "container", "Loose box", "container", nil, ""), // a hostless container is a Cleanup suggestion
 		infraCanvasFixtureNode("annex", "room", "Brain annex", "room", nil, ""))             // an unplaced place: a row in the Map, none in Topology
 	page := infraPolishOpen(t, fixture, 1500, 900)
@@ -563,6 +567,26 @@ func TestDesktopInfraUnplacedSearchMatchBrowser(t *testing.T) {
 	plain("Brain annex")
 	page.MustEval(`()=>document.querySelector('.infra-view-switch [data-view="atlas"]').click()`)
 	page.MustWait(`()=>document.querySelector('.infra-view-switch [data-view="atlas"]').getAttribute('aria-pressed')==='true'`)
+
+	// A hostless guest that the library lists under Needs attention counts too, and Enter and Show match reveal its row there.
+	page.MustEval(`()=>document.querySelector('[data-node="fixture-node-0003"]').click()`)
+	page.MustWait(`()=>infraOpenTitle()==='Cold-store NAS'`)
+	page.MustEval(`()=>infraQuery('Stale box')`)
+	page.MustWait(`()=>!!document.querySelector('[data-library-item="stale-box"][data-section="attention"]')`)
+	waitText(word("desktop.infra_no_match_unplaced_one", 1))
+	search.MustFocus()
+	page.Keyboard.MustType(input.Enter)
+	page.MustWait(`()=>infraOpenTitle()==='Stale box'`)
+	if got := page.MustEval(`()=>{
+		const row=document.querySelector('[data-library-item="stale-box"] [data-library-select]'),scroll=document.querySelector('[data-library-scroll]').getBoundingClientRect(),box=row.getBoundingClientRect();
+		return JSON.stringify({selected:row.getAttribute('aria-selected')==='true',inView:box.top>=scroll.top-1&&box.bottom<=scroll.bottom+1,section:row.closest('[data-library-item]').dataset.section,onMap:!!document.querySelector('[data-nodes] [data-node="stale-box"]')});
+	}`).Str(); got != `{"selected":true,"inView":true,"section":"attention","onMap":false}` {
+		t.Fatalf("Enter on a hostless guest must open it and show its Needs attention row selected: %s", got)
+	}
+	page.MustEval(`()=>document.querySelector('[data-node="fixture-node-0003"]').click()`)
+	page.MustWait(`()=>infraOpenTitle()==='Cold-store NAS'`)
+	page.MustEval(`()=>document.querySelector('[data-no-match] [data-action="show-match"]').click()`)
+	page.MustWait(`()=>infraOpenTitle()==='Stale box'`)
 
 	// Nothing matches at all: today's box, without Show match, and Enter does nothing.
 	page.MustEval(`()=>infraQuery('zzzz-no-such-asset')`)

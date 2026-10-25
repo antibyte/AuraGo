@@ -435,6 +435,20 @@
             const index = guests();
             return model.toPlaceNodes({ nodes: state.nodes, view, hostOf: index.hostOf, guestsOf: index.guestsOf, placementOf: id => effectivePlacement(id, view), matches });
         }
+        // attention: the Needs attention items for the current query (the library's section and the unplaced-search reveal read this).
+        function attention() {
+            const unsaved = new Set(state.nodes.filter(node => ['atlas', 'topology'].some(layoutView => layoutState(node.id, layoutView) === 'unsaved')).map(node => node.id));
+            const actionBlocked = new Set([...state.actionBlocks.keys()].map(key => String(key).split('\x00')[0]));
+            return model.attentionItems(state.nodes.filter(matches), { unsaved, reviews: new Set(state.nodeReviews.keys()), sourceBlocked: state.sourceBlocked, actionBlocked }).filter(item => nodeById(item.id));
+        }
+        // unplacedMatches: the matches the Map does not draw and the library lists where a click can reveal them: the To place rows,
+        // then the Needs attention rows of hostless vm and container (no To place row, no card). None in Topology.
+        function unplacedMatches(view) {
+            const rows = toPlace(view);
+            if (view === 'topology') return rows;
+            const index = guests();
+            return rows.concat(model.unplacedAttention({ nodes: attention().map(item => nodeById(item.id)), hostOf: index.hostOf, placementOf: id => effectivePlacement(id, view), listed: new Set(rows.map(node => node.id)) }));
+        }
         function effectiveParent(id, view) {
             const intent = effectiveIntent(view, id);
             return intent && intent.parent_id !== undefined ? intent.parent_id : (nodeById(id)?.parent_id || '');
@@ -847,7 +861,7 @@
             nodeById, nodeIndex, childrenOf, guests, searchableText, matches,
             applySnapshot, loadSnapshot, loadTargets, loadCredentials, loadIconManifest, replaceNode, removeNode,
             select, selectEdge, clearSelection, setView, setFilters, setTool, toggleHost, beginInteraction, endInteraction,
-            effectivePlacement, toPlace, effectiveParent, currentIntent, layoutState, unsavedCount, queueLayout, whenLayoutIdle, retryLayout,
+            effectivePlacement, toPlace, attention, unplacedMatches, effectiveParent, currentIntent, layoutState, unsavedCount, queueLayout, whenLayoutIdle, retryLayout,
             createEdge, updateEdge, deleteEdgeById, dispatch, undo: view => step(view, 'undo'), redo: view => step(view, 'redo'),
             reloadSnapshot: refreshSnapshot, replaceNodes, setSourcesIgnored, setSourceHost, importBatch, removeNodes, updateNodeFields, updateParents, identityKey,
             canUndo, canRedo, hasUnsavedWork, attach, abortRequests, dispose,
