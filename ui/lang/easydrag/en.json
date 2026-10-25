@@ -553,6 +553,7 @@
   "easydrag.ui.flow_settings": "Flow settings",
   "easydrag.ui.form_no_params": "This step needs no settings.",
   "easydrag.ui.hint_plaintext_value": "Saved in the flow as plain text. Do not paste passwords or keys here.",
+  "easydrag.ui.history_label": "Undo and redo",
   "easydrag.ui.home_clear_filter": "Clear filter",
   "easydrag.ui.home_clear_search": "Clear search",
   "easydrag.ui.home_delete": "Delete",

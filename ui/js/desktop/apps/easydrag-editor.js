@@ -38,6 +38,7 @@
             '<header class="ed-head">' +
             '<button type="button" class="ed-icon-btn ed-back" data-ed-cmd="home" title="' + esc(t('easydrag.ui.back_home')) + '" aria-label="' + esc(t('easydrag.ui.back_home')) + '">' + core.icon('arrow-left') + '</button>' +
             '<div class="ed-title"><input class="ed-title-input" data-ed-name maxlength="120" spellcheck="false" aria-label="' + esc(t('easydrag.ui.flow_name')) + '"><span class="ed-state" data-ed-state></span><span class="ed-revision" data-ed-revision data-ed-revisions></span><span class="ed-foot-item ed-save" data-ed-save aria-live="polite"></span></div>' +
+            '<div class="ed-head-history" role="group" data-ed-history-host></div>' +
             '<div class="ed-head-actions">' +
             '<button type="button" class="ed-btn ed-btn--ghost" data-ed-cmd="runs" aria-pressed="false">' + core.icon('history') + '<span>' + esc(t('easydrag.ui.runs_title')) + '</span></button>' +
             '<button type="button" class="ed-btn" data-ed-cmd="test" title="' + esc(t('easydrag.ui.test_draft') + ' (' + core.shortcut('Ctrl+Enter') + ')') + '">' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.test_draft')) + '</span></button>' +
@@ -86,6 +87,12 @@
         const publish = ED.publish.create(ed);
         body.appendChild(palette.el);
         body.appendChild(canvas.el);
+        // Undo/Redo in the header and the "deleted – Undo" toast (easydrag-history.js).
+        const history = ED.history.create(ed, {
+            host: el.querySelector('[data-ed-history-host]'), toastHost: body,
+            undo: () => interact.undo(), redo: () => interact.redo(),
+            focusCanvas: () => canvas.el.focus({ preventScroll: true })
+        });
 
         ed.saver = ED.saver.create({
             api: ed.api, flowId: ed.flow.id, model: draftModel, revision: ed.flow.draft_revision,
@@ -865,7 +872,7 @@
                 safely(() => interact.dispose());
                 safely(() => { if (contentDirty) ed.saver.save(); });
                 safely(() => storeView.flush());
-                [wires, canvas, palette, runs, publish].forEach(m => safely(() => m.dispose()));
+                [wires, canvas, palette, runs, publish, history].forEach(m => safely(() => m.dispose()));
                 safely(() => ed.saver.dispose());
                 setMenusSoon.cancel();
                 safely(() => bag.dispose());

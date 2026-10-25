@@ -553,6 +553,7 @@
   "easydrag.ui.flow_settings": "Ustawienia przepływu",
   "easydrag.ui.form_no_params": "Ten krok nie wymaga ustawień.",
   "easydrag.ui.hint_plaintext_value": "Zapisywane w przepływie jako zwykły tekst. Nie wklejaj tu haseł ani kluczy.",
+  "easydrag.ui.history_label": "Cofnij i ponów",
   "easydrag.ui.home_clear_filter": "Wyczyść filtr",
   "easydrag.ui.home_clear_search": "Wyczyść wyszukiwanie",
   "easydrag.ui.home_delete": "Usuń",

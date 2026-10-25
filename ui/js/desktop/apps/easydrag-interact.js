@@ -432,7 +432,10 @@
             const names = ids.map(nameOf).filter(Boolean);
             ed.model.removeNodes(ids, { bridge: ids.length === 1 });
             select([]);
-            if (!quiet) tell('easydrag.ui.announce_deleted_one', 'easydrag.ui.announce_deleted_many', names);
+            if (quiet) return;
+            tell('easydrag.ui.announce_deleted_one', 'easydrag.ui.announce_deleted_many', names);
+            // The editor offers to take the deletion back (a toast with Undo, easydrag-history.js).
+            if (names.length) ed.bus.emit('steps-deleted', { names });
         }
 
         // toggleSteps turns steps off, or on when all of them are off, and announces which.

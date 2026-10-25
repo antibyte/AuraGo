@@ -553,6 +553,7 @@
   "easydrag.ui.flow_settings": "フローの設定",
   "easydrag.ui.form_no_params": "このステップに設定は必要ありません。",
   "easydrag.ui.hint_plaintext_value": "フロー内にプレーンテキストで保存されます。パスワードやキーは貼り付けないでください。",
+  "easydrag.ui.history_label": "元に戻す・やり直す",
   "easydrag.ui.home_clear_filter": "絞り込みを解除",
   "easydrag.ui.home_clear_search": "検索をクリア",
   "easydrag.ui.home_delete": "削除",

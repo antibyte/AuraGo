@@ -342,6 +342,57 @@ export async function run(env) {
         ]);
         eq('b5 G3 the words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.run_view_pruned']), []);
     });
+    // ── U12: header Undo/Redo and the deletion toast ──
+
+    await guardAsync('b5 U12 header Undo and Redo, and a toast that takes a deletion back', async () => {
+        const s = await session();
+        const head = s.editor.el.querySelector('[data-ed-history-host]');
+        const undo = head.querySelector('[data-ed-history="undo"]');
+        const redo = head.querySelector('[data-ed-history="redo"]');
+        const off = b => b.getAttribute('aria-disabled') === 'true';
+        const names = [undo.getAttribute('aria-label'), redo.getAttribute('aria-label'), head.getAttribute('aria-label'), head.getAttribute('role')];
+        const fresh = [off(undo), off(redo)];
+        s.ed.model.setLabel(A, 'Renamed');
+        const edited = [off(undo), off(redo)];
+        const heardUndo = await s.heard(() => undo.fire('click'));
+        const undone = [s.ed.model.node(A).label, off(undo), off(redo)];
+        await s.heard(() => redo.fire('click'));
+        const redone = s.ed.model.node(A).label;
+        const toast = s.editor.el.querySelector('[data-ed-toast]');
+        s.pick(B);
+        s.key('Delete');
+        const shown = [toast.hidden, toast.querySelector('[data-ed-toast-text]').textContent, !!s.ed.model.node(B)];
+        toast.querySelector('[data-ed-toast-undo]').fire('click');
+        const back = [toast.hidden, !!s.ed.model.node(B)];
+        s.pick(B);
+        s.key('Delete');
+        s.ed.model.setLabel(A, 'Other');
+        const closedByEdit = toast.hidden;
+        s.ed.model.undo();
+        s.ed.model.undo();
+        s.pick(B);
+        s.key('Delete');
+        const beforeTimer = toast.hidden;
+        s.h.runTimers(8000);
+        eq('b5 U12 named buttons that follow the history, an Undo toast after a delete that any other change or 8 s close',
+            [names, fresh, edited, heardUndo, undone, redone, shown, back, closedByEdit, beforeTimer, toast.hidden, s.h.logged],
+            [['undo', 'redo', 'history_label', 'group'], [true, true], [false, true], 'announce_undo', ['Alpha', true, false], 'Renamed',
+                [false, 'announce_deleted_one:Beta', false], [true, true], true, false, true, []]);
+        s.editor.dispose();
+        const view = await session(req => (req.url === '/api/desktop/flows/runs/r1?include=doc'
+            ? { run: { id: 'r1', status: 'success', mode: 'test', started_at: '2026-10-25T10:00:00Z', revision: 2 }, steps: [], doc: flowDoc('Run') } : undefined));
+        view.ed.model.setLabel(A, 'Edited');
+        view.editor.showRun('r1');
+        await settle();
+        const host = view.editor.el.querySelector('[data-ed-history-host]');
+        const inView = ['undo', 'redo'].map(k => host.querySelector('[data-ed-history="' + k + '"]').getAttribute('aria-disabled'));
+        view.editor.dispose();
+        const ro = await session(undefined, { readonly: true });
+        eq('b5 U12 both buttons are off in the run view; a read-only desktop shows no history group',
+            [inView, ro.editor.el.querySelector('[data-ed-history-host]').hidden], [['true', 'true'], true]);
+        ro.editor.dispose();
+        eq('b5 U12 the group name exists in all 16 locales', missingKeys(apps, ['easydrag.ui.history_label']), []);
+    });
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }

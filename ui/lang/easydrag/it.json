@@ -553,6 +553,7 @@
   "easydrag.ui.flow_settings": "Impostazioni del flusso",
   "easydrag.ui.form_no_params": "Questo passo non richiede impostazioni.",
   "easydrag.ui.hint_plaintext_value": "Salvato nel flusso come testo in chiaro. Non incollare qui password o chiavi.",
+  "easydrag.ui.history_label": "Annulla e ripristina",
   "easydrag.ui.home_clear_filter": "Azzera il filtro",
   "easydrag.ui.home_clear_search": "Cancella la ricerca",
   "easydrag.ui.home_delete": "Elimina",

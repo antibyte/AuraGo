@@ -12,7 +12,7 @@ var easyDragModules = []string{
 	"easydrag-core.js", "easydrag-template.js", "easydrag-model.js", "easydrag-geometry.js", "easydrag-saver.js",
 	"easydrag-canvas.js", "easydrag-wires.js", "easydrag-interact.js", "easydrag-palette.js", "easydrag-fields.js",
 	"easydrag-forms.js", "easydrag-mapping.js", "easydrag-detail.js", "easydrag-runs.js", "easydrag-publish.js",
-	"easydrag-home.js", "easydrag-dialogs.js", "easydrag-editor.js", "easydrag.js",
+	"easydrag-home.js", "easydrag-dialogs.js", "easydrag-history.js", "easydrag-editor.js", "easydrag.js",
 }
 
 func TestEasyDragAssetsLoadInDependencyOrder(t *testing.T) {

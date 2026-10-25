@@ -553,6 +553,7 @@
   "easydrag.ui.flow_settings": "Nastavení toku",
   "easydrag.ui.form_no_params": "Tento krok nepotřebuje žádné nastavení.",
   "easydrag.ui.hint_plaintext_value": "Uloží se v toku jako prostý text. Nevkládej sem hesla ani klíče.",
+  "easydrag.ui.history_label": "Zpět a znovu",
   "easydrag.ui.home_clear_filter": "Zrušit filtr",
   "easydrag.ui.home_clear_search": "Vymazat hledání",
   "easydrag.ui.home_delete": "Smazat",

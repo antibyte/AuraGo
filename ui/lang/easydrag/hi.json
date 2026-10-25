@@ -553,6 +553,7 @@
   "easydrag.ui.flow_settings": "फ़्लो सेटिंग्स",
   "easydrag.ui.form_no_params": "इस चरण को किसी सेटिंग की ज़रूरत नहीं है।",
   "easydrag.ui.hint_plaintext_value": "फ़्लो में सादे टेक्स्ट के रूप में सहेजा जाता है। यहाँ पासवर्ड या कुंजियाँ पेस्ट न करें।",
+  "easydrag.ui.history_label": "पूर्ववत करें और फिर से करें",
   "easydrag.ui.home_clear_filter": "फ़िल्टर हटाएँ",
   "easydrag.ui.home_clear_search": "खोज साफ़ करें",
   "easydrag.ui.home_delete": "हटाएँ",

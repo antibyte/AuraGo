@@ -1124,3 +1124,15 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-switch[aria-checked="true"], [aria-checked="true"] > .ed-switch { background-color: Highlight; }
     .ed-switch[aria-checked="true"] > span, [aria-checked="true"] > .ed-switch > span { background-color: HighlightText; }
 }
+
+/* header Undo / Redo (easydrag-history.js); aria-disabled keeps the focus on the button */
+.ed-head-history { display: flex; align-items: center; gap: 4px; flex: none; }
+.ed-head-history .ed-icon-btn[aria-disabled="true"] { opacity: 0.45; cursor: default; }
+/* "deleted – Undo" toast: above the canvas, below popovers (26) and dialogs (40); no animation */
+.ed-toast {
+    position: absolute; left: 50%; bottom: 16px; z-index: 20; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px; max-width: calc(100% - 32px); padding: 8px 8px 8px 14px;
+    border-radius: 12px; background: var(--ed-panel-strong); color: var(--ed-text);
+    border: 1px solid var(--ed-border-strong); box-shadow: var(--ed-shadow-lg);
+}
+.ed-toast-text { min-width: 0; overflow-wrap: anywhere; font-weight: 600; }

@@ -553,6 +553,7 @@
   "easydrag.ui.flow_settings": "Flowindstillinger",
   "easydrag.ui.form_no_params": "Dette trin kræver ingen indstillinger.",
   "easydrag.ui.hint_plaintext_value": "Gemmes i flowet som klartekst. Indsæt ikke adgangskoder eller nøgler her.",
+  "easydrag.ui.history_label": "Fortryd og gentag",
   "easydrag.ui.home_clear_filter": "Nulstil filter",
   "easydrag.ui.home_clear_search": "Ryd søgning",
   "easydrag.ui.home_delete": "Slet",

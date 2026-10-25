@@ -553,6 +553,7 @@
   "easydrag.ui.flow_settings": "流程设置",
   "easydrag.ui.form_no_params": "此步骤无需设置。",
   "easydrag.ui.hint_plaintext_value": "会以明文保存在流程中。请勿在此粘贴密码或密钥。",
+  "easydrag.ui.history_label": "撤销和重做",
   "easydrag.ui.home_clear_filter": "清除筛选",
   "easydrag.ui.home_clear_search": "清除搜索",
   "easydrag.ui.home_delete": "删除",

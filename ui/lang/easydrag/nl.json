@@ -553,6 +553,7 @@
   "easydrag.ui.flow_settings": "Flowinstellingen",
   "easydrag.ui.form_no_params": "Deze stap heeft geen instellingen nodig.",
   "easydrag.ui.hint_plaintext_value": "Wordt als platte tekst in de flow opgeslagen. Plak hier geen wachtwoorden of sleutels.",
+  "easydrag.ui.history_label": "Ongedaan maken en opnieuw",
   "easydrag.ui.home_clear_filter": "Filter wissen",
   "easydrag.ui.home_clear_search": "Zoekopdracht wissen",
   "easydrag.ui.home_delete": "Verwijderen",

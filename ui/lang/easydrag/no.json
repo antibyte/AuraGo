@@ -553,6 +553,7 @@
   "easydrag.ui.flow_settings": "Flytinnstillinger",
   "easydrag.ui.form_no_params": "Dette trinnet trenger ingen innstillinger.",
   "easydrag.ui.hint_plaintext_value": "Lagres i flyten som ren tekst. Ikke lim inn passord eller nøkler her.",
+  "easydrag.ui.history_label": "Angre og gjør om",
   "easydrag.ui.home_clear_filter": "Nullstill filter",
   "easydrag.ui.home_clear_search": "Tøm søket",
   "easydrag.ui.home_delete": "Slett",

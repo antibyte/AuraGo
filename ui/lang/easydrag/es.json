@@ -553,6 +553,7 @@
   "easydrag.ui.flow_settings": "Ajustes del flujo",
   "easydrag.ui.form_no_params": "Este paso no necesita ajustes.",
   "easydrag.ui.hint_plaintext_value": "Se guarda en el flujo como texto sin cifrar. No pegues aquí contraseñas ni claves.",
+  "easydrag.ui.history_label": "Deshacer y rehacer",
   "easydrag.ui.home_clear_filter": "Quitar el filtro",
   "easydrag.ui.home_clear_search": "Borrar la búsqueda",
   "easydrag.ui.home_delete": "Eliminar",

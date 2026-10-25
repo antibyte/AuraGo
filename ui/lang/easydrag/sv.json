@@ -553,6 +553,7 @@
   "easydrag.ui.flow_settings": "Flödesinställningar",
   "easydrag.ui.form_no_params": "Det här steget behöver inga inställningar.",
   "easydrag.ui.hint_plaintext_value": "Sparas i flödet som klartext. Klistra inte in lösenord eller nycklar här.",
+  "easydrag.ui.history_label": "Ångra och gör om",
   "easydrag.ui.home_clear_filter": "Rensa filter",
   "easydrag.ui.home_clear_search": "Rensa sökning",
   "easydrag.ui.home_delete": "Ta bort",

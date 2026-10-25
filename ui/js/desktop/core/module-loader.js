@@ -205,6 +205,7 @@
                 '/js/desktop/apps/easydrag-publish.js',
                 '/js/desktop/apps/easydrag-home.js',
                 '/js/desktop/apps/easydrag-dialogs.js',
+                '/js/desktop/apps/easydrag-history.js',
                 '/js/desktop/apps/easydrag-editor.js',
                 '/js/desktop/apps/easydrag.js'
             ]

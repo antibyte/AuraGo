@@ -553,6 +553,7 @@
   "easydrag.ui.flow_settings": "Ρυθμίσεις ροής",
   "easydrag.ui.form_no_params": "Αυτό το βήμα δεν χρειάζεται ρυθμίσεις.",
   "easydrag.ui.hint_plaintext_value": "Αποθηκεύεται στη ροή ως απλό κείμενο. Μην επικολλάς εδώ κωδικούς πρόσβασης ή κλειδιά.",
+  "easydrag.ui.history_label": "Αναίρεση και επανάληψη",
   "easydrag.ui.home_clear_filter": "Εκκαθάριση φίλτρου",
   "easydrag.ui.home_clear_search": "Εκκαθάριση αναζήτησης",
   "easydrag.ui.home_delete": "Διαγραφή",
