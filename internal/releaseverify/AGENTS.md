@@ -19,6 +19,8 @@ and signature policy remain owned by `internal/upkeep/AGENTS.md`.
 - Bootstrap executables must match the size and SHA-256 embedded in trusted scripts
   before execution, including cache hits. Publish immutable bootstrap components as
   prereleases so application release retention never removes them.
+- A repeated publication succeeds only after every public bootstrap asset matches
+  its reviewed size/digest; never overwrite an existing bootstrap or accept drafts.
 - Native helpers cannot verify Fulcio certificates; keyless releases retain Cosign's
   identity/issuer verification through an automatically provisioned, pinned binary.
 - Never bundle private keys, passwords or maintainer signing profiles.

@@ -39,8 +39,9 @@ jobs:
             exit 1
           fi
           if gh release view "$tag" >/dev/null 2>&1; then
-            echo "Bootstrap $tag already exists; never replace published verifier bytes."
-            exit 1
+            python3 scripts/build-release-verifier.py --scripts-only --require-published
+            echo "Bootstrap $tag already matches every reviewed pin; keeping its immutable assets."
+            exit 0
           fi
           cp scripts/release-verifier.json deploy/release-verifier/
           (cd deploy/release-verifier && sha256sum release-verifier_* release-verifier.json > SHA256SUMS)
