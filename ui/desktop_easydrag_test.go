@@ -155,7 +155,7 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 			"flow_no_trigger", "flow_schema", "flow_too_many_nodes", "node_id_duplicate", "node_id_invalid", "node_key_duplicate", "node_key_invalid",
 			"node_key_reserved", "node_type_unknown", "node_unavailable", "node_unreachable", "param_invalid", "param_required", "template_not_upstream",
 			"template_root_unavailable", "template_syntax", "template_unknown_field", "template_unknown_root", "untrusted_data_to_sink",
-			"flow_too_many_issues", "flow_node_not_found", "untrusted_secret_target"},
+			"flow_too_many_issues", "flow_node_not_found", "untrusted_secret_target", "param_literal_credential"},
 		// error_ lists every code the flows API and the engine send (internal/flows, internal/server/flows*).
 		"easydrag.ui.error_": {"flows_disabled", "flow_bad_request", "flow_cancelled", "flow_internal", "flow_invalid", "flow_locked", "flow_not_found",
 			"flow_not_published", "flow_no_trigger", "flow_options_unavailable", "flow_permission_denied", "flow_revision_conflict", "flow_run_limit",
