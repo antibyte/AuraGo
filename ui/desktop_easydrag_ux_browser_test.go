@@ -45,9 +45,9 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 				page.MustSetViewport(width, 900, 1, width < 760)
 				page.MustEval(`theme=>fixtureTheme(theme)`, theme)
 				s.wait(`()=>{const app=document.querySelector('.ed-app'),head=document.querySelector('.ed-head'),box=head.getBoundingClientRect();return app && box.width>0 && box.left>=-1 && box.right<=innerWidth+1 && head.scrollWidth<=head.clientWidth+1 && document.querySelector('.ed-canvas').getBoundingClientRect().width>100;}`)
-				s.wait(`()=>['test','publish'].every(cmd=>{const b=document.querySelector('[data-ed-cmd="'+cmd+'"]'),label=b.querySelector('span'),r=b.getBoundingClientRect();return r.width>0 && r.left>=-1 && r.right<=innerWidth+1 && getComputedStyle(label).display!=='none';})`)
+				s.wait(`()=>{const narrow=document.querySelector('.ed-app').getBoundingClientRect().width<=560;const shown=narrow?['publish']:['test','publish'];return shown.every(cmd=>{const b=document.querySelector('[data-ed-cmd="'+cmd+'"]'),label=b.querySelector('span'),r=b.getBoundingClientRect();return r.width>0 && r.left>=-1 && r.right<=innerWidth+1 && getComputedStyle(label).display!=='none';}) && (!narrow || getComputedStyle(document.querySelector('.ed-head-actions [data-ed-cmd="test"]')).display==='none')}`)
 				if width < 760 {
-					s.wait(`()=>['test','publish','more'].every(cmd=>{const r=document.querySelector('[data-ed-cmd="'+cmd+'"]').getBoundingClientRect();return r.width>=44 && r.height>=44;})`)
+					s.wait(`()=>{const narrow=document.querySelector('.ed-app').getBoundingClientRect().width<=560;return (narrow?['publish','more']:['test','publish','more']).every(cmd=>{const r=document.querySelector('[data-ed-cmd="'+cmd+'"]').getBoundingClientRect();return r.width>=44 && r.height>=44;})}`)
 				}
 				s.headerNames()
 				// Position is fixture setup; opening and closing use real keyboard/buttons.
@@ -67,8 +67,35 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 	page.MustSetViewport(1440, 900, 1, false)
 	_ = (proto.EmulationSetTouchEmulationEnabled{Enabled: false}).Call(page)
 	page.MustEval(`()=>fixtureTheme('standard')`)
+	// Fix batch 5: on a phone the ⋯ menu holds Runs and Test and Paused stays in the header; a deleted
+	// step offers Undo in a toast; the header's Undo takes back an edit.
+	if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: true}).Call(page); err != nil {
+		t.Fatal(err)
+	}
+	page.MustSetViewport(390, 844, 1, true)
+	s.wait(`()=>document.querySelector('.ed-app').getBoundingClientRect().width<=560 && getComputedStyle(document.querySelector('.ed-head-actions [data-ed-cmd="test"]')).display==='none'`)
+	page.MustElement(`[data-ed-cmd="more"]`).MustClick()
+	s.wait(`()=>{const ed=edFixture.editor();const items=[...document.querySelectorAll('.vd-context-menu .vd-context-item')].map(b=>b.textContent);return items.some(x=>x.includes(ed.t('easydrag.ui.runs_title'))) && items.some(x=>x.includes(ed.t('easydrag.ui.test_draft')))}`)
+	page.MustEval(`()=>aurora.closeContextMenu()`)
+	page.MustEval(`()=>{edFixture.flow().enabled=false;aurora.handleDesktopEvent({type:'flows_changed',payload:{flow_id:edFixture.seededID,reason:'enabled'}})}`)
+	s.wait(`()=>{const chip=document.querySelector('[data-ed-state] [data-ed-paused]');return !!chip && chip.getBoundingClientRect().width>0}`)
+	s.shot("ux-batch5-phone-header")
+	page.MustEval(`()=>{edFixture.flow().enabled=true;aurora.handleDesktopEvent({type:'flows_changed',payload:{flow_id:edFixture.seededID,reason:'enabled'}})}`)
+	s.wait(`()=>!document.querySelector('[data-ed-state] [data-ed-paused]')`)
+	page.MustSetViewport(1440, 900, 1, false)
+	_ = (proto.EmulationSetTouchEmulationEnabled{Enabled: false}).Call(page)
+	page.MustEval(`()=>{const ed=edFixture.editor();const id=ed.model.doc.nodes.find(n=>!ed.model.info(n.type).trigger).id;window.__b5Count=ed.model.doc.nodes.length;ed.bus.emit('focus-node',id);document.querySelector('.ed-node[data-node-id="'+id+'"] [data-ed-node-tool="delete"]').click();}`)
+	s.wait(`()=>{const toast=document.querySelector('[data-ed-toast]');return !toast.hidden && toast.getBoundingClientRect().width>0 && edFixture.editor().model.doc.nodes.length===window.__b5Count-1}`)
+	s.shot("ux-batch5-toast")
+	page.MustElement(`[data-ed-toast-undo]`).MustClick()
+	s.wait(`()=>document.querySelector('[data-ed-toast]').hidden && edFixture.editor().model.doc.nodes.length===window.__b5Count`)
+	page.MustEval(`()=>{const ed=edFixture.editor();window.__b5Label=ed.model.doc.nodes[0].label;ed.model.setLabel(ed.model.doc.nodes[0].id,'Batch 5')}`)
+	page.MustElement(`.ed-head [data-ed-history="undo"]`).MustClick()
+	s.wait(`()=>edFixture.editor().model.doc.nodes[0].label===window.__b5Label`)
+	s.failOnPageErrors("fix batch 5 header, toast and undo")
 	page.MustElement(`[data-ed-cmd="home"]`).MustClick()
 	s.wait(`()=>document.querySelectorAll('.ed-home .ed-flow-card').length===1`)
+	s.shot("ux-batch5-home-sort")
 	page.MustEval(`()=>{edFixture.state.flows.clear();document.dispatchEvent(new CustomEvent('aurago:flows-changed',{detail:{reason:'deleted'}}));}`)
 	s.wait(`()=>!!document.querySelector('[data-ed-home-templates]') && !!document.querySelector('.ed-empty-actions [data-ed-new]') && !!document.querySelector('.ed-empty-actions [data-ed-import]')`)
 	page.MustElement(`[data-ed-home-templates]`).MustClick()
