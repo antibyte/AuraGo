@@ -319,6 +319,7 @@ type Server struct {
 	flowNotify                flowFailureNotifier // flood rule and send slots of flow failure notifications
 	flowSecretRate            flowRateLimiter     // per-IP limit of flow secret writes and deletes
 	flowStreams               flowStreamLimiter   // open flow run event streams, per run and in total
+	flowSSE                   flowSSECache        // scrubbed run events by (run, seq), shared by the open streams
 	flowStreamBeat            time.Duration       // heartbeat of flow run streams; 0 means flowStreamHeartbeat (tests shorten it)
 	flowNodeTypesCache        flowNodeTypesCache  // encoded GET /api/desktop/flows/node-types answers, per language
 	flowHACache               flowHACache         // Home Assistant entity options of the flow editor, reused for 30 s

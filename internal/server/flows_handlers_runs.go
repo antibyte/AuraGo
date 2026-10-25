@@ -241,6 +241,9 @@ const (
 	// FLOW_RUN_LIMIT.
 	flowStreamsPerRun = 16
 	flowStreamsTotal  = 64
+	// flowStreamsPerClient bounds the open streams of one client address (ClientIP), so one
+	// browser with many tabs or a script cannot take all flowStreamsTotal.
+	flowStreamsPerClient = 8
 	// flowStreamMaxSeq bounds the start point a client gives (?after=, Last-Event-ID). A run
 	// has about 2*flows.MaxNodes+2 events, so a larger value is garbage and ignored.
 	flowStreamMaxSeq = 1 << 20
@@ -249,20 +252,21 @@ const (
 	flowStreamHeartbeat = 15 * time.Second
 )
 
-// flowStreamLimiter counts the open run event streams, per run and in total. The zero value
-// is ready to use; Server.flowStreams holds the one of the API.
+// flowStreamLimiter counts the open run event streams, per run, per client and in total. The zero
+// value is ready to use; Server.flowStreams holds the one of the API.
 type flowStreamLimiter struct {
-	mu    sync.Mutex
-	total int
-	runs  map[string]int
+	mu      sync.Mutex
+	total   int
+	runs    map[string]int
+	clients map[string]int
 }
 
-// acquire reserves a stream of runID and reports false when a limit is reached; a reserved
-// stream must be given back with release.
-func (l *flowStreamLimiter) acquire(runID string) bool {
+// acquireFor reserves a stream of runID for client (a ClientIP; "" counts no client) and reports
+// false when a limit is reached; a reserved stream must be given back with releaseFor.
+func (l *flowStreamLimiter) acquireFor(runID, client string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.total >= flowStreamsTotal || l.runs[runID] >= flowStreamsPerRun {
+	if l.total >= flowStreamsTotal || l.runs[runID] >= flowStreamsPerRun || (client != "" && l.clients[client] >= flowStreamsPerClient) {
 		return false
 	}
 	if l.runs == nil {
@@ -270,11 +274,17 @@ func (l *flowStreamLimiter) acquire(runID string) bool {
 	}
 	l.runs[runID]++
 	l.total++
+	if client != "" {
+		if l.clients == nil {
+			l.clients = map[string]int{}
+		}
+		l.clients[client]++
+	}
 	return true
 }
 
-// release gives back a stream that acquire reserved.
-func (l *flowStreamLimiter) release(runID string) {
+// releaseFor gives back a stream that acquireFor reserved.
+func (l *flowStreamLimiter) releaseFor(runID, client string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.total--
@@ -283,7 +293,19 @@ func (l *flowStreamLimiter) release(runID string) {
 	} else {
 		delete(l.runs, runID)
 	}
+	if client == "" {
+		return
+	}
+	if n := l.clients[client] - 1; n > 0 {
+		l.clients[client] = n
+	} else {
+		delete(l.clients, client)
+	}
 }
+
+// acquire and release count no client.
+func (l *flowStreamLimiter) acquire(runID string) bool { return l.acquireFor(runID, "") }
+func (l *flowStreamLimiter) release(runID string)      { l.releaseFor(runID, "") }
 
 // flowStreamAfter returns the sequence number a stream starts after: the larger of ?after=
 // and the Last-Event-ID header. EventSource sends Last-Event-ID (the id of the last event it
@@ -348,11 +370,13 @@ func (s *Server) streamFlowRunEvents(w http.ResponseWriter, r *http.Request, run
 		flowsError(w, http.StatusInternalServerError, "FLOW_INTERNAL", "streaming is not supported")
 		return
 	}
-	if !s.flowStreams.acquire(runID) {
+	cfg := s.ConfigSnapshot()
+	client := ClientIP(r, cfg != nil && cfg.Server.HTTPS.BehindProxy)
+	if !s.flowStreams.acquireFor(runID, client) {
 		flowsError(w, http.StatusTooManyRequests, "FLOW_RUN_LIMIT", "too many open run event streams; close other run views and try again")
 		return
 	}
-	defer s.flowStreams.release(runID)
+	defer s.flowStreams.releaseFor(runID, client)
 	ctx := r.Context()
 	after := flowStreamAfter(r)
 	backlog, events, unsubscribe, live := s.Flows.Subscribe(runID, after)
@@ -379,7 +403,11 @@ func (s *Server) streamFlowRunEvents(w http.ResponseWriter, r *http.Request, run
 		if ev.Type == flows.EventRunFinished {
 			finished = true
 		}
-		return writeFlowSSE(w, flusher, "event", ev.Seq, ev)
+		data, err := s.flowSSE.scrubbedEvent(ev)
+		if err != nil {
+			return err
+		}
+		return writeFlowSSEData(w, flusher, "event", ev.Seq, data)
 	}
 	for _, ev := range backlog {
 		// A drained or departed client stops the backlog too (each event is scrubbed).
@@ -424,13 +452,18 @@ func (s *Server) streamFlowRunEvents(w http.ResponseWriter, r *http.Request, run
 	}
 }
 
-// writeFlowSSE writes one event, flushed at once: an "id:" line when id > 0, the event name
-// and the payload as one line of JSON with its values scrubbed (flowScrubbedJSON).
+// writeFlowSSE writes one event, flushed at once: an "id:" line when id > 0, the event name and
+// the payload as one line of JSON with its values scrubbed (flowScrubbedJSON).
 func writeFlowSSE(w http.ResponseWriter, flusher http.Flusher, event string, id int, payload any) error {
 	data, err := flowScrubbedJSON(payload)
 	if err != nil {
 		return err
 	}
+	return writeFlowSSEData(w, flusher, event, id, data)
+}
+
+// writeFlowSSEData writes one event whose data is already scrubbed JSON without line breaks.
+func writeFlowSSEData(w http.ResponseWriter, flusher http.Flusher, event string, id int, data []byte) error {
 	prefix := "event: " + event + "\ndata: "
 	if id > 0 {
 		prefix = "id: " + strconv.Itoa(id) + "\n" + prefix
