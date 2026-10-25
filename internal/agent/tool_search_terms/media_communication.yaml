@@ -25,13 +25,13 @@ call_webhook:
   de: ["Webhook auslösen", "Webhook aufrufen", "ausgehenden Webhook senden", "Webhook triggern", "Hook feuern", "POST an Webhook schicken", "Automatisierung per Webhook starten"]
 chromecast:
   en: ["Chromecast", "Google Cast", "cast to TV", "play on Chromecast", "cast video to TV", "speak on Chromecast", "Chromecast volume", "stop casting"]
-  de: ["Chromecast", "auf den Fernseher streamen", "auf TV übertragen", "Google Cast Gerät", "Chromecast Lautstärke", "Chromecast durchsagen", "Video auf Fernseher abspielen", "Musik auf Chromecast"]
+  de: ["auf den Fernseher streamen", "auf TV übertragen", "Google Cast Gerät", "Chromecast Lautstärke", "Chromecast durchsagen", "Video auf Fernseher abspielen", "Musik auf Chromecast"]
 co_agent:
   en: ["co-agent", "spawn sub-agent", "parallel agents", "delegate task to specialist", "background agent", "researcher agent", "coder agent", "run tasks in parallel"]
-  de: ["Co-Agent", "Unteragent starten", "Aufgaben parallel erledigen", "Spezialist beauftragen", "Hintergrund-Agent", "Aufgabe delegieren", "paralleler Agent", "Recherche-Agent"]
+  de: ["Unteragent starten", "Aufgaben parallel erledigen", "Spezialist beauftragen", "Hintergrund-Agent", "Aufgabe delegieren", "paralleler Agent", "Recherche-Agent"]
 cyd_display:
   en: ["Cheap Yellow Display", "CYD", "ESP32 display", "desk display", "mini dashboard", "set display brightness", "show status on display", "display LED color"]
-  de: ["Cheap Yellow Display", "CYD", "ESP32 Display", "Tischdisplay", "Mini-Dashboard", "Display Helligkeit", "Status auf Display anzeigen", "LED Farbe setzen"]
+  de: ["Tischdisplay", "Mini-Dashboard", "Display Helligkeit", "Status auf Display anzeigen", "LED Farbe setzen"]
 fetch_discord:
   en: ["read Discord messages", "fetch Discord channel", "recent Discord messages", "what was written in Discord", "Discord chat history", "check Discord channel"]
   de: ["Discord Nachrichten lesen", "Discord Kanal auslesen", "letzte Discord Nachrichten", "was steht im Discord", "Discord Verlauf", "Discord Channel abrufen"]
@@ -49,7 +49,7 @@ generate_video:
   de: ["Video generieren", "Videoclip erstellen", "KI-Video", "Video aus Text", "Bild animieren", "Bild zu Video", "kurzes Video erzeugen"]
 jellyfin:
   en: ["Jellyfin", "media server", "search movies on Jellyfin", "what's playing", "recently added movies", "refresh media library", "pause playback on Jellyfin", "Jellyfin sessions"]
-  de: ["Jellyfin", "Medienserver", "Filme suchen", "Mediathek aktualisieren", "zuletzt hinzugefügte Filme", "wer schaut gerade", "Jellyfin Wiedergabe pausieren", "Serien Bibliothek"]
+  de: ["Medienserver", "Filme suchen", "Mediathek aktualisieren", "zuletzt hinzugefügte Filme", "wer schaut gerade", "Jellyfin Wiedergabe pausieren", "Serien Bibliothek"]
 list_discord_channels:
   en: ["list Discord channels", "Discord channel list", "Discord server channels", "find Discord channel ID", "text channels of guild"]
   de: ["Discord Kanäle auflisten", "Discord Channel Liste", "Discord Kanal ID finden", "Kanäle des Discord Servers", "Discord Textkanäle"]
@@ -64,22 +64,22 @@ manage_webhooks:
   de: ["eingehender Webhook", "Webhook Endpunkt anlegen", "Webhook Protokoll", "Webhook empfangen", "Webhook URL erstellen", "GitHub Webhook empfangen", "Webhook Logs ansehen"]
 media_conversion:
   en: ["convert audio", "convert video format", "convert image format", "FFmpeg", "ImageMagick", "mp4 to mp3", "wav to mp3", "media file info"]
-  de: ["Audio konvertieren", "Video umwandeln", "Bildformat ändern", "FFmpeg", "ImageMagick", "mp4 in mp3 umwandeln", "Datei in anderes Format", "Codec und Dauer prüfen"]
+  de: ["Audio konvertieren", "Video umwandeln", "Bildformat ändern", "mp4 in mp3 umwandeln", "Datei in anderes Format", "Codec und Dauer prüfen"]
 media_registry:
   en: ["media registry", "find generated media", "tag media", "media library entries", "search generated images", "register media file", "media gallery search", "media descriptions and tags"]
   de: ["Medienregister", "generierte Medien suchen", "Medien taggen", "Medienarchiv", "generierte Bilder finden", "Mediendatei registrieren", "Galerie durchsuchen", "Medien Beschreibung und Tags"]
 meshcore:
   en: ["MeshCore", "mesh radio", "LoRa mesh message", "send mesh text", "mesh contacts", "mesh channels", "Companion radio", "off-grid messaging"]
-  de: ["MeshCore", "Mesh Funk", "LoRa Mesh Nachricht", "Mesh Text senden", "Mesh Kontakte", "Mesh Kanäle", "Funknachricht schicken", "Offgrid Nachricht"]
+  de: ["Mesh Funk", "LoRa Mesh Nachricht", "Mesh Text senden", "Mesh Kontakte", "Mesh Kanäle", "Funknachricht schicken", "Offgrid Nachricht"]
 retro_games:
   en: ["retro games", "old game", "archive.org games", "DOS games", "play classic game", "C64 Amiga games", "arcade games", "game emulator"]
   de: ["Retro-Spiele", "Retrospiel spielen", "DOS-Spiel", "Arcade-Spiel", "Spielhalle", "C64 Spiel", "altes Computerspiel", "Klassiker zocken"]
 rtl_sdr:
   en: ["RTL-SDR", "radio recording", "DAB radio", "FM radio receiver", "SDR dongle", "record radio station", "schedule radio recording", "transcribe radio"]
-  de: ["RTL-SDR", "Radio aufnehmen", "DAB Radio", "UKW Radio empfangen", "SDR Stick", "Radiosender aufzeichnen", "Radioaufnahme planen", "Radio mitschneiden"]
+  de: ["Radio aufnehmen", "UKW Radio empfangen", "SDR Stick", "Radiosender aufzeichnen", "Radioaufnahme planen", "Radio mitschneiden"]
 send_agodesk_chat:
   en: ["AgoDesk message", "AgoChat", "message desktop companion", "push message to AgoDesk", "notify desktop client", "proactive desktop chat"]
-  de: ["AgoDesk Nachricht", "AgoChat", "Desktop-Begleiter benachrichtigen", "Nachricht an AgoDesk", "Desktop Client benachrichtigen", "proaktive Chat-Nachricht"]
+  de: ["AgoDesk Nachricht", "Desktop-Begleiter benachrichtigen", "Nachricht an AgoDesk", "Desktop Client benachrichtigen", "proaktive Chat-Nachricht"]
 send_audio:
   en: ["send audio file", "audio player in chat", "play sound in chat", "share mp3", "send voice recording", "send music file"]
   de: ["Audiodatei senden", "Audioplayer im Chat", "MP3 schicken", "Sounddatei zeigen", "Tonaufnahme senden", "Musikdatei schicken", "Audio im Chat abspielen"]
@@ -97,7 +97,7 @@ send_image:
   de: ["Bild senden", "Foto schicken", "Bild im Chat zeigen", "Bild anzeigen", "Screenshot schicken", "Diagramm als Bild senden", "Foto an Telegram"]
 send_notification:
   en: ["push notification", "ntfy", "Pushover", "notify my phone", "send alert", "web push", "notification to all channels", "SMS notification"]
-  de: ["Push-Benachrichtigung", "Benachrichtigung aufs Handy", "ntfy", "Pushover", "Alarm senden", "Meldung an alle Kanäle", "Handy benachrichtigen", "Web-Push"]
+  de: ["Push-Benachrichtigung", "Benachrichtigung aufs Handy", "Alarm senden", "Meldung an alle Kanäle", "Handy benachrichtigen", "Web-Push"]
 send_telegram:
   en: ["send Telegram message", "Telegram", "message me on Telegram", "Telegram chat message", "text via Telegram bot", "write to Telegram"]
   de: ["Telegram Nachricht", "Telegram schicken", "per Telegram schreiben", "Nachricht an Telegram", "Telegram Bot Nachricht", "Telegram Chat"]
@@ -106,7 +106,7 @@ send_video:
   de: ["Videodatei senden", "Video im Chat zeigen", "Videoplayer im Chat", "MP4 schicken", "Videoclip senden", "Video im Chat abspielen"]
 send_youtube_video:
   en: ["send YouTube video", "play YouTube in chat", "YouTube link", "embed YouTube", "share YouTube video", "YouTube player", "show YouTube Short", "YouTube start at timestamp"]
-  de: ["YouTube Video senden", "YouTube im Chat abspielen", "YouTube Link teilen", "YouTube einbetten", "YouTube Short zeigen", "YouTube Player", "YouTube ab Minute", "Video von YouTube zeigen"]
+  de: ["YouTube Video senden", "YouTube im Chat abspielen", "YouTube Link teilen", "YouTube einbetten", "YouTube Short zeigen", "YouTube ab Minute", "Video von YouTube zeigen"]
 telnyx_call:
   en: ["phone call", "make a call", "Telnyx call", "call a number", "voice call with TTS", "hang up call", "transfer call", "record phone call"]
   de: ["anrufen", "Telefonanruf", "Telnyx Anruf", "Nummer anrufen", "Anruf mit Sprachausgabe", "Anruf weiterleiten", "Anruf aufzeichnen", "auflegen"]
@@ -115,13 +115,13 @@ telnyx_manage:
   de: ["Telnyx Guthaben", "Rufnummern auflisten", "Anrufliste", "SMS Verlauf", "Telnyx Nummern", "Telnyx Guthaben prüfen"]
 telnyx_sms:
   en: ["send SMS", "text message", "Telnyx SMS", "send MMS", "SMS delivery status", "text a phone number", "SMS with picture"]
-  de: ["SMS senden", "SMS schicken", "Textnachricht aufs Handy", "MMS senden", "Telnyx SMS", "SMS Zustellstatus", "Kurznachricht an Nummer"]
+  de: ["SMS senden", "SMS schicken", "Textnachricht aufs Handy", "MMS senden", "SMS Zustellstatus", "Kurznachricht an Nummer"]
 transcribe_audio:
   en: ["transcribe audio", "speech to text", "audio to text", "transcribe voice message", "Whisper", "transcribe recording", "STT", "meeting recording to text"]
-  de: ["Audio transkribieren", "Sprache zu Text", "Sprachnachricht abschreiben", "Aufnahme abtippen", "Whisper", "Audio in Text umwandeln", "Besprechung transkribieren"]
+  de: ["Audio transkribieren", "Sprache zu Text", "Sprachnachricht abschreiben", "Aufnahme abtippen", "Audio in Text umwandeln", "Besprechung transkribieren"]
 tts:
   en: ["text to speech", "TTS", "read aloud", "speak this text", "voice reply", "generate speech audio", "ElevenLabs", "voice mode"]
-  de: ["Text vorlesen", "Sprachausgabe", "Text in Sprache", "vorlesen lassen", "Sprachantwort", "Audio aus Text", "ElevenLabs", "Stimme erzeugen"]
+  de: ["Text vorlesen", "Sprachausgabe", "Text in Sprache", "vorlesen lassen", "Sprachantwort", "Audio aus Text", "Stimme erzeugen"]
 video_download:
   en: ["download video", "yt-dlp", "search videos", "video subtitles", "video captions", "extract audio from video URL", "transcribe online video", "video info"]
-  de: ["Video herunterladen", "yt-dlp", "Videos suchen", "Untertitel holen", "Video Metadaten", "Audio aus Video-URL", "Online-Video transkribieren", "YouTube herunterladen"]
+  de: ["Video herunterladen", "Videos suchen", "Untertitel holen", "Video Metadaten", "Audio aus Video-URL", "Online-Video transkribieren", "YouTube herunterladen"]

@@ -7,7 +7,7 @@ desktop_notes:
   de: ["Desktop-Notizen", "Notizen durchsuchen", "Notiz lesen", "neue Notiz anlegen", "Notizbibliothek", "Markdown-Notiz", "Notiz nach Tag suchen", "meine Notizen auflisten"]
 docker:
   en: ["Docker", "Docker container", "restart container", "list containers", "container logs", "pull image", "docker volumes", "docker network", "run container"]
-  de: ["Docker", "Container neu starten", "Container auflisten", "Container Logs anzeigen", "Docker Image laden", "Container starten", "Container stoppen", "Docker Volumes", "Docker Netzwerk"]
+  de: ["Container neu starten", "Container auflisten", "Container Logs anzeigen", "Docker Image laden", "Container starten", "Container stoppen", "Docker Netzwerk"]
 frigate:
   en: ["Frigate NVR", "camera events", "person detected on camera", "security camera recordings", "doorbell events", "Frigate snapshot", "review summary", "surveillance clips"]
   de: ["Frigate Kamera", "Kameraaufnahmen ansehen", "Überwachungskamera Ereignisse", "wer war an der Tür", "Bewegungserkennung Kamera", "Aufnahme exportieren", "Frigate Schnappschuss", "Videorekorder NVR"]
@@ -34,7 +34,7 @@ homepage_git:
   de: ["Website Versionsverlauf", "Seite zurückrollen", "Git Commit für Website", "Änderungen der Homepage vergleichen", "Homepage Git Log", "Website Änderung rückgängig", "Git für Webprojekt"]
 homepage_project:
   en: ["create website project", "new web project", "start dev server", "build website", "install npm packages", "preview site locally", "website tunnel", "delete website project"]
-  de: ["Webprojekt anlegen", "neue Website erstellen", "Entwicklungsserver starten", "Website bauen", "npm Pakete installieren", "Vorschau der Seite", "Website Tunnel", "Webprojekt löschen"]
+  de: ["Webprojekt anlegen", "neue Website erstellen", "Entwicklungsserver starten", "Website bauen", "npm Pakete installieren", "Vorschau der Seite", "Webprojekt löschen"]
 homepage_quality:
   en: ["Lighthouse audit", "website performance check", "lint website code", "check JavaScript errors", "website screenshot", "page speed test", "console errors", "check site before deploy"]
   de: ["Lighthouse Prüfung", "Website Geschwindigkeit testen", "JavaScript Fehler prüfen", "Screenshot der Website", "Code Qualität Website", "Seite vor Veröffentlichung prüfen", "Performance Test Webseite", "Linting der Seite"]
@@ -46,7 +46,7 @@ invasion_artifacts:
   de: ["Egg Artefakte", "Dateien vom Egg", "Ergebnisdateien der Aufgabe", "Egg Ausgabe holen", "Artefakt löschen", "Invasion Artefakte", "vom Egg hochgeladene Dateien"]
 invasion_nests:
   en: ["list nests", "nest status", "assign egg to nest", "Invasion Control nests", "remote deployment targets", "which eggs are assigned", "hatch egg", "stop egg"]
-  de: ["Nester auflisten", "Nest Status", "Egg einem Nest zuweisen", "Invasion Control Nester", "Zielserver für Eggs", "Egg starten", "Egg stoppen", "Egg ausbrüten"]
+  de: ["Nester auflisten", "Egg einem Nest zuweisen", "Invasion Control Nester", "Zielserver für Eggs", "Egg starten", "Egg stoppen", "Egg ausbrüten"]
 invasion_tasks:
   en: ["send task to egg", "ask a sub-agent", "task status", "cancel egg task", "talk to remote agent", "give work to egg", "list egg tasks", "get task result"]
   de: ["Aufgabe an Egg schicken", "Sub-Agent beauftragen", "Aufgabenstatus", "Egg Aufgabe abbrechen", "Remote-Agent fragen", "Egg Aufgaben auflisten", "Ergebnis der Aufgabe holen", "Auftrag an Egg"]
@@ -61,10 +61,10 @@ manage_sql_connections:
   de: ["Datenbankverbindungen", "Datenbankverbindung testen", "SQL Verbindungen auflisten", "Postgres MySQL Verbindung", "SQLite Verbindung", "DB Zugang prüfen", "Datenbank Berechtigungen", "Verbindungsbeschreibung ändern"]
 mcp_call:
   en: ["MCP server", "Model Context Protocol", "call MCP tool", "list MCP tools", "external tool server", "connected MCP servers", "use MCP"]
-  de: ["MCP Server", "Model Context Protocol", "MCP Tool aufrufen", "MCP Tools auflisten", "externer Tool-Server", "verbundene MCP Server", "MCP nutzen"]
+  de: ["MCP Tool aufrufen", "MCP Tools auflisten", "externer Tool-Server", "verbundene MCP Server", "MCP nutzen"]
 meshcentral:
   en: ["MeshCentral", "wake on LAN", "wake device", "remote device power", "restart remote PC", "run command on device", "list mesh devices", "device events"]
-  de: ["MeshCentral", "Wake-on-LAN", "Rechner aufwecken", "PC herunterfahren", "Remote PC neu starten", "Befehl auf Gerät ausführen", "Geräte auflisten", "Geräteereignisse"]
+  de: ["Wake-on-LAN", "Rechner aufwecken", "PC herunterfahren", "Remote PC neu starten", "Befehl auf Gerät ausführen", "Geräte auflisten", "Geräteereignisse"]
 netlify:
   en: ["Netlify", "Netlify sites", "Netlify deploys", "roll back deploy", "environment variables", "form submissions", "SSL certificate", "Let's Encrypt cert", "cancel deploy"]
   de: ["Netlify Seiten", "Netlify Deployments", "Deploy zurückrollen", "Umgebungsvariablen setzen", "Formular Einsendungen", "SSL Zertifikat", "Benachrichtigungs-Hooks", "Netlify Seite löschen"]
