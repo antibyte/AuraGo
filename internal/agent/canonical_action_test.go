@@ -284,3 +284,138 @@ func TestCanonicalPaperlessWrapperCannotOverrideReadonly(t *testing.T) {
 		}
 	}
 }
+
+// refusalFields decodes the envelope of a refusal that carries the extra keys
+// the discovery guidance adds.
+type refusalFields struct {
+	Status       string   `json:"status"`
+	Code         string   `json:"code"`
+	Message      string   `json:"message"`
+	HiddenReason string   `json:"hidden_reason"`
+	Suggestions  []string `json:"suggestions"`
+}
+
+func TestUnknownToolNamesRouteOrGuide(t *testing.T) {
+	var hooked []ToolCall
+	dc := actionSecurityFixture(t, func(_ context.Context, call ToolCall) (string, bool) {
+		hooked = append(hooked, call)
+		return `{"status":"success"}`, true
+	})
+	setRunDiscoverToolsState(dc, dispatchCatalogSchemas(dc), nil)
+	t.Cleanup(func() { ClearDiscoverToolsState(dc.discoveryKey()) })
+	dispatch := func(dc *DispatchContext, call ToolCall) (ToolDispatchResult, refusalFields) {
+		t.Helper()
+		result := DispatchToolCallResult(context.Background(), &call, dc, "fixture")
+		var fields refusalFields
+		if strings.HasPrefix(result.Output, "Tool Output: {") {
+			decodeToolOutputJSON(t, result.Output, &fields)
+		}
+		return result, fields
+	}
+
+	t.Run("operation names reach discover_tools before policy and hooks", func(t *testing.T) {
+		hooked = nil
+		for name, call := range map[string]ToolCall{
+			"params":   {Action: "get_tool_info", Params: map[string]interface{}{"tool_name": "docker"}},
+			"toolname": {Action: "get_tool_info", ToolName: "docker"},
+		} {
+			hooked = nil
+			if result, _ := dispatch(dc, call); result.Status != ToolResultSuccess || len(hooked) != 1 {
+				t.Fatalf("%s: rewritten call did not run: %+v hooks=%d", name, result, len(hooked))
+			}
+			if got := hooked[0]; got.Action != "discover_tools" || got.Params["operation"] != "get_tool_info" || got.Params["tool_name"] != "docker" || got.TransportAction != "" {
+				t.Fatalf("%s: hook saw %+v", name, got)
+			}
+		}
+		// A scope without discover_tools must still deny the rewritten call, and
+		// no hook may run: canonicalization never widens a scope.
+		for _, allowed := range [][]string{{"docker"}, {"get_tool_info"}} {
+			hooked = nil
+			scoped := *dc
+			scoped.ToolScopeRestricted, scoped.AllowedTools = true, normalizedAllowedToolSet(allowed)
+			result, fields := dispatch(&scoped, ToolCall{Action: "get_tool_info", Params: map[string]interface{}{"tool_name": "docker"}})
+			if result.Status != ToolResultDenied || fields.Code != "tool_scope_denied" || len(hooked) != 0 {
+				t.Fatalf("scope %v widened by operation-name rewrite: %+v hooks=%d", allowed, result, len(hooked))
+			}
+		}
+		hooked = nil
+		scoped := *dc
+		scoped.ToolScopeRestricted, scoped.AllowedTools = true, normalizedAllowedToolSet([]string{"discover_tools"})
+		if result, _ := dispatch(&scoped, ToolCall{Action: "get_tool_info", Params: map[string]interface{}{"tool_name": "docker"}}); result.Status != ToolResultSuccess || len(hooked) != 1 {
+			t.Fatalf("a scope with discover_tools must allow the rewritten call: %+v hooks=%d", result, len(hooked))
+		}
+	})
+
+	t.Run("real tools named like an operation are left alone", func(t *testing.T) {
+		catalogDC := *dc
+		catalogDC.SessionID = t.Name()
+		SetDiscoverToolsState(catalogDC.discoveryKey(), []openai.Tool{testToolSchema("get_manual", "fixture")}, nil, "")
+		t.Cleanup(func() { ClearDiscoverToolsState(catalogDC.discoveryKey()) })
+		if got := canonicalizeDiscoverOperationCall(ToolCall{Action: "get_manual"}, &catalogDC); got.Action != "get_manual" {
+			t.Fatalf("exact catalog entry rewritten to %s", got.Action)
+		}
+		if got := canonicalizeDiscoverOperationCall(ToolCall{Action: "get_manual"}, dc); got.Action != "discover_tools" || got.Operation != "get_manual" {
+			t.Fatalf("operation name not rewritten: %+v", got)
+		}
+		if got := canonicalizeDiscoverOperationCall(ToolCall{Action: "docker"}, dc); got.Action != "docker" {
+			t.Fatalf("ordinary tool rewritten to %s", got.Action)
+		}
+	})
+
+	t.Run("unknown and disabled names are told apart", func(t *testing.T) {
+		hooked = nil
+		result, unknown := dispatch(dc, ToolCall{Action: "docker_ps"})
+		if result.Status != ToolResultDenied || !result.IsError || unknown.Code != "unknown_tool" ||
+			!strings.Contains(unknown.Message, "discover_tools") || !containsName(unknown.Suggestions, "docker") || !strings.Contains(unknown.Message, "docker") {
+			t.Fatalf("unknown name: %+v %+v", result, unknown)
+		}
+		result, disabled := dispatch(dc, ToolCall{Action: "mqtt_publish", Params: map[string]interface{}{"topic": "a", "payload": "b"}})
+		if result.Status != ToolResultDenied || !result.IsError || disabled.Code != "tool_disabled" || disabled.HiddenReason != "config_disabled" || strings.Contains(disabled.Message, "discover_tools") {
+			t.Fatalf("disabled native: %+v %+v", result, disabled)
+		}
+		if len(hooked) != 0 {
+			t.Fatalf("a refused name reached a hook: %d", len(hooked))
+		}
+		long := strings.Repeat("x", 500)
+		if _, echoed := dispatch(dc, ToolCall{Action: long}); strings.Contains(echoed.Message, long) || len(echoed.Message) > 400 {
+			t.Fatalf("long name echoed whole: %d bytes", len(echoed.Message))
+		}
+	})
+
+	t.Run("an unknown name without action policy keeps the ERROR prefix and gains guidance", func(t *testing.T) {
+		open := actionSecurityFixture(t, func(context.Context, ToolCall) (string, bool) { return "", false })
+		open.Cfg.Agent.ActionPolicy.Enabled = false
+		setRunDiscoverToolsState(open, dispatchCatalogSchemas(open), nil)
+		t.Cleanup(func() { ClearDiscoverToolsState(open.discoveryKey()) })
+		for _, test := range []struct{ action, want string }{
+			{"docker_ps", "Closest enabled tools: docker"},
+			{"git", "Use execute_shell with the git command"},
+		} {
+			result, _ := dispatch(open, ToolCall{Action: test.action})
+			if result.Status != ToolResultFailed || !strings.Contains(result.Output, "Tool Output: ERROR unknown action '"+test.action+"'.") ||
+				!strings.Contains(result.Output, "discover_tools") || !strings.Contains(result.Output, test.want) {
+				t.Fatalf("%s: %+v", test.action, result)
+			}
+		}
+	})
+
+	t.Run("invoke_tool suggests, refuses recursion and reports disabled", func(t *testing.T) {
+		invoke := func(name string) refusalFields {
+			t.Helper()
+			result, fields := dispatch(dc, ToolCall{Action: "invoke_tool", Params: map[string]interface{}{"tool_name": name}})
+			if !result.IsError {
+				t.Fatalf("invoke_tool %q succeeded: %+v", name, result)
+			}
+			return fields
+		}
+		if fields := invoke("dockr"); fields.Code != "tool_not_found" || fields.Status != "error" || !containsName(fields.Suggestions, "docker") {
+			t.Fatalf("unknown invoke target: %+v", fields)
+		}
+		if fields := invoke("invoke_tool"); fields.Code != "recursive_invoke" || fields.Status != "policy_denied" {
+			t.Fatalf("recursive invoke: %+v", fields)
+		}
+		if fields := invoke("mqtt_publish"); fields.Code != "tool_disabled" || fields.Status != "policy_denied" || fields.HiddenReason != "config_disabled" {
+			t.Fatalf("disabled invoke target: %+v", fields)
+		}
+	})
+}

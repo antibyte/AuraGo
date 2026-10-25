@@ -245,6 +245,7 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 		MemoryCorrections:    s.correctionRun(),
 		ToolDetailFits:       toolDetailBudgetCheck(s.requestBudget, s.req),
 		inlineBasis:          s.inlineBudgetBasis(),
+		discoveryReinjects:   discoveryReinjectsSchemas(s.runCfg, s.useNativeFunctions),
 		DiscoveryRunID:       s.runCfg.DiscoveryRunID,
 		ExecutionHooks:       s.runCfg.ExecutionHooks,
 		Cfg:                  s.runCfg.Config,
@@ -701,7 +702,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
-		if useNativeFunctions && !toolLimitFinalizing && !runCfg.StableSystemPrompt && runCfg.NativeToolSchemas == nil && runCfg.PreparedPrompt == nil {
+		if !toolLimitFinalizing && discoveryReinjectsSchemas(runCfg, useNativeFunctions) {
 			ff := buildToolFeatureFlags(runCfg, toolingPolicy)
 			s.nativeSchemaSnapshot = BuildNativeToolSchemaSnapshot(cfg.Directories.SkillsDir, manifest, ff, s.currentLogger)
 			all := filterSchemasByAllowedTools(s.nativeSchemaSnapshot.FullSchemas(), runCfg.AllowedTools)

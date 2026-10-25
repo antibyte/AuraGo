@@ -1382,7 +1382,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (outpu
 	case "git", "git_status", "git_log", "git_diff", "git_commit", "git_push", "git_pull":
 		hint = " Use execute_shell with the git command in the 'command' field."
 	}
-	return fmt.Sprintf("Tool Output: ERROR unknown action '%s'.%s Available actions are listed in the tool schema.", tc.Action, hint)
+	if guidance, _ := unknownToolGuidance(dc, tc.Action); guidance != "" {
+		hint += " " + guidance
+	}
+	return fmt.Sprintf("Tool Output: ERROR unknown action '%s'.%s Available actions are listed in the tool schema.", echoedToolName(tc.Action), hint)
 }
 
 func isCoAgentMissionReadOperation(operation string) bool {

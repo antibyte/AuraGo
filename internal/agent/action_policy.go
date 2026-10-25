@@ -220,6 +220,35 @@ func actionPolicyRefusal(code, message string, status ToolResultStatus) *ToolDis
 	return &ToolDispatchResult{Output: "Tool Output: " + string(encoded), Status: status, IsError: status.IsError()}
 }
 
+// unavailableToolRefusal answers a call to a tool outside the run's effective
+// catalog. A known native capability reports why it is off (code tool_disabled,
+// hidden_reason) and gives no discovery advice, because discovery cannot enable
+// it. Any other name is unknown (code unknown_tool) and points at discovery and
+// the closest enabled tools.
+func unavailableToolRefusal(name string, native bool, dc *DispatchContext) *ToolDispatchResult {
+	shown := echoedToolName(name)
+	body := map[string]interface{}{"status": string(ToolResultDenied)}
+	if native {
+		reason := "config_disabled"
+		if catalog := GetToolCatalogState(dc.discoveryKey()); catalog != nil {
+			if entry, ok := canonicalCatalogEntry(catalog, name); ok && !entry.Enabled && entry.HiddenReason != "" {
+				reason = entry.HiddenReason
+			}
+		}
+		body["code"], body["hidden_reason"] = "tool_disabled", reason
+		body["message"] = `The tool "` + shown + `" is disabled (` + reason + `) and cannot run until an administrator enables it.`
+	} else {
+		guidance, suggestions := unknownToolGuidance(dc, name)
+		body["code"] = "unknown_tool"
+		body["message"] = strings.TrimSpace(`"` + shown + `" is not a tool you can call directly in this run. ` + guidance)
+		if len(suggestions) > 0 {
+			body["suggestions"] = suggestions
+		}
+	}
+	encoded, _ := json.Marshal(body)
+	return &ToolDispatchResult{Output: "Tool Output: " + string(encoded), Status: ToolResultDenied, IsError: true}
+}
+
 func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchContext) *ToolDispatchResult {
 	if err := ctx.Err(); err != nil {
 		return actionPolicyRefusal("cancelled", "The action was cancelled before execution.", ToolResultCancelled)
@@ -262,7 +291,7 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 		}
 		if policy.Enabled || native {
 			if toolRuntimeUnavailable(dc, tc.Action) == "" || !configuredNativeToolEnabled(dc, tc.Action) {
-				return actionPolicyRefusal("tool_disabled", "The resolved tool is not enabled in the effective catalog.", ToolResultDenied)
+				return unavailableToolRefusal(tc.Action, native, dc)
 			}
 		}
 	}

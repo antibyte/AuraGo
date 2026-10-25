@@ -342,6 +342,30 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   of every eligible route; report output and context limits separately.
   Missing local dependencies are `needs_setup`; account/connection state is
   distinct from configuration and never inferred from an enabled switch.
+- A stale, foreign or sentinel cursor (`none`, `null`, `0`, ...) never fails a
+  discovery page: it restarts at page 1 with `cursor_reset` and a `notice`.
+  Cursors hash tool names and kinds only, never the volatile adaptive status.
+- `canonicalizeDiscoverOperationCall` rewrites a call named after a
+  `discover_tools` operation (`get_tool_info`, `search`, `list_categories`,
+  `list_family`, `get_manual`) into `discover_tools` with that `operation`,
+  inside `canonicalizeLeafCall`, so scope, role, action policy, hooks and effect
+  tracking see `discover_tools`. It skips builtin names and exact run-catalog
+  entries and sets no `TransportAction`: a run without `discover_tools` still
+  denies the call. Verify `TestUnknownToolNamesRouteOrGuide`.
+- A name outside the effective catalog answers `unknown_tool` with discovery
+  advice and the closest enabled tools (`unknownToolGuidance`), while a known
+  native capability that is off answers `tool_disabled` with `hidden_reason` and
+  no discovery advice. `invoke_tool` separates `tool_not_found` (with
+  suggestions), `recursive_invoke` and `tool_disabled`.
+- `get_tool_info` reports `call_method: direct` for a hidden native tool only
+  when the run re-injects schemas (`DispatchContext.discoveryReinjects`, from
+  `discoveryReinjectsSchemas`, the same condition as the re-injection in
+  `ExecuteAgentLoop`). Looper, flows, MCP and stable-prompt runs keep
+  `invoke_tool`. A direct call to a hidden native tool marks it for
+  re-injection (`markDirectHiddenNativeCall`) exactly like an `invoke_tool`
+  call; this changes presentation only. Verify
+  `TestGetToolInfoDirectOnlyWhenRunReinjects` and
+  `TestDirectHiddenNativeCallRequestsReinjection`.
 - Execution status is captured before scrubbing/compression and kept separately
   from display text. Only confirmed success supports learning, issue resolution
   and context invalidation. Preserve external-data boundaries through compression.

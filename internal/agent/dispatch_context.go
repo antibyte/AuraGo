@@ -45,7 +45,12 @@ type DispatchContext struct {
 	// inlineBasis sizes the automatic inline budget of this dispatch
 	// (toolResultInlineBudget); zero when no model request is known
 	// (standalone tool bridges).
-	inlineBasis          inlineBudgetBasis
+	inlineBasis inlineBudgetBasis
+	// discoveryReinjects is set when this run re-attaches a hidden native tool's
+	// schema after discovery or a direct call (discoveryReinjectsSchemas), so
+	// discovery may advertise "direct". Runs that fix their schemas up front
+	// (Looper, flows, MCP) leave it false and keep invoke_tool.
+	discoveryReinjects   bool
 	DiscoveryRunID       string
 	ExecutionHooks       *ExecutionHooks
 	Cfg                  *config.Config

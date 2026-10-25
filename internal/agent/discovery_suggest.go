@@ -71,6 +71,38 @@ func discoverySuggestions(catalog *ToolCatalog, query string, limit int, keep fu
 	return names
 }
 
+// toolNameEchoLimit bounds a model-supplied tool name that an answer repeats.
+const toolNameEchoLimit = 80
+
+// echoedToolName shortens a tool name before an answer repeats it.
+func echoedToolName(name string) string {
+	return truncateUTF8ToLimit(strings.TrimSpace(name), toolNameEchoLimit, "")
+}
+
+// unknownToolGuidance tells a model that called a name this run does not know
+// how to find the right tool. suggestions are up to three enabled tools of the
+// run's catalog that resemble the name; the guidance repeats them. It reads the
+// published run catalog only and never builds one. The pointer to discover_tools
+// appears only when the run's scope allows that tool.
+func unknownToolGuidance(dc *DispatchContext, name string) (guidance string, suggestions []string) {
+	name = echoedToolName(name)
+	if dc != nil {
+		if catalog := GetToolCatalogState(dc.discoveryKey()); catalog != nil {
+			suggestions = discoverySuggestions(catalog, name, 3, func(entry *ToolCatalogEntry) bool {
+				return entry.Enabled && entry.Name != name && catalogEntryAllowed(dc, entry)
+			})
+		}
+	}
+	var parts []string
+	if dispatchToolAllowed(dc, "discover_tools") {
+		parts = append(parts, "Use discover_tools with operation=search to find the right tool, then follow its call_method.")
+	}
+	if len(suggestions) > 0 {
+		parts = append(parts, "Closest enabled tools: "+strings.Join(suggestions, ", ")+".")
+	}
+	return strings.Join(parts, " "), suggestions
+}
+
 // discoveryTrigrams returns the character trigrams of s, lower-cased, with
 // every non-letter and non-digit mapped to '_' and padded with '_' on both
 // sides so that word starts and ends weigh in. Nil when s has no letter or

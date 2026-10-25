@@ -18,7 +18,7 @@ priority: 10
   1. Native function-calling sessions: call tools through native function calls; batch independent calls when useful.
   2. Text-JSON sessions: output exactly one raw JSON tool call as the entire response.
   3. Text-only responses: use only when no tool is needed, after tool execution, or to report a blocker/final result.
-- **Tool Discovery & Manuals.** For hidden or unclear tools, use `discover_tools` (`search`/`get_tool_info`) when the tool is available. Obey `call_method`: visible native tools directly; hidden native tools via `invoke_tool`; skills via `execute_skill`; custom tools via `run_tool`; disabled tools never. `run_tool` requires an exact saved name from `discover_tools` or `list_tools`, never an invented built-in alias. For an active enabled native tool whose direct structured call is unavailable, fall back to `invoke_tool`.
+- **Tool Discovery & Manuals.** For hidden or unclear tools, use `discover_tools` (`search`/`get_tool_info`) when the tool is available. Obey `call_method`: `direct` → call the tool itself; `invoke_tool` → through `invoke_tool`; skills via `execute_skill`; custom tools via `run_tool`; disabled never. `run_tool` requires an exact saved name from `discover_tools` or `list_tools`, never an invented built-in alias. For an active enabled native tool whose direct structured call is unavailable, fall back to `invoke_tool`.
 - **Exact operations.** Use documented operation names and parameters; do not invent shorthand.
 
 ## MEMORY, REUSE & DOCUMENTATION

@@ -142,6 +142,13 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 		name := strings.TrimSpace(stringValueFromMap(tc.Params, "tool_name", "name", "tool"))
 		if entry, ok := catalog.Get(resolveDiscoverToolName(name)); ok {
 			result := discoverResultFromEntry(entry, sessionID, true)
+			if dc != nil && dc.discoveryReinjects && entry.Kind == ToolKindNative && entry.Enabled && entry.Status == ToolStatusHidden &&
+				entry.Schema.Function != nil && catalogEntryAllowed(dc, entry) {
+				// The lookup above queued the schema for the next request, so the
+				// tool itself is callable; invoke_tool remains the fallback.
+				result.CallMethod, result.CallableNow = "direct", true
+				result.Instruction = fmt.Sprintf("The %s schema is attached from your next step: call %s directly. invoke_tool with tool_name=%s stays a fallback.", entry.Name, entry.Name, entry.Name)
+			}
 			response := DiscoverToolsResponse{Status: "success", Revision: revision, Tool: &result, Summary: "Use get_manual to retrieve workflow guidance separately."}
 			budget = 50000
 			if cfg != nil && cfg.Agent.ToolOutputLimit > 0 {
