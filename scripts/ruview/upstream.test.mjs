@@ -191,7 +191,7 @@ test('opaque relay matches the reviewed endpoint list and refuses other paths',a
  assert.match(adapter,/postMessage/);
  assert.match(adapter,/origin === 'null'/);
  assert.equal(tourFrameName,'aurago-tour-done');
- const app=readFileSync('ui/js/desktop/apps/ruview.js','utf8');
+ const app=readFileSync('ui/js/desktop/apps/ruview-views.js','utf8');
  assert.match(app,/frame\.sandbox='allow-scripts'/);
  assert.doesNotMatch(app,/allow-same-origin/);
  assert.match(app,/tourFrameName/);

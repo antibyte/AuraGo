@@ -1651,7 +1651,12 @@
                 showNotify: message => showDesktopNotification({ title: 'Infra', message })
             }));
         }
-        if (appId === 'ruview' && window.RuViewApp) { return window.RuViewApp.render(contentEl(id), id, {esc,t,api}); }
+        if (appId === 'ruview' && window.RuViewApp) {
+            return window.RuViewApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, t, api, openApp, confirmDialog, modalDialog, setWindowMenus, clearWindowMenus, readonly: desktopReadonly(),
+                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
+            }));
+        }
         if (appId === 'ha-switchboard' && window.HASwitchboardApp) {
             return window.HASwitchboardApp.render(contentEl(id), id, { esc, t, api, saveSetting, settingValue, state });
         }

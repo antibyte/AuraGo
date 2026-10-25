@@ -1,43 +1,253 @@
-.ruview-app {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: var(--vd-theme-app-bg, #171c25);
-    color: var(--vd-text, #e6edf5);
-    font: 14px/1.5 var(--font-family, system-ui);
-}
-.ruview-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 14px; border-bottom: 1px solid var(--vd-theme-border, #73809640); }
-.ruview-app button, .ruview-app a, .ruview-wizard button {
-    min-height: 44px;
-    padding: 9px 14px;
-    border: 1px solid #71809655;
-    border-radius: 8px;
-    background: var(--vd-theme-panel-bg, #252d3a);
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-    text-decoration: none;
-}
-.ruview-app button:disabled, .ruview-wizard button:disabled { opacity: .45; cursor: not-allowed; }
-.ruview-content { flex: 1; min-height: 0; overflow: auto; padding: 20px; }
-.ruview-app iframe { height: 100%; width: 100%; border: 0; background: var(--vd-theme-app-bg, #171c25); }
-.ruview-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
-.ruview-summary article { padding: 18px; border: 1px solid var(--vd-theme-border, #71809640); border-radius: 10px; min-width: 0; }
-.ruview-check { list-style: none; margin: 16px 0 0; padding: 0; }
-.ruview-check li { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--vd-theme-border, #73809640); }
-.ruview-check [data-state="attention"] { border-left: 3px solid var(--vd-accent, #57adbe); padding-left: 10px; }
-.ruview-summary strong { display: block; font-size: 21px; margin: 8px 0; }
-.ruview-note { max-width: 76ch; line-height: 1.65; opacity: .8; }
-.ruview-feedback { padding: 12px; border-left: 3px solid #57adbe; overflow-wrap: anywhere; }
-.ruview-feedback:empty { display: none; }
+/* RuView desktop app: a 44 px command bar, the Status / Boards / Lab panels and the board-setup dialog.
+   Tokens only (no colour literals, no ID selectors); layout answers to the app's own width through container queries. */
 
-/* The same dialog is mounted in Config and in either Desktop theme. */
+.ruview-app {
+    --ruview-ok: var(--ds-color-success-fg);
+    --ruview-warn: var(--ds-color-warning-fg);
+    --ruview-bad: var(--ds-color-danger-fg);
+    --ruview-info: var(--ds-color-info-fg);
+    --ruview-ok-text: light-dark(color-mix(in srgb, var(--ruview-ok) 30%, var(--vd-text)), var(--ruview-ok));
+    --ruview-warn-text: light-dark(color-mix(in srgb, var(--ruview-warn) 30%, var(--vd-text)), var(--ruview-warn));
+    --ruview-bad-text: light-dark(color-mix(in srgb, var(--ruview-bad) 34%, var(--vd-text)), color-mix(in srgb, var(--ruview-bad) 88%, var(--vd-text)));
+    --ruview-info-text: light-dark(color-mix(in srgb, var(--ruview-info) 30%, var(--vd-text)), var(--ruview-info));
+    --ruview-tone: var(--vd-theme-muted);
+    --ruview-tone-text: var(--vd-text);
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: 44px minmax(0, 1fr);
+    overflow: hidden;
+    isolation: isolate;
+    color: var(--vd-text);
+    background: var(--vd-theme-app-bg);
+    font: 14px/1.5 var(--vd-font-ui, system-ui, sans-serif);
+    container: ruview / inline-size;
+}
+.ruview-app *, .ruview-wizard * { box-sizing: border-box; }
+.ruview-app [hidden] { display: none !important; }
+.ruview-app button, .ruview-app textarea { font: inherit; color: inherit; }
+.ruview-app :is(button, a, summary, textarea, [tabindex]):focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.ruview-app [tabindex="-1"]:focus:not(:focus-visible) { outline: none; }
+.ruview-app [aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+.ruview-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+.ruview-app [data-tone="success"] { --ruview-tone: var(--ruview-ok); --ruview-tone-text: var(--ruview-ok-text); }
+.ruview-app [data-tone="warning"] { --ruview-tone: var(--ruview-warn); --ruview-tone-text: var(--ruview-warn-text); }
+.ruview-app [data-tone="danger"] { --ruview-tone: var(--ruview-bad); --ruview-tone-text: var(--ruview-bad-text); }
+.ruview-app [data-tone="info"] { --ruview-tone: var(--ruview-info); --ruview-tone-text: var(--ruview-info-text); }
+.ruview-app [data-tone="neutral"] { --ruview-tone: var(--vd-theme-muted); --ruview-tone-text: var(--vd-text); }
+
+/* ---- command bar -------------------------------------------------------------------------------------------------- */
+.ruview-commandbar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: var(--ds-space-2);
+    min-width: 0;
+    height: 44px;
+    padding: 0 var(--ds-space-2) 0 var(--ds-space-3);
+    overflow: hidden;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--vd-theme-border);
+    background: var(--vd-theme-panel-bg);
+}
+.ruview-commandbar > * { flex: 0 0 auto; min-width: 0; height: 36px; }
+.ruview-brand { display: flex; align-items: center; gap: var(--ds-space-2); font-size: 15px; font-weight: 600; }
+.ruview-brand-glyph { color: var(--vd-accent); font-size: 20px; line-height: 1; }
+.ruview-tabs { display: inline-flex; align-items: center; padding: 2px; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-md); background: var(--vd-theme-control-bg); }
+.ruview-tab { height: 30px; padding: 0 12px; border: 0; border-radius: var(--ds-radius-sm); background: transparent; color: var(--vd-theme-muted); font-size: 14px; font-weight: 600; cursor: pointer; }
+.ruview-tab:hover { color: var(--vd-text); }
+.ruview-tab[aria-selected="true"] { background: var(--vd-theme-panel-bg-strong); color: var(--vd-text); box-shadow: var(--vd-theme-shadow-panel); }
+.ruview-commandbar > .ruview-view-menu {
+    display: none;
+    flex: 0 1 auto;
+    align-items: center;
+    gap: var(--ds-space-2);
+    padding: 0 var(--ds-space-3);
+    border: 1px solid var(--vd-theme-border);
+    border-radius: var(--ds-radius-md);
+    background: var(--vd-theme-control-bg);
+    font-weight: 600;
+    cursor: pointer;
+    overflow: hidden;
+}
+.ruview-view-menu > span:first-child { overflow: hidden; text-overflow: ellipsis; }
+.ruview-commandbar > .ruview-pill {
+    display: inline-flex;
+    flex: 0 1 auto;
+    align-items: center;
+    gap: 6px;
+    margin-inline-start: auto;
+    padding: 0 var(--ds-space-3);
+    border: 1px solid var(--ruview-tone);
+    border-radius: var(--ds-radius-full);
+    background: color-mix(in srgb, var(--ruview-tone) 14%, var(--vd-theme-panel-bg));
+    color: var(--ruview-tone-text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    overflow: hidden;
+}
+.ruview-pill [data-ruview-pill-label] { overflow: hidden; text-overflow: ellipsis; }
+.ruview-pill [data-ruview-pill-age] { font-weight: 500; opacity: .85; }
+.ruview-pill [data-ruview-pill-age]::before { content: "· "; }
+.ruview-primary-slot { display: inline-flex; align-items: center; }
+.ruview-primary-slot:empty { display: none; }
+.ruview-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 var(--ds-space-3);
+    border: 1px solid var(--vd-theme-accent-border);
+    border-radius: var(--ds-radius-md);
+    background: var(--vd-theme-accent-soft);
+    font-weight: 600;
+    cursor: pointer;
+}
+.ruview-more { display: inline-grid; place-items: center; width: 36px; padding: 0; border: 1px solid transparent; border-radius: var(--ds-radius-sm); background: transparent; font-size: 20px; line-height: 1; cursor: pointer; }
+.ruview-more:hover { background: var(--vd-theme-control-hover); }
+.ruview-more[aria-expanded="true"] { border-color: var(--vd-theme-accent-border); background: var(--vd-theme-accent-soft); }
+
+.ruview-menu { position: absolute; top: 44px; z-index: 20; min-width: 220px; max-width: calc(100% - 12px); padding: var(--ds-space-1); border: 1px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: var(--vd-theme-panel-bg-strong); box-shadow: var(--vd-theme-shadow-modal); }
+.ruview-menu-more { right: 6px; }
+.ruview-menu-view { left: 6px; }
+.ruview-menuitem { display: flex; width: 100%; min-height: 36px; align-items: center; padding: 0 var(--ds-space-3); border: 0; border-radius: var(--ds-radius-sm); background: transparent; color: inherit; font: inherit; text-align: start; text-decoration: none; cursor: pointer; }
+.ruview-menuitem:hover, .ruview-menuitem:focus-visible { background: var(--vd-theme-control-hover); }
+.ruview-menuitem-reason, .ruview-step-reason { color: var(--vd-theme-muted); font-size: 12px; font-weight: 400; white-space: normal; }
+.ruview-menuitem-reason { padding-bottom: var(--ds-space-1); }
+.ruview-menu-more .ruview-menuitem { flex-direction: column; align-items: flex-start; justify-content: center; }
+.ruview-menuitem[aria-checked="true"] { font-weight: 700; }
+.ruview-menuitem[aria-checked="true"]::after { content: " ✓"; }
+
+/* ---- body and panels ---------------------------------------------------------------------------------------------- */
+.ruview-body { min-height: 0; overflow: auto; padding: var(--ds-space-5); }
+.ruview-panel { display: grid; gap: var(--ds-space-4); align-content: start; width: 100%; max-width: 880px; margin-inline: auto; }
+.ruview-body:has(> [data-panel="lab"][data-lab-active]) { overflow: hidden; padding: 0; }
+.ruview-panel[data-lab-active] { display: block; max-width: none; height: 100%; }
+.ruview-card { padding: var(--ds-space-4) var(--ds-space-5); border: 1px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: var(--vd-theme-panel-bg); }
+.ruview-card[data-ruview-card] { display: grid; gap: var(--ds-space-3); border-inline-start: 4px solid var(--ruview-tone); }
+.ruview-card h3, .ruview-panel-head h2 { margin: 0 0 var(--ds-space-3); font-size: 16px; font-weight: 600; }
+.ruview-panel-head h2 { margin: 0; font-size: 18px; }
+
+.ruview-headline { display: flex; align-items: flex-start; gap: var(--ds-space-3); margin: 0; font-size: 20px; font-weight: 600; line-height: 1.35; }
+.ruview-glyph { flex: 0 0 auto; width: 1.3em; color: var(--ruview-tone-text); text-align: center; }
+.ruview-headline-text { min-width: 0; overflow-wrap: anywhere; }
+.ruview-secondary, .ruview-reason, .ruview-note { margin: 0; color: var(--vd-theme-muted); overflow-wrap: anywhere; }
+.ruview-note { max-width: 76ch; }
+.ruview-reason { font-size: 13px; }
+.ruview-next-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-2); }
+.ruview-btn {
+    min-height: 36px;
+    padding: 0 var(--ds-space-4);
+    border: 1px solid var(--vd-theme-border);
+    border-radius: var(--ds-radius-md);
+    background: var(--vd-theme-control-bg);
+    font-weight: 600;
+    cursor: pointer;
+}
+.ruview-btn:hover { background: var(--vd-theme-control-hover); }
+.ruview-btn-primary { border-color: var(--vd-theme-accent-border); background: var(--vd-theme-accent-soft); }
+.ruview-btn-small { min-height: 30px; margin-inline-start: auto; padding: 0 var(--ds-space-3); font-size: 13px; }
+.ruview-btn[aria-busy="true"]::before { content: ""; display: inline-block; width: 1em; height: 1em; margin-inline-end: 8px; vertical-align: -.15em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; }
+
+.ruview-chip { display: inline-flex; align-items: center; min-height: 22px; padding: 0 var(--ds-space-2); border: 1px solid var(--ruview-tone, var(--vd-theme-border)); border-radius: var(--ds-radius-full); color: var(--ruview-tone-text, inherit); font-size: 12px; font-weight: 600; }
+.ruview-overlays { display: flex; flex-wrap: wrap; gap: var(--ds-space-2); }
+.ruview-overlays:not(:has(.ruview-chip:not([hidden]))) { display: none; }
+.ruview-overlays [data-chip="read_only"] { --ruview-tone: var(--ruview-info); --ruview-tone-text: var(--ruview-info-text); }
+.ruview-overlays [data-chip="storage_full"], .ruview-overlays [data-chip="storage_unreadable"] { --ruview-tone: var(--ruview-warn); --ruview-tone-text: var(--ruview-warn-text); }
+.ruview-chips { display: flex; flex-wrap: wrap; gap: var(--ds-space-2); margin: 0; }
+
+.ruview-technical pre, .ruview-action-error pre {
+    max-height: 14em;
+    margin: var(--ds-space-2) 0 0;
+    padding: var(--ds-space-2) var(--ds-space-3);
+    overflow: auto;
+    border-radius: var(--ds-radius-sm);
+    background: var(--vd-theme-control-bg);
+    font: 12px/1.5 var(--vd-font-mono, ui-monospace, monospace);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.ruview-app summary { cursor: pointer; font-weight: 600; }
+.ruview-action-error { padding-inline-start: var(--ds-space-3); border-inline-start: 3px solid var(--ruview-bad); }
+.ruview-action-error p { margin: 0; overflow-wrap: anywhere; }
+
+.ruview-setup { display: grid; gap: var(--ds-space-2); margin: 0; padding: 0; list-style: none; }
+.ruview-setup li { display: flex; align-items: center; gap: var(--ds-space-3); min-height: 32px; }
+.ruview-step-mark { flex: 0 0 1.4em; text-align: center; }
+.ruview-step-body { display: grid; min-width: 0; }
+.ruview-setup [data-step-state="done"] .ruview-step-mark { color: var(--ruview-ok-text); }
+.ruview-setup [data-step-state="current"] { font-weight: 600; }
+.ruview-setup [data-step-state="current"] .ruview-step-mark { color: var(--ruview-warn-text); }
+.ruview-setup [data-step-state="todo"] { color: var(--vd-theme-muted); }
+
+.ruview-detail-list { display: grid; gap: var(--ds-space-2); margin: var(--ds-space-3) 0; }
+.ruview-detail { display: grid; grid-template-columns: minmax(96px, 160px) minmax(0, 1fr); gap: var(--ds-space-3); }
+.ruview-detail dt { color: var(--vd-theme-muted); }
+.ruview-detail dd { margin: 0; overflow-wrap: anywhere; }
+.ruview-detail-actions { display: flex; gap: var(--ds-space-2); }
+.ruview-diagnostics { display: block; width: 100%; margin-top: var(--ds-space-3); padding: var(--ds-space-2) var(--ds-space-3); border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg); font: 12px/1.5 var(--vd-font-mono, ui-monospace, monospace); resize: vertical; }
+.ruview-about { color: var(--vd-theme-muted); font-size: 13px; }
+.ruview-about p { margin: 0 0 var(--ds-space-2); }
+
+.ruview-feedback { margin: 0; padding: 12px; border-inline-start: 3px solid var(--ds-color-info-fg, currentColor); overflow-wrap: anywhere; }
+.ruview-feedback:empty { display: none; }
+.ruview-board-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--ds-space-3); }
+.ruview-node { display: grid; gap: var(--ds-space-2); min-width: 0; padding: var(--ds-space-4); border: 1px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: var(--vd-theme-panel-bg); }
+.ruview-node h3 { margin: 0; font-size: 16px; }
+.ruview-node-row { display: flex; justify-content: space-between; gap: var(--ds-space-3); }
+.ruview-node-row > :first-child { color: var(--vd-theme-muted); }
+.ruview-node-row > :last-child { text-align: end; overflow-wrap: anywhere; }
+.ruview-count { color: var(--vd-theme-muted); font-weight: 500; }
+
+.ruview-lab-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--ds-space-3); margin-top: var(--ds-space-3); }
+.ruview-lab-card { display: grid; align-content: start; gap: var(--ds-space-2); padding: var(--ds-space-4); border: 1px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: var(--vd-theme-panel-bg); }
+.ruview-lab-card h3, .ruview-lab-card p { margin: 0; }
+.ruview-lab-card .ruview-btn { justify-self: start; }
+.ruview-lab-page { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.ruview-lab-page > .ruview-note { max-width: none; padding: var(--ds-space-2) var(--ds-space-3); border-bottom: 1px solid var(--vd-theme-border); }
+.ruview-lab-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-2); padding: var(--ds-space-2) var(--ds-space-3); border-bottom: 1px solid var(--vd-theme-border); background: var(--vd-theme-panel-bg); }
+.ruview-lab-bar strong { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The frame keeps a small margin: an iframe flush with the window edges breaks pointer routing after an element screenshot in Chrome. */
+.ruview-lab-frame { position: relative; flex: 1 1 0; min-height: 0; margin: var(--ds-space-2); }
+.ruview-lab-frame iframe { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-sm); background: var(--vd-theme-app-bg); }
+
+@media (prefers-reduced-motion: no-preference) {
+    .desktop-body:not([data-animations="false"]) .ruview-glyph[data-busy="true"] { animation: ruview-spin 1.2s linear infinite; }
+}
+@media (pointer: coarse) {
+    .ruview-commandbar > * { height: 44px; }
+    .ruview-commandbar { padding-inline-end: 0; }
+    .ruview-tab { height: 38px; }
+    .ruview-btn, .ruview-menuitem, .ruview-primary { min-height: 44px; }
+    .ruview-more { width: 44px; }
+}
+@container ruview (max-width: 719px) {
+    .ruview-tabs { display: none; }
+    .ruview-commandbar > .ruview-view-menu { display: inline-flex; }
+    .ruview-body { padding: var(--ds-space-4); }
+}
+@container ruview (max-width: 559px) {
+    .ruview-brand-name, .ruview-pill [data-ruview-pill-age] { display: none; }
+    .ruview-primary-label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    .ruview-primary { width: 36px; justify-content: center; padding: 0; }
+    .ruview-commandbar { gap: 4px; padding: 0 var(--ds-space-1) 0 var(--ds-space-2); }
+    .ruview-card[data-ruview-card] { padding: var(--ds-space-3) var(--ds-space-4); }
+    .ruview-headline { font-size: 18px; }
+    .ruview-detail { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
+
+/* ---- board-setup dialog (opened from Boards and from the Config page) ------------------------------------------- */
 .ruview-wizard {
-    --ruview-surface: var(--pw-surface, var(--vd-theme-app-bg, var(--vd-bg, #171c25)));
-    --ruview-text: var(--pw-text, var(--vd-text, #e6edf5));
-    --ruview-muted: var(--pw-muted, var(--vd-muted, #a8bbd0));
-    --ruview-border: var(--pw-line-strong, var(--vd-border-bright, #71809680));
-    --ruview-accent: var(--pw-accent, var(--vd-accent, #35a8bf));
+    --ruview-surface: var(--pw-surface, var(--vd-theme-app-bg, Canvas));
+    --ruview-text: var(--pw-text, var(--vd-text, CanvasText));
+    --ruview-muted: var(--pw-muted, var(--vd-theme-muted, GrayText));
+    --ruview-border: var(--pw-line-strong, var(--vd-theme-border-strong, GrayText));
+    --ruview-accent: var(--pw-accent, var(--vd-accent, LinkText));
     width: min(720px, calc(100vw - 32px));
     max-width: calc(100vw - 32px);
     max-height: calc(100dvh - 32px);
@@ -48,11 +258,11 @@
     color: var(--ruview-text);
     color-scheme: inherit;
     font: 16px/1.5 var(--font-family, system-ui);
-    box-shadow: var(--surface-shadow-strong, var(--vd-shadow, 0 20px 64px #0006));
+    box-shadow: var(--surface-shadow-strong, var(--vd-shadow, 0 20px 64px color-mix(in srgb, CanvasText 40%, transparent)));
     overflow: auto;
     overflow-wrap: anywhere;
 }
-.ruview-wizard::backdrop { background: #101820b8; }
+.ruview-wizard::backdrop { background: color-mix(in srgb, CanvasText 72%, transparent); }
 .ruview-wizard header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .ruview-wizard header h2 { margin: 0; font-size: 20px; }
 .ruview-wizard header button { flex: 0 0 44px; padding: 6px; font-size: 24px; }
@@ -68,7 +278,7 @@
     border: 1px solid var(--ruview-border);
     border-radius: 8px;
     padding: 9px 10px;
-    background: var(--pw-canvas, var(--vd-theme-input-bg, var(--vd-control-bg, #252d3a)));
+    background: var(--pw-canvas, var(--vd-theme-input-bg, var(--vd-control-bg, Field)));
     color: var(--ruview-text);
 }
 .ruview-wizard input:disabled { opacity: .5; cursor: not-allowed; }
@@ -87,7 +297,18 @@
     cursor: pointer;
 }
 .ruview-wizard .ruview-check span { flex: 1; }
-.ruview-wizard button { background: var(--pw-surface-elevated, var(--vd-control-bg, #252d3a)); border-color: var(--ruview-border); }
+.ruview-wizard button {
+    min-height: 44px;
+    padding: 9px 14px;
+    border: 1px solid var(--ruview-border);
+    border-radius: 8px;
+    background: var(--pw-surface-elevated, var(--vd-control-bg, ButtonFace));
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    text-decoration: none;
+}
+.ruview-wizard button:disabled { opacity: .45; cursor: not-allowed; }
 .ruview-wizard button:hover:not(:disabled) { border-color: var(--ruview-accent); }
 .ruview-wizard a { color: var(--ruview-accent); text-decoration: underline; }
 .ruview-flash-progress { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
@@ -97,9 +318,9 @@
 .ruview-wizard button[aria-busy="true"] { opacity: 1; cursor: progress; }
 .ruview-wizard button[aria-busy="true"]::before { content: ""; display: inline-block; width: 1em; height: 1em; margin-inline-end: 8px; vertical-align: -.15em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: ruview-spin .8s linear infinite; }
 .ruview-wizard [data-flash-next] { border-color: var(--ruview-accent); background: color-mix(in srgb, var(--ruview-accent) 18%, var(--ruview-surface)); font-weight: 650; white-space: normal; }
-.ruview-wizard .ruview-feedback[data-state="success"] { border-color: var(--pw-success, #58c98f); }
+.ruview-wizard .ruview-feedback[data-state="success"] { border-color: var(--pw-success, var(--ds-color-success-fg, currentColor)); }
 .ruview-wizard .ruview-feedback[data-state="success"]::before { content: "✓ "; }
-.ruview-wizard .ruview-feedback[data-state="error"] { border-color: var(--pw-danger, #e47474); }
+.ruview-wizard .ruview-feedback[data-state="error"] { border-color: var(--pw-danger, var(--ds-color-danger-fg, currentColor)); }
 @keyframes ruview-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .ruview-wizard button[aria-busy="true"]::before { animation: none; } }
 .ruview-wizard .ruview-help { font-size: 14px; color: var(--ruview-muted); }
@@ -108,17 +329,11 @@
 .ruview-actions, .ruview-receiver-suggestions { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
 .ruview-receiver-suggestions label { flex: 1 1 160px; margin: 0; }
 .ruview-steps { display: flex; gap: 24px; padding-left: 18px; flex-wrap: wrap; }
-.ruview-steps .complete { color: var(--pw-success, var(--vd-accent, #58c98f)); font-weight: 650; }
+.ruview-steps .complete { color: var(--pw-success, var(--ds-color-success-fg, currentColor)); font-weight: 650; }
 .ruview-steps .complete::after { content: " ✓"; }
-.ruview-wizard :is(button, input, select, a):focus-visible, .ruview-app button:focus-visible { outline: 3px solid var(--ruview-accent, #35a8bf); outline-offset: 2px; }
-.ruview-app *, .ruview-wizard * { box-sizing: border-box; }
-.ruview-node { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; padding: 16px; border-bottom: 1px solid var(--vd-theme-border, #73809640); }
-.ruview-node strong { font-size: 18px; }
-.ruview-node span { display: block; opacity: .8; }
-.ruview-toolbar button[aria-pressed="true"] { border-color: var(--vd-accent, #57adbe); box-shadow: inset 0 -2px var(--vd-accent, #57adbe); }
+.ruview-wizard :is(button, input, select, a):focus-visible { outline: 3px solid var(--ruview-accent); outline-offset: 2px; }
 
 @media (max-width: 520px) {
     .ruview-fields { grid-template-columns: 1fr; }
     .ruview-wizard { padding: 16px; }
-    .ruview-content { padding: 12px; }
 }

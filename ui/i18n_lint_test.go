@@ -1073,6 +1073,9 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/desktop/apps/rtl-sdr-runtime.js":         {name: "tr", prefix: "rtlSdr."},
 	"js/desktop/apps/rtl-sdr.js":                 {name: "t", prefix: "rtlSdr."},
 	"js/desktop/apps/ruview.js":                  {name: "t", prefix: "ruview."},
+	"js/desktop/apps/ruview-model.js":            {name: "t", prefix: "ruview."},
+	"js/desktop/apps/ruview-store.js":            {name: "t", prefix: "ruview."},
+	"js/desktop/apps/ruview-views.js":            {name: "t", prefix: "ruview."},
 	"cfg/ruview.js":                              {name: "tr", prefix: "ruview."},
 }
 

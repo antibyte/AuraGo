@@ -1,282 +1,328 @@
+/* RuView app: the composition root. It builds the command bar, the three panels and the single live region, wires the
+   store to the views, and owns the menus, the keyboard handling and the action routing.
+   Pure logic lives in ruview-model.js, requests and polling in ruview-store.js, the panels in ruview-views.js. */
 (function () {
     'use strict';
-    const instances = new Map(), base = '/api/desktop/integrations/ruview/', warned = new Set();
+    const BASE = '/api/desktop/integrations/ruview/';
+    const instances = new Map(), warned = new Set();
     function dispose(id) { instances.get(id)?.(); instances.delete(id); }
+
     function render(host, id, ctx) {
         dispose(id);
-        const controller = new AbortController(), esc = ctx.esc;
+        const model = window.RuViewModel, Views = window.RuViewViews, Store = window.RuViewStore, esc = ctx.esc;
         // A missing key shows its own name, never a misleading label, and is reported once.
         const t = key => {
             const full = 'ruview.' + key, value = ctx.t(full);
             if (value === full && !warned.has(full)) { warned.add(full); console.warn('RuView: missing translation ' + full); }
             return value;
         };
-        // Dynamic values go through literal maps so the static i18n lint sees every key.
-        const pick = (map, key, fallback) => typeof key === 'string' && Object.hasOwn(map, key) ? map[key]() : fallback();
-        const SOURCE = {esp32: () => t('esp32'), wifi: () => t('wifi'), simulated: () => t('simulated')};
-        const MODE = {docker: () => t('docker'), external: () => t('external'), native: () => t('native')};
-        const RECORDING = {unknown: () => t('recording_unknown'), started: () => t('recording_started'), stopped: () => t('recording_stopped')};
-        const DATA_STATE = {
-            unchecked: () => t('unchecked'), disabled: () => t('disabled'), starting: () => t('starting'), stopping: () => t('stopping'),
-            stopped: () => t('stopped_state'), disconnected: () => t('disconnected'), stale: () => t('stale'), synthetic: () => t('demo'),
-            live_unverified: () => t('unavailable'), live: () => t('unavailable')
+        const lang = document.documentElement.lang || 'en';
+        const uid = 'ruview-' + String(id).replace(/[^\w-]/g, '-');
+        const kit = Views.kit(t, lang, model);
+        const { set, show, attr } = kit;
+        const lifetime = new AbortController(), signal = lifetime.signal;
+        const store = Store.create({ base: BASE, desktopReadonly: !!ctx.readonly });
+        const state = store.state;
+        let disposed = false, wizardClose = null, tickTimer = 0, lastId = null, shownView = 'status';
+
+        // ---- skeleton --------------------------------------------------------------------------------------------
+
+        const viewName = view => kit.pick(kit.copy.VIEW, view, () => view);
+        const tabs = model.VIEWS.map(view => '<button type="button" role="tab" class="ruview-tab" data-view="' + view + '" id="' + uid + '-tab-' + view + '" aria-controls="' + uid + '-panel-' + view +
+            '" aria-selected="false" tabindex="-1" hidden>' + esc(viewName(view)) + '</button>').join('');
+        const viewOptions = model.VIEWS.map(view => '<button type="button" role="menuitemradio" class="ruview-menuitem" data-view-option="' + view + '" aria-checked="false" tabindex="-1">' + esc(viewName(view)) + '</button>').join('');
+        // Stop and Install are added to the menu only while they apply (see updateBar).
+        // A blocked item shows its reason as a second line, which its description points to (aria-describedby).
+        const menuReasonID = action => uid + '-menu-reason-' + action.replace('/', '-');
+        const menuButton = (action, label) => '<button type="button" role="menuitem" class="ruview-menuitem" data-action="' + action + '" tabindex="-1"><span class="ruview-menuitem-label">' +
+            esc(label) + '</span><span class="ruview-menuitem-reason" id="' + menuReasonID(action) + '" aria-hidden="true" hidden></span></button>';
+        const menuItems = menuButton('test', t('check_now')) +
+            '<a role="menuitem" class="ruview-menuitem" data-action="open-settings" href="/config#ruview" target="_blank" rel="noopener" tabindex="-1">' + esc(t('settings')) + '</a>' +
+            menuButton('copy-diagnostics', t('menu_copy_diagnostics')) + menuButton('about', t('menu_about'));
+        host.replaceChildren();
+        host.innerHTML = '<div class="ruview-app" data-ruview-app>' +
+            '<header class="ruview-commandbar" data-ruview-commandbar>' +
+                '<div class="ruview-brand"><span class="ruview-brand-glyph" aria-hidden="true">◉</span><span class="ruview-brand-name">RuView</span><h1 class="ruview-sr-only">RuView</h1></div>' +
+                '<div class="ruview-tabs" role="tablist" data-ruview-tablist aria-label="' + esc(t('nav_label')) + '">' + tabs + '</div>' +
+                '<button type="button" class="ruview-view-menu" data-ruview-view-menu aria-haspopup="menu" aria-expanded="false" aria-controls="' + uid + '-view-list"><span data-view-menu-label></span><span aria-hidden="true">▾</span></button>' +
+                '<button type="button" class="ruview-pill" data-ruview-pill data-tone="neutral"><span data-ruview-pill-glyph aria-hidden="true">○</span><span data-ruview-pill-label></span><span data-ruview-pill-age aria-live="off" hidden></span></button>' +
+                '<div class="ruview-primary-slot" data-ruview-primary-slot></div>' +
+                '<button type="button" class="ruview-more" data-ruview-more aria-haspopup="menu" aria-expanded="false" aria-controls="' + uid + '-menu" aria-label="' + esc(t('more_actions')) + '">⋯</button>' +
+            '</header>' +
+            '<div class="ruview-menu ruview-menu-view" role="menu" id="' + uid + '-view-list" data-ruview-view-list aria-label="' + esc(t('nav_label')) + '" hidden>' + viewOptions + '</div>' +
+            '<div class="ruview-menu ruview-menu-more" role="menu" id="' + uid + '-menu" data-ruview-menu aria-label="' + esc(t('more_actions')) + '" hidden>' + menuItems + '</div>' +
+            '<div class="ruview-body" data-ruview-body>' + model.VIEWS.map(view => '<section role="tabpanel" class="ruview-panel" id="' + uid + '-panel-' + view + '" aria-labelledby="' + uid + '-tab-' + view +
+                '" data-panel="' + view + '" tabindex="-1"' + (view === 'status' ? '' : ' hidden') + '></section>').join('') + '</div>' +
+            '<div class="ruview-sr-only" role="status" aria-live="polite" data-ruview-live></div></div>';
+        const root = host.querySelector('[data-ruview-app]');
+        const q = selector => root.querySelector(selector);
+        const tablist = q('[data-ruview-tablist]'), live = q('[data-ruview-live]');
+        const tabEls = [...root.querySelectorAll('[data-view]')], panels = {};
+        for (const view of model.VIEWS) panels[view] = q('[data-panel="' + view + '"]');
+        const pill = q('[data-ruview-pill]'), slot = q('[data-ruview-primary-slot]');
+        const viewMenu = q('[data-ruview-view-menu]'), viewList = q('[data-ruview-view-list]'), more = q('[data-ruview-more]'), moreList = q('[data-ruview-menu]');
+
+        // ---- views -----------------------------------------------------------------------------------------------
+
+        const deps = { t, esc, lang, model, kit, uid, base: BASE, onAction: (action, extra) => onAction(action, extra) };
+        const views = {
+            status: Views.status.mount(panels.status, deps),
+            boards: Views.boards.mount(panels.boards, deps),
+            lab: Views.lab.mount(panels.lab, deps)
         };
-        const REASON = {
-            status_unavailable: () => t('status_unavailable'), enable_first: () => t('enable_first'), working: () => t('working'),
-            write_first: () => t('write_first'), external_runtime: () => t('external_runtime'), install_native: () => t('install_native')
-        };
-        const ERROR = {
-            source_mismatch: () => t('source_mismatch'), unexpected_simulation: () => t('unexpected_simulation'),
-            stop_failed: () => t('stop_failed'), process_exited: () => t('process_exited')
-        };
-        const errorText = message => message ? pick(ERROR, message, () => message) : '';
-        let dead = false, tab = 'overview', status = {}, statusLoaded = false, statusFailed = false, wizardClose = null, relayDetach = null, actionError = '';
-        let viewEpoch = 0, statusEpoch = 0, polling = false;
-        let nodes = [], nodesAt = 0, nodesError = '', nodesNote = '', nodesLoaded = false, nodesScope = '';
-        const pending = new Set();
-        // The last known service data is kept on a later failure, but liveness claims are withdrawn.
-        const disconnected = current => ({...current, ready: false, fresh: false, waiting_for_frames: false, udp_ready: false, data_state: 'disconnected'});
-        host.innerHTML = '<div class="ruview-app"><nav class="ruview-toolbar" aria-label="' + esc(t('nav_label')) + '"><strong>RuView</strong>' +
-            [['overview',t('overview')],['devices',t('devices')],['index.html',t('dashboard')],['observatory.html',t('observatory')],['pose-fusion.html',t('pose_fusion')]].map(([name,label]) => '<button data-tab="'+name+'">'+esc(label)+'</button>').join('') +
-            '<a href="/config#ruview" target="_blank" rel="noopener">'+esc(t('settings'))+'</a></nav><div class="ruview-content"></div></div>';
-        const content = host.querySelector('.ruview-content');
-        async function request(route, method = 'GET') {
-            const response = await fetch(base + route, {method, signal: controller.signal});
-            const body = await response.json().catch(() => ({}));
-            if (!response.ok) throw Error(errorText(body.error || body.message || ('HTTP ' + response.status)));
-            return body;
-        }
-        function formatAge(ms) {
-            if (ms == null || !Number.isFinite(ms) || ms < 0) return '—';
-            if (ms < 1000) return t('age_ms').replace('{n}', String(Math.round(ms)));
-            if (ms < 60000) {
-                const seconds = ms / 1000;
-                const rounded = ms < 10000 && Math.round(seconds * 10) % 10 ? seconds.toFixed(1) : String(Math.round(seconds));
-                return t('age_s').replace('{n}', rounded);
-            }
-            return t('age_min').replace('{n}', String(Math.round(ms / 60000)));
-        }
-        function nodeAge(node) {
-            return Number.isFinite(node?.csi_last_seen_ms) && node.csi_last_seen_ms >= 0 ? Math.round(node.csi_last_seen_ms + performance.now() - nodesAt) : null;
-        }
-        function reason(action) {
-            // An unknown status must not read as "disabled": enabling is only the answer once it is known.
-            if (!statusLoaded) return 'status_unavailable';
-            if (!status.enabled) return 'enable_first';
-            if (pending.has(action)) return 'working';
-            if (action !== 'test' && action !== 'runtime/stop' && status.readonly) return 'write_first';
-            if (String(action).startsWith('runtime/') && status.mode === 'external') return 'external_runtime';
-            if (action === 'runtime/install' && status.mode !== 'native') return 'install_native';
-            return '';
-        }
-        function disabled(action) { return reason(action) !== ''; }
-        function receptionItem(name, label, state, detail) {
-            const jump = state === 'attention' && (name === 'board' || name === 'csi')
-                ? '<button type="button" data-open-tab="devices">' + esc(t('show_devices')) + '</button>' : '';
-            const settings = state === 'attention' && !jump
-                ? '<a href="/config#ruview" target="_blank" rel="noopener">' + esc(t('settings')) + '</a>' : '';
-            return '<li data-state="' + state + '"><span>' + esc(label) + '</span><strong>' + esc(detail) + '</strong>' + jump + settings + '</li>';
-        }
-        function checklist() {
-            const enabled = status.enabled === true;
-            const source = status.source || '';
-            let runtime = 'unchecked', runtimeText = t('check_unchecked');
-            if (enabled && status.ready) { runtime = 'done'; runtimeText = t('check_ok'); }
-            else if (enabled && (status.data_state === 'disconnected' || (status.error && !status.ready && status.data_state !== 'starting' && status.data_state !== 'unchecked'))) {
-                runtime = 'attention'; runtimeText = t('check_attention');
-            }
-            const skip = source === 'wifi' || source === 'simulated';
-            let udp = 'unchecked', udpText = t('check_unchecked');
-            if (skip) { udp = 'neutral'; udpText = t('check_not_needed'); }
-            else if (enabled && status.udp_scope === 'external') { udp = 'neutral'; udpText = t('udp_operator'); }
-            else if (enabled && status.udp_scope === 'managed') {
-                // udp_ready is false whenever the managed runtime is not running: that alone is not a setup gap.
-                if (status.udp_ready) { udp = 'done'; udpText = t('check_ok'); }
-                else if (status.udp_enabled === false || status.ready === true) { udp = 'attention'; udpText = t('check_attention'); }
-            }
-            let receiver = 'unchecked', receiverText = t('check_unchecked');
-            if (skip) { receiver = 'neutral'; receiverText = t('check_not_needed'); }
-            else if (source === 'esp32' && status.receiver_configured) { receiver = 'done'; receiverText = t('check_ok'); }
-            else if (source === 'esp32' && enabled) { receiver = 'attention'; receiverText = t('check_attention'); }
-            let board = 'unchecked', boardText = t('check_unchecked');
-            let csi = skip ? 'neutral' : 'unchecked', csiText = skip ? t('check_not_needed') : t('check_unchecked');
-            if (statusLoaded && status.enabled === false) {
-                // A disabled integration answers /nodes with 403 by design: that is not a fault, nothing was asked.
-            } else if (nodesError) {
-                board = 'attention'; boardText = t('check_attention');
-                if (!skip) { csi = 'attention'; csiText = t('check_attention'); }
-            } else if (nodesNote === 'not_applicable') {
-                // The source has no board list: nothing to check, nothing to fix.
-                board = 'neutral'; boardText = t('check_not_needed'); csi = 'neutral'; csiText = t('check_not_needed');
-            } else if (nodesNote === 'not_running') {
-                // Nothing was asked of a service that is not running; saved boards say nothing about reception.
-            } else if (nodesLoaded && nodes.length) {
-                board = 'done'; boardText = t('check_ok');
-                if (!skip) {
-                    const fresh = nodes.some(node => node.csi_status === 'active' && node.csi_sequence != null && source === 'esp32' && !status.simulated && nodeAge(node) != null && nodeAge(node) <= 10000);
-                    csi = fresh ? 'done' : 'attention';
-                    csiText = fresh ? t('check_ok') : t('check_attention');
-                }
-            }
-            return '<ol class="ruview-check">' + [
-                receptionItem('runtime', t('check_runtime'), runtime, runtimeText),
-                receptionItem('udp', t('check_udp'), udp, udpText),
-                receptionItem('receiver', t('check_receiver'), receiver, receiverText),
-                receptionItem('board', t('check_board'), board, boardText),
-                receptionItem('csi', t('check_csi'), csi, csiText)
-            ].join('') + '</ol>';
-        }
-        function summary() {
-            const focused = content.contains(document.activeElement) ? document.activeElement.dataset.action : null;
-            const card = (title, value, detail) => '<article>'+esc(title)+'<strong>'+esc(value)+'</strong>'+esc(detail)+'</article>';
-            const session = ['unknown','started','stopped'].includes(status.recording_session) ? status.recording_session : 'unknown';
-            const actions = [['test',t('test')],['runtime/install',t('install')],['runtime/start',t('start')],['runtime/stop',t('stop')],['flash',t('flash')]];
-            const priority = ['status_unavailable','enable_first','working','write_first','external_runtime','install_native'];
-            const reasons = actions.map(([action]) => reason(action)).filter(Boolean);
-            const visibleReason = priority.find(item => reasons.includes(item)) || '';
-            const notStarted = status.enabled && !status.readonly && (status.mode === 'docker' || status.mode === 'native') && !status.ready && status.data_state === 'unchecked';
-            // Before the first answer nothing is known: never claim "disabled" or a data state.
-            const serviceText = !statusLoaded ? (statusFailed ? t('status_unavailable') : t('working'))
-                : !status.enabled ? t('disabled')
-                : status.ready ? t('ready')
-                : status.data_state === 'starting' ? t('working')
-                : status.data_state === 'unchecked' ? t('unchecked')
-                : t('unavailable');
-            const sensingText = !statusLoaded ? (statusFailed ? t('status_unavailable') : t('unchecked'))
-                : status.fresh ? t('received')
-                : status.simulated ? t('demo')
-                : status.waiting_for_frames ? t('waiting_for_frames')
-                : pick(DATA_STATE, status.data_state, () => t('unchecked'));
-            content.innerHTML = '<h2>'+esc(t('overview'))+'</h2><div class="ruview-summary">' +
-                card(t('service'),serviceText,status.mode?pick(MODE,status.mode,()=>status.mode):'—') +
-                card(t('sensing'),sensingText,status.signal||'—') +
-                card(t('source'),status.source?pick(SOURCE,status.source,()=>status.source):'—',status.observed_at?new Date(status.observed_at).toLocaleString():'—') +
-                card(t('artifact'), status.revision_verified ? t('revision_verified') : t('revision_unverified'), status.revision || '—') +
-                card(t('storage_card'), status.storage_limit ? t('storage_full') : t('storage_ok'), '') +
-                card(t('recording'), pick(RECORDING, session, () => t('recording_unknown')), status.recording_ack === 'unconfirmed' ? t('recording_unconfirmed') : t('recording_note')) +
-                '</div><p class="ruview-note">'+esc(t('quality'))+'</p>'+(status.readonly?'<p>'+esc(t('readonly_notice'))+'</p>':'') +
-                (notStarted ? '<p class="ruview-note">' + esc(t('session_not_started')) + '</p>' : '') +
-                checklist() +
-                '<div class="ruview-toolbar">' +
-                actions.map(([action,label]) => '<button data-action="'+action+'" aria-busy="'+pending.has(action)+'" ' + (reason(action) ? 'aria-describedby="ruview-action-reason" ' : '') + (disabled(action)?'disabled':'')+'>'+esc(label)+'</button>').join('') +
-                '</div><p id="ruview-action-reason" class="ruview-note">' + esc(pick(REASON, visibleReason, () => '')) + '</p><p class="ruview-feedback" role="status">'+esc(errorText(actionError||status.error))+'</p>';
-            if (focused) Array.from(content.querySelectorAll('[data-action]')).find(button => button.dataset.action === focused && !button.disabled)?.focus({preventScroll:true});
-        }
-        function deviceAges() {
-            if (dead || tab !== 'devices') return;
-            for (const [index,row] of Array.from(content.querySelectorAll('.ruview-node')).entries()) {
-                const node=nodes[index]; if (!node) continue;
-                const age=nodeAge(node);
-                const slot=row.querySelector('[data-age]');
-                slot.textContent=formatAge(age);
-                if (age == null) delete slot.dataset.ageMs; else slot.dataset.ageMs=String(age);
-                const fresh=!nodesError&&status.source==='esp32'&&!status.simulated&&node.csi_status==='active'&&node.csi_sequence!=null&&age!=null&&age<=10000;
-                row.querySelector('[data-fresh]').textContent=fresh?t('received'):node.csi_status==='offline'?t('device_offline'):t('stale');
-            }
-        }
-        function devices() {
-            if (!content.querySelector('[data-node-list]')) content.innerHTML='<h2>'+esc(t('devices'))+'</h2><p class="ruview-note">'+esc(t('devices_known'))+'</p><p role="status" class="ruview-feedback"></p><div data-node-list></div><button data-action="flash">'+esc(t('configure'))+'</button>';
-            content.querySelector('[data-node-list]').innerHTML=nodes.map(node=>{
-                const retained=node.csi_status==='offline'&&node.rssi_dbm!=null;
-                const rssi=(node.rssi_dbm??'—')+' dBm';
-                return '<article class="ruview-node"><strong>'+esc(t('node'))+' '+esc(node.node_id??node.id)+'</strong><div><span>'+esc(t('signal_csi'))+'</span><span data-fresh></span></div><div><span>'+esc(t('signal_rssi'))+'</span>'+(retained?esc(t('rssi_retained'))+' ':'')+esc(rssi)+'</div><div><span>'+esc(t('last_measurement'))+'</span><span data-age></span></div><button type="button" data-node="'+esc(node.node_id??node.id)+'"'+(disabled('flash')?' disabled':'')+'>'+esc(t('configure_node'))+'</button></article>';
-            }).join('');
-            content.querySelector('[role="status"]').textContent=statusLoaded&&status.enabled===false?t('disabled'):nodesError?t('devices_stale'):!nodesLoaded?t('working'):nodesNote==='not_applicable'?t('devices_not_applicable'):nodesNote==='not_running'?t('devices_not_running'):!nodes.length?t('devices_empty'):'';
-            content.querySelector('[data-action="flash"]').disabled=disabled('flash');
-            deviceAges();
-        }
-        function applyNodes(data) {
-            const incoming=Array.isArray(data)?data:data.nodes;
-            if (!Array.isArray(incoming)) throw Error('Invalid nodes response');
-            const previous=new Map(nodesScope===data.scope?nodes.map(node=>[node.node_id,node]):[]);
-            nodes=incoming.map(node=>{
-                const old=previous.get(node.node_id);
-                if(node.csi_status!=='offline'||!old||node.rssi_dbm!=null||old.rssi_dbm==null)return node;
-                return {...node,rssi_dbm:old.rssi_dbm};
+
+        // ---- state -> snapshot -----------------------------------------------------------------------------------
+
+        const statusOf = () => state.statusLoaded && state.status && typeof state.status === 'object' ? state.status : null;
+        const blockContext = () => ({ status: state.statusLoaded ? state.status : null, pending: state.pending, desktopReadonly: state.desktopReadonly });
+        function snapshot() {
+            const now = Date.now(), nowPerf = performance.now(), status = statusOf();
+            const availableViews = model.availableViews(status);
+            const nodes = Object.assign({}, state.nodes, { liveCount: model.liveBoardCount(state.nodes, state.status, nowPerf) });
+            const derived = model.deriveState({
+                status: state.status, statusLoaded: state.statusLoaded, statusFailed: state.statusFailed, statusAt: state.statusAt, now, nodes,
+                views: availableViews, desktopReadonly: state.desktopReadonly, pending: state.pending, lang
             });
-            // live_state says why the live list is absent; an older backend only sends `available`.
-            const known=['ok','not_applicable','not_running','unreachable','invalid'];
-            const live=known.includes(data.live_state)?data.live_state:data.available===false?'unreachable':'ok';
-            nodesAt=performance.now();nodesScope=data.scope||'';nodesLoaded=true;
-            nodesNote=live==='not_applicable'||live==='not_running'?live:'';
-            nodesError=live==='unreachable'||live==='invalid'?'unavailable':'';
+            const steps = state.statusLoaded && !state.statusFailed ? model.setupSteps(state.status, nodes, { desktopReadonly: state.desktopReadonly }) : null;
+            return { state, derived, steps, views: availableViews, nodes, status, now, nowPerf, view: availableViews.includes(state.view) ? state.view : 'status' };
         }
-        async function refreshSnapshot(epoch) {
-            const generation=statusEpoch, view=tab;
-            if (view!=='overview'&&view!=='devices') return;
+
+        // ---- command bar -----------------------------------------------------------------------------------------
+
+        function updateBar(snap) {
+            const { derived, view } = snap;
+            for (const tab of tabEls) {
+                const available = snap.views.includes(tab.dataset.view), selected = tab.dataset.view === view;
+                show(tab, available);
+                attr(tab, 'aria-selected', String(selected));
+                attr(tab, 'tabindex', selected ? '0' : '-1');
+            }
+            for (const option of root.querySelectorAll('[data-view-option]')) {
+                show(option, snap.views.includes(option.dataset.viewOption));
+                attr(option, 'aria-checked', String(option.dataset.viewOption === view));
+            }
+            // The visible text is the view's name; the accessible name adds what the control is.
+            set(q('[data-view-menu-label]'), viewName(view));
+            attr(viewMenu, 'aria-label', model.fill(t('view_menu_label'), { view: viewName(view) }));
+            const label = kit.pillText(derived.pill), age = derived.pillAgeMs != null ? kit.ageText(derived.pillAgeMs) : '';
+            attr(pill, 'data-tone', derived.tone);
+            set(q('[data-ruview-pill-glyph]'), derived.glyph);
+            set(q('[data-ruview-pill-label]'), label);
+            set(q('[data-ruview-pill-age]'), age);
+            show(q('[data-ruview-pill-age]'), age !== '');
+            // The visible label stays part of the accessible name.
+            attr(pill, 'aria-label', t('pill_open_status') + ': ' + label);
+
+            // Boards is the one view with a primary action; it is blocked with a visible reason, never silently.
+            let primary = q('[data-ruview-primary]');
+            if (view === 'boards') {
+                if (!primary) {
+                    primary = document.createElement('button');
+                    primary.type = 'button';
+                    primary.className = 'ruview-primary';
+                    primary.setAttribute('data-ruview-primary', '');
+                    primary.setAttribute('data-action', 'flash');
+                    primary.innerHTML = '<span class="ruview-primary-icon" aria-hidden="true">＋</span><span class="ruview-primary-label"></span>';
+                    slot.append(primary);
+                }
+                const block = model.blockReason('flash', blockContext());
+                set(primary.querySelector('.ruview-primary-label'), t('action_add_board'));
+                attr(primary, 'aria-label', t('action_add_board'));
+                attr(primary, 'aria-disabled', block ? 'true' : null);
+                attr(primary, 'aria-describedby', block ? uid + '-add-reason' : null);
+            } else primary?.remove();
+
+            const s = snap.status, rt = model.runtimeOf(s), external = !s || s.mode === 'external';
+            const item = action => moreList.querySelector('[data-action="' + action + '"]');
+            const toggleItem = (action, wanted, label) => {
+                let el = item(action);
+                if (wanted && !el) {
+                    moreList.insertBefore(document.createRange().createContextualFragment(menuButton(action, label)), item('open-settings'));
+                    el = item(action);
+                } else if (!wanted && el) el.remove();
+                return el;
+            };
+            toggleItem('runtime/stop', !external && ['running', 'starting', 'stop_unconfirmed', 'exited'].includes(rt), t('menu_stop_service'));
+            toggleItem('runtime/install', !!s && s.mode === 'native', t('menu_install'));
+            for (const action of ['test', 'runtime/stop', 'runtime/install']) {
+                const el = item(action);
+                if (!el) continue;
+                const block = model.blockReason(action, blockContext());
+                const reason = el.querySelector('.ruview-menuitem-reason');
+                attr(el, 'aria-disabled', block ? 'true' : null);
+                attr(el, 'aria-describedby', block ? reason.id : null);
+                set(reason, block ? kit.reasonText(block) : '');
+                show(reason, !!block);
+            }
+        }
+
+        // Menus: role=menu with arrow keys, Escape back to the trigger, and a click or tab away closes them.
+        const menus = [];
+        function menu(trigger, list) {
+            const entries = () => [...list.querySelectorAll('[role^="menuitem"]')].filter(el => !el.hidden);
+            const api = {
+                trigger, list,
+                open() {
+                    for (const other of menus) if (other !== api) other.close(false);
+                    if (!list.hidden) return;
+                    if (list === viewList) list.style.left = Math.max(6, trigger.getBoundingClientRect().left - root.getBoundingClientRect().left) + 'px';
+                    list.hidden = false;
+                    trigger.setAttribute('aria-expanded', 'true');
+                    (entries().find(el => el.getAttribute('aria-checked') === 'true') || entries()[0])?.focus();
+                },
+                close(restore) {
+                    if (list.hidden) return;
+                    list.hidden = true;
+                    trigger.setAttribute('aria-expanded', 'false');
+                    if (restore) trigger.focus();
+                }
+            };
+            trigger.addEventListener('click', () => (list.hidden ? api.open() : api.close(true)), { signal });
+            trigger.addEventListener('keydown', event => { if (event.key === 'ArrowDown' && list.hidden) { event.preventDefault(); api.open(); } }, { signal });
+            list.addEventListener('keydown', event => {
+                const items = entries(), index = items.indexOf(document.activeElement);
+                const move = { ArrowDown: (index + 1) % items.length, ArrowUp: (index - 1 + items.length) % items.length, Home: 0, End: items.length - 1 }[event.key];
+                if (move !== undefined) { event.preventDefault(); items[move]?.focus(); }
+                else if (event.key === 'Escape') { event.preventDefault(); api.close(true); }
+                else if (event.key === 'Tab') api.close(false);
+            }, { signal });
+            menus.push(api);
+            return api;
+        }
+        const viewMenuApi = menu(viewMenu, viewList), moreApi = menu(more, moreList);
+        document.addEventListener('pointerdown', event => { for (const m of menus) if (!m.list.contains(event.target) && !m.trigger.contains(event.target)) m.close(false); }, { signal });
+
+        function setView(view, focusPanel) {
+            if (!snapshot().views.includes(view)) return;
+            store.setView(view);
+            if (focusPanel) panels[view].focus({ preventScroll: true });
+        }
+        tablist.addEventListener('click', event => { const tab = event.target.closest('[data-view]'); if (tab) setView(tab.dataset.view, false); }, { signal });
+        tablist.addEventListener('keydown', event => {
+            const visible = tabEls.filter(tab => !tab.hidden), index = visible.indexOf(document.activeElement);
+            if (index < 0) return;
+            const next = { ArrowRight: (index + 1) % visible.length, ArrowLeft: (index - 1 + visible.length) % visible.length, Home: 0, End: visible.length - 1 }[event.key];
+            if (next === undefined) return;
+            event.preventDefault();
+            visible[next].focus();
+            setView(visible[next].dataset.view, false);
+        }, { signal });
+        viewList.addEventListener('click', event => {
+            const option = event.target.closest('[data-view-option]');
+            if (!option) return;
+            viewMenuApi.close(true);
+            setView(option.dataset.viewOption, false);
+        }, { signal });
+        pill.addEventListener('click', () => setView('status', true), { signal });
+        slot.addEventListener('click', event => activate(event.target.closest('[data-action]')), { signal });
+        moreList.addEventListener('click', event => {
+            const el = event.target.closest('[data-action]');
+            if (!el || el.getAttribute('aria-disabled') === 'true') return;
+            moreApi.close(true);
+            activate(el, true);
+        }, { signal });
+        function activate(el, fromMenu) {
+            if (!el || el.getAttribute('aria-disabled') === 'true') return;
+            // The settings entry is a real link: the browser opens it.
+            if (!(fromMenu && el.tagName === 'A')) onAction(el.dataset.action);
+        }
+
+        // ---- actions ---------------------------------------------------------------------------------------------
+
+        function announce(text) { if (!disposed && text) live.textContent = text; }
+        async function runAction(action) {
+            const ok = await store.run(action);
+            if (disposed) return;
+            if (ok && action === 'test') announce(t('announce_checked'));
+            else if (!ok && state.actionError) announce(kit.errorText(state.actionError.code));
+        }
+        async function openWizard(nodeID) {
+            const { openWizard: open } = await import(window.AuraLazyAssets.versionedURL('/js/ruview/wizard.mjs'));
+            if (disposed) return;
+            wizardClose = await open(nodeID === undefined ? { base: BASE, t: ctx.t } : { base: BASE, t: ctx.t, nodeID });
+            if (disposed) wizardClose?.();
+        }
+        // The desktop modal resolves the chosen value ('confirm'), and false on Cancel, Escape or a click outside: only 'confirm' is a yes.
+        // Without the modal the plain confirm dialog answers yes or no.
+        async function confirmChange(title, message, label) {
+            if (typeof ctx.modalDialog === 'function') return (await ctx.modalDialog({ title, message, choices: [{ value: 'confirm', label }] })) === 'confirm';
+            return (await ctx.confirmDialog?.(title, message)) === true;
+        }
+        async function allowChanges() {
+            if (state.desktopReadonly) return;
+            const ok = await confirmChange(t('allow_changes_title'), t('allow_changes_body'), t('allow_changes_confirm'));
+            if (!ok || disposed) return;
+            const saved = await store.allowChanges();
+            if (!disposed) announce(saved ? t('allow_changes_done') : t('allow_changes_failed') + (state.actionError ? ' ' + kit.errorText(state.actionError.code) : ''));
+        }
+        async function copyDiagnostics() {
+            const snap = snapshot();
+            const text = model.diagnostics(state.status, snap.nodes, Date.now(), { statusLoaded: state.statusLoaded, statusFailed: state.statusFailed, statusAt: state.statusAt });
             try {
-                const results=await Promise.allSettled([request('status'),request('nodes')]);
-                if (dead||epoch!==viewEpoch||tab!==view||generation!==statusEpoch) return;
-                if (results[0].status==='fulfilled') { status=results[0].value; statusLoaded=true; statusFailed=false; }
-                else { statusFailed=true; status=disconnected(status); }
-                if (results[0].status==='fulfilled' && results[1].status==='fulfilled') applyNodes(results[1].value);
-                else nodesError='unavailable';
+                if (!navigator.clipboard?.writeText) throw new Error('no clipboard');
+                await navigator.clipboard.writeText(text);
+                announce(t('diagnostics_copied'));
             } catch (error) {
-                if (dead||epoch!==viewEpoch||tab!==view||generation!==statusEpoch) return;
-                // Only the board list failed (a malformed /nodes body); /status was fine, so the service is not marked disconnected.
-                nodesError=error.message||'unavailable';
+                setView('status', false);
+                views.status.showDiagnostics(text);
+                announce(t('diagnostics_failed'));
             }
-            if (!dead&&epoch===viewEpoch&&tab===view) { if (view==='devices') devices(); else summary(); }
         }
-        function paint() {
-            if (tab==='devices') devices();
-            else if (tab==='overview') summary();
+        function onAction(action, extra) {
+            if (disposed || model.blockReason(action, blockContext())) return;
+            switch (action) {
+                case 'test': case 'runtime/start': case 'runtime/stop': case 'runtime/install': void runAction(action); break;
+                case 'flash': void openWizard(extra && Number.isInteger(extra.nodeID) ? extra.nodeID : undefined); break;
+                case 'allow-changes': void allowChanges(); break;
+                case 'open-settings': window.open('/config#ruview', '_blank', 'noopener'); break;
+                case 'show-boards': setView('boards', true); break;
+                case 'refresh': void store.refresh(); break;
+                case 'copy-diagnostics': void copyDiagnostics(); break;
+                case 'about': setView('status', false); views.status.openAbout(); break;
+                default: break; // open-live arrives with the Live view
+            }
         }
-        function dropRelay(){relayDetach?.();relayDetach=null;}
-        async function show() {
-            const epoch=++viewEpoch,generation=++statusEpoch;
-            host.querySelectorAll('[data-tab]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tab===tab)));
-            dropRelay();
-            if (tab==='overview'||tab==='devices') {
-                if (polling) { paint(); return; }
-                polling=true;try{await refreshSnapshot(epoch);}finally{polling=false;}return;
+
+        // ---- render loop -----------------------------------------------------------------------------------------
+
+        function paint(tickOnly) {
+            if (disposed) return;
+            const snap = snapshot();
+            // A tab that went away (Boards after a source change, Lab after turning RuView off) falls back to Status.
+            if (state.view !== snap.view) { store.setView(snap.view); return; }
+            updateBar(snap);
+            if (shownView === 'lab' && snap.view !== 'lab') views.lab.hide();
+            for (const view of model.VIEWS) show(panels[view], view === snap.view);
+            shownView = snap.view;
+            if (snap.view === 'boards' && tickOnly) views.boards.tick(); else views[snap.view].update(snap);
+            // The headline is announced when the state changes, never on a routine poll; the first answer is silent.
+            if (snap.derived.id !== 'loading') {
+                if (lastId !== null && lastId !== snap.derived.id) announce(kit.headlineText(snap.derived));
+                lastId = snap.derived.id;
             }
-            try {
-                const next=await request('status');
-                if(dead||epoch!==viewEpoch||generation!==statusEpoch)return;
-                status=next;statusLoaded=true;statusFailed=false;
-                if(!status.enabled){content.textContent=t('disabled');return;}
-                content.replaceChildren();
-                if(tab==='pose-fusion.html'){const note=document.createElement('p');note.className='ruview-note';note.setAttribute('role','note');note.textContent=t('fusion_notice');content.append(note);}
-                const {attachRuViewRelay,tourFrameName}=await import(window.AuraLazyAssets.versionedURL('/js/ruview/relay.mjs'));
-                if(dead||epoch!==viewEpoch)return;
-                const frame=document.createElement('iframe');frame.title='RuView · '+tab;frame.sandbox='allow-scripts';frame.allow="serial 'none'; camera 'none'; microphone 'none'";
-                try{frame.name=localStorage.getItem('aurago.ruview.onboarding.done')==='true'?tourFrameName:'';}catch{frame.name='';}
-                content.append(frame);relayDetach=attachRuViewRelay(frame,base);frame.src=base+'ui/'+tab;
-            }catch(error){if(!dead&&epoch===viewEpoch)content.textContent=errorText(error.message);}
+            const needsAge = state.visible && (snap.view === 'boards' || snap.derived.pillAgeMs != null
+                || ['live', 'stale', 'external_check_old', 'starting', 'installing'].includes(snap.derived.id));
+            if (needsAge && !tickTimer) tickTimer = setInterval(tick, 1000);
+            else if (!needsAge && tickTimer) { clearInterval(tickTimer); tickTimer = 0; }
         }
-        host.addEventListener('click',async event=>{
-            const button=event.target.closest('button');if(!button||button.disabled)return;
-            const nextTab=button.dataset.tab||button.dataset.openTab;
-            if(nextTab){tab=nextTab;content.replaceChildren();await show();return;}
-            const nodeID=Number(button.dataset.node);
-            if(Number.isInteger(nodeID)){
-                const {openWizard}=await import(window.AuraLazyAssets.versionedURL('/js/ruview/wizard.mjs'));
-                wizardClose=await openWizard({base,t:ctx.t,nodeID});if(dead)wizardClose?.();return;
-            }
-            const action=button.dataset.action;if(!action||disabled(action))return;
-            pending.add(action);actionError='';button.disabled=true;
-            const generation=++statusEpoch;
-            try {
-                if(action==='flash'){const {openWizard}=await import(window.AuraLazyAssets.versionedURL('/js/ruview/wizard.mjs'));wizardClose=await openWizard({base,t:ctx.t});if(dead)wizardClose?.();}
-                else{const next=await request(action,'POST');if(!dead&&generation===statusEpoch){status=next;statusLoaded=true;statusFailed=false;}}
-            }catch(error){
-                if(!dead&&generation===statusEpoch){actionError=error.message;if(action==='runtime/stop')status=disconnected(status);}
-            }finally{
-                pending.delete(action);
-                if(!dead){if(tab==='overview')summary();else if(tab==='devices')devices();}
-            }
-        },{signal:controller.signal});
-        const timer=setInterval(async()=>{
-            if(dead||document.hidden||!host.checkVisibility())return;
-            if(polling||pending.size||!['overview','devices'].includes(tab))return;
-            polling=true;const epoch=viewEpoch;
-            try { await refreshSnapshot(epoch); }
-            finally{polling=false;}
-        },3000);
-        const ageTimer=setInterval(()=>{if(!dead&&!document.hidden&&host.checkVisibility())deviceAges();},1000);
-        const closed=()=>{dead=true;++viewEpoch;++statusEpoch;clearInterval(timer);clearInterval(ageTimer);controller.abort();dropRelay();wizardClose?.();host.querySelectorAll('iframe').forEach(frame=>frame.remove());};
-        instances.set(id,closed);show();
+        function tick() {
+            if (disposed || document.hidden || (typeof root.checkVisibility === 'function' && !root.checkVisibility())) return;
+            paint(true);
+        }
+        store.subscribe(() => paint(false));
+        paint(false);
+        store.attach({ root, win: host.closest('.vd-window') });
+
+        const closed = () => {
+            if (disposed) return;
+            disposed = true;
+            lifetime.abort();
+            clearInterval(tickTimer);
+            store.dispose();
+            for (const view of Object.values(views)) view.dispose();
+            wizardClose?.();
+        };
+        instances.set(id, closed);
     }
-    window.RuViewApp={render,dispose};
+    window.RuViewApp = { render, dispose };
 })();

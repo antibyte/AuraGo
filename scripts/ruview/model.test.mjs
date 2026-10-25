@@ -506,8 +506,37 @@ test('diagnostics is plain key=value text without the legacy error, URLs or secr
     const multiline = M.diagnostics(base({error_detail: 'line one\nfake_key=1\r\nline three'}), null, NOW);
     assert.match(multiline, /\nerror_detail=line one fake_key=1 line three\n/);
     assert.doesNotMatch(multiline, /\nfake_key=/);
+    assert.match(text, /\nstatus=current\n/);
+    assert.doesNotMatch(text, /last_success=/);
     // a missing status or board list does not throw
-    assert.match(M.diagnostics(null, null, NOW), /^RuView diagnostics [^\n]+\n[\s\S]*\nruntime=not_started\n/);
+    assert.match(M.diagnostics(null, null, NOW), /^RuView diagnostics [^\n]+\n/);
+});
+
+test('diagnostics never reads an unknown status as "off" (H9)', () => {
+    const nodes = {list: [BOARD], liveState: 'ok', liveCount: 1};
+    const keys = /(^|\n)(runtime|enabled|mode|source|ready|readonly)=/;
+    // never loaded: the state is named and none of the status fields appear
+    for (const status of [null, undefined, {}, 'garbage', []]) {
+        const text = M.diagnostics(status, nodes, NOW, {statusLoaded: false, statusFailed: true});
+        assert.match(text, /\nstatus=not_loaded\n/, JSON.stringify(status));
+        assert.doesNotMatch(text, keys, JSON.stringify(status));
+        assert.match(text, /\nboards live_state=ok known=1 live=1$/, 'the board list still reports');
+    }
+    assert.match(M.diagnostics(null, null, NOW), /\nstatus=not_loaded\n/);
+    // loaded but malformed: not "off" either
+    const invalid = M.diagnostics({runtime: 'running', ready: true}, nodes, NOW, {statusLoaded: true, statusFailed: false});
+    assert.match(invalid, /\nstatus=invalid\n/);
+    assert.doesNotMatch(invalid, keys);
+    // failed after a success: the last values stay, labelled, with the time of the last success
+    const last = M.diagnostics(base({data_state: 'live_unverified'}), nodes, NOW, {statusLoaded: true, statusFailed: true, statusAt: NOW - 5000});
+    assert.match(last, /\nstatus=last_known\nlast_success=2026-10-25T11:59:55\.000Z\n/);
+    assert.match(last, /\nenabled=true\n/);
+    assert.match(last, /\nruntime=running\n/);
+    // an ordinary loaded status
+    const current = M.diagnostics(base(), nodes, NOW, {statusLoaded: true, statusFailed: false, statusAt: NOW});
+    assert.match(current, /\nstatus=current\n/);
+    assert.doesNotMatch(current, /last_success=/);
+    assert.match(current, /\nruntime=running\n/);
 });
 
 test('the model is a classic DOM-free script under the line budget', () => {
@@ -520,4 +549,29 @@ test('the model is a classic DOM-free script under the line budget', () => {
     assert.deepEqual([...M.KNOWN_ERROR_CODES].filter(code => code !== 'network' && code !== 'forbidden'), [...M.KNOWN_ERROR_CODES].filter(code => code !== 'network' && code !== 'forbidden').sort(), 'the Go codes are sorted');
     assert.ok(M.KNOWN_ERROR_CODES.includes('network') && M.KNOWN_ERROR_CODES.includes('forbidden'));
     assert.equal(M.KNOWN_ERROR_CODES.length, 32);
+});
+
+// ---- Batch C checks: stylesheet, file sizes and the Go error codes ------------------------------------------------
+
+const readRepo = path => readFileSync(new URL('../../' + path, import.meta.url), 'utf8');
+
+test('ruview.css has no colour literals and no ID selectors (M6)', () => {
+    const css = readRepo('ui/css/ruview.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    assert.doesNotMatch(css, /#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})\b/i, 'colours come from tokens or system colours');
+    assert.ok(!css.includes('#'), 'no ID selectors and no other hash in the stylesheet');
+    assert.doesNotMatch(css, /\bcc-/, 'no cookie-banner-prone class names');
+});
+
+test('each RuView desktop script stays under the 900 line budget', () => {
+    for (const name of ['ruview-model.js', 'ruview-store.js', 'ruview-views.js', 'ruview.js']) {
+        const lines = readRepo('ui/js/desktop/apps/' + name).split('\n').length;
+        assert.ok(lines < 900, name + ' has ' + lines + ' lines');
+    }
+});
+
+test('every Go error code is known to the model', () => {
+    const go = readRepo('internal/ruview/errors.go');
+    const codes = [...go.matchAll(/\bCode\w+\s*=\s*"(\w+)"/g)].map(match => match[1]);
+    assert.ok(codes.length >= 30, 'the Go code list was found (' + codes.length + ')');
+    for (const code of codes) assert.ok(M.KNOWN_ERROR_CODES.includes(code), 'model does not know the Go code ' + code);
 });

@@ -433,8 +433,15 @@
     }
 
     // Language-neutral key=value lines for a bug report. The legacy `error` text is never included.
-    function diagnostics(status, nodes, now) {
-        const s = status || {};
+    // meta = {statusLoaded, statusFailed, statusAt} says what the status is worth: a status that never arrived (or
+    // arrived malformed) prints `status=not_loaded` / `status=invalid` and none of its fields, because defaults
+    // would read as "off"; one that failed after a success prints `status=last_known`, `last_success` and the old values.
+    function diagnostics(status, nodes, now, meta) {
+        const m = meta || {};
+        const present = !!status && typeof status === 'object' && !Array.isArray(status);
+        const usable = present && typeof status.enabled === 'boolean';
+        const known = m.statusLoaded === undefined ? present : m.statusLoaded === true && present;
+        const s = known && usable ? status : {};
         const n = nodes || {};
         const when = isNum(now) ? now : Date.now();
         const lines = ['RuView diagnostics ' + new Date(when).toISOString()];
@@ -442,12 +449,17 @@
         const list = Array.isArray(n.list) ? n.list : null;
         let live = isNum(n.liveCount) ? n.liveCount : null;
         if (live === null && list) live = liveBoardCount(n, s, typeof performance === 'undefined' ? null : performance.now());
-        for (const key of ['revision', 'revision_verified', 'mode', 'source', 'enabled', 'readonly', 'agent_access']) add(key, s[key]);
-        add('runtime', runtimeOf(s));
-        for (const key of ['phase', 'phase_since', 'ready', 'data_state', 'fresh', 'simulated', 'waiting_for_frames', 'last_frame_age_ms',
-            'error_code', 'error_detail', 'observed_at', 'last_fresh_at', 'stop_reason', 'stopped_at',
-            'udp_scope', 'udp_enabled', 'udp_ready', 'receiver_configured', 'storage_used_bytes', 'storage_budget_bytes', 'storage_limit',
-            'recording_session', 'recording_ack', 'recording_at', 'hints']) add(key, s[key]);
+        const state = !known ? 'not_loaded' : !usable ? 'invalid' : m.statusFailed === true ? 'last_known' : 'current';
+        lines.push('status=' + state);
+        if (state === 'last_known' && isNum(m.statusAt) && m.statusAt > 0) lines.push('last_success=' + new Date(m.statusAt).toISOString());
+        if (state === 'current' || state === 'last_known') {
+            for (const key of ['revision', 'revision_verified', 'mode', 'source', 'enabled', 'readonly', 'agent_access']) add(key, s[key]);
+            add('runtime', runtimeOf(s));
+            for (const key of ['phase', 'phase_since', 'ready', 'data_state', 'fresh', 'simulated', 'waiting_for_frames', 'last_frame_age_ms',
+                'error_code', 'error_detail', 'observed_at', 'last_fresh_at', 'stop_reason', 'stopped_at',
+                'udp_scope', 'udp_enabled', 'udp_ready', 'receiver_configured', 'storage_used_bytes', 'storage_budget_bytes', 'storage_limit',
+                'recording_session', 'recording_ack', 'recording_at', 'hints']) add(key, s[key]);
+        }
         lines.push('boards live_state=' + clean(n.liveState) + ' known=' + (list ? list.length : '') + ' live=' + clean(live));
         return lines.join('\n');
     }
