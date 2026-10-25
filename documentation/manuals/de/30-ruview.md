@@ -15,9 +15,9 @@ Technische Details für Admins (Laufzeiten, Netzregeln, Speicherlayout, Artefakt
 1. [Was du brauchst und wie du es einschaltest](#was-du-brauchst-und-wie-du-es-einschaltest)
 2. [Erste Schritte](#erste-schritte)
 3. [Die Betriebsart wählen](#die-betriebsart-wählen)
-4. [Übersicht und Geräte lesen](#übersicht-und-geräte-lesen)
+4. [Status und Boards lesen](#status-und-boards-lesen)
 5. [Ein ESP32-Board einrichten](#ein-esp32-board-einrichten)
-6. [Die Upstream-Ansichten](#die-upstream-ansichten)
+6. [Das Labor](#das-labor)
 7. [Aufnahmen und Speicher](#aufnahmen-und-speicher)
 8. [Gut zu wissen](#gut-zu-wissen)
 9. [Datenschutz und Sicherheit](#datenschutz-und-sicherheit)
@@ -40,7 +40,7 @@ RuView findest du unter **Config → RuView**, in der Gruppe **Netzwerk & Remote
 
 Änderungen wirken nach **Speichern**. RuView einzuschalten erfordert keinen Neustart von AuraGo. Beim Start startet
 AuraGo eine aktivierte und schreibbare verwaltete Laufzeit im Hintergrund. Läuft AuraGo bereits, drückst du in der App
-**Starten**. Eine externe Instanz startet AuraGo nie.
+**Dienst starten**. Eine externe Instanz startet AuraGo nie.
 
 **Nur lesen** ist standardmäßig an. Solange es an ist, kann nichts starten oder sich ändern. Schalte es aus und speichere.
 Das Formular zeigt dann: „Der Schreibschutz sperrt Starten, Ändern und Löschen. Administratoren dürfen Dienst, Aufnahme
@@ -55,16 +55,16 @@ dem Loopback) und **Speicherbudget (MiB)** (`ruview.storage_mb`, Standard 1024).
    auf **Speichern**.
 2. Für eine verwaltete Laufzeit schalte **Nur lesen** aus und speichere erneut.
 3. Klicke auf **RuView öffnen**. Die App öffnet sich in einem neuen Tab. Im Startmenü steht sie außerdem unter
-   **Kommunikation**. Das Öffnen der App startet den Dienst nicht. Solange die **Übersicht** oder der Tab **Geräte** offen ist, fragt AuraGo bei der Quelle ESP32-CSI alle drei Sekunden die Board-Liste beim Dienst ab. Ein verwalteter Dienst, der nicht läuft, wird dabei nicht angesprochen.
-4. Klicke in der **Übersicht** der App bei einer verwalteten Laufzeit auf **Starten**. Auf einem nativen Host klickst du
-   vorher auf **Laufzeit installieren**. Die Karte **Dienst** zeigt **Bereit**, sobald die Laufzeit antwortet.
+   **Kommunikation**. Das Öffnen der App startet den Dienst nicht. Solange der Tab **Boards** offen ist, fragt AuraGo alle drei Sekunden die Board-Liste beim Dienst ab. Die Ansicht **Status** fragt sie nur bei einem verwalteten ESP32-Dienst ab. Ein verwalteter Dienst, der nicht läuft, wird nicht angesprochen.
+4. Klicke in der Ansicht **Status** der App bei einer verwalteten Laufzeit auf **Dienst starten**. Auf einem nativen Host klickst du
+   vorher auf **Installieren**. Die Überschrift lautet „RuView läuft und wartet auf Daten der Boards.“, sobald die Laufzeit antwortet, und beginnt mit „Läuft:“, sobald Daten ankommen.
 
 ## Die Betriebsart wählen
 
 | Betriebsart | Wofür | Hinweise |
 |---|---|---|
 | **Verwaltetes Docker** | ESP32-CSI auf einem Linux-Sensing-Server oder eine Demo | AuraGo holt das festgelegte Image, startet einen eigenen, markierten Container und bindet ihn an den Loopback. Docker darf nicht schreibgeschützt sein. |
-| **Native Host-Laufzeit** | Host-WLAN-RSSI unter Windows oder macOS | Klicke einmal auf **Laufzeit installieren**. Dieses Release enthält ein geprüftes Paket nur für Windows (amd64). Unter macOS bricht die Installation ab, weil es für diese Plattform in diesem Release kein geprüftes Paket gibt. |
+| **Native Host-Laufzeit** | Host-WLAN-RSSI unter Windows oder macOS | Klicke einmal auf **Installieren** (oder auf **Dienst installieren** im Menü **⋯**). Dieses Release enthält ein geprüftes Paket nur für Windows (amd64). Unter macOS bricht die Installation ab, weil es für diese Plattform in diesem Release kein geprüftes Paket gibt. |
 | **Externe Instanz** | Ein RuView-Dienst, den du selbst betreibst | Trage die **Dienstadresse** als reine Origin ein, zum Beispiel `http://192.168.1.20:3000`, ohne Pfad, Abfrage oder Zugangsdaten. Private oder Loopback-Adressen brauchen **Privaten Netzwerkzugriff erlauben**. AuraGo installiert, startet, stoppt oder aktualisiert eine externe Instanz nie. |
 
 Ein Container sieht den WLAN-Adapter des Hosts nicht. Läuft AuraGo in einem Container, lehnt die Konfigurationsprüfung die
@@ -72,31 +72,47 @@ native Laufzeit ab. Betreibe RuView dann als externe Instanz auf dem Rechner mit
 Windows oder macOS. Unter Linux nutzt du ESP32-Boards. Die **Ausdrückliche Demo** ist zum Ausprobieren gedacht. Es gibt
 keinen automatischen Ersatz durch Demodaten.
 
-## Übersicht und Geräte lesen
+## Status und Boards lesen
 
-Die **Übersicht** zeigt die Karten **Dienst**, **Erfassung**, **Quelle**, **Artefakt** und **Speicher** sowie die letzte
-Aufnahme-Aktion, die in dieser Sitzung bestätigt wurde. Die Karte **Artefakt** zeigt **Geprüftes Artefakt** nur, wenn
-AuraGo die festgelegten Laufzeitdateien selbst gestartet hat. Darunter stehen fünf Prüfungen mit den Zuständen
-*Erledigt*, *Offen*, *Noch nicht geprüft* oder, wenn die Quelle die Prüfung nicht braucht, *Für diese Quelle nicht nötig*:
+Die Befehlsleiste hat drei Ansichten: **Status**, **Boards** und **Labor**. **Boards** erscheint nur für die Quelle
+ESP32-CSI. **Labor** erscheint, solange RuView eingeschaltet ist. In einem schmalen Fenster rutschen die Ansichten in
+ein Menü.
 
-| Prüfung | Worauf sie achtet |
-|---|---|
-| **Dienst** | Die Laufzeit meldet sich bereit. |
-| **UDP-Empfang** | Bei WLAN- und Demoquellen zeigt sie *Für diese Quelle nicht nötig*. Eine externe Instanz regelt UDP selbst. Bei einer verwalteten Laufzeit ist die Prüfung *Erledigt*, wenn UDP an eine private LAN-Adresse mit mindestens einer erlaubten Quelle gebunden ist. *Offen* steht sie, wenn UDP ausgeschaltet ist oder wenn der Dienst bereit ist, aber keine LAN-Bind-Adresse oder keine erlaubten Quellen hat. Ist UDP eingeschaltet, der Dienst aber nicht bereit, steht sie auf *Noch nicht geprüft*. |
-| **Empfängeradresse** | Eine private IPv4-Adresse des Empfängers ist gespeichert. Für WLAN und Demo nicht nötig. |
-| **Bekanntes Board** | AuraGo kennt mindestens ein Board. |
-| **Frisches CSI** | Ein Board hat in den letzten zehn Sekunden CSI-Daten gesendet. |
+Die Ansicht **Status** beantwortet zuerst eine Frage: Läuft es? Lies zuerst die Überschrift. Sie ist ein Satz. Darunter
+stehen:
 
-Ein Punkt mit *Erledigt* heißt nicht, dass eine Person erkannt wurde. **Frisches CSI** zeigt nur, dass ein Board kürzlich
-Daten gesendet hat.
+- **Nächster Schritt.** Ein Knopf, wenn es einen gibt. Ist er ausgegraut, nennt die Zeile darunter den Grund.
+- **Einrichtung.** Bei einer neuen Installation zeigt eine Liste, was noch fehlt: *Eingeschaltet*, *Änderungen erlaubt*,
+  *Dienst läuft*, *Empfänger und UDP eingerichtet*, *Erstes Board* und *Daten kommen an*. Jeder offene Schritt hat einen
+  eigenen Knopf. Die Liste verschwindet, sobald echte Sensordaten angekommen sind.
+- **Details.** Standardmäßig eingeklappt. Sie zeigen Dienst und Version, Quelle, Speicher im Verhältnis zum Budget, die
+  letzte Aufnahme-Aktion, die diese AuraGo-Sitzung bestätigt hat, und offene Hinweise. **Diagnose kopieren** kopiert
+  dieselben Angaben als reine `key=value`-Zeilen. Darin stehen kein Token, keine URL und kein Dateipfad.
 
-Bei WLAN- und Demoquellen zeigen **UDP-Empfang**, **Bekanntes Board** und **Frisches CSI** *Für diese Quelle nicht nötig*. Läuft eine verwaltete Laufzeit nicht, bleiben beide auf *Noch nicht geprüft*, weil AuraGo den Dienst für die Board-Liste nicht anfragt. Die Karte **Erfassung** zeigt **Warte auf erste Daten**, solange ein verbundener Dienst noch keinen ersten Frame gesendet hat. Ein Stopp, der nicht bestätigt werden konnte, oder ein beendeter Dienst bleibt angezeigt, bis du erneut **Starten** oder **Stoppen** klickst.
+Die Pille in der Befehlsleiste zeigt den Zustand in Worten, mit Symbol und Farbe, zum Beispiel *Live*, *Wartet*,
+*Problem* oder *Schreibgeschützt*.
 
-Der Tab **Geräte** listet alle Boards, die AuraGo kennt. Er aktualisiert sich alle drei Sekunden, solange er sichtbar ist.
-**Letzte Messung** zeigt das Alter des letzten Werts. Werte, die älter als zehn Sekunden sind, gelten als veraltet. Still
-gewordene Boards bleiben in der Liste. **Dieses Board einrichten** öffnet den Board-Assistenten für genau diese
-Knoten-ID. Ist die Liste leer, werden bereits eingerichtete Boards beim nächsten Datenempfang wieder übernommen. Ein
-erneutes Flashen ist dafür nicht nötig. Gibt es keine Live-Daten, nennt der Tab den Grund. Bei WLAN- und Demoquellen steht dort „Die Board-Liste wird nur mit ESP32-Boards verwendet.“ Läuft eine verwaltete Laufzeit nicht, steht dort „Der RuView-Dienst läuft nicht. Gespeicherte Boards werden ohne Live-Daten angezeigt.“
+**Installieren** wird nur für die native Host-Laufzeit angeboten. Ein verwalteter Dienst, der nicht läuft, zeigt „Der RuView-Dienst läuft nicht.“
+und bietet **Dienst starten** an. Die Zeile
+darunter nennt den Grund, zum Beispiel „Von Dir um 14:02 gestoppt.“ Das Öffnen der App startet nie einen Dienst.
+
+Die Ansicht Status fragt im Hintergrund nie einen externen Dienst ab. Bei einer externen Instanz klickst du auf
+**Jetzt prüfen** im Menü **⋯** oder im nächsten Schritt. Das Ergebnis erscheint in der Überschrift. Zehn Sekunden später
+nennt sie, wann der Dienst zuletzt geprüft wurde, und bietet wieder **Jetzt prüfen** an. Das gilt nicht, wenn die Prüfung
+fehlgeschlagen ist.
+
+Ein verbundener Dienst, der noch keinen ersten Frame gesendet hat, zeigt „RuView läuft und wartet auf Daten der Boards.“ Das ist ein Wartezustand, kein Erfolg. Ein Stopp, der nicht bestätigt werden konnte, oder ein Dienst, der von selbst beendet wurde, bleibt angezeigt, bis du erneut **Dienst starten** oder **Dienst stoppen** klickst.
+
+**Änderungen erlauben …** erscheint, wenn der Schreibschutz einen Start blockiert. Vorher bestätigst du die Abfrage. Danach speichert
+AuraGo nur den Schalter für den Schreibschutz über das übliche Speichern der Administrator-Einstellungen. Nichts anderes
+wird gesendet. Auf einem schreibgeschützten Desktop öffnet der Knopf stattdessen die Einstellungen.
+
+Der Tab **Boards** listet alle Boards, die AuraGo kennt, und liest die Liste alle drei Sekunden, solange der Tab sichtbar
+ist. **Letzte Messung** zeigt das Alter des letzten Werts. Werte, die älter als zehn Sekunden sind, gelten als veraltet.
+Still gewordene Boards bleiben in der Liste. **Dieses Board einrichten** öffnet den Board-Assistenten für genau diese
+Knoten-ID, **Board hinzufügen** öffnet ihn für eine neue ID. Ist die Liste leer, werden bereits eingerichtete Boards beim
+nächsten Datenempfang wieder übernommen. Ein erneutes Flashen ist dafür nicht nötig. Lässt sich die Liste nicht lesen,
+nennt der Tab den Grund. Läuft eine verwaltete Laufzeit nicht, steht dort „Der RuView-Dienst läuft nicht. Gespeicherte Boards werden ohne Live-Daten angezeigt.“ Der Tab **Boards** ist bei WLAN- und Demoquellen ausgeblendet.
 
 ## Ein ESP32-Board einrichten
 
@@ -108,8 +124,8 @@ Vorab:
 - Stelle **Quelle** auf **ESP32-CSI** und schalte **Nur lesen** aus. Der Board-Bereich ist bei anderen Quellen
   ausgeblendet.
 
-Den Assistenten öffnest du über **Board einrichten** (in der Konfiguration oder unten im Tab **Geräte**), über
-**Firmware schreiben** in der Übersicht oder über **Dieses Board einrichten** bei einem bekannten Board.
+Den Assistenten öffnest du über **Board einrichten** in der Konfiguration, über **Board hinzufügen** im Tab **Boards**
+oder über **Dieses Board einrichten** bei einem bekannten Board.
 
 **Schritt 1: Firmware schreiben.** Wähle das **Boardprofil**, das zu Chip, Flashgröße und USB-Anschluss passt. Nimm `cdc`
 für „USB JTAG/serial debug unit“ und `uart` für eine USB-UART-Brücke. Ein ESP32-S3-WROOM-1 N16R8 hat 16 MB Flash und 8 MB
@@ -145,11 +161,12 @@ unklar abgebrochen ist, wird nie automatisch wiederholt. Meldet der Dialog, dass
 BOOT beim erneuten Verbinden gedrückt, lasse es danach los und versuche es noch einmal. Lade die Seite nach einem
 AuraGo-Update neu, bevor du das nächste Board einrichtest.
 
-## Die Upstream-Ansichten
+## Das Labor
 
-Die App hat die Tabs **Übersicht**, **Geräte**, **Dashboard**, **Observatorium** und **Pose-Fusion**. **Einstellungen**
-öffnet die Konfiguration. Die drei Upstream-Tabs sind die eigenen Weboberflächen von RuView, geladen in einem abgeschotteten
-Rahmen.
+**Labor** enthält die eigenen Webseiten von RuView: **Observatorium**, **Pose-Fusion** und das Original-RuView-Dashboard.
+Jede Seite hat eine Karte, die ihre Voraussetzung nennt. Wähle **Öffnen**, um eine Seite zu laden. Sie öffnet sich in
+einem abgeschotteten Rahmen. **← Labor** oder **Schließen** entfernt den Rahmen, ebenso das Verlassen der Ansicht. Die
+Seiten sind englisch und bleiben experimentell. **Einstellungen** im Menü **⋯** öffnet die Konfiguration.
 
 - **Sprache.** Die Upstream-Ansichten behalten ihre eigene Sprache (Englisch, mit einer polnischen Option in ihrer
   Oberfläche). AuraGo übersetzt seine Verwaltungsseiten und die Board-Einrichtung, nicht die Upstream-Ansichten.
@@ -168,13 +185,15 @@ Rahmen.
 Die Tabs **Live Demo** und **Training** im Dashboard haben die Schaltflächen **Start Recording** und **Stop Recording**. Eine
 Aufnahme läuft, bis du sie stoppst,
 auch wenn du die Ansicht schließt. Nach dem Neuladen kann die Ansicht nicht sagen, ob eine Aufnahme läuft, und die
-Dateiliste zeigt es ebenfalls nicht. Die Übersicht zeigt deshalb nur den letzten Start oder Stopp, den AuraGo abgeschickt
+Dateiliste zeigt es ebenfalls nicht. Die Details zeigen deshalb nur den letzten Start oder Stopp, den AuraGo abgeschickt
 und bestätigt bekommen hat. Nach einem Neustart von AuraGo steht dort wieder „Aufnahmestatus unbekannt“.
 
 Verwaltete Aufnahmen und Modelle liegen in `data/ruview/data` im Datenverzeichnis von AuraGo. Das **Speicherbudget (MiB)**
-begrenzt sie. AuraGo prüft den Ordner jede Sekunde. Ist das Budget erreicht, lehnt AuraGo neue Aufnahmestarts ab (HTTP 507)
-und bittet den Dienst, die laufende Aufnahme zu stoppen. Daten, die zwischen zwei Prüfungen entstehen, können das Budget
-überschreiten. Die Karte **Speicher** zeigt **Budget erreicht** oder **Im Budget**.
+begrenzt sie. AuraGo misst den Ordner höchstens alle 30 Sekunden. Ist das Budget erreicht, lehnt AuraGo neue Aufnahmestarts ab (HTTP 507)
+und bittet den Dienst, die laufende Aufnahme zu stoppen. Daten, die zwischen zwei Messungen entstehen, können das Budget
+überschreiten. **Details** zeigt den belegten Speicher im Verhältnis zum Budget. Die Ansicht Status zeigt den Chip
+**Speicher voll · Aufnahme gestoppt**, wenn das Budget erreicht ist, oder **Speicher nicht prüfbar**, wenn der Ordner nicht
+gemessen werden kann. Dann lehnt AuraGo Aufnahmestarts mit HTTP 503 ab; das Budget gilt dann nicht als voll.
 
 AuraGo löscht nie automatisch Aufnahmen. Entferne nicht mehr benötigte Aufnahmen selbst. Im Lesemodus ist Löschen gesperrt.
 Externe Instanzen haben ihren eigenen Speicher, für sie gilt das Budget nicht.
@@ -184,7 +203,7 @@ Externe Instanzen haben ihren eigenen Speicher, für sie gilt das Budget nicht.
 - **Experimentell.** Verbindung, Empfang und ein frischer Status zeigen, dass Daten fließen. Sie zeigen nicht, dass eine
   Messung, eine Präsenz oder eine Pose stimmt. Konfidenzwerte sind nicht kalibriert.
 - **Signale.** RSSI braucht Windows oder macOS mit einer nativen oder externen Instanz. CSI braucht ESP32-Boards.
-- **Demodaten** sind gekennzeichnet (die Karte zeigt **Demo**). Fällt ein Sensor aus, wechselt AuraGo nicht auf Demodaten.
+- **Demodaten** sind gekennzeichnet. Die Überschrift lautet „Demo-Modus: simulierte Daten, keine Messungen.“ Fällt ein Sensor aus, wechselt AuraGo nicht auf Demodaten.
 - **Veraltete Daten.** Frames, die älter als zehn Sekunden sind, verlieren den Status „frisch“. Werte in diesem Alter gelten
   als veraltet.
 - **Unterstützte Boards.** Nur die acht Firmware-Profile des Katalogs: ESP32-S3 mit 4, 8 oder 16 MB Flash und ESP32-C6 mit
@@ -236,12 +255,20 @@ Externe Instanzen haben ihren eigenen Speicher, für sie gilt das Budget nicht.
 | „Speichere Änderungen vor Verbindungstest oder Board-Einrichtung.“ | Klicke auf **Speichern**. Tests und Board-Einrichtung nutzen die gespeicherten Einstellungen. |
 | „Schalte oben „Nur lesen“ aus und speichere, um ein Board einzurichten.“ | Schalte **Nur lesen** aus, speichere und versuche es erneut. |
 | „Host-WLAN benötigt eine native oder externe Instanz. Wähle diese Betriebsart oder eine andere Datenquelle.“ | Wähle als **Betriebsart** **Native Host-Laufzeit** oder **Externe Instanz** oder eine andere **Quelle**. |
-| „Installieren gibt es nur für die native Laufzeit.“ | **Laufzeit installieren** gibt es nur für die native Host-Laufzeit. Verwaltetes Docker startest du mit **Starten**. |
+| „Installieren gibt es nur für die native Laufzeit.“ | **Installieren** (oder **Dienst installieren** im Menü **⋯**) gibt es nur für die native Host-Laufzeit. Verwaltetes Docker startest du mit **Dienst starten**. |
 | „Eine externe Instanz startest und stoppst Du an ihrem eigenen Rechner.“ | AuraGo startet und stoppt externe Instanzen nicht. Arbeite auf deren Rechner. |
-| „Der Dienst wurde beendet. Du kannst ihn erneut starten.“ | Klicke auf **Starten**. AuraGo startet den Dienst nicht selbst neu. |
-| „Das Stoppen konnte nicht bestätigt werden. Prüfe den Dienst.“ | Der Stopp ist nicht bestätigt. Prüfe den Dienst auf seinem Rechner. |
-| „Noch keine frischen CSI-Daten von diesem Board. Prüfe WLAN, Empfängeradresse und UDP-Freigabe.“ | Prüfe das WLAN des Boards, die **IPv4 des RuView-Empfängers** und die Einstellungen für **UDP freigeben**. |
-| „UDP-Empfang ist noch ausgeschaltet. Aktiviere ihn in den RuView-Einstellungen und erlaube die Board-Adressen, bevor Du Sensordaten prüfst.“ | Schalte **UDP freigeben** ein, setze **LAN-Bind-Adresse (IPv4)** und **Erlaubte Quell-IPs/CIDRs**, speichere und prüfe erneut. |
+| „RuView wurde unerwartet beendet.“ | Klicke auf **Erneut starten**. AuraGo startet den Dienst nicht selbst neu. |
+| „Stoppen nicht bestätigt. RuView läuft eventuell noch.“ | Klicke auf **Erneut stoppen**. Bleibt es so, prüfe den Dienst auf seinem Rechner. |
+| „RuView startet nicht: Die Registry verweigert das Dienst-Image.“ | Das Image muss veröffentlicht und für AuraGo lesbar sein. Eine andere Empfängeradresse behebt das nicht. |
+| „RuView startet nicht: Das Dienst-Image konnte nicht geladen werden.“ | Prüfe das Netzwerk und den Docker-Host, dann klicke auf **Start wiederholen**. |
+| „RuView startet nicht: Docker ist nicht erreichbar.“ | Prüfe, ob Docker läuft und AuraGo es erreichen kann, dann klicke auf **Start wiederholen**. |
+| „Ein Container namens aurago-ruview gehört zu einer anderen AuraGo-Installation. Entferne oder benenne ihn in Docker um und starte dann erneut.“ | AuraGo entfernt nie einen Container, den es nicht selbst angelegt hat. Benenne ihn in Docker um oder entferne ihn selbst und starte dann neu. |
+| „RuView ist mit einem anderen Start oder einer Installation beschäftigt. Warte, bis sie fertig ist.“ | Warte, bis der andere Vorgang fertig ist, und prüfe dann den Status erneut. |
+| „RuView hat nicht rechtzeitig geantwortet.“ | Prüfe den Dienst und klicke auf **Erneut prüfen** oder **Start wiederholen**. |
+| „RuView hat das Zugriffstoken von AuraGo abgelehnt.“ | Prüfe das **API-Token (Vault)** der externen Instanz in den Einstellungen. |
+| „RuView nutzt eine andere Signalquelle als in AuraGo eingestellt.“ | Stelle die **Quelle** in AuraGo auf die Quelle ein, die RuView nutzt, und prüfe dann erneut. |
+| „RuView sendet simulierte Daten, obwohl echte Messung eingestellt ist.“ | Prüfe die Quellen-Einstellung von RuView. Echte Messungen dürfen keine simulierten Daten enthalten. |
+| Schritt **Empfänger und UDP eingerichtet** ist offen (Einrichtung im Status). | Trage die **IPv4 des RuView-Empfängers** ein und schalte **UDP freigeben** mit einer LAN-Bind-Adresse und einer erlaubten Quelle ein. Speichere und prüfe dann erneut. |
 | „Bootloader nicht erreichbar. Halte BOOT beim erneuten Verbinden gedrückt, lasse BOOT danach los und schließe andere Programme am seriellen Port.“ | Halte BOOT beim erneuten Verbinden gedrückt, lasse es los und schließe andere serielle Programme. |
 | „Nutze HTTPS oder localhost und einen Browser mit freigegebenem Web Serial. Schließe andere serielle Werkzeuge und nutze ein USB-Datenkabel. Halte bei Erkennungsproblemen BOOT beim erneuten Verbinden gedrückt.“ | Öffne AuraGo über HTTPS oder `localhost` in Chrome oder Edge und nutze ein Datenkabel. |
 | „Erkannt: {detected} MB Flash. Gewähltes Profil: {expected} MB. Wähle das passende Profil; es wurde nichts geschrieben.“ | Wähle das Profil zur erkannten Flashgröße. |
@@ -251,10 +278,16 @@ Externe Instanzen haben ihren eigenen Speicher, für sie gilt das Budget nicht.
 | „Verbinde das Board nach dem Neustart erneut und bestätige“ | Verbinde das Board nach dem Neustart erneut und klicke auf **Nach Neustart bestätigen**. |
 | „Knoten-ID: 1–255; IPv4 des RuView-Empfängers: 10/8, 172.16/12, 192.168/16; UDP: 1–65535.“ | Korrigiere den Wert: Knoten-ID von 1 bis 255, private IPv4 für den Empfänger, UDP-Port im Bereich. |
 | „Alle IDs (1–255) sind als belegt gemeldet. Gib eine bestehende ID nur ein, um dieses Board erneut einzurichten.“ | Gib eine bestehende ID nur ein, um dieses Board erneut einzurichten. |
-| **Budget erreicht** (Karte **Speicher**) | Es starten keine neuen Aufnahmen. Entferne nicht mehr benötigte Aufnahmen oder erhöhe das **Speicherbudget (MiB)**. |
-| **Getrennt**, **Veraltet** oder **Nicht geprüft** (Ergebnis von **Verbindung testen**) | Der Dienst hat nicht geantwortet, der letzte Frame ist älter als zehn Sekunden oder es gibt noch keine Daten. Prüfe den Dienst oder klicke auf **Starten**. |
-| **Warte auf erste Daten** (Ergebnis von **Verbindung testen**) | Der Dienst ist verbunden, hat aber noch keinen Sensorframe gesendet. Das ist eine Warnung, kein Erfolg. Prüfe das WLAN des Boards, die **IPv4 des RuView-Empfängers** und **UDP freigeben** und teste dann erneut. |
-| **Status nicht abrufbar** (**Übersicht**) | Die erste Statusabfrage ist fehlgeschlagen. Die Übersicht wiederholt sie alle drei Sekunden, solange sie offen ist. Bleibt es so, prüfe, ob AuraGo läuft und erreichbar ist. |
+| **Speicher voll · Aufnahme gestoppt** (Chip im Status) | Es starten keine neuen Aufnahmen. Entferne nicht mehr benötigte Aufnahmen oder erhöhe das **Speicherbudget (MiB)**. |
+| **Speicher nicht prüfbar** (Chip im Status) | Der Datenordner lässt sich nicht messen: Berechtigung, Verknüpfung, Sonderdatei oder mehr als 200.000 Einträge. Aufnahmen starten erst, wenn er gemessen werden kann. Prüfe die Rechte des Ordners und entferne Dateien, die du nicht mehr brauchst. |
+| „RuView läuft, aber die Signalquelle ist getrennt.“ | Prüfe das Board oder den WLAN-Adapter. Der Tab **Boards** zeigt das Alter der letzten Messung jedes Boards. |
+| „Seit {age} keine neuen Daten.“ | Die Frames sind älter als zehn Sekunden. Prüfe das WLAN des Boards und den RuView-Dienst. Die Überschrift verschwindet, sobald neue Daten kommen. |
+| „Externer RuView-Dienst, noch nicht geprüft.“ oder „Externer RuView-Dienst, zuletzt vor {age} geprüft.“ | Klicke auf **Verbindung prüfen** bzw. **Jetzt prüfen**. Nur eine Prüfung fragt einen externen Dienst ab. |
+| **Warte auf erste Daten** (Verbindung testen) oder „RuView läuft und wartet auf Daten der Boards.“ (Status) | Der Dienst ist verbunden, hat aber noch keinen Sensorframe gesendet. Er wird als Warten angezeigt, nicht als Erfolg. Prüfe das WLAN des Boards, die **IPv4 des RuView-Empfängers** und **UDP freigeben** und teste dann erneut. |
+| „RuView-Status nicht abrufbar.“ (Ansicht **Status**) | Der letzte bekannte Stand bleibt sichtbar. Die Ansicht wiederholt die Abfrage alle drei Sekunden, solange sie offen ist. Bleibt es so, prüfe, ob AuraGo läuft und erreichbar ist. |
+| „Die Einstellung konnte nicht gespeichert werden.“ (**Änderungen erlauben …**) | Prüfe die RuView-Einstellungen. Ist ein anderer Konfigurationsabschnitt ungültig, schlägt das Speichern fehl. Korrigiere ihn in den **Einstellungen** und versuche es erneut. |
+
+**Technische Details** stehen unter der Überschrift. Sie zeigen den bereinigten technischen Text von RuView oder Docker, ohne Tokens, URLs oder Dateipfade. **Diagnose kopieren** (im Menü **⋯** oder unter **Details**) kopiert Zeilen im Format `key=value` mit Zustand, Fehlercode und diesem Text. Füge sie als reinen Text in eine Meldung ein. Ist die Zwischenablage gesperrt, erscheint der Text in einem Feld, das du von Hand kopieren kannst.
 
 ---
 

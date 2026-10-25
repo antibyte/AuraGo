@@ -2366,7 +2366,7 @@ virtual_desktop:
 
 **RuView** integriert Wi-Fi-Sensing ([RuView v3122](https://github.com/ruvnet/RuView)) inklusive Dashboard, Observatory, Pose Fusion, Kalibrierung, Aufnahme und Training. Die Verwaltung durch AuraGo spricht alle 16 Sprachen; die Upstream-Ansichten behalten ihre Originalsprache. Wi-Fi-Sensing ist experimentell — Verbindung bedeutet keine Aussage über Mess-, Präsenz- oder Posen-Genauigkeit.
 
-**Web-UI:** **Config → RuView** — Integration aktivieren, Runtime und Quelle wählen, speichern. Start und Agent-Zugriff sind standardmäßig aus; Read-only startet aktiviert. **RuView öffnen** öffnet die Desktop-App; dort verwalten **Laufzeit installieren** und **Starten** eine verwaltete Runtime. **Board einrichten** flasht ESP32-Firmware über USB (Web Serial) und richtet Wi-Fi ein. Anleitung: [Kapitel 30](30-ruview.md).
+**Web-UI:** **Config → RuView** — Integration aktivieren, Runtime und Quelle wählen, speichern. Start und Agent-Zugriff sind standardmäßig aus; Read-only startet aktiviert. **RuView öffnen** öffnet die Desktop-App; dort verwalten der nächste Schritt in der Status-Ansicht (**Installieren** oder **Dienst starten**) und das Menü **⋯** (**Dienst installieren**) eine verwaltete Runtime. **Board einrichten** flasht ESP32-Firmware über USB (Web Serial) und richtet Wi-Fi ein. Anleitung: [Kapitel 30](30-ruview.md).
 
 **Runtimes:**
 
