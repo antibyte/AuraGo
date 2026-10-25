@@ -1117,6 +1117,15 @@ func TestRecentNativeToolNamesIncludeInvokeTargets(t *testing.T) {
 		t.Fatalf("names = %v, want invoke_tool and one manage_todos", got)
 	}
 
+	// The published schema name survives next to its dispatch alias.
+	got = recentNativeToolNamesFromMessages([]openai.ChatCompletionMessage{
+		user,
+		call("c3", "invoke_tool", `{"tool_name":"remote_execution"}`),
+	}, 1)
+	if !containsName(got, "remote_execution") || !containsName(got, "execute_remote_shell") || len(got) != 3 {
+		t.Fatalf("names = %v, want invoke_tool, remote_execution and execute_remote_shell", got)
+	}
+
 	for _, args := range []string{`{`, ``, `{"tool_name":""}`, `{"tool_name":"invoke_tool"}`, `{"tool_name":7}`} {
 		got = recentNativeToolNamesFromMessages([]openai.ChatCompletionMessage{user, call("c1", "invoke_tool", args)}, 1)
 		if len(got) != 1 || got[0] != "invoke_tool" {
@@ -1614,6 +1623,34 @@ func TestAdaptivePriorityMapsSharedManualAndSkipsEmptySlots(t *testing.T) {
 	}}, nil)
 	if !containsName(got, "docker") {
 		t.Fatalf("empty semantic slots must not use up the look-ahead, got %v", got)
+	}
+
+	// The semantic pass adds at most four tools in total, however many tools
+	// the matched manuals document: the discord family is cut in schema order.
+	familySchemas := make([]openai.Tool, 0, 9)
+	for _, name := range []string{
+		"send_email", "fetch_email", "list_email_accounts",
+		"send_discord", "fetch_discord", "list_discord_channels",
+		"telnyx_call", "telnyx_manage", "telnyx_sms",
+	} {
+		familySchemas = append(familySchemas, makeTool(name))
+	}
+	got = buildAdaptiveToolPriority(familySchemas, nil, query, fakeGuideSearcher{paths: []string{
+		manual("email"), manual("discord"), manual("telnyx"),
+	}}, nil)
+	// The curated neighbors of the tools ranked so far follow the semantic pass,
+	// so the rest of the discord family still arrives after the cut; the third
+	// manual (telnyx) is out of budget and has no neighbor in the ranking.
+	if len(got) < 4 {
+		t.Fatalf("semantic pass added too few tools: %v", got)
+	}
+	if gotJoined, want := strings.Join(got[:4], ","), "send_email,fetch_email,list_email_accounts,send_discord"; gotJoined != want {
+		t.Fatalf("semantic pass must add at most 4 tools in schema order, got %q, want %q", gotJoined, want)
+	}
+	for _, tool := range []string{"telnyx_call", "telnyx_manage", "telnyx_sms"} {
+		if containsName(got, tool) {
+			t.Fatalf("%s is beyond the semantic budget of 4 tools, got %v", tool, got)
+		}
 	}
 }
 

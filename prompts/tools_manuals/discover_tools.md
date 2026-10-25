@@ -36,7 +36,7 @@ Browse tool categories. Returns category names with their counts and a short pur
 {"action": "discover_tools", "operation": "list_family", "category": "network"}
 ```
 
-Categories: `system`, `memory`, `files`, `network`, `media`, `smart_home`, `infrastructure`, `data_apis`, `communication`
+Categories, e.g.: `system`, `memory`, `files`, `network`, `media`, `smart_home`, `infrastructure`, `data_apis`, `communication`, plus the runtime categories `skills`, `custom`, `mcp`, `agent_skills`. Call `list_categories` for the categories this run actually has.
 
 ### search
 Find tools by keyword across all categories. Matches tool names and descriptions.
@@ -58,7 +58,7 @@ Find tools by keyword across all categories. Matches tool names and descriptions
 1. Use `list_categories` or `search` to find the tool you need
 2. Use `get_tool_info` to see its full parameter schema; use `get_manual` for workflow guidance
 3. Follow the returned `call_method`:
-   - `direct`: call the tool itself with its own arguments. This includes a hidden tool whose schema is attached from your next step; `invoke_tool` stays the fallback
+   - `direct`: call the tool itself with its own arguments. This includes a hidden tool whose schema is queued for your next request; if it is not in your tool list then, call `invoke_tool` with the same `tool_name` and arguments
    - `invoke_tool`: call `invoke_tool` with `tool_name` and `arguments`; the system will re-inject the real native schema for follow-up calls
    - `execute_skill`: use `execute_skill` with `skill` and `skill_args`
    - `run_tool`: use `run_tool`

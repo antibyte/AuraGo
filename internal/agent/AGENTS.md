@@ -344,7 +344,10 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   distinct from configuration and never inferred from an enabled switch.
 - A stale, foreign or sentinel cursor (`none`, `null`, `0`, ...) never fails a
   discovery page: it restarts at page 1 with `cursor_reset` and a `notice`.
-  Cursors hash tool names and kinds only, never the volatile adaptive status.
+  A cursor binds to `catalogRevision`, which hashes every entry and schema with
+  the volatile adaptive status normalized (active and hidden hash alike, the
+  `adaptive_filter` reason is dropped). The `search` and `list_family`
+  revisions additionally hash the ordered result names and kinds.
 - `canonicalizeDiscoverOperationCall` rewrites a call named after a
   `discover_tools` operation (`get_tool_info`, `search`, `list_categories`,
   `list_family`, `get_manual`) into `discover_tools` with that `operation`,
@@ -356,14 +359,27 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   advice and the closest enabled tools (`unknownToolGuidance`), while a known
   native capability that is off answers `tool_disabled` with `hidden_reason` and
   no discovery advice. `invoke_tool` separates `tool_not_found` (with
-  suggestions), `recursive_invoke` and `tool_disabled`.
+  suggestions), `recursive_invoke` and `tool_disabled`. `invoke_tool` checks
+  the run's scope before availability, so an out-of-scope target answers
+  `tool_scope_denied` exactly like any other scope violation. `hidden_reason`
+  (and "until it is enabled") appears only for reasons an administrator can fix;
+  run-policy reasons (`role_restricted`, `authorization_changed`,
+  `out_of_scope`) are never disclosed (`runPolicyHiddenReason`). Name
+  suggestions never propose `invoke_tool` or `discover_tools`
+  (`isDiscoveryMetaTool`), and every echoed model-supplied name goes through
+  `echoedToolName`, which drops control characters before cutting.
 - `get_tool_info` reports `call_method: direct` for a hidden native tool only
   when the run re-injects schemas (`DispatchContext.discoveryReinjects`, from
   `discoveryReinjectsSchemas`, the same condition as the re-injection in
-  `ExecuteAgentLoop`). Looper, flows, MCP and stable-prompt runs keep
-  `invoke_tool`. A direct call to a hidden native tool marks it for
-  re-injection (`markDirectHiddenNativeCall`) exactly like an `invoke_tool`
-  call; this changes presentation only. Verify
+  `ExecuteAgentLoop`). The full loop re-injects, including the `ask_aurago`
+  bridge run (it builds its dispatch context through `makeDispatchContext`).
+  Looper, flows and runs with a frozen tool list (stable system prompt,
+  supplied native schemas or a prepared prompt) keep `invoke_tool`. The queued
+  schema is not a guarantee (caps, budget shedding or a finalizing step can
+  drop it), so the `direct` instruction names `invoke_tool` as the fallback
+  when the tool is missing from the tool list. A direct call to a hidden
+  native tool marks it for re-injection (`markDirectHiddenNativeCall`) exactly
+  like an `invoke_tool` call; this changes presentation only. Verify
   `TestGetToolInfoDirectOnlyWhenRunReinjects` and
   `TestDirectHiddenNativeCallRequestsReinjection`.
 - Execution status is captured before scrubbing/compression and kept separately

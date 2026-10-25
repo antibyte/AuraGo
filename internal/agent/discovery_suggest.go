@@ -74,9 +74,26 @@ func discoverySuggestions(catalog *ToolCatalog, query string, limit int, keep fu
 // toolNameEchoLimit bounds a model-supplied tool name that an answer repeats.
 const toolNameEchoLimit = 80
 
-// echoedToolName shortens a tool name before an answer repeats it.
+// echoedToolName makes a model-supplied tool name safe to repeat in an answer:
+// control characters (CR, LF, TAB and the rest) and Unicode line and paragraph
+// separators are removed, so a name can never start a line of its own and pose
+// as a "Tool Output:" or "SYSTEM:" line, and the rest is cut to
+// toolNameEchoLimit bytes on a character boundary.
 func echoedToolName(name string) string {
+	name = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) || unicode.In(r, unicode.Zl, unicode.Zp) {
+			return -1
+		}
+		return r
+	}, name)
 	return truncateUTF8ToLimit(strings.TrimSpace(name), toolNameEchoLimit, "")
+}
+
+// isDiscoveryMetaTool reports the tools that only route to other tools. A
+// suggestion for a missing name never proposes them: invoke_tool needs a target
+// of its own and discover_tools is already named by the guidance.
+func isDiscoveryMetaTool(name string) bool {
+	return name == "invoke_tool" || name == "discover_tools"
 }
 
 // unknownToolGuidance tells a model that called a name this run does not know
@@ -89,7 +106,7 @@ func unknownToolGuidance(dc *DispatchContext, name string) (guidance string, sug
 	if dc != nil {
 		if catalog := GetToolCatalogState(dc.discoveryKey()); catalog != nil {
 			suggestions = discoverySuggestions(catalog, name, 3, func(entry *ToolCatalogEntry) bool {
-				return entry.Enabled && entry.Name != name && catalogEntryAllowed(dc, entry)
+				return entry.Enabled && entry.Name != name && !isDiscoveryMetaTool(entry.Name) && catalogEntryAllowed(dc, entry)
 			})
 		}
 	}

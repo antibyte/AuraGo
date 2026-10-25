@@ -1107,11 +1107,13 @@ func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, us
 		// name maps to every available tool of that family. A family of more
 		// than three tools only offers the members the query also matched
 		// lexically (those are ranked above already), which keeps one broad
-		// manual from crowding the adaptive cap. A manual whose tools are
-		// already ranked, or that documents no available tool, does not use
-		// up a semantic slot. The look-ahead is a fixed prefix of the ranking
-		// (non-displacing manuals do not count), so it cannot depend on
-		// whether a non-displacing manual exists.
+		// manual from crowding the adaptive cap. The semantic pass adds at most
+		// semanticTopK tools in total: a family that would exceed the remaining
+		// budget contributes its members in schema order until it is used up.
+		// A manual whose tools are already ranked, or that documents no
+		// available tool, adds nothing and so uses up no budget. The look-ahead
+		// is a fixed prefix of the ranking (non-displacing manuals do not
+		// count), so it cannot depend on whether a non-displacing manual exists.
 		const semanticWindow = 2 * semanticTopK
 		const semanticFamilyLimit = 3
 		byManual := make(map[string][]string, len(available))
@@ -1120,13 +1122,13 @@ func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, us
 			byManual[manual] = append(byManual[manual], tool)
 		}
 		paths := searchToolGuidesWithTimeout(guideSearcher, userQuery, semanticWindow+len(prompts.NonDisplacingTools), 400*time.Millisecond, logger)
-		counted, considered := 0, 0
+		added, considered := 0, 0
 		for _, path := range paths {
 			name := strings.TrimSuffix(filepath.Base(filepath.Clean(path)), filepath.Ext(path))
 			if prompts.IsNonDisplacingManual(name) {
 				continue
 			}
-			if counted == semanticTopK || considered == semanticWindow {
+			if added == semanticTopK || considered == semanticWindow {
 				break
 			}
 			considered++
@@ -1134,15 +1136,18 @@ func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, us
 			if len(members) == 0 && availableSet[name] {
 				members = []string{name}
 			}
-			before := len(prioritized)
 			for _, member := range members {
+				if added == semanticTopK {
+					break
+				}
 				if len(members) > semanticFamilyLimit && !lexical[member] {
 					continue
 				}
+				before := len(prioritized)
 				add(member)
-			}
-			if len(prioritized) > before {
-				counted++
+				if len(prioritized) > before {
+					added++
+				}
 			}
 		}
 	}
@@ -1708,10 +1713,15 @@ func recentNativeToolNamesFromMessages(messages []openai.ChatCompletionMessage, 
 			if json.Unmarshal([]byte(tc.Function.Arguments), &args) != nil {
 				continue
 			}
-			target := canonicalNativeAlias(strings.TrimSpace(stringValueFromMap(args, "tool_name", "name", "tool")))
-			if target != "invoke_tool" {
-				record(target)
+			// Both spellings are kept when they differ: remote_execution is the
+			// published schema name while its dispatch alias is not a schema
+			// name at all.
+			target := strings.TrimSpace(stringValueFromMap(args, "tool_name", "name", "tool"))
+			if target == "invoke_tool" {
+				continue
 			}
+			record(target)
+			record(canonicalNativeAlias(target))
 		}
 	}
 	names := make([]string, 0, len(outReversed))

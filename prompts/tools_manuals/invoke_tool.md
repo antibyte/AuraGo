@@ -11,7 +11,7 @@ Use `invoke_tool` only when `discover_tools` says so, or when the direct call is
 - `call_method: "invoke_tool"`
 - `callable_now: true`
 
-When the entry says `call_method: "direct"`, call the tool itself; its schema is attached from your next step if it was hidden. For an active native tool, prefer the direct structured call when it is available. If the direct call is unavailable, use `invoke_tool` with the same arguments. Do not use `invoke_tool` for disabled tools or Python skills, and never name `invoke_tool` as its own target.
+When the entry says `call_method: "direct"`, call the tool itself; if it was hidden, its schema is queued for your next request, and if it is not in your tool list then, use `invoke_tool` with the same arguments. For an active native tool, prefer the direct structured call when it is available. If the direct call is unavailable, use `invoke_tool` with the same arguments. Do not use `invoke_tool` for disabled tools or Python skills, and never name `invoke_tool` as its own target.
 
 ## Parameters
 

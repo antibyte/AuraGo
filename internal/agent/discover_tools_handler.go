@@ -84,7 +84,7 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 	// suggest names enabled tools the run may call that resemble a query that found nothing.
 	suggest := func(query string) []string {
 		return discoverySuggestions(catalog, query, 3, func(entry *ToolCatalogEntry) bool {
-			return entry.Enabled && (dc == nil || catalogEntryAllowed(dc, entry))
+			return entry.Enabled && !isDiscoveryMetaTool(entry.Name) && (dc == nil || catalogEntryAllowed(dc, entry))
 		})
 	}
 	switch op {
@@ -145,9 +145,11 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 			if dc != nil && dc.discoveryReinjects && entry.Kind == ToolKindNative && entry.Enabled && entry.Status == ToolStatusHidden &&
 				entry.Schema.Function != nil && catalogEntryAllowed(dc, entry) {
 				// The lookup above queued the schema for the next request, so the
-				// tool itself is callable; invoke_tool remains the fallback.
+				// tool itself is callable. The queue is not a guarantee (caps,
+				// budget shedding or a finalizing step can drop the schema), so
+				// the instruction names invoke_tool as the fallback.
 				result.CallMethod, result.CallableNow = "direct", true
-				result.Instruction = fmt.Sprintf("The %s schema is attached from your next step: call %s directly. invoke_tool with tool_name=%s stays a fallback.", entry.Name, entry.Name, entry.Name)
+				result.Instruction = fmt.Sprintf("The %s schema is queued for your next request: call %s directly. If it is not in your tool list then, call invoke_tool with tool_name=%s.", entry.Name, entry.Name, entry.Name)
 			}
 			response := DiscoverToolsResponse{Status: "success", Revision: revision, Tool: &result, Summary: "Use get_manual to retrieve workflow guidance separately."}
 			budget = 50000

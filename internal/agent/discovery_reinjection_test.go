@@ -35,8 +35,14 @@ func TestGetToolInfoDirectOnlyWhenRunReinjects(t *testing.T) {
 	}
 
 	hidden := info(&DispatchContext{SessionID: sid, discoveryReinjects: true}, "docker")
-	if hidden.CallMethod != "direct" || !hidden.CallableNow || !strings.Contains(hidden.Instruction, "invoke_tool") || !strings.Contains(hidden.Instruction, "call docker directly") {
+	if hidden.CallMethod != "direct" || !hidden.CallableNow || !strings.Contains(hidden.Instruction, "call docker directly") {
 		t.Fatalf("re-injecting run: %+v", hidden)
+	}
+	// The queued schema can still be dropped (caps, budget, a finalizing step),
+	// so the instruction promises a queue entry, not an attachment, and names
+	// the fallback.
+	if !strings.Contains(hidden.Instruction, "queued for your next request") || !strings.Contains(hidden.Instruction, "If it is not in your tool list then, call invoke_tool with tool_name=docker.") {
+		t.Fatalf("direct instruction overpromises or lacks the fallback: %q", hidden.Instruction)
 	}
 	fixed := info(&DispatchContext{SessionID: sid}, "docker")
 	if fixed.CallMethod != "invoke_tool" || !strings.Contains(fixed.Instruction, "invoke_tool") || strings.Contains(fixed.Instruction, "directly") {

@@ -9,7 +9,7 @@ import (
 // EnsurePromptsDir ensures that the on-disk prompts directory and its
 // sub-directories exist so the server can write user-created files into them.
 //
-// System prompts (identity.md, rules.md, tools_*.md, …) and built-in
+// System prompts (identity.md, rules.md, …) and built-in
 // personality profiles are embedded directly in the binary and loaded at
 // runtime from the embed.FS.  They are intentionally NOT extracted to disk.
 //

@@ -235,8 +235,14 @@ func unavailableToolRefusal(name string, native bool, dc *DispatchContext) *Tool
 				reason = entry.HiddenReason
 			}
 		}
-		body["code"], body["hidden_reason"] = "tool_disabled", reason
-		body["message"] = `The tool "` + shown + `" is disabled (` + reason + `) and cannot run until an administrator enables it.`
+		body["code"] = "tool_disabled"
+		if runPolicyHiddenReason(reason) {
+			// Run policy, not configuration: enabling the tool changes nothing.
+			body["message"] = `The tool "` + shown + `" is not available in this run.`
+		} else {
+			body["hidden_reason"] = reason
+			body["message"] = `The tool "` + shown + `" is disabled (` + reason + `) and cannot run until an administrator enables it.`
+		}
 	} else {
 		guidance, suggestions := unknownToolGuidance(dc, name)
 		body["code"] = "unknown_tool"

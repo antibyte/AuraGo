@@ -87,18 +87,24 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 	if entry.Name == "invoke_tool" {
 		return fail(invokeToolRefusal("policy_denied", "recursive_invoke", "invoke_tool cannot invoke itself; call the target tool or name another tool_name.", nil))
 	}
+	// Scope is checked before availability, so a tool outside the run's scope
+	// answers exactly like a direct call to it and never discloses its state.
+	if !catalogEntryAllowed(dc, entry) {
+		return fail(toolScopeDeniedOutput(entry.Name))
+	}
 	if entry.Status == ToolStatusNeedsSetup {
 		return fail(toolSetupRequiredOutput(entry.HiddenReason))
 	}
 	if !entry.Enabled || entry.Status == ToolStatusDisabled {
+		shown := echoedToolName(entry.Name)
+		if runPolicyHiddenReason(entry.HiddenReason) {
+			return fail(invokeToolRefusal("policy_denied", "tool_disabled", `Tool "`+shown+`" is not available in this run.`, nil))
+		}
 		fields := map[string]interface{}{}
 		if entry.HiddenReason != "" {
 			fields["hidden_reason"] = entry.HiddenReason
 		}
-		return fail(invokeToolRefusal("policy_denied", "tool_disabled", `Tool "`+echoedToolName(entry.Name)+`" is disabled and cannot run until it is enabled.`, fields))
-	}
-	if !catalogEntryAllowed(dc, entry) {
-		return fail(toolScopeDeniedOutput(entry.Name))
+		return fail(invokeToolRefusal("policy_denied", "tool_disabled", `Tool "`+shown+`" is disabled and cannot run until it is enabled.`, fields))
 	}
 	args := mapValueFromMap(tc.Params, "arguments", "params", "skill_args")
 	if args == nil {
@@ -133,6 +139,19 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 	routed.IsTool, routed.Todo = tc.IsTool, tc.Todo
 	routed.Operation = toolCallSnapshotOperation(routed)
 	return canonicalizeLeafCall(routed, dc)
+}
+
+// runPolicyHiddenReason reports whether a disabled catalog entry is off because
+// of this run's policy (role, scope or a live authorization change) rather than
+// because of the configuration. An administrator enabling the tool would not
+// change a run policy, so the model is neither told to wait for that nor shown
+// the reason.
+func runPolicyHiddenReason(reason string) bool {
+	switch reason {
+	case "role_restricted", "authorization_changed", "out_of_scope":
+		return true
+	}
+	return false
 }
 
 // invokeToolRefusal encodes an invoke_tool preparation failure. fields adds keys

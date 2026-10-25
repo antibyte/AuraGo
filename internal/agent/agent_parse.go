@@ -91,8 +91,11 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	if !authorized {
 		return ToolDispatchResult{Output: authorizationChangedOutput, Status: ToolResultDenied, IsError: true}
 	}
-	// Standalone bridges own a short-lived catalog just like the main loop.
-	if dc.DiscoveryRunID == "" && GetToolCatalogState(dc.SessionID) == nil && (tc.Action == "invoke_tool" || tc.Action == "discover_tools") {
+	// Standalone bridges own a short-lived catalog just like the main loop. A
+	// bare discover_tools operation name (search, get_manual, ...) is rewritten
+	// to discover_tools later and needs that catalog as much as the tool does.
+	_, discoverOperation := discoverOperationNames[tc.Action]
+	if dc.DiscoveryRunID == "" && GetToolCatalogState(dc.SessionID) == nil && (tc.Action == "invoke_tool" || tc.Action == "discover_tools" || discoverOperation) {
 		local := *dc
 		dc = &local
 		dc.DiscoveryRunID = acquireDiscoveryRun()
