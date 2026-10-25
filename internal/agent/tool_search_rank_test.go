@@ -3,8 +3,11 @@ package agent
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
+	"time"
+	"unicode/utf8"
 )
 
 func searchNames(catalog *ToolCatalog, query string) []string {
@@ -122,5 +125,61 @@ func TestToolSearchLongGermanSentence(t *testing.T) {
 		if len(names) > 30 || !slices.Contains(names[:min(5, len(names))], tc.want) {
 			t.Errorf("Search(%q): %d hits, first five %v, want %s among them", tc.query, len(names), names[:min(5, len(names))], tc.want)
 		}
+	}
+}
+
+// longMessagePreamble is a sixty-five word German report that ends in no tool
+// request of its own.
+const longMessagePreamble = "Gestern Abend habe ich nach dem Update bemerkt, dass die Webseite sehr langsam lädt, außerdem kamen mehrere Fehlermeldungen im Browser, der Speicherplatz wird knapp, die Lüfter laufen ständig laut, mein Kollege meinte, es könnte an der Konfiguration liegen, wir haben schon vieles probiert, leider ohne Erfolg, das Monitoring zeigt rote Werte, der Router blinkt komisch, das Backup lief nicht durch. "
+
+// TestToolSearchLongMessageKeepsTheAskAtTheEnd guards the selection of the query
+// tokens: the request at the end of a long message must be scored, not cut
+// off behind the first words.
+func TestToolSearchLongMessageKeepsTheAskAtTheEnd(t *testing.T) {
+	query := longMessagePreamble + "Bitte starte den Docker Container nginx neu."
+	var stems []string
+	for _, token := range parseToolSearchQuery(query, "").tokens {
+		stems = append(stems, token.stem)
+	}
+	if len(stems) > toolSearchMaxTokens {
+		t.Fatalf("%d tokens, want at most %d", len(stems), toolSearchMaxTokens)
+	}
+	for _, want := range []string{"docker", "container"} {
+		if !slices.Contains(stems, want) {
+			t.Errorf("tokens %v lost %q from the end of the message", stems, want)
+		}
+	}
+	catalog := BuildToolCatalog(BuildNativeToolSchemas("", nil, allBuiltinToolFeatureFlags(), nil), nil, "")
+	if names := searchNames(catalog, query); !slices.Contains(names[:min(10, len(names))], "docker") {
+		t.Errorf("docker is not among the first ten of %d hits: %v", len(names), names[:min(10, len(names))])
+	}
+}
+
+// TestToolSearchBoundsALongMessage guards the cost of a search with the whole
+// user message as the query: it is ranked from its head and tail only.
+func TestToolSearchBoundsALongMessage(t *testing.T) {
+	catalog := BuildToolCatalog(BuildNativeToolSchemas("", nil, allBuiltinToolFeatureFlags(), nil), nil, "")
+	catalog.Search("warm up") // build the index and the statistics first
+	query := "docker " + strings.Repeat("send file email server müde ", 40000) + " restart"
+	start := time.Now()
+	names := searchNames(catalog, query)
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Errorf("searching %d bytes took %s", len(query), elapsed)
+	}
+	if !slices.Contains(names, "docker") {
+		t.Errorf("the head of the message was not searched: %v", names)
+	}
+	schemas := BuildNativeToolSchemas("", nil, allBuiltinToolFeatureFlags(), nil)
+	start = time.Now()
+	priority := buildAdaptiveToolPriority(schemas, nil, query, nil, nil)
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Errorf("the adaptive selection for %d bytes took %s", len(query), elapsed)
+	}
+	if !slices.Contains(priority, "docker") {
+		t.Errorf("the adaptive selection lost the head of the message: %v", priority)
+	}
+	bounded := boundToolSearchQuery(query)
+	if len(bounded) > toolSearchQueryLimit || !utf8.ValidString(bounded) || !strings.HasPrefix(bounded, "docker send") || !strings.HasSuffix(bounded, "müde  restart") {
+		t.Errorf("bounded query = %d bytes, valid=%v, %.20q...%.20q", len(bounded), utf8.ValidString(bounded), bounded, bounded[len(bounded)-20:])
 	}
 }

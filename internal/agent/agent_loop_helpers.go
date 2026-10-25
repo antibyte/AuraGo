@@ -1068,6 +1068,9 @@ func searchToolGuidesWithTimeout(gs toolGuideSearcher, query string, limit int, 
 }
 
 func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, userQuery string, guideSearcher toolGuideSearcher, logger *slog.Logger) []string {
+	// The whole user message arrives here, up to a megabyte; the ranking, the
+	// intent matchers and the semantic search all work on its head and tail.
+	userQuery = boundToolSearchQuery(userQuery)
 	available := make([]string, 0, len(schemas))
 	availableSet := make(map[string]bool, len(schemas))
 	for _, schema := range schemas {
