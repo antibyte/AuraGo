@@ -303,6 +303,9 @@ func (s *Service) Run(ctx context.Context, runID string, includeDoc bool) (*RunD
 	if steps == nil {
 		steps = []StepRecord{}
 	}
+	for i := range steps { // runs stored before S6
+		steps[i].Params = redactCredentialHeaders(steps[i].Params, false)
+	}
 	detail := &RunDetail{Run: rec, Steps: steps}
 	if includeDoc {
 		if doc, err := s.store.GetRunDoc(ctx, runID); err == nil {

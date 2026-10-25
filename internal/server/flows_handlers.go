@@ -665,7 +665,12 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 			return
 		}
 		w.Header().Set("Content-Disposition", `attachment; filename="`+flowExportName(rec.Name)+`"`)
-		flowsJSON(w, http.StatusOK, rec.Draft)
+		doc, err := flows.RedactCredentials(rec.Draft)
+		if err != nil {
+			s.flowsErrorFrom(w, r, err)
+			return
+		}
+		flowsJSON(w, http.StatusOK, doc)
 	case "versions":
 		switch r.Method {
 		case http.MethodGet:

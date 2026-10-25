@@ -445,6 +445,11 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 		issues := append(webURLIssue(n), choiceIssue(n, "method", "GET", httpMethods)...)
 		if _, err := parseHeaders(n.Params["headers"], true); err != nil {
 			issues = append(issues, paramIssue(n, IssueParamInvalid, SeverityError, "headers", asNodeError(err).Message))
+		} else {
+			for _, name := range literalCredentialHeaders(n.Params["headers"]) {
+				issues = append(issues, paramIssue(n, IssueLiteralCredential, SeverityWarning, "headers",
+					"the header "+quoteForError(name)+" holds a credential typed in clear text, kept in the flow and its versions; store it as a secret and use auth_secret"))
+			}
 		}
 		// auth_header and auth_prefix only matter, and are only checked by Execute, when a
 		// secret is set; then they must be written out.
