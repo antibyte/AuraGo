@@ -222,6 +222,11 @@ type agentLoopState struct {
 	// toolBatchCalls counts the tool calls of the model response being
 	// executed; their results share the next request (inlineBudgetBasis).
 	toolBatchCalls int
+
+	// adaptivePlan holds the classes of the first adaptive selection (soft,
+	// generator, history, requested tools and the ranking); the refresh before
+	// every model call keeps them. Nil when the run had no such selection.
+	adaptivePlan *adaptiveSelectionPlan
 }
 
 // inlineBudgetBasis is what the automatic inline budget of the current tool
@@ -727,24 +732,29 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if !cfg.Agent.AdaptiveTools.Enabled {
 				maxAdaptive = 0
 			}
-			// Tools kept from the session are never swapped out; a kept or
-			// requested non-displacing tool is ranked like any other kept or
-			// requested tool (toolSchemaFilterOptions.SwapProtectedTools).
-			kept := refreshSwapProtectedTools(s.adaptiveInitFiltered, s.sessionUsedTools,
-				recentNativeToolNamesFromMessages(req.Messages, cfg.Agent.AdaptiveTools.SessionToolRetentionTurns))
-			filtered := filterToolSchemasWithReport(req.Tools, toolSchemaFilterOptions{
-				PreferredTools:        append(requested, toolSchemaNames(req.Tools)...),
-				HardAlwaysTools:       channelAdaptiveAlwaysInclude(runCfg, adaptiveHardAlwaysInclude(cfg), ff),
-				SoftAlwaysTools:       cfg.Agent.AdaptiveTools.AlwaysInclude,
-				MaxAdaptiveTools:      maxAdaptive,
-				MaxTotalTools:         toolingPolicy.EffectiveMaxTotalTools,
-				MaxSchemaTokens:       toolingPolicy.EffectiveMaxSchemaTokens,
-				AdditiveTools:         s.adaptiveAdditiveTools,
-				AdaptiveExcludedTools: adaptiveRefreshExcludedTools(s.adaptiveInitFiltered, s.discoverRequestedTools),
-				AdditiveSwaps:         s.adaptiveSwaps,
-				PinnedTools:           pinnedToolNames(s.discoverRequestedTools),
-				SwapProtectedTools:    kept,
-			}, s.currentLogger)
+			// The refresh keeps the classes of the first selection (adaptive
+			// plan): the soft, generator and history tools, the tools used since
+			// and the requested ones stay, and the ranking is the first one.
+			// Tools kept from the session are never swapped out; without a plan a
+			// kept or requested non-displacing tool is ranked like any other kept
+			// or requested tool (toolSchemaFilterOptions.SwapProtectedTools).
+			filtered := filterToolSchemasWithReport(req.Tools, adaptiveRefreshFilterOptions(adaptiveRefreshInput{
+				Config:          cfg,
+				RunConfig:       runCfg,
+				Features:        ff,
+				Plan:            s.adaptivePlan,
+				Tools:           req.Tools,
+				Requested:       requested,
+				Pinned:          s.discoverRequestedTools,
+				SessionUsed:     s.sessionUsedTools,
+				Recent:          recentNativeToolNamesFromMessages(req.Messages, cfg.Agent.AdaptiveTools.SessionToolRetentionTurns),
+				InitFiltered:    s.adaptiveInitFiltered,
+				MaxAdaptive:     maxAdaptive,
+				MaxTotal:        toolingPolicy.EffectiveMaxTotalTools,
+				MaxSchemaTokens: toolingPolicy.EffectiveMaxSchemaTokens,
+				AdditiveTools:   s.adaptiveAdditiveTools,
+				AdditiveSwaps:   s.adaptiveSwaps,
+			}), s.currentLogger)
 			req.Tools = filtered.Tools
 			s.adaptiveSwapped = recordAdaptiveSwaps(s.adaptiveSwapped, filtered.Report)
 		}

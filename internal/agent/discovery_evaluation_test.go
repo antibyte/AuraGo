@@ -86,10 +86,10 @@ func TestDiscoveryTaskEvaluationV1(t *testing.T) {
 //
 // Recall@k is the share of tasks whose expected tool is among the first k
 // results of catalog.Search. The first-turn approximation runs the adaptive
-// selection of agent_loop_init.go (buildAdaptiveToolPriority, the hard/soft
-// always-include lists, the caps, the additive tools) on the all-features
-// schema set without usage history, memory or a semantic guide index, and
-// counts a hit when an expected tool is among the selected schemas.
+// first selection (planAdaptiveFirstSelection, shared with agent_loop_init.go:
+// the ranking, the hard/soft lists, the caps, the additive tools) on the
+// all-features schema set without usage history, memory or a semantic guide
+// index, and counts a hit when an expected tool is among the selected schemas.
 func TestDiscoveryTaskEvaluationV2(t *testing.T) {
 	type task struct {
 		ID       string   `json:"id"`
@@ -115,26 +115,17 @@ func TestDiscoveryTaskEvaluationV2(t *testing.T) {
 		schemaNames[schema.Function.Name] = true
 	}
 	cfg := &config.Config{}
+	cfg.Agent.AdaptiveTools.AlwaysInclude = []string{"filesystem", "query_memory", "manage_memory", "execute_shell"}
 
-	// firstTurn mirrors the adaptive first selection in agent_loop_init.go.
+	// firstTurn is the adaptive first selection of agent_loop_init.go: the
+	// shared planner with the default tool budget, no usage history, no memory
+	// and no semantic guide index.
 	firstTurn := func(query string) []string {
-		alwaysInclude := []string{"filesystem", "query_memory", "manage_memory", "execute_shell"}
-		alwaysInclude = append(alwaysInclude, adaptiveGeneratorToolsForQuery(query, ff)...)
-		alwaysInclude = channelAdaptiveAlwaysInclude(RunConfig{}, alwaysInclude, ff)
-		alwaysInclude = outputRefAdaptiveAlwaysInclude(nil, alwaysInclude)
-		alwaysInclude = expandAdaptiveAlwaysInclude(cfg, alwaysInclude)
-		result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
-			PreferredTools:        buildAdaptiveToolPriority(schemas, nil, query, nil, nil),
-			HardAlwaysTools:       channelAdaptiveAlwaysInclude(RunConfig{}, adaptiveHardAlwaysInclude(cfg), ff),
-			SoftAlwaysTools:       alwaysInclude,
-			MaxAdaptiveTools:      10,
-			MaxTotalTools:         20,
-			MaxSchemaTokens:       6500,
-			AdditiveTools:         adaptiveAdditiveToolsForQuery(query),
-			AdaptiveExcludedTools: adaptiveIntentOnlyTools,
-			AdditiveSwaps:         adaptiveSwapsForQuery(query),
-		}, nil)
-		return toolSchemaNames(result.Tools)
+		plan := planAdaptiveFirstSelection(adaptiveSelectionInput{
+			Config: cfg, Features: ff, Schemas: schemas, Query: query,
+			MaxAdaptive: 10, MaxTotal: 20, MaxSchemaTokens: 6500,
+		})
+		return toolSchemaNames(filterToolSchemasWithReport(schemas, plan.Options, nil).Tools)
 	}
 	anyOf := func(names, want []string) bool {
 		return slices.ContainsFunc(names, func(name string) bool { return slices.Contains(want, name) })

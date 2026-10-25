@@ -348,7 +348,8 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	var adaptiveAdditiveTools []string
 	var adaptiveSwapped map[string]string
 	var adaptiveSwaps map[string]string
-	var adaptiveRequested map[string]bool // discover_tools requests the first selection consumed
+	var adaptiveRequested map[string]bool   // discover_tools requests the first selection consumed
+	var adaptivePlan *adaptiveSelectionPlan // the first selection's classes, kept by the refresh
 	adaptiveInitFiltered := false
 	ff := buildToolFeatureFlags(runCfg, toolingPolicy)
 	if voiceOutputSuppressed || speechLabOwnsAutomaticWebChatOutput(cfg, runCfg) {
@@ -430,52 +431,43 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			if gs, ok := longTermMem.(toolGuideSearcher); ok {
 				guideSearcher = gs
 			}
-			prioritized := buildAdaptiveToolPriority(ntSchemas, frequent, adaptiveUserContext, guideSearcher, logger)
-			maxTools := toolingPolicy.EffectiveMaxAdaptiveTools
-
-			alwaysInclude := make([]string, len(cfg.Agent.AdaptiveTools.AlwaysInclude))
-			copy(alwaysInclude, cfg.Agent.AdaptiveTools.AlwaysInclude)
-			if !voiceOutputSuppressed && (runCfg.VoiceOutputActive || GetVoiceMode()) && ff.TTSEnabled && !isAutonomousAgentRun(runCfg, sessionID) && !runCfg.IsMission {
-				alwaysInclude = append(alwaysInclude, "tts", "send_audio")
-			}
-			// A media generator is soft only for a request that asks for that
-			// media; otherwise it competes for a slot like any other tool.
-			alwaysInclude = append(alwaysInclude, adaptiveGeneratorToolsForQuery(adaptiveUserContext, ff)...)
-			alwaysInclude = channelAdaptiveAlwaysInclude(runCfg, alwaysInclude, ff)
-			alwaysInclude = outputRefAdaptiveAlwaysInclude(req.Messages, alwaysInclude)
 			// sessionUsedTools is always empty during this first selection: the run
 			// has not executed a tool yet, and the refresh is what reads it later.
 			// Tools from earlier turns come back through the conversation history
 			// below, which also names the target of an invoke_tool call.
+			history := make([]string, 0, len(sessionUsedTools))
 			for tool := range sessionUsedTools {
-				alwaysInclude = append(alwaysInclude, tool)
+				history = append(history, tool)
 			}
-			for _, tool := range recentNativeToolNamesFromMessages(req.Messages, cfg.Agent.AdaptiveTools.SessionToolRetentionTurns) {
-				alwaysInclude = append(alwaysInclude, tool)
-			}
-			consumedFrom := len(alwaysInclude)
-			// Re-include hidden tools the agent explicitly inspected via discover_tools
-			// so the next turn can use native function-calling instead of improvising.
-			alwaysInclude = append(alwaysInclude, ConsumeDiscoverRequestedTools(discoveryRunKey(runCfg))...)
+			sort.Strings(history)
+			history = append(history, recentNativeToolNamesFromMessages(req.Messages, cfg.Agent.AdaptiveTools.SessionToolRetentionTurns)...)
+			plan := planAdaptiveFirstSelection(adaptiveSelectionInput{
+				Config:    cfg,
+				RunConfig: runCfg,
+				Features:  ff,
+				Schemas:   ntSchemas,
+				Query:     adaptiveUserContext,
+				Messages:  req.Messages,
+				Usage:     frequent,
+				Guides:    guideSearcher,
+				Logger:    logger,
+				VoiceOutput: !voiceOutputSuppressed && (runCfg.VoiceOutputActive || GetVoiceMode()) && ff.TTSEnabled &&
+					!isAutonomousAgentRun(runCfg, sessionID) && !runCfg.IsMission,
+				History: history,
+				// Re-include hidden tools the agent explicitly inspected via discover_tools
+				// so the next turn can use native function-calling instead of improvising.
+				Requested:       ConsumeDiscoverRequestedTools(discoveryRunKey(runCfg)),
+				MaxAdaptive:     toolingPolicy.EffectiveMaxAdaptiveTools,
+				MaxTotal:        toolingPolicy.EffectiveMaxTotalTools,
+				MaxSchemaTokens: toolingPolicy.EffectiveMaxSchemaTokens,
+			})
 			// The refresh treats the requests consumed here like its own
-			// (toolSchemaFilterOptions.PinnedTools).
-			adaptiveRequested = recordRequestedTools(adaptiveRequested, alwaysInclude[consumedFrom:])
-			alwaysInclude = expandAdaptiveAlwaysInclude(cfg, alwaysInclude)
+			// (toolSchemaFilterOptions.PinnedTools) and keeps the plan's classes.
+			adaptiveRequested = recordRequestedTools(adaptiveRequested, plan.Requested)
 			adaptiveInitFiltered = true
+			adaptivePlan = &plan
 
-			filterResult := filterToolSchemasWithReport(ntSchemas, toolSchemaFilterOptions{
-				PreferredTools:   prioritized,
-				HardAlwaysTools:  channelAdaptiveAlwaysInclude(runCfg, adaptiveHardAlwaysInclude(cfg), ff),
-				SoftAlwaysTools:  alwaysInclude,
-				MaxAdaptiveTools: maxTools,
-				MaxTotalTools:    toolingPolicy.EffectiveMaxTotalTools,
-				MaxSchemaTokens:  toolingPolicy.EffectiveMaxSchemaTokens,
-				AdditiveTools:    adaptiveAdditiveTools,
-				// Only the first selection ranks the whole catalog; the
-				// per-iteration refresh keeps what was selected here.
-				AdaptiveExcludedTools: adaptiveIntentOnlyTools,
-				AdditiveSwaps:         adaptiveSwaps,
-			}, logger)
+			filterResult := filterToolSchemasWithReport(ntSchemas, plan.Options, logger)
 			ntSchemas = filterResult.Tools
 			filterReport = filterResult.Report
 			adaptiveSwapped = recordAdaptiveSwaps(adaptiveSwapped, filterReport)
@@ -614,6 +606,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	s.adaptiveFilteredTools = adaptiveFilteredTools
 	s.adaptiveAdditiveTools = adaptiveAdditiveTools
 	s.adaptiveInitFiltered = adaptiveInitFiltered
+	s.adaptivePlan = adaptivePlan
 	s.adaptiveSwapped = adaptiveSwapped
 	s.adaptiveSwaps = adaptiveSwaps
 	s.discoverRequestedTools = adaptiveRequested
