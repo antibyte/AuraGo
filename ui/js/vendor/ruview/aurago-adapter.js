@@ -178,12 +178,12 @@
         document.querySelectorAll('input[type=password]').forEach(input=>{input.disabled=true;input.value='';input.placeholder='Managed by AuraGo';});
     }
     async function policy(){
-        if(policyBusy||lifetime.signal.aborted)return;policyBusy=true;
-        try{const load=opaque?window.fetch:nativeFetch;const response=await load(base+'status',{credentials:'same-origin',signal:lifetime.signal});if(!response.ok)throw Error();const state=await response.json();readonly=state.readonly!==false;enabled=state.enabled===true;simulation=state.source==='simulated'&&!state.error;
-            if(capabilities===null){const response=await load(base+'capabilities',{credentials:'same-origin',signal:lifetime.signal});if(!response.ok)throw Error();const data=await response.json();if(!Array.isArray(data.unavailable))throw Error();capabilities=new Set(data.unavailable);}
+        if(policyBusy||lifetime.signal.aborted)return;policyBusy=true;const call=new AbortController();const timer=setTimeout(()=>call.abort(),10000);const onEnd=()=>call.abort();lifetime.signal.addEventListener('abort',onEnd,{once:true});
+        try{const load=opaque?window.fetch:nativeFetch;const response=await load(base+'status',{credentials:'same-origin',signal:call.signal});if(!response.ok)throw Error();const state=await response.json();readonly=state.readonly!==false;enabled=state.enabled===true;simulation=state.source==='simulated'&&!state.error;
+            if(capabilities===null){const response=await load(base+'capabilities',{credentials:'same-origin',signal:call.signal});if(!response.ok)throw Error();const data=await response.json();if(!Array.isArray(data.unavailable))throw Error();capabilities=new Set(data.unavailable);}
         }
-        catch{readonly=true;enabled=false;}
-        finally{policyBusy=false;}
+        catch{readonly=true;enabled=false;simulation=false;}
+        finally{clearTimeout(timer);lifetime.signal.removeEventListener('abort',onEnd);policyBusy=false;}
         if(!enabled)for(const socket of sockets)socket.close();
         policyControls();
     }
