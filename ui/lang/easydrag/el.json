@@ -627,7 +627,7 @@
   "easydrag.ui.issue_template_syntax": "Μια αναφορά δεδομένων είναι γραμμένη λάθος.",
   "easydrag.ui.issue_template_unknown_field": "Ένα πεδίο αναφέρεται σε πεδίο εξόδου που δεν υπάρχει.",
   "easydrag.ui.issue_template_unknown_root": "Ένα πεδίο αναφέρεται σε άγνωστο βήμα.",
-  "easydrag.ui.issue_untrusted_data_to_sink": "Δεδομένα από έξω περνούν χωρίς έλεγχο σε ένα ευαίσθητο βήμα.",
+  "easydrag.ui.issue_untrusted_data_to_sink": "Δεδομένα από έξω ρέουν χωρίς έλεγχο σε ένα ευαίσθητο βήμα. Το flow μπορεί παρ' όλα αυτά να δημοσιευτεί και να εκτελεστεί, επειδή το AuraGo δεν μπορεί να καταλάβει αν το βήμα ελέγχει τα δεδομένα· βεβαιώσου ότι δεν μπορούν να γίνουν κακή χρήση.",
   "easydrag.ui.issue_untrusted_secret_target": "Δεδομένα από έξω καθορίζουν πού στέλνεται ένα μυστικό. Χρησιμοποίησε σταθερή διεύθυνση.",
   "easydrag.ui.issues_count": "Σφάλματα: {errors} · Υποδείξεις: {warnings}",
   "easydrag.ui.issues_none": "Όλα φαίνονται εντάξει.",

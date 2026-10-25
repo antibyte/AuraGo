@@ -627,7 +627,7 @@
   "easydrag.ui.issue_template_syntax": "Odwołanie do danych jest błędnie zapisane.",
   "easydrag.ui.issue_template_unknown_field": "Pole odwołuje się do nieistniejącego pola wyjściowego.",
   "easydrag.ui.issue_template_unknown_root": "Pole odwołuje się do nieznanego kroku.",
-  "easydrag.ui.issue_untrusted_data_to_sink": "Dane z zewnątrz trafiają bez sprawdzenia do wrażliwego kroku.",
+  "easydrag.ui.issue_untrusted_data_to_sink": "Dane z zewnątrz trafiają bez sprawdzenia do wrażliwego kroku. Flow można mimo to opublikować i uruchomić, ponieważ AuraGo nie potrafi stwierdzić, czy krok sprawdza dane; upewnij się, że nie da się go nadużyć.",
   "easydrag.ui.issue_untrusted_secret_target": "Dane z zewnątrz decydują, dokąd zostanie wysłany sekret. Użyj stałego adresu.",
   "easydrag.ui.issues_count": "Błędy: {errors} · Wskazówki: {warnings}",
   "easydrag.ui.issues_none": "Wszystko wygląda dobrze.",

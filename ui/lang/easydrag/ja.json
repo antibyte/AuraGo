@@ -627,7 +627,7 @@
   "easydrag.ui.issue_template_syntax": "データ参照の書き方が正しくありません。",
   "easydrag.ui.issue_template_unknown_field": "フィールドが、存在しない出力フィールドを参照しています。",
   "easydrag.ui.issue_template_unknown_root": "フィールドが不明なステップを参照しています。",
-  "easydrag.ui.issue_untrusted_data_to_sink": "外部からのデータが、確認なしで重要なステップに渡されています。",
+  "easydrag.ui.issue_untrusted_data_to_sink": "外部からのデータが確認されないまま機密性の高いステップに流れ込みます。AuraGo はそのステップがデータを検証しているかどうか判断できないため、フローは公開も実行もできます。悪用されないよう確認してください。",
   "easydrag.ui.issue_untrusted_secret_target": "外部からのデータがシークレットの送信先を決めています。固定のアドレスを使用してください。",
   "easydrag.ui.issues_count": "エラー: {errors} · ヒント: {warnings}",
   "easydrag.ui.issues_none": "問題はありません。",

@@ -627,7 +627,7 @@
   "easydrag.ui.issue_template_syntax": "En datareferens är felskriven.",
   "easydrag.ui.issue_template_unknown_field": "Ett fält hänvisar till ett utdatafält som inte finns.",
   "easydrag.ui.issue_template_unknown_root": "Ett fält hänvisar till ett okänt steg.",
-  "easydrag.ui.issue_untrusted_data_to_sink": "Data utifrån går ogranskade in i ett känsligt steg.",
+  "easydrag.ui.issue_untrusted_data_to_sink": "Data utifrån flödar okontrollerat in i ett känsligt steg. Flödet kan ändå publiceras och köras, eftersom AuraGo inte kan avgöra om steget kontrollerar datan; se till att det inte kan missbrukas.",
   "easydrag.ui.issue_untrusted_secret_target": "Data utifrån avgör vart en hemlighet skickas. Använd en fast adress.",
   "easydrag.ui.issues_count": "Fel: {errors} · Tips: {warnings}",
   "easydrag.ui.issues_none": "Allt ser bra ut.",

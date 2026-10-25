@@ -627,7 +627,7 @@
   "easydrag.ui.issue_template_syntax": "Odkaz na data je zapsaný chybně.",
   "easydrag.ui.issue_template_unknown_field": "Pole odkazuje na výstupní pole, které neexistuje.",
   "easydrag.ui.issue_template_unknown_root": "Pole odkazuje na neznámý krok.",
-  "easydrag.ui.issue_untrusted_data_to_sink": "Data zvenčí proudí bez kontroly do citlivého kroku.",
+  "easydrag.ui.issue_untrusted_data_to_sink": "Data zvenčí proudí bez kontroly do citlivého kroku. Flow lze přesto publikovat a spustit, protože AuraGo nepozná, zda krok data kontroluje; ujisti se, že je nelze zneužít.",
   "easydrag.ui.issue_untrusted_secret_target": "Data zvenčí rozhodují, kam se odešle tajemství. Použij pevnou adresu.",
   "easydrag.ui.issues_count": "Chyby: {errors} · Upozornění: {warnings}",
   "easydrag.ui.issues_none": "Všechno vypadá dobře.",

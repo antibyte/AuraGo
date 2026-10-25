@@ -627,7 +627,7 @@
   "easydrag.ui.issue_template_syntax": "Une référence de données est mal écrite.",
   "easydrag.ui.issue_template_unknown_field": "Un champ fait référence à un champ de sortie inexistant.",
   "easydrag.ui.issue_template_unknown_root": "Un champ fait référence à une étape inconnue.",
-  "easydrag.ui.issue_untrusted_data_to_sink": "Des données externes arrivent sans vérification dans une étape sensible.",
+  "easydrag.ui.issue_untrusted_data_to_sink": "Des données externes arrivent sans vérification dans une étape sensible. Le flow peut tout de même être publié et exécuté, car AuraGo ne peut pas savoir si l'étape contrôle les données ; assure-toi qu'elle ne peut pas être détournée.",
   "easydrag.ui.issue_untrusted_secret_target": "Des données externes décident où un secret est envoyé. Utilisez une adresse fixe.",
   "easydrag.ui.issues_count": "Erreurs : {errors} · Conseils : {warnings}",
   "easydrag.ui.issues_none": "Tout semble correct.",

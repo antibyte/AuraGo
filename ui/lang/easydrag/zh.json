@@ -627,7 +627,7 @@
   "easydrag.ui.issue_template_syntax": "某个数据引用写法有误。",
   "easydrag.ui.issue_template_unknown_field": "某个字段引用了不存在的输出字段。",
   "easydrag.ui.issue_template_unknown_root": "某个字段引用了未知的步骤。",
-  "easydrag.ui.issue_untrusted_data_to_sink": "外部数据未经检查就流入了敏感步骤。",
+  "easydrag.ui.issue_untrusted_data_to_sink": "来自外部的数据未经检查就流入敏感步骤。由于 AuraGo 无法判断该步骤是否会检查数据,此 Flow 仍然可以发布和运行;请确保它不会被滥用。",
   "easydrag.ui.issue_untrusted_secret_target": "外部数据决定了密钥发送到哪里。请使用固定地址。",
   "easydrag.ui.issues_count": "错误：{errors} · 提示：{warnings}",
   "easydrag.ui.issues_none": "一切正常。",

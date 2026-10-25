@@ -627,7 +627,7 @@
   "easydrag.ui.issue_template_syntax": "Een gegevensverwijzing is verkeerd geschreven.",
   "easydrag.ui.issue_template_unknown_field": "Een veld verwijst naar een uitvoerveld dat niet bestaat.",
   "easydrag.ui.issue_template_unknown_root": "Een veld verwijst naar een onbekende stap.",
-  "easydrag.ui.issue_untrusted_data_to_sink": "Gegevens van buiten komen ongecontroleerd in een gevoelige stap terecht.",
+  "easydrag.ui.issue_untrusted_data_to_sink": "Gegevens van buiten stromen ongecontroleerd een gevoelige stap in. De flow kan toch worden gepubliceerd en uitgevoerd, omdat AuraGo niet kan zien of de stap de gegevens controleert; zorg dat er geen misbruik van gemaakt kan worden.",
   "easydrag.ui.issue_untrusted_secret_target": "Gegevens van buiten bepalen waarheen een geheim wordt gestuurd. Gebruik een vast adres.",
   "easydrag.ui.issues_count": "Fouten: {errors} · Tips: {warnings}",
   "easydrag.ui.issues_none": "Alles ziet er goed uit.",

@@ -627,7 +627,7 @@
   "easydrag.ui.issue_template_syntax": "En datareferanse er skrevet feil.",
   "easydrag.ui.issue_template_unknown_field": "Et felt viser til et utdatafelt som ikke finnes.",
   "easydrag.ui.issue_template_unknown_root": "Et felt viser til et ukjent trinn.",
-  "easydrag.ui.issue_untrusted_data_to_sink": "Data utenfra går ukontrollert inn i et sensitivt trinn.",
+  "easydrag.ui.issue_untrusted_data_to_sink": "Data utenfra flyter uten kontroll inn i et sensitivt trinn. Flyten kan likevel publiseres og kjøres, fordi AuraGo ikke kan se om trinnet kontrollerer dataene; sørg for at det ikke kan misbrukes.",
   "easydrag.ui.issue_untrusted_secret_target": "Data utenfra bestemmer hvor en hemmelighet sendes. Bruk en fast adresse.",
   "easydrag.ui.issues_count": "Feil: {errors} · Tips: {warnings}",
   "easydrag.ui.issues_none": "Alt ser bra ut.",

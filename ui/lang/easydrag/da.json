@@ -627,7 +627,7 @@
   "easydrag.ui.issue_template_syntax": "En datareference er skrevet forkert.",
   "easydrag.ui.issue_template_unknown_field": "Et felt henviser til et outputfelt, der ikke findes.",
   "easydrag.ui.issue_template_unknown_root": "Et felt henviser til et ukendt trin.",
-  "easydrag.ui.issue_untrusted_data_to_sink": "Data udefra flyder ukontrolleret ind i et følsomt trin.",
+  "easydrag.ui.issue_untrusted_data_to_sink": "Data udefra flyder uden kontrol ind i et følsomt trin. Flowet kan stadig udgives og køres, fordi AuraGo ikke kan se, om trinnet kontrollerer dataene; sørg for, at det ikke kan misbruges.",
   "easydrag.ui.issue_untrusted_secret_target": "Data udefra bestemmer, hvortil en hemmelighed sendes. Brug en fast adresse.",
   "easydrag.ui.issues_count": "Fejl: {errors} · Tips: {warnings}",
   "easydrag.ui.issues_none": "Alt ser godt ud.",

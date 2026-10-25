@@ -627,7 +627,7 @@
   "easydrag.ui.issue_template_syntax": "एक डेटा संदर्भ गलत लिखा है।",
   "easydrag.ui.issue_template_unknown_field": "एक फ़ील्ड ऐसे आउटपुट फ़ील्ड का संदर्भ देता है जो मौजूद नहीं है।",
   "easydrag.ui.issue_template_unknown_root": "एक फ़ील्ड किसी अज्ञात चरण का संदर्भ देता है।",
-  "easydrag.ui.issue_untrusted_data_to_sink": "बाहर का डेटा बिना जाँच के किसी संवेदनशील चरण में जाता है।",
+  "easydrag.ui.issue_untrusted_data_to_sink": "बाहर का डेटा बिना जाँच के एक संवेदनशील चरण में जा रहा है। फिर भी फ़्लो प्रकाशित और चलाया जा सकता है, क्योंकि AuraGo यह नहीं जान सकता कि चरण डेटा की जाँच करता है या नहीं; सुनिश्चित करें कि इसका दुरुपयोग न हो सके।",
   "easydrag.ui.issue_untrusted_secret_target": "बाहर का डेटा तय करता है कि सीक्रेट कहाँ भेजा जाए। निश्चित पता इस्तेमाल करें।",
   "easydrag.ui.issues_count": "त्रुटियाँ: {errors} · सुझाव: {warnings}",
   "easydrag.ui.issues_none": "सब कुछ ठीक दिखता है।",
