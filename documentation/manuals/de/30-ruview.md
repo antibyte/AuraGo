@@ -44,7 +44,7 @@ AuraGo eine aktivierte und schreibbare verwaltete Laufzeit im Hintergrund. Läuf
 
 **Nur lesen** ist standardmäßig an. Solange es an ist, kann nichts starten oder sich ändern. Schalte es aus und speichere.
 Das Formular zeigt dann: „Der Schreibschutz sperrt Starten, Ändern und Löschen. Administratoren dürfen Dienst, Aufnahme
-und Training stoppen.“ **Verbindung testen** funktioniert auch im Lesemodus.
+und Training stoppen.“ **Verbindung testen** funktioniert auch im Lesemodus. Erfolg meldet der Test nur bei frischen Sensordaten. Ein verbundener Dienst, der noch keinen ersten Frame gesendet hat, zeigt **Warte auf erste Daten** als Warnung.
 
 Unter **Verbindung** findest du einen eingeklappten Bereich mit **HTTP-Port** (`ruview.http_port`, Standard 3022, nur auf
 dem Loopback) und **Speicherbudget (MiB)** (`ruview.storage_mb`, Standard 1024).
@@ -55,7 +55,7 @@ dem Loopback) und **Speicherbudget (MiB)** (`ruview.storage_mb`, Standard 1024).
    auf **Speichern**.
 2. Für eine verwaltete Laufzeit schalte **Nur lesen** aus und speichere erneut.
 3. Klicke auf **RuView öffnen**. Die App öffnet sich in einem neuen Tab. Im Startmenü steht sie außerdem unter
-   **Kommunikation**. Das Öffnen der App startet oder prüft den Dienst nicht.
+   **Kommunikation**. Das Öffnen der App startet den Dienst nicht. Solange die **Übersicht** oder der Tab **Geräte** offen ist, fragt AuraGo bei der Quelle ESP32-CSI alle drei Sekunden die Board-Liste beim Dienst ab. Ein verwalteter Dienst, der nicht läuft, wird dabei nicht angesprochen.
 4. Klicke in der **Übersicht** der App bei einer verwalteten Laufzeit auf **Starten**. Auf einem nativen Host klickst du
    vorher auf **Laufzeit installieren**. Die Karte **Dienst** zeigt **Bereit**, sobald die Laufzeit antwortet.
 
@@ -77,24 +77,26 @@ keinen automatischen Ersatz durch Demodaten.
 Die **Übersicht** zeigt die Karten **Dienst**, **Erfassung**, **Quelle**, **Artefakt** und **Speicher** sowie die letzte
 Aufnahme-Aktion, die in dieser Sitzung bestätigt wurde. Die Karte **Artefakt** zeigt **Geprüftes Artefakt** nur, wenn
 AuraGo die festgelegten Laufzeitdateien selbst gestartet hat. Darunter stehen fünf Prüfungen mit den Zuständen
-*erledigt*, *offen* oder *noch nicht geprüft*:
+*Erledigt*, *Offen*, *Noch nicht geprüft* oder, wenn die Quelle die Prüfung nicht braucht, *Für diese Quelle nicht nötig*:
 
 | Prüfung | Worauf sie achtet |
 |---|---|
 | **Dienst** | Die Laufzeit meldet sich bereit. |
-| **UDP-Empfang** | UDP ist verwaltet freigegeben, an eine private LAN-Adresse gebunden und hat mindestens eine erlaubte Quelle. Eine externe Instanz regelt UDP selbst. |
+| **UDP-Empfang** | Bei WLAN- und Demoquellen zeigt sie *Für diese Quelle nicht nötig*. Eine externe Instanz regelt UDP selbst. Bei einer verwalteten Laufzeit ist die Prüfung *Erledigt*, wenn UDP an eine private LAN-Adresse mit mindestens einer erlaubten Quelle gebunden ist. *Offen* steht sie, wenn UDP ausgeschaltet ist oder wenn der Dienst bereit ist, aber keine LAN-Bind-Adresse oder keine erlaubten Quellen hat. Ist UDP eingeschaltet, der Dienst aber nicht bereit, steht sie auf *Noch nicht geprüft*. |
 | **Empfängeradresse** | Eine private IPv4-Adresse des Empfängers ist gespeichert. Für WLAN und Demo nicht nötig. |
 | **Bekanntes Board** | AuraGo kennt mindestens ein Board. |
 | **Frisches CSI** | Ein Board hat in den letzten zehn Sekunden CSI-Daten gesendet. |
 
-Ein Punkt mit *erledigt* heißt nicht, dass eine Person erkannt wurde. **Frisches CSI** zeigt nur, dass ein Board kürzlich
+Ein Punkt mit *Erledigt* heißt nicht, dass eine Person erkannt wurde. **Frisches CSI** zeigt nur, dass ein Board kürzlich
 Daten gesendet hat.
+
+Bei WLAN- und Demoquellen zeigen **UDP-Empfang**, **Bekanntes Board** und **Frisches CSI** *Für diese Quelle nicht nötig*. Läuft eine verwaltete Laufzeit nicht, bleiben beide auf *Noch nicht geprüft*, weil AuraGo den Dienst für die Board-Liste nicht anfragt. Die Karte **Erfassung** zeigt **Warte auf erste Daten**, solange ein verbundener Dienst noch keinen ersten Frame gesendet hat. Ein Stopp, der nicht bestätigt werden konnte, oder ein beendeter Dienst bleibt angezeigt, bis du erneut **Starten** oder **Stoppen** klickst.
 
 Der Tab **Geräte** listet alle Boards, die AuraGo kennt. Er aktualisiert sich alle drei Sekunden, solange er sichtbar ist.
 **Letzte Messung** zeigt das Alter des letzten Werts. Werte, die älter als zehn Sekunden sind, gelten als veraltet. Still
 gewordene Boards bleiben in der Liste. **Dieses Board einrichten** öffnet den Board-Assistenten für genau diese
 Knoten-ID. Ist die Liste leer, werden bereits eingerichtete Boards beim nächsten Datenempfang wieder übernommen. Ein
-erneutes Flashen ist dafür nicht nötig.
+erneutes Flashen ist dafür nicht nötig. Gibt es keine Live-Daten, nennt der Tab den Grund. Bei WLAN- und Demoquellen steht dort „Die Board-Liste wird nur mit ESP32-Boards verwendet.“ Läuft eine verwaltete Laufzeit nicht, steht dort „Der RuView-Dienst läuft nicht. Gespeicherte Boards werden ohne Live-Daten angezeigt.“
 
 ## Ein ESP32-Board einrichten
 
@@ -112,7 +114,7 @@ Den Assistenten öffnest du über **Board einrichten** (in der Konfiguration ode
 **Schritt 1: Firmware schreiben.** Wähle das **Boardprofil**, das zu Chip, Flashgröße und USB-Anschluss passt. Nimm `cdc`
 für „USB JTAG/serial debug unit“ und `uart` für eine USB-UART-Brücke. Ein ESP32-S3-WROOM-1 N16R8 hat 16 MB Flash und 8 MB
 PSRAM, also wählst du ein 16-MB-Profil. Die Firmware nutzt den PSRAM nicht. Setze das Häkchen bei **Alle Einstellungen und
-Aufnahmen auf diesem Board löschen** nur, wenn der Dialog es verlangt (neues Board oder andere Partitionierung). Das Label
+Aufnahmen auf diesem Board löschen** nur, wenn der Dialog es verlangt. Das geschieht nur bei einer anderen Partitionierung. Ein neuer, leerer Chip wird ohne Löschen geschrieben. Das Label
 nennt Aufnahmen, doch Aufnahmen von AuraGo liegen auf dem Host, nicht auf dem Board. Klicke auf **Firmware schreiben**.
 Der Dialog zeigt jede Phase: Dateiprüfung, Verbindung, Löschen, Schreiben mit Prozentangabe, Prüfung und Neustart.
 Meldet er **Schritt 1 abgeschlossen**, klickst du auf **Weiter zu Schritt 2**.
@@ -157,6 +159,7 @@ Rahmen.
   „Pose-Fusion verwendet untrainierte Beispielmodelle. Darstellung und Konfidenzwerte sind keine validierten Messungen.“
 - **Gesperrte Funktionen.** Laden und Entladen von Modellen, SONA- und LoRA-Aktivierung, Posenstatistiken und Demo-Zonen gibt
   es in diesem Stand nicht, und AuraGo blockiert sie. Zeitgesteuerte Aufnahmen werden abgelehnt.
+- **Ehrliche Anzeige.** Der Tab Hardware der Upstream-Ansicht zeigt keine simulierte CSI-Messung mehr. Amplitude und Phase stehen auf „—“. Antennen- und WLAN-Werte sind als Beispielkonfiguration gekennzeichnet, die nicht aus deiner Hardware gelesen wird. Die Platzhalter für Signalstärke und Latenz im Tab Live Demo zeigen „—“. Die Schaltfläche **Demo** erscheint nur, solange die RuView-Quelle **Ausdrückliche Demo** ist. Sie verschwindet, wenn sich die Quelle ändert, der Stream stoppt oder du den Tab verlässt. Werbe- und Benchmark-Abschnitte tragen den Hinweis „Upstream RuView project claims — not measured or verified by AuraGo.“ Die Hinweise bleiben englisch, weil die Upstream-Ansichten ihre Sprache behalten.
 - **Tour.** Ob du die Dashboard-Tour übersprungen oder beendet hast, merkt sich dieser Browser. Um sie erneut zu sehen,
   öffne im Dashboard den Einstellungsknopf (**Settings**), wähle **Reset onboarding** und klicke auf **Reset**.
 
@@ -243,13 +246,15 @@ Externe Instanzen haben ihren eigenen Speicher, für sie gilt das Budget nicht.
 | „Nutze HTTPS oder localhost und einen Browser mit freigegebenem Web Serial. Schließe andere serielle Werkzeuge und nutze ein USB-Datenkabel. Halte bei Erkennungsproblemen BOOT beim erneuten Verbinden gedrückt.“ | Öffne AuraGo über HTTPS oder `localhost` in Chrome oder Edge und nutze ein Datenkabel. |
 | „Erkannt: {detected} MB Flash. Gewähltes Profil: {expected} MB. Wähle das passende Profil; es wurde nichts geschrieben.“ | Wähle das Profil zur erkannten Flashgröße. |
 | „USB-Anschluss und Boardprofil passen nicht zusammen. Wähle für „USB JTAG/serial debug unit“ ein Profil mit „cdc“; für eine USB-UART-Brücke ein Profil mit „uart“.“ | Wähle `cdc` für den nativen USB-Anschluss oder `uart` für eine Brücke. |
-| „Das Board hat eine andere Partitionierung. Wenn Du seine bisherigen Daten löschen möchtest, aktiviere die Lösch-Checkbox und starte „Firmware schreiben“ erneut.“ | Setze das Häkchen beim Löschen und klicke erneut auf **Firmware schreiben**. Dabei werden die eigenen Einstellungen des Boards gelöscht. |
+| „Dieses Board hat ein anderes Partitionslayout. Aktiviere „Alle Einstellungen und Aufnahmen auf diesem Board löschen“, um es zu ersetzen; dabei werden Einstellungen und Aufnahmen auf dem Board gelöscht.“ | Setze das Häkchen beim Löschen und klicke erneut auf **Firmware schreiben**. Dabei werden die eigenen Einstellungen des Boards gelöscht. |
 | „Prüfung fehlgeschlagen. Es gibt keine automatische Wiederholung. Prüfe Firmwaredateien, USB-Verbindung und Board vor einem weiteren Versuch.“ | Es wurde nichts wiederholt. Prüfe Kabel und Board und starte dann selbst neu. |
 | „Verbinde das Board nach dem Neustart erneut und bestätige“ | Verbinde das Board nach dem Neustart erneut und klicke auf **Nach Neustart bestätigen**. |
 | „Knoten-ID: 1–255; IPv4 des RuView-Empfängers: 10/8, 172.16/12, 192.168/16; UDP: 1–65535.“ | Korrigiere den Wert: Knoten-ID von 1 bis 255, private IPv4 für den Empfänger, UDP-Port im Bereich. |
 | „Alle IDs (1–255) sind als belegt gemeldet. Gib eine bestehende ID nur ein, um dieses Board erneut einzurichten.“ | Gib eine bestehende ID nur ein, um dieses Board erneut einzurichten. |
 | **Budget erreicht** (Karte **Speicher**) | Es starten keine neuen Aufnahmen. Entferne nicht mehr benötigte Aufnahmen oder erhöhe das **Speicherbudget (MiB)**. |
 | **Getrennt**, **Veraltet** oder **Nicht geprüft** (Ergebnis von **Verbindung testen**) | Der Dienst hat nicht geantwortet, der letzte Frame ist älter als zehn Sekunden oder es gibt noch keine Daten. Prüfe den Dienst oder klicke auf **Starten**. |
+| **Warte auf erste Daten** (Ergebnis von **Verbindung testen**) | Der Dienst ist verbunden, hat aber noch keinen Sensorframe gesendet. Das ist eine Warnung, kein Erfolg. Prüfe das WLAN des Boards, die **IPv4 des RuView-Empfängers** und **UDP freigeben** und teste dann erneut. |
+| **Status nicht abrufbar** (**Übersicht**) | Die erste Statusabfrage ist fehlgeschlagen. Die Übersicht wiederholt sie alle drei Sekunden, solange sie offen ist. Bleibt es so, prüfe, ob AuraGo läuft und erreichbar ist. |
 
 ---
 

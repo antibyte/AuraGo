@@ -43,7 +43,7 @@ AuraGo never starts an external instance.
 
 **Read only** is on by default, so nothing can start or change until you switch it off and save. While it is on, the
 form shows: "Read only blocks starts, changes and deletions. Administrators can stop the service, recording and
-training." **Test connection** works in read-only mode.
+training." **Test connection** works in read-only mode. It reports success only when fresh sensor data arrives. A connected service that has not sent its first frame shows *Waiting for first data* as a warning.
 
 Under **Connection**, a collapsed section holds **HTTP port** (`ruview.http_port`, default 3022, bound to loopback) and
 **Storage budget (MiB)** (`ruview.storage_mb`, default 1024).
@@ -53,7 +53,7 @@ Under **Connection**, a collapsed section holds **HTTP port** (`ruview.http_port
 1. Open **Config → RuView**, switch on **Enable integration**, pick a **Runtime** and a **Source**, and click **Save**.
 2. For a managed runtime, switch off **Read only** and save again.
 3. Click **Open RuView**. The app opens in a new tab. It is also listed in the start menu under **Communication**.
-   Opening the app does not start or probe the service.
+   Opening the app does not start the service. While the **Overview** or **Devices** tab is open, AuraGo asks the service for its board list every three seconds when the source is ESP32 CSI. A managed service that is not running is not contacted.
 4. In the app's **Overview**, click **Start** for a managed runtime. On a native host, click **Install runtime** first.
    The **Service** card shows **Ready** once the runtime answers.
 
@@ -74,23 +74,25 @@ automatically.
 
 The **Overview** shows the **Service**, **Sensing**, **Source**, **Artifact** and **Storage** cards, plus the last
 recording action that this AuraGo session confirmed. **Artifact** reads **Verified artifact** only when AuraGo started
-the pinned runtime files itself. Five checks sit below the cards. Each one shows *Done*, *Needs attention* or
-*Not checked yet*:
+the pinned runtime files itself. Five checks sit below the cards. Each one shows *Done*, *Needs attention*,
+*Not checked yet* or, where the source does not use the check, *Not needed for this source*:
 
 | Check | What it looks at |
 |---|---|
 | **Service** | The runtime reports ready. |
-| **UDP reception** | Managed UDP is published on a private LAN address with at least one allowed source. External instances handle UDP themselves. |
+| **UDP reception** | Not needed for Wi-Fi and demo sources. External instances handle UDP themselves. For a managed runtime, the check is *Done* when UDP is published on a private LAN address with at least one allowed source. It shows *Needs attention* when UDP is switched off, or when the service is ready but the bind address or allowed sources are missing. While UDP is on and the service is not ready, it shows *Not checked yet*. |
 | **Receiver address** | A private IPv4 receiver is saved. Not needed for Wi-Fi or demo sources. |
 | **Known board** | AuraGo knows at least one board. |
 | **Fresh CSI** | A board sent CSI data within the last ten seconds. |
 
 A check marked *Done* does not mean that a person was detected. **Fresh CSI** only shows that a board sent recent frames.
 
+For Wi-Fi and demo sources, **UDP reception**, **Known board** and **Fresh CSI** show *Not needed for this source*. A managed runtime that is not running leaves them at *Not checked yet*, because AuraGo does not contact it for the board list. The **Sensing** card shows **Waiting for first data** while a connected service has not sent its first frame. A stop that could not be confirmed, or a service that exited, stays shown until you click **Start** or **Stop** again.
+
 The **Devices** tab lists every board AuraGo knows. It refreshes every three seconds while it is visible. **Last
 measurement** shows the age of the last value. Values older than ten seconds are marked stale. Quiet boards stay in the
 list. **Set up this board** opens the board wizard for that node ID. An empty list means that boards appear again when
-they next send data, so flashing them again is not needed.
+they next send data, so flashing them again is not needed. If no live data are available, the tab says why. For Wi-Fi and demo sources it reads "The board list is only used with ESP32 boards." For a managed runtime that is not running it reads "The RuView service is not running. Saved boards are shown without live data."
 
 ## Setting Up an ESP32 Board
 
@@ -107,7 +109,7 @@ in the overview, or with **Set up this board** for one known board.
 **Step 1: Write firmware.** Choose the **Board profile** that matches the chip, the flash size and the USB connection.
 Use `cdc` for "USB JTAG/serial debug unit" and `uart` for a USB-UART bridge. An ESP32-S3-WROOM-1 N16R8 has 16 MB flash
 and 8 MB PSRAM, so pick a 16 MB profile. The firmware does not use PSRAM. Tick **Erase all settings and recordings on
-this board** only when the dialog asks for it (new board or different partition layout). The label mentions recordings,
+this board** only when the dialog asks for it. That happens only for a different partition layout. A new, blank chip is written without erasing. The label mentions recordings,
 but recordings made by AuraGo are stored on the host, not on the board. Click **Write firmware**. The dialog shows each
 phase: file checks, connection, erase, writing with a percentage, verification and restart. When it reports
 **Step 1 complete**, click **Continue to step 2**.
@@ -148,6 +150,7 @@ the configuration. The three upstream tabs are RuView's own web views, loaded in
   "Pose-Fusion uses untrained example models. Its visualization and confidence scores are not validated measurements."
 - **Blocked features.** Model loading and unloading, SONA and LoRA activation, pose statistics and demo zones are not
   available in this revision, and AuraGo blocks them. Timed recordings are refused.
+- **Honesty.** The Hardware tab of the upstream Dashboard no longer shows simulated CSI: amplitude and phase show "—", and the antenna and Wi-Fi values are example configuration, not read from your hardware. The Live Demo shows "—" for signal strength and latency. The **Demo** button appears only while the RuView source is **Explicit demo**. It stops when the source changes, when the stream stops, or when you leave the tab. Marketing and benchmark sections carry the note "Upstream RuView project claims — not measured or verified by AuraGo."
 - **Tour.** Skipping or finishing the Dashboard tour is remembered in this browser. To see it again, open the Dashboard's
   **Settings** button, choose **Reset onboarding** and click **Reset**.
 
@@ -232,13 +235,15 @@ External instances keep their own storage, and the budget does not apply to them
 | "Use HTTPS or localhost and a browser with Web Serial enabled. Close other serial tools; use a data-capable USB cable. Hold BOOT while reconnecting if detection fails." | Open AuraGo over HTTPS or `localhost` in Chrome or Edge, and use a data cable. |
 | "Detected: {detected} MB flash. Selected profile: {expected} MB. Choose the matching profile; nothing was written." | Choose the profile that matches the detected flash size. |
 | "The USB connection does not match the board profile. For "USB JTAG/serial debug unit", choose a "cdc" profile; for a USB-UART bridge, choose "uart"." | Pick `cdc` for the native USB port or `uart` for a bridge. |
-| "The board has a different partition layout. To erase its existing data, select the erase checkbox and start "Write firmware" again." | Tick the erase checkbox and click **Write firmware** again. This erases the board's own settings. |
+| "This board has a different partition layout. Tick “Erase all settings and recordings on this board” to replace it; this deletes settings and recordings on the board." | Tick the erase checkbox and click **Write firmware** again. This erases the board's own settings. |
 | "Verification failed. Nothing is retried automatically. Check the firmware files, USB connection and board before another attempt." | Nothing was retried. Check the cable and the board, then start again yourself. |
 | "Reconnect the board after restart, then confirm" | Reconnect the board after it restarts, then click **Confirm after restart**. |
 | "Node ID: 1–255; RuView receiver IPv4: 10/8, 172.16/12, 192.168/16; UDP: 1–65535." | Correct the value: a node ID from 1 to 255, a private IPv4 receiver, and a UDP port in range. |
 | "All IDs (1–255) are reported as occupied. Enter an existing ID only to reconfigure that board." | Enter an existing ID only to reconfigure that board. |
 | **Budget reached** (Storage card) | No new recordings start. Remove recordings you no longer need, or raise **Storage budget (MiB)**. |
 | **Disconnected**, **Stale** or **Not checked** (result of **Test connection**) | The service did not answer, the last frame is older than ten seconds, or no data exists yet. Check the service or click **Start**. |
+| **Waiting for first data** (result of **Test connection**) | The service is connected, but no sensor frame has arrived yet. This is a warning, not success. Check the board's Wi-Fi, the **RuView receiver IPv4** and **Publish UDP**, then test again. |
+| **Status unavailable** (**Overview**) | The first status request failed. The overview retries every three seconds while it is open. If it stays, check that AuraGo is running and reachable. |
 
 ---
 
