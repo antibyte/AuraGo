@@ -68,6 +68,47 @@ type FlowHooks interface {
 	NextFlowRun(missionID string) (time.Time, bool)
 }
 
+// FlowStartOutcome tells what a flow start did (FlowRunReporter): Status is "started", "queued" or
+// "skipped" (the flow's skip policy dropped the start while one of its runs is going); RunID is
+// empty for a skip.
+type FlowStartOutcome struct {
+	RunID  string
+	Status string
+}
+
+// FlowRunReporter is an optional FlowHooks extension that reports what a start did. RunNow and
+// TriggerMissionWithOptions use it, so a start the flow skipped answers as skipped
+// (MissionTriggerSkippedError, FlowStartSkippedReason) instead of as a queued run.
+type FlowRunReporter interface {
+	StartFlowRunReported(missionID, nodeID, triggerType, triggerData string) (FlowStartOutcome, error)
+}
+
+// FlowStartSkippedReason is the MissionTriggerSkippedError reason of a flow start that the flow's
+// skip policy dropped.
+const FlowStartSkippedReason = "flow_busy"
+
+// ErrFlowQueueFull refuses a flow run because too many runs wait already (the flow's own queue or
+// the runner's waiting list); the server wraps the flow service's ErrQueueFull with it. Mission
+// Control treats it as a deliberate refusal (flowRefusal).
+var ErrFlowQueueFull = errors.New("too many flow runs are waiting; this one was not started")
+
+// startFlowRunReported is StartFlowRun for Mission Control's own starts (Run, the trigger API):
+// with a FlowRunReporter, a start the flow skipped becomes a MissionTriggerSkippedError.
+func startFlowRunReported(hooks FlowHooks, missionID, triggerType, triggerData string) error {
+	reporter, ok := hooks.(FlowRunReporter)
+	if !ok {
+		return hooks.StartFlowRun(missionID, "", triggerType, triggerData)
+	}
+	out, err := reporter.StartFlowRunReported(missionID, "", triggerType, triggerData)
+	if err != nil {
+		return err
+	}
+	if out.Status == "skipped" {
+		return &MissionTriggerSkippedError{Reason: FlowStartSkippedReason}
+	}
+	return nil
+}
+
 // ErrFlowMissionManaged rejects changes to flow missions outside EasyDrag. The text contains
 // "not supported" so the mission API answers 400.
 var ErrFlowMissionManaged = errors.New("flow missions are managed in EasyDrag; changing them here is not supported")
@@ -759,24 +800,33 @@ func (m *MissionManagerV2) startFlowRun(hooks FlowHooks, missionID, nodeID, trig
 }
 
 // flowRefusal returns the sentinel behind a flow run that was refused on purpose,
-// ErrFlowRunsPaused or ErrFlowsUnavailable, and nil for every other error.
+// ErrFlowRunsPaused, ErrFlowsUnavailable or ErrFlowQueueFull, and nil for every other error.
 func flowRefusal(err error) error {
 	switch {
 	case errors.Is(err, ErrFlowRunsPaused):
 		return ErrFlowRunsPaused
 	case errors.Is(err, ErrFlowsUnavailable):
 		return ErrFlowsUnavailable
+	case errors.Is(err, ErrFlowQueueFull):
+		return ErrFlowQueueFull
 	}
 	return nil
 }
 
 // flowRefusalOutput is the LastOutput that shows a refusal (a flowRefusal result) on the mission.
 func flowRefusalOutput(reason error) string {
-	if reason == ErrFlowRunsPaused {
+	switch reason {
+	case ErrFlowRunsPaused:
 		return flowRunsPausedOutput
+	case ErrFlowQueueFull:
+		return flowQueueFullOutput
 	}
 	return flowsUnavailableOutput
 }
+
+// flowQueueFullOutput is the LastOutput of a flow mission whose trigger fired while too many flow
+// runs were waiting (ErrFlowQueueFull).
+const flowQueueFullOutput = "Too many EasyDrag flow runs were waiting; this trigger started no run"
 
 // flowsUnavailableOutput is the LastOutput of a flow mission whose trigger fired while no
 // flow service is wired in: flows.enabled is off, or the flow store could not be opened.

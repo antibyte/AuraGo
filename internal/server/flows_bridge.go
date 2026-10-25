@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"time"
@@ -277,19 +278,39 @@ func (b flowMissionBridge) noteRunsPaused(missionID string) {
 //     a flow lock. It calls Service.NextTimer, which takes no flow lock.
 type flowMissionHooks struct{ s *Server }
 
-// StartFlowRun implements tools.FlowHooks. It refuses while flows are switched off or
-// missions are read-only (automaticFlowRunsAllowed, tools.ErrFlowsUnavailable or
-// tools.ErrFlowRunsPaused): cron, event and dependent-mission triggers come through here and
-// must follow the switches at once, not at the next start. A cancel does not come through
-// here and stays open.
+// StartFlowRun implements tools.FlowHooks: StartFlowRunReported without the outcome.
 func (h flowMissionHooks) StartFlowRun(missionID, nodeID, triggerType, triggerData string) error {
+	_, err := h.StartFlowRunReported(missionID, nodeID, triggerType, triggerData)
+	return err
+}
+
+// StartFlowRunReported implements tools.FlowRunReporter. It refuses while flows are switched off
+// or missions are read-only (automaticFlowRunsAllowed: tools.ErrFlowsUnavailable or
+// tools.ErrFlowRunsPaused), so cron, event and dependent-mission triggers follow the switches at
+// once. It reports the run id and status (a skip of the flow's skip policy included) and marks a
+// full queue (flowStartError). A cancel does not come through here and stays open.
+func (h flowMissionHooks) StartFlowRunReported(missionID, nodeID, triggerType, triggerData string) (tools.FlowStartOutcome, error) {
 	if h.s.Flows == nil {
-		return tools.ErrFlowsUnavailable
+		return tools.FlowStartOutcome{}, tools.ErrFlowsUnavailable
 	}
 	if err := h.s.automaticFlowRunsAllowed(); err != nil {
-		return err
+		return tools.FlowStartOutcome{}, err
 	}
-	_, err := h.s.Flows.TriggerFromMission(missionID, nodeID, triggerType, flows.NormalizeTriggerData(triggerType, triggerData))
+	res, err := h.s.Flows.TriggerFromMission(missionID, nodeID, triggerType, flows.NormalizeTriggerData(triggerType, triggerData))
+	if err != nil {
+		return tools.FlowStartOutcome{}, flowStartError(err)
+	}
+	h.s.Logger.Debug("Flow run requested by Mission Control", "mission_id", missionID, "run", res.RunID, "status", string(res.Status))
+	return tools.FlowStartOutcome{RunID: res.RunID, Status: string(res.Status)}, nil
+}
+
+// flowStartError marks a full run queue (flows.ErrQueueFull, the runner's ErrRunnerQueueFull too)
+// as tools.ErrFlowQueueFull, so Mission Control notes the refusal on the mission instead of
+// logging every dropped trigger; errors.Is still finds flows.ErrQueueFull (429 in the APIs).
+func flowStartError(err error) error {
+	if errors.Is(err, flows.ErrQueueFull) && !errors.Is(err, tools.ErrFlowQueueFull) {
+		return fmt.Errorf("%w: %w", tools.ErrFlowQueueFull, err)
+	}
 	return err
 }
 

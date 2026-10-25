@@ -1355,7 +1355,7 @@ func (m *MissionManagerV2) TriggerMissionWithOptions(missionID, triggerType, tri
 		if err != nil {
 			return err
 		}
-		return hooks.StartFlowRun(missionID, "", triggerType, triggerData)
+		return startFlowRunReported(hooks, missionID, triggerType, triggerData)
 	}
 
 	m.mu.Lock()
@@ -2029,7 +2029,7 @@ func (m *MissionManagerV2) RunNow(id string) error {
 		if err != nil {
 			return err
 		}
-		return hooks.StartFlowRun(id, "", "manual", "")
+		return startFlowRunReported(hooks, id, "manual", "")
 	}
 
 	m.mu.Lock()
