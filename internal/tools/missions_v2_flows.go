@@ -786,8 +786,8 @@ const flowsUnavailableOutput = "EasyDrag flows are not available (switched off, 
 // are read-only (ErrFlowRunsPaused).
 const flowRunsPausedOutput = "EasyDrag flow runs are paused while missions are read-only; the flow did not run"
 
-// noteFlowRefusalLocked shows on a flow mission that a trigger fired while its runs are
-// refused: LastResult "error" with output (flowsUnavailableOutput or flowRunsPausedOutput).
+// noteFlowRefusalLocked shows a note on a flow mission (a refused trigger or run, a published
+// revision that needs republishing): LastResult "error" with output (flowsUnavailableOutput or flowRunsPausedOutput).
 // Nothing else changes (no run is counted and no dependent fires), and the next run result
 // replaces the note. It reports whether the mission changed, that is whether it did not show
 // that already; it does not save, so a caller noting several missions saves once
@@ -820,6 +820,25 @@ func logFlowRefusal(changed bool, reason error, args ...any) {
 		return
 	}
 	slog.Debug(msg, args...)
+}
+
+// NoteFlowRunRefused shows on a flow mission that a run was refused on purpose: reason is
+// ErrFlowRunsPaused or ErrFlowsUnavailable (wrapped or not). The flow service reports it for a
+// queued run its gate stopped before it executed. It saves only when the note changed, logs like
+// a refused trigger and reports whether the mission changed; any other reason is ignored.
+func (m *MissionManagerV2) NoteFlowRunRefused(missionID string, reason error) bool {
+	r := flowRefusal(reason)
+	if r == nil {
+		return false
+	}
+	m.mu.Lock()
+	changed := m.noteFlowRefusalLocked(missionID, flowRefusalOutput(r))
+	if changed {
+		m.saveFlowNotesLocked()
+	}
+	m.mu.Unlock()
+	logFlowRefusal(changed, r, "mission_id", missionID)
+	return changed
 }
 
 // flowEvent carries the values that event trigger specs filter on.

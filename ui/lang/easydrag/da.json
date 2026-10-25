@@ -514,6 +514,7 @@
   "easydrag.ui.error_flow_run_timeout": "Kørslen tog længere tid end tilladt.",
   "easydrag.ui.error_flow_runner_panic": "Flowkørslen fejlede uventet. Detaljerne står i AuraGo-loggen.",
   "easydrag.ui.error_flow_runner_stopped": "EasyDrag lukker ned eller genstarter. Prøv igen om et øjeblik.",
+  "easydrag.ui.error_flow_runs_paused": "Automatiske kørsler er sat på pause (missioner er skrivebeskyttede, eller flows er slået fra), derfor blev denne ventende kørsel ikke startet.",
   "easydrag.ui.error_flow_schema": "Flowdokumentet har et ukendt format.",
   "easydrag.ui.error_flow_secret_unavailable": "En hemmelighed mangler.",
   "easydrag.ui.error_flow_shutdown": "AuraGo lukker ned.",

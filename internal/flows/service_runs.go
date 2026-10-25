@@ -133,7 +133,7 @@ func (s *Service) RunNow(ctx context.Context, id string) (StartResult, error) {
 	if !s.bridge.FlowMissionEnabled(rec.MissionID) {
 		return StartResult{}, s.notEnabledReason(rec.MissionID)
 	}
-	return s.startLive(rec, "", "manual", nil)
+	return s.startLive(rec, "", "manual", nil, false)
 }
 
 // notEnabledReason tells why FlowMissionEnabled said no, which it reports as one false:
@@ -195,10 +195,13 @@ func (s *Service) TriggerFromMission(missionID, nodeID, triggerType string, data
 		}
 		data = nil
 	}
-	return s.startLive(rec, nodeID, triggerType, data)
+	return s.startLive(rec, nodeID, triggerType, data, true)
 }
 
-// startLive starts a run of rec's live revision.
+// startLive starts a run of rec's live revision. gated marks a run that a trigger started
+// without anyone asking at that moment (Mission Control's triggers and Run, the Date/Time
+// timers): when it has to wait it asks the bridge's RunGate again before it executes
+// (RunnerConfig.Gate). Run now is not gated.
 //
 // Starting versus deleting the flow: no start path (RunNow, TriggerFromMission,
 // StartTestRun, onTimerFired) takes the flow's lock, and none needs it. Runner.Start
@@ -210,7 +213,7 @@ func (s *Service) TriggerFromMission(missionID, nodeID, triggerType string, data
 // The flow lock must stay out of these paths: TriggerFromMission can run inside
 // MissionBridge.FlowRunFinished, which runs inside the delete of another flow while that
 // flow's lock is held, and two flows deleted at once could then wait for each other.
-func (s *Service) startLive(rec *FlowRecord, nodeID, triggerType string, data map[string]any) (StartResult, error) {
+func (s *Service) startLive(rec *FlowRecord, nodeID, triggerType string, data map[string]any, gated bool) (StartResult, error) {
 	if rec.Live == nil {
 		return StartResult{}, ErrNotPublished
 	}
@@ -225,7 +228,16 @@ func (s *Service) startLive(rec *FlowRecord, nodeID, triggerType string, data ma
 		}
 	}
 	return s.runner.Start(StartRequest{Flow: rec.Live, Revision: rec.LiveRevision, Mode: ModeLive,
-		TriggerNode: trigger, TriggerType: cleanTriggerType(triggerType), TriggerData: data})
+		TriggerNode: trigger, TriggerType: cleanTriggerType(triggerType), TriggerData: data, Gated: gated})
+}
+
+// automaticRunsAllowed asks the bridge's optional RunGate; nil without one. It is the runner's
+// Gate (see RunnerConfig).
+func (s *Service) automaticRunsAllowed() error {
+	if gate, ok := s.bridge.(RunGate); ok {
+		return gate.AutomaticRunsAllowed()
+	}
+	return nil
 }
 
 // cleanTriggerType returns t when it is 1 to maxTriggerTypeBytes characters of
@@ -577,7 +589,7 @@ func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) er
 		return nil
 	}
 	data := map[string]any{"scheduled_for": scheduledFor.UTC().Format(time.RFC3339)}
-	res, err := s.startLive(rec, nodeID, "datetime", data)
+	res, err := s.startLive(rec, nodeID, "datetime", data, true)
 	switch {
 	case err == nil && res.Status == StartSkipped:
 		s.logger.Info("a date and time trigger was skipped because a run of the flow is still active (concurrency: skip)",

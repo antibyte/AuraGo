@@ -514,6 +514,7 @@
   "easydrag.ui.error_flow_run_timeout": "Běh trval déle, než je povoleno.",
   "easydrag.ui.error_flow_runner_panic": "Běhové prostředí toků neočekávaně selhalo. Podrobnosti najdeš v protokolu AuraGo.",
   "easydrag.ui.error_flow_runner_stopped": "EasyDrag se vypíná nebo restartuje. Zkus to za chvíli znovu.",
+  "easydrag.ui.error_flow_runs_paused": "Automatické běhy jsou pozastaveny (mise jsou jen pro čtení nebo jsou flow vypnuté), proto se tento čekající běh nespustil.",
   "easydrag.ui.error_flow_schema": "Dokument toku má neznámý formát.",
   "easydrag.ui.error_flow_secret_unavailable": "Chybí tajemství.",
   "easydrag.ui.error_flow_shutdown": "AuraGo se vypíná.",

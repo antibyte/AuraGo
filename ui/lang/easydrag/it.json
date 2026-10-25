@@ -514,6 +514,7 @@
   "easydrag.ui.error_flow_run_timeout": "L’esecuzione è durata più del consentito.",
   "easydrag.ui.error_flow_runner_panic": "L’esecutore dei flussi si è interrotto in modo imprevisto. I dettagli sono nel log di AuraGo.",
   "easydrag.ui.error_flow_runner_stopped": "EasyDrag si sta spegnendo o riavviando. Riprova tra un momento.",
+  "easydrag.ui.error_flow_runs_paused": "Le esecuzioni automatiche sono in pausa (le missioni sono in sola lettura o i flussi sono disattivati), quindi questa esecuzione in coda non è partita.",
   "easydrag.ui.error_flow_schema": "Il documento del flusso ha un formato sconosciuto.",
   "easydrag.ui.error_flow_secret_unavailable": "Manca un segreto.",
   "easydrag.ui.error_flow_shutdown": "AuraGo si sta spegnendo.",

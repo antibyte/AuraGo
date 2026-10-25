@@ -514,6 +514,7 @@
   "easydrag.ui.error_flow_run_timeout": "Der Lauf dauerte länger als erlaubt.",
   "easydrag.ui.error_flow_runner_panic": "Die Flow-Ausführung ist unerwartet fehlgeschlagen. Details stehen im AuraGo-Log.",
   "easydrag.ui.error_flow_runner_stopped": "EasyDrag fährt herunter oder startet neu. Versuche es gleich noch einmal.",
+  "easydrag.ui.error_flow_runs_paused": "Automatische Läufe sind pausiert (Missionen sind schreibgeschützt oder Flows ausgeschaltet), deshalb ist dieser wartende Lauf nicht gestartet.",
   "easydrag.ui.error_flow_schema": "Das Flow-Dokument hat ein unbekanntes Format.",
   "easydrag.ui.error_flow_secret_unavailable": "Ein Geheimnis fehlt.",
   "easydrag.ui.error_flow_shutdown": "AuraGo fährt herunter.",

@@ -514,6 +514,7 @@
   "easydrag.ui.error_flow_run_timeout": "Körningen tog längre tid än tillåtet.",
   "easydrag.ui.error_flow_runner_panic": "Flödeskörningen misslyckades oväntat. Detaljerna finns i AuraGo-loggen.",
   "easydrag.ui.error_flow_runner_stopped": "EasyDrag stängs av eller startas om. Försök igen om en stund.",
+  "easydrag.ui.error_flow_runs_paused": "Automatiska körningar är pausade (uppdrag är skrivskyddade eller flöden är avstängda), därför startade inte den här väntande körningen.",
   "easydrag.ui.error_flow_schema": "Flödesdokumentet har ett okänt format.",
   "easydrag.ui.error_flow_secret_unavailable": "En hemlighet saknas.",
   "easydrag.ui.error_flow_shutdown": "AuraGo stängs av.",

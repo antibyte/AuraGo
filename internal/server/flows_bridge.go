@@ -162,7 +162,8 @@ func (b flowMissionBridge) FlowRunStarted(missionID string, rec flows.RunRecord)
 //
 // Only a started run (info.Started) reaches Mission Control: mm.FlowRunFinishedAtDepth
 // releases one running slot, counts the run and fires dependents. A run that never started
-// (cancelled while queued, or ended by a shutdown) only tells open editors to refresh.
+// (cancelled while queued, or ended by a shutdown) only tells open editors to refresh; one the
+// runner's gate stopped (flows.RunsPausedCode) is also noted on the mission (noteRunsPaused).
 // That path stays free of database, file and network work, because it runs synchronously
 // inside DeleteFlow (with the flow lock held), CancelMissionRuns and Runner.Shutdown, once
 // per queued run.
@@ -180,6 +181,9 @@ func (b flowMissionBridge) FlowRunFinished(info flows.RunFinishedInfo) {
 	if !info.Started {
 		b.s.Logger.Debug("Flow run ended before it started; Mission Control does not record it",
 			"flow", info.Record.FlowID, "run", info.Record.ID, "status", string(info.Result.Status))
+		if info.Result.ErrorCode == flows.RunsPausedCode {
+			b.noteRunsPaused(info.MissionID)
+		}
 		b.s.broadcastFlowsChanged(info.Record.FlowID, "run_finished")
 		return
 	}
@@ -204,6 +208,25 @@ func (b flowMissionBridge) FlowRunFinished(info flows.RunFinishedInfo) {
 	}
 	broadcastMissionState(b.s)
 	b.s.broadcastFlowsChanged(info.Record.FlowID, "run_finished")
+}
+
+// noteRunsPaused shows on the mission that a queued run of its flow was not started because
+// automatic runs are refused (flows.RunsPausedCode), as Mission Control shows a refused trigger.
+// The runner keeps only the text, so the reason is asked again; when the switch was turned back
+// meanwhile the note says paused. Such a run ends on its own goroutine, never inside DeleteFlow
+// or a cancel, so the one missions-file write (only when the note changes) stays off those paths.
+func (b flowMissionBridge) noteRunsPaused(missionID string) {
+	mm, err := b.missions()
+	if err != nil || missionID == "" {
+		return
+	}
+	reason := b.s.automaticFlowRunsAllowed()
+	if reason == nil {
+		reason = tools.ErrFlowRunsPaused
+	}
+	if mm.NoteFlowRunRefused(missionID, reason) {
+		broadcastMissionState(b.s)
+	}
 }
 
 // flowMissionHooks lets Mission Control start and manage flow runs (tools.FlowHooks).

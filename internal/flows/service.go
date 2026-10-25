@@ -49,11 +49,12 @@ type MissionBridge interface {
 
 // RunGate is an optional extension of MissionBridge that the Service looks for by type
 // assertion (a bridge without it allows everything). AutomaticRunsAllowed says whether runs
-// that no one asked for at that moment may start, which today means the Date/Time timers
-// (Mission Control's own triggers are gated on its side, by the hooks): nil when they may,
-// else why not (missions read-only, flows switched off). A refused occurrence starts no run
-// and counts as handled, like one of a flow that is switched off. Like every bridge method
-// it follows the bridge rule: no call into a Service method that takes a flow lock.
+// that no one asked for at that moment may start: nil when they may, else why not (missions
+// read-only, flows switched off). It is asked when a Date/Time timer fires (a refused
+// occurrence starts no run and counts as handled) and, through RunnerConfig.Gate, right before
+// a queued run that a trigger started executes (a refused one ends with RunsPausedCode).
+// Mission Control's own triggers are also gated on its side, by the hooks. Like every bridge
+// method it follows the bridge rule: no call into a Service method that takes a flow lock.
 type RunGate interface {
 	AutomaticRunsAllowed() error
 }
@@ -187,7 +188,7 @@ func NewService(store *Store, reg *Registry, services *Services, bridge MissionB
 	s.bootTime = services.Now()
 	s.engine = NewEngine(reg, services, logger, cfg.MaxParallelNodes)
 	s.runner = NewRunner(s.engine, store, RunnerHooks{OnRunStarted: s.onRunStarted, OnRunFinished: s.onRunFinished},
-		RunnerConfig{MaxParallelRuns: cfg.MaxParallelRuns, MaxQueuedPerFlow: cfg.MaxQueuedPerFlow}, logger)
+		RunnerConfig{MaxParallelRuns: cfg.MaxParallelRuns, MaxQueuedPerFlow: cfg.MaxQueuedPerFlow, Gate: s.automaticRunsAllowed}, logger)
 	// onTimerFired reports a failed start, so the occurrence stays stored and is retried.
 	s.timers = newTimerService(store, services.clock(), s.onTimerFired, s.onTimerMissed, logger)
 	// Yearly timers recur at their local time of day, in the zone the triggers are bound in.

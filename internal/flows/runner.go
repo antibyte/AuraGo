@@ -30,6 +30,13 @@ type RunnerConfig struct {
 	// policy), and also, counted separately, the flow's runs that wait for a global
 	// slot (parallel policy and test runs). Start refuses more with ErrQueueFull.
 	MaxQueuedPerFlow int
+	// Gate, when set, is asked right before a run executes that has StartRequest.Gated and
+	// waited in a queue (behind its flow's active run or for a global slot); a run that started
+	// at once is not asked again. A non-nil error (or a panic) cancels the run instead: it ends
+	// cancelled with RunsPausedCode and the error's text, without executing, and OnRunFinished
+	// reports it like a run cancelled while queued. It is called on the run's goroutine,
+	// outside all locks. The Service sets it to its bridge's RunGate.
+	Gate func() error
 }
 
 // RunnerHooks observe runs. OnRunFinished is called for every run (also runs cancelled
@@ -59,6 +66,10 @@ type StartRequest struct {
 	Timeout      time.Duration
 	ParentRunID  string
 	ParentNodeID string
+	// Gated marks a live run that a trigger started without anyone asking at that moment
+	// (Mission Control's triggers and Run, the Date/Time timers): when it has to wait, it asks
+	// RunnerConfig.Gate again before it executes.
+	Gated bool
 }
 
 // StartStatus tells what Start did.
@@ -76,10 +87,17 @@ type StartResult struct {
 	Status StartStatus `json:"status"`
 }
 
+// RunsPausedCode ends a gated run that waited in a queue while RunnerConfig.Gate refused
+// automatic runs (missions read-only, flows switched off): it was cancelled, never executed.
+const RunsPausedCode = "FLOW_RUNS_PAUSED"
+
 type pendingRun struct {
 	req     StartRequest
 	rec     RunRecord
 	counted bool
+	// waited is set when the run joined a queue (its flow's or the global one); only such a
+	// run asks RunnerConfig.Gate before it executes.
+	waited bool
 }
 
 // activeRun is a launched run: its flow and mode, for CancelFlow and CancelFlowMode, and
@@ -209,6 +227,7 @@ func (r *Runner) Start(req StartRequest) (StartResult, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if exclusive && r.busyLocked(flowID) {
+		p.waited = true
 		r.flowQueue[flowID] = append(r.flowQueue[flowID], p)
 		return StartResult{RunID: p.rec.ID, Status: StartQueued}, nil
 	}
@@ -245,6 +264,7 @@ func (r *Runner) admitLocked(p *pendingRun) bool {
 		r.launchLocked(p)
 		return true
 	}
+	p.waited = true
 	r.waiting = append(r.waiting, p)
 	return false
 }
@@ -265,6 +285,17 @@ func (r *Runner) execute(ctx context.Context, cancel context.CancelFunc, p *pend
 	// The log was opened when the run was queued; its leak clock must count the
 	// run's own time only, and a sweep may have forgotten it during a long wait.
 	r.bus.Rearm(runID)
+	if reason := r.gateRefusal(p); reason != nil {
+		// Recorded first, then the slots go to the next waiting run (which asks the gate in
+		// turn), then the hook, as for a run that executed.
+		msg := truncateRunes("the run waited in a queue and was not started: "+reason.Error(), maxErrorMessageRunes)
+		rec, res := r.recordUnstarted(p, RunsPausedCode, msg)
+		r.logger.Info("a queued flow run was not started because automatic runs are not allowed",
+			"run", runID, "flow", p.rec.FlowID, "reason", reason.Error())
+		r.release(p)
+		r.callHook(rec, res)
+		return
+	}
 	res := r.runAndRecord(ctx, p)
 	r.bus.Finish(runID)
 	rec := p.rec
@@ -274,6 +305,22 @@ func (r *Runner) execute(ctx context.Context, cancel context.CancelFunc, p *pend
 	rec.DurationMS = res.DurationMS
 	r.release(p)
 	r.callHook(rec, res)
+}
+
+// gateRefusal asks RunnerConfig.Gate whether p, a gated live run that waited in a queue, may
+// still execute. It returns nil when it may or is not asked; a panicking gate counts as a
+// refusal, so the brake fails closed.
+func (r *Runner) gateRefusal(p *pendingRun) (err error) {
+	if r.cfg.Gate == nil || !p.req.Gated || !p.waited || p.req.Mode != ModeLive {
+		return nil
+	}
+	defer func() {
+		if v := recover(); v != nil {
+			r.logger.Error("flow run gate panicked; the queued run is not started", "run", p.rec.ID, "panic", v)
+			err = errors.New("the run gate failed")
+		}
+	}()
+	return r.cfg.Gate()
 }
 
 // runAndRecord executes the run and persists it. The engine recovers panics in
@@ -429,7 +476,9 @@ func (r *Runner) callHook(rec RunRecord, res RunResult) {
 	r.hooks.OnRunFinished(rec, res)
 }
 
-func (r *Runner) finishUnstarted(p *pendingRun, code, msg string) {
+// recordUnstarted persists p as cancelled with code and msg, ends its event log and returns the
+// record and result for OnRunFinished. It does not touch the runner's slots.
+func (r *Runner) recordUnstarted(p *pendingRun, code, msg string) (RunRecord, RunResult) {
 	now := r.now()
 	res := RunResult{Status: RunCancelled, ErrorCode: code, ErrorMessage: msg, StartedAt: p.rec.StartedAt, FinishedAt: now}
 	if err := r.store.FinishRun(context.Background(), p.rec.ID, res); err != nil {
@@ -439,6 +488,11 @@ func (r *Runner) finishUnstarted(p *pendingRun, code, msg string) {
 	rec := p.rec
 	rec.Status, rec.ErrorCode, rec.ErrorMessage = RunCancelled, code, msg
 	rec.FinishedAt = &now
+	return rec, res
+}
+
+func (r *Runner) finishUnstarted(p *pendingRun, code, msg string) {
+	rec, res := r.recordUnstarted(p, code, msg)
 	r.callHook(rec, res)
 }
 

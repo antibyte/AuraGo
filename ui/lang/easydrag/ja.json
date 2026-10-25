@@ -514,6 +514,7 @@
   "easydrag.ui.error_flow_run_timeout": "実行が許可された時間を超えました。",
   "easydrag.ui.error_flow_runner_panic": "フローの実行処理が予期せず失敗しました。詳細は AuraGo のログを確認してください。",
   "easydrag.ui.error_flow_runner_stopped": "EasyDrag はシャットダウン中または再起動中です。しばらくしてからもう一度お試しください。",
+  "easydrag.ui.error_flow_runs_paused": "自動実行は一時停止中です（ミッションが読み取り専用、またはフローがオフになっています）。そのため、待機中のこの実行は開始されませんでした。",
   "easydrag.ui.error_flow_schema": "フロー文書の形式が不明です。",
   "easydrag.ui.error_flow_secret_unavailable": "シークレットが見つかりません。",
   "easydrag.ui.error_flow_shutdown": "AuraGo はシャットダウン中です。",

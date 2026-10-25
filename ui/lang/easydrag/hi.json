@@ -514,6 +514,7 @@
   "easydrag.ui.error_flow_run_timeout": "रन अनुमति से अधिक समय तक चला।",
   "easydrag.ui.error_flow_runner_panic": "फ़्लो रनर अप्रत्याशित रूप से विफल हुआ। विवरण AuraGo लॉग में है।",
   "easydrag.ui.error_flow_runner_stopped": "EasyDrag बंद हो रहा है या फिर से शुरू हो रहा है। थोड़ी देर में फिर कोशिश करें।",
+  "easydrag.ui.error_flow_runs_paused": "स्वचालित रन रोके गए हैं (मिशन केवल-पढ़ने योग्य हैं या फ़्लो बंद हैं), इसलिए कतार में लगा यह रन शुरू नहीं हुआ।",
   "easydrag.ui.error_flow_schema": "फ़्लो दस्तावेज़ का प्रारूप अज्ञात है।",
   "easydrag.ui.error_flow_secret_unavailable": "एक सीक्रेट मौजूद नहीं है।",
   "easydrag.ui.error_flow_shutdown": "AuraGo बंद हो रहा है।",

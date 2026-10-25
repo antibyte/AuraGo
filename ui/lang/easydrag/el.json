@@ -514,6 +514,7 @@
   "easydrag.ui.error_flow_run_timeout": "Η εκτέλεση διήρκεσε περισσότερο από όσο επιτρέπεται.",
   "easydrag.ui.error_flow_runner_panic": "Η εκτέλεση ροών απέτυχε απροσδόκητα. Λεπτομέρειες υπάρχουν στο αρχείο καταγραφής του AuraGo.",
   "easydrag.ui.error_flow_runner_stopped": "Το EasyDrag τερματίζεται ή επανεκκινείται. Δοκίμασε ξανά σε λίγο.",
+  "easydrag.ui.error_flow_runs_paused": "Οι αυτόματες εκτελέσεις είναι σε παύση (οι αποστολές είναι μόνο για ανάγνωση ή οι ροές είναι απενεργοποιημένες), γι’ αυτό αυτή η εκτέλεση σε αναμονή δεν ξεκίνησε.",
   "easydrag.ui.error_flow_schema": "Το έγγραφο της ροής έχει άγνωστη μορφή.",
   "easydrag.ui.error_flow_secret_unavailable": "Λείπει ένα μυστικό.",
   "easydrag.ui.error_flow_shutdown": "Το AuraGo τερματίζεται.",

@@ -514,6 +514,7 @@
   "easydrag.ui.error_flow_run_timeout": "Kjøringen tok lengre tid enn tillatt.",
   "easydrag.ui.error_flow_runner_panic": "Flytkjøringen mislyktes uventet. Detaljene står i AuraGo-loggen.",
   "easydrag.ui.error_flow_runner_stopped": "EasyDrag avsluttes eller starter på nytt. Prøv igjen om et øyeblikk.",
+  "easydrag.ui.error_flow_runs_paused": "Automatiske kjøringer er satt på pause (oppdrag er skrivebeskyttet, eller flyter er slått av), derfor startet ikke denne ventende kjøringen.",
   "easydrag.ui.error_flow_schema": "Flytdokumentet har et ukjent format.",
   "easydrag.ui.error_flow_secret_unavailable": "En hemmelighet mangler.",
   "easydrag.ui.error_flow_shutdown": "AuraGo avsluttes.",

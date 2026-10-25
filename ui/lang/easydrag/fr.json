@@ -514,6 +514,7 @@
   "easydrag.ui.error_flow_run_timeout": "L’exécution a duré plus longtemps qu’autorisé.",
   "easydrag.ui.error_flow_runner_panic": "L’exécuteur de flux a échoué de manière inattendue. Le journal d’AuraGo contient les détails.",
   "easydrag.ui.error_flow_runner_stopped": "EasyDrag est en cours d’arrêt ou de redémarrage. Réessayez dans un instant.",
+  "easydrag.ui.error_flow_runs_paused": "Les exécutions automatiques sont en pause (les missions sont en lecture seule ou les flux sont désactivés), donc cette exécution en attente n’a pas démarré.",
   "easydrag.ui.error_flow_schema": "Le document du flux a un format inconnu.",
   "easydrag.ui.error_flow_secret_unavailable": "Un secret est manquant.",
   "easydrag.ui.error_flow_shutdown": "AuraGo est en cours d’arrêt.",

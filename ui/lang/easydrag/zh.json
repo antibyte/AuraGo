@@ -514,6 +514,7 @@
   "easydrag.ui.error_flow_run_timeout": "运行时间超过了允许的上限。",
   "easydrag.ui.error_flow_runner_panic": "流程运行器意外失败。详情请查看 AuraGo 日志。",
   "easydrag.ui.error_flow_runner_stopped": "EasyDrag 正在关闭或重新启动。请稍后重试。",
+  "easydrag.ui.error_flow_runs_paused": "自动运行已暂停（任务为只读，或流程已关闭），因此这个排队中的运行没有启动。",
   "easydrag.ui.error_flow_schema": "流程文档的格式未知。",
   "easydrag.ui.error_flow_secret_unavailable": "缺少一个密钥。",
   "easydrag.ui.error_flow_shutdown": "AuraGo 正在关闭。",

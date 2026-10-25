@@ -514,6 +514,7 @@
   "easydrag.ui.error_flow_run_timeout": "De uitvoering duurde langer dan toegestaan.",
   "easydrag.ui.error_flow_runner_panic": "De flowuitvoering is onverwacht mislukt. De details staan in het AuraGo-logboek.",
   "easydrag.ui.error_flow_runner_stopped": "EasyDrag wordt afgesloten of opnieuw gestart. Probeer het zo meteen opnieuw.",
+  "easydrag.ui.error_flow_runs_paused": "Automatische runs zijn gepauzeerd (missies zijn alleen-lezen of flows staan uit), daarom is deze wachtende run niet gestart.",
   "easydrag.ui.error_flow_schema": "Het flowdocument heeft een onbekend formaat.",
   "easydrag.ui.error_flow_secret_unavailable": "Er ontbreekt een geheim.",
   "easydrag.ui.error_flow_shutdown": "AuraGo wordt afgesloten.",

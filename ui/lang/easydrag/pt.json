@@ -514,6 +514,7 @@
   "easydrag.ui.error_flow_run_timeout": "A execução demorou mais do que o permitido.",
   "easydrag.ui.error_flow_runner_panic": "O executor de fluxos falhou inesperadamente. O log do AuraGo tem os detalhes.",
   "easydrag.ui.error_flow_runner_stopped": "O EasyDrag está sendo desligado ou reiniciado. Tente de novo em instantes.",
+  "easydrag.ui.error_flow_runs_paused": "As execuções automáticas estão em pausa (as missões são só de leitura ou os fluxos estão desligados), por isso esta execução em fila não foi iniciada.",
   "easydrag.ui.error_flow_schema": "O documento do fluxo tem um formato desconhecido.",
   "easydrag.ui.error_flow_secret_unavailable": "Falta um segredo.",
   "easydrag.ui.error_flow_shutdown": "O AuraGo está sendo desligado.",
