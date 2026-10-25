@@ -65,6 +65,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 - Ein Test hat echte Auswirkungen. Der Dialog nennt jede Art (*Sendet Nachrichten*, *Schreibt Dateien*, *Steuert Geräte*, …) mit den Schritten, die sie auslösen können. Jeder Schritt zählt mit dem, was sein Baustein standardmäßig tut, und mit dem, was seine tatsächlichen Einstellungen tun; eine HTTP-Anfrage mit POST zählt deshalb als Senden, obwohl der Baustein allein das nicht tut. Kann AuraGo die Einstellungen nicht prüfen oder kann ein Baustein seine Auswirkungen nicht nennen, sagt der Dialog, dass sich die Auswirkungen nicht vollständig prüfen ließen. **Test starten** bestätigt die genannten Arten, sobald der Test gestartet ist, solange der Flow offen bleibt; *Für diesen Flow nicht mehr fragen* merkt sie auf diesem Gerät. Ein Test, der nicht startet (AuraGo lehnt ihn ab oder ist nicht erreichbar), bestätigt nichts. Eine Art, die du noch nicht bestätigt hast, fragt EasyDrag wieder ab.
 - **Schritt testen** in der Detailansicht (auch *Diesen Schritt testen* an der gewählten Karte und in ihrem Kontextmenü) führt diesen Schritt zusammen mit den Schritten davor aus. Sein Dialog fragt deshalb nach den Auswirkungen jedes Schritts, der läuft: des Schritts selbst und der Schritte davor, die der gewählte Auslöser erreicht. Ein ausgeschalteter Schritt läuft nicht, ebenso wenig die Schritte, zu denen nur er führt.
 - **Stoppen** im Kopf bricht den Test oder Lauf ab, den du in diesem Fenster gestartet hast, ohne Rückfrage (auch einen Lauf, den du mit *Jetzt ausführen* gestartet hast). Andere Läufe, die noch nicht beendet sind, stoppst du unter **Läufe** (siehe [Läufe und Benachrichtigungen](#läufe-und-benachrichtigungen)). Solange dieser Test oder Live-Lauf noch startet oder läuft, startet EasyDrag keinen weiteren und schickt einen ungewissen Start nicht erneut. Stoppen macht bereits gelaufene Schritte nicht rückgängig. Das automatische Speichern bleibt unverändert. Die Lauf-Liste öffnet sich im Editor, unter dem Kopf und einem Lauf-Banner.
+- Ein Test führt den Entwurf aus, den du siehst: Wurde er inzwischen in einem anderen Fenster geändert, lehnt EasyDrag den Test ab (*Der Flow wurde woanders geändert*). Lade den Flow neu und teste erneut.
 
 ## Veröffentlichen
 
@@ -73,6 +74,8 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 - Die Bausteine-Leiste markiert Bausteine mit echten Auswirkungen außerhalb von AuraGo. Die Markierung betrachtet die Standardeinstellungen eines Bausteins (bei einem allgemeinen Werkzeug seine weitreichendste Operation) und ist keine Sicherheitsgarantie. Der Veröffentlichen-Dialog nennt die Auswirkungen deiner tatsächlichen Einstellungen; der Testdialog nennt zusätzlich die der Standardeinstellungen der Bausteine.
 - **Mit einem Problem veröffentlicht** heißt: Die neue Version läuft, aber Mission Control oder die Timer ließen sich nicht aktualisieren. Der Kopf zeigt dann *Veröffentlichung unvollständig*, und **Veröffentlichen** bleibt verfügbar: Veröffentliche erneut, um den Vorgang abzuschließen.
 - Fehlt der Mission-Control-Eintrag des Flows, hilft erneutes Veröffentlichen nicht. Exportiere den Flow, lösche ihn und importiere ihn erneut.
+- *Daten von außen erreichen einen sensiblen Schritt* (etwa ein Mail-Betreff in einem Shell-Befehl, ein Dateipfad oder ein Empfänger) ist ein Hinweis, kein blockierendes Problem: AuraGo kann nicht erkennen, ob der Schritt die Daten prüft, und viele Flows reichen Text von außen bewusst weiter. Solche Flows lassen sich veröffentlichen und ausführen; stelle sicher, dass sich der Schritt nicht missbrauchen lässt. Nur Daten von außen, die bestimmen, wohin ein Geheimnis gesendet wird, sperren die Veröffentlichung.
+- Ein Header wie *Authorization*, *X-Api-Key* oder *Cookie* mit eingetipptem Wert ist ebenfalls ein Hinweis: Der Wert liegt im Klartext im Flow und seinen Versionen. Lege ihn als Geheimnis an und nutze das Feld *Geheimnis*. Exporte und die Ansicht eines Laufs zeigen solche Werte als `[redacted]`.
 
 ## Läufe und Benachrichtigungen
 
@@ -81,6 +84,10 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 - **Jetzt ausführen** (Menü ⋯, das Menü *Flow* oder das Menü einer Karte auf der Startseite) startet die veröffentlichte Version. Der Flow muss **Aktiv** sein: Solange er pausiert ist, ist *Jetzt ausführen* ausgeschaltet, und sein Tooltip sagt, dass du den Flow zuerst einschalten musst, so wie Mission Control eine pausierte Mission nicht ausführt. **Testen** geht in beiden Fällen.
 - Ein fehlgeschlagener Live-Lauf benachrichtigt so, wie es die Flow-Einstellungen sagen: auf dem Desktop (Standard), per Push, per Telegram oder gar nicht. Ein Flow benachrichtigt einmal, wenn er zu scheitern beginnt, danach höchstens einmal pro Stunde, solange er weiter scheitert. Ein Klick auf die Desktop-Benachrichtigung öffnet EasyDrag bei diesem Lauf.
 - Nach einem Neuladen des Desktops öffnet sich ein offener Flow wieder.
+- Beendet ein *Stopp*-Schritt einen Lauf, während andere Schritte noch laufen, haben diese bis zu 30 Sekunden Zeit; danach werden sie gestoppt und zeigen *Wirkung möglicherweise erfolgt*: Was sie senden oder ändern, kann schon passiert sein. Scheitert einer davon nach einem Stopp mit *Erfolg*, gilt der Lauf als fehlgeschlagen; nach einem Stopp mit *Fehler* bleibt dessen Meldung.
+- Ein *Warten*-Schritt gibt seinen Platz frei, solange er wartet, damit wartende Flows andere nicht aufhalten; danach reiht sich der Lauf wieder für einen freien Platz ein. Höchstens 64 Läufe warten gleichzeitig so; darüber hinaus behält ein Warten seinen Platz.
+- Ein Flow mit Nebenläufigkeit *parallel* belegt höchstens die Hälfte der gleichzeitigen Läufe. Insgesamt warten höchstens 200 Läufe (und 64 MiB ihrer Auslöser-Daten) auf ihren Start; darüber hinaus werden neue Auslöser verworfen, und Mission Control vermerkt das am Flow.
+- Live- und Testläufe werden getrennt aufbewahrt: *Gespeicherte Läufe pro Flow* zählt die Live-Läufe, die neuesten 20 Testläufe bleiben unabhängig davon erhalten. Sehr große Läufe behalten nur die Ein- und Ausgaben ihrer ersten Schritte (4 MiB pro Lauf); spätere Schritte zeigen *Gekürzt*.
 
 ## Decisions-Baustein
 
@@ -107,12 +114,13 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 ## Vorlagen, Import und Export
 
 - Die Startseite bietet sechs Vorlagen: *KI-News als PDF per Telegram*, *Webhook per E-Mail zusammenfassen*, *Terminerinnerung*, *Licht aus beim Verlassen*, *Budgetwächter* und *Täglicher RSS-Überblick*. Im Editor tragen Schritte, deren Integration noch nicht eingerichtet ist, ein Abzeichen, und ihre Detailansicht verweist auf die Einstellungen (*Einstellungen öffnen*); in der Bausteine-Leiste bieten solche Bausteine *Einrichten* an.
-- **Exportieren** lädt den Entwurf als `<name>.easydrag.json` herunter. **Importieren** auf der Startseite legt aus so einer Datei einen neuen Flow an (höchstens 2 MiB). Eine Flow-Datei enthält die Namen von Geheimnissen, nie ihre Werte; was du in gewöhnliche Felder tippst (etwa die Header-Liste eines allgemeinen Werkzeugs), wird so exportiert, wie du es eingegeben hast.
+- **Exportieren** lädt den Entwurf als `<name>.easydrag.json` herunter. **Importieren** auf der Startseite legt aus so einer Datei einen neuen Flow an (höchstens 2 MiB). Eine Flow-Datei enthält die Namen von Geheimnissen, nie ihre Werte; Zugangs-Header (*Authorization*, *X-Api-Key*, *Cookie*, ...) werden als `[redacted]` exportiert; andere Werte in gewöhnlichen Feldern so, wie du sie eingegeben hast.
 
 ## Mission Control, Missionsseite und Dashboard
 
 - In Mission Control tragen Flows das Abzeichen *EasyDrag*, und der Filter *Flows* zeigt nur sie. **In EasyDrag öffnen** ersetzt *Bearbeiten*; **Neuer Flow** öffnet die Startseite von EasyDrag. Zeitpläne lesen sich wie „Mo–Fr um 07:00“ (Uhrzeiten im Format deiner Sprache), und eine Mission, die noch nie lief, zeigt *Noch nie gelaufen*.
 - Läufe, die nur auf einen freien Platz warten, kannst du in Mission Control nicht abbrechen; stoppe sie hier unter **Läufe**.
+- *Ausführen* in Mission Control antwortet *übersprungen*, wenn der Flow nur einen Lauf zur Zeit erlaubt und gerade einer läuft.
 - Ausführen, Pausieren und Löschen von Flow-Missionen, die Missionsseite und das Dashboard beschreibt [Kapitel 11: Flow-Missionen](11-missions.md#flow-missionen-easydrag).
 
 ## Einstellungen

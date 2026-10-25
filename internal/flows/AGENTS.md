@@ -137,11 +137,19 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   still calls no hook. Validation is not the only guard: a live revision published under older rules is never
   validated again and test runs validate with draft rules, so the engine enforces the rule itself, in every run
   (see Engine semantics, `secretTargetRefusals`).
+- `PARAM_LITERAL_CREDENTIAL` (`IssueLiteralCredential`) is a warning (never an error) on `http.request` `headers`
+  with a typed-in credential header (`credentialHeaderName`); exports redact such values (`RedactCredentials`,
+  templates kept) and the run view redacts them (`redactCredentialHeaders`). S2 stays a warning: untrusted data in
+  command, code, path, delete or device sinks never blocks publishing (decision 2026-10-25).
 - A new node whose `Execute` copies `in.Inputs` into its output must be added to `passesInputs`.
 
 ## Engine semantics
 - One coordinator goroutine per run owns all state; nodes run on workers (at most `parallel`, default 4).
-  A node holds its slot until it returns, so a `logic.wait` (up to 1 h) can starve parallel branches.
+  A node holds its per-run worker until it returns, so a `logic.wait` (up to 1 h) can starve parallel branches
+  of the same run. Its *global* run slot is different: `logic.wait` parks it through `ExecInput.Slot`
+  (`SlotParker`, `slotGate`; test runs park too) once no other node of the run is busy, and takes one again before
+  it returns, in FIFO turn with waiting runs and on the run's context (cancel, shutdown and the run time limit
+  apply; the node timeout does not).
   `logic.wait` until looks for the next real minute with that wall-clock time within one hour. Timer rules
   for the spring gap and the autumn overlap stay as they are (see Timers).
 - Run-start checks: nil flow `FLOW_INVALID`; over the limits `FLOW_TOO_LARGE`; a loop `FLOW_CYCLE`; a
@@ -168,19 +176,28 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `MaxRunSecondsLimit`).
 - Params are resolved on the worker before the node timeout starts and cannot be cancelled (known
   limit: a huge filter chain over a large value can take about a second).
-- The first terminal outcome wins: a stop does not override an earlier failure, cancel or timeout. A run
-  is `FLOW_CANCELLED` or `FLOW_RUN_TIMEOUT` only if that actually interrupted a node.
+- The first terminal outcome wins: a stop does not override an earlier failure, cancel or timeout, and a stop
+  with an error keeps its outcome over later failures. After a stop, nodes still running get `abandonAfter`
+  (30 s, on the services clock) to finish; then they are cancelled. One that fails under `on_error: stop` after
+  a stop with success makes the run fail with its error and node (E3). A run is `FLOW_CANCELLED` or
+  `FLOW_RUN_TIMEOUT` only if that actually interrupted a node.
 - A returned port that the node does not declare, or `error` on success, fails with `FLOW_PORT_INVALID`.
 - Stuck nodes are abandoned 30 s after the run context ends (`FLOW_NODE_ABANDONED`); an abandoned worker
   can still cause side effects or read run data later, so treat `RunResult.Outputs` as read-only.
 - Nodes still open at the end get a closing step (`closeOpenNodes`): `cancelled`, or `skipped` after a
-  stop node. Step status `cancelled` exists in addition to the spec's list.
+  stop node. Step status `cancelled` exists in addition to the spec's list. A step launched and then cancelled or
+  abandoned gets `EffectUncertain` (`effect_uncertain`) when its node declares an effect (`declaresEffects`, via
+  `EffectsOf`; a panicking hook counts as one).
 - Error messages are capped at 1000 runes, node labels in run errors at 80.
 - Events: `run_started`, `step_started`, `step_finished`, `run_finished`; `Seq` starts at 1 per run.
 - Sizes: a node output over `MaxOutputBytes` (5 MiB) fails (`FLOW_OUTPUT_TOO_LARGE`); all outputs of a
   run together are capped by `MaxRunOutputBytes` (32 MiB, `FLOW_RUN_OUTPUT_TOO_LARGE`). Stored outputs
   and params over `MaxStoredOutputBytes` (256 KiB) become `{"_preview": …}` (first 64 KiB, cut on a
   rune boundary) with `OutputTruncated`/`ParamsTruncated`. The trigger output is bounded as well.
+  The run log keeps at most `MaxStoredRunBytes` (4 MiB) of a run's stored params and outputs, the trigger's
+  included; later steps keep `{"_preview":"","_omitted":"run_storage_budget"}` with both truncated flags
+  (`chargeStored`, `storedOmittedReason`). Stored params never hold a credential header value
+  (`redactCredentialHeaders`; `Service.Run` also redacts older rows).
 
 ## Runner and event bus
 - Test runs ignore per-flow policies but use the global limit. `queue` keeps at most `MaxQueuedPerFlow`
@@ -188,6 +205,17 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   queued (no run id), `parallel` only obeys the global limit. The global queue is FIFO.
   `MaxQueuedPerFlow` also caps, separately, the flow's runs waiting for a global slot; `Start` then
   returns `ErrQueueFull`.
+- `dispatchLocked` hands out free global slots in arrival order (tickets) to waiting runs and to parked runs that
+  resume. Counted (live) runs of one flow hold at most `MaxSlotsPerFlow` slots (default `max(1, MaxParallelRuns/2)`,
+  S5); a run over it keeps its place and does not block others (`fitsLocked`; test runs always fit). `Start` refuses
+  with `ErrRunnerQueueFull` (wraps `ErrQueueFull`) a run that would wait while `MaxPendingRuns` (200) runs, or
+  `MaxPendingBytes` (64 MiB) of their trigger data, already wait; one run may always wait (E5).
+- Parking (A7): `runSlot.Release` hands the slot back, `Acquire` queues a resumer. At most `MaxParkedRuns` (64) runs
+  are parked; beyond that `Release` returns false and the wait keeps its slot. A parked run is in `cancels` but holds
+  no slot (`runSlot.held` false), so `slots + parked == len(cancels)`; `slots == len(cancels)` holds only without
+  parked runs. `runSlot.ended` is set by `Runner.release` (`endSlotLocked`): an abandoned node that still asks for a
+  slot gets `ErrRunnerClosed`. `slotGate.Unpark` updates its counters (`parked--`, `active++`) before it takes
+  `acq`, so a woken node queued behind another keeps the run from releasing and asking twice.
 - Every run with an id has an event log from its creation (queued runs too), and the log always ends
   with `run_finished`: `endLog` publishes it for runs that end without the engine (cancelled while
   queued, `FLOW_SHUTDOWN`, runner panic). A runner panic gives `FLOW_RUNNER_PANIC` and frees the slot.
@@ -206,7 +234,9 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   admits the flow's next queued run of another mode. Mission Control's cancel uses it with `ModeLive`.
 - Gate: `RunnerConfig.Gate` is asked on the run's goroutine, outside all locks, right before a run executes that has
   `StartRequest.Gated` (live runs a trigger started: `TriggerFromMission`, `onTimerFired`; `RunNow` is not gated) and
-  waited in a queue (behind its flow's run or for a global slot); a run that started at once is not asked again. A
+  waited in a queue (`pendingRun.waited`: behind its flow's run or for a global slot); a run that started at once is
+  not asked again, and neither is a parked run that resumes after `logic.wait` (no new launch: no gate, no new
+  record). The check is `gateRefusal` at the top of `Runner.execute`, not in `dispatchLocked`. A
   refusal, or a panic (fails closed), ends the run cancelled with `RunsPausedCode` (`FLOW_RUNS_PAUSED`) without
   executing: recorded and its log ended first (`recordUnstarted`), then its slots go to the next waiting run (which
   asks in turn), then `OnRunFinished` reports it like a run cancelled while queued. The Service's gate is its bridge's
@@ -227,12 +257,19 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   with a greater version (or one that is not a number) before any migration runs and leaves the file untouched,
   so an older AuraGo never writes into a schema a newer one migrated. Raise `storeSchemaVersion` with every
   migration a previous release cannot work with.
-- Test runs store their document in `flow_runs.doc_json`; live runs reference `flow_versions`. `Publish` keeps the
+- Test runs store their document once per flow and content in `flow_test_docs` (sha256 key, written in one
+  transaction with the run row) and refer to it through `flow_runs.doc_hash`; rows from before keep `doc_json`.
+  `PruneRunsByMode` sweeps documents no run refers to. Live runs reference `flow_versions`. `Publish` keeps the
   last 50 versions plus every older one an unfinished live run (queued, waiting, running) executes
   (`pruneVersionsSQL`: one non-correlated subquery on `idx_flow_runs_flow_started`, pinned by
   `TestAudit18VersionPruningSearchesTheRunsByIndex`), so the run view (`GetRunDoc`, `include=doc`) can show the
   document while the run goes on; such a version goes with the first publish after the run finished. A run row
   left unfinished by a crash is marked interrupted at the next `Start`, so it holds nothing.
+- Retention is per mode: `PruneRunsByMode(days, live, test)`; the Service keeps `MaxRunsPerFlow` non-test runs and
+  `MaxTestRunsPerFlow` (default `DefaultMaxTestRunsPerFlow` 20, at most `MaxRunsPerFlow`) test runs (A6).
+  `SetScrubber` scrubs trigger data, step params, outputs and error texts before they are written (S7); the
+  server installs its read-time walk (`flowStoreScrubber`). New columns go into `storeColumns` (added with
+  `dbutil.MigrateAddColumn` before `storeIndexes`) and into the DDL.
 - Not-found and exists cases are typed (`ErrFlowExists`, `ErrNotFound`, `ErrRunNotFound`). Inserts and
   upserts of child rows are guarded by `WHERE EXISTS` on the parent row; plain updates by id
   (`SetMissionID`, `SetRunStatus`, `FinishRun`) use the affected row count. A stale draft revision is
@@ -350,6 +387,9 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `ai.step` (a model that reads untrusted data can be prompt-injected); and every generic node. The other triggers
   (manual, schedule, datetime, device, startup, budget, person_detected) are trusted. `trigger.ha_state` and
   `home.assistant` agree: an entity state or attribute can be set by integrations, MQTT, mail or RSS.
+- `home.assistant` has `OutputFieldsFunc` (`homeAssistantFields`) per operation: get_state gives state, attributes,
+  entity_id, last_changed; call_service gives ok, service, affected_entities; an operation the document does not
+  settle gives all of them. The editor mirrors it in `easydrag-model.js` (`fieldsOf`).
 - Sinks are search queries, paths and file names, URLs, headers and bodies, recipients, attachments, accounts,
   channels, MQTT topic and payload, Home Assistant entity and service data, the planner title, the `ai.step`
   instructions (they become the system message; untrusted data belongs in the prompt, which is no sink), and
@@ -537,6 +577,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `ErrTestDataTooLarge` before anything is stored. Without data the remembered or built-in sample is used.
   `SaveTriggerSample` and `TriggerSampleData` accept only an enabled trigger of the draft (else `ErrNoTrigger`,
   wrapped with the bounded node id), so made-up node ids never get a stored row.
+  `TestRunRequest.BaseRevision > 0` refuses a test of a draft that moved on with `ErrRevisionConflict` (API 409).
 - Live runs (`RunNow`, `TriggerFromMission`, timer callbacks, all through `startLive`) execute the published
   revision (`ErrNotPublished` without one, `ErrNoTrigger` without a matching enabled trigger). `RunNow` also
   refuses a flow that is switched off (`ErrFlowDisabled`, its mission is disabled), as Mission Control does
@@ -587,7 +628,10 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   aurago-test: `TestServiceSerializesOperationsPerFlow`, `TestServiceConcurrentPublishAndEnable`,
   `TestServiceDeleteCancelsTheFlowsRuns`, `TestRunnerCancelFlow*`, `TestFlowLocksAreKeyedAndCancellable`,
   `TestServiceLifecycle`, `TestServiceMissionEnabledChanged*`, `TestServiceCancelMissionRuns*` and
-  `TestServiceNextTimerPerFlow`.
+  `TestServiceNextTimerPerFlow`. Repeat `TestFB4WaitingRun*`, `TestFB4ParkedRuns*`,
+  `TestFB4CancelAndShutdownEndParkedRuns` and `TestFB4ParallelFlow*` under `-race -count=20` on aurago-test.
+- A test that needs a node to hold a global slot must not use `logic.wait` (it parks and gives the slot away):
+  register a node that blocks on a channel or `ctx.Done()` (`TestC18TestRunsShareTheGlobalLimits`).
 
 ## Integration (plan 1c)
 - `internal/server` implements the interfaces of this package; the wiring, the API, the bridge and the

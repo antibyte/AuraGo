@@ -65,6 +65,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 - A test has real effects. The dialog lists each kind (*Sends messages*, *Writes files*, *Controls devices*, …) with the steps that may cause it. Each step counts with what its building block does by default and with what its actual settings do, so an HTTP request with POST counts as sending, although the building block alone does not. If AuraGo cannot check the settings, or a building block cannot name its effects, the dialog says that the effects could not be fully checked. **Run test** confirms the listed kinds once the test has started, while the flow stays open; *Don't ask again for this flow* remembers them on this device. A test that does not start (AuraGo refuses it or cannot be reached) confirms nothing. A kind you have not confirmed yet is asked again.
 - **Test step** in a step's detail view (also *Test this step* on the selected card and in its context menu) runs that step together with the steps before it. Its dialog therefore asks about the effects of every step that runs: the step itself and the steps before it that the chosen trigger reaches. A turned-off step does not run, nor do the steps that only it leads to.
 - **Stop** in the header cancels the test or run you started in this window, without asking (also a run started with *Run now*). Other runs that have not ended are stopped under **Runs** (see [Runs and notifications](#runs-and-notifications)). While that test or live run is still starting or still going, EasyDrag does not start another and does not send an uncertain start again. Stopping does not undo steps that already ran. Automatic saving is unchanged. The runs list opens in the editor body, under the header and any run banner.
+- A test runs the draft you see: if it was changed in another window meanwhile, EasyDrag refuses the test (*The flow was changed elsewhere*). Reload the flow and test again.
 
 ## Publishing
 
@@ -73,6 +74,8 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 - The building blocks panel marks blocks with real effects outside AuraGo. The mark looks at a block's default settings (for a generic tool, at its most far-reaching operation) and is no safety guarantee. The publish dialog lists the effects of your actual settings; the test dialog adds those of the blocks' default settings.
 - **Published with a problem** means the new version is live, but Mission Control or the timers could not be updated. The header then shows *Publish not finished*, and **Publish** stays available: publish again to finish.
 - When the flow's Mission Control entry is missing, publishing again does not help. Export the flow, delete it and import it again.
+- *Data from outside reaches a sensitive step* (for example a mail subject in a shell command, a file path or a recipient) is a hint, not a blocking problem: AuraGo cannot tell whether the step checks the data, and many flows pass outside text on on purpose. Such flows can be published and run; make sure the step cannot be misused. Only outside data that decides where a secret is sent blocks publishing.
+- A header such as *Authorization*, *X-Api-Key* or *Cookie* with a typed-in value is a hint as well: the value sits in clear text in the flow and its versions. Store it as a secret and use the *Secret* field. Exports and the run view show such values as `[redacted]`.
 
 ## Runs and Notifications
 
@@ -81,6 +84,10 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 - **Run now** (⋯ menu, the *Flow* menu, or a card's menu on the start page) starts the published version. The flow must be **Active**: while it is paused, *Run now* is turned off and its tooltip says to switch the flow on first, as Mission Control refuses to run a paused mission. **Test** works either way.
 - A failed live run notifies as the flow settings say: on the desktop (the default), as a push notification, on Telegram or not at all. A flow notifies once when it starts failing, then at most once an hour while it keeps failing. Clicking the desktop notification opens EasyDrag on that run.
 - After a desktop reload, an open flow is opened again.
+- When a *Stop* step ends a run while other steps still run, they get up to 30 seconds to finish; then they are stopped and show *Effect may have happened*: what they send or change may already have happened. If one of them fails after a stop with *Success*, the run counts as failed; after a stop with *Error*, the stop's message stays.
+- A *Wait* step frees its run slot while it waits, so waiting flows do not hold up others; afterwards the run queues for a free slot. At most 64 runs wait like this at a time; beyond that a wait keeps its slot.
+- A flow set to *parallel* uses at most half of the parallel runs at once. At most 200 runs (and 64 MiB of their trigger data) wait for a start in total; beyond that new triggers are dropped, and Mission Control notes it on the flow.
+- Live and test runs are kept apart: *Runs kept per flow* counts live runs, and the newest 20 test runs are kept on their own. Very large runs keep the inputs and outputs of their first steps only (4 MiB per run); later steps show *Shortened*.
 
 ## Decisions Node
 
@@ -107,12 +114,13 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 ## Templates, Import and Export
 
 - The start page offers six templates: *AI news as PDF via Telegram*, *Summarise a webhook by email*, *Appointment reminder*, *Lights off when leaving*, *Budget guard* and *Daily RSS digest*. In the editor, steps whose integration is not set up yet carry a badge, and their detail view links to the settings (*Open settings*); in the building blocks panel such blocks offer *Set up*.
-- **Export** downloads the draft as `<name>.easydrag.json`. **Import** on the start page creates a new flow from such a file (at most 2 MiB). A flow file carries secret names, never their values; what you type into ordinary fields (a generic tool's header map, for example) is exported as typed.
+- **Export** downloads the draft as `<name>.easydrag.json`. **Import** on the start page creates a new flow from such a file (at most 2 MiB). A flow file carries secret names, never their values; credential headers (*Authorization*, *X-Api-Key*, *Cookie*, ...) are exported as `[redacted]`; other values typed into ordinary fields are exported as typed.
 
 ## Mission Control, the Missions Page and the Dashboard
 
 - In Mission Control, flows carry the *EasyDrag* badge, and the filter *Flows* shows only them. **Open in EasyDrag** replaces *Edit*; **New flow** opens EasyDrag's start page. Schedules read like "weekdays at 07:00 AM" (times follow your language's format), and a mission that never ran shows *Never run*.
 - Runs that only wait for a free slot cannot be cancelled in Mission Control; stop them here under **Runs**.
+- *Run* in Mission Control answers *skipped* when the flow allows one run at a time and one is going.
 - Running, pausing and deleting flow missions, the missions page and the dashboard are described in [Chapter 11: Flow missions](11-missions.md#flow-missions-easydrag).
 
 ## Settings
