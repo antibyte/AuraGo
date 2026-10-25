@@ -9,5 +9,5 @@ import "embed"
 // Sub-directories (personalities, rules, templates, tools_manuals) are included
 // automatically because embed.FS recurses into them.
 //
-//go:embed *.md personalities rules templates tools_manuals
+//go:embed *.md personalities rules templates tools_manuals self_tests
 var FS embed.FS

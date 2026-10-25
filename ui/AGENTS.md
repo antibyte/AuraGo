@@ -96,6 +96,7 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   `TestChatFrontend_VideoPlayerFlowRemainsPresent`.
 
 ## Local Contracts
+- Dashboard Tools owns the self-test card (`js/dashboard/self-tests.js`): explicit Start/Stop, read/fixture/exact-binding profiles, KPI summary before a closed details table and fixed same-origin Markdown/JSON downloads. Dynamic values use `textContent`; prevent duplicate starts, discard stale requests and stop polling while hidden. Keep `dashboard.selftest_*` aligned in all 16 locales. Verify `TestSelfTestDashboard*` and `node ui/testdata/selftests.cjs`; backend/evidence contracts belong to `internal/selftest/AGENTS.md`.
 
 - Speech Output defaults to `phonon` with automatic language/voice on fresh setup.
   The Phonon picker uses `AuraConfigState`, retains manual voices across navigation

@@ -1,5 +1,7 @@
 # Agent self-test prompt catalog
 
+Historical design snapshot. The canonical runtime catalog is [`prompts/self_tests/catalog.md`](../prompts/self_tests/catalog.md); see the [operator guide](../documentation/agent-self-tests.md) for implemented profiles and limitations.
+
 Status: proposed test content, 2026-10-25. Companion: [implementation plan](2026-10-25-agent-self-test-plan.md). The German text in each row is one test prompt, not a claim that the test has run. No test runner or new diagnostic tool is implemented by these documents.
 
 ## How to execute a case

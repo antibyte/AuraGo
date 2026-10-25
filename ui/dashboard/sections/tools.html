@@ -11,6 +11,29 @@
     </div>
   </header>
   <div class="dash-grid">
+    <div class="dash-card span-12" id="card-selftest">
+      <div class="dash-card-header"><h3 class="dash-card-title" data-i18n="dashboard.selftest_title"></h3></div>
+      <div class="dash-card-body">
+        <div class="dash-kpi-row" id="selftest-summary" aria-live="polite"></div>
+        <p data-i18n="dashboard.selftest_desc"></p>
+        <label for="selftest-profile" data-i18n="dashboard.selftest_profile"></label>
+        <select id="selftest-profile"><option value="read" data-i18n="dashboard.selftest_read"></option><option value="fixtures" data-i18n="dashboard.selftest_fixtures"></option><option value="targeted" data-i18n="dashboard.selftest_targeted"></option></select>
+        <label for="selftest-target" data-i18n="dashboard.selftest_target"></label><select id="selftest-target"></select>
+        <p data-i18n="dashboard.selftest_budget"></p>
+        <div id="selftest-bindings-panel" hidden><label for="selftest-bindings" data-i18n="dashboard.selftest_bindings"></label><p data-i18n="dashboard.selftest_bindings_hint"></p><textarea id="selftest-bindings" rows="6" spellcheck="false" class="w-full"></textarea></div>
+        <div class="activity-item-actions-inline">
+          <button type="button" data-selftest-action="start" id="selftest-start" class="btn btn-primary" data-i18n="dashboard.selftest_start"></button>
+          <button type="button" data-selftest-action="stop" id="selftest-stop" class="btn" data-i18n="dashboard.selftest_stop" disabled></button>
+          <button type="button" data-selftest-action="refresh" class="btn" data-i18n="dashboard.selftest_refresh"></button>
+          <a id="selftest-report" hidden data-i18n="dashboard.selftest_report"></a><a id="selftest-results" hidden data-i18n="dashboard.selftest_results"></a>
+        </div>
+        <p id="selftest-status" role="status" aria-live="polite"></p>
+        <details class="dash-disclosure" data-disclosure="card-selftest:cases">
+          <summary data-i18n="dashboard.selftest_details"></summary>
+          <div class="table-container"><table><thead><tr><th data-i18n="dashboard.selftest_case"></th><th data-i18n="dashboard.selftest_tool"></th><th data-i18n="dashboard.selftest_result"></th><th data-i18n="dashboard.selftest_hint"></th></tr></thead><tbody id="selftest-rows"></tbody></table></div>
+        </details>
+      </div>
+    </div>
     <div class="dash-card span-12" id="card-activity">
       <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L3 14h7l-1 8 10-12h-7z" fill="currentColor" stroke="none"/></svg> <h3 class="dash-card-title" data-i18n="dashboard.activity_title"></h3> <button type="button" class="collapse-toggle" data-card="card-activity" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
       <div class="dash-card-body">

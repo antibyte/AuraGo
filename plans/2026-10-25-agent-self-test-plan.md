@@ -1,6 +1,6 @@
 # Prompt-driven agent self-tests
 
-Status: implementation proposal, 2026-10-25. This document and the [prompt catalog](2026-10-25-agent-self-test-prompts.md) do not enable integrations, run live tests, or change runtime behavior. Documentation is English; executable user-facing prompts are German.
+Status: original design, 2026-10-25. The bounded runner, admin Dashboard controls, private reports, reviewed read probes, local fixtures and exact targeted bindings are implemented; current behavior and remaining specialized-fixture limits are documented in the [operator guide](../documentation/agent-self-tests.md). The canonical runtime prompts live in [`prompts/self_tests/catalog.md`](../prompts/self_tests/catalog.md); the companion catalog is the original design snapshot. Statements below about proposed work describe that original scope, not a claim of live acceptance. Documentation is English; executable user-facing prompts are German.
 
 ## Goal and recommended approach
 

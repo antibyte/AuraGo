@@ -55,6 +55,7 @@ Server-owned HTTP and cross-component integration contracts.
 `internal/server` owns this domain. The contracts below also bind related server, UI, config, asset, and test work through the root routing table.
 
 ## Local Contracts
+- `/api/self-tests` and its catalog, run, cancel and download subroutes are admin-only and `no-store`; browser mutations require a matching Origin. Runs bind a saved configuration snapshot, stop new cases after configuration replacement and drain before integrations close. Reuse only reviewed read-only saved-config probes. Never expose raw bindings, credentials, model prose or tool payloads through reports. See `../selftest/AGENTS.md` and `documentation/agent-self-tests.md`; verify `TestSelfTest*`.
 
 - `/api/tts/phonon/voices` is an admin-only passive catalog/resource read.
   Voice downloads are admin/CSRF-protected POSTs accepting pinned catalog IDs only;

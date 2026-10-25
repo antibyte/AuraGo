@@ -80,6 +80,9 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	}
 	// Each call owns its effective policy and mutable dispatch metadata.
 	originalDC := dc
+	if hooks := dc.ExecutionHooks; hooks != nil && hooks.ObserveResult != nil {
+		defer func() { hooks.ObserveResult(*tc, result) }()
+	}
 	local := *dc
 	local.Ctx = ctx
 	dc = &local

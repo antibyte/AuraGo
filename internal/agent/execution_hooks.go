@@ -19,6 +19,7 @@ type ExecutionHooks struct {
 	BeforeTool      func(context.Context, ToolCall) error
 	HandleTool      func(context.Context, ToolCall) (string, bool)
 	AfterTool       func(context.Context, ToolCall, string) string
+	ObserveResult   func(ToolCall, ToolDispatchResult)
 	AfterResponse   func(openai.Usage) error
 }
 

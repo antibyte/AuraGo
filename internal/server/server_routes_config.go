@@ -14,6 +14,7 @@ import (
 )
 
 func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster) {
+	s.registerSelfTestRoutes(mux)
 	mux.Handle("/api/agent/actions", requireAdmin(s, handleActionApprovals(s)))
 	mux.Handle("/api/agent/action-policy/preview", requireAdmin(s, handleActionPolicyPreview(s)))
 	mux.Handle("/api/agent/action-policy/catalog", requireAdmin(s, handleActionPolicyCatalog(s)))

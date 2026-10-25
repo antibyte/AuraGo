@@ -180,6 +180,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Memory repair CLI | `cmd/memory-repair/AGENTS.md` | Offline analysis duplicate merging, previews/evidence/backups, resumable reference/vector cleanup. |
 | ACE-Step | `internal/acestep/AGENTS.md` | Private local music lifecycle, pinned runtime/models, hardware qualification. |
 | Agent/tool system | `internal/agent/AGENTS.md` | Runtime prompts/discovery/dispatch/context; Prompt and Runtime Drift Contract. |
+| Agent self-tests | `internal/selftest/AGENTS.md`, `prompts/self_tests/AGENTS.md` | Prompt catalog, bounded runs, trusted evidence, private reports and admin Dashboard controls. |
 | Bluetooth | `internal/bluetooth/AGENTS.md` | Native discovery/permissions/playback. |
 | Bookshelf | `internal/bookshelf/AGENTS.md` | Library/sources, reader isolation, conversion. |
 | CYD notification devices | `internal/cyd/AGENTS.md`, `internal/server/AGENTS.md` | Glass notifications, MeshCore announcements and shared TTS/PCM playback. |

@@ -65,6 +65,7 @@ import (
 	"aurago/internal/rtlsdr"
 	"aurago/internal/ruview"
 	"aurago/internal/security"
+	"aurago/internal/selftest"
 	"aurago/internal/services"
 	"aurago/internal/sipphone"
 	"aurago/internal/speechlab"
@@ -153,6 +154,8 @@ func panicRecoveryMiddleware(logger *slog.Logger, next http.Handler) http.Handle
 
 // Server holds the state and dependencies for the web server and socket bridge.
 type Server struct {
+	selfTestMu           sync.Mutex
+	selfTests            *selftest.Manager
 	knowledge            projectKnowledge
 	Cfg                  *config.Config
 	cfgSnapshot          atomic.Pointer[config.Config]
@@ -830,6 +833,7 @@ func Start(opts StartOptions) error {
 	// (containers_self_proof.go); outside a container it does nothing.
 	initContainerSelfMarker(containerRuntimeIsDocker(s), logger)
 	s.integrationCtx = serverCtx
+	defer s.closeSelfTests()
 	if s.BackgroundTasks != nil {
 		s.BackgroundTasks.SetIsolatedCodeAuthorizer(func(ctx context.Context, action tools.BackgroundCodeAction) error {
 			return agent.ValidateBackgroundCodeAction(ctx, s.ConfigSnapshot(), s.Logger, action)
@@ -2074,6 +2078,7 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 			}
 		}
 		s.httpRequests.Wait()
+		s.closeSelfTests()
 		if s.BackgroundTasks != nil {
 			if err := s.BackgroundTasks.Close(); err != nil {
 				s.Logger.Warn("Background task shutdown did not complete cleanly", "error", err)
