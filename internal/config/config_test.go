@@ -4419,3 +4419,24 @@ func TestDetectivePathDefaultAndResolve(t *testing.T) {
 		t.Fatalf("override = %q, want %q", cfg.SQLite.DetectivePath, custom)
 	}
 }
+func TestYepAPIBudgetQuotaPercentClamp(t *testing.T) {
+	for _, tc := range []struct {
+		raw  string
+		want int
+	}{
+		{"providers: []\nyepapi:\n  budget_quota_percent: -5\n", 0},
+		{"providers: []\nyepapi:\n  budget_quota_percent: 35\n", 35},
+	} {
+		configPath := filepath.Join(t.TempDir(), "config.yaml")
+		if err := os.WriteFile(configPath, []byte(tc.raw), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := Load(configPath)
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.YepAPI.BudgetQuotaPercent != tc.want {
+			t.Fatalf("YepAPI budget quota percent = %d, want %d", cfg.YepAPI.BudgetQuotaPercent, tc.want)
+		}
+	}
+}

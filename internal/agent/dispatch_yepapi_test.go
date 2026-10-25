@@ -208,3 +208,49 @@ func TestYepAPIConfigKnowsEveryNativeTool(t *testing.T) {
 		}
 	}
 }
+
+// The YepAPI quota caps the category spend independently of the global daily
+// budget.
+func TestDispatchYepAPIBlocksOnCategoryQuota(t *testing.T) {
+	t.Run("quota_blocks_the_call", func(t *testing.T) {
+		cfg, tracker, dc := yepAPIDispatchFixture(t, "yepapi_seo", true)
+		cfg.YepAPI.BudgetQuotaPercent = 10
+		// The daily limit is 10 USD, so a 10 percent quota is 1 USD.
+		tracker.RecordCostForCategory("yepapi", 1)
+		out, err := dispatchYepAPI(context.Background(), yepAPITestCall("yepapi_seo", "domain_overview"), dc, "yepapi_seo")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		want := `Tool Output: {"status":"error","message":"YepAPI quota reached for today. Continue with other work or use another integration."}`
+		if out != want {
+			t.Fatalf("out = %q, want %q", out, want)
+		}
+	})
+	t.Run("zero_quota_disables_the_gate", func(t *testing.T) {
+		cfg, tracker, dc := yepAPIDispatchFixture(t, "yepapi_seo", true)
+		cfg.YepAPI.BudgetQuotaPercent = 0
+		tracker.RecordCostForCategory("yepapi", 5)
+		out, err := dispatchYepAPI(context.Background(), yepAPITestCall("yepapi_seo", "domain_overview"), dc, "yepapi_seo")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(out, `"status":"success"`) {
+			t.Fatalf("out = %q, want a success envelope: a quota of 0 must not block", out)
+		}
+	})
+	t.Run("the_global_budget_message_comes_first", func(t *testing.T) {
+		cfg, tracker, dc := yepAPIDispatchFixture(t, "yepapi_seo", true)
+		cfg.Budget.Enforcement = "full"
+		cfg.Budget.DailyLimitUSD = 0.0001
+		cfg.YepAPI.BudgetQuotaPercent = 10
+		tracker.RecordCostForCategory("yepapi", 1)
+		out, err := dispatchYepAPI(context.Background(), yepAPITestCall("yepapi_seo", "domain_overview"), dc, "yepapi_seo")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		want := `Tool Output: {"status":"error","message":"Daily budget exceeded. YepAPI calls are blocked until the budget resets."}`
+		if out != want {
+			t.Fatalf("out = %q, want %q", out, want)
+		}
+	})
+}

@@ -2251,6 +2251,9 @@ func Load(path string) (*Config, error) {
 	if cfg.CoAgents.BudgetQuotaPercent < 0 {
 		cfg.CoAgents.BudgetQuotaPercent = 0
 	}
+	if cfg.YepAPI.BudgetQuotaPercent < 0 {
+		cfg.YepAPI.BudgetQuotaPercent = 0
+	}
 	if cfg.CoAgents.MaxContextHints <= 0 {
 		cfg.CoAgents.MaxContextHints = 6
 	}

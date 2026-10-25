@@ -108,6 +108,9 @@ func dispatchYepAPI(ctx context.Context, tc ToolCall, dc *DispatchContext, tool 
 	if dc.BudgetTracker != nil && dc.BudgetTracker.IsBlocked("yepapi") {
 		return `Tool Output: {"status":"error","message":"Daily budget exceeded. YepAPI calls are blocked until the budget resets."}`, nil
 	}
+	if dc.BudgetTracker != nil && dc.BudgetTracker.IsCategoryQuotaBlocked("yepapi", dc.Cfg.YepAPI.BudgetQuotaPercent) {
+		return `Tool Output: {"status":"error","message":"YepAPI quota reached for today. Continue with other work or use another integration."}`, nil
+	}
 	// A nil *security.Vault must not reach the SecretReader interface: a typed
 	// nil pointer is not a nil interface and would panic inside ReadSecret.
 	var secrets config.SecretReader

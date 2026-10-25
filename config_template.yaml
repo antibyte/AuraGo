@@ -2116,6 +2116,7 @@ yepapi:
     enabled: false
     provider: ""                            # provider entry ID with type 'yepapi' (empty = auto-select first)
     base_url: ""                            # custom YepAPI base URL (empty = https://api.yepapi.com)
+    budget_quota_percent: 0                 # daily budget share (0 = no reserved quota)
     seo:
         enabled: false                      # keyword research, domain overview, competitor analysis, backlinks
     serp:
