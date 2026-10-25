@@ -22,8 +22,32 @@ func credentialHeaderName(name string) bool {
 	return false
 }
 
+// templateOnlyCredential reports whether a header value carries no typed-in text: after the
+// template expressions are taken out, nothing is left but whitespace or a bare auth scheme word
+// (Bearer, Basic, Token). Text mixed with a template ("sid=1; lang={{x}}") is typed in.
+func templateOnlyCredential(s string) bool {
+	if !HasTemplate(s) {
+		return false
+	}
+	t, err := ParseTemplate(s)
+	if err != nil {
+		return false
+	}
+	var rest strings.Builder
+	for _, p := range t.parts {
+		if p.expr == nil {
+			rest.WriteString(p.literal)
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(rest.String())) {
+	case "", "bearer", "basic", "token":
+		return true
+	}
+	return false
+}
+
 // literalCredentialHeaders returns, sorted, the names of the credential headers in a headers
-// parameter whose value is typed in: non-blank text without a template. It is a hook helper: it
+// parameter whose value is typed in: non-blank text that is not a pure template. It is a hook helper: it
 // copes with any value.
 func literalCredentialHeaders(v any) []string {
 	m, ok := v.(map[string]any)
@@ -34,7 +58,7 @@ func literalCredentialHeaders(v any) []string {
 	for k, raw := range m {
 		name := strings.TrimSpace(k)
 		s, isText := raw.(string)
-		if !isText || strings.TrimSpace(s) == "" || HasTemplate(s) || s == redactedText || !credentialHeaderName(name) {
+		if !isText || strings.TrimSpace(s) == "" || templateOnlyCredential(s) || s == redactedText || !credentialHeaderName(name) {
 			continue
 		}
 		names = append(names, name)
@@ -57,7 +81,7 @@ func redactCredentialHeaders(params map[string]any, keepTemplates bool) map[stri
 		if !credentialHeaderName(name) || isEmptyValue(v) {
 			continue
 		}
-		if s, isText := v.(string); isText && (s == redactedText || keepTemplates && HasTemplate(s)) {
+		if s, isText := v.(string); isText && (s == redactedText || keepTemplates && templateOnlyCredential(s)) {
 			continue
 		}
 		if copied == nil {

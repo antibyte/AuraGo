@@ -316,7 +316,10 @@ func (s *Service) Run(ctx context.Context, runID string, includeDoc bool) (*RunD
 	detail := &RunDetail{Run: rec, Steps: steps}
 	if includeDoc {
 		if doc, err := s.store.GetRunDoc(ctx, runID); err == nil {
-			detail.Doc = doc
+			// runs stored before S6 may hold typed-in credentials; templates stay
+			if red, rerr := RedactCredentials(doc); rerr == nil {
+				detail.Doc = red
+			}
 		}
 	}
 	return detail, nil

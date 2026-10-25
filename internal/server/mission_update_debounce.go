@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -48,7 +49,18 @@ func (d *missionUpdateDebouncer) arm(send func()) {
 		}
 		d.pending = false
 		d.mu.Unlock()
-		send()
+		safeMissionSend(send)
 		d.arm(send)
 	})
+}
+
+// safeMissionSend runs the trailing send on a timer goroutine, where a panic would end the
+// process: it is logged instead and the next window still starts.
+func safeMissionSend(send func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Default().Error("mission_update broadcast panicked", "panic", r)
+		}
+	}()
+	send()
 }
