@@ -1146,3 +1146,17 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-palette-row { display: flex; align-items: center; gap: 4px; }
 .ed-palette-row > .ed-palette-item { flex: 1; min-width: 0; }
 .ed-palette-setup { margin-right: 6px; text-decoration: none; }
+
+/* why a connection is refused, beside the pointer (U14); visual only, the release announces it */
+.ed-connect-hint {
+    position: absolute; left: 0; top: 0; z-index: 6; max-width: 260px; padding: 4px 8px; border-radius: 8px; pointer-events: none;
+    background: color-mix(in srgb, var(--ed-danger) 16%, var(--ed-panel-strong)); color: var(--ed-danger-ink);
+    border: 1px solid var(--ed-danger); font-size: 12px; line-height: 1.35;
+}
+/* first-time tip about ports, until the first connection (U14) */
+.ed-port-tip {
+    position: absolute; left: 50%; bottom: 56px; z-index: 5; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 8px; max-width: min(520px, calc(100% - 32px)); padding: 8px 6px 8px 12px;
+    border-radius: 12px; background: var(--ed-glass); border: 1px solid var(--ed-border); box-shadow: var(--ed-shadow-lg); font-size: 12.5px;
+}
+.ed-port-tip > span { min-width: 0; }

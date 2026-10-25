@@ -26,6 +26,28 @@
         overlay.appendChild(guides);
         const guideV = guides.firstChild;
         const guideH = guides.lastChild;
+        // connectHint shows beside the pointer why the port under it refuses the connection (U14). The
+        // overlay is aria-hidden; the release announces the same words.
+        const connectHint = core.el('<div class="ed-connect-hint" hidden></div>');
+        overlay.appendChild(connectHint);
+        connectHint.hidden = true;
+        let hintTimer = 0;
+
+        function showConnectHint(reason, clientX, clientY) {
+            clearTimeout(hintTimer);
+            hintTimer = 0;
+            if (!reason) { connectHint.hidden = true; return; }
+            const s = canvas.size();
+            connectHint.textContent = core.tr(t, 'easydrag.ui.connect_' + reason, t('easydrag.ui.connect_port'));
+            connectHint.style.transform = 'translate(' + Math.round(clientX - s.left + 14) + 'px,' + Math.round(clientY - s.top + 14) + 'px)';
+            connectHint.hidden = false;
+        }
+
+        // A refused release keeps the reason on screen for 2.5 s.
+        function fadeConnectHint() {
+            clearTimeout(hintTimer);
+            hintTimer = setTimeout(() => { hintTimer = 0; connectHint.hidden = true; }, 2500);
+        }
         const pointers = new Map();
         let spaceDown = false;
         let lastPointer = null;
@@ -116,7 +138,7 @@
         // ── pointer handling ────────────────────────────────────────────────────
 
         function onPointerDown(event) {
-            if (event.target.closest('.ed-zoom, .ed-minimap, .ed-empty, .ed-wire-actions, .ed-node-tools')) return;
+            if (event.target.closest('.ed-zoom, .ed-minimap, .ed-empty, .ed-wire-actions, .ed-node-tools, .ed-port-tip')) return;
             el.focus({ preventScroll: true });
             pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
             // A second finger turns the gesture into a pinch; more fingers are ignored.
@@ -315,6 +337,7 @@
                     state = check.ok ? 'snap' : 'invalid';
                     if (!check.ok) target = Object.assign({}, target, { invalid: check.reason });
                 }
+                showConnectHint(target && target.invalid ? target.invalid : '', ev.clientX, ev.clientY);
                 const end = target && !target.invalid ? target.point : p;
                 if (reverse) wires.preview(end, anchor, state); else wires.preview(anchor, end, state);
             };
@@ -324,6 +347,8 @@
                 el.classList.remove('is-connecting');
                 wires.preview(null, null);
                 if (stopWatch) stopWatch();
+                const refused = !cancelled && started && !!(target && target.invalid);
+                if (refused) fadeConnectHint(); else showConnectHint('', 0, 0);
                 // A tap never changes the document or its undo/redo history.
                 if (!started) {
                     if (!cancelled) ed.bus.emit('connect-picker', { nodeId, port, side });
@@ -390,7 +415,7 @@
         function onDoubleClick(event) {
             const nodeEl = event.target.closest('.ed-node');
             if (nodeEl && !event.target.closest('.ed-node-tools, .ed-port')) { ed.bus.emit('open-detail', { nodeId: nodeEl.dataset.nodeId }); return; }
-            if (!nodeEl && !readonly() && event.target.closest('.ed-canvas') && !event.target.closest('.ed-zoom, .ed-minimap, .ed-empty')) {
+            if (!nodeEl && !readonly() && event.target.closest('.ed-canvas') && !event.target.closest('.ed-zoom, .ed-minimap, .ed-empty, .ed-port-tip')) {
                 ed.bus.emit('quick-add', { x: event.clientX, y: event.clientY });
             }
         }
@@ -505,7 +530,7 @@
         }
 
         function onContextMenu(event) {
-            if (event.target.closest('.ed-zoom, .ed-minimap')) return;
+            if (event.target.closest('.ed-zoom, .ed-minimap, .ed-port-tip')) return;
             event.preventDefault();
             const nodeEl = event.target.closest('.ed-node');
             if (nodeEl) openNodeMenu(nodeEl.dataset.nodeId, event.clientX, event.clientY);
@@ -665,7 +690,7 @@
         bag.listen(el, 'click', onClick);
         bag.listen(el, 'contextmenu', onContextMenu);
         bag.listen(el, 'focusout', () => { spaceDown = false; el.classList.remove('is-space'); });
-        bag.add(() => { clearTimeout(hoverTimer); clearTimeout(longPress); movedSoon.cancel(); });
+        bag.add(() => { clearTimeout(hoverTimer); clearTimeout(longPress); clearTimeout(hintTimer); movedSoon.cancel(); });
         // Added last, so it runs first on dispose: a gesture still in progress is cancelled.
         bag.add(() => { if (gesture) gesture.abort(); });
 

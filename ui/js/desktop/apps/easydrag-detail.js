@@ -348,6 +348,31 @@
                 ed.model.setSettings(id, { retry: count ? { count, delay_seconds: delay } : undefined, timeout_seconds: timeout });
             });
             host.appendChild(retry);
+            // WCAG 2.5.7 (U10): the step moves without dragging. Whole pixels; an empty or broken value
+            // is refused and the current position shown again. Each change is one undo step.
+            const pos = node.position || { x: 0, y: 0 };
+            const posId = 'ed-pos-' + ed.windowId + '-' + id;
+            const place = core.el('<div class="ed-field" data-ed-position><div class="ed-field-head"><label id="' + esc(posId) + '">' + esc(t('easydrag.ui.settings_position')) + '</label></div>' +
+                '<div class="ed-input-unit ed-input-unit--pair" role="group" aria-labelledby="' + esc(posId) + '">' +
+                '<label>' + esc(t('easydrag.ui.settings_position_x')) + ' <input type="number" step="1" class="ed-input" data-ed-pos="x" value="' + esc(pos.x) + '"' + (ro ? ' disabled' : '') + '></label>' +
+                '<label>' + esc(t('easydrag.ui.settings_position_y')) + ' <input type="number" step="1" class="ed-input" data-ed-pos="y" value="' + esc(pos.y) + '"' + (ro ? ' disabled' : '') + '></label></div>' +
+                '<p class="ed-hint">' + esc(t('easydrag.ui.settings_position_hint')) + '</p></div>');
+            place.addEventListener('change', () => {
+                const input = k => place.querySelector('[data-ed-pos="' + k + '"]');
+                const current = ed.model.node(id);
+                if (!current || ed.readonly || ed.runView) return;
+                const x = Number(input('x').value);
+                const y = Number(input('y').value);
+                if (input('x').value === '' || input('y').value === '' || !Number.isFinite(x) || !Number.isFinite(y)) {
+                    input('x').value = String(current.position.x);
+                    input('y').value = String(current.position.y);
+                    return;
+                }
+                ed.model.moveNodes({ [id]: { x: Math.round(x), y: Math.round(y) } });
+                const moved = ed.model.node(id);
+                if (moved) { input('x').value = String(moved.position.x); input('y').value = String(moved.position.y); }
+            });
+            host.appendChild(place);
             const disabled = core.el('<div class="ed-field ed-field--inline"><label>' + esc(t('easydrag.ui.settings_disabled')) + '</label></div>');
             disabled.appendChild(ED.fields.toggle(fenv, !!s.disabled, () => ed.model.toggleDisabled([id]), t('easydrag.ui.settings_disabled')));
             host.appendChild(disabled);

@@ -670,6 +670,77 @@ export async function run(env) {
         s.editor.dispose();
     });
 
+    // ── U10, U14 ──
+
+    await guardAsync('b5 U10 the inspector moves a step by X and Y without dragging', async () => {
+        const s = await session();
+        s.ed.bus.emit('open-detail', { nodeId: A });
+        s.editor.el.querySelector('[data-ed-pane="settings"]').fire('click');
+        const field = k => s.editor.el.querySelector('.ed-detail [data-ed-pos="' + k + '"]');
+        const shown = [field('x').value, field('y').value];
+        field('x').value = '360';
+        field('x').fire('change');
+        const moved = Object.assign({}, s.ed.model.node(A).position);
+        field('y').value = '';
+        field('y').fire('change');
+        const refused = [Object.assign({}, s.ed.model.node(A).position), field('y').value];
+        s.ed.model.undo();
+        const undone = Object.assign({}, s.ed.model.node(A).position);
+        const logged = s.h.logged;
+        s.editor.dispose();
+        const ro = await session(undefined, { readonly: true });
+        ro.ed.bus.emit('open-detail', { nodeId: A });
+        ro.editor.el.querySelector('[data-ed-pane="settings"]').fire('click');
+        const roField = ro.editor.el.querySelector('.ed-detail [data-ed-pos="x"]');
+        eq('b5 U10 X and Y show the position, a change moves the step (one undo), an empty value is refused and shown again, read-only is off',
+            [shown, moved, refused, undone, [roField.value, roField.disabled], logged, ro.h.logged],
+            [['300', '0'], { x: 360, y: 0 }, [{ x: 360, y: 0 }, '0'], { x: 300, y: 0 }, ['300', true], [], []]);
+        ro.editor.dispose();
+        eq('b5 U10 the words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.settings_position', 'easydrag.ui.settings_position_x', 'easydrag.ui.settings_position_y', 'easydrag.ui.settings_position_hint']), []);
+    });
+
+    await guardAsync('b5 U14 a refused connection says why beside the pointer; a tip explains ports until the first connection', async () => {
+        const s = await session();
+        const G = s.h.ED.geometry;
+        const v = s.ed.view;
+        const client = p => ({ x: p.x * v.zoom + v.x, y: p.y * v.zoom + v.y });
+        const from = client(G.portPoint(s.ed.model.node(T1).position, 'out', 0, 1));
+        const to = client(G.portPoint(s.ed.model.node(A).position, 'in', 0, s.ed.model.outputs(s.ed.model.node(A)).length));
+        const hint = s.editor.el.querySelector('.ed-connect-hint');
+        s.card(T1).querySelector('[data-ed-port="out"]').fire('pointerdown', s.h.pe(1, from.x, from.y));
+        s.canvasEl.fire('pointermove', s.h.pe(1, to.x + 400, to.y + 300));
+        const empty = hint.hidden;
+        s.canvasEl.fire('pointermove', s.h.pe(1, to.x, to.y));
+        const over = [hint.hidden, hint.textContent];
+        s.canvasEl.fire('pointerup', s.h.pe(1, to.x, to.y));
+        const released = [hint.hidden, s.ed.model.doc.edges.length];
+        s.h.runTimers(2500);
+        const faded = hint.hidden;
+        s.editor.dispose();
+        const bare = flowDoc();
+        bare.edges = [];
+        const h = sandbox(() => undefined);
+        const first = openEditor(h, { flow: { draft: bare } });
+        await settle();
+        const tip = first.el.querySelector('[data-ed-port-tip]');
+        const shown = tip.hidden;
+        tip.querySelector('[data-ed-port-tip-close]').fire('click');
+        const dismissed = [tip.hidden, h.store.get('aurago.easydrag.hint.ports')];
+        first.dispose();
+        const again = openEditor(h, { flow: { draft: flowDoc() } });
+        await settle();
+        const againHidden = again.el.querySelector('[data-ed-port-tip]').hidden;
+        again.dispose();
+        const w = sandbox(() => undefined);
+        const wired = openEditor(w);
+        await settle();
+        eq('b5 U14 no hint over empty canvas, the reason over a refusing port and after release for 2.5 s; a tip until dismissed or a first connection',
+            [empty, over, released, faded, shown, dismissed, againHidden, [wired.el.querySelector('[data-ed-port-tip]').hidden, w.store.get('aurago.easydrag.hint.ports')]],
+            [true, [false, 'connect_duplicate'], [false, 2], true, false, [true, 'true'], true, [true, 'true']]);
+        wired.dispose();
+        eq('b5 U14 the tip words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.port_tip', 'easydrag.ui.port_tip_dismiss']), []);
+    });
+
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }

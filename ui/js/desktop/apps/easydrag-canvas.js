@@ -9,6 +9,7 @@
     const READABLE_ZOOM = 0.8;
     const READABLE_PAD = 48;
     const ZOOMED_OUT = 0.7;
+    const PORT_TIP_KEY = 'aurago.easydrag.hint.ports';
 
     // portLabel names the output port of node n: switch cases and decision choices by their
     // configured labels, any other port by its translation. The connect picker uses it too.
@@ -50,6 +51,8 @@
             '<div class="ed-empty" hidden><div class="ed-empty-card">' + core.icon('bolt', 'ed-empty-icon') +
             '<h3>' + esc(t('easydrag.ui.empty_title')) + '</h3><p>' + esc(t('easydrag.ui.empty_text')) + '</p>' +
             '<button type="button" class="ed-btn ed-btn--primary" data-ed-empty-add>' + core.icon('plus') + '<span>' + esc(t('easydrag.ui.empty_action')) + '</span></button></div></div>' +
+            '<div class="ed-port-tip" data-ed-port-tip hidden>' + core.icon('info') + '<span>' + esc(t('easydrag.ui.port_tip')) + '</span>' +
+            '<button type="button" class="ed-icon-btn" data-ed-port-tip-close aria-label="' + esc(t('easydrag.ui.port_tip_dismiss')) + '" title="' + esc(t('easydrag.ui.port_tip_dismiss')) + '">' + core.icon('x') + '</button></div>' +
             '<div class="ed-zoom" role="toolbar" aria-label="' + esc(t('easydrag.ui.zoom_label')) + '">' +
             '<button type="button" class="ed-icon-btn" data-ed-zoom="out" title="' + esc(t('easydrag.ui.zoom_out')) + '" aria-label="' + esc(t('easydrag.ui.zoom_out')) + '">' + core.icon('minus') + '</button>' +
             '<button type="button" class="ed-zoom-value" data-ed-zoom="reset" title="' + esc(t('easydrag.ui.zoom_reset')) + '">100%</button>' +
@@ -75,6 +78,17 @@
         const minimapNodes = minimap.querySelector('.ed-minimap-nodes');
         const listEl = listRegion.querySelector('.ed-node-list');
         const liveEl = el.querySelector('[data-ed-live]');
+
+        // The port tip (U14) explains connecting until the first flow with a connection is seen on this
+        // device or the tip is dismissed (PORT_TIP_KEY).
+        const portTip = el.querySelector('[data-ed-port-tip]');
+        portTip.hidden = true;
+        let portTipSeen = !!core.storage.get(PORT_TIP_KEY, false);
+        function syncPortTip() {
+            const doc = ed.model.doc;
+            if (doc.edges.length && !ed.runView && !portTipSeen) { portTipSeen = true; core.storage.set(PORT_TIP_KEY, true); }
+            portTip.hidden = !!(ed.readonly || ed.runView || portTipSeen || doc.nodes.length < 2 || doc.edges.length);
+        }
 
         // Every timeout the canvas starts is tracked, so dispose can clear the ones still pending.
         const timers = new Set();
@@ -513,6 +527,7 @@
             emptyEl.hidden = ed.model.doc.nodes.length > 0 || !!ed.runView;
             minimapFrame.request();
             listUpdate();
+            syncPortTip();
         }
 
         function refreshClasses() {
@@ -754,6 +769,13 @@
         bag.listen(el.querySelector('[data-ed-empty-add]'), 'click', () => {
             const s = size();
             ed.bus.emit('quick-add', { x: s.left + s.w / 2, y: s.top + s.h / 2, filter: 'trigger' });
+        });
+
+        bag.listen(portTip.querySelector('[data-ed-port-tip-close]'), 'click', () => {
+            portTipSeen = true;
+            core.storage.set(PORT_TIP_KEY, true);
+            portTip.hidden = true;
+            el.focus({ preventScroll: true });
         });
 
         bag.add(ed.bus.on('model', change => {
