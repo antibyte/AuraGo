@@ -300,8 +300,54 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   TestKeptOrRequestedAdditiveToolIsRankedFirst,
   TestSwapKeepsNamedOrSessionKeptWikipediaSearch and
   TestLocalWikipediaManualTakesNoSemanticSlot. A disabled local_wikipedia
-  catalog entry can still rank in discover_tools searches; disabled entries
-  are listed by design and there is no per-tool demotion.
+  catalog entry still ranks in discover_tools searches, in the disabled status
+  class of the ranking described below.
+
+- discover_tools search (`ToolCatalog.Search` and `SearchContext`) ranks by
+  folded, stemmed, stopword-filtered terms. Umlauts fold (ä, ö, ü and ß become
+  ae, oe, ue and ss), other diacritics drop, and a light suffix stripper shortens
+  words of four or more runes. IDF is static: it is computed once from the
+  built-in catalog with every optional feature enabled, so a tool's ranking never
+  depends on which other tools are configured. Field weights are name 3, curated
+  terms and aliases 2.5, operations 1.5, category and description 1. The score is
+  the weighted IDF sum times a coverage factor (0.4 + 0.6 × the matched share of
+  query IDF). A whole curated phrase, two query words that follow each other in
+  the tool's text, or a query naming every part of the tool name raise it. A
+  lexical hit needs a score of at least 1.5 and at least 0.2 × the best score of
+  its status class; non-displacing tools do not count toward that best.
+
+- Exact tiers come first: a query that is exactly a tool's name, alias or
+  operation ranks above every lexical hit, whatever the tool's status. The
+  discover name alias (for example "offline wikipedia") is an exact name only
+  for an enabled tool. Within a tier, status classes order the results: enabled
+  before needs_setup before disabled. Enabled covers active and hidden tools
+  alike, so the order holds when adaptive filtering flips a tool. Disabled and
+  needs_setup results keep their real instruction; `discoverySummaryResults`
+  gives the generic "Use get_tool_info before the first call." to the others.
+
+- `SearchContext` asks the manual index on every query when one is available,
+  bounded to 400 ms; an error or timeout returns the lexical result, and plain
+  `Search` never asks the index. The two rankings fuse by weighted reciprocal
+  rank fusion (k 20; lexical weight 1, semantic weight 0.8). Discovery takes the
+  first 5 manuals and at most 5 semantic-only tools; exact tiers stay first and
+  the rest is re-split by status class. A manual for a non-displacing tool counts
+  only while one of its tools is enabled. `buildAdaptiveToolPriority` fuses its
+  head the same way over the offered schemas only (first 8 manuals, at most 4
+  semantic-only tools); non-displacing tools and their manuals take no slot
+  there. A manual that documents more than 3 tools adds no tools of its own.
+  Family seeds, intent matches, neighbours and usage follow that head in order.
+
+- Curated search terms live in `internal/agent/tool_search_terms/*.yaml`, one
+  file per group of categories. A file maps a tool name to `en` and `de` phrase
+  lists; a name may appear in one file only, and unknown fields are errors.
+  Terms are search phrases, not IDs: `ToolCatalog.Get` does not resolve them.
+  Write them from the tool's own description and manual, never from evaluation
+  sets. A guard test requires at least 3 en and 3 de terms for every built-in
+  tool and every tool listed in `toolCategoryDef`; each listed tool must be a
+  native schema (`TestToolCategoryNamesAreNativeSchemas`). The V2 discovery
+  evaluation (`TestDiscoveryTaskEvaluationV2`) is a ratchet: its recall floors
+  only go up. Verify TestToolSearchTermsLoad, TestToolSearchTermsCoverEveryBuiltinTool
+  and TestDiscoveryTaskEvaluationV2.
 
 - Composio service manuals resolve exact selected service IDs, unique names and
   registered aliases through the enabled, in-scope composio_call manual binding.

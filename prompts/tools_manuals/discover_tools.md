@@ -21,7 +21,7 @@ Browse and search the full tool catalog, including active, hidden, and disabled 
 - `hidden_reason`: why an unavailable entry cannot be called; discovery never grants permission
 - `next_cursor`: pass this cursor to continue a paged result or manual; omit `cursor` on page 1
 - `cursor_reset` and `notice`: your cursor was invalid or the catalog changed, so the first page is shown again
-- `no_results`: the search found nothing (a normal answer, not an error); try `list_categories`, a shorter English keyword, or one of `suggestions`
+- `no_results`: the search found nothing (a normal answer, not an error); try `list_categories`, a shorter keyword or task phrase in English or German, or one of `suggestions`
 - `suggestions`: close tool names for a search with no hits or an unknown name
 - `valid_categories`: the category names to use when `list_family` rejects an unknown `category`
 
@@ -39,7 +39,7 @@ Browse tool categories. Returns category names with their counts and a short pur
 Categories, e.g.: `system`, `memory`, `files`, `network`, `media`, `smart_home`, `infrastructure`, `data_apis`, `communication`, plus the runtime categories `skills`, `custom`, `mcp`, `agent_skills`. Call `list_categories` for the categories this run actually has.
 
 ### search
-Find tools by keyword across all categories. Matches tool names and descriptions.
+Find tools by keyword or short task phrase across all categories. Keywords and task phrases work in English and German. Matches tool names, aliases, operations, search terms and descriptions; exact name, alias and operation matches come first, then enabled tools, tools that need setup and disabled ones.
 
 ```json
 {"action": "discover_tools", "operation": "search", "query": "docker"}
