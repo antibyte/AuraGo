@@ -7912,6 +7912,7 @@
   "desktop.infra_new_asset": "Nieuw asset",
   "desktop.infra_import_discoveries": "Gevonden items importeren…",
   "desktop.infra_no_match": "Geen asset komt overeen",
+  "desktop.infra_list_none": "Nog geen assets. Importeer gevonden items of voeg er een toe.",
   "desktop.infra_clear_search": "Zoekopdracht wissen",
   "desktop.infra_retry": "Opnieuw proberen",
   "desktop.infra_guest_count": "{count} gasten",

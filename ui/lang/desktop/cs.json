@@ -7912,6 +7912,7 @@
   "desktop.infra_new_asset": "Nové aktivum",
   "desktop.infra_import_discoveries": "Importovat nálezy…",
   "desktop.infra_no_match": "Žádné aktivum neodpovídá",
+  "desktop.infra_list_none": "Zatím žádná aktiva. Importujte nálezy nebo některé přidejte.",
   "desktop.infra_clear_search": "Vymazat hledání",
   "desktop.infra_retry": "Zkusit znovu",
   "desktop.infra_guest_count": "Hostů: {count}",

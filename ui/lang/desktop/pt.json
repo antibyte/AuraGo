@@ -7912,6 +7912,7 @@
   "desktop.infra_new_asset": "Novo ativo",
   "desktop.infra_import_discoveries": "Importar descobertas…",
   "desktop.infra_no_match": "Nenhum ativo corresponde",
+  "desktop.infra_list_none": "Ainda não há ativos. Importe descobertas ou adicione um.",
   "desktop.infra_clear_search": "Limpar pesquisa",
   "desktop.infra_retry": "Tentar novamente",
   "desktop.infra_guest_count": "{count} convidados",

@@ -7912,6 +7912,7 @@
   "desktop.infra_new_asset": "Νέο στοιχείο",
   "desktop.infra_import_discoveries": "Εισαγωγή ευρημάτων…",
   "desktop.infra_no_match": "Κανένα στοιχείο δεν ταιριάζει",
+  "desktop.infra_list_none": "Δεν υπάρχουν ακόμη στοιχεία. Εισαγάγετε ευρήματα ή προσθέστε ένα.",
   "desktop.infra_clear_search": "Εκκαθάριση αναζήτησης",
   "desktop.infra_retry": "Δοκιμή ξανά",
   "desktop.infra_guest_count": "{count} φιλοξενούμενα",

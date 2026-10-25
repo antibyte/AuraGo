@@ -7912,6 +7912,7 @@
   "desktop.infra_new_asset": "Nouvel équipement",
   "desktop.infra_import_discoveries": "Importer des découvertes…",
   "desktop.infra_no_match": "Aucun équipement ne correspond",
+  "desktop.infra_list_none": "Aucun équipement pour l’instant. Importez des découvertes ou ajoutez-en un.",
   "desktop.infra_clear_search": "Effacer la recherche",
   "desktop.infra_retry": "Réessayer",
   "desktop.infra_guest_count": "{count} invités",

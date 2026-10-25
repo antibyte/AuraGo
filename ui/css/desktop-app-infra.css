@@ -282,7 +282,7 @@
 .infra-power-pill[data-power="stopped"] { color: var(--infra-bad-text); }
 .infra-power-pill[data-power="paused"] { color: var(--infra-warn-text); }
 .infra-inspector { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; border-left: 1px solid var(--vd-theme-border); background: var(--vd-theme-panel-bg); }
-.infra-table-view { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.infra-table-view { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; container: infra-table / inline-size; }
 .infra-table-head { min-height: 48px; padding: 0 var(--ds-space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-2); }
 .infra-table-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .infra-table-head > span { color: var(--vd-theme-muted); font-variant-numeric: tabular-nums; }
@@ -482,16 +482,22 @@ button.infra-head-name:hover { border-color: var(--vd-theme-border); }
 @keyframes infra-sheet-in { from { opacity: 0; transform: translateX(-12px); } }
 /* ---- Plan C: List view ---- */
 .infra-table-scroll { min-height: 0; flex: 1; margin: 0 var(--ds-space-3) var(--ds-space-3); overflow: auto; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-md); background: var(--vd-theme-panel-bg); }
-.infra-table { width: 100%; min-width: 900px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+.infra-table { width: 100%; min-width: 1100px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+.infra-table-empty { margin: 0; padding: var(--ds-space-6) var(--ds-space-4); color: var(--vd-theme-muted); text-align: center; }
 .infra-table thead th { position: sticky; top: 0; z-index: 1; height: 40px; padding: 0 var(--ds-space-2); border-bottom: 1px solid var(--vd-theme-border); background: var(--vd-theme-panel-bg-strong); color: var(--vd-theme-muted); font-size: 13px; font-weight: 600; text-align: left; white-space: nowrap; }
-.infra-table th[data-sort-col="name"] { width: 24%; }
-.infra-table th[data-sort-col="kind"] { width: 9%; }
-.infra-table th[data-sort-col="place"] { width: 15%; }
-.infra-table th[data-sort-col="address"] { width: 11%; }
-.infra-table th[data-sort-col="hardware"] { width: 16%; }
-.infra-table th[data-sort-col="source"] { width: 9%; }
-.infra-table th[data-sort-col="status"] { width: 9%; }
-.infra-table th[data-sort-col="power"] { width: 7%; }
+/* Fixed column widths in px, the name takes the rest, at least 200 px (an IP address, a type or a source never ellipsizes while its column shows). The table view is its own container: columns drop by priority as it narrows (Hardware, then Power and Source, then Place, then Type, then Address), so the List does not scroll sideways with the inspector open or in a small window. */
+.infra-table th[data-sort-col="kind"] { width: 150px; }
+.infra-table th[data-sort-col="place"] { width: 150px; }
+.infra-table th[data-sort-col="address"] { width: 120px; }
+.infra-table th[data-sort-col="hardware"] { width: 130px; }
+.infra-table th[data-sort-col="source"] { width: 130px; }
+.infra-table th[data-sort-col="status"] { width: 105px; }
+.infra-table th[data-sort-col="power"] { width: 75px; }
+@container infra-table (max-width: 1141px) { .infra-table { min-width: 970px; } .infra-table th[data-sort-col="hardware"], .infra-table td:nth-child(6) { display: none; } }
+@container infra-table (max-width: 1010px) { .infra-table { min-width: 765px; } .infra-table th[data-sort-col="power"], .infra-table td:nth-child(9), .infra-table th[data-sort-col="source"], .infra-table td:nth-child(7) { display: none; } }
+@container infra-table (max-width: 806px) { .infra-table { min-width: 615px; } .infra-table th[data-sort-col="place"], .infra-table td:nth-child(4) { display: none; } }
+@container infra-table (max-width: 656px) { .infra-table { min-width: 465px; } .infra-table th[data-sort-col="kind"], .infra-table td:nth-child(3) { display: none; } }
+@container infra-table (max-width: 506px) { .infra-table { min-width: 345px; } .infra-table th[data-sort-col="address"], .infra-table td:nth-child(5) { display: none; } }
 .infra-sort { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 4px; border: 0; border-radius: var(--ds-radius-sm); background: transparent; color: var(--vd-theme-muted); font: 600 13px/1 var(--vd-font-ui); cursor: pointer; }
 .infra-sort:hover, th[aria-sort] .infra-sort { color: var(--vd-text); }
 .infra-sort-arrow { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; opacity: 0; }

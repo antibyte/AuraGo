@@ -23,9 +23,9 @@
         const holder = document.createElement('div');
         holder.innerHTML = `<section class="infra-table-view" data-table-view hidden aria-label="${esc(t('desktop.infra_inventory'))}"><div class="infra-table-head"><h2>${esc(t('desktop.infra_inventory'))}</h2><span data-table-total></span></div>`
             + `<div class="infra-bulkbar" data-bulkbar role="group" aria-label="${esc(t('desktop.infra_bulk_actions'))}" hidden><span class="infra-bulkbar-count" data-bulk-count></span><button type="button" class="infra-button" data-action="bulk-move" aria-haspopup="dialog">${esc(t('desktop.infra_move_to_place'))}</button><button type="button" class="infra-button infra-danger-button" data-action="bulk-ignore">${esc(t('desktop.infra_remove_and_ignore'))}</button><button type="button" class="infra-button infra-danger-button" data-action="bulk-remove">${esc(t('desktop.infra_remove_node'))}</button><button type="button" class="infra-button" data-action="bulk-clear">${esc(t('desktop.infra_clear_selection'))}</button></div>`
-            + `<div class="infra-table-scroll" data-table-scroll tabindex="0"><table class="infra-table"><thead><tr><th class="infra-col-check" scope="col"><input type="checkbox" data-table-check-all aria-label="${esc(model.countText(0, t('desktop.infra_select_all_rows_one'), t('desktop.infra_select_all_rows')))}"></th>${heads}</tr></thead><tbody data-table-body></tbody></table></div></section>`;
+            + `<div class="infra-table-scroll" data-table-scroll tabindex="0"><table class="infra-table"><thead><tr><th class="infra-col-check" scope="col"><input type="checkbox" data-table-check-all aria-label="${esc(model.countText(0, t('desktop.infra_select_all_rows_one'), t('desktop.infra_select_all_rows')))}"></th>${heads}</tr></thead><tbody data-table-body></tbody></table><p class="infra-table-empty" data-table-empty hidden></p></div></section>`;
         const el = holder.firstElementChild;
-        const scroll = el.querySelector('[data-table-scroll]'), body = el.querySelector('[data-table-body]'), total = el.querySelector('[data-table-total]');
+        const scroll = el.querySelector('[data-table-scroll]'), body = el.querySelector('[data-table-body]'), total = el.querySelector('[data-table-total]'), emptyEl = el.querySelector('[data-table-empty]');
         const checkAll = el.querySelector('[data-table-check-all]'), bulkbar = el.querySelector('[data-bulkbar]'), bulkCount = el.querySelector('[data-bulk-count]');
         let memo = null, anchor = '';
 
@@ -101,7 +101,10 @@
             const snapshot = focusSnapshot(), current = list();
             const slice = model.virtualSlice(current.rows, scroll.scrollTop, scroll.clientHeight || 600);
             total.textContent = model.countText(current.matching, t('desktop.infra_asset_count_one'), t('desktop.infra_asset_count'));
-            body.innerHTML = `<tr class="infra-virtual-spacer"><td colspan="9" style="height:${slice.before}px"></td></tr>${slice.rows.map(rowMarkup).join('')}<tr class="infra-virtual-spacer"><td colspan="9" style="height:${slice.after}px"></td></tr>`;
+            // An empty inventory and a query that matches nothing say so instead of leaving a bare header.
+            emptyEl.hidden = current.rows.length > 0;
+            if (!emptyEl.hidden) emptyEl.textContent = state.nodes.length ? t('desktop.infra_no_match') : t('desktop.infra_list_none');
+            body.innerHTML = `<tr class="infra-virtual-spacer"><td style="height:${slice.before}px"></td></tr>${slice.rows.map(rowMarkup).join('')}<tr class="infra-virtual-spacer"><td style="height:${slice.after}px"></td></tr>`;
             paintHead(current.rows);
             paintBulk();
             restoreFocus(snapshot);

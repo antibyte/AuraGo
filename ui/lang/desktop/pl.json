@@ -7912,6 +7912,7 @@
   "desktop.infra_new_asset": "Nowy zasób",
   "desktop.infra_import_discoveries": "Importuj wykryte elementy…",
   "desktop.infra_no_match": "Żaden zasób nie pasuje",
+  "desktop.infra_list_none": "Nie ma jeszcze zasobów. Zaimportuj wykryte elementy lub dodaj nowy.",
   "desktop.infra_clear_search": "Wyczyść wyszukiwanie",
   "desktop.infra_retry": "Spróbuj ponownie",
   "desktop.infra_guest_count": "Gości: {count}",

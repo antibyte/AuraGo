@@ -7912,6 +7912,7 @@
   "desktop.infra_new_asset": "Nuova risorsa",
   "desktop.infra_import_discoveries": "Importa rilevamenti…",
   "desktop.infra_no_match": "Nessuna risorsa corrisponde",
+  "desktop.infra_list_none": "Ancora nessuna risorsa. Importa i rilevamenti o aggiungine una.",
   "desktop.infra_clear_search": "Cancella ricerca",
   "desktop.infra_retry": "Riprova",
   "desktop.infra_guest_count": "{count} ospiti",

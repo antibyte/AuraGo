@@ -9182,6 +9182,7 @@
   "desktop.infra_new_asset": "New asset",
   "desktop.infra_import_discoveries": "Import discoveries…",
   "desktop.infra_no_match": "No asset matches",
+  "desktop.infra_list_none": "No assets yet. Import discoveries or add one.",
   "desktop.infra_clear_search": "Clear search",
   "desktop.infra_retry": "Retry",
   "desktop.infra_guest_count": "{count} guests",

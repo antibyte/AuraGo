@@ -7912,6 +7912,7 @@
   "desktop.infra_new_asset": "Ny ressurs",
   "desktop.infra_import_discoveries": "Importer funn…",
   "desktop.infra_no_match": "Ingen ressurs samsvarer",
+  "desktop.infra_list_none": "Ingen ressurser ennå. Importer funn eller legg til en.",
   "desktop.infra_clear_search": "Tøm søket",
   "desktop.infra_retry": "Prøv igjen",
   "desktop.infra_guest_count": "{count} gjester",

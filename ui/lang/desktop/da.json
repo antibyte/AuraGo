@@ -7912,6 +7912,7 @@
   "desktop.infra_new_asset": "Nyt aktiv",
   "desktop.infra_import_discoveries": "Importér fund…",
   "desktop.infra_no_match": "Intet aktiv matcher",
+  "desktop.infra_list_none": "Endnu ingen aktiver. Importér fund eller tilføj et.",
   "desktop.infra_clear_search": "Ryd søgning",
   "desktop.infra_retry": "Prøv igen",
   "desktop.infra_guest_count": "{count} gæster",

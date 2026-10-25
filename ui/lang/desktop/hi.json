@@ -7912,6 +7912,7 @@
   "desktop.infra_new_asset": "नया संसाधन",
   "desktop.infra_import_discoveries": "खोजे गए आइटम आयात करें…",
   "desktop.infra_no_match": "कोई संसाधन मेल नहीं खाता",
+  "desktop.infra_list_none": "अभी कोई संसाधन नहीं है। खोजे गए आइटम आयात करें या एक जोड़ें।",
   "desktop.infra_clear_search": "खोज साफ़ करें",
   "desktop.infra_retry": "फिर कोशिश करें",
   "desktop.infra_guest_count": "{count} गेस्ट",

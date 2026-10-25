@@ -7912,6 +7912,7 @@
   "desktop.infra_new_asset": "新しい資産",
   "desktop.infra_import_discoveries": "検出項目をインポート…",
   "desktop.infra_no_match": "一致する資産がありません",
+  "desktop.infra_list_none": "資産はまだありません。検出項目をインポートするか、追加してください。",
   "desktop.infra_clear_search": "検索をクリア",
   "desktop.infra_retry": "再試行",
   "desktop.infra_guest_count": "ゲスト{count}件",

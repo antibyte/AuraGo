@@ -7912,6 +7912,7 @@
   "desktop.infra_new_asset": "Neues Asset",
   "desktop.infra_import_discoveries": "Funde importieren…",
   "desktop.infra_no_match": "Kein Asset passt",
+  "desktop.infra_list_none": "Noch keine Assets. Importiere Funde oder lege eines an.",
   "desktop.infra_clear_search": "Suche löschen",
   "desktop.infra_retry": "Erneut versuchen",
   "desktop.infra_guest_count": "{count} Gäste",
