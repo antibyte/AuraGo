@@ -125,10 +125,9 @@ func sanitizeProjectDir(projectDir string) error {
 	return nil
 }
 
-// homepagePathAllowlist is the only character set a Homepage container path may
-// contain: letters, numbers, '.', '_', '-' and the '/' separator. Newlines,
-// carriage returns, spaces, quotes and every shell metacharacter are excluded.
-var homepagePathAllowlist = regexp.MustCompile(`^[A-Za-z0-9._/-]+$`)
+// Quoted paths support Unicode names, spaces and Next.js route segments.
+// Controls, quotes, substitutions and shell operators remain excluded.
+var homepagePathAllowlist = regexp.MustCompile(`^[\p{L}\p{M}\p{N} ._/@()\[\]-]+$`)
 
 // validateHomepagePathSegment validates a workspace-relative path against the
 // Homepage path allowlist before the path can reach a container command string.
@@ -145,9 +144,12 @@ func validateHomepagePathSegment(value string) error {
 		return nil
 	}
 	if !homepagePathAllowlist.MatchString(value) {
-		return fmt.Errorf("invalid path %q. Use only letters, numbers, '.', '_', '-' and '/', for example 'my-site/src/app/page.tsx'", value)
+		return fmt.Errorf("invalid path %q. Use letters, numbers, spaces, '.', '_', '-', '@', parentheses or brackets in workspace-relative paths", value)
 	}
 	for _, segment := range strings.Split(value, "/") {
+		if strings.TrimSpace(segment) != segment {
+			return fmt.Errorf("invalid path %q. Path segments must not start or end with whitespace", value)
+		}
 		switch segment {
 		case "":
 			return fmt.Errorf("invalid path %q. Path segments must not be empty", value)
@@ -262,11 +264,13 @@ func validateHomepageRelativePathArg(path, field string) error {
 	if trimmed == "" {
 		return fmt.Errorf("%s is required", field)
 	}
-	if strings.Contains(trimmed, "..") {
-		return fmt.Errorf("path traversal not allowed in %s %q", field, path)
+	for _, segment := range strings.Split(trimmed, "/") {
+		if segment == ".." {
+			return fmt.Errorf("path traversal not allowed in %s %q", field, path)
+		}
 	}
-	// Reject shell metacharacters that could be used for command injection.
-	const shellMetachars = ";|&`$(){}[]<>!\\'\""
+	// Brackets and parentheses in route segments are protected by shell quoting.
+	const shellMetachars = ";|&`${}<>!\\'\""
 	for _, ch := range shellMetachars {
 		if strings.ContainsRune(trimmed, ch) {
 			return fmt.Errorf("invalid character %q in %s %q", ch, field, path)

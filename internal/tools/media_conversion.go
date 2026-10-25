@@ -34,7 +34,14 @@ var mediaConversionLookPath = mediabins.LookPath
 // mediaConversionRunCommand is the converter execution seam. Tests replace it
 // to capture the argument vector without starting a real converter.
 var mediaConversionRunCommand = func(ctx context.Context, name string, args []string) ([]byte, error) {
-	return mediabins.Run(ctx, name, args, mediabins.DefaultOutputLimit)
+	output, err := mediabins.Run(ctx, name, args, mediaConversionOutputLimit+1)
+	if err != nil {
+		return output, err
+	}
+	if len(output) > mediaConversionOutputLimit {
+		return nil, fmt.Errorf("converter output exceeds %d bytes", mediaConversionOutputLimit)
+	}
+	return output, nil
 }
 
 const (
@@ -644,7 +651,7 @@ func probeMediaMetadata(ctx context.Context, cfg *config.MediaConversionConfig, 
 
 	ctx, cancel := context.WithTimeout(ctx, mediaConversionTimeout(cfg))
 	defer cancel()
-	args := []string{"-hide_banner", "-nostdin", "-v", "error", "-protocol_whitelist", mediaConversionProtocols}
+	args := []string{"-hide_banner", "-v", "error", "-protocol_whitelist", mediaConversionProtocols}
 	if demuxer := mediaConversionDemuxerForPath(path); demuxer != "" {
 		args = append(args, "-format_whitelist", demuxer)
 	}

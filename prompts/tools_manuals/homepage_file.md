@@ -4,6 +4,8 @@ Read, write, edit, and optimize files inside the homepage workspace.
 
 Paths must include the project directory prefix, for example `my-site/src/App.jsx`. Supply `reason` for every mutation. Use `sub_operation` for text, JSON, YAML, and XML edits.
 
+File paths support Unicode letters, spaces and Next.js route segments such as `my-site/app/(marketing)/[slug]/page.tsx` or `my-site/app/[[...slug]]/page.tsx`. Pass the literal path without shell escaping. Keep project identifiers simple; absolute paths, traversal segments, surrounding segment whitespace, control characters and shell operators are rejected.
+
 For `operation: "edit_file"`, choose one of these exact `sub_operation` values:
 
 | sub_operation | Required arguments | Effect |

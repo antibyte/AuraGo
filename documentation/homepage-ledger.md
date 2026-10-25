@@ -60,7 +60,15 @@ For targeted text changes use `homepage_file` with `operation: "edit_file"` and
 uses `marker`/`content` and requires the marker to match exactly one line. Docker
 file reads and edits transfer complete files up to 2 MiB and reject incomplete,
 non-regular or oversized inputs before writing. `write_file` also requires
-complete content up to 2 MiB and rejects empty writes.
+complete content up to 2 MiB and rejects empty writes. Archive uploads assign
+files to the configured container user so later edits can write them directly.
+An upload also corrects ownership when replacing an older root-owned file;
+untouched legacy files may still need a project-scoped ownership correction.
+
+File operations accept Unicode filenames, spaces and Next.js route folders
+(`(group)`, `[slug]`, `[[...slug]]`, `@modal`). Paths stay workspace-relative;
+traversal, controls and shell operators remain blocked. Segments cannot start
+or end with whitespace. This does not change the separate project ID rules.
 
 Ordinary changes do not require duplicate log_edit/add_history calls. History
 notes remain useful for decisions, questions and additional explanations.

@@ -1225,7 +1225,23 @@ func TestValidateHomepagePathSegmentAllowlist(t *testing.T) {
 		{name: "nested file", path: "a/b.txt", allowed: true},
 		{name: "source folder", path: "site/src/build/helpers.ts", allowed: true},
 		{name: "flat project file", path: "site/index.html", allowed: true},
-		{name: "space", path: "a b.txt", allowed: false},
+		{name: "space", path: "a b.txt", allowed: true},
+		{name: "unicode", path: "site/Über uns/日本語.txt", allowed: true},
+		{name: "combining mark", path: "site/Cafe\u0301.txt", allowed: true},
+		{name: "route group", path: "site/app/(group)/[slug]/page.tsx", allowed: true},
+		{name: "catchall route", path: "site/app/[[...slug]]/page.tsx", allowed: true},
+		{name: "parallel route", path: "site/app/@modal/(..)photo/page.tsx", allowed: true},
+		{name: "leading space", path: " site/a.txt", allowed: false},
+		{name: "trailing space", path: "site /a.txt", allowed: false},
+		{name: "tab", path: "a\tb.txt", allowed: false},
+		{name: "carriage return", path: "a\rb.txt", allowed: false},
+		{name: "nul", path: "a\x00b.txt", allowed: false},
+		{name: "bidi control", path: "a\u202eb.txt", allowed: false},
+		{name: "absolute", path: "/site/file.txt", allowed: false},
+		{name: "nested option", path: "site/-rf", allowed: false},
+		{name: "nested traversal", path: "site/../file.txt", allowed: false},
+		{name: "quoted", path: "site/'a'.txt", allowed: false},
+		{name: "backtick", path: "site/`id`.txt", allowed: false},
 		{name: "newline", path: "a\nb.txt", allowed: false},
 		{name: "semicolon", path: "a;b.txt", allowed: false},
 		{name: "command substitution", path: "a$(id).txt", allowed: false},
@@ -1267,7 +1283,7 @@ func TestHomepageEditorRejectsUnsafePathBeforeAnyCommand(t *testing.T) {
 	}
 
 	cfg := HomepageConfig{DockerHost: dockerHost}
-	unsafe := []string{"a b.txt", "a\nb.txt", "a;b.txt", "a$(id).txt", "a\\b.txt", "-rf", "../escape.txt", "a//b.txt"}
+	unsafe := []string{"a\tb.txt", "a\nb.txt", "a;b.txt", "a$(id).txt", "a\\b.txt", "-rf", "../escape.txt", "a//b.txt", "a/[slug]/../../escape.txt", "a/(group)/file;id.txt"}
 	for _, p := range unsafe {
 		result := HomepageJsonEdit(cfg, p, "set", "a", "b", "", slogDiscard())
 		if !strings.Contains(result, `"status":"error"`) {

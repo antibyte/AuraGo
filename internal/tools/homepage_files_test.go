@@ -28,23 +28,26 @@ func TestHomepageFileDockerTransfersPreserveLargeContent(t *testing.T) {
 					return
 				}
 				if r.Method == http.MethodGet {
-					if r.URL.Query().Get("path") != "/workspace/news/index.html" {
+					if r.URL.Query().Get("path") != "/workspace/news/(group)/[slug]/Über uns.html" {
 						t.Errorf("read path = %q", r.URL.Query().Get("path"))
 					}
 					tw := tar.NewWriter(w)
-					if err := tw.WriteHeader(&tar.Header{Name: "index.html", Mode: 0644, Size: int64(len(stored))}); err != nil {
+					if err := tw.WriteHeader(&tar.Header{Name: "Über uns.html", Mode: 0644, Size: int64(len(stored))}); err != nil {
 						t.Error(err)
 					}
 					_, _ = io.WriteString(tw, stored)
 					_ = tw.Close()
 					return
 				}
-				if r.Method != http.MethodPut || r.URL.Query().Get("path") != "/workspace/news" || r.Header.Get("Content-Type") != "application/x-tar" {
+				if r.Method != http.MethodPut || r.URL.Query().Get("path") != "/workspace/news/(group)/[slug]" || r.Header.Get("Content-Type") != "application/x-tar" {
 					t.Errorf("unexpected archive request: %s %s", r.Method, r.URL)
+				}
+				if r.URL.Query().Get("copyUIDGID") != "true" || r.URL.Query().Get("noOverwriteDirNonDir") != "true" {
+					t.Errorf("archive upload must use the container user and preserve directories: %s", r.URL)
 				}
 				tr := tar.NewReader(r.Body)
 				header, err := tr.Next()
-				if err != nil || header.Name != "index.html" {
+				if err != nil || header.Name != "Über uns.html" {
 					t.Errorf("archive header = %+v, %v", header, err)
 					w.WriteHeader(http.StatusBadRequest)
 					return
@@ -62,6 +65,9 @@ func TestHomepageFileDockerTransfersPreserveLargeContent(t *testing.T) {
 				return `{"status":"ok","exit_code":0,"output":""}`
 			}
 			homepageDockerExecFunc = func(_ DockerConfig, _, command, _ string) string {
+				if command != "mkdir -p '/workspace/news/(group)/[slug]'" {
+					t.Errorf("unquoted upload directory: %s", command)
+				}
 				if len(command) >= 128*1024 {
 					return `{"status":"error","error":"Argument list too long"}`
 				}
@@ -72,18 +78,18 @@ func TestHomepageFileDockerTransfersPreserveLargeContent(t *testing.T) {
 			dockerAvailabilityMu.Unlock()
 			t.Cleanup(func() { invalidateDockerAvailabilityCache(dockerCfg.Host) })
 			cfg := HomepageConfig{DockerHost: dockerCfg.Host}
-			result := HomepageWriteFile(cfg, "news/index.html", original, slogDiscard())
+			result := HomepageWriteFile(cfg, "news/(group)/[slug]/Über uns.html", original, slogDiscard())
 			if !strings.Contains(result, `"status":"ok"`) || writes != 1 || stored != original {
 				t.Fatalf("large write lost content: result=%s writes=%d bytes=%d want=%d", result, writes, len(stored), len(original))
 			}
 			var read struct {
 				Output string `json:"output"`
 			}
-			result = HomepageReadFile(cfg, "news/index.html", slogDiscard())
+			result = HomepageReadFile(cfg, "news/(group)/[slug]/Über uns.html", slogDiscard())
 			if err := json.Unmarshal([]byte(result), &read); err != nil || read.Output != original {
 				t.Fatalf("large read lost content: bytes=%d want=%d error=%v", len(read.Output), len(original), err)
 			}
-			result = HomepageEditFile(cfg, "news/index.html", "str_replace", "INSERT HERE", "NEW ARTICLE", "", "", 0, 0, slogDiscard())
+			result = HomepageEditFile(cfg, "news/(group)/[slug]/Über uns.html", "str_replace", "INSERT HERE", "NEW ARTICLE", "", "", 0, 0, slogDiscard())
 			if !strings.Contains(result, `"status":"ok"`) || writes != 2 || stored != strings.Replace(original, "INSERT HERE", "NEW ARTICLE", 1) {
 				t.Fatalf("large edit lost content: result=%s writes=%d bytes=%d", result, writes, len(stored))
 			}
@@ -183,7 +189,7 @@ func TestHomepageWriteFileRepairsProjectBeforeWriting(t *testing.T) {
 
 	homepageDockerExecInternalFunc = func(cfg DockerConfig, containerID, cmd, user string, env []string) string {
 		switch {
-		case strings.Contains(cmd, "/workspace/ki-news/.aurago-project-write-test"):
+		case strings.Contains(cmd, "'/workspace/ki-news'/.aurago-project-write-test"):
 			projectChecks++
 			if projectChecks == 1 {
 				return `{"status":"error","exit_code":1,"output":"touch: Permission denied"}`
@@ -191,7 +197,7 @@ func TestHomepageWriteFileRepairsProjectBeforeWriting(t *testing.T) {
 			return `{"status":"ok","exit_code":0,"output":""}`
 		case strings.Contains(cmd, "id -u"):
 			return `{"status":"ok","exit_code":0,"output":"1001:1001\n"}`
-		case user == "0:0" && strings.Contains(cmd, "chown -R 1001:1001 /workspace/ki-news"):
+		case user == "0:0" && strings.Contains(cmd, "chown -R 1001:1001 '/workspace/ki-news'"):
 			repairedProject = true
 			return `{"status":"ok","exit_code":0,"output":""}`
 		default:
@@ -234,7 +240,7 @@ func TestHomepageWriteFileReportsDockerOutputOnFailure(t *testing.T) {
 	defer invalidateDockerAvailabilityCache(dockerHost)
 
 	homepageDockerExecInternalFunc = func(cfg DockerConfig, containerID, cmd, user string, env []string) string {
-		if strings.Contains(cmd, "/workspace/ki-news/.aurago-project-write-test") {
+		if strings.Contains(cmd, "'/workspace/ki-news'/.aurago-project-write-test") {
 			return `{"status":"ok","exit_code":0,"output":""}`
 		}
 		t.Fatalf("unexpected docker exec call user=%q cmd=%q", user, cmd)

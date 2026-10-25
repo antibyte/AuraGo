@@ -18,6 +18,8 @@ Convert audio, video, and image files inside the workspace.
 - `output_file` and `output_format` must agree: an `output_file` without an extension gets
   the extension of `output_format`, and a contradicting extension is rejected
 - `audio_convert` always drops the video track, so the result is a pure audio file
+- Converter metadata output is limited to 4 MiB; larger output returns an explicit
+  size error instead of parsing incomplete JSON. This does not limit media file size.
 
 ## Supported output formats
 
