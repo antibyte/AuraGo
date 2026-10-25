@@ -51,6 +51,10 @@ The updater owns transaction manifests; this package verifies them before collec
   preflight signing before cleanup/build; explicit environment configuration and
   CI retain precedence. Restore the caller's environment after profile signing.
   Operator trust on target hosts remains explicit; never fetch a release's own key.
+- Publish Windows release drafts only after every asset upload succeeds. A failed
+  upload or publication must stop before retention deletes anything. Retain three
+  stable AuraGo releases without counting drafts or integration prereleases.
+  `AURAGO_KEEP_RELEASES=1` skips retention and preserves every existing release/tag.
 
 ## Work Guidance
 

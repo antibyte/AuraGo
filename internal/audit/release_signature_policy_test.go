@@ -85,3 +85,34 @@ func TestWindowsReleaseSigningPreflightRunsBeforeCleanup(t *testing.T) {
 		}
 	}
 }
+
+func TestWindowsReleaseUploadsDraftBeforePublishingAndRetention(t *testing.T) {
+	for _, tc := range []struct {
+		path, create, upload string
+	}{
+		{"make_release.bat", `gh release create "!VERSION!" --draft`, "gh release upload"},
+		{"make_release.ps1", `$ghArgs = @("release", "create", $Version, $assets, "--draft"`, "gh @ghArgs"},
+	} {
+		script := readRepoFile(t, tc.path)
+		create := strings.Index(script, tc.create)
+		upload := strings.LastIndex(script, tc.upload)
+		publish := strings.Index(script, "gh release edit")
+		retention := strings.Index(script, "gh release list --limit 100 --exclude-drafts --exclude-pre-releases")
+		if create < 0 || upload <= create || publish <= upload || retention <= publish {
+			t.Fatalf("%s must upload to a draft, publish it, then retain stable AuraGo releases", tc.path)
+		}
+		if !strings.Contains(script[publish:retention], "--draft=false --latest") {
+			t.Fatalf("%s must explicitly publish the completed draft as latest", tc.path)
+		}
+		if !strings.Contains(script[publish:retention], "AURAGO_KEEP_RELEASES") || !strings.Contains(script[publish:retention], "Keeping all existing releases and tags.") {
+			t.Fatalf("%s must support publication without deleting existing releases or tags", tc.path)
+		}
+		if tc.path == "make_release.bat" {
+			if !strings.Contains(script[publish:retention], "if errorlevel 1 (") || !strings.Contains(script[publish:retention], "exit /b 1") {
+				t.Fatal("batch publication failures must stop before retention")
+			}
+		} else if !strings.Contains(script[upload:publish], "if ($LASTEXITCODE -ne 0) { throw") || !strings.Contains(script[publish:retention], "if ($LASTEXITCODE -ne 0) { throw") {
+			t.Fatal("PowerShell upload and publication failures must stop before retention")
+		}
+	}
+}

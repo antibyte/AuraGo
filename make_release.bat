@@ -367,6 +367,9 @@ set "NOTES_FILE=%TEMP%\aurago-release-notes-!VERSION!.md"
     echo.
     echo ### Installation
     echo.
+    echo Signed releases require Cosign and an independently trusted public key configured through AURAGO_RELEASE_PUBLIC_KEY.
+    echo See https://github.com/antibyte/AuraGo/blob/main/documentation/release-signatures.md
+    echo.
     echo **Verified install ^(recommended^):**
     echo ```bash
     echo curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
@@ -384,7 +387,7 @@ set "NOTES_FILE=%TEMP%\aurago-release-notes-!VERSION!.md"
     echo ./update.sh
     echo ```
 ) > "!NOTES_FILE!"
-gh release create "!VERSION!" --title "AuraGo !VERSION!" --notes-file "!NOTES_FILE!"
+gh release create "!VERSION!" --draft --title "AuraGo !VERSION!" --notes-file "!NOTES_FILE!"
 set "GH_RELEASE_RC=!errorlevel!"
 del "!NOTES_FILE!" >nul 2>&1
 if not "!GH_RELEASE_RC!"=="0" (
@@ -435,12 +438,22 @@ for %%F in (
     )
 )
 
+gh release edit "!VERSION!" --draft=false --latest
+if errorlevel 1 (
+    echo [ERROR] Failed to publish release !VERSION!. Uploaded assets remain in the draft.
+    exit /b 1
+)
+
 REM -- [5/5] Cleanup old releases
 echo.
 echo [5/5] Cleaning up old releases (keeping latest 3)...
-for /f "skip=3 tokens=*" %%T in ('gh release list --limit 20 --json tagName --jq ".[].tagName" 2^>nul ^| findstr /r "^v[0-9]"') do (
-    echo     Deleting: %%T
-    gh release delete "%%T" --yes --cleanup-tag 2>nul
+if "%AURAGO_KEEP_RELEASES%"=="1" (
+    echo     Keeping all existing releases and tags.
+) else (
+    for /f "skip=3 tokens=*" %%T in ('gh release list --limit 100 --exclude-drafts --exclude-pre-releases --json tagName --jq ".[].tagName" 2^>nul ^| findstr /r "^v[0-9]"') do (
+        echo     Deleting: %%T
+        gh release delete "%%T" --yes --cleanup-tag 2>nul
+    )
 )
 
 echo.

@@ -393,6 +393,9 @@ $notes = @'
 
 ### Installation
 
+Signed releases require Cosign and an independently trusted public key configured through `AURAGO_RELEASE_PUBLIC_KEY`.
+See [signature setup](https://github.com/antibyte/AuraGo/blob/main/documentation/release-signatures.md).
+
 **Verified install (recommended, no Go required):**
 ```bash
 curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
@@ -418,8 +421,11 @@ curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | b
 $notes = $notes -replace '\{VERSION\}', $Version
 
 try {
-    $ghArgs = @("release", "create", $Version, $assets, "--title", "AuraGo $Version", "--notes", $notes)
+    $ghArgs = @("release", "create", $Version, $assets, "--draft", "--title", "AuraGo $Version", "--notes", $notes)
     gh @ghArgs
+    if ($LASTEXITCODE -ne 0) { throw 'Release draft creation or asset upload failed.' }
+    gh release edit $Version --draft=false --latest
+    if ($LASTEXITCODE -ne 0) { throw 'Release publication failed; uploaded assets remain in the draft.' }
     Write-Host "    Release created successfully!" -ForegroundColor Green
 } catch {
     Write-Host ""
@@ -434,8 +440,10 @@ Write-Host ""
 # ── Step 5: Cleanup old releases ─────────────────────────────────────────
 Write-Host "[5/5] Cleaning up old releases (keeping latest 3)..." -ForegroundColor Yellow
 
-try {
-    $releases = gh release list --limit 20 --json tagName | ConvertFrom-Json
+if ($env:AURAGO_KEEP_RELEASES -eq '1') {
+    Write-Host '    Keeping all existing releases and tags.' -ForegroundColor Gray
+} else { try {
+    $releases = gh release list --limit 100 --exclude-drafts --exclude-pre-releases --json tagName | ConvertFrom-Json
     $toDelete = $releases | Where-Object { $_.tagName -match '^v[0-9]' } | Select-Object -Skip 3
     foreach ($rel in $toDelete) {
         Write-Host "    Deleting old release: $($rel.tagName)" -ForegroundColor Gray
@@ -443,7 +451,7 @@ try {
     }
 } catch {
     Write-Host "    Could not cleanup old releases (non-fatal)" -ForegroundColor Gray
-}
+} }
 
 Write-Host ""
 Write-Host "Verifying release..." -ForegroundColor Yellow
