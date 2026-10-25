@@ -554,7 +554,8 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 				return
 			}
 			issues := s.Flows.Validate(rec.Draft, flows.ModeDraft)
-			flowsJSON(w, http.StatusOK, map[string]any{"flow": rec, "enabled": s.flowEnabled(rec), "issues": nonNilIssues(issues)})
+			flowsJSON(w, http.StatusOK, map[string]any{"flow": rec, "enabled": s.flowEnabled(rec), "issues": nonNilIssues(issues),
+				"live_issues": nonNilIssues(s.Flows.LiveIssues(rec))})
 		case http.MethodPut:
 			var body struct {
 				Doc          json.RawMessage `json:"doc"`

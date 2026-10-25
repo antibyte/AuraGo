@@ -89,6 +89,15 @@
             return '<span class="ed-chip ed-chip--ok">' + esc(t('easydrag.ui.state_published')) + '</span>';
         }
 
+        // liveBadge: the published version no longer passes the server's current checks (its
+        // start-up check); publishing again clears it.
+        function liveBadge(f) {
+            if (!f.published || !Array.isArray(f.live_issues) || !f.live_issues.length) return '';
+            const hint = t('easydrag.ui.live_outdated_hint');
+            return '<span class="ed-chip ed-chip--risk" data-ed-live-outdated title="' + esc(hint) + '">' + esc(t('easydrag.ui.state_live_outdated')) +
+                '<span class="ed-sr-only"> ' + esc(hint) + '</span></span>';
+        }
+
         function lastRun(f) {
             const r = f.last_run;
             if (!r) return '<span class="ed-muted">' + esc(t('easydrag.ui.home_never_ran')) + '</span>';
@@ -223,7 +232,7 @@
                     '<article class="ed-flow-card' + (f.enabled ? ' is-active' : '') + '" data-ed-flow="' + esc(f.id) + '" tabindex="0" aria-label="' + esc(f.name) + '">' +
                     '<div class="ed-flow-preview">' + previewSVG(f.preview, esc, f.preview_edges) + '</div>' +
                     '<div class="ed-flow-info"><h3>' + esc(f.name) + '</h3><p class="ed-flow-triggers">' + core.icon('bolt') + '<span>' + esc(triggerLabels(f).join(' · ') || t('easydrag.ui.home_no_trigger')) + '</span></p>' +
-                    '<div class="ed-flow-meta">' + statusBadge(f) + '<span class="ed-flow-run">' + lastRun(f) + '</span></div></div>' +
+                    '<div class="ed-flow-meta">' + statusBadge(f) + liveBadge(f) + '<span class="ed-flow-run">' + lastRun(f) + '</span></div></div>' +
                     '<div class="ed-flow-card-actions">' +
                     (f.published && !off ? '<button type="button" class="ed-switch ed-switch--small" role="switch" aria-checked="' + !!f.enabled + '" data-ed-toggle="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.active')) + '" title="' + esc(t('easydrag.ui.active')) + '"><span></span></button>' : '') +
                     '<button type="button" class="ed-icon-btn" data-ed-card-menu="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.more')) + '">' + core.icon('dots') + '</button></div></article>').join('');

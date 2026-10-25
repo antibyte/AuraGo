@@ -87,6 +87,19 @@ func (b flowMissionBridge) FlowMissionEnabled(missionID string) bool {
 
 var _ flows.MissionReconciler = flowMissionBridge{}
 var _ flows.RunGate = flowMissionBridge{}
+var _ flows.LiveIssuesNoter = flowMissionBridge{}
+
+// NoteFlowLiveIssues implements flows.LiveIssuesNoter: Mission Control shows on the flow mission
+// that its published version no longer passes the current checks.
+func (b flowMissionBridge) NoteFlowLiveIssues(missionID string, _ []flows.Issue) {
+	mm, err := b.missions()
+	if err != nil {
+		return
+	}
+	if mm.NoteFlowLiveRevisionOutdated(missionID) {
+		broadcastMissionState(b.s)
+	}
+}
 
 // AutomaticRunsAllowed implements flows.RunGate: the Date/Time timers start no run while
 // automaticFlowRunsAllowed refuses (read-only missions, flows switched off).

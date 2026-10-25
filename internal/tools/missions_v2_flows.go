@@ -1049,3 +1049,21 @@ func homeAssistantMonitoredEntities(missions []*MissionV2) map[string]bool {
 	}
 	return out
 }
+
+// flowLiveRevisionOutdatedOutput is the LastOutput of a flow mission whose published revision no
+// longer passes the flow service's current checks (its start-up compatibility check).
+const flowLiveRevisionOutdatedOutput = "The published version of this EasyDrag flow no longer passes the current checks and its runs may fail; open the flow in EasyDrag and publish it again"
+
+// NoteFlowLiveRevisionOutdated shows on a flow mission that its published revision no longer
+// passes the flow service's current checks, like a refusal note (noteFlowRefusalLocked: no run
+// counted, the next run result replaces it). It saves only when the mission changed and reports
+// whether it did.
+func (m *MissionManagerV2) NoteFlowLiveRevisionOutdated(missionID string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	changed := m.noteFlowRefusalLocked(missionID, flowLiveRevisionOutdatedOutput)
+	if changed {
+		m.saveFlowNotesLocked()
+	}
+	return changed
+}

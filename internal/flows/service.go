@@ -158,9 +158,11 @@ type Service struct {
 	started  bool
 	closed   bool
 	bootTime time.Time
-	stop     chan struct{}
-	done     chan struct{}
-	stopOnce sync.Once
+	// liveIssues holds CheckLiveRevisions' findings by flow id (see LiveIssues).
+	liveIssues map[string]liveCompat
+	stop       chan struct{}
+	done       chan struct{}
+	stopOnce   sync.Once
 	// reconciling counts the ReconcileMissions calls in progress; Shutdown waits for them.
 	// Add happens only under mu while !closed, so it never races with Shutdown's Wait.
 	reconciling sync.WaitGroup
@@ -435,6 +437,7 @@ type FlowSummary struct {
 	Triggers              []string      `json:"triggers"`
 	Preview               []PreviewNode `json:"preview"`
 	PreviewEdges          [][2]int      `json:"preview_edges,omitempty"`
+	LiveIssues            []Issue       `json:"live_issues,omitempty"`
 }
 
 // PreviewNode positions a node in the start page's mini preview.
@@ -490,6 +493,7 @@ func (s *Service) ListFlows(ctx context.Context) ([]FlowSummary, error) {
 			}
 		}
 		sum.Enabled = rec.MissionID != "" && s.bridge.FlowMissionEnabled(rec.MissionID)
+		sum.LiveIssues = s.LiveIssues(rec)
 		out = append(out, sum)
 	}
 	return out, nil

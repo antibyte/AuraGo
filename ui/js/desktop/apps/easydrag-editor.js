@@ -74,7 +74,8 @@
             // model is the document shown (a stored run's in the run view); draftModel is the draft.
             root: el, flow: loaded.flow, flowEnabled: !!loaded.enabled, model: draftModel, draftModel,
             selection: new Set(), selectedEdge: null, hoverNode: null, hoverEdge: null, view: { x: 0, y: 0, zoom: 1 },
-            run: null, runView: null, issues: loaded.issues || [], lastRunData: null, detail: null, quickAdd: null,
+            run: null, runView: null, issues: loaded.issues || [],
+            liveIssues: Array.isArray(loaded.live_issues) ? loaded.live_issues : [], liveIssuesRevision: Number(loaded.flow.live_revision) || 0, lastRunData: null, detail: null, quickAdd: null,
             dragging: false, initialRender: true, effectsConfirmed: new Set(), publishIncomplete: '', bus: core.emitter(), saver: null,
             enterRunView, exitRunView
         };
@@ -152,6 +153,16 @@
             node.textContent = revisionText();
         }
 
+        // liveChip marks a published version that no longer passes the server's current checks
+        // (its start-up check), only while that version is still live: a new publication clears it.
+        function liveChip() {
+            const outdated = !ed.runView && !!ed.flow.live && ed.liveIssues.length > 0 && Number(ed.flow.live_revision) === ed.liveIssuesRevision;
+            if (!outdated) return '';
+            const hint = t('easydrag.ui.live_outdated_hint');
+            return '<span class="ed-chip ed-chip--risk" data-ed-live-outdated title="' + esc(hint) + '">' + esc(t('easydrag.ui.state_live_outdated')) +
+                '<span class="ed-sr-only"> ' + esc(hint) + '</span></span>';
+        }
+
         function renderHeader() {
             // A save answered after dispose must not point the window context at this flow again.
             if (disposed) return;
@@ -161,7 +172,7 @@
             const s = stateOf();
             const inactive = ed.flow.live && !ed.flowEnabled && !ed.runView;
             el.querySelector('[data-ed-state]').innerHTML = '<span class="ed-chip ed-chip--' + s.cls + '"' + (s.title ? ' title="' + esc(s.title) + '"' : '') + '>' + esc(t(s.key)) + '</span>' +
-                (inactive ? '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.state_inactive')) + '</span>' : '');
+                (inactive ? '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.state_inactive')) + '</span>' : '') + liveChip();
             paintRevision();
             const ro = !!(ed.readonly || ed.runView);
             const running = runs.isRunning();
@@ -727,7 +738,7 @@
         bag.listen(document, 'aurago:flows-changed', (event) => {
             const d = event.detail || {};
             const mine = d.flow_id === ed.flow.id;
-            const maybe = !d.flow_id && (d.reason === 'deleted' || d.reason === 'enabled');
+            const maybe = !d.flow_id && (d.reason === 'deleted' || d.reason === 'enabled' || d.reason === 'checked');
             if (!mine && !maybe) return;
             if (d.reason === 'deleted') {
                 if (deleting) return;
@@ -736,7 +747,7 @@
             }
             // A live run ended: the last run, the drawer and a run view follow (debounced in runs).
             if (d.reason === 'run_finished') runs.runFinished();
-            if (d.reason === 'enabled' || d.reason === 'published') refreshRecord();
+            if (d.reason === 'enabled' || d.reason === 'published' || d.reason === 'checked') refreshRecord();
         });
 
         // refreshRecord re-reads publication state changed elsewhere (another window, the agent,
@@ -756,6 +767,8 @@
             ed.flow.live = res.flow.live;
             ed.flow.published_draft_revision = res.flow.published_draft_revision;
             ed.flow.live_revision = res.flow.live_revision;
+            ed.liveIssues = Array.isArray(res.live_issues) ? res.live_issues : [];
+            ed.liveIssuesRevision = Number(res.flow.live_revision) || 0;
             if (ed.publishIncomplete && Number(res.flow.live_revision) > partialRevision) ed.publishIncomplete = '';
             ed.flowEnabled = !!res.enabled;
             renderHeader();

@@ -122,7 +122,8 @@ var flowsStartRetries sync.Map
 // flow is enabled).
 //
 // Then, on a goroutine of its own so that a large flows.db does not hold up the start, it
-// reconciles Mission Control with the flow store once (Service.ReconcileMissions): a crash
+// runs afterFlowsStart once: the reconciliation with Mission Control (Service.ReconcileMissions), the
+// compatibility check of the live revisions and a flows_changed broadcast. A crash
 // between a flows.db write and the Mission Control update leaves them apart.
 // shutdownFlows waits for it through Service.Shutdown.
 //
@@ -152,12 +153,12 @@ func (s *Server) startFlows(ctx context.Context) {
 			defer flowsStartRetries.CompareAndDelete(svc, retry)
 			defer cancel()
 			if retryFlowsStart(retryCtx, svc, logger, delay) {
-				reconcileFlows(retryCtx, svc, logger)
+				s.afterFlowsStart(retryCtx, svc, logger)
 			}
 		}()
 		return
 	}
-	go reconcileFlows(ctx, svc, logger)
+	go s.afterFlowsStart(ctx, svc, logger)
 }
 
 // reconcileFlows runs Service.ReconcileMissions and logs what is worth a line.
@@ -165,6 +166,24 @@ func reconcileFlows(ctx context.Context, svc *flows.Service, logger *slog.Logger
 	err := svc.ReconcileMissions(ctx)
 	if err != nil && !errors.Is(err, flows.ErrRunnerClosed) && ctx.Err() == nil {
 		logger.Warn("EasyDrag flows could not be checked against Mission Control", "error", err)
+	}
+}
+
+// afterFlowsStart runs once Service.Start worked, on the caller's goroutine: the reconciliation
+// with Mission Control (reconcileFlows), then the compatibility check of the published revisions
+// (checkLiveFlows), then a flows_changed broadcast with reason "checked", so open start pages and
+// editors read live_issues and timers_running again.
+func (s *Server) afterFlowsStart(ctx context.Context, svc *flows.Service, logger *slog.Logger) {
+	reconcileFlows(ctx, svc, logger)
+	checkLiveFlows(ctx, svc, logger)
+	s.broadcastFlowsChanged("", "checked")
+}
+
+// checkLiveFlows runs Service.CheckLiveRevisions and logs a failure worth a line; the Service
+// logs and notes each flow it flags itself.
+func checkLiveFlows(ctx context.Context, svc *flows.Service, logger *slog.Logger) {
+	if _, err := svc.CheckLiveRevisions(ctx); err != nil && !errors.Is(err, flows.ErrRunnerClosed) && ctx.Err() == nil {
+		logger.Warn("EasyDrag flows could not be checked against the current rules", "error", err)
 	}
 }
 
