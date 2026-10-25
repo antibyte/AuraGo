@@ -191,7 +191,7 @@
             '<div class="ed-detail-body">' +
             '<section class="ed-detail-col" data-col="input"' + panel('col', 'input') + '></section>' +
             '<section class="ed-detail-col" data-col="params"' + panel('col', 'params') + '><div class="ed-subtabs" role="tablist">' +
-            tab('pane', 'params', 'data-ed-pane', t('easydrag.ui.detail_parameters')) +
+            tab('pane', 'params', 'data-ed-pane', t('easydrag.ui.detail_values')) +
             tab('pane', 'settings', 'data-ed-pane', t('easydrag.ui.detail_settings')) +
             tab('pane', 'note', 'data-ed-pane', t('easydrag.ui.detail_note')) + '</div>' +
             '<div class="ed-detail-pane" data-pane="params"' + panel('pane', 'params') + '></div><div class="ed-detail-pane" data-pane="settings"' + panel('pane', 'settings') + ' hidden></div><div class="ed-detail-pane" data-pane="note"' + panel('pane', 'note') + ' hidden></div></section>' +

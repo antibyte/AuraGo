@@ -1,5 +1,6 @@
 {
   "easydrag.ui.card_state_off": "desactivado",
+  "easydrag.ui.detail_values": "Valores",
   "easydrag.ui.error_flow_action_rule_required": "Falta una regla de acción correspondiente. Añade una regla en Configuración → Zona de peligro y vuelve a iniciar manualmente. No se reintentará automáticamente.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "El uso alternativo de CPU no está autorizado expresamente.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "El dispositivo de inferencia no está verificado.",

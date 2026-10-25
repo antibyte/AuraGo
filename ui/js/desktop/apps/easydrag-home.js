@@ -63,7 +63,7 @@
             '<div class="ed-home-toolbar"><div class="ed-search">' + core.icon('search') + '<input type="search" placeholder="' + esc(t('easydrag.ui.home_search')) + '" aria-label="' + esc(t('easydrag.ui.home_search')) + '" enterkeyhint="search" inputmode="search" data-ed-home-search></div>' +
             '<div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.home_filter')) + '">' +
             ['all', 'active', 'inactive', 'drafts', 'errors'].map(f => '<button type="button" role="radio" data-ed-filter="' + f + '" aria-checked="' + (f === filter) + '">' + esc(t('easydrag.ui.home_filter_' + f)) + '</button>').join('') + '</div>' +
-            '<select class="ed-select ed-home-sort" aria-label="' + esc(t('easydrag.ui.home_sort')) + '" data-ed-home-sort>' +
+            '<select class="ed-input ed-input--small ed-home-sort" aria-label="' + esc(t('easydrag.ui.home_sort')) + '" data-ed-home-sort>' +
             '<option value="updated">' + esc(t('easydrag.ui.home_sort_updated')) + '</option>' +
             '<option value="last_run">' + esc(t('easydrag.ui.home_sort_last_run')) + '</option>' +
             '<option value="name">' + esc(t('easydrag.ui.home_sort_name')) + '</option></select></div>' +

@@ -1,5 +1,6 @@
 {
   "easydrag.ui.card_state_off": "已关闭",
+  "easydrag.ui.detail_values": "值",
   "easydrag.ui.error_flow_action_rule_required": "缺少匹配的操作规则。请在配置 → 危险区域中添加规则，然后手动重新启动。系统不会自动重试。",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "尚未明确允许 CPU 回退。",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "推理设备尚未验证。",

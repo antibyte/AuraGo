@@ -1,5 +1,6 @@
 {
   "easydrag.ui.card_state_off": "slått av",
+  "easydrag.ui.detail_values": "Verdier",
   "easydrag.ui.error_flow_action_rule_required": "En passende handlingsregel mangler. Legg til en regel under Konfigurasjon → Faresone, og start deretter på nytt manuelt. Ingen automatiske nye forsøk.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU-reserve er ikke uttrykkelig tillatt.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Inferensenheten er ikke verifisert.",

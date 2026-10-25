@@ -1160,3 +1160,8 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     border-radius: 12px; background: var(--ed-glass); border: 1px solid var(--ed-border); box-shadow: var(--ed-shadow-lg); font-size: 12.5px;
 }
 .ed-port-tip > span { min-width: 0; }
+
+/* a selected card shows its whole error (polish: the box is clamped to 2 lines otherwise) */
+.ed-node.is-selected .ed-node-error { -webkit-line-clamp: 8; z-index: 2; }
+/* the reason of a failed or offline save, in view next to the state */
+.ed-save-reason { max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }

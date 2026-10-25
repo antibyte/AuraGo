@@ -741,6 +741,45 @@ export async function run(env) {
         eq('b5 U14 the tip words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.port_tip', 'easydrag.ui.port_tip_dismiss']), []);
     });
 
+    // ── polish ──
+
+    await guardAsync('b5 polish card text, error box, save reason, inner tab and sort select', async () => {
+        const sumTypes = new Map(types);
+        sumTypes.set('web.search', Object.assign({}, types.get('web.search'), { summary: '{query}' }));
+        const long = 'alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu';
+        const doc = flowDoc();
+        doc.nodes[1].params.query = long;
+        const h = sandbox(() => undefined);
+        h.catalog = { types: sumTypes, list: Array.from(sumTypes.values()), categories: [] };
+        const editor = openEditor(h, { flow: { draft: doc } });
+        await settle();
+        const m = /class="ed-node-summary" title="([^"]*)">([^<]*)</.exec(editor.el.querySelector('[data-node-id="' + A + '"]').html);
+        const clip = h.ED.canvas.clip;
+        const card = [m && m[1], m && m[2], clip('abcdefghij klmnop', 10), clip('abcdefghijklmnop', 10), clip('short', 10)];
+        editor.dispose();
+        const failing = sandbox(req => { if (req.method === 'PUT') throw apiError('FLOW_LOCKED'); return undefined; });
+        const saving = openEditor(failing);
+        await settle();
+        saving.ed.model.setFlow({ description: 'x' });
+        failing.runTimers(1000);
+        await settle();
+        const reason = saving.el.querySelector('[data-ed-save]').html;
+        saving.dispose();
+        const sheet = css();
+        const p = await homePage(req => {
+            if (req.url === '/api/desktop/flows' && req.method === 'GET') return { flows: [] };
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+            return undefined;
+        });
+        const sort = p.home.el.querySelector('[data-ed-home-sort]').className;
+        p.home.dispose();
+        eq('b5 polish a word-boundary ellipsis with the whole text as tooltip, the save reason in view, a selected card shows its whole error, Values as inner tab, the sort select looks like a field',
+            [card, reason.includes('<span class="ed-save-reason">error_flow_locked</span>'), /\.ed-node\.is-selected \.ed-node-error \{[^}]*-webkit-line-clamp: 8;/.test(sheet),
+                read('easydrag-detail.js').includes("tab('pane', 'params', 'data-ed-pane', t('easydrag.ui.detail_values'))"), sort],
+            [[long, 'alpha beta gamma delta epsilon zeta eta theta iota kappa…', 'abcdefghij…', 'abcdefghi…', 'short'], true, true, true, 'ed-input ed-input--small ed-home-sort']);
+        eq('b5 polish the inner tab word exists in all 16 locales', missingKeys(apps, ['easydrag.ui.detail_values']), []);
+    });
+
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }

@@ -244,7 +244,10 @@
             const err = ed.saver && ed.saver.error;
             const title = s === 'failed' || (s === 'offline' && err) ? core.errorText(t, err) : s === 'offline' ? t('easydrag.ui.save_offline_hint') : '';
             // .ed-foot-text: narrow footers show the icon only, the text stays for screen readers.
-            const label = core.icon(SAVE_ICONS[s] || 'check') + '<span class="ed-foot-text">' + esc(t('easydrag.ui.save_' + s)) + '</span>';
+            // A failed save, and an offline one that has an error, show the reason, not only as tooltip.
+            const reason = s === 'failed' || (s === 'offline' && err) ? core.errorText(t, err) : '';
+            const label = core.icon(SAVE_ICONS[s] || 'check') + '<span class="ed-foot-text">' + esc(t('easydrag.ui.save_' + s)) + '</span>' +
+                (reason ? '<span class="ed-save-reason">' + esc(reason) + '</span>' : '');
             const hadFocus = node.contains(document.activeElement);
             node.className = 'ed-foot-item ed-save ed-save--' + s;
             node.innerHTML = s === 'failed'

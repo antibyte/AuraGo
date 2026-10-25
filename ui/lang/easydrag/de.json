@@ -1,5 +1,6 @@
 {
   "easydrag.ui.card_state_off": "ausgeschaltet",
+  "easydrag.ui.detail_values": "Werte",
   "easydrag.ui.error_flow_action_rule_required": "Eine passende Aktionsregel fehlt. Ergänze eine Regel unter Konfiguration → Gefahrenzone und starte danach manuell neu. Es gibt keinen automatischen Wiederholungsversuch.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU-Fallback wurde nicht ausdrücklich freigegeben.",
   "easydrag.availability.DECISIONS_DEVICE_UNVERIFIED": "Das Inferenzgerät wurde nicht verifiziert.",

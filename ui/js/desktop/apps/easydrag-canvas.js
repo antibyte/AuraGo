@@ -10,6 +10,18 @@
     const READABLE_PAD = 48;
     const ZOOMED_OUT = 0.7;
     const PORT_TIP_KEY = 'aurago.easydrag.hint.ports';
+    // CARD_TEXT_MAX is how many characters a card's summary value keeps; a longer one ends at a word
+    // with "…" and the card's tooltip holds the whole text.
+    const CARD_TEXT_MAX = 56;
+
+    // clip shortens text to about max characters at a word boundary (when one lies in the second half)
+    // and adds "…"; text that fits stays as it is.
+    function clip(text, max) {
+        if (text.length <= max) return text;
+        const space = text.slice(0, max + 1).lastIndexOf(' ');
+        const cut = space >= max / 2 ? text.slice(0, space) : text.slice(0, max - 1);
+        return cut.replace(/[\s,;:.·–-]+$/, '') + '…';
+    }
 
     // portLabel names the output port of node n: switch cases and decision choices by their
     // configured labels, any other port by its translation. The connect picker uses it too.
@@ -282,7 +294,7 @@
 
         // ── node cards ──────────────────────────────────────────────────────────
 
-        function displayValue(n, i, name) {
+        function displayValue(n, i, name, max) {
             const spec = (i.params || []).find(p => p.name === name);
             let value = n.params[name];
             if (value === undefined && spec) value = spec.default;
@@ -299,7 +311,7 @@
                 return '‹' + label + (field ? ' › ' + field : '') + '›';
             });
             text = text.replace(/\s+/g, ' ').trim();
-            return text.length > 56 ? text.slice(0, 55) + '…' : text;
+            return clip(text, max);
         }
 
         // byKey looks a node up by key like model.byKey (the first node wins), without a scan per call.
@@ -313,9 +325,9 @@
             return keyIndex.get(key) || null;
         }
 
-        function summary(n, i) {
+        function summary(n, i, max) {
             if (!i) return n.type;
-            const text = String(i.summary || '').replace(/\{([a-z_]+)\}/g, (m, name) => displayValue(n, i, name)).trim();
+            const text = String(i.summary || '').replace(/\{([a-z_]+)\}/g, (m, name) => displayValue(n, i, name, max)).trim();
             return text.replace(/^[·\s]+|[·\s]+$/g, '');
         }
 
@@ -377,7 +389,7 @@
         }
 
         // cardMarkup draws a card without its state (paintState fills the badges and the error).
-        function cardMarkup(n, sum) {
+        function cardMarkup(n, sum, whole) {
             const i = info(n);
             const ports = ed.model.outputs(n);
             const ins = ed.model.inputs(n);
@@ -404,7 +416,7 @@
             const typeLine = !i ? n.type : n.label && n.label !== i.label ? i.label : (i.description || '');
             return '<div class="ed-node-tile">' + core.icon(i ? i.icon : 'tool') + '</div>' +
                 '<div class="ed-node-body"><div class="ed-node-label">' + esc(n.label || (i && i.label) || n.type) + '</div>' +
-                (sum ? '<div class="ed-node-summary">' + esc(sum) + '</div>' : typeLine ? '<div class="ed-node-summary ed-node-summary--muted">' + esc(typeLine) + '</div>' : '') + '</div>' +
+                (sum ? '<div class="ed-node-summary"' + (whole && whole !== sum ? ' title="' + esc(whole) + '"' : '') + '>' + esc(sum) + '</div>' : typeLine ? '<div class="ed-node-summary ed-node-summary--muted">' + esc(typeLine) + '</div>' : '') + '</div>' +
                 '<div class="ed-node-badges"></div>' + inPorts + outPorts + tools;
         }
 
@@ -459,7 +471,7 @@
             // selection is not: it only sets the is-selected class. A run's status, duration and
             // error and the open issues are not either: paintState updates them in place, so run
             // events never replace the tool buttons (a focused one would drop the focus to body).
-            const sum = summary(n, i);
+            const sum = summary(n, i, CARD_TEXT_MAX);
             const sig = JSON.stringify([n.label, n.type, n.params, n.settings, i && i.availability, !!ed.runView, ed.readonly, ed.model.outputs(n), sum]);
             // A rebuild replaces the tool buttons: a tool that had the focus (Disable from the
             // keyboard changes the step) gives it to its new button with the same action.
@@ -469,7 +481,7 @@
                 if (active && active !== card && card.contains(active) && active.dataset) focusedTool = active.dataset.edNodeTool || null;
                 signatures.set(n.id, sig);
                 states.delete(n.id);
-                card.innerHTML = cardMarkup(n, sum);
+                card.innerHTML = cardMarkup(n, sum, summary(n, i, Infinity));
                 toolsOn.delete(n.id);
             }
             const issues = nodeIssues(n.id).length;
@@ -819,5 +831,5 @@
         };
     }
 
-    ED.canvas = { create, portLabel };
+    ED.canvas = { create, portLabel, clip };
 })();
