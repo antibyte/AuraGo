@@ -59,7 +59,11 @@ export async function openWizard({base='/api/ruview/',t,receiverIP='',port,nodeI
         try{
             const data=await request('nodes');if(stopped)return;
             const nodes=Array.isArray(data)?data:data.nodes;
-            if(!Array.isArray(nodes)||data.available===false)throw Error('invalid_reply');
+            // live_state ok, not_running and not_applicable still carry the saved board IDs; unreachable and invalid do not.
+            // An older backend only sends `available`.
+            const live=Array.isArray(data)?'ok':data.live_state;
+            const usable=['ok','not_running','not_applicable'].includes(live)||(!['unreachable','invalid'].includes(live)&&data.available!==false);
+            if(!Array.isArray(nodes)||!usable)throw Error('invalid_reply');
             const used=new Set(nodes.map(node=>{
                 const raw=node?.node_id??node?.id;
                 if(!['number','string'].includes(typeof raw)||!/^\d+$/.test(String(raw)))throw Error('invalid_reply');

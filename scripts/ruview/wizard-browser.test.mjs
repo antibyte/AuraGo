@@ -148,13 +148,16 @@ try {
     for(const [data,expected] of [
         [{nodes:[]},'1'],
         [[{id:'1'},{node_id:3,csi_status:'stale'},{node_id:2},{node_id:1},{node_id:0}],'4'],
-        [{nodes:Array.from({length:254},(_,i)=>({node_id:i+1}))},'255']
+        [{nodes:Array.from({length:254},(_,i)=>({node_id:i+1}))},'255'],
+        [{live_state:'not_running',available:false,nodes:[{node_id:1,csi_status:'offline'},{node_id:2,csi_status:'offline'}]},'3'],
+        [{live_state:'not_applicable',available:false,nodes:[{node_id:1,csi_status:'offline'}]},'2'],
+        [{live_state:'ok',available:true,nodes:[{node_id:1,csi_status:'active'}]},'2']
     ]){
         nodeData=data;await open();await ready();
         assert.equal(await page.getByRole('spinbutton',{name:'Knoten-ID',exact:true}).inputValue(),expected);
         assert.ok((await page.locator('#ruview-node-hint').innerText()).includes(`ID: ${expected}.`));
     }
-    for(const data of [{nodes:Array.from({length:255},(_,i)=>({node_id:i+1}))},{},{nodes:[{}]},{nodes:[{node_id:true}]}]){
+    for(const data of [{nodes:Array.from({length:255},(_,i)=>({node_id:i+1}))},{},{nodes:[{}]},{nodes:[{node_id:true}]},{live_state:'unreachable',available:false,nodes:[{node_id:1,csi_status:'offline'}]},{live_state:'invalid',available:false,nodes:[]},{available:false,nodes:[{node_id:1}]}]){
         nodeData=data;await open();
         await page.waitForFunction(()=>!document.querySelector('#ruview-node-hint').textContent.includes('werden geprüft'));
         assert.equal(await page.locator('dialog [name="node"]').inputValue(),'');

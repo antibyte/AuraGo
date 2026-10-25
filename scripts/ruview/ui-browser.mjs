@@ -61,6 +61,45 @@ export async function checkDevices(page,fixture) {
     } finally {release();fixture.hold=null;fixture.fail=false;fixture.statusFail=false;fixture.offline=false;fixture.unavailable=false;fixture.scope='fixture';await page.evaluate(()=>delete document.hidden);}
 }
 
+// Overview/Devices wording for states that are not failures (German locale, desktop overview already open).
+export async function checkReceptionStates(page,fixture,setSource) {
+    const summary=()=>page.locator('.ruview-summary article');
+    try {
+        // The 6th card must carry its own translated title, not a missing key or the generic fallback.
+        assert.equal(await summary().nth(5).evaluate(card=>card.firstChild.textContent),'Aufnahme');
+
+        // Wi-Fi/demo sources have no board list: neutral checks, no "refresh failed".
+        setSource('wifi');fixture.liveState='not_applicable';
+        await page.evaluate(()=>render());await page.locator('.ruview-check').waitFor();
+        assert.equal(await page.locator('.ruview-check [data-state="attention"]').count(),0,'a source without boards has nothing that needs attention');
+        assert.equal(await page.locator('.ruview-check li').nth(3).getAttribute('data-state'),'neutral');
+        await page.locator('[data-tab=devices]').click();await page.locator('.ruview-node').waitFor();
+        await page.waitForFunction(()=>document.querySelector('.ruview-feedback')?.textContent==='Die Board-Liste wird nur mit ESP32-Boards verwendet.');
+        assert.ok(!(await page.locator('#app').innerText()).includes('Aktualisierung fehlgeschlagen'));
+        setSource('esp32');fixture.liveState='';
+
+        // A disabled integration refuses the board list by design (403): unchecked, never "needs attention" or "refresh failed".
+        fixture.disabled=true;
+        await page.evaluate(()=>render());await page.locator('.ruview-check').waitFor();
+        assert.equal(await page.locator('.ruview-check [data-state="attention"]').count(),0,'a disabled integration has nothing that needs attention');
+        assert.equal(await page.locator('.ruview-check li').nth(3).getAttribute('data-state'),'unchecked');
+        assert.equal(await page.locator('.ruview-check li').nth(4).getAttribute('data-state'),'unchecked');
+        await page.locator('[data-tab=devices]').click();
+        await page.waitForFunction(()=>document.querySelector('.ruview-feedback')?.textContent==='Deaktiviert');
+        assert.ok(!(await page.locator('#app').innerText()).includes('Aktualisierung fehlgeschlagen'));
+        fixture.disabled=false;
+
+        // The first status request failing says "unavailable", never "disabled".
+        fixture.statusFail=true;
+        await page.evaluate(()=>render());await page.locator('.ruview-summary').waitFor();
+        assert.equal(await page.locator('.ruview-summary article strong').first().innerText(),'Status nicht abrufbar');
+        assert.ok(!(await page.locator('#app').innerText()).includes('Deaktiviert'),'an unknown status must not read as disabled');
+        assert.equal(await page.locator('#ruview-action-reason').innerText(),'Status nicht abrufbar');
+        fixture.statusFail=false;
+        await page.waitForFunction(()=>document.querySelector('.ruview-summary article strong')?.textContent==='Bereit');
+    } finally {setSource('esp32');fixture.liveState='';fixture.disabled=false;fixture.statusFail=false;}
+}
+
 export async function checkPolicy(frame,setReadonly) {
     await frame.evaluate(()=>{
         const host=document.createElement('div');host.id='policy-fixture';

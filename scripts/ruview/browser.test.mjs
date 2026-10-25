@@ -5,13 +5,13 @@ import {createRequire} from 'node:module';
 import assert from 'node:assert/strict';
 import {randomBytes,createHash} from 'node:crypto';
 import {checkControls} from './control-browser.mjs';
-import {checkDevices,checkPolicy} from './ui-browser.mjs';
+import {checkDevices,checkPolicy,checkReceptionStates} from './ui-browser.mjs';
 const require=createRequire(import.meta.url);
 const {chromium}=process.env.AURAGO_PLAYWRIGHT?require(process.env.AURAGO_PLAYWRIGHT):require('playwright');
 const locales=['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh'];
 let writes=0,readonly=false,offline=false,mode='external',source='esp32',failure='',statusError='',firmwareError=false,sourceState='disconnected',sourceProbeFailed=false,configRequests=0;
 let serviceState='';
-const nodeFixture={reads:0,active:0,max:0,fail:false,statusFail:false,hold:null,offline:false,unavailable:false,scope:'fixture'};
+const nodeFixture={reads:0,active:0,max:0,fail:false,statusFail:false,hold:null,offline:false,unavailable:false,liveState:'',disabled:false,scope:'fixture'};
 const sensingSockets=new Set(),poseSockets=new Set(),poseRequests=[],healthRequests=new Set();
 function sendFrames(sockets,data){
  const body=Buffer.from(JSON.stringify(data));assert.ok(body.length<65536);
@@ -31,7 +31,11 @@ const server=createServer(async(req,res)=>{
     try {
      if(nodeFixture.hold)await nodeFixture.hold;
      if(nodeFixture.fail){res.statusCode=503;return res.end('{}');}
-     return res.end(JSON.stringify({scope:nodeFixture.scope,available:!nodeFixture.unavailable,nodes:nodeFixture.offline||nodeFixture.unavailable?[{node_id:7,csi_status:'offline',csi_last_seen_ms:null,csi_sequence:null,rssi_dbm:null}]:[{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3,rssi_dbm:-51}]}));
+     // A disabled integration refuses the board list, as the real handler does.
+     if(nodeFixture.disabled){res.statusCode=403;return res.end(JSON.stringify({error:'RuView is disabled'}));}
+     // Mirrors the backend: live_state says why the live list is absent, available is true exactly for ok.
+     const live=nodeFixture.liveState||(nodeFixture.unavailable?'unreachable':'ok');
+     return res.end(JSON.stringify({scope:nodeFixture.scope,available:live==='ok',live_state:live,nodes:nodeFixture.offline||live!=='ok'?[{node_id:7,csi_status:'offline',csi_last_seen_ms:null,csi_sequence:null,rssi_dbm:null}]:[{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3,rssi_dbm:-51}]}));
     }finally{nodeFixture.active--;}
    }
    if(p.includes('/proxy/')){
@@ -57,7 +61,7 @@ const server=createServer(async(req,res)=>{
    if(p.endsWith('/firmware'))return res.end(await readFile('internal/ruview/artifacts.json'));
    if(p.endsWith('/capabilities'))return res.end(JSON.stringify({unavailable:['model_load','model_unload','lora_activate','camera','timed_recording']}));
    if(p.endsWith('/status')&&nodeFixture.statusFail){res.statusCode=503;return res.end('{}');}
-   return res.end(JSON.stringify({enabled:true,readonly,mode,source,ready:!offline&&!serviceState,fresh:!offline&&!serviceState,data_state:serviceState||(offline?'disconnected':'live_unverified'),signal:'CSI',observed_at:new Date().toISOString(),error:statusError||undefined}));
+   return res.end(JSON.stringify({enabled:!nodeFixture.disabled,readonly,mode,source,ready:!offline&&!serviceState&&!nodeFixture.disabled,fresh:!offline&&!serviceState&&!nodeFixture.disabled,data_state:nodeFixture.disabled?'disabled':serviceState||(offline?'disconnected':'live_unverified'),waiting_for_frames:false,signal:'CSI',observed_at:new Date().toISOString(),error:statusError||undefined}));
   }
   if(p==='/'){
    const locale=JSON.parse(await readFile(`ui/lang/ruview/${url.searchParams.get('lang')||'de'}.json`));
@@ -114,6 +118,7 @@ try{
  }
  await page.evaluate(()=>render());await page.waitForFunction(()=>document.querySelector('.ruview-summary article strong')?.textContent==='Bereit');
  assert.equal(writes,0,'reopening preserves backend readiness without another start');
+ await checkReceptionStates(page,nodeFixture,value=>{source=value;});
  await page.locator('[data-tab=devices]').click();await page.locator('.ruview-node').waitFor();
  await checkDevices(page,nodeFixture);
  await page.locator('[data-action=flash]').click();await page.locator('dialog').waitFor();

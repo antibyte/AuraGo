@@ -1054,7 +1054,8 @@ type localI18nHelper struct {
 
 // desktopLocalI18nHelpers registers Desktop app files whose local helper the
 // static i18n checks resolve: tr('title') in gog-sources.js is desktop.gog.title.
-// Register every new prefix helper here so its keys stay verified.
+// Register every new prefix helper here so its keys stay verified. Config page
+// scripts under cfg/ are scanned by the same check (path form: cfg/ruview.js).
 var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/desktop/apps/minigolf-game.js":           {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/minigolf-views.js":          {name: "tr", prefix: "minigolf."},
@@ -1072,6 +1073,7 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/desktop/apps/rtl-sdr-runtime.js":         {name: "tr", prefix: "rtlSdr."},
 	"js/desktop/apps/rtl-sdr.js":                 {name: "t", prefix: "rtlSdr."},
 	"js/desktop/apps/ruview.js":                  {name: "t", prefix: "ruview."},
+	"cfg/ruview.js":                              {name: "tr", prefix: "ruview."},
 }
 
 // desktopDynamicI18nPrefixes registers locale key prefixes that the Desktop
