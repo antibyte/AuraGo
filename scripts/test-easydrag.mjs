@@ -12,6 +12,8 @@
 // The a1023 and a1023b checks (test-easydrag-extra7.mjs) run the editor fixes and the accessibility
 // fixes of the 2026-10-23 audit on the c1d07 sandbox.
 // The a1025 checks (test-easydrag-live-state.mjs) run the 2026-10-25 audit's editor fixes on the c1d07 sandbox.
+// The b5 checks (test-easydrag-ux-batch5.mjs) run fix batch 5 of 2026-10-25 (editor UX, accessibility,
+// i18n, run-event rendering) on the c1d07 sandbox.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -1117,6 +1119,9 @@ await (await import('./test-easydrag-live-state.mjs')).run({ apps, types, t, min
 
 // ── a1025: audit 2026-10-25, key-value editor (test-easydrag-kv-editor.mjs, on the c1d07 sandbox) ──
 await (await import('./test-easydrag-kv-editor.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor });
+
+// ── b5: fix batch 5, editor UX, accessibility and i18n (test-easydrag-ux-batch5.mjs, on the c1d07 sandbox) ──
+await (await import('./test-easydrag-ux-batch5.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor, saverHarness });
 
 // ── start page preview and shortcut table ──
 const H = ED.home;
