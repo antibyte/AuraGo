@@ -99,12 +99,16 @@ type RunFinishedInfo struct {
 
 // ServiceConfig tunes the service; zero values use the defaults.
 type ServiceConfig struct {
-	MaxParallelRuns   int
-	MaxParallelNodes  int
-	MaxQueuedPerFlow  int
-	RunRetentionDays  int
-	MaxRunsPerFlow    int
-	RetentionInterval time.Duration
+	MaxParallelRuns  int
+	MaxParallelNodes int
+	MaxQueuedPerFlow int
+	RunRetentionDays int
+	MaxRunsPerFlow   int
+	// MaxTestRunsPerFlow caps the finished test runs a flow keeps, counted apart from the other
+	// runs (Store.PruneRunsByMode). Zero means DefaultMaxTestRunsPerFlow; it never exceeds
+	// MaxRunsPerFlow.
+	MaxTestRunsPerFlow int
+	RetentionInterval  time.Duration
 }
 
 // ValidationError carries the issues that block saving or publishing.
@@ -181,6 +185,12 @@ func NewService(store *Store, reg *Registry, services *Services, bridge MissionB
 	}
 	if cfg.MaxRunsPerFlow <= 0 {
 		cfg.MaxRunsPerFlow = 200
+	}
+	if cfg.MaxTestRunsPerFlow <= 0 {
+		cfg.MaxTestRunsPerFlow = DefaultMaxTestRunsPerFlow
+	}
+	if cfg.MaxTestRunsPerFlow > cfg.MaxRunsPerFlow {
+		cfg.MaxTestRunsPerFlow = cfg.MaxRunsPerFlow
 	}
 	if cfg.RetentionInterval <= 0 {
 		cfg.RetentionInterval = time.Hour
@@ -330,7 +340,7 @@ func (s *Service) retentionLoop() {
 
 // PruneNow applies run retention and forgets old event logs.
 func (s *Service) PruneNow(ctx context.Context) (int64, error) {
-	n, err := s.store.PruneRuns(ctx, s.cfg.RunRetentionDays, s.cfg.MaxRunsPerFlow, s.now())
+	n, err := s.store.PruneRunsByMode(ctx, s.cfg.RunRetentionDays, s.cfg.MaxRunsPerFlow, s.cfg.MaxTestRunsPerFlow, s.now())
 	s.runner.Bus().Sweep()
 	return n, err
 }

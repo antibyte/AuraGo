@@ -370,12 +370,33 @@ func (s *Store) MarkInterruptedRuns(ctx context.Context, before, now time.Time) 
 	return res.RowsAffected()
 }
 
-// PruneRuns deletes finished (success, error or cancelled) runs older than
-// retentionDays and keeps at most maxPerFlow finished runs per flow, the newest ones.
-// A value of zero or less disables that rule. Queued, running and waiting runs are
-// never deleted and do not count toward maxPerFlow. The steps of a deleted run go
-// with it (ON DELETE CASCADE). It returns the number of deleted runs.
+// DefaultMaxTestRunsPerFlow is how many finished test runs a flow keeps by default
+// (ServiceConfig.MaxTestRunsPerFlow). Test runs are the editor's scratch runs; counted on their
+// own they no longer push live runs out of the history.
+const DefaultMaxTestRunsPerFlow = 20
+
+const (
+	pruneLiveRunsSQL = `DELETE FROM flow_runs WHERE id IN (
+		SELECT id FROM flow_runs WHERE flow_id = ? AND mode != 'test' AND status IN ('success', 'error', 'cancelled')
+		ORDER BY started_at DESC, id DESC LIMIT -1 OFFSET ?)`
+	pruneTestRunsSQL = `DELETE FROM flow_runs WHERE id IN (
+		SELECT id FROM flow_runs WHERE flow_id = ? AND mode = 'test' AND status IN ('success', 'error', 'cancelled')
+		ORDER BY started_at DESC, id DESC LIMIT -1 OFFSET ?)`
+)
+
+// PruneRuns is PruneRunsByMode with the same per-flow cap for test runs and for the other runs.
 func (s *Store) PruneRuns(ctx context.Context, retentionDays, maxPerFlow int, now time.Time) (int64, error) {
+	return s.PruneRunsByMode(ctx, retentionDays, maxPerFlow, maxPerFlow, now)
+}
+
+// PruneRunsByMode deletes finished (success, error or cancelled) runs older than retentionDays
+// and keeps, per flow, at most maxLivePerFlow finished runs that are not test runs (live, agent
+// and call runs) and at most maxTestPerFlow finished test runs, the newest of each. The caps are
+// counted separately, so test runs never push live runs out of the history. A value of zero or
+// less disables that rule. Queued, running and waiting runs are never deleted and do not count
+// toward a cap. The steps of a deleted run go with it (ON DELETE CASCADE). It returns the number
+// of deleted runs.
+func (s *Store) PruneRunsByMode(ctx context.Context, retentionDays, maxLivePerFlow, maxTestPerFlow int, now time.Time) (int64, error) {
 	var total int64
 	if retentionDays > 0 {
 		cutoff := formatTime(now.AddDate(0, 0, -retentionDays))
@@ -387,36 +408,46 @@ func (s *Store) PruneRuns(ctx context.Context, retentionDays, maxPerFlow int, no
 		n, _ := res.RowsAffected()
 		total += n
 	}
-	if maxPerFlow > 0 {
-		rows, err := s.db.QueryContext(ctx, `SELECT id FROM flows`)
+	if maxLivePerFlow > 0 || maxTestPerFlow > 0 {
+		ids, err := s.flowIDs(ctx)
 		if err != nil {
 			return total, err
 		}
-		var flowIDs []string
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				rows.Close()
-				return total, err
+		for _, id := range ids {
+			for _, rule := range []struct {
+				query string
+				keep  int
+			}{{pruneLiveRunsSQL, maxLivePerFlow}, {pruneTestRunsSQL, maxTestPerFlow}} {
+				if rule.keep <= 0 {
+					continue
+				}
+				res, err := s.db.ExecContext(ctx, rule.query, id, rule.keep)
+				if err != nil {
+					return total, err
+				}
+				n, _ := res.RowsAffected()
+				total += n
 			}
-			flowIDs = append(flowIDs, id)
-		}
-		// The rows are closed before the deletes below: they need the connection pool.
-		err = rows.Err()
-		rows.Close()
-		if err != nil {
-			return total, err
-		}
-		for _, id := range flowIDs {
-			res, err := s.db.ExecContext(ctx, `DELETE FROM flow_runs WHERE id IN (
-				SELECT id FROM flow_runs WHERE flow_id = ? AND status IN ('success', 'error', 'cancelled')
-				ORDER BY started_at DESC, id DESC LIMIT -1 OFFSET ?)`, id, maxPerFlow)
-			if err != nil {
-				return total, err
-			}
-			n, _ := res.RowsAffected()
-			total += n
 		}
 	}
 	return total, nil
+}
+
+// flowIDs returns the ids of all flows. The rows are closed before it returns, so the caller's
+// deletes get a connection from the pool.
+func (s *Store) flowIDs(ctx context.Context) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id FROM flows`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
