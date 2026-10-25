@@ -57,6 +57,8 @@ type runState struct {
 	stop     *StopSignal
 	// outputBytes is the encoded size of all accepted outputs (see MaxRunOutputBytes).
 	outputBytes int
+	// storedBytes is what the run log keeps of the run so far (MaxStoredRunBytes).
+	storedBytes int
 	// interrupted records that the end of the run's context cut a node short:
 	// a node was cancelled or abandoned, or never got to run.
 	interrupted bool
@@ -278,6 +280,7 @@ func (s *runState) fireTrigger(trigger *Node) {
 	s.status[trigger.ID] = StepSuccess
 	s.deliverPorts(trigger, ports)
 	stored, truncated := storedOutput(out, encoded)
+	s.storedBytes += storedSize(encoded, truncated)
 	step := StepRecord{NodeID: trigger.ID, NodeKey: trigger.Key, Attempt: 1, Status: StepSuccess,
 		StartedAt: now, FinishedAt: now, Output: stored, OutputTruncated: truncated, Ports: ports}
 	s.steps = append(s.steps, step)
@@ -484,8 +487,29 @@ func (s *runState) complete(ctx context.Context, d nodeDone) {
 			s.stop = d.result.Stop
 		}
 	}
+	step = s.chargeStored(step, d.stored)
 	s.steps = append(s.steps, step)
 	s.publish(RunEvent{Type: EventStepFinished, NodeID: n.ID, Step: &step})
+}
+
+// chargeStored counts what the run log keeps of a step against MaxStoredRunBytes. Once the run
+// would pass it, the step keeps neither params nor output (storedOmitted, flags set); the step
+// event carries the same, so the live view and the stored run agree.
+func (s *runState) chargeStored(step StepRecord, size int) StepRecord {
+	if size <= 0 {
+		return step
+	}
+	if s.storedBytes+size <= MaxStoredRunBytes {
+		s.storedBytes += size
+		return step
+	}
+	if step.Params != nil {
+		step.Params, step.ParamsTruncated = storedOmitted(), true
+	}
+	if step.Output != nil {
+		step.Output, step.OutputTruncated = storedOmitted(), true
+	}
+	return step
 }
 
 func (s *runState) deliverPorts(n *Node, ports []string) {

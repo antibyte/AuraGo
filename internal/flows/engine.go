@@ -16,9 +16,16 @@ const (
 	// MaxRunOutputBytes caps the encoded size of all successful outputs of one
 	// run, the trigger's included. Decoded JSON can take about 16 times its
 	// encoded size in memory, so this bounds a run to roughly 0.5 GB worst case.
-	MaxRunOutputBytes       = 32 << 20
-	MaxStoredOutputBytes    = 256 << 10
-	storedPreviewBytes      = 64 << 10
+	MaxRunOutputBytes    = 32 << 20
+	MaxStoredOutputBytes = 256 << 10
+	storedPreviewBytes   = 64 << 10
+	// MaxStoredRunBytes caps what the run log keeps of one run: the stored params and outputs of
+	// all its steps (each bounded by MaxStoredOutputBytes), the trigger's included. A step over
+	// the rest of the budget keeps neither (storedOmitted), so a run with many large steps cannot
+	// fill flows.db (E4); templates and later steps still see the full outputs.
+	MaxStoredRunBytes = 4 << 20
+	// storedOmittedReason marks params and outputs that the run budget left out.
+	storedOmittedReason     = "run_storage_budget"
 	DefaultMaxParallelNodes = 4
 	// maxErrorMessageRunes caps every error message the engine records (steps,
 	// error outputs, run results and summaries): node errors can carry
@@ -144,6 +151,7 @@ type nodeDone struct {
 	step      StepRecord
 	result    ExecResult
 	size      int // encoded size of result.Output, for the run-wide budget
+	stored    int // bytes the run log keeps of the step's params and output (MaxStoredRunBytes)
 	err       *NodeError
 	cancelled bool
 }
@@ -255,7 +263,7 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 		return fail(&NodeError{Code: "FLOW_TEMPLATE_ERROR", Message: err.Error()})
 	}
 	in.Params = params
-	step.Params, step.ParamsTruncated = storedParams(params)
+	step.Params, step.ParamsTruncated, d.stored = storedParams(params)
 	attempts := 1 + clampInt(n.Settings.Retry.Count, 0, MaxRetryCount)
 	// Clamp before multiplying: a huge value would overflow the duration.
 	delay := time.Duration(clampInt(n.Settings.Retry.DelaySeconds, 0, MaxRetryDelaySeconds)) * time.Second
@@ -304,6 +312,7 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 	d.result = res
 	d.size = len(data)
 	step.Output, step.OutputTruncated = storedOutput(output, data)
+	d.stored += storedSize(data, step.OutputTruncated)
 	step.ItemCount = res.ItemCount
 	if step.ItemCount == 0 {
 		if items, ok := output["items"].([]any); ok {
@@ -387,19 +396,34 @@ func storedOutput(out map[string]any, data []byte) (map[string]any, bool) {
 }
 
 // storedParams returns what the run log keeps of a node's resolved parameters,
-// bounded like outputs. The parameters can share memory with the run's data
-// (see ExecInput), so they are stored as they are and never modified.
-// Parameters that cannot be encoded get a small placeholder; that does not fail
-// the node.
-func storedParams(params map[string]any) (map[string]any, bool) {
+// bounded like outputs, and how many bytes that is. The parameters can share
+// memory with the run's data (see ExecInput), so they are stored as they are
+// and never modified. Parameters that cannot be encoded get a small
+// placeholder; that does not fail the node.
+func storedParams(params map[string]any) (map[string]any, bool, int) {
 	data, err := json.Marshal(params)
 	if err != nil {
-		return map[string]any{"_preview": "<unserializable>"}, true
+		return map[string]any{"_preview": "<unserializable>"}, true, len(`{"_preview":"<unserializable>"}`)
 	}
 	if len(data) <= MaxStoredOutputBytes {
-		return params, false
+		return params, false, len(data)
 	}
-	return previewOf(data), true
+	return previewOf(data), true, storedPreviewBytes
+}
+
+// storedSize is how many bytes the run log keeps of a value whose encoding is data: all of it,
+// or at most a preview when it was truncated.
+func storedSize(data []byte, truncated bool) int {
+	if truncated {
+		return storedPreviewBytes
+	}
+	return len(data)
+}
+
+// storedOmitted is what a step keeps of its params or output once the run's MaxStoredRunBytes
+// are used up. "_preview" keeps the shape the editor knows from truncated values.
+func storedOmitted() map[string]any {
+	return map[string]any{"_preview": "", "_omitted": storedOmittedReason}
 }
 
 // previewOf returns the stored preview of encoded JSON: its first
