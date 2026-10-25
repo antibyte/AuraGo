@@ -330,7 +330,13 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   `Search` never asks the index. The two rankings fuse by weighted reciprocal
   rank fusion (k 20; lexical weight 1, semantic weight 0.8). Discovery takes the
   first 5 manuals and at most 5 semantic-only tools; exact tiers stay first and
-  the rest is re-split by status class. A manual for a non-displacing tool counts
+  the rest is re-split by status class. `holdClearLexicalLeader`
+  (`tool_search_leader.go`) then puts a clear lexical leader back at the first
+  slot after the exact matches: the first lexical hit, when its score is at least
+  1.5 × (`toolSearchLeaderMargin`, one phrase boost) the best other lexical hit
+  of any status class, or when it has no lexical rival; a near-tie stays with
+  the fusion. Only `SearchContext` applies it, the adaptive selection does not.
+  A manual for a non-displacing tool counts
   only while one of its tools is enabled. `buildAdaptiveToolPriority` fuses its
   head the same way over the offered schemas only (first 8 manuals, at most 4
   semantic-only tools); non-displacing tools and their manuals take no slot
