@@ -14,9 +14,10 @@ type adaptiveRefreshInput struct {
 	RunConfig RunConfig
 	Features  ToolFeatureFlags
 	// Plan is the plan of the first selection. Nil when the run had none
-	// (adaptive tools off, no short-term memory, the managed local kernel, a
-	// prepared prompt): the refresh then ranks the schemas by their position,
-	// as it always did.
+	// (adaptive tools off, no short-term memory, the managed local kernel):
+	// the refresh then ranks the schemas by their position, as it always did.
+	// Runs that never re-inject schemas (a prepared prompt among them) never
+	// refresh.
 	Plan *adaptiveSelectionPlan
 	// Tools are the candidate schemas: the previous list with swapped-out
 	// partners back in and the requested tools added.
