@@ -34,6 +34,7 @@ type selectionRun struct {
 	first    toolSchemaFilterResult
 	swapped  map[string]string
 	pinned   map[string]bool
+	order    []string
 	query    string
 	sessions map[string]bool
 	recent   []string
@@ -71,6 +72,7 @@ func (run *selectionRun) refresh(offered []openai.Tool, requested []string, used
 		}
 	}
 	run.pinned = recordRequestedTools(run.pinned, requested)
+	run.order = recordRequestOrder(run.order, requested)
 	if run.sessions == nil {
 		run.sessions = map[string]bool{}
 	}
@@ -79,7 +81,7 @@ func (run *selectionRun) refresh(offered []openai.Tool, requested []string, used
 	}
 	opts := adaptiveRefreshFilterOptions(adaptiveRefreshInput{
 		Config: run.cfg, RunConfig: run.runCfg, Features: run.ff, Plan: &run.plan, Tools: candidates, Requested: requested,
-		Pinned: run.pinned, SessionUsed: run.sessions, Recent: run.recent, InitFiltered: true,
+		RequestOrder: run.order, Pinned: run.pinned, SessionUsed: run.sessions, Recent: run.recent, InitFiltered: true,
 		MaxAdaptive: run.budget.adaptive, MaxTotal: run.budget.total, MaxSchemaTokens: run.budget.token,
 		AdditiveTools: adaptiveAdditiveToolsForQuery(run.query), AdditiveSwaps: adaptiveSwapsForQuery(run.query),
 	})
@@ -191,78 +193,193 @@ func TestRefreshWithoutNewInputReturnsTheFirstSelection(t *testing.T) {
 	}
 }
 
-// One requested tool is added; at most one adaptive tool leaves for it, and no
-// soft, generator or history tool ever drops because of its rank.
-func TestRefreshWithARequestDropsAtMostOneAdaptiveTool(t *testing.T) {
+// requestsAbsent picks tools that discover_tools could request and that the
+// selection does not offer yet. They are small schemas, so a request fits a
+// token cap as well.
+func requestsAbsent(t *testing.T, offered []openai.Tool, n int) []string {
+	t.Helper()
+	have := toolSchemaNames(offered)
+	var out []string
+	for _, name := range []string{"uptime_kuma", "wake_on_lan", "whois_lookup", "mac_lookup", "mdns_scan", "upnp_scan"} {
+		if !slices.Contains(have, name) {
+			out = append(out, name)
+		}
+		if len(out) == n {
+			return out
+		}
+	}
+	t.Fatalf("fewer than %d candidate requests are absent from %v", n, have)
+	return nil
+}
+
+// heldTools are the tools a refresh may never drop for rank: the hard ones and
+// the plan's soft classes.
+func (run *selectionRun) heldTools() []string {
+	return append(slices.Clone(run.plan.Options.SoftAlwaysTools), run.plan.Options.HardAlwaysTools...)
+}
+
+// One requested tool is added. Under the count caps at most one adaptive tool
+// leaves for it; under a token cap a larger schema can displace more, but only
+// adaptive tools. A soft, generator or history tool never drops because of
+// its rank.
+func TestRefreshWithARequestDropsOnlyAdaptiveTools(t *testing.T) {
 	ff := allBuiltinToolFeatureFlags()
-	b := selectionBudget{name: "roomy 10/40/-", adaptive: 10, total: 40}
-	for _, query := range selectionQueries {
-		run := startSelectionRun(t, query, ff, b, []string{"docker"})
-		first := toolSchemaNames(run.first.Tools)
-		var request string
-		for _, name := range []string{"jellyfin", "truenas", "grafana", "obsidian"} {
-			if !slices.Contains(first, name) {
-				request = name
-				break
+	for _, b := range selectionBudgets {
+		for _, query := range selectionQueries {
+			run := startSelectionRun(t, query, ff, b, []string{"docker"})
+			first := toolSchemaNames(run.first.Tools)
+			request := requestsAbsent(t, run.first.Tools, 1)[0]
+			got := toolSchemaNames(run.refresh(run.first.Tools, []string{request}))
+			if !slices.Contains(got, request) {
+				t.Errorf("%s %q: the requested %s is missing from %v", b.name, query, request, got)
 			}
-		}
-		if request == "" {
-			t.Fatalf("%q: every candidate request is already offered: %v", query, first)
-		}
-		got := toolSchemaNames(run.refresh(run.first.Tools, []string{request}))
-		if !slices.Contains(got, request) {
-			t.Errorf("%q: the requested %s is missing from %v", query, request, got)
-		}
-		dropped := slices.DeleteFunc(slices.Clone(first), func(name string) bool { return slices.Contains(got, name) })
-		if len(dropped) > 1 {
-			t.Errorf("%q: the request dropped %v", query, dropped)
-		}
-		for _, name := range dropped {
-			if slices.Contains(run.plan.Options.SoftAlwaysTools, name) || slices.Contains(run.plan.Options.HardAlwaysTools, name) {
-				t.Errorf("%q: a held tool %s was dropped by rank", query, name)
+			dropped := slices.DeleteFunc(slices.Clone(first), func(name string) bool { return slices.Contains(got, name) })
+			if b.token == 0 && len(dropped) > 1 {
+				t.Errorf("%s %q: the request dropped %v", b.name, query, dropped)
+			}
+			for _, name := range dropped {
+				if slices.Contains(run.heldTools(), name) {
+					t.Errorf("%s %q: a held tool %s was dropped by rank", b.name, query, name)
+				}
 			}
 		}
 	}
 }
 
 // A flood of requests costs adaptive tools only: the configured, generator and
-// history tools and the tools used during the run keep their places. The
-// requests are adaptive tools themselves, ranked first up to the adaptive cap.
+// history tools keep their places under every budget. The requests are
+// adaptive tools themselves, ranked first up to the adaptive cap.
 func TestRefreshKeepsSoftClassesUnderARequestFlood(t *testing.T) {
 	ff := allBuiltinToolFeatureFlags()
 	ff.LocalWikipediaEnabled = true
-	b := selectionBudget{name: "roomy 10/40/-", adaptive: 10, total: 60}
 	flood := []string{"jellyfin", "proxmox", "truenas", "grafana", "netlify", "github", "ollama", "vercel", "tailscale", "ansible", "home_assistant", "mqtt_publish"}
-	run := startSelectionRun(t, "Erstelle ein Bild von einem Fuchs", ff, b, []string{"local_wikipedia", "docker"})
-	first := toolSchemaNames(run.first.Tools)
-	// An adaptive tool the run then executes keeps a soft place too.
-	var adaptive string
-	for _, name := range first {
-		if !slices.Contains(run.plan.Options.SoftAlwaysTools, name) && !slices.Contains(run.plan.Options.HardAlwaysTools, name) && !slices.Contains(flood, name) {
-			adaptive = name
+	for _, b := range selectionBudgets {
+		run := startSelectionRun(t, "Erstelle ein Bild von einem Fuchs", ff, b, []string{"local_wikipedia", "docker"})
+		first := toolSchemaNames(run.first.Tools)
+		got := toolSchemaNames(run.refresh(run.first.Tools, flood))
+		for _, name := range run.heldTools() {
+			if slices.Contains(first, name) && !slices.Contains(got, name) {
+				t.Errorf("%s: held tool %s dropped under the flood: %v", b.name, name, got)
+			}
+		}
+		for _, name := range []string{"generate_image", "local_wikipedia", "docker"} {
+			if !slices.Contains(got, name) {
+				t.Errorf("%s: %s dropped under the flood: %v", b.name, name, got)
+			}
+		}
+		offered := 0
+		for _, name := range flood {
+			if slices.Contains(got, name) {
+				offered++
+			}
+		}
+		if offered == 0 || offered > b.adaptive {
+			t.Errorf("%s: %d of the requests offered, want 1..%d: %v", b.name, offered, b.adaptive, got)
+		}
+		// Requests rank in the order they arrive: the first one is never cut for a later one.
+		if !slices.Contains(got, flood[0]) {
+			t.Errorf("%s: the first request %s was cut: %v", b.name, flood[0], got)
 		}
 	}
-	if adaptive == "" {
-		t.Fatalf("no adaptive tool in %v", first)
-	}
-	got := toolSchemaNames(run.refresh(run.first.Tools, flood, adaptive))
-	held := append(slices.Clone(run.plan.Options.SoftAlwaysTools), run.plan.Options.HardAlwaysTools...)
-	held = append(held, adaptive)
-	for _, name := range held {
-		if slices.Contains(first, name) && !slices.Contains(got, name) {
-			t.Errorf("held tool %s dropped under the flood: %v", name, got)
+}
+
+// Requests of earlier refreshes keep their place when a later request comes:
+// every request made so far is offered after each refresh, under every budget,
+// however often the model asks for the same tool again.
+func TestRefreshChainedRequestsKeepTheEarlierOnes(t *testing.T) {
+	ff := allBuiltinToolFeatureFlags()
+	for _, b := range selectionBudgets {
+		for _, query := range selectionQueries {
+			run := startSelectionRun(t, query, ff, b, nil)
+			reqs := requestsAbsent(t, run.first.Tools, 3)
+			a, second, third := reqs[0], reqs[1], reqs[2]
+			r1 := run.refresh(run.first.Tools, []string{a})
+			r2 := run.refresh(r1, []string{second})
+			r3 := run.refresh(r2, []string{a})
+			r4 := run.refresh(r3, []string{third})
+			for step, check := range []struct {
+				tools []openai.Tool
+				want  []string
+			}{
+				{r1, []string{a}},
+				{r2, []string{a, second}},
+				{r3, []string{a, second}},
+				{r4, []string{a, second, third}},
+			} {
+				names := toolSchemaNames(check.tools)
+				for _, want := range check.want {
+					if !slices.Contains(names, want) {
+						t.Errorf("%s %q refresh %d: request %s was evicted: %v", b.name, query, step+1, want, names)
+					}
+				}
+			}
+			// A refresh without new input changes nothing.
+			if again := sortedToolNames(run.refresh(r4, nil)); !slices.Equal(again, sortedToolNames(r4)) {
+				t.Errorf("%s %q: a refresh without input changed the selection\nbefore %v\nafter  %v", b.name, query, sortedToolNames(r4), again)
+			}
 		}
 	}
-	for _, name := range []string{"generate_image", "local_wikipedia", "docker"} {
-		if !slices.Contains(got, name) {
-			t.Errorf("%s dropped under the flood: %v", name, got)
+}
+
+// Tools the run used rank behind the requests: after the model used every
+// adaptive tool, a request is still offered under every budget, and no soft
+// class pays for it.
+func TestRefreshRequestSurvivesToolsUsedByTheRun(t *testing.T) {
+	ff := allBuiltinToolFeatureFlags()
+	for _, b := range selectionBudgets {
+		for _, query := range selectionQueries {
+			run := startSelectionRun(t, query, ff, b, nil)
+			first := toolSchemaNames(run.first.Tools)
+			var used []string
+			for _, name := range first {
+				if !slices.Contains(run.heldTools(), name) {
+					used = append(used, name)
+				}
+			}
+			r0 := run.refresh(run.first.Tools, nil, used...)
+			if !slices.Equal(sortedToolNames(r0), sortedToolNames(run.first.Tools)) {
+				t.Errorf("%s %q: using the adaptive tools changed the selection\nbefore %v\nafter  %v", b.name, query, sortedToolNames(run.first.Tools), sortedToolNames(r0))
+			}
+			request := requestsAbsent(t, r0, 1)[0]
+			r1 := toolSchemaNames(run.refresh(r0, []string{request}))
+			if !slices.Contains(r1, request) {
+				t.Errorf("%s %q: the request %s was crowded out by %d used tools: %v", b.name, query, request, len(used), r1)
+			}
+			for _, name := range run.heldTools() {
+				if slices.Contains(first, name) && !slices.Contains(r1, name) {
+					t.Errorf("%s %q: held tool %s dropped for a request: %v", b.name, query, name, r1)
+				}
+			}
 		}
 	}
-	// The requests rank first among the adaptive tools, so the adaptive cap
-	// decides how many of them fit.
-	for _, name := range flood[:b.adaptive] {
-		if !slices.Contains(got, name) {
-			t.Errorf("requested %s missing under the flood: %v", name, got)
+}
+
+// A long history is soft, but the tools the run uses afterwards are ranked, so
+// a request still fits a budget that the history nearly fills.
+func TestRefreshRequestFitsAfterLongHistoryAndUse(t *testing.T) {
+	ff := allBuiltinToolFeatureFlags()
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ff, nil)
+	var history []string
+	for _, name := range toolSchemaNames(schemas) {
+		if slices.Contains([]string{"discover_tools", "invoke_tool", "run_tool", "execute_skill"}, name) {
+			continue
+		}
+		if history = append(history, name); len(history) == 3 {
+			break
+		}
+	}
+	for _, b := range selectionBudgets {
+		run := startSelectionRun(t, "hello there", ff, b, history)
+		var used []string
+		for _, name := range toolSchemaNames(schemas) {
+			if !slices.Contains(history, name) && len(used) < 12 {
+				used = append(used, name)
+			}
+		}
+		run.refresh(run.first.Tools, nil, used...)
+		request := requestsAbsent(t, run.first.Tools, 1)[0]
+		if got := toolSchemaNames(run.refresh(run.first.Tools, []string{request}, used...)); !slices.Contains(got, request) {
+			t.Errorf("%s: the request %s is not offered after %d used tools: %v", b.name, request, len(used), got)
 		}
 	}
 }
@@ -285,6 +402,14 @@ func TestRefreshWithoutAPlanRanksByPosition(t *testing.T) {
 	}
 	if opts.SwapProtectedTools != nil || !slices.Equal(opts.PinnedTools, []string{"b"}) || opts.MaxAdaptiveTools != 2 || opts.MaxTotalTools != 5 {
 		t.Errorf("options = %+v", opts)
+	}
+	// Earlier requests follow the new ones, newest first, while they are candidates.
+	opts = adaptiveRefreshFilterOptions(adaptiveRefreshInput{
+		Config: cfg, Tools: tools, Requested: []string{"b"}, RequestOrder: []string{"a", "gone", "b"},
+		Pinned: map[string]bool{"a": true, "b": true},
+	})
+	if got := fmt.Sprint(opts.PreferredTools); got != "[b a filesystem a b]" {
+		t.Errorf("preferred with earlier requests = %s", got)
 	}
 	// A first selection that ranked the whole catalog protects the session's tools.
 	opts = adaptiveRefreshFilterOptions(adaptiveRefreshInput{Config: cfg, Tools: tools, SessionUsed: map[string]bool{"a": true}, InitFiltered: true})

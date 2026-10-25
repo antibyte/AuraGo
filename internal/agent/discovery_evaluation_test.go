@@ -182,7 +182,7 @@ func TestDiscoveryTaskEvaluationV2(t *testing.T) {
 		floorDeAt1     = 39
 		floorDeAt5     = 44
 		floorDeAt10    = 46
-		floorFirstTurn = 78
+		floorFirstTurn = 97
 	)
 	for _, floor := range []struct {
 		name      string

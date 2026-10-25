@@ -277,9 +277,10 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   local_wikipedia is soft; a session-kept one is soft in the first selection
   like every session-kept tool (it costs its own slot and schema tokens) and
   stays soft in the refresh, which runs before every model call and keeps the
-  first selection's classes (`adaptiveRefreshFilterOptions`; a tool used later
-  in the run joins them); one requested via discover_tools (`PinnedTools`) is
-  ranked like any requested tool. When that ranking leaves a requested
+  first selection's soft classes (`adaptiveRefreshFilterOptions`); a
+  local_wikipedia the run used afterwards is ranked like any kept tool
+  (`SwapProtectedTools`), and one requested via discover_tools (`PinnedTools`)
+  like any requested tool. When that ranking leaves a used or requested
   local_wikipedia out, the additive rule may still offer it in leftover room
   or through the swap. Like every tool it stays bounded
   by the total and token caps and by the request-budget shedder. When a cap
@@ -291,9 +292,10 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   "wikipedia.org"; `adaptiveSwapsForQuery`, so a negated mention such as
   "not the online Wikipedia" blocks the swap too, which is conservative) and
   the swap keeps the schema token cap; otherwise it is skipped and stays
-  discoverable, like a swapped-out wikipedia_search. Because the token-aware
-  knapsack fills the budget to within a few tokens, the local_wikipedia schema
-  stays compact (at most 220 estimated tokens, within 40 of wikipedia_search;
+  discoverable, like a swapped-out wikipedia_search. Because a full selection can
+  leave little headroom under the schema token cap (the live acceptance run left
+  147 of 6,500 tokens), the local_wikipedia schema stays compact (at most 220
+  estimated tokens, within 40 of wikipedia_search;
   `TestLocalWikipediaSchemaStaysCompact`) and the manual carries the details.
   The refresh puts a
   swapped-out tool back before ranking, so it decides the swap on the same
@@ -360,9 +362,13 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   family with the most distinct terms wins, a tie keeps the order deployment,
   files, shell, coding, memory, web, network, infra, communication, automation,
   media. A short list of German heads of at least five runes that are no English
-  words (Datei, Ordner, Verzeichnis, Befehl, Netzwerk, Notiz, ...) also matches
-  at either end of a compound (Konfigurationsdatei, Heimnetzwerk). A term and a
-  head must not name the same word (`TestToolFamilyTermSetsAreWellFormed`).
+  words (Datei, Ordner, Netzwerk, Notiz, ...) also matches at either end of a
+  compound (Konfigurationsdatei, Heimnetzwerk). A head that also ends unrelated
+  words is written narrower (`toolIntentHead`): `^kommando` only at the start,
+  `verzeichnis:unter,arbeits` at the end only after a listed modifier, so
+  Manuskript, Spielkonsole, Haftbefehl, Inhaltsverzeichnis and Verbraucher match
+  nothing; a term written `=malen` compares the exact word, not the stem. A term
+  and a head must not name the same word (`TestToolFamilyTermSetsAreWellFormed`).
   Seeds are candidates, not a class: `adaptiveFamilySeedTools` lists each
   family by importance, `adaptiveSeedsForQuery` takes the first four that are
   offered and not already held (hard or soft) and puts the tools of specific
@@ -372,8 +378,9 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 - `rankAdaptiveTools` (`buildAdaptiveToolPriority` is its short form) fuses the
   lexical ranking (weight 1) and the semantic manual ranking (0.8) with three
   `toolRankSignal` lists passed to `fuseToolRanking`: the tools whose name the
-  request spells out (`extractIntentMatchedTools`, 0.7), the seeds (0.5) and the
-  user's usage (0.3, at most four usage-only additions); then come the curated
+  request spells out (`extractIntentMatchedTools`, whole words after the same
+  folding and stemming, 0.7), the seeds (0.5) and the user's usage (0.3, at
+  most four usage-only additions); then come the curated
   neighbours and the rest of the usage list, which fills slots that stay free.
   A name scores weight/(K+r) at its position r over the names the signal
   keeps; a signal drops non-displacing tools before it counts, so enabling one
@@ -388,9 +395,13 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 - The media generators `generate_image`, `generate_music` and `generate_video`
   are soft in the adaptive first selection only when the feature is on and the
   request asks for that media (`adaptiveGeneratorToolsForQuery`: whole words
-  such as image, photo, logo, Bild, Foto, music, song, Lied, video, clip, Film,
-  plus listed compounds such as Hintergrundbild, Musikvideo); otherwise they
-  compete for a slot and stay reachable through discover_tools. The managed
+  such as photo, logo, Bild, Foto, music, song, Musik, video, plus listed
+  compounds such as Hintergrundbild, Musikvideo). Words with an everyday or
+  technical meaning (image, draw, sketch, Lied, beat, clip, film, animation)
+  count only together with a creation verb (generate, create, make, erstelle,
+  mach, ...) and never after a technical word ("docker image", "ISO image",
+  "CSS animation"). Otherwise the generators compete for a slot like any other
+  tool and stay reachable through discover_tools. The managed
   local model keeps its query-independent kernel (`stableLocalToolSchemas`),
   generators included, so its llama.cpp prefix stays reusable. A free adaptive
   slot is never filled by size: `buildAdaptiveKnapsackOrder` orders preferred
@@ -399,18 +410,28 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   `TestAdaptiveGeneratorToolsForQuery`, `TestMediaGeneratorsAreSoftOnlyOnIntent`
   and `TestAdaptiveSlotsAreNeverFilledBySize`.
 
-- The refresh before every model call keeps the classes of the first selection
-  (`adaptiveRefreshFilterOptions`, plan in `agentLoopState.adaptivePlan`): the
-  plan's soft tools (configured, voice, channel, generators the request asked
-  for, history, requests discover_tools already made) and every tool the run
-  used since stay soft, and the ranking is the plan's priority with new
-  requests in front. A refresh without a new request or tool use therefore
-  returns the first selection; one request adds that tool and costs at most the
-  lowest ranked adaptive tool. Without a plan (adaptive tools off, no
-  short-term memory, the managed local kernel, a prepared prompt) the refresh
-  ranks the schemas by position, as before. Verify
+- The refresh before every model call keeps the soft classes of the first
+  selection (`adaptiveRefreshFilterOptions`, plan in
+  `agentLoopState.adaptivePlan`). Order of precedence: hard tools; the plan's
+  soft tools (configured, voice, channel, read_tool_output, the generators the
+  request asked for, the session's tools at the first selection, the requests
+  the first selection consumed); the discover_tools requests of the run (this
+  call's first, then the earlier ones, newest first, kept in
+  `agentLoopState.discoverRequestOrder`); the tools the run used since (not
+  soft: they rank, keep swap protection and count against `MaxAdaptiveTools`);
+  the plan's ranking; every other candidate. A long run of tool calls therefore
+  cannot crowd a request out, and a request made earlier stays while a later
+  one comes. A refresh without a new request or tool use returns the first
+  selection. One request displaces the lowest ranked adaptive tool under the
+  count caps; under the schema token cap a larger requested schema can displace
+  more of them, but never a soft or hard tool. Without a plan (adaptive tools
+  off, no short-term memory, the managed local kernel; runs that do not
+  re-inject schemas, prepared prompts included, never refresh) the refresh
+  ranks the requests, newest first, and then the schemas by position. Verify
   `TestRefreshWithoutNewInputReturnsTheFirstSelection`,
-  `TestRefreshWithARequestDropsAtMostOneAdaptiveTool` and
+  `TestRefreshWithARequestDropsOnlyAdaptiveTools`,
+  `TestRefreshChainedRequestsKeepTheEarlierOnes`,
+  `TestRefreshRequestSurvivesToolsUsedByTheRun` and
   `TestRefreshKeepsSoftClassesUnderARequestFlood`.
 
 - The ranker bounds every input a model, a user or an MCP server controls.

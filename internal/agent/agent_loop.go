@@ -227,6 +227,9 @@ type agentLoopState struct {
 	// generator, history, requested tools and the ranking); the refresh before
 	// every model call keeps them. Nil when the run had no such selection.
 	adaptivePlan *adaptiveSelectionPlan
+	// discoverRequestOrder lists the run's discover_tools requests, oldest
+	// first; discoverRequestedTools is the same set.
+	discoverRequestOrder []string
 }
 
 // inlineBudgetBasis is what the automatic inline budget of the current tool
@@ -713,6 +716,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			all := filterSchemasByAllowedTools(s.nativeSchemaSnapshot.FullSchemas(), runCfg.AllowedTools)
 			requested := ConsumeDiscoverRequestedTools(runCfg.DiscoveryRunID)
 			s.discoverRequestedTools = recordRequestedTools(s.discoverRequestedTools, requested)
+			s.discoverRequestOrder = recordRequestOrder(s.discoverRequestOrder, requested)
 			available := stringSet(toolSchemaNames(all))
 			var retained []openai.Tool
 			for _, schema := range req.Tools {
@@ -745,6 +749,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				Plan:            s.adaptivePlan,
 				Tools:           req.Tools,
 				Requested:       requested,
+				RequestOrder:    s.discoverRequestOrder,
 				Pinned:          s.discoverRequestedTools,
 				SessionUsed:     s.sessionUsedTools,
 				Recent:          recentNativeToolNamesFromMessages(req.Messages, cfg.Agent.AdaptiveTools.SessionToolRetentionTurns),

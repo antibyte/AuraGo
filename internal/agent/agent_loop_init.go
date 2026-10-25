@@ -350,6 +350,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	var adaptiveSwaps map[string]string
 	var adaptiveRequested map[string]bool   // discover_tools requests the first selection consumed
 	var adaptivePlan *adaptiveSelectionPlan // the first selection's classes, kept by the refresh
+	var adaptiveRequestOrder []string       // the same requests in order, oldest first
 	adaptiveInitFiltered := false
 	ff := buildToolFeatureFlags(runCfg, toolingPolicy)
 	if voiceOutputSuppressed || speechLabOwnsAutomaticWebChatOutput(cfg, runCfg) {
@@ -464,6 +465,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			// The refresh treats the requests consumed here like its own
 			// (toolSchemaFilterOptions.PinnedTools) and keeps the plan's classes.
 			adaptiveRequested = recordRequestedTools(adaptiveRequested, plan.Requested)
+			adaptiveRequestOrder = recordRequestOrder(adaptiveRequestOrder, plan.Requested)
 			adaptiveInitFiltered = true
 			adaptivePlan = &plan
 
@@ -610,6 +612,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	s.adaptiveSwapped = adaptiveSwapped
 	s.adaptiveSwaps = adaptiveSwaps
 	s.discoverRequestedTools = adaptiveRequested
+	s.discoverRequestOrder = adaptiveRequestOrder
 	s.nativeSchemaSnapshot = schemaSnapshot
 	s.isMaintenance = isMaintenance
 	deliverOperationalIssueNotice(&s.operationalIssueNotice, runCfg, broker, logger)
