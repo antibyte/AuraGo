@@ -36,6 +36,8 @@ try {
     }
     & cosign verify-blob --key "$prefix.pub" --insecure-ignore-tlog --signature "$manifest.sig" $manifest
     if ($LASTEXITCODE -ne 0) { throw 'Fixture signature was not valid.' }
+    & go run ./cmd/release-verifier --key "$prefix.pub" --signature "$manifest.sig" --manifest $manifest
+    if ($LASTEXITCODE -ne 0) { throw 'Native verifier rejected the actual Cosign fixture.' }
     if ($isWindowsHost) {
         $gitBash = Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Git\bin\bash.exe'
         if (Test-Path -LiteralPath $gitBash) {
@@ -50,6 +52,10 @@ try {
     & cosign verify-blob --key "$prefix.pub" --insecure-ignore-tlog --signature "$manifest.sig" $manifest 2>$null
     $ErrorActionPreference = 'Stop'
     if ($LASTEXITCODE -eq 0) { throw 'Altered checksum manifest passed verification.' }
+    $ErrorActionPreference = 'Continue'
+    & go run ./cmd/release-verifier --key "$prefix.pub" --signature "$manifest.sig" --manifest $manifest 2>$null
+    $ErrorActionPreference = 'Stop'
+    if ($LASTEXITCODE -eq 0) { throw 'Native verifier accepted the altered Cosign fixture.' }
     Write-Host 'Offline release fixture passed: signed manifest accepted; altered manifest rejected.'
     if ($isWindowsHost) {
         $signer = Join-Path $PSScriptRoot 'sign-release-checksums.ps1'

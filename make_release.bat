@@ -67,6 +67,7 @@ if not defined RELEASE_PYTHON (
     exit /b 1
 )
 echo     Python: !RELEASE_PYTHON!
+"!RELEASE_PYTHON!" scripts\build-release-verifier.py --scripts-only --require-published || exit /b 1
 where node >nul 2>&1
 if errorlevel 1 (
     echo     Node.js: not found; skipping CodeMirror bundle build
@@ -208,6 +209,8 @@ echo [2/5] Compiling binaries (cross-compilation)...
 echo.
 set CGO_ENABLED=0
 
+"!RELEASE_PYTHON!" scripts\build-release-verifier.py --check || goto :build_error
+
 echo   Linux amd64...
 set "GOOS=linux" & set "GOARCH=amd64"
 go build -buildvcs=false -trimpath -ldflags="!MAIN_LDFLAGS! !ASSET_LDFLAGS!" -o "bin\aurago_linux"          ./cmd/aurago/        || goto :build_error
@@ -250,6 +253,7 @@ node scripts\check-web-assets.mjs "deploy\aurago_windows_amd64.exe" "bin\aurago_
 
 copy "install.sh" "deploy\install.sh" >nul
 copy "update.sh" "deploy\update.sh" >nul
+copy "repair-update.sh" "deploy\repair-update.sh" >nul || goto :build_error
 echo     [OK] deploy\install.sh
 echo     [OK] deploy\update.sh
 
@@ -302,6 +306,9 @@ powershell -nologo -noprofile -command ^
   "  'deploy\\aurago-remote_windows_arm64.exe'" ^
   ");" ^
   "$files += @(Get-ChildItem -LiteralPath deploy/gog -Filter 'gog-*.zip' | ForEach-Object { $_.FullName });" ^
+  "$files += @(Get-ChildItem -LiteralPath deploy/release-verifier -Filter 'release-verifier_*' | ForEach-Object { $_.FullName });" ^
+  "$files += @('deploy\\repair-update.sh');" ^
+  "$files += @('deploy\\release-keyring.json','deploy\\release-keyring.json.sig');" ^
   "$files += @('deploy\\phonon-model.dat', 'deploy\\phonon-runtime_linux_amd64.dat', 'deploy\\phonon-runtime_linux_arm64.dat', 'deploy\\phonon-runtime_darwin_amd64.dat', 'deploy\\phonon-runtime_darwin_arm64.dat', 'deploy\\phonon-runtime_windows_amd64.dat');" ^
   "$out = foreach ($file in $files) { if (Test-Path $file) { $hash = Get-Sha256Hex $file; '{0}  {1}' -f $hash, [IO.Path]::GetFileName($file) } };" ^
   "[IO.File]::WriteAllText((Join-Path (Get-Location).Path 'deploy\\SHA256SUMS'), ((@($out) -join [char]10) + [char]10), (New-Object System.Text.UTF8Encoding($false)))"
@@ -318,6 +325,7 @@ set "GOOS=windows" & set "GOARCH=amd64"
 echo.
 
 REM -- [3/5] Commit, tag and push
+"!RELEASE_PYTHON!" scripts\build-release-verifier.py --scripts-only --verify-manifest deploy\SHA256SUMS || goto :build_error
 echo [3/5] Pushing code and release tag to GitHub...
 git add .
 git diff-index --quiet HEAD 2>nul
@@ -367,14 +375,13 @@ set "NOTES_FILE=%TEMP%\aurago-release-notes-!VERSION!.md"
     echo.
     echo ### Installation
     echo.
-    echo Signed releases require Cosign and an independently trusted public key configured through AURAGO_RELEASE_PUBLIC_KEY.
+    echo Installation and updates verify signatures automatically; no Cosign or key setup is needed.
     echo See https://github.com/antibyte/AuraGo/blob/main/documentation/release-signatures.md
     echo.
     echo **Verified install ^(recommended^):**
     echo ```bash
     echo curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
-    echo curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/SHA256SUMS
-    echo sha256sum -c --ignore-missing SHA256SUMS ^&^& bash install.sh
+    echo bash install.sh
     echo ```
     echo.
     echo **Quick install ^(runs the script from the main branch^):**
@@ -400,6 +407,10 @@ if not "!GH_RELEASE_RC!"=="0" (
 echo     Uploading release assets...
 for %%F in (
     "deploy\gog\gog-*.zip"
+    "deploy\release-verifier\release-verifier_*"
+    "deploy\release-keyring.json"
+    "deploy\release-keyring.json.sig"
+    "deploy\repair-update.sh"
     "deploy\phonon-model.dat"
     "deploy\phonon-runtime_linux_amd64.dat"
     "deploy\phonon-runtime_linux_arm64.dat"

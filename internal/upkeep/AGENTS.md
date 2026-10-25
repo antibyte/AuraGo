@@ -34,23 +34,33 @@ The updater owns transaction manifests; this package verifies them before collec
   packaging alone cannot repair an unpinned executable. Never guess an asset set.
   Release installs pin the tag and checksum manifest before shutdown and reuse
   that pair throughout the update. Retry transient downloads at most three
-  times; retain mandatory checksums and optional/strict signature policy.
+  times; retain mandatory checksums and fail-closed official release signatures.
   Required artifact failures after shutdown use `abort_update`, preserving
   rollback and unresolved-transaction safeguards.
-- Supplied release signatures are never optional: invalid or incomplete
-  signature metadata and a missing Cosign verifier fail closed. Keyed offline
-  verification trusts only the operator's `AURAGO_RELEASE_PUBLIC_KEY`, never a
-  key fetched with the release. Builders sign and verify the finished checksum
-  manifest before publication; explicit legacy unsigned publication uses
-  `AURAGO_ALLOW_UNSIGNED_RELEASES=1`. Keep the current unsigned-install default
-  until the Linux/Windows signing fixture and trusted-key distribution are
-  confirmed. See `documentation/release-signatures.md`.
+- Official releases require signatures without user setup. `internal/releaseverify`
+  owns the embedded root and offline keyed verifier. The generated bootstrap
+  provisions a size/SHA-256-pinned helper into the private installation's
+  `.aurago-update/tools` cache; validate every cache hit before execution. Keyless
+  and custom-key fallback provisions pinned Cosign with existing issuer/identity
+  checks. Invalid, incomplete or oversized metadata fails closed; an explicit
+  operator key never falls back to the embedded root or a release certificate.
+  Legacy unsigned fork releases retain their existing optional/strict policy.
+  Builders still sign and verify the finished manifest before publication;
+  `AURAGO_ALLOW_UNSIGNED_RELEASES=1` only controls explicit legacy publication.
+  See `internal/releaseverify/AGENTS.md` and `documentation/release-signatures.md`.
+- `repair-update.sh` migrates blocked old script copies under the existing update
+  lock. Verify the manifest and updater before atomic replacement; preserve config,
+  master keys, binaries and running services. Save the old script privately. An
+  optional `--run` releases the repair lock before invoking the repaired updater.
+  Old binaries cannot discover this migration retroactively; operators deploy it
+  through existing management access, without end-user crypto setup.
 - Windows maintainer setup pins Cosign and atomically creates the user-only
   `%LOCALAPPDATA%\AuraGo\release-signing` profile with an encrypted private key
   and DPAPI-protected password. Preserve existing keys. Both Windows builders
   preflight signing before cleanup/build; explicit environment configuration and
   CI retain precedence. Restore the caller's environment after profile signing.
-  Operator trust on target hosts remains explicit; never fetch a release's own key.
+  End-user trust comes from the reviewed embedded public root; never trust a
+  release's self-declared key. Root-signed keyrings authorize successor release keys.
 - Publish Windows release drafts only after every asset upload succeeds. A failed
   upload or publication must stop before retention deletes anything. Retain three
   stable AuraGo releases without counting drafts or integration prereleases.
@@ -62,8 +72,9 @@ Keep `update.sh`, the maintenance CLI and the release build flags aligned.
 
 ## Verification
 
-Run `go test ./internal/upkeep`, `go test ./internal/audit -run 'Update|ReleaseSignatureDownloads'`
-and `bash -n update.sh` after relevant changes.
+Run `go test ./internal/upkeep ./internal/releaseverify`,
+`go test ./internal/audit -run 'Update|ReleaseSignature|ReleaseBootstrap|ReleaseVerifier'`
+and `bash -n update.sh install.sh repair-update.sh` after relevant changes.
 
 ## Child DOX Index
 

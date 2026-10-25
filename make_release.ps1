@@ -58,6 +58,8 @@ try {
 & (Join-Path $PSScriptRoot 'scripts\sign-release-checksums.ps1') -CheckPrerequisites
 $releasePython = & (Join-Path $PSScriptRoot 'scripts\find-release-python.ps1')
 Write-Host "    Python: $releasePython" -ForegroundColor Green
+& $releasePython (Join-Path $PSScriptRoot 'scripts\build-release-verifier.py') --scripts-only --require-published
+if ($LASTEXITCODE -ne 0) { throw 'The pinned bootstrap must be published before building an application release.' }
 
 Write-Host ""
 
@@ -197,6 +199,11 @@ Write-Host ""
 
 $env:CGO_ENABLED = "0"
 
+& $releasePython (Join-Path $scriptDir 'scripts\build-release-verifier.py') --check
+if ($LASTEXITCODE -ne 0) { throw 'Release verifier bootstrap differs from reviewed pins; nothing was published.' }
+$verifierPackages = @(Get-ChildItem -LiteralPath (Join-Path $scriptDir 'deploy/release-verifier') -Filter 'release-verifier_*')
+if ($verifierPackages.Count -ne 6) { throw 'Expected six release verifier packages' }
+
 # Build the pinned helper and embed its reviewed checksums before AuraGo.
 go run ./scripts/build-gog.go -out deploy/gog
 if ($LASTEXITCODE -ne 0) { throw "Managed gog build failed" }
@@ -264,6 +271,7 @@ Build-Binary -Output "deploy\aurago-remote_windows_arm64.exe" -Target "./cmd/rem
 # Copy install.sh
 Copy-Item "install.sh" "deploy\install.sh" -Force
 Copy-Item "update.sh" "deploy\update.sh" -Force
+Copy-Item "repair-update.sh" "deploy\repair-update.sh" -Force
 Write-Host "    -> deploy\install.sh" -ForegroundColor Green
 Write-Host "    -> deploy\update.sh" -ForegroundColor Green
 
@@ -314,6 +322,10 @@ $checksumFiles = @(
 )
 $checksumFiles += @($gogPackages | ForEach-Object { 'deploy\gog\' + $_.Name })
 $checksumFiles += $phononPackages
+$checksumFiles += 'deploy\repair-update.sh'
+$checksumFiles += @($verifierPackages | ForEach-Object { 'deploy\release-verifier\' + $_.Name })
+$rotationAssets = @('deploy\release-keyring.json', 'deploy\release-keyring.json.sig') | Where-Object { Test-Path -LiteralPath $_ }
+$checksumFiles += $rotationAssets
 $checksumLines = foreach ($file in $checksumFiles) {
     $fullPath = Join-Path $scriptDir $file
     if (Test-Path $fullPath) {
@@ -326,6 +338,8 @@ $checksumLines = foreach ($file in $checksumFiles) {
 [IO.File]::WriteAllText((Join-Path $scriptDir 'deploy\SHA256SUMS'), (($checksumLines -join "`n") + "`n"), [Text.UTF8Encoding]::new($false))
 Write-Host "    -> deploy\SHA256SUMS" -ForegroundColor Green
 & (Join-Path $scriptDir 'scripts\sign-release-checksums.ps1') -Manifest (Join-Path $scriptDir 'deploy\SHA256SUMS')
+& $releasePython (Join-Path $scriptDir 'scripts\build-release-verifier.py') --scripts-only --verify-manifest (Join-Path $scriptDir 'deploy\SHA256SUMS')
+if ($LASTEXITCODE -ne 0) { throw 'Release signature is not trusted by automatic installers; nothing was published.' }
 
 # Reset env
 $env:GOOS = "windows"
@@ -381,6 +395,9 @@ $assetPaths = @(
 
 $assetPaths += @($gogPackages | ForEach-Object { 'deploy\gog\' + $_.Name })
 $assetPaths += $phononPackages
+$assetPaths += 'deploy\repair-update.sh'
+$assetPaths += @($verifierPackages | ForEach-Object { 'deploy\release-verifier\' + $_.Name })
+$assetPaths += $rotationAssets
 foreach ($path in $assetPaths) {
     $fullPath = Join-Path $scriptDir $path
     if (Test-Path $fullPath) {
@@ -393,14 +410,13 @@ $notes = @'
 
 ### Installation
 
-Signed releases require Cosign and an independently trusted public key configured through `AURAGO_RELEASE_PUBLIC_KEY`.
-See [signature setup](https://github.com/antibyte/AuraGo/blob/main/documentation/release-signatures.md).
+Installation and updates verify release signatures automatically. No Cosign installation, key setup or environment variables are needed.
+See [release verification](https://github.com/antibyte/AuraGo/blob/main/documentation/release-signatures.md).
 
 **Verified install (recommended, no Go required):**
 ```bash
 curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
-curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/SHA256SUMS
-sha256sum -c --ignore-missing SHA256SUMS && bash install.sh
+bash install.sh
 ```
 
 **Quick install (runs the script from the main branch):**

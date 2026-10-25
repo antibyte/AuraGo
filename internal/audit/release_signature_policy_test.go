@@ -23,9 +23,10 @@ func TestReleaseSignatureSuppliedMetadataNeverDowngrades(t *testing.T) {
 			sig, cert, valid, strict, success bool
 		}{
 			{"valid", true, true, true, false, true},
+			{"keyed without certificate", true, false, true, false, true},
 			{"invalid legacy", true, true, false, false, false},
 			{"invalid strict", true, true, false, true, false},
-			{"missing certificate", true, false, true, false, false},
+			{"invalid keyed without certificate", true, false, false, false, false},
 			{"missing signature", false, true, true, false, false},
 			{"legacy absence", false, false, false, false, true},
 			{"strict absence", false, false, false, true, false},
@@ -43,15 +44,19 @@ AURAGO_RELEASE_PUBLIC_KEY=''
 RELEASE_CHECKSUMS_FILE="$(mktemp)"
 trap 'rm -f -- "$RELEASE_CHECKSUMS_FILE"' EXIT
 fetch_optional_url_to_file() {
-    case "$1" in *.sig) %t;; *.pem) %t;; *) return 1;; esac
+    case "$1" in */SHA256SUMS.sig) %t || return 1;; *.pem) %t || return 1;; *) return 1;; esac
+    printf fixture
 }
 _download_optional() { fetch_optional_url_to_file "$@"; }
-cosign() { %t; }
 warn() { :; }
 ok() { :; }
 die() { echo REJECTED; exit 81; }
-`, strict, tc.sig, tc.cert, tc.valid)
-				output, err := runUpdateScript(t, fixture+helper+"\nverify_release_checksums_signature\necho ACCEPTED\n")
+`, strict, tc.sig, tc.cert)
+				tools := fmt.Sprintf(`
+release_verifier_tool() { printf 'signature_fixture'; }
+signature_fixture() { %t; }
+`, tc.valid)
+				output, err := runUpdateScript(t, fixture+helper+tools+"\nverify_release_checksums_signature\necho ACCEPTED\n")
 				if (err == nil) != tc.success || strings.Contains(output, "ACCEPTED") != tc.success {
 					t.Fatalf("signature policy success=%v error=%v output=%s", tc.success, err, output)
 				}

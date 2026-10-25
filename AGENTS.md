@@ -81,7 +81,7 @@ Debug: `./aurago -debug` or `agent.debug_mode: true` in `config.yaml`.
 
 Docker is recommended: `docker-compose up -d`; `docker-compose -f docker-compose.yml up -d` selects the default file explicitly. Linux:
 
-- Verified install: download `install.sh` and `SHA256SUMS` from `https://github.com/antibyte/AuraGo/releases/latest/download/`, then `sha256sum -c --ignore-missing SHA256SUMS && bash install.sh`.
+- Verified install: obtain `install.sh` over HTTPS from `https://github.com/antibyte/AuraGo/releases/latest/download/`, then `bash install.sh`; signature and payload verification are automatic, without user key/tool setup.
 - Main-branch quick install: `curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash`.
 - Manual: `wget https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux` (arm64: `aurago_linux_arm64`), `chmod +x aurago_linux`, `./aurago_linux`. Systemd: `sudo ./install_service_linux.sh`.
 
@@ -153,7 +153,8 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - Compose socket proxy defaults to `BUILD=0`. Code Studio/most sidecars pull with `IMAGES=1`, `POST=1`; Engine builds (Homepage first-use dev image, CommandCode fallback, local Code Studio runtimes, rate-limit Caddy image) need `BUILD=1` or preexisting host images. `aurago --print-homepage-dockerfile` supports host builds; see `documentation/docker_installation.md` section 4. Changing default to `BUILD=1` requires an explicit decision.
 - `docker-publish.yml` publishes GHCR linux/amd64 + linux/arm64 on `v*` tags/manual dispatch (`image=all` / `image=gods-eye-view`), never `main` pushes alone. Pin workflow `uses:` to full SHA plus ` # vX.Y.Z`; default `permissions: contents: read`, job-specific writes only (`internal/audit` rejects floating refs). `.github/dependabot.yml` refreshes monthly except manual `dtolnay/rust-toolchain`; `govulncheck@v1.8.0` in `security-gates.yml` is manual too. Training Python/uv/GPU research stays in `antibyte/agotrain`; AuraGo owns Go exporter/importer/pinned checks.
 - `./make_deploy.sh` cross-builds and may commit/push `main` by default (`--no-publish` suppresses); no tag/GitHub Release. Windows `make_release.bat`/`make_release.ps1` build, commit/push as needed, upload all assets to a draft before publishing, and retain the latest three stable AuraGo releases; exclude drafts and integration prereleases before counting. Builders pin `GOTOOLCHAIN=go1.27.2`; verify compiler before publishing even if system Go is newer.
-- Windows release builders resolve Python 3.10+ through `scripts/find-release-python.ps1` (`py -3`, then `python`/`python3`) before cleanup. Python is needed for Phonon packaging only.
+- Windows release builders resolve Python 3.10+ through `scripts/find-release-python.ps1` (`py -3`, then `python`/`python3`) before cleanup. Python prepares Phonon resources and checks reproducible release-verifier artifacts; end users need neither Python nor Cosign for signature verification.
+- Official native install/update paths automatically provision a size/SHA-256-pinned verifier and trust its embedded public key. Missing/invalid signatures fail before shutdown or payload execution. `scripts/build-release-verifier.py` owns generated bootstrap blocks in `install.sh`, `update.sh`, `repair-update.sh`; retain its immutable bootstrap prereleases. See `internal/releaseverify/AGENTS.md` and `documentation/release-signatures.md`.
 - Windows maintainer signing: run `scripts/setup-release-signing.ps1` once; keys stay in the user-only LocalAppData profile with a DPAPI-protected password. Builders preflight signing before cleanup/build. Explicit environment configuration and CI keep priority; see `documentation/release-signatures.md` and `internal/upkeep/AGENTS.md`.
 - Set `AURAGO_KEEP_RELEASES=1` when publishing without authorization to delete older releases/tags; both Windows builders then skip retention entirely.
 - Release cleanup preserves `deploy/docker` sources and verified `deploy/phonon` inputs. A clean worktree needs the ignored Phonon inputs copied from the prepared checkout before packaging; never bypass the dirty-worktree guard to include unrelated changes.
@@ -230,6 +231,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Desktop Tresor | `internal/tresor/AGENTS.md` | Browser-encrypted storage/revisions/backups/agent file protection. |
 | Agent tools | `internal/tools/AGENTS.md` | Filesystem Jail/Docker Inspect/Managed Space Agent/treg catalog gateway safety. |
 | Updates | `internal/upkeep/AGENTS.md` | Transactions/artifact retention/maintenance CLI/cleanup safeguards. |
+| Release verification | `internal/releaseverify/AGENTS.md`, `internal/upkeep/AGENTS.md` | Offline signature checks, pinned automatic bootstrap and old-updater repair. |
 | Virtual Computers | `internal/virtualcomputers/AGENTS.md` | Workspace leases/managed Garage storage lifecycle. |
 | Video Studio | `internal/videostudio/AGENTS.md` | Desktop project/timeline model/local FFmpeg/render limits. |
 | External Web UI assets | `internal/webassets/AGENTS.md` | Integrity/install/resolution/verification/external browser resources. |

@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "toolchain": "go1.27.2",
+  "base_url": "https://github.com/antibyte/AuraGo/releases/download/release-verifier-v1",
+  "assets": {
+    "linux/amd64": {
+      "name": "release-verifier_linux_amd64",
+      "size": 3817596,
+      "sha256": "b96421ef04cd4ef9472002f9072ec6b1436fb9dc62a8ae8322ec4d3314fed462"
+    },
+    "linux/arm64": {
+      "name": "release-verifier_linux_arm64",
+      "size": 3539068,
+      "sha256": "df50ed6812fe97ecd347519f93f2c314e1af77671a70d09610f2860ddd44d0c9"
+    },
+    "darwin/amd64": {
+      "name": "release-verifier_darwin_amd64",
+      "size": 3928720,
+      "sha256": "fefe16b25f95174b93c731b581c3a42a2782c5b2ec36641b3990f145fa464ab9"
+    },
+    "darwin/arm64": {
+      "name": "release-verifier_darwin_arm64",
+      "size": 3625138,
+      "sha256": "63310260d63c59511d5839f5bab8bef914215e887d13e2c314740b0982cf1607"
+    },
+    "windows/amd64": {
+      "name": "release-verifier_windows_amd64.exe",
+      "size": 3947008,
+      "sha256": "e345726a9bdf780bfcb1d547d9ea9a57fd2b6a6dccd774b5c8da9b6db33d0fa7"
+    },
+    "windows/arm64": {
+      "name": "release-verifier_windows_arm64.exe",
+      "size": 3568640,
+      "sha256": "e742caba916f8cf087a1eb46ee81cd1866f93631e61c628eaf8961aa3f31b324"
+    }
+  }
+}

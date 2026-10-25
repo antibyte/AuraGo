@@ -48,6 +48,9 @@ if [ "$ALLOW_DIRTY" = true ] && [ "$PUBLISH_RELEASE" = true ]; then
   echo "--allow-dirty requires --no-publish; dirty artifacts cannot be published." >&2
   exit 2
 fi
+if [ "$PUBLISH_RELEASE" = true ]; then
+  python3 scripts/build-release-verifier.py --scripts-only --require-published
+fi
 
 if [ "${AURAGO_TARGETS+x}" = "x" ]; then
   read -ra TARGETS <<< "$AURAGO_TARGETS"
@@ -202,6 +205,15 @@ done
 # ── Step 1: Build resources.dat (tar.gz of runtime resources) ─────────────
 echo "[1/5] Packing resources.dat ..."
 python3 scripts/prepare-phonon.py --pack || { echo "Pinned Phonon resources are missing or invalid; nothing was published." >&2; exit 1; }
+python3 scripts/build-release-verifier.py --check
+for verifier_asset in "$DEPLOY_DIR"/release-verifier/release-verifier_*; do
+  cp "$verifier_asset" "$DEPLOY_DIR/"
+  RELEASE_DEPLOY_ASSETS+=("$(basename "$verifier_asset")")
+done
+RELEASE_DEPLOY_ASSETS+=(repair-update.sh)
+for rotation_asset in release-keyring.json release-keyring.json.sig; do
+  [ ! -f "$DEPLOY_DIR/$rotation_asset" ] || RELEASE_DEPLOY_ASSETS+=("$rotation_asset")
+done
 
 TMPDIR_RES=$(mktemp -d)
 trap "rm -rf '$TMPDIR_RES'" EXIT
@@ -330,6 +342,7 @@ done
 echo "[4/5] Copying release scripts and generating checksums ..."
 cp install.sh "$DEPLOY_DIR/install.sh"
 cp update.sh "$DEPLOY_DIR/update.sh" 2>/dev/null || true
+cp repair-update.sh "$DEPLOY_DIR/repair-update.sh"
 
 for required_asset in "$DEPLOY_DIR/$RESOURCES" "$DEPLOY_DIR/install.sh" "$DEPLOY_DIR/update.sh"; do
   if [ ! -f "$required_asset" ] || [ "$(wc -c < "$required_asset")" -lt 1024 ]; then
@@ -373,6 +386,9 @@ if [ "$PUBLISH_RELEASE" = false ] && [ -z "${AURAGO_RELEASE_SIGNING_KEY:-}" ] &&
   AURAGO_ALLOW_UNSIGNED_RELEASES=1 bash scripts/sign-release-checksums.sh "$DEPLOY_DIR/SHA256SUMS"
 else
   bash scripts/sign-release-checksums.sh "$DEPLOY_DIR/SHA256SUMS"
+fi
+if [ "$PUBLISH_RELEASE" = true ]; then
+  python3 scripts/build-release-verifier.py --scripts-only --verify-manifest "$DEPLOY_DIR/SHA256SUMS"
 fi
 
 echo "━━━ Done! Artifacts in $DEPLOY_DIR/ ━━━"

@@ -1,0 +1,50 @@
+name: Publish pinned release verifier
+
+on:
+  push:
+    tags:
+      - "release-verifier-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Rebuild reviewed artifacts and verify offline fixtures
+        run: |
+          python3 scripts/build-release-verifier.py --check
+          go test ./internal/releaseverify ./cmd/release-verifier -count=1
+          go test ./internal/audit -run 'ReleaseSignature|ReleaseBootstrap|ReleaseVerifier' -count=1
+          git diff --exit-code
+      - name: Sign and publish an immutable bootstrap prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="$(python3 -c 'import json; print(json.load(open("scripts/release-verifier.json"))["base_url"].rsplit("/",1)[1])')"
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
+            echo "Pushed bootstrap tag does not match reviewed pins."
+            exit 1
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Bootstrap $tag already exists; never replace published verifier bytes."
+            exit 1
+          fi
+          cp scripts/release-verifier.json deploy/release-verifier/
+          (cd deploy/release-verifier && sha256sum release-verifier_* release-verifier.json > SHA256SUMS)
+          bash scripts/sign-release-checksums.sh deploy/release-verifier/SHA256SUMS
+          gh release create "$tag" --draft --prerelease --latest=false --target "$GITHUB_SHA" --title "AuraGo release verifier v1" --notes "Pinned offline verification helpers. Retain this bootstrap release while installers reference it. End users do not need to install these manually."
+          gh release upload "$tag" deploy/release-verifier/*
+          gh release edit "$tag" --draft=false --prerelease --latest=false

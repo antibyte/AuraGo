@@ -206,12 +206,11 @@ Optional layers sit on top. The **LLM router** sends tasks to different models p
 
 ### Linux
 
-**Verified install (recommended).** Download the installer and its checksum list from the latest release, and run the script only if the checksum matches:
+**Install (no Go or Cosign setup).** Download the official installer over HTTPS. It automatically checks the release signature and all downloaded application files:
 
 ```bash
 curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
-curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/SHA256SUMS
-sha256sum -c --ignore-missing SHA256SUMS && bash install.sh
+bash install.sh
 ```
 
 **Quick install (runs the script from the main branch):**
@@ -221,6 +220,10 @@ curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | b
 ```
 
 The installer starts AuraGo and prints your URL and first-login password. Open that address (usually **http://localhost:8088** on the host), change the password, and finish `/setup`. Pick a model, connect an integration, then try **“Show me system information.”**
+
+Updates from the app, agent or `update.sh` use the same automatic signature checks.
+No public-key files or environment variables are required. Operators migrating a
+blocked older updater can use the [verified repair procedure](documentation/release-signatures.md#existing-installations).
 
 <details>
 <summary>Docker instead?</summary>
