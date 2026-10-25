@@ -119,9 +119,9 @@
 
 **Files:** `internal/tools/yepapi.go`, `internal/agent/dispatch_yepapi.go`, `internal/agent/dispatch_yepapi_test.go`, `internal/tools/yepapi_test.go`, `prompts/tools_manuals/yepapi.md`, `internal/tools/AGENTS.md`
 
-- [ ] **Step 1:** Add a failing test `TestYepAPICallErrorReportsWhetherTheRequestWasSent`. Assert that a marshal failure and a request-build failure report `RequestSent == false`, that a transport failure, a body-read failure and a non-2xx response report `RequestSent == true`, and that the transport failure reports `OutcomeUncertain == true`.
-- [ ] **Step 2:** Run `go test ./internal/tools -count=1 -run TestYepAPICallErrorReportsWhetherTheRequestWasSent` and confirm it fails.
-- [ ] **Step 3:** Add to `internal/tools/yepapi.go`:
+- [x] **Step 1:** Add a failing test `TestYepAPICallErrorReportsWhetherTheRequestWasSent`. Assert that a marshal failure and a request-build failure report `RequestSent == false`, that a transport failure, a body-read failure and a non-2xx response report `RequestSent == true`, and that the transport failure reports `OutcomeUncertain == true`.
+- [x] **Step 2:** Run `go test ./internal/tools -count=1 -run TestYepAPICallErrorReportsWhetherTheRequestWasSent` and confirm it fails.
+- [x] **Step 3:** Add to `internal/tools/yepapi.go`:
 
   ```go
   // YepAPICallError reports a failed call and whether the request reached the provider.
@@ -135,11 +135,12 @@
   ```
 
   Wrap every error path in `postOnce` accordingly: marshal and build failures are not sent; `client.Do` errors, body-read errors, non-2xx responses and parse failures are sent; a transport error and a body-read error are uncertain.
-- [ ] **Step 4:** Add a failing test `TestDispatchYepAPIBooksCostForUncertainOutcome`. Serve a connection that is accepted and then dropped, so the request reached the provider but the outcome is unknown. Assert the tracker recorded the full cost for that call, and that a call rejected *before* sending recorded nothing.
-- [ ] **Step 5:** In the Task 3 helper, after the dispatch error, use `errors.As` to detect the exported `YepAPICallError` type from `internal/tools` and book the cost when `RequestSent` is true. Keep the success-path booking exactly as it is.
-- [ ] **Step 6:** Run `go test ./internal/agent ./internal/tools -count=1 -run 'YepAPI|DispatchYepAPI'` and confirm success. `TestYepAPIPostDoesNotRepeatUncertainBillableRequests` must stay green — booking a cost is not a resend.
-- [ ] **Step 7:** Correct the manual. Replace "Failed requests are never charged." with a sentence that separates the two cases: a request the provider rejected before doing work is not charged, while a request that was sent but whose outcome is unknown may still be charged. Keep the pricing table unchanged.
-- [ ] **Step 8:** Add a line to `internal/tools/AGENTS.md` next to the existing YepAPI sentence: YepAPI calls that reached the provider are booked against the budget even when the outcome is unknown, and no failed call is ever resent.
+- [x] **Step 4:** Add a failing test `TestDispatchYepAPIBooksCostForUncertainOutcome`. Serve a connection that is accepted and then dropped, so the request reached the provider but the outcome is unknown. Assert the tracker recorded the full cost for that call, and that a call rejected *before* sending recorded nothing.
+- [x] **Step 5:** In the Task 3 helper, after the dispatch error, use `errors.As` to detect the exported `YepAPICallError` type from `internal/tools` and book the cost when `RequestSent` is true. Keep the success-path booking exactly as it is.
+- [x] **Step 6:** Run `go test ./internal/agent ./internal/tools -count=1 -run 'YepAPI|DispatchYepAPI'` and confirm success. `TestYepAPIPostDoesNotRepeatUncertainBillableRequests` must stay green — booking a cost is not a resend.
+- [x] **Step 7:** Correct the manual. Replace "Failed requests are never charged." with a sentence that separates the two cases: a request the provider rejected before doing work is not charged, while a request that was sent but whose outcome is unknown may still be charged. Keep the pricing table unchanged.
+- [x] **Step 8:** Add a line to `internal/tools/AGENTS.md` next to the existing YepAPI sentence: YepAPI calls that reached the provider are booked against the budget even when the outcome is unknown, and no failed call is ever resent.
+- **Note:** The agent-side test lives in the new file `internal/agent/dispatch_yepapi_cost_test.go` so the existing fixture file stays untouched. `postOnce` additionally checks `ctx.Err()` before `client.Do`: a call with an already-cancelled context never reaches the provider, so it must not be booked. A complete provider response (a non-2xx status or an error envelope) is a known outcome and stays `OutcomeUncertain = false`; only a transport failure and a body that breaks while being read are uncertain.
 
 ---
 
