@@ -197,7 +197,7 @@
         function open() {
             if (!canWrite() || disposed) return;
             if (state.importOpen) { search.focus(); return; }
-            opener = document.activeElement;
+            opener = app.focusReturnTarget(document.activeElement);
             state.importOpen = true;
             state.importDialogOwner = owner = `sheet-${++state.dialogGeneration}`;
             state.candidates = []; state.importSelection.clear(); state.importBindings.clear();
@@ -215,7 +215,7 @@
             delete root.dataset.importOpen;
             state.importOpen = false; state.importDialogOwner = ''; owner = ''; pendingFocus = null;
             state.candidates = []; state.importSelection.clear(); state.importBindings.clear(); errors.clear();
-            if (focus && opener?.isConnected && typeof opener.focus === 'function') opener.focus({ preventScroll: true });
+            if (focus) app.restoreFocus(opener);
             opener = null;
         }
         const reload = () => { if (state.importOpen) void load(true); };

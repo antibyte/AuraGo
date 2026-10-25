@@ -234,6 +234,17 @@ after the built-in installers and before the markup exists. DOM work belongs in 
     (the `svg` has no z-index) and below the cards (z-index 1, later in the scene); nothing but z-index decides this.
   - `.infra-canvas-empty` and `.infra-canvas-nomatch` are centred boxes on their own surface (`--vd-theme-overlay-bg` with
     the theme blur, as the minimap) above the scene; only their buttons take the pointer.
+- Focus return (Plan D Task 7): `app.focusReturnTarget(el)` names where focus goes back when a panel opened from `el` closes (a
+  menu or popover item hands over to the trigger of its menu through `MENU_TRIGGERS`; anything outside the window, or nothing,
+  hands over to the map, or to the active view button in the List) and `app.restoreFocus(el)` focuses it, falling back to the
+  same place when `el` is gone or hidden. The dialog host remembers it in `openDialog` and restores it from the dialog's
+  `close` event (skipped while another dialog is already open); the import sheet does the same with its own opener. The narrow
+  library sheet (`openLibrarySheet` / `closeLibrarySheet`) focuses its first row when it opens and its toggle when it closes
+  (toggle, scrim, Escape inside it; an inspector opening over it closes it without moving focus); the toggle's
+  `aria-expanded` follows the sheet below 760 px and the docked library above. Live regions: only `[data-announce]` polite,
+  `[data-layout-chip]`, the draft and review banners (`role="status"`) and the inline errors (`role="alert"`); `[data-live]`
+  has none, so a poll never speaks. A failing poll reports once (`loadSnapshot`, `explicit` always reports). The only
+  `role="toolbar"` is the canvas tools, with a roving tab stop and arrows, Home and End.
 
 ## Synth Studio
 

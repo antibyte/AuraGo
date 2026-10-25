@@ -24,13 +24,23 @@
         const edgeExists = fields => state.edges.some(edge => edge.from === fields.from && edge.to === fields.to && edge.kind === fields.kind);
 
         // ---- the modal host --------------------------------------------------------------
+        // The element the focus goes back to when the dialog closes: where it was when the dialog opened (a menu item hands over to
+        // its menu's trigger). The browser restores the focus itself only while that element still exists.
+        let dialogOpener = null;
+        const onDialogClose = () => {
+            if (dialogEl()?.open) return; // another dialog opened before this close event ran; it keeps its own opener
+            const target = dialogOpener;
+            dialogOpener = null;
+            app.restoreFocus(target);
+        };
+        dialogEl()?.addEventListener('close', onDialogClose);
         function openDialog(title, content, onRender) {
             if (state.disposed || !root.isConnected) return null;
             const dialog = dialogEl();
             if (!dialog) return null;
             dialog.dataset.infraOwner = String(++state.dialogGeneration);
             q('[data-dialog-content]').innerHTML = `<h2 id="infra-dialog-title-${esc(S)}">${esc(title)}</h2>${content}`;
-            if (!dialog.open) dialog.showModal();
+            if (!dialog.open) { dialogOpener = app.focusReturnTarget(document.activeElement); dialog.showModal(); }
             dialog.querySelector('.infra-dialog-close')?.addEventListener('click', event => { event.preventDefault(); dialog.close(); }, { once: true });
             dialog.onclick = event => { if (event.target === dialog) dialog.close(); };
             onRender?.(dialog);
@@ -328,6 +338,7 @@
         function dispose() {
             closeConnectionPopover({ restoreFocus: false });
             const dialog = dialogEl();
+            dialog?.removeEventListener('close', onDialogClose);
             if (dialog?.open) dialog.close();
         }
 

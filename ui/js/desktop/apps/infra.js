@@ -141,6 +141,20 @@
             if (kind !== 'error') toastTimers.set(element, setTimeout(() => removeToast(element), 4000));
             announce(text);
         }
+        // The fallback for focus that has nowhere to return to: the map, or the active view button while the List is shown.
+        const focusFallback = () => { const stage = q('[data-stage]'); return stage && !stage.closest('[hidden]') ? stage : q('.infra-view-switch [aria-pressed="true"]'); };
+        // focusReturnTarget: where focus goes back when a panel opened from el closes. A menu item hands over to the trigger of its
+        // menu (or popover); anything outside the window hands over to the map.
+        function focusReturnTarget(el) {
+            if (!el || el === document.body || !root.contains(el)) return focusFallback();
+            const menu = el.closest('[data-menu], [data-popover]');
+            if (menu) { const trigger = MENU_TRIGGERS[menu.dataset.menu || menu.dataset.popover]; return (trigger && q(trigger)) || focusFallback(); }
+            return el;
+        }
+        function restoreFocus(el) {
+            const target = el && el.isConnected && !el.closest('[hidden]') ? el : focusFallback();
+            if (target && target.isConnected) target.focus({ preventScroll: true });
+        }
         const app = {
             ctx, t, esc, windowId, safeId: S, root, q, model, lanes, store, state, prefs, setPref,
             icon: value => `<img src="${esc(model.iconURL(value))}" alt="" loading="lazy" draggable="false">`,
@@ -148,7 +162,7 @@
             labelForKind: kind => t(`desktop.infra_kind_${kind}`),
             laneLabel: lane => ({ internet: t('desktop.infra_lane_internet'), network: t('desktop.infra_lane_network'), compute: t('desktop.infra_lane_compute'), clients: t('desktop.infra_lane_clients') })[lane] || lane,
             statusLabel: status => t(`desktop.infra_state_${status}`),
-            mapView, ensureMapView, toast, announce, animationsEnabled, focusSearch: () => focusSearch(),
+            mapView, ensureMapView, toast, announce, animationsEnabled, focusSearch: () => focusSearch(), focusReturnTarget, restoreFocus,
             setLibraryCollapsed: on => setLibraryCollapsed(on),
             readStorage, writeStorage,
             openAppLink: link => ctx.openApp?.(link.app, model.appLinkContext(link)),
@@ -190,6 +204,16 @@
         function setLibrarySheet(open) {
             root.dataset.librarySheet = open ? 'open' : 'closed';
             syncLibraryToggle();
+        }
+        // The narrow library sheet moves the focus in when it opens and back to its toggle when it closes (Escape, the scrim, the toggle).
+        function openLibrarySheet() {
+            setLibrarySheet(true);
+            (library.el.querySelector('[data-library-select][tabindex="0"]') || library.el.querySelector('[data-section-toggle]'))?.focus({ preventScroll: true });
+        }
+        function closeLibrarySheet({ restoreFocus: back = true } = {}) {
+            if (root.dataset.librarySheet !== 'open') return;
+            setLibrarySheet(false);
+            if (back) toggleLibraryButton.focus({ preventScroll: true });
         }
         let inspectorWidth = clampInspector(prefs.inspectorWidth), splitDrag = null;
         function setInspectorWidth(next, persist = false) {
@@ -415,9 +439,9 @@
         }
         function toggleLibrary() {
             if (!isNarrow()) { setLibraryCollapsed(root.dataset.libraryCollapsed !== 'true'); return; }
-            const open = root.dataset.librarySheet !== 'open';
-            if (open) inspector.close({ restoreFocus: false });
-            setLibrarySheet(open);
+            if (root.dataset.librarySheet === 'open') { closeLibrarySheet(); return; }
+            inspector.close({ restoreFocus: false });
+            openLibrarySheet();
         }
         // Resetting a filter also resets its select, which the filters popover keeps in step by hand.
         function resetFilters(keys) {
@@ -467,7 +491,18 @@
             if (menuItem) closeMenus({ restoreFocus: true });
         };
         root.addEventListener('click', onRootClick);
-        scrim.addEventListener('click', () => { inspector.close({ restoreFocus: false }); setLibrarySheet(false); });
+        // The scrim closes whichever overlay is open and hands the focus to its opener.
+        scrim.addEventListener('click', () => {
+            const sheetOpen = root.dataset.librarySheet === 'open';
+            inspector.close({ restoreFocus: !sheetOpen });
+            closeLibrarySheet();
+        });
+        const onLibraryKey = event => {
+            if (event.key !== 'Escape' || root.dataset.librarySheet !== 'open' || event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
+            event.preventDefault(); event.stopPropagation();
+            closeLibrarySheet();
+        };
+        library.el.addEventListener('keydown', onLibraryKey);
 
         // ---- search ---------------------------------------------------------------------------------
         // Below SEARCH_COLLAPSE px the search is one icon button; it expands over the command bar until the focus
@@ -550,7 +585,7 @@
                 case 'candidates': importer.render(); break;
                 case 'selection':
                     canvas.render(); library.renderSelection(); renderTable(); inspector.paint(); paintArrange();
-                    if (isNarrow() && root.dataset.inspectorOpen === 'true') setLibrarySheet(false);
+                    if (isNarrow() && root.dataset.inspectorOpen === 'true') closeLibrarySheet({ restoreFocus: false });
                     break;
                 case 'view': paintShell(); canvas.render({ force: true }); library.render(); renderTable(); inspector.paint(); syncMenus(); break;
                 case 'filters': renderData(); paintShell(); break;
@@ -603,6 +638,7 @@
                 if (disposed) return;
                 disposed = true;
                 closeMenus();
+                library.el.removeEventListener('keydown', onLibraryKey);
                 app.picker.dispose();
                 app.cleanup.dispose();
                 gestures.dispose(); menus.dispose(); canvas.dispose(); library.dispose(); inspector.dispose(); dialogs.dispose(); importer.dispose(); table.dispose();
