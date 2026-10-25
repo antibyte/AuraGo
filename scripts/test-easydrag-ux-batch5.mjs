@@ -910,5 +910,21 @@ export async function run(env) {
         eq('b5 phone the hide rule excepts paused, live-outdated and timers-off', rule && rule[1], '[data-ed-paused], [data-ed-live-outdated], [data-ed-timers-off]');
     });
 
+    // ── U18: manual chapter 24 ──
+
+    await guardAsync('b5 U18 manual chapter 24 covers versions, search, layout, align, context menu, overview, person trigger and the batch-5 UI', async () => {
+        const doc = lng => fs.readFileSync(path.join(apps, '..', '..', '..', '..', 'documentation', 'manuals', lng, '24-easydrag.md'), 'utf8');
+        const missing = (text, words) => words.filter(w => !text.includes(w));
+        const en = doc('en');
+        const de = doc('de');
+        eq('b5 U18 the English and German chapters name every feature; German drops "ist ein Halt"', [
+            missing(en, ['Person detected', 'Version history', 'Restore as draft', 'Ctrl+F', 'Alt+Shift+F', 'Arrange automatically', 'Align horizontally', 'Add step here',
+                'overview at the bottom left', 'Test again with this data', '**Undo**', 'Position on the canvas', '560 px wide or narrower', 'skip new runs']),
+            missing(de, ['Person erkannt', 'Versionsverlauf', 'Als Entwurf wiederherstellen', 'Strg+F', 'Alt+Umschalt+F', 'Automatisch anordnen', 'Horizontal ausrichten',
+                'Schritt hier hinzufügen', 'Übersicht unten links', 'Mit diesen Daten erneut testen', '**Rückgängig**', 'Position auf der Fläche', '560 px oder schmaler', 'überspringt']),
+            de.includes('ist ein Halt')
+        ], [[], [], false]);
+    });
+
     // ── next checks go above this line ──
 }

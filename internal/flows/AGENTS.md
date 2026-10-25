@@ -263,7 +263,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   last 50 versions plus every older one an unfinished live run (queued, waiting, running) executes
   (`pruneVersionsSQL`: one non-correlated subquery on `idx_flow_runs_flow_started`, pinned by
   `TestAudit18VersionPruningSearchesTheRunsByIndex`), so the run view (`GetRunDoc`, `include=doc`) can show the
-  document while the run goes on; such a version goes with the first publish after the run finished. A run row
+  document while the run goes on; such a version goes with the first publish after the run finished. Once a version is pruned, `Service.Run` reports `RunDetail.DocMissing` (`version_pruned`, `not_stored` for a test run whose document was too large, `unreadable`) so the run view can say why. A run row
   left unfinished by a crash is marked interrupted at the next `Start`, so it holds nothing.
 - Retention is per mode: `PruneRunsByMode(days, live, test)`; the Service keeps `MaxRunsPerFlow` non-test runs and
   `MaxTestRunsPerFlow` (default `DefaultMaxTestRunsPerFlow` 20, at most `MaxRunsPerFlow`) test runs (A6).

@@ -951,7 +951,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   Backend: `internal/desktop/looper.go`, `internal/server/looper_service.go`.
 
 ## EasyDrag
-- Nineteen scripts (`easydrag-*.js` and `easydrag.js`) share `window.EasyDrag` and load in the
+- Twenty scripts (`easydrag-*.js` and `easydrag.js`) share `window.EasyDrag` and load in the
   order of `DESKTOP_APP_ASSETS.easydrag` (`core/module-loader.js`), `easydrag.js` last.
   `window.EasyDragApp = { render, open, dispose }`; `open` re-routes an existing window by
   `flowId`/`flow_id` and `runId`/`run_id`, and `{section: 'home'}` (Mission Control's New flow)
@@ -989,6 +989,12 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - Run now is off while a published flow is paused (`runNowState`), in the ⋯ menu, the Flow menu
   and a card's menu, with `disabledHint` (`error_flow_disabled`), a menu-item field the desktop
   draws as the disabled item's tooltip; a stale click gets the server's 409 `FLOW_DISABLED`.
+- Undo affordances live in `easydrag-history.js` (`ED.history.create(ed, {host, toastHost, undo, redo, focusCanvas})`): the header group `[data-ed-history-host]` holds Undo/Redo (`data-ed-history`, `aria-disabled`, never `disabled`, hidden on a read-only desktop) and `.ed-toast` offers Undo after `interact.removeSteps` emits `steps-deleted` ({names}); the toast is no live region (the canvas announced the delete), closes after 8 s or on any other model change, and its Undo acts only on the version right after the delete. No delete confirmation.
+- At an editor width of 560 px or less (`@container`), Runs, Test and Run now are hidden in the header and `moreMenu` lists Runs and Test first (`headerNarrow`). The state chip goes, but the Paused chip (`[data-ed-paused]`), "Republish needed" (`[data-ed-live-outdated]`) and the timers warning (`[data-ed-timers-off]`) stay: the CSS exception lists all three. A skipped Run now (202 `{status: "skipped"}`) notifies `run_now_skipped`. The run view hides the revision line and a "Saved" chip; its banner offers `rerun-viewed` (Test again with this data: the run's `trigger_data` prefills the test dialog, which still lists effects and asks; nothing is remembered unless ticked). `canRerun` hides that button for stub trigger data (the store keeps oversized data as `{_preview}` or `{_preview: "", _omitted}`: a test would run real effects on the stub) and while a run is going (the viewed run is active, or a live run is parked: `runs.hasParked()`); a click that still finds a run going keeps the run view and notifies `run_going`. `GET runs/{id}?include=doc` without `doc` carries `doc_missing` (`version_pruned` shows `run_view_pruned`).
+- The JSON editor (`fields.jsonEditor`) keeps `aria-invalid` live on every input but writes the `role="alert"` text only when the error appears and never rewrites identical text (a screen reader would read it on every keystroke); change and blur announce a standing error afresh.
+- The editor builds in two steps: `create` makes the shell and `build(app, loaded, opts, guard)` fills it. A build aborted by a dispose, a failure or a newer open cleans up what it made so far.
+- Run events repaint in place without markup: `runs.js` logs touched steps in `ed.run.changes`, the canvas (`paintCard`) and wires (`onRun`, `syncPill`) follow that log; a new run object repaints all states. `ed.renderStats` ({cards, paints, wires}) is guarded by the b5 F6 check (300 steps, 1000 events: no card render). `model.incoming/outgoing/edge` use an adjacency index rebuilt on `docGen` and return copies.
+- Storage: the clipboard fragment is stored as `{at, frag}` and expires after 24 h (unstamped counts as expired); refused emergency writes back off 0.5 to 8 s and stop after 6 (flushCopy/flush/dispose still write); the port tip is shown until `aurago.easydrag.hint.ports`. Quick-add chooses on `click` (a press only keeps focus).
 - DOM modules get the editor state `ed` and talk over `ed.bus`, never through other modules'
   DOM. Focus moves synchronously when a popover or dialog opens; `.ed-app [hidden]` forces
   `display: none`. `ED.canvas.portLabel(t, node, port)` is the one port label. An edge whose
@@ -1036,8 +1042,9 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   included, is rebuilt only when the step itself changes, so a focused tool keeps focus during a
   run. A rebuild hands that focus to the new button with the same `data-ed-node-tool` while the
   card is selected, else to the canvas. D, Ctrl+D and Del remain keys; Test step is also in the
-  inspector (Enter). The screen-reader step list (`.ed-node-list`) duplicates the arrow keys, so
-  its buttons are `tabindex="-1"`. User actions are announced in the canvas's live region
+  inspector (Enter). The screen-reader step list (`.ed-node-list` in `section.ed-node-region`, `canvas.listRegion`,
+  appended to `.ed-body` beside the canvas: `role="application"` would keep browse mode out of it) duplicates
+  the arrow keys, so its buttons are `tabindex="-1"`. User actions are announced in the canvas's live region
   (`canvas.announce`, `ed.announce`, `core.say`; WCAG 4.1.3): steps added (palette, quick-add,
   paste, duplicate), deleted, turned off or on, moved by Shift+Arrow (one text 500 ms after the last
   key, never for a pointer drag), undo and redo (only when there was something to undo), a removed
@@ -1144,7 +1151,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - Other surfaces: Mission Control (`MissionControlTriggers.isFlow`/`isUnpublishedFlow`/
   `upcomingRun`), `ui/js/missions/main.js`, `ui/cfg/flows.js` and the dashboard's cron list
   (`managed_by: easydrag`). User docs: manual chapter 24.
-- Verify: `node scripts/test-easydrag.mjs` (with `-extra.mjs` to `-extra7.mjs`),
+- Verify: `node scripts/test-easydrag.mjs` (with `-extra.mjs` to `-extra7.mjs` and `-ux-batch5.mjs`),
   `npm run test:mission-control`, `npm run test:dashboard-cron`, `npm run test:missions-page`,
   `go test ./ui -run 'EasyDrag|MissionControlShowsFlow|StandaloneMissionsPage'` and the opt-in
   browser tests `TestDesktopEasyDragBrowser`, `TestDesktopEasyDragDecisionBrowser` and

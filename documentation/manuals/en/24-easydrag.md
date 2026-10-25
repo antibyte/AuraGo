@@ -1,6 +1,6 @@
 # Chapter 24: EasyDrag – automations by drag and drop
 
-EasyDrag is the visual editor for flows. A flow is a mission built from building blocks: one or more **triggers** (Schedule, Date & time, Webhook, Email received, MQTT message, Home Assistant state, Device, Phone call on the Fritz!Box, Planner, AuraGo start, Budget alert, Mission finished or Manual start) followed by **steps** such as Web search, AI step, Create PDF, Telegram message, Send email, Home Assistant or any permitted tool. Flows bypass the agent queue and appear in Mission Control with their history.
+EasyDrag is the visual editor for flows. A flow is a mission built from building blocks: one or more **triggers** (Schedule, Date & time, Webhook, Email received, MQTT message, Home Assistant state, Device, Person detected (a network camera sees a person), Phone call on the Fritz!Box, Planner, AuraGo start, Budget alert, Mission finished or Manual start) followed by **steps** such as Web search, AI step, Create PDF, Telegram message, Send email, Home Assistant or any permitted tool. Flows bypass the agent queue and appear in Mission Control with their history.
 
 This chapter covers the editor. How flow runs, limits, failures and secrets behave on the server is in [Chapter 11: Flow missions (EasyDrag)](11-missions.md#flow-missions-easydrag).
 
@@ -28,13 +28,20 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 1. Open **EasyDrag** on the desktop. Choose **New flow** and give it a name, or start from a **template**.
 2. Click **Choose a trigger** and pick one.
 3. Select the trigger and press **Ctrl+K**: quick search adds the next step right behind it and connects it. **Tab** only moves focus. You can also use **Add** on the selected card, or drag building blocks from the left panel onto the canvas or onto a connection.
-4. Double-click a step (or press **Enter**) to edit it. The inspector opens in the editor, not as a dialog. It has Input, Parameters and Output tabs. The Input tab shows data from earlier steps: from the last test or run, or as an example. Drag a value over the Parameters tab and then into a field, or click it to insert it where the cursor was. References appear as coloured chips with step and field, such as "Web search › results". In the text they read `{{web_search.results}}`.
+4. Double-click a step (or press **Enter**) to edit it. The inspector opens in the editor, not as a dialog. It has Input, Parameters and Output tabs. Parameters has three parts: *Values*, *Settings* and *Note*. The Input tab shows data from earlier steps: from the last test or run, or as an example. Drag a value over the Parameters tab and then into a field, or click it to insert it where the cursor was. References appear as coloured chips with step and field, such as "Web search › results". In the text they read `{{web_search.results}}`.
 5. **Test** (Ctrl+Enter) saves the draft and runs it. Steps light up one after another, and connections show how many items passed. A test has real effects; see [Testing](#testing).
 6. **Publish** checks the flow, lists what it does outside AuraGo and can activate it right away. Only published flows run on their own. Your draft stays editable; the published version runs.
 
 ## The Editor
 
-- The header shows the flow's name and state, in the same words as Mission Control and the missions page: *Not published yet* (never published), *Published* or *Unpublished changes*, and *Paused* next to it while a published flow is switched off. It holds **Runs**, **Test**, **Publish**, the **Active** switch and the **⋯** menu: *Run now*, *Flow settings*, *Duplicate*, *Export*, *Show in Mission Control* and *Delete*. The footer shows the last run, problems and hints, and the save state. "Draft" always means the version you edit, as opposed to the published one.
+- The header shows the flow's name and state, in the same words as Mission Control and the missions page: *Not published yet* (never published), *Published* or *Unpublished changes*, and *Paused* next to it while a published flow is switched off. It holds **Undo** and **Redo**, **Runs**, **Test**, **Publish**, the **Active** switch and the **⋯** menu: *Run now*, *Version history*, *Flow settings*, *Duplicate*, *Export*, *Show in Mission Control* and *Delete*. In an editor 560 px wide or narrower (a phone), **Runs** and **Test** move into the ⋯ menu too, and *Paused* stays next to the name; so do *Republish needed* and the warning about stopped Date & time triggers. The footer shows the last run, problems and hints, and the save state. "Draft" always means the version you edit, as opposed to the published one.
+- **Undo** and **Redo** in the header take back or repeat the last change, also on touch screens (Ctrl+Z and Ctrl+Shift+Z do the same on the canvas). Deleting steps shows a note such as "Alpha deleted" with **Undo** for a few seconds; deleting asks no question first.
+- **Find step in flow** (Ctrl+F, also in the *View* menu and the canvas context menu) searches the steps by name, data name, type or parameter text; Enter jumps to the first match.
+- **Arrange automatically** (Alt+Shift+F, also in the *Edit* menu and the canvas context menu) lines the steps up in columns from the trigger to the right. It is one undo step.
+- Right-click (or long-press) a card for *Open*, *Test this step*, *Duplicate*, *Copy*, *Turn off* or *Turn on* and *Delete*; with two or more steps selected, *Align horizontally* and *Align vertically* put them on one row or column. Right-click the empty canvas for *Add step here*, *Paste here*, *Find step in flow*, *Arrange automatically*, *Select all* and *Show everything*.
+- The overview at the bottom left (windows wider than 900 px) shows the whole flow; click or drag in it to move the view.
+- Until a flow has its first connection, a tip explains how to connect steps: drag from the dot on a card's right edge onto the next card, or select a step and press C. When a connection is not possible, a short note next to the pointer says why (for example a loop, or ports that are already connected).
+- Quick search adds a step when you click or tap it, not while you scroll its list. A step's *Settings* also hold its *Position on the canvas* (X and Y in pixels), so you can move it without dragging.
 - The start page lists your flows with the same states and filters them by *All*, *Active*, *Paused* (published and switched off) and *With errors*. If a later refresh fails, the last list stays on screen and read-only until **Try again** succeeds. A lost sign-in clears that list. The first load, and flows switched off, replace the list with a retry or lock card instead of an empty library. An empty library offers templates, **New flow** and **Import**.
 - The editor follows changes made elsewhere (another window, Mission Control, the missions page or the agent): when the flow is paused or switched on there, the state, the **Active** switch and *Run now* follow; when it is deleted there, EasyDrag says so and shows the start page.
 - A flow opens at a readable size: a small flow is shown whole, a larger one starts at its trigger at 80 %. In windows wider than 560 px, EasyDrag remembers on this device where you left each flow. Moving around the canvas and zooming are no changes to the flow: they are neither saved to it nor counted as *Unpublished changes*. **Show everything** (Shift+1) fits the whole flow; when that zooms out far, the cards show only their names, in larger type.
@@ -50,8 +57,8 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 
 - EasyDrag saves one second after your last change. The chip at the bottom right shows the state:
   - *Saved*, *Unsaved* or *Saving…*: the normal states.
-  - *Offline – retrying*: AuraGo is not reachable or answered with a server error. EasyDrag tries again by itself.
-  - *Not saved* with **Try again**: AuraGo refused the change, for example because the flow is too large or you may not change flows. The tooltip names the reason.
+  - *Offline – retrying*: AuraGo is not reachable or answered with a server error. EasyDrag tries again by itself; when AuraGo gave a reason, it is shown next to the state.
+  - *Not saved* with **Try again**: AuraGo refused the change, for example because the flow is too large or you may not change flows. The reason is shown next to it.
   - *Not saved – fix the errors*: the draft has errors that block saving. The next change is sent again.
   - *Conflict*: the flow was changed somewhere else. EasyDrag asks whether to keep your version or load the other one.
 - Until AuraGo has your changes, a copy stays in this browser for up to 30 days. When you open the flow again, EasyDrag offers to restore it, unless the flow was changed elsewhere in the meantime. Deleting a flow, here or elsewhere, removes this copy and everything else this browser remembers for the flow (where you left it, confirmed test effects, the last test trigger).
@@ -70,6 +77,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 ## Publishing
 
 - The publish dialog lists blocking problems, what the flow does outside AuraGo, data from outside that reaches sensitive steps, hints and the changes since the last publication. With blocking problems it can only be closed; a click on a problem opens its step.
+- **Version history** (⋯ menu or the *Flow* menu) lists the published versions, newest first, with their date, number of steps and connections, and *Live* on the version that runs. **Restore as draft** replaces your draft with that version after a question; the live version stays until you publish. A draft that cannot be saved first (offline, invalid) is not replaced. EasyDrag keeps the last 50 published versions; the run view of an older run whose version was cleaned up says so.
 - *Activate now so the triggers start working* switches the flow on with the publication. Later, the **Active** switch pauses and resumes it. An unpublished flow cannot be switched on; EasyDrag offers to publish it first.
 - The building blocks panel marks blocks with real effects outside AuraGo. The mark looks at a block's default settings (for a generic tool, at its most far-reaching operation) and is no safety guarantee. The publish dialog lists the effects of your actual settings; the test dialog adds those of the blocks' default settings.
 - **Published with a problem** means the new version is live, but Mission Control or the timers could not be updated. The header then shows *Publish not finished*, and **Publish** stays available: publish again to finish.
@@ -80,8 +88,10 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 ## Runs and Notifications
 
 - **Runs** lists the latest 50 runs, filtered by *All*, *Errors*, *Tests* or *Live*. Clicking one opens the run view: the flow version of that run with every input and output, read-only. A banner names the run; **Back to draft** or **Esc** returns. The building blocks panel stays hidden in the run view, and a failed run opens centred on the failed step.
+- In the run view, **Test again with this data** opens the test dialog with the trigger data of that run. Values hidden as `[redacted]` must be replaced, or the test runs with the placeholder text. The dialog lists the real effects and asks before anything runs, as every test does; the data is not remembered unless you tick *Remember this data for later tests*. The button is missing while a run is going, and for a run whose trigger data was too large to be kept in full.
 - A run that has not ended yet (*Queued*, which includes waiting for a free slot, or *Running*) shows **Stop** in the list and in the banner of its run view, also when a trigger or another window started it. Stopping any run but a test asks first; steps that already ran are not undone. A read-only desktop offers Stop too, because stopping changes no flow; read-only missions refuse it.
 - **Run now** (⋯ menu, the *Flow* menu, or a card's menu on the start page) starts the published version. The flow must be **Active**: while it is paused, *Run now* is turned off and its tooltip says to switch the flow on first, as Mission Control refuses to run a paused mission. **Test** works either way.
+- A flow set to *Skip* in its settings does not start a new run while one is still going, so **Run now** starts nothing and says so; such flows skip new runs until the running one has ended.
 - A failed live run notifies as the flow settings say: on the desktop (the default), as a push notification, on Telegram or not at all. A flow notifies once when it starts failing, then at most once an hour while it keeps failing. Clicking the desktop notification opens EasyDrag on that run.
 - After a desktop reload, an open flow is opened again.
 - When a *Stop* step ends a run while other steps still run, they get up to 30 seconds to finish; then they are stopped and show *Effect may have happened*: what they send or change may already have happened. If one of them fails after a stop with *Success*, the run counts as failed; after a stop with *Error*, the stop's message stays.
@@ -137,7 +147,7 @@ EasyDrag needs *Enable flows* and the missions tool (`tools.missions.enabled`, s
 
 ## Keyboard Shortcuts
 
-Ctrl+S, Ctrl+Enter and Ctrl+K work in the editor, including while the step inspector is open. They wait while a real dialog or a context menu is open. The other keys act on the canvas, and not while you are typing in a field. On macOS, Ctrl is ⌘. **Tab** moves focus. It does not add a step. The canvas is one tab stop; the zoom buttons follow. A selected step's tool buttons join that order. Those tools are also keys or buttons: **Add** inserts the next step from the card, **Connect** (C) opens a list of compatible steps and ports, D turns the step off or on, Ctrl+D duplicates, and Del deletes. Tapping a port and releasing it without a target opens the same list with that side and port already chosen. *Test step* is on the card and in the inspector (Enter opens the inspector). Screen readers also find a list of the steps. That list is there for browse mode; it has not been tested with screen-reader users.
+Ctrl+S, Ctrl+Enter and Ctrl+K work in the editor, including while the step inspector is open. They wait while a real dialog or a context menu is open. The other keys act on the canvas, and not while you are typing in a field. On macOS, Ctrl is ⌘. **Tab** moves focus. It does not add a step. The canvas is one tab stop; the zoom buttons follow. A selected step's tool buttons join that order. Those tools are also keys or buttons: **Add** inserts the next step from the card, **Connect** (C) opens a list of compatible steps and ports, D turns the step off or on, Ctrl+D duplicates, and Del deletes. Tapping a port and releasing it without a target opens the same list with that side and port already chosen. *Test step* is on the card and in the inspector (Enter opens the inspector). Screen readers also find a list of the steps, next to the canvas. That list is there for browse mode; it has not been tested with screen-reader users.
 
 | Key | Action |
 |---|---|
@@ -158,6 +168,8 @@ Ctrl+S, Ctrl+Enter and Ctrl+K work in the editor, including while the step inspe
 | Ctrl+S | Save now |
 | Ctrl+Enter | Test |
 | Ctrl+K | Add from the one selected step's outgoing port; otherwise search building blocks |
+| Ctrl+F | Find a step in the flow |
+| Alt+Shift+F | Arrange automatically |
 | ? | Show these shortcuts |
 | Esc | Close or clear the selection; in a run view, back to the draft |
 
