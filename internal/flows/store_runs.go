@@ -137,6 +137,9 @@ func (s *Store) CreateRun(ctx context.Context, rec RunRecord, doc *Flow) error {
 	if err != nil {
 		return err
 	}
+	if trigger, err = s.scrubJSON(trigger); err != nil {
+		return err
+	}
 	docJSON, docHash := "", ""
 	if doc != nil && rec.Mode == ModeTest {
 		data, err := doc.Marshal()
@@ -202,6 +205,12 @@ func (s *Store) SaveStep(ctx context.Context, runID string, seq int, step StepRe
 	if err != nil {
 		return err
 	}
+	if params, err = s.scrubJSON(params); err != nil {
+		return err
+	}
+	if output, err = s.scrubJSON(output); err != nil {
+		return err
+	}
 	ports, err := json.Marshal(step.Ports)
 	if err != nil {
 		return err
@@ -219,7 +228,7 @@ func (s *Store) SaveStep(ctx context.Context, runID string, seq int, step StepRe
 		SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flow_runs WHERE id = ?)`,
 		runID, seq, step.NodeID, step.NodeKey, step.Attempt, string(step.Status), formatTime(step.StartedAt),
 		formatTime(step.FinishedAt), step.DurationMS, params, paramsTruncated, output, outputTruncated, step.ItemCount,
-		string(ports), step.ErrorCode, step.ErrorMessage, runID)
+		string(ports), step.ErrorCode, s.scrubText(step.ErrorMessage), runID)
 	if err != nil {
 		return err
 	}
@@ -230,7 +239,7 @@ func (s *Store) SaveStep(ctx context.Context, runID string, seq int, step StepRe
 // such run is stored, for example because its flow was deleted meanwhile.
 func (s *Store) FinishRun(ctx context.Context, runID string, res RunResult) error {
 	r, err := s.db.ExecContext(ctx, `UPDATE flow_runs SET status = ?, error_code = ?, error_message = ?, finished_at = ?,
-		duration_ms = ? WHERE id = ?`, string(res.Status), res.ErrorCode, res.ErrorMessage, formatTime(res.FinishedAt),
+		duration_ms = ? WHERE id = ?`, string(res.Status), res.ErrorCode, s.scrubText(res.ErrorMessage), formatTime(res.FinishedAt),
 		res.DurationMS, runID)
 	if err != nil {
 		return err

@@ -59,6 +59,7 @@ func (s *Server) initFlows() {
 		s.Logger.Error("EasyDrag flow store could not be opened", "error", err)
 		return
 	}
+	store.SetScrubber(flowStoreScrubber())
 	env := newFlowCatalogEnv(s)
 	reg := flows.NewRegistry()
 	if err := flows.RegisterCatalog(reg, env); err != nil {

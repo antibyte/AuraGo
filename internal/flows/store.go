@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/dbutil"
@@ -164,6 +165,8 @@ var storeIndexes = []string{
 type Store struct {
 	db     *sql.DB
 	logger *slog.Logger
+	// scrubber redacts secrets in run data before it is written (SetScrubber).
+	scrubber atomic.Pointer[Scrubber]
 	// afterPublishCommit, when set, runs right after Publish committed and before it reads
 	// the record back. It is nil outside tests, which use it to end the caller's context
 	// at that moment.
