@@ -356,22 +356,33 @@ var toolCategoryLabels = map[string]string{
 // Built once on first access.
 var toolToCategoryOnce sync.Once
 var toolToCategoryMap map[string]string
+var toolShortDescMap map[string]string
 
 func buildToolToCategoryMap() {
 	toolToCategoryOnce.Do(func() {
-		m := make(map[string]string, 128)
+		m := make(map[string]string, 256)
+		descriptions := make(map[string]string, 256)
 		for cat, entries := range toolCategoryDef {
 			for _, e := range entries {
 				m[e.Name] = cat
+				descriptions[e.Name] = e.ShortDesc
 			}
 		}
 		toolToCategoryMap = m
+		toolShortDescMap = descriptions
 	})
 }
 
 func ToolCategoryForName(name string) string {
 	buildToolToCategoryMap()
 	return toolToCategoryMap[name]
+}
+
+// toolShortDescForName returns the one-line description the category table
+// gives a tool, "" when it has none.
+func toolShortDescForName(name string) string {
+	buildToolToCategoryMap()
+	return toolShortDescMap[name]
 }
 
 // GetToolCategory returns the category a tool belongs to, or "" if not categorized.

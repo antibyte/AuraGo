@@ -4,10 +4,9 @@ import (
 	"aurago/internal/prompts"
 	"encoding/json"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
-	"unicode"
+	"sync"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -63,9 +62,19 @@ type ToolCatalogEntry struct {
 type ToolCatalog struct {
 	entries map[string]*ToolCatalogEntry
 	aliases map[string]string
+
+	searchMu sync.Mutex
+	search   *toolSearchIndex // built at the first search, dropped by add
 }
 
 func BuildToolCatalog(allSchemas, activeSchemas []openai.Tool, promptsDir string) *ToolCatalog {
+	return newToolCatalog(allSchemas, activeSchemas, promptsDir, true)
+}
+
+// newToolCatalog builds the catalog of the given schemas. With withDisabled it
+// also adds the categorized tools that no schema backs as disabled entries;
+// the adaptive selection ranks only what it can offer and leaves them out.
+func newToolCatalog(allSchemas, activeSchemas []openai.Tool, promptsDir string, withDisabled bool) *ToolCatalog {
 	active := make(map[string]bool, len(activeSchemas))
 	for _, schema := range activeSchemas {
 		if schema.Function != nil && schema.Function.Name != "" {
@@ -84,6 +93,10 @@ func BuildToolCatalog(allSchemas, activeSchemas []openai.Tool, promptsDir string
 		}
 		entry := catalogEntryFromSchema(schema, active[schema.Function.Name], promptsDir)
 		c.add(entry)
+	}
+
+	if !withDisabled {
+		return c
 	}
 
 	// Add categorized tools that are absent from all enabled schemas as disabled
@@ -165,6 +178,9 @@ func (c *ToolCatalog) add(entry *ToolCatalogEntry) {
 	}
 	c.entries[entry.Name] = entry
 	c.aliases[entry.Name] = entry.Name
+	c.searchMu.Lock()
+	c.search = nil
+	c.searchMu.Unlock()
 	for _, alias := range entry.Aliases {
 		if alias != "" {
 			if previous, exists := c.aliases[alias]; exists && previous != entry.Name {
@@ -208,118 +224,10 @@ func (c *ToolCatalog) Entries() []*ToolCatalogEntry {
 	return out
 }
 
+// Search returns the entries that match a query, best first; rankedSearch has
+// the ranking rules.
 func (c *ToolCatalog) Search(query string) []*ToolCatalogEntry {
-	nameAlias := discoverToolNameAlias(query)
-	if nameAlias == "" {
-		query = resolveDiscoverToolName(query)
-	}
-	query = strings.ToLower(strings.TrimSpace(query))
-	if query == "" {
-		return nil
-	}
-
-	tokens := tokenizeToolSearchQuery(query)
-	type scoredEntry struct {
-		entry *ToolCatalogEntry
-		score int
-	}
-	var scored []scoredEntry
-	for _, entry := range c.Entries() {
-		text := strings.ToLower(toolCatalogSearchText(entry))
-		// Until the ranked search lands, the curated terms score like aliases.
-		aliases := slices.Concat(entry.Aliases, entry.SearchTerms)
-		score := 0
-		if strings.EqualFold(entry.Name, query) || (entry.Enabled && entry.Name == nameAlias) {
-			score += 10000
-		}
-		for _, alias := range aliases {
-			if strings.EqualFold(alias, query) {
-				score += 5000
-			}
-		}
-		for _, op := range toolCatalogOperations(entry) {
-			if strings.EqualFold(op, query) {
-				score += 2000
-			}
-		}
-		if strings.Contains(text, query) {
-			score += 100
-		}
-		for _, token := range tokens {
-			if strings.Contains(strings.ToLower(entry.Name), token) {
-				score += 20
-				continue
-			}
-			aliasMatched := false
-			for _, alias := range aliases {
-				if strings.Contains(strings.ToLower(alias), token) {
-					score += 15
-					aliasMatched = true
-					break
-				}
-			}
-			if aliasMatched {
-				continue
-			}
-			if strings.Contains(text, token) {
-				score += 5
-			}
-		}
-		if score > 0 {
-			scored = append(scored, scoredEntry{entry: entry, score: score})
-		}
-	}
-	sort.SliceStable(scored, func(i, j int) bool {
-		if scored[i].score != scored[j].score {
-			return scored[i].score > scored[j].score
-		}
-		return scored[i].entry.Name < scored[j].entry.Name
-	})
-
-	out := make([]*ToolCatalogEntry, 0, len(scored))
-	for _, item := range scored {
-		out = append(out, item.entry)
-	}
-	return out
-}
-
-func tokenizeToolSearchQuery(query string) []string {
-	fields := strings.FieldsFunc(query, func(r rune) bool {
-		return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_'
-	})
-	out := make([]string, 0, len(fields))
-	seen := make(map[string]bool, len(fields))
-	for _, field := range fields {
-		field = strings.ToLower(strings.TrimSpace(field))
-		if len(field) < 2 || seen[field] {
-			continue
-		}
-		seen[field] = true
-		out = append(out, field)
-	}
-	return out
-}
-
-func toolCatalogSearchText(entry *ToolCatalogEntry) string {
-	if entry == nil {
-		return ""
-	}
-	var b strings.Builder
-	b.WriteString(entry.Name)
-	b.WriteByte(' ')
-	b.WriteString(entry.Category)
-	b.WriteByte(' ')
-	b.WriteString(entry.Description)
-	for _, alias := range slices.Concat(entry.Aliases, entry.SearchTerms) {
-		b.WriteByte(' ')
-		b.WriteString(alias)
-	}
-	if entry.Schema.Function != nil {
-		b.WriteByte(' ')
-		b.WriteString(entry.Schema.Function.Description)
-		b.WriteString(" " + strings.Join(toolCatalogOperations(entry), " "))
-	}
-	return b.String()
+	return hitEntries(c.rankedSearch(query))
 }
 
 func (c *ToolCatalog) ByCategory(category string) []*ToolCatalogEntry {
@@ -382,10 +290,27 @@ func toolCatalogOperations(entry *ToolCatalogEntry) []string {
 	var result []string
 	for _, key := range []string{"operation", "action", "mode", "sub_operation", "resource", "metric", "target"} {
 		property, _ := props[key].(map[string]interface{})
-		data, _ := json.Marshal(property["enum"])
-		var names []string
-		if json.Unmarshal(data, &names) == nil {
-			result = append(result, names...)
+		switch enum := property["enum"].(type) {
+		case nil:
+		case []string:
+			result = append(result, enum...)
+		case []interface{}:
+			// An enum with a non-string value names no operations at all.
+			names := make([]string, 0, len(enum))
+			for _, value := range enum {
+				if name, ok := value.(string); ok {
+					names = append(names, name)
+				}
+			}
+			if len(names) == len(enum) {
+				result = append(result, names...)
+			}
+		default:
+			data, _ := json.Marshal(enum)
+			var names []string
+			if json.Unmarshal(data, &names) == nil {
+				result = append(result, names...)
+			}
 		}
 	}
 	return result
