@@ -2,6 +2,7 @@ package flows
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,12 +15,20 @@ import (
 const (
 	DefaultMaxParallelRuns  = 8
 	DefaultMaxQueuedPerFlow = 20
-	eventRetention          = 2 * time.Minute
+	// DefaultMaxPendingRuns caps the runs waiting to start, in the flows' queues and the global
+	// waiting list together (E5).
+	DefaultMaxPendingRuns = 200
+	// DefaultMaxPendingBytes caps the encoded trigger data those runs hold in memory (E5).
+	DefaultMaxPendingBytes = 64 << 20
+	eventRetention         = 2 * time.Minute
 )
 
 var (
 	ErrQueueFull    = errors.New("the flow's run queue is full")
 	ErrRunnerClosed = errors.New("the flow runner is shut down")
+	// ErrRunnerQueueFull is ErrQueueFull for the runner as a whole: too many runs, or too much
+	// trigger data, wait already (RunnerConfig.MaxPendingRuns, MaxPendingBytes).
+	ErrRunnerQueueFull = fmt.Errorf("%w: too many flow runs are waiting in total", ErrQueueFull)
 )
 
 // RunnerConfig limits concurrent runs. Values of zero or less mean the defaults.
@@ -42,6 +51,12 @@ type RunnerConfig struct {
 	// Zero or less means half of MaxParallelRuns, at least 1. A run over it waits in the global
 	// queue without holding up the runs of other flows behind it (S5).
 	MaxSlotsPerFlow int
+	// MaxPendingRuns caps the runs that wait to start (queued behind their flow's run or waiting
+	// for a global slot), all flows together; MaxPendingBytes caps the encoded trigger data they
+	// hold. Start refuses a run that would wait beyond either with ErrRunnerQueueFull; one run
+	// may always wait when none does. Values of zero or less mean the defaults.
+	MaxPendingRuns  int
+	MaxPendingBytes int
 }
 
 // RunnerHooks observe runs. OnRunFinished is called for every run (also runs cancelled
@@ -103,6 +118,7 @@ type pendingRun struct {
 	// waited is set when the run joined a queue (its flow's or the global one); only such a
 	// run asks RunnerConfig.Gate before it executes.
 	waited bool
+	size   int // encoded size of the trigger data (MaxPendingBytes)
 }
 
 // activeRun is a launched run: its flow and mode, for CancelFlow and CancelFlowMode, and
@@ -163,6 +179,12 @@ func NewRunner(engine *Engine, store *Store, hooks RunnerHooks, cfg RunnerConfig
 	if cfg.MaxQueuedPerFlow <= 0 {
 		cfg.MaxQueuedPerFlow = DefaultMaxQueuedPerFlow
 	}
+	if cfg.MaxPendingRuns <= 0 {
+		cfg.MaxPendingRuns = DefaultMaxPendingRuns
+	}
+	if cfg.MaxPendingBytes <= 0 {
+		cfg.MaxPendingBytes = DefaultMaxPendingBytes
+	}
 	if cfg.MaxSlotsPerFlow <= 0 {
 		cfg.MaxSlotsPerFlow = max(1, cfg.MaxParallelRuns/2)
 	}
@@ -209,6 +231,8 @@ func (r *Runner) Start(req StartRequest) (StartResult, error) {
 	policy := req.Flow.Settings.Concurrency
 	// Counted runs of queue and skip flows run one at a time.
 	exclusive := counted && policy != ConcurrencyParallel
+	// Measured before the locks: a waiting run holds its trigger data in memory (MaxPendingBytes).
+	size := triggerDataSize(req.TriggerData)
 
 	r.startMu.Lock()
 	defer r.startMu.Unlock()
@@ -221,6 +245,11 @@ func (r *Runner) Start(req StartRequest) (StartResult, error) {
 		// exactly; for a queue or skip flow's test run, its waiting live run counts too.
 		full = r.waitingLocked(flowID) >= r.cfg.MaxQueuedPerFlow
 	}
+	crowded := false
+	if (busy || slotless) && !(busy && policy == ConcurrencySkip) {
+		n, bytes := r.pendingLocked()
+		crowded = n >= r.cfg.MaxPendingRuns || (n > 0 && bytes+size > r.cfg.MaxPendingBytes)
+	}
 	r.mu.Unlock()
 	switch {
 	case closed:
@@ -229,9 +258,11 @@ func (r *Runner) Start(req StartRequest) (StartResult, error) {
 		return StartResult{Status: StartSkipped}, nil
 	case full:
 		return StartResult{}, ErrQueueFull
+	case crowded:
+		return StartResult{}, ErrRunnerQueueFull
 	}
 
-	p, err := r.newPending(req, counted)
+	p, err := r.newPending(req, counted, size)
 	if err != nil {
 		return StartResult{}, err
 	}
@@ -250,7 +281,7 @@ func (r *Runner) Start(req StartRequest) (StartResult, error) {
 
 // newPending records the run as queued and opens its event log, so the run can be
 // subscribed to as soon as Start returns its id, also while it waits.
-func (r *Runner) newPending(req StartRequest, counted bool) (*pendingRun, error) {
+func (r *Runner) newPending(req StartRequest, counted bool, size int) (*pendingRun, error) {
 	rec := RunRecord{
 		ID: NewRunID(), FlowID: req.Flow.ID, Revision: req.Revision, Mode: req.Mode,
 		TriggerNode: req.TriggerNode, TriggerType: req.TriggerType, TriggerData: req.TriggerData,
@@ -260,7 +291,34 @@ func (r *Runner) newPending(req StartRequest, counted bool) (*pendingRun, error)
 		return nil, fmt.Errorf("record run: %w", err)
 	}
 	r.bus.Open(rec.ID)
-	return &pendingRun{req: req, rec: rec, counted: counted}, nil
+	return &pendingRun{req: req, rec: rec, counted: counted, size: size}, nil
+}
+
+// triggerDataSize is the encoded size of a run's trigger data, which a waiting run holds in
+// memory; data that cannot be encoded counts as MaxOutputBytes (the engine replaces it anyway).
+func triggerDataSize(data map[string]any) int {
+	if len(data) == 0 {
+		return 0
+	}
+	enc, err := json.Marshal(data)
+	if err != nil {
+		return MaxOutputBytes
+	}
+	return len(enc)
+}
+
+// pendingLocked counts the runs that wait to start and the trigger data they hold. Starts are
+// serialized and finishing runs only shrink it, so the caps hold exactly.
+func (r *Runner) pendingLocked() (n, bytes int) {
+	for _, q := range r.flowQueue {
+		for _, p := range q {
+			n, bytes = n+1, bytes+p.size
+		}
+	}
+	for _, p := range r.waiting {
+		n, bytes = n+1, bytes+p.size
+	}
+	return n, bytes
 }
 
 // admitLocked takes the flow slot for counted runs and puts the run at the end of the global
