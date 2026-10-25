@@ -9,6 +9,10 @@
     const SNAP_RADIUS = 20;
     const GUIDE_RADIUS = 6;
     const CLIPBOARD_KEY = 'aurago.easydrag.clipboard';
+    // The fragment kept in localStorage can hold typed parameters in plain text: it carries the time
+    // it was copied and is dropped after CLIPBOARD_MAX_AGE_MS. One without that stamp (kept before the
+    // stamp existed) counts as expired.
+    const CLIPBOARD_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
     function create(ed, canvas, wires) {
         const core = ED.core;
@@ -511,7 +515,7 @@
             if (!ed.selection.size) return false;
             const frag = ed.model.fragment(Array.from(ed.selection));
             const text = JSON.stringify(frag);
-            core.storage.set(CLIPBOARD_KEY, frag);
+            core.storage.set(CLIPBOARD_KEY, { at: Date.now(), frag });
             if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(() => {});
             canvas.announce(t('easydrag.ui.copied', { count: frag.nodes.length }));
             return true;
@@ -525,7 +529,19 @@
                     if (parsed && parsed.easydrag === 1) return parsed;
                 } catch (err) { /* permission denied or not EasyDrag JSON */ }
             }
-            return core.storage.get(CLIPBOARD_KEY, null);
+            return storedFragment();
+        }
+
+        // storedFragment returns the fragment kept in localStorage while it is fresh, and removes an
+        // expired, unstamped or unreadable one.
+        function storedFragment() {
+            const kept = core.storage.get(CLIPBOARD_KEY, null);
+            if (!kept) return null;
+            const at = Number(kept.at);
+            const now = Date.now();
+            if (kept.frag && Number.isFinite(at) && now - at <= CLIPBOARD_MAX_AGE_MS && at <= now + 60000) return kept.frag;
+            core.storage.remove(CLIPBOARD_KEY);
+            return null;
         }
 
         async function pasteAt(point) {
@@ -632,6 +648,8 @@
             if (event.key === ' ') { spaceDown = false; el.classList.remove('is-space'); }
         }
 
+        // An expired fragment goes as soon as an editor opens, not only at the next paste.
+        storedFragment();
         bag.listen(el, 'pointerdown', onPointerDown);
         bag.listen(el, 'pointermove', onPointerMoveAny);
         bag.listen(el, 'pointerup', onPointerUpAny);

@@ -232,6 +232,66 @@ export async function run(env) {
         eq('b5 F13 the error card offers Try again, and Try again opens the editor', [shown, !!(inst && inst.screen && inst.screen.ed)], [[true, true, 1, true], true]);
         h.win.EasyDragApp.dispose('w1');
     });
+    // ── F13: storage ──
+
+    await guardAsync('b5 F13 a refused emergency copy backs off and then stops; a write that lands resets it', async () => {
+        const h = saverHarness(null);
+        const storage = h.core.storage;
+        const realSet = storage.set.bind(storage);
+        let refuse = true;
+        let sets = 0;
+        storage.set = (key, value) => {
+            if (String(key).startsWith('aurago.easydrag.draft.')) { sets++; if (refuse) return false; }
+            return realSet(key, value);
+        };
+        // dropSave removes the 1 s save timer a change arms, so only the copy timers are left.
+        const dropSave = () => { for (const [id, entry] of Array.from(h.timers)) if (entry.ms === 1000 && !h.copyFirst) { h.timers.delete(id); break; } };
+        h.change('A');
+        dropSave();
+        const delays = [];
+        for (let i = 0; i < 8 && h.timers.size; i++) {
+            const ms = Array.from(h.timers.values())[0].ms;
+            delays.push(ms);
+            await h.fire(ms);
+        }
+        const stopped = [delays, sets, h.timers.size];
+        h.change('B');
+        dropSave();
+        const meanwhile = [sets, h.timers.size];
+        refuse = false;
+        h.saver.flushCopy();
+        const landed = [sets, h.copy() && h.copy().doc.name];
+        h.change('C');
+        eq('b5 F13 refused copies wait 0.5, 1, 2, 4 and 8 s, then no timer; a change meanwhile writes nothing; flushCopy writes; the next change holds back 500 ms again',
+            [stopped, meanwhile, landed, h.delays().includes(500)], [[[500, 1000, 2000, 4000, 8000], 6, 0], [6, 0], [7, 'B'], true]);
+    });
+
+    await guardAsync('b5 F13 the clipboard fragment in localStorage carries its time and expires after 24 h', async () => {
+        const KEY = 'aurago.easydrag.clipboard';
+        const s = await session();
+        s.pick(A);
+        s.key('c', { ctrlKey: true });
+        const kept = JSON.parse(s.h.store.get(KEY));
+        const stamped = [typeof kept.at, kept.frag && kept.frag.easydrag, kept.frag && kept.frag.nodes.length];
+        const nodes = () => s.ed.model.doc.nodes.length;
+        const before = nodes();
+        kept.at -= 25 * 60 * 60 * 1000;
+        s.h.store.set(KEY, JSON.stringify(kept));
+        s.key('v', { ctrlKey: true });
+        await settle();
+        const expired = [nodes() - before, s.h.store.has(KEY)];
+        s.h.store.set(KEY, JSON.stringify(kept.frag));
+        s.key('v', { ctrlKey: true });
+        await settle();
+        const legacy = [nodes() - before, s.h.store.has(KEY)];
+        s.pick(A);
+        s.key('c', { ctrlKey: true });
+        s.key('v', { ctrlKey: true });
+        await settle();
+        eq('b5 F13 a stamped copy pastes; an expired or unstamped one is dropped unpasted', [stamped, expired, legacy, nodes() - before, s.h.logged],
+            [['number', 1, 1], [0, false], [0, false], 1, []]);
+        s.editor.dispose();
+    });
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }

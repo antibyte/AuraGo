@@ -178,14 +178,14 @@ export async function run(env) {
         const kept = h.model.addNode('web.search', { x: 0, y: 0 });
         h.interact.select([kept]);
         const tooMany = { easydrag: 1, nodes: Array.from({ length: 501 }, (_, i) => ({ id: 'n' + i, type: 'web.search' })), edges: [] };
-        h.store.set(KEY, JSON.stringify(tooMany));
+        h.store.set(KEY, JSON.stringify({ at: Date.now(), frag: tooMany }));
         await h.interact.pasteAt({ x: 0, y: 0 });
         eq('c1d04 a refused fragment is announced and keeps the selection', [h.model.doc.nodes.length, h.announced, Array.from(h.ed.selection)], [1, ['paste_refused'], [kept]]);
-        h.store.set(KEY, JSON.stringify({ easydrag: 1, nodes: [{ id: 'a', type: 'evil.type' }], edges: [] }));
+        h.store.set(KEY, JSON.stringify({ at: Date.now(), frag: { easydrag: 1, nodes: [{ id: 'a', type: 'evil.type' }], edges: [] } }));
         await h.interact.pasteAt({ x: 0, y: 0 });
         eq('c1d04 a fragment without a known step is announced too', [h.model.doc.nodes.length, h.announced.length, Array.from(h.ed.selection)], [1, 2, [kept]]);
-        h.store.set(KEY, JSON.stringify({ easydrag: 1, nodes: [{ id: 'a', key: 'k', type: 'web.search', position: { x: 0, y: 0 } }, { id: 'b', key: 'l', type: 'web.search', position: { x: 300, y: 0 } }],
-            edges: [{ source: { node: 'a', port: 'out' }, target: { node: 'b', port: 'in' } }] }));
+        h.store.set(KEY, JSON.stringify({ at: Date.now(), frag: { easydrag: 1, nodes: [{ id: 'a', key: 'k', type: 'web.search', position: { x: 0, y: 0 } }, { id: 'b', key: 'l', type: 'web.search', position: { x: 300, y: 0 } }],
+            edges: [{ source: { node: 'a', port: 'out' }, target: { node: 'b', port: 'in' } }] } }));
         await h.interact.pasteAt({ x: 100, y: 200 });
         const pasted = Array.from(h.ed.selection);
         // a1023b U3: the paste is announced (the count of the steps pasted) after the two refusals.

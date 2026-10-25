@@ -356,7 +356,7 @@ export async function run(env) {
         const h = sandbox(() => undefined);
         const editor = openEditor(h);
         await settle();
-        h.store.set('aurago.easydrag.clipboard', JSON.stringify({ easydrag: 1, nodes: Array.from({ length: 501 }, (_, i) => ({ id: 'n' + i, type: 'web.search' })), edges: [] }));
+        h.store.set('aurago.easydrag.clipboard', JSON.stringify({ at: Date.now(), frag: { easydrag: 1, nodes: Array.from({ length: 501 }, (_, i) => ({ id: 'n' + i, type: 'web.search' })), edges: [] } }));
         const paste = h.menus.find(m => m.id === 'edit').items.find(i => i.id === 'paste');
         await paste.action();
         await settle();
