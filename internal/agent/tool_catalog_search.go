@@ -21,10 +21,15 @@ const discoverySemanticTimeout = 400 * time.Millisecond
 // still finds the tool its manual describes. Exact name, alias and operation
 // matches stay first. Unavailable embeddings fail closed to the deterministic
 // lexical result without performing a new indexing operation.
-func (c *ToolCatalog) SearchContext(ctx context.Context, query string, source memory.VectorDB) []*ToolCatalogEntry {
+//
+// The manual search only ever adds tools allow accepts (nil accepts all); the
+// lexical hits are not filtered. A query that holds a credential never reaches
+// the embedding provider (see discoverySemanticQueryAllowed).
+func (c *ToolCatalog) SearchContext(ctx context.Context, query string, source memory.VectorDB, allow func(*ToolCatalogEntry) bool) []*ToolCatalogEntry {
+	query = boundToolSearchQuery(query)
 	hits := c.rankedSearch(query)
 	searcher, ok := source.(discoveryGuideSearcher)
-	if !ok || c == nil || strings.TrimSpace(query) == "" || ctx.Err() != nil {
+	if !ok || c == nil || !discoverySemanticQueryAllowed(query) || ctx.Err() != nil {
 		return hitEntries(hits)
 	}
 	bounded, cancel := context.WithTimeout(ctx, discoverySemanticTimeout)
@@ -52,7 +57,9 @@ func (c *ToolCatalog) SearchContext(ctx context.Context, query string, source me
 		manuals = append(manuals, manual)
 		if _, done := members[manual]; !done {
 			for _, entry := range index.members[manual] {
-				members[manual] = append(members[manual], entry.Name)
+				if allow == nil || allow(entry) {
+					members[manual] = append(members[manual], entry.Name)
+				}
 			}
 		}
 	}
@@ -70,6 +77,14 @@ func (c *ToolCatalog) SearchContext(ctx context.Context, query string, source me
 	rest := out[len(pinned):]
 	sort.SliceStable(rest, func(i, j int) bool { return toolSearchStatusClass(rest[i]) < toolSearchStatusClass(rest[j]) })
 	return out
+}
+
+// discoverySemanticQueryAllowed reports whether a query may be sent to the
+// embedding provider. A model writes it, often from the user's message, so it
+// gets the check the memory write path applies: a query that holds a
+// credential is ranked by the local lexical search alone.
+func discoverySemanticQueryAllowed(query string) bool {
+	return strings.TrimSpace(query) != "" && !memory.HasDurableCredential(query)
 }
 
 // enabledManual reports whether an enabled catalog entry uses the manual.

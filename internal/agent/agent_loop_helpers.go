@@ -1114,7 +1114,7 @@ func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, us
 	}
 	var manuals []string
 	members := map[string][]string{}
-	if guideSearcher != nil && strings.TrimSpace(userQuery) != "" {
+	if guideSearcher != nil && discoverySemanticQueryAllowed(userQuery) {
 		// A manual can document several tools (email, mqtt, yepapi_*), so its
 		// name maps to every available tool of that family; a manual named like
 		// an available tool documents that tool.

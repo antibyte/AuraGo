@@ -28,6 +28,7 @@ func releaseDiscoveryRun(id string) {
 	delete(discoverToolsState.liveRuns, id)
 	delete(discoverToolsState.snapshots, id)
 	delete(discoverToolsState.requested, id)
+	forgetDiscoverSearchOrdersLocked(id)
 }
 
 // discoveryReinjectsSchemas reports whether the main loop re-attaches the

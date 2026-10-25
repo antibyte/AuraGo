@@ -44,14 +44,24 @@ func catalogRevision(catalog *ToolCatalog) string {
 	return hex.EncodeToString(h.Sum(nil))[:16]
 }
 
+// discoveryCursorParam is the cursor a request carries, "" when it carries
+// none: models send "None", "null" or 0 for that.
+func discoveryCursorParam(tc ToolCall) string {
+	raw := strings.TrimSpace(stringValueFromMap(tc.Params, "cursor"))
+	switch strings.ToLower(raw) {
+	case "none", "null", "nil", "undefined", "0":
+		return ""
+	}
+	return raw
+}
+
 // discoveryOffset decodes the request cursor. Models send "None", "null" or 0
 // for "no cursor"; those start at the first page. reset reports a cursor that
 // cannot be honored (garbage, another query, another catalog revision): the
 // caller restarts at offset 0 and says so instead of failing the call.
 func discoveryOffset(tc ToolCall, revision, query string) (offset int, reset bool) {
-	raw := strings.TrimSpace(stringValueFromMap(tc.Params, "cursor"))
-	switch strings.ToLower(raw) {
-	case "", "none", "null", "nil", "undefined", "0":
+	raw := discoveryCursorParam(tc)
+	if raw == "" {
 		return 0, false
 	}
 	if len(raw) > 2048 {

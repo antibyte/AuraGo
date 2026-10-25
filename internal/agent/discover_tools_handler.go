@@ -118,7 +118,7 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 			}
 			var entries []*ToolCatalogEntry
 			if dc != nil {
-				entries = catalog.SearchContext(ctx, query, dc.LongTermMem)
+				entries = discoverySearchEntries(ctx, catalog, tc, dc, sessionID, revision, query)
 			} else {
 				entries = catalog.Search(query)
 			}
@@ -208,6 +208,33 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 	default:
 		return discoverToolsJSON(DiscoverToolsResponse{Status: "error", Error: "unknown_operation", Summary: "Use list_categories, list_family, search, get_tool_info or get_manual."})
 	}
+}
+
+// discoverySearchEntries ranks a search with the manual index. The order of the
+// first page is kept, and the pages that follow it (a request with a cursor)
+// reuse it: the manual search can fail or time out on one call and succeed on
+// the next, and a different order would change the result identity and reset
+// the cursor. The manual search adds only tools the run may call.
+func discoverySearchEntries(ctx context.Context, catalog *ToolCatalog, tc ToolCall, dc *DispatchContext, sessionID, revision, query string) []*ToolCatalogEntry {
+	key := discoverSearchKey{session: sessionID, query: discoveryQueryKey("search", query), revision: revision}
+	if discoveryCursorParam(tc) != "" {
+		if names, ok := recallDiscoverSearchOrder(key); ok {
+			entries := make([]*ToolCatalogEntry, 0, len(names))
+			for _, name := range names {
+				if entry, ok := catalog.Get(name); ok {
+					entries = append(entries, entry)
+				}
+			}
+			return entries
+		}
+	}
+	entries := catalog.SearchContext(ctx, query, dc.LongTermMem, func(entry *ToolCatalogEntry) bool { return catalogEntryAllowed(dc, entry) })
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name)
+	}
+	rememberDiscoverSearchOrder(key, names)
+	return entries
 }
 
 // discoveryToolNameLimit bounds a tool name a request carries and the query of

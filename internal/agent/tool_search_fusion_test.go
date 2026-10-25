@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -136,7 +137,7 @@ func TestSearchContextFallsBackToLexicalWhenTheManualSearchBlocks(t *testing.T) 
 	const query = "send an email to the team"
 	want := catalogNames(catalog.Search(query))
 	start := time.Now()
-	got := catalogNames(catalog.SearchContext(context.Background(), query, blockingGuideSearcher{}))
+	got := catalogNames(catalog.SearchContext(context.Background(), query, blockingGuideSearcher{}, nil))
 	if elapsed := time.Since(start); elapsed > 700*time.Millisecond {
 		t.Fatalf("a blocked manual search held the result for %s", elapsed)
 	}
@@ -157,11 +158,91 @@ func TestSearchContextFusesManualsAndKeepsStatusOrder(t *testing.T) {
 	}
 	source := manualGuideSearcher{manuals: []string{"z_disabled", "y_enabled"}}
 	// The disabled tool ranks first by manual but stays behind the enabled one.
-	if got, want := catalogNames(catalog.SearchContext(context.Background(), "frobnicate", source)), []string{"x_lexical", "y_enabled", "z_disabled"}; !slices.Equal(got, want) {
+	if got, want := catalogNames(catalog.SearchContext(context.Background(), "frobnicate", source, nil)), []string{"x_lexical", "y_enabled", "z_disabled"}; !slices.Equal(got, want) {
 		t.Fatalf("fused result = %v, want %v", got, want)
 	}
 	// An exact name stays first whatever the manuals say.
-	if got := catalogNames(catalog.SearchContext(context.Background(), "exact_tool", source)); len(got) == 0 || got[0] != "exact_tool" {
+	if got := catalogNames(catalog.SearchContext(context.Background(), "exact_tool", source, nil)); len(got) == 0 || got[0] != "exact_tool" {
 		t.Fatalf("exact name lost its place: %v", got)
+	}
+}
+
+// recordingGuideSearcher records the queries that reach the manual search.
+type recordingGuideSearcher struct {
+	memory.VectorDB
+	mu      sync.Mutex
+	queries []string
+}
+
+func (s *recordingGuideSearcher) SearchToolGuideMatchesContext(_ context.Context, query string, _ int) ([]memory.ToolGuideMatch, error) {
+	s.record(query)
+	return nil, nil
+}
+
+func (s *recordingGuideSearcher) SearchToolGuides(query string, _ int) ([]string, error) {
+	s.record(query)
+	return nil, nil
+}
+
+func (s *recordingGuideSearcher) record(query string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.queries = append(s.queries, query)
+}
+
+func (s *recordingGuideSearcher) calls() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.queries)
+}
+
+// TestSemanticSearchNeverSendsACredential guards the embedding provider: a query
+// that holds a credential is ranked locally, in discover_tools and in the
+// adaptive selection alike.
+func TestSemanticSearchNeverSendsACredential(t *testing.T) {
+	schemas := BuildNativeToolSchemas("", nil, allBuiltinToolFeatureFlags(), nil)
+	catalog := BuildToolCatalog(schemas, nil, "")
+	const credential = "sk-proj-abcdefghijklmnopqrstuvwxyz0123456789"
+	for _, tc := range []struct {
+		query     string
+		wantCalls int
+	}{
+		{"send an email to the team", 1},
+		{"send an email using the key " + credential, 0},
+	} {
+		source := &recordingGuideSearcher{}
+		got := catalogNames(catalog.SearchContext(context.Background(), tc.query, source, nil))
+		if source.calls() != tc.wantCalls {
+			t.Errorf("SearchContext(%q) sent %d queries, want %d", tc.query, source.calls(), tc.wantCalls)
+		}
+		if tc.wantCalls == 0 && !slices.Equal(got, catalogNames(catalog.Search(tc.query))) {
+			t.Errorf("a query kept from the semantic search lost its lexical result: %v", got)
+		}
+		source = &recordingGuideSearcher{}
+		buildAdaptiveToolPriority(schemas, nil, tc.query, source, nil)
+		if source.calls() != tc.wantCalls {
+			t.Errorf("buildAdaptiveToolPriority(%q) sent %d queries, want %d", tc.query, source.calls(), tc.wantCalls)
+		}
+	}
+}
+
+// TestSearchContextOffersOnlyAllowedToolsFromManuals guards the scope of a run:
+// a tool the run may not call is not added because its manual matched.
+func TestSearchContextOffersOnlyAllowedToolsFromManuals(t *testing.T) {
+	catalog := newToolCatalog(nil, nil, "", false)
+	for _, entry := range []*ToolCatalogEntry{
+		testSearchEntry("x_lexical", "Frobnicate widgets", ToolStatusHidden),
+		testSearchEntry("y_allowed", "Unrelated text one", ToolStatusHidden),
+		testSearchEntry("z_scoped", "Unrelated text two", ToolStatusHidden),
+	} {
+		catalog.add(entry)
+	}
+	source := manualGuideSearcher{manuals: []string{"z_scoped", "y_allowed"}}
+	allow := func(entry *ToolCatalogEntry) bool { return entry.Name != "z_scoped" }
+	if got, want := catalogNames(catalog.SearchContext(context.Background(), "frobnicate", source, allow)), []string{"x_lexical", "y_allowed"}; !slices.Equal(got, want) {
+		t.Fatalf("filtered result = %v, want %v", got, want)
+	}
+	if got := catalogNames(catalog.SearchContext(context.Background(), "frobnicate", source, nil)); !slices.Contains(got, "z_scoped") {
+		t.Fatalf("fixture: without a filter the manual adds z_scoped, got %v", got)
 	}
 }
