@@ -657,6 +657,7 @@
   "easydrag.ui.keys_zoom": "Acercar o alejar",
   "easydrag.ui.keys_zoom_reset": "Zoom al 100 %",
   "easydrag.ui.kv_add": "Añadir entrada",
+  "easydrag.ui.kv_duplicate_key": "Dos filas tienen la misma clave. Los cambios aquí se guardan en cuanto cada clave sea única.",
   "easydrag.ui.kv_key": "Clave",
   "easydrag.ui.kv_value": "Valor",
   "easydrag.ui.leave_text": "No se pudieron guardar tus últimos cambios. ¿Cerrar de todos modos?",

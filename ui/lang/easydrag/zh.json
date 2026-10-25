@@ -657,6 +657,7 @@
   "easydrag.ui.keys_zoom": "放大或缩小",
   "easydrag.ui.keys_zoom_reset": "缩放到 100%",
   "easydrag.ui.kv_add": "添加条目",
+  "easydrag.ui.kv_duplicate_key": "有两行使用了相同的键。待每个键都唯一后，此处的更改才会保存。",
   "easydrag.ui.kv_key": "键",
   "easydrag.ui.kv_value": "值",
   "easydrag.ui.leave_text": "你最近的更改未能保存。仍要关闭吗？",

@@ -657,6 +657,7 @@
   "easydrag.ui.keys_zoom": "Zooma in eller ut",
   "easydrag.ui.keys_zoom_reset": "Zooma till 100 %",
   "easydrag.ui.kv_add": "Lägg till post",
+  "easydrag.ui.kv_duplicate_key": "Två rader har samma nyckel. Ändringar här sparas så snart varje nyckel är unik.",
   "easydrag.ui.kv_key": "Nyckel",
   "easydrag.ui.kv_value": "Värde",
   "easydrag.ui.leave_text": "Dina senaste ändringar kunde inte sparas. Stäng ändå?",

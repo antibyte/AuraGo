@@ -657,6 +657,7 @@
   "easydrag.ui.keys_zoom": "ज़ूम इन या आउट",
   "easydrag.ui.keys_zoom_reset": "100% पर ज़ूम करें",
   "easydrag.ui.kv_add": "प्रविष्टि जोड़ें",
+  "easydrag.ui.kv_duplicate_key": "दो पंक्तियों की कुंजी एक ही है। यहाँ के बदलाव तब सहेजे जाएँगे जब हर कुंजी अनूठी होगी।",
   "easydrag.ui.kv_key": "कुंजी",
   "easydrag.ui.kv_value": "मान",
   "easydrag.ui.leave_text": "आपके पिछले बदलाव सहेजे नहीं जा सके। फिर भी बंद करें?",

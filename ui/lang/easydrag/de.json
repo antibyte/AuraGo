@@ -657,6 +657,7 @@
   "easydrag.ui.keys_zoom": "Hinein- oder herauszoomen",
   "easydrag.ui.keys_zoom_reset": "Auf 100 % zoomen",
   "easydrag.ui.kv_add": "Eintrag hinzufügen",
+  "easydrag.ui.kv_duplicate_key": "Zwei Zeilen haben denselben Schlüssel. Änderungen hier werden gespeichert, sobald jeder Schlüssel eindeutig ist.",
   "easydrag.ui.kv_key": "Schlüssel",
   "easydrag.ui.kv_value": "Wert",
   "easydrag.ui.leave_text": "Deine letzten Änderungen konnten nicht gespeichert werden. Trotzdem schließen?",

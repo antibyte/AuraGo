@@ -657,6 +657,7 @@
   "easydrag.ui.keys_zoom": "Μεγέθυνση ή σμίκρυνση",
   "easydrag.ui.keys_zoom_reset": "Ζουμ στο 100%",
   "easydrag.ui.kv_add": "Προσθήκη καταχώρισης",
+  "easydrag.ui.kv_duplicate_key": "Δύο γραμμές έχουν το ίδιο κλειδί. Οι αλλαγές εδώ αποθηκεύονται μόλις κάθε κλειδί γίνει μοναδικό.",
   "easydrag.ui.kv_key": "Κλειδί",
   "easydrag.ui.kv_value": "Τιμή",
   "easydrag.ui.leave_text": "Οι τελευταίες αλλαγές σου δεν αποθηκεύτηκαν. Να κλείσει παρ’ όλα αυτά;",

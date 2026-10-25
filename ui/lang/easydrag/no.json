@@ -657,6 +657,7 @@
   "easydrag.ui.keys_zoom": "Zoom inn eller ut",
   "easydrag.ui.keys_zoom_reset": "Zoom til 100 %",
   "easydrag.ui.kv_add": "Legg til oppføring",
+  "easydrag.ui.kv_duplicate_key": "To rader har samme nøkkel. Endringer her lagres så snart hver nøkkel er unik.",
   "easydrag.ui.kv_key": "Nøkkel",
   "easydrag.ui.kv_value": "Verdi",
   "easydrag.ui.leave_text": "De siste endringene dine kunne ikke lagres. Lukke likevel?",

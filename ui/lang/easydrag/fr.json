@@ -657,6 +657,7 @@
   "easydrag.ui.keys_zoom": "Zoom avant ou arrière",
   "easydrag.ui.keys_zoom_reset": "Zoom à 100 %",
   "easydrag.ui.kv_add": "Ajouter une entrée",
+  "easydrag.ui.kv_duplicate_key": "Deux lignes ont la même clé. Les modifications ne sont enregistrées ici que lorsque chaque clé est unique.",
   "easydrag.ui.kv_key": "Clé",
   "easydrag.ui.kv_value": "Valeur",
   "easydrag.ui.leave_text": "Vos dernières modifications n’ont pas pu être enregistrées. Fermer quand même ?",

@@ -1102,6 +1102,9 @@ await (await import('./test-easydrag-extra7.mjs')).run({ apps, types, t, miniDom
 // ── a1025: audit 2026-10-25, republish and timer state (test-easydrag-live-state.mjs, on the c1d07 sandbox) ──
 await (await import('./test-easydrag-live-state.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor });
 
+// ── a1025: audit 2026-10-25, key-value editor (test-easydrag-kv-editor.mjs, on the c1d07 sandbox) ──
+await (await import('./test-easydrag-kv-editor.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor });
+
 // ── start page preview and shortcut table ──
 const H = ED.home;
 const escHTML = v => String(v).replace(/[&<>"']/g, c => '&#' + c.charCodeAt(0) + ';');

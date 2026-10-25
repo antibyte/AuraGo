@@ -657,6 +657,7 @@
   "easydrag.ui.keys_zoom": "Přiblížit nebo oddálit",
   "easydrag.ui.keys_zoom_reset": "Zvětšení 100 %",
   "easydrag.ui.kv_add": "Přidat položku",
+  "easydrag.ui.kv_duplicate_key": "Dva řádky mají stejný klíč. Změny se zde uloží, jakmile bude každý klíč jedinečný.",
   "easydrag.ui.kv_key": "Klíč",
   "easydrag.ui.kv_value": "Hodnota",
   "easydrag.ui.leave_text": "Poslední změny se nepodařilo uložit. Přesto zavřít?",

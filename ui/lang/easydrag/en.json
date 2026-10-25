@@ -657,6 +657,7 @@
   "easydrag.ui.keys_zoom": "Zoom in or out",
   "easydrag.ui.keys_zoom_reset": "Zoom to 100 %",
   "easydrag.ui.kv_add": "Add entry",
+  "easydrag.ui.kv_duplicate_key": "Two rows have the same key. Changes here are saved once every key is unique.",
   "easydrag.ui.kv_key": "Key",
   "easydrag.ui.kv_value": "Value",
   "easydrag.ui.leave_text": "Your latest changes could not be saved. Close anyway?",

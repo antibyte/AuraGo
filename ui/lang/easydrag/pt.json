@@ -657,6 +657,7 @@
   "easydrag.ui.keys_zoom": "Ampliar ou reduzir",
   "easydrag.ui.keys_zoom_reset": "Zoom de 100%",
   "easydrag.ui.kv_add": "Adicionar entrada",
+  "easydrag.ui.kv_duplicate_key": "Duas linhas têm a mesma chave. As alterações aqui são guardadas assim que cada chave for única.",
   "easydrag.ui.kv_key": "Chave",
   "easydrag.ui.kv_value": "Valor",
   "easydrag.ui.leave_text": "Não foi possível salvar suas últimas alterações. Fechar mesmo assim?",

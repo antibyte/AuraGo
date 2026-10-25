@@ -657,6 +657,7 @@
   "easydrag.ui.keys_zoom": "Powiększ lub pomniejsz",
   "easydrag.ui.keys_zoom_reset": "Powiększenie 100%",
   "easydrag.ui.kv_add": "Dodaj wpis",
+  "easydrag.ui.kv_duplicate_key": "Dwa wiersze mają ten sam klucz. Zmiany zostaną tutaj zapisane, gdy każdy klucz będzie unikalny.",
   "easydrag.ui.kv_key": "Klucz",
   "easydrag.ui.kv_value": "Wartość",
   "easydrag.ui.leave_text": "Nie udało się zapisać ostatnich zmian. Zamknąć mimo to?",

@@ -657,6 +657,7 @@
   "easydrag.ui.keys_zoom": "In- of uitzoomen",
   "easydrag.ui.keys_zoom_reset": "Zoomen naar 100%",
   "easydrag.ui.kv_add": "Item toevoegen",
+  "easydrag.ui.kv_duplicate_key": "Twee rijen hebben dezelfde sleutel. Wijzigingen hier worden opgeslagen zodra elke sleutel uniek is.",
   "easydrag.ui.kv_key": "Sleutel",
   "easydrag.ui.kv_value": "Waarde",
   "easydrag.ui.leave_text": "Je laatste wijzigingen konden niet worden opgeslagen. Toch sluiten?",

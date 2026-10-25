@@ -657,6 +657,7 @@
   "easydrag.ui.keys_zoom": "Zoom ind eller ud",
   "easydrag.ui.keys_zoom_reset": "Zoom til 100 %",
   "easydrag.ui.kv_add": "Tilføj post",
+  "easydrag.ui.kv_duplicate_key": "To rækker har samme nøgle. Ændringer her gemmes, så snart hver nøgle er unik.",
   "easydrag.ui.kv_key": "Nøgle",
   "easydrag.ui.kv_value": "Værdi",
   "easydrag.ui.leave_text": "Dine seneste ændringer kunne ikke gemmes. Luk alligevel?",

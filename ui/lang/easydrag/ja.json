@@ -657,6 +657,7 @@
   "easydrag.ui.keys_zoom": "拡大・縮小",
   "easydrag.ui.keys_zoom_reset": "100% で表示",
   "easydrag.ui.kv_add": "項目を追加",
+  "easydrag.ui.kv_duplicate_key": "2 つの行が同じキーを持っています。すべてのキーが一意になると、ここでの変更が保存されます。",
   "easydrag.ui.kv_key": "キー",
   "easydrag.ui.kv_value": "値",
   "easydrag.ui.leave_text": "最新の変更を保存できませんでした。それでも閉じますか？",
