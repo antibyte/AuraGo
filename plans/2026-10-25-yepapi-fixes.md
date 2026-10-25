@@ -152,15 +152,16 @@
 
 **Files:** `internal/tools/yepapi_rate_limit.go` (new), `internal/tools/yepapi_rate_limit_test.go` (new), `internal/tools/yepapi.go`, `internal/tools/yepapi_test.go`, `prompts/tools_manuals/yepapi.md`
 
-- [ ] **Step 1:** Add a failing test `TestYepAPIRateLimiterAllowsSixtyPerMinute`. Use an injected clock. Fire 61 requests against one key and assert the 61st is delayed and the first 60 are not.
-- [ ] **Step 2:** Add a failing test `TestYepAPIRateLimiterSeparatesKeys`. Assert that a second key has its own budget.
-- [ ] **Step 3:** Add a failing test `TestYepAPI429ReturnsGuidanceWithoutResending`. Serve 429 from the `httptest` server, assert the error names the rate limit and that the server saw exactly one request.
-- [ ] **Step 4:** Run the three tests and confirm they fail.
-- [ ] **Step 5:** Implement a token bucket in `internal/tools/yepapi_rate_limit.go`: 60 tokens per key per minute, refilled continuously, keyed by API key. The bucket lives next to the client cache. Expose an internal `wait(ctx)` that blocks for the refill interval and respects `ctx.Done()`.
-- [ ] **Step 6:** Call `wait(ctx)` at the start of `postOnce`, before the request is built. A cancelled context returns a clear error and sends nothing.
-- [ ] **Step 7:** Add a dedicated 429 branch in `postOnce` that returns a message naming the per-minute limit and asking the caller to continue with other work, instead of the generic HTTP error text. Do not retry, do not sleep and do not resend.
-- [ ] **Step 8:** Run `go test ./internal/tools -count=1 -run 'YepAPI'` and confirm success, including `TestYepAPIPostDoesNotRepeatUncertainBillableRequests`, which must still see exactly one request for 429.
-- [ ] **Step 9:** Adjust the manual's rate-limit line to state that the client paces itself to the documented limit and that a 429 is reported to the model rather than retried.
+- [x] **Step 1:** Add a failing test `TestYepAPIRateLimiterAllowsSixtyPerMinute`. Use an injected clock. Fire 61 requests against one key and assert the 61st is delayed and the first 60 are not.
+- [x] **Step 2:** Add a failing test `TestYepAPIRateLimiterSeparatesKeys`. Assert that a second key has its own budget.
+- [x] **Step 3:** Add a failing test `TestYepAPI429ReturnsGuidanceWithoutResending`. Serve 429 from the `httptest` server, assert the error names the rate limit and that the server saw exactly one request.
+- [x] **Step 4:** Run the three tests and confirm they fail.
+- [x] **Step 5:** Implement a token bucket in `internal/tools/yepapi_rate_limit.go`: 60 tokens per key per minute, refilled continuously, keyed by API key. The bucket lives next to the client cache. Expose an internal `wait(ctx)` that blocks for the refill interval and respects `ctx.Done()`.
+- [x] **Step 6:** Call `wait(ctx)` at the start of `postOnce`, before the request is built. A cancelled context returns a clear error and sends nothing.
+- [x] **Step 7:** Add a dedicated 429 branch in `postOnce` that returns a message naming the per-minute limit and asking the caller to continue with other work, instead of the generic HTTP error text. Do not retry, do not sleep and do not resend.
+- [x] **Step 8:** Run `go test ./internal/tools -count=1 -run 'YepAPI'` and confirm success, including `TestYepAPIPostDoesNotRepeatUncertainBillableRequests`, which must still see exactly one request for 429.
+- [x] **Step 9:** Adjust the manual's rate-limit line to state that the client paces itself to the documented limit and that a 429 is reported to the model rather than retried.
+- **Note:** The token bucket was written before its unit tests, so `TestYepAPIRateLimiterAllowsSixtyPerMinute` and `TestYepAPIRateLimiterSeparatesKeys` passed from the start; the two integration tests failed first and prove the wiring (`TestYepAPIClientPacesRequestsToTheRateLimit` saw no wait at all, `TestYepAPI429ReturnsGuidanceWithoutResending` saw the generic HTTP error). Every test client now gets its own API key, because a shared key let the tests empty one 60-token bucket and stretched the suite from 0.8 s to 32 s. The bucket is keyed by a SHA-256 hash of the API key so the secret never becomes a map key. `YepAPICallError` gained `RejectedByProvider`: a refusal the provider made without doing any work (any 4xx, including the 429) is not booked, otherwise the manual sentence about rejected requests would be false for a 429.
 
 ---
 
