@@ -949,6 +949,9 @@ func extractErrorMessage(resultContent string) string {
 }
 
 type toolSchemaFilterOptions struct {
+	// PreferredTools are the tools a ranking picked, best first. Only these
+	// take an adaptive slot: a schema nobody ranked stays out even when slots
+	// are free (buildAdaptiveKnapsackOrder).
 	PreferredTools   []string
 	HardAlwaysTools  []string
 	SoftAlwaysTools  []string
@@ -964,9 +967,8 @@ type toolSchemaFilterOptions struct {
 	// model's stability limit. Being last, they are also the first schemas the
 	// request budget sheds. A hard tool listed here stays hard.
 	AdditiveTools []string
-	// AdaptiveExcludedTools are never picked by the adaptive ranking (neither
-	// as preferred tool nor as filler); they are kept only as hard, soft or
-	// additive tools.
+	// AdaptiveExcludedTools are never picked by the adaptive ranking; they are
+	// kept only as hard, soft or additive tools.
 	AdaptiveExcludedTools []string
 	// AdditiveSwaps maps an additive tool to the one tool it may replace
 	// when a cap leaves it no room: the replaced tool must have been picked
@@ -1183,7 +1185,7 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 	canAddAdaptive := func() bool {
 		return !opts.DisableAdaptive && (opts.MaxAdaptiveTools <= 0 || report.KeptAdaptive < opts.MaxAdaptiveTools)
 	}
-	adaptiveOrder := buildAdaptiveKnapsackOrder(schemaOrder, preferredOrder, consumed, hardSet, reservedSet, schemaTokens, opts.MaxSchemaTokens > 0)
+	adaptiveOrder := buildAdaptiveKnapsackOrder(preferredOrder, consumed, hardSet, reservedSet)
 	for _, name := range adaptiveOrder {
 		schema, ok := schemaByName[name]
 		if !ok || consumed[name] || !canAddAdaptive() {
@@ -1266,52 +1268,18 @@ func estimateSingleToolSchemaTokens(schema openai.Tool) int {
 	return roughTokenEstimate(len(b))
 }
 
-func buildAdaptiveKnapsackOrder(schemaOrder, preferredOrder []string, consumed map[string]bool, hardSet, softSet map[string]bool, schemaTokens map[string]int, tokenAware bool) []string {
-	preferredRank := make(map[string]int, len(preferredOrder))
-	for i, name := range preferredOrder {
-		preferredRank[name] = len(preferredOrder) - i
-	}
-	type candidate struct {
-		name         string
-		utility      int
-		tokens       int
-		originalRank int
-	}
-	candidates := make([]candidate, 0, len(schemaOrder))
-	for i, name := range schemaOrder {
-		if consumed[name] || hardSet[name] || softSet[name] {
+// buildAdaptiveKnapsackOrder lists the tools that may take an adaptive slot,
+// best first: the preferred ones, in rank order. A schema that no signal
+// ranked never takes a slot, however small it is; a slot nothing ranked stays
+// empty. A preferred tool that does not fit a cap is skipped by the caller and
+// the next one is tried.
+func buildAdaptiveKnapsackOrder(preferredOrder []string, consumed, hardSet, reservedSet map[string]bool) []string {
+	out := make([]string, 0, len(preferredOrder))
+	for _, name := range preferredOrder {
+		if consumed[name] || hardSet[name] || reservedSet[name] {
 			continue
 		}
-		utility := preferredRank[name]
-		if utility <= 0 {
-			utility = 1
-		}
-		tokens := schemaTokens[name]
-		if tokens <= 0 {
-			tokens = 1
-		}
-		candidates = append(candidates, candidate{
-			name:         name,
-			utility:      utility,
-			tokens:       tokens,
-			originalRank: i,
-		})
-	}
-	sort.SliceStable(candidates, func(i, j int) bool {
-		left, right := candidates[i], candidates[j]
-		lp, rp := preferredRank[left.name], preferredRank[right.name]
-		if lp != rp {
-			return lp > rp
-		}
-		if tokenAware && left.tokens != right.tokens {
-			return left.tokens < right.tokens
-		}
-		return left.originalRank < right.originalRank
-	})
-
-	out := make([]string, 0, len(candidates))
-	for _, candidate := range candidates {
-		out = append(out, candidate.name)
+		out = append(out, name)
 	}
 	return out
 }

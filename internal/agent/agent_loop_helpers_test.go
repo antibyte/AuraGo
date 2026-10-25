@@ -817,15 +817,15 @@ func TestFilterToolSchemas_MaxToolsZeroDisablesLimit(t *testing.T) {
 	}
 }
 
-func TestFilterToolSchemas_EmptyFrequentFallsBackToDropped(t *testing.T) {
+func TestFilterToolSchemas_NoRankedToolsLeavesTheSlotsEmpty(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("x"), makeTool("y"),
 	}
-	// No frequent tools, no alwaysInclude, maxTools=5 → remaining slots filled from dropped list
+	// No ranked tools and no alwaysInclude: free slots are not filled with
+	// unranked schemas, however small they are.
 	result := filterToolSchemas(schemas, []string{}, []string{}, 5, nil)
-	// Both tools land in 'dropped', then are added via remaining-slots fill-up
-	if len(result) != 2 {
-		t.Errorf("expected 2 tools from fill-up, got %d", len(result))
+	if len(result) != 0 {
+		t.Errorf("expected no tools without a ranking, got %v", toolNames(result))
 	}
 }
 
@@ -885,18 +885,17 @@ func TestFilterToolSchemas_AlwaysIncludeNotDuplicatedByFrequent(t *testing.T) {
 	}
 }
 
-func TestFilterToolSchemas_OriginalOrderPreservedForDropped(t *testing.T) {
-	// Dropped tools are appended in original schema order
+func TestFilterToolSchemas_RankedToolsKeepTheirRankAndUnrankedStayOut(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("rare1"), makeTool("rare2"), makeTool("rare3"),
 	}
-	result := filterToolSchemas(schemas, []string{}, []string{}, 2, nil)
-	if len(result) != 2 {
-		t.Fatalf("expected 2 tools, got %d", len(result))
+	result := filterToolSchemas(schemas, []string{"rare3"}, []string{}, 2, nil)
+	if len(result) != 1 || result[0].Function.Name != "rare3" {
+		t.Fatalf("expected only the ranked rare3, got %v", toolNames(result))
 	}
-	if result[0].Function.Name != "rare1" || result[1].Function.Name != "rare2" {
-		t.Errorf("expected original order rare1,rare2; got %s,%s",
-			result[0].Function.Name, result[1].Function.Name)
+	result = filterToolSchemas(schemas, []string{"rare3", "rare1", "rare2"}, []string{}, 2, nil)
+	if got := strings.Join(toolNames(result), ","); got != "rare3,rare1" {
+		t.Fatalf("expected the ranking order rare3,rare1; got %s", got)
 	}
 }
 
@@ -1030,7 +1029,7 @@ func TestFilterToolSchemasWithReport_HardToolsSurviveSchemaTokenBudget(t *testin
 	}
 }
 
-func TestFilterToolSchemasWithReport_TokenBudgetPrefersSmallerAdaptiveTool(t *testing.T) {
+func TestFilterToolSchemasWithReport_TokenBudgetSkipsTheRankedToolThatDoesNotFit(t *testing.T) {
 	schemas := []openai.Tool{
 		makeSizedTool("discover_tools", "hard catalog"),
 		makeSizedTool("large_tool", strings.Repeat("large schema text ", 300)),

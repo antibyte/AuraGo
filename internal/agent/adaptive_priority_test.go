@@ -2,6 +2,7 @@ package agent
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	openai "github.com/sashabaranov/go-openai"
@@ -226,3 +227,40 @@ func TestRankAdaptiveToolsSkipsHeldToolsAsSeeds(t *testing.T) {
 		}
 	}
 }
+
+// Only ranked tools take an adaptive slot. Free slots stay empty instead of
+// going to the smallest schemas, and the usage tail of the ranking is what
+// fills them.
+func TestAdaptiveSlotsAreNeverFilledBySize(t *testing.T) {
+	schemas := []openai.Tool{
+		sizedFilterSchema("big", 800), sizedFilterSchema("ranked", 400), sizedFilterSchema("tiny_a", 4), sizedFilterSchema("tiny_b", 4),
+		sizedFilterSchema("used", 200), sizedFilterSchema("soft", 100),
+	}
+	names := func(opts toolSchemaFilterOptions) string {
+		return joinNames(filterToolSchemasWithReport(schemas, opts, nil).Tools)
+	}
+	// Two ranked tools and five free slots: the small schemas stay out.
+	if got := names(toolSchemaFilterOptions{PreferredTools: []string{"ranked", "big"}, MaxAdaptiveTools: 5}); got != "ranked,big" {
+		t.Fatalf("free slots were filled by size: %s", got)
+	}
+	if got := names(toolSchemaFilterOptions{MaxAdaptiveTools: 5, SoftAlwaysTools: []string{"soft"}}); got != "soft" {
+		t.Fatalf("without a ranking only the soft tools remain: %s", got)
+	}
+	// A ranked tool that does not fit the token cap is skipped; the next ranked one is tried.
+	fit := estimateSingleToolSchemaTokens(schemas[1]) + estimateSingleToolSchemaTokens(schemas[4])
+	if got := names(toolSchemaFilterOptions{PreferredTools: []string{"big", "ranked", "used"}, MaxAdaptiveTools: 5, MaxSchemaTokens: fit}); got != "ranked,used" {
+		t.Fatalf("the token cap must skip the tool that does not fit: %s", got)
+	}
+
+	// The usage tail of the ranking fills the free slots with the tools the
+	// user relies on, behind everything the request ranked.
+	priority := buildAdaptiveToolPriority(schemas, []string{"used", "tiny_b"}, "qqzzx plugh", nil, nil)
+	if !slices.Equal(priority, []string{"used", "tiny_b"}) {
+		t.Fatalf("ranking for an unmatched request = %v, want the usage tail", priority)
+	}
+	if got := names(toolSchemaFilterOptions{PreferredTools: priority, MaxAdaptiveTools: 5}); got != "used,tiny_b" {
+		t.Fatalf("usage tail did not fill the slots: %s", got)
+	}
+}
+
+func joinNames(schemas []openai.Tool) string { return strings.Join(toolSchemaNames(schemas), ",") }
