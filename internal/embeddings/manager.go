@@ -596,6 +596,7 @@ func (manager *Manager) startCandidate(ctx context.Context, current candidate) (
 				manager.options.BatchSize,
 			)
 			if sidecarErr == nil {
+				sidecar.logger = manager.logger
 				return sidecar, nil
 			}
 			manager.logger.Warn("Managed llama.cpp Docker sidecar unavailable; trying the isolated native runtime",
@@ -618,7 +619,7 @@ func (manager *Manager) startCandidate(ctx context.Context, current candidate) (
 			}
 			supplementalRoots = append(supplementalRoots, supplementalRoot)
 		}
-		return newLlamaEmbedder(
+		native, err := newLlamaEmbedder(
 			startupCtx,
 			runtimeRoot,
 			ggufPath,
@@ -627,6 +628,11 @@ func (manager *Manager) startCandidate(ctx context.Context, current candidate) (
 			manager.options.BatchSize,
 			supplementalRoots...,
 		)
+		if err != nil {
+			return nil, err
+		}
+		native.logger = manager.logger
+		return native, nil
 	default:
 		return nil, fmt.Errorf("unknown candidate runtime %q", current.Runtime)
 	}

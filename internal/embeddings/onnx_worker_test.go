@@ -413,6 +413,128 @@ func TestONNXWorkerCloseDuringRespawnStopsFreshProcess(t *testing.T) {
 	}
 }
 
+// gatedRespawn is a worker whose first process is dead and whose respawn
+// blocks until the test releases it, like a model load that outlasts the
+// callers' deadlines.
+type gatedRespawn struct {
+	worker       *onnxWorkerEmbedder
+	budget       *restartBudget
+	fresh        *fakeONNXProcess
+	startContext chan context.Context
+	release      chan struct{}
+	open         func() // lets the blocked respawn finish; safe to call twice
+	starts       atomic.Int32
+}
+
+func newGatedRespawn(t *testing.T) *gatedRespawn {
+	t.Helper()
+	gate := &gatedRespawn{
+		budget:       newRestartBudget(maxProcessRestarts, processRestartWindow),
+		fresh:        newFakeONNXProcess(t, false),
+		startContext: make(chan context.Context, 4),
+		release:      make(chan struct{}),
+	}
+	gate.open = sync.OnceFunc(func() { close(gate.release) })
+	dead := newFakeONNXProcess(t, false)
+	gate.worker = newTestONNXWorker(t, func(ctx context.Context, _ onnxWorkerOptions) (*onnxWorkerConn, error) {
+		if gate.starts.Add(1) == 1 {
+			return dead.conn, nil
+		}
+		gate.startContext <- ctx
+		select {
+		case <-gate.release:
+			return gate.fresh.conn, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}, gate.budget)
+	// Runs before the worker's own Close: a failed assertion must not leave
+	// the respawn blocking it.
+	t.Cleanup(gate.open)
+	dead.die()
+	if _, err := gate.worker.Embed(context.Background(), []string{"hits the dead process"}); err == nil {
+		t.Fatal("Embed on a dead worker succeeded")
+	}
+	return gate
+}
+
+// callerLeaves runs an Embed that needs the respawn and gives up after
+// 30 ms. It returns the context the respawn runs under.
+func (gate *gatedRespawn) callerLeaves(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+	if outcome := awaitOutcome(t, embedAsync(gate.worker, ctx, "caller leaves")); !errors.Is(outcome.err, context.DeadlineExceeded) {
+		t.Fatalf("caller error = %v, want its deadline error", outcome.err)
+	}
+	select {
+	case startCtx := <-gate.startContext:
+		return startCtx
+	case <-time.After(5 * time.Second):
+		t.Fatal("the respawn never began")
+		return nil
+	}
+}
+
+// A respawn that takes longer than the callers' deadlines used to be cut off
+// with the caller, refunded, and begun again by the next request: the worker
+// never came back. The respawn now runs on its own deadline; the caller that
+// triggered it returns at its own, and the slot stays with the respawn so that
+// no second start can race it.
+func TestONNXWorkerRespawnOutlivesTheCallerThatStartedIt(t *testing.T) {
+	gate := newGatedRespawn(t)
+	startCtx := gate.callerLeaves(t)
+
+	if startCtx.Err() != nil {
+		t.Fatalf("the caller's deadline ended the respawn: %v", startCtx.Err())
+	}
+	if deadline, ok := startCtx.Deadline(); !ok || time.Until(deadline) < onnxStartupTimeout/2 {
+		t.Fatalf("respawn deadline = %v (set %v), want about %s from now", deadline, ok, onnxStartupTimeout)
+	}
+	if gate.budget.remaining() != maxProcessRestarts-1 {
+		t.Fatalf("budget = %d: the caller's exit gave the respawn token back", gate.budget.remaining())
+	}
+	// The slot belongs to the respawn until it ends.
+	impatient, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if outcome := awaitOutcome(t, embedAsync(gate.worker, impatient, "impatient")); !errors.Is(outcome.err, context.DeadlineExceeded) {
+		t.Fatalf("slot wait error = %v, want context.DeadlineExceeded", outcome.err)
+	}
+
+	gate.open()
+	outcome := awaitOutcome(t, embedAsync(gate.worker, context.Background(), "after the respawn"))
+	if outcome.err != nil || len(outcome.vectors) != 1 {
+		t.Fatalf("request after the respawn = %v, %v; want the fresh process to answer", outcome.vectors, outcome.err)
+	}
+	gate.fresh.nextRequest(t)
+	if gate.starts.Load() != 2 || gate.budget.remaining() != maxProcessRestarts-1 || gate.fresh.kills.Load() != 0 {
+		t.Fatalf("starts=%d budget=%d kills=%d, want one respawn adopted and kept", gate.starts.Load(), gate.budget.remaining(), gate.fresh.kills.Load())
+	}
+}
+
+// Close while an abandoned respawn is still running must neither wait for it
+// forever nor leak the process it produces or the slot it holds.
+func TestONNXWorkerCloseWhileAbandonedRespawnRunsStopsTheFreshProcess(t *testing.T) {
+	gate := newGatedRespawn(t)
+	gate.worker.closeWait = 30 * time.Millisecond
+	gate.callerLeaves(t)
+
+	if err := gate.worker.Close(); err != nil { // gives up waiting for the slot
+		t.Fatalf("Close during the respawn = %v", err)
+	}
+	gate.open()
+	deadline := time.Now().Add(5 * time.Second)
+	for (gate.fresh.kills.Load() != 1 || len(gate.worker.slot) != 0) && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if gate.fresh.kills.Load() != 1 || len(gate.worker.slot) != 0 {
+		t.Fatalf("fresh process kills=%d slot held=%d, want it stopped and the slot freed", gate.fresh.kills.Load(), len(gate.worker.slot))
+	}
+	if _, err := gate.worker.Embed(context.Background(), []string{"after close"}); !errors.Is(err, errONNXWorkerClosed) {
+		t.Fatalf("Embed after Close = %v, want the closed error", err)
+	}
+}
+
 // captureHandler records log records so a test can assert on them.
 type captureHandler struct {
 	mu      sync.Mutex

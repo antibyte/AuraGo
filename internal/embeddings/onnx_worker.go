@@ -336,6 +336,8 @@ func (worker *onnxWorkerEmbedder) Embed(ctx context.Context, texts []string) ([]
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+	// The slot goes to a goroutine (drain or finishRespawn) when the caller
+	// leaves while the process still works for it.
 	handedToDrain := false
 	defer func() {
 		if !handedToDrain {
@@ -347,7 +349,10 @@ func (worker *onnxWorkerEmbedder) Embed(ctx context.Context, texts []string) ([]
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	conn, err := worker.connection(ctx)
+	conn, slotHandedOff, err := worker.connection(ctx)
+	if slotHandedOff {
+		handedToDrain = true
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -450,39 +455,74 @@ func (worker *onnxWorkerEmbedder) dropAfterDrain(conn *onnxWorkerConn, requestID
 
 // connection returns the live process, starting a new one when the previous
 // died on its own and the restart budget allows it. Caller holds the slot.
-func (worker *onnxWorkerEmbedder) connection(ctx context.Context) (*onnxWorkerConn, error) {
+//
+// The start runs on its own deadline, detached from ctx: a model load can take
+// longer than the callers' deadlines, and a start that died with its caller was
+// refunded and begun again by the next request, so the worker never came back.
+// A caller whose ctx ends first gets its ctx error and slotHandedOff: the slot
+// then belongs to finishRespawn, and the respawn token stays spent.
+func (worker *onnxWorkerEmbedder) connection(ctx context.Context) (conn *onnxWorkerConn, slotHandedOff bool, err error) {
 	worker.stateMu.Lock()
-	closed, conn := worker.closed, worker.conn
+	closed, current := worker.closed, worker.conn
 	worker.stateMu.Unlock()
 	if closed {
-		return nil, errONNXWorkerClosed
+		return nil, false, errONNXWorkerClosed
 	}
-	if conn != nil {
-		return conn, nil
+	if current != nil {
+		return current, false, nil
 	}
 	if !worker.respawns.take() {
-		return nil, fmt.Errorf("ONNX worker restart limit reached (%d per %s)", maxProcessRestarts, processRestartWindow)
+		return nil, false, fmt.Errorf("ONNX worker restart limit reached (%d per %s)", maxProcessRestarts, processRestartWindow)
 	}
-	startCtx, cancel := context.WithTimeout(ctx, onnxStartupTimeout)
-	defer cancel()
-	fresh, err := worker.start(startCtx, worker.options)
-	if err != nil {
-		if isCallerError(ctx, err) {
-			// Cut short by the caller; says nothing about the worker.
-			worker.respawns.release()
-			return nil, err
-		}
-		return nil, fmt.Errorf("restart ONNX worker: %w", err)
+	startCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), onnxStartupTimeout)
+	started := make(chan onnxRespawn, 1)
+	go func() {
+		defer cancel()
+		fresh, err := worker.start(startCtx, worker.options)
+		started <- onnxRespawn{conn: fresh, err: err}
+	}()
+	select {
+	case respawn := <-started:
+		fresh, err := worker.adoptRespawn(respawn)
+		return fresh, false, err
+	case <-ctx.Done():
+		go worker.finishRespawn(started)
+		return nil, true, ctx.Err()
+	}
+}
+
+// onnxRespawn is the outcome of one worker start.
+type onnxRespawn struct {
+	conn *onnxWorkerConn
+	err  error
+}
+
+// adoptRespawn makes the process of a finished start the live one, unless the
+// embedder was closed meanwhile: then the process is stopped, not leaked.
+func (worker *onnxWorkerEmbedder) adoptRespawn(respawn onnxRespawn) (*onnxWorkerConn, error) {
+	if respawn.err != nil {
+		return nil, fmt.Errorf("restart ONNX worker: %w", respawn.err)
 	}
 	worker.stateMu.Lock()
 	if worker.closed {
 		worker.stateMu.Unlock()
-		_ = fresh.stop()
+		_ = respawn.conn.stop()
 		return nil, errONNXWorkerClosed
 	}
-	worker.adoptLocked(fresh)
+	worker.adoptLocked(respawn.conn)
 	worker.stateMu.Unlock()
-	return fresh, nil
+	return respawn.conn, nil
+}
+
+// finishRespawn owns the slot of a respawn whose caller left, the way drain
+// owns the slot of an abandoned request: it waits for the start (which ends by
+// itself at onnxStartupTimeout), adopts the process for the next request, logs
+// a failure that no caller is left to receive, and frees the slot.
+func (worker *onnxWorkerEmbedder) finishRespawn(started <-chan onnxRespawn) {
+	defer func() { <-worker.slot }()
+	if _, err := worker.adoptRespawn(<-started); err != nil && !errors.Is(err, errONNXWorkerClosed) {
+		worker.logger.Warn("ONNX worker respawn failed after its caller left", "error", err)
+	}
 }
 
 // adoptLocked makes conn the live process. Callers other than the constructor

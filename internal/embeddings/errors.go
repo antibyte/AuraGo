@@ -16,6 +16,12 @@ var (
 	// reindex waits for a process restart. Benchmarking in that state could
 	// activate a backend of another vector space before the reindex has run.
 	ErrRestartRequired = errors.New("a local embedding restart is pending; restart AuraGo before running another benchmark")
+
+	// errBackendUnresponsive marks a llama.cpp server that kept running into
+	// its callers' deadlines and then failed a liveness probe. The callers'
+	// deadline errors describe the server in that case, so it wraps one but is
+	// not a caller error.
+	errBackendUnresponsive = errors.New("embedding backend unresponsive")
 )
 
 // isCallerError reports whether err was caused by the caller rather than by an
@@ -25,6 +31,10 @@ var (
 // describes a failing backend.
 func isCallerError(ctx context.Context, err error) bool {
 	if err == nil {
+		return false
+	}
+	// Checked before the context: the wrapped deadline error is the caller's.
+	if errors.Is(err, errBackendUnresponsive) {
 		return false
 	}
 	if errors.Is(err, ErrInvalidInput) {

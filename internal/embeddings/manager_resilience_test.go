@@ -136,6 +136,83 @@ func TestManagerEmbedRejectsEmptyInputWithoutTouchingBackend(t *testing.T) {
 	}
 }
 
+// supervisedLlamaEmbedder runs the shared llama restart policy over a fake
+// server, so the manager sees the errors a real llama.cpp embedder returns.
+type supervisedLlamaEmbedder struct {
+	countingEmbedder
+	server *fakeLlamaServer
+	budget *restartBudget
+}
+
+func (embedder *supervisedLlamaEmbedder) Embed(ctx context.Context, texts []string) ([][]float32, error) {
+	return embedWithRestarts(ctx, embedder.budget, embedder.server.ops(), texts)
+}
+
+// A llama-server that hangs only ever produces its callers' deadline errors,
+// which are rightly no backend failure. Once the embedder has probed the
+// server and found it dead, the manager must see a real backend failure: it
+// counts, degrades the status and serves the call from the fallback.
+func TestManagerEmbedCountsAHungLlamaServerAsBackendFailure(t *testing.T) {
+	ready := make(chan struct{})
+	close(ready)
+	active := &supervisedLlamaEmbedder{
+		countingEmbedder: countingEmbedder{status: Status{Runtime: "llama.cpp", Backend: "cuda", Fingerprint: onnxFingerprint()}},
+		server: &fakeLlamaServer{
+			up:       true,
+			embedCtx: hangingEmbed,
+			hangs:    &llamaHangState{probeTimeout: 20 * time.Millisecond},
+			logger:   discardEmbeddingLogger(),
+		},
+		budget: newRestartBudget(maxProcessRestarts, processRestartWindow),
+	}
+	fallback := &countingEmbedder{
+		status:  Status{Runtime: "onnxruntime", Backend: "cpu", Fingerprint: onnxFingerprint()},
+		vectors: [][]float32{unitTestVector()},
+	}
+	rootCtx, cancelRoot := context.WithCancel(context.Background())
+	manager := &Manager{
+		active:   active,
+		fallback: fallback,
+		status:   Status{State: "ready"},
+		ready:    ready,
+		logger:   discardEmbeddingLogger(),
+		rootCtx:  rootCtx,
+		cancel:   cancelRoot,
+		setupOverride: func(context.Context, bool) error {
+			return nil
+		},
+	}
+	defer manager.Close()
+
+	embed := func() ([][]float32, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+		defer cancel()
+		return manager.Embed(ctx, []string{"text"})
+	}
+	for call := 1; call < llamaHangThreshold; call++ {
+		if _, err := embed(); !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("call %d error = %v, want the caller's deadline error", call, err)
+		}
+		manager.mu.RLock()
+		failures, state := manager.failures, manager.status.State
+		manager.mu.RUnlock()
+		if failures != 0 || state != "ready" {
+			t.Fatalf("call %d: a caller deadline changed manager health: failures=%d state=%s", call, failures, state)
+		}
+	}
+
+	vectors, err := embed()
+	if err != nil || len(vectors) != 1 {
+		t.Fatalf("call %d = %v, %v; want the fallback to serve it", llamaHangThreshold, vectors, err)
+	}
+	manager.mu.RLock()
+	failures, state := manager.failures, manager.status.State
+	manager.mu.RUnlock()
+	if failures != 1 || state != "degraded" || fallback.calls.Load() != 1 || active.server.stops != 1 {
+		t.Fatalf("hung server not recorded: failures=%d state=%s fallbackCalls=%d stops=%d", failures, state, fallback.calls.Load(), active.server.stops)
+	}
+}
+
 // While a scheduled reindex waits for a restart, a benchmark could activate a
 // backend of another vector space and lift the restart lock too early.
 func TestRebenchmarkRefusedWhileRestartPending(t *testing.T) {
@@ -220,10 +297,6 @@ func TestRestartBudgetSlidesOverTheWindow(t *testing.T) {
 	now = now.Add(7*time.Minute + time.Second)
 	if budget.remaining() != 1 || !budget.take() {
 		t.Fatalf("window did not slide: remaining=%d", budget.remaining())
-	}
-	budget.release()
-	if budget.remaining() != 1 {
-		t.Fatalf("release did not return the restart: remaining=%d", budget.remaining())
 	}
 }
 

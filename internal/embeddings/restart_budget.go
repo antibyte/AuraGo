@@ -49,16 +49,6 @@ func (budget *restartBudget) take() bool {
 	return true
 }
 
-// release gives back the most recent restart. It is for restarts that were cut
-// short by the caller's own context, which say nothing about the process.
-func (budget *restartBudget) release() {
-	budget.mu.Lock()
-	defer budget.mu.Unlock()
-	if len(budget.taken) > 0 {
-		budget.taken = budget.taken[:len(budget.taken)-1]
-	}
-}
-
 // remaining returns how many restarts the window still allows.
 func (budget *restartBudget) remaining() int {
 	budget.mu.Lock()
