@@ -114,10 +114,12 @@ func (e *Engine) Services() *Services { return e.services }
 // it runs, live or test, whatever revision the flow was published under; its
 // on_error setting decides only what follows the failure.
 //
-// The first terminal outcome wins: a stop signal is ignored once a node failed
-// or the run was cancelled or timed out. A run is reported cancelled or timed
-// out only if that actually interrupted a node; a run whose nodes all finished
-// is a success.
+// The first terminal outcome wins: a stop signal is ignored once a node failed or the run was
+// cancelled or timed out, and a stop with an error keeps its outcome over later failures. After
+// a stop, nodes still running get a grace (30 s, the services clock) to finish; then they are
+// cancelled, and their steps carry EffectUncertain when the node has an outward effect. One of
+// them that fails under on_error "stop" after a stop with success makes the run fail. A run is
+// reported cancelled or timed out only if that actually interrupted a node.
 //
 // Stuck nodes: after the run's context ended (failure, stop, cancel or timeout),
 // Execute waits a grace period (30 s) for running nodes, then abandons the ones

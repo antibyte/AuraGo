@@ -121,6 +121,7 @@ var schemaStatements = []string{
 		ports_json TEXT NOT NULL DEFAULT 'null',
 		error_code TEXT NOT NULL DEFAULT '',
 		error_message TEXT NOT NULL DEFAULT '',
+		effect_uncertain INTEGER NOT NULL DEFAULT 0,
 		PRIMARY KEY (run_id, seq)
 	)`,
 	`CREATE TABLE IF NOT EXISTS flow_timers (
@@ -154,6 +155,7 @@ var schemaStatements = []string{
 // creates them in a new one. An older AuraGo ignores them (its statements name their columns).
 var storeColumns = []struct{ table, column, definition string }{
 	{"flow_runs", "doc_hash", "TEXT NOT NULL DEFAULT ''"},
+	{"flow_run_steps", "effect_uncertain", "INTEGER NOT NULL DEFAULT 0"},
 }
 
 // storeIndexes need the columns of storeColumns.

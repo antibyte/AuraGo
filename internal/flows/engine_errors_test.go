@@ -170,6 +170,7 @@ func TestEngineStopNode(t *testing.T) {
 	reg := newTestRegistry(t)
 	registerHang(reg, 10*time.Second, nil)
 	eng := newTestEngine(reg, nil, 4)
+	eng.abandonAfter = 50 * time.Millisecond // the stop's grace for the hanging sibling (E3)
 
 	b, tr, _ := singleNodeFlow("StopError", "halt", TypeStop, map[string]any{"status": "error", "message": "Abbruch: {{trigger.data.why}}"})
 	res, _ := runWith(context.Background(), eng, b.build(), RunRequest{TriggerNode: tr, TriggerData: map[string]any{"why": "test"}})

@@ -222,13 +222,17 @@ func (s *Store) SaveStep(ctx context.Context, runID string, seq int, step StepRe
 	if step.OutputTruncated {
 		outputTruncated = 1
 	}
+	effectUncertain := 0
+	if step.EffectUncertain {
+		effectUncertain = 1
+	}
 	res, err := s.db.ExecContext(ctx, `INSERT OR REPLACE INTO flow_run_steps (run_id, seq, node_id, node_key, attempt, status,
 		started_at, finished_at, duration_ms, params_json, params_truncated, output_json, output_truncated, item_count,
-		ports_json, error_code, error_message)
-		SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flow_runs WHERE id = ?)`,
+		ports_json, error_code, error_message, effect_uncertain)
+		SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flow_runs WHERE id = ?)`,
 		runID, seq, step.NodeID, step.NodeKey, step.Attempt, string(step.Status), formatTime(step.StartedAt),
 		formatTime(step.FinishedAt), step.DurationMS, params, paramsTruncated, output, outputTruncated, step.ItemCount,
-		string(ports), step.ErrorCode, s.scrubText(step.ErrorMessage), runID)
+		string(ports), step.ErrorCode, s.scrubText(step.ErrorMessage), effectUncertain, runID)
 	if err != nil {
 		return err
 	}
@@ -257,7 +261,7 @@ func (s *Store) GetRun(ctx context.Context, runID string) (*RunRecord, []StepRec
 		return nil, nil, err
 	}
 	rows, err := s.db.QueryContext(ctx, `SELECT node_id, node_key, attempt, status, started_at, finished_at, duration_ms,
-		params_json, params_truncated, output_json, output_truncated, item_count, ports_json, error_code, error_message
+		params_json, params_truncated, output_json, output_truncated, item_count, ports_json, error_code, error_message, effect_uncertain
 		FROM flow_run_steps WHERE run_id = ? ORDER BY seq`, runID)
 	if err != nil {
 		return nil, nil, err
@@ -267,9 +271,9 @@ func (s *Store) GetRun(ctx context.Context, runID string) (*RunRecord, []StepRec
 	for rows.Next() {
 		var st StepRecord
 		var status, startedAt, finishedAt, params, output, ports string
-		var paramsTruncated, outputTruncated int
+		var paramsTruncated, outputTruncated, effectUncertain int
 		if err := rows.Scan(&st.NodeID, &st.NodeKey, &st.Attempt, &status, &startedAt, &finishedAt, &st.DurationMS,
-			&params, &paramsTruncated, &output, &outputTruncated, &st.ItemCount, &ports, &st.ErrorCode, &st.ErrorMessage); err != nil {
+			&params, &paramsTruncated, &output, &outputTruncated, &st.ItemCount, &ports, &st.ErrorCode, &st.ErrorMessage, &effectUncertain); err != nil {
 			return nil, nil, err
 		}
 		st.Status = StepStatus(status)
@@ -277,6 +281,7 @@ func (s *Store) GetRun(ctx context.Context, runID string) (*RunRecord, []StepRec
 		st.FinishedAt = parseTime(finishedAt)
 		st.ParamsTruncated = paramsTruncated == 1
 		st.OutputTruncated = outputTruncated == 1
+		st.EffectUncertain = effectUncertain == 1
 		_ = json.Unmarshal([]byte(params), &st.Params)
 		_ = json.Unmarshal([]byte(output), &st.Output)
 		_ = json.Unmarshal([]byte(ports), &st.Ports)

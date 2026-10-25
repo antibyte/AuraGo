@@ -31,6 +31,8 @@ type nodeInfo struct {
 	// refusal is the failure the node gets instead of running, nil for a node that runs
 	// (see secretTargetRefusals).
 	refusal *NodeError
+	// hasEffects records that the node declares an outward effect (declaresEffects).
+	hasEffects bool
 }
 
 // runState is owned by the coordinator goroutine of one run.
@@ -121,6 +123,7 @@ func (s *runState) checkFlow() (code, msg, nodeID string) {
 		if ne != nil {
 			return ne.Code, ne.Message, id
 		}
+		info.hasEffects = declaresEffects(info.def, s.g.nodes[id])
 		s.info[id] = info
 	}
 	for id, ne := range secretTargetRefusals(f, s.e.reg) {
@@ -130,6 +133,19 @@ func (s *runState) checkFlow() (code, msg, nodeID string) {
 		}
 	}
 	return "", "", ""
+}
+
+// declaresEffects reports whether n's definition names an outward effect (NodeDef.EffectsOf). A
+// hook that panics counts as one: "effect may have happened" is the safe side.
+func declaresEffects(def *NodeDef, n *Node) bool {
+	if def == nil {
+		return false
+	}
+	var fx []Effect
+	if catchPanic(func() { fx = def.EffectsOf(n) }) != nil {
+		return true
+	}
+	return len(fx) > 0
 }
 
 // describeNode looks up n's definition and evaluates its port hooks. A panic in
@@ -201,6 +217,10 @@ func (s *runState) run(parent context.Context) RunResult {
 	ctxDone := ctx.Done()
 	var grace *time.Timer
 	var giveUp <-chan time.Time
+	// stopCut ends the grace that steps still running get after a stop node (E3); then the rest
+	// is cancelled. stopping records that the grace was started.
+	var stopCut <-chan time.Time
+	stopping := false
 	var ready []string
 	s.collectReady(&ready)
 loop:
@@ -217,10 +237,19 @@ loop:
 		case d := <-done:
 			s.running--
 			s.complete(ctx, d)
-			if s.failure != nil || s.stop != nil {
+			switch {
+			case s.failure != nil:
 				cancel()
+			case s.stop != nil && !stopping && s.running > 0:
+				// A stop ends the run, but steps that are running may be sending something right
+				// now: they get the abandon grace to finish before the rest is cancelled.
+				stopping = true
+				stopCut = s.e.services.clock().After(s.e.abandonAfter)
 			}
 			s.collectReady(&ready)
+		case <-stopCut:
+			stopCut = nil
+			cancel()
 		case <-ctxDone:
 			// Running nodes get a real-time grace to return after the run ended.
 			ctxDone = nil
@@ -396,7 +425,8 @@ func (s *runState) abandonRunning(ctx context.Context, done <-chan nodeDone) {
 		now := s.e.services.Now()
 		step := StepRecord{NodeID: id, NodeKey: n.Key, Status: StepCancelled,
 			StartedAt: s.launched[id], FinishedAt: now, DurationMS: now.Sub(s.launched[id]).Milliseconds(),
-			ErrorCode: "FLOW_NODE_ABANDONED", ErrorMessage: "the node did not stop after the run ended"}
+			ErrorCode: "FLOW_NODE_ABANDONED", ErrorMessage: "the node did not stop after the run ended",
+			EffectUncertain: s.info[id].hasEffects}
 		s.steps = append(s.steps, step)
 		s.publish(RunEvent{Type: EventStepFinished, NodeID: id, Step: &step})
 	}
@@ -440,6 +470,7 @@ func (s *runState) complete(ctx context.Context, d nodeDone) {
 		s.status[n.ID] = StepCancelled
 		s.skipOutgoing(n.ID)
 		s.interrupted = true
+		step.EffectUncertain = info.hasEffects
 	case d.err != nil:
 		s.status[n.ID] = StepError
 		errOut := map[string]any{"error": map[string]any{"code": d.err.Code, "message": d.err.Message}}
@@ -583,16 +614,15 @@ func (s *runState) closeOpenNodes() {
 func (s *runState) conclude(parent, ctx context.Context) RunResult {
 	s.closeOpenNodes()
 	switch {
-	case s.stop != nil:
-		if s.stop.Status == RunError {
-			msg := s.stop.Message
-			if msg == "" {
-				msg = "the flow was stopped with an error"
-			}
-			return s.finish(RunError, "FLOW_STOPPED", msg, "")
+	case s.stop != nil && s.stop.Status == RunError:
+		msg := s.stop.Message
+		if msg == "" {
+			msg = "the flow was stopped with an error"
 		}
-		return s.finish(RunSuccess, "", "", "")
+		return s.finish(RunError, "FLOW_STOPPED", msg, "")
 	case s.failure != nil:
+		// A failure before any stop, or one of a step still running after a stop with success:
+		// the stop does not hide it (E3).
 		label := s.failedID
 		if n := s.g.nodes[s.failedID]; n != nil {
 			label = n.Label
@@ -601,6 +631,8 @@ func (s *runState) conclude(parent, ctx context.Context) RunResult {
 			}
 		}
 		return s.finish(RunError, s.failure.Code, truncateRunes(label, maxErrorLabelRunes)+": "+s.failure.Message, s.failedID)
+	case s.stop != nil:
+		return s.finish(RunSuccess, "", "", "")
 	case s.interrupted && parent.Err() != nil:
 		return s.finish(RunCancelled, "FLOW_CANCELLED", "the run was cancelled", "")
 	case s.interrupted && errors.Is(ctx.Err(), context.DeadlineExceeded):
