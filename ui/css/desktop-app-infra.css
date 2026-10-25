@@ -43,7 +43,7 @@
 .infra-button-primary { border-color: transparent; background: var(--vd-accent); color: var(--vd-accent-contrast); }
 .infra-button-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--vd-accent) 86%, var(--vd-text)); }
 .infra-split > .infra-button:first-child { border-radius: var(--ds-radius-sm) 0 0 var(--ds-radius-sm); }
-.infra-split-more { width: 28px; padding: 0; border-radius: 0 var(--ds-radius-sm) var(--ds-radius-sm) 0; }
+.infra-split-more { width: 32px; padding: 0; border-radius: 0 var(--ds-radius-sm) var(--ds-radius-sm) 0; }
 .infra-danger-button { color: var(--infra-bad-text) !important; }
 
 .infra-layer { position: absolute; inset: 0; z-index: 30; pointer-events: none; }
@@ -174,7 +174,7 @@
 .infra-form-heading { min-height: 23px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 7px; color: var(--vd-theme-muted); font-size: 14px; flex-wrap: wrap; }
 .infra-form-heading h3 { margin-right: auto; }
 .infra-field { min-width: 0; margin: 7px 0 0; display: flex; flex-direction: column; gap: 5px; color: var(--vd-theme-muted); font-size: 14px; }
-.infra-field > span { text-transform: capitalize; }
+.infra-field > span { text-transform: none; }
 .infra-field input, .infra-field select, .infra-field textarea { width: 100%; min-width: 0; min-height: 38px; padding: 5px 7px; border: 1px solid var(--vd-theme-border); border-radius: 5px; background: var(--vd-theme-app-bg); color: var(--vd-text); font-size: 15px; }
 .infra-field textarea { min-height: 50px; resize: vertical; font: 15px/1.5 var(--vd-font-ui); }
 .infra-field input[readonly], .infra-field textarea[readonly] { opacity: .7; }
