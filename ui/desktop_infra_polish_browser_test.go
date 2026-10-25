@@ -329,6 +329,15 @@ func TestDesktopInfraSearchCollapseBrowser(t *testing.T) {
 		return !s.overflow&&group.left>=bar.left&&group.right<=bar.right&&filters.right<=group.right&&filters.left>=group.left&&getComputedStyle(document.querySelector('.infra-view-switch')).visibility==='hidden';}`).Bool() {
 		t.Fatalf("the open field must sit over the command bar, keep the filter button and overflow nothing: %s", state())
 	}
+	// The filters popover opens under the button at the right edge: it must stay inside the window and must not scroll the
+	// overflow-hidden app sideways (the command bar stayed shifted before).
+	page.MustElement(`[data-action="filters"]`).MustClick()
+	page.MustWait(`()=>!document.querySelector('[data-popover="filters"]').hidden`)
+	if got := page.MustEval(`()=>{const app=document.querySelector('.infra-app'),a=app.getBoundingClientRect(),r=document.querySelector('[data-popover="filters"]').getBoundingClientRect();return JSON.stringify({scrolled:app.scrollLeft!==0,inside:r.left>=a.left&&r.right<=a.right});}`).Str(); got != `{"scrolled":false,"inside":true}` {
+		t.Fatalf("the filters popover must stay inside a 430 px window without scrolling the app: %s", got)
+	}
+	page.Keyboard.MustType(input.Escape)
+	page.MustWait(`()=>document.querySelector('[data-popover="filters"]').hidden`)
 	page.MustElement(`[data-search]`).MustInput("Cold-store")
 	page.MustWait(`()=>document.querySelector('[data-search]').value==="Cold-store"&&document.querySelectorAll('[data-nodes] [data-node]:not(.is-dimmed)').length>0&&document.querySelectorAll('[data-nodes] .is-dimmed').length>0`)
 

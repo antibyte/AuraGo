@@ -398,10 +398,12 @@
             const el = menuEl(name), trigger = q(MENU_TRIGGERS[name]);
             if (!el || !trigger || trigger.disabled) return;
             const appRect = root.getBoundingClientRect(), triggerRect = trigger.getBoundingClientRect();
-            el.style.top = `${Math.round(triggerRect.bottom - appRect.top + 6)}px`;
-            if (name === 'filters') { el.style.left = `${Math.round(triggerRect.left - appRect.left)}px`; el.style.right = ''; }
-            else { el.style.right = `${Math.round(appRect.right - triggerRect.right)}px`; el.style.left = ''; }
             el.hidden = false;
+            el.style.top = `${Math.round(triggerRect.bottom - appRect.top + 6)}px`;
+            // The filters popover opens under its button; keep it inside the window (below 560 px the button sits at the right edge, and a popover
+            // that hangs out of the app makes focus() scroll the overflow-hidden app sideways for good).
+            if (name === 'filters') { el.style.left = `${Math.max(8, Math.min(Math.round(triggerRect.left - appRect.left), Math.floor(appRect.width - el.offsetWidth - 8)))}px`; el.style.right = ''; }
+            else { el.style.right = `${Math.round(appRect.right - triggerRect.right)}px`; el.style.left = ''; }
             trigger.setAttribute('aria-expanded', 'true');
             openMenuName = name;
             document.addEventListener('pointerdown', onMenuOutside, true);
