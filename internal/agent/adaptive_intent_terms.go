@@ -9,8 +9,13 @@ import "strings"
 var (
 	resourceUsageTerms = newToolIntentTerms([]string{
 		"ram", "cpu", "memory usage", "mem usage", "resource usage", "resources", "ressourcen",
-		"speicher auslastung", "wieviel speicher", "wie viel speicher", "arbeitsspeicher",
-	}, []string{"verbrauch", "auslastung"})
+		"wieviel speicher", "wie viel speicher", "arbeitsspeicher", "verbrauch", "verbraucht",
+	}, []string{
+		// Verbrauchs- and Speicherverbrauch, but not Verbraucher (consumer)
+		// or Stromverbrauch (power).
+		"^verbrauchs", "$verbrauch:speicher,ressourcen,cpu,ram,system,prozessor,arbeitsspeicher",
+		"auslastung",
+	})
 
 	containerTerms = newToolIntentTerms([]string{"docker", "dockerfile", "container", "compose"}, nil)
 

@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"strings"
 	"testing"
 	"unicode/utf8"
 )
@@ -25,12 +24,19 @@ func TestInferToolFamilyFromQueryMatchesWholeWordsInEnglishAndGerman(t *testing.
 		{"Lege einen Unterordner an", "files"},
 		{"Wie heißt das Verzeichnis?", "files"},
 		{"Der Dateiname fehlt", "files"},
+		{"Lege ein Unterverzeichnis an", "files"},
+		{"Wechsle ins Arbeitsverzeichnis", "files"},
 		// shell
 		{"run this command in the terminal", "shell"},
 		{"open a bash shell", "shell"},
 		{"Führe den Befehl aus", "shell"},
 		{"Starte die Konsole", "shell"},
 		{"Führe das Shellskript aus", "shell"},
+		{"Schreibe ein Startskript", "shell"},
+		{"Die Skriptsprache ist Bash", "shell"},
+		{"Der Shellbefehl schlägt fehl", "shell"},
+		{"Die Konsolenausgabe ist leer", "shell"},
+		{"Öffne die Kommandozeile", "shell"},
 		{"wie viel RAM ist frei?", "shell"},
 		{"Zeig die CPU-Auslastung", "shell"},
 		// coding
@@ -125,6 +131,20 @@ func TestInferToolFamilyFromQueryIgnoresSubstrings(t *testing.T) {
 		"the portal is open",
 		"Vorbild und Abbildung",
 		"das Programmheft",
+		// words that only end or start like a German head
+		"Bitte das Manuskript korrigieren",
+		"Das Transkript liegt vor",
+		"Inhaltsverzeichnis erstellen",
+		"Das Literaturverzeichnis fehlt",
+		"Spielkonsole einschalten",
+		"Haftbefehl erlassen",
+		"Das Einsatzkommando rückt aus",
+		// words that sound like media but are not
+		"Ich stimme zu",
+		"die Werte stimmen nicht",
+		"Das stimmt nicht",
+		"you lied to me about the backup",
+		"draw conclusions from the logs",
 	} {
 		if got := inferToolFamilyFromQuery(query); got != "" {
 			t.Errorf("inferToolFamilyFromQuery(%q) = %q, want none", query, got)
@@ -145,9 +165,12 @@ func TestIntentHelpersMatchWholeWords(t *testing.T) {
 			yes: []string{
 				"wieviel ram verbraucht aurago", "the cpu is busy", "show the memory usage", "Zeig die Auslastung",
 				"Speicherverbrauch prüfen", "wie viel Speicher ist frei", "Arbeitsspeicher", "resource usage please",
-				"Ressourcen anzeigen", "the resources",
+				"Ressourcen anzeigen", "the resources", "der Verbrauch", "Verbrauchswerte", "Systemverbrauch",
 			},
-			no: []string{"das Programm", "the parameter", "a frame", "a diagram", "gram", "ramp up", "the memory leak"},
+			no: []string{
+				"das Programm", "the parameter", "a frame", "a diagram", "gram", "ramp up", "the memory leak",
+				"Verbraucherzentrale anrufen", "den Stromverbrauch senken",
+			},
 		},
 		{
 			name:  "container",
@@ -171,7 +194,7 @@ func TestIntentHelpersMatchWholeWords(t *testing.T) {
 			name:  "manus",
 			match: isManusIntent,
 			yes:   []string{"delegate this to Manus", "an manus delegieren", "manus"},
-			no:    []string{"the manuscript", "read the manual"},
+			no:    []string{"the manuscript", "read the manual", "Bitte das Manuskript korrigieren"},
 		},
 		{
 			name:  "network camera",
@@ -210,25 +233,23 @@ func TestToolFamilyTermSetsAreWellFormed(t *testing.T) {
 		if len(set.terms) == 0 || toolFamilyTerms[i] == nil || len(toolFamilyTerms[i].terms) < len(set.terms) {
 			t.Errorf("family %q: table not compiled", set.family)
 		}
-		for _, head := range set.heads {
-			folded := foldToolSearchText(head)
-			if utf8.RuneCountInString(folded) < toolIntentMinHeadRunes {
-				t.Errorf("family %q: head %q is shorter than %d runes", set.family, head, toolIntentMinHeadRunes)
+		heads := make([]toolIntentHead, 0, len(set.heads))
+		for _, spec := range set.heads {
+			head := parseToolIntentHead(spec)
+			heads = append(heads, head)
+			if utf8.RuneCountInString(head.word) < toolIntentMinHeadRunes {
+				t.Errorf("family %q: head %q is shorter than %d runes", set.family, spec, toolIntentMinHeadRunes)
 			}
-			if _, stop := toolSearchStopwords[folded]; stop {
-				t.Errorf("family %q: head %q is a stopword", set.family, head)
+			if _, stop := toolSearchStopwords[head.word]; stop {
+				t.Errorf("family %q: head %q is a stopword", set.family, spec)
 			}
 		}
 		// A term that a head already finds would count a word twice.
 		for _, term := range set.terms {
-			words := toolSearchWords(foldToolSearchText(term), false)
-			if len(words) != 1 {
-				continue
-			}
-			for _, head := range set.heads {
-				folded := foldToolSearchText(head)
-				if strings.HasPrefix(words[0], folded) || strings.HasSuffix(words[0], folded) {
-					t.Errorf("family %q: term %q is covered by head %q", set.family, term, head)
+			text := newToolIntentText(term)
+			for _, head := range heads {
+				if len(text.words) == 1 && text.hasHead(head) {
+					t.Errorf("family %q: term %q is covered by head %q", set.family, term, head.word)
 				}
 			}
 		}
@@ -248,6 +269,34 @@ func TestToolIntentTermsStopwordStemsAreNoTerms(t *testing.T) {
 	} {
 		if got := notes.count(newToolIntentText(query)); got != want {
 			t.Errorf("count(%q) = %d, want %d", query, got, want)
+		}
+	}
+}
+
+// The head notation decides where a German noun may sit inside a compound.
+func TestToolIntentHeadNotation(t *testing.T) {
+	terms := newToolIntentTerms(nil, []string{"datei", "^kommando", "$verbrauch:cpu,speicher", "verzeichnis:unter,arbeits"})
+	for query, want := range map[string]int{
+		"Konfigurationsdateien":     1, // either end, plural
+		"Dateiname":                 1,
+		"Kommandozeile":             1, // start
+		"Einsatzkommando":           0, // not at the end
+		"Speicherverbrauch":         1, // end after a listed modifier
+		"Stromverbrauch":            0,
+		"Verbrauchswerte":           0, // $ never matches at the start
+		"Verbraucher":               0,
+		"Unterverzeichnisse":        1,
+		"Inhaltsverzeichnis":        0,
+		"Verzeichnis und Dateiname": 2,
+	} {
+		if got := terms.count(newToolIntentText(query)); got != want {
+			t.Errorf("count(%q) = %d, want %d", query, got, want)
+		}
+	}
+	exact := newToolIntentTerms([]string{"=malen"}, nil)
+	for query, want := range map[string]bool{"Bilder malen": true, "the male users": false, "mal sehen": false} {
+		if got := exact.matches(newToolIntentText(query)); got != want {
+			t.Errorf("exact term on %q = %v, want %v", query, got, want)
 		}
 	}
 }

@@ -477,9 +477,16 @@ func collectRecentUserIntentText(messages []openai.ChatCompletionMessage, maxMes
 	return joined[len(joined)-maxChars:]
 }
 
+// extractIntentMatchedTools lists the offered tools whose name the request
+// spells out, best first: the whole name as consecutive words (priority 0), all
+// words of a multi-word name somewhere in the message (1), at least two of
+// them (2). Words are compared as whole words after the search folding and
+// stemming (toolIntentText), so "manuscript" does not name manus and "profile"
+// does not name a file tool; a name word of fewer than three runes never counts
+// on its own.
 func extractIntentMatchedTools(userQuery string, availableTools []string) []string {
-	normalizedQuery := normalizeAdaptiveIntentText(userQuery)
-	if normalizedQuery == "" || len(availableTools) == 0 {
+	text := newToolIntentText(userQuery)
+	if len(text.words) == 0 || len(availableTools) == 0 {
 		return nil
 	}
 
@@ -495,33 +502,25 @@ func extractIntentMatchedTools(userQuery string, availableTools []string) []stri
 		if tool == "" || seen[tool] {
 			continue
 		}
-		normalizedTool := normalizeAdaptiveIntentText(tool)
-		if normalizedTool == "" {
+		name, ok := compileToolIntentTerm(tool)
+		if !ok {
 			continue
 		}
 
 		priority := -1
-		switch {
-		case strings.Contains(normalizedQuery, normalizedTool):
+		if name.occursIn(text) {
 			priority = 0
-		default:
-			tokens := strings.Fields(normalizedTool)
-			if len(tokens) == 1 {
-				if len(tokens[0]) >= 4 && strings.Contains(normalizedQuery, tokens[0]) {
-					priority = 1
+		} else if len(name.words) > 1 {
+			matched := 0
+			for i, word := range name.words {
+				if utf8.RuneCountInString(word) >= 3 && text.hasWord(word, name.stems[i]) {
+					matched++
 				}
-			} else {
-				matched := 0
-				for _, token := range tokens {
-					if len(token) >= 3 && strings.Contains(normalizedQuery, token) {
-						matched++
-					}
-				}
-				if matched == len(tokens) {
-					priority = 1
-				} else if matched >= 2 {
-					priority = 2
-				}
+			}
+			if matched == len(name.words) {
+				priority = 1
+			} else if matched >= 2 {
+				priority = 2
 			}
 		}
 

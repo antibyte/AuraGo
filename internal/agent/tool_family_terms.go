@@ -34,14 +34,22 @@ var toolFamilyTermSets = []toolFamilyTermSet{
 			"file", "filesystem", "file system", "folder", "directory", "yaml", "yml", "json", "xml", "toml", "csv", "pdf",
 			"pfad",
 		},
-		heads: []string{"datei", "ordner", "verzeichnis"},
+		// Verzeichnis ends only a few compounds that name a folder: Inhalts-,
+		// Literatur- or Telefonverzeichnis do not.
+		heads: []string{"datei", "ordner", "verzeichnis:unter,arbeits,ziel,quell,projekt,wurzel,stamm,heim,home,installations,daten,programm"},
 	},
 	{
 		family: "shell",
 		terms: []string{
 			"shell", "command", "commandline", "command line", "terminal", "script", "bash", "powershell", "sudo", "cli",
 		},
-		heads: []string{"befehl", "kommando", "konsole", "skript"},
+		// Befehl, Kommando, Konsole and Skript end words that are no shell
+		// terms (Haftbefehl, Einsatzkommando, Spielkonsole, Manuskript).
+		heads: []string{
+			"befehl:shell,bash,terminal,konsolen,system,linux,dos,cmd,powershell",
+			"^kommando", "^konsole",
+			"skript:shell,bash,start,install,python,batch,cron,build",
+		},
 	},
 	{
 		family: "coding",
@@ -106,8 +114,9 @@ var toolFamilyTermSets = []toolFamilyTermSet{
 		family: "media",
 		terms: []string{
 			"image", "audio", "speech", "media", "music", "video", "photo", "picture", "tts", "voice", "podcast", "song",
-			"movie", "film", "animation", "sound", "drawing", "illustration", "transcribe",
-			"bild", "bilder", "foto", "lied", "sprachausgabe", "vorlesen", "stimme", "zeichnung", "grafik",
+			"movie", "film", "animation", "sound", "illustration", "transcribe",
+			// No "lied" or "draw(ing)": "he lied" and "draw conclusions" are no media requests.
+			"bild", "bilder", "foto", "lieder", "sprachausgabe", "vorlesen", "zeichnung", "grafik",
 		},
 		heads: []string{"musik"},
 	},

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"aurago/internal/config"
 	openai "github.com/sashabaranov/go-openai"
 )
 
@@ -182,29 +183,68 @@ func TestBuildAdaptiveToolPriorityKeepsTheLexicalLeaderUpFront(t *testing.T) {
 	}
 }
 
-// Family seeds compete for the adaptive slots: a request that makes many seeds
-// likely still gets no more than MaxAdaptiveTools of them, and none is kept as
-// a soft tool.
+// Family seeds compete for the adaptive slots: a request that makes more seeds
+// likely than there are slots still gets no more of them than MaxAdaptiveTools,
+// and none is kept as a soft tool. The planner of the first selection decides.
 func TestFamilySeedsCountAgainstTheAdaptiveCap(t *testing.T) {
-	schemas := BuildNativeToolSchemas("", nil, allBuiltinToolFeatureFlags(), nil)
+	ff := allBuiltinToolFeatureFlags()
+	cfg := &config.Config{}
+	cfg.Agent.AdaptiveTools.AlwaysInclude = []string{"filesystem"}
+	schemas := BuildNativeToolSchemas("", nil, ff, nil)
 	const query = "Zeig mir die Datei im Ordner und führe den Befehl aus, danach die Container und die CPU"
-	priority := rankAdaptiveTools(adaptivePriorityInput{Schemas: schemas, Query: query})
-	seeds := adaptiveSeedsForQuery(query, nil)
-	if len(seeds) <= 5 {
-		t.Fatalf("the fixture needs more seeds than adaptive slots, got %v", seeds)
+	const maxAdaptive = 5
+	plan := planAdaptiveFirstSelection(adaptiveSelectionInput{
+		Config: cfg, Features: ff, Schemas: schemas, Query: query, MaxAdaptive: maxAdaptive, MaxTotal: 40,
+	})
+	if len(plan.Seeds) <= maxAdaptive {
+		t.Fatalf("the fixture needs more seeds than adaptive slots, got %v", plan.Seeds)
 	}
-	for _, seed := range seeds {
-		if !slices.Contains(priority, seed) {
-			t.Errorf("seed %s is not ranked: %v", seed, priority)
+	for _, seed := range plan.Seeds {
+		if slices.Contains(plan.Options.SoftAlwaysTools, seed) {
+			t.Errorf("seed %s is a soft tool: %v", seed, plan.Options.SoftAlwaysTools)
+		}
+		if !slices.Contains(plan.Priority, seed) {
+			t.Errorf("seed %s is not ranked: %v", seed, plan.Priority)
 		}
 	}
-	result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
-		PreferredTools:   priority,
-		SoftAlwaysTools:  []string{"filesystem"},
-		MaxAdaptiveTools: 5,
-	}, nil)
-	if result.Report.KeptSoftAlways != 1 || result.Report.KeptAdaptive != 5 {
-		t.Fatalf("report = soft %d, adaptive %d, want 1 and 5", result.Report.KeptSoftAlways, result.Report.KeptAdaptive)
+	result := filterToolSchemasWithReport(schemas, plan.Options, nil)
+	offered := toolSchemaNames(result.Tools)
+	seedsOffered := 0
+	for _, seed := range plan.Seeds {
+		if slices.Contains(offered, seed) {
+			seedsOffered++
+		}
+	}
+	if seedsOffered > maxAdaptive || result.Report.KeptAdaptive != maxAdaptive {
+		t.Fatalf("%d of %d seeds offered, adaptive tools %d, want at most %d: %v", seedsOffered, len(plan.Seeds), result.Report.KeptAdaptive, maxAdaptive, offered)
+	}
+}
+
+// Tool names in a request count as whole words: "manuscript" does not name
+// manus, "profile" does not name a file tool and "watts" does not name tts.
+func TestExtractIntentMatchedToolsMatchesWholeWords(t *testing.T) {
+	tools := []string{"manus", "smart_file_read", "send_email", "tts", "docker", "file_search"}
+	for _, tc := range []struct {
+		query string
+		want  []string
+	}{
+		{"Bitte das Manuskript korrigieren", nil},
+		{"read my profile", nil},
+		{"the watts of the router", nil},
+		{"delegate this to Manus", []string{"manus"}},
+		{"please send emails to the team", []string{"send_email"}},
+		{"say it with tts", []string{"tts"}},
+		{"search for the file", []string{"file_search"}},
+		{"read the file", []string{"smart_file_read"}},
+		{"restart docker", []string{"docker"}},
+	} {
+		if got := extractIntentMatchedTools(tc.query, tools); !slices.Equal(got, tc.want) {
+			t.Errorf("extractIntentMatchedTools(%q) = %v, want %v", tc.query, got, tc.want)
+		}
+	}
+	schemas := BuildNativeToolSchemas("", nil, allBuiltinToolFeatureFlags(), nil)
+	if got := buildAdaptiveToolPriority(schemas, nil, "Bitte das Manuskript korrigieren", nil, nil); len(got) > 0 && got[0] == "manus" {
+		t.Errorf("manus leads the ranking of a request about a manuscript: %v", got[:min(5, len(got))])
 	}
 }
 
