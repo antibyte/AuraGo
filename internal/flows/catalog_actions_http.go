@@ -410,11 +410,12 @@ func httpRequestEffects(n *Node) []Effect {
 // The address also decides where the secret is sent: while auth_secret is set, untrusted
 // data that can reach its scheme, user info, host or port is an error (SecretTarget, see
 // secretTargetFixed), not a warning; data behind a literal "https://host/" is path or query.
-// The headers are no secret target: a header value never moves the request (net/http writes
-// the Host line from the URL and skips a "Host" entry of the header map,
-// reqWriteExcludeHeader), map keys are not templates (resolveValue resolves values only), the
-// vault value replaces a header of the auth_header name, and a redirect that leaves the origin
-// drops every caller header but Accept, Content-Type and User-Agent (see above).
+// The headers are no secret target, although data can choose header names (the whole headers
+// value can be one template that resolves to an object): a header never moves the request.
+// Header names must be valid tokens, net/http writes the Host line from the URL and drops a
+// "Host" entry of the header map (HTTP/1 and HTTP/2), withAuthSecret removes any header named
+// like auth_header (case-insensitive) and sets the secret itself, and a redirect that leaves
+// the origin drops every caller header but Accept, Content-Type and User-Agent (see above).
 func httpRequestDef(env CatalogEnv) *NodeDef {
 	def := actionDef(TypeHTTPRequest, "web", "api", "api_request", env)
 	def.UntrustedOutput = true

@@ -830,6 +830,14 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   record is read again and `FLOW_NOT_FOUND` means deleted. Every delete (editor, start-page card,
   elsewhere, a broadcast on the start page) calls `core.forgetFlow(id)`, which drops the four
   per-flow keys (`core.FLOW_KEYS`: emergency copy, view, effects-ok, test-trigger).
+- `flows_changed` with reason `checked` (no flow id) follows the server's start-up check: the start page reloads and
+  the editor re-reads its record. `live_issues` shows `state_live_outdated` (`.ed-chip--risk`, `live_outdated_hint`
+  as title and `.ed-sr-only` text) on the card and in the header, the latter only while `ed.flow.live_revision` is
+  the revision the issues came with; `timers_running: false` shows the `timers_stopped_*` banner (`.ed-home-stale`
+  look) on the start page and a `.ed-chip--warn` in the header.
+- The key-value editor (`ED.fields.keyValue`) compares trimmed keys; while two rows share one it emits nothing and
+  marks them `aria-invalid` with `aria-describedby` on its one `[data-ed-kv-error]` message. An unedited value keeps
+  its JSON type (an object is cloned); an edited value is the field's text.
 - Below 900 px (`@container`) the header hides the text of Stop and of the Active switch, visually
   only (the `.ed-sr-only` pattern, not `display: none`). Both carry the same words as `aria-label`
   and `title`, so the visible label is part of the name; Stop's name follows its text to "Stopping…"

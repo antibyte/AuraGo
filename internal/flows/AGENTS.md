@@ -120,9 +120,19 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - `LintUntrustedData`: taint flows through template refs and through `passesInputs` nodes (merge, and
   set with keep_input). Disabled nodes neither warn nor taint; a cyclic flow gets no lint issues. If the
   ref cap is hit while a taint source exists, the node counts as tainted and every sink param is warned.
-  A sink param flagged `ParamSpec.SecretTarget` (`http.request` `url` and `headers`) is an error with its own code,
+  A sink param flagged `ParamSpec.SecretTarget` (`http.request` `url` only) is an error with its own code,
   `UNTRUSTED_SECRET_TARGET`, instead of the warning while the node has a `ParamSecretRef` param set (`auth_secret`;
-  a template there counts as set): outside data would decide where the vault secret is sent. `Validate` turns
+  a template there counts as set) and the data can reach the URL's scheme, user info, host or port. `secretTargetFixed`
+  lets a value pass whose literal text before the first unescaped `{{` (as `ParseTemplate` splits it, after leading
+  white space) is `http://` or `https://`, a non-empty host part and then `/`, `?` or `#`; data behind that is path,
+  query or fragment and keeps the plain warning (`https://api.example.com{{x}}`, `https://{{x}}/`, `https://h:{{p}}/`
+  and `https://u{{x}}@h/` stay errors). In a secret target a ref to a node that is not an ancestor (a parallel
+  branch, a later node, the node itself) counts as untrusted whatever that node is: the topological walk reaches it
+  before that node's taint is known. `headers` is no secret target, although data can choose header names (the
+  whole `headers` value can be one template that resolves to an object): header names must be valid tokens,
+  net/http drops a `Host` entry of the header map (HTTP/1 and HTTP/2), `withAuthSecret` removes any header named like
+  `auth_header` (case-insensitive) and sets the secret itself, and a redirect that leaves the origin strips every
+  caller header but Accept, Content-Type and User-Agent (`apiRequestClient`). `Validate` turns
   that error into a warning in `ModeDraft`, like every publish rule. The lint reads the flag from the spec and
   still calls no hook. Validation is not the only guard: a live revision published under older rules is never
   validated again and test runs validate with draft rules, so the engine enforces the rule itself, in every run
@@ -194,6 +204,13 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - `CancelFlowMode(flowID, mode)` is `CancelFlow` for one mode (same queue, slot and `startMu` handling, counts
   only new cancels). Runs of other modes keep their places; a cancelled waiting run frees its flow slot, which
   admits the flow's next queued run of another mode. Mission Control's cancel uses it with `ModeLive`.
+- Gate: `RunnerConfig.Gate` is asked on the run's goroutine, outside all locks, right before a run executes that has
+  `StartRequest.Gated` (live runs a trigger started: `TriggerFromMission`, `onTimerFired`; `RunNow` is not gated) and
+  waited in a queue (behind its flow's run or for a global slot); a run that started at once is not asked again. A
+  refusal, or a panic (fails closed), ends the run cancelled with `RunsPausedCode` (`FLOW_RUNS_PAUSED`) without
+  executing: recorded and its log ended first (`recordUnstarted`), then its slots go to the next waiting run (which
+  asks in turn), then `OnRunFinished` reports it like a run cancelled while queued. The Service's gate is its bridge's
+  `RunGate` (`automaticRunsAllowed`).
 - `CancelRun(runID)` is `Cancel` that also reports whether this call cancelled the run first (`activeRun.cancelled`);
   a caller that records a cancel (the API's audit entry) does so only then. `Store.GetRunHeader` /
   `Service.RunHeader` read a run's header without trigger data and steps.
@@ -328,12 +345,11 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `result`, `chain_depth`, `output` (the source's answer, at most 2000 bytes) and, for a flow source, `outputs`
   (its leaf outputs by key, bounded to 64 KiB of JSON, else `{"_truncated": true, "_preview": <first 4 KiB>}`),
   as the sample promises. Agent missions waiting for the same source get `outputs` capped at 8 KiB instead.
-- Taint: untrusted outputs are the triggers webhook, email, mqtt, fritzbox_call, planner and mission_completed;
-  the actions web.search, web.read, http.request, file.read, doc.pdf_read and home.assistant; `ai.step` (a
-  model that reads untrusted data can be prompt-injected); and every generic node. The other triggers (manual,
-  schedule, datetime, ha_state, device, startup, budget) are trusted. Asymmetry: `home.assistant` output is
-  untrusted (an entity state can be shaped by mail, RSS or MQTT) while `trigger.ha_state` is pinned trusted by a
-  plan test (`catalog_triggers_test.go`), although the same states reach the flow there.
+- Taint: untrusted outputs are the triggers webhook, email, mqtt, ha_state, fritzbox_call, planner and
+  mission_completed; the actions web.search, web.read, http.request, file.read, doc.pdf_read and home.assistant;
+  `ai.step` (a model that reads untrusted data can be prompt-injected); and every generic node. The other triggers
+  (manual, schedule, datetime, device, startup, budget, person_detected) are trusted. `trigger.ha_state` and
+  `home.assistant` agree: an entity state or attribute can be set by integrations, MQTT, mail or RSS.
 - Sinks are search queries, paths and file names, URLs, headers and bodies, recipients, attachments, accounts,
   channels, MQTT topic and payload, Home Assistant entity and service data, the planner title, the `ai.step`
   instructions (they become the system message; untrusted data belongs in the prompt, which is no sink), and
@@ -343,9 +359,12 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Secrets: a `secret_ref` param (`http.request` `auth_secret`) holds only the vault key, written out: a template
   in it is refused when publishing (any node type) and `http.request` refuses it at run time too
   (`FLOW_PARAM_INVALID`, checked on the raw param before the vault is read), so outside data never picks the entry.
-  Outside data that decides where the secret goes (`url`, `headers`) is a publish error while `auth_secret` is
-  set (`UNTRUSTED_SECRET_TARGET`, see Validation and lint) and, whatever revision the flow was published
-  under, the engine refuses the node at run time before it reads the vault (see Engine semantics). The node reads the value
+  Outside data that can decide where the secret goes (the `url`'s scheme, user info, host or port) is a publish
+  error while `auth_secret` is set (`UNTRUSTED_SECRET_TARGET`, see Validation and lint) and, whatever revision the
+  flow was published under, the engine refuses the node at run time before it reads the vault (see Engine
+  semantics). `auth_header` and `auth_prefix` must be written out while `auth_secret` is set: a template there is a
+  publish error (`PARAM_INVALID`) and `withAuthSecret` refuses it at run time (`FLOW_PARAM_INVALID`, on the raw
+  param, before the vault is read). The node reads the value
   through `Services.Secrets`; the vault value wins over a user header of the same name; `secretScrubber`
   redacts the value (and its JSON, HTML and URL escapes) from outputs and errors. A `SecretReader` must register
   the value with the global output scrubber too. A missing or unusable secret is `FLOW_SECRET_UNAVAILABLE`.
@@ -547,6 +566,15 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   of `[a-z0-9_]` (else `unknown`), the run header and the bridge record keep at most `MaxStoredOutputBytes` of
   trigger data (`{"_preview": …}` beyond), and the engine replaces trigger data that would exceed
   `MaxOutputBytes` with `{}`. The caller bounds the raw text at the source (`NormalizeTriggerData`).
+- Compatibility check: `CheckLiveRevisions` (the server runs it once after `Start` and `ReconcileMissions`) validates
+  every live revision with this build's publish rules at its `PublishedAt` (a passed one-off date is no finding),
+  plus the self-trigger rule, and keeps the errors without `NODE_UNAVAILABLE`/`NODE_TYPE_UNKNOWN` (tool configuration,
+  not rules). Each flagged flow is logged at Warn and noted through the optional `LiveIssuesNoter` (the bridge calls
+  `MissionManagerV2.NoteFlowLiveRevisionOutdated`); findings are kept in memory per flow and revision (visited flows
+  replace their entry), and `LiveIssues(rec)` (`FlowSummary.LiveIssues`, API `live_issues`) returns them only while
+  that revision is live, so a new publication clears them. No flow lock; Shutdown waits for it. A new rule that
+  tightens what existing revisions may do must be visible here before it breaks runs (the R2 lesson).
+- `TimersRunning()` is true from a successful `Start` until `Shutdown` (API `timers_running`).
 
 ## Tests
 - `go test ./internal/flows/ -count=1`; the race detector needs cgo, so `go test -race ./internal/flows/`
@@ -617,7 +645,11 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
     once. `StartFlowRun` returns the refusal (Mission Control logs it); `AutomaticRunsAllowed` makes
     `onTimerFired` consume the occurrence without a run. A cancel is not refused. `startFlows` retries a failed
     `Service.Start` in the background (5 s doubling to 5 min, each failure logged at Warn with the attempt and the
-    next delay, the recovery at Info, then the usual reconciliation); `shutdownFlows` ends and joins that retry first.
+    next delay, the recovery at Info, then `afterFlowsStart`: the reconciliation, `CheckLiveRevisions` and a
+    `flows_changed` broadcast with reason `checked`); `shutdownFlows` ends that retry first and waits for it at most
+    `flowsStartRetryJoinTimeout` (2 s), because a Start stuck in SQLite does not observe its context. The bridge notes
+    a run the gate stopped (`FLOW_RUNS_PAUSED`, `Started` false) on the flow mission like a refused trigger
+    (`MissionManagerV2.NoteFlowRunRefused`, reason re-asked from `automaticFlowRunsAllowed`).
 - `Service.CancelMissionRuns`, `MissionEnabledChanged` and `NextTimer` serve Mission Control (see Service).
 - Every key of `CatalogI18nKeys` must exist in `ui/lang/easydrag/<16 locales>.json`. `catalog_i18n_test.go`
   enforces this: `TestCatalogTranslationsAreComplete` (en holds every key; every locale holds exactly en's keys,
