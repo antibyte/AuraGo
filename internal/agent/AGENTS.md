@@ -337,6 +337,24 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   there. A manual that documents more than 3 tools adds no tools of its own.
   Family seeds, intent matches, neighbours and usage follow that head in order.
 
+- The ranker bounds every input a model, a user or an MCP server controls.
+  A query longer than 8 KB is ranked from its first and last 4 KB
+  (`boundToolSearchQuery`; `buildAdaptiveToolPriority` bounds the whole user
+  message the same way). Of a query with more than 32 tokens the ranker scores
+  the 32 with the highest IDF, identifiers whole; words the static catalog has
+  never seen score highest but match nothing, so they only fill what the known
+  words leave. Only the first 4 KB of each description field is indexed and
+  cached (the longest built-in one has 659 bytes), and the global text cache is
+  bounded by entries and by 32 MiB. Tool names a request carries are cut to 512
+  bytes, and `discoverySuggestions` compares the first 8 words of a name.
+  `SearchContext` takes an optional filter for the tools the manual search may
+  add (discover_tools passes the run's scope; lexical hits are not filtered
+  there) and never sends a query that `memory.HasDurableCredential` flags to the
+  embedding provider, nor does `buildAdaptiveToolPriority`. A search pages
+  through the order of its first page: discover_tools keeps that order per
+  session or run, query and catalog revision for the snapshot TTL, so a manual
+  search that answers on one page and fails on the next cannot reset the cursor.
+
 - Curated search terms live in `internal/agent/tool_search_terms/*.yaml`, one
   file per group of categories. A file maps a tool name to `en` and `de` phrase
   lists; a name may appear in one file only, and unknown fields are errors.
