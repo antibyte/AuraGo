@@ -117,6 +117,8 @@ type toolSearchDocText struct {
 // toolSearchIndex is the lazily built search view of a catalog.
 type toolSearchIndex struct {
 	docs []*toolSearchDoc
+	// members maps a manual ID to the entries that manual documents, by name.
+	members map[string][]*ToolCatalogEntry
 }
 
 // searchIndex returns the search view, building it at the first search. It
@@ -127,9 +129,11 @@ func (c *ToolCatalog) searchIndex() *toolSearchIndex {
 	defer c.searchMu.Unlock()
 	if c.search == nil {
 		entries := c.Entries()
-		index := &toolSearchIndex{docs: make([]*toolSearchDoc, 0, len(entries))}
+		index := &toolSearchIndex{docs: make([]*toolSearchDoc, 0, len(entries)), members: make(map[string][]*ToolCatalogEntry)}
 		for _, entry := range entries {
 			index.docs = append(index.docs, newToolSearchDoc(entry))
+			manual := prompts.ToolManualID(entry.Name)
+			index.members[manual] = append(index.members[manual], entry)
 		}
 		c.search = index
 	}

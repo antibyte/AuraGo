@@ -116,9 +116,11 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 			if query == "" {
 				return discoverToolsJSON(DiscoverToolsResponse{Status: "error", Error: "query_required"})
 			}
-			entries := catalog.Search(query)
+			var entries []*ToolCatalogEntry
 			if dc != nil {
 				entries = catalog.SearchContext(ctx, query, dc.LongTermMem)
+			} else {
+				entries = catalog.Search(query)
 			}
 			results = discoverySummaryResults(entries, sessionID)
 			if entry, ok := catalog.Get("composio_call"); ok && entry.Enabled {

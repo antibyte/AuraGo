@@ -1091,65 +1091,48 @@ func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, us
 		prioritized = append(prioritized, name)
 	}
 
-	// Explicit discovery and adaptive selection share names, aliases and operations.
-	catalog := BuildToolCatalog(schemas, schemas, "")
-	lexical := make(map[string]bool)
-	for _, entry := range catalog.Search(userQuery) {
-		lexical[entry.Name] = true
-		add(entry.Name)
+	// Explicit discovery and adaptive selection share names, aliases and
+	// operations. The selection ranks only what it can offer, so the catalog
+	// leaves out the disabled placeholders. Exact matches come first, then the
+	// lexical ranking and the semantic manual ranking are fused
+	// (fuseToolRanking). The adaptiveIntentOnlyTools take no part in either: the
+	// ranking never picks them and their manuals use no semantic slot.
+	catalog := newToolCatalog(schemas, schemas, "", false)
+	var pinned, lexical []string
+	for _, hit := range catalog.rankedSearch(userQuery) {
+		if slices.Contains(adaptiveIntentOnlyTools, hit.Entry.Name) {
+			continue
+		}
+		if hit.Tier > toolSearchTierLexical {
+			pinned = append(pinned, hit.Entry.Name)
+		} else {
+			lexical = append(lexical, hit.Entry.Name)
+		}
 	}
+	var manuals []string
+	members := map[string][]string{}
 	if guideSearcher != nil && strings.TrimSpace(userQuery) != "" {
-		// The manuals of non-displacing tools are dropped before the cut to
-		// the top four: those tools are never ranked, so their manual would
-		// only cost another tool its semantic slot.
-		const semanticTopK = 4
 		// A manual can document several tools (email, mqtt, yepapi_*), so its
-		// name maps to every available tool of that family. A family of more
-		// than three tools only offers the members the query also matched
-		// lexically (those are ranked above already), which keeps one broad
-		// manual from crowding the adaptive cap. The semantic pass adds at most
-		// semanticTopK tools in total: a family that would exceed the remaining
-		// budget contributes its members in schema order until it is used up.
-		// A manual whose tools are already ranked, or that documents no
-		// available tool, adds nothing and so uses up no budget. The look-ahead
-		// is a fixed prefix of the ranking (non-displacing manuals do not
-		// count), so it cannot depend on whether a non-displacing manual exists.
-		const semanticWindow = 2 * semanticTopK
-		const semanticFamilyLimit = 3
+		// name maps to every available tool of that family; a manual named like
+		// an available tool documents that tool.
 		byManual := make(map[string][]string, len(available))
 		for _, tool := range available {
 			manual := prompts.ToolManualID(tool)
 			byManual[manual] = append(byManual[manual], tool)
 		}
-		paths := searchToolGuidesWithTimeout(guideSearcher, userQuery, semanticWindow+len(prompts.NonDisplacingTools), 400*time.Millisecond, logger)
-		added, considered := 0, 0
-		for _, path := range paths {
-			name := strings.TrimSuffix(filepath.Base(filepath.Clean(path)), filepath.Ext(path))
-			if prompts.IsNonDisplacingManual(name) {
-				continue
-			}
-			if added == semanticTopK || considered == semanticWindow {
-				break
-			}
-			considered++
-			members := byManual[name]
-			if len(members) == 0 && availableSet[name] {
-				members = []string{name}
-			}
-			for _, member := range members {
-				if added == semanticTopK {
-					break
-				}
-				if len(members) > semanticFamilyLimit && !lexical[member] {
-					continue
-				}
-				before := len(prioritized)
-				add(member)
-				if len(prioritized) > before {
-					added++
-				}
+		cfg := adaptiveToolFusion
+		for _, path := range searchToolGuidesWithTimeout(guideSearcher, userQuery, cfg.ManualWindow+len(prompts.NonDisplacingTools), 400*time.Millisecond, logger) {
+			manual := manualIDFromPath(path)
+			manuals = append(manuals, manual)
+			if family := byManual[manual]; len(family) > 0 {
+				members[manual] = family
+			} else if availableSet[manual] {
+				members[manual] = []string{manual}
 			}
 		}
+	}
+	for _, name := range fuseToolRanking(pinned, lexical, manuals, members, prompts.IsNonDisplacingManual, adaptiveToolFusion) {
+		add(name)
 	}
 
 	for _, tool := range adaptiveFamilySeedsForQuery(userQuery) {
