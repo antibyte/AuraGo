@@ -899,6 +899,46 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
         assert.deepEqual(puts, [['a', 'room', 1], ['a', '', 2]]);
         store.dispose();
     }
+    { // dropped discoveries are placed pinned; one bound to an asset that already stands in the view only links it
+        const dropItems = window.InfraAppImport.dropItems;
+        const { api } = recorder({});
+        const store = newStore(api);
+        store.applySnapshot(snap([
+            node('placed', { placements: { atlas: { x: 5, y: 6, pinned: true }, topology: { x: 7, y: 8, pinned: true } } }),
+            node('legacy', { placements: { atlas: { x: 5, y: 6, pinned: true }, topology: { x: 7, y: 8, pinned: false } } }),
+            node('bare', { placements: {} }),
+        ]));
+        const candidate = (id, kind = 'device') => ({ id, source: {}, node: { kind, name: id } });
+        const run = (view, bound, extra = {}) => {
+            const counts = [];
+            const result = dropItems(['n', 'p', 'l', 'b', 'g'].map(id => candidate(`c-${id}`, id === 'g' ? 'vm' : 'device')), {
+                bindings: new Map(bound), view, parent: extra.parent || '', isPlaced: id => !!store.effectivePlacement(id, view),
+                positionsFor: count => { counts.push(count); return Array.from({ length: count }, (_, index) => ({ x: 100 + index * 10, y: 200 })); },
+            });
+            return { items: plain(result.items), kept: plain(result.kept), counts };
+        };
+        const byId = items => Object.fromEntries(items.map(item => [item.candidate_id, item]));
+        const bindings = [['c-p', 'placed'], ['c-l', 'legacy'], ['c-b', 'bare']];
+        for (const view of ['atlas', 'topology']) {
+            const drop = run(view, []);
+            assert.deepEqual(drop.counts, [4]);
+            assert.deepEqual(drop.items[0], { candidate_id: 'c-n', placement: { view, x: 100, y: 200, pinned: true } }, `a dropped discovery is saved pinned in ${view}`);
+            assert.deepEqual(drop.items[4], { candidate_id: 'c-g' }, 'a guest joins its host without a placement');
+        }
+        const atlas = run('atlas', bindings, { parent: 'room' });
+        assert.deepEqual(atlas.kept, ['placed', 'legacy'], 'a bound asset that stands in Map is kept where it is and revealed');
+        assert.deepEqual(atlas.items.find(item => item.candidate_id === 'c-p'), { candidate_id: 'c-p', node_id: 'placed' }, 'only the link is sent: no placement, no parent_id');
+        assert.deepEqual(atlas.items.find(item => item.candidate_id === 'c-l'), { candidate_id: 'c-l', node_id: 'legacy' });
+        assert.deepEqual(atlas.items.find(item => item.candidate_id === 'c-b'), { candidate_id: 'c-b', node_id: 'bare', placement: { view: 'atlas', x: 110, y: 200, pinned: true }, parent_id: 'room' }, 'a bound asset without a placement here is placed at the drop point');
+        assert.deepEqual(atlas.counts, [2], 'positions are asked for the discoveries that are placed only');
+        const topology = run('topology', bindings);
+        assert.deepEqual(topology.kept, ['placed'], 'a pinned:false Topology placement counts as not placed');
+        assert.deepEqual(byId(topology.items)['c-l'], { candidate_id: 'c-l', node_id: 'legacy', placement: { view: 'topology', x: 110, y: 200, pinned: true } });
+        assert.equal(byId(topology.items)['c-p'].placement, undefined);
+        assert.deepEqual(run('atlas', bindings.slice(0, 1)).items.filter(item => item.placement).map(item => item.candidate_id), ['c-n', 'c-l', 'c-b']);
+        assert.equal(dropItems([candidate('c-1')], { bindings: new Map([['c-1', 'placed']]), view: 'atlas', isPlaced: () => true, positionsFor() { throw new Error('nothing to place'); } }).kept[0], 'placed');
+        store.dispose();
+    }
     {
         const { api, calls } = recorder({ 'PUT /layout': body => ({ nodes: body.nodes.map(item => node(item.id, { version: item.version + 1, placements: item.unplace ? {} : { atlas: { x: item.x, y: item.y, pinned: true } } })) }) });
         const store = newStore(api);

@@ -139,7 +139,10 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `data-node-option`, `data-place-option`), `infra-cleanup.js` (Cleanup/Ignored from `InfraAppModel.infraCleanup`,
   dismissals in `infra.dismissed.v1`), `infra-inspector-forms.js` (Details/Sources forms; all four tab panels are
   rendered and inactive ones hidden; app bindings live in the draft), `infra-import.js` (non-modal import sheet,
-  `POST /import/batch`, `discoveryRelevance` groups), `infra-menus.js` (context menus through `ctx.showContextMenu`,
+  `POST /import/batch`, `discoveryRelevance` groups; `InfraAppImport.dropItems` builds the items of a drop: the placement is
+  `pinned: true` like a drag, and a discovery bound to an asset that is already placed in the view sends neither placement nor
+  `parent_id`, because an import never enters the undo history; the asset is selected and revealed where it stands),
+  `infra-menus.js` (context menus through `ctx.showContextMenu`,
   the inspector's more menu, the shortcut sheet and the legend).
 - Snapshots always ask `?include_ignored=1`; ignored sources never count in the ledger and appear only under
   Ignored. Ignore, remove-and-ignore, engine hosts and batch import go through the store, which reloads the

@@ -144,8 +144,8 @@ func TestDesktopInfraImportSheetBrowser(t *testing.T) {
 	calls := waitBatches(1)
 	items, _ := calls[0]["items"].([]map[string]any)
 	placement, _ := items[0]["placement"].(map[string]any)
-	if len(items) != 1 || items[0]["candidate_id"] != "reg-printer" || items[0]["parent_id"] != "room-1" || placement["view"] != "atlas" || placement["x"] == nil || placement["y"] == nil {
-		t.Fatalf("dropping a discovery on a place posted %v; want one item with a placement and parent_id room-1", calls[0])
+	if len(items) != 1 || items[0]["candidate_id"] != "reg-printer" || items[0]["parent_id"] != "room-1" || placement["view"] != "atlas" || placement["x"] == nil || placement["y"] == nil || placement["pinned"] != true {
+		t.Fatalf("dropping a discovery on a place posted %v; want one item with a pinned placement and parent_id room-1", calls[0])
 	}
 	page.MustWait(`()=>!!document.querySelector('[data-node="imported-1"]')&&!document.querySelector('[data-candidate-row="reg-printer"]')&&document.querySelector('[data-inspector] h2')?.textContent==='Studio printer'`)
 	if page.MustEval(`()=>document.querySelector('[data-import-sheet]').hidden`).Bool() {
@@ -183,6 +183,28 @@ func TestDesktopInfraImportSheetBrowser(t *testing.T) {
 	if len(sources) != 1 {
 		t.Fatalf("Backup NAS has %d sources after the import, want the FRITZ!Box source", len(sources))
 	}
+
+	// A duplicate dropped on the map only links the asset it duplicates: Backup NAS is already placed, so the drop
+	// sends no placement and no parent_id (the import is not undoable and would move it into the place) and selects it.
+	fixture.mu.Lock()
+	fixture.candidates = append(fixture.candidates, infraImportFixtureCandidate("fritz-nas-2", "device", "FRITZ NAS 2", "nas", src("fritzbox", "fritz", "fritz-nas-2", "FRITZ!Box"), map[string]any{"ip_address": "192.0.2.77", "interfaces": []any{}}))
+	fixture.mu.Unlock()
+	openSheet()
+	page.MustWait(`()=>document.querySelector('[data-bind="fritz-nas-2"]')?.value==='dup-a'`)
+	rowX, rowY = centreOf(`[data-candidate-row="fritz-nas-2"] .infra-candidate-copy strong`)
+	dropX, dropY = dropAt()
+	page.Mouse.MustMoveTo(rowX, rowY).MustDown(proto.InputMouseButtonLeft)
+	page.Mouse.MustMoveTo((rowX+dropX)/2, (rowY+dropY)/2)
+	page.Mouse.MustMoveTo(dropX, dropY)
+	page.MustWait(`()=>document.querySelector('.infra-drag-ghost')?.dataset.dropLabel===w('desktop.infra_drop_into',{name:'Living room'})`)
+	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	calls = waitBatches(4)
+	items, _ = calls[3]["items"].([]map[string]any)
+	if len(items) != 1 || items[0]["candidate_id"] != "fritz-nas-2" || items[0]["node_id"] != "dup-a" || items[0]["placement"] != nil || items[0]["parent_id"] != nil {
+		t.Fatalf("dropping a duplicate of a placed asset posted %v; want node_id dup-a and no placement or parent", calls[3])
+	}
+	page.MustWait(`()=>document.querySelector('[data-inspector] h2')?.textContent==='Backup NAS'&&!document.querySelector('[data-candidate-row="fritz-nas-2"]')`)
+	page.MustEval(`()=>document.querySelector('[data-action="close-import"]').click()`)
 
 	// An asset with sources can be rediscovered: its removal confirmation points at "Remove and ignore".
 	page.MustEval(`()=>document.querySelector('[data-library-item="dup-a"] [data-library-select]').focus()`)

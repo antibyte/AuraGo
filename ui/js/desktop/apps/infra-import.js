@@ -11,6 +11,29 @@
     const GUEST_KINDS = new Set(['vm', 'container']);
     const CONTROLS = ['[data-candidate]', '[data-bind]', '[data-import-one]', '[data-ignore-candidate]'];
 
+    // dropItems turns dragged discoveries into import items. Guests join their host and carry no placement. A discovery bound
+    // to an asset that already stands in this view only links the source: the link would move that asset (the import is not in
+    // the undo history), so it stays where it is and is returned in `kept` to be revealed. The rest is placed at the drop points,
+    // pinned like a drag, so Topology draws them there and not at an automatic slot.
+    function dropItems(list, { bindings, view, parent = '', isPlaced, positionsFor }) {
+        const boundOf = candidate => bindings.get(candidate.id) || '';
+        const linkOnly = candidate => GUEST_KINDS.has(candidate.node?.kind) || (!!boundOf(candidate) && !!isPlaced(boundOf(candidate)));
+        const count = list.filter(candidate => !linkOnly(candidate)).length;
+        const points = count ? positionsFor(count) : [];
+        const kept = [];
+        let next = 0;
+        const items = list.map(candidate => {
+            const bound = boundOf(candidate), item = { candidate_id: candidate.id, ...(bound ? { node_id: bound } : {}) };
+            if (!linkOnly(candidate)) {
+                const point = points[next++];
+                return { ...item, placement: { view, x: point.x, y: point.y, pinned: true }, ...(parent ? { parent_id: parent } : {}) };
+            }
+            if (bound && !GUEST_KINDS.has(candidate.node?.kind)) kept.push(bound);
+            return item;
+        });
+        return { items, kept };
+    }
+
     function create(app) {
         const { store, state, t, esc, model, root } = app;
         const S = app.safeId;
@@ -279,26 +302,21 @@
             render();
         }
         // dropOnCanvas imports the dragged discoveries and places them around the drop point; guests are
-        // imported without a placement and join their host.
+        // imported without a placement and join their host, and a discovery bound to an asset that is already
+        // on this map only links it (dropItems) and the asset is revealed where it stands.
         async function dropOnCanvas(ids, world, region) {
             if (!canWrite() || !world || !state.importOpen) return false;
             const view = app.mapView(), list = ids.map(candidateById).filter(Boolean);
             if (!list.length) return false;
-            const placeable = list.filter(candidate => !GUEST_KINDS.has(candidate.node?.kind));
-            const points = app.gestures.positionsAt(placeable.length || 1, world);
             const parent = region && view === 'atlas' && store.features.layoutParent ? region : '';
-            let next = 0;
-            const items = list.map(candidate => {
-                const item = { candidate_id: candidate.id, ...(state.importBindings.get(candidate.id) ? { node_id: state.importBindings.get(candidate.id) } : {}) };
-                if (GUEST_KINDS.has(candidate.node?.kind)) return item;
-                const point = points[next++];
-                return { ...item, placement: { view, x: point.x, y: point.y }, ...(parent ? { parent_id: parent } : {}) };
-            });
+            const { items, kept } = dropItems(list, { bindings: state.importBindings, view, parent, isPlaced: id => !!store.effectivePlacement(id, view), positionsFor: count => app.gestures.positionsAt(count, world) });
             const mine = owner;
             const result = await store.importBatch(items);
             settle(result, items, mine);
             const done = result.nodes.map(node => node.id);
             if (done.length) store.select(done);
+            const stayed = kept.find(id => done.includes(id));
+            if (stayed) { app.canvas?.renderNow(); app.canvas?.ensureVisible(stayed); }
             return done.length > 0;
         }
 
@@ -396,5 +414,5 @@
         return { el, open, close, render, reload, dropOnCanvas, onBusy, dispose };
     }
 
-    window.InfraAppImport = { create };
+    window.InfraAppImport = { create, dropItems };
 })();
