@@ -1093,7 +1093,9 @@ func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, us
 
 	// Explicit discovery and adaptive selection share names, aliases and operations.
 	catalog := BuildToolCatalog(schemas, schemas, "")
+	lexical := make(map[string]bool)
 	for _, entry := range catalog.Search(userQuery) {
+		lexical[entry.Name] = true
 		add(entry.Name)
 	}
 	if guideSearcher != nil && strings.TrimSpace(userQuery) != "" {
@@ -1101,18 +1103,47 @@ func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, us
 		// the top four: those tools are never ranked, so their manual would
 		// only cost another tool its semantic slot.
 		const semanticTopK = 4
-		paths := searchToolGuidesWithTimeout(guideSearcher, userQuery, semanticTopK+len(prompts.NonDisplacingTools), 400*time.Millisecond, logger)
-		considered := 0
+		// A manual can document several tools (email, mqtt, yepapi_*), so its
+		// name maps to every available tool of that family. A family of more
+		// than three tools only offers the members the query also matched
+		// lexically (those are ranked above already), which keeps one broad
+		// manual from crowding the adaptive cap. A manual whose tools are
+		// already ranked, or that documents no available tool, does not use
+		// up a semantic slot. The look-ahead is a fixed prefix of the ranking
+		// (non-displacing manuals do not count), so it cannot depend on
+		// whether a non-displacing manual exists.
+		const semanticWindow = 2 * semanticTopK
+		const semanticFamilyLimit = 3
+		byManual := make(map[string][]string, len(available))
+		for _, tool := range available {
+			manual := prompts.ToolManualID(tool)
+			byManual[manual] = append(byManual[manual], tool)
+		}
+		paths := searchToolGuidesWithTimeout(guideSearcher, userQuery, semanticWindow+len(prompts.NonDisplacingTools), 400*time.Millisecond, logger)
+		counted, considered := 0, 0
 		for _, path := range paths {
 			name := strings.TrimSuffix(filepath.Base(filepath.Clean(path)), filepath.Ext(path))
 			if prompts.IsNonDisplacingManual(name) {
 				continue
 			}
-			if considered == semanticTopK {
+			if counted == semanticTopK || considered == semanticWindow {
 				break
 			}
 			considered++
-			add(name)
+			members := byManual[name]
+			if len(members) == 0 && availableSet[name] {
+				members = []string{name}
+			}
+			before := len(prioritized)
+			for _, member := range members {
+				if len(members) > semanticFamilyLimit && !lexical[member] {
+					continue
+				}
+				add(member)
+			}
+			if len(prioritized) > before {
+				counted++
+			}
 		}
 	}
 
@@ -1648,6 +1679,13 @@ func recentNativeToolNamesFromMessages(messages []openai.ChatCompletionMessage, 
 	seenTurns := 0
 	seen := map[string]bool{}
 	outReversed := make([]string, 0)
+	record := func(name string) {
+		if name == "" || seen[name] {
+			return
+		}
+		seen[name] = true
+		outReversed = append(outReversed, name)
+	}
 	for i := len(messages) - 1; i >= 0 && seenTurns < turns; i-- {
 		msg := messages[i]
 		if msg.Role == openai.ChatMessageRoleUser {
@@ -1659,11 +1697,21 @@ func recentNativeToolNamesFromMessages(messages []openai.ChatCompletionMessage, 
 		}
 		for _, tc := range msg.ToolCalls {
 			name := strings.TrimSpace(tc.Function.Name)
-			if name == "" || seen[name] {
+			record(name)
+			if name != "invoke_tool" {
 				continue
 			}
-			seen[name] = true
-			outReversed = append(outReversed, name)
+			// The tool run through invoke_tool is the one the model relied on;
+			// keeping only invoke_tool would let the target drop out of the
+			// next selection. Malformed arguments leave just invoke_tool.
+			var args map[string]interface{}
+			if json.Unmarshal([]byte(tc.Function.Arguments), &args) != nil {
+				continue
+			}
+			target := canonicalNativeAlias(strings.TrimSpace(stringValueFromMap(args, "tool_name", "name", "tool")))
+			if target != "invoke_tool" {
+				record(target)
+			}
 		}
 	}
 	names := make([]string, 0, len(outReversed))

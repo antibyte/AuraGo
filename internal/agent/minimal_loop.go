@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -549,6 +550,11 @@ func GetLooperToolSchemas(cfg *config.Config) []openai.Tool {
 	return filtered
 }
 
+// MinimalLoopDiscoverHint tells a minimal-loop model how to reach a tool that
+// is not in its tool list. A prompt carries it only when discover_tools is
+// among the tools the run offers.
+const MinimalLoopDiscoverHint = "If a needed tool is not in your tool list, call discover_tools with operation=search and follow the returned call_method (hidden tools run through invoke_tool)."
+
 // MinimalSystemPromptBuilder creates a minimal system prompt for the Looper.
 func MinimalSystemPromptBuilder(availableTools []string) string {
 	var b strings.Builder
@@ -558,6 +564,10 @@ func MinimalSystemPromptBuilder(availableTools []string) string {
 	if len(availableTools) > 0 {
 		b.WriteString("\nAvailable tools: ")
 		b.WriteString(strings.Join(availableTools, ", "))
+		b.WriteString("\n")
+	}
+	if slices.Contains(availableTools, "discover_tools") {
+		b.WriteString(MinimalLoopDiscoverHint)
 		b.WriteString("\n")
 	}
 	return b.String()

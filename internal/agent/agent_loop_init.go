@@ -212,8 +212,11 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	emptyRetried := false        // Prevents infinite retry on persistent empty responses
 	retry422Count := 0           // Counts consecutive 422 retries — capped to prevent infinite loops
 	homepageUsedInChain := false // Elevated circuit breaker once homepage tool is first used
-	// sessionUsedTools tracks every tool called in this conversation so AdaptiveTools
-	// always re-includes them next turn (Option 3: context-based alwaysInclude expansion).
+	// sessionUsedTools tracks the tools executed during this run. It is created
+	// per run and starts empty, so it cannot carry anything over from an earlier
+	// turn; the per-iteration refresh uses it to keep the tools already called in
+	// the run (refreshSwapProtectedTools). Cross-turn retention comes from the
+	// conversation history (recentNativeToolNamesFromMessages).
 	sessionUsedTools := make(map[string]bool)
 
 	// Guardian: prompt injection defense
@@ -447,8 +450,10 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			alwaysInclude = channelAdaptiveAlwaysInclude(runCfg, alwaysInclude, ff)
 			alwaysInclude = cacheAwareAdaptiveAlwaysInclude(adaptiveUserContext, alwaysInclude, ntSchemas)
 			alwaysInclude = outputRefAdaptiveAlwaysInclude(req.Messages, alwaysInclude)
-			// Re-include every tool that was actually called in this conversation so the
-			// model can continue using tools it already relied on (Option 3: session context).
+			// sessionUsedTools is always empty during this first selection: the run
+			// has not executed a tool yet, and the refresh is what reads it later.
+			// Tools from earlier turns come back through the conversation history
+			// below, which also names the target of an invoke_tool call.
 			for tool := range sessionUsedTools {
 				alwaysInclude = append(alwaysInclude, tool)
 			}

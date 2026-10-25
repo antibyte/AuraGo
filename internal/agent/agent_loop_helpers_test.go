@@ -1100,6 +1100,31 @@ func TestRecentNativeToolNamesFromMessagesKeepsRecentCalls(t *testing.T) {
 	}
 }
 
+func TestRecentNativeToolNamesIncludeInvokeTargets(t *testing.T) {
+	call := func(id, name, args string) openai.ChatCompletionMessage {
+		return openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{{
+			ID: id, Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: name, Arguments: args},
+		}}}
+	}
+	user := openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: "go"}
+
+	got := recentNativeToolNamesFromMessages([]openai.ChatCompletionMessage{
+		user,
+		call("c1", "invoke_tool", `{"tool_name":"manage_todos","arguments":{}}`),
+		call("c2", "invoke_tool", `{"tool_name":"manage_todos"}`),
+	}, 1)
+	if !containsName(got, "manage_todos") || !containsName(got, "invoke_tool") || len(got) != 2 {
+		t.Fatalf("names = %v, want invoke_tool and one manage_todos", got)
+	}
+
+	for _, args := range []string{`{`, ``, `{"tool_name":""}`, `{"tool_name":"invoke_tool"}`, `{"tool_name":7}`} {
+		got = recentNativeToolNamesFromMessages([]openai.ChatCompletionMessage{user, call("c1", "invoke_tool", args)}, 1)
+		if len(got) != 1 || got[0] != "invoke_tool" {
+			t.Fatalf("arguments %q: names = %v, want only invoke_tool", args, got)
+		}
+	}
+}
+
 func TestExtractIntentMatchedToolsMatchesSplitToolNames(t *testing.T) {
 	matches := extractIntentMatchedTools("please scan the network and then inspect devices", []string{"network_scan", "notes", "homepage"})
 	if len(matches) == 0 || matches[0] != "network_scan" {
@@ -1560,6 +1585,35 @@ func TestBuildAdaptiveToolPriorityPrefersIntentAndSemanticHits(t *testing.T) {
 	}
 	if !containsName(prioritized, "shell") {
 		t.Fatalf("expected weighted usage fallback to remain, got %v", prioritized)
+	}
+}
+
+func TestAdaptivePriorityMapsSharedManualAndSkipsEmptySlots(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("send_email"),
+		makeTool("fetch_email"),
+		makeTool("list_email_accounts"),
+		makeTool("docker"),
+		makeTool("filesystem"),
+	}
+	const query = "qqzzx plugh"
+	manual := func(name string) string { return filepath.Join("tools_manuals", name+".md") }
+
+	// One manual documents the whole email family, so its tools are offered.
+	got := buildAdaptiveToolPriority(schemas, nil, query, fakeGuideSearcher{paths: []string{manual("email")}}, nil)
+	for _, want := range []string{"send_email", "fetch_email", "list_email_accounts"} {
+		if !containsName(got, want) {
+			t.Fatalf("shared email manual must offer %s, got %v", want, got)
+		}
+	}
+
+	// Manuals that document no available tool use no semantic slot, so the
+	// fifth manual still reaches the ranking.
+	got = buildAdaptiveToolPriority(schemas, nil, query, fakeGuideSearcher{paths: []string{
+		manual("missing_a"), manual("missing_b"), manual("missing_c"), manual("missing_d"), manual("docker"),
+	}}, nil)
+	if !containsName(got, "docker") {
+		t.Fatalf("empty semantic slots must not use up the look-ahead, got %v", got)
 	}
 }
 

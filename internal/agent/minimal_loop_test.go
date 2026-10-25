@@ -421,3 +421,16 @@ func TestExecuteMinimalLoopNeverReturnsToolText(t *testing.T) {
 		}
 	}
 }
+
+func TestMinimalSystemPromptDiscoverHint(t *testing.T) {
+	if got := MinimalSystemPromptBuilder(nil); strings.Contains(got, MinimalLoopDiscoverHint) {
+		t.Fatalf("a prompt without tools must not carry the discover hint:\n%s", got)
+	}
+	if got := MinimalSystemPromptBuilder([]string{"filesystem", "invoke_tool"}); strings.Contains(got, MinimalLoopDiscoverHint) {
+		t.Fatalf("a prompt without discover_tools must not carry the discover hint:\n%s", got)
+	}
+	got := MinimalSystemPromptBuilder([]string{"filesystem", "discover_tools"})
+	if strings.Count(got, MinimalLoopDiscoverHint) != 1 || !strings.HasSuffix(got, MinimalLoopDiscoverHint+"\n") {
+		t.Fatalf("a prompt with discover_tools must end with the discover hint once:\n%s", got)
+	}
+}
