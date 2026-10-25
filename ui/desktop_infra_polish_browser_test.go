@@ -146,7 +146,7 @@ func TestDesktopInfraSemanticZoomBrowser(t *testing.T) {
 }
 
 // TestDesktopInfraMinimapBrowser covers amendment A3: a 168x112 overview with no text inside, filled with the theme
-// overlay colour and blur, that hides itself while the whole scene fits and never covers a card at fit. The shown
+// panel colour (the tools surface) and blur, that hides itself while the whole scene fits and never covers a card at fit. The shown
 // count lives in the toggle's tooltip and the cluster's description, and the toggle works in every state.
 func TestDesktopInfraMinimapBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
@@ -170,16 +170,16 @@ func TestDesktopInfraMinimapBrowser(t *testing.T) {
 		t.Fatalf("the shown count must move into the toggle tooltip and the cluster description: %s", got)
 	}
 
-	// Zoomed in the scene overflows: the overview appears at 168x112 over the theme overlay colour with the theme blur.
+	// Zoomed in the scene overflows: the overview appears at 168x112 on the strong panel surface (the tools surface, not the modal scrim) with the theme blur.
 	page.MustEval(`()=>document.querySelector('[data-action="zoom-reset"]').click()`)
 	page.MustWait(`()=>infraZoomOf()===1&&!document.querySelector('[data-minimap]').hidden`)
 	if got := page.MustEval(`()=>{
 		const map=document.querySelector('[data-minimap]'),r=map.getBoundingClientRect(),cs=getComputedStyle(map);
-		const probe=document.createElement('i');probe.style.cssText='background:var(--vd-theme-overlay-bg);backdrop-filter:var(--vd-theme-blur, blur(12px))';document.body.appendChild(probe);
+		const probe=document.createElement('i');probe.style.cssText='background:var(--vd-theme-panel-bg-strong);backdrop-filter:var(--vd-theme-blur, blur(12px))';document.body.appendChild(probe);
 		const want=getComputedStyle(probe);const result={size:[Math.round(r.width),Math.round(r.height)],background:cs.backgroundColor===want.backgroundColor,blur:cs.backdropFilter===want.backdropFilter,text:map.textContent.trim()};probe.remove();
 		return JSON.stringify(result);
 	}`).Str(); got != `{"size":[168,112],"background":true,"blur":true,"text":""}` {
-		t.Fatalf("the minimap must be 168x112, filled with the overlay colour and blur and hold no text: %s", got)
+		t.Fatalf("the minimap must be 168x112, filled with the strong panel colour and the blur and hold no text: %s", got)
 	}
 
 	// The toggle switches it off even while the scene overflows, and on again.
@@ -388,14 +388,14 @@ func TestDesktopInfraEmptyStatesBrowser(t *testing.T) {
 	if got, want := empty(), fmt.Sprintf(`{"shown":true,"action":"reset-filters","label":%q,"query":"","kind":"network"}`, word("desktop.infra_clear_filters")); got != want {
 		t.Fatalf("with only a filter the empty map shows %s; want %s", got, want)
 	}
-	// A30: the message has a surface of its own (the overlay token with the minimap's blur) above the connection layer, so the
+	// A30: the message has a surface of its own (the strong panel token with the minimap blur) above the connection layer, so the
 	// connections of the dimmed cards never run through its text.
 	if got := page.MustEval(`()=>{
 		const box=getComputedStyle(document.querySelector('[data-no-match]')),map=getComputedStyle(document.querySelector('[data-minimap]')),scene=getComputedStyle(document.querySelector('[data-scene]'));
 		const filled=box.backgroundColor!=='rgba(0, 0, 0, 0)'&&box.backgroundColor!=='transparent';
 		return JSON.stringify({filled,sameSurface:box.backgroundColor===map.backgroundColor&&box.backdropFilter===map.backdropFilter,above:Number(box.zIndex)>=1&&!(Number(scene.zIndex)>=1)});
 	}`).Str(); got != `{"filled":true,"sameSurface":true,"above":true}` {
-		t.Fatalf("the empty-result message must sit on the overlay surface above the connections: %s", got)
+		t.Fatalf("the empty-result message must sit on the strong panel surface above the connections: %s", got)
 	}
 	// The library sections say so too: one "No matches" line instead of a bare header with a zero.
 	if got, want := page.MustEval(`()=>JSON.stringify(['to-place','on-map'].map(id=>{const line=document.querySelector('[data-section-empty="'+id+'"]');return [line.hidden,line.textContent.trim()];}))`).Str(), fmt.Sprintf(`[[false,%q],[false,%q]]`, word("desktop.infra_no_matches"), word("desktop.infra_no_matches")); got != want {

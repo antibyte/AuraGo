@@ -232,7 +232,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
     opacity change is a transition only while `app.animationsEnabled()` and reduced motion is not asked for.
   - Scene paint order (A31): `.infra-lane-label` has `z-index: 1`, so the sticky lane labels paint above the connection layer
     (the `svg` has no z-index) and below the cards (z-index 1, later in the scene); nothing but z-index decides this.
-  - `.infra-canvas-empty` and `.infra-canvas-nomatch` are centred boxes on their own surface (`--vd-theme-overlay-bg` with
+  - `.infra-canvas-empty` and `.infra-canvas-nomatch` are centred boxes on their own surface (`--vd-theme-panel-bg-strong`, the surface of the tools and the minimap, with
     the theme blur, as the minimap) above the scene; only their buttons take the pointer.
 - Focus return (Plan D Task 7): `app.focusReturnTarget(el)` names where focus goes back when a panel opened from `el` closes (a
   menu or popover item hands over to the trigger of its menu through `MENU_TRIGGERS`; anything outside the window, or nothing,
