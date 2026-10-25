@@ -765,6 +765,7 @@
   "easydrag.ui.quick_recent": "Naposledy použité",
   "easydrag.ui.quick_search": "Co se má stát dál?",
   "easydrag.ui.quick_search_trigger": "Kdy se má tok spustit?",
+  "easydrag.ui.quick_target_gone": "Toto propojení nebo krok už neexistuje, proto nebylo nic přidáno.",
   "easydrag.ui.quick_title": "Přidat krok",
   "easydrag.ui.rail_label": "Nástroje editoru",
   "easydrag.ui.redo": "Znovu",

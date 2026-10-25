@@ -765,6 +765,7 @@
   "easydrag.ui.quick_recent": "Nylig brukt",
   "easydrag.ui.quick_search": "Hva skal skje videre?",
   "easydrag.ui.quick_search_trigger": "Når skal flyten starte?",
+  "easydrag.ui.quick_target_gone": "Den forbindelsen eller det trinnet finnes ikke lenger, så ingenting ble lagt til.",
   "easydrag.ui.quick_title": "Legg til trinn",
   "easydrag.ui.rail_label": "Redigeringsverktøy",
   "easydrag.ui.redo": "Gjør om",

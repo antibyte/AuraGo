@@ -392,6 +392,14 @@
         function choose(idx) {
             const info = items[idx];
             if (!info) return;
+            // The wire or the step quick-add was opened for can be gone by now (an undo, a delete
+            // elsewhere): nothing is added, the popover closes and says why.
+            if ((req.from && !ed.model.node(req.from.node)) || (req.edge && !ed.model.edge(req.edge))) {
+                close();
+                giveFocusBack();
+                ED.core.say(ed, ed.t('easydrag.ui.quick_target_gone'));
+                return;
+            }
             let at;
             if (req.from) {
                 const src = ed.model.node(req.from.node);

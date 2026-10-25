@@ -765,6 +765,7 @@
   "easydrag.ui.quick_recent": "Usados recentemente",
   "easydrag.ui.quick_search": "O que deve acontecer em seguida?",
   "easydrag.ui.quick_search_trigger": "Quando o fluxo deve começar?",
+  "easydrag.ui.quick_target_gone": "Essa ligação ou esse passo já não existe, por isso nada foi adicionado.",
   "easydrag.ui.quick_title": "Adicionar etapa",
   "easydrag.ui.rail_label": "Ferramentas do editor",
   "easydrag.ui.redo": "Refazer",

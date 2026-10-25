@@ -765,6 +765,7 @@
   "easydrag.ui.quick_recent": "Ostatnio używane",
   "easydrag.ui.quick_search": "Co ma się stać dalej?",
   "easydrag.ui.quick_search_trigger": "Kiedy ma się uruchomić przepływ?",
+  "easydrag.ui.quick_target_gone": "To połączenie lub ten krok już nie istnieje, więc nic nie zostało dodane.",
   "easydrag.ui.quick_title": "Dodaj krok",
   "easydrag.ui.rail_label": "Narzędzia edytora",
   "easydrag.ui.redo": "Ponów",

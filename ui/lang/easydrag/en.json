@@ -765,6 +765,7 @@
   "easydrag.ui.quick_recent": "Recently used",
   "easydrag.ui.quick_search": "What should happen next?",
   "easydrag.ui.quick_search_trigger": "When should the flow start?",
+  "easydrag.ui.quick_target_gone": "That connection or step no longer exists, so nothing was added.",
   "easydrag.ui.quick_title": "Add step",
   "easydrag.ui.rail_label": "Editor tools",
   "easydrag.ui.redo": "Redo",

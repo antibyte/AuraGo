@@ -765,6 +765,7 @@
   "easydrag.ui.quick_recent": "Usati di recente",
   "easydrag.ui.quick_search": "Cosa deve succedere dopo?",
   "easydrag.ui.quick_search_trigger": "Quando deve partire il flusso?",
+  "easydrag.ui.quick_target_gone": "Quel collegamento o quel passaggio non esiste più, quindi non è stato aggiunto nulla.",
   "easydrag.ui.quick_title": "Aggiungi passo",
   "easydrag.ui.rail_label": "Strumenti dell’editor",
   "easydrag.ui.redo": "Ripeti",

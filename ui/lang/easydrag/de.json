@@ -765,6 +765,7 @@
   "easydrag.ui.quick_recent": "Zuletzt verwendet",
   "easydrag.ui.quick_search": "Was soll als Nächstes passieren?",
   "easydrag.ui.quick_search_trigger": "Wann soll der Flow starten?",
+  "easydrag.ui.quick_target_gone": "Diese Verbindung oder dieser Schritt existiert nicht mehr, deshalb wurde nichts hinzugefügt.",
   "easydrag.ui.quick_title": "Schritt hinzufügen",
   "easydrag.ui.rail_label": "Editor-Werkzeuge",
   "easydrag.ui.redo": "Wiederholen",

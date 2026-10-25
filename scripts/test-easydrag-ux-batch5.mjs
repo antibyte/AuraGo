@@ -125,6 +125,28 @@ export async function run(env) {
         p.home.dispose();
     });
 
+    // ── F12: quick-add whose wire or source step is gone ──
+
+    await guardAsync('b5 F12 quick-add on a wire or step that is gone adds nothing, closes and says why', async () => {
+        const rows = [];
+        for (const [name, req, remove] of [
+            ['wire', { x: 0, y: 0, edge: 'e2' }, ed => ed.model.disconnect(['e2'])],
+            ['step', { x: 0, y: 0, from: { node: B, port: 'out' } }, ed => ed.model.removeNodes([B])]
+        ]) {
+            const s = await session();
+            s.ed.bus.emit('quick-add', req);
+            const opened = !!s.ed.quickAdd;
+            remove(s.ed);
+            const nodes = s.ed.model.doc.nodes.length;
+            const said = await s.heard(() => s.editor.el.querySelector('.ed-quick-search').fire('keydown', { key: 'Enter', keyCode: 13, isComposing: false }));
+            rows.push([name, opened, s.ed.quickAdd, s.ed.model.doc.nodes.length - nodes, !!s.editor.el.querySelector('.ed-quick'), said, s.h.logged]);
+            s.editor.dispose();
+        }
+        eq('b5 F12 the popover closes without a step and the live region says the target is gone', rows,
+            [['wire', true, null, 0, false, 'quick_target_gone', []], ['step', true, null, 0, false, 'quick_target_gone', []]]);
+        eq('b5 F12 the words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.quick_target_gone']), []);
+    });
+
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }

@@ -765,6 +765,7 @@
   "easydrag.ui.quick_recent": "हाल में इस्तेमाल किए गए",
   "easydrag.ui.quick_search": "आगे क्या होना चाहिए?",
   "easydrag.ui.quick_search_trigger": "फ़्लो कब शुरू होना चाहिए?",
+  "easydrag.ui.quick_target_gone": "वह कनेक्शन या चरण अब मौजूद नहीं है, इसलिए कुछ भी नहीं जोड़ा गया।",
   "easydrag.ui.quick_title": "चरण जोड़ें",
   "easydrag.ui.rail_label": "एडिटर टूल",
   "easydrag.ui.redo": "फिर करें",

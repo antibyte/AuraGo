@@ -765,6 +765,7 @@
   "easydrag.ui.quick_recent": "Πρόσφατα",
   "easydrag.ui.quick_search": "Τι να γίνει μετά;",
   "easydrag.ui.quick_search_trigger": "Πότε να ξεκινά η ροή;",
+  "easydrag.ui.quick_target_gone": "Αυτή η σύνδεση ή αυτό το βήμα δεν υπάρχει πια, γι' αυτό δεν προστέθηκε τίποτα.",
   "easydrag.ui.quick_title": "Προσθήκη βήματος",
   "easydrag.ui.rail_label": "Εργαλεία επεξεργαστή",
   "easydrag.ui.redo": "Επανάληψη",

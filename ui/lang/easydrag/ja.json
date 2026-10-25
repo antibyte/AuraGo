@@ -765,6 +765,7 @@
   "easydrag.ui.quick_recent": "最近使ったもの",
   "easydrag.ui.quick_search": "次に何をしますか？",
   "easydrag.ui.quick_search_trigger": "フローをいつ開始しますか？",
+  "easydrag.ui.quick_target_gone": "その接続またはステップはもう存在しないため、何も追加されませんでした。",
   "easydrag.ui.quick_title": "ステップを追加",
   "easydrag.ui.rail_label": "エディターのツール",
   "easydrag.ui.redo": "やり直す",

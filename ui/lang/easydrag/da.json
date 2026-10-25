@@ -765,6 +765,7 @@
   "easydrag.ui.quick_recent": "Senest brugt",
   "easydrag.ui.quick_search": "Hvad skal der ske nu?",
   "easydrag.ui.quick_search_trigger": "Hvornår skal flowet starte?",
+  "easydrag.ui.quick_target_gone": "Den forbindelse eller det trin findes ikke længere, så der blev ikke tilføjet noget.",
   "easydrag.ui.quick_title": "Tilføj trin",
   "easydrag.ui.rail_label": "Editorværktøjer",
   "easydrag.ui.redo": "Gentag",

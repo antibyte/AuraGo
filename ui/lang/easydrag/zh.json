@@ -765,6 +765,7 @@
   "easydrag.ui.quick_recent": "最近使用",
   "easydrag.ui.quick_search": "接下来要做什么？",
   "easydrag.ui.quick_search_trigger": "流程应该何时开始？",
+  "easydrag.ui.quick_target_gone": "该连接或步骤已不存在，因此没有添加任何内容。",
   "easydrag.ui.quick_title": "添加步骤",
   "easydrag.ui.rail_label": "编辑器工具",
   "easydrag.ui.redo": "重做",

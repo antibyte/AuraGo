@@ -765,6 +765,7 @@
   "easydrag.ui.quick_recent": "Utilisés récemment",
   "easydrag.ui.quick_search": "Que doit-il se passer ensuite ?",
   "easydrag.ui.quick_search_trigger": "Quand le flux doit-il démarrer ?",
+  "easydrag.ui.quick_target_gone": "Cette connexion ou cette étape n'existe plus, donc rien n'a été ajouté.",
   "easydrag.ui.quick_title": "Ajouter une étape",
   "easydrag.ui.rail_label": "Outils de l’éditeur",
   "easydrag.ui.redo": "Rétablir",

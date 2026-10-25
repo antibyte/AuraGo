@@ -765,6 +765,7 @@
   "easydrag.ui.quick_recent": "Recent gebruikt",
   "easydrag.ui.quick_search": "Wat moet er hierna gebeuren?",
   "easydrag.ui.quick_search_trigger": "Wanneer moet de flow starten?",
+  "easydrag.ui.quick_target_gone": "Die verbinding of stap bestaat niet meer, dus er is niets toegevoegd.",
   "easydrag.ui.quick_title": "Stap toevoegen",
   "easydrag.ui.rail_label": "Editortools",
   "easydrag.ui.redo": "Opnieuw",
