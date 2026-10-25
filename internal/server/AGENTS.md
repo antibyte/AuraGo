@@ -62,6 +62,11 @@ Server-owned HTTP and cross-component integration contracts.
   they never change the selected voice or provider. Chat/AgoDesk/SIP readiness
   recognizes `phonon` and preserves explicit Speech Lab routing. See
   `../phonon/AGENTS.md` and `documentation/phonon.md` for shared resource rules.
+- `GET /api/tts/routes` is an admin-only no-store summary of the four effective
+  speech paths. It names the provider, readiness and a stable code, and it
+  never returns a URL, Vault key or voice ID. Readiness means the route has a
+  configured backend. Live Speech is ready when its provider needs no key, or
+  the key is present.
 
 - Action policy catalog/preview and pending/decision APIs are administrator-only, as are generic config updates and Vault secret mutation. Preview never dispatches or creates approvals. Decisions accept only the server-owned action ID and approve/reject, preserve its originating session and revalidate current gates. Tool Bridge uses expiring originating-run capabilities, current and inherited tool/SQL scopes, loopback transport and bounded calls; a process-wide internal token cannot authenticate bridge execution. Unknown or active workspace `/files/` content is a sandboxed attachment; preserve known audio/image/video playback.
 - `POST /api/media-conversion/test` is administrator-only (`isAdminProtectedPath` plus `requireAdmin`) and executes only an approved converter: the configured value is resolved through `internal/mediabins` exactly like the tool resolves it, so a bare name on PATH is accepted, and the base name of the resolved file must identify ffmpeg, ffprobe or magick (a versioned spelling such as `ffmpeg-7.0` is accepted; the legacy `convert` only outside Windows). A missing or foreign binary is refused before a process starts. `tools.media_conversion` is validated on every configuration save path (`/api/config` and the setup path) against the values the patch itself changes, so a pre-existing out-of-range value in `config.yaml` never blocks an unrelated save; `config.Load` clamps it at startup. Verify `TestValidateMediaConversionBinaryPath*`, `TestHandleMediaConversionTest*`, `TestValidateMediaConversionPatch*` and `TestHandleUpdateConfigValidatesMediaConversionPatch`.
