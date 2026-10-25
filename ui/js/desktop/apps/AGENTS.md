@@ -255,6 +255,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   - While the import sheet is open (`data-import-open`), the tools cluster moves right of it. Compact card names sit on a chip in
     the app colour so connections leaving the bottom edge do not strike through them.
   - Field labels are never capitalised by CSS. The inspector header stacks the kind and the breadcrumbs without a separator.
+    Its action button (`.infra-head-pills .infra-button`) has no fixed height: a label too long for the 360 px panel wraps to
+    centred lines inside the button (`TestDesktopInfraHeaderActionFitsBrowser` checks all 16 locales).
 - Focus return (Plan D Task 7): `app.focusReturnTarget(el)` names where focus goes back when a panel opened from `el` closes (a
   menu or popover item hands over to the trigger of its menu through `MENU_TRIGGERS`; anything outside the window, or nothing,
   hands over to the map, or to the active view button in the List) and `app.restoreFocus(el)` focuses it, falling back to the
