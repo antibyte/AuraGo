@@ -120,6 +120,59 @@ func TestInfraHostsRejectPartialEnumerationAndReadonlyWrites(t *testing.T) {
 	}
 }
 
+// infraHostTableClient serves a Hosts table whose entries are given by index.
+func infraHostTableClient(t *testing.T, entries []map[string]string) *Client {
+	t.Helper()
+	return newInfraTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		action := strings.Trim(strings.TrimSpace(r.Header.Get("SoapAction")), `"`)
+		if cut := strings.LastIndex(action, "#"); cut >= 0 {
+			action = action[cut+1:]
+		}
+		body, _ := io.ReadAll(r.Body)
+		switch action {
+		case "GetHostNumberOfEntries":
+			infraSOAPResponse(w, action, map[string]string{"NewHostNumberOfEntries": fmt.Sprint(len(entries))})
+		case "GetGenericHostEntry":
+			for i, entry := range entries {
+				if strings.Contains(string(body), fmt.Sprintf("<NewIndex>%d</NewIndex>", i)) {
+					infraSOAPResponse(w, action, entry)
+					return
+				}
+			}
+			http.Error(w, "no such index", http.StatusInternalServerError)
+		default:
+			t.Errorf("unexpected SOAP action %s", action)
+			http.Error(w, "unexpected action", http.StatusBadRequest)
+		}
+	})
+}
+
+func TestInfraHostsSkipEntriesWithoutUsableMAC(t *testing.T) {
+	client := infraHostTableClient(t, []map[string]string{
+		{"NewMACAddress": "", "NewIPAddress": "192.0.2.50", "NewHostName": "wireguard-peer"},
+		{"NewMACAddress": "not-a-mac", "NewIPAddress": "192.0.2.51", "NewHostName": "garbled"},
+		{"NewMACAddress": "AA:BB:CC:DD:EE:FF", "NewIPAddress": "192.0.2.10", "NewHostName": "printer", "NewActive": "1"},
+	})
+	hosts, err := client.InfraHosts()
+	if err != nil || len(hosts) != 1 {
+		t.Fatalf("InfraHosts() = %+v, %v; want only the host with a MAC", hosts, err)
+	}
+	if hosts[0].Name != "printer" || hosts[0].IPAddress != "192.0.2.10" || hosts[0].Key != client.infraHostKey("AA:BB:CC:DD:EE:FF") {
+		t.Fatalf("unexpected host projection: %+v", hosts[0])
+	}
+}
+
+func TestInfraHostsFailWhenNoEntryCarriesAMAC(t *testing.T) {
+	client := infraHostTableClient(t, []map[string]string{
+		{"NewMACAddress": "", "NewIPAddress": "192.0.2.50", "NewHostName": "wireguard-peer"},
+		{"NewIPAddress": "192.0.2.51", "NewHostName": "remote"},
+	})
+	hosts, err := client.InfraHosts()
+	if err == nil || hosts != nil || !strings.Contains(err.Error(), "no usable MAC") {
+		t.Fatalf("InfraHosts() = %+v, %v; want a no-usable-MAC error", hosts, err)
+	}
+}
+
 func TestInfraWakeResolvesOpaqueKeyBeforeSending(t *testing.T) {
 	var wokeMAC string
 	client := newInfraTestClient(t, func(w http.ResponseWriter, r *http.Request) {

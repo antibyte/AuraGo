@@ -63,7 +63,9 @@ func (c *Client) infraHostRecords() ([]infraHostRecord, error) {
 		}
 		mac, err := net.ParseMAC(strings.TrimSpace(entry["NewMACAddress"]))
 		if err != nil || len(mac) != 6 {
-			return nil, errors.New("fritzbox host identity is invalid")
+			// Entries without a usable MAC (VPN/WireGuard peers, remote or
+			// IPv6-only entries) cannot be keyed or acted on; skip them.
+			continue
 		}
 		host := HostEntry{
 			MACAddress: strings.ToUpper(mac.String()),
@@ -74,6 +76,11 @@ func (c *Client) infraHostRecords() ([]infraHostRecord, error) {
 		}
 		records = append(records, infraHostRecord{entry: host, key: c.infraHostKey(host.MACAddress)})
 	}
+	if count > 0 && len(records) == 0 {
+		// A firmware that stops reporting MACs must not make every Fritz!Box
+		// host look removed to callers that diff successive observations.
+		return nil, errors.New("fritzbox hosts carry no usable MAC address")
+	}
 	return records, nil
 }
 
@@ -83,8 +90,11 @@ func (c *Client) infraHostKey(mac string) string {
 	return "fbh1_" + hex.EncodeToString(sum[:])
 }
 
-// InfraHosts enumerates all Fritz!Box Hosts entries. It fails the whole
-// observation on a partial list so callers cannot infer removals from it.
+// InfraHosts enumerates all Fritz!Box Hosts entries that carry a usable MAC
+// address. Entries without one (VPN peers, remote or IPv6-only entries) are
+// skipped because they can be neither keyed nor acted on. A SOAP failure on the
+// count or on any entry fails the whole observation, as does a table whose
+// entries all lack a MAC, so callers cannot infer removals from a partial list.
 func (c *Client) InfraHosts() ([]InfraHost, error) {
 	records, err := c.infraHostRecords()
 	if err != nil {
