@@ -99,7 +99,7 @@
     <div class="infra-head-main">
       <h2 class="infra-head-title" id="${titleId}">${name}</h2>
       <input class="infra-head-name-input" data-node-field="name" form="infra-detail-form-${S}" value="${esc(draft.name)}" maxlength="120" required autocomplete="off" aria-label="${esc(t('desktop.infra_name'))}" hidden${write ? '' : ' readonly'}>
-      <div class="infra-head-meta"><span>${esc(app.labelForKind(node.kind))}</span>${crumbs.length ? `<span aria-hidden="true">·</span><nav class="infra-crumbs" aria-label="${esc(t('desktop.infra_place'))}"><ol>${crumbs.map(crumb => `<li><button type="button" data-crumb="${esc(crumb.id)}">${esc(crumb.name)}</button></li>`).join('')}</ol></nav>` : ''}</div>
+      <div class="infra-head-meta"><span>${esc(app.labelForKind(node.kind))}</span>${crumbs.length ? `<nav class="infra-crumbs" aria-label="${esc(t('desktop.infra_place'))}"><ol>${crumbs.map(crumb => `<li><button type="button" data-crumb="${esc(crumb.id)}">${esc(crumb.name)}</button></li>`).join('')}</ol></nav>` : ''}</div>
       <p class="infra-head-pills"><span class="infra-state-pill" data-state="${esc(stateName)}"><i></i>${esc(app.statusLabel(stateName))}</span>${powerKey ? `<span class="infra-power-pill" data-power="${esc(node.power)}">${esc(t(powerKey))}</span>` : ''}${quick}</p>
     </div>
     <div class="infra-head-actions"><button type="button" class="infra-cmd-icon" data-action="node-more" aria-haspopup="menu" aria-label="${esc(t('desktop.infra_more_actions'))}" title="${esc(t('desktop.infra_more_actions'))}">${app.glyph('more')}</button>${closeButton()}</div>
