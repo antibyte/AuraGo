@@ -475,9 +475,13 @@ button.infra-head-name:hover { border-color: var(--vd-theme-border); }
 .infra-candidate-actions { display: flex; flex-wrap: wrap; gap: var(--ds-space-1); }
 .infra-candidate-actions .infra-button { height: 30px; }
 .infra-candidate-error { margin: 0; color: var(--infra-bad-text); font-size: 14px; }
-.infra-sheet-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-2); padding: var(--ds-space-2) var(--ds-space-3); border-top: 1px solid var(--vd-theme-border); }
-.infra-sheet-foot [data-import-count] { flex: 1; color: var(--vd-theme-muted); font-size: 14px; }
+.infra-sheet-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--ds-space-2); padding: var(--ds-space-2) var(--ds-space-3); border-top: 1px solid var(--vd-theme-border); }
+.infra-sheet-foot [data-import-count] { flex: 1 1 100%; color: var(--vd-theme-muted); font-size: 14px; }
 @container infra (max-width: 759px) { .infra-import-sheet { width: 100%; } }
+/* The sheet is non-modal and covers the left of the map: the tools cluster moves out from under it (the sheet is at least 380 px wide; the library column or the 40 px rail sits beside it). */
+.infra-app[data-import-open="true"] .infra-tools { left: calc(max(0px, 380px - var(--infra-library-w)) + var(--ds-space-3)); }
+.infra-app[data-import-open="true"][data-library-collapsed="true"] .infra-tools { left: calc(340px + var(--ds-space-3)); }
+@container infra (max-width: 759px) { .infra-app[data-import-open="true"] .infra-tools { left: var(--ds-space-3); } }
 @media (prefers-reduced-motion: no-preference) { body:not([data-animations="false"]) .infra-import-sheet:not([hidden]) { animation: infra-sheet-in var(--ds-motion-duration-base) var(--ds-motion-ease-decel); } }
 @keyframes infra-sheet-in { from { opacity: 0; transform: translateX(-12px); } }
 /* ---- Plan C: List view ---- */
