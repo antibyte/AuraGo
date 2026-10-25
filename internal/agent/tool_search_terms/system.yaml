@@ -1,0 +1,7 @@
+# Search terms of the system tools.
+manage_appointments:
+  en: ["calendar appointment"]
+  de: ["Kalender Termin", "Termin eintragen"]
+system_metrics:
+  en: ["cpu temperature", "cpu temperatures", "temperature sensors", "thermal sensors", "system monitor", "monitor cpu", "cpu monitor", "hardware metrics"]
+  de: ["cpu temperatur"]

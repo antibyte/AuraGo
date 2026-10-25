@@ -1,0 +1,7 @@
+# Search terms of the network and smart home tools.
+home_assistant:
+  en: ["turn on lights", "smart home"]
+  de: ["Licht einschalten", "Licht ausschalten"]
+local_wikipedia:
+  en: ["offline encyclopedia"]
+  de: ["lokale Wikipedia", "Wikipedia offline", "Lexikon", "Enzyklopädie"]

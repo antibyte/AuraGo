@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -48,7 +49,7 @@ func discoverySuggestions(catalog *ToolCatalog, query string, limit int, keep fu
 			continue
 		}
 		best := 0.0
-		for _, label := range append([]string{entry.Name}, entry.Aliases...) {
+		for _, label := range slices.Concat([]string{entry.Name}, entry.Aliases, entry.SearchTerms) {
 			labelGrams := discoveryTrigrams(label)
 			for _, probe := range probes {
 				best = max(best, discoveryDice(probe, labelGrams))

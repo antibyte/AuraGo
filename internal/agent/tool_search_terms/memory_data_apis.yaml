@@ -1,0 +1,4 @@
+# Search terms of the memory and data API tools.
+manage_notes:
+  en: ["save note", "notes"]
+  de: ["Notiz speichern", "Notizen lesen"]

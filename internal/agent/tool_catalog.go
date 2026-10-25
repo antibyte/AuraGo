@@ -4,6 +4,7 @@ import (
 	"aurago/internal/prompts"
 	"encoding/json"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -39,10 +40,15 @@ type ToolRouting struct {
 }
 
 type ToolCatalogEntry struct {
-	ReadOnly     bool        `json:"read_only,omitempty"`
-	Name         string      `json:"name"`
-	Kind         ToolKind    `json:"kind"`
-	Aliases      []string    `json:"aliases,omitempty"`
+	ReadOnly bool     `json:"read_only,omitempty"`
+	Name     string   `json:"name"`
+	Kind     ToolKind `json:"kind"`
+	Aliases  []string `json:"aliases,omitempty"`
+	// SearchTerms are the curated phrases (English and German) a user would
+	// type to find the tool. They only feed the search ranking: unlike Aliases
+	// they never resolve a tool name, and they stay out of the JSON so that
+	// they cannot change a catalog revision or a discovery result.
+	SearchTerms  []string    `json:"-"`
 	Category     string      `json:"category,omitempty"`
 	Schema       openai.Tool `json:"-"`
 	ManualPath   string      `json:"manual_path,omitempty"`
@@ -99,6 +105,7 @@ func BuildToolCatalog(allSchemas, activeSchemas []openai.Tool, promptsDir string
 				Active:       false,
 				HiddenReason: "config_disabled",
 				Description:  def.ShortDesc,
+				SearchTerms:  toolSearchTermsFor(def.Name),
 			})
 		}
 	}
@@ -120,6 +127,7 @@ func catalogEntryFromSchema(schema openai.Tool, active bool, promptsDir string) 
 		Enabled:     true,
 		Active:      active,
 		Description: description,
+		SearchTerms: toolSearchTermsFor(name),
 	}
 	if active {
 		entry.Status = ToolStatusActive
@@ -148,34 +156,7 @@ func catalogEntryFromSchema(schema openai.Tool, active bool, promptsDir string) 
 		entry.Kind = ToolKindMCP
 		entry.Routing = ToolRouting{NativeAction: name}
 	}
-	entry.Aliases = append(entry.Aliases, toolSearchAliases(name)...)
-
 	return entry
-}
-
-func toolSearchAliases(name string) []string {
-	switch name {
-	case "manage_notes":
-		return []string{"Notiz speichern", "Notizen lesen", "save note", "notes"}
-	case "home_assistant":
-		return []string{"Licht einschalten", "Licht ausschalten", "turn on lights", "smart home"}
-	case "manage_appointments":
-		return []string{"Kalender Termin", "Termin eintragen", "calendar appointment"}
-	case "layerling":
-		return []string{"3D CAD", "Layerling", "Modell konstruieren", "edit 3D model"}
-	case "local_wikipedia":
-		return []string{"lokale Wikipedia", "Wikipedia offline", "offline encyclopedia", "Lexikon", "Enzyklopädie"}
-	case "retro_games":
-		return []string{"Retro-Spiele", "Retrospiel spielen", "DOS-Spiel", "Arcade-Spiel", "Spielhalle", "retro games", "old game", "archive.org games"}
-	case "system_metrics":
-		return []string{
-			"cpu temperature", "cpu temperatures", "cpu temperatur",
-			"temperature sensors", "thermal sensors", "system monitor",
-			"monitor cpu", "cpu monitor", "hardware metrics",
-		}
-	default:
-		return nil
-	}
 }
 
 func (c *ToolCatalog) add(entry *ToolCatalogEntry) {
@@ -245,11 +226,13 @@ func (c *ToolCatalog) Search(query string) []*ToolCatalogEntry {
 	var scored []scoredEntry
 	for _, entry := range c.Entries() {
 		text := strings.ToLower(toolCatalogSearchText(entry))
+		// Until the ranked search lands, the curated terms score like aliases.
+		aliases := slices.Concat(entry.Aliases, entry.SearchTerms)
 		score := 0
 		if strings.EqualFold(entry.Name, query) || (entry.Enabled && entry.Name == nameAlias) {
 			score += 10000
 		}
-		for _, alias := range entry.Aliases {
+		for _, alias := range aliases {
 			if strings.EqualFold(alias, query) {
 				score += 5000
 			}
@@ -268,7 +251,7 @@ func (c *ToolCatalog) Search(query string) []*ToolCatalogEntry {
 				continue
 			}
 			aliasMatched := false
-			for _, alias := range entry.Aliases {
+			for _, alias := range aliases {
 				if strings.Contains(strings.ToLower(alias), token) {
 					score += 15
 					aliasMatched = true
@@ -327,7 +310,7 @@ func toolCatalogSearchText(entry *ToolCatalogEntry) string {
 	b.WriteString(entry.Category)
 	b.WriteByte(' ')
 	b.WriteString(entry.Description)
-	for _, alias := range entry.Aliases {
+	for _, alias := range slices.Concat(entry.Aliases, entry.SearchTerms) {
 		b.WriteByte(' ')
 		b.WriteString(alias)
 	}
