@@ -171,13 +171,14 @@
 
 **Files:** `internal/config/config_types.go`, `internal/config/config.go`, `internal/agent/dispatch_yepapi.go`, `config_template.yaml`, `internal/config/config_test.go`
 
-- [ ] **Step 1:** Add a failing config test `TestYepAPIBudgetQuotaPercentClamp`. Load a config with `yepapi.budget_quota_percent: -5` and assert it becomes `0`; with `35` and assert it stays `35`. Follow the clamp pattern at `internal/config/config.go:2251-2253`.
-- [ ] **Step 2:** Add `BudgetQuotaPercent int \`yaml:"budget_quota_percent"\`` to `YepAPIConfig` (`internal/config/config_types.go:2790`), documented as the share of the daily budget reserved for YepAPI, `0` disables the quota.
-- [ ] **Step 3:** Clamp a negative value to `0` in the YepAPI defaults block (`internal/config/config.go:942-951`).
-- [ ] **Step 4:** Write `budget_quota_percent: 0` explicitly under `yepapi:` in `config_template.yaml`, with a comment matching the `co_agents` wording. `TestRepositoryConfigTemplateYAMLIsParseable` and the template load test must stay green.
-- [ ] **Step 5:** In the Task 3 helper, add the quota gate next to the global budget gate: `IsCategoryQuotaBlocked("yepapi", cfg.YepAPIBudgetQuotaPercent)` returns a distinct message naming the quota. Order matters: the global budget message stays first, matching the co-agent order at `internal/agent/dispatch_platform.go:362-367`.
-- [ ] **Step 6:** Add a failing test `TestDispatchYepAPIBlocksOnCategoryQuota` that drives the tracker past the quota share and asserts the quota message, then a test that a quota of `0` disables the gate.
-- [ ] **Step 7:** Run `go test ./internal/agent ./internal/config -count=1 -run 'YepAPI|ConfigTemplate|Budget'` and confirm success.
+- [x] **Step 1:** Add a failing config test `TestYepAPIBudgetQuotaPercentClamp`. Load a config with `yepapi.budget_quota_percent: -5` and assert it becomes `0`; with `35` and assert it stays `35`. Follow the clamp pattern at `internal/config/config.go:2251-2253`.
+- [x] **Step 2:** Add `BudgetQuotaPercent int \`yaml:"budget_quota_percent"\`` to `YepAPIConfig` (`internal/config/config_types.go:2790`), documented as the share of the daily budget reserved for YepAPI, `0` disables the quota.
+- [x] **Step 3:** Clamp a negative value to `0` in the YepAPI defaults block (`internal/config/config.go:942-951`).
+- [x] **Step 4:** Write `budget_quota_percent: 0` explicitly under `yepapi:` in `config_template.yaml`, with a comment matching the `co_agents` wording. `TestRepositoryConfigTemplateYAMLIsParseable` and the template load test must stay green.
+- [x] **Step 5:** In the Task 3 helper, add the quota gate next to the global budget gate: `IsCategoryQuotaBlocked("yepapi", cfg.YepAPIBudgetQuotaPercent)` returns a distinct message naming the quota. Order matters: the global budget message stays first, matching the co-agent order at `internal/agent/dispatch_platform.go:362-367`.
+- [x] **Step 6:** Add a failing test `TestDispatchYepAPIBlocksOnCategoryQuota` that drives the tracker past the quota share and asserts the quota message, then a test that a quota of `0` disables the gate.
+- [x] **Step 7:** Run `go test ./internal/agent ./internal/config -count=1 -run 'YepAPI|ConfigTemplate|Budget'` and confirm success.
+- **Note:** The clamp sits next to the co-agent clamp, not in the YepAPI defaults block: `Load` unmarshals the YAML at `internal/config/config.go:1052`, so a clamp in the defaults block at `:942` is overwritten by the loaded value. The template comment repeats the co-agent wording. `documentation/configuration.md` has no YepAPI section at all, so the knob lives in the config struct and the template like every other YepAPI setting; no UI string and no manual were added.
 
 ---
 
