@@ -211,11 +211,12 @@
 
 **Finding:** the operation set exists in three places — the JSON schema enums, the dispatcher switch statements and `prompts/tools_manuals/yepapi.md`. Today all three agree across 108 operations (SEO 8, SERP 13, Scrape 7, YouTube 32, TikTok 18, Instagram 19, Amazon 11). Nothing enforces that, so the next added operation can drift silently.
 
-**Files:** `internal/tools/yepapi_test.go`
+**Files:** `internal/agent/dispatch_yepapi_operations_test.go`
 
-- [ ] **Step 1:** Add a test `TestYepAPIOperationsMatchSchemaDispatcherAndManual`. Parse the `operation` enums out of the native tool schemas, collect the operation names accepted by each `DispatchYepAPI*` function, and parse the bullet list of each tool section in `prompts/tools_manuals/yepapi.md`. Assert the three sets are equal per tool. Report the symmetric difference in the failure message so a mismatch names the missing and the extra operation.
-- [ ] **Step 2:** Confirm the test passes against the current tree. If it fails, fix the drift in this plan rather than loosening the assertion.
-- [ ] **Step 3:** Keep the test next to the existing `TestDispatchYepAPI*ParityEndpoints` tests so the parity idea lives in one place.
+- [x] **Step 1:** Add a test `TestYepAPIOperationsMatchSchemaDispatcherAndManual`. Parse the `operation` enums out of the native tool schemas, collect the operation names accepted by each `DispatchYepAPI*` function, and parse the bullet list of each tool section in `prompts/tools_manuals/yepapi.md`. Assert the three sets are equal per tool. Report the symmetric difference in the failure message so a mismatch names the missing and the extra operation.
+- [x] **Step 2:** Confirm the test passes against the current tree. If it fails, fix the drift in this plan rather than loosening the assertion.
+- [x] **Step 3:** Keep the test next to the existing `TestDispatchYepAPI*ParityEndpoints` tests so the parity idea lives in one place.
+- **Note:** The test lives in `internal/agent` and not in `internal/tools/yepapi_test.go`. The schema side reads the schema the model really sees, and that schema is built by `BuildNativeToolSchemas` in the agent package. The tools package cannot import the agent package, because the agent package already imports the tools package; a test in `internal/tools` could therefore only have read the schema as source text, which would not cover the artifact that is shipped. The dispatcher side is collected by asking the dispatchers themselves: the candidate names come from the string literals of the seven dispatcher files, and every candidate is probed with a cancelled context, so an unknown operation is reported as unknown while an accepted one stops at the request that is never sent. No request leaves the test and no rate limit budget is touched. The manual side is read from the bullet list of each tool section; one bullet may name several operations, as the Instagram aliases do. The test was proven to fail in all three directions: a manual bullet the schema does not know, a dispatcher case the schema does not know and a schema entry the dispatcher does not know are each reported by name.
 
 ---
 
