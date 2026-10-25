@@ -114,7 +114,11 @@ func discoverySummaryResults(entries []*ToolCatalogEntry, session string) []Disc
 	for i := range results {
 		results[i].Parameters = nil
 		results[i].Description = truncateUTF8ToLimit(results[i].Description, 240, "…")
-		results[i].Instruction = "Use get_tool_info before the first call."
+		// A disabled or unconfigured tool keeps the reason it cannot be called;
+		// "get_tool_info before the first call" would promise a call that fails.
+		if method := results[i].CallMethod; method != "disabled" && method != "needs_setup" {
+			results[i].Instruction = "Use get_tool_info before the first call."
+		}
 	}
 	return results
 }
