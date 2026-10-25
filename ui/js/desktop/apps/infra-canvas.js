@@ -610,8 +610,8 @@
             for (const button of emptyEl.querySelectorAll('button')) button.disabled = !canWrite;
             const noneShown = filtersOn && last.cards.length > 0 && shown === 0;
             noMatchEl.hidden = !noneShown;
-            // Matches that no card shows are not "no match": they wait in the library, and Show match opens the first one.
-            const unplaced = noneShown ? model.unplacedMatches(store.state.nodes, last, store.guests().hostOf, store.matches).length : 0;
+            // Matches that no card shows are not "no match" when the library lists them under To place (the Map only): Show match opens the first row.
+            const unplaced = noneShown ? store.toPlace(view).length : 0;
             const message = unplaced ? model.countText(unplaced, t('desktop.infra_no_match_unplaced_one'), t('desktop.infra_no_match_unplaced')) : t('desktop.infra_no_match');
             if (noMatchText.textContent !== message) noMatchText.textContent = message;
             showMatchButton.hidden = !unplaced;

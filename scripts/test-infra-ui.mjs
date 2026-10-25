@@ -374,14 +374,37 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     assert.deepEqual(plain(scene.regions.map(region => region.id)), ['room']);
     assert.deepEqual(plain(scene.lines.map(line => [line.id, line.from, line.to])), [['l', 'host', 'nas']], 'runs_on is implied by nesting and a guest line attaches to its host');
     assert.equal(model.buildScene({ ...input, view: 'topology' }).regions.length, 0, 'topology hides regions');
-    // F2: a match that no card, place region or drawn host card shows is "not on the map" (the empty-result box and Enter in the search use this); the order is by name, then id.
-    const named = sceneNodes.map(node => ({ ...node, name: node.id })).concat([{ id: 'guest-of-loose', name: 'guest-of-loose', kind: 'vm' }, { id: 'z', name: 'Alpha', kind: 'device' }, { id: 'y', name: 'Alpha', kind: 'device' }]);
-    const hostOf = new Map([...input.guests.hostOf, ['guest-of-loose', 'loose']]);
-    const unplaced = matches => plain(model.unplacedMatches(named, scene, hostOf, matches).map(node => node.id));
-    assert.deepEqual(unplaced(() => true), ['y', 'z', 'guest-of-loose', 'loose'], 'cards, places and guests of a drawn host are on the map; the rest is not, sorted by name then id');
-    assert.deepEqual(unplaced(node => node.id === 'nas' || node.id === 'svc' || node.id === 'room'), [], 'matches that are drawn leave no unplaced match');
-    assert.deepEqual(unplaced(node => node.id === 'loose' || node.id === 'nas'), ['loose'], 'only the match that is not drawn counts');
-    assert.deepEqual(plain(model.unplacedMatches(named, { cardById: new Map(), regionRects: new Map() }, null, node => node.name === 'Alpha').map(node => node.id)), ['y', 'z'], 'an empty scene and no host index still answer');
+    // F2: toPlaceNodes is the one list behind the library's To place rows, the Map's 'not on the map yet' count and the asset Enter reveals.
+    {
+        const toPlaceNodes = [
+            { id: 'dev-a', name: 'Alpha', kind: 'device', placements: {} },
+            { id: 'dev-b', name: 'Bravo', kind: 'device', placements: { atlas: { x: 0, y: 0 } } },
+            { id: 'host-u', name: 'Host unplaced', kind: 'device', placements: {} },
+            { id: 'vm-g', name: 'Guest vm', kind: 'vm', host_id: 'host-u', placements: {} },
+            { id: 'svc-g', name: 'Guest service', kind: 'service', placements: {} },
+            { id: 'ct-loose', name: 'Loose container', kind: 'container', placements: {} },
+            { id: 'room-u', name: 'Room unplaced', kind: 'room', placements: {} },
+            { id: 'host-p', name: 'Host placed', kind: 'device', placements: { atlas: { x: 300, y: 0 } } },
+            { id: 'vm-p', name: 'Placed guest', kind: 'vm', host_id: 'host-p', placements: {} },
+        ];
+        const toPlaceEdges = [{ id: 'nested', kind: 'runs_on', from: 'svc-g', to: 'vm-g' }];
+        const index = model.guestIndex(toPlaceNodes, toPlaceEdges), placed = new Map(toPlaceNodes.map(node => [node.id, node.placements]));
+        const rows = (view, matches) => plain(model.toPlaceNodes({ nodes: toPlaceNodes, view, hostOf: index.hostOf, guestsOf: index.guestsOf, placementOf: id => placed.get(id)[view] || null, matches }).map(node => node.id));
+        const only = (...ids) => node => ids.includes(node.id);
+        assert.deepEqual(rows('atlas', () => true), ['dev-a', 'host-u', 'room-u'], 'a normal unplaced device and place are rows; placed assets, guests and a hostless container are not');
+        assert.deepEqual(rows('atlas', only('dev-a')), ['dev-a'], 'a normal unplaced device that matches');
+        assert.deepEqual(rows('atlas', only('dev-b')), [], 'a placed asset is not a row');
+        assert.deepEqual(rows('atlas', only('vm-g')), ['host-u'], 'a matching guest of an unplaced host counts as its host row');
+        assert.deepEqual(rows('atlas', only('svc-g')), ['host-u'], 'a guest of a guest counts as the unplaced host at the top');
+        assert.deepEqual(rows('atlas', only('vm-g', 'svc-g', 'host-u')), ['host-u'], 'a host and its matching guests are one row');
+        assert.deepEqual(rows('atlas', only('vm-p')), [], 'a guest of a placed host rides in its card');
+        assert.deepEqual(rows('atlas', only('ct-loose')), [], 'a hostless container is a Cleanup suggestion, not a To place row');
+        assert.deepEqual(rows('atlas', only('room-u')), ['room-u'], 'an unplaced place is a row in the Map');
+        assert.deepEqual(rows('topology', () => true), [], 'Topology draws every asset by itself: no To place rows');
+        assert.deepEqual(rows('topology', only('room-u')), [], 'a place that matches in Topology is not a row (Topology draws no places)');
+        const same = [{ id: 'y', name: 'Alpha', kind: 'device' }, { id: 'x', name: 'Alpha', kind: 'device' }, { id: 'w', name: 'Zulu', kind: 'device' }];
+        assert.deepEqual(plain(model.toPlaceNodes({ nodes: same, view: 'atlas', hostOf: new Map(), guestsOf: new Map(), placementOf: () => null, matches: () => true }).map(node => node.id)), ['x', 'y', 'w'], 'sorted by name, then id');
+    }
     const normalized = model.normalizeNode({ id: 'n', icon: 'nope' });
     assert.equal(normalized.icon, 'generic-device');
     assert.equal(normalized.parent_id, '');

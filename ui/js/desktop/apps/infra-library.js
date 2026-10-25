@@ -57,13 +57,9 @@
             const auto = view === 'topology' ? app.canvas.autoPositions() : null;
             const placementOf = id => store.effectivePlacement(id, view) || auto?.get(id) || null;
             const parentOf = id => store.effectiveParent(id, view);
-            const toPlace = [];
-            if (view !== 'topology') for (const node of state.nodes) { // nothing is left to place in Topology
-                if (guests.hostOf.has(node.id) || placementOf(node.id) || !store.matches(node)) continue;
-                if (node.kind === 'vm' || node.kind === 'container') continue; // a guest without a host is a Cleanup suggestion
-                toPlace.push(node);
-            }
-            toPlace.sort(byName);
+            // Nothing is left to place in Topology; a guest without a host is a Cleanup suggestion. The Map's "not on the map yet"
+            // box and Enter in the search read this same list (store.toPlace).
+            const toPlace = store.toPlace(view);
             const scene = model.buildScene({ nodes: state.nodes, edges: state.edges, view, placementOf, parentOf, guests });
             const regionIds = new Set(scene.regions.map(region => region.id));
             const buckets = new Map();

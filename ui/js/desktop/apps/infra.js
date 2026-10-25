@@ -539,11 +539,12 @@
             const guest = state.nodes.find(node => matching(node) && scene.cardById.has(hostOf.get(node.id)));
             return guest ? hostOf.get(guest.id) : '';
         }
-        // revealUnplacedMatch: the matches are on no map. The first one by name opens in the inspector and its library row shows as
-        // selected and in view; nothing is placed (the user decides where it goes). Show match on the empty-result box does the same.
+        // revealUnplacedMatch: the matches are on no map. The first To place row (by name; a host stands for a matching guest) opens in
+        // the inspector and shows as selected and in view; nothing is placed (the user decides where it goes). Topology has no To place
+        // rows, so Enter does nothing there. Show match on the empty-result box does the same.
         function revealUnplacedMatch() {
             if (state.view === 'table') return;
-            const [node] = model.unplacedMatches(state.nodes, canvas.sceneData(), store.guests().hostOf, store.matches);
+            const [node] = store.toPlace(mapView());
             if (!node) return;
             library.renderNow();
             inspector.open(node.id, 'overview');

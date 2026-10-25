@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/go-rod/rod/lib/proto"
 )
 
 // TestDesktopInfraHeaderActionFitsBrowser covers the inspector header action: its label ("In Schnellverbindung
@@ -91,6 +93,42 @@ func TestDesktopInfraHeaderActionFitsBrowser(t *testing.T) {
 	t.Logf("%d header actions fit their box; %d of them wrap to more than one line", checked, wrapped)
 	if wrapped == 0 {
 		t.Fatal("no locale wraps the header action: the test no longer exercises the long-label case")
+	}
+	requireInfraBrowserClean(t, page)
+}
+
+// TestDesktopInfraHeaderActionTouchSizeBrowser keeps the header action at the 44 px touch size of every Infra button: the
+// header rule is more specific than the generic coarse-pointer rule, so it has to restate that size.
+func TestDesktopInfraHeaderActionTouchSizeBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	fixture := newInfraAppBrowserFixture()
+	fixture.world(25)
+	for _, node := range fixture.nodes {
+		if node["id"] == "fixture-node-0003" {
+			node["app_links"] = []any{map[string]any{"app": "quick-connect", "target_id": "target-quick-connect"}}
+		}
+	}
+	page := infraBrowserPageWithFixture(t, fixture)
+	defer page.Close()
+	page.MustSetViewport(1920, 1200, 1, false)
+	points := 5
+	if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: true, MaxTouchPoints: &points}).Call(page); err != nil {
+		t.Fatal(err)
+	}
+	if !page.MustEval(`()=>matchMedia('(pointer: coarse)').matches`).Bool() {
+		t.Fatal("touch emulation did not switch the primary pointer to coarse")
+	}
+	openInfraBrowserApp(page)
+	page.MustWait(`()=>document.querySelectorAll('[data-nodes] [data-node]').length>0`)
+	page.MustEval(`()=>{const win=document.querySelector('.vd-window[data-app-id="infra"]');win.classList.remove('maximized','vd-mobile-forced-maximized');win.style.right='auto';win.style.width='1500px';win.style.height='900px';win.style.left='210px';win.style.top='70px';}`)
+	page.MustWait(`()=>document.querySelector('.infra-app').clientWidth>1000`)
+	// Edit (an asset without an app link) and the primary open action (an asset with one) are both header actions.
+	for _, asset := range []struct{ id, action string }{{"fixture-node-0010", "edit-details"}, {"fixture-node-0003", "open-first-app"}} {
+		page.MustEval(`(id)=>document.querySelector('[data-node="'+id+'"]').click()`, asset.id)
+		page.MustWait(`(action)=>!!document.querySelector('[data-inspector] .infra-head-pills [data-action="'+action+'"]')`, asset.action)
+		if got := page.MustEval(`(action)=>document.querySelector('[data-inspector] .infra-head-pills [data-action="'+action+'"]').getBoundingClientRect().height`, asset.action).Num(); got < 43.5 {
+			t.Fatalf("on a touch screen the header action %s is %.1f px high; want at least 44", asset.action, got)
+		}
 	}
 	requireInfraBrowserClean(t, page)
 }

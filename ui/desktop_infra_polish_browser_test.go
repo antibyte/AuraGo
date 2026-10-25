@@ -447,10 +447,15 @@ func TestDesktopInfraUnplacedSearchMatchBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	fixture := newInfraAppBrowserFixture()
 	fixture.world(25)
+	hiddenGuest := infraCanvasFixtureNode("brain-vm", "vm", "Hidden guest vm", "vm", nil, "")
+	hiddenGuest["host_id"] = "brain-a" // rides in the unplaced host "TheBrain": it has no library row of its own
 	fixture.nodes = append(fixture.nodes,
 		infraCanvasFixtureNode("brain-b", "device", "TheBrain Backup", "nas", nil, ""),
 		infraCanvasFixtureNode("brain-a", "device", "TheBrain", "mini-pc", nil, ""),
-		infraCanvasFixtureNode("switch-spare", "device", "Core switch spare", "managed-switch", nil, ""))
+		infraCanvasFixtureNode("switch-spare", "device", "Core switch spare", "managed-switch", nil, ""),
+		hiddenGuest,
+		infraCanvasFixtureNode("loose-box", "container", "Loose box", "container", nil, ""), // a hostless container is a Cleanup suggestion
+		infraCanvasFixtureNode("annex", "room", "Brain annex", "room", nil, ""))             // an unplaced place: a row in the Map, none in Topology
 	page := infraPolishOpen(t, fixture, 1500, 900)
 	defer page.Close()
 	page.MustEval(`()=>{
@@ -522,6 +527,42 @@ func TestDesktopInfraUnplacedSearchMatchBrowser(t *testing.T) {
 	if got := readBox(); !got.Show || got.Text != word("desktop.infra_no_match_unplaced_one", 1) {
 		t.Fatalf("with one unplaced match the empty map shows %+v", got)
 	}
+
+	// A guest of an unplaced host has no row of its own: it counts as its host's row, and Enter opens the host.
+	page.MustEval(`()=>document.querySelector('[data-node="fixture-node-0003"]').click()`)
+	page.MustWait(`()=>infraOpenTitle()==='Cold-store NAS'`)
+	page.MustEval(`()=>infraQuery('Hidden guest')`)
+	waitText(word("desktop.infra_no_match_unplaced_one", 1))
+	// The library lists the same rows (it repaints on the next frame): the host of the matching guest, nothing else.
+	page.MustWait(`()=>JSON.stringify([...document.querySelectorAll('[data-section="to-place"][data-library-item]')].map(row=>row.dataset.libraryItem))==='["brain-a"]'`)
+	search.MustFocus()
+	page.Keyboard.MustType(input.Enter)
+	page.MustWait(`()=>infraOpenTitle()==='TheBrain'&&document.querySelector('[data-library-item="brain-a"] [data-library-select]').getAttribute('aria-selected')==='true'`)
+
+	// A hostless container and a place in Topology are no To place rows: the plain "no match" box, no Show match, Enter does nothing.
+	plain := func(query string) {
+		t.Helper()
+		page.MustEval(`(query)=>infraQuery(query)`, query)
+		waitText(word("desktop.infra_no_match", 0))
+		if got := readBox(); got.Show {
+			t.Fatalf("%q matches nothing the library lists, but the box offers Show match: %+v", query, got)
+		}
+		before := page.MustEval(`()=>infraOpenTitle()`).Str()
+		search.MustFocus()
+		page.Keyboard.MustType(input.Enter)
+		page.MustEval(`()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
+		if got := page.MustEval(`()=>infraOpenTitle()`).Str(); got != before {
+			t.Fatalf("%q: Enter must change nothing, the panel went from %q to %q", query, before, got)
+		}
+	}
+	plain("Loose box")
+	page.MustEval(`()=>infraQuery('Brain annex')`)
+	waitText(word("desktop.infra_no_match_unplaced_one", 1)) // in the Map the unplaced place is a row
+	page.MustEval(`()=>document.querySelector('.infra-view-switch [data-view="topology"]').click()`)
+	page.MustWait(`()=>document.querySelector('.infra-view-switch [data-view="topology"]').getAttribute('aria-pressed')==='true'`)
+	plain("Brain annex")
+	page.MustEval(`()=>document.querySelector('.infra-view-switch [data-view="atlas"]').click()`)
+	page.MustWait(`()=>document.querySelector('.infra-view-switch [data-view="atlas"]').getAttribute('aria-pressed')==='true'`)
 
 	// Nothing matches at all: today's box, without Show match, and Enter does nothing.
 	page.MustEval(`()=>infraQuery('zzzz-no-such-asset')`)

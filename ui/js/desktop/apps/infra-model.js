@@ -378,11 +378,24 @@
         return !query || textOf(node).includes(query);
     };
     const filtersActive = filters => !!(filters && (filters.kind || filters.source || filters.power || String(filters.query || '').trim()));
-    // unplacedMatches lists, by name, the assets that satisfy matches() but are not drawn by the scene: neither a card, a place region
-    // nor a guest riding in a drawn host's card. The library's To place section sorts the same way, so its first row is the first entry.
-    const unplacedMatches = (nodes, scene, hostOf, matches) => nodes
-        .filter(node => matches(node) && !scene.cardById.has(node.id) && !scene.regionRects.has(node.id) && !(hostOf && scene.cardById.has(hostOf.get(node.id))))
-        .sort((a, b) => String(a.name).localeCompare(String(b.name)) || String(a.id).localeCompare(String(b.id)));
+    // toPlaceNodes is the one list behind the library's To place rows, the Map's "N matches are not on the map yet" count and the
+    // asset that Enter or Show match reveals, so the three cannot disagree. Topology draws every placeable asset by itself: no rows
+    // there. In the Map a row is an asset that is no guest (it rides in its host's card), has no placement, is no hostless vm or
+    // container (those are Cleanup suggestions) and matches the filters; a host also stays a row while only one of its guests
+    // matches (the guest has no row of its own). Sorted by name, then id; matches() is true for everything without a query.
+    const toPlaceNodes = ({ nodes, view, hostOf, guestsOf, placementOf, matches }) => {
+        if (view === 'topology') return [];
+        const byId = new Map((nodes || []).map(node => [node.id, node]));
+        const guestMatches = (id, seen) => (guestsOf?.get(id) || []).some(guestId => {
+            const guest = byId.get(guestId);
+            if (!guest || seen.has(guestId)) return false;
+            seen.add(guestId);
+            return matches(guest) || guestMatches(guestId, seen);
+        });
+        return (nodes || [])
+            .filter(node => !hostOf.has(node.id) && !placementOf(node.id) && node.kind !== 'vm' && node.kind !== 'container' && (matches(node) || guestMatches(node.id, new Set([node.id]))))
+            .sort((a, b) => String(a.name).localeCompare(String(b.name)) || String(a.id).localeCompare(String(b.id)));
+    };
     // buildScene computes what the canvas draws for one view: asset cards (a
     // guest rides in its host's card instead), regions for placed places (Map
     // view only) and connection lines between shape borders. runs_on lines that
@@ -888,7 +901,7 @@
         CARD_W, CARD_H, GRID, MIN_ZOOM, MAX_ZOOM, REGION_W, REGION_H, REGION_PAD, REGION_MIN_W, REGION_MIN_H,
         clampZoom, zoomLevels, labelScale, toWorld, toScreen, zoomAt, fitView, viewCenter, viewFromCenter, snap, cardRect, intersects, containsPoint,
         normalizeRect, padRect, unionRects, freeSlot, regionRect, regionLayout, regionAt, dropParent, growRegions,
-        spatialNeighbour, compactGrid, defaultEdgeKind, guestIndex, matchesFilters, filtersActive, unplacedMatches, buildScene, edgeState,
+        spatialNeighbour, compactGrid, defaultEdgeKind, guestIndex, matchesFilters, filtersActive, toPlaceNodes, buildScene, edgeState,
         mergeIntent, layoutItems, rebaseLayout, createHistory, readLayoutPrefs, fill, countText, normalizeNode, minimapTransform, sceneFits, glyph,
         naturalCompare, isOpaqueName, addressesOf, isGenericDiscovery, compareSpecificity, relevanceIndex, discoveryRelevance, groupDiscoveries, bindableFor, linkSuggestions, infraCleanup, sourceLabels,
         TABLE_SORTS, tableComparator, tableRows, readTablePrefs, readInspectorPrefs, inspectorTab, withInspectorTab, readDismissed, listEntryText, draftDiff, formGroupFill, groupOfField,

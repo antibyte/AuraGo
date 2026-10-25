@@ -429,6 +429,12 @@
             }
             return view === 'topology' && placement && placement.pinned === false ? null : placement;
         }
+        // toPlace: the assets the library lists under To place for this view and the current query. The Map's "not on the map yet" box
+        // and Enter in the search read this same list (model.toPlaceNodes), so they never disagree with the library.
+        function toPlace(view) {
+            const index = guests();
+            return model.toPlaceNodes({ nodes: state.nodes, view, hostOf: index.hostOf, guestsOf: index.guestsOf, placementOf: id => effectivePlacement(id, view), matches });
+        }
         function effectiveParent(id, view) {
             const intent = effectiveIntent(view, id);
             return intent && intent.parent_id !== undefined ? intent.parent_id : (nodeById(id)?.parent_id || '');
@@ -841,7 +847,7 @@
             nodeById, nodeIndex, childrenOf, guests, searchableText, matches,
             applySnapshot, loadSnapshot, loadTargets, loadCredentials, loadIconManifest, replaceNode, removeNode,
             select, selectEdge, clearSelection, setView, setFilters, setTool, toggleHost, beginInteraction, endInteraction,
-            effectivePlacement, effectiveParent, currentIntent, layoutState, unsavedCount, queueLayout, whenLayoutIdle, retryLayout,
+            effectivePlacement, toPlace, effectiveParent, currentIntent, layoutState, unsavedCount, queueLayout, whenLayoutIdle, retryLayout,
             createEdge, updateEdge, deleteEdgeById, dispatch, undo: view => step(view, 'undo'), redo: view => step(view, 'redo'),
             reloadSnapshot: refreshSnapshot, replaceNodes, setSourcesIgnored, setSourceHost, importBatch, removeNodes, updateNodeFields, updateParents, identityKey,
             canUndo, canRedo, hasUnsavedWork, attach, abortRequests, dispose,
