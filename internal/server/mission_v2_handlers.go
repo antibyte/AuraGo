@@ -18,9 +18,21 @@ const (
 	maxMissionPromptLen = 10000
 )
 
-// broadcastMissionState pushes current mission list + queue state to all SSE clients.
+// broadcastMissionState pushes the current mission list and queue state to all SSE clients. The
+// first call sends at once; calls within missionUpdateDebounce after it are folded into one send
+// at the end of the window (Server.missionUpdates), so a busy flow no longer pushes the whole list
+// twice per run.
 func broadcastMissionState(s *Server) {
 	if s.SSE == nil {
+		return
+	}
+	s.missionUpdates.fire(func() { sendMissionState(s) })
+}
+
+// sendMissionState sends one mission_update with the state at the time of the call. The trailing
+// send of a window can run after shutdown, so it tolerates a missing manager.
+func sendMissionState(s *Server) {
+	if s.SSE == nil || s.MissionManagerV2 == nil {
 		return
 	}
 	missions := s.MissionManagerV2.List()
