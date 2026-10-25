@@ -71,6 +71,8 @@ The updater owns transaction manifests; this package verifies them before collec
 Keep `update.sh`, the maintenance CLI and the release build flags aligned.
 Both Windows builders must reject dirty source trees and link the reviewed commit
 and generated UI pins into main binaries; pass linker flags as one native argument.
+The PowerShell publisher pushes reviewed HEAD even when already committed, pins
+the release target, and passes a flat asset list plus a BOM-free notes file.
 
 ## Verification
 

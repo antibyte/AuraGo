@@ -46,10 +46,13 @@ func main() {
 	if start < 0 || end < 0 {
 		t.Fatal("PowerShell build helper missing")
 	}
-	var webAssetsDeclaration string
+	var webAssetsDeclaration, releaseArguments string
 	for _, line := range strings.Split(source, "\n") {
 		if strings.HasPrefix(line, "$webReleaseAssets = ") {
 			webAssetsDeclaration = line
+		}
+		if strings.HasPrefix(strings.TrimSpace(line), "$ghArgs = ") {
+			releaseArguments = strings.TrimSpace(line)
 		}
 	}
 	if webAssetsDeclaration == "" {
@@ -67,14 +70,18 @@ if ($webReleaseAssets.Count -ne 2 -or $webReleaseAssets[0] -ne 'deploy\fixture.t
 Build-Binary -Output 'main.bin' -Target './cmd/aurago/'
 Build-Binary -Output 'remote.bin' -Target './cmd/remote/'
 Build-Binary -Output 'merger.bin' -Target './cmd/config-merger/'
-`
+$buildID = 'reviewed-source'
+$assets = @('first.bin', 'two files.bin')
+$notesFile = 'fixture notes.md'
+Set-Alias gh -Value $env:AURAGO_FIXTURE_GO_EXE
+` + releaseArguments + "\ngh @ghArgs\n"
 	path := filepath.Join(dir, "fixture.ps1")
 	if err := os.WriteFile(path, []byte(script), 0600); err != nil {
 		t.Fatal(err)
 	}
 	argsFile := filepath.Join(dir, "args.jsonl")
 	cmd := exec.Command(ps, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path)
-	cmd.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"), "AURAGO_FIXTURE_GO_ARGS="+argsFile)
+	cmd.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"), "AURAGO_FIXTURE_GO_ARGS="+argsFile, "AURAGO_FIXTURE_GO_EXE="+stub)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("run native argv fixture: %v %s", err, output)
 	}
@@ -83,8 +90,17 @@ Build-Binary -Output 'merger.bin' -Target './cmd/config-merger/'
 		t.Fatal(err)
 	}
 	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	if len(lines) != 3 {
-		t.Fatalf("expected three native builds, got %s", data)
+	if len(lines) != 4 {
+		t.Fatalf("expected three native builds and one publication, got %s", data)
+	}
+	var releaseArgs []string
+	if err := json.Unmarshal([]byte(lines[3]), &releaseArgs); err != nil {
+		t.Fatal(err)
+	}
+	if len(releaseArgs) < 10 || releaseArgs[3] != "first.bin" || releaseArgs[4] != "two files.bin" ||
+		!strings.Contains(strings.Join(releaseArgs, "|"), "--target|reviewed-source") ||
+		!strings.Contains(strings.Join(releaseArgs, "|"), "--notes-file|fixture notes.md") {
+		t.Fatalf("release arguments lost reviewed source, asset boundaries or notes file: %q", releaseArgs)
 	}
 	for i, expected := range []string{"-X aurago/internal/webassets.BuildAssetSetID=reviewed-assets", "-X main.BuildVersion=v-fixture", "-s -w"} {
 		var args []string

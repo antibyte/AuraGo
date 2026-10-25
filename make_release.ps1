@@ -88,6 +88,9 @@ $buildID = (git rev-parse --verify HEAD).Trim()
 $buildTime = (git show -s --format=%cI HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or -not $buildID -or -not $buildTime) { throw 'Unable to resolve release source identity.' }
 if (git status --porcelain --untracked-files=normal) { throw 'Refusing to build release artifacts from a dirty worktree.' }
+$existingTag = git ls-remote --tags origin "refs/tags/$Version"
+if ($LASTEXITCODE -ne 0) { throw 'Cannot check the remote release tag.' }
+if ($existingTag) { throw "Release tag $Version already exists; choose a new version." }
 $mainLdFlags = "-s -w -X aurago/internal/buildinfo.BuildID=$buildID -X aurago/internal/buildinfo.BuildVCSRevision=$buildID -X aurago/internal/buildinfo.BuildVCSTime=$buildTime -X aurago/internal/buildinfo.BuildVCSModified=false"
 $hostGoOS = (go env GOHOSTOS).Trim()
 $hostGoArch = (go env GOHOSTARCH).Trim()
@@ -373,17 +376,10 @@ Write-Host ""
 # ── Step 3: Commit & push code ───────────────────────────────────────────
 Write-Host "[3/5] Pushing code to GitHub..." -ForegroundColor Yellow
 
-git add .
-$status = git diff-index --quiet HEAD 2>&1
-$hasChanges = $LASTEXITCODE -ne 0
-if ($hasChanges) {
-    git commit -m "build: release $Version [skip actions]"
-    git push origin main
-    Write-Host "    Code pushed." -ForegroundColor Green
-}
-if (-not $hasChanges) {
-    Write-Host "    Nothing to commit - working tree clean." -ForegroundColor Gray
-}
+if (git status --porcelain --untracked-files=normal) { throw 'Generated release inputs changed; review and commit them before publishing.' }
+git push origin HEAD:refs/heads/main
+if ($LASTEXITCODE -ne 0) { throw 'Source publication failed; no release was created.' }
+Write-Host "    Reviewed source pushed." -ForegroundColor Green
 
 Write-Host ""
 
@@ -460,8 +456,10 @@ curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | b
 '@
 $notes = $notes -replace '\{VERSION\}', $Version
 
+$notesFile = [IO.Path]::GetTempFileName()
+[IO.File]::WriteAllText($notesFile, $notes, [Text.UTF8Encoding]::new($false))
 try {
-    $ghArgs = @("release", "create", $Version, $assets, "--draft", "--title", "AuraGo $Version", "--notes", $notes)
+    $ghArgs = @("release", "create", $Version) + $assets + @("--draft", "--target", $buildID, "--title", "AuraGo $Version", "--notes-file", $notesFile)
     gh @ghArgs
     if ($LASTEXITCODE -ne 0) { throw 'Release draft creation or asset upload failed.' }
     gh release edit $Version --draft=false --latest
@@ -473,7 +471,7 @@ try {
     Write-Host "         - gh auth status (must be logged in)" -ForegroundColor Yellow
     Write-Host "         - Tag $Version may already exist (run: gh release delete $Version)" -ForegroundColor Yellow
     exit 1
-}
+} finally { Remove-Item -LiteralPath $notesFile -Force -ErrorAction SilentlyContinue }
 
 Write-Host ""
 

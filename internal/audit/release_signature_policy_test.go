@@ -74,6 +74,9 @@ func TestReleaseSignerRunsAfterChecksumsBeforePublishing(t *testing.T) {
 			checksum = strings.Index(script, `: > "$DEPLOY_DIR/SHA256SUMS"`)
 		}
 		publish := strings.Index(script, "git add .")
+		if path == "make_release.ps1" {
+			publish = strings.Index(script, "git push origin HEAD:refs/heads/main")
+		}
 		if sign < 0 || checksum < 0 || publish < 0 || sign <= checksum || sign >= publish {
 			t.Fatalf("%s must sign finished checksums before publication", path)
 		}
@@ -96,7 +99,7 @@ func TestWindowsReleaseUploadsDraftBeforePublishingAndRetention(t *testing.T) {
 		path, create, upload string
 	}{
 		{"make_release.bat", `gh release create "!VERSION!" --draft`, "gh release upload"},
-		{"make_release.ps1", `$ghArgs = @("release", "create", $Version, $assets, "--draft"`, "gh @ghArgs"},
+		{"make_release.ps1", `$ghArgs = @("release", "create", $Version) + $assets + @("--draft"`, "gh @ghArgs"},
 	} {
 		script := readRepoFile(t, tc.path)
 		create := strings.Index(script, tc.create)
