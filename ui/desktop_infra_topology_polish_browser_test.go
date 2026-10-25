@@ -179,6 +179,16 @@ func TestDesktopInfraTopologyCurvesBrowser(t *testing.T) {
 	if t.Failed() {
 		t.FailNow()
 	}
+	// A31: the lane labels paint above the connection layer (the lanes layer comes first in the scene, so both share its
+	// stacking context and the higher z-index wins) and still below the cards.
+	if got := page.MustEval(`()=>{
+		const z=el=>{const v=getComputedStyle(el).zIndex;return v==='auto'?0:Number(v);};
+		const label=document.querySelector('.infra-lane-label'),svg=document.querySelector('[data-edges]'),card=document.querySelector('[data-nodes] .infra-card');
+		const sameContext=[label,svg,card].every(el=>{for(let p=el.parentElement;p;p=p.parentElement){if(p.matches('[data-scene]'))return true;const cs=getComputedStyle(p);if(cs.zIndex!=='auto'||cs.transform!=='none'||cs.opacity!=='1')return false;}return false;});
+		return JSON.stringify({sameContext,aboveEdges:z(label)>z(svg),belowCards:z(label)<=z(card)});
+	}`).Str(); got != `{"sameContext":true,"aboveEdges":true,"belowCards":true}` {
+		t.Fatalf("the lane labels must paint above the connections and below the cards in one stacking context: %s", got)
+	}
 	// A28: no straight connection runs behind a card (nine points along each one stay outside every card box).
 	if got := page.MustEval(`()=>{
 		const cards=[...document.querySelectorAll('[data-nodes] [data-node]')].map(el=>({x:parseFloat(el.style.left),y:parseFloat(el.style.top)}));

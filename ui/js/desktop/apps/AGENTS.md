@@ -230,6 +230,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
     moved last in `[data-edge-layer]` so they paint above) and the other visible ones `is-faded` (35 %); a hover only reveals.
     A connection with a dimmed (filtered out) end is `is-dimmed` (28 %, like the cards), whether or not it is drawn. The
     opacity change is a transition only while `app.animationsEnabled()` and reduced motion is not asked for.
+  - Scene paint order (A31): `.infra-lane-label` has `z-index: 1`, so the sticky lane labels paint above the connection layer
+    (the `svg` has no z-index) and below the cards (z-index 1, later in the scene); nothing but z-index decides this.
   - `.infra-canvas-empty` and `.infra-canvas-nomatch` are centred boxes on their own surface (`--vd-theme-overlay-bg` with
     the theme blur, as the minimap) above the scene; only their buttons take the pointer.
 
