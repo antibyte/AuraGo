@@ -122,6 +122,15 @@ Schema upgrades create a pre-migration backup of the underlying SQLite file
 (including URI-backed paths), with private permissions set before copying.
 They preserve deployment foreign keys and advance PRAGMA user_version transactionally.
 Backups can contain legacy sensitive material and require restricted handling.
+Schema v2 merges duplicate project directories only after v1 has assigned target
+keys. Targets merge only when both provider and target key match; distinct
+preview/production targets keep their IDs and deployment/observation links.
+The entire migration rolls back if merging or foreign-key verification fails.
+An already migrated v2 registry is not rewritten. If an older migration lost a
+target, compare a copy of the current registry with its `.homepage-v2-*.bak`
+backup before a targeted recovery. Replacing the whole database would discard
+newer events, revisions and deployments; missing identities cannot be inferred
+reliably without the backup.
 There is no automatic pruning of delta revisions: retention needs verified
 checkpoints before old deltas can be removed.
 

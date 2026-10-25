@@ -113,18 +113,18 @@ func migrateHomepageRegistry(db *sql.DB) error {
 		return err
 	}
 	defer tx.Rollback()
-	var statements []string
 	if version < 1 {
-		statements = append(statements, homepageRegistryV1Statements...)
-	}
-	if version < 2 {
-		// The duplicate merge runs before the unique index is created.
-		if err := mergeDuplicateHomepageProjects(tx); err != nil {
-			return fmt.Errorf("migrate homepage registry: %w", err)
+		for _, statement := range homepageRegistryV1Statements {
+			if _, err := tx.Exec(statement); err != nil {
+				return fmt.Errorf("migrate homepage registry: %w", err)
+			}
 		}
-		statements = append(statements, homepageRegistryV2Statements...)
 	}
-	for _, statement := range statements {
+	// Target identities must exist before merging projects and creating the index.
+	if err := mergeDuplicateHomepageProjects(tx); err != nil {
+		return fmt.Errorf("migrate homepage registry: %w", err)
+	}
+	for _, statement := range homepageRegistryV2Statements {
 		if _, err := tx.Exec(statement); err != nil {
 			return fmt.Errorf("migrate homepage registry: %w", err)
 		}
@@ -251,19 +251,20 @@ func repointHomepageProjectChildren(tx *sql.Tx, keeper, loser int64) error {
 		}
 	}
 
-	// Deployment targets are unique per (project_id, provider).
-	rows, err := tx.Query("SELECT id, provider FROM homepage_deploy_targets WHERE project_id = ?", loser)
+	// Deployment targets are unique per (project_id, provider, target_key).
+	rows, err := tx.Query("SELECT id, provider, target_key FROM homepage_deploy_targets WHERE project_id = ?", loser)
 	if err != nil {
 		return err
 	}
 	type deployTarget struct {
 		id       int64
 		provider string
+		key      string
 	}
 	var targets []deployTarget
 	for rows.Next() {
 		var target deployTarget
-		if err := rows.Scan(&target.id, &target.provider); err != nil {
+		if err := rows.Scan(&target.id, &target.provider, &target.key); err != nil {
 			rows.Close()
 			return err
 		}
@@ -276,10 +277,10 @@ func repointHomepageProjectChildren(tx *sql.Tx, keeper, loser int64) error {
 	}
 	for _, target := range targets {
 		var existing int64
-		err := tx.QueryRow("SELECT id FROM homepage_deploy_targets WHERE project_id = ? AND provider = ?", keeper, target.provider).Scan(&existing)
+		err := tx.QueryRow("SELECT id FROM homepage_deploy_targets WHERE project_id = ? AND provider = ? AND target_key = ?", keeper, target.provider, target.key).Scan(&existing)
 		switch {
 		case err == nil:
-			// The survivor already has a target for this provider: re-point the
+			// The survivor already has this target identity: re-point the
 			// references and drop the duplicate target.
 			if _, err := tx.Exec("UPDATE homepage_deployments SET target_id = ? WHERE target_id = ?", existing, target.id); err != nil {
 				return err
