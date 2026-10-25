@@ -712,24 +712,37 @@
         const c = core();
         const { t, esc } = env;
         const text = value === undefined ? '' : JSON.stringify(value, null, 2);
-        const el = c.el('<div class="ed-json"><textarea class="ed-input ed-code" rows="6" spellcheck="false"' + (id ? ' id="' + esc(id) + '"' : '') + (env.readonly ? ' disabled' : '') + '>' + esc(text) + '</textarea><div class="ed-json-error" hidden></div></div>');
+        const errorId = (id || 'ed-json-' + (++fieldCount)) + '-error';
+        const el = c.el('<div class="ed-json"><textarea class="ed-input ed-code" rows="6" spellcheck="false"' + (id ? ' id="' + esc(id) + '"' : '') + (env.readonly ? ' disabled' : '') + '>' + esc(text) + '</textarea>' +
+            '<div class="ed-json-error" id="' + esc(errorId) + '" role="alert" hidden></div></div>');
         const area = el.querySelector('textarea');
         const error = el.querySelector('.ed-json-error');
         let committed = area.value;
+        // showError shows the message as an alert and links it to the field while the text is no JSON (U5).
+        function showError(on) {
+            error.hidden = !on;
+            if (on) {
+                error.textContent = t('easydrag.ui.json_invalid');
+                area.setAttribute('aria-invalid', 'true');
+                area.setAttribute('aria-describedby', errorId);
+            } else if (area.getAttribute('aria-describedby') === errorId) {
+                area.removeAttribute('aria-invalid');
+                area.removeAttribute('aria-describedby');
+            }
+        }
         function commit() {
             if (area.edComposing) return false;
             if (area.value === committed && error.hidden) return true;
             const raw = area.value.trim();
-            if (!raw) { error.hidden = true; committed = area.value; onChange(undefined); return true; }
+            if (!raw) { showError(false); committed = area.value; onChange(undefined); return true; }
             try {
                 const parsed = JSON.parse(raw);
-                error.hidden = true;
+                showError(false);
                 committed = area.value;
                 onChange(parsed);
                 return true;
             } catch (err) {
-                error.hidden = false;
-                error.textContent = t('easydrag.ui.json_invalid');
+                showError(true);
                 return false;
             }
         }

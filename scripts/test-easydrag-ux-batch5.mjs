@@ -268,6 +268,52 @@ export async function run(env) {
             [!!(inst && inst.screen && inst.screen.ed), h.logged.length, guards], [true, 1, ['set', 'clear', 'set']]);
         h.win.EasyDragApp.dispose('w1');
     });
+    // ── U5: required, invalid and JSON-error states ──
+
+    await guardAsync('b5 U5 required fields, issues and JSON errors reach assistive technology', async () => {
+        const reqTypes = new Map(types);
+        reqTypes.set('web.search', Object.assign({}, types.get('web.search'), { params: [
+            { name: 'query', kind: 'text', label: 'Query', required: true },
+            { name: 'count', kind: 'number', label: 'Count', default: 5 },
+            { name: 'payload', kind: 'json', label: 'Payload' }
+        ] }));
+        const h = sandbox(() => undefined);
+        h.catalog = { types: reqTypes, list: Array.from(reqTypes.values()), categories: [] };
+        const editor = openEditor(h);
+        await settle();
+        const ed = editor.ed;
+        ed.issues = [{ node_id: B, param: 'query', code: 'PARAM_REQUIRED', severity: 'error', message: 'required' }];
+        ed.bus.emit('open-detail', { nodeId: B });
+        const id = name => 'ed-p-w1-' + B + '-' + name;
+        const byId = x => editor.el.querySelector('[id="' + x + '"]');
+        const attrs = n => ['aria-required', 'aria-invalid', 'aria-describedby'].map(a => n.getAttribute(a));
+        const view = () => byId(id('query')).parentNode.querySelector('.ed-tpl-view');
+        const query = [attrs(view()), attrs(byId(id('query'))), !!byId(id('query') + '-issue')];
+        const count = attrs(byId(id('count')));
+        ed.issues = [];
+        ed.bus.emit('issues', ed.issues);
+        const cleared = attrs(view());
+        const area = byId(id('payload'));
+        area.focus();
+        area.value = '{bad';
+        area.fire('input');
+        const error = byId(id('payload') + '-error');
+        const bad = [attrs(area).slice(1), error.getAttribute('role'), error.hidden];
+        area.value = '{}';
+        area.fire('input');
+        const good = [attrs(area).slice(1), error.hidden];
+        eq('b5 U5 aria-required on the required field, aria-invalid and aria-describedby to the issue while it shows, a JSON error as an alert linked to its field',
+            [query, count, cleared, bad, good, h.logged], [
+                [['true', 'true', id('query') + '-issue'], ['true', 'true', id('query') + '-issue'], true],
+                [null, null, null],
+                ['true', null, null],
+                [['true', id('payload') + '-error'], 'alert', false],
+                [[null, null], true],
+                []
+            ]);
+        editor.dispose();
+    });
+
     // ── F13: storage ──
 
     await guardAsync('b5 F13 a refused emergency copy backs off and then stops; a write that lands resets it', async () => {
