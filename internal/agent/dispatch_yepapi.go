@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"aurago/internal/config"
@@ -122,10 +123,26 @@ func dispatchYepAPI(ctx context.Context, tc ToolCall, dc *DispatchContext, tool 
 	res, err := svc.dispatch(tools.WithYepAPILogger(ctx, dc.Logger), client, tc.Operation, tc.Params)
 	if err != nil {
 		b, _ := json.Marshal(err.Error())
+		// A call that reached the provider may have been billed even though it
+		// failed, so it is booked against the budget. A call that never left
+		// the client cannot have been billed and stays free.
+		if dc.BudgetTracker != nil && yepAPICallReachedProvider(err) {
+			dc.BudgetTracker.RecordCostForCategory("yepapi", svc.cost)
+		}
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b), err
 	}
 	if dc.BudgetTracker != nil {
 		dc.BudgetTracker.RecordCostForCategory("yepapi", svc.cost)
 	}
 	return res, nil
+}
+
+// yepAPICallReachedProvider reports whether the failed call left the client
+// and may therefore have been billed by the provider.
+func yepAPICallReachedProvider(err error) bool {
+	var callErr *tools.YepAPICallError
+	if !errors.As(err, &callErr) {
+		return false
+	}
+	return callErr.RequestSent
 }
