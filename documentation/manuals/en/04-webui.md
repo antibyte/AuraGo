@@ -243,7 +243,7 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Video Studio** | Multitrack video editor with keyframes, speed ramps, LUTs, masks, chroma key, a WebGL2 preview and FFmpeg export. Off by default ([Chapter 26](26-video-studio.md)) |
 | **Bookshelf** | Library and ebook reader for EPUB, MOBI/KF8, FB2, CBZ, TXT and PDF from local folders, uploads and connected sources ([Chapter 27](27-bookshelf.md)) |
 | **Mailer** | Mail client for IMAP, POP3 and SMTP accounts, Google via gog and AgentMail, with background sync ([Chapter 28](28-mailer.md)) |
-| **Infra** | The shared homelab atlas: atlas, topology and inventory views with live power readings, filled from explicit source imports; source edits and power actions are optional ([Chapter 29](29-infra.md)) |
+| **Infra** | The shared homelab map: map, topology and list views with live power readings, filled from explicit source imports; source edits and power actions are optional ([Chapter 29](29-infra.md)) |
 | **Zipper** | Browse ZIP archives and extract files into the workspace |
 | **Camera / Gallery / Music Player** | Camera capture, gallery, and music playback |
 | **Radio / TeeVee / Noisemaker** | Vintage stereo radio receiver, CRT television for live streams (IPTV); Noisemaker: AI music studio laid out as a workbench – song creation on the left (Simple mode with genre presets or Custom mode with style, lyrics, title and local ACE-Step controls), the library on the right (grid/list, search, favorites, multi-select) and a persistent player bar below with queue, shuffle/repeat, visualizer and a Now Playing view. Window menus (File/Edit/View/Playback) and context menus cover every action. |

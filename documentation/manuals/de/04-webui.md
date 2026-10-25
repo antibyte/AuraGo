@@ -243,7 +243,7 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Video Studio** | Mehrspur-Videoeditor mit Keyframes, Speed-Ramps, LUTs, Masken, Chroma-Key, WebGL2-Vorschau und FFmpeg-Export. Standardmäßig aus ([Kapitel 26](26-video-studio.md)) |
 | **Bookshelf** | Bibliothek und E-Book-Reader für EPUB, MOBI/KF8, FB2, CBZ, TXT und PDF aus lokalen Ordnern, Uploads und verbundenen Quellen ([Kapitel 27](27-bookshelf.md)) |
 | **Mailer** | Mail-Client für IMAP-, POP3- und SMTP-Konten, Google über gog und AgentMail, mit Hintergrund-Sync ([Kapitel 28](28-mailer.md)) |
-| **Infra** | Der gemeinsame Homelab-Atlas: Atlas-, Topologie- und Inventar-Ansicht mit Live-Stromwerten, gefüllt aus ausdrücklichen Quell-Importen; Quellenänderungen und Energieaktionen sind optional ([Kapitel 29](29-infra.md)) |
+| **Infra** | Die gemeinsame Homelab-Karte: Karten-, Topologie- und Listenansicht mit Live-Stromwerten, gefüllt aus ausdrücklichen Quell-Importen; Quellenänderungen und Energieaktionen sind optional ([Kapitel 29](29-infra.md)) |
 | **Zipper** | ZIP-Archive durchsuchen und Dateien in den Workspace extrahieren |
 | **Camera / Gallery / Music Player** | Kamera-Aufnahme, Galerie und Musikwiedergabe |
 | **Radio / TeeVee / Noisemaker** | Retro-Radioempfänger, CRT-Fernseher für Live-Streams (IPTV); Noisemaker: KI-Musikstudio als Werkbank – links die Song-Erstellung (Einfach-Modus mit Genre-Presets oder Eigener Modus mit Stil, Lyrics, Titel und lokalen ACE-Step-Reglern), rechts die Bibliothek (Raster/Liste, Suche, Favoriten, Mehrfachauswahl) und unten eine persistente Player-Leiste mit Warteschlange, Shuffle/Repeat, Visualizer und „Jetzt läuft“-Ansicht. Fenstermenüs (Datei/Bearbeiten/Ansicht/Wiedergabe) und Kontextmenüs decken alle Aktionen ab. |

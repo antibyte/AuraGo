@@ -127,7 +127,7 @@ Your data stays with the installation. **Hosted models still see their request i
 26. [Video Studio](26-video-studio.md) — Multitrack video editor with keyframes, LUTs, masks and FFmpeg export (off by default)
 27. [Bookshelf](27-bookshelf.md) — Library and ebook reader for EPUB, MOBI, FB2, CBZ, TXT and PDF
 28. [Mailer](28-mailer.md) — Mail client for IMAP, POP3 and SMTP accounts, Google via gog and AgentMail
-29. [Infra](29-infra.md) — The shared homelab atlas: atlas, topology and inventory views with live power readings
+29. [Infra](29-infra.md) — The shared homelab map: map, topology and list views with live power readings
 30. [RuView](30-ruview.md) — Experimental Wi-Fi sensing with ESP32 boards (extends chapter 8)
 31. [Pixel](31-pixel.md) — Layered image editor with masks, 80 filters, 43 generators, AI background removal and OpenRaster projects
 

@@ -69,7 +69,7 @@ Full maps with parts and one-liners: [Deutsche Übersicht](de/README.md) · [Eng
 | 26 · Video Studio | [Video Studio](de/26-video-studio.md) | [Video Studio](en/26-video-studio.md) | Multitrack video editor, off by default |
 | 27 · Bookshelf | [Bookshelf](de/27-bookshelf.md) | [Bookshelf](en/27-bookshelf.md) | Library and ebook reader |
 | 28 · Mailer | [Mailer](de/28-mailer.md) | [Mailer](en/28-mailer.md) | IMAP, POP3, SMTP, gog and AgentMail |
-| 29 · Infra | [Infra](de/29-infra.md) | [Infra](en/29-infra.md) | The homelab atlas |
+| 29 · Infra | [Infra](de/29-infra.md) | [Infra](en/29-infra.md) | The homelab map: Map, Topology and List views |
 | 30 · RuView | [RuView](de/30-ruview.md) | [RuView](en/30-ruview.md) | Experimental Wi-Fi sensing |
 | 31 · Pixel | [Pixel](de/31-pixel.md) | [Pixel](en/31-pixel.md) | Layered image editor, filters, generators, AI background removal |
 | FAQ | [FAQ](de/faq.md) | [FAQ](en/faq.md) | Quick answers |
