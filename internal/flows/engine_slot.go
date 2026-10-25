@@ -81,11 +81,15 @@ func (g *slotGate) Park() {
 }
 
 func (g *slotGate) Unpark() error {
-	g.acq.Lock()
-	defer g.acq.Unlock()
+	// Busy again before the node queues behind acq: while another woken node holds acq and
+	// finishes, this one must keep the run from giving its slot back and asking for it a second time.
 	g.mu.Lock()
 	g.parked--
 	g.active++
+	g.mu.Unlock()
+	g.acq.Lock()
+	defer g.acq.Unlock()
+	g.mu.Lock()
 	if g.held {
 		g.mu.Unlock()
 		return nil

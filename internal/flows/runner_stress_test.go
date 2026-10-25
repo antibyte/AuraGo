@@ -82,14 +82,38 @@ func (sx *stressFixture) flow(t *testing.T, id string, policy ConcurrencyPolicy)
 	return f
 }
 
+// waitFlow is a parallel flow whose run works, then waits one second (logic.wait, the shortest
+// wait) and parks its slot meanwhile.
+func (sx *stressFixture) waitFlow(t *testing.T, id string) *Flow {
+	t.Helper()
+	b := newFlow("Stress wait " + id)
+	tr := b.node("start", "test.trigger", nil)
+	work := b.node("work", "stress.work", nil)
+	w := b.node("pause", TypeWait, map[string]any{"mode": "duration", "seconds": 1.0})
+	b.edge(tr, PortOut, work)
+	b.edge(work, PortOut, w)
+	f := b.build()
+	f.ID = id
+	f.Settings.Concurrency = ConcurrencyParallel
+	if _, err := sx.store.CreateFlow(context.Background(), f, "", storeNow); err != nil {
+		t.Fatalf("CreateFlow: %v", err)
+	}
+	return f
+}
+
 // checkState verifies the runner's bookkeeping under its lock: the global limit,
-// one cancel func per occupied slot, and at most one admitted live run per exclusive flow.
+// one cancel func per occupied slot or parked run, the per-flow slot cap, and at most one admitted live run per exclusive flow.
 func (sx *stressFixture) checkState(exclusive map[string]bool) {
 	r := sx.r
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.slots > r.cfg.MaxParallelRuns || r.slots != len(r.cancels) {
-		sx.fail(fmt.Sprintf("slots=%d cancels=%d limit=%d", r.slots, len(r.cancels), r.cfg.MaxParallelRuns))
+	if r.slots > r.cfg.MaxParallelRuns || r.slots+r.parked != len(r.cancels) {
+		sx.fail(fmt.Sprintf("slots=%d parked=%d cancels=%d limit=%d", r.slots, r.parked, len(r.cancels), r.cfg.MaxParallelRuns))
+	}
+	for flowID, n := range r.flowSlots {
+		if n > r.cfg.MaxSlotsPerFlow {
+			sx.fail(fmt.Sprintf("flow %s holds %d slots, limit %d", flowID, n, r.cfg.MaxSlotsPerFlow))
+		}
 	}
 	for flowID, n := range r.live {
 		if exclusive[flowID] && n > 1 {
@@ -149,7 +173,8 @@ func (sx *stressFixture) assertClean(t *testing.T, maxParallel int64) {
 // Random Start, Cancel and IsBusy calls from several goroutines across queue, skip
 // and parallel flows, in live and test mode. Every run finishes exactly once, the
 // global limit and the exclusive policies hold throughout, and the runner's state is
-// empty once all runs ended.
+// empty once all runs ended. One flow waits (logic.wait) and parks its slot meanwhile: slots + parked
+// always equal the cancel funcs, and no flow holds more than MaxSlotsPerFlow.
 func TestRunnerStress(t *testing.T) {
 	const workers, ops, maxParallel = 6, 20, 3
 	sx := newStressFixture(t, RunnerConfig{MaxParallelRuns: maxParallel, MaxQueuedPerFlow: 3}, workers*ops)
@@ -158,6 +183,7 @@ func TestRunnerStress(t *testing.T) {
 		sx.flow(t, "flow_aaaaaaaaeb", ConcurrencySkip),
 		sx.flow(t, "flow_aaaaaaaaec", ConcurrencyParallel),
 		sx.flow(t, "flow_aaaaaaaaed", ConcurrencyQueue),
+		sx.waitFlow(t, "flow_aaaaaaaaeg"),
 	}
 	exclusive := map[string]bool{flowList[0].ID: true, flowList[1].ID: true, flowList[3].ID: true}
 	var idsMu sync.Mutex
@@ -190,6 +216,7 @@ func TestRunnerStress(t *testing.T) {
 						idList = append(idList, res.RunID)
 						idsMu.Unlock()
 					}
+					sx.checkState(exclusive)
 				case op < 9:
 					idsMu.Lock()
 					var id string
@@ -226,7 +253,8 @@ func TestRunnerStress(t *testing.T) {
 	r.mu.Lock()
 	state := fmt.Sprintf("slots=%d live=%v queues=%d waiting=%d cancels=%d",
 		r.slots, r.live, len(r.flowQueue), len(r.waiting), len(r.cancels))
-	clean := r.slots == 0 && len(r.live) == 0 && len(r.flowQueue) == 0 && len(r.waiting) == 0 && len(r.cancels) == 0
+	state += fmt.Sprintf(" parked=%d resumers=%d", r.parked, len(r.resumers))
+	clean := r.slots == 0 && r.parked == 0 && len(r.resumers) == 0 && len(r.flowSlots) == 0 && len(r.live) == 0 && len(r.flowQueue) == 0 && len(r.waiting) == 0 && len(r.cancels) == 0
 	r.mu.Unlock()
 	if !clean {
 		t.Fatalf("runner state after all runs ended: %s", state)

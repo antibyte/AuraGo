@@ -254,8 +254,9 @@ func (r *Runner) Start(req StartRequest) (StartResult, error) {
 	full := busy && len(r.flowQueue[flowID]) >= r.cfg.MaxQueuedPerFlow
 	slotless := r.slots >= r.cfg.MaxParallelRuns || !r.fitsLocked(flowID, counted)
 	if !exclusive && slotless {
-		// Only Start adds runs like this one to the waiting list, so the cap holds
-		// exactly; for a queue or skip flow's test run, its waiting live run counts too.
+		// For a queue or skip flow's test run, its waiting live run counts too. The check is
+		// made before the second locked step: a resumer (A7) can take the last free slot in
+		// between, so a run may then wait past MaxQueuedPerFlow by one, at most one per race.
 		full = r.waitingLocked(flowID) >= r.cfg.MaxQueuedPerFlow
 	}
 	crowded := false
@@ -321,7 +322,9 @@ func triggerDataSize(data map[string]any) int {
 }
 
 // pendingLocked counts the runs that wait to start and the trigger data they hold. Starts are
-// serialized and finishing runs only shrink it, so the caps hold exactly.
+// serialized, but a resumer (A7) can take the last free slot between Start's two locked steps and
+// make an admitted run wait after all, so a run may wait past MaxQueuedPerFlow, MaxPendingRuns or
+// MaxPendingBytes by at most one per such race.
 func (r *Runner) pendingLocked() (n, bytes int) {
 	for _, q := range r.flowQueue {
 		for _, p := range q {

@@ -56,6 +56,9 @@ func (s *runSlot) Release() bool {
 // Acquire waits for a slot. A grant that races with ctx's end still counts (the slot is held and
 // Runner.release gives it back).
 func (s *runSlot) Acquire(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err // already over: do not queue
+	}
 	r := s.r
 	r.mu.Lock()
 	if s.held {
