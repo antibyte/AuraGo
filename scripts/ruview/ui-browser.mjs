@@ -72,11 +72,22 @@ export async function checkReceptionStates(page,fixture,setSource) {
         setSource('wifi');fixture.liveState='not_applicable';
         await page.evaluate(()=>render());await page.locator('.ruview-check').waitFor();
         assert.equal(await page.locator('.ruview-check [data-state="attention"]').count(),0,'a source without boards has nothing that needs attention');
+        assert.equal(await page.locator('.ruview-check li').nth(1).getAttribute('data-state'),'neutral','a source without UDP has no UDP step');
         assert.equal(await page.locator('.ruview-check li').nth(3).getAttribute('data-state'),'neutral');
         await page.locator('[data-tab=devices]').click();await page.locator('.ruview-node').waitFor();
         await page.waitForFunction(()=>document.querySelector('.ruview-feedback')?.textContent==='Die Board-Liste wird nur mit ESP32-Boards verwendet.');
         assert.ok(!(await page.locator('#app').innerText()).includes('Aktualisierung fehlgeschlagen'));
         setSource('esp32');fixture.liveState='';
+
+        // A stopped managed runtime has udp_ready=false by construction: unchecked, not a setup gap. A really missing UDP setup still needs attention.
+        const udpItem=()=>page.locator('.ruview-check li').nth(1).getAttribute('data-state');
+        fixture.statusExtra={udp_scope:'managed',udp_enabled:true,udp_ready:false,ready:false,fresh:false,data_state:'unchecked'};
+        await page.evaluate(()=>render());await page.locator('.ruview-check').waitFor();
+        assert.equal(await udpItem(),'unchecked','a stopped managed runtime is not a UDP setup gap');
+        fixture.statusExtra={udp_scope:'managed',udp_enabled:false,udp_ready:false,ready:false,fresh:false,data_state:'unchecked'};
+        await page.evaluate(()=>render());await page.locator('.ruview-check').waitFor();
+        assert.equal(await udpItem(),'attention','UDP publishing switched off is a real setup gap');
+        fixture.statusExtra=null;
 
         // A disabled integration refuses the board list by design (403): unchecked, never "needs attention" or "refresh failed".
         fixture.disabled=true;
@@ -97,7 +108,7 @@ export async function checkReceptionStates(page,fixture,setSource) {
         assert.equal(await page.locator('#ruview-action-reason').innerText(),'Status nicht abrufbar');
         fixture.statusFail=false;
         await page.waitForFunction(()=>document.querySelector('.ruview-summary article strong')?.textContent==='Bereit');
-    } finally {setSource('esp32');fixture.liveState='';fixture.disabled=false;fixture.statusFail=false;}
+    } finally {setSource('esp32');fixture.liveState='';fixture.disabled=false;fixture.statusExtra=null;fixture.statusFail=false;}
 }
 
 export async function checkPolicy(frame,setReadonly) {

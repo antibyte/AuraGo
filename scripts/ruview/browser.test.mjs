@@ -11,7 +11,7 @@ const {chromium}=process.env.AURAGO_PLAYWRIGHT?require(process.env.AURAGO_PLAYWR
 const locales=['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh'];
 let writes=0,readonly=false,offline=false,mode='external',source='esp32',failure='',statusError='',firmwareError=false,sourceState='disconnected',sourceProbeFailed=false,configRequests=0;
 let serviceState='';
-const nodeFixture={reads:0,active:0,max:0,fail:false,statusFail:false,hold:null,offline:false,unavailable:false,liveState:'',disabled:false,scope:'fixture'};
+const nodeFixture={reads:0,active:0,max:0,fail:false,statusFail:false,hold:null,offline:false,unavailable:false,liveState:'',disabled:false,statusExtra:null,scope:'fixture'};
 const sensingSockets=new Set(),poseSockets=new Set(),poseRequests=[],healthRequests=new Set();
 function sendFrames(sockets,data){
  const body=Buffer.from(JSON.stringify(data));assert.ok(body.length<65536);
@@ -61,7 +61,7 @@ const server=createServer(async(req,res)=>{
    if(p.endsWith('/firmware'))return res.end(await readFile('internal/ruview/artifacts.json'));
    if(p.endsWith('/capabilities'))return res.end(JSON.stringify({unavailable:['model_load','model_unload','lora_activate','camera','timed_recording']}));
    if(p.endsWith('/status')&&nodeFixture.statusFail){res.statusCode=503;return res.end('{}');}
-   return res.end(JSON.stringify({enabled:!nodeFixture.disabled,readonly,mode,source,ready:!offline&&!serviceState&&!nodeFixture.disabled,fresh:!offline&&!serviceState&&!nodeFixture.disabled,data_state:nodeFixture.disabled?'disabled':serviceState||(offline?'disconnected':'live_unverified'),waiting_for_frames:false,signal:'CSI',observed_at:new Date().toISOString(),error:statusError||undefined}));
+   return res.end(JSON.stringify({enabled:!nodeFixture.disabled,readonly,mode,source,ready:!offline&&!serviceState&&!nodeFixture.disabled,fresh:!offline&&!serviceState&&!nodeFixture.disabled,data_state:nodeFixture.disabled?'disabled':serviceState||(offline?'disconnected':'live_unverified'),waiting_for_frames:false,signal:'CSI',observed_at:new Date().toISOString(),error:statusError||undefined,...nodeFixture.statusExtra}));
   }
   if(p==='/'){
    const locale=JSON.parse(await readFile(`ui/lang/ruview/${url.searchParams.get('lang')||'de'}.json`));

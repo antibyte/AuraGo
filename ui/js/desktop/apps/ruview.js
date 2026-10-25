@@ -85,11 +85,15 @@
             else if (enabled && (status.data_state === 'disconnected' || (status.error && !status.ready && status.data_state !== 'starting' && status.data_state !== 'unchecked'))) {
                 runtime = 'attention'; runtimeText = t('check_attention');
             }
-            let udp = 'unchecked', udpText = t('check_unchecked');
-            if (enabled && status.udp_scope === 'external') { udp = 'neutral'; udpText = t('udp_operator'); }
-            else if (enabled && status.udp_scope === 'managed' && status.udp_ready) { udp = 'done'; udpText = t('check_ok'); }
-            else if (enabled && status.udp_scope === 'managed') { udp = 'attention'; udpText = t('check_attention'); }
             const skip = source === 'wifi' || source === 'simulated';
+            let udp = 'unchecked', udpText = t('check_unchecked');
+            if (skip) { udp = 'neutral'; udpText = t('check_not_needed'); }
+            else if (enabled && status.udp_scope === 'external') { udp = 'neutral'; udpText = t('udp_operator'); }
+            else if (enabled && status.udp_scope === 'managed') {
+                // udp_ready is false whenever the managed runtime is not running: that alone is not a setup gap.
+                if (status.udp_ready) { udp = 'done'; udpText = t('check_ok'); }
+                else if (status.udp_enabled === false || status.ready === true) { udp = 'attention'; udpText = t('check_attention'); }
+            }
             let receiver = 'unchecked', receiverText = t('check_unchecked');
             if (skip) { receiver = 'neutral'; receiverText = t('check_not_needed'); }
             else if (source === 'esp32' && status.receiver_configured) { receiver = 'done'; receiverText = t('check_ok'); }
