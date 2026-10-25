@@ -1477,13 +1477,63 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
     for (const entry of [text('interfaces', { name: 'x' }), text('links', { label: 'y' }), text('app_bindings', { app: 'a', target_id: 'b' })]) assert.ok(!entry.includes('[object Object]'));
 }
 
-for (const file of ['desktop-app-infra.css', 'desktop-app-infra-canvas.css']) {
-    const css = fs.readFileSync(path.join(root, 'ui/css', file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-    const outsideMixes = css.replace(/color-mix\((?:[^()]|\([^()]*\))*\)/g, '');
-    assert.deepEqual(outsideMixes.match(/#[0-9a-fA-F]{3,8}\b/g) || [], [], `${file} uses hex colours outside color-mix()`);
-    assert.deepEqual(outsideMixes.match(/rgba?\(\s*\d/g) || [], [], `${file} uses literal rgb() colours instead of tokens`);
-    assert.ok(!/var\(--vd-font[,)]/.test(css), `${file} uses --vd-font instead of --vd-font-ui`);
-    assert.ok(!/copper/i.test(css), `${file} still uses the copper accent`);
+// ---- CSS tokens, typography and motion (spec §12) --------------------------------
+{
+    const cssDir = path.join(root, 'ui/css');
+    const infraCss = fs.readdirSync(cssDir).filter(file => /^desktop-app-infra.*\.css$/.test(file)).sort();
+    assert.ok(infraCss.length >= 2, `expected the Infra stylesheets, found ${infraCss.join(', ')}`);
+    const stripMixes = text => text.replace(/color-mix\((?:[^()]|\([^()]*\))*\)/g, 'color-mix()');
+    const NAMED = /(^|[\s,(])(white|black|red|green|blue|gray|grey|silver|orange|yellow|purple|pink|navy|teal|maroon|olive|lime|aqua|fuchsia)(?=$|[\s,)!;])/i;
+    const COLOR_PROPS = /^(color|background|background-color|border|border-(top|right|bottom|left)|border(-(top|right|bottom|left))?-color|outline|outline-color|fill|stroke|box-shadow|text-shadow|caret-color|accent-color|text-decoration-color|column-rule)$/;
+    const MOTION_PROPS = /^(transition|transition-property|transition-duration|animation|animation-name|animation-duration)$/;
+    // leafRules: every rule that holds declarations, with the at-rules around it.
+    const leafRules = css => {
+        const rules = [], stack = [];
+        let buf = '';
+        for (const ch of css) {
+            if (ch === '{') { stack.push(buf.trim()); buf = ''; }
+            else if (ch === '}') { const head = stack.pop() || ''; if (buf.trim()) rules.push({ selector: head, body: buf.trim(), context: [...stack] }); buf = ''; }
+            else buf += ch;
+        }
+        return rules;
+    };
+    const splitSelectors = selector => {
+        const parts = [];
+        let depth = 0, current = '';
+        for (const ch of selector) {
+            if (ch === '(') depth += 1;
+            if (ch === ')') depth -= 1;
+            if (ch === ',' && depth === 0) { parts.push(current.trim()); current = ''; } else current += ch;
+        }
+        if (current.trim()) parts.push(current.trim());
+        return parts;
+    };
+    for (const file of infraCss) {
+        const css = fs.readFileSync(path.join(cssDir, file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+        const outsideMixes = stripMixes(css);
+        assert.deepEqual(outsideMixes.match(/#[0-9a-fA-F]{3,8}\b/g) || [], [], `${file} uses hex colours outside color-mix()`);
+        assert.deepEqual(outsideMixes.match(/\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(\s*[\d.]/g) || [], [], `${file} uses literal colour functions instead of tokens`);
+        assert.ok(!/var\(--vd-font[,)]/.test(css), `${file} uses --vd-font instead of --vd-font-ui`);
+        assert.ok(!/copper/i.test(css), `${file} still uses the copper accent`);
+        assert.ok(!/\[data-theme[=\]]/.test(css), `${file} keys rules on a theme id; use the --vd-theme-* tokens`);
+        const named = [], labels = [], ungated = [];
+        for (const rule of leafRules(css).filter(item => !item.context.some(head => head.startsWith('@keyframes')))) {
+            for (const [, prop, rawValue] of rule.body.matchAll(/([a-z-]+)\s*:\s*([^;]+)/g)) {
+                const name = prop.toLowerCase(), value = rawValue.trim();
+                if (name.startsWith('--')) continue;
+                if (COLOR_PROPS.test(name) && NAMED.test(stripMixes(value))) named.push(`${rule.selector} { ${name}: ${value} }`);
+                if (name === 'text-transform' && /uppercase/i.test(value)) labels.push(`${rule.selector} { text-transform: uppercase }`);
+                if ((name === 'font' || name === 'font-family') && /monospace/i.test(value)) labels.push(`${rule.selector} { ${name}: ${value} }`);
+                if (MOTION_PROPS.test(name) && !/^(none|0m?s)\b/i.test(value)) {
+                    const gated = rule.context.some(head => /prefers-reduced-motion\s*:\s*no-preference/.test(head)) && splitSelectors(rule.selector).every(part => part.includes(':not([data-animations="false"])'));
+                    if (!gated) ungated.push(`${rule.selector} { ${name} }`);
+                }
+            }
+        }
+        assert.deepEqual(named, [], `${file} uses named colours instead of tokens`);
+        assert.deepEqual(labels, [], `${file} has uppercase or monospace labels; use 13 px/600 sentence case with --vd-font-ui`);
+        assert.deepEqual(ungated, [], `${file} has motion outside @media (prefers-reduced-motion: no-preference) with body:not([data-animations="false"])`);
+    }
 }
 
 // ---- topology lanes and auto layout (spec §6) ------------------------------------

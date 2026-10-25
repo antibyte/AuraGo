@@ -175,7 +175,7 @@
 .infra-field { min-width: 0; margin: 7px 0 0; display: flex; flex-direction: column; gap: 5px; color: var(--vd-theme-muted); font-size: 14px; }
 .infra-field > span { text-transform: capitalize; }
 .infra-field input, .infra-field select, .infra-field textarea { width: 100%; min-width: 0; min-height: 38px; padding: 5px 7px; border: 1px solid var(--vd-theme-border); border-radius: 5px; background: var(--vd-theme-app-bg); color: var(--vd-text); font-size: 15px; }
-.infra-field textarea { min-height: 50px; resize: vertical; font: 15px/1.5 ui-monospace, Consolas, monospace; }
+.infra-field textarea { min-height: 50px; resize: vertical; font: 15px/1.5 var(--vd-font-ui); }
 .infra-field input[readonly], .infra-field textarea[readonly] { opacity: .7; }
 .infra-field input::placeholder { color: var(--vd-theme-muted); opacity: .7; }
 .infra-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -191,7 +191,7 @@
 .infra-readonly-note { color: var(--vd-theme-muted); font-size: 14px; }
 .infra-source-list { display: grid; gap: 6px; }
 .infra-source-row { min-width: 0; padding: 7px; display: grid; grid-template-columns: 23px 1fr auto; align-items: center; gap: 5px 7px; border: 1px solid var(--vd-theme-border); border-radius: 6px; background: color-mix(in srgb, var(--vd-theme-app-bg) 72%, transparent); }
-.infra-source-icon { width: 23px; height: 23px; display: grid; place-items: center; border-radius: 6px; background: color-mix(in srgb, var(--vd-accent) 12%, var(--vd-theme-panel-bg)); color: var(--vd-accent); font: 700 14px ui-monospace, monospace; text-transform: uppercase; }
+.infra-source-icon { width: 23px; height: 23px; display: grid; place-items: center; border-radius: 6px; background: color-mix(in srgb, var(--vd-accent) 12%, var(--vd-theme-panel-bg)); color: var(--vd-accent); font: 600 14px/1 var(--vd-font-ui); }
 .infra-source-copy { min-width: 0; display: flex; flex-direction: column; }
 .infra-source-copy strong, .infra-source-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .infra-source-copy strong { color: var(--vd-text); font-size: 14px; }

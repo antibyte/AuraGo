@@ -2661,8 +2661,12 @@ buttons and menu popovers remain excluded from those gestures.
   Viewer, Looper, Cheater, People, Launchpad, Zipper, Pixel, Log Viewer,
   System Info, Pet Picker, Radio, Camera, Code Studio, Network Cameras,
   Noisemaker, Live Speech, Homepage Studio, Game Maker, OpenSCAD, the Webamp
-  launcher, Chess chrome, Nasscad and Mailer read `--vd-theme-*` for chrome,
-  panels, controls, borders, and shadows.
+  launcher, Chess chrome, Nasscad, Mailer and Infra read `--vd-theme-*` for chrome,
+  panels, controls, borders, and shadows. Infra's two stylesheets are held to that by a Node guard in
+  `scripts/test-infra-ui.mjs` (spec §12): no hex or literal colour functions outside `color-mix()`, no named colours, no
+  `--vd-font` (use `--vd-font-ui`), no uppercase or monospace labels, no `[data-theme…]` selectors, and every `transition` or
+  `animation` sits inside `@media (prefers-reduced-motion: no-preference)` on selectors that start with
+  `body:not([data-animations="false"])`.
 - Fixed accents: an app that paints text on the raw accent exposes a root
   token that a fixed-accent skin overrides in an App tokens rule of its
   skin file (`.vs-app` `--vs-accent-strong`/`--vs-accent-hover`,
