@@ -438,15 +438,9 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			if !voiceOutputSuppressed && (runCfg.VoiceOutputActive || GetVoiceMode()) && ff.TTSEnabled && !isAutonomousAgentRun(runCfg, sessionID) && !runCfg.IsMission {
 				alwaysInclude = append(alwaysInclude, "tts", "send_audio")
 			}
-			if ff.MusicGenerationEnabled {
-				alwaysInclude = append(alwaysInclude, "generate_music")
-			}
-			if ff.VideoGenerationEnabled {
-				alwaysInclude = append(alwaysInclude, "generate_video")
-			}
-			if ff.ImageGenerationEnabled {
-				alwaysInclude = append(alwaysInclude, "generate_image")
-			}
+			// A media generator is soft only for a request that asks for that
+			// media; otherwise it competes for a slot like any other tool.
+			alwaysInclude = append(alwaysInclude, adaptiveGeneratorToolsForQuery(adaptiveUserContext, ff)...)
 			alwaysInclude = channelAdaptiveAlwaysInclude(runCfg, alwaysInclude, ff)
 			alwaysInclude = outputRefAdaptiveAlwaysInclude(req.Messages, alwaysInclude)
 			// sessionUsedTools is always empty during this first selection: the run
@@ -654,6 +648,11 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	return s
 }
 
+// stableLocalToolSchemas selects the kernel of the managed local model. It
+// ignores the request on purpose: the llama.cpp prompt prefix is reused only
+// while the tool list stays the same between unrelated turns, so the media
+// generators stay in the kernel whenever their feature is on, and the intent
+// rules of the adaptive selection (adaptiveGeneratorToolsForQuery) do not apply.
 func stableLocalToolSchemas(schemas []openai.Tool, cfg *config.Config, runCfg RunConfig, ff ToolFeatureFlags, voiceOutputSuppressed bool, logger *slog.Logger) toolSchemaFilterResult {
 	if cfg == nil {
 		return toolSchemaFilterResult{}

@@ -119,15 +119,7 @@ func TestDiscoveryTaskEvaluationV2(t *testing.T) {
 	// firstTurn mirrors the adaptive first selection in agent_loop_init.go.
 	firstTurn := func(query string) []string {
 		alwaysInclude := []string{"filesystem", "query_memory", "manage_memory", "execute_shell"}
-		if ff.MusicGenerationEnabled {
-			alwaysInclude = append(alwaysInclude, "generate_music")
-		}
-		if ff.VideoGenerationEnabled {
-			alwaysInclude = append(alwaysInclude, "generate_video")
-		}
-		if ff.ImageGenerationEnabled {
-			alwaysInclude = append(alwaysInclude, "generate_image")
-		}
+		alwaysInclude = append(alwaysInclude, adaptiveGeneratorToolsForQuery(query, ff)...)
 		alwaysInclude = channelAdaptiveAlwaysInclude(RunConfig{}, alwaysInclude, ff)
 		alwaysInclude = outputRefAdaptiveAlwaysInclude(nil, alwaysInclude)
 		alwaysInclude = expandAdaptiveAlwaysInclude(cfg, alwaysInclude)
