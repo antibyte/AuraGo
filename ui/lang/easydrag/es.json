@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "Esta lista está desactualizada",
   "easydrag.ui.home_tagline": "Crea automatizaciones arrastrando y soltando",
   "easydrag.ui.home_templates": "Plantillas",
+  "easydrag.ui.home_templates_failed": "No se pudieron cargar las plantillas ({reason}).",
   "easydrag.ui.home_templates_hint": "Flujos listos para adaptar. Los pasos que requieren configuración están marcados.",
   "easydrag.ui.home_use_template": "Usar plantilla",
   "easydrag.ui.import_invalid": "El archivo no es un flujo de EasyDrag.",

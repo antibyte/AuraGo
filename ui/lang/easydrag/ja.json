@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "この一覧は最新ではありません",
   "easydrag.ui.home_tagline": "ドラッグ＆ドロップで自動化を作成",
   "easydrag.ui.home_templates": "テンプレート",
+  "easydrag.ui.home_templates_failed": "テンプレートを読み込めませんでした ({reason})。",
   "easydrag.ui.home_templates_hint": "すぐに調整して使えるフローです。設定が必要なステップには印が付いています。",
   "easydrag.ui.home_use_template": "テンプレートを使う",
   "easydrag.ui.import_invalid": "このファイルは EasyDrag のフローではありません。",

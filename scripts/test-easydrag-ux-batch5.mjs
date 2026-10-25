@@ -147,6 +147,52 @@ export async function run(env) {
         eq('b5 F12 the words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.quick_target_gone']), []);
     });
 
+    // ── F13: start page ──
+
+    await guardAsync('b5 F13 templates that fail leave the flows listed and offer their own Try again', async () => {
+        let templatesFail = true;
+        const p = await homePage(req => {
+            if (req.url === '/api/desktop/flows' && req.method === 'GET') return { flows: [flowCard('f1', 'Alpha')] };
+            if (req.url.startsWith('/api/desktop/flows/templates')) {
+                if (templatesFail) throw apiError('FLOW_INTERNAL');
+                return { templates: [{ id: 't1', name: 'Tpl', description: 'd', categories: [] }] };
+            }
+            return undefined;
+        });
+        const grid = p.home.el.querySelector('.ed-flow-grid');
+        const tpl = p.home.el.querySelector('.ed-template-grid');
+        const failed = [p.ids(), grid.html.includes('ed-error'), tpl.html.includes('home_templates_failed:error_flow_internal'), !!tpl.querySelector('[data-ed-templates-retry]'), p.home.createOff()];
+        templatesFail = false;
+        tpl.querySelector('[data-ed-templates-retry]').fire('click');
+        await settle();
+        const retried = [p.ids(), !!tpl.querySelector('[data-ed-template="t1"]'), (tpl.html || '').includes('home_templates_failed'), p.h.requests.filter(r => r.url.startsWith('/api/desktop/flows/templates')).length];
+        eq('b5 F13 a template failure shows the flows, a template error and its Try again, which loads the templates',
+            [failed, retried, p.h.logged], [[['f1'], false, true, true, false], [['f1'], true, false, 2], []]);
+        eq('b5 F13 the template words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.home_templates_failed']), []);
+        p.home.dispose();
+    });
+
+    await guardAsync('b5 F13 a double Duplicate on a start-page card reads and copies the flow once', async () => {
+        const hold = deferred();
+        const p = await homePage(req => {
+            if (req.url === '/api/desktop/flows' && req.method === 'GET') return { flows: [flowCard('f1', 'Alpha')] };
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+            if (req.url === '/api/desktop/flows/f1' && req.method === 'GET') return hold.p;
+            if (req.url === '/api/desktop/flows' && req.method === 'POST') return { flow: { id: 'f2' } };
+            return undefined;
+        });
+        p.openMenu('f1');
+        const first = p.item('home_duplicate').action();
+        const second = p.item('home_duplicate').action();
+        hold.resolve({ flow: { id: 'f1', draft: flowDoc('Alpha') } });
+        await first;
+        await second;
+        await settle();
+        const gets = p.h.requests.filter(r => r.method === 'GET' && r.url === '/api/desktop/flows/f1').length;
+        const posts = p.h.requests.filter(r => r.method === 'POST' && r.url === '/api/desktop/flows').length;
+        eq('b5 F13 one read, one copy, one flow opened', [gets, posts, p.h.opened, p.h.logged], [1, 1, ['f2'], []]);
+        p.home.dispose();
+    });
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }

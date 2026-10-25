@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "Esta lista está desatualizada",
   "easydrag.ui.home_tagline": "Crie automações arrastando e soltando",
   "easydrag.ui.home_templates": "Modelos",
+  "easydrag.ui.home_templates_failed": "Não foi possível carregar os modelos ({reason}).",
   "easydrag.ui.home_templates_hint": "Fluxos prontos para adaptar. As etapas que precisam de configuração estão marcadas.",
   "easydrag.ui.home_use_template": "Usar modelo",
   "easydrag.ui.import_invalid": "O arquivo não é um fluxo do EasyDrag.",

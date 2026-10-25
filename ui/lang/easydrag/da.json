@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "Denne liste er forældet",
   "easydrag.ui.home_tagline": "Byg automatiseringer med træk og slip",
   "easydrag.ui.home_templates": "Skabeloner",
+  "easydrag.ui.home_templates_failed": "Skabelonerne kunne ikke indlæses ({reason}).",
   "easydrag.ui.home_templates_hint": "Færdige flows, du kan tilpasse. Trin, der skal sættes op, er markeret.",
   "easydrag.ui.home_use_template": "Brug skabelon",
   "easydrag.ui.import_invalid": "Filen er ikke et EasyDrag-flow.",

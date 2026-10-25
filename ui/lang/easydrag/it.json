@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "Questo elenco non è aggiornato",
   "easydrag.ui.home_tagline": "Crea automazioni con il drag & drop",
   "easydrag.ui.home_templates": "Modelli",
+  "easydrag.ui.home_templates_failed": "Impossibile caricare i modelli ({reason}).",
   "easydrag.ui.home_templates_hint": "Flussi pronti da adattare. I passi da configurare sono contrassegnati.",
   "easydrag.ui.home_use_template": "Usa modello",
   "easydrag.ui.import_invalid": "Il file non è un flusso EasyDrag.",

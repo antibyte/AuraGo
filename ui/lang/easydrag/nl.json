@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "Deze lijst is verouderd",
   "easydrag.ui.home_tagline": "Bouw automatiseringen met slepen en neerzetten",
   "easydrag.ui.home_templates": "Sjablonen",
+  "easydrag.ui.home_templates_failed": "De sjablonen konden niet worden geladen ({reason}).",
   "easydrag.ui.home_templates_hint": "Kant-en-klare flows om aan te passen. Stappen die nog ingesteld moeten worden, zijn gemarkeerd.",
   "easydrag.ui.home_use_template": "Sjabloon gebruiken",
   "easydrag.ui.import_invalid": "Het bestand is geen EasyDrag-flow.",

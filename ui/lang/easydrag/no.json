@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "Denne listen er utdatert",
   "easydrag.ui.home_tagline": "Bygg automatiseringer med dra og slipp",
   "easydrag.ui.home_templates": "Maler",
+  "easydrag.ui.home_templates_failed": "Malene kunne ikke lastes ({reason}).",
   "easydrag.ui.home_templates_hint": "Ferdige flyter du kan tilpasse. Trinn som må settes opp, er merket.",
   "easydrag.ui.home_use_template": "Bruk mal",
   "easydrag.ui.import_invalid": "Filen er ikke en EasyDrag-flyt.",

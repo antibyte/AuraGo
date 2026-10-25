@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "Αυτή η λίστα δεν είναι ενημερωμένη",
   "easydrag.ui.home_tagline": "Δημιούργησε αυτοματισμούς με μεταφορά και απόθεση",
   "easydrag.ui.home_templates": "Πρότυπα",
+  "easydrag.ui.home_templates_failed": "Δεν ήταν δυνατή η φόρτωση των προτύπων ({reason}).",
   "easydrag.ui.home_templates_hint": "Έτοιμες ροές για προσαρμογή. Τα βήματα που χρειάζονται ρύθμιση είναι σημειωμένα.",
   "easydrag.ui.home_use_template": "Χρήση προτύπου",
   "easydrag.ui.import_invalid": "Το αρχείο δεν είναι ροή του EasyDrag.",

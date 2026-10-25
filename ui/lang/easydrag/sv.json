@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "Den här listan är inaktuell",
   "easydrag.ui.home_tagline": "Bygg automatiseringar med dra och släpp",
   "easydrag.ui.home_templates": "Mallar",
+  "easydrag.ui.home_templates_failed": "Mallarna kunde inte läsas in ({reason}).",
   "easydrag.ui.home_templates_hint": "Färdiga flöden att anpassa. Steg som behöver konfigureras är markerade.",
   "easydrag.ui.home_use_template": "Använd mall",
   "easydrag.ui.import_invalid": "Filen är inte ett EasyDrag-flöde.",

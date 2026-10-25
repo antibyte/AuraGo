@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "此列表已过期",
   "easydrag.ui.home_tagline": "拖放即可构建自动化",
   "easydrag.ui.home_templates": "模板",
+  "easydrag.ui.home_templates_failed": "无法加载模板（{reason}）。",
   "easydrag.ui.home_templates_hint": "可直接调整的现成流程。需要设置的步骤已标出。",
   "easydrag.ui.home_use_template": "使用模板",
   "easydrag.ui.import_invalid": "该文件不是 EasyDrag 流程。",

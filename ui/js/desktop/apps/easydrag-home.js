@@ -139,6 +139,10 @@
         let timersRunning = true;  // GET /flows timers_running; false while Date & time triggers do not fire
         let listed = false;
         let spoken = '';
+        // templateError is the failure of the last template load while no templates are known; the
+        // template section shows it with its own Try again (retryTemplates).
+        let templateError = null;
+        let templateSeq = 0;
 
         function errorIdentity(err) {
             const body = err && err.body || {};
@@ -247,7 +251,11 @@
                 speak(staleError ? 'stale' : 'ready', staleError ? t('easydrag.ui.home_stale_title') : t('easydrag.ui.home_flows'));
             }
             tplGrid.classList.toggle('is-disabled', off);
-            tplGrid.innerHTML = templates.map(tp =>
+            // Templates that could not be loaded say so here, with their own Try again; the flows above stay.
+            if (templateError && !templates.length && !loadError) {
+                tplGrid.innerHTML = '<p class="ed-error">' + esc(t('easydrag.ui.home_templates_failed', { reason: core.errorText(t, templateError) })) + '</p>' +
+                    '<div class="ed-row"><button type="button" class="ed-btn" data-ed-templates-retry>' + core.icon('refresh') + '<span>' + esc(t('easydrag.ui.retry')) + '</span></button></div>';
+            } else tplGrid.innerHTML = templates.map(tp =>
                 '<article class="ed-template-card" data-ed-template="' + esc(tp.id) + '" tabindex="' + (off ? '-1' : '0') + '" role="button"' + (off ? ' aria-disabled="true"' : '') + ' aria-label="' + esc(tp.name) + '">' +
                 '<div class="ed-template-cats">' + (tp.categories || []).map(c => '<span class="ed-cat-dot" data-cat="' + esc(c) + '"></span>').join('') + '</div>' +
                 '<h3>' + esc(tp.name) + '</h3><p>' + esc(tp.description) + '</p><span class="ed-template-use">' + esc(t('easydrag.ui.home_use_template')) + core.icon('chevron-right') + '</span></article>').join('');
@@ -262,23 +270,24 @@
         // loadSeq numbers the list requests: only the newest answer is shown, none after dispose.
         let loadSeq = 0;
 
-        // reload fetches the flow list (and the templates once). A failure is shown and not retried
-        // by itself: the next flows_changed or the user (Reload) asks again. Flows switched off
-        // (FLOWS_DISABLED, possible at any time) show a calm state instead of an error.
+        // reload fetches the flow list and, once, the templates. Each answer stands on its own
+        // (allSettled): templates that fail leave the flows listed and show their own Try again in
+        // the template section. A list that fails is shown and not retried by itself: the next
+        // flows_changed or the user (Reload) asks again. Flows switched off (FLOWS_DISABLED,
+        // possible at any time) show a calm state instead of an error.
         async function reload() {
             reloadSoon.cancel();
             const mine = ++loadSeq;
-            let list;
-            let tpl;
-            try {
-                [list, tpl] = await Promise.all([app.api.list(), templates.length ? Promise.resolve({ templates }) : app.api.templates()]);
-            } catch (err) {
-                if (mine !== loadSeq) return;
+            const [listAnswer, tplAnswer] = await Promise.allSettled([app.api.list(), templates.length ? Promise.resolve({ templates }) : app.api.templates()]);
+            if (mine !== loadSeq) return;
+            if (listAnswer.status === 'rejected') {
+                const err = listAnswer.reason;
                 // A refresh that fails keeps the last authoritative list and blocks changes.
                 // The first load, FLOWS_DISABLED and a lost session do not keep protected cards.
                 if (authLoss(err)) {
                     flows = [];
                     templates = [];
+                    templateError = null;
                     listed = false;
                     staleError = null;
                     loadError = err;
@@ -295,16 +304,37 @@
                 reportLoaded();
                 return;
             }
-            if (mine !== loadSeq) return;
+            const list = listAnswer.value || {};
             loadError = null;
             staleError = null;
             listed = true;
             flows = list.flows || [];
             timersRunning = list.timers_running !== false;
-            templates = tpl.templates || [];
+            if (tplAnswer.status === 'fulfilled') {
+                templates = (tplAnswer.value && tplAnswer.value.templates) || [];
+                templateError = null;
+            } else if (!templates.length) {
+                templateError = tplAnswer.reason;
+            }
             render();
             reportLoaded();
             focusLeftFlow();
+        }
+
+        // retryTemplates loads the templates again (their Try again). Focus that was on the old button
+        // goes to the new Try again, or to the first template.
+        async function retryTemplates() {
+            const mine = ++templateSeq;
+            const hadFocus = tplGrid.contains(document.activeElement);
+            let next = null;
+            let failure = null;
+            try { next = await app.api.templates(); } catch (err) { failure = err; }
+            if (gone || mine !== templateSeq) return;
+            if (failure) templateError = failure;
+            else { templates = (next && next.templates) || []; templateError = null; }
+            render();
+            const target = tplGrid.querySelector('[data-ed-templates-retry]') || tplGrid.querySelector('[data-ed-template]');
+            if (hadFocus && target && typeof target.focus === 'function') target.focus();
         }
         // Every autosave broadcasts flows_changed "saved", and every live run's end "run_finished";
         // listing parses every flow on the server: those refreshes wait until they pause for 1.5 s.
@@ -388,16 +418,21 @@
             a.remove();
         }
 
+        // duplicating holds the flows whose copy is being made: a double click copies once.
+        const duplicating = new Set();
         async function duplicate(id) {
-            if (!mayChange()) return;
+            if (!mayChange() || duplicating.has(id)) return;
+            duplicating.add(id);
             try {
                 const res = await app.api.get(id);
                 if (!mayChange()) return;
                 const doc = res.flow.draft;
                 doc.name = t('easydrag.ui.copy_of', { name: doc.name });
-                create({ import: doc });
+                await create({ import: doc });
             } catch (err) {
                 if (!gone) ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' });
+            } finally {
+                duplicating.delete(id);
             }
         }
 
@@ -488,6 +523,7 @@
 
         bag.listen(el, 'click', (event) => {
             if (event.target.closest('[data-ed-home-settings]')) { core.openFlowSettings(); return; }
+            if (event.target.closest('[data-ed-templates-retry]')) { retryTemplates(); return; }
             if (event.target.closest('[data-ed-home-retry]')) { retry(); return; }
             if (event.target.closest('[data-ed-home-templates]')) { focusTemplates(); return; }
             if (event.target.closest('[data-ed-home-clear-search]')) { clearSearch(); return; }

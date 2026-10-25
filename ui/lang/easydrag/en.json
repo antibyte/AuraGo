@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "This list is out of date",
   "easydrag.ui.home_tagline": "Build automations by drag and drop",
   "easydrag.ui.home_templates": "Templates",
+  "easydrag.ui.home_templates_failed": "Templates could not be loaded ({reason}).",
   "easydrag.ui.home_templates_hint": "Ready-made flows to adapt. Steps that need setup are marked.",
   "easydrag.ui.home_use_template": "Use template",
   "easydrag.ui.import_invalid": "The file is not an EasyDrag flow.",

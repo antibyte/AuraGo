@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "Ta lista jest nieaktualna",
   "easydrag.ui.home_tagline": "Twórz automatyzacje metodą przeciągnij i upuść",
   "easydrag.ui.home_templates": "Szablony",
+  "easydrag.ui.home_templates_failed": "Nie udało się wczytać szablonów ({reason}).",
   "easydrag.ui.home_templates_hint": "Gotowe przepływy do dopasowania. Kroki wymagające konfiguracji są oznaczone.",
   "easydrag.ui.home_use_template": "Użyj szablonu",
   "easydrag.ui.import_invalid": "Ten plik nie jest przepływem EasyDrag.",

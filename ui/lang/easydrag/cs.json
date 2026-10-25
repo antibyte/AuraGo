@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "Tento seznam je zastaralý",
   "easydrag.ui.home_tagline": "Automatizace sestavené přetahováním",
   "easydrag.ui.home_templates": "Šablony",
+  "easydrag.ui.home_templates_failed": "Šablony se nepodařilo načíst ({reason}).",
   "easydrag.ui.home_templates_hint": "Hotové toky k úpravě. Kroky, které je třeba nastavit, jsou označené.",
   "easydrag.ui.home_use_template": "Použít šablonu",
   "easydrag.ui.import_invalid": "Soubor není tok EasyDrag.",

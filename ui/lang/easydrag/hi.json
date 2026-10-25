@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "यह सूची पुरानी हो चुकी है",
   "easydrag.ui.home_tagline": "ड्रैग एंड ड्रॉप से ऑटोमेशन बनाएँ",
   "easydrag.ui.home_templates": "टेम्पलेट",
+  "easydrag.ui.home_templates_failed": "टेम्पलेट लोड नहीं हो सके ({reason})।",
   "easydrag.ui.home_templates_hint": "अपनी ज़रूरत के अनुसार बदलने के लिए तैयार फ़्लो। जिन चरणों को सेट अप करना है, वे चिह्नित हैं।",
   "easydrag.ui.home_use_template": "टेम्पलेट इस्तेमाल करें",
   "easydrag.ui.import_invalid": "यह फ़ाइल EasyDrag फ़्लो नहीं है।",

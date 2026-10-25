@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "Diese Liste ist nicht mehr aktuell",
   "easydrag.ui.home_tagline": "Automationen per Drag & Drop bauen",
   "easydrag.ui.home_templates": "Vorlagen",
+  "easydrag.ui.home_templates_failed": "Die Vorlagen konnten nicht geladen werden ({reason}).",
   "easydrag.ui.home_templates_hint": "Fertige Flows zum Anpassen. Schritte, die eingerichtet werden müssen, sind markiert.",
   "easydrag.ui.home_use_template": "Vorlage verwenden",
   "easydrag.ui.import_invalid": "Die Datei ist kein EasyDrag-Flow.",

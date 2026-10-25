@@ -588,6 +588,7 @@
   "easydrag.ui.home_stale_title": "Cette liste n’est plus à jour",
   "easydrag.ui.home_tagline": "Créez des automatisations par glisser-déposer",
   "easydrag.ui.home_templates": "Modèles",
+  "easydrag.ui.home_templates_failed": "Les modèles n'ont pas pu être chargés ({reason}).",
   "easydrag.ui.home_templates_hint": "Des flux prêts à adapter. Les étapes à configurer sont signalées.",
   "easydrag.ui.home_use_template": "Utiliser le modèle",
   "easydrag.ui.import_invalid": "Le fichier n’est pas un flux EasyDrag.",
