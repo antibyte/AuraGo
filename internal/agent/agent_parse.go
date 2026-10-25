@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"html"
 	"log/slog"
 	"math"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -52,6 +54,10 @@ func formatGuardianBlockedMessage(action, reason string, risk float64, _ bool, _
 	base := fmt.Sprintf("[TOOL BLOCKED] Security check failed for %s: %s (risk: %.0f%%).", action, reason, risk*100)
 	return base + " The block is final for this call. " + guardianBlockNextStep(reason)
 }
+
+// guardianQuarantineNotice is the only model-facing reason for a quarantine
+// verdict. The scanner's own reason stays in the log.
+const guardianQuarantineNotice = "security check quarantined this call before execution"
 
 // ToolDispatchResult preserves the model-facing output together with a
 // machine-readable execution status for protocol bridges such as MCP.
@@ -155,8 +161,15 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 				}
 			}
 			if result.Decision == security.DecisionQuarantine {
-				logger.Warn("[LLM Guardian] Quarantined tool call (proceeding with caution)",
+				logger.Warn("[LLM Guardian] Quarantined tool call",
 					"tool", tc.Action, "reason", result.Reason, "risk", result.RiskScore)
+				tc.GuardianBlocked = true
+				tc.GuardianBlockReason = "quarantine"
+				return ToolDispatchResult{
+					Status:  ToolResultDenied,
+					Output:  formatGuardianBlockedMessage(tc.Action, guardianQuarantineNotice, result.RiskScore, false, false),
+					IsError: true,
+				}
 			}
 		}
 	}
@@ -208,8 +221,10 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 		}
 	}
 
+	output := formatToolOutputForModel(*tc, sanitized)
+	recordIsolatedModelBody(dc.SessionID, output)
 	return ToolDispatchResult{
-		Output:  formatToolOutputForModel(*tc, sanitized),
+		Output:  output,
 		Status:  status,
 		IsError: status.IsError(),
 	}
@@ -1810,7 +1825,17 @@ func GetActiveProcessStatus(registry *tools.ProcessRegistry) string {
 	if len(names) == 0 {
 		return "None"
 	}
-	return strings.Join(names, ", ")
+	return sanitizeActiveProcessStatus(strings.Join(names, ", "))
+}
+
+// externalDataTag matches a fence opener or closer, including a type attribute.
+// The daemon line is escaped once here. The prompt builder must not escape it again.
+var externalDataTag = regexp.MustCompile(`(?i)</?external_data\b[^>]*>`)
+
+func sanitizeActiveProcessStatus(status string) string {
+	status = strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ").Replace(status)
+	status = externalDataTag.ReplaceAllString(status, "")
+	return html.EscapeString(status)
 }
 
 // runGitCommand helper runs a git command with enforced environment and safe.directory config.

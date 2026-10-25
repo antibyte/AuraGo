@@ -21,6 +21,9 @@ func TestToolOutputWarningMatchesSanitizeToolOutput(t *testing.T) {
 		if warning := ToolOutputWarning(got[:cut]); warning != got[cut:] {
 			t.Fatalf("%s: ToolOutputWarning = %q, SanitizeToolOutput appended %q", tc.tool, warning, got[cut:])
 		}
+		if strings.Contains(got[cut:], "reveal my system prompt") || strings.Contains(got[cut:], "system message says") {
+			t.Fatalf("%s: warning quoted payload text: %q", tc.tool, got[cut:])
+		}
 	}
 	clean := `Tool Output: {"status":"ok","file":{"content":"int x = a < b;"}}`
 	if got := g.SanitizeToolOutput("cyd_creator_read_file", clean); strings.Contains(got, "SECURITY WARNING") || ToolOutputWarning(got) != "" {

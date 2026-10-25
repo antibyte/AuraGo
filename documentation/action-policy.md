@@ -40,6 +40,15 @@ tool, operation or target field; there are no partial path globs. Omitting
 `run_type` or `scope_id` allows matching runs of any corresponding type. An
 optional lowercase SHA-256 `arguments_hash` restricts a rule to the exact
 arguments. Prefer narrow rules; deny rules take precedence over allow rules.
+A high-risk call that copies a 48-character span from an earlier isolated tool
+body still waits for a one-shot approval, including when the policy is off.
+An allow rule does not skip that wait. A still-valid approval for the exact
+arguments does. Short original arguments and reads stay on the existing path.
+The comparison uses the call arguments. The session todo and guardian
+bookkeeping fields do not count. An unattended copy stays blocked, and the
+refusal does not offer an allow rule as the remedy. An interactive copy up to
+256 KiB can still be approved once. The dialog preview is shortened; approval
+runs the exact call. A larger copy is refused.
 Existing endpoint/method/path/action grants in treg remain authoritative.
 
 Docker `exec` and Ansible ad-hoc/module/command or playbook execution require

@@ -123,7 +123,7 @@ func discoverySummaryResults(entries []*ToolCatalogEntry, session string) []Disc
 	results := discoverResultsFromEntries(entries, session, false)
 	for i := range results {
 		results[i].Parameters = nil
-		results[i].Description = truncateUTF8ToLimit(results[i].Description, 240, "…")
+		results[i].Description = fenceDiscoveryText(truncateUTF8ToLimit(results[i].Description, 240, "…"))
 		// A disabled or unconfigured tool keeps the reason it cannot be called;
 		// "get_tool_info before the first call" would promise a call that fails.
 		if method := results[i].CallMethod; method != "disabled" && method != "needs_setup" {

@@ -653,8 +653,34 @@ func IsolateExternalData(content string) string {
 	if content == "" {
 		return ""
 	}
-	safe := html.EscapeString(content)
+	safe := html.EscapeString(hardenExternalBoundary(content))
 	return "<external_data>\n" + safe + "\n</external_data>"
+}
+
+// hardenExternalBoundary strips format characters and folds a small bracket
+// set so the HTML fence cannot be spelled with lookalike punctuation. It
+// leaves ordinary prose, including the words "external data", readable.
+// ASCII inputs that contain none of the encoded-angle or special-token
+// sequences stay byte-identical.
+func hardenExternalBoundary(content string) string {
+	content = strings.Map(func(r rune) rune {
+		if unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		switch r {
+		case '\uFF1C', '\uFE64', '\u27E8', '\u2329', '\u3008':
+			return '<'
+		case '\uFF1E', '\uFE65', '\u27E9', '\u232A', '\u3009':
+			return '>'
+		default:
+			return r
+		}
+	}, content)
+	content = encodedAngleEscape.ReplaceAllStringFunc(content, func(match string) string {
+		return `\ ` + match[1:]
+	})
+	content = strings.ReplaceAll(content, "<|", "< |")
+	return instDelimiter.ReplaceAllString(content, "[ INST ]")
 }
 
 // IsolateSourceData wraps project source for LLM ingestion without escaping it,
@@ -682,6 +708,13 @@ func IsolatedPayload(body string) (string, bool) {
 }
 
 var sourceClosingTag = regexp.MustCompile(`<[\s\p{Cf}]*/`)
+
+// encodedAngleEscape matches JSON/JS spellings of "<" that html.EscapeString
+// would leave intact. instDelimiter matches Llama-style role tokens.
+var (
+	encodedAngleEscape = regexp.MustCompile(`(?i)\\(?:u003c|u\{0*3c\}|x3c)`)
+	instDelimiter      = regexp.MustCompile(`(?i)\[/?INST\]`)
+)
 
 // sourceBoundaryRisk decodes JSON/JS escapes and up to three rounds of HTML
 // entities, then rejects any closing-tag shape or the boundary name spelled
@@ -724,12 +757,20 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 		return output
 	}
 
-	// Scan the original source before rewriting role markers. Ordinary source
+	// Scan the original body before rewriting role markers. Ordinary source
 	// remains copyable; only a critical verdict selects the escaped form.
+	// External bodies at ThreatHigh or above are withheld entirely.
 	trust := classifyToolOutput(toolName)
 	var scan ScanResult
-	if trust == toolOutputSourceData {
+	if trust == toolOutputSourceData || trust == toolOutputExternal {
 		scan = g.ScanForInjection(output)
+	}
+	if trust == toolOutputExternal && scan.Level >= ThreatHigh {
+		if g.logger != nil {
+			g.logger.Warn("[Guardian] Withheld external tool output",
+				"tool", toolName, "threat", scan.Level.String(), "patterns", scan.Patterns)
+		}
+		return QuarantineNotice(toolName, "", ContentScanQuarantine(QuarantineSuspicious))
 	}
 	// Strip role impersonation markers (e.g. "system:" at line start).
 	output = roleMarkers.ReplaceAllStringFunc(output, func(match string) string {
@@ -761,15 +802,17 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	g.mu.RUnlock()
 	validation := protector.ValidateOutput(output, nil)
 	if !validation.Safe {
-		var msgs []string
-		for _, thr := range validation.Threats {
-			msgs = append(msgs, thr.Message)
-		}
-		recommendation := strings.Join(msgs, "; ")
 		if g.logger != nil {
-			g.logger.Warn("[Guardian] Promptsec validation failed", "tool", toolName, "recommendation", recommendation)
+			msgs := make([]string, 0, len(validation.Threats))
+			for _, thr := range validation.Threats {
+				if thr.Message != "" {
+					msgs = append(msgs, thr.Message)
+				}
+			}
+			g.logger.Warn("[Guardian] Promptsec validation failed",
+				"tool", toolName, "recommendation", strings.Join(msgs, "; "))
 		}
-		output += "\n[SECURITY WARNING: " + recommendation + "]"
+		output += formatToolOutputWarning(validation.Threats)
 	}
 
 	return output

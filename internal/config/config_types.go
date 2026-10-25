@@ -1534,7 +1534,7 @@ type Config struct {
 		Provider           string            `yaml:"provider"`              // provider entry ID (falls back to main LLM)
 		Model              string            `yaml:"model"`                 // model override (optional)
 		DefaultLevel       string            `yaml:"default_level"`         // off, low, medium, high (default "medium")
-		FailSafe           string            `yaml:"fail_safe"`             // block, allow, quarantine on guardian error (default "block")
+		FailSafe           string            `yaml:"fail_safe"`             // block (default), quarantine (stop, fixed notice), or allow (only fail-open path) on guardian error
 		CacheTTL           int               `yaml:"cache_ttl"`             // cache TTL in seconds (default 300)
 		MaxChecksPerMin    int               `yaml:"max_checks_per_minute"` // rate limit (default 60)
 		MaxChecksPerMinOld int               `yaml:"max_checks_per_min"`    // deprecated compatibility alias

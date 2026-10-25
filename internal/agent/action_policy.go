@@ -309,13 +309,19 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 			return actionPolicyRefusal("runtime_dependency_unavailable", reason, ToolResultNeedsSetup)
 		}
 	}
+	if policy.Enabled {
+		for _, rule := range policy.Deny {
+			if actionDenyRuleMatches(rule, a) {
+				return actionPolicyRefusal("action_policy_denied", "An administrator action rule denies this operation and target.", ToolResultDenied)
+			}
+		}
+	}
+	// A copied isolated span waits even when policy is off and even when an allow rule matches.
+	if stop, refusal := gateCopiedIsolatedSpan(ctx, tc, dc, a); stop {
+		return refusal
+	}
 	if !policy.Enabled {
 		return nil
-	}
-	for _, rule := range policy.Deny {
-		if actionDenyRuleMatches(rule, a) {
-			return actionPolicyRefusal("action_policy_denied", "An administrator action rule denies this operation and target.", ToolResultDenied)
-		}
 	}
 	if actionAllowRulesCover(policy.Allow, a) {
 		return nil

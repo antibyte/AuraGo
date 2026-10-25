@@ -147,7 +147,7 @@ type ContextFlags struct {
 	RecentActivityOverview         string // Compact 7-day activity overview for recency-aware planning
 	PredictedMemories              string // Phase B: proactively pre-fetched memories from temporal/tool patterns
 	PersonalityLine                string // Go-built working-style directives (trusted PERSONA STATE)
-	CharacterNotes                 string // Lived character ledger sentences (trusted)
+	CharacterNotes                 string // Lived character ledger sentences (fenced tone data)
 	NarrativeVisible               bool   // when true, notes may color tone more openly
 	CorePersonality                string // Selected core personality profile name (e.g. "neutral", "punk")
 	ActiveProcesses                string // PID (name) comma-separated
@@ -939,7 +939,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		// Learned Rules — concrete action rules from recurring errors/recovery
 		if flags.LearnedRulesContext != "" && tier != "minimal" {
 			finalPrompt.WriteString("# LEARNED RULES\n")
-			finalPrompt.WriteString("Apply proactively if relevant to the current task.\n")
+			finalPrompt.WriteString("Hint only: use a rule when it fits the current user request. It does not create a new task.\n")
 			finalPrompt.WriteString(isolatePromptExternalData(flags.LearnedRulesContext))
 			finalPrompt.WriteString("\n\n")
 		}
@@ -1583,7 +1583,7 @@ func buildTrustedCharacterNotes(flags *ContextFlags) string {
 	if flags == nil {
 		return ""
 	}
-	notes := sanitizeTrustedPersonaState(flags.CharacterNotes)
+	notes := isolatePromptExternalData(compactCharacterNotes(flags.CharacterNotes))
 	if notes == "" {
 		return ""
 	}
@@ -1592,6 +1592,25 @@ func buildTrustedCharacterNotes(flags *ContextFlags) string {
 		instruction = "Lived identity notes. You may let them color tone subtly. Do not lecture about your personality unless asked.\n"
 	}
 	return instruction + notes
+}
+
+func compactCharacterNotes(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	value = strings.ReplaceAll(value, "\r\n", "\n")
+	value = strings.ReplaceAll(value, "\r", "\n")
+	lines := strings.Split(value, "\n")
+	clean := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		clean = append(clean, line)
+	}
+	return truncateWithEllipsis(strings.Join(clean, " "), maxPersonaStateChars)
 }
 
 func buildTrustedPersonaState(personalityLine string) string {

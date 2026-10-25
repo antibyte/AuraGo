@@ -25,9 +25,40 @@ func ToolOutputWarning(isolated string) string {
 	if validation.Safe {
 		return ""
 	}
-	msgs := make([]string, 0, len(validation.Threats))
-	for _, thr := range validation.Threats {
-		msgs = append(msgs, thr.Message)
+	return formatToolOutputWarning(validation.Threats)
+}
+
+// formatToolOutputWarning quotes only fixed detector categories. Detector
+// prose stays in the log so a model-facing warning cannot carry payload text.
+func formatToolOutputWarning(threats []promptsec.Threat) string {
+	cats := make([]string, 0, len(threats))
+	seen := make(map[string]bool, len(threats))
+	for _, thr := range threats {
+		cat := sanitizeThreatCategory(string(thr.Type))
+		if cat == "" || seen[cat] {
+			continue
+		}
+		seen[cat] = true
+		cats = append(cats, cat)
 	}
-	return "\n[SECURITY WARNING: " + strings.Join(msgs, "; ") + "]"
+	if len(cats) == 0 {
+		cats = []string{"unspecified"}
+	}
+	return "\n[SECURITY WARNING: " + strings.Join(cats, "; ") + "]"
+}
+
+func sanitizeThreatCategory(raw string) string {
+	var b strings.Builder
+	for _, r := range raw {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '_':
+			b.WriteRune(r)
+		default:
+			continue
+		}
+		if b.Len() >= 40 {
+			break
+		}
+	}
+	return b.String()
 }

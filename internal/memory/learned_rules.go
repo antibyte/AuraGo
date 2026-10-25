@@ -3,9 +3,12 @@ package memory
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 	"unicode/utf8"
 )
+
+const learnedRuleCopiedPatternRunes = 48
 
 const LocalShellTimeoutLearnedRule = "shell command timeout: avoid blocking sleep/poll loops; run long work in background and use wait_for_event"
 
@@ -129,6 +132,9 @@ func (s *SQLiteMemory) UpsertLearnedRule(rule *LearnedRule) error {
 	if utf8.RuneCountInString(rule.Rule) > maxFieldLen {
 		rule.Rule = string([]rune(rule.Rule)[:maxFieldLen])
 	}
+	if err := rejectInstructionShapedLearnedRule(rule); err != nil {
+		return err
+	}
 
 	now := time.Now().UTC()
 
@@ -143,6 +149,18 @@ func (s *SQLiteMemory) UpsertLearnedRule(rule *LearnedRule) error {
 	`, rule.ToolName, rule.Pattern, rule.Rule, rule.Confidence, rule.Hits, rule.Misses, rule.Active, now, now)
 	if err != nil {
 		return fmt.Errorf("upsert learned rule: %w", err)
+	}
+	return nil
+}
+
+func rejectInstructionShapedLearnedRule(rule *LearnedRule) error {
+	ruleText := strings.ToLower(rule.Rule)
+	if isCoreMemoryInstructionLike(ruleText) {
+		return fmt.Errorf("reject learned rule: instruction-shaped rule text")
+	}
+	pattern := strings.ToLower(rule.Pattern)
+	if utf8.RuneCountInString(pattern) >= learnedRuleCopiedPatternRunes && strings.Contains(ruleText, pattern) {
+		return fmt.Errorf("reject learned rule: rule text copies a long source pattern")
 	}
 	return nil
 }

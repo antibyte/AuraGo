@@ -151,7 +151,7 @@ type Decision string
 const (
     DecisionAllow       Decision = "allow"
     DecisionBlock       Decision = "block"
-    DecisionQuarantine  Decision = "quarantine" // Erlauben aber loggen & notify
+    DecisionQuarantine  Decision = "quarantine" // Tool-Call stoppen; festen Hinweis zurückgeben, Grund nur loggen
 )
 ```
 
@@ -436,8 +436,8 @@ func ExecuteAgentLoop(...) {
                 continue // Tool nicht ausführen
                 
             case DecisionQuarantine:
-                broker.Send("guardian_warning", fmt.Sprintf("⚠️ Riskante Operation: %s", result.Reason))
-                // Führe aus aber mit erhöhter Überwachung
+                broker.Send("guardian_warning", "Sicherheitsprüfung hat den Aufruf vor der Ausführung quarantänisiert")
+                continue // Tool nicht ausführen; Modellgrund nicht zurückgeben
                 
             case DecisionAllow:
                 // Normal fortfahren

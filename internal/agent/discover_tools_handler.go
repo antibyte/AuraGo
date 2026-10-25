@@ -13,6 +13,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/prompts"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 
 	openai "github.com/sashabaranov/go-openai"
@@ -96,8 +97,8 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 		categories := make([]DiscoverCategory, 0, len(counts))
 		for name, count := range counts {
 			purpose := strings.ReplaceAll(name, "_", " ")
-			if entries := catalog.ByCategory(name); len(entries) > 0 {
-				purpose = truncateUTF8ToLimit(entries[0].Description, 80, "...")
+			if entries := catalog.ByCategory(name); len(entries) > 0 && strings.TrimSpace(entries[0].Description) != "" {
+				purpose = fenceDiscoveryText(truncateUTF8ToLimit(entries[0].Description, 80, "..."))
 			}
 			categories = append(categories, DiscoverCategory{Name: name, Count: count, Purpose: purpose})
 		}
@@ -144,6 +145,7 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 		name := discoveryToolName(tc)
 		if entry, ok := catalog.Get(resolveDiscoverToolName(name)); ok {
 			result := discoverResultFromEntry(entry, sessionID, true)
+			result.Description = fenceDiscoveryText(result.Description)
 			if dc != nil && dc.discoveryReinjects && entry.Kind == ToolKindNative && entry.Enabled && entry.Status == ToolStatusHidden &&
 				entry.Schema.Function != nil && catalogEntryAllowed(dc, entry) {
 				// The lookup above queued the schema for the next request, so the
@@ -347,7 +349,7 @@ func composioServiceResult(cfg *config.Config, slug string) DiscoverToolResult {
 		Kind:            "composio_service",
 		ToolStatus:      state,
 		ReadOnly:        readOnly,
-		Description:     fmt.Sprintf("Use the selected Composio %s toolkit through composio_call.", slug),
+		Description:     fenceDiscoveryText(fmt.Sprintf("Use the selected Composio %s toolkit through composio_call.", slug)),
 		CallMethod:      "composio_call",
 		CallableNow:     state == "connected",
 		SchemaAvailable: false,
@@ -378,6 +380,16 @@ func discoverToolsLogInfo(logger *slog.Logger, msg string, args ...any) {
 	if logger != nil {
 		logger.Info(msg, args...)
 	}
+}
+
+// fenceDiscoveryText isolates catalog, MCP and skill blurbs. Names, call
+// methods and schema parameter JSON stay outside this fence.
+func fenceDiscoveryText(text string) string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return ""
+	}
+	return security.IsolateExternalData(text)
 }
 
 func discoverResultsFromEntries(entries []*ToolCatalogEntry, sessionID string, markHidden bool) []DiscoverToolResult {
@@ -503,7 +515,7 @@ func formatDiscoverToolGroupInfo(query string, activeNames, enabledNames map[str
 		if activeNames[r.Entry.Name] {
 			status = "●"
 		}
-		sb.WriteString(fmt.Sprintf("  %s %s [%s] - %s\n", status, r.Entry.Name, r.Category, r.Entry.ShortDesc))
+		sb.WriteString(fmt.Sprintf("  %s %s [%s] - %s\n", status, r.Entry.Name, r.Category, fenceDiscoveryText(r.Entry.ShortDesc)))
 	}
 	sb.WriteString("\n● = active   ○ = enabled but hidden by adaptive filtering")
 	sb.WriteString("\nUse get_tool_info with one exact tool name above, then call that exact tool.")

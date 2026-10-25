@@ -102,8 +102,8 @@ An optional second model looks at tool calls and untrusted content before dispat
 │  1. Agent generates a tool call                              │
 │  2. Guardian analyzes the call with a dedicated LLM          │
 │  3. A risk score is computed (0-100)                        │
-│  4. High risk: blocked or flagged                            │
-│  5. Low risk only: the tool is executed                      │
+│  4. High risk or quarantine: the tool is not executed       │
+│  5. Only an allow verdict executes the tool                 │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -159,7 +159,7 @@ llm_guardian:
 | Value | Description |
 |-------|-------------|
 | `block` | On Guardian errors the tool call is blocked (default) |
-| `quarantine` | On Guardian errors the tool call is allowed but logged and flagged |
+| `quarantine` | On Guardian errors the tool call is not executed; the model receives a fixed notice without the scanner reason |
 | `allow` | On Guardian errors the tool call is allowed |
 
 ### Best Practices

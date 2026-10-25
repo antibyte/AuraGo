@@ -1844,7 +1844,7 @@ llm_guardian:
     provider: ""
     model: ""
     default_level: "medium"
-    fail_safe: "block"
+    fail_safe: "block"                 # block (default) | quarantine (stop, fixed notice) | allow (only fail-open path)
     cache_ttl: 300
     max_checks_per_minute: 60
     tool_overrides: {}

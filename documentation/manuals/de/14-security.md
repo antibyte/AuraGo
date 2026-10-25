@@ -104,8 +104,8 @@ Der LLM Guardian überwacht alle Aktionen des Agenten und schützt vor potenziel
 │  1. Agent generiert Tool-Call                               │
 │  2. Guardian analysiert den Call mit dediziertem LLM        │
 │  3. Risiko-Score wird berechnet (0-100)                     │
-│  4. Bei hohem Risiko: Blockierung oder Warnung              │
-│  5. Nur bei niedrigem Risiko: Tool wird ausgeführt          │
+│  4. Bei hohem Risiko oder Quarantäne: Tool läuft nicht     │
+│  5. Nur bei Freigabe: Tool wird ausgeführt                  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -161,7 +161,7 @@ llm_guardian:
 | Wert | Beschreibung |
 |------|-------------|
 | `block` | Bei Guardian-Fehler wird der Tool-Call blockiert (Default) |
-| `quarantine` | Bei Guardian-Fehler wird der Tool-Call erlaubt, aber geloggt und gewarnt |
+| `quarantine` | Bei Guardian-Fehler wird der Tool-Call nicht ausgeführt; das Modell erhält einen festen Hinweis ohne Scannergrund |
 | `allow` | Bei Guardian-Fehler wird der Tool-Call erlaubt |
 
 ### Best Practices
