@@ -88,7 +88,7 @@ func homepageWriteDockerFile(cfg DockerConfig, relPath, content string) error {
 	if err := writer.Close(); err != nil {
 		return fmt.Errorf("close file archive: %w", err)
 	}
-	endpoint := "/containers/" + homepageContainerName + "/archive?path=" + url.QueryEscape(dir) + "&noOverwriteDirNonDir=true"
+	endpoint := "/containers/" + homepageContainerName + "/archive?path=" + url.QueryEscape(dir) + "&noOverwriteDirNonDir=true&copyUIDGID=true"
 	data, code, err := DockerRequestBytesContext(ctx, cfg, http.MethodPut, endpoint, archive.Bytes(), "application/x-tar")
 	if err != nil {
 		return err

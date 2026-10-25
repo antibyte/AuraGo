@@ -42,6 +42,9 @@ func TestHomepageFileDockerTransfersPreserveLargeContent(t *testing.T) {
 				if r.Method != http.MethodPut || r.URL.Query().Get("path") != "/workspace/news" || r.Header.Get("Content-Type") != "application/x-tar" {
 					t.Errorf("unexpected archive request: %s %s", r.Method, r.URL)
 				}
+				if r.URL.Query().Get("copyUIDGID") != "true" || r.URL.Query().Get("noOverwriteDirNonDir") != "true" {
+					t.Errorf("archive upload must use the container user and preserve directories: %s", r.URL)
+				}
 				tr := tar.NewReader(r.Body)
 				header, err := tr.Next()
 				if err != nil || header.Name != "index.html" {
