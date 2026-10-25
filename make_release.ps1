@@ -1,6 +1,6 @@
 # SECURITY: This script handles sensitive data. Do not echo secrets.
 # make_release.ps1 — Build all release artifacts and publish to GitHub Releases
-# Requires: PowerShell 5.1+, Go 1.27.2+, GitHub CLI (gh), tar, Python 3.10+
+# Requires: PowerShell 5.1+, Go 1.27.2+, GitHub CLI (gh), tar, Node.js, Python 3.10+
 
 param(
     [string]$Version
@@ -83,6 +83,16 @@ if ([string]::IsNullOrEmpty($scriptDir)) {
     $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 }
 Set-Location $scriptDir
+
+$buildID = (git rev-parse --verify HEAD).Trim()
+$buildTime = (git show -s --format=%cI HEAD).Trim()
+if ($LASTEXITCODE -ne 0 -or -not $buildID -or -not $buildTime) { throw 'Unable to resolve release source identity.' }
+if (git status --porcelain --untracked-files=normal) { throw 'Refusing to build release artifacts from a dirty worktree.' }
+$mainLdFlags = "-s -w -X aurago/internal/buildinfo.BuildID=$buildID -X aurago/internal/buildinfo.BuildVCSRevision=$buildID -X aurago/internal/buildinfo.BuildVCSTime=$buildTime -X aurago/internal/buildinfo.BuildVCSModified=false"
+$hostGoOS = (go env GOHOSTOS).Trim()
+$hostGoArch = (go env GOHOSTARCH).Trim()
+$env:GOOS = $hostGoOS
+$env:GOARCH = $hostGoArch
 
 if (Test-Path "deploy") {
     Get-ChildItem -LiteralPath 'deploy' -Force |
@@ -173,6 +183,13 @@ $configContent = $configContent -replace 'access_token: "[^"]*"', 'access_token:
 Set-Content -Path (Join-Path $tmpStage "config.yaml") -Value $configContent
 
 # Create tar.gz
+node scripts/build-ui-bundles.js
+if ($LASTEXITCODE -ne 0) { throw 'UI bundle generation failed.' }
+go run ./cmd/assetpack -out deploy -stage (Join-Path $tmpStage 'assets/web') -release $Version
+if ($LASTEXITCODE -ne 0) { throw 'Version-bound web asset packaging failed.' }
+$assetLdFlags = (Get-Content -LiteralPath 'deploy/web-assets.ldflags' -Raw).Trim()
+$assetArchive = (Get-Content -LiteralPath 'deploy/web-assets.name' -Raw).Trim()
+$webReleaseAssets = @(('deploy\' + $assetArchive), 'deploy\web-assets.json')
 $resourcesOut = Join-Path $scriptDir "deploy\resources.dat"
 tar -czf $resourcesOut -C $tmpStage .
 if ($LASTEXITCODE -ne 0) {
@@ -218,8 +235,9 @@ function Build-Binary {
     $fullOutput = Join-Path $scriptDir $Output
     Write-Host "    -> $Output" -ForegroundColor Green
     $binaryFlags = "-s -w"
+    if ($Target -eq "./cmd/aurago/") { $binaryFlags = "$mainLdFlags $assetLdFlags" }
     if ($Target -eq "./cmd/remote/") { $binaryFlags += " -X main.BuildVersion=$Version" }
-    go build -trimpath -ldflags=$binaryFlags -o $fullOutput $Target
+    go build -buildvcs=false -trimpath "-ldflags=$binaryFlags" -o $fullOutput $Target
     if ($LASTEXITCODE -ne 0) {
         throw "Build failed for $Output"
     }
@@ -268,6 +286,9 @@ $env:GOARCH = "arm64"
 Build-Binary -Output "deploy\aurago_windows_arm64.exe" -Target "./cmd/aurago/"
 Build-Binary -Output "deploy\aurago-remote_windows_arm64.exe" -Target "./cmd/remote/"
 
+node scripts/check-web-assets.mjs 'deploy/aurago_windows_amd64.exe' 'bin/aurago_linux'
+if ($LASTEXITCODE -ne 0) { throw 'Release binary/resource budget verification failed.' }
+
 # Copy install.sh
 Copy-Item "install.sh" "deploy\install.sh" -Force
 Copy-Item "update.sh" "deploy\update.sh" -Force
@@ -280,6 +301,7 @@ $requiredPortableAssets = @(
     "deploy\install.sh",
     "deploy\update.sh"
 )
+$requiredPortableAssets += $webReleaseAssets
 foreach ($file in $requiredPortableAssets) {
     $fullPath = Join-Path $scriptDir $file
     if (!(Test-Path -LiteralPath $fullPath) -or (Get-Item -LiteralPath $fullPath).Length -lt 1024) {
@@ -326,6 +348,7 @@ $checksumFiles += 'deploy\repair-update.sh'
 $checksumFiles += @($verifierPackages | ForEach-Object { 'deploy\release-verifier\' + $_.Name })
 $rotationAssets = @('deploy\release-keyring.json', 'deploy\release-keyring.json.sig') | Where-Object { Test-Path -LiteralPath $_ }
 $checksumFiles += $rotationAssets
+$checksumFiles += $webReleaseAssets
 $checksumLines = foreach ($file in $checksumFiles) {
     $fullPath = Join-Path $scriptDir $file
     if (Test-Path $fullPath) {
@@ -398,6 +421,7 @@ $assetPaths += $phononPackages
 $assetPaths += 'deploy\repair-update.sh'
 $assetPaths += @($verifierPackages | ForEach-Object { 'deploy\release-verifier\' + $_.Name })
 $assetPaths += $rotationAssets
+$assetPaths += $webReleaseAssets
 foreach ($path in $assetPaths) {
     $fullPath = Join-Path $scriptDir $path
     if (Test-Path $fullPath) {
