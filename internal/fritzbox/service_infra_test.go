@@ -162,6 +162,25 @@ func TestInfraHostsSkipEntriesWithoutUsableMAC(t *testing.T) {
 	}
 }
 
+func TestInfraHostsKeepOneHostPerMAC(t *testing.T) {
+	client := infraHostTableClient(t, []map[string]string{
+		{"NewMACAddress": "AA:BB:CC:DD:EE:FF", "NewHostName": "old-lease", "NewActive": "0"},
+		{"NewMACAddress": "11:22:33:44:55:66", "NewIPAddress": "192.0.2.20", "NewHostName": "first", "NewActive": "1"},
+		{"NewMACAddress": "aa:bb:cc:dd:ee:ff", "NewIPAddress": "192.0.2.10", "NewHostName": "printer", "NewActive": "1"},
+		{"NewMACAddress": "11:22:33:44:55:66", "NewIPAddress": "192.0.2.21", "NewHostName": "second", "NewActive": "1"},
+	})
+	hosts, err := client.InfraHosts()
+	if err != nil || len(hosts) != 2 {
+		t.Fatalf("InfraHosts() = %+v, %v; want one host per MAC", hosts, err)
+	}
+	if hosts[0].Key != client.infraHostKey("AA:BB:CC:DD:EE:FF") || hosts[0].Name != "printer" || hosts[0].IPAddress != "192.0.2.10" || !hosts[0].Active {
+		t.Fatalf("duplicate MAC kept the wrong entry: %+v", hosts[0])
+	}
+	if hosts[1].Name != "first" || hosts[1].IPAddress != "192.0.2.20" {
+		t.Fatalf("tie between equal entries must keep the first: %+v", hosts[1])
+	}
+}
+
 func TestInfraHostsFailWhenNoEntryCarriesAMAC(t *testing.T) {
 	client := infraHostTableClient(t, []map[string]string{
 		{"NewMACAddress": "", "NewIPAddress": "192.0.2.50", "NewHostName": "wireguard-peer"},
