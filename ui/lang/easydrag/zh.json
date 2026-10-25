@@ -877,6 +877,8 @@
   "easydrag.ui.test_title": "测试流程",
   "easydrag.ui.test_trigger": "起始触发器",
   "easydrag.ui.test_unsaved": "草稿未能保存，因此暂时无法测试。",
+  "easydrag.ui.timers_stopped_text": "AuraGo 无法启动流程存储，并会持续重试。在此之前，“日期和时间”触发器不会触发。详细信息请查看 AuraGo 日志。",
+  "easydrag.ui.timers_stopped_title": "“日期和时间”触发器未运行",
   "easydrag.ui.tpl_error_bad_index": "方括号 [ ] 中应为整数或带引号的文本。",
   "easydrag.ui.tpl_error_expected_name": "缺少名称：开头的数据名称、点号后的字段或 | 后的过滤器。",
   "easydrag.ui.tpl_error_expected_value": "过滤器“{name}”：每个参数都必须是带引号的文本、数字、true、false 或 null。",

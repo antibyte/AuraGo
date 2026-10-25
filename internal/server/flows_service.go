@@ -241,12 +241,18 @@ func flowsShutdownBudget(ctx context.Context) time.Duration {
 	return budget
 }
 
+// flowsStartRetryJoinTimeout bounds shutdownFlows' wait for the background start retry. A retry
+// stuck inside Service.Start (SQLite busy, a hung disk) does not observe its context, and the
+// wait would otherwise use up the budget Service.Shutdown needs to stop the runs. A variable so a
+// test can shorten it.
+var flowsStartRetryJoinTimeout = 2 * time.Second
+
 // shutdownFlows stops timers and runs and closes the store before the databases close.
 //
 // The server calls it once the HTTP API is drained, so no flow API request is in flight,
 // and before MQTT, mail, MCP, the sandbox, the mission history and the planner stop: flow
 // runs use all of them. The order is the background start retry, if one is still going
-// (ended and joined: see startFlows), Service.Shutdown (timers, runs, the retention loop,
+// (ended, and joined for at most flowsStartRetryJoinTimeout: see startFlows), Service.Shutdown (timers, runs, the retention loop,
 // a startup reconciliation still in progress), then the store. Shutdown gets
 // flowsShutdownBudget(ctx) on a context of its own (ctx's cancellation is ignored); runs
 // that do not stop in time end in the background, and their last writes then fail on the
@@ -270,10 +276,15 @@ func (s *Server) shutdownFlows(ctx context.Context) {
 	if v, ok := flowsStartRetries.LoadAndDelete(s.Flows); ok {
 		retry := v.(*flowsStartRetry)
 		retry.cancel()
+		join := time.NewTimer(flowsStartRetryJoinTimeout)
 		select {
 		case <-retry.done:
+		case <-join.C:
+			s.Logger.Warn("EasyDrag's background start did not end in time; stopping the flows without it",
+				"waited", flowsStartRetryJoinTimeout.String())
 		case <-ctx.Done():
 		}
+		join.Stop()
 	}
 	if err := s.Flows.Shutdown(ctx); err != nil {
 		s.Logger.Warn("EasyDrag flows did not stop in time", "error", err)

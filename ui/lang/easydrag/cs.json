@@ -877,6 +877,8 @@
   "easydrag.ui.test_title": "Otestovat tok",
   "easydrag.ui.test_trigger": "Začít spouštěčem",
   "easydrag.ui.test_unsaved": "Koncept se nepodařilo uložit, a proto ho zatím nejde otestovat.",
+  "easydrag.ui.timers_stopped_text": "AuraGo nemohlo spustit úložiště flow a zkouší to dál. Do té doby se spouštěče „Datum a čas“ nespouštějí. Podrobnosti jsou v logu AuraGo.",
+  "easydrag.ui.timers_stopped_title": "Spouštěče „Datum a čas“ neběží",
   "easydrag.ui.tpl_error_bad_index": "Do hranatých závorek [ ] patří celé číslo nebo text v uvozovkách.",
   "easydrag.ui.tpl_error_expected_name": "Chybí název: datový název na začátku, pole za tečkou nebo filtr za |.",
   "easydrag.ui.tpl_error_expected_value": "Filtr „{name}“: každý argument musí být text v uvozovkách, číslo, true, false nebo null.",

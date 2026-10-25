@@ -877,6 +877,8 @@
   "easydrag.ui.test_title": "Test flyten",
   "easydrag.ui.test_trigger": "Start fra",
   "easydrag.ui.test_unsaved": "Utkastet kunne ikke lagres og kan derfor ikke testes ennå.",
+  "easydrag.ui.timers_stopped_text": "AuraGo kunne ikke starte flyt-lageret og prøver fortsatt. Inntil videre utløses ikke utløsere av typen «Dato og klokkeslett». Detaljene står i AuraGo-loggen.",
+  "easydrag.ui.timers_stopped_title": "Utløsere av typen «Dato og klokkeslett» kjører ikke",
   "easydrag.ui.tpl_error_bad_index": "Hakeparenteser [ ] skal inneholde et heltall eller en tekst i anførselstegn.",
   "easydrag.ui.tpl_error_expected_name": "Et navn mangler: et datanavn i starten, et felt etter et punktum eller et filter etter |.",
   "easydrag.ui.tpl_error_expected_value": "Filter «{name}»: hvert argument må være en tekst i anførselstegn, et tall, true, false eller null.",

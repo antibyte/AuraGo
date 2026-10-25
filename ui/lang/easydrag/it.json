@@ -877,6 +877,8 @@
   "easydrag.ui.test_title": "Prova flusso",
   "easydrag.ui.test_trigger": "Avvia da",
   "easydrag.ui.test_unsaved": "Non è stato possibile salvare la bozza, quindi non può ancora essere provata.",
+  "easydrag.ui.timers_stopped_text": "AuraGo non è riuscito ad avviare l’archivio dei flow e continua a provare. Fino ad allora i trigger «Data e ora» non scattano. I dettagli sono nel log di AuraGo.",
+  "easydrag.ui.timers_stopped_title": "I trigger «Data e ora» non sono in esecuzione",
   "easydrag.ui.tpl_error_bad_index": "Le parentesi quadre [ ] richiedono un numero intero o un testo tra virgolette.",
   "easydrag.ui.tpl_error_expected_name": "Manca un nome: un nome dati all’inizio, un campo dopo un punto o un filtro dopo |.",
   "easydrag.ui.tpl_error_expected_value": "Filtro «{name}»: ogni argomento deve essere un testo tra virgolette, un numero, true, false o null.",

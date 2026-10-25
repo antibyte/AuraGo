@@ -877,6 +877,8 @@
   "easydrag.ui.test_title": "Flow testen",
   "easydrag.ui.test_trigger": "Starten mit",
   "easydrag.ui.test_unsaved": "Der Entwurf konnte nicht gespeichert werden und lässt sich deshalb noch nicht testen.",
+  "easydrag.ui.timers_stopped_text": "AuraGo konnte den Flow-Speicher nicht starten und versucht es weiter. Bis dahin lösen Auslöser „Datum & Uhrzeit“ nicht aus. Details stehen im AuraGo-Log.",
+  "easydrag.ui.timers_stopped_title": "Auslöser „Datum & Uhrzeit“ laufen nicht",
   "easydrag.ui.tpl_error_bad_index": "In eckige Klammern [ ] gehört eine ganze Zahl oder ein Text in Anführungszeichen.",
   "easydrag.ui.tpl_error_expected_name": "Ein Name fehlt: ein Datenname am Anfang, ein Feld nach einem Punkt oder ein Filter nach |.",
   "easydrag.ui.tpl_error_expected_value": "Filter „{name}“: Jedes Argument muss ein Text in Anführungszeichen, eine Zahl, true, false oder null sein.",

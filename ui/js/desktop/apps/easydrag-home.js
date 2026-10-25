@@ -136,6 +136,7 @@
         // in memory only. Nothing is written to storage for either.
         let loadError = null;
         let staleError = null;
+        let timersRunning = true;  // GET /flows timers_running; false while Date & time triggers do not fire
         let listed = false;
         let spoken = '';
 
@@ -183,6 +184,13 @@
                 '<button type="button" class="ed-btn" data-ed-home-retry>' + core.icon('refresh') + '<span>' + esc(t('easydrag.ui.retry')) + '</span></button></div>';
         }
 
+        // timersBanner: Date & time triggers do not fire (the server keeps retrying to start).
+        function timersBanner() {
+            if (timersRunning) return '';
+            return '<div class="ed-home-stale" role="status" data-ed-timers-off><h3>' + esc(t('easydrag.ui.timers_stopped_title')) + '</h3><p>' +
+                esc(t('easydrag.ui.timers_stopped_text')) + '</p></div>';
+        }
+
         function emptyCard() {
             const off = createOff();
             const dis = off ? ' disabled' : '';
@@ -217,7 +225,7 @@
         function render() {
             const list = visibleFlows();
             const off = createOff();
-            const banner = !loadError && staleError ? staleBanner() : '';
+            const banner = (!loadError && staleError ? staleBanner() : '') + (!loadError ? timersBanner() : '');
             if (loadError) {
                 grid.innerHTML = errorCard(loadError);
                 speak(core.errorCode(loadError) === 'FLOWS_DISABLED' ? 'disabled' : 'error', core.errorCode(loadError) === 'FLOWS_DISABLED' ? t('easydrag.ui.disabled_title') : core.errorText(t, loadError));
@@ -292,6 +300,7 @@
             staleError = null;
             listed = true;
             flows = list.flows || [];
+            timersRunning = list.timers_running !== false;
             templates = tpl.templates || [];
             render();
             reportLoaded();

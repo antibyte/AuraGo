@@ -877,6 +877,8 @@
   "easydrag.ui.test_title": "Probar flujo",
   "easydrag.ui.test_trigger": "Iniciar desde",
   "easydrag.ui.test_unsaved": "No se pudo guardar el borrador, así que todavía no se puede probar.",
+  "easydrag.ui.timers_stopped_text": "AuraGo no pudo iniciar el almacén de flows y sigue intentándolo. Hasta entonces, los disparadores de fecha y hora no se activan. El registro de AuraGo contiene los detalles.",
+  "easydrag.ui.timers_stopped_title": "Los disparadores de fecha y hora no se están ejecutando",
   "easydrag.ui.tpl_error_bad_index": "Los corchetes [ ] admiten un número entero o un texto entre comillas.",
   "easydrag.ui.tpl_error_expected_name": "Falta un nombre: un nombre de datos al principio, un campo después de un punto o un filtro después de |.",
   "easydrag.ui.tpl_error_expected_value": "Filtro «{name}»: cada argumento debe ser un texto entre comillas, un número, true, false o null.",

@@ -877,6 +877,8 @@
   "easydrag.ui.test_title": "フローをテスト",
   "easydrag.ui.test_trigger": "開始するトリガー",
   "easydrag.ui.test_unsaved": "下書きを保存できなかったため、まだテストできません。",
+  "easydrag.ui.timers_stopped_text": "AuraGo はフローストアを起動できず、再試行を続けています。それまでの間、「日付と時刻」トリガーは実行されません。詳細は AuraGo のログにあります。",
+  "easydrag.ui.timers_stopped_title": "「日付と時刻」トリガーは動作していません",
   "easydrag.ui.tpl_error_bad_index": "角かっこ [ ] には整数か、引用符で囲んだテキストを入れてください。",
   "easydrag.ui.tpl_error_expected_name": "名前がありません。先頭のデータ名、ドットの後のフィールド、または | の後のフィルターが必要です。",
   "easydrag.ui.tpl_error_expected_value": "フィルター「{name}」：引数はそれぞれ、引用符で囲んだテキスト、数値、true、false、null のいずれかにしてください。",

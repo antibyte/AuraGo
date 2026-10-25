@@ -877,6 +877,8 @@
   "easydrag.ui.test_title": "Test flowet",
   "easydrag.ui.test_trigger": "Start fra",
   "easydrag.ui.test_unsaved": "Kladden kunne ikke gemmes og kan derfor ikke testes endnu.",
+  "easydrag.ui.timers_stopped_text": "AuraGo kunne ikke starte flow-lageret og prøver igen. Indtil da udløses triggere af typen „Dato og tid“ ikke. Detaljerne står i AuraGo-loggen.",
+  "easydrag.ui.timers_stopped_title": "Triggere af typen „Dato og tid“ kører ikke",
   "easydrag.ui.tpl_error_bad_index": "Firkantede parenteser [ ] skal indeholde et helt tal eller en tekst i anførselstegn.",
   "easydrag.ui.tpl_error_expected_name": "Et navn mangler: et datanavn i starten, et felt efter et punktum eller et filter efter |.",
   "easydrag.ui.tpl_error_expected_value": "Filter “{name}”: hvert argument skal være en tekst i anførselstegn, et tal, true, false eller null.",

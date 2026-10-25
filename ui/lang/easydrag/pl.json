@@ -877,6 +877,8 @@
   "easydrag.ui.test_title": "Przetestuj przepływ",
   "easydrag.ui.test_trigger": "Zacznij od",
   "easydrag.ui.test_unsaved": "Nie udało się zapisać szkicu, więc nie można go jeszcze przetestować.",
+  "easydrag.ui.timers_stopped_text": "AuraGo nie mogło uruchomić magazynu flow i próbuje dalej. Do tego czasu wyzwalacze „Data i godzina” nie uruchamiają się. Szczegóły są w logu AuraGo.",
+  "easydrag.ui.timers_stopped_title": "Wyzwalacze „Data i godzina” nie działają",
   "easydrag.ui.tpl_error_bad_index": "W nawiasach kwadratowych [ ] musi być liczba całkowita lub tekst w cudzysłowie.",
   "easydrag.ui.tpl_error_expected_name": "Brakuje nazwy: nazwy danych na początku, pola po kropce lub filtra po |.",
   "easydrag.ui.tpl_error_expected_value": "Filtr „{name}”: każdy argument musi być tekstem w cudzysłowie, liczbą, true, false lub null.",

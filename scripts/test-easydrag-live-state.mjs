@@ -70,4 +70,33 @@ export async function run(env) {
         eq('a1025 R2b the words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.state_live_outdated', 'easydrag.ui.live_outdated_hint']), []);
         eq('a1025 R2b the checks log no errors', h.logged, []);
     });
+
+    await guardAsync('a1025 R4 stopped Date & time triggers are shown', async () => {
+        let running = false;
+        const h = sandbox(req => {
+            if (req.method === 'GET' && req.url === '/api/desktop/flows') return { flows: [card('f1')], timers_running: running };
+            if (req.method === 'GET' && req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+            if (req.method === 'GET' && req.url === '/api/desktop/flows/f1') {
+                return { flow: { id: 'f1', live: flowDoc(), live_revision: 2, published_draft_revision: 3 }, enabled: true, issues: [], live_issues: [], timers_running: running };
+            }
+            return undefined;
+        });
+        const home = h.ED.home.create({ ctx: h.ctx, t, esc: h.ED.core.esc, api: h.api, catalog: h.catalog, readonly: false, openFlow: () => {} });
+        h.body.appendChild(home.el);
+        await settle();
+        const editor = openFlow(h, t, { timers_running: false });
+        await settle();
+        const banner = () => !!home.el.querySelector('[data-ed-timers-off]');
+        const chip = () => !!editor.el.querySelector('[data-ed-state] [data-ed-timers-off]');
+        const stopped = [banner(), chip()];
+        running = true;
+        h.fireDoc('aurago:flows-changed', { detail: { flow_id: '', reason: 'checked' } });
+        await settle();
+        const started = [banner(), chip()];
+        editor.dispose();
+        home.dispose();
+        eq('a1025 R4 the start page banner and the header chip show stopped timers and go once they run', [stopped, started], [[true, true], [false, false]]);
+        eq('a1025 R4 the words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.timers_stopped_title', 'easydrag.ui.timers_stopped_text']), []);
+        eq('a1025 R4 the checks log no errors', h.logged, []);
+    });
 }

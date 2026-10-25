@@ -877,6 +877,8 @@
   "easydrag.ui.test_title": "Testar fluxo",
   "easydrag.ui.test_trigger": "Começar por",
   "easydrag.ui.test_unsaved": "Não foi possível salvar o rascunho, por isso ele ainda não pode ser testado.",
+  "easydrag.ui.timers_stopped_text": "O AuraGo não conseguiu iniciar o armazenamento de flows e continua a tentar. Até lá, os acionadores de data e hora não disparam. O registo do AuraGo tem os detalhes.",
+  "easydrag.ui.timers_stopped_title": "Os acionadores de data e hora não estão em execução",
   "easydrag.ui.tpl_error_bad_index": "Colchetes [ ] precisam de um número inteiro ou de um texto entre aspas.",
   "easydrag.ui.tpl_error_expected_name": "Falta um nome: um nome de dados no início, um campo depois de um ponto ou um filtro depois de |.",
   "easydrag.ui.tpl_error_expected_value": "Filtro “{name}”: cada argumento precisa ser um texto entre aspas, um número, true, false ou null.",

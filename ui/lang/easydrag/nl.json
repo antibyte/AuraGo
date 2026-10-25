@@ -877,6 +877,8 @@
   "easydrag.ui.test_title": "Flow testen",
   "easydrag.ui.test_trigger": "Starten met",
   "easydrag.ui.test_unsaved": "Het concept kon niet worden opgeslagen en kan daarom nog niet worden getest.",
+  "easydrag.ui.timers_stopped_text": "AuraGo kon de flow-opslag niet starten en blijft het proberen. Tot dan worden triggers van het type „Datum en tijd” niet uitgevoerd. De details staan in het AuraGo-logboek.",
+  "easydrag.ui.timers_stopped_title": "Triggers van het type „Datum en tijd” draaien niet",
   "easydrag.ui.tpl_error_bad_index": "Tussen vierkante haken [ ] hoort een geheel getal of een tekst tussen aanhalingstekens.",
   "easydrag.ui.tpl_error_expected_name": "Er ontbreekt een naam: een gegevensnaam aan het begin, een veld na een punt of een filter na |.",
   "easydrag.ui.tpl_error_expected_value": "Filter ‘{name}’: elk argument moet een tekst tussen aanhalingstekens, een getal, true, false of null zijn.",

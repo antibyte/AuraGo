@@ -877,6 +877,8 @@
   "easydrag.ui.test_title": "Tester le flux",
   "easydrag.ui.test_trigger": "Démarrer depuis",
   "easydrag.ui.test_unsaved": "Le brouillon n’a pas pu être enregistré et ne peut donc pas encore être testé.",
+  "easydrag.ui.timers_stopped_text": "AuraGo n’a pas pu démarrer le stockage des flows et continue d’essayer. D’ici là, les déclencheurs « Date et heure » ne se déclenchent pas. Le journal d’AuraGo contient les détails.",
+  "easydrag.ui.timers_stopped_title": "Les déclencheurs « Date et heure » ne fonctionnent pas",
   "easydrag.ui.tpl_error_bad_index": "Les crochets [ ] attendent un nombre entier ou un texte entre guillemets.",
   "easydrag.ui.tpl_error_expected_name": "Il manque un nom : un nom de données au début, un champ après un point ou un filtre après |.",
   "easydrag.ui.tpl_error_expected_value": "Filtre « {name} » : chaque argument doit être un texte entre guillemets, un nombre, true, false ou null.",

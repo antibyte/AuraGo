@@ -75,7 +75,7 @@
             root: el, flow: loaded.flow, flowEnabled: !!loaded.enabled, model: draftModel, draftModel,
             selection: new Set(), selectedEdge: null, hoverNode: null, hoverEdge: null, view: { x: 0, y: 0, zoom: 1 },
             run: null, runView: null, issues: loaded.issues || [],
-            liveIssues: Array.isArray(loaded.live_issues) ? loaded.live_issues : [], liveIssuesRevision: Number(loaded.flow.live_revision) || 0, lastRunData: null, detail: null, quickAdd: null,
+            timersRunning: loaded.timers_running !== false, liveIssues: Array.isArray(loaded.live_issues) ? loaded.live_issues : [], liveIssuesRevision: Number(loaded.flow.live_revision) || 0, lastRunData: null, detail: null, quickAdd: null,
             dragging: false, initialRender: true, effectsConfirmed: new Set(), publishIncomplete: '', bus: core.emitter(), saver: null,
             enterRunView, exitRunView
         };
@@ -163,6 +163,14 @@
                 '<span class="ed-sr-only"> ' + esc(hint) + '</span></span>';
         }
 
+        // timersChip: the server's Date & time triggers do not fire (its flow store did not start).
+        function timersChip() {
+            if (ed.runView || ed.timersRunning !== false) return '';
+            const text = t('easydrag.ui.timers_stopped_text');
+            return '<span class="ed-chip ed-chip--warn" data-ed-timers-off title="' + esc(text) + '">' + esc(t('easydrag.ui.timers_stopped_title')) +
+                '<span class="ed-sr-only"> ' + esc(text) + '</span></span>';
+        }
+
         function renderHeader() {
             // A save answered after dispose must not point the window context at this flow again.
             if (disposed) return;
@@ -172,7 +180,7 @@
             const s = stateOf();
             const inactive = ed.flow.live && !ed.flowEnabled && !ed.runView;
             el.querySelector('[data-ed-state]').innerHTML = '<span class="ed-chip ed-chip--' + s.cls + '"' + (s.title ? ' title="' + esc(s.title) + '"' : '') + '>' + esc(t(s.key)) + '</span>' +
-                (inactive ? '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.state_inactive')) + '</span>' : '') + liveChip();
+                (inactive ? '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.state_inactive')) + '</span>' : '') + liveChip() + timersChip();
             paintRevision();
             const ro = !!(ed.readonly || ed.runView);
             const running = runs.isRunning();
@@ -769,6 +777,7 @@
             ed.flow.live_revision = res.flow.live_revision;
             ed.liveIssues = Array.isArray(res.live_issues) ? res.live_issues : [];
             ed.liveIssuesRevision = Number(res.flow.live_revision) || 0;
+            ed.timersRunning = res.timers_running !== false;
             if (ed.publishIncomplete && Number(res.flow.live_revision) > partialRevision) ed.publishIncomplete = '';
             ed.flowEnabled = !!res.enabled;
             renderHeader();

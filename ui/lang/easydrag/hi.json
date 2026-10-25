@@ -877,6 +877,8 @@
   "easydrag.ui.test_title": "फ़्लो टेस्ट करें",
   "easydrag.ui.test_trigger": "शुरुआती ट्रिगर",
   "easydrag.ui.test_unsaved": "ड्राफ़्ट सहेजा नहीं जा सका, इसलिए अभी टेस्ट नहीं किया जा सकता।",
+  "easydrag.ui.timers_stopped_text": "AuraGo फ़्लो स्टोर शुरू नहीं कर सका और कोशिश करता रहता है। तब तक «दिनांक और समय» ट्रिगर नहीं चलते। ब्योरा AuraGo लॉग में है।",
+  "easydrag.ui.timers_stopped_title": "«दिनांक और समय» ट्रिगर नहीं चल रहे हैं",
   "easydrag.ui.tpl_error_bad_index": "वर्ग कोष्ठक [ ] में एक पूर्णांक या उद्धरण चिह्नों में टेक्स्ट होना चाहिए।",
   "easydrag.ui.tpl_error_expected_name": "एक नाम छूटा है: शुरू में डेटा नाम, बिंदु के बाद फ़ील्ड, या | के बाद फ़िल्टर।",
   "easydrag.ui.tpl_error_expected_value": "फ़िल्टर “{name}”: हर आर्ग्युमेंट उद्धरण चिह्नों में टेक्स्ट, संख्या, true, false या null होना चाहिए।",

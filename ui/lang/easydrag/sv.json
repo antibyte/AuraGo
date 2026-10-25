@@ -877,6 +877,8 @@
   "easydrag.ui.test_title": "Testa flödet",
   "easydrag.ui.test_trigger": "Starta från",
   "easydrag.ui.test_unsaved": "Utkastet kunde inte sparas och kan därför inte testas än.",
+  "easydrag.ui.timers_stopped_text": "AuraGo kunde inte starta flödeslagret och försöker igen. Tills dess utlöses inte utlösare av typen ”Datum och tid”. Detaljerna finns i AuraGo-loggen.",
+  "easydrag.ui.timers_stopped_title": "Utlösare av typen ”Datum och tid” körs inte",
   "easydrag.ui.tpl_error_bad_index": "Hakparenteser [ ] ska innehålla ett heltal eller en text inom citattecken.",
   "easydrag.ui.tpl_error_expected_name": "Ett namn saknas: ett datanamn i början, ett fält efter en punkt eller ett filter efter |.",
   "easydrag.ui.tpl_error_expected_value": "Filter ”{name}”: varje argument måste vara en text inom citattecken, ett tal, true, false eller null.",

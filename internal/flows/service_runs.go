@@ -617,3 +617,12 @@ func (s *Service) onTimerMissed(flowID, nodeID string, scheduledFor time.Time) {
 	s.logger.Warn("a date and time trigger was missed; no run was started for it", "flow", flowID, "node", nodeID,
 		"scheduled_for", scheduledFor.Format(time.RFC3339))
 }
+
+// TimersRunning reports whether the Date/Time timers run: Start succeeded and Shutdown has not
+// begun. While Start keeps failing (a locked or broken flows.db; the server retries it)
+// Date/Time triggers do not fire, and the API shows that (timers_running).
+func (s *Service) TimersRunning() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.started && !s.closed
+}

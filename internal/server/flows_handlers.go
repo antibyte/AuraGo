@@ -494,7 +494,7 @@ func (s *Server) flowsCollection(w http.ResponseWriter, r *http.Request) {
 			s.flowsErrorFrom(w, r, err)
 			return
 		}
-		flowsJSON(w, http.StatusOK, map[string]any{"flows": list})
+		flowsJSON(w, http.StatusOK, map[string]any{"flows": list, "timers_running": s.Flows.TimersRunning()})
 	case http.MethodPost:
 		var body flowCreateBody
 		if !flowsDecode(w, r, &body, flowsDocBodyLimit, false) {
@@ -555,7 +555,7 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 			}
 			issues := s.Flows.Validate(rec.Draft, flows.ModeDraft)
 			flowsJSON(w, http.StatusOK, map[string]any{"flow": rec, "enabled": s.flowEnabled(rec), "issues": nonNilIssues(issues),
-				"live_issues": nonNilIssues(s.Flows.LiveIssues(rec))})
+				"live_issues": nonNilIssues(s.Flows.LiveIssues(rec)), "timers_running": s.Flows.TimersRunning()})
 		case http.MethodPut:
 			var body struct {
 				Doc          json.RawMessage `json:"doc"`
