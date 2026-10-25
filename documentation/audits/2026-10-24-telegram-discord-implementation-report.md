@@ -12,7 +12,7 @@ und `documentation/audits/2026-10-24-telegram-discord-remediation-plan.md` (WP-1
 | Befund | Maßnahme | Dateien |
 |---|---|---|
 | **H1** Discord-Kanal-Escape | Kanal-Allowlist als **opt-in** Policy: leer ⇒ Legacy-Verhalten, gesetzt ⇒ nur Default-Kanal + gelistete Kanäle, Fehlermeldung nennt den Config-Key. Kanalliste wird gefiltert. | `internal/discord/policy.go` (neu), `internal/discord/bot.go`, `internal/agent/dispatch_messaging.go` |
-| **H2** Telegram-Offset nur beim Stopp persistiert | Cursor-Datei `telegram_offsets.json` im DataDir (atomar, 0600), Persist alle 10 Updates / 30 s **nach** Übergabe an den Worker (at-least-once), Start mit 0 bei beschädigter Datei | `internal/telegram/offsets_store.go` (neu), `internal/telegram/runtime.go`, `internal/telegram/bot.go` |
+| **H2** Telegram-Offset nur beim Stopp persistiert | Cursor-Datei `telegram_offsets.json` im DataDir (atomar, 0600), Persist nach **jedem** an den Worker übergebenen Update (Schwelle 1; ein fehlgeschlagener Schreibvorgang bleibt ungeschrieben und wird wiederholt), Start mit 0 bei beschädigter Datei | `internal/telegram/offsets_store.go` (neu), `internal/telegram/runtime.go`, `internal/telegram/bot.go` |
 | **H3** Polling ohne Timeout, Status immer 200 | 90-s-HTTP-Timeout, Staleness-Watchdog (3 min), 503 bei aktivem, aber nicht gesundem Poller | `internal/telegram/bot.go`, `internal/integrationstatus/telegram.go`, `internal/server/telegram_handlers.go` |
 | **H4** Discord ohne Concurrency-Limit | Worker-Semaphore wie auf Telegram (Default 5), begrenztes Warten (60 s), danach Busy-Hinweis statt weiterem Lauf | `internal/discord/bot.go` |
 | **M1** Kein Telegram-Read-only | `telegram.readonly` sperrt `send_telegram` (Text **und** Dokument) und den Notification-Kanal `telegram`; Parallelität zu `discord.readonly` | `internal/config/config_types.go`, `internal/agent/dispatch_messaging.go`, `internal/tools/notification.go`, `internal/server/flows_handlers_options.go` |
@@ -120,7 +120,7 @@ auf Telegram, keine Allowlist-Wirkung auf Discord, kein Read-only, Cursor nur im
 
 ## 6. Abschlussprüfung
 
-**Lauf:** 24.10.2026 · Arbeitsbaum `C:\Users\Andi\Documents\repo\AuraGo` · committet in fünf Commits (siehe Abschnitt 8).
+**Lauf:** 24.10.2026 · Arbeitsbaum `C:\Users\Andi\Documents\repo\AuraGo` · committet in acht Commits (siehe Abschnitt 8).
 
 ### 6.1 Nebenwirkungsfreiheit — geprüfte Zusicherungen
 
@@ -169,8 +169,9 @@ Vollständiger Lauf am 24.10.2026 (Details in Abschnitt 4):
 
 ### 6.4 Umfang der Änderung
 
-**Neu:** `internal/discord/policy.go`, `internal/telegram/offsets_store.go`, `internal/integrationstatus/telegram_test.go`,
-`documentation/discord_setup.md`, `documentation/audits/` (Audit, Plan, dieser Bericht).
+**Neu:** `internal/discord/policy.go`, `internal/telegram/offsets_store.go`, `internal/telegram/cursor_retry_test.go`,
+`internal/integrationstatus/telegram_test.go`, `documentation/discord_setup.md`, `documentation/audits/`
+(Audit, Plan, Fix-Plan, dieser Bericht).
 
 **Geändert (Go):** `internal/config/config.go`, `internal/config/config_types.go`,
 `internal/server/config_handlers_main.go`, `internal/server/flows_handlers_options.go`,
@@ -247,6 +248,84 @@ Codekommentar sowie dem Plan-Kriterium T-1 („Update wird nicht doppelt verarbe
 - **Discord-Bot-Neustart bei jeder Config-Speicherung** — vorbestehend: der frühere `==`-Vergleich enthielt das Vault-Token ebenfalls, `reflect.DeepEqual` hat das weder verursacht noch verschärft.
 - **„Echtes" at-least-once** (Cursor erst nach Worker-Abschluss) — die sauberere Langzeitlösung; sie braucht einen Abschluss-Rückkanal aus dem Worker (`internal/telegram/runtime.go:186`) und ist als Folge-Option im Fix-Plan festgehalten.
 
+### 7.6 Zweite Review-Runde (25.10.2026)
+
+Nach dem Commit der ersten Runde wurde die Änderung erneut gegen `HEAD` geprüft. Die Review fand zwei
+Befunde; beide sind behoben und als eigene Commits nachgezogen.
+
+| # | Befund | Datei | Status |
+|---|---|---|---|
+| 4 | Foto-, Audio- und Voice-Antwort zählen den Fehlschlag nicht; der Wächter sah nur `sendTelegramMessage(` in `bot.go` | `internal/telegram/bot.go:639-644, 680` | behoben |
+| 5 | Ein fehlgeschlagener Cursor-Schreibvorgang galt als Erfolg; der 30-S-Zweig war unerreichbar | `internal/telegram/bot.go:102-107, 207-224`, `internal/telegram/runtime.go:202-216` | behoben |
+
+#### Befund 4 — nicht gezählte Sendepfade und ein zu enger Wächter
+
+`sendTelegramPhoto(...)` wurde ohne `MarkTelegramDeliveryFailure` aufgerufen: ein verlorenes Foto blieb
+unsichtbar in der Laufzeitanzeige, während die Textantwort neun Zeilen später gezählt wurde. Derselbe
+Mangel galt für die Audio- und die Voice-Antwort.
+
+Der Wächter suchte ausschließlich `sendTelegramMessage(` in `bot.go`. Er sah deshalb weder
+`sendTelegramPhoto(` noch die direkten `bot.Send(`-Aufrufe (Typing-Anzeige, Testnachricht) noch den
+Versand in den übrigen Dateien des Pakets.
+
+Umsetzung:
+
+- `deliverPhoto`, `deliverAudio` und `deliverVoice` zählen den Fehlschlag über den gemeinsamen Helfer
+  `recordTelegramDeliveryFailure`; die Fehlermeldung wird dabei zusätzlich bereinigt (`security.Scrub`).
+- Die Typing-Anzeige läuft über `sendChatAction` und ist als begründete Ausnahme greifbar.
+- Der Wächter läuft paketweit (`filepath.Glob("*.go")`, Testdateien ausgenommen) und prüft alle
+  Versandprimitive (`sendTelegramMessage(`, `sendTelegramPhoto(`, `sendTelegramPhotoFile(`,
+  `sendTelegramAudio(`, `sendTelegramVoice(`, `.Send(`). Zulässig sind nur die zählenden Funktionen, die
+  Primitive selbst und drei begründete Ausnahmen: `sendChatAction` (trägt keinen Inhalt),
+  `SendTestMessage` (Konnektivitätstest meldet den Fehler an den Aufrufer), `SendPhoto` (Person-Detect-
+  Alert meldet den Fehler an den Aufrufer).
+
+#### Befund 5 — ein fehlgeschlagener Cursor-Schreibvorgang galt als Erfolg
+
+`persistTelegramOffset` gab kein Ergebnis zurück. Der Poller setzte `pending` auf 0 und aktualisierte
+`lastPersist` auch dann, wenn das Schreiben fehlgeschlagen war — der Cursor blieb ungeschrieben, und das
+im Kommentar beschriebene Sicherheitsnetz existierte nicht: mit Schwelle 1 war
+`pending >= telegramOffsetPersistEveryUpdates` immer wahr, der Zeit-Zweig also unerreichbar.
+
+Umsetzung:
+
+- Der `persist`-Callback meldet jetzt `bool`; `persistTelegramOffset` gibt `false` zurück, wenn der Store
+  den Cursor nicht annimmt.
+- Bei einem Fehlschlag bleiben `pending` und `lastPersist` unverändert, damit das nächste Update erneut
+  schreibt und der Cursor nicht ungeschrieben bleibt.
+- Zusätzlich wiederholt der Poller den Schreibvorgang nach `telegramOffsetPersistInterval` (30 s), auch
+  wenn kein weiteres Update ankommt — genau der Fall, in dem der Cursor bis zur nächsten Nachricht
+  ungeschrieben geblieben wäre.
+- Der Kommentar an den Konstanten beschreibt jetzt die tatsächliche Rolle des Intervalls.
+
+### 7.7 Neue Tests der zweiten Runde
+
+| Test | Schließt |
+|---|---|
+| `TestTelegramDeliveryFailureCounterCountsEverySendPath` (erweitert) | Text-, Foto-, Audio- und Voice-Antwort zählen den Fehlschlag und zeitstempeln ihn |
+| `TestTelegramSendsAllPassThroughTheDeliveryCounter` (neu aufgebaut) | Wächter über das ganze Paket und alle Versandprimitive, mit begründeten Ausnahmen |
+| `TestTelegramCursorWriteIsRetriedAfterAFailure` | ein fehlgeschlagener Cursor-Schreibvorgang wird wiederholt, auch ohne weiteres Update |
+
+**Mutationstests.** Umgehen des Zählers (`sendTelegramPhoto(...)` statt `deliverPhoto(...)`) ⇒ der Wächter
+meldet `processUpdate sends via sendTelegramPhoto(, which does not count the delivery`. Entfernen des
+Retry-Zweigs ⇒ `the failed cursor write was not retried`. Einen fehlgeschlagenen Schreibvorgang wieder
+als Erfolg behandeln ⇒ derselbe Fehlschlag.
+
+**Abschlussverifikation (25.10.2026, nach allen drei Commits):**
+
+| Prüfung | Ergebnis |
+|---|---|
+| `go build ./...` | grün (Exit 0) |
+| `go vet` über `telegram`, `discord`, `tools`, `config`, `audit`, `integrationstatus`, `agent`, `server`, `ui` | grün (Exit 0) |
+| `gofmt -l` über alle eigenen Go-Dateien | leer |
+| `go test ./internal/telegram/... ./internal/discord/... ./internal/integrationstatus/... ./internal/config/...` | grün (2,3 s / 0,8 s / 0,1 s / 8,1 s) |
+| `go test ./internal/agent/ -run 'Discord\|Telegram\|Notification'` | grün (7,2 s) |
+| `go test ./internal/tools/ -run 'Telegram\|Notification\|Markdown'` | grün (1,9 s) |
+| `go test ./internal/audit/ -run 'ToolPermission\|RouteContract'` | grün (2,7 s) |
+| `go test ./internal/server/ -run 'Telegram'` | grün (7,5 s) |
+| `go test ./ui/` | grün (132 s) |
+| `node scripts/build-ui-bundles.js --check` | grün (Exit 0) |
+
 ---
 
 ## 8. Commits
@@ -257,7 +336,10 @@ Codekommentar sowie dem Plan-Kriterium T-1 („Update wird nicht doppelt verarbe
 | `525fcdb17` | `fix(telegram): persist the update cursor after every update` — Befund 1 |
 | `9034a35b9` | `fix(tools): bound the telegram flood-control retry` — Befund 2 |
 | `a8d432391` | `fix(telegram): count every failed telegram delivery` — Befund 3 |
-| `docs(telegram): …` | `docs(telegram): correct the cursor persistence guarantee` — Audit, Plan, Fix-Plan, Bericht und die korrigierte Setup-Doku (dieser Commit; der Hash ändert sich beim Amend) |
+| `1ff84c525` | `docs(telegram): correct the cursor persistence guarantee` — Audit, Plan, Fix-Plan, Bericht und die korrigierte Setup-Doku |
+| `d8b2ff298` | `fix(telegram): count the failed photo and media deliveries` — Befund 4 |
+| `8671ebb5d` | `fix(telegram): retry a failed cursor write` — Befund 5 |
+| `docs(telegram): …` | `docs(telegram): document the second review round` — Bericht, Fix-Plan und Behebungsplan um die zweite Review-Runde ergänzt (dieser Commit; der Hash ändert sich beim Amend) |
 
 ---
 

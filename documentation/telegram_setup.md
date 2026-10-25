@@ -47,6 +47,9 @@ cursor is preserved for the same verified bot — during this server process, an
 across restarts through a cursor file in the data directory (`telegram_offsets.json`).
 The cursor is written after every message that was handed to the agent, so a
 restart continues with the next expected message and does not repeat a batch.
+If the cursor file cannot be written, AuraGo keeps the cursor unwritten and
+repeats the write, so a restart never repeats a message that the file did not
+accept.
 Switching to a different bot starts its own cursor.
 
 Removing the token or enabling Egg Mode stops Telegram. An invalid replacement

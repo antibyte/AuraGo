@@ -332,7 +332,9 @@ Alle drei Befunde sind behoben und mit Tests abgesichert.
 
 **Zusätzlicher Wächter:** `TestTelegramSendsAllPassThroughTheDeliveryCounter` liest `bot.go` und stellt sicher,
 dass `sendTelegramMessage` nur in `deliverMessage` und im Broker aufgerufen wird. Ein künftiger direkter
-Versand würde damit sofort auffallen — genau der Defekt, den Befund 3 beschrieben hat.
+Versand würde damit sofort auffallen — genau der Defekt, den Befund 3 beschrieben hat. In der zweiten
+Review-Runde (Abschnitt 13) wurde dieser Wächter erweitert: er prüft das ganze Paket und alle
+Versandprimitive.
 
 ### Abnahmekriterien
 
@@ -353,3 +355,66 @@ Versand würde damit sofort auffallen — genau der Defekt, den Befund 3 beschri
   Korrektur der Befundbeschreibung.
 - `documentation/audits/2026-10-24-telegram-discord-remediation-plan.md` — Umsetzungsstand um die
   Nachbesserung ergänzt.
+
+---
+
+## 13. Zweite Review-Runde (25.10.2026)
+
+Nach dem Commit der ersten Runde wurde die Änderung erneut gegen `HEAD` geprüft. Die Review fand zwei
+weitere Befunde; beide sind behoben und als eigene Commits nachgezogen.
+
+| # | Befund | Datei | Schwere |
+|---|---|---|---|
+| 4 | Foto-, Audio- und Voice-Antwort zählen den Fehlschlag nicht; der Wächter sah nur `sendTelegramMessage(` in `bot.go` | `internal/telegram/bot.go:639-644, 680` | niedrig |
+| 5 | Ein fehlgeschlagener Cursor-Schreibvorgang galt als Erfolg; der 30-S-Zweig war unerreichbar | `internal/telegram/bot.go:102-107, 207-224`, `internal/telegram/runtime.go:202-216` | mittel |
+
+### 13.1 Fix 4 — Delivery-Zähler und Wächter
+
+**Ziel:** Jeder verlorene Inhaltsversand zählt in `delivery_failures`, und kein Sendepfad kann den Zähler
+umgehen, ohne dass ein Test anschlägt.
+
+**Änderung:**
+
+- `internal/telegram/bot.go` — `deliverPhoto`, `deliverAudio` und `deliverVoice` zählen den Fehlschlag über
+  den gemeinsamen Helfer `recordTelegramDeliveryFailure`; die Typing-Anzeige läuft über `sendChatAction`.
+- `internal/telegram/runtime_test.go` — der Wächter läuft paketweit (`filepath.Glob("*.go")`, Testdateien
+  ausgenommen) und prüft `sendTelegramMessage(`, `sendTelegramPhoto(`, `sendTelegramPhotoFile(`,
+  `sendTelegramAudio(`, `sendTelegramVoice(` und `.Send(`. Zulässig sind die zählenden Funktionen, die
+  Primitive selbst und drei begründete Ausnahmen (`sendChatAction`, `SendTestMessage`, `SendPhoto`).
+
+**Nebenwirkungsanalyse:**
+
+| Aspekt | Bewertung |
+|---|---|
+| Versandverhalten | unverändert; dieselben Requests an dieselben Chats |
+| Zähler | steigt nun auch für verlorene Fotos, Audios und Voice-Notizen — das ist die Zusage des Zählers |
+| Logstufe | ein verlorener Dateiversand wird wie ein verlorener Text als `Error` geloggt und bereinigt |
+| Öffentliche API | unverändert; `SendPhoto` und `SendTestMessage` melden ihre Fehler weiter an den Aufrufer |
+
+**Tests:** `TestTelegramDeliveryFailureCounterCountsEverySendPath` (erweitert auf vier Sendepfade),
+`TestTelegramSendsAllPassThroughTheDeliveryCounter` (neu aufgebaut). Mutationstest: der Umgehung des
+Zählers lässt den Wächter fehlschlagen.
+
+### 13.2 Fix 5 — ein fehlgeschlagener Cursor-Schreibvorgang
+
+**Ziel:** Ein Schreibfehler darf nicht wie ein Erfolg aussehen. Der Cursor bleibt ungeschrieben und wird
+erneut geschrieben, auch wenn kein weiteres Update ankommt.
+
+**Änderung:**
+
+- `internal/telegram/bot.go` — der `persist`-Callback meldet `bool`; bei `false` bleiben `pending` und
+  `lastPersist` unverändert, damit das nächste Update erneut schreibt. Vor dem Poll wiederholt der Poller
+  den Schreibvorgang, wenn `telegramOffsetPersistInterval` (30 s) verstrichen ist.
+- `internal/telegram/runtime.go` — `persistTelegramOffset` gibt `false` zurück, wenn der Store den Cursor
+  nicht annimmt.
+
+**Nebenwirkungsanalyse:**
+
+| Aspekt | Bewertung |
+|---|---|
+| Cursor-Datei | unverändert; ein erfolgreicher Schreibvorgang schreibt weiterhin nach jedem Update |
+| Poller | der Retry blockiert den Poll nicht; er läuft vor dem Poll und schreibt nur im Fehlerfall |
+| Last | im Fehlerfall ein zusätzlicher Schreibversuch je Intervall, sonst unverändert |
+
+**Tests:** `TestTelegramCursorWriteIsRetriedAfterAFailure` (neu, `internal/telegram/cursor_retry_test.go`).
+Mutationstests: ohne Retry-Zweig und mit einem als Erfolg behandelten Fehlschlag schlägt der Test fehl.

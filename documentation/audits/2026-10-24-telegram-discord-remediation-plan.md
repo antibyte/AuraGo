@@ -12,8 +12,11 @@ umgesetzt (leere Allowlist = unverändertes Verhalten), weil fail-closed bestehe
 Ein Selbst-Review am 25.10.2026 hat drei Befunde an der eigenen Umsetzung ergeben (Cursor-Persistenz bei
 Batches, Dauer des Flood-Control-Retries, unvollständiger Delivery-Zähler); alle drei sind behoben —
 Details in Abschnitt 7 des Umsetzungsberichts und in
-`2026-10-24-telegram-discord-finding-fixplan.md`. Verifikation, Nebenwirkungsfreiheits-Nachweise und Restpunkte:
-siehe Umsetzungsbericht, Abschnitt 6.
+`2026-10-24-telegram-discord-finding-fixplan.md`. Eine zweite Review-Runde am 25.10.2026 hat zwei
+weitere Befunde ergeben (nicht gezählte Foto-/Audio-/Voice-Antworten mit einem zu engen Wächter, ein
+fehlgeschlagener Cursor-Schreibvorgang, der als Erfolg galt); beide sind behoben — Details in Abschnitt 7.6
+des Umsetzungsberichts und in Abschnitt 13 des Fix-Plans. Verifikation, Nebenwirkungsfreiheits-Nachweise
+und Restpunkte: siehe Umsetzungsbericht, Abschnitt 6.
 
 ---
 
