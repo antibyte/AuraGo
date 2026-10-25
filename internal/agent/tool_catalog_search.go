@@ -20,7 +20,9 @@ const discoverySemanticTimeout = 400 * time.Millisecond
 // manual index (fuseToolRanking), so a query that shares no word with a tool
 // still finds the tool its manual describes. Exact name, alias and operation
 // matches stay first. Unavailable embeddings fail closed to the deterministic
-// lexical result without performing a new indexing operation.
+// lexical result without performing a new indexing operation. A lexical leader
+// that clearly outscores the next lexical hit keeps the first place after the
+// exact matches (holdClearLexicalLeader); the manuals only break near-ties.
 //
 // The manual search only ever adds tools allow accepts (nil accepts all); the
 // lexical hits are not filtered. A query that holds a credential never reaches
@@ -64,7 +66,7 @@ func (c *ToolCatalog) SearchContext(ctx context.Context, query string, source me
 		}
 	}
 	skip := func(manual string) bool { return prompts.IsNonDisplacingManual(manual) && !c.enabledManual(manual) }
-	fused := fuseToolRanking(pinned, lexical, manuals, members, skip, cfg)
+	fused := holdClearLexicalLeader(fuseToolRanking(pinned, lexical, manuals, members, skip, cfg), len(pinned), hits)
 
 	out := make([]*ToolCatalogEntry, 0, len(fused))
 	for _, name := range fused {
