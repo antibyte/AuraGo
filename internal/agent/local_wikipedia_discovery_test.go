@@ -99,7 +99,6 @@ func adaptiveSelectionProbe(t *testing.T, query string, ff ToolFeatureFlags, b a
 	if b.initFiltered {
 		always := append([]string(nil), cfg.Agent.AdaptiveTools.AlwaysInclude...)
 		always = channelAdaptiveAlwaysInclude(runCfg, always, ff)
-		always = cacheAwareAdaptiveAlwaysInclude(query, always, schemas)
 		always = expandAdaptiveAlwaysInclude(cfg, always)
 		result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
 			PreferredTools:        buildAdaptiveToolPriority(schemas, nil, query, guides, nil),
@@ -536,7 +535,7 @@ func TestKeptLocalWikipediaStaysOnEncyclopediaQuestions(t *testing.T) {
 			room.token += lwTokens
 		}
 		for query := range localWikipediaProbeQueries {
-			for _, requested := range [][]string{nil, {"jellyfin"}, {"local_wikipedia"}, {"jellyfin", "local_wikipedia"}, {"jellyfin", "proxmox", "truenas", "grafana", "netlify", "github"}} {
+			for _, requested := range [][]string{nil, {"jellyfin"}, {"local_wikipedia"}, {"jellyfin", "local_wikipedia"}, {"jellyfin", "proxmox", "truenas", "grafana", "netlify", "github"}, {"jellyfin", "proxmox", "truenas", "grafana", "netlify", "github", "ollama", "vercel", "tailscale", "ansible", "home_assistant", "mqtt_publish"}} {
 				label := fmt.Sprintf("%s %q req=%v", b.name, query, requested)
 				initial, refreshed, ordinary := adaptiveSessionProbe(t, query, enabled, b, history, requested)
 				if !containsName(initial, "local_wikipedia") {
@@ -648,7 +647,6 @@ func adaptiveSessionProbe(t *testing.T, query string, ff ToolFeatureFlags, b ada
 
 	always := append([]string(nil), cfg.Agent.AdaptiveTools.AlwaysInclude...)
 	always = channelAdaptiveAlwaysInclude(runCfg, always, ff)
-	always = cacheAwareAdaptiveAlwaysInclude(query, always, schemas)
 	always = append(always, recent...)
 	always = expandAdaptiveAlwaysInclude(cfg, always)
 	first := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{

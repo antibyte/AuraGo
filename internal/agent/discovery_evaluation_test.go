@@ -129,7 +129,6 @@ func TestDiscoveryTaskEvaluationV2(t *testing.T) {
 			alwaysInclude = append(alwaysInclude, "generate_image")
 		}
 		alwaysInclude = channelAdaptiveAlwaysInclude(RunConfig{}, alwaysInclude, ff)
-		alwaysInclude = cacheAwareAdaptiveAlwaysInclude(query, alwaysInclude, schemas)
 		alwaysInclude = outputRefAdaptiveAlwaysInclude(nil, alwaysInclude)
 		alwaysInclude = expandAdaptiveAlwaysInclude(cfg, alwaysInclude)
 		result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{

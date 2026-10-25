@@ -38,6 +38,20 @@ func manualIDFromPath(path string) string {
 	return strings.TrimSuffix(filepath.Base(filepath.Clean(path)), filepath.Ext(path))
 }
 
+// toolRankSignal is one more ranked list that takes part in the fusion: the
+// tools a request names outright, the seeds of its family, the tools the user
+// relies on. A name at position r (counted from 1 over the names the signal
+// keeps after pinned names and duplicates are left out) scores Weight/(K+r),
+// like a lexical hit. A signal may raise any candidate, but it adds at most
+// MaxAdded tools that no other list found (0 means no limit). The caller drops
+// the names that must not rank (tools that are not offered, non-displacing
+// tools) before it passes the list, so they cost no position.
+type toolRankSignal struct {
+	Names    []string
+	Weight   float64
+	MaxAdded int
+}
+
 // fuseToolRanking merges the lexical ranking with the semantic ranking of the
 // tool manuals by reciprocal rank fusion and returns tool names, best first.
 //
@@ -52,9 +66,12 @@ func manualIDFromPath(path string) string {
 //     using up MaxSemanticTools; only tools the lexical ranking missed use it.
 //     A manual with more than FamilyLimit tools adds none of those: its
 //     lexical members only gain the score.
+//   - signals are further weighted lists (toolRankSignal). The discover_tools
+//     search passes none, so its order does not depend on them.
 //
-// Ties go to the better of the two ranks, then to the tool seen first.
-func fuseToolRanking(pinned, lexical, manuals []string, members map[string][]string, skip func(manual string) bool, cfg toolFusionConfig) []string {
+// Ties go to the better of the ranks, then to the tool seen first: lexical,
+// then semantic, then the signals in the order given.
+func fuseToolRanking(pinned, lexical, manuals []string, members map[string][]string, skip func(manual string) bool, cfg toolFusionConfig, signals ...toolRankSignal) []string {
 	out := make([]string, 0, len(pinned)+len(lexical)+cfg.MaxSemanticTools)
 	taken := make(map[string]bool, len(pinned)+len(lexical))
 	for _, name := range pinned {
@@ -67,6 +84,7 @@ func fuseToolRanking(pinned, lexical, manuals []string, members map[string][]str
 	type candidate struct {
 		name             string
 		lexRank, semRank int
+		sigRank          []int // position in each signal, 0 when absent
 	}
 	var candidates []*candidate
 	byName := make(map[string]*candidate, len(lexical)+cfg.MaxSemanticTools)
@@ -111,6 +129,32 @@ func fuseToolRanking(pinned, lexical, manuals []string, members map[string][]str
 		}
 	}
 
+	for i, signal := range signals {
+		rank, signalAdded := 0, 0
+		seenName := make(map[string]bool, len(signal.Names))
+		for _, name := range signal.Names {
+			if name == "" || taken[name] || seenName[name] {
+				continue
+			}
+			seenName[name] = true
+			rank++
+			c := byName[name]
+			if c == nil {
+				if signal.MaxAdded > 0 && signalAdded == signal.MaxAdded {
+					continue
+				}
+				c = &candidate{name: name}
+				candidates = append(candidates, c)
+				byName[name] = c
+				signalAdded++
+			}
+			if c.sigRank == nil {
+				c.sigRank = make([]int, len(signals))
+			}
+			c.sigRank[i] = rank
+		}
+	}
+
 	score := func(c *candidate) float64 {
 		s := 0.0
 		if c.lexRank > 0 {
@@ -119,16 +163,25 @@ func fuseToolRanking(pinned, lexical, manuals []string, members map[string][]str
 		if c.semRank > 0 {
 			s += cfg.SemanticWeight / (cfg.K + float64(c.semRank))
 		}
+		for i, rank := range c.sigRank {
+			if rank > 0 {
+				s += signals[i].Weight / (cfg.K + float64(rank))
+			}
+		}
 		return s
 	}
 	bestRank := func(c *candidate) int {
-		switch {
-		case c.lexRank == 0:
-			return c.semRank
-		case c.semRank == 0:
-			return c.lexRank
+		best := c.lexRank
+		better := func(rank int) {
+			if rank > 0 && (best == 0 || rank < best) {
+				best = rank
+			}
 		}
-		return min(c.lexRank, c.semRank)
+		better(c.semRank)
+		for _, rank := range c.sigRank {
+			better(rank)
+		}
+		return best
 	}
 	sort.SliceStable(candidates, func(i, j int) bool {
 		a, b := candidates[i], candidates[j]

@@ -448,7 +448,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 				alwaysInclude = append(alwaysInclude, "generate_image")
 			}
 			alwaysInclude = channelAdaptiveAlwaysInclude(runCfg, alwaysInclude, ff)
-			alwaysInclude = cacheAwareAdaptiveAlwaysInclude(adaptiveUserContext, alwaysInclude, ntSchemas)
 			alwaysInclude = outputRefAdaptiveAlwaysInclude(req.Messages, alwaysInclude)
 			// sessionUsedTools is always empty during this first selection: the run
 			// has not executed a tool yet, and the refresh is what reads it later.

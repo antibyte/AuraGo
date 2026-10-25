@@ -35,55 +35,32 @@ func classifyToolFamily(toolName string) string {
 	}
 }
 
+// inferToolFamilyFromQuery names the tool family a user message is about, or
+// "" for none. The message is matched by whole words, in English and German
+// (toolFamilyTermSets); the family with the most distinct terms wins and a tie
+// goes to the earlier family of the table, which keeps the long-standing
+// precedence (deployment, files, shell, coding, memory, web, network, infra,
+// communication, automation, media). A request for CPU or RAM usage counts as
+// a shell term.
 func inferToolFamilyFromQuery(query string) string {
-	q := normalizeAdaptiveIntentText(query)
-	if q == "" {
-		return ""
-	}
+	return toolFamilyOfText(newToolIntentText(query))
+}
 
-	switch {
-	case strings.Contains(q, "homepage") ||
-		strings.Contains(q, "landing page") ||
-		strings.Contains(q, "landingpage") ||
-		strings.Contains(q, "website") ||
-		strings.Contains(q, "webseite") ||
-		strings.Contains(q, "web site") ||
-		strings.Contains(q, "netlify") ||
-		strings.Contains(q, "here.now") ||
-		strings.Contains(q, "here now") ||
-		strings.Contains(q, "deploy") ||
-		strings.Contains(q, "deployen") ||
-		strings.Contains(q, "publish") ||
-		strings.Contains(q, "publizieren") ||
-		strings.Contains(q, "veroeffentlichen") ||
-		strings.Contains(q, "veroffentlichen") ||
-		strings.Contains(q, "veroffentliche") ||
-		strings.Contains(q, "veroffentlicht") ||
-		strings.Contains(q, "veröffentlich") ||
-		strings.Contains(q, "hochladen") ||
-		strings.Contains(q, "hochgeladen"):
-		return "deployment"
-	case strings.Contains(q, "file") || strings.Contains(q, "folder") || strings.Contains(q, "directory") || strings.Contains(q, "yaml") || strings.Contains(q, "json") || strings.Contains(q, "xml") || strings.Contains(q, "pdf"):
-		return "files"
-	case strings.Contains(q, "shell") || strings.Contains(q, "command") || strings.Contains(q, "terminal") || strings.Contains(q, "script") || strings.Contains(q, "bash") || strings.Contains(q, "powershell") || isResourceUsageIntent(q):
-		return "shell"
-	case strings.Contains(q, "python") || strings.Contains(q, "code") || strings.Contains(q, "coding") || strings.Contains(q, "program"):
-		return "coding"
-	case strings.Contains(q, "memory") || strings.Contains(q, "remember") || strings.Contains(q, "note") || strings.Contains(q, "journal") || strings.Contains(q, "knowledge"):
-		return "memory"
-	case strings.Contains(q, "scrape") || strings.Contains(q, "search") || strings.Contains(q, "web search") || strings.Contains(q, "website audit") || strings.Contains(q, "web capture") || strings.Contains(q, "api") || strings.Contains(q, "form"):
-		return "web"
-	case strings.Contains(q, "network") || strings.Contains(q, "dns") || strings.Contains(q, "ping") || strings.Contains(q, "port") || strings.Contains(q, "scan") || strings.Contains(q, "fritz") || strings.Contains(q, "wake on lan"):
-		return "network"
-	case strings.Contains(q, "docker") || strings.Contains(q, "proxmox") || strings.Contains(q, "frigate") || strings.Contains(q, "nvr") || strings.Contains(q, "tailscale") || strings.Contains(q, "ansible") || strings.Contains(q, "github") || strings.Contains(q, "remote") || strings.Contains(q, "mqtt") || strings.Contains(q, "sql") || strings.Contains(q, "jellyfin") || strings.Contains(q, "truenas"):
-		return "infra"
-	case strings.Contains(q, "email") || strings.Contains(q, "webhook") || strings.Contains(q, "sms") || strings.Contains(q, "call") || strings.Contains(q, "contact"):
-		return "communication"
-	case strings.Contains(q, "schedule") || strings.Contains(q, "cron") || strings.Contains(q, "mission") || strings.Contains(q, "automation") || strings.Contains(q, "follow up"):
-		return "automation"
-	case strings.Contains(q, "image") || strings.Contains(q, "audio") || strings.Contains(q, "speech") || strings.Contains(q, "media") || strings.Contains(q, "music") || strings.Contains(q, "video"):
-		return "media"
-	default:
+// toolFamilyOfText is inferToolFamilyFromQuery for a message that is already
+// split into words.
+func toolFamilyOfText(text toolIntentText) string {
+	if len(text.words) == 0 {
 		return ""
 	}
+	best, bestScore := "", 0
+	for i, set := range toolFamilyTermSets {
+		score := toolFamilyTerms[i].count(text)
+		if set.family == "shell" && isResourceUsageIntent(text) {
+			score++
+		}
+		if score > bestScore {
+			best, bestScore = set.family, score
+		}
+	}
+	return best
 }

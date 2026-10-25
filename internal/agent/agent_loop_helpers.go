@@ -215,40 +215,46 @@ type contextToolGuideSearcher interface {
 }
 
 var nonAlphaNumPattern = regexp.MustCompile(`[^a-z0-9]+`)
+
+// adaptiveFamilySeedTools lists, per tool family, the tools a request of that
+// family is likely to need, by importance: only the first
+// adaptiveFamilySeedLimit that the selection offers are used
+// (adaptiveSeedsForQuery), and they compete in the fused ranking instead of
+// being kept outright.
 var adaptiveFamilySeedTools = map[string][]string{
 	"files": {
-		"filesystem", "workspace_search", "smart_file_read", "file_search", "file_reader_advanced",
-		"detect_file_type", "pdf_operations", "document_creator", "media_conversion", "send_document",
+		"filesystem", "file_editor", "smart_file_read", "workspace_search", "pdf_operations", "file_search",
+		"file_reader_advanced", "detect_file_type", "document_creator", "media_conversion", "send_document",
 	},
 	"shell": {
-		"execute_shell", "execute_python", "execute_sandbox", "filesystem",
-		"system_metrics", "process_analyzer", "process_management",
+		"execute_shell", "execute_python", "filesystem", "system_metrics", "process_analyzer", "process_management",
+		"execute_sandbox",
 	},
 	"coding": {
 		"execute_python", "execute_sandbox", "execute_shell", "document_creator",
 	},
 	"web": {
-		"ddg_search", "api_request", "web_scraper", "site_crawler", "web_capture", "document_creator",
+		"ddg_search", "web_scraper", "api_request", "web_capture", "site_crawler", "document_creator",
 	},
 	"deployment": {
-		"homepage_deploy", "homepage_project", "homepage_file", "homepage_quality", "homepage_git", "homepage_registry", "netlify",
+		"homepage_deploy", "homepage_project", "netlify", "homepage_file", "homepage_quality", "homepage_registry", "homepage_git",
 	},
 	"network": {
-		"network_ping", "dns_lookup", "port_scanner", "mdns_scan", "upnp_scan",
+		"network_ping", "port_scanner", "dns_lookup", "mdns_scan", "upnp_scan",
 	},
 	"infra": {
-		"docker", "proxmox", "tailscale", "github", "ansible", "remote_execution",
-		"invasion_nests", "invasion_tasks", "invasion_artifacts", "execute_shell", "system_metrics", "process_analyzer",
+		"docker", "proxmox", "remote_execution", "ansible", "tailscale", "github", "execute_shell", "system_metrics",
+		"process_analyzer", "invasion_nests", "invasion_tasks", "invasion_artifacts",
 	},
 	"communication": {
-		"fetch_email", "send_email", "send_document", "send_audio", "send_video", "send_youtube_video",
+		"send_email", "fetch_email", "send_document", "send_audio", "send_video", "send_youtube_video",
 	},
 	"automation": {
-		"cron_scheduler", "follow_up", "manage_missions", "co_agent",
+		"cron_scheduler", "manage_missions", "follow_up", "co_agent",
 	},
 	"media": {
-		"media_registry", "media_conversion", "send_document", "send_audio", "send_video", "send_youtube_video", "send_image", "tts",
-		"transcribe_audio", "generate_image", "generate_music", "generate_video", "chromecast", "bluetooth",
+		"media_registry", "send_image", "tts", "send_audio", "media_conversion", "send_document", "transcribe_audio",
+		"send_video", "send_youtube_video", "generate_image", "generate_music", "generate_video", "chromecast", "bluetooth",
 	},
 }
 
@@ -539,102 +545,6 @@ func extractIntentMatchedTools(userQuery string, availableTools []string) []stri
 	return result
 }
 
-func adaptiveFamilySeedsForQuery(userQuery string) []string {
-	family := inferToolFamilyFromQuery(userQuery)
-	out := make([]string, 0, 8)
-	seen := make(map[string]bool)
-	add := func(name string) {
-		if name == "" || seen[name] {
-			return
-		}
-		seen[name] = true
-		out = append(out, name)
-	}
-	if family != "" {
-		for _, seed := range adaptiveFamilySeedTools[family] {
-			add(seed)
-		}
-	}
-
-	q := normalizeAdaptiveIntentText(userQuery)
-	if isResourceUsageIntent(q) {
-		add("system_metrics")
-		add("process_analyzer")
-		add("execute_shell")
-	}
-	if isContainerIntent(q) {
-		add("docker")
-		add("execute_shell")
-	}
-	if isNetworkCameraIntent(q) {
-		add("go2rtc")
-	}
-	if isMCPIntent(q) {
-		add("mcp_call")
-	}
-	if isComposioIntent(q) {
-		add("composio_call")
-	}
-	if isManusIntent(q) {
-		add("manus")
-	}
-
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
-func isNetworkCameraIntent(normalizedQuery string) bool {
-	if normalizedQuery == "" {
-		return false
-	}
-	explicitTerms := []string{
-		"go2rtc", "onvif", "netzwerkkamera", "netzwerk kamera",
-		"ip kamera", "ip camera", "network camera",
-		"personenerkennung", "personen erkennung", "person detection", "people detection",
-	}
-	for _, term := range explicitTerms {
-		if strings.Contains(normalizedQuery, term) {
-			return true
-		}
-	}
-	cameraMentioned := networkCameraWord(normalizedQuery)
-	mediaAction := strings.Contains(normalizedQuery, "snapshot") || strings.Contains(normalizedQuery, "live stream") ||
-		strings.Contains(normalizedQuery, "livebild") || strings.Contains(normalizedQuery, "stream anzeigen")
-	if cameraMentioned && mediaAction {
-		return true
-	}
-	// Arming person detection ("scharf schalten", "unscharf", "arm", "disarm") needs a camera
-	// or an alarm system in the same request.
-	armingContext := cameraMentioned || strings.Contains(normalizedQuery, "alarmanlage") || strings.Contains(normalizedQuery, "alarm system")
-	return armingContext && networkCameraArmingWord(normalizedQuery)
-}
-
-// networkCameraWord reports a word naming a camera, compounds such as "gartenkamera" or
-// "kamerabild" included; "kamerad" (comrade) and its compounds do not count.
-func networkCameraWord(normalizedQuery string) bool {
-	for _, word := range strings.Fields(normalizedQuery) {
-		if strings.Contains(word, "camera") || (strings.Contains(word, "kamera") && !strings.Contains(word, "kamerad")) {
-			return true
-		}
-	}
-	return false
-}
-
-// networkCameraArmingWord reports an arming word as a whole word, so "alarm" or "warm" do
-// not count as "arm".
-func networkCameraArmingWord(normalizedQuery string) bool {
-	for _, word := range strings.Fields(normalizedQuery) {
-		switch word {
-		case "scharf", "unscharf", "scharfschalten", "scharfgeschaltet", "unscharfschalten",
-			"arm", "disarm", "armed", "disarmed", "arming", "disarming":
-			return true
-		}
-	}
-	return false
-}
-
 // adaptiveIntentOnlyTools take no capped slot in the adaptive selection on
 // their own: the ranking does not pick them (catalog matches such as "die" in
 // "Enzyklopädie" would otherwise let them push out other tools), and they are
@@ -836,101 +746,6 @@ func isEncyclopediaIntent(normalizedQuery string) bool {
 	return false
 }
 
-func isResourceUsageIntent(normalizedQuery string) bool {
-	if normalizedQuery == "" {
-		return false
-	}
-	resourceTerms := []string{
-		"ram", "cpu", "memory usage", "mem usage", "resource usage",
-		"resources", "ressourcen", "verbrauch", "auslastung",
-		"speicherverbrauch", "arbeitsspeicher", "speicher auslastung",
-		"wieviel speicher", "wie viel speicher", "wieviel ram", "wie viel ram",
-	}
-	for _, term := range resourceTerms {
-		if strings.Contains(normalizedQuery, term) {
-			return true
-		}
-	}
-	return false
-}
-
-func isContainerIntent(normalizedQuery string) bool {
-	if normalizedQuery == "" {
-		return false
-	}
-	containerTerms := []string{"docker", "container", "containers", "compose"}
-	for _, term := range containerTerms {
-		if strings.Contains(normalizedQuery, term) {
-			return true
-		}
-	}
-	return false
-}
-
-func isMCPIntent(normalizedQuery string) bool {
-	if normalizedQuery == "" {
-		return false
-	}
-	mcpTerms := []string{"mcp", "model context protocol"}
-	for _, term := range mcpTerms {
-		if strings.Contains(normalizedQuery, term) {
-			return true
-		}
-	}
-	return false
-}
-
-func isComposioIntent(normalizedQuery string) bool {
-	if normalizedQuery == "" {
-		return false
-	}
-	composioTerms := []string{"composio", "integration", "integrations", "gmail", "google mail", "googlemail", "g mail"}
-	for _, term := range composioTerms {
-		if strings.Contains(normalizedQuery, term) {
-			return true
-		}
-	}
-	return false
-}
-
-func isManusIntent(normalizedQuery string) bool {
-	if normalizedQuery == "" {
-		return false
-	}
-	if strings.Contains(" "+normalizedQuery+" ", " manus ") {
-		return true
-	}
-	for _, term := range []string{"manus ai", "manus task", "manus aufgabe", "delegate to manus", "an manus delegieren"} {
-		if strings.Contains(normalizedQuery, term) {
-			return true
-		}
-	}
-	return normalizedQuery == "manus"
-}
-
-func cacheAwareAdaptiveAlwaysInclude(userQuery string, alwaysInclude []string, schemas []openai.Tool) []string {
-	seeds := adaptiveFamilySeedsForQuery(userQuery)
-	if len(seeds) == 0 {
-		return alwaysInclude
-	}
-
-	available := make(map[string]bool, len(schemas))
-	for _, schema := range schemas {
-		if schema.Function != nil && schema.Function.Name != "" {
-			available[schema.Function.Name] = true
-		}
-	}
-
-	out := make([]string, 0, len(alwaysInclude)+len(seeds))
-	out = append(out, alwaysInclude...)
-	for _, seed := range seeds {
-		if available[seed] {
-			out = append(out, seed)
-		}
-	}
-	return out
-}
-
 func outputRefAdaptiveAlwaysInclude(messages []openai.ChatCompletionMessage, alwaysInclude []string) []string {
 	for _, name := range alwaysInclude {
 		if name == "read_tool_output" {
@@ -1065,99 +880,6 @@ func searchToolGuidesWithTimeout(gs toolGuideSearcher, query string, limit int, 
 		}
 		return nil
 	}
-}
-
-func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, userQuery string, guideSearcher toolGuideSearcher, logger *slog.Logger) []string {
-	// The whole user message arrives here, up to a megabyte; the ranking, the
-	// intent matchers and the semantic search all work on its head and tail.
-	userQuery = boundToolSearchQuery(userQuery)
-	available := make([]string, 0, len(schemas))
-	availableSet := make(map[string]bool, len(schemas))
-	for _, schema := range schemas {
-		if schema.Function == nil || schema.Function.Name == "" {
-			continue
-		}
-		name := schema.Function.Name
-		if !availableSet[name] {
-			available = append(available, name)
-			availableSet[name] = true
-		}
-	}
-
-	prioritized := make([]string, 0, len(weightedUsage)+8)
-	seen := make(map[string]bool, len(availableSet))
-	add := func(name string) {
-		if name == "" || seen[name] || !availableSet[name] {
-			return
-		}
-		seen[name] = true
-		prioritized = append(prioritized, name)
-	}
-
-	// Explicit discovery and adaptive selection share names, aliases and
-	// operations. The selection ranks only what it can offer, so the catalog
-	// leaves out the disabled placeholders. Exact matches come first, then the
-	// lexical ranking and the semantic manual ranking are fused
-	// (fuseToolRanking). The adaptiveIntentOnlyTools take no part in either: the
-	// ranking never picks them and their manuals use no semantic slot.
-	catalog := newToolCatalog(schemas, schemas, "", false)
-	var pinned, lexical []string
-	for _, hit := range catalog.rankedSearch(userQuery) {
-		if slices.Contains(adaptiveIntentOnlyTools, hit.Entry.Name) {
-			continue
-		}
-		if hit.Tier > toolSearchTierLexical {
-			pinned = append(pinned, hit.Entry.Name)
-		} else {
-			lexical = append(lexical, hit.Entry.Name)
-		}
-	}
-	var manuals []string
-	members := map[string][]string{}
-	if guideSearcher != nil && discoverySemanticQueryAllowed(userQuery) {
-		// A manual can document several tools (email, mqtt, yepapi_*), so its
-		// name maps to every available tool of that family; a manual named like
-		// an available tool documents that tool.
-		byManual := make(map[string][]string, len(available))
-		for _, tool := range available {
-			manual := prompts.ToolManualID(tool)
-			byManual[manual] = append(byManual[manual], tool)
-		}
-		cfg := adaptiveToolFusion
-		for _, path := range searchToolGuidesWithTimeout(guideSearcher, userQuery, cfg.ManualWindow+len(prompts.NonDisplacingTools), 400*time.Millisecond, logger) {
-			manual := manualIDFromPath(path)
-			manuals = append(manuals, manual)
-			if family := byManual[manual]; len(family) > 0 {
-				members[manual] = family
-			} else if availableSet[manual] {
-				members[manual] = []string{manual}
-			}
-		}
-	}
-	for _, name := range fuseToolRanking(pinned, lexical, manuals, members, prompts.IsNonDisplacingManual, adaptiveToolFusion) {
-		add(name)
-	}
-
-	for _, tool := range adaptiveFamilySeedsForQuery(userQuery) {
-		add(tool)
-	}
-
-	for _, tool := range extractIntentMatchedTools(userQuery, available) {
-		add(tool)
-	}
-
-	seedCount := len(prioritized)
-	for i := 0; i < seedCount; i++ {
-		for _, neighbor := range adaptiveToolNeighbors[prioritized[i]] {
-			add(neighbor)
-		}
-	}
-
-	for _, tool := range weightedUsage {
-		add(tool)
-	}
-
-	return prioritized
 }
 
 // isToolError returns true if the tool result content indicates an error.

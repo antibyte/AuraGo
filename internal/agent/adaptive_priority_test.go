@@ -1,0 +1,228 @@
+package agent
+
+import (
+	"slices"
+	"testing"
+
+	openai "github.com/sashabaranov/go-openai"
+)
+
+func TestFuseToolRankingSignals(t *testing.T) {
+	cfg := adaptiveToolFusion
+	for _, tc := range []struct {
+		name     string
+		pinned   []string
+		lexical  []string
+		signals  []toolRankSignal
+		expected []string
+	}{
+		{
+			name:     "a signal raises a lexical hit",
+			lexical:  []string{"l1", "l2", "l3"},
+			signals:  []toolRankSignal{{Names: []string{"l3"}, Weight: 0.7}},
+			expected: []string{"l3", "l1", "l2"},
+		},
+		{
+			name:     "a tool only one signal ranks follows the lexical hits",
+			lexical:  []string{"l1", "l2"},
+			signals:  []toolRankSignal{{Names: []string{"s1"}, Weight: 0.7}},
+			expected: []string{"l1", "l2", "s1"},
+		},
+		{
+			name:    "MaxAdded bounds the tools a signal adds, not the ones it raises",
+			lexical: []string{"l1"},
+			signals: []toolRankSignal{{Names: []string{"x1", "l1", "x2", "x3"}, Weight: 0.3, MaxAdded: 2}},
+			// l1 is raised without using the budget; x1 and x2 are added, x3 is not.
+			expected: []string{"l1", "x1", "x2"},
+		},
+		{
+			name:     "pinned names and repeats take no position",
+			pinned:   []string{"p"},
+			lexical:  []string{"l1"},
+			signals:  []toolRankSignal{{Names: []string{"p", "a", "a", "b"}, Weight: 0.5}},
+			expected: []string{"p", "l1", "a", "b"},
+		},
+		{
+			name:    "signals add up and ties keep the signal order",
+			lexical: nil,
+			signals: []toolRankSignal{
+				{Names: []string{"a", "b"}, Weight: 0.5},
+				{Names: []string{"b", "a"}, Weight: 0.5},
+			},
+			// a: 0.5/21 + 0.5/22, b: 0.5/22 + 0.5/21; the same score, so a (seen first) leads.
+			expected: []string{"a", "b"},
+		},
+		{
+			name:     "a signal without names changes nothing",
+			lexical:  []string{"l1", "l2"},
+			signals:  []toolRankSignal{{Weight: 0.7}, {Names: []string{""}, Weight: 0.7}},
+			expected: []string{"l1", "l2"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := fuseToolRanking(tc.pinned, tc.lexical, nil, nil, nil, cfg, tc.signals...); !slices.Equal(got, tc.expected) {
+				t.Fatalf("fuseToolRanking = %v, want %v", got, tc.expected)
+			}
+		})
+	}
+	// Without signals the call is the one discover_tools makes.
+	lexical := []string{"l1", "l2", "l3"}
+	if got, want := fuseToolRanking(nil, lexical, nil, nil, nil, cfg), fuseToolRanking(nil, lexical, nil, nil, nil, cfg, []toolRankSignal{}...); !slices.Equal(got, want) || !slices.Equal(got, lexical) {
+		t.Fatalf("no signals = %v, want %v", got, lexical)
+	}
+}
+
+// The signals only decide among tools the text does not separate: every
+// weight is below the lexical weight, so a tool that just one signal ranks can
+// never pass the best lexical hit, whatever the signal puts first.
+func TestSingleSignalNeverOutranksTheLexicalLeader(t *testing.T) {
+	cfg := adaptiveToolFusion
+	for name, weight := range map[string]float64{
+		"intent": adaptiveIntentWeight, "seed": adaptiveSeedWeight, "usage": adaptiveUsageWeight,
+	} {
+		if weight <= 0 || weight >= cfg.LexicalWeight {
+			t.Errorf("%s weight %v must be positive and below the lexical weight %v", name, weight, cfg.LexicalWeight)
+		}
+		lexical := []string{"leader", "l2", "l3", "l4", "l5"}
+		got := fuseToolRanking(nil, lexical, nil, nil, nil, cfg, toolRankSignal{Names: []string{"x1", "x2", "x3"}, Weight: weight})
+		if got[0] != "leader" {
+			t.Errorf("%s: a signal-only tool passed the lexical leader: %v", name, got)
+		}
+	}
+}
+
+func TestKeepLexicalLeader(t *testing.T) {
+	order := []string{"p", "a", "b", "c", "leader", "d"}
+	for _, tc := range []struct {
+		name   string
+		order  []string
+		exact  int
+		leader string
+		places int
+		want   []string
+	}{
+		{name: "moves the leader up to the last place", order: order, exact: 1, leader: "leader", places: 3, want: []string{"p", "a", "b", "leader", "c", "d"}},
+		{name: "no exact matches", order: order, exact: 0, leader: "leader", places: 3, want: []string{"p", "a", "leader", "b", "c", "d"}},
+		{name: "a leader within its places stays", order: order, exact: 1, leader: "c", places: 3, want: order},
+		{name: "a leader that is not ranked changes nothing", order: order, exact: 1, leader: "missing", places: 3, want: order},
+		{name: "a short order changes nothing", order: []string{"a", "leader"}, exact: 2, leader: "leader", places: 3, want: []string{"a", "leader"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before := slices.Clone(tc.order)
+			got := keepLexicalLeader(tc.order, tc.exact, tc.leader, tc.places)
+			if !slices.Equal(got, tc.want) {
+				t.Fatalf("keepLexicalLeader = %v, want %v", got, tc.want)
+			}
+			if !slices.Equal(tc.order, before) {
+				t.Fatalf("the input order was modified: %v", tc.order)
+			}
+		})
+	}
+}
+
+// However the signals fall, the best lexical hit of the text keeps a place
+// among the first three tools behind the exact matches, and a tool that only
+// one signal ranks stays behind it. The adversarial usage list ranks the
+// lexical hits two to nine first, which pushes the leader far down the fused
+// order without the guard.
+func TestBuildAdaptiveToolPriorityKeepsTheLexicalLeaderUpFront(t *testing.T) {
+	schemas := BuildNativeToolSchemas("", nil, allBuiltinToolFeatureFlags(), nil)
+	catalog := newToolCatalog(schemas, schemas, "", false)
+	for _, query := range []string{
+		"send an email to the team",
+		"Kopiere die Datei in einen anderen Ordner",
+		"read the file and search the folder for text",
+		"send a message to a contact by email or sms",
+		"schedule a task and send a notification",
+		"play music on the speaker and convert audio",
+		"Datei lesen und Ordner durchsuchen",
+	} {
+		var pinned, lexical []string
+		for _, hit := range catalog.rankedSearch(query) {
+			if slices.Contains(adaptiveIntentOnlyTools, hit.Entry.Name) {
+				continue
+			}
+			if hit.Tier > toolSearchTierLexical {
+				pinned = append(pinned, hit.Entry.Name)
+			} else {
+				lexical = append(lexical, hit.Entry.Name)
+			}
+		}
+		if len(lexical) < 10 {
+			t.Fatalf("%q: the fixture needs ten lexical hits, got %v", query, lexical)
+		}
+		leader := lexical[0]
+
+		// Usage that ranks the runners-up first.
+		usage := slices.Clone(lexical[1:10])
+		got := buildAdaptiveToolPriority(schemas, usage, query, nil, nil)
+		// Three places behind the exact matches (adaptiveLeaderPlaces).
+		if at := slices.Index(got, leader); at < 0 || at > len(pinned)+2 {
+			t.Errorf("%q: the lexical leader %s is at %d of %v", query, leader, at, got[:min(12, len(got))])
+		}
+
+		// Usage that ranks tools the text never found: they follow the leader.
+		var unrelated []string
+		for _, name := range toolSchemaNames(schemas) {
+			if !slices.Contains(lexical, name) && !slices.Contains(pinned, name) && !slices.Contains(adaptiveIntentOnlyTools, name) {
+				unrelated = append(unrelated, name)
+			}
+			if len(unrelated) == 8 {
+				break
+			}
+		}
+		got = buildAdaptiveToolPriority(schemas, unrelated, query, nil, nil)
+		leaderAt := slices.Index(got, leader)
+		for _, name := range unrelated[:adaptiveUsageMaxAdded] {
+			if at := slices.Index(got, name); at >= 0 && at < leaderAt {
+				t.Errorf("%q: usage-only tool %s (%d) passed the lexical leader %s (%d)", query, name, at, leader, leaderAt)
+			}
+		}
+	}
+}
+
+// Family seeds compete for the adaptive slots: a request that makes many seeds
+// likely still gets no more than MaxAdaptiveTools of them, and none is kept as
+// a soft tool.
+func TestFamilySeedsCountAgainstTheAdaptiveCap(t *testing.T) {
+	schemas := BuildNativeToolSchemas("", nil, allBuiltinToolFeatureFlags(), nil)
+	const query = "Zeig mir die Datei im Ordner und führe den Befehl aus, danach die Container und die CPU"
+	priority := rankAdaptiveTools(adaptivePriorityInput{Schemas: schemas, Query: query})
+	seeds := adaptiveSeedsForQuery(query, nil)
+	if len(seeds) <= 5 {
+		t.Fatalf("the fixture needs more seeds than adaptive slots, got %v", seeds)
+	}
+	for _, seed := range seeds {
+		if !slices.Contains(priority, seed) {
+			t.Errorf("seed %s is not ranked: %v", seed, priority)
+		}
+	}
+	result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
+		PreferredTools:   priority,
+		SoftAlwaysTools:  []string{"filesystem"},
+		MaxAdaptiveTools: 5,
+	}, nil)
+	if result.Report.KeptSoftAlways != 1 || result.Report.KeptAdaptive != 5 {
+		t.Fatalf("report = soft %d, adaptive %d, want 1 and 5", result.Report.KeptSoftAlways, result.Report.KeptAdaptive)
+	}
+}
+
+// A seed that the selection holds anyway does not spend a family place.
+func TestRankAdaptiveToolsSkipsHeldToolsAsSeeds(t *testing.T) {
+	schemas := []openai.Tool{makeTool("execute_shell"), makeTool("execute_python"), makeTool("filesystem"), makeTool("system_metrics"), makeTool("process_analyzer"), makeTool("process_management")}
+	const query = "bash please"
+	plain := adaptiveSeedsForQuery(query, nil)
+	if want := adaptiveFamilySeedTools["shell"][:adaptiveFamilySeedLimit]; !slices.Equal(plain, want) {
+		t.Fatalf("seeds = %v, want %v", plain, want)
+	}
+	held := adaptiveSeedsForQuery(query, func(name string) bool { return name != "execute_shell" && name != "filesystem" })
+	if want := []string{"execute_python", "system_metrics", "process_analyzer", "process_management"}; !slices.Equal(held, want) {
+		t.Fatalf("seeds with two held tools = %v, want %v", held, want)
+	}
+	got := rankAdaptiveTools(adaptivePriorityInput{Schemas: schemas, Query: query, Held: []string{"execute_shell", "filesystem"}})
+	for _, want := range held {
+		if !slices.Contains(got, want) {
+			t.Errorf("ranking %v lacks the seed %s", got, want)
+		}
+	}
+}

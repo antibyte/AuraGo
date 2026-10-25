@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1271,33 +1272,76 @@ func TestBuildAdaptiveToolPriorityKeepsBalancedProgressiveToolsReachable(t *test
 	}
 }
 
-func TestCacheAwareAdaptiveAlwaysIncludeAddsIntentFamilyBundle(t *testing.T) {
-	schemas := []openai.Tool{
-		makeTool("execute_shell"),
-		makeTool("generate_music"),
-		makeTool("generate_video"),
+// The media family offers its important tools as seeds; the generators are
+// not among the first ones, they come with the request that asks for them.
+func TestAdaptiveSeedsLimitTheFamilyToTheFirstOfferedTools(t *testing.T) {
+	query := "play some music and a video"
+	all := adaptiveSeedsForQuery(query, nil)
+	if len(all) != adaptiveFamilySeedLimit {
+		t.Fatalf("seeds = %v, want %d family seeds", all, adaptiveFamilySeedLimit)
 	}
-	got := cacheAwareAdaptiveAlwaysInclude("generate a short video with music", []string{"execute_shell"}, schemas)
-	if !containsName(got, "execute_shell") {
-		t.Fatalf("expected existing always-include tool to remain, got %v", got)
+	if !slices.Equal(all, adaptiveFamilySeedTools[inferToolFamilyFromQuery(query)][:adaptiveFamilySeedLimit]) {
+		t.Fatalf("seeds %v are not the first of the family %q", all, inferToolFamilyFromQuery(query))
 	}
-	if !containsName(got, "generate_video") {
-		t.Fatalf("expected media family bundle to include generate_video, got %v", got)
+	// A tool the selection cannot offer, or holds anyway, costs no place.
+	offered := func(name string) bool { return name != all[0] && name != all[1] }
+	got := adaptiveSeedsForQuery(query, offered)
+	if len(got) != adaptiveFamilySeedLimit || containsName(got, all[0]) || containsName(got, all[1]) {
+		t.Fatalf("seeds with two tools held = %v, want %d other family seeds (all: %v)", got, adaptiveFamilySeedLimit, all)
 	}
-	if !containsName(got, "generate_music") {
-		t.Fatalf("expected media family bundle to include generate_music, got %v", got)
+	family := adaptiveFamilySeedTools[inferToolFamilyFromQuery(query)]
+	if !slices.Equal(got, family[2:2+adaptiveFamilySeedLimit]) {
+		t.Fatalf("seeds with two tools held = %v, want the next four of %v", got, family)
+	}
+	// Cues add their tools in front of the family, and a repeated tool is listed once.
+	seeds := adaptiveSeedsForQuery("restart the docker container and check the cpu", nil)
+	for _, want := range []string{"docker", "execute_shell", "system_metrics", "process_analyzer"} {
+		if !containsName(seeds, want) {
+			t.Fatalf("seeds = %v, want %s", seeds, want)
+		}
+	}
+	seen := map[string]bool{}
+	for _, name := range seeds {
+		if seen[name] {
+			t.Fatalf("seeds list %s twice: %v", name, seeds)
+		}
+		seen[name] = true
+	}
+	if got := adaptiveSeedsForQuery("hello there", nil); len(got) != 0 {
+		t.Fatalf("a request without a cue got seeds %v", got)
 	}
 }
 
-func TestCacheAwareAdaptiveAlwaysIncludeSkipsUnavailableFamilySeeds(t *testing.T) {
-	got := cacheAwareAdaptiveAlwaysInclude("generate a short video with music", nil, []openai.Tool{
+// A family seed is a candidate, not a reserved slot: it joins the fused
+// ranking at a fixed weight, so a tool the text of the request ranks better
+// stays ahead of it, and a seed the schema set lacks is not listed.
+func TestBuildAdaptiveToolPriorityFusesFamilySeedsAsCandidates(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("execute_shell"),
+		makeTool("send_audio"),
+		makeTool("send_document"),
 		makeTool("generate_video"),
-	})
-	if !containsName(got, "generate_video") {
-		t.Fatalf("expected available media seed to be included, got %v", got)
+		makeTool("generate_music"),
+		makeTool("analyze_image"),
 	}
-	if containsName(got, "generate_music") {
-		t.Fatalf("did not expect unavailable media seed to be included, got %v", got)
+	got := buildAdaptiveToolPriority(schemas, nil, "generate a short video with music", nil, nil)
+	for _, want := range []string{"generate_video", "generate_music"} {
+		if !containsName(got, want) {
+			t.Fatalf("expected %s in the ranking, got %v", want, got)
+		}
+	}
+	for _, name := range got {
+		if !containsName(toolSchemaNames(schemas), name) {
+			t.Fatalf("ranking lists %q, which is not offered: %v", name, got)
+		}
+	}
+	// The media seeds that the schema set offers are ranked behind the exact
+	// lexical hits for this request.
+	if got[0] != "generate_video" && got[0] != "generate_music" {
+		t.Fatalf("lexical hits must lead the ranking, got %v", got)
+	}
+	if containsName(buildAdaptiveToolPriority([]openai.Tool{makeTool("generate_video")}, nil, "generate a short video with music", nil, nil), "generate_music") {
+		t.Fatal("did not expect an unavailable seed in the ranking")
 	}
 }
 
@@ -1715,7 +1759,7 @@ func TestBuildAdaptiveToolPriorityPrefersHomepageForGermanWebsiteDeploy(t *testi
 	}
 }
 
-func TestCacheAwareAdaptiveAlwaysIncludeKeepsHomepageForGermanWebsiteDeploy(t *testing.T) {
+func TestAdaptiveSelectionKeepsHomepageForGermanWebsiteDeploy(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("filesystem"),
 		makeTool("homepage_deploy"),
@@ -1725,19 +1769,15 @@ func TestCacheAwareAdaptiveAlwaysIncludeKeepsHomepageForGermanWebsiteDeploy(t *t
 		makeTool("shell"),
 	}
 
-	alwaysInclude := cacheAwareAdaptiveAlwaysInclude(
-		"aktualisiere die Webseite und veröffentliche sie",
-		[]string{"query_memory"},
-		schemas,
-	)
-
+	priority := buildAdaptiveToolPriority(schemas, []string{"shell"}, "aktualisiere die Webseite und veröffentliche sie", nil, nil)
 	for _, want := range []string{"homepage_deploy", "homepage_registry", "netlify"} {
-		if !containsName(alwaysInclude, want) {
-			t.Fatalf("expected %s to stay always-included for website deployment intent, got %v", want, alwaysInclude)
+		if !containsName(priority, want) {
+			t.Fatalf("expected %s to be ranked for website deployment intent, got %v", want, priority)
 		}
 	}
 
-	filtered := filterToolSchemas(schemas, []string{"shell"}, alwaysInclude, 1, nil)
+	// The ranking, not a reserved class, keeps homepage_deploy even with maxTools=1.
+	filtered := filterToolSchemas(schemas, priority, []string{"query_memory"}, 1, nil)
 	if !containsName(toolNames(filtered), "homepage_deploy") {
 		t.Fatalf("expected filtered schemas to keep homepage_deploy even with maxTools=1, got %v", toolNames(filtered))
 	}
