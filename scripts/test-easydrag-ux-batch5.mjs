@@ -232,6 +232,42 @@ export async function run(env) {
         eq('b5 F13 the error card offers Try again, and Try again opens the editor', [shown, !!(inst && inst.screen && inst.screen.ed)], [[true, true, 1, true], true]);
         h.win.EasyDragApp.dispose('w1');
     });
+    await guardAsync('b5 F13 an editor that fails late in its build leaves nothing behind: no listeners, no close guard, no refresh', async () => {
+        const h = sandbox(req => {
+            if (req.url.startsWith('/api/desktop/flows/node-types')) return { node_types: Array.from(types.values()), categories: [] };
+            if (req.method === 'GET' && req.url === '/api/desktop/flows/f1') return { flow: { id: 'f1', name: 'Flow', draft: flowDoc(), draft_revision: 3 }, enabled: false, issues: [] };
+            return undefined;
+        });
+        const guards = [];
+        const ctx = Object.assign({}, h.ctx, { api: h.transport, flowId: 'f1', setWindowBeforeClose: (id, fn) => { guards.push(fn ? 'set' : 'clear'); } });
+        const makeWires = h.ED.wires.create;
+        h.ED.wires.create = (...args) => { const w = makeWires(...args); w.render = () => { throw new Error('late failure'); }; return w; };
+        const container = h.body.appendChild(new h.dom.El('div', {}));
+        h.win.EasyDragApp.render(container, 'w1', ctx);
+        await settle();
+        h.flushFrames();
+        const failed = [!!container.querySelector('.ed-shell-error'), h.logged.length];
+        const before = h.requests.length;
+        const notes = h.notes.length;
+        const homes = h.opened.length;
+        ['deleted', 'published'].forEach(reason => h.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f1', reason } }));
+        h.fireDoc('keydown', h.key('a', container, {}));
+        await settle();
+        h.runTimers(2000);
+        await settle();
+        const listeners = ['aurago:flows-changed', 'keydown', 'keyup'].map(type => (h.docListeners[type] || []).length);
+        eq('b5 F13 a late build failure releases listeners and the close guard; nothing is fetched, shown or opened afterwards',
+            [failed, guards, h.requests.length - before, h.notes.length - notes, h.opened.length - homes, listeners.slice(0, 1)],
+            [[true, 1], ['set', 'clear'], 0, 0, 0, [0]]);
+        h.ED.wires.create = makeWires;
+        container.querySelector('[data-ed-shell="retry"]').fire('click');
+        await settle();
+        h.flushFrames();
+        const inst = h.win.EasyDragApp._instances.get('w1');
+        eq('b5 F13 Try again after a late failure builds a working editor; only the expected error was logged',
+            [!!(inst && inst.screen && inst.screen.ed), h.logged.length, guards], [true, 1, ['set', 'clear', 'set']]);
+        h.win.EasyDragApp.dispose('w1');
+    });
     // ── F13: storage ──
 
     await guardAsync('b5 F13 a refused emergency copy backs off and then stops; a write that lands resets it', async () => {
@@ -419,8 +455,8 @@ export async function run(env) {
         await settle();
         const post = s.h.requests.find(r => r.method === 'POST' && r.url === '/api/desktop/flows/f1/test');
         eq('b5 U15 the run view leaves, the dialog shows the data, says what is hidden, remembers nothing by default and sends the data',
-            [offered, opened, post && [post.body.trigger_node, post.body.trigger_data, post.body.remember_data], s.h.logged],
-            [false, [null, 1, true, false, true, false], [T1, { name: 'Ada', token: '[redacted]' }, false], []]);
+            [offered, opened, post && [post.body.trigger_node, post.body.trigger_data, post.body.remember_data, post.body.base_revision], s.h.logged],
+            [false, [null, 1, true, false, true, false], [T1, { name: 'Ada', token: '[redacted]' }, false, 3], []]);
         s.editor.dispose();
         const hiddenFor = async (opts, run) => {
             const v = await session(req => (req.url === '/api/desktop/flows/runs/r1?include=doc' ? viewed(run) : undefined), opts);

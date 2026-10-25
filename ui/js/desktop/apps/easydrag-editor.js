@@ -10,9 +10,23 @@
     // create builds the editor for a loaded flow. app: {ctx, t, esc, api, catalog, windowId,
     // readonly, openHome(), openFlow(id)}; loaded: GET /flows/{id} response.
     function create(app, loaded, opts) {
+        // abort is set once the cleanup bag exists: a build that throws after that (a late render) releases what it set up.
+        const guard = { abort: null };
+        try {
+            return build(app, loaded, opts, guard);
+        } catch (err) {
+            if (guard.abort) guard.abort();
+            throw err;
+        }
+    }
+
+    function build(app, loaded, opts, guard) {
         const core = ED.core;
         const { t, esc, ctx } = app;
         const bag = core.bag();
+        let canvas, wires, interact, palette, runs, publish, history;
+        // A build that fails later releases what it set up (dispose skips what does not exist yet).
+        guard.abort = () => { try { dispose(); } catch (err) { bag.dispose(); } };
         const draftModel = ED.model.create(loaded.flow.draft, app.catalog);
         // One notice for the draft only. The run view builds its own model and must not say this.
         // A later restore (replaceDoc emits reset) says it if the first document did not.
@@ -80,16 +94,16 @@
             enterRunView, exitRunView
         };
 
-        const canvas = ED.canvas.create(ed);
-        const wires = ED.wires.create(ed, canvas);
-        const interact = ED.interact.create(ed, canvas, wires);
-        const palette = ED.palette.createPanel(ed, canvas);
-        const runs = ED.runs.create(ed, canvas);
-        const publish = ED.publish.create(ed);
+        canvas = ED.canvas.create(ed);
+        wires = ED.wires.create(ed, canvas);
+        interact = ED.interact.create(ed, canvas, wires);
+        palette = ED.palette.createPanel(ed, canvas);
+        runs = ED.runs.create(ed, canvas);
+        publish = ED.publish.create(ed);
         body.appendChild(palette.el);
         body.appendChild(canvas.el);
         // Undo/Redo in the header and the "deleted – Undo" toast (easydrag-history.js).
-        const history = ED.history.create(ed, {
+        history = ED.history.create(ed, {
             host: el.querySelector('[data-ed-history-host]'), toastHost: body,
             undo: () => interact.undo(), redo: () => interact.redo(),
             focusCanvas: () => canvas.el.focus({ preventScroll: true })
@@ -906,29 +920,31 @@
         if (!ed.issues.length) publish.refreshIssues();
         start();
 
+        // dispose saves pending content last: the detail view flushes its note on close, and
+        // interact cancels a drag in progress (its nodes move back), so neither is lost nor
+        // saved in a mid-drag state. Each step runs on its own: one that throws cannot keep
+        // the saver, the listeners or the window's close guard from being released.
+        // It is also the cleanup of a build that failed: modules not created yet are skipped.
+        function dispose() {
+            if (disposed) return;
+            disposed = true;
+            const safely = fn => { try { fn(); } catch (err) { console.error('EasyDrag editor cleanup failed', err); } };
+            safely(() => ED.detail.close(ed));
+            safely(() => ED.palette.closeQuickAdd(ed));
+            safely(() => { if (interact) interact.dispose(); });
+            safely(() => { if (contentDirty && ed.saver) ed.saver.save(); });
+            safely(() => storeView.flush());
+            [wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
+            safely(() => { if (ed.saver) ed.saver.dispose(); });
+            safely(() => setMenusSoon.cancel());
+            safely(() => bag.dispose());
+            if (typeof ctx.setWindowBeforeClose === 'function') safely(() => ctx.setWindowBeforeClose(ed.windowId, null));
+            el.remove();
+        }
         return {
             el, ed, leave,
             showRun(runId) { runs.openRunView(runId); },
-            // dispose saves pending content last: the detail view flushes its note on close, and
-            // interact cancels a drag in progress (its nodes move back), so neither is lost nor
-            // saved in a mid-drag state. Each step runs on its own: one that throws cannot keep
-            // the saver, the listeners or the window's close guard from being released.
-            dispose() {
-                if (disposed) return;
-                disposed = true;
-                const safely = fn => { try { fn(); } catch (err) { console.error('EasyDrag editor cleanup failed', err); } };
-                safely(() => ED.detail.close(ed));
-                safely(() => ED.palette.closeQuickAdd(ed));
-                safely(() => interact.dispose());
-                safely(() => { if (contentDirty) ed.saver.save(); });
-                safely(() => storeView.flush());
-                [wires, canvas, palette, runs, publish, history].forEach(m => safely(() => m.dispose()));
-                safely(() => ed.saver.dispose());
-                setMenusSoon.cancel();
-                safely(() => bag.dispose());
-                if (typeof ctx.setWindowBeforeClose === 'function') safely(() => ctx.setWindowBeforeClose(ed.windowId, null));
-                el.remove();
-            }
+            dispose
         };
     }
 
