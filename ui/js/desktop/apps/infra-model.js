@@ -378,6 +378,11 @@
         return !query || textOf(node).includes(query);
     };
     const filtersActive = filters => !!(filters && (filters.kind || filters.source || filters.power || String(filters.query || '').trim()));
+    // unplacedMatches lists, by name, the assets that satisfy matches() but are not drawn by the scene: neither a card, a place region
+    // nor a guest riding in a drawn host's card. The library's To place section sorts the same way, so its first row is the first entry.
+    const unplacedMatches = (nodes, scene, hostOf, matches) => nodes
+        .filter(node => matches(node) && !scene.cardById.has(node.id) && !scene.regionRects.has(node.id) && !(hostOf && scene.cardById.has(hostOf.get(node.id))))
+        .sort((a, b) => String(a.name).localeCompare(String(b.name)) || String(a.id).localeCompare(String(b.id)));
     // buildScene computes what the canvas draws for one view: asset cards (a
     // guest rides in its host's card instead), regions for placed places (Map
     // view only) and connection lines between shape borders. runs_on lines that
@@ -883,7 +888,7 @@
         CARD_W, CARD_H, GRID, MIN_ZOOM, MAX_ZOOM, REGION_W, REGION_H, REGION_PAD, REGION_MIN_W, REGION_MIN_H,
         clampZoom, zoomLevels, labelScale, toWorld, toScreen, zoomAt, fitView, viewCenter, viewFromCenter, snap, cardRect, intersects, containsPoint,
         normalizeRect, padRect, unionRects, freeSlot, regionRect, regionLayout, regionAt, dropParent, growRegions,
-        spatialNeighbour, compactGrid, defaultEdgeKind, guestIndex, matchesFilters, filtersActive, buildScene, edgeState,
+        spatialNeighbour, compactGrid, defaultEdgeKind, guestIndex, matchesFilters, filtersActive, unplacedMatches, buildScene, edgeState,
         mergeIntent, layoutItems, rebaseLayout, createHistory, readLayoutPrefs, fill, countText, normalizeNode, minimapTransform, sceneFits, glyph,
         naturalCompare, isOpaqueName, addressesOf, isGenericDiscovery, compareSpecificity, relevanceIndex, discoveryRelevance, groupDiscoveries, bindableFor, linkSuggestions, infraCleanup, sourceLabels,
         TABLE_SORTS, tableComparator, tableRows, readTablePrefs, readInspectorPrefs, inspectorTab, withInspectorTab, readDismissed, listEntryText, draftDiff, formGroupFill, groupOfField,

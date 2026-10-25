@@ -163,7 +163,7 @@ assert.match(source, /<kbd class="infra-search-kbd"[^>]*>\$\{esc\(t\('desktop\.i
 }
 
 // Counts read "1 asset", not "1 assets": every counted text has a singular key without a count placeholder.
-const singularKeys = ['connections_summary', 'asset_count', 'imported', 'guest_count', 'region_label', 'moved_to_place', 'moved_out_of_place', 'cleanup_show_dismissed', 'cleanup_engine_host', 'cleanup_show_guests', 'removed_ignored', 'removed_from_map', 'picker_mesh_hidden', 'ignored_count', 'import_partial', 'select_all_rows', 'sources_count', 'moved', 'guests_badge', 'guests_badge_stopped', 'filters_more'].map(name => `desktop.infra_${name}_one`);
+const singularKeys = ['connections_summary', 'asset_count', 'imported', 'guest_count', 'region_label', 'moved_to_place', 'moved_out_of_place', 'cleanup_show_dismissed', 'cleanup_engine_host', 'cleanup_show_guests', 'removed_ignored', 'removed_from_map', 'picker_mesh_hidden', 'ignored_count', 'import_partial', 'select_all_rows', 'sources_count', 'moved', 'guests_badge', 'guests_badge_stopped', 'filters_more', 'no_match_unplaced'].map(name => `desktop.infra_${name}_one`);
 for (const locale of locales) {
     const dictionary = JSON.parse(fs.readFileSync(path.join(root, `ui/lang/desktop/${locale}.json`), 'utf8'));
     const bad = singularKeys.filter(key => typeof dictionary[key] !== 'string' || !dictionary[key].trim() || dictionary[key].includes('{count}'));
@@ -374,6 +374,14 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     assert.deepEqual(plain(scene.regions.map(region => region.id)), ['room']);
     assert.deepEqual(plain(scene.lines.map(line => [line.id, line.from, line.to])), [['l', 'host', 'nas']], 'runs_on is implied by nesting and a guest line attaches to its host');
     assert.equal(model.buildScene({ ...input, view: 'topology' }).regions.length, 0, 'topology hides regions');
+    // F2: a match that no card, place region or drawn host card shows is "not on the map" (the empty-result box and Enter in the search use this); the order is by name, then id.
+    const named = sceneNodes.map(node => ({ ...node, name: node.id })).concat([{ id: 'guest-of-loose', name: 'guest-of-loose', kind: 'vm' }, { id: 'z', name: 'Alpha', kind: 'device' }, { id: 'y', name: 'Alpha', kind: 'device' }]);
+    const hostOf = new Map([...input.guests.hostOf, ['guest-of-loose', 'loose']]);
+    const unplaced = matches => plain(model.unplacedMatches(named, scene, hostOf, matches).map(node => node.id));
+    assert.deepEqual(unplaced(() => true), ['y', 'z', 'guest-of-loose', 'loose'], 'cards, places and guests of a drawn host are on the map; the rest is not, sorted by name then id');
+    assert.deepEqual(unplaced(node => node.id === 'nas' || node.id === 'svc' || node.id === 'room'), [], 'matches that are drawn leave no unplaced match');
+    assert.deepEqual(unplaced(node => node.id === 'loose' || node.id === 'nas'), ['loose'], 'only the match that is not drawn counts');
+    assert.deepEqual(plain(model.unplacedMatches(named, { cardById: new Map(), regionRects: new Map() }, null, node => node.name === 'Alpha').map(node => node.id)), ['y', 'z'], 'an empty scene and no host index still answer');
     const normalized = model.normalizeNode({ id: 'n', icon: 'nope' });
     assert.equal(normalized.icon, 'generic-device');
     assert.equal(normalized.parent_id, '');

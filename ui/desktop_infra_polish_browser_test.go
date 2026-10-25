@@ -439,6 +439,113 @@ func TestDesktopInfraEmptyStatesBrowser(t *testing.T) {
 	requireInfraBrowserClean(t, page)
 }
 
+// TestDesktopInfraUnplacedSearchMatchBrowser covers a query whose matches are all missing from the Map (they wait in the
+// library's To place section): the canvas says so with the count instead of "no asset matches", Show match and Enter in
+// the search open the first match (by name) in the inspector without placing it, and a query that matches nothing keeps
+// the plain "no match" box. A match on the map still wins: Enter then selects and focuses its card.
+func TestDesktopInfraUnplacedSearchMatchBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	fixture := newInfraAppBrowserFixture()
+	fixture.world(25)
+	fixture.nodes = append(fixture.nodes,
+		infraCanvasFixtureNode("brain-b", "device", "TheBrain Backup", "nas", nil, ""),
+		infraCanvasFixtureNode("brain-a", "device", "TheBrain", "mini-pc", nil, ""),
+		infraCanvasFixtureNode("switch-spare", "device", "Core switch spare", "managed-switch", nil, ""))
+	page := infraPolishOpen(t, fixture, 1500, 900)
+	defer page.Close()
+	page.MustEval(`()=>{
+		window.infraQuery=value=>{const el=document.querySelector('[data-search]');el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));};
+		window.infraBox=()=>{
+			const box=document.querySelector('[data-no-match]'),show=box.querySelector('[data-action="show-match"]'),clear=box.querySelector('[data-cause]');
+			return JSON.stringify({shown:!box.hidden,text:box.querySelector('[data-no-match-text]').textContent.trim(),show:!show.hidden,showLabel:show.textContent.trim(),clear:clear.dataset.action,clearLabel:clear.textContent.trim()});
+		};
+		window.infraWord=(key,count)=>window.fixtureWords[key].replace('{count}',count);
+		window.infraOpenTitle=()=>document.querySelector('[data-inspector] h2')?.textContent||'';
+	}`)
+	type box struct {
+		Shown, Show            bool
+		Text, ShowLabel, Clear string
+		ClearLabel             string
+	}
+	readBox := func() box {
+		t.Helper()
+		var got box
+		if err := json.Unmarshal([]byte(page.MustEval(`()=>infraBox()`).Str()), &got); err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	word := func(key string, count int) string {
+		return page.MustEval(`(key,count)=>infraWord(key,count)`, key, count).Str()
+	}
+	waitText := func(want string) {
+		t.Helper()
+		page.MustWait(`(want)=>{const box=document.querySelector('[data-no-match]');return !box.hidden&&box.querySelector('[data-no-match-text]').textContent.trim()===want;}`, want)
+	}
+	search := page.MustElement(`[data-search]`)
+
+	// Two matches, none on the map: the count, Show match as the primary action and the cause-matched clear action.
+	page.MustEval(`()=>infraQuery('TheBrain')`)
+	waitText(word("desktop.infra_no_match_unplaced", 2))
+	if got, want := readBox(), (box{Shown: true, Show: true, Text: word("desktop.infra_no_match_unplaced", 2), ShowLabel: word("desktop.infra_show_match", 0), Clear: "clear-search", ClearLabel: word("desktop.infra_clear_search", 0)}); got != want {
+		t.Fatalf("with two unplaced matches the empty map shows %+v; want %+v", got, want)
+	}
+	if !page.MustEval(`()=>{const show=document.querySelector('[data-no-match] [data-action="show-match"]'),clear=document.querySelector('[data-no-match] [data-cause]');return show.classList.contains('infra-button-primary')&&!clear.classList.contains('infra-button-primary');}`).Bool() {
+		t.Fatal("Show match must be the primary action and the clear action the secondary one")
+	}
+	// Enter opens the first match by name ("TheBrain" before "TheBrain Backup") and shows its library row as selected, in view.
+	search.MustFocus()
+	page.Keyboard.MustType(input.Enter)
+	page.MustWait(`()=>infraOpenTitle()==='TheBrain'`)
+	if got := page.MustEval(`()=>{
+		const row=document.querySelector('[data-library-item="brain-a"] [data-library-select]'),scroll=document.querySelector('[data-library-scroll]').getBoundingClientRect(),box=row.getBoundingClientRect();
+		return JSON.stringify({selected:row.getAttribute('aria-selected')==='true',inView:box.top>=scroll.top-1&&box.bottom<=scroll.bottom+1,section:row.closest('[data-library-item]').dataset.section,
+			open:document.querySelector('.infra-app').dataset.inspectorOpen,onMap:!!document.querySelector('[data-nodes] [data-node="brain-a"]'),focus:document.activeElement===document.querySelector('[data-search]')});
+	}`).Str(); got != `{"selected":true,"inView":true,"section":"to-place","open":"true","onMap":false,"focus":true}` {
+		t.Fatalf("Enter on an unplaced match must open it without placing it and keep the focus in the search: %s", got)
+	}
+	fixture.mu.Lock()
+	layoutCalls := len(fixture.layoutCalls)
+	fixture.mu.Unlock()
+	if layoutCalls != 0 {
+		t.Fatalf("revealing an unplaced match must not save a layout; got %d PUT /layout calls", layoutCalls)
+	}
+	// Show match does the same: select something else first, then click it.
+	page.MustEval(`()=>document.querySelector('[data-node="fixture-node-0003"]').click()`)
+	page.MustWait(`()=>infraOpenTitle()==='Cold-store NAS'`)
+	page.MustEval(`()=>document.querySelector('[data-no-match] [data-action="show-match"]').click()`)
+	page.MustWait(`()=>infraOpenTitle()==='TheBrain'`)
+
+	// One match reads in the singular.
+	page.MustEval(`()=>infraQuery('TheBrain Backup')`)
+	waitText(word("desktop.infra_no_match_unplaced_one", 1))
+	if got := readBox(); !got.Show || got.Text != word("desktop.infra_no_match_unplaced_one", 1) {
+		t.Fatalf("with one unplaced match the empty map shows %+v", got)
+	}
+
+	// Nothing matches at all: today's box, without Show match, and Enter does nothing.
+	page.MustEval(`()=>infraQuery('zzzz-no-such-asset')`)
+	waitText(word("desktop.infra_no_match", 0))
+	if got, want := readBox(), (box{Shown: true, Text: word("desktop.infra_no_match", 0), ShowLabel: word("desktop.infra_show_match", 0), Clear: "clear-search", ClearLabel: word("desktop.infra_clear_search", 0)}); got != want {
+		t.Fatalf("with no match at all the empty map shows %+v; want %+v", got, want)
+	}
+	before := page.MustEval(`()=>infraOpenTitle()`).Str()
+	search.MustFocus()
+	page.Keyboard.MustType(input.Enter)
+	page.MustEval(`()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
+	if got := page.MustEval(`()=>infraOpenTitle()`).Str(); got != before {
+		t.Fatalf("Enter without a match must change nothing: the panel went from %q to %q", before, got)
+	}
+
+	// A match on the map wins: no overlay, and Enter selects and focuses its card, not the unplaced one.
+	page.MustEval(`()=>infraQuery('Core switch')`)
+	page.MustWait(`()=>document.querySelector('[data-no-match]').hidden&&document.querySelector('[data-node="fixture-node-0004"]')&&!document.querySelector('[data-node="fixture-node-0004"]').classList.contains('is-dimmed')`)
+	search.MustFocus()
+	page.Keyboard.MustType(input.Enter)
+	page.MustWait(`()=>infraOpenTitle()==='Core switch'&&document.activeElement===document.querySelector('[data-node="fixture-node-0004"]')`)
+	requireInfraBrowserClean(t, page)
+}
+
 // TestDesktopInfraSearchPlaceholderBrowser covers amendment A27: the Ctrl K badge only shows while the field still has
 // room for the placeholder next to it, so the placeholder never truncates from 760 px container width up, in English
 // and in German, with and without active filters.

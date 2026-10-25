@@ -129,7 +129,9 @@
 .infra-canvas-empty img { width: 180px; height: 130px; object-fit: contain; }
 .infra-canvas-empty h2 { margin: 0; font-size: 20px; font-weight: 650; }
 .infra-canvas-empty ol { display: grid; gap: var(--ds-space-1); max-width: 420px; margin: 0; padding-left: 1.4em; color: var(--vd-theme-muted); font-size: 14px; text-align: left; }
-.infra-empty-actions, .infra-canvas-nomatch button { display: flex; gap: var(--ds-space-2); pointer-events: auto; }
+.infra-empty-actions, .infra-nomatch-actions { display: flex; gap: var(--ds-space-2); pointer-events: auto; }
+.infra-nomatch-actions { flex-wrap: wrap; justify-content: center; }
+.infra-canvas-nomatch strong { overflow-wrap: anywhere; }
 .infra-drag-ghost { position: absolute; left: 0; top: 0; z-index: 40; display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 8px; width: 216px; height: 64px; padding: 0 10px; border: 1px solid var(--vd-accent); border-radius: var(--ds-radius-md); background: var(--vd-theme-panel-bg-strong); box-shadow: var(--vd-theme-shadow-modal); opacity: .92; transform-origin: 0 0; pointer-events: none; }
 .infra-ghost-icon img { width: 28px; height: 28px; object-fit: contain; }
 .infra-ghost-text { display: grid; min-width: 0; color: var(--vd-text); }

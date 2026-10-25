@@ -220,6 +220,11 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   - The empty-result action names its cause (A26: `clear-search`, `reset-filters` or `clear-search-filters` on the no-match
     box) and a library section that a query or filter emptied says "No matches". `fitSearchBadge` hides the Ctrl K badge when
     the placeholder would not fit next to it (A27).
+  - A query or filter whose matches are all off the map (`model.unplacedMatches`: no card, place region or drawn host card) does not
+    say "No asset matches": the box counts them (`infra_no_match_unplaced[_one]`) and offers a primary `show-match` action beside
+    the cause's clear action. Show match, and Enter in the search when no placed match exists (`revealUnplacedMatch`), open the first
+    match by name in the inspector and show its library row selected and in view (`library.showRow`); they never place it. A query
+    that matches nothing keeps `infra_no_match` without that action.
 - Design QA batch D-fix-3 (A28 to A31; A28 is in the Connections bullet above):
   - Which connections show (A29/A30) is one pure answer, `model.edgeState({view, kind, id, ends}, {selection, selectedEdge,
     near, dimmed})` -> `{off, linked, faded, dimmed}`, and `paintEdges` (infra-canvas.js) only toggles the classes `is-off`,

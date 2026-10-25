@@ -487,6 +487,7 @@
                 case 'clear-search': clearSearch(); break;
                 case 'reset-filters': resetFilters(Object.keys(FILTER_SELECTS)); break;
                 case 'clear-search-filters': clearSearch(); resetFilters(Object.keys(FILTER_SELECTS)); break;
+                case 'show-match': jumpToSearchMatch(); break;
                 case 'dismiss-toast': { const element = button.closest('[data-toast]'); if (element) removeToast(element); return; }
                 default: return;
             }
@@ -538,12 +539,22 @@
             const guest = state.nodes.find(node => matching(node) && scene.cardById.has(hostOf.get(node.id)));
             return guest ? hostOf.get(guest.id) : '';
         }
+        // revealUnplacedMatch: the matches are on no map. The first one by name opens in the inspector and its library row shows as
+        // selected and in view; nothing is placed (the user decides where it goes). Show match on the empty-result box does the same.
+        function revealUnplacedMatch() {
+            if (state.view === 'table') return;
+            const [node] = model.unplacedMatches(state.nodes, canvas.sceneData(), store.guests().hostOf, store.matches);
+            if (!node) return;
+            library.renderNow();
+            inspector.open(node.id, 'overview');
+            library.showRow(node.id);
+        }
         function jumpToSearchMatch() {
             if (searchFrame) { cancelAnimationFrame(searchFrame); searchFrame = 0; }
             if (state.filters.query !== searchInput.value) store.setFilters({ query: searchInput.value });
             canvas.renderNow();
             const id = firstMatchId();
-            if (!id) return;
+            if (!id) { revealUnplacedMatch(); return; }
             store.select([id]);
             if (state.view === 'table') return;
             canvas.centerOn(id, { animate: animationsEnabled() });

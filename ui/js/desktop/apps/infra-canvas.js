@@ -12,7 +12,7 @@
 //    toggle-minimap clicks (the toggle sits in the tools cluster, the minimap
 //    hides itself while the whole scene fits); infra.js must not act on the zoom, fit and
 //    minimap actions, and handles import-empty, add-empty, clear-search,
-//    reset-filters, clear-search-filters and retry-layout itself;
+//    reset-filters, clear-search-filters, show-match and retry-layout itself;
 //  - app.setPref('minimap', bool) is called after the minimap toggle changes,
 //    app.prefs.minimap === false starts it hidden.
 (function () {
@@ -63,8 +63,9 @@
       <button type="button" class="infra-button" data-action="add-empty" disabled>${esc(t('desktop.infra_new_asset'))}</button>
     </div>
   </div>
-  <div class="infra-canvas-nomatch" data-no-match hidden><strong>${esc(t('desktop.infra_no_match'))}</strong>
-    <button type="button" class="infra-button" data-action="clear-search" data-cause="query">${esc(t('desktop.infra_clear_search'))}</button></div>
+  <div class="infra-canvas-nomatch" data-no-match hidden><strong data-no-match-text>${esc(t('desktop.infra_no_match'))}</strong>
+    <div class="infra-nomatch-actions"><button type="button" class="infra-button" data-action="clear-search" data-cause="query">${esc(t('desktop.infra_clear_search'))}</button>
+    <button type="button" class="infra-button infra-button-primary" data-action="show-match" hidden>${esc(t('desktop.infra_show_match'))}</button></div></div>
   <div class="infra-canvas-chip" data-layout-chip role="status" hidden>
     <span>${esc(t('desktop.infra_layout_unsaved'))}</span><button type="button" class="infra-button" data-action="retry-layout" disabled>${esc(t('desktop.infra_retry'))}</button></div>
   <div class="infra-tools" role="toolbar" aria-label="${esc(t('desktop.infra_tools'))}" data-tools>
@@ -94,7 +95,8 @@
         const minimapEl = q('[data-minimap]'), minimapSvg = q('[data-minimap-map]'), minimapView = q('[data-minimap-view]');
         const minimapRegions = q('[data-minimap-regions]'), minimapCards = q('[data-minimap-cards]');
         const minimapToggle = q('[data-action="toggle-minimap"]');
-        const retryButton = q('[data-action="retry-layout"]'), noMatchButton = noMatchEl.querySelector('button');
+        const retryButton = q('[data-action="retry-layout"]'), noMatchButton = q('[data-no-match] [data-cause]');
+        const noMatchText = q('[data-no-match-text]'), showMatchButton = q('[data-action="show-match"]');
 
         const views = { atlas: null, topology: null }, initialized = { atlas: false, topology: false };
         // viewSize is the viewport size each view was last placed for: a resize keeps the world point at the
@@ -606,7 +608,13 @@
             minimapToggle.title = `${t('desktop.infra_minimap')} · ${shownText}`;
             emptyEl.hidden = !(store.state.refreshAt && !last.cards.length && !last.regions.length);
             for (const button of emptyEl.querySelectorAll('button')) button.disabled = !canWrite;
-            noMatchEl.hidden = !(filtersOn && last.cards.length && shown === 0);
+            const noneShown = filtersOn && last.cards.length > 0 && shown === 0;
+            noMatchEl.hidden = !noneShown;
+            // Matches that no card shows are not "no match": they wait in the library, and Show match opens the first one.
+            const unplaced = noneShown ? model.unplacedMatches(store.state.nodes, last, store.guests().hostOf, store.matches).length : 0;
+            const message = unplaced ? model.countText(unplaced, t('desktop.infra_no_match_unplaced_one'), t('desktop.infra_no_match_unplaced')) : t('desktop.infra_no_match');
+            if (noMatchText.textContent !== message) noMatchText.textContent = message;
+            showMatchButton.hidden = !unplaced;
             // The action matches the cause of the empty result (A26): a query, filters, or both.
             const filters = store.state.filters, byQuery = !!String(filters.query || '').trim(), byFilters = !!(filters.kind || filters.source || filters.power);
             const cause = byQuery && byFilters ? 'both' : byFilters ? 'filters' : 'query';

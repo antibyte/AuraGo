@@ -231,6 +231,19 @@
             button.scrollIntoView({ block: 'nearest' });
             button.focus({ preventScroll: true });
         }
+        // showRow scrolls the row of id into view in the open library, in whichever section lists it (To place for a match that is not on
+        // the map), after unfolding that section. It moves no focus and does not open a collapsed library.
+        function showRow(id) {
+            if (disposed || root.dataset.libraryCollapsed === 'true') return;
+            const button = findByAttr('librarySelect', id);
+            if (!button) return;
+            const section = button.closest('[data-library-section]')?.dataset.librarySection;
+            if (section && collapsedSections.has(section)) { collapsedSections.delete(section); applyFold(section); }
+            rovingId = id; applyRoving();
+            const box = scrollEl.getBoundingClientRect(), row = button.getBoundingClientRect();
+            if (row.top < box.top) scrollEl.scrollTop += row.top - box.top;
+            else if (row.bottom > box.bottom) scrollEl.scrollTop += row.bottom - box.bottom;
+        }
         function suppressNextClick() {
             suppressClick = true;
             clearTimeout(suppressTimer);
@@ -391,7 +404,7 @@
             el.remove(); splitter.remove();
         }
 
-        return { el, splitter, render, renderNow, renderSelection, reveal, suppressNextClick, setDropTarget, setWidth, applyCollapsed, dispose };
+        return { el, splitter, render, renderNow, renderSelection, reveal, showRow, suppressNextClick, setDropTarget, setWidth, applyCollapsed, dispose };
     }
 
     window.InfraAppLibrary = { create };
