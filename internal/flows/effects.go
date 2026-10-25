@@ -159,6 +159,10 @@ func secretTargetFixed(raw any) bool {
 // the first data reference) is not one: the data behind it can fill the path, the query or the
 // fragment but not move the request, so it keeps the plain warning.
 //
+// In a secret target a reference to a node that is not an ancestor of the node counts as
+// untrusted whatever that node is: the topological walk can reach it before that node.
+// auth_header and auth_prefix are literal while auth_secret is set (authLiteralIssues, withAuthSecret).
+//
 // A reference in a parameter flagged OutputIndependent (it reaches only the node's
 // effect, such as the content of a PDF or the text of a message, never its output)
 // does not taint the node's output. It still warns if that parameter is a sink.
@@ -190,6 +194,13 @@ func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 		def, ok := reg.Lookup(f.Nodes[i].Type)
 		if ok && def.Trigger && def.UntrustedOutput && !f.Nodes[i].Settings.Disabled {
 			triggerUntrusted = true
+		}
+	}
+	// byKey maps a node key to the first node with it, as Flow.NodeByKey finds it.
+	byKey := make(map[string]*Node, len(f.Nodes))
+	for i := range f.Nodes {
+		if _, dup := byKey[f.Nodes[i].Key]; !dup {
+			byKey[f.Nodes[i].Key] = &f.Nodes[i]
 		}
 	}
 	tainted := map[string]bool{}
@@ -237,12 +248,27 @@ func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 		refs, problems := CollectTemplateRefs(n.Params)
 		// The node's key, cut like an error echo, is part of every message.
 		nodeKey := echoKey(n.Key)
+		// ancestors is computed once per node, and only for a ref in a secret target.
+		var ancestors map[string]bool
 		for _, ref := range refs {
 			root := ref.Expr.Root
-			if !(root == "trigger" && triggerUntrusted) && !tainted[root] {
+			param := TopParam(ref.Param)
+			untrusted := (root == "trigger" && triggerUntrusted) || tainted[root]
+			if !untrusted && secretTargets[param] {
+				// The walk reaches a node that does not run before this one (a parallel branch, a
+				// later node, the node itself) before that node's taint is known, so in a secret
+				// target such a ref counts as untrusted whatever the node is. Publishing refuses it
+				// anyway (TEMPLATE_NOT_UPSTREAM); drafts and test runs would only warn.
+				if src := byKey[root]; src != nil {
+					if ancestors == nil {
+						ancestors = g.ancestors(id)
+					}
+					untrusted = !ancestors[src.ID]
+				}
+			}
+			if !untrusted {
 				continue
 			}
-			param := TopParam(ref.Param)
 			// A param that only feeds the node's effect (OutputIndependent) does not make
 			// what the node returns untrusted; it still warns when it is a sink.
 			if !independent[param] {

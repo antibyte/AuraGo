@@ -315,7 +315,9 @@ func buildTriggerTypes() []triggerType {
 			}
 			return "mqtt_message", map[string]any{"mqtt_topic": topic, "mqtt_payload_contains": textParam(p, "payload_contains")}, nil
 		}, map[string]any{"topic": "home/door/state", "payload": `{"open":true}`, "json": map[string]any{"open": true}}),
-		missionTriggerType(TypeTriggerHAState, "home-signal", false, []ParamSpec{
+		// A Home Assistant state or attribute can be set by integrations, MQTT, mail-fed sensors
+		// or automations, so the output is untrusted, like home.assistant's get_state.
+		missionTriggerType(TypeTriggerHAState, "home-signal", true, []ParamSpec{
 			{Name: "entity", Kind: ParamSelect, LabelKey: "easydrag.param.ha_entity", Required: true, OptionsSource: "ha_entities"},
 			{Name: "state_equals", Kind: ParamText, LabelKey: "easydrag.param.ha_state_equals"},
 			minInterval,
@@ -340,7 +342,7 @@ func buildTriggerTypes() []triggerType {
 		}, map[string]any{"event": "device_connected", "device_id": "dev-1", "device_name": "Laptop", "time": sampleTime}),
 			map[string]map[string]any{"disconnected": {"event": "device_disconnected", "device_id": "dev-1", "device_name": "Laptop", "time": sampleTime}}),
 		// Camera and zone names come from the administrator's go2rtc configuration and the
-		// numbers from the detector, so the output is trusted, like trigger.ha_state.
+		// numbers from the detector, so the output is trusted (unlike trigger.ha_state).
 		missionTriggerType(TypeTriggerPersonDetected, "camera", false, []ParamSpec{
 			{Name: "camera", Kind: ParamSelect, LabelKey: "easydrag.param.person_camera", OptionsSource: "cameras"},
 			{Name: "zone", Kind: ParamText, LabelKey: "easydrag.param.person_zone", HelpKey: "easydrag.help.person_zone"},

@@ -56,9 +56,8 @@ func registerHomeNodes(reg *Registry, env CatalogEnv) error {
 // shape (a sensor fed by mail, RSS, MQTT or a calendar, a media title), so the output
 // is untrusted. That also marks the answer of a service call as untrusted, which only
 // holds the service name and the ids of the changed entities; the lint cannot tell the
-// two operations apart. The trigger.ha_state trigger is pinned as trusted by a plan
-// test (catalog_triggers_test.go), which is inconsistent with this: the same states
-// reach the flow there.
+// two operations apart. trigger.ha_state is untrusted for the same reason: the same
+// states reach the flow there.
 //
 // Re-run: Retry runs the call again after a failure, and a service that is not
 // idempotent (toggle, a counter, a script) then runs twice.

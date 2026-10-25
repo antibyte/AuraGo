@@ -195,6 +195,27 @@ func authHeaderName(v any) (string, error) {
 	return s, nil
 }
 
+// authLiteralParams shape the credential header next to auth_secret. While a secret is set they
+// must be written out: data from a template would choose the header name or the text in front
+// of the secret.
+var authLiteralParams = []string{"auth_header", "auth_prefix"}
+
+func authLiteralMessage(param string) string {
+	return param + " must be written out while auth_secret is set; it cannot be taken from another node"
+}
+
+// authLiteralIssues reports auth_header and auth_prefix when they hold a template (the caller
+// checks that a secret is set).
+func authLiteralIssues(n *Node) []Issue {
+	var issues []Issue
+	for _, param := range authLiteralParams {
+		if isTemplateText(n.Params[param]) {
+			issues = append(issues, paramIssue(n, IssueParamInvalid, SeverityError, param, authLiteralMessage(param)))
+		}
+	}
+	return issues
+}
+
 // withAuthSecret adds the credential named by auth_secret to the headers and
 // returns a scrubber for its value (one that removes nothing when no secret is
 // used). The vault value is trimmed (a pasted secret often ends in a newline, which
@@ -217,6 +238,15 @@ func withAuthSecret(in ExecInput, headers []httpHeader) ([]httpHeader, *secretSc
 	}
 	if key = strings.TrimSpace(key); key == "" {
 		return headers, nil, nil
+	}
+	// auth_header and auth_prefix shape the credential header; like the vault entry they are the
+	// author's choice, never data that flows through the run (the raw parameter tells).
+	if in.Node != nil {
+		for _, param := range authLiteralParams {
+			if isTemplateText(in.Node.Params[param]) {
+				return nil, nil, NewNodeError("FLOW_PARAM_INVALID", "%s", authLiteralMessage(param))
+			}
+		}
 	}
 	if err := checkFileText(key, maxSecretNameBytes, "secret name"); err != nil {
 		return nil, nil, err
@@ -416,10 +446,11 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 			issues = append(issues, paramIssue(n, IssueParamInvalid, SeverityError, "headers", asNodeError(err).Message))
 		}
 		// auth_header and auth_prefix only matter, and are only checked by Execute, when a
-		// secret is set.
+		// secret is set; then they must be written out.
 		if !isEmptyValue(n.Params["auth_secret"]) {
 			issues = append(issues, literalIssue(n, "auth_header", authHeaderName)...)
 			issues = append(issues, literalIssue(n, "auth_prefix", authPrefixValue)...)
+			issues = append(issues, authLiteralIssues(n)...)
 		}
 		// Execute does not reject a fail_on_error it cannot read, it keeps the default
 		// (fail); the publish check is where the author hears about it.
