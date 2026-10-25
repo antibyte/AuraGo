@@ -87,7 +87,7 @@ func (c *YepAPIClient) postOnce(ctx context.Context, endpoint string, payload in
 		var err error
 		body, err = json.Marshal(payload)
 		if err != nil {
-			return nil, fmt.Errorf("yepapi: failed to marshal payload: %w", err)
+			return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: failed to marshal payload: %w", err)}
 		}
 		logYepAPIRequestPayload(ctx, endpoint, safeYepAPIJSONBodyKeys(body))
 		logYepAPIMarshaledRequestBody(ctx, endpoint, body)
@@ -95,21 +95,29 @@ func (c *YepAPIClient) postOnce(ctx context.Context, endpoint string, payload in
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("yepapi: failed to build request: %w", err)
+		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: failed to build request: %w", err)}
 	}
 	req.Header.Set("x-api-key", c.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
+	// A context that is already cancelled never reaches the provider, so the
+	// call must not be booked as spent.
+	if err := ctx.Err(); err != nil {
+		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: request cancelled before sending: %w", err)}
+	}
+
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("yepapi: request failed: %w", err)
+		// The request was handed to the transport. It may have reached the
+		// provider, so the outcome is unknown and the call may be billed.
+		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: request failed: %w", err), RequestSent: true, OutcomeUncertain: true}
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 2*1024*1024))
 	if err != nil {
-		return nil, fmt.Errorf("yepapi: failed to read response: %w", err)
+		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: failed to read response: %w", err), RequestSent: true, OutcomeUncertain: true}
 	}
 
 	// If the HTTP status is not 2xx, include the raw body in the error so
@@ -119,7 +127,7 @@ func (c *YepAPIClient) postOnce(ctx context.Context, endpoint string, payload in
 		if len(preview) > 200 {
 			preview = preview[:200] + "..."
 		}
-		return nil, fmt.Errorf("yepapi: HTTP %d - %s", resp.StatusCode, security.IsolateExternalData(preview))
+		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: HTTP %d - %s", resp.StatusCode, security.IsolateExternalData(preview)), RequestSent: true}
 	}
 
 	var env YepAPIResponse
@@ -128,18 +136,38 @@ func (c *YepAPIClient) postOnce(ctx context.Context, endpoint string, payload in
 		if len(preview) > 200 {
 			preview = preview[:200] + "..."
 		}
-		return nil, fmt.Errorf("yepapi: invalid JSON response (%s): %w", security.IsolateExternalData(preview), err)
+		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: invalid JSON response (%s): %w", security.IsolateExternalData(preview), err), RequestSent: true}
 	}
 
 	if !env.OK {
 		if env.Error != nil {
-			return nil, fmt.Errorf("yepapi: %s - %s", env.Error.Code, security.IsolateExternalData(env.Error.Message))
+			return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: %s - %s", env.Error.Code, security.IsolateExternalData(env.Error.Message)), RequestSent: true}
 		}
-		return nil, fmt.Errorf("yepapi: unknown error")
+		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: unknown error"), RequestSent: true}
 	}
 
 	return env.Data, nil
 }
+
+// YepAPICallError reports a failed YepAPI call and whether the request
+// reached the provider.
+//
+// RequestSent is true once the request left the client. The provider may have
+// accepted and billed it even when the call failed afterwards, so the caller
+// has to treat such a call as spent.
+//
+// OutcomeUncertain is true when no definitive provider response was received:
+// a transport failure or a body that broke while being read. A complete
+// response - even a non-2xx status or an error envelope - is a known outcome.
+type YepAPICallError struct {
+	Err              error
+	RequestSent      bool
+	OutcomeUncertain bool
+}
+
+func (e *YepAPICallError) Error() string { return e.Err.Error() }
+
+func (e *YepAPICallError) Unwrap() error { return e.Err }
 
 // ResolveYepAPIKey resolves the YepAPI API key from the config/vault.
 // Priority:

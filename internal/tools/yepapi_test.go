@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -1182,4 +1183,157 @@ func TestYepAPIPayloadDiagnosticsCoverEveryTool(t *testing.T) {
 			}
 		})
 	}
+}
+
+// yepAPIFailingReader fails on every read, so the response body breaks while
+// it is being read.
+type yepAPIFailingReader struct{}
+
+func (yepAPIFailingReader) Read([]byte) (int, error) {
+	return 0, errors.New("connection reset while reading the response")
+}
+
+// requireYepAPICallError asserts that err is a typed YepAPI call error and
+// returns it.
+func requireYepAPICallError(t *testing.T, err error) *YepAPICallError {
+	t.Helper()
+	if err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+	var callErr *YepAPICallError
+	if !errors.As(err, &callErr) {
+		t.Fatalf("error %v (%T) is not a *YepAPICallError", err, err)
+	}
+	return callErr
+}
+
+// A failed call must tell the caller whether the request reached the
+// provider: a request the provider accepted may have been billed even when
+// the call failed afterwards.
+func TestYepAPICallErrorReportsWhetherTheRequestWasSent(t *testing.T) {
+	t.Run("marshal_failure_is_not_sent", func(t *testing.T) {
+		client := newYepAPITestClient(func(r *http.Request) (int, string) {
+			t.Error("no request may be sent when the payload cannot be marshaled")
+			return http.StatusOK, `{"ok":true,"data":{}}`
+		})
+		_, err := client.Post(context.Background(), "/v1/seo/keywords", map[string]interface{}{"keywords": make(chan int)})
+		callErr := requireYepAPICallError(t, err)
+		if callErr.RequestSent {
+			t.Error("RequestSent = true, want false for a marshal failure")
+		}
+		if callErr.OutcomeUncertain {
+			t.Error("OutcomeUncertain = true, want false for a marshal failure")
+		}
+	})
+
+	t.Run("request_build_failure_is_not_sent", func(t *testing.T) {
+		client := newYepAPITestClient(func(r *http.Request) (int, string) {
+			t.Error("no request may be sent when the request cannot be built")
+			return http.StatusOK, `{"ok":true,"data":{}}`
+		})
+		client.baseURL = "http://exa\nmple.test"
+		_, err := client.Post(context.Background(), "/v1/seo/keywords", map[string]interface{}{"keywords": []string{"x"}})
+		callErr := requireYepAPICallError(t, err)
+		if callErr.RequestSent {
+			t.Error("RequestSent = true, want false for a request build failure")
+		}
+		if callErr.OutcomeUncertain {
+			t.Error("OutcomeUncertain = true, want false for a request build failure")
+		}
+	})
+
+	t.Run("cancelled_context_sends_nothing", func(t *testing.T) {
+		client := newYepAPITestClient(func(r *http.Request) (int, string) {
+			t.Error("no request may be sent with a cancelled context")
+			return http.StatusOK, `{"ok":true,"data":{}}`
+		})
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		_, err := client.Post(ctx, "/v1/serp/google", map[string]string{"query": "x"})
+		callErr := requireYepAPICallError(t, err)
+		if callErr.RequestSent {
+			t.Error("RequestSent = true, want false for a cancelled context")
+		}
+	})
+
+	t.Run("transport_failure_is_sent_and_uncertain", func(t *testing.T) {
+		client := NewYepAPIClient("test_key")
+		client.baseURL = "https://yepapi.test"
+		client.client = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			return nil, errors.New("connection lost after acceptance")
+		})}
+		_, err := client.Post(context.Background(), "/v1/serp/google", map[string]string{"query": "x"})
+		callErr := requireYepAPICallError(t, err)
+		if !callErr.RequestSent {
+			t.Error("RequestSent = false, want true for a transport failure")
+		}
+		if !callErr.OutcomeUncertain {
+			t.Error("OutcomeUncertain = false, want true for a transport failure")
+		}
+	})
+
+	t.Run("body_read_failure_is_sent_and_uncertain", func(t *testing.T) {
+		client := NewYepAPIClient("test_key")
+		client.baseURL = "https://yepapi.test"
+		client.client = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(yepAPIFailingReader{})}, nil
+		})}
+		_, err := client.Post(context.Background(), "/v1/serp/google", map[string]string{"query": "x"})
+		callErr := requireYepAPICallError(t, err)
+		if !callErr.RequestSent {
+			t.Error("RequestSent = false, want true for a body read failure")
+		}
+		if !callErr.OutcomeUncertain {
+			t.Error("OutcomeUncertain = false, want true for a body read failure")
+		}
+	})
+
+	t.Run("non_2xx_response_is_sent", func(t *testing.T) {
+		client := newYepAPITestClient(func(r *http.Request) (int, string) {
+			return http.StatusInternalServerError, `{"ok":false}`
+		})
+		_, err := client.Post(context.Background(), "/v1/serp/google", map[string]string{"query": "x"})
+		callErr := requireYepAPICallError(t, err)
+		if !callErr.RequestSent {
+			t.Error("RequestSent = false, want true for a non-2xx response")
+		}
+		if callErr.OutcomeUncertain {
+			t.Error("OutcomeUncertain = true, want false: the provider answered with a status")
+		}
+	})
+
+	t.Run("invalid_json_response_is_sent", func(t *testing.T) {
+		client := newYepAPITestClient(func(r *http.Request) (int, string) {
+			return http.StatusOK, `<html>not json</html>`
+		})
+		_, err := client.Post(context.Background(), "/v1/serp/google", map[string]string{"query": "x"})
+		callErr := requireYepAPICallError(t, err)
+		if !callErr.RequestSent {
+			t.Error("RequestSent = false, want true for an unparsable response")
+		}
+	})
+
+	t.Run("provider_error_envelope_is_sent", func(t *testing.T) {
+		client := newYepAPITestClient(func(r *http.Request) (int, string) {
+			return http.StatusOK, `{"ok":false,"error":{"code":"QUOTA_EXCEEDED","message":"no quota left"}}`
+		})
+		_, err := client.Post(context.Background(), "/v1/serp/google", map[string]string{"query": "x"})
+		callErr := requireYepAPICallError(t, err)
+		if !callErr.RequestSent {
+			t.Error("RequestSent = false, want true for a provider error envelope")
+		}
+	})
+
+	t.Run("error_message_stays_identical", func(t *testing.T) {
+		client := newYepAPITestClient(func(r *http.Request) (int, string) {
+			return http.StatusInternalServerError, `boom`
+		})
+		_, err := client.Post(context.Background(), "/v1/serp/google", map[string]string{"query": "x"})
+		if err == nil {
+			t.Fatal("expected an error")
+		}
+		if !strings.HasPrefix(err.Error(), "yepapi: HTTP 500 - ") {
+			t.Fatalf("err = %q, want the unchanged yepapi: HTTP 500 message", err.Error())
+		}
+	})
 }
