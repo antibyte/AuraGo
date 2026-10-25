@@ -45,6 +45,12 @@ The updater owns transaction manifests; this package verifies them before collec
   `AURAGO_ALLOW_UNSIGNED_RELEASES=1`. Keep the current unsigned-install default
   until the Linux/Windows signing fixture and trusted-key distribution are
   confirmed. See `documentation/release-signatures.md`.
+- Windows maintainer setup pins Cosign and atomically creates the user-only
+  `%LOCALAPPDATA%\AuraGo\release-signing` profile with an encrypted private key
+  and DPAPI-protected password. Preserve existing keys. Both Windows builders
+  preflight signing before cleanup/build; explicit environment configuration and
+  CI retain precedence. Restore the caller's environment after profile signing.
+  Operator trust on target hosts remains explicit; never fetch a release's own key.
 
 ## Work Guidance
 

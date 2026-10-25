@@ -63,7 +63,7 @@ die() { echo REJECTED; exit 81; }
 func TestReleaseSignerRunsAfterChecksumsBeforePublishing(t *testing.T) {
 	for _, path := range []string{"make_release.ps1", "make_release.bat", "make_deploy.sh"} {
 		script := readRepoFile(t, path)
-		sign := strings.Index(script, "sign-release-checksums.")
+		sign := strings.LastIndex(script, "sign-release-checksums.")
 		checksum := strings.Index(script, "Generating SHA256SUMS")
 		if path == "make_deploy.sh" {
 			checksum = strings.Index(script, `: > "$DEPLOY_DIR/SHA256SUMS"`)
@@ -71,6 +71,17 @@ func TestReleaseSignerRunsAfterChecksumsBeforePublishing(t *testing.T) {
 		publish := strings.Index(script, "git add .")
 		if sign < 0 || checksum < 0 || publish < 0 || sign <= checksum || sign >= publish {
 			t.Fatalf("%s must sign finished checksums before publication", path)
+		}
+	}
+}
+
+func TestWindowsReleaseSigningPreflightRunsBeforeCleanup(t *testing.T) {
+	for _, path := range []string{"make_release.ps1", "make_release.bat"} {
+		script := readRepoFile(t, path)
+		check := strings.Index(script, "-CheckPrerequisites")
+		cleanup := strings.Index(script, "Get-ChildItem -LiteralPath 'deploy'")
+		if check < 0 || cleanup < 0 || check >= cleanup {
+			t.Fatalf("%s must check signing before cleaning generated artifacts or building", path)
 		}
 	}
 }

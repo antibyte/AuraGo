@@ -55,6 +55,11 @@ if errorlevel 1 (
     exit /b 1
 )
 echo     tar: OK
+powershell -nologo -noprofile -ExecutionPolicy Bypass -File "%~dp0scripts\sign-release-checksums.ps1" -CheckPrerequisites
+if errorlevel 1 (
+    echo [ERROR] Release signing is not ready. Run scripts\setup-release-signing.ps1 first.
+    exit /b 1
+)
 set "RELEASE_PYTHON="
 for /f "delims=" %%P in ('powershell -nologo -noprofile -ExecutionPolicy Bypass -File "%~dp0scripts\find-release-python.ps1"') do set "RELEASE_PYTHON=%%P"
 if not defined RELEASE_PYTHON (

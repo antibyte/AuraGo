@@ -14,8 +14,9 @@ fi
 command -v cosign >/dev/null || { echo "cosign is required for release signing." >&2; exit 1; }
 # Preserve the detached format; Cosign 3's default signing config conflicts with offline signing.
 signing_options=(--new-bundle-format=false)
-signing_help="$(cosign sign-blob --help)"
-if [[ "$signing_help" == *--use-signing-config* ]]; then signing_options+=(--use-signing-config=false); fi
+cosign sign-blob --help >/dev/null
+# Cosign 3.1.4 hides this still-supported compatibility flag from --help.
+if cosign sign-blob --use-signing-config=false --help >/dev/null 2>&1; then signing_options+=(--use-signing-config=false); fi
 trap 'rm -f -- "${sig}.pending" "${cert}.pending"' EXIT
 if [ -n "${AURAGO_RELEASE_SIGNING_KEY:-}" ]; then
     [ -n "${AURAGO_RELEASE_PUBLIC_KEY:-}" ] && [ -f "$AURAGO_RELEASE_PUBLIC_KEY" ] || { echo "A trusted AURAGO_RELEASE_PUBLIC_KEY is required to verify the signature." >&2; exit 1; }

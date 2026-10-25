@@ -55,6 +55,7 @@ try {
     exit 1
 }
 
+& (Join-Path $PSScriptRoot 'scripts\sign-release-checksums.ps1') -CheckPrerequisites
 $releasePython = & (Join-Path $PSScriptRoot 'scripts\find-release-python.ps1')
 Write-Host "    Python: $releasePython" -ForegroundColor Green
 
