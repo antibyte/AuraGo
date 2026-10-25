@@ -23,11 +23,13 @@
   "help.video_download.allow_download": "動画または音声ファイルをダウンロード先へ保存することを許可します。",
   "help.video_download.allow_transcribe": "音声をダウンロードし speech-to-text に送って文字起こしすることを許可します。",
   "help.video_download.download_dir": "ダウンロードしたメディアファイルを保存するプロジェクト内ディレクトリです。",
-  "help.video_download.default_format": "既定の yt-dlp フォーマット。best、bestaudio、audio、video、またはカスタム文字列を使えます。",
+  "help.video_download.default_format": "新規インストールの既定は bestvideo[height<=720]+bestaudio/best[height<=720]/best（720p）です。保存済みの値（best など）はそのまま残ります。bestaudio、audio、video、またはカスタム文字列も使えます。",
   "help.video_download.max_file_size_mb": "ダウンロードファイルの最大サイズ。0 は無制限です。",
   "help.video_download.timeout_seconds": "1 回の yt-dlp 操作の最大実行時間です。",
   "help.video_download.max_search_results": "エージェントへ返す検索結果の最大数です。",
   "help.video_download.yt_dlp_path": "ネイティブモードでの yt-dlp バイナリへの任意パス。空なら PATH を使います。",
-  "help.video_download.container_image": "Docker モードで使用する Docker イメージです。",
-  "help.video_download.auto_pull": "ローカルに無い場合、yt-dlp イメージを自動取得します。"
+  "help.video_download.container_image": "Docker モードで使う Docker イメージです。ダイジェストの固定は意図的です。別の固定イメージを選ぶ場合を除き、そのままにしてください。",
+  "help.video_download.auto_pull": "ローカルに無い場合、yt-dlp イメージを自動取得します。",
+  "config.video_download.readonly_label": "読み取り専用モード",
+  "help.video_download.readonly": "ダウンロードと文字起こしの権限がオンでも、それらを止めます。検索と動画情報は使えます。"
 }

@@ -23,11 +23,13 @@
   "help.video_download.allow_download": "Tillåter agenten att ladda ned video- eller ljudfiler till nedladdningsmappen.",
   "help.video_download.allow_transcribe": "Tillåter agenten att ladda ned ljud och skicka det till speech-to-text.",
   "help.video_download.download_dir": "Projektlokal mapp där nedladdade mediefiler sparas.",
-  "help.video_download.default_format": "Standardformat för yt-dlp. Använd best, bestaudio, audio, video eller en egen formatsträng.",
+  "help.video_download.default_format": "Nya installationer använder bestvideo[height<=720]+bestaudio/best[height<=720]/best (720p). Sparade värden som best behålls. Du kan också använda bestaudio, audio, video eller en egen formatsträng.",
   "help.video_download.max_file_size_mb": "Maximal storlek för en nedladdad fil. 0 betyder obegränsat.",
   "help.video_download.timeout_seconds": "Maximal körtid för en yt-dlp-operation.",
   "help.video_download.max_search_results": "Maximalt antal sökresultat som returneras till agenten.",
   "help.video_download.yt_dlp_path": "Valfri sökväg till yt-dlp i native mode. Lämna tomt för PATH.",
-  "help.video_download.container_image": "Docker-image som används i Docker-läge.",
-  "help.video_download.auto_pull": "Hämtar yt-dlp-imagen automatiskt när den saknas lokalt."
+  "help.video_download.container_image": "Docker-image som används i Docker-läge. Digest-pinnen är avsiktlig. Låt den stå om du inte väljer en annan fast image.",
+  "help.video_download.auto_pull": "Hämtar yt-dlp-imagen automatiskt när den saknas lokalt.",
+  "config.video_download.readonly_label": "Skrivskyddat läge",
+  "help.video_download.readonly": "Blockerar nedladdningar och transkribering även när de behörigheterna är på. Sökning och videoinfo förblir tillgängliga."
 }

@@ -302,5 +302,6 @@
   "chat.galaxy_live": "Live",
   "chat.galaxy_placeholder": "Give your agent a task …",
   "chat.galaxy_persona": "Your personality",
-  "chat.galaxy_mood": "Current mood"
+  "chat.galaxy_mood": "Current mood",
+  "chat.youtube_play": "Play"
 }

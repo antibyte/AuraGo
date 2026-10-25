@@ -116,6 +116,42 @@ func TestHandleSendYouTubeVideoReturnsEmbedPayload(t *testing.T) {
 	}
 }
 
+func TestHandleSendYouTubeVideoRejectsStartBeyond48Hours(t *testing.T) {
+	over := handleSendYouTubeVideo(youtubeVideoArgs{
+		URL:          "https://youtu.be/dQw4w9WgXcQ",
+		Title:        "Demo",
+		StartSeconds: 172801,
+	}, slog.Default())
+	over = stringsTrimToolOutput(over)
+	var rejected struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(over), &rejected); err != nil {
+		t.Fatalf("unmarshal result: %v\n%s", err, over)
+	}
+	if rejected.Status != "error" || !strings.Contains(rejected.Message, "48 hours") {
+		t.Fatalf("result = %+v", rejected)
+	}
+
+	exact := handleSendYouTubeVideo(youtubeVideoArgs{
+		URL:          "https://youtu.be/dQw4w9WgXcQ",
+		Title:        "Demo",
+		StartSeconds: 172800,
+	}, slog.Default())
+	exact = stringsTrimToolOutput(exact)
+	var allowed struct {
+		Status   string `json:"status"`
+		EmbedURL string `json:"embed_url"`
+	}
+	if err := json.Unmarshal([]byte(exact), &allowed); err != nil {
+		t.Fatalf("unmarshal exact result: %v\n%s", err, exact)
+	}
+	if allowed.Status != "success" || allowed.EmbedURL != "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?start=172800" {
+		t.Fatalf("48-hour start = %+v", allowed)
+	}
+}
+
 func TestEmitMediaSSEEventsSendsYouTubeVideoEvent(t *testing.T) {
 	broker := &captureBroker{}
 	emitMediaSSEEvents(broker, "send_youtube_video", `Tool Output: {"status":"success","url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","embed_url":"https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ","video_id":"dQw4w9WgXcQ","title":"Demo","start_seconds":0}`, t.TempDir())

@@ -302,5 +302,6 @@
   "chat.galaxy_live": "ライブ",
   "chat.galaxy_placeholder": "エージェントにタスクを伝える …",
   "chat.galaxy_persona": "パーソナリティ",
-  "chat.galaxy_mood": "現在の気分"
+  "chat.galaxy_mood": "現在の気分",
+  "chat.youtube_play": "再生"
 }

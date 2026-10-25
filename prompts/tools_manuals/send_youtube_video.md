@@ -1,6 +1,6 @@
 ## Tool: Send YouTube Video (`send_youtube_video`)
 
-Use `send_youtube_video` when the user asks to send or play a YouTube video in chat.
+Use `send_youtube_video` when the user asks to send or play a YouTube video in chat. Prefer `yepapi_youtube` for metadata when it is enabled, otherwise `video_download` search or info. Read captions or subtitles before `video_download` transcribe. Use `video_download` download only when a file is wanted.
 
 ## Behavior
 

@@ -23,11 +23,13 @@
   "help.video_download.allow_download": "एजेंट को डाउनलोड डायरेक्टरी में वीडियो या ऑडियो फ़ाइलें डाउनलोड करने देता है।",
   "help.video_download.allow_transcribe": "एजेंट को ऑडियो डाउनलोड करके speech-to-text में भेजने देता है।",
   "help.video_download.download_dir": "प्रोजेक्ट-लोकल डायरेक्टरी जहाँ डाउनलोड की गई मीडिया फ़ाइलें रखी जाती हैं।",
-  "help.video_download.default_format": "डिफ़ॉल्ट yt-dlp फ़ॉर्मैट। best, bestaudio, audio, video या कस्टम स्ट्रिंग उपयोग करें।",
+  "help.video_download.default_format": "नई स्थापनाएँ bestvideo[height<=720]+bestaudio/best[height<=720]/best (720p) उपयोग करती हैं. सहेजे गए मान, जैसे best, वैसे ही रहते हैं. आप bestaudio, audio, video या कस्टम स्ट्रिंग भी उपयोग कर सकते हैं.",
   "help.video_download.max_file_size_mb": "डाउनलोड फ़ाइल का अधिकतम आकार। 0 का अर्थ असीमित है।",
   "help.video_download.timeout_seconds": "एक yt-dlp ऑपरेशन का अधिकतम रनटाइम।",
   "help.video_download.max_search_results": "एजेंट को लौटाए जाने वाले अधिकतम खोज परिणाम।",
   "help.video_download.yt_dlp_path": "Native मोड में yt-dlp बाइनरी का वैकल्पिक पथ। PATH के लिए खाली छोड़ें।",
-  "help.video_download.container_image": "Docker मोड में उपयोग की जाने वाली Docker image.",
-  "help.video_download.auto_pull": "स्थानीय रूप से अनुपस्थित होने पर yt-dlp image अपने आप खींचें।"
+  "help.video_download.container_image": "Docker मोड में उपयोग की जाने वाली Docker image. डाइजेस्ट जानबूझकर स्थिर है. इसे तभी बदलें जब आप कोई दूसरी स्थिर image चुनें.",
+  "help.video_download.auto_pull": "स्थानीय रूप से अनुपस्थित होने पर yt-dlp image अपने आप खींचें।",
+  "config.video_download.readonly_label": "केवल-पढ़ने का मोड",
+  "help.video_download.readonly": "डाउनलोड और ट्रांसक्रिप्शन को रोकता है, भले ही वे अनुमतियाँ चालू हों. खोज और वीडियो जानकारी उपलब्ध रहती हैं."
 }

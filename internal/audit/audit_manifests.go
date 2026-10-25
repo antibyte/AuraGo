@@ -66,7 +66,7 @@ func ToolPermissionMatrix() []ToolPermission {
 		{Name: "transfer_remote_file", ConfigGate: "agent.allow_remote_shell", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityNetwork, CapabilityHost}},
 		{Name: "truenas", ConfigGate: "truenas.enabled", ReadOnlyGate: "truenas.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
 		{Name: "vercel", ConfigGate: "vercel.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
-		{Name: "video_download", ConfigGate: "tools.video_download.enabled", ReadOnlyGate: "tools.video_download.read_only", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityNetwork, CapabilityHost}},
+		{Name: "video_download", ConfigGate: "tools.video_download.enabled", ReadOnlyGate: "tools.video_download.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityNetwork, CapabilityHost}},
 		{Name: "virtual_desktop", ConfigGate: "virtual_desktop.allow_agent_control + tools.virtual_desktop.enabled", ReadOnlyGate: "virtual_desktop.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityExecute, CapabilityHost}},
 		{Name: "workspace_search", ConfigGate: "workspace_search.enabled", Capabilities: []Capability{CapabilityRead, CapabilityHost}},
 		{Name: "xml_editor", ConfigGate: "agent.allow_filesystem_write", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityHost}},

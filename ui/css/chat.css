@@ -4463,7 +4463,8 @@
             min-width: 220px;
         }
 
-        .chat-youtube-player {
+        .chat-youtube-player,
+        .chat-youtube-play {
             display: block;
             width: 100%;
             aspect-ratio: 16 / 9;
@@ -4471,6 +4472,27 @@
             background: #000;
             border: 1px solid var(--border-subtle);
             border-radius: 8px;
+        }
+
+        .chat-youtube-play {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 0;
+            color: #f4f4f5;
+            cursor: pointer;
+            font: inherit;
+            font-size: 0.95rem;
+        }
+
+        .chat-youtube-play:hover {
+            background: #1c1c1f;
+        }
+
+        .chat-youtube-play:focus-visible {
+            outline: 2px solid var(--accent, #89b4fa);
+            outline-offset: 2px;
         }
 
         .chat-video-actions {

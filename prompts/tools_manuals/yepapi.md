@@ -77,7 +77,7 @@ Web scraping with multiple modes.
 
 ## yepapi_youtube
 
-YouTube data without quota limits.
+YouTube data without quota limits. Prefer this tool for metadata when it is enabled. Read captions or subtitles before `video_download` transcribe. Use `video_download` download only when a file is wanted. `send_youtube_video` remains the player path.
 
 **Operations:**
 - `search` — Search videos, channels, playlists

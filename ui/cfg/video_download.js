@@ -1,6 +1,8 @@
 // cfg/video_download.js — YouTube and video download config section module
 
 let _vdSection = null;
+const VD_PINNED_IMAGE = 'ghcr.io/jauderho/yt-dlp@sha256:90cd9016efc4451153c8bc35cc7a0d9a8cba0e796818e52f3b4d28b9736ac91c';
+const VD_DEFAULT_FORMAT = 'bestvideo[height<=720]+bestaudio/best[height<=720]/best';
 
 function vdEnsureData() {
     if (!configData.tools) configData.tools = {};
@@ -11,9 +13,9 @@ function vdEnsureData() {
     if (!data.download_dir) data.download_dir = 'data/downloads';
     if (typeof data.max_file_size_mb !== 'number') data.max_file_size_mb = 500;
     if (!data.timeout_seconds) data.timeout_seconds = 300;
-    if (!data.default_format) data.default_format = 'best';
+    if (!data.default_format) data.default_format = VD_DEFAULT_FORMAT;
     if (!data.max_search_results) data.max_search_results = 10;
-    if (!data.container_image) data.container_image = 'ghcr.io/jauderho/yt-dlp:latest';
+    if (!data.container_image) data.container_image = VD_PINNED_IMAGE;
     if (typeof data.auto_pull !== 'boolean') data.auto_pull = true;
     if (typeof data.enabled !== 'boolean') data.enabled = true;
     return data;
@@ -86,12 +88,13 @@ async function renderVideoDownloadSection(section) {
 
     html += vdToggleRow('config.video_download.allow_download_label', 'help.video_download.allow_download', data.allow_download === true, 'tools.video_download.allow_download');
     html += vdToggleRow('config.video_download.allow_transcribe_label', 'help.video_download.allow_transcribe', data.allow_transcribe === true, 'tools.video_download.allow_transcribe');
+    html += vdToggleRow('config.video_download.readonly_label', 'help.video_download.readonly', data.readonly === true, 'tools.video_download.readonly');
 
     html += vdField('config.video_download.download_dir_label', 'help.video_download.download_dir',
         '<input class="field-input" type="text" data-path="tools.video_download.download_dir" value="' + escapeAttr(data.download_dir || 'data/downloads') + '" placeholder="data/downloads">');
 
     html += vdField('config.video_download.default_format_label', 'help.video_download.default_format',
-        '<input class="field-input" type="text" data-path="tools.video_download.default_format" value="' + escapeAttr(data.default_format || 'best') + '" placeholder="best">');
+        '<input class="field-input" type="text" data-path="tools.video_download.default_format" value="' + escapeAttr(data.default_format || VD_DEFAULT_FORMAT) + '" placeholder="' + escapeAttr(VD_DEFAULT_FORMAT) + '">');
 
     html += '<div class="field-grid two-cols">';
     html += vdField('config.video_download.max_file_size_label', 'help.video_download.max_file_size_mb',
@@ -107,7 +110,7 @@ async function renderVideoDownloadSection(section) {
             '<input class="field-input" type="text" data-path="tools.video_download.yt_dlp_path" value="' + escapeAttr(data.yt_dlp_path || '') + '" placeholder="yt-dlp">');
     } else {
         html += vdField('config.video_download.container_image_label', 'help.video_download.container_image',
-            '<input class="field-input" type="text" data-path="tools.video_download.container_image" value="' + escapeAttr(data.container_image || 'ghcr.io/jauderho/yt-dlp:latest') + '" placeholder="ghcr.io/jauderho/yt-dlp:latest">');
+            '<input class="field-input" type="text" data-path="tools.video_download.container_image" value="' + escapeAttr(data.container_image || VD_PINNED_IMAGE) + '" placeholder="' + escapeAttr(VD_PINNED_IMAGE) + '">');
         html += vdToggleRow('config.video_download.auto_pull_label', 'help.video_download.auto_pull', data.auto_pull !== false, 'tools.video_download.auto_pull');
     }
 

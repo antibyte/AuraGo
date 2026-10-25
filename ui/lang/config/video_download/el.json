@@ -23,11 +23,13 @@
   "help.video_download.allow_download": "Επιτρέπει στον agent να κατεβάζει βίντεο ή ήχο στον φάκελο λήψεων.",
   "help.video_download.allow_transcribe": "Επιτρέπει στον agent να κατεβάζει ήχο και να τον στέλνει σε speech-to-text.",
   "help.video_download.download_dir": "Τοπικός φάκελος έργου όπου αποθηκεύονται τα ληφθέντα αρχεία πολυμέσων.",
-  "help.video_download.default_format": "Προεπιλεγμένη μορφή yt-dlp. Χρησιμοποιήστε best, bestaudio, audio, video ή προσαρμοσμένη μορφή.",
+  "help.video_download.default_format": "Οι νέες εγκαταστάσεις χρησιμοποιούν bestvideo[height<=720]+bestaudio/best[height<=720]/best (720p). Οι αποθηκευμένες τιμές, όπως το best, παραμένουν. Μπορείτε επίσης να χρησιμοποιήσετε bestaudio, audio, video ή προσαρμοσμένη μορφή.",
   "help.video_download.max_file_size_mb": "Μέγιστο μέγεθος ληφθέντος αρχείου. 0 σημαίνει απεριόριστο.",
   "help.video_download.timeout_seconds": "Μέγιστη διάρκεια μίας λειτουργίας yt-dlp.",
   "help.video_download.max_search_results": "Μέγιστος αριθμός αποτελεσμάτων που επιστρέφονται στον agent.",
   "help.video_download.yt_dlp_path": "Προαιρετική διαδρομή προς yt-dlp στο native mode. Αφήστε κενό για PATH.",
-  "help.video_download.container_image": "Docker image για τη λειτουργία Docker.",
-  "help.video_download.auto_pull": "Αυτόματη λήψη της εικόνας yt-dlp όταν λείπει τοπικά."
+  "help.video_download.container_image": "Docker image για τη λειτουργία Docker. Το digest είναι σκόπιμα σταθερό. Αφήστε το, εκτός αν επιλέξετε άλλο σταθερό image.",
+  "help.video_download.auto_pull": "Αυτόματη λήψη της εικόνας yt-dlp όταν λείπει τοπικά.",
+  "config.video_download.readonly_label": "Λειτουργία μόνο για ανάγνωση",
+  "help.video_download.readonly": "Αποκλείει τις λήψεις και τη μεταγραφή, ακόμη και όταν αυτά τα δικαιώματα είναι ενεργά. Η αναζήτηση και οι πληροφορίες βίντεο παραμένουν διαθέσιμες."
 }

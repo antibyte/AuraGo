@@ -1790,6 +1790,9 @@ func TestLoadVideoDownloadDefaults(t *testing.T) {
 	if cfg.Tools.VideoDownload.TimeoutSeconds != 300 {
 		t.Fatalf("timeout_seconds = %d, want 300", cfg.Tools.VideoDownload.TimeoutSeconds)
 	}
+	if cfg.Tools.VideoDownload.DefaultFormat != "bestvideo[height<=720]+bestaudio/best[height<=720]/best" {
+		t.Fatalf("default_format = %q, want the 720p selector", cfg.Tools.VideoDownload.DefaultFormat)
+	}
 }
 
 func TestLoadSendYouTubeVideoDefaults(t *testing.T) {

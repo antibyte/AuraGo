@@ -1264,13 +1264,15 @@ Process images (resize, convert, crop, rotate).
 | `angle` | integer | 90, 180, 270 |
 
 ### `video_download`
-Download videos from supported platforms (YouTube, Vimeo, etc.). Optionally converts to different formats and saves to the Media Registry.
+Search, inspect, download, or transcribe videos with yt-dlp. Download and transcription stay off until their own permissions are enabled.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `url` | string | Video URL |
-| `format` | string | Desired format (mp4, webm, audio) |
-| `quality` | string | Quality level |
+| `operation` | enum | search, info, download, transcribe |
+| `url` | string | Video URL for info, download, or transcribe |
+| `query` | string | Search query for search |
+| `format` | string | video, audio, best, bestaudio, or a custom yt-dlp format string |
+| `quality` | string | `low` (480p), `medium` (720p), or `best` (uncapped). Applies when format is omitted, `video`, or `best`. A custom format string stays unchanged. Omitted quality keeps `default_format`. |
 
 ### `media_conversion`
 Convert media files between different formats (video, audio, images). Uses FFmpeg for transcoding.

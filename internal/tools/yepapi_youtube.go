@@ -3,9 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"regexp"
-	"strings"
 )
 
 const yepAPIYouTubeMaxLimit = 25
@@ -17,6 +15,7 @@ var (
 
 // DispatchYepAPIYouTube handles YouTube data operations via YepAPI.
 func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation string, args map[string]interface{}) (string, error) {
+	ctx = WithYepAPIRequestContext(ctx, "yepapi_youtube", operation)
 	switch operation {
 	case "search":
 		query, _ := args["query"].(string)
@@ -325,71 +324,9 @@ func addYouTubePositiveIntArg(payload map[string]interface{}, args map[string]in
 }
 
 func yepAPIYouTubeCanonicalResolveURL(raw string) (string, string) {
-	clean := strings.TrimSpace(raw)
-	if clean == "" {
+	ref, err := ParseYouTubeVideoURL(raw)
+	if err != nil {
 		return "", "resolve operation requires a valid YouTube URL"
 	}
-	if !strings.Contains(clean, "://") && (strings.Contains(clean, "youtube.") || strings.Contains(clean, "youtu.be")) {
-		clean = "https://" + clean
-	}
-
-	parsed, err := url.Parse(clean)
-	if err != nil || parsed.Hostname() == "" {
-		return "", "resolve operation requires a valid YouTube URL"
-	}
-	if parsed.User != nil {
-		return "", "resolve operation requires a valid YouTube URL"
-	}
-	scheme := strings.ToLower(parsed.Scheme)
-	if scheme != "http" && scheme != "https" {
-		return "", "resolve operation requires a valid YouTube URL"
-	}
-
-	host := yepAPIYouTubeNormalizeHost(parsed.Hostname())
-	path := strings.Trim(parsed.EscapedPath(), "/")
-	segments := strings.Split(path, "/")
-	for i, segment := range segments {
-		if decoded, decErr := url.PathUnescape(segment); decErr == nil {
-			segments[i] = decoded
-		}
-	}
-
-	videoID := ""
-	switch host {
-	case "youtu.be":
-		if len(segments) > 0 {
-			videoID = segments[0]
-		}
-	case "youtube.com", "m.youtube.com", "music.youtube.com":
-		videoID = yepAPIYouTubeVideoIDFromPathAndQuery(segments, parsed.Query())
-	case "youtube-nocookie.com":
-		if len(segments) >= 2 && segments[0] == "embed" {
-			videoID = segments[1]
-		}
-	default:
-		return "", "resolve operation requires a valid YouTube URL"
-	}
-
-	if !yepAPIYouTubeVideoIDRe.MatchString(videoID) {
-		return "", "resolve operation requires a valid YouTube URL"
-	}
-	return "https://www.youtube.com/watch?v=" + videoID, ""
-}
-
-func yepAPIYouTubeNormalizeHost(host string) string {
-	host = strings.ToLower(strings.TrimSpace(host))
-	return strings.TrimPrefix(host, "www.")
-}
-
-func yepAPIYouTubeVideoIDFromPathAndQuery(segments []string, query url.Values) string {
-	if len(segments) == 0 || segments[0] == "" || segments[0] == "watch" {
-		return query.Get("v")
-	}
-	switch segments[0] {
-	case "shorts", "embed", "live":
-		if len(segments) >= 2 {
-			return segments[1]
-		}
-	}
-	return ""
+	return "https://www.youtube.com/watch?v=" + ref.VideoID, ""
 }

@@ -1549,6 +1549,16 @@ func TestVideoDownloadSchemaReflectsOptionalWritePermissions(t *testing.T) {
 			t.Fatalf("full video_download schema missing %q in %v", want, fullOps)
 		}
 	}
+	for _, schema := range fullSchemas {
+		if schema.Function == nil || schema.Function.Name != "video_download" {
+			continue
+		}
+		for _, sentence := range []string{"yepapi_youtube", "send_youtube_video", "before transcribe"} {
+			if !strings.Contains(schema.Function.Description, sentence) {
+				t.Fatalf("video_download description missing %q", sentence)
+			}
+		}
+	}
 }
 
 func videoDownloadOperationEnum(t *testing.T, schemas []openai.Tool) []string {

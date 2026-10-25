@@ -2209,7 +2209,7 @@ tools:
 
 ### Video Download Integration
 
-Video download via yt-dlp (YouTube and other platforms). Supports Docker and native mode.
+Video download via yt-dlp (YouTube and other platforms). Supports Docker and native mode. `default_format` below is the 720p selector used for new installs. An empty value selects `best` at download time.
 
 **Web UI:** Config → Integrations → Video Download → Configure mode (docker/native) and download directory.
 
@@ -2226,7 +2226,7 @@ tools:
     download_dir: ""
     max_file_size_mb: 0
     timeout_seconds: 0
-    default_format: ""
+    default_format: "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
     max_search_results: 0
     container_image: ""
     auto_pull: false

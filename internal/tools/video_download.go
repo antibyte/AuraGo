@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/security"
@@ -23,6 +24,13 @@ import (
 
 const videoDownloadContainerDir = "/downloads"
 const maxVideoSearchDescriptionLength = 200
+const maxVideoSearchQueryRunes = 300
+const videoDownloadFormatBest = "best"
+const videoDownloadFormatMedium = "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
+const videoDownloadFormatLow = "bestvideo[height<=480]+bestaudio/best[height<=480]/best"
+
+// videoDownloadSlot keeps one yt-dlp run at a time for search, info, download, and transcribe.
+var videoDownloadSlot = make(chan struct{}, 1)
 
 var youtubeVideoIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
 
@@ -99,6 +107,9 @@ func videoDownloadSearch(ctx context.Context, cfg *config.Config, req VideoDownl
 	query := strings.TrimSpace(req.Query)
 	if query == "" {
 		return videoDownloadJSON(videoDownloadResult{Status: "error", Operation: "search", Message: "query is required for search"})
+	}
+	if utf8.RuneCountInString(query) > maxVideoSearchQueryRunes {
+		return videoDownloadJSON(videoDownloadResult{Status: "error", Operation: "search", Message: "query must be at most 300 characters"})
 	}
 	maxResults := cfg.Tools.VideoDownload.MaxSearchResults
 	if maxResults <= 0 {
@@ -210,25 +221,39 @@ func fetchYtDlpInfo(ctx context.Context, cfg *config.Config, videoURL string, lo
 }
 
 func buildYtDlpDownloadArgs(cfg *config.Config, req VideoDownloadRequest, videoURL, formatMode, outputDir string) []string {
-	format := strings.TrimSpace(req.Format)
+	requested := strings.TrimSpace(req.Format)
 	quality := strings.ToLower(strings.TrimSpace(req.Quality))
-	if format == "" || formatMode == "video" || formatMode == "audio" {
+	format := requested
+	usesDefault := requested == "" || formatMode == "video" || formatMode == "audio"
+	if usesDefault {
 		format = strings.TrimSpace(cfg.Tools.VideoDownload.DefaultFormat)
 	}
 	if format == "" {
-		format = "best"
+		format = videoDownloadFormatBest
 	}
-	if quality == "medium" && formatMode != "audio" && (format == "best" || format == "") {
-		format = "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
-	} else if quality == "low" && formatMode != "audio" && (format == "best" || format == "") {
-		format = "bestvideo[height<=480]+bestaudio/best[height<=480]/best"
+	// quality replaces the install default and a literal best. A custom selector stays as written.
+	if formatMode != "audio" && (usesDefault || formatMode == "best") {
+		switch quality {
+		case "low":
+			format = videoDownloadFormatLow
+		case "medium":
+			format = videoDownloadFormatMedium
+		case "best":
+			format = videoDownloadFormatBest
+		}
 	}
 
 	if strings.TrimSpace(outputDir) == "" {
 		outputDir = videoDownloadContainerDir
 	}
-	outputTemplate := strings.TrimRight(filepath.ToSlash(filepath.Clean(outputDir)), "/") + "/%(title).200B [%(id)s].%(ext)s"
-	args := []string{"--no-playlist", "--no-progress", "--newline", "--restrict-filenames", "--print", "after_move:filepath", "-o", outputTemplate}
+	outputBase := strings.TrimRight(filepath.ToSlash(filepath.Clean(outputDir)), "/")
+	outputTemplate := outputBase + "/%(title).200B [%(id)s].%(ext)s"
+	args := []string{
+		"--no-playlist", "--no-progress", "--newline", "--restrict-filenames",
+		"--cache-dir", outputBase + "/.yt-dlp-cache",
+		"--paths", "temp:" + outputBase + "/.yt-dlp-tmp",
+		"--print", "after_move:filepath", "-o", outputTemplate,
+	}
 	if cfg.Tools.VideoDownload.MaxFileSizeMB > 0 {
 		args = append(args, "--max-filesize", fmt.Sprintf("%dM", cfg.Tools.VideoDownload.MaxFileSizeMB))
 	}
@@ -248,6 +273,12 @@ func runYtDlp(ctx context.Context, cfg *config.Config, args []string, logger *sl
 	}
 	cmdCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	select {
+	case videoDownloadSlot <- struct{}{}:
+		defer func() { <-videoDownloadSlot }()
+	case <-cmdCtx.Done():
+		return "", "", cmdCtx.Err()
+	}
 	if videoDownloadMode(cfg) == "native" {
 		return nativeRunYtDlp(cmdCtx, cfg, args)
 	}

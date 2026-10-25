@@ -57,6 +57,9 @@ func TestToolPermissionMatrixCoversHighRiskBuiltins(t *testing.T) {
 		if hasAnyCapability(entry, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityExecute) && entry.ConfigGate == "" {
 			t.Fatalf("high-risk tool %q has mutating/executing capability without a gate", name)
 		}
+		if name == "video_download" && entry.ReadOnlyGate != "tools.video_download.readonly" {
+			t.Fatalf("video_download read-only gate = %q", entry.ReadOnlyGate)
+		}
 	}
 }
 

@@ -23,11 +23,13 @@
   "help.video_download.allow_download": "Pozwala agentowi pobierać pliki wideo lub audio do katalogu pobierania.",
   "help.video_download.allow_transcribe": "Pozwala agentowi pobrać dźwięk i wysłać go do zamiany mowy na tekst w celu transkrypcji.",
   "help.video_download.download_dir": "Lokalny katalog projektu, w którym zapisywane są pobrane multimedia.",
-  "help.video_download.default_format": "Domyślny format yt-dlp. Użyj best, bestaudio, audio, video albo własnego ciągu.",
+  "help.video_download.default_format": "Nowe instalacje używają bestvideo[height<=720]+bestaudio/best[height<=720]/best (720p). Zapisane wartości, takie jak best, zostają. Możesz też użyć bestaudio, audio, video albo własnego ciągu.",
   "help.video_download.max_file_size_mb": "Maksymalny rozmiar pobranego pliku. 0 oznacza bez limitu.",
   "help.video_download.timeout_seconds": "Maksymalny czas jednej operacji yt-dlp.",
   "help.video_download.max_search_results": "Maksymalna liczba wyników zwracanych agentowi.",
   "help.video_download.yt_dlp_path": "Opcjonalna ścieżka do yt-dlp w trybie natywnym. Puste używa PATH.",
-  "help.video_download.container_image": "Obraz Docker używany w trybie Docker.",
-  "help.video_download.auto_pull": "Automatycznie pobiera obraz yt-dlp, jeśli brakuje go lokalnie."
+  "help.video_download.container_image": "Obraz Docker używany w trybie Docker. Skrót jest celowo stały. Zostaw go, chyba że wybierzesz inny przypięty obraz.",
+  "help.video_download.auto_pull": "Automatycznie pobiera obraz yt-dlp, jeśli brakuje go lokalnie.",
+  "config.video_download.readonly_label": "Tryb tylko do odczytu",
+  "help.video_download.readonly": "Blokuje pobieranie i transkrypcję, nawet gdy te uprawnienia są włączone. Wyszukiwanie i informacje o filmie pozostają dostępne."
 }

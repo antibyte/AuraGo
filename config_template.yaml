@@ -673,7 +673,7 @@ tools:
         download_dir: data/downloads                      # project-local directory for downloaded media
         max_file_size_mb: 500                             # maximum downloaded file size in MB (0 = unlimited)
         timeout_seconds: 300                              # per-command timeout in seconds
-        default_format: best                              # best, bestaudio, or a custom yt-dlp format string
+        default_format: bestvideo[height<=720]+bestaudio/best[height<=720]/best  # 720p for new installs; a saved best stays best
         max_search_results: 10                            # maximum search results returned to the agent
         container_image: ghcr.io/jauderho/yt-dlp@sha256:90cd9016efc4451153c8bc35cc7a0d9a8cba0e796818e52f3b4d28b9736ac91c    # Docker image used in docker mode (digest-pinned)
         auto_pull: true                                   # automatically pull the container image when missing

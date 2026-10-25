@@ -89,6 +89,11 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 - Chat HTML sanitizer (`js/shared/chat-core.js`) may keep `iframe` only with a
   forced `sandbox="allow-scripts"`. Never `allow-same-origin`. Protocol-relative
   `//` URLs are rejected. Rebuild `chat-runtime.bundle.js` after sanitizer edits.
+- Chat YouTube players are DOM-built in `js/chat/chat-messages.js`. They use
+  `referrerpolicy="no-referrer"`, omit `clipboard-write` and `web-share`, and
+  set the youtube-nocookie `src` only after a local play click. They do not use
+  `sandbox="allow-same-origin"`. Start times over 48 hours are rejected. Verify
+  `TestChatFrontend_VideoPlayerFlowRemainsPresent`.
 
 ## Local Contracts
 

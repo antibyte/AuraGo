@@ -508,7 +508,7 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.VideoDownload.DownloadDir = "data/downloads"
 	cfg.Tools.VideoDownload.MaxFileSizeMB = 500
 	cfg.Tools.VideoDownload.TimeoutSeconds = 300
-	cfg.Tools.VideoDownload.DefaultFormat = "best"
+	cfg.Tools.VideoDownload.DefaultFormat = "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
 	cfg.Tools.VideoDownload.MaxSearchResults = 10
 	cfg.Tools.VideoDownload.ContainerImage = "ghcr.io/jauderho/yt-dlp@sha256:90cd9016efc4451153c8bc35cc7a0d9a8cba0e796818e52f3b4d28b9736ac91c"
 	cfg.Tools.VideoDownload.AutoPull = true

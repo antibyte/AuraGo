@@ -302,5 +302,6 @@
   "chat.galaxy_live": "Live",
   "chat.galaxy_placeholder": "Assegna un compito al tuo agente …",
   "chat.galaxy_persona": "La tua personalità",
-  "chat.galaxy_mood": "Umore attuale"
+  "chat.galaxy_mood": "Umore attuale",
+  "chat.youtube_play": "Riproduci"
 }

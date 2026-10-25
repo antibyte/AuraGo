@@ -23,11 +23,13 @@
   "help.video_download.allow_download": "Dovolí agentovi stahovat video nebo audio soubory do složky pro stažení.",
   "help.video_download.allow_transcribe": "Dovolí agentovi stáhnout audio a odeslat ho do převodu řeči na text.",
   "help.video_download.download_dir": "Projektová složka pro uložené mediální soubory.",
-  "help.video_download.default_format": "Výchozí formát yt-dlp. Použijte best, bestaudio, audio, video nebo vlastní řetězec.",
+  "help.video_download.default_format": "Nové instalace používají bestvideo[height<=720]+bestaudio/best[height<=720]/best (720p). Uložené hodnoty jako best zůstávají. Můžete použít i bestaudio, audio, video nebo vlastní řetězec.",
   "help.video_download.max_file_size_mb": "Maximální velikost staženého souboru. 0 znamená bez omezení.",
   "help.video_download.timeout_seconds": "Maximální doba jedné operace yt-dlp.",
   "help.video_download.max_search_results": "Maximální počet výsledků vrácených agentovi.",
   "help.video_download.yt_dlp_path": "Volitelná cesta k binárce yt-dlp v nativním režimu. Prázdné znamená PATH.",
-  "help.video_download.container_image": "Docker image používaný v Docker režimu.",
-  "help.video_download.auto_pull": "Automaticky stáhne image yt-dlp, pokud chybí lokálně."
+  "help.video_download.container_image": "Docker image pro režim Docker. Digest je záměrně pevný. Ponechte ho, pokud nezvolíte jiný připnutý image.",
+  "help.video_download.auto_pull": "Automaticky stáhne image yt-dlp, pokud chybí lokálně.",
+  "config.video_download.readonly_label": "Režim jen pro čtení",
+  "help.video_download.readonly": "Blokuje stahování a přepis, i když jsou tato oprávnění zapnutá. Vyhledávání a informace o videu zůstávají dostupné."
 }

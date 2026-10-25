@@ -210,7 +210,8 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 			videoDownloadOps = append(videoDownloadOps, "transcribe")
 		}
 		tools = append(tools, tool("video_download",
-			"Search and inspect videos using yt-dlp. Download and transcription operations are optional and only available when explicitly enabled in config. "+
+			"Search and inspect videos with yt-dlp. Prefer yepapi_youtube for metadata when that tool is available; otherwise use search or info here. Read captions or subtitles before transcribe. Use download only when a file is wanted. send_youtube_video remains the player path. "+
+				"Download and transcription are optional and only available when explicitly enabled in config. "+
 				"Docker mode uses an auto-managed ghcr.io/jauderho/yt-dlp container by default; native mode requires yt-dlp installed on the host. "+
 				"Operations currently available in this session are listed in the operation enum.",
 			schema(map[string]interface{}{
@@ -407,6 +408,7 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 	if ff.YepAPIYouTubeEnabled {
 		tools = append(tools, tool("yepapi_youtube",
 			"YouTube data via YepAPI: search videos, get video details, transcripts, comments, channel info, playlists, trending videos, and shorts. "+
+				"Prefer this tool for metadata when it is enabled. Read captions or subtitles before video_download transcribe. Use video_download download only when a file is wanted. send_youtube_video remains the player path. "+
 				"No YouTube Data API quota limits. All operations are read-only and pay-per-call.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{

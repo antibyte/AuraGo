@@ -23,11 +23,13 @@
   "help.video_download.allow_download": "Permite descargar archivos de vídeo o audio al directorio de descargas.",
   "help.video_download.allow_transcribe": "Permite descargar audio y enviarlo a voz-a-texto para transcripción.",
   "help.video_download.download_dir": "Directorio local del proyecto donde se guardan los medios descargados.",
-  "help.video_download.default_format": "Formato yt-dlp predeterminado. Usa best, bestaudio, audio, video o una cadena personalizada.",
+  "help.video_download.default_format": "Las instalaciones nuevas usan bestvideo[height<=720]+bestaudio/best[height<=720]/best (720p). Los valores guardados, como best, se conservan. También puedes usar bestaudio, audio, video o una cadena personalizada.",
   "help.video_download.max_file_size_mb": "Tamaño máximo de un archivo descargado. 0 significa ilimitado.",
   "help.video_download.timeout_seconds": "Tiempo máximo de una operación yt-dlp.",
   "help.video_download.max_search_results": "Número máximo de resultados devueltos al agente.",
   "help.video_download.yt_dlp_path": "Ruta opcional al binario yt-dlp en modo nativo. Vacío usa PATH.",
-  "help.video_download.container_image": "Imagen Docker usada en modo Docker.",
-  "help.video_download.auto_pull": "Descarga automáticamente la imagen yt-dlp si falta localmente."
+  "help.video_download.container_image": "Imagen de Docker para el modo Docker. El digest está fijado a propósito. Déjalo así, salvo que elijas otra imagen fijada.",
+  "help.video_download.auto_pull": "Descarga automáticamente la imagen yt-dlp si falta localmente.",
+  "config.video_download.readonly_label": "Modo de solo lectura",
+  "help.video_download.readonly": "Bloquea las descargas y la transcripción aunque esos permisos estén activos. La búsqueda y la información del vídeo siguen disponibles."
 }

@@ -23,11 +23,13 @@
   "help.video_download.allow_download": "Allows the agent to download video or audio files into the download directory.",
   "help.video_download.allow_transcribe": "Allows the agent to download audio and send it through speech-to-text for transcription.",
   "help.video_download.download_dir": "Project-local directory where downloaded media files are stored.",
-  "help.video_download.default_format": "Default yt-dlp format. Use best, bestaudio, audio, video, or a custom format string.",
+  "help.video_download.default_format": "New installs use bestvideo[height<=720]+bestaudio/best[height<=720]/best (720p). Saved values such as best stay as saved. You can also use bestaudio, audio, video, or a custom format string.",
   "help.video_download.max_file_size_mb": "Maximum size of a downloaded file. Use 0 for unlimited.",
   "help.video_download.timeout_seconds": "Maximum runtime for one yt-dlp operation.",
   "help.video_download.max_search_results": "Maximum number of search results returned to the agent.",
   "help.video_download.yt_dlp_path": "Optional path to the yt-dlp binary in native mode. Leave empty to use PATH.",
-  "help.video_download.container_image": "Docker image used in Docker mode.",
-  "help.video_download.auto_pull": "Automatically pull the yt-dlp image when it is missing locally."
+  "help.video_download.container_image": "Docker image used in Docker mode. The digest pin is intentional; leave it unless you choose another pinned image.",
+  "help.video_download.auto_pull": "Automatically pull the yt-dlp image when it is missing locally.",
+  "config.video_download.readonly_label": "Read-only mode",
+  "help.video_download.readonly": "Blocks downloads and transcription even when those permissions are on. Search and video info stay available."
 }
