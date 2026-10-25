@@ -236,6 +236,14 @@
         // pressed. Closing it this way leaves the stored choice as it is.
         function closeOverlay() { if (isOpen() && isOverlay()) setOpen(false, true); }
 
+        // restoreDocked shows the panel again by the stored choice once it is docked beside the canvas
+        // (leaving the run view). A floating panel stays closed until asked for. The run view may have
+        // begun on a narrow window and ended on a wide one, where syncLayout skipped this.
+        function restoreDocked() {
+            if (isOverlay() || isOpen()) return;
+            if (core.storage.get(OPEN_KEY, true)) setOpen(true, true);
+        }
+
         // syncLayout follows the window width: becoming a floating panel closes it, becoming a docked
         // one again restores the stored choice (not in the run view, which keeps the panel hidden).
         // The editor runs it before its first view.
@@ -320,7 +328,7 @@
         setOpen(core.storage.get(OPEN_KEY, true));
 
         return {
-            el, render, setOpen, isOpen, isOverlay, syncLayout, afterMove,
+            el, render, setOpen, isOpen, isOverlay, syncLayout, afterMove, restoreDocked,
             focusSearch() { setOpen(true); input.focus(); input.select(); },
             dispose() { if (drag) drag.abort(); bag.dispose(); }
         };

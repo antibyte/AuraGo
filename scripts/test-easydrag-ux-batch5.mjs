@@ -292,6 +292,38 @@ export async function run(env) {
             [['number', 1, 1], [0, false], [0, false], 1, []]);
         s.editor.dispose();
     });
+    // ── exitRunView and the docked palette ──
+
+    await guardAsync('b5 leaving the run view shows the docked palette by the stored choice, also after a narrow start', async () => {
+        const h = sandbox(req => (req.url === '/api/desktop/flows/runs/r1?include=doc'
+            ? { run: { id: 'r1', status: 'success', mode: 'test', started_at: '2026-10-25T10:00:00Z', revision: 2 }, steps: [], doc: flowDoc('Run') } : undefined));
+        // getComputedStyle is a global of the sandbox's realm (reached through a sandbox function's
+        // Function constructor); the palette floats (position absolute) while narrow is true.
+        const realm = h.ED.core.el.constructor('return this')();
+        let narrow = true;
+        realm.getComputedStyle = node => ({ position: narrow && node.classList && node.classList.contains('ed-palette') ? 'absolute' : 'static', display: 'block', visibility: 'visible', transitionDuration: '0s' });
+        const editor = openEditor(h);
+        await settle();
+        const palette = editor.el.querySelector('.ed-palette');
+        const open = () => !palette.classList.contains('is-collapsed');
+        const start = open();
+        editor.showRun('r1');
+        await settle();
+        h.flushFrames();
+        const inView = open();
+        narrow = false;
+        editor.el.querySelector('[data-ed-cmd="exit-run-view"]').fire('click');
+        h.flushFrames();
+        const after = open();
+        narrow = true;
+        editor.showRun('r1');
+        await settle();
+        h.flushFrames();
+        editor.el.querySelector('[data-ed-cmd="exit-run-view"]').fire('click');
+        eq('b5 narrow start: closed, hidden in the run view, back when docked on exit; a floating palette stays closed after the run view',
+            [start, inView, after, open(), h.logged], [false, false, true, false, []]);
+        editor.dispose();
+    });
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }

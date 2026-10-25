@@ -25,8 +25,6 @@
         noteDroppedDuplicates();
         bag.add(draftModel.on(change => { if (change && change.kind === 'reset') noteDroppedDuplicates(); }));
         let savedView = null;
-        // paletteBefore: the palette was open when the run view hid it; leaving the run view shows it again.
-        let paletteBefore = false;
         let contentDirty = false;
         let lastRecord = null;
         // partialRevision is the live revision of the last partial publish (ed.publishIncomplete).
@@ -294,10 +292,7 @@
             if (!ed.flushPendingEdits()) return;
             ED.detail.close(ed);
             ED.palette.closeQuickAdd(ed);
-            if (!ed.runView) {
-                savedView = Object.assign({}, ed.view);
-                paletteBefore = palette.isOpen();
-            }
+            if (!ed.runView) savedView = Object.assign({}, ed.view);
             ed.runView = { run: detail.run, doc: detail.doc };
             ed.model = ED.model.create(detail.doc, ed.catalog);
             ed.selection = new Set();
@@ -332,8 +327,8 @@
             runs.clearRun();
             ed.bus.emit('model', { kind: 'reset', nodes: [], edges: [], meta: true, structural: true });
             if (savedView) canvas.setView(savedView, { animate: true });
-            if (paletteBefore && !palette.isOpen() && !palette.isOverlay()) palette.setOpen(true, true);
-            paletteBefore = false;
+            // A docked palette comes back by the stored choice; a floating one stays closed.
+            palette.restoreDocked();
             renderHeader();
             setMenus();
             renderIssues();
