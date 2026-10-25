@@ -189,23 +189,28 @@ func startLongPolling(parent context.Context, cfg *config.Config, logger *slog.L
 				handle(ctx, bot, update)
 			}()
 			return true
-		}, func(offset int) {
-			persistTelegramOffset(offsets, bot.Self.ID, offset, logger)
+		}, func(offset int) bool {
+			return persistTelegramOffset(offsets, bot.Self.ID, offset, logger)
 		})
-		persistTelegramOffset(offsets, bot.Self.ID, offset, logger)
+		_ = persistTelegramOffset(offsets, bot.Self.ID, offset, logger)
 	}()
 	return b
 }
 
 // persistTelegramOffset writes the cursor to the cache and, when a store is
-// attached, to disk. A failing store must never stop the poller.
-func persistTelegramOffset(offsets *UpdateOffsets, botID int64, offset int, logger *slog.Logger) {
+// attached, to disk. A failing store must never stop the poller, but the
+// caller has to learn that the write failed, so it can retry it.
+func persistTelegramOffset(offsets *UpdateOffsets, botID int64, offset int, logger *slog.Logger) bool {
 	if offsets == nil {
-		return
+		return true // there is no cursor to write
 	}
-	if err := offsets.Save(botID, offset); err != nil && logger != nil {
-		logger.Warn("Failed to persist Telegram cursor", "error", security.Scrub(err.Error()))
+	if err := offsets.Save(botID, offset); err != nil {
+		if logger != nil {
+			logger.Warn("Failed to persist Telegram cursor", "error", security.Scrub(err.Error()))
+		}
+		return false
 	}
+	return true
 }
 
 // attachTelegramOffsetStore binds a persistent cursor store when the data

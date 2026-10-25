@@ -386,11 +386,12 @@ func TestTelegramCursorIsPersistedWhilePolling(t *testing.T) {
 	persisted := make(chan int, 16)
 	done := make(chan int, 1)
 	go func() {
-		done <- runPollingLoop(ctx, poller, tgbotapi.NewUpdate(0), nil, nil, func(tgbotapi.Update) bool { return true }, func(offset int) {
+		done <- runPollingLoop(ctx, poller, tgbotapi.NewUpdate(0), nil, nil, func(tgbotapi.Update) bool { return true }, func(offset int) bool {
 			select {
 			case persisted <- offset:
 			default:
 			}
+			return true
 		})
 	}()
 	// The cursor advances past the handed-out update and is written after
@@ -587,11 +588,12 @@ func TestTelegramCursorSurvivesRestartWithoutReplay(t *testing.T) {
 	persisted := make(chan int, 8)
 	done := make(chan int, 1)
 	go func() {
-		done <- runPollingLoop(ctx, poller, tgbotapi.NewUpdate(0), nil, nil, func(tgbotapi.Update) bool { return true }, func(offset int) {
+		done <- runPollingLoop(ctx, poller, tgbotapi.NewUpdate(0), nil, nil, func(tgbotapi.Update) bool { return true }, func(offset int) bool {
 			select {
 			case persisted <- offset:
 			default:
 			}
+			return true
 		})
 	}()
 	last := 0

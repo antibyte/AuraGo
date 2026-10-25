@@ -99,12 +99,10 @@ func acquireTelegramWorker(ctx context.Context, slots chan struct{}) bool {
 var telegramPollingInitialBackoff = time.Second
 
 const (
-	// telegramOffsetPersistEveryUpdates and telegramOffsetPersistInterval
-	// bound how long a handed-out cursor may stay unpersisted. The cursor is
-	// written after every update, so a restart never replays a batch: the
-	// interval only covers the case where a persist itself failed.
+	// telegramOffsetPersistEveryUpdates bounds how many updates may pass
+	// without a cursor write. The cursor is written after every update, so a
+	// restart never replays a batch.
 	telegramOffsetPersistEveryUpdates = 1
-	telegramOffsetPersistInterval     = 30 * time.Second
 	// telegramMaxRetryAfterSeconds caps the flood-control delay Telegram asks
 	// for, so a hostile or buggy response cannot stall the poller.
 	telegramMaxRetryAfterSeconds = 60
@@ -112,17 +110,38 @@ const (
 	telegramPollingBackoffJitter = 0.2
 )
 
+// telegramOffsetPersistInterval bounds how long a cursor may stay unpersisted:
+// it is the delay after which a failed write is retried and the fallback that
+// writes the cursor when the update threshold is not reached. It is a variable
+// so the test can shorten the wait.
+var telegramOffsetPersistInterval = 30 * time.Second
+
 type telegramUpdatePoller interface {
 	GetUpdates(config tgbotapi.UpdateConfig) ([]tgbotapi.Update, error)
 }
 
-func runPollingLoop(ctx context.Context, poller telegramUpdatePoller, updateCfg tgbotapi.UpdateConfig, plannerDB *sql.DB, logger *slog.Logger, handle func(tgbotapi.Update) bool, persist func(offset int)) int {
+// runPollingLoop polls for updates and hands them to the worker. The persist
+// callback writes the cursor and reports whether the write succeeded: a failed
+// write stays unpersisted and is retried, so a restart cannot replay an
+// update that the store never accepted.
+func runPollingLoop(ctx context.Context, poller telegramUpdatePoller, updateCfg tgbotapi.UpdateConfig, plannerDB *sql.DB, logger *slog.Logger, handle func(tgbotapi.Update) bool, persist func(offset int) bool) int {
 	backoff := telegramPollingInitialBackoff
 	pending := 0
 	lastPersist := time.Now()
+	persistFailed := false
 	for {
 		if err := ctx.Err(); err != nil {
 			return updateCfg.Offset
+		}
+		// A failed write is retried after the interval, also when no further
+		// update arrives: otherwise the cursor could stay unwritten until the
+		// next message and a restart would replay the update.
+		if persist != nil && persistFailed && time.Since(lastPersist) >= telegramOffsetPersistInterval {
+			if persist(updateCfg.Offset) {
+				persistFailed = false
+				pending = 0
+				lastPersist = time.Now()
+			}
 		}
 		updates, err := poller.GetUpdates(updateCfg)
 		if ctx.Err() != nil {
@@ -189,9 +208,20 @@ func runPollingLoop(ctx context.Context, poller telegramUpdatePoller, updateCfg 
 			updateCfg.Offset = update.UpdateID + 1
 			pending++
 			if persist != nil && (pending >= telegramOffsetPersistEveryUpdates || time.Since(lastPersist) >= telegramOffsetPersistInterval) {
-				persist(updateCfg.Offset)
-				pending = 0
-				lastPersist = time.Now()
+				if persist(updateCfg.Offset) {
+					pending = 0
+					lastPersist = time.Now()
+					persistFailed = false
+				} else {
+					// The cursor stays unwritten: pending and lastPersist keep
+					// their values, so the next update writes it again and the
+					// retry after the interval catches the case that no further
+					// update arrives.
+					persistFailed = true
+					if logger != nil {
+						logger.Warn("Failed to persist the Telegram cursor; the write is retried", "offset", updateCfg.Offset)
+					}
+				}
 			}
 		}
 	}
