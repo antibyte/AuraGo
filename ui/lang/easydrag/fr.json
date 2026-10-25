@@ -1,5 +1,6 @@
 {
   "easydrag.ui.card_state_off": "désactivé",
+  "easydrag.ui.close_hint": "Fermer ({key})",
   "easydrag.ui.detail_values": "Valeurs",
   "easydrag.ui.error_flow_action_rule_required": "Une règle d’action correspondante manque. Ajoute une règle dans Configuration → Zone dangereuse, puis relance manuellement. Aucune nouvelle tentative automatique.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "Le recours au processeur n’a pas été explicitement autorisé.",

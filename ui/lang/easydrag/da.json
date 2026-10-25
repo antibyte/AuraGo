@@ -1,5 +1,6 @@
 {
   "easydrag.ui.card_state_off": "slukket",
+  "easydrag.ui.close_hint": "Luk ({key})",
   "easydrag.ui.detail_values": "Værdier",
   "easydrag.ui.error_flow_action_rule_required": "Der mangler en passende handlingsregel. Tilføj en regel under Konfiguration → Farezone, og start derefter igen manuelt. Der forsøges ikke igen automatisk.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU-fallback er ikke udtrykkeligt tilladt.",

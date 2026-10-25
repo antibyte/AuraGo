@@ -1,5 +1,6 @@
 {
   "easydrag.ui.card_state_off": "avstängd",
+  "easydrag.ui.close_hint": "Stäng ({key})",
   "easydrag.ui.detail_values": "Värden",
   "easydrag.ui.error_flow_action_rule_required": "En passande åtgärdsregel saknas. Lägg till en regel under Konfiguration → Farozon och starta sedan om manuellt. Inget automatiskt nytt försök görs.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU-reservläge har inte uttryckligen tillåtits.",

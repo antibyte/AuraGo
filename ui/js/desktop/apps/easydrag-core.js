@@ -230,10 +230,14 @@
         number(value) {
             try { return new Intl.NumberFormat(lang()).format(value); } catch (err) { return String(value); }
         },
+        // decimal formats a number with one decimal in the desktop language ("2,5" in German).
+        decimal(value) {
+            try { return new Intl.NumberFormat(lang(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value); } catch (err) { return Number(value).toFixed(1); }
+        },
         duration(ms) {
             const n = Number(ms) || 0;
             if (n < 1000) return Math.round(n) + ' ms';
-            if (n < 10000) return (n / 1000).toFixed(1) + ' s';
+            if (n < 10000) return fmt.decimal(n / 1000) + ' s';
             // Whole seconds first, then minutes: 119 999 ms reads 2:00 min, not 1:60 min.
             const total = Math.round(n / 1000);
             if (total < 60) return total + ' s';
@@ -261,8 +265,8 @@
         bytes(n) {
             const value = Number(n) || 0;
             if (value < 1024) return value + ' B';
-            if (value < 1048576) return (value / 1024).toFixed(1) + ' KB';
-            return (value / 1048576).toFixed(1) + ' MB';
+            if (value < 1048576) return fmt.decimal(value / 1024) + ' KB';
+            return fmt.decimal(value / 1048576) + ' MB';
         }
     };
 

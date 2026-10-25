@@ -780,6 +780,24 @@ export async function run(env) {
         eq('b5 polish the inner tab word exists in all 16 locales', missingKeys(apps, ['easydrag.ui.detail_values']), []);
     });
 
+    // ── i18n low items ──
+
+    await guardAsync('b5 i18n decimals follow the language, Close names its key in words, de says Flow, the sink mark is silent', async () => {
+        const s = await session();
+        const fmt = s.h.ED.core.fmt;
+        s.h.win.SYSTEM_LANG = 'de';
+        const de = [fmt.duration(2500), fmt.bytes(1536), fmt.duration(400), fmt.duration(61000)];
+        s.h.win.SYSTEM_LANG = 'en';
+        const en = [fmt.duration(2500), fmt.bytes(1536)];
+        s.ed.bus.emit('open-detail', { nodeId: A });
+        const close = s.editor.el.querySelector('.ed-detail [data-ed-detail-close]').getAttribute('title');
+        s.editor.dispose();
+        const ablauf = Object.entries(lang('de')).filter(([, v]) => /Ablauf|Abläufe/.test(v)).map(([k]) => k);
+        eq('b5 i18n 2,5 s and 1,5 KB in German, 2.5 s in English; Close (Esc) through a key; no Ablauf; the ⚑ has an empty alternative',
+            [de, en, close, ablauf, css().includes('content: " ⚑" / "";')], [['2,5 s', '1,5 KB', '400 ms', '1:01 min'], ['2.5 s', '1.5 KB'], 'close_hint:Esc', [], true]);
+        eq('b5 i18n the close hint exists in all 16 locales', missingKeys(apps, ['easydrag.ui.close_hint']), []);
+    });
+
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }

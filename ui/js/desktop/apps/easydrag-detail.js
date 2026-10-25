@@ -186,7 +186,7 @@
             '<span class="ed-detail-tile"></span><div class="ed-detail-title"><input class="ed-detail-label" aria-label="' + esc(t('easydrag.ui.detail_label')) + '"><span class="ed-detail-type"></span></div>' +
             '<span class="ed-detail-status"></span>' +
             '<div class="ed-detail-actions"><button type="button" class="ed-btn" data-ed-detail-test>' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.detail_test')) + '</span></button>' +
-            '<button type="button" class="ed-icon-btn" data-ed-detail-close aria-label="' + esc(t('easydrag.ui.close')) + '" title="' + esc(t('easydrag.ui.close')) + ' (Esc)">' + core.icon('x') + '</button></div></header>' +
+            '<button type="button" class="ed-icon-btn" data-ed-detail-close aria-label="' + esc(t('easydrag.ui.close')) + '" title="' + esc(t('easydrag.ui.close_hint', { key: 'Esc' })) + '">' + core.icon('x') + '</button></div></header>' +
             '<div class="ed-detail-tabs" role="tablist">' + ['input', 'params', 'output'].map(id => tab('col', id, 'data-ed-narrow', t('easydrag.ui.detail_' + (id === 'params' ? 'parameters' : id)))).join('') + '</div>' +
             '<div class="ed-detail-body">' +
             '<section class="ed-detail-col" data-col="input"' + panel('col', 'input') + '></section>' +

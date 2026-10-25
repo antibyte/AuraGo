@@ -1,5 +1,6 @@
 {
   "easydrag.ui.card_state_off": "απενεργοποιημένο",
+  "easydrag.ui.close_hint": "Κλείσιμο ({key})",
   "easydrag.ui.detail_values": "Τιμές",
   "easydrag.ui.error_flow_action_rule_required": "Λείπει ένας κατάλληλος κανόνας ενέργειας. Πρόσθεσε έναν κανόνα στις Ρυθμίσεις → Ζώνη κινδύνου και μετά ξεκίνησε ξανά χειροκίνητα. Δεν γίνεται αυτόματη επανάληψη.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "Η εφεδρική χρήση CPU δεν έχει επιτραπεί ρητά.",

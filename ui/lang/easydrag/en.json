@@ -1,5 +1,6 @@
 {
   "easydrag.ui.card_state_off": "turned off",
+  "easydrag.ui.close_hint": "Close ({key})",
   "easydrag.ui.detail_values": "Values",
   "easydrag.ui.error_flow_action_rule_required": "A matching action rule is missing. Add a rule in Configuration → Danger Zone, then start again manually. No automatic retry.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "CPU fallback has not been explicitly allowed.",

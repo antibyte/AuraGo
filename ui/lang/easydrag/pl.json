@@ -1,5 +1,6 @@
 {
   "easydrag.ui.card_state_off": "wyłączony",
+  "easydrag.ui.close_hint": "Zamknij ({key})",
   "easydrag.ui.detail_values": "Wartości",
   "easydrag.ui.error_flow_action_rule_required": "Brakuje pasującej reguły działania. Dodaj regułę w Konfiguracja → Strefa zagrożenia, a następnie uruchom ponownie ręcznie. Nie będzie automatycznej ponownej próby.",
   "easydrag.availability.DECISIONS_CPU_FALLBACK_DENIED": "Użycie CPU awaryjnie nie zostało wyraźnie dozwolone.",
