@@ -51,6 +51,7 @@
             '</div></header>' +
             '<div class="ed-runview-banner" role="status" hidden>' + core.icon('history') + '<span data-ed-runview-text></span>' +
             '<button type="button" class="ed-btn ed-btn--small ed-btn--danger" data-ed-cmd="stop-viewed" hidden>' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
+            '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="rerun-viewed" hidden>' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.run_rerun_test')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="exit-run-view">' + core.icon('arrow-left') + '<span>' + esc(t('easydrag.ui.run_view_exit')) + '</span></button></div>' +
             '<div class="ed-body"><nav class="ed-rail" aria-label="' + esc(t('easydrag.ui.rail_label')) + '">' +
             '<button type="button" class="ed-icon-btn" data-ed-cmd="palette" aria-pressed="true" title="' + esc(t('easydrag.ui.palette_title')) + ' (' + core.shortcut('Ctrl+K') + ')" aria-label="' + esc(t('easydrag.ui.palette_title')) + '">' + core.icon('plus') + '</button>' +
@@ -293,6 +294,30 @@
             const off = !ED.runs.isActive(run.status);
             if (off && document.activeElement === stop) banner.querySelector('[data-ed-cmd="exit-run-view"]').focus();
             stop.hidden = off;
+            banner.querySelector('[data-ed-cmd="rerun-viewed"]').hidden = !canRerun(run);
+        }
+
+        // canRerun: the viewed run brought its trigger data (GET runs/{id} returns it), the draft still
+        // has that trigger, switched on, and the desktop may test.
+        function canRerun(run) {
+            if (!run || ed.readonly) return false;
+            const data = run.trigger_data;
+            if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+            const n = draftModel.node(run.trigger_node);
+            const i = n && draftModel.info(n.type);
+            return !!(i && i.trigger && !(n.settings && n.settings.disabled));
+        }
+
+        // rerunViewed leaves the run view and opens the test dialog with the viewed run's trigger data.
+        // The dialog lists the real effects and asks before anything runs, as every test does.
+        function rerunViewed() {
+            const run = ed.runView && ed.runView.run;
+            if (!canRerun(run)) return;
+            const triggerNode = run.trigger_node;
+            const data = JSON.parse(JSON.stringify(run.trigger_data));
+            exitRunView();
+            if (ed.runView) return;
+            runs.startTest({ triggerNode, data });
         }
 
         function enterRunView(detail) {
@@ -698,6 +723,7 @@
             else if (cmd === 'more') moreMenu(b);
             else if (cmd === 'exit-run-view') exitRunView();
             else if (cmd === 'stop-viewed') runs.stopRun(ed.runView && ed.runView.run);
+            else if (cmd === 'rerun-viewed') rerunViewed();
             else if (cmd === 'last-run') { if (ed.run || lastRecord) runs.toggleDrawer(true); renderHeader(); }
             else if (cmd === 'issues') publish.openIssues(b);
             else if (cmd === 'keys') ED.dialogs.shortcuts(ed);

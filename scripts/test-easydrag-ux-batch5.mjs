@@ -393,6 +393,47 @@ export async function run(env) {
         ro.editor.dispose();
         eq('b5 U12 the group name exists in all 16 locales', missingKeys(apps, ['easydrag.ui.history_label']), []);
     });
+    // ── U15: test again with the data of a viewed run ──
+
+    await guardAsync('b5 U15 Test again with this data opens the test dialog with the run\'s trigger data', async () => {
+        const viewed = extra => ({ run: Object.assign({ id: 'r1', status: 'error', mode: 'live', started_at: '2026-10-25T10:00:00Z', revision: 2, trigger_node: T1, trigger_data: { name: 'Ada', token: '[redacted]' } }, extra), steps: [], doc: flowDoc('Run') });
+        const s = await session(req => {
+            if (req.url === '/api/desktop/flows/runs/r1?include=doc') return viewed();
+            if (req.method === 'POST' && req.url === '/api/desktop/flows/f1/test') return { run_id: 'r9' };
+            return undefined;
+        });
+        s.editor.showRun('r1');
+        await settle();
+        const button = s.editor.el.querySelector('[data-ed-cmd="rerun-viewed"]');
+        const offered = button.hidden;
+        const dialogs = s.h.dialogs.length;
+        button.fire('click');
+        await settle();
+        const dialog = s.h.dialogs[s.h.dialogs.length - 1];
+        const html = dialog.el.parentNode.html;
+        const opened = [s.ed.runView, s.h.dialogs.length - dialogs, html.includes('Ada'), dialog.body.querySelector('[data-ed-test-remember]').checked,
+            !!dialog.body.querySelector('[data-ed-rerun-redacted]'), s.h.requests.some(r => r.url.includes('test-data'))];
+        // The browser's text area holds the shown JSON; the run sends it although it is unchanged.
+        dialog.body.querySelector('[data-ed-test-data]').value = JSON.stringify({ name: 'Ada', token: '[redacted]' }, null, 2);
+        dialog.el.querySelector('[data-ed-action="run"]').fire('click');
+        await settle();
+        const post = s.h.requests.find(r => r.method === 'POST' && r.url === '/api/desktop/flows/f1/test');
+        eq('b5 U15 the run view leaves, the dialog shows the data, says what is hidden, remembers nothing by default and sends the data',
+            [offered, opened, post && [post.body.trigger_node, post.body.trigger_data, post.body.remember_data], s.h.logged],
+            [false, [null, 1, true, false, true, false], [T1, { name: 'Ada', token: '[redacted]' }, false], []]);
+        s.editor.dispose();
+        const hiddenFor = async (opts, run) => {
+            const v = await session(req => (req.url === '/api/desktop/flows/runs/r1?include=doc' ? viewed(run) : undefined), opts);
+            v.editor.showRun('r1');
+            await settle();
+            const hidden = v.editor.el.querySelector('[data-ed-cmd="rerun-viewed"]').hidden;
+            v.editor.dispose();
+            return hidden;
+        };
+        eq('b5 U15 no button on a read-only desktop, without trigger data, or for a trigger the draft no longer has',
+            [await hiddenFor({ readonly: true }, {}), await hiddenFor({}, { trigger_data: undefined }), await hiddenFor({}, { trigger_node: 'n_gonegone' })], [true, true, true]);
+        eq('b5 U15 the words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.run_rerun_test', 'easydrag.ui.rerun_redacted']), []);
+    });
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }

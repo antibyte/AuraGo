@@ -463,8 +463,14 @@
                 fx = pending(trigger.id);
             }
             if (o.quick && !fx.size && !unchecked(trigger.id) && ed.model.version === version) { await run(trigger.id, null, o.onlyNode, false); return undefined; }
+            // A rerun from the run view (o.data) starts from that run's trigger data instead of the
+            // stored sample. It runs as given even unchanged, and is not remembered unless ticked.
+            let prefilled = !!(o.data && typeof o.data === 'object' && !Array.isArray(o.data));
             let sample = {};
-            try { sample = (await ed.api.testData(ed.flow.id, trigger.id)).data || {}; } catch (err) { sample = {}; }
+            if (prefilled) sample = o.data;
+            else {
+                try { sample = (await ed.api.testData(ed.flow.id, trigger.id)).data || {}; } catch (err) { sample = {}; }
+            }
             if (disposed) return undefined;
             // The sample comes scrubbed (secret values read "[redacted]") and must never be saved
             // back: unchanged text runs without trigger_data, so the server uses the stored sample.
@@ -475,7 +481,8 @@
                     list.map(n => '<option value="' + esc(n.id) + '"' + (n.id === trigger.id ? ' selected' : '') + '>' + esc(n.label || n.type) + '</option>').join('') + '</select></label>' : '') +
                     '<label class="ed-label">' + esc(t('easydrag.ui.test_data')) + '<textarea class="ed-input ed-code" rows="9" spellcheck="false" data-ed-test-data>' + esc(shown) + '</textarea></label>' +
                     '<p class="ed-hint">' + esc(t('easydrag.ui.test_data_hint')) + '</p><p class="ed-error" role="alert" hidden></p>' +
-                    '<label class="ed-check"><input type="checkbox" data-ed-test-remember checked> ' + esc(t('easydrag.ui.test_remember')) + '</label>' +
+                    '<label class="ed-check"><input type="checkbox" data-ed-test-remember' + (prefilled ? '' : ' checked') + '> ' + esc(t('easydrag.ui.test_remember')) + '</label>' +
+                    (prefilled && shown.includes(REDACTED) ? '<p class="ed-callout ed-callout--warn" data-ed-rerun-redacted>' + core.icon('alert') + '<span>' + esc(t('easydrag.ui.rerun_redacted')) + '</span></p>' : '') +
                     (unchecked(trigger.id) ? uncheckedMarkup() : '') + effectsMarkup(fx),
                 actions: [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'run', label: t('easydrag.ui.test_run'), primary: true, icon: 'play' }],
                 onAction: async (action, d) => {
@@ -492,7 +499,7 @@
                         return false;
                     }
                     const text = d.body.querySelector('[data-ed-test-data]').value;
-                    const edited = text !== shown;
+                    const edited = text !== shown || prefilled;
                     let data = null;
                     if (edited) {
                         try { data = JSON.parse(text || '{}'); } catch (e) { err.hidden = false; err.textContent = t('easydrag.ui.json_invalid'); return false; }
@@ -541,6 +548,7 @@
                     if (select.value !== id || area.value !== shown) return;
                     shown = JSON.stringify(next, null, 2);
                     area.value = shown;
+                    prefilled = false;
                 });
             }
             return dialog;
