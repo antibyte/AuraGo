@@ -80,6 +80,12 @@ func (c *YepAPIClient) Post(ctx context.Context, endpoint string, payload interf
 }
 
 func (c *YepAPIClient) postOnce(ctx context.Context, endpoint string, payload interface{}) ([]byte, error) {
+	// The documented limit is per API key. The request is only delayed here,
+	// before it is built and sent; a limited request is never resent.
+	if err := yepAPIGlobalRateLimiter.wait(ctx, c.apiKey); err != nil {
+		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: request not sent: %w", err)}
+	}
+
 	url := c.baseURL + endpoint
 
 	var body []byte
@@ -123,11 +129,24 @@ func (c *YepAPIClient) postOnce(ctx context.Context, endpoint string, payload in
 	// If the HTTP status is not 2xx, include the raw body in the error so
 	// the caller can see what the server actually returned (e.g. HTML 404/403).
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if resp.StatusCode == http.StatusTooManyRequests {
+			// The provider refused the request before doing any work, so it
+			// was not billed. The request is not repeated.
+			return nil, &YepAPICallError{
+				Err:                fmt.Errorf("yepapi: rate limit reached: this API key may send %d requests per minute. The request was not repeated. Continue with other work and send the next request later.", yepAPIRateLimitPerMinute),
+				RequestSent:        true,
+				RejectedByProvider: true,
+			}
+		}
 		preview := string(respBody)
 		if len(preview) > 200 {
 			preview = preview[:200] + "..."
 		}
-		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: HTTP %d - %s", resp.StatusCode, security.IsolateExternalData(preview)), RequestSent: true}
+		return nil, &YepAPICallError{
+			Err:                fmt.Errorf("yepapi: HTTP %d - %s", resp.StatusCode, security.IsolateExternalData(preview)),
+			RequestSent:        true,
+			RejectedByProvider: resp.StatusCode >= 400 && resp.StatusCode < 500,
+		}
 	}
 
 	var env YepAPIResponse
@@ -159,10 +178,15 @@ func (c *YepAPIClient) postOnce(ctx context.Context, endpoint string, payload in
 // OutcomeUncertain is true when no definitive provider response was received:
 // a transport failure or a body that broke while being read. A complete
 // response - even a non-2xx status or an error envelope - is a known outcome.
+//
+// RejectedByProvider marks a request the provider refused without doing any
+// work, such as a rate-limit refusal. Such a call is not billed, so the
+// caller must not book it.
 type YepAPICallError struct {
-	Err              error
-	RequestSent      bool
-	OutcomeUncertain bool
+	Err                error
+	RequestSent        bool
+	OutcomeUncertain   bool
+	RejectedByProvider bool
 }
 
 func (e *YepAPICallError) Error() string { return e.Err.Error() }

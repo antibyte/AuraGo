@@ -126,7 +126,7 @@ func dispatchYepAPI(ctx context.Context, tc ToolCall, dc *DispatchContext, tool 
 		// A call that reached the provider may have been billed even though it
 		// failed, so it is booked against the budget. A call that never left
 		// the client cannot have been billed and stays free.
-		if dc.BudgetTracker != nil && yepAPICallReachedProvider(err) {
+		if dc.BudgetTracker != nil && yepAPICallMayBeBilled(err) {
 			dc.BudgetTracker.RecordCostForCategory("yepapi", svc.cost)
 		}
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b), err
@@ -137,12 +137,12 @@ func dispatchYepAPI(ctx context.Context, tc ToolCall, dc *DispatchContext, tool 
 	return res, nil
 }
 
-// yepAPICallReachedProvider reports whether the failed call left the client
+// yepAPICallMayBeBilled reports whether the failed call may have been billed by the provider
 // and may therefore have been billed by the provider.
-func yepAPICallReachedProvider(err error) bool {
+func yepAPICallMayBeBilled(err error) bool {
 	var callErr *tools.YepAPICallError
 	if !errors.As(err, &callErr) {
 		return false
 	}
-	return callErr.RequestSent
+	return callErr.RequestSent && !callErr.RejectedByProvider
 }

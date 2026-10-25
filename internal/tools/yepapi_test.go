@@ -9,13 +9,28 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"aurago/internal/config"
 )
 
+// yepAPITestKeySeq hands every test client its own API key. The client limits
+// the requests of one key per minute, so shared keys would make the tests
+// wait for each other.
+var yepAPITestKeySeq atomic.Uint64
+
+// yepAPITestKey returns a unique API key for one test client.
+func yepAPITestKey() string {
+	return fmt.Sprintf("yepapi_test_key_%d", yepAPITestKeySeq.Add(1))
+}
+
 func newYepAPITestClient(handler func(*http.Request) (int, string)) *YepAPIClient {
-	client := NewYepAPIClient("test_key")
+	return newYepAPIClientWithKey(yepAPITestKey(), handler)
+}
+
+func newYepAPIClientWithKey(key string, handler func(*http.Request) (int, string)) *YepAPIClient {
+	client := NewYepAPIClient(key)
 	client.baseURL = "https://yepapi.test"
 	client.client = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		status, body := handler(r)
@@ -61,10 +76,11 @@ func requireYepAPIRequest(t *testing.T, requests <-chan yepAPIRecordedRequest, w
 }
 
 func TestYepAPIClient_Post(t *testing.T) {
-	client := newYepAPITestClient(func(r *http.Request) (int, string) {
+	key := yepAPITestKey()
+	client := newYepAPIClientWithKey(key, func(r *http.Request) (int, string) {
 		status := http.StatusOK
 		body := `{"ok":false,"error":{"code":"NOT_FOUND","message":"Unknown endpoint"}}`
-		if r.Header.Get("x-api-key") != "test_key" {
+		if r.Header.Get("x-api-key") != key {
 			status = http.StatusUnauthorized
 			body = `{"ok":false,"error":{"code":"INVALID_API_KEY","message":"Invalid key"}}`
 		} else if r.URL.Path == "/v1/seo/keywords" {
@@ -292,7 +308,7 @@ func TestDispatchYepAPIYouTube(t *testing.T) {
 		Payload map[string]interface{}
 	}
 	requests := make(chan yepAPIRequest, 4)
-	client := NewYepAPIClient("test_key")
+	client := NewYepAPIClient(yepAPITestKey())
 	client.baseURL = "https://yepapi.test"
 	client.client = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		body, _ := io.ReadAll(r.Body)
@@ -1257,7 +1273,7 @@ func TestYepAPICallErrorReportsWhetherTheRequestWasSent(t *testing.T) {
 	})
 
 	t.Run("transport_failure_is_sent_and_uncertain", func(t *testing.T) {
-		client := NewYepAPIClient("test_key")
+		client := NewYepAPIClient(yepAPITestKey())
 		client.baseURL = "https://yepapi.test"
 		client.client = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 			return nil, errors.New("connection lost after acceptance")
@@ -1273,7 +1289,7 @@ func TestYepAPICallErrorReportsWhetherTheRequestWasSent(t *testing.T) {
 	})
 
 	t.Run("body_read_failure_is_sent_and_uncertain", func(t *testing.T) {
-		client := NewYepAPIClient("test_key")
+		client := NewYepAPIClient(yepAPITestKey())
 		client.baseURL = "https://yepapi.test"
 		client.client = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 			return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(yepAPIFailingReader{})}, nil
