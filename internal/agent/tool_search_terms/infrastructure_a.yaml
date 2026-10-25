@@ -1,4 +1,82 @@
-# Search terms of the first 27 infrastructure tools, sorted by name.
+# infrastructure_a search terms
+ansible:
+  en: ["run Ansible playbook", "Ansible ad-hoc command", "ping hosts with Ansible", "gather host facts", "server automation", "configuration management", "Ansible inventory", "playbook"]
+  de: ["Ansible Playbook ausführen", "Playbook starten", "Server automatisieren", "Konfigurationsmanagement", "Hosts anpingen", "Ansible Inventar", "Host-Fakten sammeln", "Automatisierung per Ansible"]
+desktop_notes:
+  en: ["Desktop Notes", "search my notes", "read my note", "create a new note", "notes library", "markdown notes", "find note by tag", "list my notes"]
+  de: ["Desktop-Notizen", "Notizen durchsuchen", "Notiz lesen", "neue Notiz anlegen", "Notizbibliothek", "Markdown-Notiz", "Notiz nach Tag suchen", "meine Notizen auflisten"]
+docker:
+  en: ["Docker", "Docker container", "restart container", "list containers", "container logs", "pull image", "docker volumes", "docker network", "run container"]
+  de: ["Docker", "Container neu starten", "Container auflisten", "Container Logs anzeigen", "Docker Image laden", "Container starten", "Container stoppen", "Docker Volumes", "Docker Netzwerk"]
+frigate:
+  en: ["Frigate NVR", "camera events", "person detected on camera", "security camera recordings", "doorbell events", "Frigate snapshot", "review summary", "surveillance clips"]
+  de: ["Frigate Kamera", "Kameraaufnahmen ansehen", "Überwachungskamera Ereignisse", "wer war an der Tür", "Bewegungserkennung Kamera", "Aufnahme exportieren", "Frigate Schnappschuss", "Videorekorder NVR"]
+github:
+  en: ["GitHub", "GitHub repo", "create issue", "pull requests", "list branches", "recent commits", "workflow runs", "GitHub Actions status", "push file to repo"]
+  de: ["GitHub Repository", "Issue erstellen", "Pull Requests anzeigen", "Branches auflisten", "letzte Commits", "Workflow Läufe", "CI Status prüfen", "Datei im Repo ändern", "lokales Projekt tracken"]
+go2rtc:
+  en: ["go2rtc", "camera stream", "live camera view", "camera snapshot", "analyze camera image", "person detection", "arm detection", "IP camera stream"]
+  de: ["Kamera Livebild", "Kamerastream", "Kamera Schnappschuss", "Kamerabild analysieren", "Personenerkennung", "Alarm scharfschalten", "Erkennungsereignisse", "IP-Kamera Stream"]
+here_now_site:
+  en: ["publish to here.now", "here.now site", "deploy permanent site", "password protect website", "update here.now site", "delete here.now site", "publish static site online"]
+  de: ["auf here.now veröffentlichen", "here.now Seite", "dauerhafte Website", "Seite mit Passwort schützen", "here.now Site aktualisieren", "Website auf here.now stellen", "Seitenpasswort setzen"]
+here_now_sites:
+  en: ["here.now accounts", "list here.now sites", "here.now access policy", "here.now version history", "my published sites", "site versions"]
+  de: ["here.now Konten", "here.now Seiten auflisten", "Zugriffsregeln der Seite", "Versionsverlauf der Seite", "meine veröffentlichten Seiten", "Site-Versionen anzeigen"]
+homepage_deploy:
+  en: ["deploy website", "publish website", "go live with site", "deploy to Netlify", "deploy to Vercel", "upload website to server", "website deployment"]
+  de: ["Webseite veröffentlichen", "Website deployen", "Seite online stellen", "Homepage hochladen", "Website live schalten", "auf Netlify deployen", "per SFTP hochladen"]
+homepage_file:
+  en: ["edit website file", "write homepage file", "read site file", "replace text in page", "insert into HTML", "edit index.html", "website source files", "optimize site images"]
+  de: ["Webseiten-Datei bearbeiten", "Datei der Homepage ändern", "Text in Seite ersetzen", "index.html bearbeiten", "Zeilen in Seite löschen", "Website Quelltext lesen", "Homepage Datei schreiben", "Bilder der Website optimieren"]
+homepage_git:
+  en: ["website git commit", "site revision history", "roll back website", "git diff of site", "git log homepage", "undo site change", "init git for site"]
+  de: ["Website Versionsverlauf", "Seite zurückrollen", "Git Commit für Website", "Änderungen der Homepage vergleichen", "Homepage Git Log", "Website Änderung rückgängig", "Git für Webprojekt"]
+homepage_project:
+  en: ["create website project", "new web project", "start dev server", "build website", "install npm packages", "preview site locally", "website tunnel", "delete website project"]
+  de: ["Webprojekt anlegen", "neue Website erstellen", "Entwicklungsserver starten", "Website bauen", "npm Pakete installieren", "Vorschau der Seite", "Website Tunnel", "Webprojekt löschen"]
+homepage_quality:
+  en: ["Lighthouse audit", "website performance check", "lint website code", "check JavaScript errors", "website screenshot", "page speed test", "console errors", "check site before deploy"]
+  de: ["Lighthouse Prüfung", "Website Geschwindigkeit testen", "JavaScript Fehler prüfen", "Screenshot der Website", "Code Qualität Website", "Seite vor Veröffentlichung prüfen", "Performance Test Webseite", "Linting der Seite"]
+homepage_registry:
+  en: ["list my websites", "website registry", "where is site deployed", "site deploy history", "adopt existing project", "what changed on site", "project notes", "website change log"]
+  de: ["meine Websites auflisten", "Website Verzeichnis", "wo ist die Seite veröffentlicht", "Deploy Verlauf", "bestehendes Projekt übernehmen", "was wurde geändert", "Projektnotizen Website", "Änderungsprotokoll Webseite"]
+invasion_artifacts:
+  en: ["egg artifacts", "files from eggs", "task result files", "download egg output", "delete egg artifact", "uploaded by egg", "list task artifacts"]
+  de: ["Egg Artefakte", "Dateien vom Egg", "Ergebnisdateien der Aufgabe", "Egg Ausgabe holen", "Artefakt löschen", "Invasion Artefakte", "vom Egg hochgeladene Dateien"]
+invasion_nests:
+  en: ["list nests", "nest status", "assign egg to nest", "Invasion Control nests", "remote deployment targets", "which eggs are assigned", "hatch egg", "stop egg"]
+  de: ["Nester auflisten", "Nest Status", "Egg einem Nest zuweisen", "Invasion Control Nester", "Zielserver für Eggs", "Egg starten", "Egg stoppen", "Egg ausbrüten"]
+invasion_tasks:
+  en: ["send task to egg", "ask a sub-agent", "task status", "cancel egg task", "talk to remote agent", "give work to egg", "list egg tasks", "get task result"]
+  de: ["Aufgabe an Egg schicken", "Sub-Agent beauftragen", "Aufgabenstatus", "Egg Aufgabe abbrechen", "Remote-Agent fragen", "Egg Aufgaben auflisten", "Ergebnis der Aufgabe holen", "Auftrag an Egg"]
 layerling:
-  en: ["3D CAD", "Layerling", "edit 3D model"]
-  de: ["Modell konstruieren"]
+  en: ["3D CAD", "Layerling", "edit 3D model", "CAD editor", "boolean cut", "export STL", "create 3D shape", "3D printing model"]
+  de: ["Modell konstruieren", "3D CAD Editor", "3D Modell bearbeiten", "Körper erstellen", "STL exportieren", "Konstruktion für 3D-Druck", "Layerling Editor"]
+ldap:
+  en: ["LDAP", "Active Directory", "look up user", "list AD groups", "check user password", "directory search", "domain users", "LDAPS"]
+  de: ["Active Directory abfragen", "Benutzer im Verzeichnis suchen", "AD Gruppen auflisten", "Passwort prüfen", "Benutzerkonto anlegen", "Domänenbenutzer", "LDAP Benutzer", "LDAP Verbindung testen"]
+manage_sql_connections:
+  en: ["database connections", "test database connection", "list SQL connections", "Postgres MySQL connection", "SQLite connection", "check DB connectivity", "database grants", "connection description"]
+  de: ["Datenbankverbindungen", "Datenbankverbindung testen", "SQL Verbindungen auflisten", "Postgres MySQL Verbindung", "SQLite Verbindung", "DB Zugang prüfen", "Datenbank Berechtigungen", "Verbindungsbeschreibung ändern"]
+mcp_call:
+  en: ["MCP server", "Model Context Protocol", "call MCP tool", "list MCP tools", "external tool server", "connected MCP servers", "use MCP"]
+  de: ["MCP Server", "Model Context Protocol", "MCP Tool aufrufen", "MCP Tools auflisten", "externer Tool-Server", "verbundene MCP Server", "MCP nutzen"]
+meshcentral:
+  en: ["MeshCentral", "wake on LAN", "wake device", "remote device power", "restart remote PC", "run command on device", "list mesh devices", "device events"]
+  de: ["MeshCentral", "Wake-on-LAN", "Rechner aufwecken", "PC herunterfahren", "Remote PC neu starten", "Befehl auf Gerät ausführen", "Geräte auflisten", "Geräteereignisse"]
+netlify:
+  en: ["Netlify", "Netlify sites", "Netlify deploys", "roll back deploy", "environment variables", "form submissions", "SSL certificate", "Let's Encrypt cert", "cancel deploy"]
+  de: ["Netlify Seiten", "Netlify Deployments", "Deploy zurückrollen", "Umgebungsvariablen setzen", "Formular Einsendungen", "SSL Zertifikat", "Benachrichtigungs-Hooks", "Netlify Seite löschen"]
+network_shares:
+  en: ["SMB share", "NFS share", "Samba share", "share a folder", "network folder", "file share on LAN", "create network share", "share status"]
+  de: ["Netzwerkfreigabe", "SMB Freigabe", "NFS Freigabe", "Samba Freigabe", "Ordner freigeben", "Freigabe erstellen", "Netzlaufwerk bereitstellen", "Freigabe löschen"]
+office_document:
+  en: ["Word document", "write docx", "create document", "edit Writer document", "export to docx", "markdown document", "read docx", "replace text in document"]
+  de: ["Word-Dokument erstellen", "docx schreiben", "Textdokument", "Writer Dokument bearbeiten", "als docx exportieren", "Dokument lesen", "Text im Dokument ersetzen", "Bericht als Dokument"]
+office_workbook:
+  en: ["Excel spreadsheet", "xlsx file", "CSV file", "edit cells", "spreadsheet formula", "calculate sum", "create spreadsheet", "export to CSV"]
+  de: ["Excel Tabelle", "xlsx Datei", "CSV Datei", "Zellen bearbeiten", "Tabellenkalkulation", "Formel berechnen", "Tabelle erstellen", "als CSV exportieren"]
+ollama:
+  en: ["Ollama", "local LLM", "pull model", "list installed models", "delete model", "unload model from GPU", "load model into GPU", "GPU memory models"]
+  de: ["Ollama Modelle", "lokales Sprachmodell", "Modell herunterladen", "installierte Modelle anzeigen", "Modell löschen", "Modell aus GPU entladen", "Modell in GPU laden", "lokales LLM"]

@@ -1,1 +1,79 @@
-# Search terms of the remaining infrastructure tools.
+# infrastructure_b search terms
+openscad_render:
+  en: ["OpenSCAD", "render OpenSCAD code", "parametric CAD model", "export STL", "OpenSCAD PNG preview", "SCAD file to STL", "script based 3D model", "compile SCAD"]
+  de: ["OpenSCAD", "OpenSCAD rendern", "parametrisches CAD-Modell", "STL exportieren", "SCAD-Code berechnen", "3D-Modell aus Code", "Vorschaubild vom Modell", "SCAD in STL umwandeln"]
+proxmox:
+  en: ["Proxmox", "Proxmox VE", "start virtual machine", "restart VM", "LXC container list", "VM snapshot", "list cluster nodes", "shut down VM", "hypervisor status"]
+  de: ["Proxmox", "virtuelle Maschine starten", "VM neu starten", "VM herunterfahren", "LXC Container anzeigen", "Snapshot der VM anlegen", "Cluster Knoten auflisten", "Hypervisor Status", "Proxmox Übersicht"]
+query_inventory:
+  en: ["find device in inventory", "search servers by tag", "look up hostname", "which servers are registered", "list registered devices", "device inventory", "SSH server list", "find server by name"]
+  de: ["Gerät im Inventar suchen", "Server nach Tag suchen", "Hostname nachschlagen", "welche Server sind registriert", "Geräteinventar", "registrierte Geräte anzeigen", "Server suchen", "Inventarliste"]
+register_device:
+  en: ["add device to inventory", "register new server", "save SSH server", "enroll network device", "add host with credentials", "register printer or speaker", "remember this server", "register device"]
+  de: ["Gerät ins Inventar aufnehmen", "neuen Server registrieren", "SSH Server hinzufügen", "Gerät anlegen", "Host speichern", "Server merken", "Netzwerkgerät eintragen", "Gerät registrieren"]
+remote_control_desktop:
+  en: ["AgoDesk screenshot", "remote desktop screenshot", "control remote desktop", "click on remote screen", "automate remote browser", "screenshot of other PC", "remote mouse and keyboard", "see remote screen"]
+  de: ["AgoDesk Screenshot", "Bildschirm des Remote-PCs", "Fernsteuerung Desktop", "Screenshot vom anderen Rechner", "auf Remote-Bildschirm klicken", "Remote Browser steuern", "Maus und Tastatur fernsteuern", "Desktop fernbedienen"]
+remote_control_devices:
+  en: ["list connected devices", "remote control devices", "AgoDesk devices", "device online status", "revoke remote device", "which clients are connected", "device capabilities", "disconnect remote client"]
+  de: ["verbundene Geräte anzeigen", "Fernsteuerung Geräte", "AgoDesk Geräte", "Gerät sperren", "Zugriff entziehen", "welche Clients sind verbunden", "Geräteliste Fernsteuerung", "Gerätestatus prüfen"]
+remote_control_files:
+  en: ["read file on remote device", "edit remote file", "search files on remote PC", "write file to client", "patch remote file", "AgoDesk file access", "remote file edit", "file on connected device"]
+  de: ["Datei auf Remote-Gerät lesen", "Remote-Datei bearbeiten", "Dateien auf fremdem PC suchen", "Datei auf Client schreiben", "Remote-Datei ändern", "AgoDesk Dateizugriff", "Datei auf verbundenem Gerät", "Datei patchen"]
+remote_control_shell:
+  en: ["run command on remote device", "remote shell session", "terminal on client PC", "execute command on AgoDesk", "interactive remote terminal", "long running remote command", "shell on connected device", "remote command line"]
+  de: ["Befehl auf Remote-Gerät ausführen", "Remote Shell Sitzung", "Terminal auf Client-PC", "Kommando auf AgoDesk", "interaktives Remote-Terminal", "lang laufender Befehl", "Shell auf verbundenem Gerät", "Kommandozeile auf fremdem Rechner"]
+remote_execution:
+  en: ["run command over SSH", "SSH to server", "execute on remote server", "ssh command", "run command on registered server", "remote server shell", "check uptime on server", "SSH login to host"]
+  de: ["Befehl per SSH ausführen", "per SSH auf Server", "auf Remote-Server ausführen", "SSH Befehl", "Befehl auf registriertem Server", "Server Shell per SSH", "Uptime auf Server prüfen", "SSH Kommando senden"]
+ruview:
+  en: ["RuView", "WiFi sensing", "presence detection", "ESP32 CSI nodes", "is anyone home", "RuView status", "sensing nodes", "WiFi presence sensor", "CSI recordings"]
+  de: ["RuView", "WLAN Sensorik", "Anwesenheit erkennen", "ESP32 Knoten", "ist jemand zuhause", "Anwesenheitserkennung", "RuView Status", "WLAN Präsenz Sensor", "CSI Aufnahmen"]
+s3_storage:
+  en: ["S3 bucket", "upload to S3", "MinIO", "Backblaze B2", "Wasabi", "AWS S3 objects", "list buckets", "download from bucket", "object storage"]
+  de: ["S3 Bucket", "Datei nach S3 hochladen", "MinIO", "Backblaze B2", "Objektspeicher", "Bucket auflisten", "aus Bucket herunterladen", "S3 Objekt löschen", "S3 Speicher"]
+sip_phone:
+  en: ["SIP phone", "make a phone call", "dial number", "hang up call", "answer incoming call", "call history", "send DTMF", "VoIP call", "SIP registration status"]
+  de: ["SIP Telefon", "Telefonanruf tätigen", "Nummer wählen", "Anruf annehmen", "Anruf beenden", "Anrufliste", "Anruf abweisen", "VoIP Anruf", "SIP Status"]
+space_agent:
+  en: ["Space Agent", "send instruction to Space Agent", "ask Space Agent", "delegate task to sidecar agent", "second agent workspace", "Space Agent sidecar", "hand off task to agent"]
+  de: ["Space Agent", "Anweisung an Space Agent", "Space Agent fragen", "Aufgabe an Sidecar-Agent", "zweiten Agenten beauftragen", "Aufgabe weiterreichen", "Space Agent Container"]
+sql_query:
+  en: ["run SQL query", "SQL database", "SELECT statement", "list tables", "describe table", "PostgreSQL query", "MySQL", "SQLite query", "query database"]
+  de: ["SQL Abfrage ausführen", "SQL Datenbank", "SELECT Abfrage", "Tabellen auflisten", "Tabellenstruktur anzeigen", "PostgreSQL Abfrage", "MySQL", "SQLite Datenbank", "Datenbank abfragen"]
+tailscale:
+  en: ["Tailscale", "Tailscale VPN", "tailnet devices", "subnet routes", "enable subnet route", "MagicDNS", "Tailscale ACL", "Tailscale status", "Tailscale IP of device"]
+  de: ["Tailscale", "Tailscale VPN", "Tailnet Geräte", "Subnetz Routen", "Subnetz-Route freigeben", "MagicDNS", "Tailscale ACL", "Tailscale Status", "Tailscale IP eines Geräts"]
+three_d_printer:
+  en: ["3D printer", "print progress", "start print", "pause print", "cancel print", "printer camera", "Klipper", "Moonraker", "Elegoo Centauri Carbon", "watch printer live"]
+  de: ["3D-Drucker", "Druckstatus", "Druck starten", "Druck pausieren", "Druck abbrechen", "Drucker Kamera", "Klipper", "Fortschritt des Drucks", "G-Code Dateien", "Drucker live ansehen"]
+transfer_remote_file:
+  en: ["upload file to server", "download file from server", "SFTP transfer", "copy file to remote server", "SCP file", "send file via SFTP", "fetch file from SSH server", "file transfer SSH"]
+  de: ["Datei auf Server hochladen", "Datei vom Server herunterladen", "SFTP Übertragung", "Datei auf Remote-Server kopieren", "SCP Datei", "Datei per SFTP senden", "Datei von SSH-Server holen", "Dateitransfer SSH"]
+truenas:
+  en: ["TrueNAS", "ZFS pool", "ZFS snapshot", "scrub pool", "SMB share", "NFS share", "ZFS dataset", "NAS health", "NAS free space"]
+  de: ["TrueNAS", "ZFS Pool", "ZFS Snapshot", "Pool scrubben", "SMB Freigabe", "NFS Freigabe", "ZFS Dataset", "NAS Zustand", "NAS Speicherplatz"]
+vercel:
+  en: ["Vercel", "Vercel deployment", "Vercel project", "rollback deployment", "environment variable on Vercel", "add custom domain", "Vercel alias", "Next.js hosting", "cancel build"]
+  de: ["Vercel", "Vercel Deployment", "Vercel Projekt", "Deployment zurückrollen", "Umgebungsvariable bei Vercel", "eigene Domain hinzufügen", "Vercel Alias", "Next.js Hosting", "Build abbrechen"]
+virtual_browser:
+  en: ["browse website visibly", "visible browser in VM", "watch the browser via VNC", "Chromium in workspace", "click on web page", "fill login form", "take browser control", "interactive web navigation", "headful browser"]
+  de: ["Webseite sichtbar bedienen", "sichtbarer Browser in VM", "Browser per VNC beobachten", "Chromium im Workspace", "auf Webseite klicken", "Login Formular ausfüllen", "Browser übernehmen", "interaktive Webnavigation", "Browser mit Oberfläche"]
+virtual_computers:
+  en: ["Virtual Computers", "boring computers", "launch microVM", "short-lived VM", "boringd", "VM screenshot", "fork machine", "microVM volume", "upload file to microVM"]
+  de: ["Virtual Computers", "Boring Computers", "MicroVM starten", "kurzlebige VM", "boringd", "Screenshot der VM", "Maschine klonen", "MicroVM Volume", "Datei in MicroVM hochladen"]
+virtual_desktop_app_install:
+  en: ["install desktop app", "create virtual desktop app", "deploy generated app", "replace desktop app", "app manifest", "add app to desktop", "build custom desktop app"]
+  de: ["Desktop-App installieren", "virtuelle Desktop-App erstellen", "generierte App installieren", "Desktop-App ersetzen", "App Manifest", "App zum Desktop hinzufügen", "eigene Desktop-App bauen", "App aktualisieren"]
+virtual_desktop_apps:
+  en: ["open desktop app", "launch app on virtual desktop", "diagnose desktop app", "app not working on desktop", "inspect desktop app", "list desktop apps", "check app health", "start desktop app"]
+  de: ["Desktop-App öffnen", "App auf virtuellem Desktop starten", "Desktop-App diagnostizieren", "App funktioniert nicht", "Desktop-App prüfen", "Desktop-Apps auflisten", "App Zustand prüfen", "Desktop-App starten"]
+virtual_desktop_files:
+  en: ["file in virtual desktop", "read desktop workspace file", "write file to desktop", "patch workspace file", "search desktop files", "delete desktop file", "virtual desktop file manager", "export desktop file"]
+  de: ["Datei auf virtuellem Desktop", "Workspace-Datei lesen", "Datei auf Desktop schreiben", "Workspace-Datei ändern", "Desktop-Dateien durchsuchen", "Desktop-Datei löschen", "Dateimanager virtueller Desktop", "Datei exportieren"]
+virtual_desktop_widgets:
+  en: ["desktop widget", "create widget", "pin widget", "widget notification", "diagnose widget", "widget on virtual desktop", "virtual desktop notification", "standalone HTML widget"]
+  de: ["Desktop Widget", "Widget erstellen", "Widget anheften", "Widget Benachrichtigung", "Widget prüfen", "Widget auf virtuellem Desktop", "Benachrichtigung auf Desktop", "eigenes HTML Widget"]
+virtual_workspace:
+  en: ["virtual workspace", "agent workspace", "Firecracker VM", "open sandbox VM", "run command in workspace", "start background job", "workspace checkpoint", "close workspace", "isolated Linux environment"]
+  de: ["virtueller Workspace", "Agent Workspace", "Firecracker VM", "Sandbox VM öffnen", "Befehl im Workspace ausführen", "Hintergrundjob starten", "Workspace sichern", "Workspace schließen", "isolierte Linux Umgebung"]

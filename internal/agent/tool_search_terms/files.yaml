@@ -1,1 +1,97 @@
-# Search terms of the file and document tools.
+# files search terms
+archive:
+  en: ["zip files", "create zip archive", "unzip file", "extract zip", "tar.gz", "list zip contents", "compress folder to zip", "unpack tarball"]
+  de: ["ZIP-Datei erstellen", "Zip entpacken", "Archiv entpacken", "Ordner zippen", "tar.gz entpacken", "Archivinhalt anzeigen", "Dateien packen", "ZIP-Archiv auflisten"]
+code_graph:
+  en: ["who calls this function", "find callers of symbol", "code call graph", "impact of changing function", "outline source file", "symbol search in project", "code dependencies", "project code index"]
+  de: ["Aufrufer einer Funktion", "Aufrufgraph", "Codestruktur analysieren", "wer ruft diese Funktion auf", "Auswirkung einer Änderung", "Symbol im Projekt suchen", "Codeübersicht einer Datei", "Abhängigkeiten im Code"]
+detect_file_type:
+  en: ["what type is this file", "true file type", "magic bytes", "wrong file extension", "identify file format", "mime type of file", "file has no extension", "check real format"]
+  de: ["Dateityp erkennen", "welcher Dateityp ist das", "echtes Dateiformat prüfen", "falsche Dateiendung", "Dateiendung fehlt", "MIME-Typ ermitteln", "Magic Bytes", "Datei ohne Endung"]
+document_creator:
+  en: ["create PDF", "make a PDF report", "webpage to PDF", "markdown to PDF", "HTML to PDF", "Word to PDF", "screenshot of website", "convert docx to PDF"]
+  de: ["PDF erstellen", "Webseite als PDF speichern", "Markdown in PDF umwandeln", "Word in PDF umwandeln", "Screenshot einer Webseite", "PDF Bericht erzeugen", "HTML zu PDF", "Dokument nach PDF konvertieren"]
+file_editor:
+  en: ["edit text file", "replace text in file", "find and replace in file", "insert line after", "append to file", "delete lines", "patch file", "regex replace in files"]
+  de: ["Datei bearbeiten", "Text in Datei ersetzen", "Zeile einfügen", "Zeilen löschen", "Text anhängen", "suchen und ersetzen", "Datei patchen", "Textstelle ändern"]
+file_reader_advanced:
+  en: ["read lines of file", "first lines of file", "last lines of log", "tail log file", "head of file", "count lines", "lines 50 to 75", "grep with context lines"]
+  de: ["Zeilen einer Datei lesen", "letzte Zeilen der Logdatei", "erste Zeilen anzeigen", "Zeilen zählen", "Logdatei tail", "Zeilenbereich lesen", "Treffer mit Kontext", "große Datei teilweise lesen"]
+file_search:
+  en: ["grep in files", "search text in files", "find files by name", "search folder for text", "regex search in files", "find file glob", "search code for string", "count matches"]
+  de: ["Text in Dateien suchen", "Ordner durchsuchen", "Datei nach Namen finden", "grep Suche", "Dateien finden", "Suchmuster in Dateien", "Zeichenfolge im Code suchen", "Treffer zählen"]
+filesystem:
+  en: ["list directory", "read file", "write file", "copy file", "move file", "rename file", "delete file", "create folder", "show folder contents"]
+  de: ["Datei lesen", "Datei umbenennen", "Datei kopieren", "Datei löschen", "Ordner erstellen", "Ordnerinhalt anzeigen", "Datei verschieben", "Datei speichern"]
+gog_accounts:
+  en: ["gog accounts", "which Google accounts are connected", "Google account permissions", "list gog accounts", "gog account ID", "enabled Google accounts", "account grants"]
+  de: ["Google Konten anzeigen", "gog Konten", "verbundene Google Konten", "Berechtigungen der Konten", "welche Google Accounts", "Konto-ID gog", "gog Berechtigungen prüfen"]
+gog_calendar:
+  en: ["Google Calendar event", "gog calendar", "create Google calendar event", "check free busy", "recurring event", "list Google calendar events", "delete calendar event", "meeting availability"]
+  de: ["Google Kalender Termin", "Kalendereintrag anlegen", "Google Termine anzeigen", "freie Zeiten prüfen", "Serientermin", "Termin löschen Google", "gog Kalender", "Termin verschieben"]
+gog_contacts:
+  en: ["Google contacts", "gog contacts", "find contact phone number", "add Google contact", "contact email address", "update contact", "Google address book", "delete contact"]
+  de: ["Google Kontakte", "Kontakt anlegen", "Telefonnummer eines Kontakts", "Kontakt suchen", "Google Adressbuch", "gog Kontakte", "E-Mail-Adresse eines Kontakts", "Kontakt löschen"]
+gog_docs:
+  en: ["Google Docs", "gog docs", "read Google Doc", "create Google document", "replace text in Google Doc", "export Doc as PDF", "Google document text"]
+  de: ["Google Docs lesen", "Google Dokument erstellen", "Text im Google Dokument ersetzen", "Google Doc exportieren", "gog Docs", "Google Textdokument"]
+gog_drive:
+  en: ["Google Drive", "gog drive", "upload to Google Drive", "download from Drive", "search Drive files", "create Drive folder", "Drive file to trash", "rename Drive file", "import Office file to Google"]
+  de: ["Google Drive Datei hochladen", "Drive durchsuchen", "aus Google Drive herunterladen", "Drive Ordner anlegen", "Drive Datei in Papierkorb", "Drive Datei umbenennen", "gog Drive", "Office Datei in Google umwandeln"]
+gog_gmail:
+  en: ["Gmail", "gog gmail", "send email Gmail", "search Gmail", "read Gmail message", "email draft", "download email attachment", "Gmail labels", "trash email"]
+  de: ["Gmail", "E-Mail senden Gmail", "Gmail Mail lesen", "E-Mail Entwurf", "Anhang herunterladen", "Gmail Label", "Mail archivieren", "Gmail durchsuchen", "gog Mail"]
+gog_sheets:
+  en: ["Google Sheets", "gog sheets", "read spreadsheet range", "append row to spreadsheet", "update cells", "create Google spreadsheet", "export sheet to Excel", "spreadsheet values"]
+  de: ["Google Tabelle", "Google Sheets lesen", "Zeile an Tabelle anhängen", "Zellen aktualisieren", "Tabelle erstellen Google", "Tabelle als Excel exportieren", "gog Tabellen", "Zellbereich lesen"]
+gog_slides:
+  en: ["Google Slides", "gog slides", "presentation slides", "read slide text", "create presentation", "replace text in slides", "export presentation as PDF", "PowerPoint Google"]
+  de: ["Google Präsentation", "Folien lesen", "Präsentation erstellen", "Text in Folien ersetzen", "gog Slides", "Präsentation exportieren", "Folientext", "PowerPoint Google"]
+gog_tasks:
+  en: ["Google Tasks", "gog tasks", "Google to-do list", "add Google task", "complete task", "task due date", "reopen task", "create task list"]
+  de: ["Google Aufgaben", "Aufgabe hinzufügen Google", "Aufgabe erledigen", "To-do Liste Google", "Aufgabenliste anlegen", "Fälligkeitsdatum Aufgabe", "gog Aufgaben", "Aufgabe wieder öffnen"]
+google_workspace:
+  en: ["Google Workspace", "G Suite", "native Google account", "Gmail inbox", "list recent emails", "Google Calendar events", "search Google Drive", "read Google Sheet", "Google Docs content"]
+  de: ["Google Workspace", "Google Konto", "Gmail Posteingang", "E-Mail über Google senden", "Google Kalender Termine", "Google Drive durchsuchen", "Google Tabelle lesen", "Google Dokument lesen"]
+image_processing:
+  en: ["resize image", "crop image", "rotate image", "convert PNG to JPG", "compress image", "reduce image size", "image dimensions", "scale photo"]
+  de: ["Bild verkleinern", "Bild zuschneiden", "Bild drehen", "Bildformat umwandeln", "PNG in JPG umwandeln", "Foto komprimieren", "Bildgröße ändern", "Bildabmessungen auslesen"]
+json_editor:
+  en: ["edit JSON file", "change JSON value", "JSON path", "validate JSON", "format JSON", "pretty print JSON", "delete JSON key", "list JSON keys"]
+  de: ["JSON bearbeiten", "JSON Wert ändern", "JSON validieren", "JSON formatieren", "JSON Schlüssel löschen", "JSON Datei prüfen", "JSON Schlüssel auflisten", "JSON Pfad"]
+koofr:
+  en: ["Koofr", "Koofr cloud", "Koofr upload", "Koofr files", "Koofr download", "Koofr folder", "copy file in Koofr", "Koofr storage"]
+  de: ["Koofr Cloud", "Datei zu Koofr hochladen", "Koofr Ordner", "Koofr herunterladen", "Koofr Dateien auflisten", "Koofr Speicher", "Koofr Datei umbenennen", "Koofr Backup"]
+obsidian:
+  en: ["Obsidian", "Obsidian vault", "Obsidian note", "daily note", "Dataview query", "search notes in vault", "patch heading of note", "list note tags", "weekly note"]
+  de: ["Obsidian Notiz", "Obsidian Vault", "Tagesnotiz", "Dataview Abfrage", "Notizen im Vault suchen", "Obsidian Tags", "Überschrift in Notiz ergänzen", "Wochennotiz", "Obsidian Befehl ausführen"]
+onedrive:
+  en: ["OneDrive", "Microsoft OneDrive", "OneDrive upload", "OneDrive storage quota", "share link OneDrive", "search OneDrive", "OneDrive folder", "Microsoft cloud files"]
+  de: ["OneDrive Datei", "OneDrive hochladen", "OneDrive Speicherplatz", "Freigabelink erstellen", "OneDrive durchsuchen", "Microsoft Cloud", "OneDrive Ordner", "OneDrive verschieben"]
+paperless_ngx:
+  en: ["Paperless", "Paperless-ngx", "document archive", "scanned documents OCR", "search scanned documents", "document tags correspondents", "upload document to Paperless", "OCR text of document"]
+  de: ["Paperless", "Paperless-ngx", "Dokumentenarchiv", "gescannte Dokumente suchen", "Korrespondent Dokumenttyp", "Dokument verschlagworten", "Rechnung archivieren", "OCR Text Dokument", "Dokument hochladen Paperless"]
+pdf_operations:
+  en: ["merge PDFs", "combine PDF files", "split PDF pages", "PDF watermark", "compress PDF", "password protect PDF", "remove PDF password", "PDF page count", "fill PDF form", "PDF metadata"]
+  de: ["PDF zusammenfügen", "PDF zusammenführen", "PDF aufteilen", "PDF Wasserzeichen", "PDF verkleinern", "PDF verschlüsseln", "PDF Passwort entfernen", "PDF Formular ausfüllen", "Seitenzahl PDF", "PDF Seiten trennen"]
+smart_file_read:
+  en: ["summarize large file", "preview big file", "sample file content", "file structure overview", "inspect large log", "what is in this file", "analyze file metadata", "detect CSV structure"]
+  de: ["große Datei zusammenfassen", "Datei Vorschau", "Dateiinhalt stichprobenartig", "Aufbau der Datei erkennen", "große Logdatei überblicken", "Datei analysieren", "Dateiübersicht", "Struktur einer CSV"]
+text_diff:
+  en: ["compare two files", "diff files", "unified diff", "compare two texts", "what changed between files", "text difference", "compare config with backup", "show differences"]
+  de: ["Dateien vergleichen", "Texte vergleichen", "Unterschiede anzeigen", "Diff erstellen", "was hat sich geändert", "Textvergleich", "zwei Dateien abgleichen", "Konfiguration mit Backup vergleichen"]
+toml_editor:
+  en: ["edit TOML file", "TOML config", "Cargo.toml", "pyproject.toml", "change TOML value", "validate TOML", "TOML keys", "set TOML table value"]
+  de: ["TOML bearbeiten", "TOML Datei ändern", "TOML Wert setzen", "TOML validieren", "pyproject Version ändern", "Cargo Konfiguration", "TOML Schlüssel auflisten", "TOML Konfiguration"]
+webdav:
+  en: ["WebDAV", "Nextcloud files", "ownCloud", "Synology files", "WebDAV upload", "WebDAV folder", "cloud storage WebDAV", "read file on Nextcloud"]
+  de: ["WebDAV", "Nextcloud Dateien", "Nextcloud Ordner", "ownCloud", "Datei auf WebDAV speichern", "WebDAV auflisten", "Cloud Speicher WebDAV", "Synology NAS Dateien"]
+workspace_search:
+  en: ["find file in workspace", "recent files", "workspace index", "fuzzy file search", "quick search workspace", "recently used files", "rescan workspace", "grep workspace"]
+  de: ["Datei im Workspace finden", "zuletzt geöffnete Dateien", "Workspace Index", "Arbeitsbereich durchsuchen", "unscharfe Dateisuche", "Workspace neu indizieren", "schnelle Dateisuche", "Index Status"]
+xml_editor:
+  en: ["edit XML file", "XPath query", "XML attribute", "set XML element text", "add XML element", "validate XML", "format XML", "delete XML element"]
+  de: ["XML bearbeiten", "XPath Abfrage", "XML Attribut setzen", "XML Element hinzufügen", "XML validieren", "XML formatieren", "XML Element löschen", "XML Knoten ändern"]
+yaml_editor:
+  en: ["edit YAML file", "change YAML value", "docker compose yml edit", "validate YAML", "YAML keys", "delete YAML key", "keep YAML comments", "yml config"]
+  de: ["YAML bearbeiten", "YAML Wert ändern", "YAML validieren", "YAML Schlüssel löschen", "Compose Datei ändern", "YML Konfiguration", "YAML Kommentare behalten", "YAML Schlüssel auflisten"]
