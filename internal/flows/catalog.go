@@ -112,9 +112,10 @@ type FieldInfo struct {
 //     upstream node key and those are only known from the connections. The
 //     OutputFields of the merge's NodeTypeInfo describe the default mode, which is none.
 //   - ai.decision: "mode" selects route-only result fields or structured-evaluation fields.
+//   - home.assistant: "operation" is segmented; get_state and call_service have their own fields.
 var (
 	dynamicOutputs = map[string]string{TypeSwitch: "cases", TypeAIDecision: "decision_choices"}
-	dynamicFields  = map[string]string{TypeAIStep: "fields", TypeMerge: "mode", TypeAIDecision: "mode"}
+	dynamicFields  = map[string]string{TypeAIStep: "fields", TypeMerge: "mode", TypeAIDecision: "mode", TypeHomeAssistant: "operation"}
 )
 
 // DescribeNodeTypes describes every registered node type for the editor, ordered by

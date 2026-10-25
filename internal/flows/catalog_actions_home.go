@@ -2,6 +2,7 @@ package flows
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"time"
 )
@@ -73,9 +74,8 @@ func homeAssistantDef(env CatalogEnv) *NodeDef {
 		{Name: "service", Kind: ParamText, LabelKey: "easydrag.param.ha_service", HelpKey: "easydrag.help.ha_service", Required: true, VisibleIf: callService},
 		{Name: "service_data", Kind: ParamJSON, LabelKey: "easydrag.param.ha_service_data", Templatable: true, SensitiveSink: true, VisibleIf: callService},
 	}
-	def.OutputFields = []FieldSpec{{Name: "state", Type: "text", Primary: true}, {Name: "attributes", Type: "object"},
-		{Name: "affected_entities", Type: "list"}, {Name: "entity_id", Type: "text"},
-		{Name: "last_changed", Type: "text"}, {Name: "ok", Type: "bool"}, {Name: "service", Type: "text"}}
+	def.OutputFields = haAllFields
+	def.OutputFieldsFunc = homeAssistantFields
 	def.EffectsFunc = homeAssistantEffects
 	def.Validate = func(n *Node, _ ValidateContext) []Issue {
 		if n == nil {
@@ -147,6 +147,32 @@ func homeAssistantDef(env CatalogEnv) *NodeDef {
 		return ExecResult{Output: map[string]any{"ok": true, "service": domain + "." + service, "affected_entities": affected}}, nil
 	}
 	return def
+}
+
+// The output fields of home.assistant per operation (N5): get_state returns the entity, a
+// service call what it changed. haAllFields is for an operation the document does not settle
+// (a template, a value that is no operation) and for FieldsOf(nil).
+var (
+	haStateFields = []FieldSpec{{Name: "state", Type: "text", Primary: true}, {Name: "attributes", Type: "object"},
+		{Name: "entity_id", Type: "text"}, {Name: "last_changed", Type: "text"}}
+	haServiceFields = []FieldSpec{{Name: "ok", Type: "bool", Primary: true}, {Name: "service", Type: "text"},
+		{Name: "affected_entities", Type: "list"}}
+	haAllFields = []FieldSpec{{Name: "state", Type: "text", Primary: true}, {Name: "attributes", Type: "object"},
+		{Name: "entity_id", Type: "text"}, {Name: "last_changed", Type: "text"}, {Name: "ok", Type: "bool"},
+		{Name: "service", Type: "text"}, {Name: "affected_entities", Type: "list"}}
+)
+
+// homeAssistantFields is the node's OutputFieldsFunc: the fields of its operation (the editor
+// mirrors it in easydrag-model.js fieldsOf). It is a hook: pure and panic-free for any params.
+func homeAssistantFields(n *Node) []FieldSpec {
+	op, ok := choiceParam(n.Params["operation"], "call_service", haOperations...)
+	switch {
+	case !ok:
+		return slices.Clone(haAllFields)
+	case op == "get_state":
+		return slices.Clone(haStateFields)
+	}
+	return slices.Clone(haServiceFields)
 }
 
 // homeAssistantEffects lists what a home.assistant node does outwardly. Only a

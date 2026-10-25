@@ -12,6 +12,10 @@
     const MAX_HISTORY = 300;
     const MAX_PASTE_NODES = 500; // flows.MaxNodes
     const MAX_PASTE_EDGES = 2000; // flows.MaxEdges
+    // home.assistant fields per operation (homeAssistantFields in internal/flows/catalog_actions_home.go).
+    const HA_STATE_FIELDS = [{ name: 'state', type: 'text', primary: true }, { name: 'attributes', type: 'object' }, { name: 'entity_id', type: 'text' }, { name: 'last_changed', type: 'text' }];
+    const HA_SERVICE_FIELDS = [{ name: 'ok', type: 'bool', primary: true }, { name: 'service', type: 'text' }, { name: 'affected_entities', type: 'list' }];
+    const HA_ALL_FIELDS = HA_STATE_FIELDS.concat([{ name: 'ok', type: 'bool' }, { name: 'service', type: 'text' }, { name: 'affected_entities', type: 'list' }]);
 
     function randomSuffix(n) {
         const bytes = new Uint8Array(n);
@@ -177,6 +181,12 @@
         function fieldsOf(n) {
             const i = info(n.type);
             if (!i) return [];
+            if (i.dynamic_fields === 'operation') {
+                const raw = n.params ? n.params.operation : undefined;
+                const op = raw === undefined || raw === null ? 'call_service' : typeof raw === 'string' ? (raw.trim().toLowerCase() || 'call_service') : '';
+                const list = op === 'get_state' ? HA_STATE_FIELDS : op === 'call_service' ? HA_SERVICE_FIELDS : HA_ALL_FIELDS;
+                return list.map(f => Object.assign({}, f));
+            }
             if (i.dynamic_fields === 'mode') {
                 if (i.type === 'ai.decision') {
                     const fields = Array.isArray(i.output_fields) ? i.output_fields.slice() : [];

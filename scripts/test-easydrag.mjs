@@ -219,6 +219,19 @@ guard('c1d02 merge fields', () => {
     mm.connect(branch, 'false', merge2, 'in');
     eq('c1d02 merge skips duplicate upstream nodes', mm.fieldsOf(mm.node(merge2)).map(f => f.name), ['wenn']);
 });
+guard('fb4 home assistant fields', () => {
+    // home.assistant fields follow the operation (homeAssistantFields in internal/flows/catalog_actions_home.go).
+    const haTypes = new Map(types);
+    haTypes.set('home.assistant', { type: 'home.assistant', label: 'Home Assistant', inputs: ['in'], outputs: ['out'], dynamic_fields: 'operation',
+        params: [{ name: 'operation', kind: 'segmented', default: 'call_service' }], output_fields: [{ name: 'ok', type: 'bool', primary: true }] });
+    const hm = M.create({ schema: 1, name: 'HA', nodes: [], edges: [] }, { types: haTypes });
+    const ha = hm.addNode('home.assistant', { x: 0, y: 0 });
+    eq('fb4 call_service fields', hm.fieldsOf(hm.node(ha)).map(f => f.name), ['ok', 'service', 'affected_entities']);
+    hm.setParam(ha, 'operation', 'get_state');
+    eq('fb4 get_state fields', hm.fieldsOf(hm.node(ha)), [{ name: 'state', type: 'text', primary: true }, { name: 'attributes', type: 'object' }, { name: 'entity_id', type: 'text' }, { name: 'last_changed', type: 'text' }]);
+    hm.setParam(ha, 'operation', '{{trigger.data.op}}');
+    eq('fb4 templated operation lists every field', hm.fieldsOf(hm.node(ha)).map(f => f.name), ['state', 'attributes', 'entity_id', 'last_changed', 'ok', 'service', 'affected_entities']);
+});
 guard('c1d02 filters', () => {
     // Preview filters follow the Go engine (internal/flows/filters.go); the expectations are Go's results.
     eq('c1d02 round halves away from zero', [T.applyFilter('round', -2.5, []), T.applyFilter('round', 2.5, []), T.applyFilter('round', -0.125, [2])], [-3, 3, -0.13]);
