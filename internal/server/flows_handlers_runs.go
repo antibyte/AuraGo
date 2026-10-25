@@ -19,6 +19,7 @@ type flowTestBody struct {
 	TriggerData  map[string]any `json:"trigger_data"`
 	OnlyNode     string         `json:"only_node"`
 	RememberData bool           `json:"remember_data"`
+	BaseRevision int            `json:"base_revision"`
 }
 
 // flowsTestDataBodyLimit bounds the body of PUT {id}/test-data/{node}: the flows cap on
@@ -77,7 +78,7 @@ func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, actio
 			return true
 		}
 		res, err := s.Flows.StartTestRun(ctx, id, flows.TestRunRequest{TriggerNode: body.TriggerNode,
-			TriggerData: body.TriggerData, OnlyNode: body.OnlyNode, RememberData: body.RememberData})
+			TriggerData: body.TriggerData, OnlyNode: body.OnlyNode, RememberData: body.RememberData, BaseRevision: body.BaseRevision})
 		if err != nil {
 			s.flowsErrorFrom(w, r, err)
 			return true

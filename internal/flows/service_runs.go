@@ -28,6 +28,10 @@ type TestRunRequest struct {
 	TriggerData  map[string]any
 	OnlyNode     string
 	RememberData bool
+	// BaseRevision is the draft revision the editor shows; > 0 refuses the test with
+	// ErrRevisionConflict when the draft moved on meanwhile (another window), so no effect runs
+	// for a draft nobody looked at. 0 skips the check.
+	BaseRevision int
 }
 
 // RunDetail is a run with its steps (and optionally the document it executed).
@@ -50,6 +54,9 @@ func (s *Service) StartTestRun(ctx context.Context, id string, req TestRunReques
 	rec, err := s.store.GetFlow(ctx, id)
 	if err != nil {
 		return StartResult{}, err
+	}
+	if req.BaseRevision > 0 && req.BaseRevision != rec.DraftRevision {
+		return StartResult{}, ErrRevisionConflict
 	}
 	if issues := Validate(rec.Draft, s.reg, s.vc(ModeDraft)); HasErrors(issues) {
 		return StartResult{}, &ValidationError{Issues: issues}

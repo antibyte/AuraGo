@@ -546,10 +546,19 @@
             return dialog;
         }
 
+        // baseRevision is the draft revision a test runs: the saver's (it saved just before) or the
+        // flow's. The server refuses the test with 409 when the draft moved on in another window.
+        function baseRevision() {
+            const rev = ed.saver && Number.isInteger(ed.saver.revision) ? ed.saver.revision : ed.flow && ed.flow.draft_revision;
+            return Number.isInteger(rev) && rev > 0 ? rev : 0;
+        }
+
         function run(triggerNode, data, onlyNode, remember) {
             return trackStart(async () => {
                 try {
                     const body = { trigger_node: triggerNode, only_node: onlyNode || undefined, remember_data: !!remember };
+                    const rev = baseRevision();
+                    if (rev) body.base_revision = rev;
                     if (data) body.trigger_data = data;
                     const res = await ed.api.test(ed.flow.id, body);
                     if (res && res.run_id && !disposed) { attach(res.run_id, { mode: 'test' }); canvas.announce(t('easydrag.ui.announce_test_started')); }
