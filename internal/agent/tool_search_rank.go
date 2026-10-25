@@ -28,6 +28,8 @@ const (
 	// counts half, but only in names and curated terms.
 	toolSearchPrefixLevel   = 0.75
 	toolSearchCompoundLevel = 0.5
+	// A compound match needs a stem of this many runes at the end of the other.
+	toolSearchCompoundRunes = 5
 
 	// toolSearchMaxTokens bounds the content tokens of a query.
 	toolSearchMaxTokens = 32
@@ -111,9 +113,16 @@ type toolSearchDocText struct {
 	// holds every pair of consecutive stems of those, of the name and of the
 	// descriptions (see toolSearchBigram), sorted: the text in which two
 	// consecutive query words can follow each other.
-	phrases       [][]string
-	bigrams       []uint64
+	phrases [][]string
+	bigrams []uint64
+	// prefixKeys are the keys (toolSearchPrefixKey) of the stems, suffixKeys
+	// those of the stems a compound can match; both sorted. They tell without
+	// a scan of the stems that a query stem matches none of them.
+	prefixKeys    []uint32
+	suffixKeys    []uint32
 	nonDisplacing bool
+	// size estimates the bytes the text occupies.
+	size int
 }
 
 // toolSearchIndex is the lazily built search view of a catalog.
@@ -159,37 +168,85 @@ func toolSearchNameText(entry *ToolCatalogEntry) string {
 
 // toolSearchDocCache keeps the derived text by content. The adaptive selection
 // builds a catalog for every request, while the tools behind it rarely change.
-// The cache starts over when it outgrows toolSearchDocCacheLimit, which only a
-// stream of ever-changing descriptions can cause.
+// The cache starts over when it outgrows toolSearchDocCacheLimit entries or
+// toolSearchDocCacheBytes, which only a stream of ever-changing descriptions
+// can cause. bytes is what the entries cost: their keys plus their size.
 var toolSearchDocCache struct {
 	sync.Mutex
-	docs map[string]*toolSearchDocText
+	docs  map[string]*toolSearchDocText
+	bytes int
 }
 
 const toolSearchDocCacheLimit = 4096
 
+// toolSearchDocCacheBytes is a variable for the sake of the tests.
+var toolSearchDocCacheBytes = 32 << 20
+
+// toolSearchDescriptionLimit bounds how much of each description is indexed.
+// An MCP server writes its descriptions itself and nothing else limits them;
+// the longest one of a built-in tool has 659 bytes.
+const toolSearchDescriptionLimit = 4 << 10
+
 func newToolSearchDoc(entry *ToolCatalogEntry) *toolSearchDoc {
 	operations := toolCatalogOperations(entry)
-	key := toolSearchDocKey(entry, operations)
+	descriptions := toolSearchDescriptions(entry)
+	key := toolSearchDocKey(entry, descriptions, operations)
 	toolSearchDocCache.Lock()
 	text := toolSearchDocCache.docs[key]
 	toolSearchDocCache.Unlock()
 	if text == nil {
-		text = newToolSearchDocText(entry, operations)
-		toolSearchDocCache.Lock()
-		if toolSearchDocCache.docs == nil || len(toolSearchDocCache.docs) >= toolSearchDocCacheLimit {
-			toolSearchDocCache.docs = make(map[string]*toolSearchDocText)
-		}
-		toolSearchDocCache.docs[key] = text
-		toolSearchDocCache.Unlock()
+		text = newToolSearchDocText(entry, descriptions, operations)
+		storeToolSearchDocText(key, text)
 	}
 	return &toolSearchDoc{entry: entry, toolSearchDocText: text}
 }
 
+// storeToolSearchDocText caches a text unless it alone would fill the cache.
+func storeToolSearchDocText(key string, text *toolSearchDocText) {
+	cost := len(key) + text.size
+	toolSearchDocCache.Lock()
+	defer toolSearchDocCache.Unlock()
+	if cost > toolSearchDocCacheBytes {
+		return
+	}
+	if old, ok := toolSearchDocCache.docs[key]; ok {
+		toolSearchDocCache.bytes -= len(key) + old.size
+	}
+	if toolSearchDocCache.docs == nil || len(toolSearchDocCache.docs) >= toolSearchDocCacheLimit || toolSearchDocCache.bytes+cost > toolSearchDocCacheBytes {
+		toolSearchDocCache.docs = make(map[string]*toolSearchDocText)
+		toolSearchDocCache.bytes = 0
+	}
+	toolSearchDocCache.docs[key] = text
+	toolSearchDocCache.bytes += cost
+}
+
+// toolSearchDescriptions are the description texts of an entry that are
+// indexed: the description and, when it differs, the one of the schema, each
+// cut to toolSearchDescriptionLimit. An MCP tool carries the same text twice.
+func toolSearchDescriptions(entry *ToolCatalogEntry) []string {
+	descriptions := []string{toolSearchPrefix(entry.Description, toolSearchDescriptionLimit)}
+	if schema := toolSearchPrefix(schemaFunctionDescription(entry), toolSearchDescriptionLimit); schema != "" && schema != descriptions[0] {
+		descriptions = append(descriptions, schema)
+	}
+	return descriptions
+}
+
+// toolSearchPrefix cuts text to at most limit bytes without splitting a character.
+func toolSearchPrefix(text string, limit int) string {
+	if len(text) <= limit {
+		return text
+	}
+	cut := limit
+	for i := 0; i < utf8.UTFMax && cut > 0 && !utf8.RuneStart(text[cut]); i++ {
+		cut--
+	}
+	return text[:cut]
+}
+
 // toolSearchDocKey joins every input of newToolSearchDocText.
-func toolSearchDocKey(entry *ToolCatalogEntry, operations []string) string {
+func toolSearchDocKey(entry *ToolCatalogEntry, descriptions, operations []string) string {
 	var b strings.Builder
-	for _, part := range [][]string{{entry.Name, entry.Category, entry.Description, schemaFunctionDescription(entry)}, entry.SearchTerms, entry.Aliases, operations} {
+	for _, part := range [][]string{{entry.Name, entry.Category}, descriptions, entry.SearchTerms, entry.Aliases, operations} {
 		for _, text := range part {
 			b.WriteString(text)
 			b.WriteByte(0)
@@ -206,7 +263,7 @@ func schemaFunctionDescription(entry *ToolCatalogEntry) string {
 	return entry.Schema.Function.Description
 }
 
-func newToolSearchDocText(entry *ToolCatalogEntry, operations []string) *toolSearchDocText {
+func newToolSearchDocText(entry *ToolCatalogEntry, descriptions, operations []string) *toolSearchDocText {
 	doc := &toolSearchDocText{
 		name:          foldToolSearchText(entry.Name),
 		nonDisplacing: slices.Contains(prompts.NonDisplacingTools, entry.Name),
@@ -255,12 +312,8 @@ func newToolSearchDocText(entry *ToolCatalogEntry, operations []string) *toolSea
 		add(stemToolSearchWord(word), toolSearchCategoryWeight)
 	}
 
-	descriptions := []string{entry.Description}
-	if schema := schemaFunctionDescription(entry); schema != "" && schema != entry.Description {
-		descriptions = append(descriptions, schema)
-	}
 	if short := toolShortDescForName(entry.Name); short != "" && !slices.Contains(descriptions, short) {
-		descriptions = append(descriptions, short)
+		descriptions = append(slices.Clip(descriptions), short)
 	}
 	for _, text := range descriptions {
 		stems := toolSearchTermsOf(text, true)
@@ -282,7 +335,72 @@ func newToolSearchDocText(entry *ToolCatalogEntry, operations []string) *toolSea
 		}
 		return doc.stems[i].text < doc.stems[j].text
 	})
+	doc.prefixKeys = make([]uint32, 0, len(doc.stems))
+	for _, stem := range doc.stems {
+		doc.prefixKeys = append(doc.prefixKeys, toolSearchPrefixKey(stem.text))
+		if stem.weight >= toolSearchTermWeight && stem.runes >= toolSearchCompoundRunes {
+			doc.suffixKeys = append(doc.suffixKeys, toolSearchSuffixKey(stem.text))
+		}
+	}
+	slices.Sort(doc.prefixKeys)
+	doc.prefixKeys = slices.Compact(doc.prefixKeys)
+	slices.Sort(doc.suffixKeys)
+	doc.suffixKeys = slices.Compact(doc.suffixKeys)
+	doc.size = doc.estimateSize()
 	return doc
+}
+
+// estimateSize adds up the bytes of the text, headers and keys included.
+func (d *toolSearchDocText) estimateSize() int {
+	const header = 16 // a string or slice header, roughly
+	size := len(d.name) + header
+	for _, texts := range [][]string{d.aliases, d.operations, d.nameParts} {
+		for _, text := range texts {
+			size += len(text) + header
+		}
+	}
+	for _, stem := range d.stems {
+		size += len(stem.text) + header + 16
+	}
+	for _, phrase := range d.phrases {
+		size += header
+		for _, stem := range phrase {
+			size += len(stem) + header
+		}
+	}
+	return size + 8*len(d.bigrams) + 4*(len(d.prefixKeys)+len(d.suffixKeys))
+}
+
+// toolSearchPrefixKey hashes the first four runes of a stem, all of it when
+// it is shorter. Two stems of which one starts with the other, the shorter
+// one of four runes or more, or that are equal, share the key.
+func toolSearchPrefixKey(stem string) uint32 {
+	end := 0
+	for n := 0; n < 4 && end < len(stem); n++ {
+		_, size := utf8.DecodeRuneInString(stem[end:])
+		end += size
+	}
+	return fnv32(stem[:end])
+}
+
+// toolSearchSuffixKey hashes the last toolSearchCompoundRunes runes of a stem.
+// A compound match needs stems of that many runes that end alike.
+func toolSearchSuffixKey(stem string) uint32 {
+	start := len(stem)
+	for n := 0; n < toolSearchCompoundRunes && start > 0; n++ {
+		_, size := utf8.DecodeLastRuneInString(stem[:start])
+		start -= size
+	}
+	return fnv32(stem[start:])
+}
+
+func fnv32(text string) uint32 {
+	const offset, prime = 2166136261, 16777619
+	h := uint32(offset)
+	for i := 0; i < len(text); i++ {
+		h = (h ^ uint32(text[i])) * prime
+	}
+	return h
 }
 
 // addBigrams records the pairs of consecutive stems of a sequence.
@@ -378,6 +496,10 @@ type toolSearchToken struct {
 	runes int
 	group int // index into toolSearchQuery.groupSize, -1 outside an identifier
 	idf   float64
+	// prefixKey and suffixKey are the keys of the stem (toolSearchPrefixKey,
+	// toolSearchSuffixKey); the latter only counts for a stem that can be
+	// part of a compound.
+	prefixKey, suffixKey uint32
 }
 
 type toolSearchQuery struct {
@@ -405,15 +527,11 @@ func boundToolSearchQuery(query string) string {
 		return query
 	}
 	half := toolSearchQueryLimit / 2
-	head := half
-	for i := 0; i < utf8.UTFMax && head > 0 && !utf8.RuneStart(query[head]); i++ {
-		head--
-	}
 	tail := len(query) - (half - 1)
 	for i := 0; i < utf8.UTFMax && tail < len(query) && !utf8.RuneStart(query[tail]); i++ {
 		tail++
 	}
-	return query[:head] + " " + query[tail:]
+	return toolSearchPrefix(query, half) + " " + query[tail:]
 }
 
 // toolSearchUnit is what the token selection weighs: a word, or all the parts
@@ -444,7 +562,11 @@ func parseToolSearchQuery(query, nameAlias string) toolSearchQuery {
 	stats := toolSearchUniverse()
 	newToken := func(stem string, group int) (toolSearchToken, bool) {
 		idf, known := stats.weigh(stem)
-		return toolSearchToken{stem: stem, runes: utf8.RuneCountInString(stem), group: group, idf: idf}, known
+		token := toolSearchToken{stem: stem, runes: utf8.RuneCountInString(stem), group: group, idf: idf, prefixKey: toolSearchPrefixKey(stem)}
+		if token.runes >= toolSearchCompoundRunes {
+			token.suffixKey = toolSearchSuffixKey(stem)
+		}
+		return token, known
 	}
 	var units []toolSearchUnit
 	total := 0
@@ -583,14 +705,30 @@ func toolSearchLevel(stem string, runes int, other toolSearchStem) float64 {
 	if shortRunes >= 4 && strings.HasPrefix(long, short) {
 		return toolSearchPrefixLevel
 	}
-	if other.weight >= toolSearchTermWeight && shortRunes >= 5 && longRunes >= shortRunes+3 && strings.HasSuffix(long, short) {
+	if other.weight >= toolSearchTermWeight && shortRunes >= toolSearchCompoundRunes && longRunes >= shortRunes+3 && strings.HasSuffix(long, short) {
 		return toolSearchCompoundLevel
 	}
 	return 0
 }
 
 // tokenWeight is the best weight times level over the stems of the tool.
+// A stem with a level above zero shares the prefix key of the token, or ends
+// like it in a compound (see toolSearchLevel), so most tokens of a query are
+// ruled out without a look at the stems.
 func (d *toolSearchDoc) tokenWeight(token *toolSearchToken) float64 {
+	if _, found := slices.BinarySearch(d.prefixKeys, token.prefixKey); !found {
+		if token.runes < toolSearchCompoundRunes {
+			return 0
+		}
+		if _, found := slices.BinarySearch(d.suffixKeys, token.suffixKey); !found {
+			return 0
+		}
+	}
+	return d.scanTokenWeight(token)
+}
+
+// scanTokenWeight checks every stem of the tool.
+func (d *toolSearchDoc) scanTokenWeight(token *toolSearchToken) float64 {
 	best := 0.0
 	for _, other := range d.stems {
 		if other.weight <= best {

@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 	"unicode/utf8"
+
+	openai "github.com/sashabaranov/go-openai"
 )
 
 func searchNames(catalog *ToolCatalog, query string) []string {
@@ -182,4 +184,114 @@ func TestToolSearchBoundsALongMessage(t *testing.T) {
 	if len(bounded) > toolSearchQueryLimit || !utf8.ValidString(bounded) || !strings.HasPrefix(bounded, "docker send") || !strings.HasSuffix(bounded, "müde  restart") {
 		t.Errorf("bounded query = %d bytes, valid=%v, %.20q...%.20q", len(bounded), utf8.ValidString(bounded), bounded, bounded[len(bounded)-20:])
 	}
+}
+
+// testMCPEntry is an external tool that carries its description in the entry
+// and again in its schema, as the MCP integration builds it.
+func testMCPEntry(name, description string) *ToolCatalogEntry {
+	entry := testSearchEntry(name, description, ToolStatusHidden)
+	entry.Kind = ToolKindMCP
+	entry.Category = "mcp"
+	entry.Schema = openai.Tool{Type: openai.ToolTypeFunction, Function: &openai.FunctionDefinition{Name: name, Description: description}}
+	return entry
+}
+
+// TestToolSearchIndexesTheStartOfADescriptionOnly guards the cost of external
+// tools: their descriptions are not limited anywhere, so only the first
+// toolSearchDescriptionLimit bytes of each are searched, cached and keyed.
+func TestToolSearchIndexesTheStartOfADescriptionOnly(t *testing.T) {
+	filler := strings.Repeat("lorem ipsum dolor ", 100000) // 1.7 MB
+	description := "Manages quokka colonies. " + filler[:3000] + " narwhal " + filler
+	if i := strings.Index(description, "narwhal"); i > toolSearchDescriptionLimit {
+		t.Fatalf("fixture puts the marker at %d", i)
+	}
+	description += " platypus"
+	catalog := newToolCatalog(nil, nil, "", false)
+	catalog.add(testMCPEntry("mcp__server__tool", description))
+
+	for query, want := range map[string]bool{"quokka": true, "narwhal": true, "platypus": false} {
+		if found := len(catalog.Search(query)) == 1; found != want {
+			t.Errorf("Search(%q) found = %v, want %v", query, found, want)
+		}
+	}
+	entry, _ := catalog.Get("mcp__server__tool")
+	if key := toolSearchDocKey(entry, toolSearchDescriptions(entry), nil); len(key) > 2*toolSearchDescriptionLimit {
+		t.Errorf("the cache key of a %d byte description has %d bytes", len(description), len(key))
+	}
+}
+
+// TestToolSearchDocCacheStaysWithinItsByteBudget guards the memory an external
+// server can pin through the global cache of derived texts.
+func TestToolSearchDocCacheStaysWithinItsByteBudget(t *testing.T) {
+	toolSearchDocCache.Lock()
+	saved, savedBytes, savedLimit := toolSearchDocCache.docs, toolSearchDocCache.bytes, toolSearchDocCacheBytes
+	toolSearchDocCache.docs, toolSearchDocCache.bytes = nil, 0
+	toolSearchDocCache.Unlock()
+	defer func() {
+		toolSearchDocCache.Lock()
+		toolSearchDocCache.docs, toolSearchDocCache.bytes, toolSearchDocCacheBytes = saved, savedBytes, savedLimit
+		toolSearchDocCache.Unlock()
+	}()
+
+	accounted := func() (sum int) {
+		toolSearchDocCache.Lock()
+		defer toolSearchDocCache.Unlock()
+		for key, text := range toolSearchDocCache.docs {
+			sum += len(key) + text.size
+		}
+		if sum != toolSearchDocCache.bytes {
+			t.Fatalf("the cache accounts %d bytes for entries of %d", toolSearchDocCache.bytes, sum)
+		}
+		return sum
+	}
+	words := strings.Fields(strings.Repeat("alpha bravo charlie delta echo foxtrot golf hotel india juliet ", 50))
+	entry := func(i int) *ToolCatalogEntry {
+		return testMCPEntry(fmt.Sprintf("mcp__s%d__t", i), fmt.Sprintf("tool%d %s", i, strings.Join(words, fmt.Sprintf(" w%d ", i))))
+	}
+
+	toolSearchDocCacheBytes = 150 << 10
+	for i := 0; i < 200; i++ {
+		newToolSearchDoc(entry(i))
+		if got := accounted(); got > toolSearchDocCacheBytes {
+			t.Fatalf("after %d entries the cache holds %d bytes, budget %d", i+1, got, toolSearchDocCacheBytes)
+		}
+	}
+	if accounted() == 0 {
+		t.Errorf("nothing was cached")
+	}
+
+	toolSearchDocCache.Lock()
+	toolSearchDocCache.docs, toolSearchDocCache.bytes = nil, 0
+	toolSearchDocCache.Unlock()
+	toolSearchDocCacheBytes = 1 << 10 // smaller than any entry
+	newToolSearchDoc(entry(1000))
+	if got := accounted(); got > toolSearchDocCacheBytes {
+		t.Errorf("an entry larger than the budget was cached: %d bytes", got)
+	}
+}
+
+// TestToolSearchTokenWeightPruningKeepsTheResult checks that ruling a token out
+// by its keys never differs from scanning the stems of every built-in tool.
+func TestToolSearchTokenWeightPruningKeepsTheResult(t *testing.T) {
+	catalog := BuildToolCatalog(BuildNativeToolSchemas("", nil, allBuiltinToolFeatureFlags(), nil), nil, "")
+	var words []string
+	for i, stem := range toolSearchUniverse().sorted {
+		words = append(words, stem)
+		if runes := []rune(stem); i%5 == 0 {
+			words = append(words, stem+"x", "disk"+stem, string(runes[:max(1, len(runes)/2)]))
+		}
+	}
+	words = append(words, "festplattenbelegung", "belegung", "kalendereintrag", "eintrag", "sprachausgabe")
+	checked := 0
+	for _, word := range words {
+		for _, token := range parseToolSearchQuery(word, "").tokens {
+			for _, doc := range catalog.searchIndex().docs {
+				if got, want := doc.tokenWeight(&token), doc.scanTokenWeight(&token); got != want {
+					t.Fatalf("tokenWeight(%q) for %s = %v, a scan of the stems gives %v", token.stem, doc.entry.Name, got, want)
+				}
+				checked++
+			}
+		}
+	}
+	t.Logf("compared %d token and tool pairs", checked)
 }
