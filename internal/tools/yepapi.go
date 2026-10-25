@@ -3,6 +3,8 @@ package tools
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -54,13 +56,20 @@ func GetYepAPIClient(apiKey, baseURL string) *YepAPIClient {
 	if baseURL == "" {
 		baseURL = yepAPIBaseURL
 	}
-	key := apiKey + "|" + baseURL
+	key := yepAPIClientCacheKey(apiKey, baseURL)
 	if c, ok := yepAPIClientCache.Load(key); ok {
 		return c.(*YepAPIClient)
 	}
 	c := NewYepAPIClientWithBaseURL(apiKey, baseURL)
 	yepAPIClientCache.Store(key, c)
 	return c
+}
+
+// yepAPIClientCacheKey hashes the API key so that the secret never becomes a
+// map key in memory.
+func yepAPIClientCacheKey(apiKey, baseURL string) string {
+	sum := sha256.Sum256([]byte(apiKey + "|" + baseURL))
+	return hex.EncodeToString(sum[:])
 }
 
 // YepAPIResponse is the standard JSON envelope returned by every YepAPI endpoint.

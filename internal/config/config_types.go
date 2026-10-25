@@ -2790,7 +2790,6 @@ func yamlConfigHasKey(node *yaml.Node, key string) bool {
 type YepAPIConfig struct {
 	Enabled            bool                `yaml:"enabled" json:"enabled"`
 	Provider           string              `yaml:"provider" json:"provider"`                         // provider entry ID (empty = auto-select first yepapi provider)
-	ProviderType       string              `yaml:"-" json:"-"`                                       // resolved: provider type
 	BaseURL            string              `yaml:"base_url" json:"base_url"`                         // custom YepAPI base URL (empty = https://api.yepapi.com)
 	BudgetQuotaPercent int                 `yaml:"budget_quota_percent" json:"budget_quota_percent"` // share of the daily budget reserved for YepAPI (0 = disabled)
 	SEO                YepAPIServiceConfig `yaml:"seo" json:"seo"`

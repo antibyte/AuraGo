@@ -46,7 +46,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		return dispatchYouTubeVideoID(ctx, client, "/v1/youtube/subtitles", operation, args)
 
 	case "comments":
-		videoID := stringArgWithFallback(args, "video_id")
+		videoID := stringArgForOperation(args, "comments", "video_id")
 		if videoID == "" {
 			return yepAPIFormatError("comments operation requires a 'video_id' string"), nil
 		}
@@ -89,7 +89,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		return dispatchYouTubeChannelID(ctx, client, "/v1/youtube/channel-store", operation, args, false)
 
 	case "channel_search":
-		channelID := stringArgWithFallback(args, "channel_id")
+		channelID := stringArgForOperation(args, "channel_search", "channel_id")
 		query, _ := args["query"].(string)
 		if channelID == "" {
 			return yepAPIFormatError("channel_search operation requires a 'channel_id' string"), nil
@@ -124,7 +124,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		return yepAPIFormatSuccess(data), nil
 
 	case "related":
-		videoID := stringArgWithFallback(args, "video_id")
+		videoID := stringArgForOperation(args, "related", "video_id")
 		if videoID == "" {
 			return yepAPIFormatError("related operation requires a 'video_id' string"), nil
 		}
@@ -170,7 +170,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		return yepAPIFormatSuccess(data), nil
 
 	case "hashtag":
-		tag := stringArgWithFallback(args, "tag")
+		tag := stringArgForOperation(args, "hashtag", "tag")
 		if tag == "" {
 			return yepAPIFormatError("hashtag operation requires a 'tag' string"), nil
 		}
@@ -186,7 +186,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		return yepAPIFormatSuccess(data), nil
 
 	case "post":
-		postID := stringArgWithFallback(args, "post_id")
+		postID := stringArgForOperation(args, "post", "post_id")
 		if postID == "" {
 			return yepAPIFormatError("post operation requires a 'post_id' string"), nil
 		}
@@ -200,7 +200,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		return yepAPIFormatSuccess(data), nil
 
 	case "post_comments":
-		postID := stringArgWithFallback(args, "post_id")
+		postID := stringArgForOperation(args, "post_comments", "post_id")
 		if postID == "" {
 			return yepAPIFormatError("post_comments operation requires a 'post_id' string"), nil
 		}
@@ -234,7 +234,10 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		return yepAPIFormatSuccess(data), nil
 
 	case "resolve":
-		rawURL := stringArgWithFallback(args, "url")
+		rawURL, argErr := urlArgForOperation(args, "resolve", "url")
+		if argErr != nil {
+			return yepAPIFormatError(argErr.Error()), nil
+		}
 		if rawURL == "" {
 			return yepAPIFormatError("resolve operation requires a 'url' string"), nil
 		}
@@ -254,7 +257,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 }
 
 func dispatchYouTubeVideoID(ctx context.Context, client *YepAPIClient, endpoint, operation string, args map[string]interface{}) (string, error) {
-	videoID := stringArgWithFallback(args, "video_id")
+	videoID := stringArgForOperation(args, operation, "video_id")
 	if videoID == "" {
 		return yepAPIFormatError(fmt.Sprintf("%s operation requires a 'video_id' string", operation)), nil
 	}
@@ -269,7 +272,7 @@ func dispatchYouTubeVideoID(ctx context.Context, client *YepAPIClient, endpoint,
 }
 
 func dispatchYouTubeChannelID(ctx context.Context, client *YepAPIClient, endpoint, operation string, args map[string]interface{}, withLimit bool) (string, error) {
-	channelID := stringArgWithFallback(args, "channel_id")
+	channelID := stringArgForOperation(args, operation, "channel_id")
 	if channelID == "" {
 		return yepAPIFormatError(fmt.Sprintf("%s operation requires a 'channel_id' string", operation)), nil
 	}
@@ -288,7 +291,7 @@ func dispatchYouTubeChannelID(ctx context.Context, client *YepAPIClient, endpoin
 }
 
 func dispatchYouTubePlaylistID(ctx context.Context, client *YepAPIClient, endpoint, operation string, args map[string]interface{}, withLimit bool) (string, error) {
-	playlistID := stringArgWithFallback(args, "playlist_id")
+	playlistID := stringArgForOperation(args, operation, "playlist_id")
 	if playlistID == "" {
 		return yepAPIFormatError(fmt.Sprintf("%s operation requires a 'playlist_id' string", operation)), nil
 	}

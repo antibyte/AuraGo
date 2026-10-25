@@ -62,7 +62,10 @@ func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "video":
-		videoURL := stringArgWithFallback(args, "url")
+		videoURL, argErr := urlArgForOperation(args, "video", "url")
+		if argErr != nil {
+			return yepAPIFormatError(argErr.Error()), nil
+		}
 		if videoURL == "" {
 			return yepAPIFormatError("video operation requires a 'url' string (TikTok video URL)"), nil
 		}
@@ -73,7 +76,7 @@ func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "user":
-		username := stringArgWithFallback(args, "username")
+		username := stringArgForOperation(args, "user", "username")
 		if username == "" {
 			return yepAPIFormatError("user operation requires a 'username' string"), nil
 		}
@@ -102,7 +105,10 @@ func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation s
 		return dispatchTikTokUsername(ctx, client, "/v1/tiktok/user-story", operation, args, false)
 
 	case "comments":
-		videoURL := stringArgWithFallback(args, "url")
+		videoURL, argErr := urlArgForOperation(args, "comments", "url")
+		if argErr != nil {
+			return yepAPIFormatError(argErr.Error()), nil
+		}
 		if videoURL == "" {
 			return yepAPIFormatError("comments operation requires a 'url' string (TikTok video URL)"), nil
 		}
@@ -115,7 +121,7 @@ func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "comment_replies":
-		commentID := stringArgWithFallback(args, "comment_id")
+		commentID := stringArgForOperation(args, "comment_replies", "comment_id")
 		if commentID == "" {
 			return yepAPIFormatError("comment_replies operation requires a 'comment_id' string"), nil
 		}
@@ -129,7 +135,10 @@ func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "music":
-		musicURL := stringArgWithFallback(args, "url")
+		musicURL, argErr := urlArgForOperation(args, "music", "url")
+		if argErr != nil {
+			return yepAPIFormatError(argErr.Error()), nil
+		}
 		if musicURL == "" {
 			return yepAPIFormatError("music operation requires a 'url' string (TikTok music URL)"), nil
 		}
@@ -140,7 +149,10 @@ func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "music_videos":
-		musicURL := stringArgWithFallback(args, "url")
+		musicURL, argErr := urlArgForOperation(args, "music_videos", "url")
+		if argErr != nil {
+			return yepAPIFormatError(argErr.Error()), nil
+		}
 		if musicURL == "" {
 			return yepAPIFormatError("music_videos operation requires a 'url' string (TikTok music URL)"), nil
 		}
@@ -153,7 +165,7 @@ func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "challenge":
-		name := stringArgWithFallback(args, "name")
+		name := stringArgForOperation(args, "challenge", "name")
 		if name == "" {
 			return yepAPIFormatError("challenge operation requires a 'name' string"), nil
 		}
@@ -164,7 +176,7 @@ func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "challenge_videos":
-		name := stringArgWithFallback(args, "name")
+		name := stringArgForOperation(args, "challenge_videos", "name")
 		if name == "" {
 			return yepAPIFormatError("challenge_videos operation requires a 'name' string"), nil
 		}
@@ -182,7 +194,7 @@ func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation s
 }
 
 func dispatchTikTokUsername(ctx context.Context, client *YepAPIClient, endpoint, operation string, args map[string]interface{}, withLimit bool) (string, error) {
-	username := stringArgWithFallback(args, "username")
+	username := stringArgForOperation(args, operation, "username")
 	if username == "" {
 		return yepAPIFormatError(fmt.Sprintf("%s operation requires a 'username' string", operation)), nil
 	}

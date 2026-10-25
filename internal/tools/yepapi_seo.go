@@ -10,7 +10,7 @@ func DispatchYepAPISEO(ctx context.Context, client *YepAPIClient, operation stri
 	ctx = WithYepAPIRequestContext(ctx, "yepapi_seo", operation)
 	switch operation {
 	case "keywords":
-		keywords := stringSliceFromArgs(args, "keywords")
+		keywords := stringSliceForOperation(args, "keywords", "keywords")
 		if len(keywords) == 0 {
 			return yepAPIFormatError("keywords operation requires a 'keywords' array"), nil
 		}
@@ -21,7 +21,7 @@ func DispatchYepAPISEO(ctx context.Context, client *YepAPIClient, operation stri
 		return yepAPIFormatSuccess(data), nil
 
 	case "keyword_ideas":
-		seed := stringArgWithFallback(args, "seed")
+		seed := stringArgForOperation(args, "keyword_ideas", "seed")
 		if seed == "" {
 			return yepAPIFormatError("keyword_ideas operation requires a 'seed' string"), nil
 		}
@@ -32,7 +32,10 @@ func DispatchYepAPISEO(ctx context.Context, client *YepAPIClient, operation stri
 		return yepAPIFormatSuccess(data), nil
 
 	case "domain_overview":
-		domain := stringArgWithFallback(args, "domain")
+		domain, argErr := domainArgForOperation(args, "domain_overview", "domain")
+		if argErr != nil {
+			return yepAPIFormatError(argErr.Error()), nil
+		}
 		if domain == "" {
 			return yepAPIFormatError("domain_overview operation requires a 'domain' string"), nil
 		}
@@ -43,7 +46,10 @@ func DispatchYepAPISEO(ctx context.Context, client *YepAPIClient, operation stri
 		return yepAPIFormatSuccess(data), nil
 
 	case "domain_keywords":
-		domain := stringArgWithFallback(args, "domain")
+		domain, argErr := domainArgForOperation(args, "domain_keywords", "domain")
+		if argErr != nil {
+			return yepAPIFormatError(argErr.Error()), nil
+		}
 		if domain == "" {
 			return yepAPIFormatError("domain_keywords operation requires a 'domain' string"), nil
 		}
@@ -58,7 +64,7 @@ func DispatchYepAPISEO(ctx context.Context, client *YepAPIClient, operation stri
 		if domain, ok := args["domain"].(string); ok && domain != "" {
 			payload["domain"] = domain
 		}
-		if keywords := stringSliceFromArgs(args, "keywords"); len(keywords) > 0 {
+		if keywords := stringSliceForOperation(args, "competitors", "keywords"); len(keywords) > 0 {
 			payload["keywords"] = keywords
 		}
 		data, err := client.Post(ctx, "/v1/seo/competitors/serp", payload)
@@ -68,7 +74,10 @@ func DispatchYepAPISEO(ctx context.Context, client *YepAPIClient, operation stri
 		return yepAPIFormatSuccess(data), nil
 
 	case "backlinks":
-		target := stringArgWithFallback(args, "target")
+		target, argErr := targetArgForOperation(args, "backlinks", "target")
+		if argErr != nil {
+			return yepAPIFormatError(argErr.Error()), nil
+		}
 		if target == "" {
 			return yepAPIFormatError("backlinks operation requires a 'target' string (domain or URL)"), nil
 		}
@@ -79,7 +88,10 @@ func DispatchYepAPISEO(ctx context.Context, client *YepAPIClient, operation stri
 		return yepAPIFormatSuccess(data), nil
 
 	case "onpage":
-		url := stringArgWithFallback(args, "url")
+		url, argErr := urlArgForOperation(args, "onpage", "url")
+		if argErr != nil {
+			return yepAPIFormatError(argErr.Error()), nil
+		}
 		if url == "" {
 			return yepAPIFormatError("onpage operation requires a 'url' string"), nil
 		}
@@ -90,7 +102,7 @@ func DispatchYepAPISEO(ctx context.Context, client *YepAPIClient, operation stri
 		return yepAPIFormatSuccess(data), nil
 
 	case "trends":
-		keywords := stringSliceFromArgs(args, "keywords")
+		keywords := stringSliceForOperation(args, "trends", "keywords")
 		if len(keywords) == 0 {
 			return yepAPIFormatError("trends operation requires a 'keywords' array (up to 5)"), nil
 		}

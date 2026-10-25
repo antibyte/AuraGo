@@ -25,7 +25,7 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "product":
-		asin := stringArgWithFallback(args, "asin")
+		asin := stringArgForOperation(args, "product", "asin")
 		if asin == "" {
 			return yepAPIFormatError("product operation requires an 'asin' string"), nil
 		}
@@ -38,7 +38,7 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "reviews":
-		asin := stringArgWithFallback(args, "asin")
+		asin := stringArgForOperation(args, "reviews", "asin")
 		if asin == "" {
 			return yepAPIFormatError("reviews operation requires an 'asin' string"), nil
 		}
@@ -56,7 +56,7 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "product_offers":
-		asin := stringArgWithFallback(args, "asin")
+		asin := stringArgForOperation(args, "product_offers", "asin")
 		if asin == "" {
 			return yepAPIFormatError("product_offers operation requires an 'asin' string"), nil
 		}
@@ -71,7 +71,7 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "products_by_category":
-		category := stringArgWithFallback(args, "category")
+		category := stringArgForOperation(args, "products_by_category", "category")
 		if category == "" {
 			return yepAPIFormatError("products_by_category operation requires a 'category' string"), nil
 		}
@@ -123,7 +123,7 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "influencer":
-		handle := stringArgWithFallback(args, "handle")
+		handle := stringArgForOperation(args, "influencer", "handle")
 		if handle == "" {
 			return yepAPIFormatError("influencer operation requires a 'handle' string"), nil
 		}
@@ -136,7 +136,7 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "seller":
-		sellerID := stringArgWithFallback(args, "seller_id")
+		sellerID := stringArgForOperation(args, "seller", "seller_id")
 		if sellerID == "" {
 			return yepAPIFormatError("seller operation requires a 'seller_id' string"), nil
 		}
@@ -149,7 +149,7 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "seller_reviews":
-		sellerID := stringArgWithFallback(args, "seller_id")
+		sellerID := stringArgForOperation(args, "seller_reviews", "seller_id")
 		if sellerID == "" {
 			return yepAPIFormatError("seller_reviews operation requires a 'seller_id' string"), nil
 		}

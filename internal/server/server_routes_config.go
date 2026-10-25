@@ -291,13 +291,14 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/dograh/register-aurago-mcp-tool", handleDograhRegisterAuraGoMCPTool(s))
 
 	// YepAPI integration endpoints
-	mux.HandleFunc("/api/yepapi/test", handleYepAPITest(s))
+	mux.Handle("/api/yepapi/test", requireAdmin(s, handleYepAPITest(s)))
 
 	// Ansible endpoints
 	mux.Handle("/api/ansible/test", requireAdmin(s, handleAnsibleTest(s)))
 	mux.HandleFunc("/api/ansible/generate-token", handleAnsibleGenerateToken(s))
 
 	// Local TTS sidecar endpoints
+	mux.Handle("/api/tts/routes", requireAdmin(s, handleTTSRoutes(s)))
 	mux.Handle("/api/tts/phonon/voices", requireAdmin(s, handlePhononVoices(s)))
 	mux.Handle("/api/tts/phonon/voices/", requireAdmin(s, handlePhononVoiceDownload(s)))
 	mux.HandleFunc("/api/piper/status", handlePiperStatus(s))

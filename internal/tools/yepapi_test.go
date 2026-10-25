@@ -1353,3 +1353,93 @@ func TestYepAPICallErrorReportsWhetherTheRequestWasSent(t *testing.T) {
 		}
 	})
 }
+
+// A query must never silently satisfy a parameter that expects something
+// else: the operation has to name the parameter it expected.
+func TestYepAPIStrictArgumentValidation(t *testing.T) {
+	client := newYepAPITestClient(func(r *http.Request) (int, string) {
+		return http.StatusOK, `{"ok":true,"data":{}}`
+	})
+	ctx := context.Background()
+
+	cases := []struct {
+		operation string
+		args      map[string]interface{}
+		wantParam string
+	}{
+		{"domain_overview", map[string]interface{}{"query": "example.com"}, "domain"},
+		{"backlinks", map[string]interface{}{"query": "example.com"}, "target"},
+		{"onpage", map[string]interface{}{"query": "https://example.com/page"}, "url"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.operation, func(t *testing.T) {
+			res, err := DispatchYepAPISEO(ctx, client, tc.operation, tc.args)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			var out map[string]interface{}
+			if err := json.Unmarshal([]byte(res), &out); err != nil {
+				t.Fatalf("decode %q: %v", res, err)
+			}
+			if out["status"] != "error" {
+				t.Fatalf("status = %v, want error: a query must not satisfy %s", out["status"], tc.wantParam)
+			}
+			message, _ := out["message"].(string)
+			if !strings.Contains(message, tc.wantParam) {
+				t.Fatalf("message = %q, want it to name the %q parameter", message, tc.wantParam)
+			}
+		})
+	}
+
+	t.Run("keywords_accepts_the_query_alias", func(t *testing.T) {
+		res, err := DispatchYepAPISEO(ctx, client, "keywords", map[string]interface{}{"query": "aurago"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(res, `"status":"success"`) {
+			t.Fatalf("res = %q, want a success envelope: the query alias fits the keywords operation", res)
+		}
+	})
+
+	t.Run("domain_with_scheme_is_rejected", func(t *testing.T) {
+		res, err := DispatchYepAPISEO(ctx, client, "domain_overview", map[string]interface{}{"domain": "https://example.com/page"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		var out map[string]interface{}
+		if err := json.Unmarshal([]byte(res), &out); err != nil {
+			t.Fatalf("decode %q: %v", res, err)
+		}
+		if out["status"] != "error" {
+			t.Fatalf("status = %v, want error for a domain that carries a scheme and a path", out["status"])
+		}
+		message, _ := out["message"].(string)
+		if !strings.Contains(message, "domain") {
+			t.Fatalf("message = %q, want it to name the domain parameter", message)
+		}
+	})
+}
+
+// The client cache must not keep the raw API key as a map key, and two
+// different keys must not share a client.
+func TestYepAPIClientCacheHashesTheKey(t *testing.T) {
+	const secret = "cache-secret-key"
+	first := GetYepAPIClient(secret, "")
+	second := GetYepAPIClient(secret+"-other", "")
+	if first == second {
+		t.Fatal("two different API keys must not share a client")
+	}
+	if again := GetYepAPIClient(secret, ""); again != first {
+		t.Fatal("the same API key must reuse the client")
+	}
+	found := false
+	yepAPIClientCache.Range(func(key, _ any) bool {
+		if s, ok := key.(string); ok && s == secret {
+			found = true
+		}
+		return true
+	})
+	if found {
+		t.Fatal("the raw API key must not be a client cache key")
+	}
+}
