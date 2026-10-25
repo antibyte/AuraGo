@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {CsiSimulator} from '../../ui/js/vendor/ruview/pose-fusion/js/csi-simulator.js';
-import {readFileSync} from 'node:fs';
+import {readFileSync, readdirSync} from 'node:fs';
 import vm from 'node:vm';
 import {controlResult,trainingPayload} from '../../ui/js/ruview/control-contracts.mjs';
 
@@ -186,7 +186,8 @@ test('opaque relay matches the reviewed endpoint list and refuses other paths',a
  assert.equal(endpoint('DELETE','/api/v1/recording/../secret'),false);
  assert.equal(cleanPath('/api/v1/status/'),'/api/v1/status');
  const adapter=readFileSync('ui/js/ruview/upstream-adapter.js','utf8');
- assert.equal(readFileSync('ui/js/vendor/ruview/aurago-adapter.js','utf8'),adapter);
+ // The source checkout may be CRLF (core.autocrlf); the vendored copy is always LF.
+ assert.equal(readFileSync('ui/js/vendor/ruview/aurago-adapter.js','utf8').replaceAll('\r\n','\n'),adapter.replaceAll('\r\n','\n'));
  assert.match(adapter,/postMessage/);
  assert.match(adapter,/origin === 'null'/);
  assert.equal(tourFrameName,'aurago-tour-done');
@@ -194,4 +195,68 @@ test('opaque relay matches the reviewed endpoint list and refuses other paths',a
  assert.match(app,/frame\.sandbox='allow-scripts'/);
  assert.doesNotMatch(app,/allow-same-origin/);
  assert.match(app,/tourFrameName/);
+});
+
+test('pose demo needs the simulation gate and stops with the gate, the stream or the tab',()=>{
+ const strip=name=>readFileSync('ui/js/vendor/ruview/components/'+name,'utf8').replace(/^import .*;\r?\n/gm,'').replaceAll('export ','');
+ let allowed=false,frames=0,rendered=0;const cancelled=[],noop=()=>{};
+ const buttons={'demo-btn-c':{style:{},textContent:'Demo'},'run-offline-demo':{style:{display:'none'},textContent:'Demo'}};
+ const context={window:{auragoRuViewSimulationAllowed:()=>allowed},document:{getElementById:id=>buttons[id]??null},
+  requestAnimationFrame(){return ++frames},cancelAnimationFrame:id=>cancelled.push(id),setInterval:()=>1,clearInterval:noop,poseService:{stopPoseStream:noop}};
+ const Canvas=vm.runInNewContext(strip('PoseDetectionCanvas.js')+'\nPoseDetectionCanvas',context);
+ const logger={info:noop,debug:noop,warn:noop,error:noop};
+ const canvas=Object.assign(Object.create(Canvas.prototype),{containerId:'c',logger,state:{isActive:true,connectionState:'connected'},renderer:{config:{},updateConfig:noop,clearCanvas:noop},showDemoNotification:noop,notifyCallback:noop,updateConnectionIndicator:noop,renderPoseData(){rendered++}});
+ // Gate closed: no demo, no frames, no visible entry points.
+ canvas.runDemo();canvas.toggleDemo();
+ assert.equal(canvas.demoState,undefined);assert.equal(frames,0);assert.equal(rendered,0);
+ canvas.updateControls();assert.equal(buttons['demo-btn-c'].style.display,'none');assert.equal(buttons['run-offline-demo'].style.display,'none');
+ // Gate open: the demo starts; closing the gate stops it on the next animation step.
+ allowed=true;canvas.updateControls();assert.equal(buttons['run-offline-demo'].style.display,'');
+ canvas.toggleDemo();assert.equal(canvas.demoState.isRunning,true);assert.equal(frames,1);assert.equal(rendered,1);assert.equal(buttons['run-offline-demo'].textContent,'Stop Demo');
+ allowed=false;canvas.startDemoAnimation();
+ assert.equal(canvas.demoState.isRunning,false);assert.deepEqual(cancelled,[1]);assert.equal(frames,1);assert.equal(rendered,1);assert.equal(buttons['run-offline-demo'].textContent,'Demo');
+ // stop() cancels a running demo.
+ allowed=true;canvas.toggleDemo();assert.equal(canvas.demoState.isRunning,true);const frame=canvas.demoAnimationFrame;
+ canvas.stop();assert.equal(canvas.demoState.isRunning,false);assert.deepEqual(cancelled,[1,frame]);
+ // Leaving the Live Demo tab stops an offline demo even though detection never started.
+ canvas.toggleDemo();assert.equal(canvas.demoState.isRunning,true);
+ const Tab=vm.runInNewContext(strip('LiveDemoTab.js')+'\nLiveDemoTab',{readError:String});
+ const tab=Object.assign(Object.create(Tab.prototype),{state:{isActive:false},components:{poseCanvas:canvas},logger});
+ tab.stopDemo();assert.equal(canvas.demoState.isRunning,false);assert.equal(buttons['run-offline-demo'].textContent,'Demo');
+});
+
+test('vendored output keeps AuraGo gate strings',()=>{
+ const root='ui/js/vendor/ruview/',read=name=>readFileSync(root+name,'utf8');
+ const need=(name,...parts)=>{const text=read(name);for(const part of parts)assert.ok(text.includes(part),name+' lost: '+part);return text;};
+ need('pose-fusion/js/main.js','if(!csiSimulator.isLive&&!window.auragoRuViewSimulationAllowed?.()){',"statusLabel.textContent = 'EXPERIMENTAL CSI';");
+ need('pose-fusion/js/csi-simulator.js','this.verifiedFrame === true && performance.now()-this.auragoFrameAt<10000;',"if(msg.source!=='esp32'||msg._simulated){this.verifiedFrame=false;");
+ need('viz.html','const demoAllowed = window.auragoRuViewSimulationAllowed?.() === true;','state.isDemoMode && demoAllowed');
+ need('observatory/js/main.js','const demoAllowed = window.auragoRuViewSimulationAllowed?.() === true;');
+ need('services/sensing.service.js','function clientSimulationAllowed() { return false; }');
+ need('app.js','const useMock = false;','if (false) {');
+ const pages=readdirSync(root,{recursive:true}).map(name=>name.replaceAll('\\','/')).filter(name=>name.endsWith('.html'));
+ assert.ok(pages.length>=5,'vendored pages');
+ for(const page of pages)assert.match(read(page),/<head[^>]*><script src="\.\/aurago-adapter\.js"><\/script>/,page+' lost the adapter script');
+ assert.doesNotMatch(read('components/HardwareTab.js'),/Math\.random|set(Interval|Timeout)\(|requestAnimationFrame/,'Hardware view must not invent CSI values');
+ for(const name of ['components/HardwareTab.js','components/PoseDetectionCanvas.js'])new vm.Script(read(name).replace(/^import .*;\r?\n/gm,'').replaceAll('export ',''),{filename:name});
+ need('components/PoseDetectionCanvas.js','if (window.auragoRuViewSimulationAllowed?.() !== true) return;','style="display:none">&#9881; Demo</button>');
+ need('components/LiveDemoTab.js','id="run-offline-demo" style="display:none"');
+ const index=need('index.html','<h4>CSI data (not measured in this view)</h4>');
+ assert.doesNotMatch(index,/Real-time CSI Data/);
+ assert.match(index,/<span id="signalStrength">[^<]*<\/span>/);assert.doesNotMatch(index,/-45 dBm/,'#signalStrength no longer contains -45 dBm');
+ assert.match(index,/<span id="latency">—<\/span>/,'#latency is never written by a script');
+ const claim='<p class="aurago-upstream-claim">Upstream RuView project claims — not measured or verified by AuraGo.</p>';
+ for(const heading of ['<h2 data-i18n="dashboard.title">Revolutionary WiFi-Based Human Pose Detection</h2>','<h2>Performance Analysis</h2>','<h2>Real-World Applications</h2>']){
+  const at=index.indexOf(heading);assert.ok(at>=0,heading);
+  assert.ok(index.slice(at+heading.length).trimStart().startsWith(claim),'unlabelled claims under '+heading);
+ }
+ for(const section of ['<div class="key-benefits">','<div class="system-stats">'])assert.ok(index.includes(claim+'\n                '+section),'unlabelled claims before '+section);
+ assert.ok(read('style.css').includes('.aurago-upstream-claim {'));
+});
+
+test('honesty patches fail loudly when an upstream anchor disappears',async()=>{
+ const {patchHonesty}=await import('./patch-honesty.mjs');
+ const patch=(text,before,after)=>{if(!text.includes(before))throw Error('Pinned RuView adapter patch no longer matches');return text.replace(before,after);};
+ for(const name of ['components/HardwareTab.js','components/PoseDetectionCanvas.js','components/LiveDemoTab.js','index.html','style.css'])assert.throws(()=>patchHonesty(name,'// short dummy text without the upstream anchors\n',patch),/no longer matches/,name);
+ assert.equal(patchHonesty('components/Unrelated.js','unchanged',patch),'unchanged');
 });

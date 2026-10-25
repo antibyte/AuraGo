@@ -1721,6 +1721,15 @@ canvas {
   font-weight: var(--font-weight-semibold);
 }
 
+/* AuraGo: labels unverified upstream claims and example data; inherits the active palette */
+.aurago-upstream-claim {
+  margin: 4px auto 12px;
+  max-width: 800px;
+  font-size: 0.8125rem;
+  font-style: italic;
+  opacity: 0.75;
+}
+
 /* Help text */
 .help-text {
   font-size: var(--font-size-sm);
