@@ -62,23 +62,58 @@ func nativeArtifact() (NativeArtifact, error) {
 			return a, nil
 		}
 	}
-	return NativeArtifact{}, fmt.Errorf("no verified native RuView package for this platform in this release")
+	return NativeArtifact{}, fail(CodePlatformUnsupported, "no verified native RuView package for this platform in this release", nil)
 }
 
-func (m *Manager) Install(ctx context.Context) error {
-	m.opMu.Lock()
-	defer m.opMu.Unlock()
-	ctx, cancel := m.bound(ctx)
-	defer cancel()
-	c := m.config()
-	if !c.RuView.Enabled || c.RuView.ReadOnly {
-		return fmt.Errorf("RuView installation requires enabled, writable integration")
-	}
-	if c.RuView.Mode != "native" {
-		return fmt.Errorf("native installation is not selected")
-	}
-	if err := configCheck(c); err != nil {
+// Install downloads and verifies the pinned native package. It claims the
+// lifecycle slot (lifecycle.go) like a start, so it never holds opMu across a
+// download: Stop aborts it by cancelling the generation, and a second Install
+// or Start while it runs returns CodeBusy.
+func (m *Manager) Install(ctx context.Context) (installErr error) {
+	if err := m.opMu.acquire(ctx, m.lockWait); err != nil {
 		return err
+	}
+	// Decide and claim in one mu section (see start).
+	m.mu.Lock()
+	generation := m.generation
+	c := m.config()
+	var refusal error
+	switch {
+	case ctx.Err() != nil:
+		refusal = ctxError(ctx.Err())
+	case generation.Err() != nil:
+		refusal = ctxError(context.Canceled)
+	case !c.RuView.Enabled:
+		refusal = fail(CodeDisabled, "RuView installation requires enabled, writable integration", nil)
+	case c.RuView.ReadOnly:
+		refusal = fail(CodeReadOnly, "RuView installation requires enabled, writable integration", nil)
+	case m.op != "":
+		refusal = fail(CodeBusy, "RuView is busy with another start or installation", nil)
+	case c.RuView.Mode != "native":
+		refusal = fail(CodeInvalidConfig, "native installation is not selected", nil)
+	}
+	if refusal != nil {
+		m.mu.Unlock()
+		m.opMu.release()
+		return refusal
+	}
+	m.op = opInstalling
+	m.setPhaseLocked(PhaseDownloading)
+	if m.startFailed && !m.managed {
+		m.status, m.startFailed = Status{}, false // an explicit install replaces an earlier failure
+	}
+	m.mu.Unlock()
+	ctx, cancel := context.WithCancel(ctx)
+	stopBinding := context.AfterFunc(generation, cancel)
+	defer func() {
+		stopBinding()
+		cancel()
+		m.endInstall(generation, installErr)
+	}()
+	m.opMu.release()
+
+	if err := configCheck(c); err != nil {
+		return fail(CodeInvalidConfig, err.Error(), err)
 	}
 	a, err := nativeArtifact()
 	if err != nil {
@@ -86,14 +121,41 @@ func (m *Manager) Install(ctx context.Context) error {
 	}
 	dir := filepath.Join(c.Directories.DataDir, "ruview", "runtime", Revision, a.Platform)
 	if err := os.MkdirAll(dir, 0700); err != nil {
-		return fmt.Errorf("prepare RuView runtime: %w", err)
+		return fail(CodeDownloadFailed, "prepare RuView runtime: "+err.Error(), err)
 	}
 	for _, file := range a.Files {
 		if err := download(ctx, dir, file); err != nil {
-			return err
+			if ctx.Err() != nil {
+				return ctxError(ctx.Err())
+			}
+			return fail(CodeDownloadFailed, "RuView download failed", err)
 		}
 	}
 	return nil
+}
+
+// endInstall releases the lifecycle slot. A failed install is recorded like a
+// failed start (sticky, logged raw) unless it was cancelled, the generation
+// moved on, or a runtime is running whose live status it must not replace.
+func (m *Manager) endInstall(generation context.Context, installErr error) {
+	m.mu.Lock()
+	m.op = ""
+	if m.phase == PhaseDownloading {
+		m.clearPhaseLocked()
+	}
+	var e *Error
+	record := false
+	if installErr != nil {
+		e = AsError(installErr)
+		record = e.Code != CodeCancelled && !m.managed && generation == m.generation && generation.Err() == nil
+		if record {
+			m.recordFailureLocked(installErr)
+		}
+	}
+	m.mu.Unlock()
+	if record {
+		m.warn("RuView install failed", "error_code", e.Code, "error", rawText(installErr))
+	}
 }
 
 func verifyFile(dir string, file ArtifactFile) error {

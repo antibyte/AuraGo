@@ -81,6 +81,21 @@ func serveRuViewUI(s *Server, w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
+// ruviewError writes {error_code, error, detail} with the code's HTTP status
+// (design §8.4). The UI translates error_code. Both error (the legacy English
+// sentence) and detail are redacted by the ruview package: no token, URL, file
+// path or network address. The raw cause only reaches the server log.
+func ruviewError(w http.ResponseWriter, err error) {
+	e := ruview.AsError(err)
+	status := e.HTTP
+	if status == 0 {
+		status = ruview.HTTPStatus(e.Code)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error_code": e.Code, "error": e.Error(), "detail": e.Detail})
+}
+
 func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
 	mux.Handle("/api/ruview/ui/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		serveRuViewUI(s, w, r)
@@ -106,12 +121,12 @@ func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
 			switch rel {
 			case "nodes":
 				if !s.ConfigSnapshot().RuView.Enabled {
-					jsonError(w, "RuView is disabled", http.StatusForbidden)
+					ruviewError(w, &ruview.Error{Code: ruview.CodeDisabled})
 					return
 				}
 				nodes, err := s.RuView.Nodes(r.Context())
 				if err != nil {
-					jsonError(w, err.Error(), http.StatusBadGateway)
+					ruviewError(w, err)
 					return
 				}
 				_ = json.NewEncoder(w).Encode(nodes)
@@ -139,11 +154,25 @@ func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
 			return
 		}
 		cfg := s.ConfigSnapshot().RuView
-		if rel != "test" && (!cfg.Enabled || cfg.ReadOnly && !ruview.IsStop(r.Method, rel)) {
-			jsonError(w, "RuView is disabled or read-only", 403)
-			return
+		if rel != "test" {
+			if !cfg.Enabled {
+				ruviewError(w, &ruview.Error{Code: ruview.CodeDisabled})
+				return
+			}
+			if cfg.ReadOnly && !ruview.IsStop(r.Method, rel) {
+				ruviewError(w, &ruview.Error{Code: ruview.CodeReadOnly})
+				return
+			}
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
+		parent := r.Context()
+		switch rel {
+		case "runtime/start", "runtime/install", "runtime/stop":
+			// A closed tab must not abort a multi-minute image pull or leave a stop
+			// half done. The work stays revocable: Stop, Configure and shutdown
+			// cancel the manager's generation, and the timeout below still applies.
+			parent = context.WithoutCancel(parent)
+		}
+		ctx, cancel := context.WithTimeout(parent, 10*time.Minute)
 		defer cancel()
 		var err error
 		switch rel {
@@ -154,7 +183,7 @@ func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
 			decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024))
 			decoder.DisallowUnknownFields()
 			if decoder.Decode(&body) != nil || decoder.Decode(new(any)) != io.EOF || body.NodeID < 1 || body.NodeID > 255 {
-				jsonError(w, "Invalid RuView node ID", http.StatusBadRequest)
+				ruviewError(w, &ruview.Error{Code: ruview.CodeInvalidNodeID})
 				return
 			}
 			err = s.RuView.RememberNode(ctx, body.NodeID)
@@ -171,7 +200,7 @@ func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
 			err = s.RuView.Start(ctx)
 		case "runtime/stop":
 			if cfg.Mode == "external" {
-				jsonError(w, "External RuView is managed by its operator", http.StatusForbidden)
+				ruviewError(w, &ruview.Error{Code: ruview.CodeExternalRuntime})
 				return
 			}
 			err = s.RuView.Stop(ctx)
@@ -180,7 +209,7 @@ func registerRuViewRoutes(mux *http.ServeMux, s *Server) {
 			return
 		}
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadGateway)
+			ruviewError(w, err)
 			return
 		}
 		_ = json.NewEncoder(w).Encode(s.RuView.Status())
