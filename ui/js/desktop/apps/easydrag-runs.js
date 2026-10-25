@@ -14,6 +14,8 @@
     // after 1, 2, 4, 8 and 16 s until it ended: a test run announces its end to no other window,
     // and the engine waits up to 30 s for a step that ignores the cancel.
     const STOP_POLL_MS = [1000, 2000, 4000, 8000, 16000];
+    // While a live run is parked behind a run view its stored state is asked every PARK_POLL_MS: its stream is closed, so it ends unseen.
+    const PARK_POLL_MS = 3000;
     // REDACTED is the server's placeholder for secret values in scrubbed test data.
     const REDACTED = '[redacted]';
     const EFFECT_ICONS = { sends_message: 'brand-telegram', writes_files: 'file-pencil', controls_devices: 'home', runs_code: 'api', deletes: 'trash', system_change: 'settings' };
@@ -135,6 +137,7 @@
         let failures = 0;
         // parked is a live run that a run view replaced; clearRun() attaches it again.
         let parked = null;
+        let parkTimer = 0;
         let drawer = null;
         let drawerOpener = null;
         let drawerFilter = 'all';
@@ -197,12 +200,13 @@
         // clearRun() attaches it when the run view ends.
         function attach(runId, meta) {
             const mode = (meta && meta.mode) || 'test';
-            if (ed.runView) { parked = { id: runId, mode }; return; }
+            if (ed.runView) { parked = { id: runId, mode }; watchParked(); return; }
             closeStream();
             lastSeq = 0;
             retryDelay = RETRY_MS;
             failures = 0;
             parked = null;
+            clearTimeout(parkTimer);
             failedSpoken = new Set();
             setRun({ id: runId, status: 'queued', mode, steps: new Map(), changes: [], record: null, error: '' });
             connect(runId);
@@ -692,6 +696,31 @@
             }
         }
 
+        // watchParked asks for the stored state of the parked live run every PARK_POLL_MS. Nothing else learns that
+        // it ended (its stream is closed). Once final it is released (hasParked drives the run view's Test again and
+        // the run-going note), becomes the last run, and the header repaints through the run event.
+        function watchParked() {
+            clearTimeout(parkTimer);
+            if (!parked || disposed) return;
+            const id = parked.id;
+            parkTimer = setTimeout(async () => {
+                let detail = null;
+                let gone = false;
+                try { detail = await ed.api.run(id, false); } catch (err) { gone = Number(err && err.status) === 404; }
+                if (disposed || !parked || parked.id !== id) return;
+                if (detail && detail.run && isFinal(detail.run.status)) {
+                    parked = null;
+                    rememberRun(detail.run, detail.steps || []);
+                    ed.bus.emit('last-run', detail.run);
+                    ed.bus.emit('run', ed.run);
+                    if (drawer) loadRuns(true);
+                    return;
+                }
+                if (gone) { parked = null; ed.bus.emit('run', ed.run); return; }
+                watchParked();
+            }, PARK_POLL_MS);
+        }
+
         // followStop asks for a stopped run's stored state after STOP_POLL_MS[attempt] and refreshes
         // the drawer and the run view once it ended, while they still show it as not ended.
         function followStop(runId, attempt) {
@@ -902,7 +931,7 @@
         // (ed.runView.data). A live run that is still going is parked: its stream closes, and
         // clearRun() (leaving the run view) attaches it again.
         function applyRunView(detail) {
-            if (ed.run && !ed.run.view && !isFinal(ed.run.status) && !ed.run.stale) parked = { id: ed.run.id, mode: ed.run.mode };
+            if (ed.run && !ed.run.view && !isFinal(ed.run.status) && !ed.run.stale) { parked = { id: ed.run.id, mode: ed.run.mode }; watchParked(); }
             closeStream();
             const shown = stepsFrom(detail.steps, detail.run);
             shown.view = true;
@@ -915,11 +944,13 @@
             closeStream();
             const back = parked;
             parked = null;
+            clearTimeout(parkTimer);
             if (back && !disposed) { attach(back.id, { mode: back.mode }); return; }
             setRun(null);
         }
 
         bag.add(closeStream);
+        bag.add(() => clearTimeout(parkTimer));
         bag.add(() => { stopPolls.forEach(clearTimeout); stopPolls.clear(); });
         bag.add(() => runFinished.cancel());
         bag.add(() => toggleDrawer(false));

@@ -877,6 +877,33 @@ export async function run(env) {
         await settle();
         eq('b5 rerun with a parked live run the button is hidden; forced, the run view stays and a note says a run is going',
             [parkedHidden, !!s.ed.runView, s.h.notes.map(n => n.message), s.h.logged], [true, true, ['run_going'], []]);
+        // The parked run finishes while the stored run is viewed: the button appears without leaving the view,
+        // and a click opens the test dialog. While it still runs the poll finds nothing final and the button stays hidden.
+        let parkedStatus = 'running';
+        const s2 = await session(req => {
+            if (req.method === 'POST' && req.url === '/api/desktop/flows/f1/run') return { run_id: 'r7' };
+            if (req.url === '/api/desktop/flows/runs/r1?include=doc') return viewed();
+            if (req.url.startsWith('/api/desktop/flows/runs/r7')) return { run: { id: 'r7', status: parkedStatus, mode: 'test', started_at: '2026-10-25T10:01:00Z' }, steps: [] };
+            return undefined;
+        }, { enabled: true, flow: { draft: chain, live: chain, live_revision: 2, published_draft_revision: 3 } });
+        s2.editor.el.querySelector('[data-ed-cmd="run-now"]').fire('click');
+        await settle();
+        s2.editor.showRun('r1');
+        await settle();
+        const hiddenParked = s2.editor.el.querySelector('[data-ed-cmd="rerun-viewed"]').hidden;
+        s2.h.runTimers(3000);
+        await settle();
+        const hiddenWhileRunning = s2.editor.el.querySelector('[data-ed-cmd="rerun-viewed"]').hidden;
+        parkedStatus = 'success';
+        s2.h.runTimers(3000);
+        await settle();
+        const afterButton = s2.editor.el.querySelector('[data-ed-cmd="rerun-viewed"]');
+        const shown = [afterButton.hidden, s2.ed.runView ? 'view' : 'gone'];
+        afterButton.fire('click');
+        await settle();
+        eq('b5 rerun a parked run that finishes frees Test again in the open view; the click opens the test dialog',
+            [hiddenParked, hiddenWhileRunning, shown, !!s2.ed.runView, s2.h.dialogs.length > 0], [true, true, [false, 'view'], false, true]);
+        s2.editor.dispose();
         s.editor.dispose();
         eq('b5 rerun the run-going words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.run_going']), []);
     });
@@ -924,6 +951,13 @@ export async function run(env) {
                 'Schritt hier hinzufügen', 'Übersicht unten links', 'Mit diesen Daten erneut testen', '**Rückgängig**', 'Position auf der Fläche', '560 px oder schmaler', 'überspringt']),
             de.includes('ist ein Halt')
         ], [[], [], false]);
+    });
+
+    await guardAsync('b5 ux the start page sort select draws a caret from tokens only', async () => {
+        const sheet = css();
+        const rule = /select\.ed-input \{[^}]*\}/.exec(sheet);
+        eq('b5 ux select.ed-input has appearance none, two token gradients and room on the right, no hex colour or url()',
+            rule && [/appearance: none/.test(rule[0]), (rule[0].match(/linear-gradient\(/g) || []).length >= 2, /padding-right/.test(rule[0]), /#[0-9a-fA-F]{3,8}|url\(/.test(rule[0])], [true, true, true, false]);
     });
 
     // ── next checks go above this line ──

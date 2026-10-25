@@ -140,6 +140,12 @@
     background: var(--vd-theme-input-bg, var(--ed-control)); color: var(--ed-text); font: inherit;
     transition: border-color var(--ed-fast) var(--ed-ease), box-shadow var(--ed-fast) var(--ed-ease);
 }
+/* a select keeps a caret of its own: two triangles in the muted ink, no image */
+select.ed-input {
+    appearance: none; -webkit-appearance: none; padding-right: 28px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ed-muted) 50%), linear-gradient(135deg, var(--ed-muted) 50%, transparent 50%);
+    background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+}
 .ed-input:focus { outline: none; border-color: var(--ed-focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-accent) 22%, transparent); }
 .ed-input:disabled { opacity: 0.65; }
 textarea.ed-input { resize: vertical; line-height: 1.45; }
