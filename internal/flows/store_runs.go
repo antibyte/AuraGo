@@ -2,7 +2,9 @@ package flows
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -111,12 +113,19 @@ func requireRow(res sql.Result, notFound error) error {
 	return nil
 }
 
+// insertRunSQL inserts a run header while its flow exists; the last argument is the flow id again.
+const insertRunSQL = `INSERT INTO flow_runs (id, flow_id, revision, mode, trigger_node, trigger_type,
+	trigger_data_json, status, started_at, parent_run_id, parent_node_id, doc_hash)
+	SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ?)`
+
 // CreateRun inserts a run header. It returns ErrNotFound when the flow does not exist
 // (the foreign key would fail) and rejects a zero StartedAt.
 //
-// For test runs the flow document is stored so the run view can show it later; one
-// above MaxDocumentBytes could not be read back by ParseFlow, so it is left out (with
-// a warning) instead of failing the run, and GetRunDoc then reports ErrNotFound.
+// For test runs the flow document is stored so the run view can show it later: once per flow
+// and content (flow_test_docs, keyed by the sha256 of its JSON), so repeated tests of an
+// unchanged draft share one copy (E4). One above MaxDocumentBytes could not be read back by
+// ParseFlow, so it is left out (with a warning) instead of failing the run, and GetRunDoc then
+// reports ErrNotFound.
 //
 // The trigger data (a webhook or mail payload of up to MaxOutputBytes) is bounded like a step
 // output: beyond MaxStoredOutputBytes the header keeps {"_preview": ...} instead.
@@ -128,7 +137,7 @@ func (s *Store) CreateRun(ctx context.Context, rec RunRecord, doc *Flow) error {
 	if err != nil {
 		return err
 	}
-	docJSON := ""
+	docJSON, docHash := "", ""
 	if doc != nil && rec.Mode == ModeTest {
 		data, err := doc.Marshal()
 		if err != nil {
@@ -137,18 +146,38 @@ func (s *Store) CreateRun(ctx context.Context, rec RunRecord, doc *Flow) error {
 		if len(data) > MaxDocumentBytes {
 			s.logger.Warn("flow document too large to store with its test run", "run", truncateForError(rec.ID), "bytes", len(data))
 		} else {
-			docJSON = string(data)
+			sum := sha256.Sum256(data)
+			docJSON, docHash = string(data), hex.EncodeToString(sum[:])
 		}
 	}
-	res, err := s.db.ExecContext(ctx, `INSERT INTO flow_runs (id, flow_id, revision, mode, trigger_node, trigger_type,
-		trigger_data_json, status, started_at, parent_run_id, parent_node_id, doc_json)
-		SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ?)`,
-		rec.ID, rec.FlowID, rec.Revision, string(rec.Mode), rec.TriggerNode, rec.TriggerType, trigger,
-		string(rec.Status), formatTime(rec.StartedAt), rec.ParentRunID, rec.ParentNodeID, docJSON, rec.FlowID)
+	args := []any{rec.ID, rec.FlowID, rec.Revision, string(rec.Mode), rec.TriggerNode, rec.TriggerType, trigger,
+		string(rec.Status), formatTime(rec.StartedAt), rec.ParentRunID, rec.ParentNodeID, docHash, rec.FlowID}
+	if docHash == "" {
+		res, err := s.db.ExecContext(ctx, insertRunSQL, args...)
+		if err != nil {
+			return err
+		}
+		return requireRow(res, ErrNotFound)
+	}
+	// The document and the run row go in together, so the orphan sweep of PruneRunsByMode never
+	// sees the document without its run. The transaction starts with a write (see Store).
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	return requireRow(res, ErrNotFound)
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO flow_test_docs (flow_id, hash, json)
+		SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ?)`, rec.FlowID, docHash, docJSON, rec.FlowID); err != nil {
+		return err
+	}
+	res, err := tx.ExecContext(ctx, insertRunSQL, args...)
+	if err != nil {
+		return err
+	}
+	if err := requireRow(res, ErrNotFound); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // SetRunStatus updates the status of a run. It returns ErrRunNotFound when no
@@ -266,15 +295,19 @@ func (s *Store) GetRunHeader(ctx context.Context, runID string) (*RunRecord, err
 // test run whose document was not stored (see CreateRun): its revision is a draft
 // revision, which says nothing about the published versions.
 func (s *Store) GetRunDoc(ctx context.Context, runID string) (*Flow, error) {
-	var flowID, mode, docJSON string
+	var flowID, mode, docJSON, shared string
 	var revision int
-	err := s.db.QueryRowContext(ctx, `SELECT flow_id, revision, mode, doc_json FROM flow_runs WHERE id = ?`, runID).
-		Scan(&flowID, &revision, &mode, &docJSON)
+	err := s.db.QueryRowContext(ctx, `SELECT r.flow_id, r.revision, r.mode, r.doc_json, COALESCE(d.json, '')
+		FROM flow_runs r LEFT JOIN flow_test_docs d ON r.doc_hash != '' AND d.flow_id = r.flow_id AND d.hash = r.doc_hash
+		WHERE r.id = ?`, runID).Scan(&flowID, &revision, &mode, &docJSON, &shared)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrRunNotFound
 	}
 	if err != nil {
 		return nil, err
+	}
+	if docJSON == "" { // runs stored before E4 keep their own copy in doc_json
+		docJSON = shared
 	}
 	if docJSON != "" {
 		doc, err := ParseFlow([]byte(docJSON))
@@ -429,6 +462,11 @@ func (s *Store) PruneRunsByMode(ctx context.Context, retentionDays, maxLivePerFl
 				total += n
 			}
 		}
+	}
+	// Test documents no run refers to any more (CreateRun stores one per flow and content).
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM flow_test_docs WHERE NOT EXISTS (
+		SELECT 1 FROM flow_runs r WHERE r.flow_id = flow_test_docs.flow_id AND r.doc_hash = flow_test_docs.hash)`); err != nil {
+		return total, err
 	}
 	return total, nil
 }

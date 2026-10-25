@@ -97,6 +97,7 @@ var schemaStatements = []string{
 		parent_run_id TEXT NOT NULL DEFAULT '',
 		parent_node_id TEXT NOT NULL DEFAULT '',
 		doc_json TEXT NOT NULL DEFAULT '',
+		doc_hash TEXT NOT NULL DEFAULT '',
 		checkpoint_json TEXT NOT NULL DEFAULT ''
 	)`,
 	`CREATE INDEX IF NOT EXISTS idx_flow_runs_flow_started ON flow_runs(flow_id, started_at DESC)`,
@@ -136,7 +137,27 @@ var schemaStatements = []string{
 		updated_at TEXT NOT NULL,
 		PRIMARY KEY (flow_id, node_id, kind)
 	)`,
+	// One stored document per flow and content (sha256 of its JSON) for test runs; flow_runs.doc_hash
+	// refers to it (CreateRun), PruneRunsByMode removes the ones no run refers to.
+	`CREATE TABLE IF NOT EXISTS flow_test_docs (
+		flow_id TEXT NOT NULL REFERENCES flows(id) ON DELETE CASCADE,
+		hash TEXT NOT NULL,
+		json TEXT NOT NULL,
+		PRIMARY KEY (flow_id, hash)
+	)`,
 	`INSERT OR IGNORE INTO flows_meta (key, value) VALUES ('schema_version', '` + strconv.Itoa(storeSchemaVersion) + `')`,
+}
+
+// storeColumns are columns added after the first release. OpenStore adds them to an older
+// database (dbutil.MigrateAddColumn) before it runs storeIndexes; schemaStatements already
+// creates them in a new one. An older AuraGo ignores them (its statements name their columns).
+var storeColumns = []struct{ table, column, definition string }{
+	{"flow_runs", "doc_hash", "TEXT NOT NULL DEFAULT ''"},
+}
+
+// storeIndexes need the columns of storeColumns.
+var storeIndexes = []string{
+	`CREATE INDEX IF NOT EXISTS idx_flow_runs_doc_hash ON flow_runs(flow_id, doc_hash) WHERE doc_hash != ''`,
 }
 
 // Store persists flows, versions, runs, timers and test data in SQLite.
@@ -178,6 +199,18 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 	}
 	s := &Store{db: db, logger: logger}
 	for _, stmt := range schemaStatements {
+		if _, err := db.Exec(stmt); err != nil {
+			_ = db.Close()
+			return nil, fmt.Errorf("migrate flows database: %w", err)
+		}
+	}
+	for _, c := range storeColumns {
+		if err := dbutil.MigrateAddColumn(db, c.table, c.column, c.definition, logger); err != nil {
+			_ = db.Close()
+			return nil, fmt.Errorf("migrate flows database: %w", err)
+		}
+	}
+	for _, stmt := range storeIndexes {
 		if _, err := db.Exec(stmt); err != nil {
 			_ = db.Close()
 			return nil, fmt.Errorf("migrate flows database: %w", err)
