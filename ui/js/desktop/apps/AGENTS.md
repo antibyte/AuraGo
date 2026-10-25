@@ -234,6 +234,22 @@ after the built-in installers and before the markup exists. DOM work belongs in 
     (the `svg` has no z-index) and below the cards (z-index 1, later in the scene); nothing but z-index decides this.
   - `.infra-canvas-empty` and `.infra-canvas-nomatch` are centred boxes on their own surface (`--vd-theme-panel-bg-strong`, the surface of the tools and the minimap, with
     the theme blur, as the minimap) above the scene; only their buttons take the pointer.
+- Visual review fixes (Plan D Task 10/11, screenshots in `reports/infra-ui-review/plan-d/`):
+  - Status colours: `--infra-ok/warn/bad` stay the raw tokens for dots and strokes. Text and rings use `--infra-ok-text`,
+    `--infra-warn-text`, `--infra-bad-text` and `--infra-ok-ring`, `--infra-warn-ring`, `--infra-bad-ring`, which are
+    `light-dark(color-mix(token, --vd-text), token)`: the dark schemes keep the token (the danger text and the link are only
+    lightened a little), the light schemes darken it, because only the default theme and Minimal ship light variants of
+    `--ds-color-*-fg` (Fruity light, Windows XP and Amiga inherit the dark values: a theme-token follow-up). Accent used as a
+    text colour goes through `--infra-link`. Never use the raw tokens as text colour.
+  - Surfaces that float over the canvas (tools, lane labels, minimap, empty and no-match boxes) use `--vd-theme-panel-bg-strong`;
+    `--vd-theme-overlay-bg` is a modal scrim (the scrim and the dialog backdrop only).
+  - The List's table view is a container (`infra-table`): fixed px column widths, the name takes the rest, and Hardware, then
+    Power and Source, then Place, then Type, then Address drop below 1142, 1011, 807, 657 and 507 px so the List never scrolls
+    sideways. Spacer rows have no colspan (a colspan would keep the hidden columns' width). An empty inventory or a query with no
+    match shows `[data-table-empty]`.
+  - While the import sheet is open (`data-import-open`), the tools cluster moves right of it. Compact card names sit on a chip in
+    the app colour so connections leaving the bottom edge do not strike through them.
+  - Field labels are never capitalised by CSS. The inspector header stacks the kind and the breadcrumbs without a separator.
 - Focus return (Plan D Task 7): `app.focusReturnTarget(el)` names where focus goes back when a panel opened from `el` closes (a
   menu or popover item hands over to the trigger of its menu through `MENU_TRIGGERS`; anything outside the window, or nothing,
   hands over to the map, or to the active view button in the List) and `app.restoreFocus(el)` focuses it, falling back to the
