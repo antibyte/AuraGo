@@ -1311,6 +1311,27 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
         assert.equal(calls.filter(call => call.path === '/snapshot').length, 1);
         store.dispose();
     }
+    { // the connection dialog saves with the stored version, not the one it opened with; a 409 reloads so the next Save succeeds
+        let stored = 3;
+        const edge = version => ({ id: 'e1', version, from: 'a', to: 'b', kind: 'ethernet' });
+        const versions = [];
+        const { store, dialogs, calls, notices } = setup({
+            'PUT /edges/:id': body => { versions.push(body.version); if (body.version !== stored) throw Object.assign(new Error('conflict'), { status: 409, body: { error: 'conflict' } }); stored += 1; return { edge: edge(stored) }; },
+            'GET /snapshot': () => snapOf([gnode('a'), gnode('b')], { edges: [edge(stored)] }),
+        });
+        store.applySnapshot(snapOf([gnode('a'), gnode('b')], { edges: [edge(2)] }));
+        const form = () => new Map([['id', 'e1'], ['version', '1'], ['from', 'a'], ['to', 'b'], ['kind', 'fiber']]);
+        await dialogs.saveEdge(form(), '1');
+        assert.deepEqual(versions, [2], 'the stored version, not the hidden field of the dialog');
+        assert.equal(calls.filter(call => call.path === '/snapshot').length, 1, 'a 409 reloads');
+        assert.deepEqual(notices, ['desktop.infra_error_conflict'], 'and says the connection changed');
+        assert.equal(store.state.edges[0].version, 3);
+        await dialogs.saveEdge(form(), '1');
+        assert.deepEqual(versions, [2, 3], 'the next Save carries the reloaded version');
+        assert.equal(store.state.edges[0].version, 4);
+        assert.equal(notices.at(-1), 'desktop.infra_relation_saved');
+        store.dispose();
+    }
 }
 
 // ---- keyboard move mode: assets and places, revert unless Enter ---------------------------

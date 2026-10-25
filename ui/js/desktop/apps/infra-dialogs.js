@@ -127,12 +127,16 @@
             if (state.busy.has(busyKey)) return;
             store.setBusy(busyKey, true);
             try {
-                if (id) await store.updateEdge(id, { id, version: Number(form.get('version') || 0), ...fields });
+                // The version is the stored one at submit time, not the one the dialog opened with: after a 409 the reload brings the new one.
+                if (id) await store.updateEdge(id, { id, version: Number(state.edges.find(edge => edge.id === id)?.version ?? form.get('version') ?? 0), ...fields });
                 else if (!await store.dispatch(commands().createEdge(fields))) return;
                 closeOwnedDialog(owner);
                 store.notify(t('desktop.infra_relation_saved'), 'success');
-            } catch (error) { await store.writeFailed(error); }
-            finally { store.setBusy(busyKey, false); }
+            } catch (error) {
+                // Like the inline form: a stale version reloads, and the dialog stays open with the input for the next Save.
+                if (id && error?.status === 409) await store.reloadSnapshot();
+                await store.writeFailed(error);
+            } finally { store.setBusy(busyKey, false); }
         }
         async function deleteEdge(edge, owner) {
             if (!edge || !canWrite()) return;
