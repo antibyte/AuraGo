@@ -790,6 +790,7 @@
   "easydrag.ui.run_mode_live": "Live",
   "easydrag.ui.run_mode_test": "Test",
   "easydrag.ui.run_now": "Kjør nå",
+  "easydrag.ui.run_now_skipped": "Ikke startet: En kjøring av denne flyten pågår fortsatt, og flyten er satt til å hoppe over nye kjøringer i mellomtiden.",
   "easydrag.ui.run_readonly": "Dette skrivebordet er skrivebeskyttet.",
   "easydrag.ui.run_started": "Kjøring startet",
   "easydrag.ui.run_stop_label": "Stopp kjøringen fra {time}",

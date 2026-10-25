@@ -790,6 +790,7 @@
   "easydrag.ui.run_mode_live": "Live",
   "easydrag.ui.run_mode_test": "Test",
   "easydrag.ui.run_now": "Nu uitvoeren",
+  "easydrag.ui.run_now_skipped": "Niet gestart: er loopt nog een run van deze flow en de flow is ingesteld om nieuwe runs in de tussentijd over te slaan.",
   "easydrag.ui.run_readonly": "Dit bureaublad is alleen-lezen.",
   "easydrag.ui.run_started": "Uitvoering gestart",
   "easydrag.ui.run_stop_label": "Uitvoering van {time} stoppen",

@@ -790,6 +790,7 @@
   "easydrag.ui.run_mode_live": "Rzeczywiste",
   "easydrag.ui.run_mode_test": "Test",
   "easydrag.ui.run_now": "Uruchom teraz",
+  "easydrag.ui.run_now_skipped": "Nie uruchomiono: uruchomienie tego przepływu nadal trwa, a przepływ jest ustawiony tak, aby w międzyczasie pomijać nowe uruchomienia.",
   "easydrag.ui.run_readonly": "Ten pulpit jest tylko do odczytu.",
   "easydrag.ui.run_started": "Uruchomienie rozpoczęte",
   "easydrag.ui.run_stop_label": "Zatrzymaj uruchomienie z {time}",

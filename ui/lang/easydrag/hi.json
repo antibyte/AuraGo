@@ -790,6 +790,7 @@
   "easydrag.ui.run_mode_live": "लाइव",
   "easydrag.ui.run_mode_test": "टेस्ट",
   "easydrag.ui.run_now": "अभी चलाएँ",
+  "easydrag.ui.run_now_skipped": "शुरू नहीं हुआ: इस फ़्लो का एक रन अभी चल रहा है, और फ़्लो को इस दौरान नए रन छोड़ने के लिए सेट किया गया है।",
   "easydrag.ui.run_readonly": "यह डेस्कटॉप केवल पढ़ने के लिए है।",
   "easydrag.ui.run_started": "रन शुरू हुआ",
   "easydrag.ui.run_stop_label": "{time} का रन रोकें",

@@ -100,6 +100,31 @@ export async function run(env) {
         eq('b5 the batch-5 checks run on the c1d07 sandbox', [typeof sandbox, typeof openEditor, typeof saverHarness], ['function', 'function', 'function']);
     });
 
+    // ── G2: Run now under concurrency "skip" while a run goes on ──
+
+    await guardAsync('b5 G2 a skipped Run now says so, in the editor and on the start page', async () => {
+        const s = await session(req => (req.method === 'POST' && req.url === '/api/desktop/flows/f1/run' ? { status: 'skipped' } : undefined),
+            { enabled: true, flow: { live: flowDoc(), live_revision: 2, published_draft_revision: 3 } });
+        const said = await s.heard(() => s.editor.el.querySelector('[data-ed-cmd="run-now"]').fire('click'));
+        const editorRow = [s.h.notes.map(n => [n.title, n.message, n.type]), said, s.h.sources.length, !!s.ed.run, s.h.logged];
+        s.editor.dispose();
+        const p = await homePage(req => {
+            if (req.url === '/api/desktop/flows' && req.method === 'GET') return { flows: [flowCard('f1', 'Alpha')] };
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+            if (req.url === '/api/desktop/flows/f1/run' && req.method === 'POST') return { status: 'skipped' };
+            return undefined;
+        });
+        p.openMenu('f1');
+        await p.item('run_now').action();
+        await settle();
+        eq('b5 G2 the editor and a card menu name the skip; no run is followed', [editorRow, p.h.notes.map(n => [n.title, n.message]), p.h.logged], [
+            [[['run_now', 'run_now_skipped', undefined]], 'run_now_skipped', 0, false, []],
+            [['Alpha', 'run_now_skipped']], []
+        ]);
+        eq('b5 G2 the notice exists in all 16 locales', missingKeys(apps, ['easydrag.ui.run_now_skipped']), []);
+        p.home.dispose();
+    });
+
     // ── next checks go above this line ──
     void [T1, A, B, chainDoc, flowCard, apiError, deferred, missingKeys, read, css, lang, session, homePage, types, flowDoc];
 }

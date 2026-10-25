@@ -790,6 +790,7 @@
   "easydrag.ui.run_mode_live": "本番",
   "easydrag.ui.run_mode_test": "テスト",
   "easydrag.ui.run_now": "今すぐ実行",
+  "easydrag.ui.run_now_skipped": "開始されませんでした: このフローの実行がまだ進行中で、フローはその間の新しい実行をスキップする設定になっています。",
   "easydrag.ui.run_readonly": "このデスクトップは読み取り専用です。",
   "easydrag.ui.run_started": "実行を開始しました",
   "easydrag.ui.run_stop_label": "{time} の実行を停止",

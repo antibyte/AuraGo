@@ -790,6 +790,7 @@
   "easydrag.ui.run_mode_live": "Live",
   "easydrag.ui.run_mode_test": "Test",
   "easydrag.ui.run_now": "Kør nu",
+  "easydrag.ui.run_now_skipped": "Ikke startet: En kørsel af dette flow er stadig i gang, og flowet er indstillet til at springe nye kørsler over i mellemtiden.",
   "easydrag.ui.run_readonly": "Skrivebordet er skrivebeskyttet.",
   "easydrag.ui.run_started": "Kørsel startet",
   "easydrag.ui.run_stop_label": "Stop kørslen fra {time}",

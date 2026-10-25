@@ -790,6 +790,7 @@
   "easydrag.ui.run_mode_live": "Skarp",
   "easydrag.ui.run_mode_test": "Test",
   "easydrag.ui.run_now": "Kör nu",
+  "easydrag.ui.run_now_skipped": "Inte startad: En körning av det här flödet pågår fortfarande, och flödet är inställt på att hoppa över nya körningar under tiden.",
   "easydrag.ui.run_readonly": "Det här skrivbordet är skrivskyddat.",
   "easydrag.ui.run_started": "Körning startad",
   "easydrag.ui.run_stop_label": "Stoppa körningen från {time}",

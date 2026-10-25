@@ -790,6 +790,7 @@
   "easydrag.ui.run_mode_live": "Ostrý",
   "easydrag.ui.run_mode_test": "Test",
   "easydrag.ui.run_now": "Spustit nyní",
+  "easydrag.ui.run_now_skipped": "Nespuštěno: běh tohoto flow stále probíhá a flow je nastaveno tak, že mezitím nové běhy přeskakuje.",
   "easydrag.ui.run_readonly": "Tento desktop je jen ke čtení.",
   "easydrag.ui.run_started": "Běh spuštěn",
   "easydrag.ui.run_stop_label": "Zastavit běh z {time}",

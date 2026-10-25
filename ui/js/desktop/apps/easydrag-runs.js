@@ -575,7 +575,13 @@
             return trackStart(async () => {
                 try {
                     const res = await ed.api.runNow(ed.flow.id);
-                    if (res && res.run_id && !disposed) { attach(res.run_id, { mode: 'live' }); canvas.announce(t('easydrag.ui.announce_run_started')); }
+                    if (disposed) return;
+                    if (res && res.run_id) { attach(res.run_id, { mode: 'live' }); canvas.announce(t('easydrag.ui.announce_run_started')); return; }
+                    // Concurrency "skip" with a run still going: 202 {status: "skipped"} and no run to follow (runner.go Start).
+                    if (res && res.status === 'skipped') {
+                        ed.ctx.notify({ title: t('easydrag.ui.run_now'), message: t('easydrag.ui.run_now_skipped') });
+                        canvas.announce(t('easydrag.ui.run_now_skipped'));
+                    }
                 } catch (err) {
                     ed.ctx.notify({ title: t('easydrag.ui.run_now'), message: core.errorText(t, err), type: 'error' });
                 }

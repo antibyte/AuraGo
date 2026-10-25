@@ -790,6 +790,7 @@
   "easydrag.ui.run_mode_live": "Reale",
   "easydrag.ui.run_mode_test": "Prova",
   "easydrag.ui.run_now": "Esegui ora",
+  "easydrag.ui.run_now_skipped": "Non avviato: un'esecuzione di questo flusso è ancora in corso e il flusso è impostato per saltare le nuove esecuzioni nel frattempo.",
   "easydrag.ui.run_readonly": "Questo desktop è in sola lettura.",
   "easydrag.ui.run_started": "Esecuzione avviata",
   "easydrag.ui.run_stop_label": "Ferma l’esecuzione del {time}",

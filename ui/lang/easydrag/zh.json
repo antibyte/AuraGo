@@ -790,6 +790,7 @@
   "easydrag.ui.run_mode_live": "正式",
   "easydrag.ui.run_mode_test": "测试",
   "easydrag.ui.run_now": "立即运行",
+  "easydrag.ui.run_now_skipped": "未启动：此流程的一次运行仍在进行，且该流程设置为在此期间跳过新的运行。",
   "easydrag.ui.run_readonly": "此桌面为只读。",
   "easydrag.ui.run_started": "运行已开始",
   "easydrag.ui.run_stop_label": "停止 {time} 的运行",

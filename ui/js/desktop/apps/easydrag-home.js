@@ -418,8 +418,10 @@
             if (!mayChange() || !f || !f.published || !f.enabled || runsPending.has(f.id)) return;
             runsPending.add(f.id);
             try {
-                await app.api.runNow(f.id);
-                if (!gone) ctx.notify({ title: f.name, message: t('easydrag.ui.run_started') });
+                const res = await app.api.runNow(f.id);
+                // Concurrency "skip" with a run still going starts nothing (202 {status: "skipped"}).
+                const skipped = !!(res && res.status === 'skipped' && !res.run_id);
+                if (!gone) ctx.notify({ title: f.name, message: t(skipped ? 'easydrag.ui.run_now_skipped' : 'easydrag.ui.run_started') });
             } catch (err) {
                 if (!gone) ctx.notify({ title: f.name, message: core.errorText(t, err), type: 'error' });
             } finally {

@@ -790,6 +790,7 @@
   "easydrag.ui.run_mode_live": "Réelle",
   "easydrag.ui.run_mode_test": "Test",
   "easydrag.ui.run_now": "Exécuter maintenant",
+  "easydrag.ui.run_now_skipped": "Non démarré : une exécution de ce flux est encore en cours et le flux est configuré pour ignorer les nouvelles exécutions entre-temps.",
   "easydrag.ui.run_readonly": "Ce bureau est en lecture seule.",
   "easydrag.ui.run_started": "Exécution démarrée",
   "easydrag.ui.run_stop_label": "Arrêter l’exécution du {time}",

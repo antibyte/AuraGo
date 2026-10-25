@@ -790,6 +790,7 @@
   "easydrag.ui.run_mode_live": "Κανονική",
   "easydrag.ui.run_mode_test": "Δοκιμή",
   "easydrag.ui.run_now": "Εκτέλεση τώρα",
+  "easydrag.ui.run_now_skipped": "Δεν ξεκίνησε: μια εκτέλεση αυτής της ροής βρίσκεται ακόμη σε εξέλιξη και η ροή είναι ρυθμισμένη να παραλείπει νέες εκτελέσεις στο μεταξύ.",
   "easydrag.ui.run_readonly": "Αυτή η επιφάνεια εργασίας είναι μόνο για ανάγνωση.",
   "easydrag.ui.run_started": "Η εκτέλεση ξεκίνησε",
   "easydrag.ui.run_stop_label": "Διακοπή της εκτέλεσης της {time}",

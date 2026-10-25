@@ -790,6 +790,7 @@
   "easydrag.ui.run_mode_live": "Live",
   "easydrag.ui.run_mode_test": "Test",
   "easydrag.ui.run_now": "Run now",
+  "easydrag.ui.run_now_skipped": "Not started: a run of this flow is still going, and the flow is set to skip new runs meanwhile.",
   "easydrag.ui.run_readonly": "This desktop is read-only.",
   "easydrag.ui.run_started": "Run started",
   "easydrag.ui.run_stop_label": "Stop the run from {time}",
