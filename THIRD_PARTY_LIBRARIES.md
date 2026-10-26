@@ -47,6 +47,10 @@ original/adapted checksums and local adaptation script are recorded in
 
 ## 1. Go — direct dependencies
 
+Shared QR generation/scanning adds `github.com/makiuchi-d/gozxing` v0.1.1 ([upstream](https://github.com/makiuchi-d/gozxing), MIT plus ZXing Apache-2.0) and `github.com/go-text/typesetting` v0.3.5 ([upstream](https://github.com/go-text/typesetting), Unlicense OR BSD-3-Clause, HarfBuzz translation MIT). Copyright notices are in `THIRD_PARTY_NOTICES.md`; the corresponding licence families are in `licences/texts/`.
+
+QR caption resources under `ui/fonts/qr/` are Noto Sans Arabic/Devanagari, Noto Sans CJK SC, Noto Emoji and Liberation Serif (OFL-1.1). Exact upstream revisions, URLs, hashes and sizes are in `ui/fonts/qr/manifest.json`; original OFL texts accompany the fonts. Go Sans/Mono come from the existing `golang.org/x/image/font/gofont` module. `jsqr` 1.4.0 ([upstream](https://github.com/cozmo/jsQR), Apache-2.0) is a pinned development-only independent decoder fixture and is not shipped in production UI. Mini QR is a functional reference only; no upstream code/assets are copied.
+
 | Package | Version (from `go.mod`) | License | Project |
 |---|---|---|---|
 | `gopkg.in/yaml.v3` | v3.0.1 | MIT and Apache-2.0 | https://github.com/go-yaml/yaml |

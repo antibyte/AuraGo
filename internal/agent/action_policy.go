@@ -71,6 +71,8 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 	}
 	a.Mutating = !readActionOperation(a.Operation)
 	switch tc.Action {
+	case "qr_code":
+		a.Mutating = a.Operation != "presets" && a.Operation != "scan"
 	case "discover_tools", "read_tool_manual", "query_inventory", "query_memory", "context_memory", "context_manager", "web_capture", "brave_search", "web_search", "web_scraper":
 		a.Mutating = false
 	case "execute_shell", "execute_python", "run_tool", "execute_skill", "run_agent_skill_script":

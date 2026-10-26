@@ -96,6 +96,43 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   `TestChatFrontend_VideoPlayerFlowRemainsPresent`.
 
 ## Local Contracts
+
+- Shared QR editing is lazy key `qr`: `js/desktop/shared/qr-dialog.js` and
+  `css/desktop-qr.css`. Writer, Sheets and Pixel use the same local Go renderer,
+  scanner, configuration normalizer and CSV batch service. Payloads stay in POST
+  bodies, never URLs; previews do not publish files. `desktop.qr_*` and QR agent
+  Config/help keys live in all sixteen Desktop locale files.
+- Calendar QR drafts capture one RFC3339 creation timestamp for stable DTSTAMP
+  bytes across preview, styling and export; configuration import retains the
+  normalized timestamp. vCards expose separate work/private/mobile numbers;
+  local telephone numbers are retained with the core's country-context warning.
+- A QR dialog belongs to its initiating window and captured document/selection.
+  Preview, export and insertion use the same configuration revision; superseded
+  responses cannot replace a preview or mutate another document. Close/dispose
+  aborts requests and file readers, clears drafts/listeners/timers, revokes blob
+  URLs and stops all camera tracks, including a permission request that resolves
+  after close. Scanned content is text only and never executes.
+- QR localStorage contains only compact/full-view and pinned-control preferences.
+  Full configuration files include content, captions and embedded resources only
+  after explicit save; `/api/qr/config` normalizes images before download. Raster
+  and restricted SVG logo/background uploads are normalized by Go, never browser
+  SVG execution; scanning accepts PNG/JPEG/GIF/WebP. Explicit guarded URL imports
+  never create rendering-time network dependencies. Fonts use the fixed local
+  catalog in `fonts/qr/AGENTS.md`.
+- QR agent exposure (`tools.qr_code.enabled`, default off; `readonly`, default on)
+  is separate from human editor access. Read-only agent access permits scanning
+  and catalog reads; publication remains disabled. Existing editor restrictions
+  still govern insertion. Verify `TestQRDialogWriterPixelBrowser`,
+  `node scripts/test-pixel-qrcode.mjs`, `node scripts/test-qr-config.mjs`, the
+  Pixel suite and Desktop i18n checks;
+  actual camera hardware and printed-page scanning remain separate acceptance.
+  Operator workflow and input/output limits are in
+  [QR codes](../documentation/qr-code.md).
+- QR CSV file imports decode UTF-8 strictly, accept an optional UTF-8 BOM and
+  retain the prior draft on invalid encoding. Late file reads cannot replace a
+  newer selection or edits. Insertion callbacks receive the operation's abort
+  signal; closing or changing the dialog must cancel pending insertion work.
+
 - Dashboard Tools owns the self-test card (`js/dashboard/self-tests.js`): explicit Start/Stop, read/fixture/exact-binding profiles, KPI summary before a closed details table and fixed same-origin Markdown/JSON downloads. Dynamic values use `textContent`; prevent duplicate starts, discard stale requests and stop polling while hidden. Keep `dashboard.selftest_*` aligned in all 16 locales. Verify `TestSelfTestDashboard*` and `node ui/testdata/selftests.cjs`; backend/evidence contracts belong to `internal/selftest/AGENTS.md`.
 
 - Speech Output defaults to `phonon` with automatic language/voice on fresh setup.
@@ -1010,6 +1047,10 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   authenticator browser tests. See `../documentation/webauthn.md`.
 
 ## Child DOX Index
+
+- `fonts/qr/AGENTS.md` — Fixed local QR caption/fallback fonts, source revisions,
+  integrity manifests and OFL notices; runtime schema/rendering belongs to
+  `../internal/qrcode/AGENTS.md`.
 
 - `3d/screensaver/AGENTS.md` — Compact Tiefsee screensaver creature GLBs and their shader-facing UV contract.
 - `3d/chess/AGENTS.md` — Versioned AuraGo chess piece GLBs and their manifest contract for the Desktop 3D board.

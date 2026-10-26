@@ -1057,6 +1057,7 @@ type localI18nHelper struct {
 // Register every new prefix helper here so its keys stay verified. Config page
 // scripts under cfg/ are scanned by the same check (path form: cfg/ruview.js).
 var desktopLocalI18nHelpers = map[string]localI18nHelper{
+	"js/desktop/shared/qr-dialog.js":             {name: "tr", prefix: "desktop.qr_"},
 	"js/desktop/apps/minigolf-game.js":           {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/minigolf-views.js":          {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/minigolf-hud.js":            {name: "tr", prefix: "minigolf."},
@@ -1085,6 +1086,7 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 // the literal prefix, so every family needs its own "exists in every locale"
 // guarantee.
 var desktopDynamicI18nPrefixes = []string{
+	"desktop.qr_",
 	"homepage_studio.sites_drift_",
 	"homepage_studio.sites_origin_",
 	"homepage_studio.sites_target_",

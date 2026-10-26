@@ -813,6 +813,9 @@ func channelAdaptiveAlwaysInclude(runCfg RunConfig, alwaysInclude []string, ff T
 	if ff.OfficeDocumentEnabled {
 		out = append(out, "office_document")
 	}
+	if ff.QRCodeEnabled {
+		out = append(out, "qr_code")
+	}
 	if ff.OfficeWorkbookEnabled {
 		out = append(out, "office_workbook")
 	}

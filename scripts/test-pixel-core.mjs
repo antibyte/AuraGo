@@ -426,7 +426,7 @@ check('sticker mask is allowed and rasterize bumps rev + pushes', () => {
 check('loader order: libs before core, every stub module and style listed, worker not listed', () => {
     const scripts = loaderScripts();
     const expected = ['pixel-state.js', 'pixel-lib-core.js', 'pixel-lib-fx.js', 'pixel-lib-gen.js', 'pixel-lib-cutout.js', 'pixel-lib-inpaint.js',
-        'pixel-core.js', 'pixel-view.js', 'pixel-canvas.js', 'pixel-tools.js', 'pixel-actions.js', 'pixel-filters.js', 'pixel-events.js',
+        'pixel-core.js', 'pixel-qrcode.js', 'pixel-view.js', 'pixel-canvas.js', 'pixel-tools.js', 'pixel-actions.js', 'pixel-filters.js', 'pixel-events.js',
         'pixel-stickers.js', 'pixel-layers.js', 'pixel-selection.js', 'pixel-brush.js', 'pixel-tools-pro.js', 'pixel-transform.js',
         'pixel-generators.js', 'pixel-cutout.js', 'pixel-smart.js', 'pixel-commands.js', 'pixel-ora.js', 'pixel.js'];
     assert.deepEqual(scripts, expected);
@@ -437,7 +437,7 @@ check('loader order: libs before core, every stub module and style listed, worke
 
 check('modules install in load order and the stubs registered themselves', () => {
     const ids = Pixel.listModules().map(m => m.id);
-    assert.deepEqual(ids.slice(0, 10), ['layers', 'selection', 'brush', 'tools-pro', 'transform', 'generators', 'cutout', 'smart', 'commands', 'ora']);
+    assert.deepEqual(ids.slice(0, 11), ['qrcode', 'layers', 'selection', 'brush', 'tools-pro', 'transform', 'generators', 'cutout', 'smart', 'commands', 'ora']);
     assert.equal(ids[ids.length - 1], 'test-capture');
     assert.equal(rt.layers.length > 0, true);
 });

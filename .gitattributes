@@ -38,6 +38,8 @@ licences/texts/CC-BY-NC-SA-2.5.txt text eol=lf -whitespace
 ui/img/buuf-nestort/LICENSE.txt -whitespace
 
 # Preserve generated template literals and upstream license text byte-for-byte.
+ui/fonts/qr/OFL-*.txt text eol=lf -whitespace
+ui/fonts/qr/Go-fonts-LICENSE.txt text eol=lf -whitespace
 ui/js/vendor/** text=auto eol=lf -whitespace
 internal/desktop/bundled_apps/nasscad/** text=auto eol=lf -whitespace
 internal/gamemaker/runtime/three-*.min.js text eol=lf -whitespace

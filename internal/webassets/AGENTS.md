@@ -18,6 +18,7 @@ integration and versioned HTTP serving. See `documentation/web-assets.md`.
   templates or the active filesystem; restart activates the matching set.
 - Production PDF.js resources include CMaps (`.bcmap`), Type 1 fonts (`.pfb`),
   ICC color profiles (`.icc`) and WASM decoders; keep these in the asset manifest.
+- QR caption fallbacks and their licences under `ui/fonts/qr/` belong to the verified external set. `QRRenderOptions` resolves only fixed catalog font IDs through that namespace; no CWD or network fallback and no large font embed. Read `ui/fonts/qr/AGENTS.md` before changing the font manifest.
 - Keep tests runnable with `go test ./internal/webassets ./cmd/assetpack`.
   `scripts/check-web-assets.mjs` enforces a 10 MB first-party embed budget and
   the separate 1 MB recovery-page and 200 MB stripped-binary budgets (decimal).

@@ -448,6 +448,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		VirtualComputersEnabled:      cfg.VirtualComputers.Enabled && cfg.Tools.VirtualComputers.Enabled,
 		VirtualWorkspaceEnabled:      cfg.VirtualComputers.Enabled && cfg.Tools.VirtualComputers.Enabled && cfg.VirtualComputers.AgentControl.Enabled,
 		OpenSCADEnabled:              cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.VirtualDesktop.OpenSCAD.Enabled,
+		QRCodeEnabled:                cfg.Tools.QRCode.Enabled,
 		OfficeDocumentEnabled:        cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.OfficeDocument.Enabled,
 		OfficeWorkbookEnabled:        cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.OfficeWorkbook.Enabled,
 		NetworkPingEnabled:           cfg.Tools.NetworkPing.Enabled,

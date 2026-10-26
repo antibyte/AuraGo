@@ -8,6 +8,9 @@ function vdCfgEnsureData() {
     if (!configData.tools.virtual_desktop) configData.tools.virtual_desktop = {};
     if (!configData.tools.office_document) configData.tools.office_document = {};
     if (!configData.tools.office_workbook) configData.tools.office_workbook = {};
+    if (!configData.tools.qr_code) configData.tools.qr_code = {};
+    if (typeof configData.tools.qr_code.enabled !== 'boolean') configData.tools.qr_code.enabled = false;
+    if (typeof configData.tools.qr_code.readonly !== 'boolean') configData.tools.qr_code.readonly = true;
     const data = configData.virtual_desktop;
     if (!data.workspace_dir) data.workspace_dir = 'agent_workspace/virtual_desktop';
     if (!data.max_file_size_mb) data.max_file_size_mb = 50;
@@ -62,6 +65,8 @@ function renderVirtualDesktopSection(section) {
     html += vdCfgToggleRow('config.virtual_desktop.office_document_readonly_label', 'help.virtual_desktop.office_document_readonly', configData.tools.office_document.readonly === true, 'tools.office_document.readonly');
     html += vdCfgToggleRow('config.virtual_desktop.office_workbook_label', 'help.virtual_desktop.office_workbook', configData.tools.office_workbook.enabled === true, 'tools.office_workbook.enabled');
     html += vdCfgToggleRow('config.virtual_desktop.office_workbook_readonly_label', 'help.virtual_desktop.office_workbook_readonly', configData.tools.office_workbook.readonly === true, 'tools.office_workbook.readonly');
+    html += vdCfgToggleRow('config.virtual_desktop.qr_code_label', 'help.virtual_desktop.qr_code', configData.tools.qr_code.enabled === true, 'tools.qr_code.enabled');
+    html += vdCfgToggleRow('config.virtual_desktop.qr_code_readonly_label', 'help.virtual_desktop.qr_code_readonly', configData.tools.qr_code.readonly === true, 'tools.qr_code.readonly');
     html += '</div>';
 
     html += '<div class="field-grid two-cols">';

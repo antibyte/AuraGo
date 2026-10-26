@@ -224,6 +224,7 @@ type ToolFeatureFlags struct {
 	VirtualComputersEnabled      bool
 	VirtualWorkspaceEnabled      bool
 	OpenSCADEnabled              bool
+	QRCodeEnabled                bool
 	OfficeDocumentEnabled        bool
 	OfficeWorkbookEnabled        bool
 	NetworkPingEnabled           bool

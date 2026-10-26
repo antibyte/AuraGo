@@ -683,6 +683,9 @@ tools:
         enabled: false                                     # enable virtual_desktop tool; also requires virtual_desktop.allow_agent_control
     virtual_computers:
         enabled: false                                     # enable virtual_computers tool; also requires virtual_computers.enabled
+    qr_code:
+        enabled: false                                     # agent QR generation/scanning; desktop dialog is independent
+        readonly: true                                     # permit presets/scan, block generate/batch_generate
     office_document:
         enabled: false                                     # enable office_document tool; also requires virtual_desktop.enabled and allow_agent_control
         readonly: false                                    # read-only mode: allow read only; block write, patch, and export

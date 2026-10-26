@@ -1,6 +1,6 @@
 # Shared QR code module implementation plan
 
-Status: proposed implementation, 2026-10-26. This change adds the plan only.
+Status: implemented, 2026-10-26. The shared core, Desktop/agent interfaces and three editor adapters are present. Current operating contracts, limits and verification commands are in [documentation/qr-code.md](../documentation/qr-code.md). Real camera/printed-page acceptance remains separate from the automated software checks.
 
 Build one QR module for Writer, Tabellen, Pixel and the AuraGo agent. Cover the functional Mini QR baseline below, including scanning and batch export. Implement with `gpt-6.1-sol`, reasoning effort `max`, under the coordinating agent's review. This task-specific model choice overrides the general Luna preference for the implementation workers; it does not change unrelated tasks.
 

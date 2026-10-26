@@ -86,7 +86,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		WorkspaceSearchEnabled: true,
 		LearningsEnabled:       true, CodeGraphEnabled: true,
 		WebCaptureEnabled: true, BrowserAutomationEnabled: true, SpaceAgentEnabled: true, VirtualDesktopEnabled: true, GameMakerEnabled: true, VirtualComputersEnabled: true, VirtualWorkspaceEnabled: true,
-		OpenSCADEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
+		OpenSCADEnabled: true, QRCodeEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
 		S3Enabled: true, NetworkScanEnabled: true, FormAutomationEnabled: true, UPnPScanEnabled: true,
 		MeshCoreEnabled: true,
 		RTLSDREnabled:   true,
@@ -219,6 +219,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("virtual_computers", ff.VirtualComputersEnabled)
 	appendToolFeatureKeyPart("virtual_workspace", ff.VirtualWorkspaceEnabled)
 	appendToolFeatureKeyPart("openscad", ff.OpenSCADEnabled)
+	appendToolFeatureKeyPart("qr_code", ff.QRCodeEnabled)
 	appendToolFeatureKeyPart("office_document", ff.OfficeDocumentEnabled)
 	appendToolFeatureKeyPart("office_workbook", ff.OfficeWorkbookEnabled)
 	appendToolFeatureKeyPart("network_ping", ff.NetworkPingEnabled)
