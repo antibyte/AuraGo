@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"aurago/internal/office"
+	"aurago/internal/qrcode"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
@@ -54,6 +56,38 @@ func testSheetsAppBrowser(t *testing.T, check func(*testing.T, *rod.Page)) {
 	versions := map[string]int{}
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(".")))
+	mux.HandleFunc("/api/qr/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/qr/presets" {
+			json.NewEncoder(w).Encode(qrcode.Presets())
+			return
+		}
+		if r.URL.Path != "/api/qr/render" {
+			http.NotFound(w, r)
+			return
+		}
+		body, err := io.ReadAll(r.Body)
+		var spec qrcode.QRSpec
+		if err == nil {
+			spec, err = qrcode.ParseConfig(r.Context(), body)
+		}
+		var result qrcode.Result
+		if err == nil {
+			result, err = qrcode.Render(r.Context(), spec)
+		}
+		if err != nil {
+			w.WriteHeader(422)
+			json.NewEncoder(w).Encode(map[string]string{"error": "QR render failed"})
+			return
+		}
+		metadata, _ := json.Marshal(result.Metadata)
+		w.Header().Set("X-QR-Metadata", string(metadata))
+		w.Header().Set("X-QR-Width", fmt.Sprint(result.Metadata.Width))
+		w.Header().Set("X-QR-Height", fmt.Sprint(result.Metadata.Height))
+		w.Header().Set("X-QR-Verified", fmt.Sprint(result.Metadata.Verified))
+		w.Header().Set("Content-Type", result.Metadata.MIME)
+		w.Write(result.Data)
+	})
 	mux.HandleFunc("/js/vendor/sheets/engine.js", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("v") != "" {
 			http.ServeFile(w, r, "js/vendor/sheets/engine.js")
@@ -144,7 +178,8 @@ export const locales={...current,'en-US':english};`)
 <style>html,body{margin:0;height:100%;font-family:system-ui}body{--vd-text:#e4e8f0;--vd-theme-app-bg:#141922;--vd-theme-panel-bg:#1b202a;--vd-theme-chrome-bg:#1d2430;--vd-theme-control-bg:#252d3a;--vd-theme-border:#ffffff1a;--vd-theme-muted:#a7b1c3;--vd-accent:#9abfff}body[data-fruity-mode=light]{--vd-text:#212b3c;--vd-theme-app-bg:#e2e7ee;--vd-theme-panel-bg:#e5e9ef;--vd-theme-chrome-bg:#d7dfe9;--vd-theme-control-bg:#f8fafc;--vd-theme-border:#65748c40;--vd-theme-muted:#536279;--vd-accent:#2169bd}#host{height:100%}</style></head><body class="desktop-body" data-theme="default"><div id="host"></div>
 <script>window.BUILD_VERSION='sheets-test';window.sheetErrors=[];addEventListener('error',e=>sheetErrors.push(e.error?.stack||e.message));addEventListener('unhandledrejection',e=>sheetErrors.push(e.reason?.stack||String(e.reason)));</script>
 <script src="/js/shared/lazy-assets.js"></script>
-<script src="/chart.min.js"></script><script src="/js/desktop/core/print-runtime.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/sheets-data.js"></script><script src="/js/desktop/apps/sheets-panels.js"></script><script src="/js/desktop/apps/sheets-charts.js"></script><script src="/js/desktop/apps/sheets.js"></script>
+<script src="/js/desktop/core/module-loader.js"></script>
+<script src="/chart.min.js"></script><script src="/js/desktop/core/print-runtime.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/sheets-data.js"></script><script src="/js/desktop/apps/sheets-panels.js"></script><script src="/js/desktop/apps/sheets-charts.js"></script><script src="/js/desktop/apps/sheets-images.js"></script><script src="/js/desktop/apps/sheets.js"></script>
 <script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();window.sheetsContext={t:(key,params)=>String(labels[key]||key).replace(/\{\{(\w+)\}\}/g,(_,x)=>params?.[x]??''),promptDialog:async(title,value)=>value,confirmDialog:async()=>true,setWindowBeforeClose:(id,fn)=>window.closeGuard=fn,setWindowMenus:(id,menus)=>window.menus=menus,saveFileDialog:async()=>({path:'Documents/copy.xlsx'}),openFileDialog:async()=>({path:SheetsApp.instances.get('test').path})};SheetsApp.render(document.getElementById('host'),'test',sheetsContext);})();</script></body></html>`)
 	})
 	srv := httptest.NewServer(mux)

@@ -6,6 +6,8 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Ownership
 
+- `/api/qr/` shares the native `internal/qrcode` core and expensive-work admission with the agent tool. Use existing Desktop auth/CSRF/scopes: render/batch/import-image require write, presets/scan/config require read; human access is independent of agent QR enablement. Bound strict JSON/raw images, return no-store/nosniff/sandbox responses and never persist previews. Public image import additionally requires network permission and the shared SSRF-safe transport. Preserve cancellation and row errors; invalid batches never return ZIP bytes. Verify `TestQRCode*`; `internal/qrcode/AGENTS.md` and `documentation/qr-code.md` own format/limits.
+
 - Decisions is constructed passively from the saved snapshot and trusted install
   directory. Start it on the server lifecycle, inject `flowDecisions` into the
   flow services before Mission Control starts, and drain it after flows and on

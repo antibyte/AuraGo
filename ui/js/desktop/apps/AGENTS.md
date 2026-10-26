@@ -36,6 +36,16 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 
 ### Contracts
 
+- **QR insertion.** `pixel-qrcode.js` registers immediately after `pixel-core.js`
+  and adds Generate/menu-palette entries. It lazily opens shared key `qr`, captures
+  the document, layers, history entry and selection, and rejects stale results.
+  Insert a normal named document-sized raster layer with `commitLayerPixels`
+  (`respectSelection:false`, `history:false`), then one `pushHistory`; existing
+  layers and the selection descriptor survive. Placement uses bounded pixel
+  dimensions/offsets and the preview aspect ratio. Existing transforms and
+  OpenRaster own later editing/persistence; never add a parametric QR layer type.
+  Wrap the existing `disposeCore` to abort the dialog before core cleanup.
+
 - **Layers.** `layer = { id, name, canvas, visible, opacity, blend, lockPixels, lockAlpha, lockPosition, maskCanvas,
   maskEnabled, clip, rev, maskRev, sticker?, stickerImage? }`. Every layer owns a document-sized canvas. Create layers with
   `createLayer`, mark them with `markLayerDirty(layer, { mask })`, read through `getActiveReadCtx()` and write through
@@ -87,7 +97,9 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `pixel-generators.js`, `pixel-lib-gen.js`; cutout → `pixel-cutout.js`, `pixel-lib-cutout.js`; selection →
   `pixel-selection.js`; brush and retouch → `pixel-brush.js`, `pixel-tools-pro.js`; transform → `pixel-transform.js`;
   intelligence → `pixel-smart.js`, `pixel-commands.js`, `pixel-lib-inpaint.js`; project files → `pixel-ora.js`; stickers →
-  `pixel-stickers.js`. Styles are `ui/css/pixel*.css`, one per feature area.
+  `pixel-stickers.js`; QR insertion → `pixel-qrcode.js`. Styles are
+  `ui/css/pixel*.css`, one per feature area; QR chrome uses shared lazy
+  `ui/css/desktop-qr.css`.
 - Files that other apps read: `menus-and-routing.js` (`desktopIsImageFile`, bundled into
   `ui/js/desktop/bundles/main.bundle.js`) and `editor-filemenu.js` (`isPixelImageFile`). After editing either, run
   `npm run build:ui` and `npm run check:ui`.
@@ -3420,6 +3432,21 @@ registration lives in `internal/desktop/types.go`.
   window owns its engine/worker, requests, panels, chart canvases, operation
   journal and save queue. Load OfficeSession, data, panels and charts before
   sheets.js. The local vendor build imports only Apache-2.0 Univer OSS 1.0.4.
+- Load `sheets-images.js` after charts and before `sheets.js`.
+  `SheetsImages.create(state)` owns per-window image nodes in the existing charts
+  overlay. `aux.images` stores ID, sheet ID/A1 anchor, offsets, dimensions, MIME,
+  embedded data, alt text and readonly state on the same native auxiliary undo
+  command as charts and print. Row/column operations transform/remove anchors in
+  that transaction; sheet renames preserve stable IDs. Unsupported pictures stay
+  readonly/opaque and unsafe unknown drawing references lock structural edits.
+- Sheets QR insertion captures document revision/signal and selected sheet/range
+  before loading the shared dialog. Images preserve aspect ratio while dragging
+  or resizing; arrows move one pixel, Shift+arrows resize four pixels, Delete
+  removes. Existing snapshots, drafts, conditional writes, Save As, recovery and
+  print retain image bytes; CSV warns about omitted images. Dispose removes image
+  nodes and pointer listeners. Verify `TestDesktopSheetsImagesBrowser`,
+  `TestDesktopSheetsQRDialogBrowser` (actual dialog/selection and XLSX QR decode) and the
+  existing Sheets engine/app/recovery/versioned-assets browser checks.
 - Resolve the engine import and formula worker through `AuraLazyAssets.versionedURL`
   so both match the desktop build, including after a cached pre-1.0 resource set.
   Verify `TestDesktopSheetsVersionedAssetsBrowser` alongside the app/recovery checks.
@@ -3463,6 +3490,13 @@ registration lives in `internal/desktop/types.go`.
   option. Format indent, hex color, highlight and image fields follow the
   selection. Keep the async close guard installed until cleanup and never
   replace failed loads with blank content.
+- Writer Insert QR captures the native retained selection, document identity and
+  package revision before lazy loading. Native image insertion requires a caret:
+  collapse to the captured anchor and retain selected text. Pass generated PNG
+  through the existing `insertImage`/native image command with requested physical
+  millimetres converted to points independently of export pixels. Readonly and
+  suggestion-mode restrictions apply again at insertion; document replacement
+  closes the dialog. Keep native undo, serial saves, DOCX/print/export and recovery.
 - Writer exposes New/Open after load failures and clears the persisted window
   path only on a confirmed 404. Transient errors retain it for Retry. Verify
   `TestDesktopFileLoadRecoveryBrowser` alongside the Sheets recovery check.
@@ -4188,6 +4222,14 @@ registration lives in `internal/desktop/types.go`.
   vendored chess package versions or copied Stockfish assets.
 
 ## Verification
+
+- `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestQRDialogWriterPixelBrowser -count=1`
+  covers the shared real-core dialog and decodes QR media after native DOCX/ORA
+  save/reopen, plus undo/redo, selection fencing, all sixteen locales and viewport
+  cases. `node scripts/test-pixel-qrcode.mjs` covers raster insertion, bounds,
+  readonly, document changes and disposal; `npm run test:pixel` includes it.
+  Shared QR use and limitations are documented in
+  [QR codes](../../../../documentation/qr-code.md).
 
 - `node scripts/test-sheets-data.mjs`, `node scripts/test-writer-session.mjs`
 - `node scripts/build-sheets-vendor.js --check`

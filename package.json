@@ -109,7 +109,8 @@
     "webamp": "2.3.1"
   },
   "devDependencies": {
-    "gltf-validator": "2.0.0-dev.3.10"
+    "gltf-validator": "2.0.0-dev.3.10",
+    "jsqr": "1.4.0"
   },
   "overrides": {
     "katex": "0.18.9",

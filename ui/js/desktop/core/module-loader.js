@@ -20,6 +20,7 @@
     }
 
     const DESKTOP_APP_ASSETS = {
+        qr: { styles: ['/css/desktop-qr.css'], scripts: ['/js/desktop/shared/qr-dialog.js'] },
         'minigolf': {
             styles: appStyles('/css/desktop-app-minigolf.css'),
             scripts: ['/js/desktop/apps/minigolf.js']
@@ -43,7 +44,7 @@
         },
         'sheets': {
             styles: appStyles('/js/vendor/sheets/engine.css', '/css/desktop-app-sheets.css'),
-            scripts: ['/chart.min.js', '/js/desktop/apps/writer-session.js', '/js/desktop/apps/sheets-data.js', '/js/desktop/apps/sheets-panels.js', '/js/desktop/apps/sheets-charts.js', '/js/desktop/apps/sheets.js']
+            scripts: ['/chart.min.js', '/js/desktop/apps/writer-session.js', '/js/desktop/apps/sheets-data.js', '/js/desktop/apps/sheets-panels.js', '/js/desktop/apps/sheets-charts.js', '/js/desktop/apps/sheets-images.js', '/js/desktop/apps/sheets.js']
         },
         'settings': {
             styles: appStyles('/css/desktop-app-settings.css'),
@@ -312,6 +313,7 @@
                 '/js/desktop/apps/pixel-lib-cutout.js',
                 '/js/desktop/apps/pixel-lib-inpaint.js',
                 '/js/desktop/apps/pixel-core.js',
+                '/js/desktop/apps/pixel-qrcode.js',
                 '/js/desktop/apps/pixel-view.js',
                 '/js/desktop/apps/pixel-canvas.js',
                 '/js/desktop/apps/pixel-tools.js',

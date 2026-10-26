@@ -130,6 +130,33 @@ func canonicalActionTargets(tc ToolCall, dc *DispatchContext) ([]string, bool) {
 		add("server_id", selector)
 	}
 	switch tc.Action {
+	case "qr_code":
+		qrRef := func(root, value string) {
+			if value == "" {
+				return
+			}
+			if root == "" || root == "workspace" {
+				file(value)
+			} else if root == "desktop" {
+				add("desktop_file", filepath.ToSlash(filepath.Clean(value)))
+			} else {
+				unknown = true
+			}
+		}
+		qrRef(toolArgString(tc.Params, "output_root"), toolArgString(tc.Params, "output_path"))
+		for _, key := range []string{"input_ref", "config_ref", "logo_ref", "frame_image_ref", "csv_ref"} {
+			if ref, ok := tc.Params[key].(map[string]interface{}); ok {
+				qrRef(toolArgString(ref, "root"), toolArgString(ref, "path"))
+			}
+		}
+		for _, key := range []string{"logo_url", "frame_image_url"} {
+			if value := toolArgString(tc.Params, key); value != "" {
+				endpoint(value)
+			}
+		}
+		if len(targets) == 0 {
+			add("tool", "qr_code")
+		}
 	case "execute_shell", "execute_python", "execute_sudo", "run_tool", "execute_skill", "run_agent_skill_script":
 		add("host", "local")
 	case "docker":

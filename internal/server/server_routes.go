@@ -664,6 +664,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/pixel/remove-bg", handlePixelRemoveBG(s))
 	mux.HandleFunc("/api/pixel/upscale", handlePixelUpscale(s))
 	mux.HandleFunc("/api/pixel/save", handlePixelSave(s))
+	mux.HandleFunc("/api/qr/", handleQR(s))
 	mux.HandleFunc("/api/pixel/cutout/status", handlePixelCutoutStatus(s))
 	mux.HandleFunc("/api/pixel/cutout/prepare", handlePixelCutoutPrepare(s))
 	mux.HandleFunc("/api/pixel/cutout", handlePixelCutout(s))

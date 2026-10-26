@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "purpose": "Verified local QR caption fallbacks; no runtime downloads",
+  "fonts": [
+    {
+      "spdx": "OFL-1.1",
+      "sha256": "63111b5b2e074dd48cc67692e0a2726d86ee94c1c37fe8598257b7b4e87e869e",
+      "url": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/notosansarabic/NotoSansArabic%5Bwdth,wght%5D.ttf",
+      "licence": "OFL-Arabic.txt",
+      "id": "noto-arabic",
+      "revision": "e7db6ca603fd4862010383ff17ffd6cc4ffac1c0",
+      "repository": "google/fonts",
+      "bytes": 844676,
+      "file": "NotoSansArabic.ttf",
+      "path": "ofl/notosansarabic/NotoSansArabic%5Bwdth,wght%5D.ttf"
+    },
+    {
+      "spdx": "OFL-1.1",
+      "sha256": "14ec4af41f27482216d1c2229f417ff9b1425e1babb014e57d1d40d03229853e",
+      "url": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/notosansdevanagari/NotoSansDevanagari%5Bwdth,wght%5D.ttf",
+      "licence": "OFL-Devanagari.txt",
+      "id": "noto-devanagari",
+      "revision": "e7db6ca603fd4862010383ff17ffd6cc4ffac1c0",
+      "repository": "google/fonts",
+      "bytes": 641944,
+      "file": "NotoSansDevanagari.ttf",
+      "path": "ofl/notosansdevanagari/NotoSansDevanagari%5Bwdth,wght%5D.ttf"
+    },
+    {
+      "spdx": "OFL-1.1",
+      "sha256": "2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b",
+      "url": "https://raw.githubusercontent.com/notofonts/noto-cjk/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf",
+      "licence": "OFL-CJK.txt",
+      "id": "noto-cjk",
+      "revision": "f8d157532fbfaeda587e826d4cd5b21a49186f7c",
+      "repository": "notofonts/noto-cjk",
+      "bytes": 16437364,
+      "file": "NotoSansCJKsc.otf",
+      "path": "Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf"
+    },
+    {
+      "spdx": "OFL-1.1",
+      "sha256": "de6c18832938afc99caf132b39d6a30a19bac7f2e812e28db2535b4608d27551",
+      "url": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/notoemoji/NotoEmoji%5Bwght%5D.ttf",
+      "licence": "OFL-Emoji.txt",
+      "id": "noto-emoji",
+      "revision": "e7db6ca603fd4862010383ff17ffd6cc4ffac1c0",
+      "repository": "google/fonts",
+      "bytes": 1982596,
+      "file": "NotoEmoji.ttf",
+      "path": "ofl/notoemoji/NotoEmoji%5Bwght%5D.ttf"
+    },
+    {
+      "id": "serif",
+      "file": "LiberationSerif-Regular.ttf",
+      "repository": "@docx-editor.dev/fonts",
+      "revision": "2.29.0",
+      "path": "ui/js/vendor/writer/assets/LiberationSerif-Regular.ttf",
+      "source_manifest": "ui/js/vendor/writer/manifest.json",
+      "sha256": "058ea80864aef09a23f45cbec2bb5400bc3dfbdea01c3f10538a21fcb497fb74",
+      "bytes": 393576,
+      "url": "https://registry.npmjs.org/@docx-editor.dev/fonts/-/fonts-2.29.0.tgz",
+      "licence": "OFL-Serif.txt",
+      "spdx": "OFL-1.1"
+    }
+  ]
+}

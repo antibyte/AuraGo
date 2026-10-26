@@ -275,6 +275,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"virtual_computers", "Launch and operate short-lived private virtual computers through AuraGo"},
 		{"virtual_workspace", "Create and control stateful agent workspaces inside Firecracker virtual machines"},
 		{"virtual_browser", "Interactive website navigation in visible Chromium; watch via Virtual Computers Agent Workspaces"},
+		{"qr_code", "Generate, style, scan, and batch-export QR codes for Writer, spreadsheets, and Pixel"},
 		{"office_document", "Create, read, patch, and export virtual desktop Writer documents"},
 		{"office_workbook", "Create, read, edit, evaluate, and export virtual desktop spreadsheets"},
 		{"layerling", "Inspect and edit an open Layerling 3D CAD model in the Desktop"},

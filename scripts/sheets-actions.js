@@ -4,7 +4,7 @@ import { SheetInterceptorService, AFTER_CELL_EDIT, EffectRefRangId, handleDefaul
 import { ISheetClipboardService } from '@univerjs/sheets-ui';
 import { deserializeRangeWithSheet, serializeRange, serializeRangeWithSheet } from '@univerjs/engine-formula';
 
-// Host-owned charts and print settings participate in the editor's own undo stack.
+// Host-owned charts, images and print settings share the editor's undo stack.
 class AuraSheetsActions extends Plugin {
     static pluginName = 'AURAGO_SHEETS_ACTIONS';
     static type = UniverInstanceType.UNIVER_SHEET;
@@ -31,6 +31,11 @@ class AuraSheetsActions extends Plugin {
             after.charts=after.charts.filter(c=>!(remove&&c.sheet===p.subUnitId));
             for(const c of after.charts){if(c.sheet===p.subUnitId&&structure){c.range=transform(c.range);const anchor=transform(c.anchor);if(anchor!=='#REF!')c.anchor=anchor.split(':')[0];}for(const s of c.series||[])for(const key of ['name','categories','values'])if(s[key]?.includes('!'))s[key]=transform(s[key],true);}
             after.charts=after.charts.filter(c=>c.range!=='#REF!');
+            if(Array.isArray(after.images)){
+                after.images=after.images.filter(image=>!(remove&&image.sheet===p.subUnitId));
+                for(const image of after.images)if(image.sheet===p.subUnitId&&structure)image.anchor=transform(image.anchor).split(':')[0];
+                after.images=after.images.filter(image=>image.anchor!=='#REF!');
+            }
             if(JSON.stringify(before)===JSON.stringify(after))return {undos:[],redos:[]};
             return {undos:[{id:mutation,params:{unitId:p.unitId,value:before}}],redos:[{id:mutation,params:{unitId:p.unitId,value:after}}]};
         }}));

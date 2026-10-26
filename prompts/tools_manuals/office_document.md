@@ -4,7 +4,7 @@ Use `office_document` for agent-safe Writer document work inside AuraGo's virtua
 
 The tool requires `tools.office_document.enabled`, `virtual_desktop.enabled`, and `virtual_desktop.allow_agent_control`. Paths are jailed to `virtual_desktop.workspace_dir`; never include secrets or vault values in documents unless the user explicitly asked for that content.
 
-If `tools.office_document.readonly` is enabled, only `read` is allowed. `write`, `patch`, and `export` are blocked.
+If `tools.office_document.readonly` is enabled, only `read` is allowed. `write`, `patch`, `export`, and `insert_image` are blocked.
 
 ## Operations
 
@@ -12,6 +12,7 @@ If `tools.office_document.readonly` is enabled, only `read` is allowed. `write`,
 - `write`: use `path` plus `content`/`title` or a full `document` object.
 - `patch`: use `path`, optional seed `content`, `title`, `prepend_text`, `append_text`, and `replacements:[{find,replace}]`.
 - `export`: use `path`, `output_path`, and `format` (`docx`, `html`, `md`, or `txt`).
+- `insert_image`: DOCX only. Read the target first and pass its `office_version.etag` as `expected_version`, `image_ref:{root:"desktop"|"workspace",path:"relative/image.png"}`, and `anchor:"end"`. Optional `width`/`height` are 96-DPI pixels; `alt` is an accessible description. The image is embedded at the document end without rebuilding existing paragraphs, drawings or opaque parts. Conflicts retain the original. Use `qr_code.generate` to create a verified PNG; QR generation has its own enable/write grants.
 
 Complex DOCX files created by Autor or other word processors may contain layout,
 comments, tracked changes, images or notes outside this tool's simplified model.

@@ -209,6 +209,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Network shares | `internal/networkshares/AGENTS.md` | SMB/NFS capability/ownership/mutation policy. |
 | Newspaper | `internal/newspaper/AGENTS.md` | Daily publication/source validation/scheduler/delivery receipts. |
 | Desktop Office | `internal/office/AGENTS.md` | Workbook/document preservation/editing/assist. |
+| Shared QR codes | `internal/qrcode/AGENTS.md`, `internal/office/AGENTS.md`, `ui/js/desktop/apps/AGENTS.md` | Shared renderer/templates/scanner/config/batch, native tool and Writer/Tabellen/Pixel insertion; font child contract `ui/fonts/qr/AGENTS.md`. |
 | ONNX Runtime | `internal/onnxrt/AGENTS.md` | Purego binding/verified pinned asset cache/native workers shared by embeddings/person detection. |
 | Personal Radio | `internal/personalradio/AGENTS.md` | Stations/durable audio library/rotation/news/provider quotas/Desktop playback. |
 | Person detection | `internal/persondetect/AGENTS.md` | D-FINE pinned models/WebGPU patcher/`--person-detect-worker` protocol/backend selection/supervision. |

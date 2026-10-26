@@ -2393,6 +2393,10 @@ type Config struct {
 		VirtualComputers struct {
 			Enabled bool `yaml:"enabled"` // enable virtual_computers tool (microVM control plane)
 		} `yaml:"virtual_computers"`
+		QRCode struct {
+			Enabled  bool `yaml:"enabled"`
+			ReadOnly bool `yaml:"readonly"`
+		} `yaml:"qr_code"`
 		OfficeDocument struct {
 			Enabled  bool `yaml:"enabled"`  // enable office_document tool (agent-safe Writer document operations)
 			ReadOnly bool `yaml:"readonly"` // true = only read documents, block write/patch/export

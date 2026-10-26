@@ -35,6 +35,10 @@ gegen diese Liste prüfen.
 
 ## Was die üblichen Lizenzen verlangen
 
+Das gemeinsame QR-Modul verwendet `github.com/makiuchi-d/gozxing` v0.1.1 (MIT, Copyright 2018 Daisuke MAKIUCHI; ursprüngliche ZXing-Anteile Apache-2.0, Copyright 2007–2018 ZXing authors) und `github.com/go-text/typesetting` v0.3.5 (Unlicense ODER BSD-3-Clause, Copyright 2021 The go-text authors; HarfBuzz-Übersetzung MIT). Die vollständigen Urheberzeilen stehen in `THIRD_PARTY_NOTICES.md`, die Lizenztexte in `texts/MIT.txt`, `texts/Apache-2.0.txt`, `texts/BSD-3-Clause.txt` und `texts/Unlicense.txt`.
+
+Die QR-Schriften Noto Sans Arabic/Devanagari, Noto Sans CJK SC, Noto Emoji und Liberation Serif stehen unter OFL-1.1. Originaltexte und exakte Herkunft mit Hashes liegen in `ui/fonts/qr/`. Go Sans/Mono stammen aus der vorhandenen `golang.org/x/image/font/gofont`-Abhängigkeit. `jsqr` 1.4.0 (Apache-2.0) dient ausschließlich als unabhängiger Decoder in Entwicklungstests. Mini QR dient als Funktionsvorlage; dessen Quellcode und Assets werden nicht mitgeliefert.
+
 | Lizenz | Bedingung für die Weitergabe |
 | --- | --- |
 | MIT, BSD-2-Clause, BSD-3-Clause, ISC | Nutzen und Ändern ist erlaubt. Urheberzeile und Lizenztext bleiben am Werk. BSD-3 verbietet zusätzlich Werbung mit dem Namen der Urheber. |

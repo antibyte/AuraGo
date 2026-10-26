@@ -1134,6 +1134,17 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return "Tool Output: " + exec.Output
 
+		case "qr_code":
+			logger.Info("LLM requested QR operation", "operation", tc.Operation)
+			exec := tools.ExecuteQRCode(ctx, cfg, tc.Params)
+			if exec.Event != nil && dc.Broker != nil {
+				payload, _ := json.Marshal(struct {
+					Type    string         `json:"type"`
+					Payload *desktop.Event `json:"payload"`
+				}{"virtual_desktop_event", exec.Event})
+				dc.Broker.SendJSON(string(payload))
+			}
+			return "Tool Output: " + exec.Output
 		case "office_document":
 			logger.Info("LLM requested office document operation",
 				"operation", tc.Operation,
