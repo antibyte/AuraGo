@@ -756,9 +756,13 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   Keep the ten draw calls, shared sphere geometry and fixed 3500/850-star
   buffers. Exactly 20 stars flicker subtly with individually randomized pauses;
   four distinct low-poly ships (saucer cruiser, cargo freighter, ring explorer,
-  shuttle) each bake their lit hull, bridge and engines into one mesh. Keep
-  diagonal courses visible at every aspect ratio and wrap fully offscreen.
-  Both effects use scene time and the existing pause/disposal lifecycle.
+  shuttle) each bake their lit hull, bridge, engines and thruster plumes into
+  one mesh with shader-driven thruster/strobe glow. Keep diagonal courses
+  visible at every aspect ratio and wrap fully offscreen. Planet/backdrop
+  shaders include subtle aurora, city-light shimmer, storm lightning and
+  micro-meteors; pointer movement drives gentle parallax and `--galaxy-mx` /
+  `--galaxy-my` glass highlights. All effects use scene time and the existing
+  pause/disposal lifecycle.
   No full-screen postprocessing. Start desktop at high quality with
   at most 1.5 DPR / 3840x2160 pixels, then lower resolution after sustained
   slow frames. Calibrate the idle display cadence during the first-frame fade;

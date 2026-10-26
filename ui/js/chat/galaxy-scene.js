@@ -4,6 +4,7 @@
     const root = document.documentElement;
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const MAX_PIXELS = 3840 * 2160;
+    const pointerGoal = { x: 0, y: 0, mx: 50, my: 18 };
     let runtime = null;
     let generation = 0;
     let failed = false;
@@ -32,6 +33,7 @@
         uniform vec3 uSun;
         uniform float uCloudOffset;
         uniform float uCloudShadow;
+        uniform float uTime;
         varying vec2 vUv;
         varying vec3 vNormal;
         varying vec3 vWorld;
@@ -45,14 +47,24 @@
             float diffuse = max(0.0, sun) * (1.0 - clouds * uCloudShadow);
             vec3 col = linear * vec3(0.48, 0.68, 1.0) * (0.009 + diffuse * 1.65);
             float sea = smoothstep(0.015, 0.08, albedo.b - albedo.r) * (1.0 - smoothstep(0.2, 0.45, albedo.r));
-            float specular = pow(max(0.0, dot(reflect(-uSun, n), view)), 70.0);
-            col += vec3(0.85, 0.92, 1.0) * specular * sea * max(0.0, sun) * 0.65;
+            float seaRipple = 0.88 + 0.12 * sin(uTime * 1.8 + vUv.x * 95.0 - vUv.y * 65.0);
+            float specular = pow(max(0.0, dot(reflect(-uSun, n), view)), 70.0) * seaRipple;
+            col += vec3(0.85, 0.92, 1.0) * specular * sea * max(0.0, sun) * 0.68;
             vec3 city = texture2D(uNight, vUv).rgb;
             float night = 1.0 - smoothstep(-0.18, 0.15, sun);
             // The night map includes a blue terrain base; only its bright pixels emit gold light.
             float cityLight = smoothstep(0.10, 0.32, dot(city, vec3(0.3, 0.6, 0.1)));
-            col += pow(city, vec3(1.6)) * vec3(1.0, 0.63, 0.28) * cityLight * night * 1.8 * (1.0 - clouds * 0.65);
+            float cityShimmer = 0.9 + 0.1 * sin(uTime * 2.4 + vUv.x * 180.0 + vUv.y * 130.0);
+            col += pow(city, vec3(1.6)) * vec3(1.0, 0.63, 0.28) * cityLight * night * 1.85 * cityShimmer * (1.0 - clouds * 0.65);
             col += pow(city, vec3(2.2)) * vec3(0.1, 0.3, 0.75) * night * 0.3;
+            // Subtle high-altitude storm lightning on the night-side cloud deck.
+            float stormCycle = floor(uTime / 4.4);
+            float stormPhase = mod(uTime, 4.4);
+            float stormFlash = exp(-pow((stormPhase - 0.08) / 0.035, 2.0)) + 0.65 * exp(-pow((stormPhase - 0.19) / 0.045, 2.0));
+            vec2 stormPos = vec2(fract(sin(stormCycle * 12.9898) * 43758.5453), 0.26 + 0.48 * fract(sin(stormCycle * 78.233) * 43758.5453));
+            vec2 dStorm = vec2(min(abs(vUv.x - stormPos.x), 1.0 - abs(vUv.x - stormPos.x)) * 2.0, vUv.y - stormPos.y);
+            float stormSpot = exp(-dot(dStorm, dStorm) / 0.0024) * smoothstep(0.24, 0.68, clouds) * night;
+            col += vec3(0.56, 0.78, 1.0) * stormSpot * stormFlash * 0.78;
             float rim = pow(1.0 - max(0.0, dot(n, view)), 3.8);
             col += vec3(0.08, 0.4, 1.0) * rim * 1.6;
             gl_FragColor = vec4(pow(max(col, vec3(0.0)), vec3(1.0 / 2.2)), 1.0);
@@ -73,6 +85,7 @@
     const atmosphereFragment = `
         precision highp float;
         uniform vec3 uSun;
+        uniform float uTime;
         varying vec3 vNormal;
         varying vec3 vWorld;
         void main() {
@@ -80,7 +93,9 @@
             vec3 view = normalize(cameraPosition - vWorld);
             float rim = pow(1.0 - abs(dot(n, view)), 4.5);
             float lit = smoothstep(-0.4, 0.6, dot(n, uSun));
-            gl_FragColor = vec4(vec3(0.12, 0.42, 1.0), rim * (0.22 + lit * 0.6));
+            float aurora = (sin(vWorld.x * 6.0 + vWorld.y * 4.5 + uTime * 0.55) * 0.5 + 0.5) * (1.0 - lit);
+            vec3 col = mix(vec3(0.12, 0.42, 1.0), vec3(0.48, 0.36, 1.0), aurora * 0.38);
+            gl_FragColor = vec4(col, rim * (0.23 + lit * 0.6 + aurora * 0.07));
         }
     `;
 
@@ -109,7 +124,8 @@
             uniforms: {
                 uSpace: { value: space }, uDetail: { value: detail || space },
                 uDetailWeight: { value: detail ? 0.04 : 0 },
-                uAspect: { value: 1 }, uDrift: { value: new THREE.Vector2() }
+                uAspect: { value: 1 }, uDrift: { value: new THREE.Vector2() },
+                uTime: { value: 0 }
             },
             vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.999,1.0);}',
             fragmentShader: `
@@ -119,6 +135,7 @@
                 uniform float uDetailWeight;
                 uniform float uAspect;
                 uniform vec2 uDrift;
+                uniform float uTime;
                 varying vec2 vUv;
                 void main() {
                     vec2 uv = vUv - 0.5;
@@ -130,6 +147,34 @@
                     float detail = dot(texture2D(uDetail, uv * vec2(1.3, 2.1)).rgb, vec3(0.333));
                     float galaxy = smoothstep(0.09, 0.5, max(col.r, max(col.g, col.b)));
                     col *= 1.0 + (detail - 0.35) * uDetailWeight * galaxy;
+                    // Subtle cosmic dust shimmer along the nebula band.
+                    float nebulaWave = 0.5 + 0.5 * sin(uv.x * 7.5 - uv.y * 5.0 + uTime * 0.22);
+                    col += vec3(0.018, 0.036, 0.068) * galaxy * nebulaWave * (0.35 + detail * 0.65);
+                    // Staggered procedural micro-meteor streaks across deep space.
+                    for (int i = 0; i < 2; i++) {
+                        float fi = float(i);
+                        float period = 19.0 + fi * 13.0;
+                        float t = uTime + fi * 11.3;
+                        float cycle = floor(t / period);
+                        float phase = mod(t, period);
+                        if (phase < 1.35) {
+                            float prog = phase / 1.35;
+                            float h1 = fract(sin(cycle * 37.17 + fi * 91.3) * 43758.5453);
+                            float h2 = fract(sin(cycle * 73.41 + fi * 53.7) * 24634.6345);
+                            vec2 startPos = vec2(0.16 + h1 * 0.68, 0.56 + h2 * 0.30);
+                            vec2 dir = normalize(vec2(h1 > 0.5 ? -0.84 : 0.84, -0.54));
+                            vec2 head = startPos + dir * (prog * 0.36);
+                            vec2 rel = vUv - head;
+                            float along = dot(rel, -dir);
+                            float perp = length(rel - (-dir) * along);
+                            float tailLen = 0.085 * sin(prog * 3.14159265);
+                            float trail = smoothstep(tailLen, 0.0, along) * step(0.0, along);
+                            float core = exp(-perp * 720.0) * trail;
+                            float halo = exp(-perp * 190.0) * trail * 0.38;
+                            float env = sin(prog * 3.14159265);
+                            col += mix(vec3(0.45, 0.82, 1.0), vec3(0.95, 0.98, 1.0), along / max(0.001, tailLen)) * (core + halo) * env;
+                        }
+                    }
                     gl_FragColor = vec4(col, 1.0);
                 }
             `
@@ -142,7 +187,8 @@
         rt.planet = new THREE.Group();
         const surface = new THREE.Mesh(sphere, shader(surfaceFragment, {
             uDay: { value: day }, uNight: { value: night }, uCloud: { value: cloud },
-            uSun: { value: sun }, uCloudOffset: { value: 0 }, uCloudShadow: { value: rt.mobile ? 0 : 0.25 }
+            uSun: { value: sun }, uCloudOffset: { value: 0 }, uCloudShadow: { value: rt.mobile ? 0 : 0.25 },
+            uTime: { value: 0 }
         }));
         rt.surface = surface;
         rt.planet.add(surface);
@@ -151,10 +197,11 @@
         }, { transparent: true, depthWrite: false }));
         rt.clouds.scale.setScalar(1.009);
         rt.planet.add(rt.clouds);
-        const atmosphere = new THREE.Mesh(sphere, shader(atmosphereFragment, { uSun: { value: sun } }, {
+        const atmosphere = new THREE.Mesh(sphere, shader(atmosphereFragment, { uSun: { value: sun }, uTime: { value: 0 } }, {
             side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
         }));
         atmosphere.scale.setScalar(rt.mobile ? 1.035 : 1.045);
+        rt.atmosphere = atmosphere;
         rt.planet.add(atmosphere);
         rt.planet.rotation.z = -0.19;
         rt.scene.add(rt.planet);
@@ -164,16 +211,24 @@
             precision highp float;
             uniform vec3 uSun;
             uniform sampler2D uCloud;
-            varying vec2 vUv; varying vec3 vNormal;
+            uniform float uTime;
+            varying vec2 vUv; varying vec3 vNormal; varying vec3 vWorld;
             void main(){
-                float turbulence = texture2D(uCloud, vUv).r;
-                float bands = sin(vUv.y * 85.0 + turbulence * 5.0) * 0.5 + 0.5;
-                vec3 col = mix(vec3(0.30,0.25,0.28),vec3(0.46,0.35,0.32),bands);
+                vec2 bandUv = vec2(fract(vUv.x + uTime * 0.0008), vUv.y);
+                float turbulence = texture2D(uCloud, bandUv).r;
+                float bands = sin(vUv.y * 85.0 + turbulence * 5.0 + sin(vUv.x * 12.0 + uTime * 0.05) * 0.35) * 0.5 + 0.5;
+                vec3 col = mix(vec3(0.30,0.25,0.28),vec3(0.48,0.36,0.33),bands);
                 col += turbulence * 0.07;
-                col *= 0.24 + max(0.0,dot(normalize(vNormal),normalize(uSun + vec3(-0.4,0.3,1.7)))) * 0.75;
+                vec3 N = normalize(vNormal);
+                vec3 L = normalize(uSun + vec3(-0.4,0.3,1.7));
+                float lit = max(0.0, dot(N, L));
+                col *= 0.24 + lit * 0.75;
+                vec3 V = normalize(cameraPosition - vWorld);
+                float rim = pow(1.0 - max(0.0, dot(N, V)), 3.0) * smoothstep(-0.2, 0.6, dot(N, L));
+                col += vec3(0.62, 0.48, 0.42) * rim * 0.28;
                 gl_FragColor=vec4(col,1.0);
             }
-        `, { uSun: { value: sun }, uCloud: { value: cloud } }));
+        `, { uSun: { value: sun }, uCloud: { value: cloud }, uTime: { value: 0 } }));
         rt.distant.scale.setScalar(0.095);
         rt.distant.rotation.z = 0.3;
         rt.scene.add(rt.distant);
@@ -242,6 +297,23 @@
     function createFleet(rt, sun) {
         // Bake each multipart design into one mesh: four ships, four draw calls.
         const material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, metalness: 0.35, roughness: 0.48 });
+        rt.fleetTime = { value: 0 };
+        material.onBeforeCompile = shader => {
+            shader.uniforms.uTime = rt.fleetTime;
+            shader.vertexShader = 'varying vec3 vShipLocal;\n' + shader.vertexShader.replace(
+                '#include <begin_vertex>',
+                '#include <begin_vertex>\nvShipLocal = position;'
+            );
+            shader.fragmentShader = 'uniform float uTime;\nvarying vec3 vShipLocal;\n' + shader.fragmentShader.replace(
+                '#include <emissivemap_fragment>',
+                `#include <emissivemap_fragment>
+                float cyanGlow = smoothstep(0.14, 0.38, vColor.b - vColor.r);
+                float warmGlow = smoothstep(0.08, 0.28, vColor.r - vColor.b) * step(0.35, vColor.g);
+                float thrusterPulse = 0.78 + 0.28 * sin(uTime * 9.5 + vShipLocal.x * 8.0 + vShipLocal.y * 5.0);
+                float navStrobe = pow(0.5 + 0.5 * sin(uTime * 3.8 + abs(vShipLocal.y) * 6.0), 10.0) * smoothstep(0.32, 0.55, abs(vShipLocal.y));
+                totalEmissiveRadiance += vColor.rgb * cyanGlow * (0.65 * thrusterPulse + navStrobe * 0.85) + vColor.rgb * warmGlow * 0.28;`
+            );
+        };
         const light = new THREE.DirectionalLight(0xffeedb, 1.8);
         light.position.copy(sun).multiplyScalar(10);
         rt.scene.add(light, new THREE.HemisphereLight(0xaacfff, 0x152031, 0.8));
@@ -262,6 +334,7 @@
             const pod = (x, y, z, length, radius, color) => {
                 part(new THREE.CylinderGeometry(radius * 0.8, radius, length, 10), color, x, y, z, 0, -Math.PI / 2);
                 part(new THREE.CylinderGeometry(radius * 0.75, radius * 0.75, 0.035, 10), 0x82e4ff, x - length / 2 - 0.015, y, z, 0, -Math.PI / 2);
+                part(new THREE.ConeGeometry(radius * 0.68, radius * 3.2, 10), 0x5ce1ff, x - length / 2 - radius * 1.62, y, z, 0, Math.PI / 2);
             };
             if (design === 0) {
                 // Survey cruiser: broad saucer, bridge dome and twin nacelles.
@@ -317,10 +390,10 @@
             rt.scene.add(ship);
         }
         rt.shipRoutes = [
-            { duration: 105, phase: 0.32, x: 0, y: 0.28, angle: 28, scale: 0.055 },
-            { duration: 135, phase: 0.6, x: 0.1, y: 0.4, angle: 145, scale: 0.045 },
-            { duration: 155, phase: 0.36, x: -0.3, y: 0, angle: -58, scale: 0.04 },
-            { duration: 90, phase: 0.52, x: 0.3, y: 0.3, angle: -32, scale: 0.035 }
+            { duration: 84, phase: 0.28, x: 0, y: 0.28, angle: 28, scale: 0.055 },
+            { duration: 108, phase: 0.54, x: 0.1, y: 0.4, angle: 145, scale: 0.045 },
+            { duration: 122, phase: 0.34, x: -0.3, y: 0, angle: -58, scale: 0.04 },
+            { duration: 74, phase: 0.46, x: 0.3, y: 0.3, angle: -32, scale: 0.035 }
         ];
     }
 
@@ -358,14 +431,21 @@
 
     function draw(rt) {
         const angle = rt.time * Math.PI * 2 / 1200;
+        const px = rt.px || 0;
+        const py = rt.py || 0;
         rt.surface.rotation.y = 3.9 + angle;
         rt.clouds.rotation.y = 3.9 + angle * 1.06;
         rt.surface.material.uniforms.uCloudOffset.value = angle * 0.06 / (Math.PI * 2);
-        rt.distant.rotation.y = rt.time * 0.002;
+        rt.surface.material.uniforms.uTime.value = rt.time;
+        if (rt.atmosphere) rt.atmosphere.material.uniforms.uTime.value = rt.time;
+        rt.distant.rotation.y = rt.time * 0.0025;
+        rt.distant.material.uniforms.uTime.value = rt.time;
         const phase = rt.time * Math.PI * 2 / 180;
-        rt.backdrop.material.uniforms.uDrift.value.set(Math.sin(phase) * 0.004, Math.sin(phase * 0.7) * 0.002);
-        rt.stars.material.uniforms.uDrift.value.set(Math.sin(phase) * 0.009, Math.sin(phase * 0.7) * 0.004);
+        rt.backdrop.material.uniforms.uTime.value = rt.time;
+        rt.backdrop.material.uniforms.uDrift.value.set(Math.sin(phase) * 0.004 + px * 0.0035, Math.sin(phase * 0.7) * 0.002 + py * 0.0025);
+        rt.stars.material.uniforms.uDrift.value.set(Math.sin(phase) * 0.009 + px * 0.008, Math.sin(phase * 0.7) * 0.004 + py * 0.006);
         rt.stars.material.uniforms.uTime.value = rt.time;
+        if (rt.fleetTime) rt.fleetTime.value = rt.time;
         rt.shipRoutes.forEach((route, i) => {
             const progress = (rt.time / route.duration + route.phase) % 1;
             const angle = route.angle * Math.PI / 180, dx = Math.cos(angle), dy = Math.sin(angle);
@@ -375,10 +455,14 @@
             const ship = rt.ships[i];
             ship.position.set(route.x * rt.camera.right + distance * dx, route.y + distance * dy, -3 - i);
             ship.scale.setScalar(route.scale * (rt.mobile ? 0.7 : 1));
-            ship.rotation.set(0.25 + Math.sin(rt.time * 0.025 + i) * 0.08, -0.2, angle);
+            ship.rotation.set(
+                0.25 + Math.sin(rt.time * 0.35 + i * 1.4) * 0.11,
+                -0.2 + Math.cos(rt.time * 0.22 + i * 0.9) * 0.05,
+                angle + Math.sin(rt.time * 0.28 + i * 2.1) * 0.018
+            );
         });
-        rt.camera.position.x = Math.sin(phase) * 0.012;
-        rt.camera.position.y = Math.sin(phase * 0.7) * 0.006;
+        rt.camera.position.x = Math.sin(phase) * 0.012 + px * 0.016;
+        rt.camera.position.y = Math.sin(phase * 0.7) * 0.006 + py * 0.01;
         rt.renderer.render(rt.scene, rt.camera);
     }
 
@@ -400,7 +484,11 @@
             rt.raf = requestAnimationFrame(frame);
             return;
         }
-        rt.time += Math.min(delta, 0.05);
+        const dt = Math.min(delta, 0.05);
+        rt.time += dt;
+        const smooth = Math.min(1, Math.max(0.02, dt * 4.5));
+        rt.px += (pointerGoal.x - rt.px) * smooth;
+        rt.py += (pointerGoal.y - rt.py) * smooth;
         if (delta > 0 && delta < 1) updateQuality(rt, delta);
         draw(rt);
         rt.raf = requestAnimationFrame(frame);
@@ -416,6 +504,8 @@
     function stop() {
         generation++;
         const rt = runtime;
+        root.style.removeProperty('--galaxy-mx');
+        root.style.removeProperty('--galaxy-my');
         if (!rt) return;
         pause();
         runtime = null;
@@ -448,6 +538,7 @@
             canvas, renderer, scene: new THREE.Scene(), camera: new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100),
             textures: new Set(), mobile: window.innerWidth < 768, quality: 1, ready: false, closed: false,
             time: 0, lastFrame: 0, raf: 0, cadence: [], frameBudget: 1 / 60,
+            px: 0, py: 0,
             sampleTime: 0, sampleFrames: 0, generation: ++generation
         };
         runtime = rt;
@@ -500,6 +591,19 @@
     window.addEventListener('pagehide', stop);
     window.addEventListener('pageshow', sync);
     document.addEventListener('visibilitychange', sync);
+    window.addEventListener('pointermove', event => {
+        if (root.dataset.theme !== 'galaxy' || motion.matches) return;
+        const w = Math.max(1, window.innerWidth);
+        const h = Math.max(1, window.innerHeight);
+        pointerGoal.x = (event.clientX / w - 0.5) * 2;
+        pointerGoal.y = (0.5 - event.clientY / h) * 2;
+        root.style.setProperty('--galaxy-mx', (event.clientX / w * 100).toFixed(1) + '%');
+        root.style.setProperty('--galaxy-my', (event.clientY / h * 100).toFixed(1) + '%');
+    }, { passive: true });
+    window.addEventListener('pointerleave', () => {
+        pointerGoal.x = 0;
+        pointerGoal.y = 0;
+    }, { passive: true });
     if (motion.addEventListener) motion.addEventListener('change', sync);
     else if (motion.addListener) motion.addListener(sync);
     sync();
