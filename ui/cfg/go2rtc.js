@@ -174,13 +174,22 @@ function renderGo2RTCSection(section) {
         go2rtcSourceTypes = [];
         go2rtcLoadSourceTypes().then(types => {
             go2rtcSourceTypes = types;
+            if (!go2rtcIsActive()) return;
             if (window.AuraConfigState && window.AuraConfigState.syncFromDOM) window.AuraConfigState.syncFromDOM();
             renderGo2RTCSection(null);
-        }).catch(() => { go2rtcSourceTypes = null; showToast(t('common.go2rtc_source.load_failed'), 'error'); });
+        }).catch(() => {
+            go2rtcSourceTypes = null;
+            if (!go2rtcLoadFailureShown) { go2rtcLoadFailureShown = true; showToast(t('common.go2rtc_source.load_failed'), 'error'); }
+        });
     }
 }
 
 let go2rtcSourceTypes = null;
+let go2rtcLoadFailureShown = false;
+
+function go2rtcIsActive() {
+    return (typeof activeSection === 'undefined' || activeSection === 'go2rtc') && !!document.querySelector('[data-go2rtc-source]');
+}
 let go2rtcSourceForms = {};
 
 function go2rtcLoadSourceTypes() {
@@ -197,7 +206,7 @@ function go2rtcSourceBlock(stream, index, base) {
     const original = savedStream ? (savedStream.source || '') : (stream.source || '');
     const badge = stream.source_type ? '<span class="go2rtc-source-badge">' + escapeHtml(window.AuraGoSourceForm.label(go2rtcSourceTypes, stream.source_type)) + '</span>' : '';
     return '<div class="field-group"><div class="field-label">' + t('config.go2rtc.source') + badge + '</div><div class="field-help">' + t('help.go2rtc.source') + '</div>' +
-        '<input type="hidden" data-path="' + escapeAttr(base + '.source') + '" data-original="' + escapeAttr(original) + '" value="' + escapeAttr(stream.source || '') + '">' +
+        '<input type="hidden" data-path="' + escapeAttr(base + '.source') + '" data-original="' + escapeAttr(original) + '" value="">' +
         '<div data-go2rtc-source="' + index + '">' + go2rtcSourceMarkup(index, state) + '</div></div>';
 }
 
@@ -238,6 +247,12 @@ function go2rtcBindSourceForm(root) {
 }
 
 function go2rtcBindSourceForms() {
+    // The draft value (possibly a just-built plaintext URL) is set as a DOM property, never in markup.
+    const streams = go2rtcEnsureData().streams || [];
+    streams.forEach((stream, index) => {
+        const hidden = document.querySelector('[data-path="go2rtc.streams.' + index + '.source"]');
+        if (hidden) hidden.value = stream.source || '';
+    });
     document.querySelectorAll('[data-go2rtc-source]').forEach(go2rtcBindSourceForm);
 }
 

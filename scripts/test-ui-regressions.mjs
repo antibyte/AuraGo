@@ -2355,6 +2355,23 @@ function testGo2RTCSourceFormBuildsURLs() {
   assert.match(html, /<option value="">keep<\/option>/);
   assert.match(html, /data-source-field="host"/);
   assert.match(html, /type="password"[^>]*data-source-field="password"|data-source-field="password"[^>]*type="password"/);
+  const kept = { type: 'rtsp', values: { password: 'kept-secret' }, error: '' };
+  form.markup(types, kept, { t });
+  assert.equal(kept.values.password, 'kept-secret', 'markup does not delete typed values');
+  const urlState = { type: 'homekit', values: { url: 'homekit://secret' }, error: '' };
+  assert.doesNotMatch(form.markup(types, urlState, { t }), /homekit:\/\/secret/);
+  assert.equal(urlState.values.url, 'homekit://secret');
+  assert.doesNotMatch(form.markup([{ id: 'x', label: 'X', schemes: ['x'], mode: 'url', docs_url: 'javascript:alert(1)' }], { type: 'x', values: {}, error: '' }, { t }), /javascript:/, 'only https docs links render');
+  // bind() restores typed values through the DOM property
+  const listeners = {};
+  const secretInput = { dataset: { sourceField: 'password' }, value: '', addEventListener: (name, fn) => { listeners[name] = fn; } };
+  const root = { querySelector: () => null, querySelectorAll: () => [secretInput] };
+  const restored = { type: 'rtsp', values: { password: 'kept-secret' }, error: '' };
+  form.bind(root, restored, () => {});
+  assert.equal(secretInput.value, 'kept-secret', 'bind restores the secret into the input');
+  secretInput.value = 'changed';
+  listeners.input();
+  assert.equal(restored.values.password, 'changed');
   const escaped = form.markup([{ id: 'x', label: '<b>', schemes: ['x'], mode: 'url', template: '"><script>' }], { type: 'x', values: {}, error: '' }, { t });
   assert.doesNotMatch(escaped, /<b>|"><script>/, 'catalog strings are escaped');
 }
@@ -4136,6 +4153,7 @@ function configGo2RTCContext(go2rtc) {
   // The catalog request never settles here, so the section keeps its first render.
   const context = configSectionContext({ go2rtc }, ['ui/js/go2rtc-source-form.js', 'ui/cfg/go2rtc.js'], { globals: { fetch: () => new Promise(() => {}), showToast() {}, TextEncoder, btoa } });
   context.document.querySelectorAll = () => [];
+  context.document.querySelector = selector => { const match = /^\[data-path="([^"]+)"\]$/.exec(selector); return match ? context.content.control(match[1]) : null; };
   return context;
 }
 

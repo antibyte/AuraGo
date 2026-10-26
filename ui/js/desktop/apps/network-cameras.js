@@ -579,7 +579,7 @@
             const options = selected => modal.profiles.map(profile => '<option value="' + ctx.esc(profile.id) + '" ' + (profile.id === selected ? 'selected' : '') + '>' + ctx.esc(profile.name + profileSummary(profile)) + '</option>').join('');
             return '<div class="nc-form"><label>' + ctx.esc(text(ctx, 'main_stream')) + '<select data-field="profileID">' + options(modal.profileID) + '</select></label><label>' + ctx.esc(text(ctx, 'sub_stream')) + '<select data-field="subProfileID"><option value="">' + ctx.esc(text(ctx, 'no_substream')) + '</option>' + options(modal.subProfileID) + '</select></label>' + (modal.snapshotAvailable ? '<label class="nc-check"><input type="checkbox" data-field="useSnapshot" ' + (modal.useSnapshot ? 'checked' : '') + '><span>' + ctx.esc(text(ctx, 'use_camera_snapshot')) + '</span></label>' : '') + notices.join('') + '</div>';
         }
-        return '<div class="nc-form"><div class="nc-form-row"><label>' + ctx.esc(text(ctx, 'camera_name')) + '<input data-field="name" value="' + ctx.esc(modal.name) + '" placeholder="' + ctx.esc(text(ctx, 'camera_name_placeholder')) + '"></label><label>' + ctx.esc(text(ctx, 'stream_id')) + '<input data-field="id" value="' + ctx.esc(modal.id) + '" placeholder="front-door"></label></div>' + (modal.method === 'url' ? '<label>' + ctx.esc(text(ctx, 'stream_url')) + '<input data-field="source" type="password" autocomplete="off" value="' + ctx.esc(modal.source) + '" placeholder="rtsp://…"></label>' : '') + '</div>';
+        return '<div class="nc-form"><div class="nc-form-row"><label>' + ctx.esc(text(ctx, 'camera_name')) + '<input data-field="name" value="' + ctx.esc(modal.name) + '" placeholder="' + ctx.esc(text(ctx, 'camera_name_placeholder')) + '"></label><label>' + ctx.esc(text(ctx, 'stream_id')) + '<input data-field="id" value="' + ctx.esc(modal.id) + '" placeholder="front-door"></label></div>' + (modal.method === 'url' ? '<label>' + ctx.esc(text(ctx, 'stream_url')) + '<input data-field="source" type="password" autocomplete="off" value="" placeholder="rtsp://…"></label>' : '') + '</div>';
     }
 
     function setupMethod(ctx, method, icon, title, help, enabled, reason) {
@@ -623,9 +623,13 @@
     function bindModalEvents(state) {
         const host = state.host.querySelector('[data-role="modal"]');
         if (!host || !state.modal) return;
-        host.querySelectorAll('[data-field]').forEach(field => field.addEventListener('input', () => {
-            state.modal[field.dataset.field] = field.type === 'checkbox' ? field.checked : field.value;
-        }));
+        host.querySelectorAll('[data-field]').forEach(field => {
+            // The pasted URL is restored through the DOM property, never written into markup.
+            if (field.dataset.field === 'source' && state.modal.source) field.value = state.modal.source;
+            field.addEventListener('input', () => {
+                state.modal[field.dataset.field] = field.type === 'checkbox' ? field.checked : field.value;
+            });
+        });
         host.querySelectorAll('[data-method-choice]').forEach(button => button.addEventListener('click', () => chooseSetupMethod(state, button.dataset.methodChoice)));
         host.querySelectorAll('[data-modal-action]').forEach(button => button.addEventListener('click', () => modalAction(state, button.dataset.modalAction)));
         host.querySelectorAll('[data-modal-tab]').forEach(button => {
@@ -663,6 +667,7 @@
         if (method === 'tuya') { state.modal = null; drawModal(state); return openTuya(state, 'setup'); }
         modal.method = method;
         modal.error = '';
+        modal.source = '';
         if (method === 'url') { modal.step = 4; return drawModal(state); }
         if (method === 'type') {
             modal.step = 2;
@@ -699,7 +704,7 @@
         const modal = state.modal;
         if (!modal) return;
         if (action === 'cancel') { state.modal = null; return drawModal(state); }
-        if (action === 'back') { modal.step = modal.method === 'type' && modal.step === 4 ? 2 : Math.max(1, modal.step - 1); return drawModal(state); }
+        if (action === 'back') { if (modal.method === 'type' && modal.step === 4) modal.source = ''; modal.step = modal.method === 'type' && modal.step === 4 ? 2 : Math.max(1, modal.step - 1); return drawModal(state); }
         if (action === 'next') return advanceSetup(state);
         if (action === 'save') return saveManagedStream(state);
         if (action === 'delete') return deleteManagedStream(state);
@@ -794,6 +799,7 @@
                 return drawModal(state);
             }
         }
+        modal.source = '';
         if (modal.sourceForm && modal.sourceForm.type) {
             const built = window.AuraGoSourceForm.buildURL(state.sourceTypes || [], modal.sourceForm);
             if (built.error) { modal.error = window.AuraGoSourceForm.errorText(state.ctx.t, built); modal.tab = 'general'; return drawModal(state); }

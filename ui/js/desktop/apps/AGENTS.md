@@ -5163,6 +5163,11 @@ registration lives in `internal/desktop/types.go`.
 - Entered credentials exist only in dialog drafts until save or disposal. Discovery selections are opaque; account checks test saved inputs explicitly. Probe each selected HD/SD quality; failed HD offers an explicit SD choice. Cancel/close/window disposal abort requests, drop late results and clear drafts.
 - Tuya role settings hide RTSP transport/manual source controls. Talk is disabled without a confirmed source backchannel; reconcile `source_type` and `talk_supported` changes in the toolbar, stopping active talk if capability disappears. State refresh never recreates a microphone or unchanged viewer. Verify `TestGo2RTCTuya*Browser`, existing media browser smokes and `node scripts/test-ui-regressions.mjs`.
 
+## Camera source types
+- Shared module `js/go2rtc-source-form.js` + `css/go2rtc-source-form.css`, loaded by Network Cameras (module-loader) and the config page (`config.html`). Strings use `common.go2rtc_source.*` in all 16 common locales; the catalog comes from `GET /api/go2rtc/source-types` (`internal/config/go2rtc_source_types.go`).
+- Secrets and built URLs live only in memory (form state) and are restored into inputs via DOM properties after redraws; they never appear in markup, attributes, localStorage or preferences. Tuya stays in its own dialog.
+- Test: `node scripts/test-ui-regressions.mjs` ("go2rtc source form builds URLs").
+
 ### Homepage Studio managed website evidence
 
 - Render locations, provenance, check timestamps and grouped automatic reasons from the shared managed-site model. Escape all ledger strings and retain the safe URL filter.

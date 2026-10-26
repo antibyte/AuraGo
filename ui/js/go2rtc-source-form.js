@@ -1,6 +1,9 @@
 // Guided go2rtc camera source forms shared by Network Cameras and the config page.
 // The server catalog (/api/go2rtc/source-types) describes the fields; this module
-// renders them, builds the URL in memory and never writes a secret back into markup.
+// renders them and builds the URL in memory. Secret and URL inputs always render
+// empty (value=""); state.values keeps what was typed and bind() restores it into
+// the inputs through the DOM value property, so redraws keep secrets without ever
+// writing them into markup or attributes.
 (function () {
     'use strict';
 
@@ -103,7 +106,6 @@
             const selected = current(state, field);
             control = '<select' + attrs + '>' + (field.options || []).map(option => '<option value="' + escape(option) + '"' + (option === selected ? ' selected' : '') + '>' + escape(option === '' ? t(prefix + 'option_default') : option) + '</option>').join('') + '</select>';
         } else if (field.kind === 'secret') {
-            delete state.values[field.name]; // the input renders empty, so the memory must not keep a hidden value
             control = '<input' + attrs + ' type="password" autocomplete="new-password" value="">';
         } else {
             const numeric = field.kind === 'port' || field.kind === 'number' ? ' inputmode="numeric"' : '';
@@ -123,12 +125,11 @@
         if (type) {
             if (type.hint) html += '<p class="go2rtc-source-hint">' + escape(t(prefix + 'hint_' + type.id)) + '</p>';
             if (type.mode === 'url') {
-                delete state.values.url;
                 html += '<label class="' + escape(c.field) + '"><span class="' + escape(c.label) + '">' + escape(t(prefix + 'field_url')) + ' *</span><input class="' + escape(c.input) + '" data-source-field="url" type="password" autocomplete="off" value="" placeholder="' + escape(type.template || '') + '"></label>';
             } else {
                 html += (type.fields || []).map(field => fieldControl(field, state, t, c)).join('');
             }
-            if (type.docs_url) html += '<p class="go2rtc-source-docs"><a href="' + escape(type.docs_url) + '" target="_blank" rel="noopener noreferrer">' + escape(t(prefix + 'docs')) + '</a></p>';
+            if (/^https:\/\//i.test(type.docs_url || '')) html += '<p class="go2rtc-source-docs"><a href="' + escape(type.docs_url) + '" target="_blank" rel="noopener noreferrer">' + escape(t(prefix + 'docs')) + '</a></p>';
         }
         html += '<p class="go2rtc-source-error" role="alert"' + (state.error ? '' : ' hidden') + '>' + escape(state.error || '') + '</p>';
         return '<div class="go2rtc-source-form" data-source-form>' + html + '</div>';
@@ -142,11 +143,15 @@
             state.error = '';
             onChange(true);
         });
-        root.querySelectorAll('[data-source-field]').forEach(input => input.addEventListener('input', () => {
-            state.values[input.dataset.sourceField] = input.value;
-            state.error = '';
-            onChange(false);
-        }));
+        root.querySelectorAll('[data-source-field]').forEach(input => {
+            const name = input.dataset.sourceField;
+            if (Object.prototype.hasOwnProperty.call(state.values, name)) input.value = state.values[name];
+            input.addEventListener('input', () => {
+                state.values[name] = input.value;
+                state.error = '';
+                onChange(false);
+            });
+        });
     }
 
     function label(types, id) {
