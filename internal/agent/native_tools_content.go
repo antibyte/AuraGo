@@ -104,7 +104,7 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 
 	if ff.S3Enabled {
 		tools = append(tools, tool("s3_storage",
-			"Manage objects in S3-compatible storage (AWS S3, MinIO, Wasabi, Backblaze B2). "+
+			"Manage objects in S3-compatible storage (AWS S3, MinIO, Wasabi, Backblaze B2, managed RustFS). "+
 				"Operations: list_buckets, list_objects (with optional prefix filter), upload (local file → S3), "+
 				"download (S3 → local workspace file), delete, copy (within or across buckets), move.",
 			schema(map[string]interface{}{
@@ -115,8 +115,8 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 				},
 				"bucket":             prop("string", "S3 bucket name (uses default if not specified)"),
 				"key":                prop("string", "S3 object key (path within the bucket)"),
-				"local_path":         prop("string", "Local file path. Upload sources must be inside the workspace or data directory; download destinations must be inside the workspace."),
-				"prefix":             prop("string", "Key prefix filter for list_objects (e.g. 'backups/2025/')"),
+				"local_path":         prop("string", "Local file path. External S3 uploads accept workspace/data files. Managed RustFS uploads accept protected workspace/document files. Downloads stay inside the workspace."),
+				"prefix":             prop("string", "Literal key prefix for list_objects. Managed RustFS permits only configured prefixes; specify one when several are allowed."),
 				"destination_bucket": prop("string", "Target bucket for copy/move (defaults to source bucket)"),
 				"destination_key":    prop("string", "Target key for copy/move"),
 			}, "operation"),
@@ -184,8 +184,8 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 					"description": "Media conversion operation to perform",
 					"enum":        []string{"audio_convert", "video_convert", "image_convert", "info"},
 				},
-				"file_path":     prop("string", "Input media file path"),
-				"output_file":   prop("string", "Output media file path (auto-generated if omitted for conversions)"),
+				"file_path":   prop("string", "Input media file path"),
+				"output_file": prop("string", "Output media file path (auto-generated if omitted for conversions)"),
 				"output_format": prop("string", "Target file format/extension such as mp3, wav, mp4, webm, png, jpg, or webp. "+
 					"The format must be supported by the operation; an output_file without an extension gets the extension of output_format"),
 				"video_codec":   prop("string", "Optional FFmpeg video codec, e.g. libx264, libvpx-vp9, hevc"),

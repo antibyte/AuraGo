@@ -493,6 +493,9 @@ func requireAdmin(s *Server, next http.Handler) http.Handler {
 }
 
 func isAdminProtectedPath(path string) bool {
+	if path == "/api/rustfs" || strings.HasPrefix(path, "/api/rustfs/") {
+		return true
+	}
 	if path == "/api/self-tests" || strings.HasPrefix(path, "/api/self-tests/") {
 		return true
 	}

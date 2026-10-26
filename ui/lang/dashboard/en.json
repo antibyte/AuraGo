@@ -1150,5 +1150,6 @@
   "dashboard.selftest_bindings_hint": "Use prepared test targets only. Provide case ID, tool, exact arguments and expected JSON fields. Effects require allow_effects: true; existing permissions still apply. Binding values are not saved in the report.",
   "dashboard.selftest_case": "Test",
   "dashboard.selftest_tool": "Tool",
-  "dashboard.selftest_connections": "Connections"
+  "dashboard.selftest_connections": "Connections",
+  "dashboard.rustfs_running_unready": "Running, not ready"
 }

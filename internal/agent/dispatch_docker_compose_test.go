@@ -468,8 +468,12 @@ func TestDockerComposePolicyRefusesTheCYDCreatorBuilderAndVolumes(t *testing.T) 
 	allowed := `{"services":{"it":{"image":"aurago-cyd-builder:dev","container_name":"aurago-cyd-builder-it","volumes":[{"type":"volume","source":"aurago-cyd-work-it","target":"/work"},{"type":"volume","source":"aurago-cyd-cache-it","target":"/cache"},{"type":"volume","source":"cyd-ci-cache","target":"/ci"}]}},` +
 		`"volumes":{"aurago-cyd-work-it":{"name":"aurago-cyd-work-it","external":true},"aurago-cyd-cache-it":{"name":"aurago-cyd-cache-it","external":true},"cyd-ci-cache":{"name":"cyd-ci-cache"}}}`
 	stubDockerComposeResolver(t, func(string) (string, error) { return allowed, nil })
+	allowedCfg := &config.Config{}
+	allowedCfg.Docker.Enabled = true
+	useRuntimePermissionsForTest(t, allowedCfg)
+	dockerCfg.Host = rustFSAbsentDockerVolumeHost(t)
 	for _, command := range []string{"ps", "down", "config"} {
-		if got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: "cyd/compose.yml", Command: command}); got != "" {
+		if got := dockerComposePolicy(context.Background(), allowedCfg, dockerCfg, dockerArgs{Operation: "compose", File: "cyd/compose.yml", Command: command}); got != "" {
 			t.Fatalf("%s: test and CI volumes were blocked: %s", command, got)
 		}
 	}

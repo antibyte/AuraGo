@@ -1,5 +1,9 @@
 # Third-party notices
 
+## Optional RustFS storage server
+
+RustFS 1.0.4 is an unmodified optional Docker dependency, pinned by manifest digest in `internal/rustfs/types.go`. Copyright 2024–2026 RustFS, Inc.; [Apache License 2.0](https://github.com/rustfs/rustfs/blob/1.0.4/LICENSE). The license text is retained in `licences/texts/Apache-2.0.txt`. See `documentation/rustfs.md` for operation and image qualification. This separate server does not change AuraGo's own license.
+
 ## Gradium Phonon speech resources
 
 The separate local speech package contains Gradium's Phonon `ptts` 0.4.0 runtime

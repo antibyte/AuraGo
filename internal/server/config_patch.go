@@ -2,6 +2,7 @@ package server
 
 import (
 	"aurago/internal/config"
+	"context"
 	"fmt"
 	"os"
 
@@ -122,6 +123,11 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if err := validateRemoteAuthExposure(&validateCfg); err != nil {
 		return nil, err
 	}
+	rustfsFinish, err := s.prepareRustFSConfigSave(context.Background(), &validateCfg)
+	if err != nil {
+		return nil, err
+	}
+	defer rustfsFinish(false, nil)
 	_, cfExplicit := patch["cloudflare_tunnel"]
 	cfFinish, cfErr := prepareCloudflareConfigSave(s, &validateCfg, cfExplicit)
 	if cfErr != nil {
@@ -143,8 +149,10 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	mutations := append(providerMutations, secretMutations...)
 	reloaded, err := saveProviderConfig(s, configPath, data, out, mutations)
 	if err != nil {
+		rustfsFinish(false, err)
 		return nil, err
 	}
+	rustfsFinish(true, nil)
 	cfFinish(true)
 	return reloaded, nil
 }

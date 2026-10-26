@@ -21,6 +21,8 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Ownership
 
+- `cfg/s3.js` owns external S3 settings and optional managed RustFS. Preserve external fields on provider changes; bucket/prefix rows replace one atomic list in the shared draft. Lifecycle and probes use saved settings; polling is fenced by view and saved-generation identity and ends on navigation. Docker read-only disables lifecycle actions, not observations. Dashboard distinguishes configured from observed runtime readiness and links to `/config#s3`. Verify `TestRustFSS3SettingsBrowser`, `TestRustFSS3LocalesAreComplete` and `TestRustFSDashboardSeparatesConfiguredAndObservedState`; runtime contract: `../internal/rustfs/AGENTS.md`.
+
 - Provider editors own the revision and draft they opened. Save with that revision, disable duplicate saves, retain drafts on conflicts and require explicit reload. Background refresh must not lend a newer revision to an old draft. Modal close cancels/ignores its requests and picker results; model selection never mutates another settings section's budget draft.
 - Credentials have explicit removal actions; masks only retain stored values. Allow incomplete drafts and valid custom/local HTTP(S) hosts. Diagnostics are passive; metadata/generation tests use saved settings, with a separate cost confirmation for generation and no automatic generation fallback. Keep all changed copy translated across 16 locales. Verify `TestProviderRevisionAndSavedTestsBrowser`, `TestProviderSafetyLocalesComplete` and provider usage round-trip coverage.
 - Explicit credential removal survives a change of authentication type in the same modal. Verify `TestProviderClearKeySurvivesAuthTypeChangeBrowser` in addition to same-authentication removal.

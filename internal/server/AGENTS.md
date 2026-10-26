@@ -55,6 +55,15 @@ Server-owned HTTP and cross-component integration contracts.
 `internal/server` owns this domain. The contracts below also bind related server, UI, config, asset, and test work through the root routing table.
 
 ## Local Contracts
+
+### Managed RustFS S3
+
+- `/api/rustfs` routes are admin-only; browser mutations require same-origin CSRF validation, an empty JSON object, strict methods and at most 1 KiB. Lifecycle POSTs return accepted operation receipts; status and preflight never start a service. Codes are sanitized and credentials are never returned.
+- Construct one `rustfs.Manager` on the server lifetime. Config snapshots retain private function callbacks, never a reflected manager pointer. `PrepareReconfigure` runs before persistence under `CfgSaveMu`, outside `CfgMu`; `Configure` performs only in-memory revocation before publication. Drain on shutdown without stopping established storage.
+- Complete each prepared save: confirmed abort restores the published configuration with fresh leases; a durable write installs the validated authority even if reload fails. Unknown setup rollback leaves access blocked. Never revive previously issued leases or clear an uncertain managed mutation.
+- The saved S3 probe resolves the selected provider. Managed probes use child credentials and scoped reads; missing read authority becomes `read_verification_unavailable`, including BLOCKED_ACCESS in self-tests. Dashboard configuration flags remain separate from observed runtime status.
+- Runtime/storage/permission contracts: `../rustfs/AGENTS.md`; operator guide: `documentation/rustfs.md`. Verify `TestRustFS*`, `TestManagedS3*`, existing integration probes and config-save tests.
+
 - `/api/self-tests` and its catalog, run, cancel and download subroutes are admin-only and `no-store`; browser mutations require a matching Origin. Runs bind a saved configuration snapshot, stop new cases after configuration replacement and drain before integrations close. Reuse only reviewed read-only saved-config probes. Never expose raw bindings, credentials, model prose or tool payloads through reports. See `../selftest/AGENTS.md` and `documentation/agent-self-tests.md`; verify `TestSelfTest*`.
 
 - `/api/tts/phonon/voices` is an admin-only passive catalog/resource read.

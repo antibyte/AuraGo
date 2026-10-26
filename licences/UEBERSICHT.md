@@ -166,6 +166,7 @@ Quelle: `internal/desktopstore/catalog.go`.
 
 | Produkt | Referenz | Lizenz |
 | --- | --- | --- |
+| RustFS 1.0.4 | `docker.io/rustfs/rustfs:1.0.4`, Digest in `internal/rustfs/types.go` | [Apache-2.0](https://github.com/rustfs/rustfs/blob/1.0.4/LICENSE), Copyright 2024–2026 RustFS, Inc.; unverändertes optionales Image |
 | Gotenberg 8 | `gotenberg/gotenberg:8` | MIT |
 | Docker Socket Proxy | `tecnativa/docker-socket-proxy:v0.5.0` mit Digest in `docker-compose.yml` | HAProxy GPL-2.0 im Image |
 | go2rtc 1.9.14 | `alexxit/go2rtc`, Digest in der Config | MIT |

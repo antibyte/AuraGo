@@ -248,6 +248,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/localllm/", Classification: "fixed-pinned-model-download-docker-control-and-private-loopback-sidecar", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/localwiki/", Classification: "fixed-kiwix-catalog-meta4-and-mirror-download-https-only-redirects"},
 		{Path: "internal/ruview/", Classification: "saved-origin-no-redirects-explicit-lan-and-verified-runtime-download", AllowsLocalNet: true, Credentialed: true},
+		{Path: "internal/rustfs/", Classification: "digest-pinned-managed-docker-private-s3-signed-native-admin-no-redirects", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/retrogames/", Classification: "fixed-archive-org-scrape-api-strict-public-no-redirects", RequiresSSRF: true},
 		{Path: "internal/manus/", Classification: "fixed-manus-api-and-presigned-file-transfer", RequiresSSRF: true, Credentialed: true},
 		{Path: "internal/media/", Classification: "user-requested-media-fetch", RequiresSSRF: true},

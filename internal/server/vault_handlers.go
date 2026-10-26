@@ -58,7 +58,7 @@ func canonicalVaultSecretKey(key string) string {
 
 func reservedVaultSecretKey(key string) bool {
 	key = strings.ToLower(canonicalVaultSecretKey(strings.TrimSpace(key)))
-	return strings.HasPrefix(key, "auth_") || strings.HasPrefix(key, "auth.") ||
+	return strings.HasPrefix(key, "rustfs_") || strings.HasPrefix(key, "auth_") || strings.HasPrefix(key, "auth.") ||
 		key == "aurago_master_key" || key == "master_key" || key == "internal_token" ||
 		strings.HasPrefix(key, "session_") || strings.HasPrefix(key, "session.")
 }
@@ -113,7 +113,7 @@ func handleListVaultSecrets(s *Server, w http.ResponseWriter, r *http.Request) {
 
 	out := make([]vaultSecretJSON, 0, len(keys))
 	for _, k := range keys {
-		if filterUser && !tools.IsPythonAccessibleSecret(k) {
+		if strings.HasPrefix(strings.ToLower(k), "rustfs_") || filterUser && !tools.IsPythonAccessibleSecret(k) {
 			continue
 		}
 		out = append(out, vaultSecretJSON{Key: k})
@@ -143,7 +143,7 @@ func handleSetVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if reservedVaultSecretKey(req.Key) {
-		jsonError(w, "Authentication and session secrets require the dedicated security settings workflow", http.StatusForbidden)
+		jsonError(w, "Managed service, authentication and session secrets require their dedicated settings workflow", http.StatusForbidden)
 		return
 	}
 	if req.Value == "" {
@@ -210,7 +210,7 @@ func handleDeleteVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if reservedVaultSecretKey(key) {
-		jsonError(w, "Authentication and session secrets require the dedicated security settings workflow", http.StatusForbidden)
+		jsonError(w, "Managed service, authentication and session secrets require their dedicated settings workflow", http.StatusForbidden)
 		return
 	}
 	if key == config.MQTTPasswordVaultKey {

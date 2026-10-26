@@ -1150,5 +1150,6 @@
   "dashboard.selftest_bindings_hint": "Använd endast förberedda testmål. Ange test-ID, verktyg, exakta argument och förväntade JSON-fält. Åtgärder kräver allow_effects: true; befintliga behörigheter gäller fortfarande. Bindningsvärden sparas inte i rapporten.",
   "dashboard.selftest_case": "Test",
   "dashboard.selftest_tool": "Verktyg",
-  "dashboard.selftest_connections": "Anslutningar"
+  "dashboard.selftest_connections": "Anslutningar",
+  "dashboard.rustfs_running_unready": "Körs, ännu inte klar"
 }

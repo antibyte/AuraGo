@@ -12,6 +12,8 @@ func canonicalNativeAlias(name string) string {
 		return "execute_remote_shell"
 	case "get_system_metrics":
 		return "system_metrics"
+	case "s3":
+		return "s3_storage"
 	case "paperless":
 		return "paperless_ngx"
 	default:

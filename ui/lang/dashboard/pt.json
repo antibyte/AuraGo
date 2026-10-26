@@ -1150,5 +1150,6 @@
   "dashboard.selftest_bindings_hint": "Usa apenas destinos de teste preparados. Indica o ID do teste, ferramenta, argumentos exatos e campos JSON esperados. As ações exigem allow_effects: true; mantêm-se as permissões existentes. Os valores não são guardados no relatório.",
   "dashboard.selftest_case": "Teste",
   "dashboard.selftest_tool": "Ferramenta",
-  "dashboard.selftest_connections": "Ligações"
+  "dashboard.selftest_connections": "Ligações",
+  "dashboard.rustfs_running_unready": "Em execução, ainda não está pronto"
 }

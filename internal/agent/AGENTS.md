@@ -133,6 +133,8 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ### Tool System
 
+- S3 keeps one `s3_storage` schema (`s3` canonical alias). Config-only catalogs apply managed enablement/agent access; run catalogs also use the passive readiness callback. Dispatch uses `S3ConfigFromConfig`/`ExecuteS3Context`, preserving caller cancellation, private target leases and leaf permissions. Provider/target identity changes require a fresh run; compound RustFS permissions use the existing live intersection. Action targets encode both S3 object identities without treating key bytes as filesystem paths. Verify `TestS3*` and `TestLiveAuthorization*`.
+
 - MiniMax M3/M3.1 routes, including `minimax/` model IDs, retain native tool
   schemas when the provider supports tools. Do not apply the legacy MiniMax
   text-tool fallback; strict schemas remain disabled. Verify

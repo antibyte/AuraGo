@@ -870,6 +870,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 		}
 
+		rustfsFinish, err := s.prepareRustFSConfigSave(r.Context(), &validateCfg)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusConflict)
+			return
+		}
+		defer rustfsFinish(false, nil)
 		_, cfExplicit := patch["cloudflare_tunnel"]
 		cfFinish, cfErr := prepareCloudflareConfigSave(s, &validateCfg, cfExplicit)
 		if cfErr != nil {
@@ -891,6 +897,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, "Failed to write config", http.StatusInternalServerError)
 			return
 		}
+		rustfsFinish(true, nil)
 		go2RTCSourceTxn.Commit()
 
 		// Snapshot old config under read lock, then do file I/O without holding any lock.

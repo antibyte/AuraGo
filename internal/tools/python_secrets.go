@@ -40,6 +40,7 @@ var blockedSecretPrefixes = []string{
 	"three_d_printer_klipper_",
 	"cloudflare_tunnel_",
 	"s3_",
+	"rustfs_",
 	"telnyx_",
 	"sip_",
 	"fritzbox_",

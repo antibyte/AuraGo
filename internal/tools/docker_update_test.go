@@ -45,6 +45,8 @@ func TestDockerUpdateContainerImageRecreatesRunningContainerWithFreshImage(t *te
 					},
 				},
 			})
+		case r.Method == http.MethodGet && path == "/volumes/manifest-data":
+			writeDockerJSON(w, http.StatusOK, map[string]any{"Name": "manifest-data", "Mountpoint": "/var/lib/docker/volumes/manifest-data/_data"})
 		case r.Method == http.MethodPost && path == "/images/create":
 			if got := r.URL.Query().Get("fromImage"); got != "manifestdotbuild/manifest:5" {
 				t.Fatalf("fromImage = %q", got)
@@ -107,6 +109,7 @@ func TestDockerUpdateContainerImageRecreatesRunningContainerWithFreshImage(t *te
 		"POST /images/create",
 		"POST /containers/demo/stop",
 		"POST /containers/demo/rename",
+		"GET /volumes/manifest-data",
 		"POST /containers/create",
 		"POST /containers/new-container-id/start",
 	}

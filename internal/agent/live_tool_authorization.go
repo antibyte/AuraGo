@@ -20,6 +20,9 @@ func dispatchAuthorization(cfg *config.Config) (*config.Config, bool) {
 	if current == cfg {
 		return cfg, true
 	}
+	if !sameS3AuthorizationTarget(baseline, current) {
+		return cfg, false
+	}
 	merged := *cfg
 	merged.Treg.MaxCallCostMicro = min(cfg.Treg.MaxCallCostMicro, current.Treg.MaxCallCostMicro)
 	ok := intersectAuthorizationFields(reflect.ValueOf(&merged).Elem(), reflect.ValueOf(current).Elem(), reflect.ValueOf(baseline).Elem())
@@ -127,4 +130,24 @@ func authorizationGatesDiffer(a, b reflect.Value) bool {
 		}
 	}
 	return false
+}
+
+// A target change cannot redirect an already admitted tool chain to another store.
+func sameS3AuthorizationTarget(a, b *config.Config) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	provider := func(c *config.Config) string {
+		if c.S3.Provider == "" {
+			return config.S3ProviderExternal
+		}
+		return c.S3.Provider
+	}
+	if provider(a) != provider(b) {
+		return false
+	}
+	if provider(a) == config.S3ProviderRustFS {
+		return a.RustFS.Bucket == b.RustFS.Bucket
+	}
+	return a.S3.Endpoint == b.S3.Endpoint && a.S3.Region == b.S3.Region && a.S3.Bucket == b.S3.Bucket && a.S3.AccessKey == b.S3.AccessKey && a.S3.SecretKey == b.S3.SecretKey && a.S3.Insecure == b.S3.Insecure && a.S3.UsePathStyle == b.S3.UsePathStyle
 }

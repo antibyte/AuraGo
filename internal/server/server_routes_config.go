@@ -207,6 +207,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// Music Generation endpoints
 	mux.Handle("/api/music-generation/test", requireAdmin(s, handleMusicGenerationTest(s)))
 	registerLocalMusicRoutes(mux, s)
+	registerRustFSRoutes(mux, s)
 
 	// Video Generation endpoints
 	mux.HandleFunc("/api/video-generation/test", handleVideoGenerationTest(s))
