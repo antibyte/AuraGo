@@ -77,7 +77,19 @@ func ClassifyError(err error) ErrorCategory {
 	}
 
 	var apiErr *openai.APIError
-	if errors.As(err, &apiErr) {
+	apiErrFound := errors.As(err, &apiErr)
+	if apiErrFound && apiErr.HTTPStatusCode != 0 {
+		return classifyHTTPError(apiErr.HTTPStatusCode, err.Error())
+	}
+	// go-openai returns a *RequestError (status code and raw body, no parsed
+	// envelope) when the error body is not an {"error":{...}} object, e.g. a
+	// 402 with {"error":"No active plan"}. It may nest an empty *APIError
+	// without a status, so the status check above must not claim it first.
+	var requestErr *openai.RequestError
+	if errors.As(err, &requestErr) && requestErr.HTTPStatusCode != 0 {
+		return classifyHTTPError(requestErr.HTTPStatusCode, err.Error())
+	}
+	if apiErrFound {
 		return classifyHTTPError(apiErr.HTTPStatusCode, err.Error())
 	}
 
@@ -118,6 +130,9 @@ func classifyHTTPError(statusCode int, errMsg string) ErrorCategory {
 		return ErrCategoryAuthError
 	case statusCode == http.StatusTooManyRequests:
 		return ErrCategoryRateLimit
+	case statusCode == http.StatusPaymentRequired:
+		// 402: no active plan or credit. Retrying cannot help until billing changes.
+		return ErrCategoryQuotaExceeded
 	case statusCode == http.StatusNotFound, statusCode == http.StatusGone:
 		return ErrCategoryNonRetryableConfig
 	case statusCode == http.StatusBadRequest:
