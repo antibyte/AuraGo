@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,28 +24,24 @@ var homepageAnnotationDial = net.DialTimeout
 
 var homepageAnnotationWidths = map[int]bool{1280: true, 768: true, 390: true}
 
-// homepageAnnotationProviders mirrors the aliases of externalTargetURL in
-// ui/js/desktop/apps/homepage-studio-sites.js.
-var homepageAnnotationProviders = map[string][]string{
-	"vercel":   {"vercel"},
-	"netlify":  {"netlify"},
-	"here_now": {"here_now"},
-	"remote":   {"remote", "sftp", "scp", "ssh"},
-}
-
 type homepageAnnotationRequest struct {
-	SiteID   int64  `json:"site_id"`
-	Target   string `json:"target"`
-	Path     string `json:"path"`
-	Viewport struct {
+	// SiteID is accepted for older clients; deployed targets are resolved
+	// through PreviewURL, which may belong to any registered site.
+	SiteID int64  `json:"site_id"`
+	Target string `json:"target"`
+	// PreviewURL is the URL the studio iframe shows for a deployed target. It
+	// is only a lookup key: the capture uses the registered URL it matches.
+	PreviewURL string `json:"preview_url"`
+	Path       string `json:"path"`
+	Viewport   struct {
 		Width  int `json:"width"`
 		Height int `json:"height"`
 	} `json:"viewport"`
 }
 
 // handleHomepageAnnotationSnapshot captures the previewed page for Homepage
-// Studio annotations. The client names the target and a relative path; the
-// server resolves the URL itself.
+// Studio annotations. The client names the target, the previewed URL and a
+// relative path; the server captures only a URL it has registered itself.
 func handleHomepageAnnotationSnapshot(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -65,7 +62,7 @@ func handleHomepageAnnotationSnapshot(s *Server) http.HandlerFunc {
 			writeHomepageAnnotationError(w, http.StatusBadRequest, "invalid_viewport", "Viewport is not supported")
 			return
 		}
-		base, allowed, code := resolveHomepageAnnotationBase(s, strings.TrimSpace(req.Target), req.SiteID)
+		base, allowed, code := resolveHomepageAnnotationBase(s, strings.TrimSpace(req.Target), req.PreviewURL)
 		if code == "invalid_target" {
 			writeHomepageAnnotationError(w, http.StatusBadRequest, code, "Target is not supported")
 			return
@@ -131,8 +128,9 @@ func homepageAnnotationURL(base, pagePath *url.URL) *url.URL {
 }
 
 // resolveHomepageAnnotationBase returns the page base URL, the origin that may
-// bypass the SSRF guard (local preview only) and an error code.
-func resolveHomepageAnnotationBase(s *Server, target string, siteID int64) (*url.URL, *url.URL, string) {
+// bypass the SSRF guard (local preview only) and an error code. Deployed
+// targets resolve previewURL against the URLs the registry holds.
+func resolveHomepageAnnotationBase(s *Server, target, previewURL string) (*url.URL, *url.URL, string) {
 	s.CfgMu.RLock()
 	enabled := s.Cfg != nil && s.Cfg.Homepage.Enabled
 	port := 0
@@ -157,52 +155,102 @@ func resolveHomepageAnnotationBase(s *Server, target string, siteID int64) (*url
 		_ = conn.Close()
 		return &url.URL{Scheme: "http", Host: addr, Path: "/"}, &url.URL{Scheme: "http", Host: addr}, ""
 	case "vercel", "netlify", "here_now", "remote":
-		if !enabled || siteID <= 0 || s.HomepageRegistryDB == nil {
+		if !enabled || s.HomepageRegistryDB == nil {
 			return nil, nil, "preview_unavailable"
 		}
-		site, err := tools.GetHomepageManagedSite(s.HomepageRegistryDB, siteID)
-		if err != nil {
+		registered := homepageAnnotationRegisteredURL(s.HomepageRegistryDB, previewURL)
+		if registered == nil {
 			return nil, nil, "preview_unavailable"
 		}
-		raw := homepageAnnotationDeployURL(target, site)
-		parsed, err := url.Parse(raw)
-		if raw == "" || err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
-			return nil, nil, "preview_unavailable"
-		}
-		parsed.RawQuery, parsed.Fragment = "", ""
-		return parsed, nil, ""
+		return registered, nil, ""
 	default:
 		return nil, nil, "invalid_target"
 	}
 }
 
-// homepageAnnotationDeployURL picks the provider's own target first, then a
-// matching deployment, then any non-local target, then the last deploy URL.
-func homepageAnnotationDeployURL(target string, site tools.HomepageManagedSite) string {
-	matches := func(provider string) bool {
-		for _, name := range homepageAnnotationProviders[target] {
-			if strings.EqualFold(strings.TrimSpace(provider), name) {
-				return true
+// parseHomepageAnnotationDeployURL accepts an absolute http(s) URL with a host
+// and no credentials.
+func parseHomepageAnnotationDeployURL(raw string) *url.URL {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.User != nil || parsed.Hostname() == "" {
+		return nil
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return nil
+	}
+	return parsed
+}
+
+// homepageAnnotationURLKey is the comparison form of a deployed URL: lowercase
+// scheme and host, default port dropped, trailing slash trimmed, query and
+// fragment ignored. It returns "" for URLs that are not usable.
+func homepageAnnotationURLKey(raw string) string {
+	parsed := parseHomepageAnnotationDeployURL(raw)
+	if parsed == nil {
+		return ""
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	host := strings.ToLower(parsed.Hostname())
+	port := parsed.Port()
+	if (scheme == "http" && port == "80") || (scheme == "https" && port == "443") {
+		port = ""
+	}
+	if port != "" {
+		host = net.JoinHostPort(host, port)
+	} else if strings.Contains(host, ":") {
+		host = "[" + host + "]"
+	}
+	return scheme + "://" + host + strings.TrimSuffix(parsed.Path, "/")
+}
+
+// homepageAnnotationRegisteredURLs lists every deployed URL the registry
+// knows about, across all managed sites. These are the URLs Homepage Studio
+// can show in its preview, so they are the only ones a capture may target.
+func homepageAnnotationRegisteredURLs(db *sql.DB) []string {
+	sites, err := tools.ListHomepageManagedSites(db)
+	if err != nil {
+		return nil
+	}
+	var urls []string
+	for _, site := range sites {
+		urls = append(urls, site.LastDeployURL)
+		if targets, err := tools.ListHomepageManagedDeployTargets(db, site.ID); err == nil {
+			for _, t := range targets {
+				urls = append(urls, t.URL)
 			}
 		}
-		return false
-	}
-	for _, t := range site.DeployTargets {
-		if matches(t.Provider) && strings.TrimSpace(t.URL) != "" {
-			return strings.TrimSpace(t.URL)
+		if deployments, err := tools.ListHomepageManagedDeployments(db, site.ID, 10); err == nil {
+			for _, d := range deployments {
+				urls = append(urls, d.URL)
+			}
+		}
+		if observations, err := tools.ListHomepageManagedRemoteObservations(db, site.ID, 10); err == nil {
+			for _, o := range observations {
+				urls = append(urls, o.URL)
+			}
 		}
 	}
-	for _, d := range site.Deployments {
-		if matches(d.Provider) && strings.TrimSpace(d.URL) != "" {
-			return strings.TrimSpace(d.URL)
-		}
+	return urls
+}
+
+// homepageAnnotationRegisteredURL returns the registered URL that previewURL
+// refers to, with query and fragment dropped, or nil when the registry holds
+// no such URL. The client string itself is never used as a capture base.
+func homepageAnnotationRegisteredURL(db *sql.DB, previewURL string) *url.URL {
+	want := homepageAnnotationURLKey(previewURL)
+	if want == "" {
+		return nil
 	}
-	for _, t := range site.DeployTargets {
-		if !strings.EqualFold(strings.TrimSpace(t.Provider), "local") && strings.TrimSpace(t.URL) != "" {
-			return strings.TrimSpace(t.URL)
+	for _, raw := range homepageAnnotationRegisteredURLs(db) {
+		if homepageAnnotationURLKey(raw) != want {
+			continue
 		}
+		registered := parseHomepageAnnotationDeployURL(raw)
+		registered.RawQuery, registered.Fragment = "", ""
+		return registered
 	}
-	return strings.TrimSpace(site.LastDeployURL)
+	return nil
 }
 
 func homepageAnnotationFailure(err error) (int, string) {

@@ -745,6 +745,11 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 				return turn, err
 			case strings.TrimSpace(analysis) == "":
 				return turn, fmt.Errorf("camera photo could not be analyzed")
+			case annotationTurn:
+				// The marks image is a screenshot of an agent- or third-party-
+				// authored page, so whatever the vision model read from it is
+				// untrusted page text and must not reach the user turn raw.
+				requestPrompt = message + "\n\n" + desktopScannedExternalData(s.Guardian, "homepage_image_analysis", analysis, 8000)
 			default:
 				requestPrompt = message + "\n\n" + analysis
 			}
@@ -1186,6 +1191,18 @@ func desktopExternalData(kind, value string, maxBytes int) string {
 		return ""
 	}
 	return kind + " (untrusted):\n" + security.IsolateExternalData(value)
+}
+
+// desktopScannedExternalData wraps untrusted text like desktopExternalData and
+// also runs it through the Guardian's external-content scan, which logs
+// injection patterns. The wrapping is what protects the prompt; the scan never
+// blocks. A nil Guardian only wraps.
+func desktopScannedExternalData(g *security.Guardian, kind, value string, maxBytes int) string {
+	wrapped := desktopExternalData(kind, value, maxBytes)
+	if wrapped != "" && g != nil {
+		_ = g.ScanExternalContent(kind, value)
+	}
+	return wrapped
 }
 
 type desktopReplyBroker struct {
