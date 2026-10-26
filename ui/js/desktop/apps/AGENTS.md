@@ -4144,6 +4144,43 @@ registration lives in `internal/desktop/types.go`.
   (`targets.collect/add/normalize/external`), and the history panel
   (`window.HomepageStudioHistory { create }`) receives their dependencies
   via a deps object like `NoisemakerLibrary`.
+- `homepage-studio-annotate.js` (`window.HomepageStudioAnnotate { create,
+  hitTest, overlapping, normalizeBox, tabOrder, composeMessage,
+  annotationPayload, cropLayout, MAX_MARKS }`) owns annotate mode. It injects
+  the toolbar button (`data-hp-annotate`), the snapshot layer inside
+  `.vd-hp-preview-frame` (scaled with the device), the mode bar and the mark
+  popover on `.vd-hp-preview-panel`, and the mark chips before the chat form;
+  styles live in `css/desktop-app-homepage-studio-annotate.css`. Snapshots come
+  from `POST /api/desktop/integrations/homepage/annotation-snapshot`
+  (`internal/server/homepage_annotation_handlers.go`, capture in
+  `internal/tools/homepage_annotation_capture.go`). The client sends site id,
+  target, path, viewport and `preview_url` (the URL its iframe shows). The
+  server uses `preview_url` only for deployed targets, and only when it matches
+  a URL registered for a managed site; otherwise it answers
+  `preview_unavailable`. The capture Chrome runs through a per-capture filtering
+  forward proxy (`internal/security/capture_proxy.go`, `--proxy-server` and
+  `--proxy-bypass-list=<-loopback>`). The proxy dials only the local preview
+  origin `127.0.0.1:<WebServerPort>` directly and checks every other destination
+  with the SSRF rules. It caps 16 concurrent connections, 600 connections and
+  64 MiB per capture. `GuardRodPageSSRF` is unchanged. Captures use a
+  desktop-style viewport at every width (`Mobile: false`). Keyboard: Tab and
+  Shift+Tab step through `tabOrder`; Tab past the last element goes on to Path,
+  Recapture and Done, Shift+Tab before the first element leaves the snapshot,
+  and neither wraps. Escape closes the popover, then the mode, and stops
+  propagation so the studio's Escape handler does not run. `takeForSend` returns
+  the message with the localized "Marks:" list (user comments only),
+  `context.annotations` (element details, rendered as untrusted external data by
+  `buildHomepageStudioAgentContext`) and `context.image_base64` (numbered crops,
+  at most 1000 × 1600 px and 1.4 MB of base64, below the 2 MiB chat body limit).
+  If the image cannot be used (too large, a provider that needs public image
+  URLs, or a failed vision fallback), the turn is still sent and the prompt says
+  so. On a text-only provider, the vision-fallback description of the marks
+  image enters the prompt only as untrusted external data
+  (`homepage_image_analysis`). Marks are not part of the draft. They are
+  dropped when the target changes, and for a deployed target also when the site
+  or the preview URL changes. The site pill renderer lives in the sites module
+  (`renderSitePill`), which keeps `homepage-studio.js` under the 1100-line
+  budget.
 - Homepage Studio accessibility contract: the chat log is a transcript, not a
   live region — it carries `aria-busy` and **no** `aria-live`; a dedicated
   `role="status"` node announces the finished message, the agent start and the

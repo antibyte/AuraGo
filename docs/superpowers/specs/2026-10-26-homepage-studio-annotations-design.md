@@ -58,8 +58,10 @@ Rejected:
 - **Keyboard.** In annotate mode the snapshot area is focusable. Tab / Shift+Tab step through a reading-order list of
   significant elements (headings, links, buttons, images, form fields, landmarks/sections) and show the hover outline
   on the focused one; Enter creates an element mark. Esc leaves the mode (marks stay as chips).
-- **Lifetime.** Marks belong to one snapshot of one site and target. Switching site or target discards them with a
-  notice. Marks are not written to the localStorage draft (`persistHomepageDraft`), so a reload drops them.
+- **Lifetime.** Marks belong to one snapshot of one source. Switching the target discards them with a notice; for a
+  deployed target, switching the site or its preview URL does too (the local preview does not depend on the selected
+  site). A capture that is still running when the source changes is aborted. Marks are not written to the
+  localStorage draft (`persistHomepageDraft`), so a reload drops them.
 
 ## Architecture
 
@@ -193,7 +195,7 @@ Responsibilities:
 | Invalid path | Endpoint 400; inline error at the *Path* field |
 | Page taller than 12 000 px | Notice "Page cut off at the bottom" in the toolbar |
 | Provider without image input | Turn sent without image; the agent prompt notes it |
-| Site / target switch with open marks | Marks discarded, notice announced |
+| Source change with open marks (target; site or preview URL of a deployed target) | Marks discarded, notice announced |
 | Readonly session | Same admission as the studio chat; *Annotate* hidden when chat is not allowed |
 
 All user-facing strings live under `homepage_studio.annotate_*` in all 16 desktop locales (`ui/lang/desktop/*.json`).

@@ -275,6 +275,18 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Launchpad** | Verwaltete URL-Sammlungen als Desktop-App: Links mit Kategorien und Symbolen (Suche im Icon-Katalog, Icon-Download) |
 | **God's Eye View** | Store-App: 3D-Globus auf Cesium-Basis im verwalteten Container. Der Store-Dialog nimmt optionale Provider-Keys (nur Vault) und erlaubte AuraGo-Ursprünge auf; Start/Stop bleibt im Store, das Fenster startet maximiert und erhält Mikrofon-Fähigkeit nur für sich selbst |
 
+#### Homepage Studio: Änderungen in der Vorschau markieren
+
+Wähle in der Vorschau-Leiste **Seite annotieren** (Stift-Symbol). Die Schaltfläche ist deaktiviert, solange keine Vorschau verfügbar ist. AuraGo erfasst die Seite in der Breite des gewählten Geräts (1280, 768 oder 390 px) und zeigt sie als Standbild. Klicke ein Element an oder ziehe über einen Bereich, schreib, was sich ändern soll, und drück Enter. Ein leerer Kommentar verwirft die Markierung. Jede Markierung bekommt eine Nummer und erscheint als Chip über dem Chat-Eingabefeld. Du kannst bis zu 20 Markierungen setzen.
+
+Mit deiner nächsten Nachricht gehen die Markierungen mit: Der Agent bekommt deine Kommentare, die nummerierten Ausschnitte und die Element-Details (Selektor, Text, Attribute, Position). Du kannst die Markierungen auch ohne Nachrichtentext senden. Die gesendete Nachricht listet deine Kommentare nummeriert auf und zeigt ein Vorschaubild der markierten Seite.
+
+Mit **Seitenpfad** und **Neu erfassen** markierst du eine Unterseite. Wenn Markierungen vorhanden sind, fragt Neu erfassen vorher nach und verwirft sie dann. **Fertig** kehrt zur Live-Vorschau zurück und behält die Markierungen als Chips.
+
+Per Tastatur wechseln Tab und Umschalt+Tab zwischen den Elementen der Seite, und Enter setzt eine Markierung am markierten Element. Nach dem letzten Element geht Tab weiter zu **Seitenpfad**, **Neu erfassen** und **Fertig**. Esc schließt zuerst das offene Kommentarfeld; ein zweites Esc beendet den Annotationsmodus. Entf auf einem Chip löscht dessen Markierung.
+
+AuraGo erfasst die lokale Vorschau und öffentliche Deployments. Markierungen werden verworfen, wenn du das Ziel wechselst. Bei einem Deployment-Ziel verwirft auch der Wechsel zu einer anderen Website sie. Markierungen werden nicht gespeichert; nach einem Neuladen der Seite sind sie weg.
+
 ### Retro-Net im Terminal
 
 **Retro-Net** verwandelt das Desktop-Terminal in ein Wählerverzeichnis für Textdienste, die noch online sind: Telnet-Bulletin-Boards, Commodore-64-Boards, Multi-User-Dungeons, Telehack, eine ASCII-Weltkarte, die Star-Wars-ASCII-Animation, den Free Internet Chess Server und einige anonyme SSH-Spiele. Du wählst einen Eintrag, das Terminal „wählt" mit kurzer Modem-Sequenz, und die Sitzung läuft im gewählten CRT-Stil.
