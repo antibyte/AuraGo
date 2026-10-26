@@ -65,8 +65,9 @@ Rejected:
 
 ### Server: snapshot endpoint
 
-`POST /api/homepage/annotation-snapshot`, registered next to the other homepage routes, same auth and readonly
-admission as the Homepage Studio chat.
+`POST /api/homepage/annotation-snapshot`, registered next to the other homepage routes. The studio calls it through
+the desktop proxy `/api/desktop/integrations/homepage/annotation-snapshot`, whose POST admission (`desktopWrite`)
+refuses it in read-only mode like the Homepage Studio chat.
 
 Request:
 
@@ -109,9 +110,10 @@ A new file in `internal/tools` (homepage area), modeled on `internal/scraper/scr
 
 - go-rod launcher (headless, same launcher flags), one capture at a time (slot channel), 30 s overall timeout, browser
   killed and cleaned up after each capture.
-- Network policy via request hijacking: allow the resolved preview origin and public addresses; block every other
-  private, loopback or link-local destination (SSRF). Redirects off the preview origin are followed only to public
-  hosts.
+- Network policy via request hijacking: the local preview origin (`127.0.0.1:<WebServerPort>`) is fetched by a client
+  pinned to exactly that address; every other request, including all requests of deployed targets, goes through the
+  SSRF-protected client, so private, loopback and link-local destinations stay blocked. Redirects are handed back to
+  the browser and pass the same check again. A deployment on a private network answers `capture_blocked`.
 - Navigate to origin + path at the requested viewport, device scale factor 1, wait for load plus network idle (bounded),
   then evaluate the element-map script and take a full-page screenshot as JPEG (quality ~80). Page height is capped at
   12 000 CSS px; a longer page sets `page.truncated`.
@@ -139,9 +141,10 @@ Responsibilities:
 - mark model: `{ n, kind: 'element'|'area', comment, box, elementIndex? , overlapIndexes? }`; for an area, the up to
   five largest elements overlapping it by at least 50 % of their own area;
 - image composition on send: one canvas, one crop per mark (mark box plus 48 px margin, clamped, scaled to at most
-  1280 px wide), mark outline and number drawn in, crops stacked with 16 px gaps, total height at most 4000 px (crops
-  shrink proportionally when needed), exported as JPEG base64. The snapshot comes from AuraGo's own origin as a
-  data URI, so the canvas is not tainted.
+  1000 px wide), mark outline and number drawn in, crops stacked with 16 px gaps, total height at most 1600 px (crops
+  shrink proportionally when needed), exported as JPEG base64 of at most 1.4 MB (the chat body limit is 2 MiB and
+  the vision pipeline resizes to a 1600 px edge anyway). The snapshot comes from AuraGo's own origin as a data URI,
+  so the canvas is not tainted.
 
 ### Chat integration
 
@@ -167,9 +170,9 @@ Responsibilities:
   overlapping elements; plus the hint that the numbers match the attached image and that source files are found via
   `homepage_file` search for the text, id or class.
 - Images: the existing camera path handles inline images and the fallback vision analysis. When the provider cannot
-  take images at all (`mainProviderRequiresPublicImageURL`, missing vision fallback), annotation turns are sent
-  **without** the image instead of failing; the response carries a flag and the studio shows a short notice. Camera
-  photos keep their current error behavior.
+  take images at all (`mainProviderRequiresPublicImageURL`, failed vision fallback), annotation turns are sent
+  **without** the image instead of failing, and the agent prompt says that the image is missing. Camera photos keep
+  their current error behavior.
 - Scope limit (v1): element details live only in the turn context. Follow-up turns see the persisted comments only.
 
 ## Error handling
@@ -182,7 +185,7 @@ Responsibilities:
 | Capture already running | Endpoint 409; client shows "Capture in progress" and keeps the button busy |
 | Invalid path | Endpoint 400; inline error at the *Path* field |
 | Page taller than 12 000 px | Notice "Page cut off at the bottom" in the toolbar |
-| Provider without image input | Turn sent without image, notice in the studio |
+| Provider without image input | Turn sent without image; the agent prompt notes it |
 | Site / target switch with open marks | Marks discarded, notice announced |
 | Readonly session | Same admission as the studio chat; *Annotate* hidden when chat is not allowed |
 
@@ -208,6 +211,18 @@ Lean, essential tests only:
 
 - Homepage Studio contract in `ui/js/desktop/apps/AGENTS.md` (new module, button, chips, chat context field).
 - Web UI chapter of the manual (`documentation/manuals/{en,de}/04-webui.md`): how to annotate.
+
+## Changes after planning (2026-10-26)
+
+Code facts found while writing `docs/superpowers/plans/2026-10-26-homepage-studio-annotations.md` changed five
+details; the sections above already reflect them:
+
+1. The studio reaches the endpoint through the desktop proxy `/api/desktop/integrations/homepage/…`.
+2. The composed image is capped at 1000 × 1600 px and 1.4 MB base64 (2 MiB chat body limit, 1600 px vision resize).
+3. Only the local preview origin bypasses the SSRF guard; deployed targets are captured through it.
+4. A missing image is noted in the agent prompt instead of a separate studio notice.
+5. `homepage-studio.js` is at its 1100-line budget, so the site-pill rendering moves into `homepage-studio-sites.js`
+   and all annotate code lives in the new module.
 
 ## Out of scope
 
