@@ -19,6 +19,13 @@ window.AuraQRDialog = { open(value) {
 } };
 let decoded = 0, released = 0;
 globalThis.createImageBitmap = async () => { decoded++; return { width: 21, height: 21, close() { released++; } }; };
+const acquireCanvas = Pixel.acquireTempCanvas;
+Pixel.acquireTempCanvas = (...args) => { const canvas = acquireCanvas(...args); canvas.toBlob = callback => callback(new Blob(['scaled'], { type: 'image/png' })); return canvas; };
+let scan = async () => ({ ok: true, json: async () => ({ text: 'QR payload' }) });
+globalThis.fetch = async (url, request) => {
+    assert.equal(url, '/api/qr/scan'); assert.equal(request.method, 'POST');
+    request.signal.throwIfAborted(); return scan();
+};
 
 function windowWithDocument(id, readonly = false) {
     window.PixelApp.render(makeEl('div'), id, { t: englishT(), api: async () => ({}), iconMarkup: () => '', notify: () => {}, readonly });
@@ -34,7 +41,7 @@ const open = runtime.insertQR();
 await Promise.resolve(); await Promise.resolve();
 assert.equal(options.windowId, 'qr-test');
 assert.equal(options.insertion.unit, 'px');
-await options.onInsert({ file: {}, insertWidth: 60, insertHeight: 60, x: 20, y: 30 });
+await options.onInsert({ file: {}, insertWidth: 60, insertHeight: 60, x: 20, y: 30, signal: options.signal });
 assert.equal(runtime.layers.length, 2);
 assert.equal(runtime.layers[0], first, 'prior layer identity is preserved');
 assert.equal(runtime.layers[1].sticker, undefined, 'QR is an ordinary raster layer');
@@ -58,6 +65,28 @@ await Promise.resolve(); await Promise.resolve();
 await assert.rejects(options.onInsert({ file: {}, insertWidth: 250, insertHeight: 60, x: 0, y: 0 }), /fit|position|canvas/i);
 assert.equal(runtime.layers.length, 1);
 closed(); await boundsOpen;
+
+const rejectedOpen = runtime.insertQR();
+await Promise.resolve(); await Promise.resolve();
+const countBefore = runtime.history.length;
+let scans = 0;
+scan = async () => ++scans === 1 ? { ok: true, json: async () => ({ text: 'QR payload' }) } : { ok: false, status: 422 };
+const result = { file: {}, insertWidth: 60, insertHeight: 60, x: 0, y: 0, signal: options.signal };
+await assert.rejects(options.onInsert(result), error => error.code === 'insert_unreadable');
+assert.equal(runtime.layers.length, 1); assert.equal(runtime.history.length, countBefore);
+scan = async () => ({ ok: true, json: async () => ({ text: String(++scans) }) });
+await assert.rejects(options.onInsert(result), error => error.code === 'insert_unreadable', 'a different valid payload cannot be inserted');
+assert.equal(runtime.layers.length, 1); assert.equal(runtime.history.length, countBefore);
+let finishScan, beganScan;
+const started = new Promise(resolve => { beganScan = resolve; });
+scan = () => { beganScan(); return new Promise(resolve => { finishScan = resolve; }); };
+const operation = new AbortController();
+const inserting = options.onInsert({ ...result, signal: operation.signal });
+await started; operation.abort(); finishScan({ ok: true, json: async () => ({ text: 'QR payload' }) });
+await assert.rejects(inserting, error => error.name === 'AbortError');
+assert.equal(runtime.layers.length, 1); assert.equal(runtime.history.length, countBefore, 'cancelled verification cannot create history');
+closed(); await rejectedOpen;
+scan = async () => ({ ok: true, json: async () => ({ text: 'QR payload' }) });
 
 let finishLoad;
 loader = () => new Promise(resolve => { finishLoad = resolve; });

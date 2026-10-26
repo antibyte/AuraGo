@@ -69,9 +69,27 @@ func TestDesktopSheetsQRDialogBrowser(t *testing.T) {
  document.querySelector('dialog [data-action="insert"]').click();await until(()=>!document.querySelector('dialog')&&app.state.aux.images.length===1);
  if(app.state.aux.images[0].anchor!=='C5'||app.state.aux.images[0].width!==189)throw Error('QR dialog lost captured cell or physical dimensions');
  await app.api.undo();if(app.state.aux.images.length!==0)throw Error('Real QR insertion undo');await app.api.redo();
+ const originalSheet=app.book.getActiveSheet().getSheetId(),originalImage=structuredClone(app.state.aux.images[0]);
+ const sheetName=app.book.getActiveSheet().getSheetName();
+ app.state.setAux({...app.state.aux,charts:[{id:'copy-chart',sheet:originalSheet,anchor:'H2',width:480,height:280,type:'column',range:'A1:B3',legend:true,series:[{name:sheetName+'!B1',categories:sheetName+'!A2:A3',values:sheetName+'!B2:B3'}]}]});
+ const originalCharts=JSON.stringify(app.state.aux.charts);
+ await app.act('duplicateSheet');
+ const copySheet=app.book.getActiveSheet().getSheetId(),copyImage=app.state.aux.images.find(image=>image.sheet===copySheet);
+ if(copySheet===originalSheet||!copyImage||copyImage.id===originalImage.id||copyImage.data!==originalImage.data||copyImage.anchor!=='C5')throw Error('Sheet copy lost QR bytes, anchor or identity');
+ if(JSON.stringify(app.state.aux.charts)!==originalCharts)throw Error('Copying QR images changed existing chart references');
+ await app.api.undo();if(app.book.getSheetBySheetId(copySheet)||app.state.aux.images.length!==1)throw Error('Sheet and QR copy must undo together');
+ await app.api.redo();if(!app.book.getSheetBySheetId(copySheet)||app.state.aux.images.find(image=>image.sheet===copySheet)?.id!==copyImage.id)throw Error('Sheet copy redo lost image identity');
  app.session.resume();await app.state.save();await app.state.load(app.path);
- if(app.state.aux.images.length!==1||app.state.aux.images[0].anchor!=='C5')throw Error('Real QR insertion save/reopen');
- const pixels=app.state.aux.images[0].data;SheetsApp.dispose('test');return pixels;
+ if(app.state.aux.images.length!==2||app.state.aux.images.find(image=>image.sheet===copySheet)?.data!==originalImage.data)throw Error('Sheet copy save/reopen lost QR');
+ const pixels=app.state.aux.images.find(image=>image.sheet===copySheet).data;
+ app.session.suspend();app.book.setActiveSheet(app.book.getSheetBySheetId(copySheet));
+ const before=structuredClone(app.state.aux),sheetCount=app.book.getSheets().length;
+ app.state.setAux({...before,images:Array.from({length:256},(_,index)=>({...copyImage,id:'limit-'+index}))});
+ await app.act('duplicateSheet');if(app.book.getSheets().length!==sheetCount||app.state.aux.images.length!==256)throw Error('Image count limit allowed a partial sheet copy');
+ const large={...copyImage,data:'A'.repeat(12*1024*1024)};
+ app.state.setAux({...before,images:[large]});await app.act('duplicateSheet');
+ if(app.book.getSheets().length!==sheetCount||app.state.aux.images.length!==1)throw Error('Image byte limit allowed a partial sheet copy');
+ app.state.setAux(before);SheetsApp.dispose('test');return pixels;
  }`).Str()
 		data, err := base64.StdEncoding.DecodeString(encoded)
 		if err != nil {

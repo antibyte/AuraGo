@@ -25,19 +25,37 @@
                             const w = Math.round(result.insertWidth), h = Math.round(result.insertHeight), x = Math.round(result.x), y = Math.round(result.y);
                             if (![w, h, x, y].every(Number.isFinite) || w < 1 || h < 1 || x < 0 || y < 0 || x + w > width || y + h > height)
                                 throw new Error(this.t('desktop.qr_insert_bounds'));
-                            const source = Pixel.acquireTempCanvas(width, height);
+                            const scaled = Pixel.acquireTempCanvas(w, h);
                             try {
-                                const context = source.getContext('2d');
-                                context.clearRect(0, 0, width, height); context.imageSmoothingEnabled = false;
-                                context.drawImage(image, x, y, w, h);
-                                const layer = this.createLayer({ name: this.t('desktop.qr_title') });
-                                if (!this.commitLayerPixels(layer, source, { respectSelection: false, history: false }))
-                                    throw new Error(this.t('desktop.qr_failed'));
-                                this.layers.push(layer); this.activeLayerIdx = this.layers.length - 1;
-                                this.editMaskMode = false;
-                                this.compositeLayers(); this.refreshLayerPanel(); this.captureAdjustmentSource();
-                                this.pushHistory(this.t('desktop.qr_insert')); this.syncActiveLayer();
-                            } finally { Pixel.releaseTempCanvas(source); }
+                                const context = scaled.getContext('2d');
+                                context.clearRect(0, 0, w, h); context.imageSmoothingEnabled = false;
+                                context.drawImage(image, 0, 0, w, h);
+                                const pixels = await new Promise(resolve => scaled.toBlob(resolve, 'image/png'));
+                                if (!pixels) throw new Error(this.t('desktop.qr_failed'));
+                                const signal = AbortSignal.any([life.signal, result.signal]);
+                                let expected;
+                                for (const blob of [result.file, pixels]) {
+                                    const response = await fetch('/api/qr/scan', { method: 'POST', credentials: 'same-origin', cache: 'no-store', headers: { 'Content-Type': 'image/png' }, body: blob, signal });
+                                    if (!response.ok) throw Object.assign(new Error(this.t('desktop.qr_failed')), { code: response.status === 422 ? 'insert_unreadable' : 'scan_failed' });
+                                    const decoded = await response.json();
+                                    if (typeof decoded.text !== 'string' || !decoded.text || expected !== undefined && expected !== decoded.text)
+                                        throw Object.assign(new Error(this.t('desktop.qr_failed')), { code: 'insert_unreadable' });
+                                    expected = decoded.text;
+                                }
+                                signal.throwIfAborted();
+                                if (!current()) throw new Error(this.t('desktop.qr_stale'));
+                                const source = Pixel.acquireTempCanvas(width, height);
+                                try {
+                                    source.getContext('2d').clearRect(0, 0, width, height); source.getContext('2d').drawImage(scaled, x, y);
+                                    const layer = this.createLayer({ name: this.t('desktop.qr_title') });
+                                    if (!this.commitLayerPixels(layer, source, { respectSelection: false, history: false }))
+                                        throw new Error(this.t('desktop.qr_failed'));
+                                    this.layers.push(layer); this.activeLayerIdx = this.layers.length - 1;
+                                    this.editMaskMode = false;
+                                    this.compositeLayers(); this.refreshLayerPanel(); this.captureAdjustmentSource();
+                                    this.pushHistory(this.t('desktop.qr_insert')); this.syncActiveLayer();
+                                } finally { Pixel.releaseTempCanvas(source); }
+                            } finally { Pixel.releaseTempCanvas(scaled); }
                         } finally { image.close(); }
                     }
                 });

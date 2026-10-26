@@ -128,6 +128,10 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   actual camera hardware and printed-page scanning remain separate acceptance.
   Operator workflow and input/output limits are in
   [QR codes](../documentation/qr-code.md).
+- QR CSV file imports decode UTF-8 strictly, accept an optional UTF-8 BOM and
+  retain the prior draft on invalid encoding. Late file reads cannot replace a
+  newer selection or edits. Insertion callbacks receive the operation's abort
+  signal; closing or changing the dialog must cancel pending insertion work.
 
 - Dashboard Tools owns the self-test card (`js/dashboard/self-tests.js`): explicit Start/Stop, read/fixture/exact-binding profiles, KPI summary before a closed details table and fixed same-origin Markdown/JSON downloads. Dynamic values use `textContent`; prevent duplicate starts, discard stale requests and stop polling while hidden. Keep `dashboard.selftest_*` aligned in all 16 locales. Verify `TestSelfTestDashboard*` and `node ui/testdata/selftests.cjs`; backend/evidence contracts belong to `internal/selftest/AGENTS.md`.
 

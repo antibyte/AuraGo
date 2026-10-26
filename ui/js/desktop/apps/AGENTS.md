@@ -44,6 +44,10 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   layers and the selection descriptor survive. Placement uses bounded pixel
   dimensions/offsets and the preview aspect ratio. Existing transforms and
   OpenRaster own later editing/persistence; never add a parametric QR layer type.
+  Decode the scaled PNG and original preview with the shared scanner before
+  creating the layer; their complete payloads must match. Reject unreadable sizes
+  without changing layers/history and recheck document and cancellation after
+  verification. Commit the same verified pixels without resampling again.
   Wrap the existing `disposeCore` to abort the dialog before core cleanup.
 
 - **Layers.** `layer = { id, name, canvas, visible, opacity, blend, lockPixels, lockAlpha, lockPosition, maskCanvas,
@@ -3439,6 +3443,9 @@ registration lives in `internal/desktop/types.go`.
   command as charts and print. Row/column operations transform/remove anchors in
   that transaction; sheet renames preserve stable IDs. Unsupported pictures stay
   readonly/opaque and unsafe unknown drawing references lock structural edits.
+  Sheet copies give managed images new IDs and the copied sheet's ID in the
+  native copy undo/redo transaction. Check aggregate image limits before copying;
+  preserve existing chart references and reject unsupported structural copies.
 - Sheets QR insertion captures document revision/signal and selected sheet/range
   before loading the shared dialog. Images preserve aspect ratio while dragging
   or resizing; arrows move one pixel, Shift+arrows resize four pixels, Delete

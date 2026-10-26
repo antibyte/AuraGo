@@ -7,10 +7,12 @@ Writer, Tabellen and Pixel use one local QR dialog and the same native Go render
 Choose **QR-Code** in the editor's insert menu or Pixel's tools. Enter the content, choose a presentation, and wait for the current preview before inserting or exporting. The compact view can pin selected controls from the full settings. Only that display preference is remembered automatically; payloads, captions and imported images are not saved in browser storage.
 
 - **Writer:** inserts a PNG at the captured cursor position, with dimensions in millimetres. It remains an ordinary document image, participates in undo/redo, and survives DOCX save/reopen. Inserting while text is selected retains the selected text. Read-only/suggestion mode cannot insert.
-- **Tabellen:** inserts an image anchored to the selected cell. Move, resize or delete it with the image controls; undo/redo, row/column operations, print and XLSX save/reopen retain it. Existing charts and unrelated package parts remain intact. CSV cannot retain images and shows a loss warning. Conflicting file versions retain the draft instead of overwriting another save.
-- **Pixel:** adds a separate raster layer at the chosen position and size. Existing layers and selections are retained. Undo/redo and ORA save/reopen preserve the layer; flattened exports preserve its visible pixels. Resize the canvas or adjust placement if the complete QR including its quiet zone does not fit.
+- **Tabellen:** inserts an image anchored to the selected cell. Move, resize or delete it with the image controls; undo/redo, row/column operations, sheet copies, print and XLSX save/reopen retain it. A copied image has its own identity and shares the sheet copy's undo step. Copies exceeding the workbook's 256-image/16-MiB image budget are refused before changing the sheet. Existing charts and unrelated package parts remain intact. CSV cannot retain images and shows a loss warning. Conflicting file versions retain the draft instead of overwriting another save.
+- **Pixel:** adds a separate raster layer at the chosen position and size. Before insertion, the scaled pixels must decode to the same content as the preview. Unreadable sizes leave the document unchanged; enlarge the code or simplify its design and retry. Existing layers and selections are retained. Undo/redo and ORA save/reopen preserve the layer; flattened exports preserve its visible pixels. Resize the canvas or adjust placement if the complete QR including its quiet zone does not fit.
 
 Changing or closing the target document cancels stale dialog work. A delayed preview, file read or camera permission cannot insert into a replacement document.
+
+CSV files must use UTF-8, with or without a UTF-8 BOM. Invalid encoding is rejected without replacing the current batch draft; save the source as UTF-8 before importing again.
 
 ## Content and appearance
 

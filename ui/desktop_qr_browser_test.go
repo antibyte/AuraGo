@@ -198,6 +198,22 @@ const one=AuraQRDialog.open({host,t,windowId:'one'}),two=AuraQRDialog.open({host
 if(localStorage.getItem('aurago.qr.view.v1').includes('new-response'))throw Error('Payload persisted');
 }`)
 	})
+	t.Run("csv-encoding", func(t *testing.T) {
+		encoded := page.MustEval(`async()=>{
+window.qr=AuraQRDialog.open({host:document.querySelector('#owner1'),t,windowId:'csv-encoding'});await waitFor(()=>document.querySelector('[data-content-type]'));
+document.querySelector('[data-tab=batch]').click();fill('[data-csv]','text,filename\nOriginal,keep');
+const upload=bytes=>{const transfer=new DataTransfer();transfer.items.add(new File([bytes],'contacts.csv',{type:'text/csv'}));const picker=document.querySelector('[data-csv-file]');picker.files=transfer.files;picker.dispatchEvent(new Event('change',{bubbles:true}));};
+upload(new Uint8Array([...new TextEncoder().encode('text,filename\nJ'),0xf6,...new TextEncoder().encode('rg,contact')]));
+await waitFor(()=>document.querySelector('[data-status]').textContent===t('desktop.qr_csv_encoding'));
+if(document.querySelector('[data-csv]').value!=='text,filename\nOriginal,keep')throw Error('Invalid CSV changed the previous draft');
+upload(new TextEncoder().encode('\uFEFFtext,filename\nJörg 東京,contact'));
+await waitFor(()=>document.querySelector('[data-csv]').value==='text,filename\nJörg 東京,contact');
+document.querySelector('[data-action=validate_batch]').click();await waitFor(()=>!document.querySelector('[data-action=export_zip]').disabled);
+exports.length=0;document.querySelector('[data-action=export_zip]').click();await waitFor(()=>exports.length);
+const raw=new Uint8Array(await(await fetch(exports.pop().href)).arrayBuffer());let binary='';for(const value of raw)binary+=String.fromCharCode(value);qr.close();return btoa(binary);
+}`).Str()
+		checkQRPackage(t, encoded, "", "Jörg 東京", true)
+	})
 	t.Run("writer", func(t *testing.T) {
 		encoded := page.MustEval(`async()=>{
 const app=WriterApp.instances.get('writer'),editor=app.editor;editor.exec({type:'paste',text:'before after'});const match=editor.findMatches('after')[0];editor.selectMatch(match);
@@ -280,6 +296,20 @@ const scan=await new Promise(r=>rt.layers[1].canvas.toBlob(r,'image/png')),res=a
 let s='';for(const v of new Uint8Array(bytes))s+=String.fromCharCode(v);return btoa(s);
 }`).Str()
 		checkQRPackage(t, encoded, "data/", "Pixel QR Grüße 東京", true)
+	})
+	t.Run("pixel-small-size", func(t *testing.T) {
+		page.MustEval(`async()=>{
+if(!window.rt){document.querySelector('#writer').hidden=true;document.querySelector('#pixel').hidden=false;await AuraDesktopModules.loadAppAssets('pixel');AuraPixelApp.registerModule('qr-browser-runtime',r=>window.rt=r);PixelApp.render(document.querySelector('#pixel'),'pixel',ctx);}
+rt.newBlankCanvas(128,128);const layers=rt.layers.length,history=rt.history.length,payload='Pixel contact details: '+'1234567890abcdefghij'.repeat(10);
+void rt.insertQR();await waitFor(()=>document.querySelector('[data-content-type]'));fill('[data-field="content.text"]',payload);
+await waitFor(()=>!document.querySelector('dialog [data-action=insert]').disabled);document.querySelector('dialog [data-action=insert]').click();
+await waitFor(()=>document.querySelector('dialog [data-status]').textContent===t('desktop.qr_insert_unreadable'));
+if(rt.layers.length!==layers||rt.history.length!==history)throw Error('Unreadable resized QR changed layers or history');
+fill('[data-insert=width]',128);document.querySelector('dialog [data-action=insert]').click();await waitFor(()=>!document.querySelector('dialog'));
+if(rt.layers.length!==layers+1||rt.history.length!==history+1)throw Error('Readable retry did not insert exactly once');
+const saved=await rt.oraProjectBlob(),project=await AuraPixelApp.ora.read(await saved.arrayBuffer());rt.applyOraProject(project);
+const png=await new Promise(resolve=>rt.layers[1].canvas.toBlob(resolve,'image/png')),decoded=await(await fetch('/api/qr/scan',{method:'POST',body:png})).json();if(decoded.text!==payload)throw Error('Resized QR did not survive ORA roundtrip');
+}`)
 	})
 }
 

@@ -100,7 +100,7 @@
         let dead = false, catalog, spec = { schema_version: 1, content: defaultContent('text'), style: defaultStyle(), output: { format: 'png', quality: 92, jpeg_background: '#ffffff', text_mode: 'unicode_half' } };
         let tab = 'content', revision = 0, previewRevision = -1, preview, previewMeta, previewController, operation, resourceController, scanController, previewTimer, cameraTimer, stream;
         let frameDraft = defaultFrame(), logoDraft = { size_percent: 20, margin: 4, hide_background_modules: true }, drafts = {}, batchCSV = '', batchType = 'text', batchResult, batchRevision = -1;
-        let cameraGeneration = 0, scanText = '', activeScan = false, resourceGeneration = 0, busy = false, resourceBusy = false, resolveClose;
+        let cameraGeneration = 0, scanText = '', activeScan = false, resourceGeneration = 0, csvGeneration = 0, busy = false, resourceBusy = false, resolveClose;
         let presetID = '', framePresetID = '';
         const invalidFields = new Set();
         const insertion = { unit: options.insertion?.unit || 'mm', width: options.insertion?.width || 40, x: options.insertion?.x, y: options.insertion?.y, ...options.insertion };
@@ -293,7 +293,7 @@
                         throw Object.assign(new Error('bounds'), { code: 'bounds' });
                     const result = { file: new File([preview], 'QR.png', { type: 'image/png' }), spec: snapshot, revision: token, width: previewMeta.width, height: previewMeta.height,
                         physicalWidthMM: insertion.unit === 'mm' ? insertion.width : insertion.width * 25.4 / 96, physicalHeightMM: insertion.unit === 'mm' ? insertion.height : insertion.height * 25.4 / 96,
-                        insertWidth: insertion.width, insertHeight: insertion.height, x: insertion.x, y: insertion.y };
+                        insertWidth: insertion.width, insertHeight: insertion.height, x: insertion.x, y: insertion.y, signal: controller.signal };
                     if (!current() || token !== revision) return;
                     await options.onInsert(result); if (current() || !dead) close(); return;
                 }
@@ -310,7 +310,7 @@
                         if (!dead) status('copied');
                     } catch (_) { if (!dead) { download(result.blob, 'QR.' + extension); status('clipboard_unavailable'); } }
                 } else { download(result.blob, 'QR.' + extension); status('downloaded'); }
-            } catch (error) { if (error.code === 'bounds') status('insert_bounds', true); else failure(error); }
+            } catch (error) { if (error.code === 'bounds') status('insert_bounds', true); else if (error.code === 'insert_unreadable') status('insert_unreadable', true); else failure(error); }
             finally { if (!dead && operation === controller) { busy = false; syncButtons(); } }
         }
         async function importResource(kind, value) {
@@ -546,8 +546,12 @@
             } else if (el.dataset.resource && el.files[0]) void importResource(el.dataset.resource, el.files[0]);
             else if (el.hasAttribute('data-config-file') && el.files[0]) void importConfig(el.files[0]);
             else if (el.hasAttribute('data-csv-file') && el.files[0]) {
-                const file = el.files[0], token = revision; if (file.size > MAX_CSV) { status('csv_invalid', true); return; }
-                void file.text().then(text => { if (current() && token === revision) { batchCSV = text; batchResult = null; changed(true); } }).catch(failure);
+                const file = el.files[0], token = revision, generation = ++csvGeneration; if (file.size > MAX_CSV) { status('csv_invalid', true); return; }
+                void file.arrayBuffer().then(bytes => {
+                    if (!current() || token !== revision || generation !== csvGeneration) return;
+                    let text; try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch (_) { status('csv_encoding', true); return; }
+                    batchCSV = text; batchResult = null; changed(true);
+                }).catch(failure);
             } else if (el.hasAttribute('data-batch-type')) { batchType = el.value; batchResult = null; changed(); }
             else if (el.hasAttribute('data-scan-file') && el.files[0]) { stopCamera(); void scanImage(el.files[0]); }
             else if (el.hasAttribute('data-format')) { spec.output.format = el.value; }

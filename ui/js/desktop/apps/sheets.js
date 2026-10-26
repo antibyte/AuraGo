@@ -133,7 +133,11 @@
                 disposables.push(api.addEvent(api.Event.BeforeSheetEditEnd,event=>{nativeEdit=event.isConfirm?{row:event.row,column:event.column,text:event.value.toPlainText().replace(/\r?\n$/,'')}:null;}));
                 const structureTypes={'sheet.mutation.insert-row':'insertRows','sheet.mutation.remove-rows':'deleteRows','sheet.mutation.insert-col':'insertColumns','sheet.mutation.remove-col':'deleteColumns'};
                 disposables.push(api.addEvent(api.Event.BeforeCommandExecute,event=>{
-                    if(structuralLocked&&(/sheet\.(command|mutation)\.(insert-row|insert-col|remove-row|remove-col|set-worksheet-name|remove-sheet|insert-sheet|move-range|move-rows|move-cols)/.test(event.id))){event.cancel=true;notice(tr('structure_locked'),true);}
+                    if(structuralLocked&&(/sheet\.(command|mutation)\.(insert-row|insert-col|remove-row|remove-col|set-worksheet-name|remove-sheet|insert-sheet|copy-sheet|move-range|move-rows|move-cols)/.test(event.id))){event.cancel=true;notice(tr('structure_locked'),true);}
+                    if(event.id==='sheet.command.copy-sheet'){
+                        const images=aux.images||[],copies=images.filter(image=>image.sheet===(event.params?.subUnitId||sheet().getSheetId()));
+                        if(images.length+copies.length>256||[...images,...copies].reduce((total,image)=>total+(image.data?.length||0)*.75,0)>16*1024*1024){event.cancel=true;notice(ctx.t('desktop.qr_image_copy_limit'),true);}
+                    }
                 }));
                 disposables.push(api.addEvent(api.Event.CommandExecuted,event=>{
                     if(loading||disposed)return;
