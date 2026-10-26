@@ -1416,7 +1416,8 @@ func TestReleaseBuildersRejectCorruptPortableAssets(t *testing.T) {
 			path: "make_release.ps1",
 			required: []string{
 				"tar -tzf $resourcesOut | Out-Null",
-				"(Get-Item -LiteralPath $fullPath).Length -lt 1024",
+				"$minimumBytes = if ($file -eq 'deploy\\web-assets.json') { 64 } else { 1024 }",
+				"(Get-Item -LiteralPath $fullPath).Length -lt $minimumBytes",
 			},
 		},
 		{
