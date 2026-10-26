@@ -125,14 +125,17 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 		strings.HasPrefix(lowerModel, "ernie")
 
 	// Keep the legacy text-tool fallback without disabling native MiniMax M2.7/M3 calls.
-	isGLMFamily := strings.HasPrefix(lowerModel, "glm-") ||
-		strings.Contains(lowerModel, "/glm-") ||
-		strings.Contains(lowerModel, "zhipuai/") ||
-		strings.HasPrefix(lowerModel, "abab") ||
-		(strings.HasPrefix(lowerModel, "minimax") &&
-			!strings.Contains(lowerModel, "m2.7") &&
-			!strings.HasPrefix(strings.TrimPrefix(lowerModel, "minimax/"), "minimax-m3") &&
-			!strings.Contains(lowerModel, "minimax-m1") && !strings.Contains(lowerModel, "/text-"))
+	// Configured names vary in spelling ("MiniMax M3", "minimax_m3"), so these rules
+	// match the name with spaces and underscores normalised to "-".
+	ruleModel := strings.NewReplacer(" ", "-", "_", "-").Replace(lowerModel)
+	isGLMFamily := strings.HasPrefix(ruleModel, "glm-") ||
+		strings.Contains(ruleModel, "/glm-") ||
+		strings.Contains(ruleModel, "zhipuai/") ||
+		strings.HasPrefix(ruleModel, "abab") ||
+		(strings.HasPrefix(ruleModel, "minimax") &&
+			!strings.Contains(ruleModel, "m2.7") &&
+			!strings.HasPrefix(strings.TrimPrefix(ruleModel, "minimax/"), "minimax-m3") &&
+			!strings.Contains(ruleModel, "minimax-m1") && !strings.Contains(ruleModel, "/text-"))
 
 	return ModelCapabilities{
 		ProviderType:                 providerType,
