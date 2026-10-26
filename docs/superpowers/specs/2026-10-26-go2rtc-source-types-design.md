@@ -3,6 +3,40 @@
 Date: 2026-10-26
 Status: approved in brainstorming, awaiting spec review
 
+## Revision after merging `codex/go2rtc-camera-features` (2026-10-26)
+
+The user chose to merge the Codex branch first (merge commit `94451e7ee`)
+and extend it. That branch already ships Tuya (shared accounts, discovery,
+per-camera bindings, patched sidecar), main/sub/snapshot source roles,
+managed transcoding (`codec_profile`) and a `source_type` field that is
+only ever `"tuya"`. The sections below are overridden as follows:
+
+- **Tuya:** the catalog lists it with mode `dialog` (for validation and the
+  type label) but the guided form never shows it; the existing Tuya dialog
+  (`ui/js/go2rtc-tuya.js`) stays the only way to add Tuya cameras.
+- **`ffmpeg:` wrapper (§2): dropped.** Managed codec profiles already
+  transcode; `ffmpeg:` stays blocked like `exec:`.
+- **Fragments:** not allowlisted. Today any `#…` is accepted for the six
+  legacy schemes and saved sources must keep validating at startup; command
+  execution is impossible without `ffmpeg:`/`exec:`/`echo:`/`expr:`, and
+  `url.Parse` already rejects control characters.
+- **Not offered:** `xiaomi` (needs a go2rtc-side account login that
+  AuraGo's read-only rendered config cannot hold), `isapi` (two-way audio
+  only, cannot be a video source), host-less `hass:<entity>`.
+- **Catalog location:** `internal/config/go2rtc_source_types.go` (tools and
+  server import config; config cannot import tools).
+  `tools.ValidateGo2RTCSource` delegates to it; the dead server copy
+  `validateGo2RTCSourceURL` is removed.
+- **`source_type` (§3):** no new struct field. A helper
+  `config.Go2RTCStreamSourceType(stream)` fills the existing
+  `Go2RTCStreamStatus.SourceType` and the config-page projection; config
+  saves strip a client-sent `source_type`.
+- **Shared module (§5):** `ui/js/go2rtc-source-form.js`, next to
+  `go2rtc-tuya.js`, strings under `common.go2rtc_source.*`. Type names are
+  brand names in the catalog (`label`), not translated.
+- **Config page (§7):** sub/snapshot sources keep their URL fields (now
+  validated by the catalog); only the main source gets the guided form.
+
 ## Goal
 
 Network Cameras (desktop app) and the go2rtc section of the config page can
