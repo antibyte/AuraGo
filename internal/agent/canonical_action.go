@@ -190,6 +190,10 @@ func canonicalizeGameMakerOperationCall(tc ToolCall, dc *DispatchContext) ToolCa
 		if entry, ok := GetToolCatalogState(dc.discoveryKey()).Get(name); ok && entry.Name == name {
 			return tc
 		}
+		// An explicit operation of another tool is a contradiction, not a repair.
+		if operation != "" && operation != name && owners[operation] != owner {
+			return tc
+		}
 		if operation == "" {
 			operation = name
 		}

@@ -149,6 +149,15 @@ func TestGameMakerOperationAliasKeepsExplicitFields(t *testing.T) {
 	if got.Action != "game_maker_project" || got.Operation != "inspect" || got.Params["operation"] != "inspect" {
 		t.Fatalf("explicit operation overwritten: %+v", got)
 	}
+	// An operation of another tool contradicts the name: left for the ordinary refusal.
+	for _, call := range []ToolCall{
+		ParseToolCall(`{"tool":"get_plan","operation":"write"}`),
+		{Action: "set_design", Params: map[string]interface{}{"operation": "search_assets"}},
+	} {
+		if got := prepareToolCall(call, dc); got.Action != call.Action || got.normalizedFrom != "" {
+			t.Fatalf("contradicting call %q rewritten to %s", call.Action, got.Action)
+		}
+	}
 	// A design that is already wrapped, or has no design-shaped key, is not touched.
 	for name, params := range map[string]map[string]interface{}{
 		"wrapped":  {"design": map[string]interface{}{"base": "blocks"}, "base": "stray"},
