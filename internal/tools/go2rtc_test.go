@@ -29,6 +29,9 @@ func TestValidateGo2RTCSourceAllowsOnlyNetworkSources(t *testing.T) {
 		"http://camera.local/snapshot",
 		"https://camera.local/stream",
 		"onvif://camera.local",
+		"tapo://cloud-password@192.168.1.123",
+		"ring:?device_id=1&refresh_token=x",
+		"webrtc:wss://example.org/ws",
 	} {
 		if err := ValidateGo2RTCSource(allowed); err != nil {
 			t.Fatalf("ValidateGo2RTCSource(%q): %v", allowed, err)
@@ -42,6 +45,9 @@ func TestValidateGo2RTCSourceAllowsOnlyNetworkSources(t *testing.T) {
 		"device:/dev/video0",
 		"ftp://camera.local/live",
 		"http:///missing-host",
+		"echo:python3 x.py",
+		"xiaomi://1:cn@192.168.1.123?did=1",
+		"hass:Camera1",
 	} {
 		if err := ValidateGo2RTCSource(blocked); err == nil {
 			t.Fatalf("ValidateGo2RTCSource(%q) unexpectedly succeeded", blocked)

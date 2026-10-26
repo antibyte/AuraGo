@@ -103,7 +103,7 @@ func go2RTCSourceChanges(items []interface{}, strip bool) ([]go2RTCSourceChange,
 						return nil, fmt.Errorf("replace and clear %s cannot be combined", field)
 					}
 					if err := tools.ValidateGo2RTCSource(value); err != nil {
-						return nil, fmt.Errorf("invalid %s for camera %q", field, id)
+						return nil, fmt.Errorf("invalid %s for camera %q: %w", field, id, err)
 					}
 					changes = append(changes, go2RTCSourceChange{ID: id, Role: role, Value: value})
 				}
@@ -116,6 +116,10 @@ func go2RTCSourceChanges(items []interface{}, strip bool) ([]go2RTCSourceChange,
 				delete(stream, field+"_configured")
 				delete(stream, "clear_"+field)
 			}
+		}
+		if strip {
+			// Derived from the Vault source on every read; never persisted.
+			delete(stream, "source_type")
 		}
 	}
 	return changes, nil

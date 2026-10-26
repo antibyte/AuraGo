@@ -81,8 +81,8 @@ func go2RTCAppStreams(streams []tools.Go2RTCStreamStatus, cfg config.Go2RTCConfi
 		entry := go2RTCAppStream{Go2RTCStreamStatus: stream}
 		for _, camera := range cfg.Streams {
 			if camera.ID == stream.ID {
+				entry.SourceType = config.Go2RTCStreamSourceType(camera)
 				if camera.Tuya != nil {
-					entry.SourceType = "tuya"
 					if canManage {
 						b := *camera.Tuya
 						entry.Tuya = &b
@@ -209,7 +209,9 @@ func handleGo2RTCAppState(s *Server) http.HandlerFunc {
 				if stream.Enabled {
 					continue
 				}
-				disabled = append(disabled, go2RTCMediaProjection(stream))
+				projection := go2RTCMediaProjection(stream)
+				projection["source_type"] = config.Go2RTCStreamSourceType(stream)
+				disabled = append(disabled, projection)
 			}
 			response["tuya_accounts"] = safeTuyaAccounts(cfg)
 			response["disabled_streams"] = disabled
@@ -549,7 +551,7 @@ func handleGo2RTCCreateStream(s *Server) http.HandlerFunc {
 		}
 		security.RegisterSensitive(source)
 		if err := tools.ValidateGo2RTCSource(source); payload.Tuya == nil && err != nil {
-			jsonError(w, "A supported network stream URL or ONVIF profile is required", http.StatusBadRequest)
+			jsonError(w, "Unsupported camera source: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 		enabled := true
@@ -693,7 +695,7 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 			source := strings.TrimSpace(*payload.Source)
 			security.RegisterSensitive(source)
 			if err := tools.ValidateGo2RTCSource(source); err != nil {
-				jsonError(w, "The replacement source is not a supported network URL", http.StatusBadRequest)
+				jsonError(w, "Unsupported replacement source: "+err.Error(), http.StatusBadRequest)
 				return
 			}
 			changes = append(changes, go2RTCSourceChange{ID: streamID, Value: source})

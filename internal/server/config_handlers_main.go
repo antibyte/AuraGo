@@ -20,7 +20,6 @@ import (
 	"math"
 	"net"
 	"net/http"
-	neturl "net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -236,16 +235,21 @@ func injectGo2RTCConfig(rawCfg map[string]interface{}, cfg *config.Config, vault
 	streams := make([]interface{}, 0, len(cfg.Go2RTC.Streams))
 	for _, configured := range cfg.Go2RTC.Streams {
 		entry := go2RTCMediaProjection(configured)
+		mainSource := configured.Source
 		for _, role := range []string{"main", "sub", "snapshot"} {
 			field := "source"
 			if role != "main" {
 				field = role + "_source"
 			}
-			present := strings.TrimSpace(config.Go2RTCRoleSource(configured, role)) != ""
-			if !present && vault != nil {
-				if value, err := vault.ReadSecret(config.Go2RTCSourceKey(configured.ID, role)); err == nil {
-					present = strings.TrimSpace(value) != ""
+			value := config.Go2RTCRoleSource(configured, role)
+			if strings.TrimSpace(value) == "" && vault != nil {
+				if stored, err := vault.ReadSecret(config.Go2RTCSourceKey(configured.ID, role)); err == nil {
+					value = stored
 				}
+			}
+			present := strings.TrimSpace(value) != ""
+			if role == "main" {
+				mainSource = value
 			}
 			entry[field+"_configured"] = present
 			entry[field] = ""
@@ -253,6 +257,9 @@ func injectGo2RTCConfig(rawCfg map[string]interface{}, cfg *config.Config, vault
 				entry[field] = "••••••••"
 			}
 		}
+		withSource := configured
+		withSource.Source = mainSource
+		entry["source_type"] = config.Go2RTCStreamSourceType(withSource)
 		entry["detection"] = go2RTCDetectionProjection(config.NormalizeGo2RTCStreamDetection(configured.Detection))
 		streams = append(streams, entry)
 	}
@@ -2788,19 +2795,6 @@ func (t *go2RTCSourceVaultTransaction) Rollback() error {
 	}
 	t.committed = true
 	return firstErr
-}
-
-func validateGo2RTCSourceURL(raw string) error {
-	u, err := neturl.Parse(strings.TrimSpace(raw))
-	if err != nil || u == nil || strings.TrimSpace(u.Host) == "" {
-		return fmt.Errorf("a complete network URL is required")
-	}
-	switch strings.ToLower(u.Scheme) {
-	case "rtsp", "rtsps", "rtspx", "http", "https", "onvif":
-		return nil
-	default:
-		return fmt.Errorf("unsupported scheme %q", u.Scheme)
-	}
 }
 
 func cleanupRemovedGo2RTCStreamSecrets(oldStreams, newStreams []config.Go2RTCStreamConfig, vault *security.Vault, logger *slog.Logger) {

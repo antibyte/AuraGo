@@ -466,6 +466,18 @@ func TestGo2RTCConfigProjectionAndVaultExtractionNeverExposeSource(t *testing.T)
 	if !strings.Contains(string(projected), `"source_configured":true`) || !strings.Contains(string(projected), `"source":"••••••••"`) {
 		t.Fatalf("config projection omitted masked source state: %s", projected)
 	}
+	if !strings.Contains(string(projected), `"source_type":"rtsp"`) {
+		t.Fatalf("config projection omitted the source type: %s", projected)
+	}
+
+	// The type also resolves when only the Vault holds the source.
+	cfg.Go2RTC.Streams[0].Source = ""
+	raw = map[string]interface{}{"go2rtc": map[string]interface{}{}}
+	injectGo2RTCConfig(raw, cfg, vault)
+	projected, _ = json.Marshal(raw)
+	if !strings.Contains(string(projected), `"source_type":"rtsp"`) || strings.Contains(string(projected), "camera-password") {
+		t.Fatalf("vault-only projection wrong: %s", projected)
+	}
 }
 
 func TestGo2RTCVaultMaskPreservationAndRemovedStreamCleanup(t *testing.T) {

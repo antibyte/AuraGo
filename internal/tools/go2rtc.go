@@ -543,9 +543,7 @@ func (m *Go2RTCManager) ListStreams(ctx context.Context) ([]Go2RTCStreamStatus, 
 			continue
 		}
 		entry := Go2RTCStreamStatus{ID: stream.ID, Name: stream.Name, Codecs: []string{}}
-		if stream.Tuya != nil {
-			entry.SourceType = "tuya"
-		}
+		entry.SourceType = config.Go2RTCStreamSourceType(stream)
 		m.applyMediaStatus(&entry, stream)
 		aliases := m.mediaAliases(stream.ID)
 		seen := map[string]bool{}
@@ -985,20 +983,10 @@ func ValidateGo2RTCStreamID(streamID string) error {
 	return nil
 }
 
-// ValidateGo2RTCSource enforces the v1 network-only source contract.
+// ValidateGo2RTCSource enforces the camera source catalog (config.ValidateGo2RTCSourceURL).
 func ValidateGo2RTCSource(raw string) error {
-	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || parsed == nil || strings.TrimSpace(parsed.Host) == "" {
-		return fmt.Errorf("a complete network URL is required")
-	}
-	switch strings.ToLower(parsed.Scheme) {
-	case "tuya":
-		return config.ValidateGo2RTCTuyaSource(strings.TrimSpace(raw))
-	case "rtsp", "rtsps", "rtspx", "http", "https", "onvif":
-		return nil
-	default:
-		return fmt.Errorf("source scheme %q is not allowed", parsed.Scheme)
-	}
+	_, err := config.ValidateGo2RTCSourceURL(raw)
+	return err
 }
 
 // ValidateGo2RTCInternalURL prevents the managed client/proxy from becoming an SSRF primitive.

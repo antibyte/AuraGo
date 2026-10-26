@@ -28,6 +28,7 @@ func registerGo2RTCRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/go2rtc/diagnostics/", admin(handleGo2RTCDiagnostics(s)))
 	mux.HandleFunc("/api/go2rtc/hardware/test", admin(handleGo2RTCHardwareTest(s)))
 	mux.HandleFunc("/api/go2rtc/status", admin(handleGo2RTCStatus(s)))
+	mux.HandleFunc("/api/go2rtc/source-types", admin(handleGo2RTCSourceTypes()))
 	mux.HandleFunc("/api/go2rtc/test", admin(handleGo2RTCTest(s)))
 	mux.HandleFunc("/api/go2rtc/start", admin(handleGo2RTCStart(s)))
 	mux.HandleFunc("/api/go2rtc/stop", admin(handleGo2RTCStop(s)))
