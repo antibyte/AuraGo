@@ -39,7 +39,8 @@ var (
 var homepageAnnotationSlot = make(chan struct{}, 1)
 
 // HomepageAnnotationCaptureOptions describes one snapshot. AllowedOrigin is set
-// only for the local preview, whose loopback address the SSRF guard blocks.
+// only for the local preview: the capture proxy dials that one host:port
+// directly, although the SSRF rules would refuse its loopback address.
 type HomepageAnnotationCaptureOptions struct {
 	URL           *url.URL
 	AllowedOrigin *url.URL
@@ -107,7 +108,27 @@ func CaptureHomepageAnnotationSnapshot(ctx context.Context, opts HomepageAnnotat
 	ctx, cancel := context.WithTimeout(ctx, homepageAnnotationTimeout)
 	defer cancel()
 
-	l := launcher.New().Context(ctx).Headless(true).Set("force-webrtc-ip-handling-policy", "disable_non_proxied_udp")
+	// Every byte the browser sends goes through this proxy, which refuses any
+	// destination but the allowed origin and public addresses. A CDP request
+	// hook sees only the page target; service workers, WebSockets and
+	// prerenders would slip past it.
+	proxy, err := security.StartCaptureProxy(opts.AllowedOrigin, security.CaptureProxyLimits{
+		MaxConcurrent: 16, MaxConnections: 600, MaxBytes: 64 << 20,
+	})
+	if err != nil {
+		return nil, homepageAnnotationError(ctx, ErrHomepageAnnotationBrowser, err)
+	}
+	defer func() { _ = proxy.Close() }()
+
+	l := launcher.New().Context(ctx).Headless(true).
+		// Chrome 156 ignores the force- spelling for STUN (verified: a page
+		// still sent UDP binding requests to loopback), so set both.
+		Set("force-webrtc-ip-handling-policy", "disable_non_proxied_udp").
+		Set("webrtc-ip-handling-policy", "disable_non_proxied_udp").
+		Proxy(proxy.Addr()).
+		// Chrome bypasses a proxy for loopback unless told otherwise; the
+		// preview itself lives on loopback.
+		Set("proxy-bypass-list", "<-loopback>")
 	if opts.BrowserBin != "" {
 		l = l.Bin(opts.BrowserBin)
 	}
@@ -131,19 +152,16 @@ func CaptureHomepageAnnotationSnapshot(ctx context.Context, opts HomepageAnnotat
 	if err != nil {
 		return nil, homepageAnnotationError(ctx, ErrHomepageAnnotationBrowser, err)
 	}
+	// Mobile stays off: with it Chrome lays a page without a width=device-width
+	// meta out at 980 px, while the studio preview is a plain iframe of exactly
+	// opts.Width and the screenshot is clipped to that width.
 	if err := page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{
-		Width: opts.Width, Height: opts.Height, DeviceScaleFactor: 1, Mobile: opts.Width <= 480,
+		Width: opts.Width, Height: opts.Height, DeviceScaleFactor: 1, Mobile: false,
 	}); err != nil {
 		return nil, homepageAnnotationError(ctx, ErrHomepageAnnotationBrowser, err)
 	}
-	if err := security.GuardRodPageWithOrigin(page, opts.AllowedOrigin); err != nil {
-		return nil, homepageAnnotationError(ctx, ErrHomepageAnnotationBrowser, err)
-	}
 	if err := page.Navigate(opts.URL.String()); err != nil {
-		if strings.Contains(err.Error(), "BLOCKED_BY_CLIENT") {
-			return nil, fmt.Errorf("%w: %v", ErrHomepageAnnotationBlocked, err)
-		}
-		return nil, homepageAnnotationError(ctx, ErrHomepageAnnotationNavigation, err)
+		return nil, homepageAnnotationNavigateError(ctx, err)
 	}
 	if err := page.WaitLoad(); err != nil {
 		return nil, homepageAnnotationError(ctx, ErrHomepageAnnotationNavigation, err)
@@ -194,6 +212,20 @@ func evaluateHomepageAnnotationMap(page *rod.Page) (homepageAnnotationMap, error
 		return mapped, fmt.Errorf("decode element map: %w", err)
 	}
 	return mapped, nil
+}
+
+// homepageAnnotationNavigateError maps a failed navigation. The capture proxy
+// answers a refused destination with a failed tunnel (HTTPS) or a 403 page
+// (plain HTTP); a slow or silent server surfaces as a Chrome timeout.
+func homepageAnnotationNavigateError(ctx context.Context, err error) error {
+	text := err.Error()
+	switch {
+	case strings.Contains(text, "TIMED_OUT"):
+		return fmt.Errorf("%w: %v", ErrHomepageAnnotationTimeout, err)
+	case strings.Contains(text, "BLOCKED_BY_CLIENT"), strings.Contains(text, "TUNNEL_CONNECTION_FAILED"):
+		return fmt.Errorf("%w: %v", ErrHomepageAnnotationBlocked, err)
+	}
+	return homepageAnnotationError(ctx, ErrHomepageAnnotationNavigation, err)
 }
 
 func homepageAnnotationError(ctx context.Context, kind, err error) error {
