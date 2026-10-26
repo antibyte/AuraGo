@@ -1,6 +1,9 @@
 package ui
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // homepageStudioSmokeSites is the deterministic site list of the smoke page.
 const homepageStudioSmokeSites = `[
@@ -56,6 +59,10 @@ const homepageStudioSmokeMount = `async sites => {
 		if (url.indexOf('/api/desktop/integrations/homepage/history') === 0) {
 			return { status: 'success', entries: [], total: 0 };
 		}
+		if (url.indexOf('/api/desktop/integrations/homepage/annotation-snapshot') === 0) {
+			window.__hpSnapshotCalls = (window.__hpSnapshotCalls || 0) + 1;
+			return window.__hpSnapshot;
+		}
 		return {};
 	};
 	const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
@@ -89,6 +96,7 @@ func TestHomepageStudioWorkbenchBrowser(t *testing.T) {
 		"js/desktop/apps/homepage-studio-preview.js",
 		"js/desktop/apps/homepage-studio-sites.js",
 		"js/desktop/apps/homepage-studio-history.js",
+		"js/desktop/apps/homepage-studio-annotate.js",
 		"js/desktop/apps/homepage-studio.js",
 	} {
 		if err := page.AddScriptTag("", readDesktopAssetText(t, asset)); err != nil {
@@ -278,6 +286,123 @@ func TestHomepageStudioWorkbenchBrowser(t *testing.T) {
 		}
 		if detail := result.Get("detail").Int(); detail != 1 {
 			t.Fatalf("only the selected site may be fetched, got %d: %v", detail, result.JSON("", ""))
+		}
+	})
+
+	t.Run("annotate marks an element and an area and sends them with the next message", func(t *testing.T) {
+		prepared := page.MustEval(`() => {
+			const surface = document.createElement('canvas');
+			surface.width = 1280;
+			surface.height = 1600;
+			const g = surface.getContext('2d');
+			g.fillStyle = '#ffffff';
+			g.fillRect(0, 0, 1280, 1600);
+			g.fillStyle = '#0a7';
+			g.fillRect(100, 200, 200, 50);
+			window.__hpSnapshot = {
+				url: 'http://127.0.0.1:8080/', path: '/', viewport: { width: 1280, height: 800 },
+				page: { width: 1280, height: 1600, truncated: false },
+				image: surface.toDataURL('image/jpeg', 0.8),
+				elements: [
+					{ i: 0, selector: 'body', tag: 'body', box: [0, 0, 1280, 1600], parent: -1 },
+					{ i: 1, selector: '#cta', tag: 'a', text: 'Get started', attrs: { href: '/signup' }, box: [100, 200, 200, 50], parent: 0, tab: true },
+					{ i: 2, selector: 'section.features', tag: 'section', text: 'Features', box: [0, 400, 1280, 600], parent: 0, tab: true },
+					{ i: 3, selector: 'section.features > div:nth-of-type(1)', tag: 'div', text: 'One', box: [40, 450, 300, 200], parent: 2 }
+				]
+			};
+			const button = document.querySelector('#hp-root-test-window [data-hp-annotate]');
+			if (!button) return 'missing button';
+			if (button.disabled) return 'button disabled';
+			button.click();
+			return 'clicked';
+		}`).Str()
+		if prepared != "clicked" {
+			t.Fatalf("annotate button: %s", prepared)
+		}
+		page.MustWait(`() => { const layer = document.querySelector('#hp-root-test-window .vd-hp-annotate-layer'); return !!layer && !layer.hidden; }`)
+
+		result := page.MustEval(`async () => {
+			const root = document.getElementById('hp-root-test-window');
+			const layer = root.querySelector('.vd-hp-annotate-layer');
+			const point = (x, y) => {
+				const rect = layer.getBoundingClientRect();
+				const scale = rect.width / layer.offsetWidth;
+				return { clientX: rect.left + (x - layer.scrollLeft) * scale, clientY: rect.top + (y - layer.scrollTop) * scale };
+			};
+			const pointer = (type, x, y) => layer.dispatchEvent(new PointerEvent(type, Object.assign({ bubbles: true, button: 0, pointerId: 7, isPrimary: true }, point(x, y))));
+			const popover = root.querySelector('.vd-hp-mark-popover');
+			const input = popover.querySelector('textarea');
+
+			pointer('pointerdown', 150, 220);
+			pointer('pointerup', 150, 220);
+			if (popover.hidden) return { error: 'element popover did not open' };
+			input.value = 'Make it green';
+			input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+			layer.scrollTop = 0;
+			pointer('pointerdown', 30, 430);
+			pointer('pointermove', 360, 680);
+			pointer('pointerup', 360, 680);
+			if (popover.hidden) return { error: 'area popover did not open' };
+			input.value = 'Add an image';
+			popover.querySelector('.vd-hp-annotate-action.is-primary').click();
+
+			layer.focus();
+			layer.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+			const hoverShown = !root.querySelector('.vd-hp-annotate-hover').hidden;
+			layer.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+			const keyboardPopover = !popover.hidden;
+			input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+			const chips = root.querySelectorAll('.vd-hp-mark-chip').length;
+
+			let body = null;
+			const realFetch = window.fetch;
+			window.fetch = async (url, options) => {
+				if (String(url).indexOf('/api/desktop/chat/stream') === 0) {
+					body = JSON.parse(options.body);
+					return new Response('data: {"event":"done"}\n\n', { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+				}
+				return realFetch(url, options);
+			};
+			root.querySelector('#hp-input-test-window').value = '';
+			root.querySelector('#hp-form-test-window').dispatchEvent(new Event('submit', { cancelable: true }));
+			await new Promise(resolve => setTimeout(resolve, 300));
+			window.fetch = realFetch;
+
+			return {
+				hoverShown, keyboardPopover, chips,
+				trayHidden: root.querySelector('.vd-hp-mark-tray').hidden,
+				layerHidden: layer.hidden,
+				thumb: !!root.querySelector('.vd-chat-bubble.user .vd-hp-mark-thumb'),
+				message: body ? body.message : '',
+				items: body && body.context.annotations ? body.context.annotations.items : [],
+				hasImage: !!(body && body.context.image_base64 && body.context.image_base64.length > 100)
+			};
+		}`)
+		if result.Has("error") {
+			t.Fatal(result.Get("error").Str())
+		}
+		if !result.Get("hoverShown").Bool() || !result.Get("keyboardPopover").Bool() {
+			t.Fatalf("keyboard path failed: %s", result.JSON("", ""))
+		}
+		if result.Get("chips").Int() != 2 {
+			t.Fatalf("chips = %d, want 2", result.Get("chips").Int())
+		}
+		if !result.Get("trayHidden").Bool() || !result.Get("layerHidden").Bool() || !result.Get("thumb").Bool() || !result.Get("hasImage").Bool() {
+			t.Fatalf("send did not hand off the marks: %s", result.JSON("", ""))
+		}
+		message := result.Get("message").Str()
+		for _, want := range []string{"homepage_studio.annotate_default_message", "1. Make it green", "2. Add an image"} {
+			if !strings.Contains(message, want) {
+				t.Fatalf("message %q misses %q", message, want)
+			}
+		}
+		items := result.Get("items").Arr()
+		if len(items) != 2 || items[0].Get("selector").Str() != "#cta" || items[1].Get("kind").Str() != "area" {
+			t.Fatalf("annotations = %s", result.Get("items").JSON("", ""))
+		}
+		if overlaps := items[1].Get("elements").Arr(); len(overlaps) != 1 || overlaps[0].Get("selector").Str() != "section.features > div:nth-of-type(1)" {
+			t.Fatalf("area overlaps = %s", items[1].Get("elements").JSON("", ""))
 		}
 	})
 }
