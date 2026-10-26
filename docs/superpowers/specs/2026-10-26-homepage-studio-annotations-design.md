@@ -75,11 +75,14 @@ Request:
 { "site_id": 12, "target": "local", "path": "/about", "viewport": { "width": 1280, "height": 800 } }
 ```
 
-- The client never sends a URL. The server resolves the origin from `target` (and `site_id` where a target needs it):
+- The server decides what is captured:
   - `local`: `http://127.0.0.1:<cfg.Homepage.WebServerPort>` (the same backend the Tailscale homepage proxy uses,
-    `internal/tsnetnode/tsnetnode.go:2500`), only when the web container or Python server is running.
-  - `vercel`, `netlify`, `here_now`, `remote`: the deployment URL from the same server-side sources the studio status
-    and deployment-target APIs expose to the client.
+    `internal/tsnetnode/tsnetnode.go:2500`), only when the web container or Python server is running. Any client URL
+    is ignored.
+  - `vercel`, `netlify`, `here_now`, `remote`: the client sends `preview_url`, the URL its iframe shows. The server
+    accepts it only when it matches (normalized) a URL registered for a managed site (deploy targets, deployments,
+    last deploy URL, remote observations) and captures its own registered copy. Anything else answers
+    `preview_unavailable`. This keeps the snapshot identical to the previewed deployment.
 - `path` must start with `/`, must not start with `//`, must not contain a scheme, backslash or control characters, at
   most 512 bytes. Query and fragment are allowed.
 - `viewport.width` ∈ {1280, 768, 390}; `viewport.height` 400–1600.
@@ -110,10 +113,14 @@ A new file in `internal/tools` (homepage area), modeled on `internal/scraper/scr
 
 - go-rod launcher (headless, same launcher flags), one capture at a time (slot channel), 30 s overall timeout, browser
   killed and cleaned up after each capture.
-- Network policy via request hijacking: the local preview origin (`127.0.0.1:<WebServerPort>`) is fetched by a client
-  pinned to exactly that address; every other request, including all requests of deployed targets, goes through the
-  SSRF-protected client, so private, loopback and link-local destinations stay blocked. Redirects are handed back to
-  the browser and pass the same check again. A deployment on a private network answers `capture_blocked`.
+- Network policy through a per-capture filtering forward proxy (`internal/security/capture_proxy.go`): Chrome runs
+  with `--proxy-server` and `--proxy-bypass-list=<-loopback>`, so every connection (documents, subresources, service
+  workers, WebSockets, prerenders, workers) passes the proxy. The local preview origin (`127.0.0.1:<WebServerPort>`)
+  is dialed as given; every other destination is resolved and checked with the SSRF rules and the validated IP is
+  dialed, so private, loopback and link-local destinations stay blocked. The proxy caps concurrent connections (16),
+  connections per capture (600) and relayed bytes (64 MiB). WebRTC is limited to proxied traffic. A CDP Fetch hijack
+  is not enough: it never sees service-worker, WebSocket or prerender requests. A deployment on a private network
+  answers `capture_blocked`.
 - Navigate to origin + path at the requested viewport, device scale factor 1, wait for load plus network idle (bounded),
   then evaluate the element-map script and take a full-page screenshot as JPEG (quality ~80). Page height is capped at
   12 000 CSS px; a longer page sets `page.truncated`.
@@ -223,6 +230,15 @@ details; the sections above already reflect them:
 4. A missing image is noted in the agent prompt instead of a separate studio notice.
 5. `homepage-studio.js` is at its 1100-line budget, so the site-pill rendering moves into `homepage-studio-sites.js`
    and all annotate code lives in the new module.
+
+The backend review of the first implementation batch changed three more:
+
+6. Network control moved from the CDP Fetch hijack to a filtering forward proxy (a real-Chrome probe showed service
+   workers, WebSockets and prerenders bypassing the hijack); the shared `GuardRodPageSSRF` stays untouched.
+7. Deployed targets are captured from the client's `preview_url` once it matches a registered URL, so the snapshot
+   shows the same deployment as the iframe.
+8. The capture emulates a desktop-style viewport at every width (`Mobile: false`), matching the plain iframe; a
+   vision-fallback description of the marks image enters the prompt only as untrusted external data.
 
 ## Out of scope
 
