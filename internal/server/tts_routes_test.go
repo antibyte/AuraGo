@@ -46,7 +46,8 @@ func TestMainTTSRouteServesSupertonicAudioContentTypes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			signed := security.SignCastMediaURL("http://example.com"+tt.path, security.CastMediaTicketLifetime)
+			req := httptest.NewRequest(http.MethodGet, signed, nil)
 			rec := httptest.NewRecorder()
 			mux.ServeHTTP(rec, req)
 
@@ -79,7 +80,8 @@ func TestMainCastMediaRouteServesVideoContentType(t *testing.T) {
 		t.Fatalf("registerUIRoutes: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/cast-media/clip.mp4", nil)
+	signed := security.SignCastMediaURL("http://example.com/cast-media/clip.mp4", security.CastMediaTicketLifetime)
+	req := httptest.NewRequest(http.MethodGet, signed, nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -135,7 +137,7 @@ func TestDedicatedChromecastMediaServerServesTTSAndCastMedia(t *testing.T) {
 	client := &http.Client{Timeout: 500 * time.Millisecond}
 	assertDedicatedMedia := func(path, wantContentType string) {
 		t.Helper()
-		url := security.SignCastMediaURL("http://127.0.0.1:" + mediaServer.Addr[strings.LastIndex(mediaServer.Addr, ":")+1:] + path)
+		url := security.SignCastMediaURL("http://127.0.0.1:"+mediaServer.Addr[strings.LastIndex(mediaServer.Addr, ":")+1:]+path, security.CastMediaTicketLifetime)
 		var resp *http.Response
 		var err error
 		for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); {

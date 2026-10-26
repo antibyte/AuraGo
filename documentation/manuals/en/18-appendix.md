@@ -251,6 +251,8 @@ proxmox:
 chromecast:
   enabled: true
   tts_port: 8090              # TTS streaming port
+  advertise_host: ""          # empty picks a LAN address; 127.0.0.1 is never published
+  read_only: false            # blocks playback changes; discover and status stay available
   media_host_allowlist: []     # Optional private media hosts/IPs/CIDRs allowed for casting
 
 # Text-to-Speech
@@ -918,6 +920,8 @@ home_assistant:
 chromecast:
   enabled: true
   tts_port: 8090
+  advertise_host: ""
+  read_only: false
   media_host_allowlist: []
 
 tts:

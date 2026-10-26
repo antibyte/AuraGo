@@ -1221,7 +1221,8 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	// Serve TTS audio files from data/tts/ on the main server
 	ttsDir := tools.TTSAudioDir(s.Cfg.Directories.DataDir)
 	os.MkdirAll(ttsDir, 0755)
-	mainTTSHandler := castMediaAssetHandler(ttsDir, "/tts/", false)
+	mainCastTicket := s.Cfg == nil || !s.Cfg.Auth.Enabled
+	mainTTSHandler := castMediaAssetHandler(ttsDir, "/tts/", mainCastTicket)
 	mux.HandleFunc("/tts/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", chatVoiceAudioMIMEType(r.URL.Path))
 		mainTTSHandler.ServeHTTP(w, r)
@@ -1230,7 +1231,10 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	// Serve local media files prepared for Chromecast playback.
 	castMediaDir := tools.CastMediaDir(s.Cfg.Directories.DataDir)
 	os.MkdirAll(castMediaDir, 0755)
-	mainCastMediaHandler := castMediaAssetHandler(castMediaDir, "/cast-media/", false)
+	if err := tools.PruneExpiredCastMedia(castMediaDir, time.Now()); err != nil && s.Logger != nil {
+		s.Logger.Warn("prune expired cast media", "error", err)
+	}
+	mainCastMediaHandler := castMediaAssetHandler(castMediaDir, "/cast-media/", mainCastTicket)
 	mux.HandleFunc("/cast-media/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", castMediaContentType(r.URL.Path))
 		mainCastMediaHandler.ServeHTTP(w, r)

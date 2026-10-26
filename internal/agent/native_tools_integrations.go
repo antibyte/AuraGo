@@ -486,24 +486,28 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.ChromecastEnabled {
 		tools = append(tools, tool("chromecast",
-			"Control Chromecast and Google Cast devices on the local network. "+
-				"Discover devices, play media URLs, speak text via TTS, stop playback, adjust volume, and query status. "+
-				"Specify a device by name (resolved via inventory) or directly by IP address and port.",
+			"Control Chromecast devices that are in the inventory or the latest discovery. "+
+				"discover and status stay available in read-only mode. "+
+				"play, speak, stop, volume, pause, resume, seek, and mute change the device. "+
+				"Groups are labeled and not controllable. YouTube pages are unsupported. stream_type live is only a hint.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Chromecast operation to perform",
-					"enum":        []string{"discover", "play", "speak", "stop", "volume", "status"},
+					"enum":        []string{"discover", "play", "speak", "stop", "volume", "pause", "resume", "seek", "mute", "status"},
 				},
-				"device_name":  prop("string", "Friendly device name (resolved via device registry, e.g. 'Living Room'). Use when device_addr is unknown."),
-				"device_addr":  prop("string", "IP address of the Chromecast device (e.g. '192.168.1.42')."),
-				"device_port":  map[string]interface{}{"type": "integer", "description": "Port of the Chromecast device (default: 8009)."},
-				"url":          prop("string", "Direct HTTP(S) media URL to cast (for 'play'). Public URLs are SSRF-protected; private LAN media requires chromecast.media_host_allowlist unless it is AuraGo-generated /tts/ or /cast-media/."),
+				"device_name":  prop("string", "Friendly device name from inventory or the latest discovery, e.g. 'Living Room'."),
+				"device_addr":  prop("string", "Private IP of an inventory device or a device from the latest discovery. An arbitrary address is rejected."),
+				"device_port":  map[string]interface{}{"type": "integer", "description": "Port of the Chromecast device (default: 8009). Only 8009 or the stored inventory port is accepted."},
+				"url":          prop("string", "Direct HTTP(S) media file URL for play. YouTube pages are unsupported. Private LAN media requires chromecast.media_host_allowlist unless it is AuraGo-generated /tts/ or /cast-media/."),
 				"local_path":   prop("string", "Local workspace audio/video/image file to cast (for 'play'). AuraGo publishes it on /cast-media/ automatically, e.g. 'workdir/song.mp3' or 'workdir/clip.mp4'."),
 				"content_type": prop("string", "MIME type of the media (for 'play', e.g. 'audio/mpeg', 'video/mp4', 'video/webm'). Direct video URLs should specify this. Default: 'audio/mpeg'."),
-				"text":         prop("string", "Text to speak aloud via TTS (for 'speak' operation)."),
+				"stream_type":  prop("string", "Optional hint for play. 'live' is echoed back and does not change the receiver load."),
+				"text":         prop("string", "Text to speak aloud via TTS (for 'speak'). Longer than 500 runes is truncated."),
 				"language":     prop("string", "Language code for TTS speech (for 'speak', e.g. 'de', 'en'). Defaults to system language."),
-				"volume":       map[string]interface{}{"type": "number", "description": "Volume level 0.0–1.0 (for 'volume' operation)."},
+				"volume":       map[string]interface{}{"type": "number", "description": "Volume level 0.0–1.0 for volume. Required for that operation. 0 is a real level, not an omitted value."},
+				"position":     map[string]interface{}{"type": "number", "description": "Seek target in seconds for seek. Required for that operation."},
+				"muted":        map[string]interface{}{"type": "boolean", "description": "Mute flag for mute. Required for that operation."},
 			}, "operation"),
 		))
 	}

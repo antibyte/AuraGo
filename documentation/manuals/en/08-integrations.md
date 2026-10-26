@@ -687,6 +687,8 @@ Use `operation: "play"` for direct HTTP(S) audio or video URLs. Direct videos sh
 chromecast:
     enabled: true
     tts_port: 8090
+    advertise_host: ""
+    read_only: false
     media_host_allowlist:
         - "192.168.1.10"
         - "media.lan:8096"

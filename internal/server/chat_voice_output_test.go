@@ -7,12 +7,15 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/i18n"
+	"aurago/internal/security"
 	"aurago/internal/speechlab"
 	"aurago/internal/tools"
 	"aurago/ui"
@@ -82,11 +85,50 @@ func TestMaybeEmitChatVoiceOutputFallbackEmitsAudio(t *testing.T) {
 	if err := json.Unmarshal([]byte(base.events[0].message), &payload); err != nil {
 		t.Fatalf("decode audio payload: %v", err)
 	}
-	if payload.Path != "/tts/fallback.wav" || payload.MimeType != "audio/wav" || !payload.Autoplay {
+	if !strings.HasPrefix(payload.Path, "/tts/fallback.wav?") || payload.MimeType != "audio/wav" || !payload.Autoplay {
 		t.Fatalf("unexpected audio payload: %+v", payload)
+	}
+	parsed, err := url.Parse("http://aurago.local" + payload.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !security.ValidCastMediaTicket(parsed, time.Now()) {
+		t.Fatalf("ticket rejected: %s", payload.Path)
 	}
 	if !broker.hasTTSAudio() {
 		t.Fatal("expected broker to record emitted TTS audio")
+	}
+}
+
+func TestMaybeEmitChatVoiceOutputFallbackKeepsUnsignedPathWhenLoginIsEnabled(t *testing.T) {
+	original := chatVoiceOutputSynthesize
+	t.Cleanup(func() { chatVoiceOutputSynthesize = original })
+	chatVoiceOutputSynthesize = func(tools.TTSConfig, string) (string, error) {
+		return "fallback.wav", nil
+	}
+
+	base := &chatVoiceOutputCaptureBroker{}
+	broker := newChatVoiceOutputTrackingBroker(base)
+	cfg := &config.Config{}
+	cfg.Auth.Enabled = true
+	cfg.Directories.DataDir = t.TempDir()
+	cfg.TTS.Provider = "supertonic"
+	cfg.TTS.Supertonic.URL = "http://127.0.0.1:7788"
+	runCfg := agent.RunConfig{VoiceOutputActive: true, MessageSource: "web_chat"}
+
+	maybeEmitChatVoiceOutputFallback(context.Background(), cfg, nil, runCfg, broker, "Hallo")
+
+	if len(base.events) != 1 || base.events[0].event != "audio" {
+		t.Fatalf("expected one audio event, got %+v", base.events)
+	}
+	var payload struct {
+		Path string `json:"path"`
+	}
+	if err := json.Unmarshal([]byte(base.events[0].message), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Path != "/tts/fallback.wav" {
+		t.Fatalf("path = %q", payload.Path)
 	}
 }
 

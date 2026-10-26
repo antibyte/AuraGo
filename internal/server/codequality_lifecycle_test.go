@@ -65,7 +65,7 @@ func TestCastAssetsRequireTicketAndSupportRangeAndHead(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "one.wav"), []byte("0123456789"), 0600)
 	handler := castMediaAssetHandler(dir, "/tts/", true)
-	signed := security.SignCastMediaURL("http://example.com/tts/one.wav")
+	signed := security.SignCastMediaURL("http://example.com/tts/one.wav", security.CastMediaTicketLifetime)
 	for _, test := range []struct {
 		method, url, rangeHeader string
 		status                   int

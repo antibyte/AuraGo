@@ -146,6 +146,8 @@ chromecast:
     enabled: false
     tts_port: 8090
     media_host_allowlist: []
+    advertise_host: ""             # empty: pick a LAN address; 127.0.0.1 is never published
+    read_only: false               # true blocks play, speak, stop, volume, pause, seek, and mute
 meshcore:
     enabled: false
     transport: usb                    # usb (Linux/Windows/macOS), ble (native Linux BlueZ)

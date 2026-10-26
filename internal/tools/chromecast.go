@@ -22,6 +22,8 @@ type ChromecastConfig struct {
 	ServerHost         string          // Hostname/IP of the AuraGo server (for media playback URLs)
 	ServerPort         int             // Port of the AuraGo media server
 	MediaHostAllowlist []string        // Explicit private media hosts/IPs/CIDRs allowed for Chromecast playback
+	KnownDevices       []ChromecastDevice
+	ReadOnly           bool
 }
 
 type ChromecastDevice struct {
@@ -30,6 +32,10 @@ type ChromecastDevice struct {
 	Addr         string `json:"addr"`
 	Port         int    `json:"port"`
 	UUID         string `json:"uuid,omitempty"`
+	Model        string `json:"model,omitempty"`
+	Capabilities string `json:"capabilities,omitempty"`
+	Group        bool   `json:"group,omitempty"`
+	AudioOnly    bool   `json:"audio_only,omitempty"`
 }
 
 var chromecastMDNSQuery = mdnsQueryServices
@@ -52,20 +58,23 @@ func DiscoverChromecastDevices(logger *slog.Logger) ([]ChromecastDevice, error) 
 		if strings.Contains(e.Name, "_googlezone") {
 			continue
 		}
-		ip := ""
-		if len(e.IPs) > 0 {
-			ip = e.IPs[0]
-		}
 		port := e.Port
 		if port == 0 {
 			port = 8009
 		}
+		model := chromecastTXTValue(e.TXTs, "md")
+		capabilities := chromecastTXTValue(e.TXTs, "ca")
+		group, audioOnly := chromecastDeviceLabels(model, capabilities)
 		devices = append(devices, ChromecastDevice{
 			Name:         strings.TrimSuffix(e.Name, "._googlecast._tcp.local."),
 			FriendlyName: chromecastTXTValue(e.TXTs, "fn"),
-			Addr:         ip,
+			Addr:         chromecastPreferredIPv4(e.IPs),
 			Port:         port,
-			UUID:         strings.Join(e.TXTs, ", "),
+			UUID:         chromecastTXTValue(e.TXTs, "id"),
+			Model:        model,
+			Capabilities: capabilities,
+			Group:        group,
+			AudioOnly:    audioOnly,
 		})
 	}
 
@@ -74,7 +83,7 @@ func DiscoverChromecastDevices(logger *slog.Logger) ([]ChromecastDevice, error) 
 
 // ChromecastDiscover scans the local network for Chromecast devices via mDNS and returns JSON.
 func ChromecastDiscover(logger *slog.Logger) string {
-	devices, err := DiscoverChromecastDevices(logger)
+	devices, err := CachedDiscoverChromecastDevices(logger)
 	if err != nil {
 		return jsonErr(err.Error())
 	}
@@ -130,12 +139,19 @@ func FindChromecastDeviceByName(devices []ChromecastDevice, requested string) (C
 }
 
 // ChromecastPlay plays a media URL on a Chromecast device.
-func ChromecastPlay(deviceAddr string, devicePort int, mediaURL, contentType string, ccCfg ChromecastConfig, logger *slog.Logger) string {
+// streamType "live" is reported to the caller only. The receiver load stays buffered.
+func ChromecastPlay(deviceAddr string, devicePort int, mediaURL, contentType, streamType string, ccCfg ChromecastConfig, logger *slog.Logger) string {
 	if deviceAddr == "" {
 		return jsonErr("'device_addr' is required (use 'discover' first)")
 	}
 	if mediaURL == "" {
 		return jsonErr("'url' is required")
+	}
+	if refused := chromecastMutationRefused(deviceAddr, ccCfg); refused != "" {
+		return refused
+	}
+	if err := AuthorizeChromecastDial(deviceAddr, devicePort, ccCfg.KnownDevices); err != nil {
+		return jsonErr("Failed to connect: " + err.Error())
 	}
 	if contentType == "" {
 		contentType = "audio/mpeg"
@@ -144,33 +160,32 @@ func ChromecastPlay(deviceAddr string, devicePort int, mediaURL, contentType str
 		return jsonErr("Media URL is not reachable: " + err.Error())
 	}
 
-	app, err := connectChromecast(deviceAddr, devicePort)
+	app, err := connectChromecastController(deviceAddr, devicePort, ccCfg)
 	if err != nil {
 		return jsonErr("Failed to connect: " + err.Error())
 	}
 	defer app.Close(false)
 
-	// forceDetach=true: return immediately after sending the LOAD command.
-	// Without this, Load() calls MediaWait() which blocks until playback ends —
-	// an infinite wait for live radio streams.
-	if err := app.Load(mediaURL, 0, contentType, false, false, true); err != nil {
+	// forceDetach=true: return after LOAD is sent, then confirm the receiver state.
+	// Load() without forceDetach waits until playback ends, including live streams.
+	if err := chromecastLoadAndConfirm(app, ccCfg.Context, mediaURL, contentType); err != nil {
 		return jsonErr("Failed to load media: " + err.Error())
 	}
 
-	return jsonOK(map[string]interface{}{
-		"message": fmt.Sprintf("Playing %s on %s", mediaURL, deviceAddr),
-	})
+	result := map[string]interface{}{
+		"message": fmt.Sprintf("Playing %s on %s", chromecastPublicMediaURL(mediaURL), deviceAddr),
+	}
+	if strings.EqualFold(strings.TrimSpace(streamType), "live") {
+		result["stream_type"] = "live"
+	}
+	return jsonOK(result)
 }
 
 func validateChromecastMediaURL(mediaURL string, ccCfg ChromecastConfig) error {
 	if err := validateChromecastMediaURLPolicy(mediaURL, ccCfg); err != nil {
 		return err
 	}
-	req, err := newToolHTTPRequest(ccCfg.Context, http.MethodHead, mediaURL, nil)
-	if err != nil {
-		return err
-	}
-	resp, err := chromecastHTTPClientFactory(ccCfg).Do(req)
+	resp, err := chromecastProbeMedia(ccCfg, mediaURL)
 	if err != nil {
 		return err
 	}
@@ -180,9 +195,31 @@ func validateChromecastMediaURL(mediaURL string, ccCfg ChromecastConfig) error {
 	}
 	contentType := strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Type")))
 	if contentType != "" && strings.Contains(contentType, "text/html") {
-		return fmt.Errorf("unexpected content type %q", contentType)
+		return fmt.Errorf("YouTube pages are unsupported and a direct media file is required")
 	}
 	return nil
+}
+
+func chromecastProbeMedia(ccCfg ChromecastConfig, mediaURL string) (*http.Response, error) {
+	client := chromecastHTTPClientFactory(ccCfg)
+	req, err := newToolHTTPRequest(ccCfg.Context, http.MethodHead, mediaURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusMethodNotAllowed && resp.StatusCode != http.StatusNotImplemented {
+		return resp, nil
+	}
+	resp.Body.Close()
+	req, err = newToolHTTPRequest(ccCfg.Context, http.MethodGet, mediaURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Range", "bytes=0-0")
+	return client.Do(req)
 }
 
 func validateChromecastMediaURLPolicy(rawURL string, ccCfg ChromecastConfig) error {
@@ -501,98 +538,161 @@ func ChromecastSpeak(deviceAddr string, devicePort int, text string, ttsCfg TTSC
 	if text == "" {
 		return jsonErr("'text' is required")
 	}
+	if refused := chromecastMutationRefused(deviceAddr, ccCfg); refused != "" {
+		return refused
+	}
+	if err := AuthorizeChromecastDial(deviceAddr, devicePort, ccCfg.KnownDevices); err != nil {
+		return jsonErr("Failed to connect to Chromecast: " + err.Error())
+	}
+	host, err := chromecastReachableMediaHost(ccCfg.ServerHost)
+	if err != nil {
+		return jsonErr(err.Error())
+	}
 
-	// Generate TTS audio
-	filename, err := TTSSynthesize(ttsCfg, text)
+	filename, err := synthesizeChromecastSpeech(ttsCfg, text)
 	if err != nil {
 		return jsonErr("TTS failed: " + err.Error())
 	}
-
-	// Build URL the Chromecast can reach
-	host := ccCfg.ServerHost
-	if chromecastNeedsLANReachableHost(host) {
-		// Try to find the local LAN IP
-		if ip := getOutboundIP(); ip != "" {
-			host = ip
-		} else {
-			host = "127.0.0.1"
-		}
+	contentType := "audio/mpeg"
+	if mime, ok := CastMediaMIMEType(filename); ok {
+		contentType = mime
 	}
-	audioURL := security.SignCastMediaURL(fmt.Sprintf("http://%s:%d/tts/%s", host, ccCfg.ServerPort, url.PathEscape(filename)))
+	audioURL := security.SignCastMediaURL(fmt.Sprintf("http://%s:%d/tts/%s", host, ccCfg.ServerPort, url.PathEscape(filename)), security.CastTTSTicketLifetime)
+	if audioURL == "" {
+		return jsonErr("create cast media ticket")
+	}
 
-	// Cast to device
-	app, err := connectChromecast(deviceAddr, devicePort)
+	app, err := connectChromecastController(deviceAddr, devicePort, ccCfg)
 	if err != nil {
 		return jsonErr("Failed to connect to Chromecast: " + err.Error())
 	}
 	defer app.Close(false)
 
-	// forceDetach=true: return immediately after the LOAD command is sent.
-	// Without this, Load() blocks until the audio finishes playing on the device.
-	if err := app.Load(audioURL, 0, "audio/mpeg", false, false, true); err != nil {
+	if err := chromecastLoadAndConfirm(app, ccCfg.Context, audioURL, contentType); err != nil {
 		return jsonErr("Failed to cast audio: " + err.Error())
 	}
 
 	return jsonOK(map[string]interface{}{
 		"message": fmt.Sprintf("Speaking on %s: %s", deviceAddr, text),
-		"audio":   audioURL,
+		"audio":   chromecastPublicMediaURL(audioURL),
 	})
 }
 
 // ChromecastStop stops playback on a Chromecast device.
-func ChromecastStop(deviceAddr string, devicePort int, logger *slog.Logger) string {
+func ChromecastStop(deviceAddr string, devicePort int, ccCfg ChromecastConfig, logger *slog.Logger) string {
 	if deviceAddr == "" {
 		return jsonErr("'device_addr' is required")
 	}
-
-	app, err := connectChromecast(deviceAddr, devicePort)
+	if refused := chromecastMutationRefused(deviceAddr, ccCfg); refused != "" {
+		return refused
+	}
+	app, err := connectChromecastController(deviceAddr, devicePort, ccCfg)
 	if err != nil {
 		return jsonErr("Failed to connect: " + err.Error())
 	}
 	defer app.Close(false)
-
 	if err := app.StopMedia(); err != nil {
 		return jsonErr("Failed to stop: " + err.Error())
 	}
-
 	return jsonOK(map[string]interface{}{"message": "Playback stopped"})
 }
 
-// ChromecastVolume sets volume on a Chromecast device (0.0–1.0).
-func ChromecastVolume(deviceAddr string, devicePort int, level float64, logger *slog.Logger) string {
+// ChromecastPause pauses playback on a Chromecast device.
+func ChromecastPause(deviceAddr string, devicePort int, ccCfg ChromecastConfig, logger *slog.Logger) string {
+	return chromecastSimpleMutation(deviceAddr, devicePort, ccCfg, "Failed to pause", "Playback paused", func(app castController) error {
+		return app.Pause()
+	})
+}
+
+// ChromecastResume resumes playback on a Chromecast device.
+func ChromecastResume(deviceAddr string, devicePort int, ccCfg ChromecastConfig, logger *slog.Logger) string {
+	return chromecastSimpleMutation(deviceAddr, devicePort, ccCfg, "Failed to resume", "Playback resumed", func(app castController) error {
+		return app.Unpause()
+	})
+}
+
+// ChromecastSeek seeks to position seconds. positionSet is required; 0 is the start.
+func ChromecastSeek(deviceAddr string, devicePort int, position float64, positionSet bool, ccCfg ChromecastConfig, logger *slog.Logger) string {
+	if !positionSet {
+		return jsonErr("'position' is required")
+	}
+	if position < 0 {
+		return jsonErr("'position' must be zero or greater")
+	}
+	return chromecastSimpleMutation(deviceAddr, devicePort, ccCfg, "Failed to seek", "Playback seeked", func(app castController) error {
+		return app.SeekToTime(float32(position))
+	})
+}
+
+// ChromecastMute sets the mute flag. mutedSet is required so an omitted flag is not silence.
+func ChromecastMute(deviceAddr string, devicePort int, muted, mutedSet bool, ccCfg ChromecastConfig, logger *slog.Logger) string {
+	if !mutedSet {
+		return jsonErr("'muted' is required")
+	}
+	message := "Muted"
+	if !muted {
+		message = "Unmuted"
+	}
+	return chromecastSimpleMutation(deviceAddr, devicePort, ccCfg, "Failed to set mute", message, func(app castController) error {
+		return app.SetMuted(muted)
+	})
+}
+
+func chromecastSimpleMutation(deviceAddr string, devicePort int, ccCfg ChromecastConfig, failPrefix, okMessage string, fn func(castController) error) string {
 	if deviceAddr == "" {
 		return jsonErr("'device_addr' is required")
 	}
-
-	app, err := connectChromecast(deviceAddr, devicePort)
+	if refused := chromecastMutationRefused(deviceAddr, ccCfg); refused != "" {
+		return refused
+	}
+	app, err := connectChromecastController(deviceAddr, devicePort, ccCfg)
 	if err != nil {
 		return jsonErr("Failed to connect: " + err.Error())
 	}
 	defer app.Close(false)
+	if err := fn(app); err != nil {
+		return jsonErr(failPrefix + ": " + err.Error())
+	}
+	return jsonOK(map[string]interface{}{"message": okMessage})
+}
 
+// ChromecastVolume sets volume on a Chromecast device (0.0–1.0).
+// levelSet distinguishes an explicit 0 from a missing volume.
+func ChromecastVolume(deviceAddr string, devicePort int, level float64, levelSet bool, ccCfg ChromecastConfig, logger *slog.Logger) string {
+	if deviceAddr == "" {
+		return jsonErr("'device_addr' is required")
+	}
+	if !levelSet {
+		return jsonErr("'volume' is required")
+	}
+	if refused := chromecastMutationRefused(deviceAddr, ccCfg); refused != "" {
+		return refused
+	}
+	app, err := connectChromecastController(deviceAddr, devicePort, ccCfg)
+	if err != nil {
+		return jsonErr("Failed to connect: " + err.Error())
+	}
+	defer app.Close(false)
 	if err := app.SetVolume(float32(level)); err != nil {
 		return jsonErr("Failed to set volume: " + err.Error())
 	}
-
 	return jsonOK(map[string]interface{}{
 		"message": fmt.Sprintf("Volume set to %.0f%%", level*100),
 	})
 }
 
 // ChromecastStatus returns the current status of a Chromecast device.
-func ChromecastStatus(deviceAddr string, devicePort int, logger *slog.Logger) string {
+func ChromecastStatus(deviceAddr string, devicePort int, ccCfg ChromecastConfig, logger *slog.Logger) string {
 	if deviceAddr == "" {
 		return jsonErr("'device_addr' is required")
 	}
-
-	app, err := connectChromecast(deviceAddr, devicePort)
+	app, err := connectChromecastController(deviceAddr, devicePort, ccCfg)
 	if err != nil {
 		return jsonErr("Failed to connect: " + err.Error())
 	}
 	defer app.Close(false)
 
-	castApp, _, castVol := app.Status()
-
+	castApp, media, castVol := app.Status()
 	info := map[string]interface{}{
 		"device": deviceAddr,
 	}
@@ -604,33 +704,31 @@ func ChromecastStatus(deviceAddr string, devicePort int, logger *slog.Logger) st
 		info["app"] = castApp.DisplayName
 		info["app_id"] = castApp.AppId
 	}
-
+	if media != nil {
+		info["player_state"] = media.PlayerState
+		info["position"] = media.CurrentTime
+		info["duration"] = media.Media.Duration
+		if title := strings.TrimSpace(media.Media.Metadata.Title); title != "" {
+			info["title"] = title
+		}
+	}
 	return jsonOK(info)
 }
 
 // connectChromecast creates a connection to a Chromecast device.
-func connectChromecast(addr string, port int) (*application.Application, error) {
+func connectChromecast(addr string, port int, ccCfg ChromecastConfig) (castController, error) {
 	if port == 0 {
-		port = 8009 // Default Chromecast port
+		port = 8009
 	}
-
-	app := application.NewApplication()
+	if err := AuthorizeChromecastDial(addr, port, ccCfg.KnownDevices); err != nil {
+		return nil, err
+	}
+	app := application.NewApplication(application.WithCacheDisabled(true), application.WithConnectionRetries(1))
 	if err := app.Start(addr, port); err != nil {
+		_ = app.Close(false)
 		return nil, fmt.Errorf("failed to start connection: %w", err)
 	}
-
 	return app, nil
-}
-
-// getOutboundIP returns the preferred outbound LAN IP of this machine.
-func getOutboundIP() string {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		return ""
-	}
-	defer conn.Close()
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	return localAddr.IP.String()
 }
 
 func chromecastTXTValue(txts []string, key string) string {

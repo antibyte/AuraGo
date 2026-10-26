@@ -977,6 +977,8 @@ web_config:
 
 chromecast:
     enabled: false
+    advertise_host: ""
+    read_only: false
 
 auth:
     enabled: false

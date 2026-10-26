@@ -543,16 +543,19 @@ Cast media to Chromecast devices.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `operation` | enum | discover, play, speak, stop, volume, status |
-| `device_name` | string | Friendly device name (resolved via device registry) |
-| `device_addr` | string | IP address of the Chromecast device |
-| `device_port` | integer | Port of the Chromecast device (default: 8009) |
-| `url` | string | Direct HTTP(S) media URL to cast (for 'play'); private LAN URLs require `chromecast.media_host_allowlist` unless AuraGo generated the `/tts/` or `/cast-media/` URL |
-| `local_path` | string | Local workspace audio/video/image file to cast (for 'play'); published under `/cast-media/` |
-| `content_type` | string | MIME type of the media (for 'play', e.g. 'audio/mpeg', 'video/mp4', 'video/webm'); default is `audio/mpeg` |
-| `text` | string | Text to speak aloud via TTS (for 'speak' operation) |
-| `language` | string | Language code for TTS speech (for 'speak') |
-| `volume` | number | Volume level 0.0–1.0 (for 'volume' operation) |
+| `operation` | enum | discover, play, speak, stop, volume, pause, resume, seek, mute, status |
+| `device_name` | string | Friendly device name from the inventory or the latest discovery |
+| `device_addr` | string | Private IP of a known device. An unknown or public address is rejected |
+| `device_port` | integer | Port of the Chromecast device (default: 8009). Only 8009 or the stored port is accepted |
+| `url` | string | Direct HTTP(S) media file for `play`. YouTube pages are rejected. Private LAN URLs require `chromecast.media_host_allowlist` unless AuraGo generated the `/tts/` or `/cast-media/` URL |
+| `local_path` | string | Local workspace audio/video/image file for `play`, published under `/cast-media/` for 3 hours. Files over 1 GiB are rejected |
+| `content_type` | string | MIME type of the media (for `play`, e.g. `audio/mpeg`, `video/mp4`, `video/webm`); default is `audio/mpeg` |
+| `stream_type` | string | Optional `live` hint for `play`. It is echoed and does not change the receiver load |
+| `text` | string | Text to speak via TTS (for `speak`). Longer than 500 runes is truncated |
+| `language` | string | Language code for TTS speech (for `speak`) |
+| `volume` | number | Volume level 0.0–1.0 for `volume`. Required. 0 is a real level |
+| `position` | number | Seek target in seconds for `seek` |
+| `muted` | boolean | Mute flag for `mute`. Required |
 
 ### `jellyfin`
 Control Jellyfin media server.
