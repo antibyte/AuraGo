@@ -2302,6 +2302,63 @@ function testNetworkCamerasDetectionRuntime() {
   assert.doesNotMatch(read('ui/js/desktop/apps/network-cameras-detection-views.js'), /RUNTIME_MB/, 'no single runtime size');
 }
 
+function go2rtcSourceFormContext() {
+  const context = { window: {}, TextEncoder, btoa };
+  vm.createContext(context);
+  vm.runInContext(read('ui/js/go2rtc-source-form.js'), context);
+  return context.window.AuraGoSourceForm;
+}
+
+function testGo2RTCSourceFormBuildsURLs() {
+  const form = go2rtcSourceFormContext();
+  const host = { name: 'host', kind: 'host', required: true, placement: 'host' };
+  const types = [
+    { id: 'rtsp', label: 'RTSP', schemes: ['rtsp', 'rtsps', 'rtspx'], mode: 'form', fields: [
+      { name: 'scheme', kind: 'select', required: true, default: 'rtsp', options: ['rtsp', 'rtsps', 'rtspx'], placement: 'scheme' }, host,
+      { name: 'port', kind: 'port', placement: 'port' }, { name: 'username', kind: 'text', placement: 'user' },
+      { name: 'password', kind: 'secret', placement: 'password' }, { name: 'path', kind: 'text', placement: 'path' }] },
+    { id: 'tapo', label: 'Tapo', schemes: ['tapo'], mode: 'form', password_only_userinfo: true, fields: [host,
+      { name: 'password', kind: 'secret', required: true, placement: 'password' }, { name: 'username', kind: 'text', placement: 'user' },
+      { name: 'subtype', kind: 'select', options: ['', '0', '1'], placement: 'query:subtype' }] },
+    { id: 'kasa', label: 'Kasa', schemes: ['kasa'], mode: 'form', fields: [host, { name: 'port', kind: 'port', default: '19443', placement: 'port' },
+      { name: 'username', kind: 'text', required: true, placement: 'user' }, { name: 'password', kind: 'secret', required: true, placement: 'password', encode: 'base64' },
+      { name: 'path', kind: 'text', default: '/https/stream/mixed', required: true, placement: 'path' }] },
+    { id: 'ring', label: 'Ring', schemes: ['ring'], mode: 'form', fields: [
+      { name: 'device_id', kind: 'text', required: true, placement: 'query:device_id' }, { name: 'refresh_token', kind: 'secret', required: true, placement: 'query:refresh_token' }] },
+    { id: 'homekit', label: 'HomeKit', schemes: ['homekit'], mode: 'url', template: 'homekit://…' },
+    { id: 'tuya', label: 'Tuya', schemes: ['tuya'], mode: 'dialog' },
+  ];
+  const build = (type, values) => JSON.parse(JSON.stringify(form.buildURL(types, { type, values, error: '' })));
+
+  assert.deepEqual(build('rtsp', { host: '192.168.1.20', port: '554', username: 'ad min', password: 'p@ss:w/rd#1', path: 'stream1' }),
+    { url: 'rtsp://ad%20min:p%40ss%3Aw%2Frd%231@192.168.1.20:554/stream1' });
+  assert.deepEqual(build('rtsp', { scheme: 'rtsps', host: 'fe80::1' }), { url: 'rtsps://[fe80::1]' });
+  assert.deepEqual(build('rtsp', { host: 'cam.local:554' }), { error: 'invalid_host', field: 'host' }, 'a port typed into the host field is rejected');
+  assert.deepEqual(build('rtsp', { host: 'cam.local', port: '70000' }), { error: 'invalid_port', field: 'port' });
+  assert.deepEqual(build('rtsp', { host: 'cam.local', password: 'x' }), { error: 'required', field: 'username' }, 'a password needs a user unless the type allows password-only');
+  assert.deepEqual(build('rtsp', { host: 'cam.local', path: '/a#raw=-i' }), { error: 'invalid_path', field: 'path' });
+  assert.deepEqual(build('tapo', { host: '192.168.1.123', password: 'cloud pw', subtype: '1' }), { url: 'tapo://cloud%20pw@192.168.1.123?subtype=1' });
+  assert.deepEqual(build('tapo', { host: '192.168.1.123', password: 'HASH', username: 'admin' }), { url: 'tapo://admin:HASH@192.168.1.123' });
+  assert.deepEqual(build('kasa', { host: '192.168.1.123', username: 'alex@gmail.com', password: 'secret1' }),
+    { url: 'kasa://alex%40gmail.com:c2VjcmV0MQ%3D%3D@192.168.1.123:19443/https/stream/mixed' });
+  assert.deepEqual(build('ring', { device_id: '12', refresh_token: 'a&b' }), { url: 'ring:?device_id=12&refresh_token=a%26b' });
+  assert.deepEqual(build('ring', { device_id: '12' }), { error: 'required', field: 'refresh_token' });
+  assert.deepEqual(build('homekit', { url: '  homekit://x?y=1 ' }), { url: 'homekit://x?y=1' });
+  assert.deepEqual(build('homekit', {}), { error: 'required', field: 'url' });
+  assert.deepEqual(build('tuya', {}), { error: 'choose_type' });
+  assert.deepEqual(build('', {}), { error: 'choose_type' });
+
+  const t = key => key;
+  const html = form.markup(types, { type: 'rtsp', values: { password: 'should-not-render' }, error: '' }, { t, emptyLabel: 'keep' });
+  assert.doesNotMatch(html, /should-not-render/, 'secrets are never written back into markup');
+  assert.doesNotMatch(html, /value="tuya"/, 'Tuya is not offered by the guided form');
+  assert.match(html, /<option value="">keep<\/option>/);
+  assert.match(html, /data-source-field="host"/);
+  assert.match(html, /type="password"[^>]*data-source-field="password"|data-source-field="password"[^>]*type="password"/);
+  const escaped = form.markup([{ id: 'x', label: '<b>', schemes: ['x'], mode: 'url', template: '"><script>' }], { type: 'x', values: {}, error: '' }, { t });
+  assert.doesNotMatch(escaped, /<b>|"><script>/, 'catalog strings are escaped');
+}
+
 function testNetworkCamerasDetectionAppContracts() {
   const app = read('ui/js/desktop/apps/network-cameras.js');
   const loader = read('ui/js/desktop/core/module-loader.js');
@@ -5203,6 +5260,7 @@ const tests = [
   ['Network Cameras person detection views', testNetworkCamerasDetectionViews],
   ['Network Cameras person detection zone editor', testNetworkCamerasDetectionZones],
   ['Network Cameras person detection mode', testNetworkCamerasDetectionRuntime],
+  ['go2rtc source form builds URLs', testGo2RTCSourceFormBuildsURLs],
   ['Network Cameras person detection app wiring', testNetworkCamerasDetectionAppContracts],
   ['Manus catalog failures stay isolated and actions require ready status', testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus],
   ['Speech Lab recorder resumes audio and routes fallbacks safely', testSpeechLabRecorderLifecycleAndFallbacks],

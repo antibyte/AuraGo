@@ -1,0 +1,4 @@
+.go2rtc-source-form { display: grid; gap: 10px; }
+.go2rtc-source-hint, .go2rtc-source-docs { margin: 0; font-size: 0.85em; opacity: 0.85; }
+.go2rtc-source-error { margin: 0; color: var(--ds-color-danger-fg, var(--danger, #c62828)); font-size: 0.9em; }
+.go2rtc-source-badge { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-size: 0.75em; border: 1px solid currentColor; opacity: 0.8; }

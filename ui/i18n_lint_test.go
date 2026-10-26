@@ -1059,6 +1059,7 @@ type localI18nHelper struct {
 // scripts under cfg/ are scanned by the same check (path form: cfg/ruview.js).
 var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/go2rtc-tuya.js":                          {name: "translate", prefix: "common.go2rtc_tuya."},
+	"js/go2rtc-source-form.js":                   {name: "t", prefix: "common.go2rtc_source."},
 	"js/desktop/apps/network-cameras.js":         {name: "text", prefix: "desktop.network_cameras.", skipContext: true},
 	"js/desktop/apps/network-cameras-media.js":   {name: "text", prefix: "desktop.network_cameras.", skipContext: true},
 	"js/desktop/shared/qr-dialog.js":             {name: "tr", prefix: "desktop.qr_"},
